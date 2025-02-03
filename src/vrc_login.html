@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRChat Login</title>
+</head>
+<body>
+    <h2>VRChat Age Verification</h2>
+    <p>Click below to log into VRChat. Once logged in, enter your VRChat username.</p>
+    
+    <a href="https://vrchat.com/home/login" target="_blank">
+        <button>Sign in with VRChat</button>
+    </a>
+
+    <h3>Step 2: Enter Your VRChat Username</h3>
+    <form id="vrc-form">
+        <label for="vrc-username">VRChat Username:</label>
+        <input type="text" id="vrc-username" name="vrc-username" required>
+        <input type="hidden" id="discord-id" name="discord-id"> <!-- Discord ID passed here -->
+        <button type="submit">Submit</button>
+    </form>
+
+    <script>
+        // Get Discord ID from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const discordID = urlParams.get("discordID");
+        document.getElementById("discord-id").value = discordID;
+
+        document.getElementById("vrc-form").addEventListener("submit", async function(event) {
+            event.preventDefault();
+            
+            const vrcUsername = document.getElementById("vrc-username").value;
+            if (!vrcUsername) {
+                alert("Please enter your VRChat username.");
+                return;
+            }
+
+            const response = await fetch("http://localhost:5532/vrc_login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ discordID, vrcUsername })
+            });
+
+            const data = await response.json();
+            if (data.error) {
+                alert("Error: " + data.error);
+            } else {
+                alert("✅ VRChat Username linked! You can now run /vrcverify.");
+                window.location.href = "https://discord.com"; // Redirect back to Discord
+            }
+        });
+    </script>
+</body>
+</html>
