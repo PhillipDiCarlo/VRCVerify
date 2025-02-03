@@ -1,24 +1,40 @@
 import os
-import logging
-import discord
-import pika
 import json
+import asyncio
+import logging
 import random
 import string
-import asyncio
+
+import discord
 from discord import app_commands
 from discord.ext import commands
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from contextlib import contextmanager
-from dotenv import load_dotenv
-from datetime import datetime, timezone
 
+import pika
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from dotenv import load_dotenv
+
+# -------------------------------------------------------------------
 # Load environment variables
+# -------------------------------------------------------------------
 load_dotenv()
 
-# Set up logging
+DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
+RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT"))
+RABBITMQ_USERNAME = os.getenv("RABBITMQ_USERNAME")
+RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD")
+RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST")
+RABBITMQ_QUEUE_NAME = os.getenv("RABBITMQ_QUEUE_NAME")
+
+# -------------------------------------------------------------------
+# Logging setup
+# -------------------------------------------------------------------
 log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
 logging.basicConfig(
     level=getattr(logging, log_level),
@@ -27,31 +43,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Retrieve environment variables
-DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
-DATABASE_URL = os.getenv('DATABASE_URL')
-
-# RabbitMQ Configuration
-RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
-RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT"))
-RABBITMQ_USERNAME = os.getenv("RABBITMQ_USERNAME")
-RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD")
-RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST")
-RABBITMQ_QUEUE_NAME = os.getenv("RABBITMQ_QUEUE_NAME")
-
-# RabbitMQ setup
-credentials = pika.PlainCredentials(RABBITMQ_USERNAME, RABBITMQ_PASSWORD)
-parameters = pika.ConnectionParameters(
-    host=RABBITMQ_HOST,
-    port=RABBITMQ_PORT,
-    virtual_host=RABBITMQ_VHOST,
-    credentials=credentials
-)
-
-# Database setup
+# -------------------------------------------------------------------
+# SQLAlchemy setup
+# -------------------------------------------------------------------
 engine = create_engine(DATABASE_URL)
-Base = declarative_base()
 Session = sessionmaker(bind=engine)
+Base = declarative_base()
 
 @contextmanager
 def session_scope():
@@ -66,7 +63,9 @@ def session_scope():
     finally:
         session.close()
 
-# Define database models
+# -------------------------------------------------------------------
+# Models
+# -------------------------------------------------------------------
 class Server(Base):
     __tablename__ = 'servers'
     id = Column(Integer, primary_key=True)
@@ -81,14 +80,27 @@ class Server(Base):
 class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
-    discord_id = Column(String(30), nullable=False)
+    discord_id = Column(String(30), unique=True, nullable=False)
     verification_status = Column(Boolean, default=False)
-    vrc_user_id = Column(String(50), unique=True, nullable=True)
+    vrc_user_id = Column(String(50), nullable=True)
     last_verification_attempt = Column(DateTime(timezone=True))
 
 Base.metadata.create_all(engine)
 
-# Initialize the Discord bot
+# -------------------------------------------------------------------
+# RabbitMQ Setup
+# -------------------------------------------------------------------
+credentials = pika.PlainCredentials(RABBITMQ_USERNAME, RABBITMQ_PASSWORD)
+parameters = pika.ConnectionParameters(
+    host=RABBITMQ_HOST,
+    port=RABBITMQ_PORT,
+    virtual_host=RABBITMQ_VHOST,
+    credentials=credentials
+)
+
+# -------------------------------------------------------------------
+# Discord Bot
+# -------------------------------------------------------------------
 intents = discord.Intents.default()
 intents.members = True
 
@@ -102,97 +114,121 @@ class VRCVerifyBot(discord.Client):
 
 bot = VRCVerifyBot()
 
-def generate_verification_code():
-    """Generates a unique verification code."""
+# -------------------------------------------------------------------
+# Helpers
+# -------------------------------------------------------------------
+def generate_verification_code() -> str:
     return "VRC-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
-def send_verification_request(discord_id, vrc_user_id, verification_code):
-    """Sends a verification request to RabbitMQ."""
-    connection = pika.BlockingConnection(parameters)
-    channel = connection.channel()
-    channel.queue_declare(queue=RABBITMQ_QUEUE_NAME, durable=True)
-
-    message = {
-        "discordID": discord_id,
-        "vrcUserID": vrc_user_id,
-        "verificationCode": verification_code
-    }
-
-    channel.basic_publish(
-        exchange="",
-        routing_key=RABBITMQ_QUEUE_NAME,
-        body=json.dumps(message)
-    )
-
-    connection.close()
-    print(f"📤 Sent verification request for {discord_id}")
-
-async def assign_role(discord_id, is_18_plus):
-    """Handles role assignment asynchronously and looks up role in the database every time."""
-    with session_scope() as session:
-        for guild in bot.guilds:
-            member = guild.get_member(int(discord_id))
-            server = session.query(Server).filter_by(server_id=str(guild.id)).first()
-            
-            if server:
-                role = discord.utils.get(guild.roles, id=int(server.role_id))  # Look up role each time
-            
-                if is_18_plus and member is not None and role is not None:
-                    try:
-                        await member.add_roles(role)
-                        print(f"✅ Assigned role to {discord_id}")
-                        await member.send(f"✅ You have been verified and assigned the role **{role.name}**!", delete_after=10)
-                    except discord.Forbidden:
-                        print(f"⚠️ Bot does not have permission to assign role {role.name} to {discord_id}")
-                    except Exception as e:
-                        print(f"⚠️ Unexpected error assigning role: {e}")
-
-                elif not is_18_plus and member is not None:
-                    try:
-                        await member.send("❌ You are not verified as 18+ on VRChat.", delete_after=10)
-                    except Exception:
-                        print(f"⚠️ Could not send message to {discord_id}")
-
-async def listen_for_verification_results():
-    """Listens for verification results from RabbitMQ asynchronously."""
-    try:
+async def send_verification_request_no_code(discord_id: str, vrc_user_id: str, guild_id: str):
+    """Publishes a re-check (no code) request to RabbitMQ."""
+    def _publish():
         connection = pika.BlockingConnection(parameters)
         channel = connection.channel()
-        channel.queue_declare(queue="vrc_verification_results", durable=True)
+        channel.queue_declare(queue=RABBITMQ_QUEUE_NAME, durable=True)
 
-        message_queue = asyncio.Queue()
+        message = {
+            "discordID": discord_id,
+            "vrcUserID": vrc_user_id,
+            "guildID": guild_id,
+            "verificationCode": None  # indicates a re-check, no code needed
+        }
+        channel.basic_publish(
+            exchange="",
+            routing_key=RABBITMQ_QUEUE_NAME,
+            body=json.dumps(message)
+        )
+        connection.close()
+        logger.info(f"📤 Sent re-check request for user {discord_id} in guild {guild_id}")
 
-        def callback(ch, method, properties, body):
-            """Handles incoming RabbitMQ messages."""
-            asyncio.create_task(message_queue.put(json.loads(body)))
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, _publish)
 
-        channel.basic_consume(queue="vrc_verification_results", on_message_callback=callback, auto_ack=True)
+async def send_verification_request_with_code(discord_id: str, vrc_user_id: str, code: str, guild_id: str):
+    """Publishes a normal verification request (with a new code) to RabbitMQ."""
+    def _publish():
+        connection = pika.BlockingConnection(parameters)
+        channel = connection.channel()
+        channel.queue_declare(queue=RABBITMQ_QUEUE_NAME, durable=True)
 
-        print("✅ Listening for verification results from RabbitMQ...")
+        message = {
+            "discordID": discord_id,
+            "vrcUserID": vrc_user_id,
+            "guildID": guild_id,
+            "verificationCode": code
+        }
+        channel.basic_publish(
+            exchange="",
+            routing_key=RABBITMQ_QUEUE_NAME,
+            body=json.dumps(message)
+        )
+        connection.close()
+        logger.info(f"📤 Sent verification request w/ code for user {discord_id} in guild {guild_id}")
 
-        while True:
-            result = await message_queue.get()
-            discord_id = result["discordID"]
-            vrc_user_id = result["vrcUserID"]
-            is_18_plus = result["is_18_plus"]
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, _publish)
 
-            print(f"🔎 Received verification result for {discord_id}: {is_18_plus}")
+async def assign_role(discord_id: str, is_18_plus: bool, guild_id: str):
+    """Assign or skip role in exactly one guild. Also DM the user about success/failure."""
+    # 1) Open a session to fetch the server config
+    with session_scope() as session:
+        server = session.query(Server).filter_by(server_id=guild_id).first()
+        # Copy what we need to local variables
+        if server:
+            role_id = server.role_id
+        else:
+            role_id = None
 
-            with session_scope() as session:
-                user = session.query(User).filter_by(discord_id=discord_id).first()
-                if user:
-                    user.vrc_user_id = vrc_user_id
-                    user.verification_status = is_18_plus
+    # 2) Now the session is closed. We have only local vars: role_id, etc.
+    #    Use them to do Discord actions.
 
-            bot.loop.create_task(assign_role(discord_id, is_18_plus))
+    guild = bot.get_guild(int(guild_id))
+    if not guild:
+        print(f"⚠️ Could not find guild {guild_id}. Stopping role assignment.")
+        return
 
-    except pika.exceptions.AMQPConnectionError:
-        print("❌ RabbitMQ connection failed! Retrying in 5 seconds...")
-        await asyncio.sleep(5)
-        bot.loop.create_task(listen_for_verification_results())
+    member = guild.get_member(int(discord_id))
+    if not member:
+        print(f"⚠️ User {discord_id} not found in guild {guild_id}.")
+        return
 
+    if not role_id:
+        print(f"⚠️ No role_id configured for guild {guild_id}.")
+        return
+
+    role = discord.utils.get(guild.roles, id=int(role_id))
+    if not role:
+        print(f"⚠️ Role {role_id} not found in guild {guild_id}.")
+        return
+
+    # 3) Assign or skip
+    if is_18_plus:
+        try:
+            await member.add_roles(role)
+            print(f"✅ Assigned {role.name} to {member} in guild {guild.name}")
+            # DM user on success
+            try:
+                await member.send(
+                    f"✅ You have been verified as 18+ and assigned the role **{role.name}** in **{guild.name}**!"
+                )
+            except discord.Forbidden:
+                print("⚠️ Could not DM user; they likely have DMs turned off.")
+        except discord.Forbidden:
+            print(f"⚠️ Bot lacks permission to assign {role.name} in guild {guild_id} to user {discord_id}")
+        except Exception as e:
+            print(f"⚠️ Unexpected error assigning {role.name}: {e}")
+    else:
+        # User is not verified => DM them about failure
+        try:
+            await member.send("❌ You are not verified as 18+ on VRChat, so we cannot assign the verified role.")
+        except discord.Forbidden:
+            print("⚠️ Could not DM user; they likely have DMs turned off.")
+
+# -------------------------------------------------------------------
+# Modal UI
+# -------------------------------------------------------------------
 class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Username"):
-    vrc_username = discord.ui.TextInput(label="VRChat Username", placeholder="Enter your VRChat username")
+    vrc_username = discord.ui.TextInput(label="VRChat Username", placeholder="usr_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
 
     def __init__(self, interaction: discord.Interaction):
         super().__init__()
@@ -201,68 +237,175 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Username"):
     async def on_submit(self, interaction: discord.Interaction):
         vrc_username = self.vrc_username.value.strip()
         discord_id = str(interaction.user.id)
+        guild_id = str(interaction.guild_id)
 
+        # Generate a new verification code
         verification_code = generate_verification_code()
 
+        # Store in DB or update user info
         with session_scope() as session:
             user = session.query(User).filter_by(discord_id=discord_id).first()
             if not user:
-                user = User(discord_id=discord_id, vrc_user_id=vrc_username, verification_status=False)
+                user = User(
+                    discord_id=discord_id,
+                    vrc_user_id=vrc_username,
+                    verification_status=False
+                )
                 session.add(user)
             else:
                 user.vrc_user_id = vrc_username
 
-        view = VRCVerificationButton(vrc_username, verification_code)
+        # Build a "Verify" button for ephemeral
+        view = VRCVerificationButton(vrc_username, verification_code, guild_id)
         await interaction.response.send_message(
-            f"✅ **VRChat account linked!**\n"
-            f"**Add the following code to your VRChat bio:**\n"
+            f"✅ **VRChat username saved!**\n"
+            f"**1) Add the following code to your VRChat bio:**\n"
             f"```\n{verification_code}\n```\n"
-            f"Once added, press the 'Verify' button below.",
+            f"**2) Then press the 'Verify' button below.**",
             view=view,
             ephemeral=True
         )
 
 class VRCVerificationButton(discord.ui.View):
-    def __init__(self, vrc_username, verification_code):
+    """View that has a 'Verify' button. Clicking it triggers sending the code to the checker."""
+    def __init__(self, vrc_username: str, verification_code: str, guild_id: str):
         super().__init__()
         self.vrc_username = vrc_username
         self.verification_code = verification_code
+        self.guild_id = guild_id
 
     @discord.ui.button(label="Verify", style=discord.ButtonStyle.green)
     async def verify_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         discord_id = str(interaction.user.id)
-        send_verification_request(discord_id, self.vrc_username, self.verification_code)
-        await interaction.response.send_message("🔎 Verification request sent! Please wait...", ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
 
+        # Send the request w/ code to RabbitMQ
+        await send_verification_request_with_code(
+            discord_id, self.vrc_username, self.verification_code, self.guild_id
+        )
+
+        await interaction.followup.send("🔎 Verification request sent! Check your DMs soon.", ephemeral=True)
+
+# -------------------------------------------------------------------
+# Slash Command: /vrcverify
+# -------------------------------------------------------------------
 @bot.tree.command(name="vrcverify", description="Verify your VRChat 18+ status")
 async def vrcverify(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
-
+    guild_id = str(interaction.guild.id)
     user_id = str(interaction.user.id)
 
+    # Open a session scope and keep the logic inside
     with session_scope() as session:
+        # 1) Fetch the server config
+        server = session.query(Server).filter_by(server_id=guild_id).first()
+
+        # Check if there's a valid role
+        if not server or not server.role_id:
+            # If no role is assigned, respond ephemeral and return
+            await interaction.response.send_message(
+                "⚠️ This server hasn't set up a verification role yet. "
+                "Please contact an admin to configure the bot.",
+                ephemeral=True
+            )
+            return
+
+        # 2) Check the user in the DB
         user = session.query(User).filter_by(discord_id=user_id).first()
 
+        # CASE A: If user not in DB or missing vrc_user_id => show modal
         if not user or not user.vrc_user_id:
+            # Since we're *not* deferring, we can show a modal
             await interaction.response.send_modal(VRCUsernameModal(interaction))
             return
 
-        verification_code = generate_verification_code()
-        send_verification_request(user_id, user.vrc_user_id, verification_code)
+        # CASE B: If user is verified => assign role immediately
+        if user.verification_status:
+            await interaction.response.defer(ephemeral=True)
+            await assign_role(discord_id=user_id, is_18_plus=True, guild_id=guild_id)
+            await interaction.followup.send(
+                "✅ You’re already verified! Your role has been assigned (or re-assigned).",
+                ephemeral=True
+            )
+            return
 
-        await interaction.followup.send("🔎 Verification request sent. Please wait...", ephemeral=True)
+        # CASE C: User in DB but not verified => do a 'no code' request
+        await interaction.response.defer(ephemeral=True)
+        await send_verification_request_no_code(user_id, user.vrc_user_id, guild_id)
+        await interaction.followup.send(
+            "🔎 We’re verifying your VRChat 18+ status now. You’ll receive a DM with the result soon.",
+            ephemeral=True
+        )
 
+# -------------------------------------------------------------------
+# RabbitMQ Consumer (no while True)
+# -------------------------------------------------------------------
+async def consume_queue():
+    """
+    Sets up a background thread to call channel.start_consuming().
+    We use on_message_callback to handle incoming verification results.
+    """
+    loop = asyncio.get_running_loop()
+
+    def on_message(ch, method, properties, body):
+        """Process each incoming RabbitMQ message in the event loop."""
+        data = json.loads(body)
+        future = asyncio.run_coroutine_threadsafe(handle_verification_result(data), loop)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+
+    def do_blocking_consume():
+        """Runs in an executor thread so we don't block the main asyncio loop."""
+        try:
+            connection = pika.BlockingConnection(parameters)
+            channel = connection.channel()
+            channel.queue_declare(queue=RABBITMQ_QUEUE_NAME, durable=True)
+            channel.basic_consume(queue=RABBITMQ_QUEUE_NAME, on_message_callback=on_message, auto_ack=False)
+            logger.info("✅ Listening for verification results from RabbitMQ...")
+            channel.start_consuming()
+        except pika.exceptions.AMQPConnectionError as e:
+            logger.error(f"❌ RabbitMQ connection failed: {e}")
+
+    await loop.run_in_executor(None, do_blocking_consume)
+
+async def handle_verification_result(data: dict):
+    """
+    Called from the background consumer whenever we get a message from 
+    vrc_online_checker with is_18_plus, guild_id, etc.
+    """
+    logger.info(f"🔎 Received verification result: {data}")
+    discord_id = data.get("discordID")
+    guild_id = data.get("guildID")
+    is_18_plus = data.get("is_18_plus", False)
+
+    # Update the DB record
+    with session_scope() as session:
+        user = session.query(User).filter_by(discord_id=discord_id).first()
+        if user:
+            user.vrc_user_id = data.get("vrcUserID", user.vrc_user_id)
+            # If they've become verified, set verification_status to True
+            user.verification_status = bool(is_18_plus)
+
+    # Now assign or skip role in that specific guild
+    if discord_id and guild_id:
+        await assign_role(discord_id, bool(is_18_plus), guild_id)
+
+# -------------------------------------------------------------------
+# Bot Events
+# -------------------------------------------------------------------
 @bot.event
 async def on_ready():
-    await bot.wait_until_ready()
-    logger.info(f'Bot is ready. Logged in as {bot.user}')
-    
+    logger.info(f'Bot is ready. Logged in as {bot.user} (ID: {bot.user.id})')
+    # Start consuming in the background
+    bot.loop.create_task(consume_queue())
+
+    # Optionally attempt to sync commands on startup
     try:
         synced = await bot.tree.sync()
-        logger.debug(f"Synced {len(synced)} commands")
+        logger.info(f"Synced {len(synced)} commands")
     except Exception as e:
         logger.error(f"Failed to sync commands: {e}")
 
-    bot.loop.create_task(listen_for_verification_results())
-
-bot.run(DISCORD_BOT_TOKEN)
+# -------------------------------------------------------------------
+# Main
+# -------------------------------------------------------------------
+if __name__ == '__main__':
+    bot.run(DISCORD_BOT_TOKEN)
