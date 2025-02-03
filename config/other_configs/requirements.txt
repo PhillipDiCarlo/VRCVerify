@@ -5,3 +5,4 @@ beautifulsoup4
 python-dotenv
 sqlalchemy
 psycopg2-binary
+flask
