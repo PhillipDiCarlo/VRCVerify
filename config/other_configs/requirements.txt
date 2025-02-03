@@ -1,0 +1,7 @@
+discord.py
+asyncpg
+requests
+beautifulsoup4
+python-dotenv
+sqlalchemy
+psycopg2-binary
