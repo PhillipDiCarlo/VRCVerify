@@ -139,7 +139,7 @@ def process_verification_request(ch, method, properties, body):
     vrc_user_id = data.get("vrcUserID")
     guild_id = data.get("guildID")
     verification_code = data.get("verificationCode")
-    coud_found=False
+    code_found=False
 
     print(f"🔎 Received verification request: {data}")
 
