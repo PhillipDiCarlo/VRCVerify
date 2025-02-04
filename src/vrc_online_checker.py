@@ -1,7 +1,7 @@
 import os
 import json
-import psycopg2
 import pika
+import psycopg2
 from dotenv import load_dotenv
 
 # VRChat API imports
@@ -25,13 +25,11 @@ RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT"))
 RABBITMQ_USERNAME = os.getenv("RABBITMQ_USERNAME")
 RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD")
 RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST")
-RABBITMQ_QUEUE_NAME = os.getenv("RABBITMQ_QUEUE_NAME")
-
-# The queue to which we send the result back
-RESULT_QUEUE_NAME = "vrc_verification_results"
+RABBITMQ_QUEUE_NAME = os.getenv("RABBITMQ_QUEUE_NAME") # The queue from which we (vrc_online_checker) receive requests
+RESULT_QUEUE_NAME = os.getenv("RABBITMQ_RESULT_QUEUE") # The queue to which we send results back
 
 # -------------------------------------------------------------------
-# RabbitMQ setup
+# RabbitMQ Setup
 # -------------------------------------------------------------------
 credentials = pika.PlainCredentials(RABBITMQ_USERNAME, RABBITMQ_PASSWORD)
 parameters = pika.ConnectionParameters(
@@ -42,13 +40,7 @@ parameters = pika.ConnectionParameters(
 )
 
 # -------------------------------------------------------------------
-# Database connection
-# -------------------------------------------------------------------
-def get_db_connection():
-    return psycopg2.connect(DATABASE_URL)
-
-# -------------------------------------------------------------------
-# VRChat login
+# VRChat Login
 # -------------------------------------------------------------------
 def login_to_vrchat():
     """Logs into VRChat and handles possible 2FA prompts (SMS or Email)."""
@@ -56,12 +48,10 @@ def login_to_vrchat():
         username=VRCHAT_USERNAME,
         password=VRCHAT_PASSWORD
     )
-    # Optionally set user agent info
     api_client = vrchatapi.ApiClient(configuration)
     api_client.user_agent = "VRCVerifyBot/1.0 (contact@yourdomain.com)"
 
     auth_api = authentication_api.AuthenticationApi(api_client)
-
     try:
         current_user = auth_api.get_current_user()
         print(f"✅ Successfully logged in as {current_user.display_name}")
@@ -82,8 +72,7 @@ def login_to_vrchat():
             else:
                 print("❌ Unknown 2FA challenge. Exiting...")
                 return None
-
-            # Retry checking user
+            # Retry
             current_user = auth_api.get_current_user()
             print(f"✅ Successfully logged in as {current_user.display_name}")
             return api_client
@@ -91,165 +80,112 @@ def login_to_vrchat():
             print(f"❌ VRChat Login Failed: {e}")
             return None
 
-# Store the VRChat session globally
+# One-time login
 vrchat_api_client = login_to_vrchat()
+if not vrchat_api_client:
+    print("❌ VRChat login failed. Exiting soon...")
 
 # -------------------------------------------------------------------
 # Verification Logic
 # -------------------------------------------------------------------
-def verify_with_code(discord_id, vrc_user_id, verification_code, guild_id):
+def check_vrc_user_has_code_and_age(vrc_user_id: str, verification_code: str | None) -> bool:
     """
-    Full check for new users:
-      1) Make sure the code is in their VRChat bio.
-      2) Check if their 'age_verification_status' is "18+".
-    If both pass, set them verified in the DB.
+    Checks if:
+      - The vrc_user_id is valid
+      - The user's age_verification_status is "18+"
+      - (If verification_code is not None) the user's bio contains that code
+    Returns True if 18+ AND (code is in bio if code is provided), otherwise False.
     """
     if not vrchat_api_client:
         print("❌ VRChat session not active. Skipping verification.")
-        return None
+        return False
 
     users_api_instance = users_api.UsersApi(vrchat_api_client)
     try:
         vrc_user = users_api_instance.get_user(vrc_user_id)
     except ApiException as e:
         print(f"❌ Failed to fetch VRChat user {vrc_user_id}. Error: {e}")
-        return None
+        return False
 
     age_status = getattr(vrc_user, "age_verification_status", "unknown")
     bio = getattr(vrc_user, "bio", "")
 
-    print(f"[verify_with_code] VRChat user {vrc_user_id} age_status={age_status}, bio={bio}")
+    print(f"[check_vrc_user_has_code_and_age] user={vrc_user_id}, age_status={age_status}, bio={bio}")
 
-    if verification_code in bio:
-        # Check 18+ badge
-        is_18_plus = (age_status == "18+")
-        # Update DB
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO users (discord_id, vrc_user_id, verification_status)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (discord_id) DO UPDATE
-            SET vrc_user_id = EXCLUDED.vrc_user_id,
-                verification_status = EXCLUDED.verification_status
-            """,
-            (discord_id, vrc_user_id, is_18_plus)
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-        print(f"✅ User {vrc_user_id} verified? {is_18_plus}")
-        return {
-            "discordID": discord_id,
-            "vrcUserID": vrc_user_id,
-            "guildID": guild_id,
-            "is_18_plus": is_18_plus
-        }
-    else:
-        print(f"❌ Verification code not found in {vrc_user_id}'s bio.")
-        # Not verified
-        return {
-            "discordID": discord_id,
-            "vrcUserID": vrc_user_id,
-            "guildID": guild_id,
-            "is_18_plus": False
-        }
+    # Must be 18+
+    if age_status != "18+":
+        return False
 
-def verify_without_code(discord_id, vrc_user_id, guild_id):
-    """
-    "Re-check" for existing users who might have gained 18+ status since last time.
-    We do NOT look for a code; we simply see if age_verification_status is "18+" now.
-    """
-    if not vrchat_api_client:
-        print("❌ VRChat session not active. Skipping verification.")
-        return None
+    # If a code is provided, ensure it's in the bio
+    if verification_code and verification_code not in bio:
+        return False
 
-    users_api_instance = users_api.UsersApi(vrchat_api_client)
-    try:
-        vrc_user = users_api_instance.get_user(vrc_user_id)
-    except ApiException as e:
-        print(f"❌ Failed to fetch VRChat user {vrc_user_id}. Error: {e}")
-        return None
-
-    age_status = getattr(vrc_user, "age_verification_status", "unknown")
-    print(f"[verify_without_code] VRChat user {vrc_user_id} age_status={age_status}")
-
-    is_18_plus = (age_status == "18+")
-    # Update DB
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        UPDATE users
-        SET verification_status = %s
-        WHERE discord_id = %s
-        """,
-        (is_18_plus, discord_id)
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    return {
-        "discordID": discord_id,
-        "vrcUserID": vrc_user_id,
-        "guildID": guild_id,
-        "is_18_plus": is_18_plus
-    }
+    return True
 
 # -------------------------------------------------------------------
 # RabbitMQ Callbacks
 # -------------------------------------------------------------------
 def process_verification_request(ch, method, properties, body):
     """
-    Process incoming requests from the bot. 
-    The body should have:
+    The bot sends us JSON with:
       - discordID
       - vrcUserID
       - guildID
       - verificationCode (possibly None)
+    We'll check VRChat, then publish a result back to RESULT_QUEUE_NAME.
     """
     data = json.loads(body)
-    discord_id = data["discordID"]
-    vrc_user_id = data["vrcUserID"]
-    guild_id = data["guildID"]
+    discord_id = data.get("discordID")
+    vrc_user_id = data.get("vrcUserID")
+    guild_id = data.get("guildID")
     verification_code = data.get("verificationCode")
+    coud_found=False
 
-    print(f"🔎 Received verification request for discordID={discord_id}, guildID={guild_id}, vrcUserID={vrc_user_id}, code={verification_code}")
+    print(f"🔎 Received verification request: {data}")
 
     if verification_code:
-        result = verify_with_code(discord_id, vrc_user_id, verification_code, guild_id)
-    else:
-        result = verify_without_code(discord_id, vrc_user_id, guild_id)
+        code_found=True
 
-    if result is not None:
-        send_verification_result(result)
+    # If verification_code is None => "re-check" approach. 
+    # If not None => "new code check" approach. 
+    user_is_18_plus = check_vrc_user_has_code_and_age(vrc_user_id, verification_code)
+
+    # Create the result object
+    result = {
+        "discordID": discord_id,
+        "vrcUserID": vrc_user_id,
+        "guildID": guild_id,
+        "is_18_plus": user_is_18_plus,
+        # Optionally return the verificationCode so the bot can match it exactly
+        "verificationCode": verification_code,
+        "code_found": code_found
+    }
+
+    send_verification_result(result)
 
 def send_verification_result(result: dict):
-    """
-    Publishes the verification result to the 'vrc_verification_results' queue,
-    which the bot consumes.
-    """
+    """Publish the verification result to the queue the bot is listening on."""
     connection = pika.BlockingConnection(parameters)
     channel = connection.channel()
     channel.queue_declare(queue=RESULT_QUEUE_NAME, durable=True)
 
+    message_str = json.dumps(result)
     channel.basic_publish(
         exchange="",
         routing_key=RESULT_QUEUE_NAME,
-        body=json.dumps(result)
+        body=message_str
     )
     connection.close()
 
-    print(f"📤 Sent verification result to {RESULT_QUEUE_NAME}: {result}")
+    print(f"📤 Sent verification result to '{RESULT_QUEUE_NAME}': {message_str}")
 
 def listen_for_verifications():
     """Blocking function that listens for new requests from the bot."""
+    if not vrchat_api_client:
+        print("⚠️ VRChat login was not successful. We might fail all requests.")
     connection = pika.BlockingConnection(parameters)
     channel = connection.channel()
 
-    # The queue name for incoming requests from the bot
     channel.queue_declare(queue=RABBITMQ_QUEUE_NAME, durable=True)
 
     channel.basic_consume(
