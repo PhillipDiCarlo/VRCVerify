@@ -170,7 +170,7 @@ async def send_verification_request_with_code(discord_id: str, vrc_user_id: str,
 
 async def assign_role(discord_id: str, is_18_plus: bool, guild_id: str):
     """Assign or skip role in exactly one guild. Also DM the user about success/failure."""
-    # 1) Open a session to fetch the server config
+    # 1) Reopen a session to fetch the Server data
     with session_scope() as session:
         server = session.query(Server).filter_by(server_id=guild_id).first()
         # Copy what we need to local variables
@@ -179,9 +179,7 @@ async def assign_role(discord_id: str, is_18_plus: bool, guild_id: str):
         else:
             role_id = None
 
-    # 2) Now the session is closed. We have only local vars: role_id, etc.
-    #    Use them to do Discord actions.
-
+    # 2) Now the DB session is closed, but we have local copies of what we need
     guild = bot.get_guild(int(guild_id))
     if not guild:
         print(f"⚠️ Could not find guild {guild_id}. Stopping role assignment.")
@@ -201,7 +199,6 @@ async def assign_role(discord_id: str, is_18_plus: bool, guild_id: str):
         print(f"⚠️ Role {role_id} not found in guild {guild_id}.")
         return
 
-    # 3) Assign or skip
     if is_18_plus:
         try:
             await member.add_roles(role)
@@ -241,8 +238,6 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Username"):
 
         # Generate a new verification code
         verification_code = generate_verification_code()
-
-        # Store in DB or update user info
         with session_scope() as session:
             user = session.query(User).filter_by(discord_id=discord_id).first()
             if not user:
@@ -255,16 +250,35 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Username"):
             else:
                 user.vrc_user_id = vrc_username
 
-        # Build a "Verify" button for ephemeral
+        # Provide a Verify button
         view = VRCVerificationButton(vrc_username, verification_code, guild_id)
         await interaction.response.send_message(
             f"✅ **VRChat username saved!**\n"
             f"**1) Add the following code to your VRChat bio:**\n"
             f"```\n{verification_code}\n```\n"
-            f"**2) Then press the 'Verify' button below.**",
+            f"**2) Then press 'Verify' below.**",
             view=view,
             ephemeral=True
         )
+
+class NewUserView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)  # or specify a timeout in seconds
+
+    @discord.ui.button(label="Continue Verification", style=discord.ButtonStyle.green)
+    async def continue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 1) Option A: Show the VRChat username modal
+        await interaction.response.send_modal(VRCUsernameModal(interaction))
+
+        # OR
+
+        # 1) Option B: Directly do a “with code” approach:
+        #
+        #   code = generate_verification_code()
+        #   # Possibly create DB user row?
+        #   await send_verification_request_with_code(interaction.user.id, "someVRCID", code, str(interaction.guild.id))
+        #   await interaction.response.send_message("Check your DMs soon!", ephemeral=True)
+
 
 class VRCVerificationButton(discord.ui.View):
     """View that has a 'Verify' button. Clicking it triggers sending the code to the checker."""
@@ -294,14 +308,11 @@ async def vrcverify(interaction: discord.Interaction):
     guild_id = str(interaction.guild.id)
     user_id = str(interaction.user.id)
 
-    # Open a session scope and keep the logic inside
+    # Keep all logic in one session_scope
     with session_scope() as session:
-        # 1) Fetch the server config
+        # 1) Check the server config
         server = session.query(Server).filter_by(server_id=guild_id).first()
-
-        # Check if there's a valid role
         if not server or not server.role_id:
-            # If no role is assigned, respond ephemeral and return
             await interaction.response.send_message(
                 "⚠️ This server hasn't set up a verification role yet. "
                 "Please contact an admin to configure the bot.",
@@ -309,32 +320,37 @@ async def vrcverify(interaction: discord.Interaction):
             )
             return
 
-        # 2) Check the user in the DB
+        # 2) Check if user is in DB
         user = session.query(User).filter_by(discord_id=user_id).first()
 
-        # CASE A: If user not in DB or missing vrc_user_id => show modal
-        if not user or not user.vrc_user_id:
-            # Since we're *not* deferring, we can show a modal
-            await interaction.response.send_modal(VRCUsernameModal(interaction))
-            return
-
-        # CASE B: If user is verified => assign role immediately
-        if user.verification_status:
+        # CASE A: user is in DB & verified => assign role
+        if user and user.verification_status:
+            # Defer once for our initial response
             await interaction.response.defer(ephemeral=True)
+            # Now call assign_role(...) WITHOUT referencing 'server' or 'user' outside the session
             await assign_role(discord_id=user_id, is_18_plus=True, guild_id=guild_id)
             await interaction.followup.send(
-                "✅ You’re already verified! Your role has been assigned (or re-assigned).",
+                "✅ You’re already verified! Role assigned (or re-assigned).",
                 ephemeral=True
             )
             return
 
-        # CASE C: User in DB but not verified => do a 'no code' request
-        await interaction.response.defer(ephemeral=True)
-        await send_verification_request_no_code(user_id, user.vrc_user_id, guild_id)
-        await interaction.followup.send(
-            "🔎 We’re verifying your VRChat 18+ status now. You’ll receive a DM with the result soon.",
-            ephemeral=True
-        )
+        # CASE B: user in DB but not verified
+        if user and user.vrc_user_id:
+            await interaction.response.defer(ephemeral=True)
+            # Do your re-check or code request
+            await send_verification_request_no_code(user_id, user.vrc_user_id, guild_id)
+            await interaction.followup.send(
+                "🔎 We’re verifying your VRChat 18+ status. Check your DMs soon.",
+                ephemeral=True
+            )
+            return
+
+        # CASE C: user not in DB => show modal, or show a button, etc.
+        # Must be the only "first response" if you're showing a modal
+        await interaction.response.send_modal(VRCUsernameModal(interaction))
+        return
+
 
 # -------------------------------------------------------------------
 # RabbitMQ Consumer (no while True)
