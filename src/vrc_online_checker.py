@@ -88,43 +88,6 @@ if not vrchat_api_client:
 # -------------------------------------------------------------------
 # Verification Logic
 # -------------------------------------------------------------------
-def check_vrc_user_has_code_and_age(vrc_user_id: str, verification_code: str | None) -> bool:
-    """
-    Checks if:
-      - The vrc_user_id is valid
-      - The user's age_verification_status is "18+"
-      - (If verification_code is not None) the user's bio contains that code
-    Returns True if 18+ AND (code is in bio if code is provided), otherwise False.
-    """
-    if not vrchat_api_client:
-        print("❌ VRChat session not active. Skipping verification.")
-        return False
-
-    users_api_instance = users_api.UsersApi(vrchat_api_client)
-    try:
-        vrc_user = users_api_instance.get_user(vrc_user_id)
-    except ApiException as e:
-        print(f"❌ Failed to fetch VRChat user {vrc_user_id}. Error: {e}")
-        return False
-
-    age_status = getattr(vrc_user, "age_verification_status", "unknown")
-    bio = getattr(vrc_user, "bio", "")
-
-    print(f"[check_vrc_user_has_code_and_age] user={vrc_user_id}, age_status={age_status}, bio={bio}")
-
-    # Must be 18+
-    if age_status != "18+":
-        return False
-
-    # If a code is provided, ensure it's in the bio
-    if verification_code and verification_code not in bio:
-        return False
-
-    return True
-
-# -------------------------------------------------------------------
-# RabbitMQ Callbacks
-# -------------------------------------------------------------------
 def process_verification_request(ch, method, properties, body):
     """
     The bot sends us JSON with:
@@ -139,32 +102,85 @@ def process_verification_request(ch, method, properties, body):
     vrc_user_id = data.get("vrcUserID")
     guild_id = data.get("guildID")
     verification_code = data.get("verificationCode")
-    code_found=False
 
     print(f"🔎 Received verification request: {data}")
 
-    if verification_code:
-        code_found=True
-
-    # If verification_code is None => "re-check" approach. 
-    # If not None => "new code check" approach. 
-    user_is_18_plus = check_vrc_user_has_code_and_age(vrc_user_id, verification_code)
-
-    # Create the result object
-    result = {
-        "discordID": discord_id,
-        "vrcUserID": vrc_user_id,
-        "guildID": guild_id,
-        "is_18_plus": user_is_18_plus,
-        # Optionally return the verificationCode so the bot can match it exactly
-        "verificationCode": verification_code,
-        "code_found": code_found
-    }
+    # If verification_code is None => "re-check"
+    # If not None => "new code" approach
+    result = verify_and_build_result(
+        discord_id=discord_id,
+        vrc_user_id=vrc_user_id,
+        guild_id=guild_id,
+        verification_code=verification_code
+    )
 
     send_verification_result(result)
 
+def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code):
+    """
+    Actually queries VRChat to see if user is 18+ and/or if the code is in their bio.
+    Returns a dict that includes:
+      - "is_18_plus"
+      - "code_found" (bool)
+      - "verificationCode"
+      - ...
+    """
+    if not vrchat_api_client:
+        print("❌ VRChat session not active. Failing verification.")
+        return {
+            "discordID": discord_id,
+            "vrcUserID": vrc_user_id,
+            "guildID": guild_id,
+            "is_18_plus": False,
+            "verificationCode": verification_code,
+            "code_found": False
+        }
+
+    # Attempt to fetch user from VRChat
+    users_api_instance = users_api.UsersApi(vrchat_api_client)
+    try:
+        vrc_user = users_api_instance.get_user(vrc_user_id)
+    except ApiException as e:
+        print(f"❌ Failed to fetch VRChat user {vrc_user_id}. Error: {e}")
+        return {
+            "discordID": discord_id,
+            "vrcUserID": vrc_user_id,
+            "guildID": guild_id,
+            "is_18_plus": False,
+            "verificationCode": verification_code,
+            "code_found": False
+        }
+
+    age_status = getattr(vrc_user, "age_verification_status", "unknown")
+    bio = getattr(vrc_user, "bio", "")
+
+    print(f"[verify_and_build_result] user={vrc_user_id}, age_status={age_status}, bio={bio}")
+
+    # Are they 18+?
+    is_18_plus = (age_status == "18+")
+
+    # If code is provided, check if it's in the bio
+    code_found = False
+    if verification_code is not None:
+        # code-based flow => see if bio actually contains the code
+        if verification_code in bio:
+            code_found = True
+    else:
+        # re-check => code_found doesn't really apply
+        # We'll just keep it false or not used
+        pass
+
+    return {
+        "discordID": discord_id,
+        "vrcUserID": vrc_user_id,
+        "guildID": guild_id,
+        "is_18_plus": is_18_plus,
+        "verificationCode": verification_code,  # None => re-check
+        "code_found": code_found
+    }
+
 def send_verification_result(result: dict):
-    """Publish the verification result to the queue the bot is listening on."""
+    """Publish the verification result to the bot's queue."""
     connection = pika.BlockingConnection(parameters)
     channel = connection.channel()
     channel.queue_declare(queue=RESULT_QUEUE_NAME, durable=True)

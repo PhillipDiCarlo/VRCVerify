@@ -88,7 +88,6 @@ class User(Base):
     vrc_user_id = Column(String(50), nullable=True)
     last_verification_attempt = Column(DateTime(timezone=True))
 
-# For code-based, brand-new verifications
 class PendingVerification(Base):
     __tablename__ = "pending_verifications"
     id = Column(Integer, primary_key=True)
@@ -206,7 +205,7 @@ async def assign_role(discord_id: str, is_18_plus: bool, guild_id: str, verifica
             # Re-check scenario
             try:
                 await member.send(
-                    "❌ Your VRChat profile is not set to '18+' (hidden or not verified). No role assigned."
+                    "❌ Your VRChat profile is not set to '18+' (hidden or unverified). No role assigned."
                 )
             except discord.Forbidden:
                 logger.warning("⚠️ Could not DM user; DMs off.")
@@ -231,11 +230,7 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Username"):
         self.interaction = interaction
 
     async def on_submit(self, interaction: discord.Interaction):
-        """
-        For brand-new users. We generate a code and store a row in 
-        PendingVerification. We do NOT send a request to the checker yet—
-        we'll wait until they press the "Verify" button.
-        """
+        """User has submitted their VRChat username => store a pending row, but do NOT publish to checker yet."""
         vrc_username = self.vrc_username.value.strip()
         discord_id = str(interaction.user.id)
         guild_id = str(interaction.guild_id)
@@ -243,8 +238,8 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Username"):
         verification_code = generate_verification_code()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
 
-        # Remove old pending if any, then create new pending
         with session_scope() as session:
+            # Remove any old pending entry for this user/guild
             session.query(PendingVerification).filter_by(discord_id=discord_id, guild_id=guild_id).delete()
 
             pending = PendingVerification(
@@ -256,19 +251,19 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Username"):
             )
             session.add(pending)
 
-        # Show them the code and a button that actually triggers the check
+        # Provide a "Verify" button that actually triggers the code-based check
         view = VRCVerificationButton(vrc_username, verification_code, guild_id)
         await interaction.response.send_message(
             f"✅ **VRChat username saved!**\n"
-            f"**1) Add the following code to your VRChat bio:**\n"
+            f"**1) Add the following code to your VRChat bio now:**\n"
             f"```\n{verification_code}\n```\n"
-            f"**2) Press 'Verify' below (within 5 minutes) after updating your bio.**",
+            f"**2) Once you've updated your bio, press 'Verify' below (within 5 minutes).**",
             view=view,
             ephemeral=True
         )
 
 # -------------------------------------------------------------------
-# The button that triggers the code-based check
+# Button: triggers code-based check
 # -------------------------------------------------------------------
 class VRCVerificationButton(discord.ui.View):
     def __init__(self, vrc_username: str, verification_code: str, guild_id: str):
@@ -280,8 +275,8 @@ class VRCVerificationButton(discord.ui.View):
     @discord.ui.button(label="Verify", style=discord.ButtonStyle.green)
     async def verify_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """
-        User says they're ready. Now we publish a code-based request 
-        (since we DO have a verification_code) to vrc_online_checker.
+        When pressed, we publish a request with verificationCode != None, 
+        meaning code-based flow. 
         """
         discord_id = str(interaction.user.id)
         await interaction.response.defer(ephemeral=True)
@@ -377,8 +372,9 @@ async def consume_results_queue():
 
 async def handle_verification_result(data: dict):
     """
-    Called when vrc_online_checker returns a result. If verificationCode is None => re-check flow.
-    If not None => code-based flow. 
+    Called when vrc_online_checker returns a result.
+    Distinguishes code-based flow vs. no-code re-check.
+    If code-based => we also check data["code_found"].
     """
     logger.info(f"🔎 Received verification result: {data}")
     discord_id = data.get("discordID")
@@ -386,6 +382,7 @@ async def handle_verification_result(data: dict):
     is_18_plus = data.get("is_18_plus", False)
     vrc_user_id = data.get("vrcUserID")
     verification_code = data.get("verificationCode")  # None => re-check
+    code_found = data.get("code_found", False)        # Only relevant if verification_code != None
 
     # 1) If verification_code is None => "re-check" flow
     if verification_code is None:
@@ -399,12 +396,13 @@ async def handle_verification_result(data: dict):
             if vrc_user_id:
                 user.vrc_user_id = vrc_user_id
 
-        # Assign or skip role
+        # Now call assign_role with no code
         await assign_role(discord_id, is_18_plus, guild_id, verification_code=None)
         return
 
     # 2) Otherwise => code-based flow
     now_utc = datetime.now(timezone.utc)
+
     with session_scope() as session:
         query = session.query(PendingVerification).filter_by(discord_id=discord_id, guild_id=guild_id)
         query = query.filter_by(verification_code=verification_code)
@@ -420,7 +418,24 @@ async def handle_verification_result(data: dict):
             session.delete(pending)
             return
 
-        # If we got here => code-based verification is valid
+        # If code was NOT found in the bio, do NOT create the user
+        if not code_found:
+            logger.info(f"❌ The code was NOT found in VRChat bio for user={discord_id}. Removing pending row.")
+            session.delete(pending)
+            # Optionally DM them about missing code:
+            guild = bot.get_guild(int(guild_id))
+            if guild:
+                member = guild.get_member(int(discord_id))
+                if member:
+                    try:
+                        await member.send(
+                            "❌ We could not find your verification code in your VRChat bio. Please try again."
+                        )
+                    except discord.Forbidden:
+                        logger.warning("⚠️ Could not DM user (missing code scenario).")
+            return
+
+        # If code_found=True => code is in the bio. Now we can proceed:
         user = session.query(User).filter_by(discord_id=discord_id).first()
         if not user:
             user = User(discord_id=discord_id)
@@ -428,9 +443,11 @@ async def handle_verification_result(data: dict):
 
         user.vrc_user_id = vrc_user_id
         user.verification_status = bool(is_18_plus)
-        session.delete(pending)  # remove the pending row
 
-    # Now assign role based on is_18_plus
+        # Remove pending
+        session.delete(pending)
+
+    # Finally, assign role (or skip) based on is_18_plus
     await assign_role(discord_id, is_18_plus, guild_id, verification_code)
 
 # -------------------------------------------------------------------
@@ -446,3 +463,4 @@ async def on_ready():
 # -------------------------------------------------------------------
 if __name__ == '__main__':
     bot.run(DISCORD_BOT_TOKEN)
+ 
