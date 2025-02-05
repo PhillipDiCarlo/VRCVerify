@@ -6,6 +6,7 @@ import os
 import json
 import pika
 import psycopg2
+import logging
 from dotenv import load_dotenv
 
 # VRChat API imports
@@ -33,8 +34,17 @@ RABBITMQ_QUEUE_NAME = os.getenv("RABBITMQ_QUEUE_NAME")
 RESULT_QUEUE_NAME = os.getenv("RABBITMQ_RESULT_QUEUE")
 
 # Gmail IMAP Credentials
-GMAIL_USER = os.getenv("GMAIL_USER")  
-GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")  
+GMAIL_USER = os.getenv("GMAIL_USER")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
+
+# -------------------------------------------------------------------
+# Logging configuration
+# -------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 # -------------------------------------------------------------------
 # RabbitMQ Setup
@@ -52,7 +62,7 @@ parameters = pika.ConnectionParameters(
 # -------------------------------------------------------------------
 def fetch_latest_2fa_code():
     """Waits for VRChat's 2FA email and retrieves the code from the subject line."""
-    print("⏳ Waiting 10 seconds for 2FA email to arrive...")
+    logging.info("Waiting 10 seconds for 2FA email to arrive...")
     time.sleep(10)  # Initial wait to allow the email to arrive
 
     retries = 3  # Number of times to retry
@@ -64,13 +74,13 @@ def fetch_latest_2fa_code():
             mail.login(GMAIL_USER, GMAIL_APP_PASSWORD)
             mail.select("inbox")
 
-            print(f"📩 Checking for VRChat 2FA email (Attempt {attempt + 1}/{retries})...")
+            logging.info("Checking for VRChat 2FA email (Attempt %d/%d)...", attempt + 1, retries)
 
             # Search for the latest VRChat 2FA email
             status, messages = mail.search(None, 'FROM "noreply@vrchat.com"')
 
             if not messages[0]:
-                print("❌ No VRChat 2FA emails found yet.")
+                logging.warning("No VRChat 2FA emails found yet.")
                 time.sleep(wait_time)  # Wait before retrying
                 continue
 
@@ -83,22 +93,22 @@ def fetch_latest_2fa_code():
 
             if subject_match:
                 vrchat_2fa_code = subject_match.group(1)
-                print(f"✅ Found VRChat 2FA Code: {vrchat_2fa_code}")
+                logging.info("Found VRChat 2FA Code: %s", vrchat_2fa_code)
                 return vrchat_2fa_code
 
-            print("❌ No 2FA code found in email subject. Retrying...")
+            logging.warning("No 2FA code found in email subject. Retrying...")
             time.sleep(wait_time)  # Wait before retrying
 
         except Exception as e:
-            print(f"❌ Error fetching 2FA code from Gmail: {e}")
+            logging.error("Error fetching 2FA code from Gmail: %s", e)
 
         finally:
             try:
                 mail.logout()
-            except:
+            except Exception:
                 pass  # Ignore errors when logging out
 
-    print("❌ Failed to retrieve VRChat 2FA code after multiple attempts.")
+    logging.error("Failed to retrieve VRChat 2FA code after multiple attempts.")
     return None
 
 # -------------------------------------------------------------------
@@ -118,42 +128,41 @@ def login_to_vrchat():
 
     try:
         current_user = auth_api.get_current_user()
-        print(f"✅ Successfully logged in as {current_user.display_name}")
+        logging.info("Successfully logged in as %s", current_user.display_name)
         return api_client
 
     except UnauthorizedException as e:
         if e.status == 200:
-            print("🔒 2FA Required! Fetching code from email...")
+            logging.info("2FA Required! Fetching code from email...")
 
             # Auto-fetch the 2FA code
             two_factor_code = fetch_latest_2fa_code()
 
             if not two_factor_code:
-                print("❌ 2FA Required but no valid code found. Exiting.")
+                logging.error("2FA required but no valid code found. Exiting.")
                 return None
 
             if "Email 2 Factor Authentication" in e.reason:
                 auth_api.verify2_fa_email_code(two_factor_email_code=TwoFactorEmailCode(two_factor_code))
-
             elif "2 Factor Authentication" in e.reason:
                 auth_api.verify2_fa(two_factor_auth_code=TwoFactorAuthCode(two_factor_code))
 
             # Retry login after submitting 2FA
             current_user = auth_api.get_current_user()
-            print(f"✅ Successfully logged in as {current_user.display_name}")
+            logging.info("Successfully logged in as %s", current_user.display_name)
             return api_client
 
-        print("❌ VRChat Login Failed:", e)
+        logging.error("VRChat login failed: %s", e)
         return None
 
     except vrchatapi.ApiException as e:
-        print("❌ VRChat API Error:", e)
+        logging.error("VRChat API error: %s", e)
         return None
 
 # One-time login
 vrchat_api_client = login_to_vrchat()
 if not vrchat_api_client:
-    print("❌ VRChat login failed. Exiting soon...")
+    logging.error("VRChat login failed. Exiting soon...")
 
 # -------------------------------------------------------------------
 # Verification Logic
@@ -173,7 +182,7 @@ def process_verification_request(ch, method, properties, body):
     guild_id = data.get("guildID")
     verification_code = data.get("verificationCode")
 
-    print(f"🔎 Received verification request: {data}")
+    logging.info("Received verification request: %s", data)
 
     # If verification_code is None => "re-check"
     # If not None => "new code" approach
@@ -196,7 +205,7 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
       - ...
     """
     if not vrchat_api_client:
-        print("❌ VRChat session not active. Failing verification.")
+        logging.error("VRChat session not active. Failing verification.")
         return {
             "discordID": discord_id,
             "vrcUserID": vrc_user_id,
@@ -211,7 +220,7 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
     try:
         vrc_user = users_api_instance.get_user(vrc_user_id)
     except ApiException as e:
-        print(f"❌ Failed to fetch VRChat user {vrc_user_id}. Error: {e}")
+        logging.error("Failed to fetch VRChat user %s. Error: %s", vrc_user_id, e)
         return {
             "discordID": discord_id,
             "vrcUserID": vrc_user_id,
@@ -224,7 +233,7 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
     age_status = getattr(vrc_user, "age_verification_status", "unknown")
     bio = getattr(vrc_user, "bio", "")
 
-    print(f"[verify_and_build_result] user={vrc_user_id}, age_status={age_status}, bio={bio}")
+    logging.info("[verify_and_build_result] user=%s, age_status=%s, bio=%s", vrc_user_id, age_status, bio)
 
     # Are they 18+?
     is_18_plus = (age_status == "18+")
@@ -232,13 +241,8 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
     # If code is provided, check if it's in the bio
     code_found = False
     if verification_code is not None:
-        # code-based flow => see if bio actually contains the code
         if verification_code in bio:
             code_found = True
-    else:
-        # re-check => code_found doesn't really apply
-        # We'll just keep it false or not used
-        pass
 
     return {
         "discordID": discord_id,
@@ -263,12 +267,12 @@ def send_verification_result(result: dict):
     )
     connection.close()
 
-    print(f"📤 Sent verification result to '{RESULT_QUEUE_NAME}': {message_str}")
+    logging.info("Sent verification result to '%s': %s", RESULT_QUEUE_NAME, message_str)
 
 def listen_for_verifications():
     """Blocking function that listens for new requests from the bot."""
     if not vrchat_api_client:
-        print("⚠️ VRChat login was not successful. We might fail all requests.")
+        logging.warning("VRChat login was not successful. We might fail all requests.")
     connection = pika.BlockingConnection(parameters)
     channel = connection.channel()
 
@@ -279,7 +283,7 @@ def listen_for_verifications():
         on_message_callback=process_verification_request,
         auto_ack=True
     )
-    print(f"✅ Listening for verification requests on '{RABBITMQ_QUEUE_NAME}'...")
+    logging.info("Listening for verification requests on '%s'...", RABBITMQ_QUEUE_NAME)
     channel.start_consuming()
 
 # -------------------------------------------------------------------
@@ -287,6 +291,6 @@ def listen_for_verifications():
 # -------------------------------------------------------------------
 if __name__ == "__main__":
     if not vrchat_api_client:
-        print("❌ VRChat login failed. Exiting...")
+        logging.error("VRChat login failed. Exiting...")
     else:
         listen_for_verifications()
