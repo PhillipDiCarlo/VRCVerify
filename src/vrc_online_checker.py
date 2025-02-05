@@ -37,11 +37,14 @@ RESULT_QUEUE_NAME = os.getenv("RABBITMQ_RESULT_QUEUE")
 GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 
+log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
+numeric_level = getattr(logging, log_level_str, logging.INFO)
+
 # -------------------------------------------------------------------
 # Logging configuration
 # -------------------------------------------------------------------
 logging.basicConfig(
-    level=logging.INFO,
+    level=numeric_level,
     format='%(asctime)s %(levelname)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
@@ -197,12 +200,12 @@ def process_verification_request(ch, method, properties, body):
 
 def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code):
     """
-    Actually queries VRChat to see if user is 18+ and/or if the code is in their bio.
-    Returns a dict that includes:
+    Queries VRChat to determine if the user is 18+ and/or if the verification code is present in their bio.
+    Returns a dictionary with:
       - "is_18_plus"
       - "code_found" (bool)
       - "verificationCode"
-      - ...
+      - etc.
     """
     if not vrchat_api_client:
         logging.error("VRChat session not active. Failing verification.")
@@ -235,14 +238,11 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
 
     logging.info("[verify_and_build_result] user=%s, age_status=%s, bio=%s", vrc_user_id, age_status, bio)
 
-    # Are they 18+?
     is_18_plus = (age_status == "18+")
 
-    # If code is provided, check if it's in the bio
     code_found = False
-    if verification_code is not None:
-        if verification_code in bio:
-            code_found = True
+    if verification_code is not None and verification_code in bio:
+        code_found = True
 
     return {
         "discordID": discord_id,
