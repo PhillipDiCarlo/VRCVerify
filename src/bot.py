@@ -6,7 +6,7 @@ import random
 import string
 
 import discord
-from discord import app_commands
+from discord import app_commands, Embed
 from discord.ext import commands
 
 import pika
@@ -341,6 +341,60 @@ async def vrcverify(interaction: discord.Interaction):
 
         # CASE C: user is not in DB => show the VRChat Username modal
         await interaction.response.send_modal(VRCUsernameModal(interaction))
+
+# -------------------------------------------------------------------
+# Slash Command: /vrcverify_support
+# -------------------------------------------------------------------
+@bot.tree.command(name="vrcverify_support", description="Get help with the VRChat 18+ verification process.")
+async def vrcverify_support(interaction: discord.Interaction):
+    """
+    Sends an ephemeral message to the user with instructions on how to get support,
+    whether that’s contacting an admin or visiting an external support link.
+    """
+    # Customize the text below however you like
+    await interaction.response.send_message(
+        "Need help with verification?\n"
+        "- Contact a server admin for assistance\n"
+        "- Or visit our support page at https://www.example.com\n\n"
+        "If this is an error, please let us know!",
+        ephemeral=True
+    )
+
+# -------------------------------------------------------------------
+# Slash Command: /vrcverify_instructions
+# -------------------------------------------------------------------
+@app_commands.checks.has_permissions(administrator=True)
+@bot.tree.command(name="vrcverify_instructions", description="Admin only: Post instructions for using the verification bot.")
+async def vrcverify_instructions(interaction: discord.Interaction):
+    """
+    Admin command that posts an embed telling users how to use the bot.
+    The embed includes a code block with an example command usage.
+    """
+    # Example embed text
+    embed = Embed(
+        title="How to Use the VRChat Verification Bot",
+        description=(
+            "**Follow these steps** to verify your 18+ status:\n\n"
+            "1. Type `/vrcverify` or click the **Begin Verification** button (if shown)\n"
+            "2. If you're new, you'll be asked for your VRChat username\n"
+            "3. The bot will give you a unique code – put this in your VRChat bio\n"
+            "4. Press **Verify** in Discord once your bio is updated\n\n"
+            "If you need additional help, contact an admin or type `/vrcverify_support`."
+        ),
+        color=discord.Color.blue()
+    )
+
+    # Optionally show a code block with example usage
+    # (Discord code blocks use triple backticks)
+    usage_example = (
+        "**Example Usage**:\n"
+        "```bash\n"
+        "/vrcverify\n"
+        "```"
+    )
+    embed.add_field(name="Example Command", value=usage_example, inline=False)
+
+    await interaction.response.send_message(embed=embed)
 
 # -------------------------------------------------------------------
 # RabbitMQ Consumer - handle verification results
