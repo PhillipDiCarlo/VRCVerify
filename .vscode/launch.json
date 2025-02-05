@@ -18,6 +18,13 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/vrc_online_checker.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "test VRC file",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/test_vrc.py",
+            "console": "integratedTerminal"
         }
     ]
 }
