@@ -343,6 +343,64 @@ async def vrcverify(interaction: discord.Interaction):
         await interaction.response.send_modal(VRCUsernameModal(interaction))
 
 # -------------------------------------------------------------------
+# Slash Command: /vrcverify_setup
+# -------------------------------------------------------------------
+@app_commands.checks.has_permissions(administrator=True)
+@bot.tree.command(name="vrcverify_setup", description="Admin command: Set or update the verified role for this server.")
+@app_commands.describe(role="Select the Discord role to be assigned to verified users.")
+async def vrcverify_setup(interaction: discord.Interaction, role: discord.Role):
+    """
+    Inserts or updates a row in the 'servers' table with this server_id, 
+    storing the admin's user ID as 'owner_id' and the chosen role ID as 'role_id'.
+    """
+    guild_id = str(interaction.guild.id)
+    owner_id = str(interaction.user.id)
+    role_id_str = str(role.id)
+
+    with session_scope() as session:
+        # See if we already have a row for this server_id
+        server = session.query(Server).filter_by(server_id=guild_id).first()
+        if not server:
+            # If no entry, create one
+            server = Server(
+                server_id=guild_id,
+                owner_id=owner_id,
+                role_id=role_id_str
+            )
+            session.add(server)
+            action = "created"
+        else:
+            # Update the existing row
+            server.owner_id = owner_id  # optional, if you want to update the owner each time
+            server.role_id = role_id_str
+            action = "updated"
+
+    # Let the admin know it worked
+    await interaction.response.send_message(
+        f"✅ **Successfully {action} server config** for this guild.\n"
+        f"**Verified Role** set to: `{role.name}` (ID={role.id})",
+        ephemeral=True
+    )
+
+# -------------------------------------------------------------------
+# Slash Command: /vrcverify_subscription
+# -------------------------------------------------------------------
+@app_commands.checks.has_permissions(administrator=True)
+@bot.tree.command(name="vrcverify_subscription", description="Admin command: Get subscription info to unlock premium features.")
+async def vrcverify_subscription(interaction: discord.Interaction):
+    """
+    Sends an ephemeral link or info to the admin about how to subscribe or purchase 
+    premium features for your VRChat verification bot.
+    """
+    subscription_link = "https://www.example.com/subscribe"
+
+    # Example ephemeral message
+    await interaction.response.send_message(
+        f"Here’s the link to manage subscriptions or purchase premium:\n{subscription_link}",
+        ephemeral=True
+    )
+
+# -------------------------------------------------------------------
 # Slash Command: /vrcverify_support
 # -------------------------------------------------------------------
 @bot.tree.command(name="vrcverify_support", description="Get help with the VRChat 18+ verification process.")
