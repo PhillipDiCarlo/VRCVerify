@@ -7,3 +7,7 @@ sqlalchemy
 psycopg2-binary
 pika
 vrchatapi
+time
+imaplib
+email
+re
