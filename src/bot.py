@@ -371,84 +371,114 @@ async def consume_results_queue():
     await loop.run_in_executor(None, do_blocking_consume)
 
 async def handle_verification_result(data: dict):
-    """
-    Called when vrc_online_checker returns a result.
-    Distinguishes code-based flow vs. no-code re-check.
-    If code-based => we also check data["code_found"].
-    """
-    logger.info(f"🔎 Received verification result: {data}")
-    discord_id = data.get("discordID")
-    guild_id = data.get("guildID")
-    is_18_plus = data.get("is_18_plus", False)
-    vrc_user_id = data.get("vrcUserID")
-    verification_code = data.get("verificationCode")  # None => re-check
-    code_found = data.get("code_found", False)        # Only relevant if verification_code != None
+    try:
+        """
+        Called when vrc_online_checker returns a result.
+        Distinguishes code-based flow vs. no-code re-check.
+        If code-based => we also check data["code_found"].
+        """
+        logger.info(f"🔎 Received verification result: {data}")
+        discord_id = data.get("discordID")
+        guild_id = data.get("guildID")
+        is_18_plus = data.get("is_18_plus", False)
+        vrc_user_id = data.get("vrcUserID")
+        verification_code = data.get("verificationCode")  # None => re-check
+        code_found = data.get("code_found", False)        # Only relevant if verification_code != None
 
-    # 1) If verification_code is None => "re-check" flow
-    if verification_code is None:
+        # 1) If verification_code is None => "re-check" flow
+        if verification_code is None:
+            with session_scope() as session:
+                user = session.query(User).filter_by(discord_id=discord_id).first()
+                if not user:
+                    logger.warning(f"⚠️ No user row found for discord_id={discord_id} in re-check flow.")
+                    return
+                # Update user verification status
+                user.verification_status = bool(is_18_plus)
+                if vrc_user_id:
+                    user.vrc_user_id = vrc_user_id
+
+            # Now call assign_role with no code
+            await assign_role(discord_id, is_18_plus, guild_id, verification_code=None)
+            return
+
+        # 2) Otherwise => code-based flow
+        now_utc = datetime.now(timezone.utc)
         with session_scope() as session:
+            query = session.query(PendingVerification).filter_by(discord_id=discord_id, guild_id=guild_id)
+            query = query.filter_by(verification_code=verification_code)
+            pending = query.first()
+
+            if not pending:
+                logger.warning(
+                    f"⚠️ No matching pending verification found for user={discord_id}, "
+                    f"guild={guild_id}, code={verification_code}."
+                )
+                return
+
+            # Check if expired
+            if now_utc > pending.expires_at:
+                logger.warning(f"⚠️ Code expired for user={discord_id} in guild={guild_id}. Removing pending row.")
+                session.delete(pending)
+                return
+
+            # If code was NOT found in the bio, do NOT create the user
+            if not code_found:
+                logger.info(f"❌ The code was NOT found in VRChat bio for user={discord_id}. Removing pending row.")
+                session.delete(pending)
+                # Optionally DM them about missing code:
+                guild = bot.get_guild(int(guild_id))
+                if guild:
+                    member = guild.get_member(int(discord_id))
+                    if member:
+                        try:
+                            await member.send(
+                                "❌ We could not find your verification code in your VRChat bio. Please try again."
+                            )
+                        except discord.Forbidden:
+                            logger.warning("⚠️ Could not DM user (missing code scenario).")
+                return
+
+            # -- NEW SECTION: Check if this VRChat ID is already used by another Discord user --
+            existing_with_same_vrc = session.query(User).filter_by(vrc_user_id=vrc_user_id).first()
+            if existing_with_same_vrc and (existing_with_same_vrc.discord_id != discord_id):
+                # It's already claimed by a different discord user => remove pending + DM user
+                logger.warning(
+                    f"VRChat ID {vrc_user_id} is already associated with discord_id={existing_with_same_vrc.discord_id}."
+                )
+                session.delete(pending)
+
+                guild = bot.get_guild(int(guild_id))
+                if guild:
+                    member = guild.get_member(int(discord_id))
+                    if member:
+                        try:
+                            await member.send(
+                                "❌ That VRChat account is already associated with another Discord user. "
+                                "If this is a mistake, please contact support or an admin."
+                            )
+                        except discord.Forbidden:
+                            logger.warning("⚠️ Could not DM user about the duplicate VRChat ID.")
+
+                return
+
+            # If code_found=True => code is in the bio, and VRChat ID is not claimed by someone else
             user = session.query(User).filter_by(discord_id=discord_id).first()
             if not user:
-                logger.warning(f"⚠️ No user row found for discord_id={discord_id} in re-check flow.")
-                return
-            # Update user verification status
+                user = User(discord_id=discord_id)
+                session.add(user)
+
+            # Attempt to set VRChat ID => might fail if there's a unique constraint (but we just checked, so safe)
+            user.vrc_user_id = vrc_user_id
             user.verification_status = bool(is_18_plus)
-            if vrc_user_id:
-                user.vrc_user_id = vrc_user_id
 
-        # Now call assign_role with no code
-        await assign_role(discord_id, is_18_plus, guild_id, verification_code=None)
-        return
-
-    # 2) Otherwise => code-based flow
-    now_utc = datetime.now(timezone.utc)
-
-    with session_scope() as session:
-        query = session.query(PendingVerification).filter_by(discord_id=discord_id, guild_id=guild_id)
-        query = query.filter_by(verification_code=verification_code)
-        pending = query.first()
-
-        if not pending:
-            logger.warning(f"⚠️ No matching pending verification found for user={discord_id}, guild={guild_id}, code={verification_code}.")
-            return
-
-        # Check if expired
-        if now_utc > pending.expires_at:
-            logger.warning(f"⚠️ Code expired for user={discord_id} in guild={guild_id}. Removing pending row.")
+            # Remove pending
             session.delete(pending)
-            return
 
-        # If code was NOT found in the bio, do NOT create the user
-        if not code_found:
-            logger.info(f"❌ The code was NOT found in VRChat bio for user={discord_id}. Removing pending row.")
-            session.delete(pending)
-            # Optionally DM them about missing code:
-            guild = bot.get_guild(int(guild_id))
-            if guild:
-                member = guild.get_member(int(discord_id))
-                if member:
-                    try:
-                        await member.send(
-                            "❌ We could not find your verification code in your VRChat bio. Please try again."
-                        )
-                    except discord.Forbidden:
-                        logger.warning("⚠️ Could not DM user (missing code scenario).")
-            return
+        # Finally, assign role (or skip) based on is_18_plus
+        await assign_role(discord_id, is_18_plus, guild_id, verification_code)
 
-        # If code_found=True => code is in the bio. Now we can proceed:
-        user = session.query(User).filter_by(discord_id=discord_id).first()
-        if not user:
-            user = User(discord_id=discord_id)
-            session.add(user)
-
-        user.vrc_user_id = vrc_user_id
-        user.verification_status = bool(is_18_plus)
-
-        # Remove pending
-        session.delete(pending)
-
-    # Finally, assign role (or skip) based on is_18_plus
-    await assign_role(discord_id, is_18_plus, guild_id, verification_code)
+    except Exception as e:
+        logger.error("❌ Exception in handle_verification_result", exc_info=True)
 
 # -------------------------------------------------------------------
 # Bot Events
