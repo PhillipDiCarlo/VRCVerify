@@ -1,0 +1,30 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Bot.py Debugger",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/bot.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Online Checker Debugger",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/vrc_online_checker.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "test VRC file",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/test_vrc.py",
+            "console": "integratedTerminal"
+        }
+    ]
+}

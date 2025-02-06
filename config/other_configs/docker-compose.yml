@@ -1,0 +1,35 @@
+services:
+  discord-bot:
+    build:
+      context: ../../
+      dockerfile: docker/Dockerfile-bot
+    image: discord-bot  # <-- Explicitly set image name
+    ports:
+      - "5002:5002"
+    environment:
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_REQUEST_QUEUE=${RABBITMQ_QUEUE_NAME}
+      - RABBITMQ_RESULT_QUEUE=${RABBITMQ_RESULT_QUEUE}
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USERNAME=${RABBITMQ_USERNAME}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - RABBITMQ_VHOST=${RABBITMQ_VHOST}
+
+  vrc-online-checker:
+    build:
+      context: ../../
+      dockerfile: docker/Dockerfile-online-checker
+    image: vrc-online-checker  # <-- Explicitly set image name
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_REQUEST_QUEUE=${RABBITMQ_QUEUE_NAME}
+      - RABBITMQ_RESULT_QUEUE=${RABBITMQ_RESULT_QUEUE}
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USERNAME=${RABBITMQ_USERNAME}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - RABBITMQ_VHOST=${RABBITMQ_VHOST}
+      - VRCHAT_USERNAME=${VRCHAT_USERNAME}
+      - VRCHAT_PASSWORD=${VRCHAT_PASSWORD}

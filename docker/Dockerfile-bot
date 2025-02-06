@@ -1,0 +1,21 @@
+# Dockerfile-bot
+
+# Use an official Python runtime as a parent image
+FROM python:3.10-slim
+
+# Set the working directory in the container
+WORKDIR /app
+
+COPY config/other_configs/requirements.txt requirements.txt
+
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the entire project
+COPY src/ src/
+
+# Expose the port
+EXPOSE 5002
+
+# Run bot.py when the container launches
+CMD ["python", "src/bot.py"]
