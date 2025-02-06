@@ -392,9 +392,8 @@ async def vrcverify_subscription(interaction: discord.Interaction):
     Sends an ephemeral link or info to the admin about how to subscribe or purchase 
     premium features for your VRChat verification bot.
     """
-    subscription_link = "https://www.example.com/subscribe"
+    subscription_link = "https://esattotech.com/vrcverify-vrchat-age-verifier-for-discord/"
 
-    # Example ephemeral message
     await interaction.response.send_message(
         f"Here’s the link to manage subscriptions or purchase premium:\n{subscription_link}",
         ephemeral=True
@@ -413,7 +412,7 @@ async def vrcverify_support(interaction: discord.Interaction):
     await interaction.response.send_message(
         "Need help with verification?\n"
         "- Contact a server admin for assistance\n"
-        "- Or visit our support page at https://www.example.com\n\n"
+        "- Or visit our support page at https://esattotech.com/contact-us/\n\n"
         "If this is an error, please let us know!",
         ephemeral=True
     )
@@ -428,7 +427,6 @@ async def vrcverify_instructions(interaction: discord.Interaction):
     Admin command that posts an embed telling users how to use the bot.
     The embed includes a code block with an example command usage.
     """
-    # Example embed text
     embed = Embed(
         title="How to Use the VRChat Verification Bot",
         description=(
