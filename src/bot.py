@@ -459,7 +459,7 @@ async def vrcverify_instructions(interaction: discord.Interaction):
         title="How to Use the VRChat Verification Bot",
         description=(
             "**Follow these steps** to verify your 18+ status:\n\n"
-            "1. Type `/vrcverify` or click the **Begin Verification** button (if shown)\n"
+            "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
             "2. If you're new, you'll be asked for your VRChat username\n"
             "3. The bot will give you a unique code – put this in your VRChat bio\n"
             "4. Press **Verify** in Discord once your bio is updated\n\n"
