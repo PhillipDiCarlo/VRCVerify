@@ -241,8 +241,14 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
     is_18_plus = (age_status == "18+")
 
     code_found = False
-    if verification_code is not None and verification_code in bio:
-        code_found = True
+    if verification_code is not None:
+        stripped_code = verification_code.strip()
+        # Split the bio into lines and remove leading/trailing whitespace from each
+        for line in bio.splitlines():
+            if stripped_code == line.strip():
+                code_found = True
+                break
+
 
     return {
         "discordID": discord_id,
