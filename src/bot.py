@@ -425,9 +425,12 @@ async def vrcverify_subscription(interaction: discord.Interaction):
     premium features for your VRChat verification bot.
     """
     subscription_link = "https://esattotech.com/vrcverify-vrchat-age-verifier-for-discord/"
+    kofi_link = "https://ko-fi.com/italiandogs"
 
     await interaction.response.send_message(
-        f"Here’s the link to manage subscriptions or purchase premium:\n{subscription_link}",
+        # f"Here’s the link to manage subscriptions or purchase premium:\n{subscription_link}",
+        f"I've decided to offer this free of charge however if you wish to still support me, you can find my Ko-fi here:{kofi_link}. Thank you for your continued support ♥",
+
         ephemeral=True
     )
 
