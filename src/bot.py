@@ -79,6 +79,9 @@ class Server(Base):
     subscription_start_date = Column(DateTime, nullable=True)
     email = Column(String, nullable=True)
     last_renewal_date = Column(DateTime, nullable=True)
+    instructions_channel_id = Column(String, nullable=True)
+    instructions_message_id = Column(String, nullable=True)
+
 
 class User(Base):
     __tablename__ = 'users'
@@ -128,9 +131,80 @@ class VRCVerifyBot(discord.Client):
 
 bot = VRCVerifyBot()
 
+
+# -------------------------------------------------------------------
+# Instruction Button
+# -------------------------------------------------------------------
+class VRCVerifyInstructionView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Begin Verification", style=discord.ButtonStyle.primary)
+    async def begin_verification(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Instead of calling vrcverify directly, call the helper
+        await process_verification(interaction)
+
 # -------------------------------------------------------------------
 # Helpers
 # -------------------------------------------------------------------
+async def process_verification(interaction: discord.Interaction):
+    """
+    Processes a verification request by doing one of the following:
+      1. If the server's configuration is missing (or the verification role is not set), it notifies the user.
+      2. If the user is already verified, it defers the response, assigns the role (or re-assigns), and sends a followup message.
+      3. If the user exists but is not verified, it triggers a "no-code" re-check by publishing a verification request.
+      4. If the user is not in the database, it presents a modal for the user to enter their VRChat username.
+    """
+    guild_id = str(interaction.guild.id)
+    user_id = str(interaction.user.id)
+
+    # Use a session block to load data and extract only the necessary values.
+    with session_scope() as session:
+        server = session.query(Server).filter_by(server_id=guild_id).first()
+        if not server or not server.role_id:
+            await interaction.response.send_message(
+                "⚠️ This server hasn't set up a verification role yet. Please contact an admin.",
+                ephemeral=True
+            )
+            return
+
+        # Extract the values you need from the user object while still in the session.
+        user = session.query(User).filter_by(discord_id=user_id).first()
+        if user:
+            is_verified = user.verification_status
+            stored_vrc_user_id = user.vrc_user_id or ""
+        else:
+            is_verified = None
+            stored_vrc_user_id = None
+
+    # CASE A: User exists and is verified.
+    if user is not None and is_verified:
+        await interaction.response.defer(ephemeral=True)
+        await assign_role(user_id, True, guild_id)
+        await interaction.followup.send(
+            "✅ You’re already verified! Role assigned (or re-assigned).",
+            ephemeral=True
+        )
+        return
+
+    # CASE B: User exists but is not verified => trigger a "no-code" re-check.
+    if user is not None and not is_verified:
+        await interaction.response.defer(ephemeral=True)
+        await publish_to_vrc_checker(
+            discord_id=user_id,
+            vrc_user_id=stored_vrc_user_id,
+            guild_id=guild_id,
+            code=None  # No-code re-check
+        )
+        await interaction.followup.send(
+            "🔎 We’re re-checking your VRChat 18+ status. If you’ve updated your VRChat age verification, you’ll get a DM soon!",
+            ephemeral=True
+        )
+        return
+
+    # CASE C: User is not in the database => show the VRChat username modal.
+    await interaction.response.send_modal(VRCUsernameModal(interaction))
+
 def generate_verification_code() -> str:
     return "VRC-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
@@ -298,49 +372,7 @@ class VRCVerificationButton(discord.ui.View):
 # -------------------------------------------------------------------
 @bot.tree.command(name="vrcverify", description="Verify your VRChat 18+ status")
 async def vrcverify(interaction: discord.Interaction):
-    guild_id = str(interaction.guild.id)
-    user_id = str(interaction.user.id)
-
-    with session_scope() as session:
-        # Check server config
-        server = session.query(Server).filter_by(server_id=guild_id).first()
-        if not server or not server.role_id:
-            await interaction.response.send_message(
-                "⚠️ This server hasn't set up a verification role yet. Please contact an admin.",
-                ephemeral=True
-            )
-            return
-
-        # Check if user is in the DB
-        user = session.query(User).filter_by(discord_id=user_id).first()
-
-        # CASE A: user is in DB and verified
-        if user and user.verification_status:
-            await interaction.response.defer(ephemeral=True)
-            await assign_role(user_id, True, guild_id)
-            await interaction.followup.send("✅ You’re already verified! Role assigned (or re-assigned).", ephemeral=True)
-            return
-
-        # CASE B: user is in DB but NOT verified => do a "no-code" re-check
-        if user and not user.verification_status:
-            await interaction.response.defer(ephemeral=True)
-            vrc_user_id = user.vrc_user_id or ""
-            # Publish a "no-code" request => checks if they've gained 18+ status
-            await publish_to_vrc_checker(
-                discord_id=user_id,
-                vrc_user_id=vrc_user_id,
-                guild_id=guild_id,
-                code=None
-            )
-            await interaction.followup.send(
-                "🔎 We’re re-checking your VRChat 18+ status. If you’ve updated your VRChat age verification, "
-                "you’ll get a DM soon!",
-                ephemeral=True
-            )
-            return
-
-        # CASE C: user is not in DB => show the VRChat Username modal
-        await interaction.response.send_modal(VRCUsernameModal(interaction))
+    await process_verification(interaction)
 
 # -------------------------------------------------------------------
 # Slash Command: /vrcverify_setup
@@ -393,9 +425,12 @@ async def vrcverify_subscription(interaction: discord.Interaction):
     premium features for your VRChat verification bot.
     """
     subscription_link = "https://esattotech.com/vrcverify-vrchat-age-verifier-for-discord/"
+    kofi_link = "https://ko-fi.com/italiandogs"
 
     await interaction.response.send_message(
-        f"Here’s the link to manage subscriptions or purchase premium:\n{subscription_link}",
+        # f"Here’s the link to manage subscriptions or purchase premium:\n{subscription_link}",
+        f"I've decided to offer this free of charge however if you wish to still support me, you can find my Ko-fi here:{kofi_link}. Thank you for your continued support ♥",
+
         ephemeral=True
     )
 
@@ -423,15 +458,11 @@ async def vrcverify_support(interaction: discord.Interaction):
 @app_commands.checks.has_permissions(administrator=True)
 @bot.tree.command(name="vrcverify_instructions", description="Admin only: Post instructions for using the verification bot.")
 async def vrcverify_instructions(interaction: discord.Interaction):
-    """
-    Admin command that posts an embed telling users how to use the bot.
-    The embed includes a code block with an example command usage.
-    """
     embed = Embed(
         title="How to Use the VRChat Verification Bot",
         description=(
             "**Follow these steps** to verify your 18+ status:\n\n"
-            "1. Type `/vrcverify` or click the **Begin Verification** button (if shown)\n"
+            "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
             "2. If you're new, you'll be asked for your VRChat username\n"
             "3. The bot will give you a unique code – put this in your VRChat bio\n"
             "4. Press **Verify** in Discord once your bio is updated\n\n"
@@ -440,8 +471,6 @@ async def vrcverify_instructions(interaction: discord.Interaction):
         color=discord.Color.blue()
     )
 
-    # Optionally show a code block with example usage
-    # (Discord code blocks use triple backticks)
     usage_example = (
         "**Example Usage**:\n"
         "```bash\n"
@@ -450,7 +479,19 @@ async def vrcverify_instructions(interaction: discord.Interaction):
     )
     embed.add_field(name="Example Command", value=usage_example, inline=False)
 
-    await interaction.response.send_message(embed=embed)
+    view = VRCVerifyInstructionView()
+    # Send the initial response and then fetch the message
+    await interaction.response.send_message(embed=embed, view=view)
+    message = await interaction.original_response()
+
+    # Save the channel and message IDs to your database for reinitialization.
+    guild_id = str(interaction.guild.id)
+    channel_id = str(interaction.channel.id)
+    with session_scope() as session:
+        server = session.query(Server).filter_by(server_id=guild_id).first()
+        if server:
+            server.instructions_channel_id = channel_id
+            server.instructions_message_id = str(message.id)
 
 # -------------------------------------------------------------------
 # RabbitMQ Consumer - handle verification results
@@ -597,6 +638,26 @@ async def handle_verification_result(data: dict):
 async def on_ready():
     logger.info(f"Bot is ready. Logged in as {bot.user} (ID: {bot.user.id})")
     bot.loop.create_task(consume_results_queue())
+    
+    # Reinitialize instruction messages across servers
+    with session_scope() as session:
+        servers = session.query(Server).filter(Server.instructions_message_id != None).all()
+        servers_data = [
+            (server.server_id, server.instructions_channel_id, server.instructions_message_id)
+            for server in servers
+        ]
+    for server_id, channel_id, message_id in servers_data:
+        guild = bot.get_guild(int(server_id))
+        if not guild:
+            continue
+        try:
+            channel = guild.get_channel(int(channel_id))
+            if channel:
+                message = await channel.fetch_message(int(message_id))
+                await message.edit(view=VRCVerifyInstructionView())
+                logger.info(f"Reinitialized instructions message for guild {server_id}")
+        except Exception as e:
+            logger.error(f"Error reinitializing instructions message for guild {server_id}: {e}")
 
 # -------------------------------------------------------------------
 # Main
