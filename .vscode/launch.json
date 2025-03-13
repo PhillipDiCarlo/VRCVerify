@@ -25,6 +25,13 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/test_vrc.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Sub Manager GumRoad",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/gumroad_subscription_manager.py",
+            "console": "integratedTerminal"
         }
     ]
 }
