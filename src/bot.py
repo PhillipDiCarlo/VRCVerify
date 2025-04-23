@@ -287,7 +287,7 @@ async def assign_role(discord_id: str, is_18_plus: bool, guild_id: str, verifica
             # Code-based scenario
             try:
                 await member.send(
-                    "❌ The verification code was found in your bio, "
+                    "⚠️ The verification code was found in your bio, "
                     "but your VRChat profile is not set to '18+' (hidden or not verified). No role assigned."
                 )
             except discord.Forbidden:
@@ -463,7 +463,8 @@ async def vrcverify_instructions(interaction: discord.Interaction):
         description=(
             "**Follow these steps** to verify your 18+ status:\n\n"
             "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
-            "2. If you're new, you'll be asked for your VRChat username\n"
+            "2. If you're new, you'll be asked for your VRChat username.\n"
+            ".    **NOTE:** This is found in the web address of your VRC profile. **NOT** your display name.\n"
             "3. The bot will give you a unique code – put this in your VRChat bio\n"
             "4. Press **Verify** in Discord once your bio is updated\n\n"
             "If you need additional help, contact an admin or type `/vrcverify_support`."
