@@ -5,8 +5,9 @@ import re
 import os
 import json
 import pika
-import psycopg2
 import logging
+import heapq
+import threading
 from dotenv import load_dotenv
 
 # VRChat API imports
@@ -168,35 +169,67 @@ if not vrchat_api_client:
     logging.error("VRChat login failed. Exiting soon...")
 
 # -------------------------------------------------------------------
-# Verification Logic
+# Rate-Limited Scheduler (1 task every 10s)
 # -------------------------------------------------------------------
-def process_verification_request(ch, method, properties, body):
-    """
-    The bot sends us JSON with:
-      - discordID
-      - vrcUserID
-      - guildID
-      - verificationCode (possibly None)
-    We'll check VRChat, then publish a result back to RESULT_QUEUE_NAME.
-    """
-    data = json.loads(body)
-    discord_id = data.get("discordID")
-    vrc_user_id = data.get("vrcUserID")
-    guild_id = data.get("guildID")
-    verification_code = data.get("verificationCode")
+class RateLimitedScheduler:
+    def __init__(self, interval_seconds: float):
+        self.interval = interval_seconds
+        self.lock     = threading.Lock()
+        self.cv       = threading.Condition(self.lock)
+        self.heap     = []   # heap of (run_at, func, args, kwargs)
+        self.last_run = 0.0
 
-    logging.info("Received verification request: %s", data)
+        t = threading.Thread(target=self._run_loop, daemon=True)
+        t.start()
 
-    # If verification_code is None => "re-check"
-    # If not None => "new code" approach
+    def schedule(self, func, *args, **kwargs):
+        with self.lock:
+            now    = time.time()
+            # next slot is max(now, last_run + interval)
+            run_at = max(now, self.last_run + self.interval)
+            heapq.heappush(self.heap, (run_at, func, args, kwargs))
+            self.last_run = run_at
+            self.cv.notify()
+
+    def _run_loop(self):
+        while True:
+            with self.lock:
+                while not self.heap:
+                    self.cv.wait()
+                run_at, func, args, kwargs = self.heap[0]
+                delay = run_at - time.time()
+                if delay > 0:
+                    self.cv.wait(timeout=delay)
+                    continue
+                # time to run
+                heapq.heappop(self.heap)
+
+            try:
+                func(*args, **kwargs)
+            except Exception as e:
+                logging.error("Scheduled task error: %s", e)
+
+# instantiate scheduler with 10s interval
+scheduler = RateLimitedScheduler(interval_seconds=10.0)
+
+# -------------------------------------------------------------------
+# Core Verification Logic
+# -------------------------------------------------------------------
+def handle_verification(data: dict):
+    discord_id       = data["discordID"]
+    vrc_user_id      = data["vrcUserID"]
+    guild_id         = data["guildID"]
+    verification_code= data.get("verificationCode")
+
     result = verify_and_build_result(
-        discord_id=discord_id,
-        vrc_user_id=vrc_user_id,
-        guild_id=guild_id,
-        verification_code=verification_code
+        discord_id, vrc_user_id, guild_id, verification_code
     )
-
     send_verification_result(result)
+
+def process_verification_request(ch, method, properties, body):
+    data = json.loads(body)
+    logging.info("Enqueuing verification for %s", data)
+    scheduler.schedule(handle_verification, data)
 
 def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code):
     """
@@ -248,7 +281,6 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
             if stripped_code == line.strip():
                 code_found = True
                 break
-
 
     return {
         "discordID": discord_id,
