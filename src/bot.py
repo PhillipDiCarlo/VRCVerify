@@ -4,6 +4,7 @@ import asyncio
 import logging
 import random
 import string
+import re
 
 import discord
 from discord import app_commands, Embed
@@ -296,19 +297,39 @@ async def assign_role(discord_id: str, is_18_plus: bool, guild_id: str, verifica
 # -------------------------------------------------------------------
 # Modal: Collect VRChat Username
 # -------------------------------------------------------------------
-class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Username"):
-    vrc_username = discord.ui.TextInput(label="VRChat Username", placeholder="usr_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or UserID"):
+    vrc_username = discord.ui.TextInput(
+        label="VRChat Profile URL or UserID",
+        placeholder="https://vrchat.com/home/user/usr_1234d567-b12e-123d-a1c2-fd12345a67ea"
+    )
 
     def __init__(self, interaction: discord.Interaction):
         super().__init__()
         self.interaction = interaction
 
     async def on_submit(self, interaction: discord.Interaction):
-        """User has submitted their VRChat username => store a pending row, but do NOT publish to checker yet."""
-        vrc_username = self.vrc_username.value.strip()
+        raw_input = self.vrc_username.value.strip()
+
+        # 1) If they pasted the full URL, extract the userID
+        url_pattern = r'https?://vrchat\.com/home/user/([A-Za-z0-9\-_]+)'
+        m = re.match(url_pattern, raw_input)
+        if m:
+            vrc_user_id = m.group(1)
+        # 2) If they already only entered the usr_… ID, accept it
+        elif raw_input.startswith('usr_'):
+            vrc_user_id = raw_input
+        # 3) Otherwise, they probably typed a display name ➔ warn & cancel
+        else:
+            await interaction.response.send_message(
+                "❌ It looks like you entered your display name instead of your VRChat userID.\n"
+                "Please enter either the full profile URL or your userID (which always starts with `usr_`).\n https://imgur.com/a/EEl6ekH",
+                ephemeral=True
+            )
+            return
+
+        # …and now proceed exactly as before, but using `vrc_user_id`
         discord_id = str(interaction.user.id)
         guild_id = str(interaction.guild_id)
-
         verification_code = generate_verification_code()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
 
@@ -319,19 +340,18 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Username"):
             pending = PendingVerification(
                 discord_id=discord_id,
                 guild_id=guild_id,
-                vrc_user_id=vrc_username,
+                vrc_user_id=vrc_user_id,
                 verification_code=verification_code,
                 expires_at=expires_at
             )
             session.add(pending)
 
-        # Provide a "Verify" button that actually triggers the code-based check
-        view = VRCVerificationButton(vrc_username, verification_code, guild_id)
+        view = VRCVerificationButton(vrc_user_id, verification_code, guild_id)
         await interaction.response.send_message(
-            f"✅ **VRChat username saved!**\n"
-            f"**1) Add the following code to your VRChat bio now:**\n"
+            f"✅ **VRChat userID saved!**\n\n"
+            f"**1) Add this code to your VRChat bio:**\n"
             f"```\n{verification_code}\n```\n"
-            f"**2) Once you've updated your bio, press 'Verify' below (within 5 minutes).**",
+            f"**2) Once you've updated your bio, click “Verify” below (within 5 minutes).**",
             view=view,
             ephemeral=True
         )
@@ -658,6 +678,8 @@ async def on_ready():
                 logger.info(f"Reinitialized instructions message for guild {server_id}")
         except Exception as e:
             logger.error(f"Error reinitializing instructions message for guild {server_id}: {e}")
+        
+    logger.info("Bot is reinitialized and ready to go!")
 
 # -------------------------------------------------------------------
 # Main
