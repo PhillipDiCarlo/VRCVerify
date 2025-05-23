@@ -9,6 +9,7 @@ import re
 import discord
 from discord import app_commands, Embed
 from discord.ext import commands
+from discord.ui import View, Button, Select
 
 import pika
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
@@ -172,6 +173,55 @@ class VRCVerifyInstructionView(discord.ui.View):
             ephemeral=True
         )
 
+# -------------------------------------------------------------------
+# Show Settings View
+# -------------------------------------------------------------------
+class SettingsView(View):
+    def __init__(self, current: bool):
+        super().__init__(timeout=None)
+        self.selected: str | None = None
+
+        # dropdown for Yes/No
+        options = [
+            discord.SelectOption(label="Yes", value="yes", default=current),
+            discord.SelectOption(label="No",  value="no",  default=not current),
+        ]
+        self.dropdown = Select(
+            placeholder="Enable auto nickname change",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+        self.dropdown.callback = self.on_select
+        self.add_item(self.dropdown)
+
+        # save button
+        self.save_btn = Button(label="Save", style=discord.ButtonStyle.primary)
+        self.save_btn.callback = self.on_save
+        self.add_item(self.save_btn)
+
+    async def on_select(self, interaction: discord.Interaction):
+        # store the choice; we defer to let them click Save
+        self.selected = interaction.data["values"][0]
+        await interaction.response.defer(ephemeral=True)
+
+    async def on_save(self, interaction: discord.Interaction):
+        choice = self.selected or ("yes" if self.dropdown.options[0].default else "no")
+        new_val = (choice == "yes")
+
+        # persist into your servers table
+        with session_scope() as session:
+            srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
+            if not srv:
+                srv = Server(server_id=str(interaction.guild.id), owner_id=str(interaction.user.id))
+                session.add(srv)
+            srv.auto_nickname_change = new_val
+
+        # confirm & remove view
+        await interaction.response.edit_message(
+            content=f"🔧 Settings saved! Auto nickname change is now **{'Yes' if new_val else 'No'}**.",
+            view=None
+        )
 
 # -------------------------------------------------------------------
 # Helpers
@@ -560,49 +610,27 @@ async def vrcverify_instructions(interaction: discord.Interaction):
 # -------------------------------------------------------------------
 # Slash Command: /vrcverify_settings
 # -------------------------------------------------------------------
-@app_commands.checks.has_permissions(administrator=True)
 @bot.tree.command(
     name="vrcverify_settings",
-    description="Admin: Toggle auto nickname updates to match VRChat display names."
+    description="Admin: Configure VRChat-Verify settings"
 )
+@app_commands.checks.has_permissions(administrator=True)
 async def vrcverify_settings(interaction: discord.Interaction):
-    guild_id = str(interaction.guild.id)
-
-    # grab current setting (or create server row if missing)
+    """Show the dropdown + Save button for your server’s settings."""
+    # fetch current setting
     with session_scope() as session:
-        server = session.query(Server).filter_by(server_id=guild_id).first()
-        if not server:
-            server = Server(server_id=guild_id, owner_id=str(interaction.user.id), role_id=None)
-            session.add(server)
-            session.commit()
-        current = server.auto_nickname_change
+        srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
+        current = bool(srv.auto_nickname_change) if srv else False
 
-    # build dropdown options, defaulting to current value
-    options = [
-        discord.SelectOption(label="Yes", value="yes", default=current),
-        discord.SelectOption(label="No",  value="no",  default=not current),
-    ]
-
-    class SettingsView(discord.ui.View):
-        @discord.ui.select(
-            placeholder="Enable auto nickname change.",
-            min_values=1, max_values=1, options=options
-        )
-        async def select_callback(self, select: discord.ui.Select, sel_int: discord.Interaction):
-            choice = sel_int.data["values"][0]
-            new_val = choice == "yes"
-            with session_scope() as session:
-                srv = session.query(Server).filter_by(server_id=guild_id).first()
-                srv.auto_nickname_change = new_val
-            await sel_int.response.edit_message(
-                content=f"🔧 Auto nickname change set to **{'Yes' if new_val else 'No'}**.",
-                view=None, 
-                ephemeral=True
-            )
-
+    view = SettingsView(current)
     await interaction.response.send_message(
-        "⚙️ **VRChat Verify Settings**",
-        view=SettingsView(timeout=None),
+        content=(
+            "⚙️ **VRChat Verify Settings**\n\n"
+            "1.) **Enable auto nickname change**\n"
+            "   Automatically update users’ Discord nicknames to match their VRChat display names.\n"
+            f"   Current: **{'Yes' if current else 'No'}**"
+        ),
+        view=view,
         ephemeral=True
     )
 
