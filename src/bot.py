@@ -318,74 +318,76 @@ async def publish_to_vrc_checker(
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, _publish)
 
-async def assign_role(discord_id: str, is_18_plus: bool, guild_id: str, verification_code: str|None=None, display_name: str|None=None):
+async def assign_role(
+    discord_id: str,
+    is_18_plus: bool,
+    guild_id: str,
+    verification_code: str | None = None,   # no longer required for nickname logic
+    display_name:   str | None = None
+):
     """
-    Assign or skip role in exactly one guild. 
-    If user is not 18+, show a different DM depending on whether it was a code-based or no-code verification.
+    Assigns or skips the 18+ role in one guild.
+    Automatically updates the nickname if the server setting is on.
     """
+    # Load server settings
     with session_scope() as session:
         server = session.query(Server).filter_by(server_id=guild_id).first()
         role_id = server.role_id if server else None
+        auto_nick = server.auto_nickname_change if server else False
 
     guild = bot.get_guild(int(guild_id))
     if not guild:
-        logger.warning(f"⚠️ Could not find guild {guild_id}.")
+        logger.warning(f"⚠️ Guild {guild_id} not found.")
         return
 
     member = guild.get_member(int(discord_id))
     if not member:
-        logger.warning(f"⚠️ User {discord_id} not found in guild {guild_id}.")
+        logger.warning(f"⚠️ Member {discord_id} not in guild.")
         return
 
     if not role_id:
-        logger.warning(f"⚠️ No role_id configured for guild {guild_id}.")
+        logger.warning(f"⚠️ No verification role configured for guild {guild_id}.")
         return
 
     role = discord.utils.get(guild.roles, id=int(role_id))
     if not role:
-        logger.warning(f"⚠️ Role {role_id} not found in guild {guild_id}.")
+        logger.warning(f"⚠️ Role ID {role_id} missing in guild {guild_id}.")
         return
 
+    # Assign or notify
     if is_18_plus:
-        # Success => assign role
         try:
             await member.add_roles(role)
-            logger.info(f"✅ Assigned {role.name} to {member} in {guild.name}.")
+            logger.info(f"✅ Assigned role {role.name} to {member}.")
             try:
-                await member.send(
-                    f"✅ You have been verified and assigned **{role.name}** in **{guild.name}**!"
-                )
+                await member.send(f"✅ You’ve been verified and given **{role.name}** in **{guild.name}**!")
             except discord.Forbidden:
-                logger.warning("⚠️ Could not DM user; DMs off.")
+                logger.warning("⚠️ Cannot DM user after role assign.")
         except discord.Forbidden:
-            logger.warning(f"⚠️ Bot lacks permission to assign {role.name} in {guild_id}.")
-        
-        # Auto nickname change if enabled (post-verification)
-        if verification_code is not None and server and server.auto_nickname_change and display_name:
+            logger.warning(f"⚠️ Missing permission to add {role.name} in {guild_id}.")
+
+        # Auto-nickname change if enabled
+        if auto_nick and display_name:
             try:
                 await member.edit(nick=display_name)
-                await member.send(f"🔔 Your VRChat display name is **{display_name}** and your nickname has been updated!")
+                logger.info(f"🔄 Updated nickname to {display_name} for {member}.")
+                try:
+                    await member.send(f"🔔 Your nickname was updated to **{display_name}**.")
+                except discord.Forbidden:
+                    logger.warning("⚠️ Cannot DM after nickname update.")
             except discord.Forbidden:
-                logger.warning("⚠️ Couldn't change nickname or DM user.")
+                # let user know we couldn’t rename them
+                try:
+                    await member.send("⚠️ We could not update your username.")
+                except discord.Forbidden:
+                    logger.warning("⚠️ Cannot DM user after nickname failure.")
     else:
-        # Not 18+ => decide the DM based on whether we had a code or not
-        if verification_code is None:
-            # Re-check scenario
-            try:
-                await member.send(
-                    "❌ Your VRChat profile is not set to '18+' (hidden or unverified). No role assigned."
-                )
-            except discord.Forbidden:
-                logger.warning("⚠️ Could not DM user; DMs off.")
-        else:
-            # Code-based scenario
-            try:
-                await member.send(
-                    "❌ The verification code was found in your bio, "
-                    "but your VRChat profile is not set to '18+' (hidden or not verified). No role assigned."
-                )
-            except discord.Forbidden:
-                logger.warning("⚠️ Could not DM user; DMs off.")
+        # Not 18+
+        try:
+            await member.send("❌ You are not 18+ according to VRChat. Contact an admin if this is an error.")
+        except discord.Forbidden:
+            logger.warning("⚠️ Cannot DM user about 18+ status.")
+
 
 # -------------------------------------------------------------------
 # Modal: Collect VRChat Username
@@ -663,136 +665,99 @@ async def consume_results_queue():
     await loop.run_in_executor(None, do_blocking_consume)
 
 async def handle_verification_result(data: dict):
+    """
+    Called when vrc_online_checker returns a result.
+    Distinguishes code-based flow vs. no-code re-check.
+    Also handles on-demand nickname updates.
+    """
     try:
-        """
-        Called when vrc_online_checker returns a result.
-        Distinguishes code-based flow vs. no-code re-check.
-        If code-based => we also check data["code_found"].
-        """
         logger.info(f"🔎 Received verification result: {data}")
         discord_id = data.get("discordID")
         guild_id = data.get("guildID")
         is_18_plus = data.get("is_18_plus", False)
-        vrc_user_id = data.get("vrcUserID")
-        verification_code = data.get("verificationCode")  # None => re-check
-        code_found = data.get("code_found", False)        # Only relevant if verification_code != None
-        update_nick  = data.get("updateNickname", False)
-        display_name = data.get("display_name")
+        verification_code = data.get("verificationCode")   # None => re-check
+        update_nick       = data.get("updateNickname", False)
+        display_name      = data.get("display_name")
+
+        # — On-demand nickname update flow —
         if update_nick:
             guild  = bot.get_guild(int(guild_id))
-            member = guild.get_member(int(discord_id))
+            member = guild.get_member(int(discord_id)) if guild else None
             if member and display_name:
                 # try to change nickname
                 try:
                     await member.edit(nick=display_name)
                 except discord.Forbidden:
-                    # couldn’t change nickname → let the user know
+                    # Notify user on failure
                     try:
                         await member.send("⚠️ We could not update your username.")
                     except discord.Forbidden:
-                        logger.warning("⚠️ Missing permissions to DM user after nickname failure.")
+                        logger.warning("⚠️ Cannot DM user after nickname failure.")
                     return
-
-                # if we got here, nickname change succeeded → confirm to the user
+                # Confirm on success
                 try:
                     await member.send(f"✅ Your nickname has been updated to **{display_name}**.")
                 except discord.Forbidden:
-                    logger.warning("⚠️ Missing permissions to DM user after nickname success.")
+                    logger.warning("⚠️ Cannot DM user after nickname success.")
             return
 
-        # 1) If verification_code is None => "re-check" flow
+        # — No-code re-check flow —
         if verification_code is None:
             with session_scope() as session:
                 user = session.query(User).filter_by(discord_id=discord_id).first()
                 if not user:
-                    logger.warning(f"⚠️ No user row found for discord_id={discord_id} in re-check flow.")
+                    logger.warning(f"⚠️ No user row for {discord_id} in re-check.")
                     return
-                # Update user verification status
-                user.verification_status = bool(is_18_plus)
-                if vrc_user_id:
-                    user.vrc_user_id = vrc_user_id
+                user.verification_status = is_18_plus
+                # preserve vrc_user_id if provided
+                if data.get("vrcUserID"):
+                    user.vrc_user_id = data["vrcUserID"]
 
-            # Now call assign_role with no code
-            await assign_role(discord_id, is_18_plus, guild_id, verification_code, display_name)
+            # Now assign role + maybe nickname
+            await assign_role(discord_id, is_18_plus, guild_id, display_name=display_name)
             return
 
-        # 2) Otherwise => code-based flow
+        # — Code-based flow —
         now_utc = datetime.now(timezone.utc)
         with session_scope() as session:
-            query = session.query(PendingVerification).filter_by(discord_id=discord_id, guild_id=guild_id)
-            query = query.filter_by(verification_code=verification_code)
-            pending = query.first()
-
+            pending = (
+                session.query(PendingVerification)
+                .filter_by(discord_id=discord_id, guild_id=guild_id, verification_code=verification_code)
+                .first()
+            )
             if not pending:
-                logger.warning(
-                    f"⚠️ No matching pending verification found for user={discord_id}, "
-                    f"guild={guild_id}, code={verification_code}."
-                )
+                logger.warning(f"⚠️ No pending verification for {discord_id}/{verification_code}.")
                 return
-
-            # Check if expired
             if now_utc > pending.expires_at:
-                logger.warning(f"⚠️ Code expired for user={discord_id} in guild={guild_id}. Removing pending row.")
                 session.delete(pending)
+                logger.warning(f"⚠️ Verification code expired for {discord_id}.")
+                return
+            if not data.get("code_found", False):
+                session.delete(pending)
+                guild  = bot.get_guild(int(guild_id))
+                member = guild.get_member(int(discord_id)) if guild else None
+                if member:
+                    try:
+                        await member.send(
+                            "❌ We couldn’t find your code in your VRChat bio. Please try again."
+                        )
+                    except discord.Forbidden:
+                        logger.warning("⚠️ Cannot DM user about missing code.")
                 return
 
-            # If code was NOT found in the bio, do NOT create the user
-            if not code_found:
-                logger.info(f"❌ The code was NOT found in VRChat bio for user={discord_id}. Removing pending row.")
-                session.delete(pending)
-                # Optionally DM them about missing code:
-                guild = bot.get_guild(int(guild_id))
-                if guild:
-                    member = guild.get_member(int(discord_id))
-                    if member:
-                        try:
-                            await member.send(
-                                "❌ We could not find your verification code in your VRChat bio. Please try again."
-                            )
-                        except discord.Forbidden:
-                            logger.warning("⚠️ Could not DM user (missing code scenario).")
-                return
-
-            # -- NEW SECTION: Check if this VRChat ID is already used by another Discord user --
-            existing_with_same_vrc = session.query(User).filter_by(vrc_user_id=vrc_user_id).first()
-            if existing_with_same_vrc and (existing_with_same_vrc.discord_id != discord_id):
-                # It's already claimed by a different discord user => remove pending + DM user
-                logger.warning(
-                    f"VRChat ID {vrc_user_id} is already associated with discord_id={existing_with_same_vrc.discord_id}."
-                )
-                session.delete(pending)
-
-                guild = bot.get_guild(int(guild_id))
-                if guild:
-                    member = guild.get_member(int(discord_id))
-                    if member:
-                        try:
-                            await member.send(
-                                "❌ That VRChat account is already associated with another Discord user. "
-                                "If this is a mistake, please contact support or an admin."
-                            )
-                        except discord.Forbidden:
-                            logger.warning("⚠️ Could not DM user about the duplicate VRChat ID.")
-
-                return
-
-            # If code_found=True => code is in the bio, and VRChat ID is not claimed by someone else
+            # Everything checks out — create/update user row
             user = session.query(User).filter_by(discord_id=discord_id).first()
             if not user:
                 user = User(discord_id=discord_id)
                 session.add(user)
-
-            # Attempt to set VRChat ID => might fail if there's a unique constraint (but we just checked, so safe)
-            user.vrc_user_id = vrc_user_id
-            user.verification_status = bool(is_18_plus)
-
-            # Remove pending
+            user.vrc_user_id = data["vrcUserID"]
+            user.verification_status = is_18_plus
             session.delete(pending)
 
-        # Finally, assign role (or skip) based on is_18_plus
-        await assign_role(discord_id, is_18_plus, guild_id, verification_code, display_name)
+        # Assign role + maybe nickname
+        await assign_role(discord_id, is_18_plus, guild_id, display_name=display_name)
 
-    except Exception as e:
+    except Exception:
         logger.error("❌ Exception in handle_verification_result", exc_info=True)
 
 # -------------------------------------------------------------------
