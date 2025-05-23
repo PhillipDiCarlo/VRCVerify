@@ -679,16 +679,26 @@ async def handle_verification_result(data: dict):
         update_nick  = data.get("updateNickname", False)
         display_name = data.get("display_name")
         if update_nick:
-            guild  = bot.get_guild(int(data["guildID"]))
-            member = guild.get_member(int(data["discordID"])) if guild else None
+            guild  = bot.get_guild(int(guild_id))
+            member = guild.get_member(int(discord_id))
             if member and display_name:
+                # try to change nickname
                 try:
                     await member.edit(nick=display_name)
+                except discord.Forbidden:
+                    # couldn’t change nickname → let the user know
+                    try:
+                        await member.send("⚠️ We could not update your username.")
+                    except discord.Forbidden:
+                        logger.warning("⚠️ Missing permissions to DM user after nickname failure.")
+                    return
+
+                # if we got here, nickname change succeeded → confirm to the user
+                try:
                     await member.send(f"✅ Your nickname has been updated to **{display_name}**.")
                 except discord.Forbidden:
-                    logger.warning("⚠️ Cannot change nickname or DM user.")
+                    logger.warning("⚠️ Missing permissions to DM user after nickname success.")
             return
-
 
         # 1) If verification_code is None => "re-check" flow
         if verification_code is None:
