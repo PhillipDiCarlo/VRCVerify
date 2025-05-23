@@ -82,6 +82,7 @@ class Server(Base):
     last_renewal_date = Column(DateTime, nullable=True)
     instructions_channel_id = Column(String, nullable=True)
     instructions_message_id = Column(String, nullable=True)
+    auto_nickname_change = Column(Boolean, default=False)
 
 
 class User(Base):
@@ -144,6 +145,33 @@ class VRCVerifyInstructionView(discord.ui.View):
     async def begin_verification(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Instead of calling vrcverify directly, call the helper
         await process_verification(interaction)
+
+    @discord.ui.button(label="Update Nickname", style=discord.ButtonStyle.secondary)
+    async def update_nickname(self, interaction, button):
+        user_id = str(interaction.user.id)
+        # fetch everything you need inside the session
+        with session_scope() as session:
+            user = session.query(User).filter_by(discord_id=user_id).first()
+            if not user:
+                return await interaction.response.send_message(
+                    "⚠️ You haven’t verified yet. Please click **Begin Verification** first.",
+                    ephemeral=True
+                )
+            vrc_user_id = user.vrc_user_id  # grab this while session is open
+
+        # now it’s just a local variable, no lazy load needed
+        await publish_to_vrc_checker(
+            discord_id=user_id,
+            vrc_user_id=vrc_user_id,
+            guild_id=str(interaction.guild.id),
+            code=None,
+            update_nickname=True
+        )
+        await interaction.response.send_message(
+            "🔄 Nickname update requested. I’ll DM you once it’s done!",
+            ephemeral=True
+        )
+
 
 # -------------------------------------------------------------------
 # Helpers
@@ -209,31 +237,38 @@ async def process_verification(interaction: discord.Interaction):
 def generate_verification_code() -> str:
     return "VRC-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
-async def publish_to_vrc_checker(discord_id: str, vrc_user_id: str, guild_id: str, code: str | None):
-    """Send a verification request to vrc_online_checker via RabbitMQ."""
+async def publish_to_vrc_checker(
+    discord_id: str,
+    vrc_user_id: str,
+    guild_id: str,
+    code: str | None,
+    update_nickname: bool = False
+):
     def _publish():
-        connection = pika.BlockingConnection(parameters)
-        channel = connection.channel()
-        channel.queue_declare(queue=RABBITMQ_REQUEST_QUEUE, durable=True)
-
         message = {
             "discordID": discord_id,
             "vrcUserID": vrc_user_id,
-            "guildID": guild_id,
-            "verificationCode": code  # None => re-check
+            "guildID":   guild_id,
+            "verificationCode": code
         }
+        if update_nickname:
+            message["updateNickname"] = True
+
+        conn    = pika.BlockingConnection(parameters)
+        channel = conn.channel()
+        channel.queue_declare(queue=RABBITMQ_REQUEST_QUEUE, durable=True)
         channel.basic_publish(
             exchange="",
             routing_key=RABBITMQ_REQUEST_QUEUE,
             body=json.dumps(message)
         )
-        connection.close()
-        logger.info(f"📤 Sent verification request to vrc_online_checker: {message}")
+        conn.close()
+        logger.info("📤 Sent to vrc_online_checker: %s", message)
 
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, _publish)
 
-async def assign_role(discord_id: str, is_18_plus: bool, guild_id: str, verification_code: str | None = None):
+async def assign_role(discord_id: str, is_18_plus: bool, guild_id: str, verification_code: str|None=None, display_name: str|None=None):
     """
     Assign or skip role in exactly one guild. 
     If user is not 18+, show a different DM depending on whether it was a code-based or no-code verification.
@@ -274,6 +309,14 @@ async def assign_role(discord_id: str, is_18_plus: bool, guild_id: str, verifica
                 logger.warning("⚠️ Could not DM user; DMs off.")
         except discord.Forbidden:
             logger.warning(f"⚠️ Bot lacks permission to assign {role.name} in {guild_id}.")
+        
+        # Auto nickname change if enabled (post-verification)
+        if verification_code is not None and server and server.auto_nickname_change and display_name:
+            try:
+                await member.edit(nick=display_name)
+                await member.send(f"🔔 Your VRChat display name is **{display_name}** and your nickname has been updated!")
+            except discord.Forbidden:
+                logger.warning("⚠️ Couldn't change nickname or DM user.")
     else:
         # Not 18+ => decide the DM based on whether we had a code or not
         if verification_code is None:
@@ -513,6 +556,56 @@ async def vrcverify_instructions(interaction: discord.Interaction):
             server.instructions_channel_id = channel_id
             server.instructions_message_id = str(message.id)
 
+
+# -------------------------------------------------------------------
+# Slash Command: /vrcverify_settings
+# -------------------------------------------------------------------
+@app_commands.checks.has_permissions(administrator=True)
+@bot.tree.command(
+    name="vrcverify_settings",
+    description="Admin: Toggle auto nickname updates to match VRChat display names."
+)
+async def vrcverify_settings(interaction: discord.Interaction):
+    guild_id = str(interaction.guild.id)
+
+    # grab current setting (or create server row if missing)
+    with session_scope() as session:
+        server = session.query(Server).filter_by(server_id=guild_id).first()
+        if not server:
+            server = Server(server_id=guild_id, owner_id=str(interaction.user.id), role_id=None)
+            session.add(server)
+            session.commit()
+        current = server.auto_nickname_change
+
+    # build dropdown options, defaulting to current value
+    options = [
+        discord.SelectOption(label="Yes", value="yes", default=current),
+        discord.SelectOption(label="No",  value="no",  default=not current),
+    ]
+
+    class SettingsView(discord.ui.View):
+        @discord.ui.select(
+            placeholder="Enable auto nickname change.",
+            min_values=1, max_values=1, options=options
+        )
+        async def select_callback(self, select: discord.ui.Select, sel_int: discord.Interaction):
+            choice = sel_int.data["values"][0]
+            new_val = choice == "yes"
+            with session_scope() as session:
+                srv = session.query(Server).filter_by(server_id=guild_id).first()
+                srv.auto_nickname_change = new_val
+            await sel_int.response.edit_message(
+                content=f"🔧 Auto nickname change set to **{'Yes' if new_val else 'No'}**.",
+                view=None, 
+                ephemeral=True
+            )
+
+    await interaction.response.send_message(
+        "⚙️ **VRChat Verify Settings**",
+        view=SettingsView(timeout=None),
+        ephemeral=True
+    )
+
 # -------------------------------------------------------------------
 # RabbitMQ Consumer - handle verification results
 # -------------------------------------------------------------------
@@ -555,6 +648,19 @@ async def handle_verification_result(data: dict):
         vrc_user_id = data.get("vrcUserID")
         verification_code = data.get("verificationCode")  # None => re-check
         code_found = data.get("code_found", False)        # Only relevant if verification_code != None
+        update_nick  = data.get("updateNickname", False)
+        display_name = data.get("display_name")
+        if update_nick:
+            guild  = bot.get_guild(int(data["guildID"]))
+            member = guild.get_member(int(data["discordID"])) if guild else None
+            if member and display_name:
+                try:
+                    await member.edit(nick=display_name)
+                    await member.send(f"✅ Your nickname has been updated to **{display_name}**.")
+                except discord.Forbidden:
+                    logger.warning("⚠️ Cannot change nickname or DM user.")
+            return
+
 
         # 1) If verification_code is None => "re-check" flow
         if verification_code is None:
@@ -569,7 +675,7 @@ async def handle_verification_result(data: dict):
                     user.vrc_user_id = vrc_user_id
 
             # Now call assign_role with no code
-            await assign_role(discord_id, is_18_plus, guild_id, verification_code=None)
+            await assign_role(discord_id, is_18_plus, guild_id, verification_code, display_name)
             return
 
         # 2) Otherwise => code-based flow
@@ -646,7 +752,7 @@ async def handle_verification_result(data: dict):
             session.delete(pending)
 
         # Finally, assign role (or skip) based on is_18_plus
-        await assign_role(discord_id, is_18_plus, guild_id, verification_code)
+        await assign_role(discord_id, is_18_plus, guild_id, verification_code, display_name)
 
     except Exception as e:
         logger.error("❌ Exception in handle_verification_result", exc_info=True)
