@@ -126,7 +126,6 @@ def login_to_vrchat():
 
     api_client = vrchatapi.ApiClient(configuration)
     api_client.user_agent = "VRCVerifyBot/1.0 (contact@yourdomain.com)"
-
     auth_api = authentication_api.AuthenticationApi(api_client)
 
     try:
@@ -140,17 +139,15 @@ def login_to_vrchat():
 
             # Auto-fetch the 2FA code
             two_factor_code = fetch_latest_2fa_code()
-
             if not two_factor_code:
                 logging.error("2FA required but no valid code found. Exiting.")
                 return None
 
             if "Email 2 Factor Authentication" in e.reason:
-                auth_api.verify2_fa_email_code(two_factor_email_code=TwoFactorEmailCode(two_factor_code))
-            elif "2 Factor Authentication" in e.reason:
-                auth_api.verify2_fa(two_factor_auth_code=TwoFactorAuthCode(two_factor_code))
+                auth_api.verify2_fa_email_code(TwoFactorEmailCode(two_factor_code))
+            else:
+                auth_api.verify2_fa(TwoFactorAuthCode(two_factor_code))
 
-            # Retry login after submitting 2FA
             current_user = auth_api.get_current_user()
             logging.info("Successfully logged in as %s", current_user.display_name)
             return api_client
@@ -158,7 +155,7 @@ def login_to_vrchat():
         logging.error("VRChat login failed: %s", e)
         return None
 
-    except vrchatapi.ApiException as e:
+    except ApiException as e:
         logging.error("VRChat API error: %s", e)
         return None
 
@@ -177,6 +174,7 @@ def process_verification_request(ch, method, properties, body):
       - vrcUserID
       - guildID
       - verificationCode (possibly None)
+      - update_nickname (optional, default False)
     We'll check VRChat, then publish a result back to RESULT_QUEUE_NAME.
     """
     data = json.loads(body)
@@ -184,6 +182,7 @@ def process_verification_request(ch, method, properties, body):
     vrc_user_id = data.get("vrcUserID")
     guild_id = data.get("guildID")
     verification_code = data.get("verificationCode")
+    update_nickname = data.get("updateNickname", False)
 
     logging.info("Received verification request: %s", data)
 
@@ -195,6 +194,9 @@ def process_verification_request(ch, method, properties, body):
         guild_id=guild_id,
         verification_code=verification_code
     )
+
+    if update_nickname:
+        result["updateNickname"] = True
 
     send_verification_result(result)
 
@@ -215,13 +217,15 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
             "guildID": guild_id,
             "is_18_plus": False,
             "verificationCode": verification_code,
-            "code_found": False
+            "code_found": False,
+            "display_name": None
         }
 
-    # Attempt to fetch user from VRChat
     users_api_instance = users_api.UsersApi(vrchat_api_client)
+    display_name = None
     try:
         vrc_user = users_api_instance.get_user(vrc_user_id)
+        display_name = getattr(vrc_user, "display_name", None)
     except ApiException as e:
         logging.error("Failed to fetch VRChat user %s. Error: %s", vrc_user_id, e)
         return {
@@ -230,12 +234,12 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
             "guildID": guild_id,
             "is_18_plus": False,
             "verificationCode": verification_code,
-            "code_found": False
+            "code_found": False,
+            "display_name": display_name
         }
 
     age_status = getattr(vrc_user, "age_verification_status", "unknown")
     bio = getattr(vrc_user, "bio", "")
-
     logging.info("[verify_and_build_result] user=%s, age_status=%s, bio=%s", vrc_user_id, age_status, bio)
 
     is_18_plus = (age_status == "18+")
@@ -249,14 +253,14 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
                 code_found = True
                 break
 
-
     return {
         "discordID": discord_id,
         "vrcUserID": vrc_user_id,
         "guildID": guild_id,
         "is_18_plus": is_18_plus,
-        "verificationCode": verification_code,  # None => re-check
-        "code_found": code_found
+        "verificationCode": verification_code,
+        "code_found": code_found,
+        "display_name": display_name
     }
 
 def send_verification_result(result: dict):
@@ -275,6 +279,7 @@ def send_verification_result(result: dict):
 
     logging.info("Sent verification result to '%s': %s", RESULT_QUEUE_NAME, message_str)
 
+
 def listen_for_verifications():
     """Blocking function that listens for new requests from the bot."""
     if not vrchat_api_client:
@@ -283,7 +288,6 @@ def listen_for_verifications():
     channel = connection.channel()
 
     channel.queue_declare(queue=RABBITMQ_QUEUE_NAME, durable=True)
-
     channel.basic_consume(
         queue=RABBITMQ_QUEUE_NAME,
         on_message_callback=process_verification_request,
