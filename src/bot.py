@@ -121,7 +121,6 @@ parameters = pika.ConnectionParameters(
 # Discord Bot
 # -------------------------------------------------------------------
 intents = discord.Intents.default()
-intents.members = True  # needed so that guild.get_member() works properly
 
 class VRCVerifyBot(discord.Client):
     def __init__(self):
@@ -340,8 +339,9 @@ async def assign_role(
         logger.warning(f"⚠️ Guild {guild_id} not found.")
         return
 
-    member = guild.get_member(int(discord_id))
-    if not member:
+    try:
+        member = await guild.fetch_member(int(discord_id))
+    except discord.NotFound:
         logger.warning(f"⚠️ Member {discord_id} not in guild.")
         return
 
@@ -795,4 +795,3 @@ async def on_ready():
 # -------------------------------------------------------------------
 if __name__ == '__main__':
     bot.run(DISCORD_BOT_TOKEN)
- 
