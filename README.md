@@ -1,4 +1,5 @@
 # VRChat Verify Bot
+[Get the Full Bot HERE](https://discord.com/discovery/applications/1335738139825799188)
 
 VRChat Verify Bot is a Discord bot that automates the verification of VRChat users’ age (specifically confirming their "18+" status) by cross-checking their VRChat profiles. The project is split into two main components:
 
