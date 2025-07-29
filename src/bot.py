@@ -12,7 +12,7 @@ from discord.ext import commands
 from discord.ui import View, Button, Select
 
 import pika
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import IntegrityError
@@ -142,7 +142,16 @@ class PendingVerification(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
+# Create tables and ensure the new instructions_locale column exists
 Base.metadata.create_all(engine)
+try:
+    with engine.connect() as conn:
+        # add column if missing (PostgreSQL syntax)
+        conn.execute(text(
+            "ALTER TABLE servers ADD COLUMN IF NOT EXISTS instructions_locale VARCHAR NOT NULL DEFAULT 'en-US';"
+        ))
+except Exception as e:
+    logger.warning(f"Could not auto-migrate instructions_locale column: {e}")
 
 # -------------------------------------------------------------------
 # RabbitMQ Setup
@@ -633,16 +642,15 @@ async def vrcverify_support(interaction: discord.Interaction):
 @app_commands.checks.has_permissions(administrator=True)
 @bot.tree.command(name="vrcverify_instructions", description="Admin only: Post instructions for using the verification bot.")
 async def vrcverify_instructions(interaction: discord.Interaction):
+    # determine instructions locale (server setting overrides user locale)
+    with session_scope() as session:
+        srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
+        instr_locale = str(srv.instructions_locale) if srv and srv.instructions_locale else get_locale(interaction)
+    # fetch localized messages for instructions
+    strings = localizations.get(instr_locale, localizations['en-US'])
     embed = Embed(
-        title="How to Use the VRChat Verification Bot",
-        description=(
-            "**Follow these steps** to verify your 18+ status:\n\n"
-            "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
-            "2. If you're new, you'll be asked for your VRChat username\n"
-            "3. The bot will give you a unique code – put this in your VRChat bio\n"
-            "4. Press **Verify** in Discord once your bio is updated\n\n"
-            "If you need additional help, contact an admin or type `/vrcverify_support`."
-        ),
+        title=strings['instructions_title'],
+        description=strings['instructions_desc'],
         color=discord.Color.blue()
     )
 
