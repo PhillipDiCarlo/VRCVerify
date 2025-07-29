@@ -19,14 +19,6 @@ from sqlalchemy.exc import IntegrityError
 from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
-import os
-import discord
-import json
-import random
-import string
-import re
-import pika
-import asyncio
 from locales import localizations, LANGUAGE_CODES
 
 # --- Localization Helpers ---
