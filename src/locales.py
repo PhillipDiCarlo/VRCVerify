@@ -24,12 +24,12 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc": "**Follow these steps** to verify your 18+ status:\n\n" +
                               "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n" +
                               "2. If you're new, you'll be asked for your VRChat username\n" +
-                              "3. The bot will give you a unique code – put this in your VRChat bio\n" +
+                              "3. The bot will give you a unique code - put this in your VRChat bio\n" +
                               "4. Press **Verify** in Discord once your bio is updated\n\n" +
                               "If you need additional help, contact an admin or type `/vrcverify_support`.",
         "btn_begin_verification": "Begin Verification",
         "btn_update_nickname": "Update Nickname",
-        "settings_intro": "⚙️ **VRChat Verify Settings**\n\n1.) **Enable auto nickname change**\n   Automatically update users’ Discord nicknames to match their VRChat display names.\n   Current: **{current}**",
+        "settings_intro": "⚙️ **VRChat Verify Settings**\n\n1.) **Enable auto nickname change**\n   Automatically update users' Discord nicknames to match their VRChat display names.\n   Current: **{current}**",
     },
 
     "es-ES": {
@@ -58,40 +58,40 @@ localizations: dict[str, dict[str, str]] = {
 
     "zh-CN": {
         "not_verified":               "⚠️ 您尚未通过验证。请先点击 **开始验证**。",
-        "already_verified":           "✅ 您已通过验证！角色已分配（或重新分配）。",
-        "recheck_started":            "🔎 我们正在重新检查您的 18+ 状态。如果您已更新 VRChat 年龄验证，很快就会收到私信！",
-        "dm_role_success":            "✅ 您已验证并获得 **{role}** 角色，位于 **{server}**!",
-        "nickname_update_requested":  "🔄 已请求更新昵称。完成后我会通过私信通知您！",
-        "verification_requested":     "🔎 验证请求已发送！完成检查后，我会私信通知您！",
+        "already_verified":           "✅ 您已通过验证! 角色已分配（或重新分配）。",
+        "recheck_started":            "🔎 我们正在重新检查您的 18+ 状态。如果您已更新 VRChat 年龄验证,很快就会收到私信! ",
+        "dm_role_success":            "✅ 您已验证并获得 **{role}** 角色,位于 **{server}**!",
+        "nickname_update_requested":  "🔄 已请求更新昵称。完成后我会通过私信通知您! ",
+        "verification_requested":     "🔎 验证请求已发送! 完成检查后,我会私信通知您! ",
         "setup_missing":             "⚠️ 此服务器尚未设置验证角色。请联系管理员。",
-        "not_18_plus":               "❌ 根据VRChat，您未满18岁。如果有误，请联系管理员。",
-        "support_info":              "需要验证帮助？\n- 联系服务器管理员获取帮助\n- 或访问我们的支持页面：https://esattotech.com/contact-us/\n\n如果有误，请告诉我们！",
-        "subscription_info":         "我决定免费提供此功能，如果您愿意支持我，可以点击此处的我的Ko-fi：{kofi_link}。感谢您的持续支持！",
-        "settings_saved": "✅ 设置已保存！自动昵称：**{nickname}**，说明语言：**{locale}**",
+        "not_18_plus":               "❌ 根据VRChat,您未满18岁。如果有误,请联系管理员。",
+        "support_info":              "需要验证帮助？\n- 联系服务器管理员获取帮助\n- 或访问我们的支持页面:https://esattotech.com/contact-us/\n\n如果有误,请告诉我们! ",
+        "subscription_info":         "我决定免费提供此功能,如果您愿意支持我,可以点击此处的我的Ko-fi:{kofi_link}。感谢您的持续支持! ",
+        "settings_saved": "✅ 设置已保存! 自动昵称:**{nickname}**,说明语言:**{locale}**",
         "instructions_title": "如何使用 VRChat 验证机器人",
-        "instructions_desc": "**按照这些步骤** 验证您的 18+ 状态：\n\n" +
+        "instructions_desc": "**按照这些步骤** 验证您的 18+ 状态:\n\n" +
                               "1. 点击 **开始验证** 按钮（如果显示）或在任何地方输入 `/vrcverify`。\n" +
-                              "2. 如果您是新用户，系统会要求您提供 VRChat 用户名\n" +
+                              "2. 如果您是新用户,系统会要求您提供 VRChat 用户名\n" +
                               "3. 机器人会给您一个唯一的代码 - 将其放入您的 VRChat 个人资料中\n" +
-                              "4. 更新个人资料后，在 Discord 中按 **验证**\n\n" +
-                              "如果您需要额外的帮助，请联系管理员或输入 `/vrcverify_support`。",
+                              "4. 更新个人资料后,在 Discord 中按 **验证**\n\n" +
+                              "如果您需要额外的帮助,请联系管理员或输入 `/vrcverify_support`。",
         "btn_begin_verification": "开始验证",
         "btn_update_nickname": "更新昵称",
-        "settings_intro": "⚙️ **VRChat 验证设置**\n\n1.) **启用自动昵称更改**\n   自动更新用户的 Discord 昵称以匹配他们的 VRChat 显示名称。\n   当前：**{current}**",
+        "settings_intro": "⚙️ **VRChat 验证设置**\n\n1.) **启用自动昵称更改**\n   自动更新用户的 Discord 昵称以匹配他们的 VRChat 显示名称。\n   当前:**{current}**",
     },
 
     "ja": {
         "not_verified":               "⚠️ まだ認証されていません。最初に **認証を開始** をクリックしてください。",
-        "already_verified":           "✅ 既に認証済みです！ロールが適用されました（または再適用されました）。",
+        "already_verified":           "✅ 既に認証済みです! ロールが適用されました（または再適用されました）。",
         "recheck_started":            "🔎 VRChat の 18+ ステータスを再チェックしています。年齢認証を更新している場合は、すぐにDMが届きます!",
-        "dm_role_success":            "✅ 認証され、**{server}** の **{role}** ロールが付与されました！",
+        "dm_role_success":            "✅ 認証され、**{server}** の **{role}** ロールが付与されました! ",
         "nickname_update_requested":  "🔄 ニックネーム更新をリクエストしました。完了したらDMでお知らせします!",
-        "verification_requested":     "🔎 検証リクエストを送信しました！完了後にDMでお知らせします！",
+        "verification_requested":     "🔎 検証リクエストを送信しました! 完了後にDMでお知らせします! ",
         "setup_missing":             "⚠️ このサーバーはまだ検証ロールを設定していません。管理者に連絡してください。",
         "not_18_plus":               "❌ VRChatによると18歳以上ではありません。エラーの場合は管理者にお問い合わせください。",
-        "support_info":              "検証に関するサポートが必要ですか？\n- サーバー管理者にお問い合わせください\n- サポートページ：https://esattotech.com/contact-us/\n\nエラーの場合はお知らせください！",
-        "subscription_info":         "この機能は無料で提供していますが、サポートしていただける場合はKo-fiをご覧ください：{kofi_link}。継続的なサポートに感謝します！",
-        "settings_saved": "✅ 設定が保存されました！ 自動ニックネーム: **{nickname}**, 説明言語: **{locale}**",
+        "support_info":              "検証に関するサポートが必要ですか？\n- サーバー管理者にお問い合わせください\n- サポートページ:https://esattotech.com/contact-us/\n\nエラーの場合はお知らせください! ",
+        "subscription_info":         "この機能は無料で提供していますが、サポートしていただける場合はKo-fiをご覧ください:{kofi_link}。継続的なサポートに感謝します! ",
+        "settings_saved": "✅ 設定が保存されました!  自動ニックネーム: **{nickname}**, 説明言語: **{locale}**",
         "instructions_title": "VRChat 認証ボットの使い方",
         "instructions_desc": "**この手順に従って** 18 歳以上であることを確認してください:\n\n" +
                               "1. **認証を開始** ボタンをクリックするか、任意の場所に `/vrcverify` と入力します。\n" +
