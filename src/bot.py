@@ -184,29 +184,40 @@ bot = VRCVerifyBot()
 # -------------------------------------------------------------------
 # Instruction Button
 # -------------------------------------------------------------------
-class VRCVerifyInstructionView(discord.ui.View):
-    def __init__(self):
+class VRCVerifyInstructionView(View):
+    def __init__(self, locale: str):
         super().__init__(timeout=None)
+        self.locale = locale
+        # dynamic labels from localization
+        begin_label = localizations.get(locale, localizations['en-US'])['btn_begin_verification']
+        update_label = localizations.get(locale, localizations['en-US'])['btn_update_nickname']
+        # Begin Verification button
+        begin_btn = Button(label=begin_label, style=discord.ButtonStyle.primary)
+        begin_btn.callback = self.begin_verification
+        self.add_item(begin_btn)
+        # Update Nickname button
+        update_btn = Button(label=update_label, style=discord.ButtonStyle.secondary)
+        update_btn.callback = self.update_nickname
+        self.add_item(update_btn)
 
-    @discord.ui.button(label="Begin Verification", style=discord.ButtonStyle.primary)
-    async def begin_verification(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Instead of calling vrcverify directly, call the helper
+    async def begin_verification(self, interaction: discord.Interaction):
+        # call the verification helper
         await process_verification(interaction)
 
-    @discord.ui.button(label="Update Nickname", style=discord.ButtonStyle.secondary)
-    async def update_nickname(self, interaction, button):
+    async def update_nickname(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
-        # fetch everything you need inside the session
+        # fetch user and vrc_user_id
         with session_scope() as session:
             user = session.query(User).filter_by(discord_id=user_id).first()
-        if not user:
-            return await interaction.response.send_message(
-                get_message('not_verified', interaction),
-                ephemeral=True
-            )
-            vrc_user_id = user.vrc_user_id  # grab this while session is open
+            if not user:
+                return await interaction.response.send_message(
+                    get_message('not_verified', interaction),
+                    ephemeral=True
+                )
+            # ensure string type
+            vrc_user_id = str(user.vrc_user_id)
 
-        # now it’s just a local variable, no lazy load needed
+        # publish nickname update request
         await publish_to_vrc_checker(
             discord_id=user_id,
             vrc_user_id=vrc_user_id,
@@ -214,6 +225,7 @@ class VRCVerifyInstructionView(discord.ui.View):
             code=None,
             update_nickname=True
         )
+        # localized confirmation
         await interaction.response.send_message(
             get_message('nickname_update_requested', interaction),
             ephemeral=True
@@ -662,7 +674,7 @@ async def vrcverify_instructions(interaction: discord.Interaction):
     )
     embed.add_field(name="Example Command", value=usage_example, inline=False)
 
-    view = VRCVerifyInstructionView()
+    view = VRCVerifyInstructionView(locale=instr_locale)
     # Send the initial response and then fetch the message
     await interaction.response.send_message(embed=embed, view=view)
     message = await interaction.original_response()
@@ -843,27 +855,38 @@ async def handle_verification_result(data: dict):
 async def on_ready():
     logger.info(f"Bot is ready. Logged in as {bot.user} (ID: {bot.user.id})")
     bot.loop.create_task(consume_results_queue())
-    
-    # Reinitialize instruction messages across servers
+
+    # Reinitialize instruction messages across servers (with locale)
     with session_scope() as session:
-        servers = session.query(Server).filter(Server.instructions_message_id != None).all()
+        servers = session.query(Server) \
+                         .filter(Server.instructions_message_id != None) \
+                         .all()
+        # Build a list carrying each server’s locale
         servers_data = [
-            (server.server_id, server.instructions_channel_id, server.instructions_message_id)
+            {
+                "server_id": server.server_id,
+                "channel_id": server.instructions_channel_id,
+                "message_id": server.instructions_message_id,
+                "locale": server.instructions_locale or "en-US"
+            }
             for server in servers
         ]
-    for server_id, channel_id, message_id in servers_data:
-        guild = bot.get_guild(int(server_id))
+
+    for entry in servers_data:
+        guild = bot.get_guild(int(entry["server_id"]))
         if not guild:
             continue
         try:
-            channel = guild.get_channel(int(channel_id))
+            channel = guild.get_channel(int(entry["channel_id"]))
             if channel:
-                message = await channel.fetch_message(int(message_id))
-                await message.edit(view=VRCVerifyInstructionView())
-                logger.info(f"Reinitialized instructions message for guild {server_id}")
+                message = await channel.fetch_message(int(entry["message_id"]))
+                # Pass in the stored locale when reconstructing the view
+                view = VRCVerifyInstructionView(locale=entry["locale"])
+                await message.edit(view=view)
+                logger.info(f"Reinitialized instructions message for guild {entry['server_id']}")
         except Exception as e:
-            logger.error(f"Error reinitializing instructions message for guild {server_id}: {e}")
-        
+            logger.error(f"Error reinitializing instructions message for guild {entry['server_id']}: {e}")
+
     logger.info("Bot is reinitialized and ready to go!")
 
 # -------------------------------------------------------------------
