@@ -136,14 +136,6 @@ class PendingVerification(Base):
 
 # Create tables and ensure the new instructions_locale column exists
 Base.metadata.create_all(engine)
-try:
-    with engine.connect() as conn:
-        # add column if missing (PostgreSQL syntax)
-        conn.execute(text(
-            "ALTER TABLE servers ADD COLUMN IF NOT EXISTS instructions_locale VARCHAR NOT NULL DEFAULT 'en-US';"
-        ))
-except Exception as e:
-    logger.warning(f"Could not auto-migrate instructions_locale column: {e}")
 
 # -------------------------------------------------------------------
 # RabbitMQ Setup
