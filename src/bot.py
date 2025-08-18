@@ -12,13 +12,42 @@ from discord.ext import commands
 from discord.ui import View, Button, Select
 
 import pika
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import IntegrityError
 from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
+from locales import localizations, LANGUAGE_CODES
+
+# --- Localization Helpers ---
+def get_locale(interaction: discord.Interaction) -> str:
+    """Return best matching locale code or fallback to English."""
+    loc = getattr(interaction, 'locale', None)
+    return loc if loc in LANGUAGE_CODES else 'en-US'
+
+def get_message(key: str, interaction: discord.Interaction, **kwargs) -> str:
+    """Fetch localized template and format with kwargs."""
+    locale = get_locale(interaction)
+    template = localizations.get(locale, localizations['en-US']).get(key)
+    if template is None:
+        template = localizations['en-US'].get(key, key)
+    return template.format(**kwargs)
+from locales import localizations, LANGUAGE_CODES
+
+def get_locale(interaction: discord.Interaction) -> str:
+    """Return the best matching locale for this interaction."""
+    loc = getattr(interaction, 'locale', None)
+    return loc if loc in LANGUAGE_CODES else 'en-US'
+
+def get_message(key: str, interaction: discord.Interaction, **kwargs) -> str:
+    """Fetch a localized message by key for the given interaction."""
+    locale = get_locale(interaction)
+    template = localizations.get(locale, localizations['en-US']).get(key)
+    if template is None:
+        template = localizations['en-US'].get(key, key)
+    return template.format(**kwargs)
 
 # -------------------------------------------------------------------
 # Load environment variables
@@ -84,6 +113,7 @@ class Server(Base):
     instructions_channel_id = Column(String, nullable=True)
     instructions_message_id = Column(String, nullable=True)
     auto_nickname_change = Column(Boolean, default=False)
+    instructions_locale = Column(String, default='en-US', nullable=False)
 
 
 class User(Base):
@@ -104,6 +134,7 @@ class PendingVerification(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
+# Create tables and ensure the new instructions_locale column exists
 Base.metadata.create_all(engine)
 
 # -------------------------------------------------------------------
@@ -137,29 +168,40 @@ bot = VRCVerifyBot()
 # -------------------------------------------------------------------
 # Instruction Button
 # -------------------------------------------------------------------
-class VRCVerifyInstructionView(discord.ui.View):
-    def __init__(self):
+class VRCVerifyInstructionView(View):
+    def __init__(self, locale: str):
         super().__init__(timeout=None)
+        self.locale = locale
+        # dynamic labels from localization
+        begin_label = localizations.get(locale, localizations['en-US'])['btn_begin_verification']
+        update_label = localizations.get(locale, localizations['en-US'])['btn_update_nickname']
+        # Begin Verification button
+        begin_btn = Button(label=begin_label, style=discord.ButtonStyle.primary)
+        begin_btn.callback = self.begin_verification
+        self.add_item(begin_btn)
+        # Update Nickname button
+        update_btn = Button(label=update_label, style=discord.ButtonStyle.secondary)
+        update_btn.callback = self.update_nickname
+        self.add_item(update_btn)
 
-    @discord.ui.button(label="Begin Verification", style=discord.ButtonStyle.primary)
-    async def begin_verification(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Instead of calling vrcverify directly, call the helper
+    async def begin_verification(self, interaction: discord.Interaction):
+        # call the verification helper
         await process_verification(interaction)
 
-    @discord.ui.button(label="Update Nickname", style=discord.ButtonStyle.secondary)
-    async def update_nickname(self, interaction, button):
+    async def update_nickname(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
-        # fetch everything you need inside the session
+        # fetch user and vrc_user_id
         with session_scope() as session:
             user = session.query(User).filter_by(discord_id=user_id).first()
             if not user:
                 return await interaction.response.send_message(
-                    "⚠️ You haven’t verified yet. Please click **Begin Verification** first.",
+                    get_message('not_verified', interaction),
                     ephemeral=True
                 )
-            vrc_user_id = user.vrc_user_id  # grab this while session is open
+            # ensure string type
+            vrc_user_id = str(user.vrc_user_id)
 
-        # now it’s just a local variable, no lazy load needed
+        # publish nickname update request
         await publish_to_vrc_checker(
             discord_id=user_id,
             vrc_user_id=vrc_user_id,
@@ -167,8 +209,9 @@ class VRCVerifyInstructionView(discord.ui.View):
             code=None,
             update_nickname=True
         )
+        # localized confirmation
         await interaction.response.send_message(
-            "🔄 Nickname update requested. I’ll DM you once it’s done!",
+            get_message('nickname_update_requested', interaction),
             ephemeral=True
         )
 
@@ -176,37 +219,57 @@ class VRCVerifyInstructionView(discord.ui.View):
 # Show Settings View
 # -------------------------------------------------------------------
 class SettingsView(View):
-    def __init__(self, current: bool):
+    def __init__(self, auto_nick: bool, instr_locale: str):
         super().__init__(timeout=None)
-        self.selected: str | None = None
+        self.auto_nick = auto_nick
+        self.selected_nick: str | None = None
+        self.selected_locale: str | None = None
 
-        # dropdown for Yes/No
-        options = [
-            discord.SelectOption(label="Yes", value="yes", default=current),
-            discord.SelectOption(label="No",  value="no",  default=not current),
+        # dropdown for Yes/No nickname setting
+        nick_options = [
+            discord.SelectOption(label="Yes", value="yes", default=auto_nick),
+            discord.SelectOption(label="No",  value="no",  default=not auto_nick),
         ]
-        self.dropdown = Select(
+        self.nick_dropdown = Select(
             placeholder="Enable auto nickname change",
             min_values=1,
             max_values=1,
-            options=options
+            options=nick_options
         )
-        self.dropdown.callback = self.on_select
-        self.add_item(self.dropdown)
+        self.nick_dropdown.callback = self.on_nick_select
+        self.add_item(self.nick_dropdown)
+
+        # dropdown for instructions locale
+        locale_options = [
+            discord.SelectOption(label=code, value=code, default=(code==instr_locale))
+            for code in LANGUAGE_CODES
+        ]
+        self.locale_dropdown = Select(
+            placeholder="Instructions message language",
+            min_values=1,
+            max_values=1,
+            options=locale_options
+        )
+        self.locale_dropdown.callback = self.on_locale_select
+        self.add_item(self.locale_dropdown)
 
         # save button
         self.save_btn = Button(label="Save", style=discord.ButtonStyle.primary)
         self.save_btn.callback = self.on_save
         self.add_item(self.save_btn)
 
-    async def on_select(self, interaction: discord.Interaction):
-        # store the choice; we defer to let them click Save
-        self.selected = interaction.data["values"][0]
+    async def on_nick_select(self, interaction: discord.Interaction):
+        self.selected_nick = interaction.data["values"][0]
+        await interaction.response.defer(ephemeral=True)
+    async def on_locale_select(self, interaction: discord.Interaction):
+        self.selected_locale = interaction.data["values"][0]
         await interaction.response.defer(ephemeral=True)
 
     async def on_save(self, interaction: discord.Interaction):
-        choice = self.selected or ("yes" if self.dropdown.options[0].default else "no")
-        new_val = (choice == "yes")
+        # determine new settings
+        nick_choice = self.selected_nick or ("yes" if self.nick_dropdown.options[0].default else "no")
+        new_nick = (nick_choice == "yes")
+        new_locale = self.selected_locale or self.locale_dropdown.options[0].value
 
         # persist into your servers table
         with session_scope() as session:
@@ -214,11 +277,16 @@ class SettingsView(View):
             if not srv:
                 srv = Server(server_id=str(interaction.guild.id), owner_id=str(interaction.user.id))
                 session.add(srv)
-            srv.auto_nickname_change = new_val
+            srv.auto_nickname_change = new_nick
+            srv.instructions_locale = new_locale
 
         # confirm & remove view
+        # localized confirmation
+        msg = get_message('settings_saved', interaction,
+                          nickname='Yes' if new_nick else 'No',
+                          locale=new_locale)
         await interaction.response.edit_message(
-            content=f"🔧 Settings saved! Auto nickname change is now **{'Yes' if new_val else 'No'}**.",
+            content=msg,
             view=None
         )
 
@@ -241,7 +309,7 @@ async def process_verification(interaction: discord.Interaction):
         server = session.query(Server).filter_by(server_id=guild_id).first()
         if not server or not server.role_id:
             await interaction.response.send_message(
-                "⚠️ This server hasn't set up a verification role yet. Please contact an admin.",
+                get_message('setup_missing', interaction),
                 ephemeral=True
             )
             return
@@ -260,7 +328,7 @@ async def process_verification(interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         await assign_role(user_id, True, guild_id)
         await interaction.followup.send(
-            "✅ You’re already verified! Role assigned (or re-assigned).",
+            get_message('already_verified', interaction),
             ephemeral=True
         )
         return
@@ -275,7 +343,7 @@ async def process_verification(interaction: discord.Interaction):
             code=None  # No-code re-check
         )
         await interaction.followup.send(
-            "🔎 We’re re-checking your VRChat 18+ status. If you’ve updated your VRChat age verification, you’ll get a DM soon!",
+            get_message('recheck_started', interaction),
             ephemeral=True
         )
         return
@@ -478,7 +546,7 @@ class VRCVerificationButton(discord.ui.View):
         )
 
         await interaction.followup.send(
-            "🔎 Verification request sent! We'll DM you once we finish checking your VRChat profile.",
+            get_message('verification_requested', interaction),
             ephemeral=True
         )
 
@@ -542,10 +610,9 @@ async def vrcverify_subscription(interaction: discord.Interaction):
     subscription_link = "https://esattotech.com/vrcverify-vrchat-age-verifier-for-discord/"
     kofi_link = "https://ko-fi.com/italiandogs"
 
+    # localized subscription info
     await interaction.response.send_message(
-        # f"Here’s the link to manage subscriptions or purchase premium:\n{subscription_link}",
-        f"I've decided to offer this free of charge however if you wish to still support me, you can find my Ko-fi here:{kofi_link}. Thank you for your continued support ♥",
-
+        get_message('subscription_info', interaction, kofi_link=kofi_link),
         ephemeral=True
     )
 
@@ -559,11 +626,9 @@ async def vrcverify_support(interaction: discord.Interaction):
     whether that’s contacting an admin or visiting an external support link.
     """
     # Customize the text below however you like
+    # localized support info
     await interaction.response.send_message(
-        "Need help with verification?\n"
-        "- Contact a server admin for assistance\n"
-        "- Or visit our support page at https://esattotech.com/contact-us/\n\n"
-        "If this is an error, please let us know!",
+        get_message('support_info', interaction),
         ephemeral=True
     )
 
@@ -573,16 +638,15 @@ async def vrcverify_support(interaction: discord.Interaction):
 @app_commands.checks.has_permissions(administrator=True)
 @bot.tree.command(name="vrcverify_instructions", description="Admin only: Post instructions for using the verification bot.")
 async def vrcverify_instructions(interaction: discord.Interaction):
+    # determine instructions locale (server setting overrides user locale)
+    with session_scope() as session:
+        srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
+        instr_locale = str(srv.instructions_locale) if srv and srv.instructions_locale else get_locale(interaction)
+    # fetch localized messages for instructions
+    strings = localizations.get(instr_locale, localizations['en-US'])
     embed = Embed(
-        title="How to Use the VRChat Verification Bot",
-        description=(
-            "**Follow these steps** to verify your 18+ status:\n\n"
-            "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
-            "2. If you're new, you'll be asked for your VRChat username\n"
-            "3. The bot will give you a unique code – put this in your VRChat bio\n"
-            "4. Press **Verify** in Discord once your bio is updated\n\n"
-            "If you need additional help, contact an admin or type `/vrcverify_support`."
-        ),
+        title=strings['instructions_title'],
+        description=strings['instructions_desc'],
         color=discord.Color.blue()
     )
 
@@ -594,7 +658,7 @@ async def vrcverify_instructions(interaction: discord.Interaction):
     )
     embed.add_field(name="Example Command", value=usage_example, inline=False)
 
-    view = VRCVerifyInstructionView()
+    view = VRCVerifyInstructionView(locale=instr_locale)
     # Send the initial response and then fetch the message
     await interaction.response.send_message(embed=embed, view=view)
     message = await interaction.original_response()
@@ -619,12 +683,20 @@ async def vrcverify_instructions(interaction: discord.Interaction):
 @app_commands.checks.has_permissions(administrator=True)
 async def vrcverify_settings(interaction: discord.Interaction):
     """Show the dropdown + Save button for your server’s settings."""
-    # fetch current setting
+    # fetch current settings
     with session_scope() as session:
         srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
-        current = bool(srv.auto_nickname_change) if srv else False
+        if srv:
+            # ensure native Python types
+            current = bool(srv.auto_nickname_change)
+            raw_locale = getattr(srv, 'instructions_locale', None)
+            current_locale = raw_locale or 'en-US'
+        else:
+            current = False
+            current_locale = 'en-US'
 
-    view = SettingsView(current)
+    # include both auto-nick and instruction locale
+    view = SettingsView(current, current_locale)
     await interaction.response.send_message(
         content=(
             "⚙️ **VRChat Verify Settings**\n\n"
@@ -767,27 +839,38 @@ async def handle_verification_result(data: dict):
 async def on_ready():
     logger.info(f"Bot is ready. Logged in as {bot.user} (ID: {bot.user.id})")
     bot.loop.create_task(consume_results_queue())
-    
-    # Reinitialize instruction messages across servers
+
+    # Reinitialize instruction messages across servers (with locale)
     with session_scope() as session:
-        servers = session.query(Server).filter(Server.instructions_message_id != None).all()
+        servers = session.query(Server) \
+                         .filter(Server.instructions_message_id != None) \
+                         .all()
+        # Build a list carrying each server’s locale
         servers_data = [
-            (server.server_id, server.instructions_channel_id, server.instructions_message_id)
+            {
+                "server_id": server.server_id,
+                "channel_id": server.instructions_channel_id,
+                "message_id": server.instructions_message_id,
+                "locale": server.instructions_locale or "en-US"
+            }
             for server in servers
         ]
-    for server_id, channel_id, message_id in servers_data:
-        guild = bot.get_guild(int(server_id))
+
+    for entry in servers_data:
+        guild = bot.get_guild(int(entry["server_id"]))
         if not guild:
             continue
         try:
-            channel = guild.get_channel(int(channel_id))
+            channel = guild.get_channel(int(entry["channel_id"]))
             if channel:
-                message = await channel.fetch_message(int(message_id))
-                await message.edit(view=VRCVerifyInstructionView())
-                logger.info(f"Reinitialized instructions message for guild {server_id}")
+                message = await channel.fetch_message(int(entry["message_id"]))
+                # Pass in the stored locale when reconstructing the view
+                view = VRCVerifyInstructionView(locale=entry["locale"])
+                await message.edit(view=view)
+                logger.info(f"Reinitialized instructions message for guild {entry['server_id']}")
         except Exception as e:
-            logger.error(f"Error reinitializing instructions message for guild {server_id}: {e}")
-        
+            logger.error(f"Error reinitializing instructions message for guild {entry['server_id']}: {e}")
+
     logger.info("Bot is reinitialized and ready to go!")
 
 # -------------------------------------------------------------------
