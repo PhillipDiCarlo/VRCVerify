@@ -12,7 +12,7 @@ from discord.ext import commands
 from discord.ui import View, Button, Select
 
 import pika
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, text
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, text, inspect
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import IntegrityError
@@ -114,6 +114,8 @@ class Server(Base):
     instructions_message_id = Column(String, nullable=True)
     auto_nickname_change = Column(Boolean, default=False)
     instructions_locale = Column(String, default='en-US', nullable=False)
+    # New setting: auto verify new members on join (default ON)
+    auto_verify_new_members = Column(Boolean, default=True, nullable=False)
 
 
 class User(Base):
@@ -137,6 +139,16 @@ class PendingVerification(Base):
 # Create tables and ensure the new instructions_locale column exists
 Base.metadata.create_all(engine)
 
+# Helper: check if a column exists on the 'servers' table (no auto-migration)
+def server_has_column(column_name: str) -> bool:
+    try:
+        insp = inspect(engine)
+        cols = [c['name'] for c in insp.get_columns('servers')]
+        return column_name in cols
+    except Exception:
+        logger.warning("⚠️ Could not inspect database for column presence.", exc_info=True)
+        return False
+
 # -------------------------------------------------------------------
 # RabbitMQ Setup
 # -------------------------------------------------------------------
@@ -152,10 +164,66 @@ parameters = pika.ConnectionParameters(
 # Discord Bot
 # -------------------------------------------------------------------
 intents = discord.Intents.default()
+intents.members = True
+
+# Small TTL cache and concurrency control for REST fetches
+REST_TTL_SECONDS = int(os.getenv("REST_TTL_SECONDS", "180"))
+REST_CACHE_MAX = int(os.getenv("REST_CACHE_MAX", "10000"))
+REST_CONCURRENCY = int(os.getenv("REST_CONCURRENCY", "8"))
+
+class _TTLCache:
+    def __init__(self, maxsize: int, ttl: int):
+        self.maxsize = maxsize
+        self.ttl = ttl
+        self._store: dict[tuple[int,int], tuple[float, object]] = {}
+
+    def get(self, key):
+        item = self._store.get(key)
+        if not item:
+            return None
+        expires_at, value = item
+        if expires_at < asyncio.get_event_loop().time():
+            # expired
+            self._store.pop(key, None)
+            return None
+        return value
+
+    def set(self, key, value):
+        # simple eviction: pop random when over limit
+        if len(self._store) >= self.maxsize:
+            try:
+                self._store.pop(next(iter(self._store)))
+            except StopIteration:
+                pass
+        self._store[key] = (asyncio.get_event_loop().time() + self.ttl, value)
+
+_member_fetch_cache = _TTLCache(REST_CACHE_MAX, REST_TTL_SECONDS)
+_rest_semaphore = asyncio.Semaphore(REST_CONCURRENCY)
+
+async def fetch_member_cached(guild: discord.Guild, user_id: int) -> discord.Member | None:
+    if not guild:
+        return None
+    key = (guild.id, user_id)
+    cached = _member_fetch_cache.get(key)
+    if cached:
+        return cached  # type: ignore
+    async with _rest_semaphore:
+        try:
+            member = await guild.fetch_member(user_id)
+            _member_fetch_cache.set(key, member)
+            return member
+        except discord.NotFound:
+            return None
 
 class VRCVerifyBot(discord.Client):
     def __init__(self):
-        super().__init__(intents=intents)
+        flags = discord.MemberCacheFlags.none()
+        flags.joined = True
+        super().__init__(
+            intents=intents,
+            chunk_guilds_at_startup=False,
+            member_cache_flags=flags
+        )
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
@@ -216,79 +284,142 @@ class VRCVerifyInstructionView(View):
         )
 
 # -------------------------------------------------------------------
-# Show Settings View
+# Show Settings View (Paged)
 # -------------------------------------------------------------------
-class SettingsView(View):
-    def __init__(self, auto_nick: bool, instr_locale: str):
+class PagedSettingsView(View):
+    def __init__(self, auto_nick: bool, instr_locale: str, auto_verify: bool, auto_verify_available: bool = True, page_index: int = 0):
         super().__init__(timeout=None)
-        self.auto_nick = auto_nick
-        self.selected_nick: str | None = None
-        self.selected_locale: str | None = None
+        # Current values (mutated by selects)
+        self.auto_nick: bool = auto_nick
+        self.instr_locale: str = instr_locale
+        self.auto_verify: bool = auto_verify
+        self.auto_verify_available: bool = auto_verify_available
+        self.page: int = page_index  # 0: nick, 1: auto-verify, 2: locale
 
-        # dropdown for Yes/No nickname setting
-        nick_options = [
-            discord.SelectOption(label="Yes", value="yes", default=auto_nick),
-            discord.SelectOption(label="No",  value="no",  default=not auto_nick),
-        ]
-        self.nick_dropdown = Select(
-            placeholder="Enable auto nickname change",
-            min_values=1,
-            max_values=1,
-            options=nick_options
+        # Build the initial controls for the current page
+        self._add_controls_for_page()
+
+    # ----- Rendering helpers -----
+    def _page_title_and_desc(self) -> tuple[str, str, str]:
+        """Return (title, description, current_str) for the active page."""
+        if self.page == 0:
+            title = "1.) Enable auto nickname change"
+            desc = "Automatically update users’ Discord nicknames to match their VRChat display names."
+            current = f"Current: {'Yes' if self.auto_nick else 'No'}"
+        elif self.page == 1:
+            title = "2.) Auto verify new members on join"
+            desc = "If enabled, members already verified will automatically receive the role when they join."
+            if not self.auto_verify_available:
+                current = "Current: Yes (unavailable - DB column missing)"
+            else:
+                current = f"Current: {'Yes' if self.auto_verify else 'No'}"
+        else:
+            title = "3.) Instructions message language"
+            desc = "Choose the language used for the instructions message/buttons."
+            current = f"Current: {self.instr_locale}"
+        return title, desc, current
+
+    def render_content(self) -> str:
+        title, desc, current = self._page_title_and_desc()
+        return (
+            "⚙️ VRChat Verify Settings\n\n"
+            f"{title}\n"
+            f"{desc}\n"
+            f"{current}"
         )
-        self.nick_dropdown.callback = self.on_nick_select
-        self.add_item(self.nick_dropdown)
 
-        # dropdown for instructions locale
-        locale_options = [
-            discord.SelectOption(label=code, value=code, default=(code==instr_locale))
-            for code in LANGUAGE_CODES
-        ]
-        self.locale_dropdown = Select(
-            placeholder="Instructions message language",
-            min_values=1,
-            max_values=1,
-            options=locale_options
-        )
-        self.locale_dropdown.callback = self.on_locale_select
-        self.add_item(self.locale_dropdown)
+    def _add_controls_for_page(self):
+        # Add the appropriate select for the current page, then nav + save
+        if self.page == 0:
+            nick_options = [
+                discord.SelectOption(label="Yes", value="yes", default=self.auto_nick),
+                discord.SelectOption(label="No",  value="no",  default=not self.auto_nick),
+            ]
+            nick_dropdown = Select(
+                placeholder="Choose Yes or No",
+                min_values=1,
+                max_values=1,
+                options=nick_options
+            )
+            async def on_nick_select(interaction: discord.Interaction):
+                self.auto_nick = (interaction.data["values"][0] == "yes")
+                await interaction.response.defer(ephemeral=True)
+            nick_dropdown.callback = on_nick_select
+            self.add_item(nick_dropdown)
 
-        # save button
-        self.save_btn = Button(label="Save", style=discord.ButtonStyle.primary)
-        self.save_btn.callback = self.on_save
-        self.add_item(self.save_btn)
+        elif self.page == 1:
+            av_options = [
+                discord.SelectOption(label="Yes", value="yes", default=self.auto_verify),
+                discord.SelectOption(label="No",  value="no",  default=not self.auto_verify),
+            ]
+            av_dropdown = Select(
+                placeholder=("Choose Yes or No" if self.auto_verify_available else "DB column missing; cannot change"),
+                min_values=1,
+                max_values=1,
+                options=av_options,
+                disabled=not self.auto_verify_available
+            )
+            async def on_auto_verify_select(interaction: discord.Interaction):
+                # Only mutate if available
+                if self.auto_verify_available:
+                    self.auto_verify = (interaction.data["values"][0] == "yes")
+                await interaction.response.defer(ephemeral=True)
+            av_dropdown.callback = on_auto_verify_select
+            self.add_item(av_dropdown)
 
-    async def on_nick_select(self, interaction: discord.Interaction):
-        self.selected_nick = interaction.data["values"][0]
-        await interaction.response.defer(ephemeral=True)
-    async def on_locale_select(self, interaction: discord.Interaction):
-        self.selected_locale = interaction.data["values"][0]
-        await interaction.response.defer(ephemeral=True)
+        else:
+            locale_options = [
+                discord.SelectOption(label=code, value=code, default=(code == self.instr_locale))
+                for code in LANGUAGE_CODES
+            ]
+            locale_dropdown = Select(
+                placeholder="Choose a language",
+                min_values=1,
+                max_values=1,
+                options=locale_options
+            )
+            async def on_locale_select(interaction: discord.Interaction):
+                self.instr_locale = interaction.data["values"][0]
+                await interaction.response.defer(ephemeral=True)
+            locale_dropdown.callback = on_locale_select
+            self.add_item(locale_dropdown)
 
-    async def on_save(self, interaction: discord.Interaction):
-        # determine new settings
-        nick_choice = self.selected_nick or ("yes" if self.nick_dropdown.options[0].default else "no")
-        new_nick = (nick_choice == "yes")
-        new_locale = self.selected_locale or self.locale_dropdown.options[0].value
+        # Nav buttons
+        back_btn = Button(label="Back", style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
+        next_btn = Button(label="Next", style=discord.ButtonStyle.secondary, disabled=(self.page == 2))
+        save_btn = Button(label="Save", style=discord.ButtonStyle.primary)
 
-        # persist into your servers table
-        with session_scope() as session:
-            srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
-            if not srv:
-                srv = Server(server_id=str(interaction.guild.id), owner_id=str(interaction.user.id))
-                session.add(srv)
-            srv.auto_nickname_change = new_nick
-            srv.instructions_locale = new_locale
+        async def on_back(interaction: discord.Interaction):
+            new_view = PagedSettingsView(self.auto_nick, self.instr_locale, self.auto_verify, self.auto_verify_available, page_index=self.page - 1)
+            await interaction.response.edit_message(content=new_view.render_content(), view=new_view)
+        async def on_next(interaction: discord.Interaction):
+            new_view = PagedSettingsView(self.auto_nick, self.instr_locale, self.auto_verify, self.auto_verify_available, page_index=self.page + 1)
+            await interaction.response.edit_message(content=new_view.render_content(), view=new_view)
+        async def on_save(interaction: discord.Interaction):
+            # persist into your servers table
+            with session_scope() as session:
+                srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
+                if not srv:
+                    srv = Server(server_id=str(interaction.guild.id), owner_id=str(interaction.user.id))
+                    session.add(srv)
+                srv.auto_nickname_change = bool(self.auto_nick)
+                srv.instructions_locale = str(self.instr_locale)
+                if self.auto_verify_available:
+                    setattr(srv, 'auto_verify_new_members', bool(self.auto_verify))
 
-        # confirm & remove view
-        # localized confirmation
-        msg = get_message('settings_saved', interaction,
-                          nickname='Yes' if new_nick else 'No',
-                          locale=new_locale)
-        await interaction.response.edit_message(
-            content=msg,
-            view=None
-        )
+            extra_note = "" if self.auto_verify_available else "\n(Note: 'Auto verify new members' not saved; DB column missing.)"
+            msg = get_message('settings_saved', interaction,
+                              nickname='Yes' if self.auto_nick else 'No',
+                              locale=self.instr_locale) + extra_note
+            await interaction.response.edit_message(content=msg, view=None)
+
+        back_btn.callback = on_back
+        next_btn.callback = on_next
+        save_btn.callback = on_save
+
+        self.add_item(back_btn)
+        self.add_item(next_btn)
+        self.add_item(save_btn)
 
 # -------------------------------------------------------------------
 # Helpers
@@ -407,9 +538,8 @@ async def assign_role(
         logger.warning(f"⚠️ Guild {guild_id} not found.")
         return
 
-    try:
-        member = await guild.fetch_member(int(discord_id))
-    except discord.NotFound:
+    member = await fetch_member_cached(guild, int(discord_id))
+    if not member:
         logger.warning(f"⚠️ Member {discord_id} not in guild.")
         return
 
@@ -682,28 +812,24 @@ async def vrcverify_instructions(interaction: discord.Interaction):
 )
 @app_commands.checks.has_permissions(administrator=True)
 async def vrcverify_settings(interaction: discord.Interaction):
-    """Show the dropdown + Save button for your server’s settings."""
-    # fetch current settings
+    """Show a paged settings view with one control per page and a title above it."""
+    has_av_col = server_has_column('auto_verify_new_members')
     with session_scope() as session:
         srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
         if srv:
-            # ensure native Python types
-            current = bool(srv.auto_nickname_change)
+            current_nick = bool(srv.auto_nickname_change)
             raw_locale = getattr(srv, 'instructions_locale', None)
             current_locale = raw_locale or 'en-US'
+            raw_av = getattr(srv, 'auto_verify_new_members', None)
+            current_auto_verify = True if raw_av is None else bool(raw_av)
         else:
-            current = False
+            current_nick = False
             current_locale = 'en-US'
+            current_auto_verify = True
 
-    # include both auto-nick and instruction locale
-    view = SettingsView(current, current_locale)
+    view = PagedSettingsView(current_nick, current_locale, current_auto_verify, auto_verify_available=has_av_col, page_index=0)
     await interaction.response.send_message(
-        content=(
-            "⚙️ **VRChat Verify Settings**\n\n"
-            "1.) **Enable auto nickname change**\n"
-            "   Automatically update users’ Discord nicknames to match their VRChat display names.\n"
-            f"   Current: **{'Yes' if current else 'No'}**"
-        ),
+        content=view.render_content(),
         view=view,
         ephemeral=True
     )
@@ -754,7 +880,7 @@ async def handle_verification_result(data: dict):
         # — On-demand nickname update flow —
         if update_nick:
             guild  = bot.get_guild(int(guild_id))
-            member = guild.get_member(int(discord_id)) if guild else None
+            member = await fetch_member_cached(guild, int(discord_id)) if guild else None
             if member and display_name:
                 # try to change nickname
                 try:
@@ -807,7 +933,7 @@ async def handle_verification_result(data: dict):
             if not data.get("code_found", False):
                 session.delete(pending)
                 guild  = bot.get_guild(int(guild_id))
-                member = guild.get_member(int(discord_id)) if guild else None
+                member = await fetch_member_cached(guild, int(discord_id)) if guild else None
                 if member:
                     try:
                         await member.send(
@@ -872,6 +998,33 @@ async def on_ready():
             logger.error(f"Error reinitializing instructions message for guild {entry['server_id']}: {e}")
 
     logger.info("Bot is reinitialized and ready to go!")
+
+@bot.event
+async def on_member_join(member: discord.Member):
+    """Auto-verify users who are already verified in our database when they join a server."""
+    try:
+        guild_id = str(member.guild.id)
+        discord_id = str(member.id)
+
+        with session_scope() as session:
+            server = session.query(Server).filter_by(server_id=guild_id).first()
+            if not server or not server.role_id:
+                return
+
+            # Respect setting: treat None or missing column as enabled by default
+            raw_av = getattr(server, 'auto_verify_new_members', None)
+            enabled = True if raw_av is None else bool(raw_av)
+            if not enabled:
+                return
+
+            user = session.query(User).filter_by(discord_id=discord_id).first()
+            if not user or not bool(user.verification_status):
+                return
+
+        await assign_role(discord_id, True, guild_id)
+        logger.info(f"Auto-verified user {discord_id} in guild {guild_id} on join.")
+    except Exception:
+        logger.error("❌ Exception in on_member_join", exc_info=True)
 
 # -------------------------------------------------------------------
 # Main

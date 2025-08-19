@@ -19,7 +19,7 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ You are not 18+ according to VRChat. Contact an admin if this is an error.",
         "support_info":              "Need help with verification?\n- Contact a server admin for assistance\n- Or visit our support page at https://esattotech.com/contact-us/\n\nIf this is an error, please let us know!",
         "subscription_info":         "I've decided to offer this free of charge however if you wish to still support me, you can find my Ko-fi here:{kofi_link}. Thank you for your continued support ♥",
-        "settings_saved": "✅ Settings saved! Auto-nickname: **{nickname}**, Instructions language: **{locale}**",
+        "settings_saved": "✅ Settings saved!",
         "instructions_title": "How to Use the VRChat Verification Bot",
         "instructions_desc": "**Follow these steps** to verify your 18+ status:\n\n" +
                               "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n" +
@@ -43,7 +43,7 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ No tienes 18+ según VRChat. Contacta a un administrador si esto es un error.",
         "support_info":              "¿Necesitas ayuda con la verificación?\n- Contacta a un administrador del servidor para asistencia\n- O visita nuestra página de soporte en https://esattotech.com/contact-us/\n\n¡Si esto es un error, háznoslo saber!",
         "subscription_info":         "He decidido ofrecer esto de forma gratuita, pero si deseas apoyarme, puedes encontrar mi Ko-fi aquí:{kofi_link}. ¡Gracias por tu continuo apoyo ♥",
-        "settings_saved": "✅ Configuración guardada! Apodo automático: **{nickname}**, Idioma de las instrucciones: **{locale}**",
+        "settings_saved": "✅ Configuración guardada!",
         "instructions_title": "Cómo usar el bot de verificación de VRChat",
         "instructions_desc": "**Sigue estos pasos** para verificar tu estado 18+:\n\n" +
                               "1. Haz clic en el botón **Iniciar Verificación** (si se muestra) o escribe `/vrcverify` en cualquier lugar.\n" +
@@ -67,7 +67,7 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ 根据VRChat,您未满18岁。如果有误,请联系管理员。",
         "support_info":              "需要验证帮助？\n- 联系服务器管理员获取帮助\n- 或访问我们的支持页面:https://esattotech.com/contact-us/\n\n如果有误,请告诉我们! ",
         "subscription_info":         "我决定免费提供此功能,如果您愿意支持我,可以点击此处的我的Ko-fi:{kofi_link}。感谢您的持续支持! ",
-        "settings_saved": "✅ 设置已保存! 自动昵称:**{nickname}**,说明语言:**{locale}**",
+        "settings_saved": "✅ 设置已保存!",
         "instructions_title": "如何使用 VRChat 验证机器人",
         "instructions_desc": "**按照这些步骤** 验证您的 18+ 状态:\n\n" +
                               "1. 点击 **开始验证** 按钮（如果显示）或在任何地方输入 `/vrcverify`。\n" +
@@ -91,7 +91,7 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ VRChatによると18歳以上ではありません。エラーの場合は管理者にお問い合わせください。",
         "support_info":              "検証に関するサポートが必要ですか？\n- サーバー管理者にお問い合わせください\n- サポートページ:https://esattotech.com/contact-us/\n\nエラーの場合はお知らせください! ",
         "subscription_info":         "この機能は無料で提供していますが、サポートしていただける場合はKo-fiをご覧ください:{kofi_link}。継続的なサポートに感謝します! ",
-        "settings_saved": "✅ 設定が保存されました!  自動ニックネーム: **{nickname}**, 説明言語: **{locale}**",
+        "settings_saved": "✅ 設定が保存されました!",
         "instructions_title": "VRChat 認証ボットの使い方",
         "instructions_desc": "**この手順に従って** 18 歳以上であることを確認してください:\n\n" +
                               "1. **認証を開始** ボタンをクリックするか、任意の場所に `/vrcverify` と入力します。\n" +
@@ -115,7 +115,7 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ Laut VRChat bist du nicht 18+. Kontaktiere einen Administrator, wenn dies ein Fehler ist.",
         "support_info":              "Brauchst du Hilfe bei der Verifizierung?\n- Kontaktiere einen Server-Administrator\n- Oder besuche unsere Support-Seite: https://esattotech.com/contact-us/\n\nWenn dies ein Fehler ist, lass es uns wissen!",
         "subscription_info":         "Ich biete dies kostenlos an, aber wenn du mich unterstützen möchtest, findest du meinen Ko-fi hier: {kofi_link}. Danke für deine Unterstützung!",
-        "settings_saved": "✅ Einstellungen gespeichert! Automatischer Spitzname: **{nickname}**, Sprache der Anleitungen: **{locale}**",
+        "settings_saved": "✅ Einstellungen gespeichert!",
         "instructions_title": "So verwenden Sie den VRChat-Verifizierungsbot",
         "instructions_desc": "**Befolgen Sie diese Schritte**, um Ihren 18+-Status zu überprüfen:\n\n" +
                               "1. Klicken Sie auf die Schaltfläche **Verifizierung starten** (falls angezeigt) oder geben Sie `/vrcverify` überall ein.\n" +
@@ -139,7 +139,7 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ Volgens VRChat ben je niet 18+. Neem contact op met een beheerder als dit een fout is.",
         "support_info":              "Heb je hulp nodig bij verificatie?\n- Neem contact op met een serverbeheerder\n- Of bezoek onze ondersteuningspagina: https://esattotech.com/contact-us/\n\nLaat ons weten als dit een fout is!",
         "subscription_info":         "Ik bied dit gratis aan, maar als je me wilt ondersteunen, vind je mijn Ko-fi hier: {kofi_link}. Dank je voor je steun!",
-        "settings_saved": "✅ Instellingen opgeslagen! Auto-nickname: **{nickname}**, Instructietaal: **{locale}**",
+        "settings_saved": "✅ Instellingen opgeslagen!",
         "instructions_title": "Hoe de VRChat-verificatiebot te gebruiken",
         "instructions_desc": "**Volg deze stappen** om je 18+ status te verifiëren:\n\n" +
                               "1. Klik op de knop **Verificatie starten** (indien weergegeven) of typ `/vrcverify` ergens.\n" +
@@ -163,7 +163,7 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ VRChat के अनुसार आप 18+ नहीं हैं। त्रुटि होने पर एक व्यवस्थापक से संपर्क करें।",
         "support_info":              "सत्यापन में सहायता चाहिए?\n- सहायता के लिए सर्वर व्यवस्थापक से संपर्क करें\n- या हमारी सहायता पृष्ठ देखें: https://esattotech.com/contact-us/\n\nयदि यह त्रुटिपूर्ण है, तो हमें बताएं!",
         "subscription_info":         "मैं यह नि:शुल्क प्रदान कर रहा हूं, लेकिन यदि आप मेरा समर्थन करना चाहते हैं, तो मेरा Ko-fi यहाँ देखें: {kofi_link}. आपके समर्थन के लिए धन्यवाद!",
-        "settings_saved": "✅ सेटिंग्स सहेजी गईं! ऑटो-उपनाम: **{nickname}**, निर्देश भाषा: **{locale}**",
+        "settings_saved": "✅ सेटिंग्स सहेजी गईं!",
         "instructions_title": "VRChat सत्यापन बॉट का उपयोग कैसे करें",
         "instructions_desc": "**इन चरणों का पालन करें** अपने 18+ स्थिति की पुष्टि करने के लिए:\n\n" +
                               "1. क्लिक करें **सत्यापन प्रारंभ करें** बटन (यदि दिखाया गया हो) या कहीं भी टाइप करें `/vrcverify`।\n" +
@@ -187,7 +187,7 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ وفقًا لـ VRChat، أنت لست 18+. اتصل بمسؤول إذا كان هذا خطأً.",
         "support_info":              "تحتاج مساعدة في التحقق؟\n- اتصل بمسؤول الخادم للمساعدة\n- أو قم بزيارة صفحة الدعم: https://esattotech.com/contact-us/\n\nإذا كان هذا خطأً، فأخبرنا!",
         "subscription_info":         "أقدم هذا مجانًا، ولكن إذا كنت ترغب في دعمي، يمكنك العثور على Ko-fi الخاص بي هنا: {kofi_link}. شكرًا لدعمك المستمر!",
-        "settings_saved": "✅ تم حفظ الإعدادات! اللقب التلقائي: **{nickname}**، لغة التعليمات: **{locale}**",
+        "settings_saved": "✅ تم حفظ الإعدادات!",
         "instructions_title": "كيفية استخدام روبوت التحقق من VRChat",
         "instructions_desc": "**اتبع هذه الخطوات** للتحقق من حالة 18+ الخاصة بك:\n\n" +
                               "1. انقر على زر **بدء التحقق** (إذا تم عرضه) أو اكتب `/vrcverify` في أي مكان.\n" +
@@ -211,7 +211,7 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ VRChat অনুযায়ী আপনি 18+ নন। যদি এটি ত্রুটি হয়, একজন অ্যাডমিনের সাথে যোগাযোগ করুন।",
         "support_info":              "যাচাই নিয়ে সহায়তা প্রয়োজন?\n- সহায়তার জন্য সার্ভার অ্যাডমিনের সাথে যোগাযোগ করুন\n- অথবা আমাদের সমর্থন পৃষ্ঠা দেখুন: https://esattotech.com/contact-us/\n\nযদি এটি ত্রুটি হয়, আমাদের জানান!",
         "subscription_info":         "এটি আমি বিনামূল্যে প্রদান করছি, তবে আপনি যদি আমাকে সমর্থন করতে চান তবে আমার Ko-fi এখানে দেখুন: {kofi_link}. আপনাদের সমর্থনের জন্য ধন্যবাদ!",
-        "settings_saved": "✅ সেটিংস সংরক্ষিত হয়েছে! স্বয়ংক্রিয় ডাকনাম: **{nickname}**, নির্দেশনার ভাষা: **{locale}**",
+        "settings_saved": "✅ সেটিংস সংরক্ষিত হয়েছে!",
         "instructions_title": "VRChat যাচাইকরণ বট ব্যবহার করার জন্য নির্দেশিকা",
         "instructions_desc": "**এই পদক্ষেপগুলি অনুসরণ করুন** আপনার 18+ স্থিতি যাচাই করতে:\n\n" +
                               "1. ক্লিক করুন **যাচাই শুরু করুন** বোতামে (যদি প্রদর্শিত হয়) অথবা যেকোনো জায়গায় টাইপ করুন `/vrcverify`।\n" +
@@ -221,7 +221,7 @@ localizations: dict[str, dict[str, str]] = {
                               "যদি আপনার অতিরিক্ত সহায়তার প্রয়োজন হয়, তবে একটি প্রশাসকের সাথে যোগাযোগ করুন বা টাইপ করুন `/vrcverify_support`।",
         "btn_begin_verification": "যাচাই শুরু করুন",
         "btn_update_nickname": "ডাকনাম আপডেট করুন",
-        "settings_intro": "⚙️ **VRChat যাচাইকরণ সেটিংস**\n\n1.) **স্বয়ংক্রিয় ডাকনাম পরিবর্তন সক্ষম করুন**\n   ব্যবহারকারীদের Discord ডাকনাম স্বয়ংক্রিয়ভাবে তাদের VRChat প্রদর্শন নামের সাথে মেলানোর জন্য আপডেট করুন।\n   বর্তমান: **{current}**",
+        "settings_intro": "⚙️ **VRChat যাচাইকরণ सेटिंग्स**\n\n1.) **স্বয়ংক্রিয় ডাকনাম ਬਦਲਣਾ ਯਕੀਨੀ ਬਣਾਓ**\n   ਵਰਤੋਂਕਾਰਾਂ ਦੇ Discord ਨਿਕਨੇਮਾਂ ਨੂੰ ਉਹਨਾਂ ਦੇ VRChat ਪ੍ਰਦਰਸ਼ਨ ਨਾਮਾਂ ਦੇ ਨਾਲ ਮੇਲ ਖਾਣ ਲਈ ਆਟੋਮੈਟਿਕ ਤੌਰ 'ਤੇ ਅਪਡੇਟ ਕਰੋ।\n   ਮੌਜੂਦਾ: **{current}**",
     },
 
     "pt-BR": {
@@ -235,7 +235,7 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ De acordo com o VRChat, você não tem 18+. Contate um administrador se isso for um erro.",
         "support_info":              "Precisa de ajuda com a verificação?\n- Contate um administrador do servidor\n- Ou visite nossa página de suporte: https://esattotech.com/contact-us/\n\nSe isso for um erro, por favor nos avise!",
         "subscription_info":         "Estou oferecendo isso gratuitamente, mas se quiser me apoiar, você pode encontrar meu Ko-fi aqui: {kofi_link}. Obrigado pelo apoio!",
-        "settings_saved": "✅ Configurações salvas! Auto-nickname: **{nickname}**, Idioma das instruções: **{locale}**",
+        "settings_saved": "✅ Configurações salvas!",
         "instructions_title": "Como usar o bot de verificação do VRChat",
         "instructions_desc": "**Siga estas etapas** para verificar seu status 18+:\n\n" +
                               "1. Clique no botão **Iniciar Verificação** (se mostrado) ou digite `/vrcverify` em qualquer lugar.\n" +
@@ -259,7 +259,7 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ По данным VRChat вам нет 18+. Свяжитесь с администратором, если это ошибка.",
         "support_info":              "Нужна помощь с проверкой?\n- Обратитесь к администратору сервера\n- Или посетите нашу страницу поддержки: https://esattotech.com/contact-us/\n\nЕсли это ошибка, дайте нам знать!",
         "subscription_info":         "Я предоставляю это бесплатно, но если вы хотите меня поддержать, вы можете найти мой Ko-fi здесь: {kofi_link}. Спасибо за вашу поддержку!",
-        "settings_saved": "✅ Настройки сохранены! Авто-никнейм: **{nickname}**, Язык инструкций: **{locale}**",
+        "settings_saved": "✅ Настройки сохранены!",
         "instructions_title": "Как использовать бот проверки VRChat",
         "instructions_desc": "**Следуйте этим шагам**, чтобы проверить свой статус 18+:\n\n" +
                               "1. Нажмите кнопку **Начать проверку** (если отображается) или введите `/vrcverify` в любом месте.\n" +
@@ -283,7 +283,7 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ VRChat ਅਨੁਸਾਰ ਤੁਹਾਡੇ ਕੋਲ 18+ ਨਹੀਂ ਹੈ। ਜੇ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਇੱਕ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
         "support_info":              "ਪ੍ਰਮਾਣੀਕਰਨ ਵਿੱਚ ਸਹਾਇਤਾ ਚਾਹੀਦੀ ਹੈ?\n- ਸਹਾਇਤਾ ਲਈ ਸਰਵਰ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ\n- ਜਾਂ ਆਪਣੀ ਸਹਾਇਤਾ ਸਫ਼ਾ ਵੇਖੋ: https://esattotech.com/contact-us/\n\nਜੇ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਸਾਨੂੰ ਦੱਸੋ!",
         "subscription_info":         "ਮੈਂ ਇਹ ਮੁਫ਼ਤ ਪ੍ਰਦਾਨ ਕਰ ਰਿਹਾ ਹਾਂ, ਪਰ ਜੇ ਤੁਸੀਂ ਮੇਰੀ ਸਹਾਇਤਾ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ, ਤਾਂ ਮੇਰਾ Ko-fi ਇਥੇ ਵੇਖੋ: {kofi_link}. ਤੁਹਾਡੇ ਸਹਿਯੋਗ ਲਈ ਧੰਨਵਾਦ!",
-        "settings_saved": "✅ ਸੈਟਿੰਗਸ ਸੁਰੱਖਿਅਤ ਕੀਤੀਆਂ ਗਈਆਂ! ਆਟੋ-ਨਿਕਨੇਮ: **{nickname}**, ਹਦਾਇਤਾਂ ਦੀ ਭਾਸ਼ਾ: **{locale}**",
+        "settings_saved": "✅ ਸੈਟਿੰਗਸ ਸੁਰੱਖਿਅਤ ਕੀਤੀਆਂ ਗਈਆਂ!",
         "instructions_title": "VRChat ਪ੍ਰਮਾਣੀਕਰਨ ਬੋਟ ਦੀ ਵਰਤੋਂ ਕਰਨ ਲਈ ਹਦਾਇਤਾਂ",
         "instructions_desc": "**ਇਹਨਾਂ ਕਦਮਾਂ ਦੀ ਪਾਲਣਾ ਕਰੋ** ਆਪਣੇ 18+ ਸਥਿਤੀ ਦੀ ਪੁਸ਼ਟੀ ਕਰਨ ਲਈ:\n\n" +
                               "1. 'ਤੇ ਕਲਿੱਕ ਕਰੋ **ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ** ਬਟਨ (ਜੇ ਦਿਖਾਇਆ ਗਿਆ ਹੋਵੇ) ਜਾਂ ਕਿਸੇ ਵੀ ਜਗ੍ਹਾ ਟਾਈਪ ਕਰੋ `/vrcverify`।\n" +
