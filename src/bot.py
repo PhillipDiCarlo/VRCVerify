@@ -217,10 +217,12 @@ async def fetch_member_cached(guild: discord.Guild, user_id: int) -> discord.Mem
 
 class VRCVerifyBot(discord.Client):
     def __init__(self):
+        flags = discord.MemberCacheFlags.none()
+        flags.joined = True
         super().__init__(
             intents=intents,
             chunk_guilds_at_startup=False,
-            member_cache_flags=discord.MemberCacheFlags.joined()
+            member_cache_flags=flags
         )
         self.tree = app_commands.CommandTree(self)
 
