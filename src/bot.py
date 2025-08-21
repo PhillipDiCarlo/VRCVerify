@@ -564,7 +564,10 @@ async def assign_role(
             await member.add_roles(role)
             logger.info(f"Assigned role {role.name} to {member}.")
             try:
-                await member.send(f"✅ You’ve been verified and given **{role.name}** in **{guild.name}**!")
+                # Use server instructions locale when DMing
+                locale_code = (server.instructions_locale if server and server.instructions_locale else getattr(guild, 'preferred_locale', None)) or 'en-US'
+                ctx = SimpleNamespace(locale=locale_code)
+                await member.send(get_message('dm_role_success', ctx, role=role.name, server=guild.name))
             except discord.Forbidden:
                 logger.warning("Cannot DM user after role assign.")
         except discord.Forbidden:
@@ -607,19 +610,25 @@ async def assign_role(
                 await member.edit(nick=display_name)
                 logger.info(f"🔄 Updated nickname to {display_name} for {member}.")
                 try:
-                    await member.send(f"🔔 Your nickname was updated to **{display_name}**.")
+                    locale_code = (server.instructions_locale if server and server.instructions_locale else getattr(guild, 'preferred_locale', None)) or 'en-US'
+                    ctx = SimpleNamespace(locale=locale_code)
+                    await member.send(get_message('nickname_updated', ctx, display_name=display_name))
                 except discord.Forbidden:
                     logger.warning("⚠️ Cannot DM after nickname update.")
             except discord.Forbidden:
                 # let user know we couldn’t rename them
                 try:
-                    await member.send("⚠️ We could not update your username.")
+                    locale_code = (server.instructions_locale if server and server.instructions_locale else getattr(guild, 'preferred_locale', None)) or 'en-US'
+                    ctx = SimpleNamespace(locale=locale_code)
+                    await member.send(get_message('nickname_update_failed', ctx))
                 except discord.Forbidden:
                     logger.warning("⚠️ Cannot DM user after nickname failure.")
     else:
         # Not 18+
         try:
-            await member.send("❌ You are not 18+ according to VRChat. Contact an admin if this is an error.")
+            locale_code = (server.instructions_locale if server and server.instructions_locale else getattr(guild, 'preferred_locale', None)) or 'en-US'
+            ctx = SimpleNamespace(locale=locale_code)
+            await member.send(get_message('not_18_plus', ctx))
         except discord.Forbidden:
             logger.warning("⚠️ Cannot DM user about 18+ status.")
 
@@ -651,8 +660,7 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
         # 3) Otherwise, they probably typed a display name ➔ warn & cancel
         else:
             await interaction.response.send_message(
-                "❌ It looks like you entered your display name instead of your VRChat userID.\n"
-                "Please enter either the full profile URL or your userID (which always starts with `usr_`).\n https://imgur.com/a/EEl6ekH",
+                get_message('invalid_vrc_id_input', interaction),
                 ephemeral=True
             )
             return
@@ -777,11 +785,13 @@ async def vrcverify_setup(interaction: discord.Interaction, verified_role: disco
     else:
         extra = "\n(Unverified role not set; no role will be removed on verification.)"
 
-    await interaction.response.send_message(
-        f"✅ **Successfully {action} server config** for this guild.\n"
-        f"**Verified Role** set to: `{verified_role.name}` (ID={verified_role.id})" + extra,
-        ephemeral=True
-    )
+        # Localized confirmation
+        base = get_message('setup_success', interaction, action=action, role=verified_role.name, role_id=verified_role.id)
+        if unverified_role:
+            extra_local = get_message('setup_unverified_set', interaction, role=unverified_role.name, role_id=unverified_role.id)
+        else:
+            extra_local = get_message('setup_unverified_missing', interaction)
+        await interaction.response.send_message(base + extra_local, ephemeral=True)
 
 # -------------------------------------------------------------------
 # Slash Command: /vrcverify_subscription
@@ -992,9 +1002,7 @@ async def handle_verification_result(data: dict):
                 member = await fetch_member_cached(guild, int(discord_id)) if guild else None
                 if member:
                     try:
-                        await member.send(
-                            "❌ We couldn’t find your code in your VRChat bio. Please try again."
-                        )
+                        await member.send(get_message('code_not_found', SimpleNamespace(locale=(getattr(guild, 'preferred_locale', None) or 'en-US'))))
                     except discord.Forbidden:
                         logger.warning("⚠️ Cannot DM user about missing code.")
                 return
