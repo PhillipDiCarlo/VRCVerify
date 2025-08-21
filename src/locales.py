@@ -20,6 +20,14 @@ localizations: dict[str, dict[str, str]] = {
         "support_info":              "Need help with verification?\n- Contact a server admin for assistance\n- Or visit our support page at https://esattotech.com/contact-us/\n\nIf this is an error, please let us know!",
         "subscription_info":         "I've decided to offer this free of charge however if you wish to still support me, you can find my Ko-fi here:{kofi_link}. Thank you for your continued support ♥",
         "settings_saved": "✅ Settings saved!",
+    # Newly added keys
+    "invalid_vrc_id_input":      "❌ It looks like you entered your display name instead of your VRChat userID.\nPlease enter either the full profile URL or your userID (which always starts with `usr_`).\nhttps://imgur.com/a/EEl6ekH",
+    "code_not_found":            "❌ We couldn’t find your code in your VRChat bio. Please try again.",
+    "nickname_updated":          "🔔 Your nickname was updated to {display_name}.",
+    "nickname_update_failed":    "⚠️ We could not update your nickname.",
+    "setup_success":             "✅ Successfully {action} server config.\nVerified Role set to: `{role}` (ID={role_id})",
+    "setup_unverified_set":      "\nUnverified Role to remove: `{role}` (ID={role_id})",
+    "setup_unverified_missing":  "\n(Unverified role not set; no role will be removed on verification.)",
         "instructions_title": "How to Use the VRChat Verification Bot",
         "instructions_desc": "**Follow these steps** to verify your 18+ status:\n\n" +
                               "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n" +
@@ -44,6 +52,13 @@ localizations: dict[str, dict[str, str]] = {
         "support_info":              "¿Necesitas ayuda con la verificación?\n- Contacta a un administrador del servidor para asistencia\n- O visita nuestra página de soporte en https://esattotech.com/contact-us/\n\n¡Si esto es un error, háznoslo saber!",
         "subscription_info":         "He decidido ofrecer esto de forma gratuita, pero si deseas apoyarme, puedes encontrar mi Ko-fi aquí:{kofi_link}. ¡Gracias por tu continuo apoyo ♥",
         "settings_saved": "✅ Configuración guardada!",
+    "invalid_vrc_id_input":      "❌ Parece que ingresaste tu nombre para mostrar en lugar de tu ID de usuario de VRChat.\nPor favor, ingresa la URL completa del perfil o tu ID de usuario (que siempre comienza con `usr_`).\nhttps://imgur.com/a/EEl6ekH",
+    "code_not_found":            "❌ No pudimos encontrar tu código en tu biografía de VRChat. Inténtalo de nuevo.",
+    "nickname_updated":          "🔔 Tu apodo fue actualizado a {display_name}.",
+    "nickname_update_failed":    "⚠️ No pudimos actualizar tu apodo.",
+    "setup_success":             "✅ Configuración del servidor {action}.\nRol verificado establecido en: `{role}` (ID={role_id})",
+    "setup_unverified_set":      "\nRol no verificado a eliminar: `{role}` (ID={role_id})",
+    "setup_unverified_missing":  "\n(Rol no verificado no configurado; no se eliminará ningún rol al verificar.)",
         "instructions_title": "Cómo usar el bot de verificación de VRChat",
         "instructions_desc": "**Sigue estos pasos** para verificar tu estado 18+:\n\n" +
                               "1. Haz clic en el botón **Iniciar Verificación** (si se muestra) o escribe `/vrcverify` en cualquier lugar.\n" +
@@ -68,6 +83,13 @@ localizations: dict[str, dict[str, str]] = {
         "support_info":              "需要验证帮助？\n- 联系服务器管理员获取帮助\n- 或访问我们的支持页面:https://esattotech.com/contact-us/\n\n如果有误,请告诉我们! ",
         "subscription_info":         "我决定免费提供此功能,如果您愿意支持我,可以点击此处的我的Ko-fi:{kofi_link}。感谢您的持续支持! ",
         "settings_saved": "✅ 设置已保存!",
+    "invalid_vrc_id_input":      "❌ 您似乎输入了显示名称而不是 VRChat 用户ID。\n请输入完整的个人资料 URL 或以 `usr_` 开头的用户ID。\nhttps://imgur.com/a/EEl6ekH",
+    "code_not_found":            "❌ 我们未能在您的 VRChat 简介中找到该代码。请重试。",
+    "nickname_updated":          "🔔 您的昵称已更新为 {display_name}。",
+    "nickname_update_failed":    "⚠️ 我们无法更新您的昵称。",
+    "setup_success":             "✅ 成功{action} 服务器配置。\n已将已验证角色设置为: `{role}` (ID={role_id})",
+    "setup_unverified_set":      "\n待移除的未验证角色: `{role}` (ID={role_id})",
+    "setup_unverified_missing":  "\n（未设置未验证角色；验证后不会移除任何角色。）",
         "instructions_title": "如何使用 VRChat 验证机器人",
         "instructions_desc": "**按照这些步骤** 验证您的 18+ 状态:\n\n" +
                               "1. 点击 **开始验证** 按钮（如果显示）或在任何地方输入 `/vrcverify`。\n" +
@@ -92,6 +114,13 @@ localizations: dict[str, dict[str, str]] = {
         "support_info":              "検証に関するサポートが必要ですか？\n- サーバー管理者にお問い合わせください\n- サポートページ:https://esattotech.com/contact-us/\n\nエラーの場合はお知らせください! ",
         "subscription_info":         "この機能は無料で提供していますが、サポートしていただける場合はKo-fiをご覧ください:{kofi_link}。継続的なサポートに感謝します! ",
         "settings_saved": "✅ 設定が保存されました!",
+    "invalid_vrc_id_input":      "❌ 表示名ではなく VRChat のユーザーID を入力してください。\nプロフィール URL または `usr_` で始まるユーザーID を入力してください。\nhttps://imgur.com/a/EEl6ekH",
+    "code_not_found":            "❌ VRChat の自己紹介にコードが見つかりませんでした。もう一度お試しください。",
+    "nickname_updated":          "🔔 ニックネームを {display_name} に更新しました。",
+    "nickname_update_failed":    "⚠️ ニックネームを更新できませんでした。",
+    "setup_success":             "✅ サーバー設定を{action}しました。\n認証済みロール: `{role}` (ID={role_id})",
+    "setup_unverified_set":      "\n削除する未認証ロール: `{role}` (ID={role_id})",
+    "setup_unverified_missing":  "\n（未認証ロールは未設定です。認証時にロールは削除されません。）",
         "instructions_title": "VRChat 認証ボットの使い方",
         "instructions_desc": "**この手順に従って** 18 歳以上であることを確認してください:\n\n" +
                               "1. **認証を開始** ボタンをクリックするか、任意の場所に `/vrcverify` と入力します。\n" +
@@ -116,6 +145,13 @@ localizations: dict[str, dict[str, str]] = {
         "support_info":              "Brauchst du Hilfe bei der Verifizierung?\n- Kontaktiere einen Server-Administrator\n- Oder besuche unsere Support-Seite: https://esattotech.com/contact-us/\n\nWenn dies ein Fehler ist, lass es uns wissen!",
         "subscription_info":         "Ich biete dies kostenlos an, aber wenn du mich unterstützen möchtest, findest du meinen Ko-fi hier: {kofi_link}. Danke für deine Unterstützung!",
         "settings_saved": "✅ Einstellungen gespeichert!",
+    "invalid_vrc_id_input":      "❌ Du hast offenbar deinen Anzeigenamen statt deiner VRChat-Benutzer-ID eingegeben.\nBitte gib die vollständige Profil-URL oder deine Benutzer-ID (beginnt immer mit `usr_`) ein.\nhttps://imgur.com/a/EEl6ekH",
+    "code_not_found":            "❌ Wir konnten deinen Code nicht in deiner VRChat-Biografie finden. Bitte versuche es erneut.",
+    "nickname_updated":          "🔔 Dein Spitzname wurde auf {display_name} aktualisiert.",
+    "nickname_update_failed":    "⚠️ Wir konnten deinen Spitznamen nicht aktualisieren.",
+    "setup_success":             "✅ Serverkonfiguration {action}.\nVerifizierte Rolle festgelegt auf: `{role}` (ID={role_id})",
+    "setup_unverified_set":      "\nZu entfernende unverifizierte Rolle: `{role}` (ID={role_id})",
+    "setup_unverified_missing":  "\n(Unverifizierte Rolle nicht gesetzt; es wird keine Rolle bei Verifizierung entfernt.)",
         "instructions_title": "So verwenden Sie den VRChat-Verifizierungsbot",
         "instructions_desc": "**Befolgen Sie diese Schritte**, um Ihren 18+-Status zu überprüfen:\n\n" +
                               "1. Klicken Sie auf die Schaltfläche **Verifizierung starten** (falls angezeigt) oder geben Sie `/vrcverify` überall ein.\n" +
@@ -139,7 +175,14 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ Volgens VRChat ben je niet 18+. Neem contact op met een beheerder als dit een fout is.",
         "support_info":              "Heb je hulp nodig bij verificatie?\n- Neem contact op met een serverbeheerder\n- Of bezoek onze ondersteuningspagina: https://esattotech.com/contact-us/\n\nLaat ons weten als dit een fout is!",
         "subscription_info":         "Ik bied dit gratis aan, maar als je me wilt ondersteunen, vind je mijn Ko-fi hier: {kofi_link}. Dank je voor je steun!",
-        "settings_saved": "✅ Instellingen opgeslagen!",
+    "settings_saved": "✅ Instellingen opgeslagen!",
+    "invalid_vrc_id_input":      "❌ Het lijkt erop dat je je weergavenaam hebt ingevoerd in plaats van je VRChat userID.\nVoer de volledige profiel-URL in of je userID (begint altijd met `usr_`).\nhttps://imgur.com/a/EEl6ekH",
+    "code_not_found":            "❌ We konden je code niet vinden in je VRChat-bio. Probeer het opnieuw.",
+    "nickname_updated":          "🔔 Je bijnaam is bijgewerkt naar {display_name}.",
+    "nickname_update_failed":    "⚠️ We konden je bijnaam niet bijwerken.",
+    "setup_success":             "✅ Serverconfiguratie {action}.\nGeverifieerde rol ingesteld op: `{role}` (ID={role_id})",
+    "setup_unverified_set":      "\nTe verwijderen niet-geverifieerde rol: `{role}` (ID={role_id})",
+    "setup_unverified_missing":  "\n(Niet-geverifieerde rol niet ingesteld; er wordt geen rol verwijderd bij verificatie.)",
         "instructions_title": "Hoe de VRChat-verificatiebot te gebruiken",
         "instructions_desc": "**Volg deze stappen** om je 18+ status te verifiëren:\n\n" +
                               "1. Klik op de knop **Verificatie starten** (indien weergegeven) of typ `/vrcverify` ergens.\n" +
@@ -163,7 +206,14 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ VRChat के अनुसार आप 18+ नहीं हैं। त्रुटि होने पर एक व्यवस्थापक से संपर्क करें।",
         "support_info":              "सत्यापन में सहायता चाहिए?\n- सहायता के लिए सर्वर व्यवस्थापक से संपर्क करें\n- या हमारी सहायता पृष्ठ देखें: https://esattotech.com/contact-us/\n\nयदि यह त्रुटिपूर्ण है, तो हमें बताएं!",
         "subscription_info":         "मैं यह नि:शुल्क प्रदान कर रहा हूं, लेकिन यदि आप मेरा समर्थन करना चाहते हैं, तो मेरा Ko-fi यहाँ देखें: {kofi_link}. आपके समर्थन के लिए धन्यवाद!",
-        "settings_saved": "✅ सेटिंग्स सहेजी गईं!",
+    "settings_saved": "✅ सेटिंग्स सहेजी गईं!",
+    "invalid_vrc_id_input":      "❌ ऐसा लगता है कि आपने VRChat userID के बजाय अपना display name दर्ज किया है।\nकृपया पूर्ण प्रोफ़ाइल URL या अपना userID दर्ज करें (जो हमेशा `usr_` से शुरू होता है)।\nhttps://imgur.com/a/EEl6ekH",
+    "code_not_found":            "❌ हमें आपकी VRChat बायो में आपका कोड नहीं मिला। कृपया फिर से प्रयास करें।",
+    "nickname_updated":          "🔔 आपका उपनाम {display_name} में अपडेट किया गया है।",
+    "nickname_update_failed":    "⚠️ हम आपका उपनाम अपडेट नहीं कर सके।",
+    "setup_success":             "✅ सर्वर कॉन्फ़िग {action} सफल।\nसत्यापित भूमिका सेट: `{role}` (ID={role_id})",
+    "setup_unverified_set":      "\nहटाई जाने वाली 'अनवेरिफ़ाइड' भूमिका: `{role}` (ID={role_id})",
+    "setup_unverified_missing":  "\n('अनवेरिफ़ाइड' भूमिका सेट नहीं है; सत्यापन पर कोई भूमिका नहीं हटेगी।)",
         "instructions_title": "VRChat सत्यापन बॉट का उपयोग कैसे करें",
         "instructions_desc": "**इन चरणों का पालन करें** अपने 18+ स्थिति की पुष्टि करने के लिए:\n\n" +
                               "1. क्लिक करें **सत्यापन प्रारंभ करें** बटन (यदि दिखाया गया हो) या कहीं भी टाइप करें `/vrcverify`।\n" +
@@ -187,7 +237,14 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ وفقًا لـ VRChat، أنت لست 18+. اتصل بمسؤول إذا كان هذا خطأً.",
         "support_info":              "تحتاج مساعدة في التحقق؟\n- اتصل بمسؤول الخادم للمساعدة\n- أو قم بزيارة صفحة الدعم: https://esattotech.com/contact-us/\n\nإذا كان هذا خطأً، فأخبرنا!",
         "subscription_info":         "أقدم هذا مجانًا، ولكن إذا كنت ترغب في دعمي، يمكنك العثور على Ko-fi الخاص بي هنا: {kofi_link}. شكرًا لدعمك المستمر!",
-        "settings_saved": "✅ تم حفظ الإعدادات!",
+    "settings_saved": "✅ تم حفظ الإعدادات!",
+    "invalid_vrc_id_input":      "❌ يبدو أنك أدخلت اسم العرض بدلاً من معرف مستخدم VRChat. الرجاء إدخال رابط الملف الشخصي الكامل أو معرف المستخدم الخاص بك (الذي يبدأ دائمًا بـ `usr_`).\nhttps://imgur.com/a/EEl6ekH",
+    "code_not_found":            "❌ لم نعثر على الرمز في سيرتك في VRChat. يرجى المحاولة مرة أخرى.",
+    "nickname_updated":          "🔔 تم تحديث لقبك إلى {display_name}.",
+    "nickname_update_failed":    "⚠️ لم نتمكن من تحديث لقبك.",
+    "setup_success":             "✅ تم {action} إعداد الخادم بنجاح.\nتم تعيين الدور الموثّق إلى: `{role}` (المعرف={role_id})",
+    "setup_unverified_set":      "\nالدور غير الموثّق المطلوب إزالته: `{role}` (المعرف={role_id})",
+    "setup_unverified_missing":  "\n(لم يتم تعيين دور غير موثّق؛ لن تتم إزالة أي دور عند التحقق.)",
         "instructions_title": "كيفية استخدام روبوت التحقق من VRChat",
         "instructions_desc": "**اتبع هذه الخطوات** للتحقق من حالة 18+ الخاصة بك:\n\n" +
                               "1. انقر على زر **بدء التحقق** (إذا تم عرضه) أو اكتب `/vrcverify` في أي مكان.\n" +
@@ -211,7 +268,14 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ VRChat অনুযায়ী আপনি 18+ নন। যদি এটি ত্রুটি হয়, একজন অ্যাডমিনের সাথে যোগাযোগ করুন।",
         "support_info":              "যাচাই নিয়ে সহায়তা প্রয়োজন?\n- সহায়তার জন্য সার্ভার অ্যাডমিনের সাথে যোগাযোগ করুন\n- অথবা আমাদের সমর্থন পৃষ্ঠা দেখুন: https://esattotech.com/contact-us/\n\nযদি এটি ত্রুটি হয়, আমাদের জানান!",
         "subscription_info":         "এটি আমি বিনামূল্যে প্রদান করছি, তবে আপনি যদি আমাকে সমর্থন করতে চান তবে আমার Ko-fi এখানে দেখুন: {kofi_link}. আপনাদের সমর্থনের জন্য ধন্যবাদ!",
-        "settings_saved": "✅ সেটিংস সংরক্ষিত হয়েছে!",
+    "settings_saved": "✅ সেটিংস সংরক্ষিত হয়েছে!",
+    "invalid_vrc_id_input":      "❌ মনে হচ্ছে আপনি VRChat userID-এর বদলে আপনার প্রদর্শন নাম লিখেছেন।\nঅনুগ্রহ করে সম্পূর্ণ প্রোফাইল URL বা আপনার userID লিখুন (যা সবসময় `usr_` দিয়ে শুরু হয়)।\nhttps://imgur.com/a/EEl6ekH",
+    "code_not_found":            "❌ আপনার VRChat বায়োতে আমরা কোডটি খুঁজে পাইনি। অনুগ্রহ করে আবার চেষ্টা করুন।",
+    "nickname_updated":          "🔔 আপনার ডাকনাম {display_name} এ আপডেট হয়েছে।",
+    "nickname_update_failed":    "⚠️ আমরা আপনার ডাকনাম আপডেট করতে পারিনি।",
+    "setup_success":             "✅ সার্ভার কনফিগ {action} সফল।\nযাচাইকৃত ভূমিকা সেট করা হয়েছে: `{role}` (ID={role_id})",
+    "setup_unverified_set":      "\nমুছে ফেলার জন্য 'অনভেরিফাইড' ভূমিকা: `{role}` (ID={role_id})",
+    "setup_unverified_missing":  "\n('অনভেরিফাইড' ভূমিকা সেট করা নেই; যাচাইয়ের সময় কোনো ভূমিকা সরানো হবে না।)",
         "instructions_title": "VRChat যাচাইকরণ বট ব্যবহার করার জন্য নির্দেশিকা",
         "instructions_desc": "**এই পদক্ষেপগুলি অনুসরণ করুন** আপনার 18+ স্থিতি যাচাই করতে:\n\n" +
                               "1. ক্লিক করুন **যাচাই শুরু করুন** বোতামে (যদি প্রদর্শিত হয়) অথবা যেকোনো জায়গায় টাইপ করুন `/vrcverify`।\n" +
@@ -235,7 +299,14 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ De acordo com o VRChat, você não tem 18+. Contate um administrador se isso for um erro.",
         "support_info":              "Precisa de ajuda com a verificação?\n- Contate um administrador do servidor\n- Ou visite nossa página de suporte: https://esattotech.com/contact-us/\n\nSe isso for um erro, por favor nos avise!",
         "subscription_info":         "Estou oferecendo isso gratuitamente, mas se quiser me apoiar, você pode encontrar meu Ko-fi aqui: {kofi_link}. Obrigado pelo apoio!",
-        "settings_saved": "✅ Configurações salvas!",
+    "settings_saved": "✅ Configurações salvas!",
+    "invalid_vrc_id_input":      "❌ Parece que você digitou seu nome de exibição em vez do seu userID do VRChat.\nInsira a URL completa do perfil ou seu userID (que sempre começa com `usr_`).\nhttps://imgur.com/a/EEl6ekH",
+    "code_not_found":            "❌ Não encontramos seu código na sua bio do VRChat. Tente novamente.",
+    "nickname_updated":          "🔔 Seu apelido foi atualizado para {display_name}.",
+    "nickname_update_failed":    "⚠️ Não foi possível atualizar seu apelido.",
+    "setup_success":             "✅ Configuração do servidor {action}.\nFunção verificada definida como: `{role}` (ID={role_id})",
+    "setup_unverified_set":      "\nFunção não verificada a remover: `{role}` (ID={role_id})",
+    "setup_unverified_missing":  "\n(Função não verificada não definida; nenhuma função será removida na verificação.)",
         "instructions_title": "Como usar o bot de verificação do VRChat",
         "instructions_desc": "**Siga estas etapas** para verificar seu status 18+:\n\n" +
                               "1. Clique no botão **Iniciar Verificação** (se mostrado) ou digite `/vrcverify` em qualquer lugar.\n" +
@@ -259,7 +330,14 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ По данным VRChat вам нет 18+. Свяжитесь с администратором, если это ошибка.",
         "support_info":              "Нужна помощь с проверкой?\n- Обратитесь к администратору сервера\n- Или посетите нашу страницу поддержки: https://esattotech.com/contact-us/\n\nЕсли это ошибка, дайте нам знать!",
         "subscription_info":         "Я предоставляю это бесплатно, но если вы хотите меня поддержать, вы можете найти мой Ko-fi здесь: {kofi_link}. Спасибо за вашу поддержку!",
-        "settings_saved": "✅ Настройки сохранены!",
+    "settings_saved": "✅ Настройки сохранены!",
+    "invalid_vrc_id_input":      "❌ Похоже, вы ввели отображаемое имя вместо идентификатора пользователя VRChat.\nВведите полный URL профиля или ваш userID (всегда начинается с `usr_`).\nhttps://imgur.com/a/EEl6ekH",
+    "code_not_found":            "❌ Мы не нашли ваш код в вашей биографии VRChat. Пожалуйста, попробуйте ещё раз.",
+    "nickname_updated":          "🔔 Ваш ник обновлён на {display_name}.",
+    "nickname_update_failed":    "⚠️ Не удалось обновить ваш ник.",
+    "setup_success":             "✅ Успешно {action} конфигурацию сервера.\nУстановлена проверенная роль: `{role}` (ID={role_id})",
+    "setup_unverified_set":      "\nНепроверенная роль для удаления: `{role}` (ID={role_id})",
+    "setup_unverified_missing":  "\n(Непроверенная роль не задана; при проверке роли удаляться не будут.)",
         "instructions_title": "Как использовать бот проверки VRChat",
         "instructions_desc": "**Следуйте этим шагам**, чтобы проверить свой статус 18+:\n\n" +
                               "1. Нажмите кнопку **Начать проверку** (если отображается) или введите `/vrcverify` в любом месте.\n" +
@@ -283,7 +361,14 @@ localizations: dict[str, dict[str, str]] = {
         "not_18_plus":               "❌ VRChat ਅਨੁਸਾਰ ਤੁਹਾਡੇ ਕੋਲ 18+ ਨਹੀਂ ਹੈ। ਜੇ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਇੱਕ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
         "support_info":              "ਪ੍ਰਮਾਣੀਕਰਨ ਵਿੱਚ ਸਹਾਇਤਾ ਚਾਹੀਦੀ ਹੈ?\n- ਸਹਾਇਤਾ ਲਈ ਸਰਵਰ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ\n- ਜਾਂ ਆਪਣੀ ਸਹਾਇਤਾ ਸਫ਼ਾ ਵੇਖੋ: https://esattotech.com/contact-us/\n\nਜੇ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਸਾਨੂੰ ਦੱਸੋ!",
         "subscription_info":         "ਮੈਂ ਇਹ ਮੁਫ਼ਤ ਪ੍ਰਦਾਨ ਕਰ ਰਿਹਾ ਹਾਂ, ਪਰ ਜੇ ਤੁਸੀਂ ਮੇਰੀ ਸਹਾਇਤਾ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ, ਤਾਂ ਮੇਰਾ Ko-fi ਇਥੇ ਵੇਖੋ: {kofi_link}. ਤੁਹਾਡੇ ਸਹਿਯੋਗ ਲਈ ਧੰਨਵਾਦ!",
-        "settings_saved": "✅ ਸੈਟਿੰਗਸ ਸੁਰੱਖਿਅਤ ਕੀਤੀਆਂ ਗਈਆਂ!",
+    "settings_saved": "✅ ਸੈਟਿੰਗਸ ਸੁਰੱਖਿਅਤ ਕੀਤੀਆਂ ਗਈਆਂ!",
+    "invalid_vrc_id_input":      "❌ ਲੱਗਦਾ ਹੈ ਤੁਸੀਂ VRChat userID ਦੀ ਬਜਾਏ ਆਪਣਾ ਡਿਸਪਲੇ ਨਾਂ ਦਰਜ ਕੀਤਾ ਹੈ।\nਕਿਰਪਾ ਕਰਕੇ ਪੂਰਾ ਪ੍ਰੋਫ਼ਾਈਲ URL ਜਾਂ ਆਪਣਾ userID ਦਰਜ ਕਰੋ (ਜੋ ਹਮੇਸ਼ਾਂ `usr_` ਨਾਲ ਸ਼ੁਰੂ ਹੁੰਦਾ ਹੈ)।\nhttps://imgur.com/a/EEl6ekH",
+    "code_not_found":            "❌ ਅਸੀਂ ਤੁਹਾਡੇ VRChat ਬਾਇਓ ਵਿੱਚ ਤੁਹਾਡਾ ਕੋਡ ਨਹੀਂ ਲੱਭ ਸਕੇ। ਕਿਰਪਾ ਕਰਕੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    "nickname_updated":          "🔔 ਤੁਹਾਡਾ ਨਿਕਨੇਮ {display_name} ਵਿੱਚ ਅਪਡੇਟ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ।",
+    "nickname_update_failed":    "⚠️ ਅਸੀਂ ਤੁਹਾਡਾ ਨਿਕਨੇਮ ਅਪਡੇਟ ਨਹੀਂ ਕਰ ਸਕੇ।",
+    "setup_success":             "✅ ਸਰਵਰ ਕਨਫ਼ਿਗ {action} ਸਫਲ।\nਪ੍ਰਮਾਣਿਤ ਰੋਲ ਸੈੱਟ ਕੀਤਾ: `{role}` (ID={role_id})",
+    "setup_unverified_set":      "\nਹਟਾਉਣ ਲਈ 'ਅਨਵੈਰੀਫਾਇਡ' ਰੋਲ: `{role}` (ID={role_id})",
+    "setup_unverified_missing":  "\n('ਅਨਵੈਰੀਫਾਇਡ' ਰੋਲ ਸੈੱਟ ਨਹੀਂ; ਤਸਦੀਕ ਹੋਣ 'ਤੇ ਕੋਈ ਰੋਲ ਨਹੀਂ ਹਟਾਇਆ ਜਾਵੇਗਾ।)",
         "instructions_title": "VRChat ਪ੍ਰਮਾਣੀਕਰਨ ਬੋਟ ਦੀ ਵਰਤੋਂ ਕਰਨ ਲਈ ਹਦਾਇਤਾਂ",
         "instructions_desc": "**ਇਹਨਾਂ ਕਦਮਾਂ ਦੀ ਪਾਲਣਾ ਕਰੋ** ਆਪਣੇ 18+ ਸਥਿਤੀ ਦੀ ਪੁਸ਼ਟੀ ਕਰਨ ਲਈ:\n\n" +
                               "1. 'ਤੇ ਕਲਿੱਕ ਕਰੋ **ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ** ਬਟਨ (ਜੇ ਦਿਖਾਇਆ ਗਿਆ ਹੋਵੇ) ਜਾਂ ਕਿਸੇ ਵੀ ਜਗ੍ਹਾ ਟਾਈਪ ਕਰੋ `/vrcverify`।\n" +
