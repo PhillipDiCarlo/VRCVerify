@@ -6,6 +6,7 @@ import random
 import string
 import re
 from typing import Optional
+from types import SimpleNamespace
 
 import discord
 from discord import app_commands, Embed
@@ -669,7 +670,7 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
         discord_id = str(interaction.user.id)
         guild_id = str(interaction.guild_id)
         verification_code = generate_verification_code()
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
         with session_scope() as session:
             # Remove any old pending entry for this user/guild
@@ -689,7 +690,7 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
             f"✅ **VRChat userID saved!**\n\n"
             f"**1) Add this code to your VRChat bio:**\n"
             f"```\n{verification_code}\n```\n"
-            f"**2) Once you've updated your bio, click “Verify” below (within 5 minutes).**",
+            f"**2) Once you've updated your bio, click “Verify” below (within 10 minutes).**",
             view=view,
             ephemeral=True
         )
@@ -1023,12 +1024,35 @@ async def handle_verification_result(data: dict):
         logger.error("❌ Exception in handle_verification_result", exc_info=True)
 
 # -------------------------------------------------------------------
+# Background cleanup: remove expired pending verifications
+# -------------------------------------------------------------------
+async def expired_pending_cleanup_task(interval_seconds: int = 60):
+    """Periodically delete expired rows so they don't linger indefinitely."""
+    while True:
+        try:
+            now_utc = datetime.now(timezone.utc)
+            with session_scope() as session:
+                # Use synchronize_session=False for performance as we don't keep these in memory
+                deleted = (
+                    session.query(PendingVerification)
+                    .filter(PendingVerification.expires_at < now_utc)
+                    .delete(synchronize_session=False)
+                )
+            if deleted:
+                logger.info(f"Removed {deleted} expired pending verification(s)")
+        except Exception:
+            logger.error("Exception during expired pending cleanup", exc_info=True)
+        await asyncio.sleep(interval_seconds)
+
+# -------------------------------------------------------------------
 # Bot Events
 # -------------------------------------------------------------------
 @bot.event
 async def on_ready():
     logger.info(f"Bot is ready. Logged in as {bot.user} (ID: {bot.user.id})")
     bot.loop.create_task(consume_results_queue())
+    # Start periodic cleanup of expired pending verifications
+    bot.loop.create_task(expired_pending_cleanup_task())
 
     # Reinitialize instruction messages across servers (with locale)
     with session_scope() as session:
