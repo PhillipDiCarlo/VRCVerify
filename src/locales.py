@@ -285,7 +285,7 @@ localizations: dict[str, dict[str, str]] = {
                               "যদি আপনার অতিরিক্ত সহায়তার প্রয়োজন হয়, তবে একটি প্রশাসকের সাথে যোগাযোগ করুন বা টাইপ করুন `/vrcverify_support`।",
         "btn_begin_verification": "যাচাই শুরু করুন",
         "btn_update_nickname": "ডাকনাম আপডেট করুন",
-        "settings_intro": "⚙️ **VRChat যাচাইকরণ सेटिंग्स**\n\n1.) **স্বয়ংক্রিয় ডাকনাম ਬਦਲਣਾ ਯਕੀਨੀ ਬਣਾਓ**\n   ਵਰਤੋਂਕਾਰਾਂ ਦੇ Discord ਨਿਕਨੇਮਾਂ ਨੂੰ ਉਹਨਾਂ ਦੇ VRChat ਪ੍ਰਦਰਸ਼ਨ ਨਾਮਾਂ ਦੇ ਨਾਲ ਮੇਲ ਖਾਣ ਲਈ ਆਟੋਮੈਟਿਕ ਤੌਰ 'ਤੇ ਅਪਡੇਟ ਕਰੋ।\n   ਮੌਜੂਦਾ: **{current}**",
+        "settings_intro": "**VRChat যাচাইকরণ सेटिंग्स**\n\n1.) **স্বয়ংক্রিয় ডাকনাম ਬਦਲਣਾ ਯਕੀਨੀ ਬਣਾਓ**\n   ਵਰਤੋਂਕਾਰਾਂ ਦੇ Discord ਨਿਕਨੇਮਾਂ ਨੂੰ ਉਹਨਾਂ ਦੇ VRChat ਪ੍ਰਦਰਸ਼ਨ ਨਾਮਾਂ ਦੇ ਨਾਲ ਮੇਲ ਖਾਣ ਲਈ ਆਟੋਮੈਟਿਕ ਤੌਰ 'ਤੇ ਅਪਡੇਟ ਕਰੋ।\n   ਮੌਜੂਦਾ: **{current}**",
     "settings_intro": "**VRChat যাচাইকরণ সেটিংস**\n\n1.) **স্বয়ংক্রিয় ডাকনাম ਬਦਲਣਾ ਯਕੀਨੀ ਬਣਾਓ**\n   ਵਰਤੋਂਕਾਰਾਂ ਦੇ Discord ਨਿਕਨੇਮਾਂ ਨੂੰ ਉਹਨਾਂ ਦੇ VRChat ਪ੍ਰਦਰਸ਼ਨ ਨਾਮਾਂ ਦੇ ਨਾਲ ਮੇਲ ਖਾਣ ਲਈ ਆਟੋਮੈਟਿਕ ਤੌਰ 'ਤੇ ਅਪਡੇਟ ਕਰੋ।\n   ਮੌਜੂਦਾ: **{current}**",
     },
 
@@ -317,7 +317,7 @@ localizations: dict[str, dict[str, str]] = {
                               "Se você precisar de ajuda adicional, entre em contato com um administrador ou digite `/vrcverify_support`.",
         "btn_begin_verification": "Iniciar Verificação",
         "btn_update_nickname": "Atualizar Apelido",
-        "settings_intro": "⚙️ **Configurações de Verificação do VRChat**\n\n1.) **Ativar alteração automática de apelido**\n   Atualize automaticamente os apelidos do Discord dos usuários para corresponder aos seus nomes de exibição do VRChat.\n   Atual: **{current}**",
+        "settings_intro": "**Configurações de Verificação do VRChat**\n\n1.) **Ativar alteração automática de apelido**\n   Atualize automaticamente os apelidos do Discord dos usuários para corresponder aos seus nomes de exibição do VRChat.\n   Atual: **{current}**",
     },
 
     "ru": {
@@ -348,7 +348,7 @@ localizations: dict[str, dict[str, str]] = {
                               "Если вам нужна дополнительная помощь, свяжитесь с администратором или введите `/vrcverify_support`.",
         "btn_begin_verification": "Начать проверку",
         "btn_update_nickname": "Обновить никнейм",
-        "settings_intro": "⚙️ **Настройки проверки VRChat**\n\n1.) **Включить автоматическую смену никнейма**\n   Автоматически обновлять никнеймы пользователей Discord в соответствии с их отображаемыми именами VRChat.\n   Текущий: **{current}**",
+        "settings_intro": "**Настройки проверки VRChat**\n\n1.) **Включить автоматическую смену никнейма**\n   Автоматически обновлять никнеймы пользователей Discord в соответствии с их отображаемыми именами VRChat.\n   Текущий: **{current}**",
     },
 
     "pa-IN": {
@@ -379,6 +379,6 @@ localizations: dict[str, dict[str, str]] = {
                               "ਜੇ ਤੁਹਾਨੂੰ ਵਾਧੂ ਸਹਾਇਤਾ ਦੀ ਲੋੜ ਹੈ, ਤਾਂ ਇੱਕ ਪ੍ਰਬੰਧਕ ਨਾਲ ਸੰਪਰਕ ਕਰੋ ਜਾਂ ਟਾਈਪ ਕਰੋ `/vrcverify_support`।",
         "btn_begin_verification": "ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ",
         "btn_update_nickname": "ਨਿਕਨੇਮ ਅਪਡੇਟ ਕਰੋ",
-        "settings_intro": "⚙️ **VRChat ਪ੍ਰਮਾਣੀਕਰਨ ਸੈਟਿੰਗਸ**\n\n1.) **ਆਟੋ-ਨਿਕਨੇਮ ਬਦਲਣਾ ਯਕੀਨੀ ਬਣਾਓ**\n   ਵਰਤੋਂਕਾਰਾਂ ਦੇ Discord ਨਿਕਨੇਮਾਂ ਨੂੰ ਉਹਨਾਂ ਦੇ VRChat ਪ੍ਰਦਰਸ਼ਨ ਨਾਮਾਂ ਦੇ ਨਾਲ ਮੇਲ ਖਾਣ ਲਈ ਆਟੋਮੈਟਿਕ ਤੌਰ 'ਤੇ ਅਪਡੇਟ ਕਰੋ।\n   ਮੌਜੂਦਾ: **{current}**",
+        "settings_intro": "**VRChat ਪ੍ਰਮਾਣੀਕਰਨ ਸੈਟਿੰਗਸ**\n\n1.) **ਆਟੋ-ਨਿਕਨੇਮ ਬਦਲਣਾ ਯਕੀਨੀ ਬਣਾਓ**\n   ਵਰਤੋਂਕਾਰਾਂ ਦੇ Discord ਨਿਕਨੇਮਾਂ ਨੂੰ ਉਹਨਾਂ ਦੇ VRChat ਪ੍ਰਦਰਸ਼ਨ ਨਾਮਾਂ ਦੇ ਨਾਲ ਮੇਲ ਖਾਣ ਲਈ ਆਟੋਮੈਟਿਕ ਤੌਰ 'ਤੇ ਅਪਡੇਟ ਕਰੋ।\n   ਮੌਜੂਦਾ: **{current}**",
     }
 }
