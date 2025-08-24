@@ -5,6 +5,7 @@ import logging
 import random
 import string
 import re
+from typing import Optional
 
 import discord
 from discord import app_commands, Embed
@@ -106,6 +107,8 @@ class Server(Base):
     server_id = Column(String, unique=True, nullable=False)
     owner_id = Column(String, nullable=False)
     role_id = Column(String, nullable=True)
+    # Optional role to remove upon successful verification
+    unverified_role_id = Column(String, nullable=True)
     subscription_status = Column(Boolean, default=False)
     subscription_start_date = Column(DateTime, nullable=True)
     email = Column(String, nullable=True)
@@ -531,6 +534,8 @@ async def assign_role(
     with session_scope() as session:
         server = session.query(Server).filter_by(server_id=guild_id).first()
         role_id = server.role_id if server else None
+        # Optional unverified role to remove on success
+        unverified_role_id = getattr(server, 'unverified_role_id', None) if server else None
         auto_nick = server.auto_nickname_change if server else False
 
     guild = bot.get_guild(int(guild_id))
@@ -554,15 +559,50 @@ async def assign_role(
 
     # Assign or notify
     if is_18_plus:
+        # 1) Add verified role first
         try:
             await member.add_roles(role)
-            logger.info(f"✅ Assigned role {role.name} to {member}.")
+            logger.info(f"Assigned role {role.name} to {member}.")
             try:
-                await member.send(f"✅ You’ve been verified and given **{role.name}** in **{guild.name}**!")
+                # Use server instructions locale when DMing
+                locale_code = (server.instructions_locale if server and server.instructions_locale else getattr(guild, 'preferred_locale', None)) or 'en-US'
+                ctx = SimpleNamespace(locale=locale_code)
+                await member.send(get_message('dm_role_success', ctx, role=role.name, server=guild.name))
             except discord.Forbidden:
-                logger.warning("⚠️ Cannot DM user after role assign.")
+                logger.warning("Cannot DM user after role assign.")
         except discord.Forbidden:
-            logger.warning(f"⚠️ Missing permission to add {role.name} in {guild_id}.")
+            logger.warning(f"Missing permission to add {role.name} in {guild_id}.")
+
+        # 2) Remove unverified role (if configured)
+        unverified_role = None
+        if unverified_role_id:
+            unverified_role = discord.utils.get(guild.roles, id=int(unverified_role_id))
+            if unverified_role and unverified_role in member.roles:
+                try:
+                    await member.remove_roles(unverified_role)
+                    logger.info(f"Removed unverified role {unverified_role.name} from {member}.")
+                except discord.Forbidden:
+                    logger.warning(f"Missing permission to remove {unverified_role.name} in {guild_id}.")
+
+            # 3) Delayed re-check after 1s to catch race conditions with other bots
+            async def _delayed_cleanup():
+                try:
+                    await asyncio.sleep(1)
+                    try:
+                        fresh_member = await guild.fetch_member(int(discord_id))
+                    except Exception:
+                        fresh_member = None
+                    if fresh_member and unverified_role and unverified_role in fresh_member.roles:
+                        try:
+                            await fresh_member.remove_roles(unverified_role)
+                            logger.info(f"(retry) Removed unverified role {unverified_role.name} from {fresh_member}.")
+                        except discord.Forbidden:
+                            logger.warning(f"Missing permission to remove {unverified_role.name} in {guild_id} on retry.")
+                except Exception:
+                    logger.warning("Delayed unverified role cleanup failed.", exc_info=True)
+
+            if unverified_role is not None:
+                asyncio.create_task(_delayed_cleanup())
 
         # Auto-nickname change if enabled
         if auto_nick and display_name:
@@ -570,19 +610,25 @@ async def assign_role(
                 await member.edit(nick=display_name)
                 logger.info(f"🔄 Updated nickname to {display_name} for {member}.")
                 try:
-                    await member.send(f"🔔 Your nickname was updated to **{display_name}**.")
+                    locale_code = (server.instructions_locale if server and server.instructions_locale else getattr(guild, 'preferred_locale', None)) or 'en-US'
+                    ctx = SimpleNamespace(locale=locale_code)
+                    await member.send(get_message('nickname_updated', ctx, display_name=display_name))
                 except discord.Forbidden:
                     logger.warning("⚠️ Cannot DM after nickname update.")
             except discord.Forbidden:
                 # let user know we couldn’t rename them
                 try:
-                    await member.send("⚠️ We could not update your username.")
+                    locale_code = (server.instructions_locale if server and server.instructions_locale else getattr(guild, 'preferred_locale', None)) or 'en-US'
+                    ctx = SimpleNamespace(locale=locale_code)
+                    await member.send(get_message('nickname_update_failed', ctx))
                 except discord.Forbidden:
                     logger.warning("⚠️ Cannot DM user after nickname failure.")
     else:
         # Not 18+
         try:
-            await member.send("❌ You are not 18+ according to VRChat. Contact an admin if this is an error.")
+            locale_code = (server.instructions_locale if server and server.instructions_locale else getattr(guild, 'preferred_locale', None)) or 'en-US'
+            ctx = SimpleNamespace(locale=locale_code)
+            await member.send(get_message('not_18_plus', ctx))
         except discord.Forbidden:
             logger.warning("⚠️ Cannot DM user about 18+ status.")
 
@@ -614,8 +660,7 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
         # 3) Otherwise, they probably typed a display name ➔ warn & cancel
         else:
             await interaction.response.send_message(
-                "❌ It looks like you entered your display name instead of your VRChat userID.\n"
-                "Please enter either the full profile URL or your userID (which always starts with `usr_`).\n https://imgur.com/a/EEl6ekH",
+                get_message('invalid_vrc_id_input', interaction),
                 ephemeral=True
             )
             return
@@ -692,15 +737,22 @@ async def vrcverify(interaction: discord.Interaction):
 # -------------------------------------------------------------------
 @app_commands.checks.has_permissions(administrator=True)
 @bot.tree.command(name="vrcverify_setup", description="Admin command: Set or update the verified role for this server.")
-@app_commands.describe(role="Select the Discord role to be assigned to verified users.")
-async def vrcverify_setup(interaction: discord.Interaction, role: discord.Role):
+@app_commands.describe(
+    verified_role="Role to assign to verified users (required)",
+    unverified_role="Optional role to remove from users once verified"
+)
+@app_commands.rename(
+    verified_role='verified-role',
+    unverified_role='unverified-role'
+)
+async def vrcverify_setup(interaction: discord.Interaction, verified_role: discord.Role, unverified_role: Optional[discord.Role] = None):
     """
     Inserts or updates a row in the 'servers' table with this server_id, 
     storing the admin's user ID as 'owner_id' and the chosen role ID as 'role_id'.
     """
     guild_id = str(interaction.guild.id)
     owner_id = str(interaction.user.id)
-    role_id_str = str(role.id)
+    role_id_str = str(verified_role.id)
 
     with session_scope() as session:
         # See if we already have a row for this server_id
@@ -710,7 +762,8 @@ async def vrcverify_setup(interaction: discord.Interaction, role: discord.Role):
             server = Server(
                 server_id=guild_id,
                 owner_id=owner_id,
-                role_id=role_id_str
+                role_id=role_id_str,
+                unverified_role_id=(str(unverified_role.id) if unverified_role else None)
             )
             session.add(server)
             action = "created"
@@ -718,14 +771,27 @@ async def vrcverify_setup(interaction: discord.Interaction, role: discord.Role):
             # Update the existing row
             server.owner_id = owner_id  # optional, if you want to update the owner each time
             server.role_id = role_id_str
+            # Only set if column exists; if migration failed, ignore silently
+            try:
+                server.unverified_role_id = (str(unverified_role.id) if unverified_role else None)
+            except Exception:
+                pass
             action = "updated"
 
     # Let the admin know it worked
-    await interaction.response.send_message(
-        f"✅ **Successfully {action} server config** for this guild.\n"
-        f"**Verified Role** set to: `{role.name}` (ID={role.id})",
-        ephemeral=True
-    )
+    # Build confirmation message
+    if unverified_role:
+        extra = f"\n**Unverified Role** to remove: `{unverified_role.name}` (ID={unverified_role.id})"
+    else:
+        extra = "\n(Unverified role not set; no role will be removed on verification.)"
+
+        # Localized confirmation
+        base = get_message('setup_success', interaction, action=action, role=verified_role.name, role_id=verified_role.id)
+        if unverified_role:
+            extra_local = get_message('setup_unverified_set', interaction, role=unverified_role.name, role_id=unverified_role.id)
+        else:
+            extra_local = get_message('setup_unverified_missing', interaction)
+        await interaction.response.send_message(base + extra_local, ephemeral=True)
 
 # -------------------------------------------------------------------
 # Slash Command: /vrcverify_subscription
@@ -936,9 +1002,7 @@ async def handle_verification_result(data: dict):
                 member = await fetch_member_cached(guild, int(discord_id)) if guild else None
                 if member:
                     try:
-                        await member.send(
-                            "❌ We couldn’t find your code in your VRChat bio. Please try again."
-                        )
+                        await member.send(get_message('code_not_found', SimpleNamespace(locale=(getattr(guild, 'preferred_locale', None) or 'en-US'))))
                     except discord.Forbidden:
                         logger.warning("⚠️ Cannot DM user about missing code.")
                 return
