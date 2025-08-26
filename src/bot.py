@@ -15,8 +15,7 @@ from discord.ui import View, Button, Select
 
 import pika
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, text, inspect
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import IntegrityError
 from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
@@ -452,6 +451,8 @@ async def process_verification(interaction: discord.Interaction):
         # Extract the values you need from the user object while still in the session.
         user = session.query(User).filter_by(discord_id=user_id).first()
         if user:
+            # Record attempt time when user clicks Begin Verification and already exists in DB
+            user.last_verification_attempt = datetime.now(timezone.utc)
             is_verified = user.verification_status
             stored_vrc_user_id = user.vrc_user_id or ""
         else:
@@ -538,6 +539,7 @@ async def assign_role(
         # Optional unverified role to remove on success
         unverified_role_id = getattr(server, 'unverified_role_id', None) if server else None
         auto_nick = server.auto_nickname_change if server else False
+        instr_locale = (server.instructions_locale if server and server.instructions_locale else None)
 
     guild = bot.get_guild(int(guild_id))
     if not guild:
@@ -565,8 +567,8 @@ async def assign_role(
             await member.add_roles(role)
             logger.info(f"Assigned role {role.name} to {member}.")
             try:
-                # Use server instructions locale when DMing
-                locale_code = (server.instructions_locale if server and server.instructions_locale else getattr(guild, 'preferred_locale', None)) or 'en-US'
+                # Use stored instructions locale (captured in-session) when DMing
+                locale_code = (instr_locale or getattr(guild, 'preferred_locale', None)) or 'en-US'
                 ctx = SimpleNamespace(locale=locale_code)
                 await member.send(get_message('dm_role_success', ctx, role=role.name, server=guild.name))
             except discord.Forbidden:
@@ -611,7 +613,7 @@ async def assign_role(
                 await member.edit(nick=display_name)
                 logger.info(f"🔄 Updated nickname to {display_name} for {member}.")
                 try:
-                    locale_code = (server.instructions_locale if server and server.instructions_locale else getattr(guild, 'preferred_locale', None)) or 'en-US'
+                    locale_code = (instr_locale or getattr(guild, 'preferred_locale', None)) or 'en-US'
                     ctx = SimpleNamespace(locale=locale_code)
                     await member.send(get_message('nickname_updated', ctx, display_name=display_name))
                 except discord.Forbidden:
@@ -619,7 +621,7 @@ async def assign_role(
             except discord.Forbidden:
                 # let user know we couldn’t rename them
                 try:
-                    locale_code = (server.instructions_locale if server and server.instructions_locale else getattr(guild, 'preferred_locale', None)) or 'en-US'
+                    locale_code = (instr_locale or getattr(guild, 'preferred_locale', None)) or 'en-US'
                     ctx = SimpleNamespace(locale=locale_code)
                     await member.send(get_message('nickname_update_failed', ctx))
                 except discord.Forbidden:
@@ -627,7 +629,7 @@ async def assign_role(
     else:
         # Not 18+
         try:
-            locale_code = (server.instructions_locale if server and server.instructions_locale else getattr(guild, 'preferred_locale', None)) or 'en-US'
+            locale_code = (instr_locale or getattr(guild, 'preferred_locale', None)) or 'en-US'
             ctx = SimpleNamespace(locale=locale_code)
             await member.send(get_message('not_18_plus', ctx))
         except discord.Forbidden:
@@ -1013,6 +1015,8 @@ async def handle_verification_result(data: dict):
             if not user:
                 user = User(discord_id=discord_id)
                 session.add(user)
+                # First successful verification creates the user; set initial last attempt
+                user.last_verification_attempt = datetime.now(timezone.utc)
             user.vrc_user_id = data["vrcUserID"]
             user.verification_status = is_18_plus
             session.delete(pending)
@@ -1106,11 +1110,15 @@ async def on_member_join(member: discord.Member):
                 return
 
             user = session.query(User).filter_by(discord_id=discord_id).first()
-            if not user or not bool(user.verification_status):
+            if not user:
                 return
+            # Record a verification attempt timestamp on join for any existing user
+            user.last_verification_attempt = datetime.now(timezone.utc)
+            already_verified = bool(user.verification_status)
 
-        await assign_role(discord_id, True, guild_id)
-        logger.info(f"Auto-verified user {discord_id} in guild {guild_id} on join.")
+        if already_verified:
+            await assign_role(discord_id, True, guild_id)
+            logger.info(f"Auto-verified user {discord_id} in guild {guild_id} on join.")
     except Exception:
         logger.error("❌ Exception in on_member_join", exc_info=True)
 
