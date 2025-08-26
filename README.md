@@ -214,7 +214,7 @@ Each component connects to RabbitMQ to exchange verification requests and result
 
   - `tag_and_push_images.sh` (bash)
   - `tag_and_push_images.ps1` (PowerShell)
-
+  
 ---
 
 ## Usage
