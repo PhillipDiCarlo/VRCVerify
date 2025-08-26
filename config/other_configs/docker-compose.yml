@@ -1,35 +1,55 @@
+version: "3.9"
+
 services:
   discord-bot:
     build:
       context: ../../
       dockerfile: docker/Dockerfile-bot
-    image: discord-bot  # <-- Explicitly set image name
-    ports:
-      - "5002:5002"
+    image: discord-bot
+    env_file:
+      - .env
     environment:
-      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
-      - DATABASE_URL=${DATABASE_URL}
-      - RABBITMQ_REQUEST_QUEUE=${RABBITMQ_QUEUE_NAME}
-      - RABBITMQ_RESULT_QUEUE=${RABBITMQ_RESULT_QUEUE}
-      - RABBITMQ_HOST=${RABBITMQ_HOST}
-      - RABBITMQ_PORT=${RABBITMQ_PORT}
-      - RABBITMQ_USERNAME=${RABBITMQ_USERNAME}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
-      - RABBITMQ_VHOST=${RABBITMQ_VHOST}
+      # Required by bot.py
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_QUEUE_NAME: ${RABBITMQ_QUEUE_NAME}
+      RABBITMQ_RESULT_QUEUE: ${RABBITMQ_RESULT_QUEUE}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      # Optional tuning flags used by the bot
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      REST_TTL_SECONDS: ${REST_TTL_SECONDS:-180}
+      REST_CACHE_MAX: ${REST_CACHE_MAX:-10000}
+      REST_CONCURRENCY: ${REST_CONCURRENCY:-8}
+    restart: unless-stopped
 
   vrc-online-checker:
     build:
       context: ../../
       dockerfile: docker/Dockerfile-online-checker
-    image: vrc-online-checker  # <-- Explicitly set image name
+    image: vrc-online-checker
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - RABBITMQ_REQUEST_QUEUE=${RABBITMQ_QUEUE_NAME}
-      - RABBITMQ_RESULT_QUEUE=${RABBITMQ_RESULT_QUEUE}
-      - RABBITMQ_HOST=${RABBITMQ_HOST}
-      - RABBITMQ_PORT=${RABBITMQ_PORT}
-      - RABBITMQ_USERNAME=${RABBITMQ_USERNAME}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
-      - RABBITMQ_VHOST=${RABBITMQ_VHOST}
-      - VRCHAT_USERNAME=${VRCHAT_USERNAME}
-      - VRCHAT_PASSWORD=${VRCHAT_PASSWORD}
+      # Shared infra
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_QUEUE_NAME: ${RABBITMQ_QUEUE_NAME}
+      RABBITMQ_RESULT_QUEUE: ${RABBITMQ_RESULT_QUEUE}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # VRChat + Gmail (checker needs these)
+      VRCHAT_USERNAME: ${VRCHAT_USERNAME}
+      VRCHAT_PASSWORD: ${VRCHAT_PASSWORD}
+      GMAIL_USER: ${GMAIL_USER}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
+      # Optional cache knobs used by the checker
+      VRCHAT_TTL_SECONDS: ${VRCHAT_TTL_SECONDS:-180}
+      VRCHAT_CACHE_MAX: ${VRCHAT_CACHE_MAX:-10000}
+    restart: unless-stopped
