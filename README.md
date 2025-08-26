@@ -19,6 +19,23 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
 
 ---
 
+## Recent updates
+
+- Localization support with per-server locale setting (supports multiple language codes; see Localization section).
+- Admin settings UI (/vrcverify_settings) with paged controls for:
+  - Auto nickname change to VRChat display name on successful verification.
+  - Instructions language (per-server locale) used for embeds and button flows.
+  - Auto-verify new members when they join (opt-in).
+  - Optional removal of an "unverified" role once a user becomes verified.
+- Instructions posting command (/vrcverify_instructions) that publishes a localized, interactive instruction embed with buttons.
+- Robust request/result flow via RabbitMQ including a dedicated result consumer in the bot.
+- Ephemeral "pending verification" records with background cleanup of expired requests.
+- REST and VRChat API TTL caches to reduce rate-limit pressure and speed up repeated checks.
+
+See the sections below for details and configuration.
+
+---
+
 ## Architecture Overview
 
 - **Discord Integration:**  
@@ -37,6 +54,23 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
 
 - **VRChat API Integration:**  
   Uses the `vrchatapi` library to interact with VRChat’s API. The online checker handles VRChat login, including two-factor authentication by checking the inbox of a Gmail account via IMAP.
+
+- **Caching and Rate Control:**  
+  Both the bot and the checker use small TTL caches to avoid duplicate external requests and configurable concurrency limits on REST calls.
+
+---
+
+## Slash commands
+
+- `/vrcverify` – User entry point. Guides through entering a VRChat user ID/profile URL and verifying by adding a one-time code to the VRChat bio. Re-check flow is supported without a new code when applicable.
+- `/vrcverify_setup` – Admin-only. Sets the role assigned to verified users and an optional role to remove once verification succeeds.
+- `/vrcverify_instructions` – Admin-only. Posts a localized instruction embed with interactive buttons to begin verification and (optionally) update nickname.
+- `/vrcverify_settings` – Admin-only. Opens a paged settings UI with:
+  - Auto nickname change (on successful verification, set Discord nickname to VRChat display name).
+  - Instructions language (server-wide locale).
+  - Auto-verify new members (attempt verification or initiate the flow when a member joins).
+- `/vrcverify_support` – Anyone. Sends help/support information.
+- `/vrcverify_subscription` – Admin-only. Shows subscription info to unlock premium features.
 
 ---
 
@@ -110,6 +144,15 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
 
    # Logging Level: DEBUG, INFO, WARNING, ERROR, CRITICAL
    LOG_LEVEL=INFO
+
+  # Optional: Bot-side REST caching and concurrency controls
+  REST_TTL_SECONDS=180
+  REST_CACHE_MAX=10000
+  REST_CONCURRENCY=8
+
+  # Optional: VRChat API response cache in the checker
+  VRCHAT_TTL_SECONDS=180
+  VRCHAT_CACHE_MAX=10000
    ```
 
 4. **Database Setup:**
@@ -136,6 +179,44 @@ Each component connects to RabbitMQ to exchange verification requests and result
 
 ---
 
+  ## Localization
+
+  The bot supports multiple locales for user-facing content. A server admin can choose the preferred language via `/vrcverify_settings` (Instructions language). If a user’s Discord locale is supported, it will be used; otherwise, English (en-US) is the fallback.
+
+  Add or adjust localized strings in `src/locales.py`. The list of supported language codes is defined in `LANGUAGE_CODES`.
+
+---
+
+  ## Background jobs and reliability
+
+  - A dedicated RabbitMQ consumer in the bot listens for verification results from the checker and assigns/removes roles accordingly.
+  - A periodic cleanup task removes expired entries from the `PendingVerification` table to keep the database tidy.
+  - TTL caches and concurrency gates help reduce rate-limit pressure on Discord and VRChat APIs.
+
+---
+
+  ## Docker and container images
+
+  This repository includes Dockerfiles for the bot and the online checker:
+
+  - `docker/Dockerfile-bot`
+  - `docker/Dockerfile-online-checker`
+
+  There is also an example Compose file under `config/other_configs/docker-compose.yml` you can adapt. Make sure your environment variables are provided via an `.env` file or your preferred secret management solution.
+
+  Example (adjust paths and variables to your environment):
+
+  ```bash
+  docker compose -f config/other_configs/docker-compose.yml up -d
+  ```
+
+  To tag and push images, optional helper scripts are provided:
+
+  - `tag_and_push_images.sh` (bash)
+  - `tag_and_push_images.ps1` (PowerShell)
+
+---
+
 ## Usage
 
 ### For Users
@@ -151,6 +232,7 @@ Each component connects to RabbitMQ to exchange verification requests and result
   - `/vrcverify_subscription` – Get subscription or premium feature information.
   - `/vrcverify_support` – Receive help and support information.
   - `/vrcverify_instructions` – Post instructions in an embed for server members.
+    - `/vrcverify_settings` – Configure auto nickname change, instructions language, and auto-verify-on-join.
 
 ---
 
