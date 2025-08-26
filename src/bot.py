@@ -15,8 +15,7 @@ from discord.ui import View, Button, Select
 
 import pika
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, text, inspect
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import IntegrityError
 from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
