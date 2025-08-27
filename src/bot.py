@@ -681,6 +681,15 @@ async def assign_role(
                     logger.info(f"Removed unverified role {unverified_role.name} from {member}.")
                 except discord.Forbidden:
                     logger.warning(f"Missing permission to remove {unverified_role.name} in {guild_id}.")
+                    await dm_localized(
+                        member,
+                        guild,
+                        "dm_unverified_failed_bot_position",
+                        instr_locale,
+                        role=unverified_role.name,
+                        server=guild.name
+                    )
+
 
             # 3) Delayed re-check after 1s to catch race conditions with other bots
             async def _delayed_cleanup():
