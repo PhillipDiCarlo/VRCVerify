@@ -862,13 +862,6 @@ async def vrcverify_setup(
                 pass
             action = "updated"
 
-    # Let the admin know it worked
-    # Build confirmation message
-    if unverified_role:
-        extra = f"\n**Unverified Role** to remove: `{unverified_role.name}` (ID={unverified_role.id})"
-    else:
-        extra = "\n(Unverified role not set; no role will be removed on verification.)"
-
         # Localized confirmation
         base = get_message(
             "setup_success",
