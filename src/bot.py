@@ -427,6 +427,20 @@ class PagedSettingsView(View):
 # -------------------------------------------------------------------
 # Helpers
 # -------------------------------------------------------------------
+async def dm_localized(member: discord.Member, guild: discord.Guild, key: str, instr_locale: Optional[str] = None, **kwargs):
+    """Send a localized DM to a member; ignore DM permission errors."""
+    try:
+        locale_code = (instr_locale or getattr(guild, 'preferred_locale', None)) or 'en-US'
+        ctx = SimpleNamespace(locale=locale_code)
+        await member.send(get_message(key, ctx, **kwargs))
+    except discord.Forbidden:
+        logger.warning(f"⚠️ Cannot DM user {member.id} for key '{key}'.")
+    except Exception:
+        logger.exception("Unexpected error sending DM.")
+
+async def dm_role_assignment_failure(member: discord.Member, role: discord.Role, guild: discord.Guild, instr_locale: Optional[str] = None):
+    """Explain the common cause: bot role must be above verified/unverified roles."""
+    await dm_localized(member, guild, 'dm_role_failed_bot_position', instr_locale, role=role.name, server=guild.name)
 async def process_verification(interaction: discord.Interaction):
     """
     Processes a verification request by doing one of the following:
@@ -566,15 +580,10 @@ async def assign_role(
         try:
             await member.add_roles(role)
             logger.info(f"Assigned role {role.name} to {member}.")
-            try:
-                # Use stored instructions locale (captured in-session) when DMing
-                locale_code = (instr_locale or getattr(guild, 'preferred_locale', None)) or 'en-US'
-                ctx = SimpleNamespace(locale=locale_code)
-                await member.send(get_message('dm_role_success', ctx, role=role.name, server=guild.name))
-            except discord.Forbidden:
-                logger.warning("Cannot DM user after role assign.")
+            await dm_localized(member, guild, 'dm_role_success', instr_locale, role=role.name, server=guild.name)
         except discord.Forbidden:
             logger.warning(f"Missing permission to add {role.name} in {guild_id}.")
+            await dm_role_assignment_failure(member, role, guild, instr_locale)
 
         # 2) Remove unverified role (if configured)
         unverified_role = None
@@ -612,28 +621,12 @@ async def assign_role(
             try:
                 await member.edit(nick=display_name)
                 logger.info(f"🔄 Updated nickname to {display_name} for {member}.")
-                try:
-                    locale_code = (instr_locale or getattr(guild, 'preferred_locale', None)) or 'en-US'
-                    ctx = SimpleNamespace(locale=locale_code)
-                    await member.send(get_message('nickname_updated', ctx, display_name=display_name))
-                except discord.Forbidden:
-                    logger.warning("⚠️ Cannot DM after nickname update.")
+                await dm_localized(member, guild, 'nickname_updated', instr_locale, display_name=display_name)
             except discord.Forbidden:
-                # let user know we couldn’t rename them
-                try:
-                    locale_code = (instr_locale or getattr(guild, 'preferred_locale', None)) or 'en-US'
-                    ctx = SimpleNamespace(locale=locale_code)
-                    await member.send(get_message('nickname_update_failed', ctx))
-                except discord.Forbidden:
-                    logger.warning("⚠️ Cannot DM user after nickname failure.")
+                await dm_localized(member, guild, 'nickname_update_failed', instr_locale)
     else:
         # Not 18+
-        try:
-            locale_code = (instr_locale or getattr(guild, 'preferred_locale', None)) or 'en-US'
-            ctx = SimpleNamespace(locale=locale_code)
-            await member.send(get_message('not_18_plus', ctx))
-        except discord.Forbidden:
-            logger.warning("⚠️ Cannot DM user about 18+ status.")
+        await dm_localized(member, guild, 'not_18_plus', instr_locale)
 
 
 # -------------------------------------------------------------------
