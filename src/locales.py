@@ -38,7 +38,7 @@ localizations: dict[str, dict[str, str]] = {
         "btn_update_nickname":        "Update Nickname",
         "settings_intro":             "**VRChat Verify Settings**\n\n1.) **Enable auto nickname change**\n   Automatically update users' Discord nicknames to match their VRChat display names.\n   Current: **{current}**",
         "dm_role_failed_bot_position":"I couldn't assign the '{role}' role in {server}. This usually happens when the VRCVerify bot's role is not above the verified (and unverified) roles in the server's role list. Please ask a server admin to move the VRCVerify bot role above those roles and try again.",
-        "dm_unverified_failed_bot_position": "Could not remove the {unverified_role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
     },
 
     "es-ES": {
@@ -71,7 +71,7 @@ localizations: dict[str, dict[str, str]] = {
         "btn_update_nickname":        "Actualizar Apodo",
         "settings_intro":             "**Configuración de Verificación VRChat**\n\n1.) **Habilitar cambio automático de apodo**\n   Actualiza automáticamente los apodos de Discord de los usuarios para que coincidan con sus nombres de pantalla de VRChat.\n   Actual: **{current}**",
         "dm_role_failed_bot_position":"No pude asignar el rol '{role}' en {server}. Esto suele ocurrir cuando el rol del bot VRCVerify no está por encima de los roles verificado (y no verificado) en la lista de roles del servidor. Pide a un administrador que mueva el rol del bot VRCVerify por encima de esos roles e inténtalo de nuevo.",
-        "dm_unverified_failed_bot_position": "Could not remove the {unverified_role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
     },
 
     "zh-CN": {
@@ -104,7 +104,7 @@ localizations: dict[str, dict[str, str]] = {
         "btn_update_nickname":        "更新昵称",
         "settings_intro":             "**VRChat 验证设置**\n\n1.) **启用自动昵称更改**\n   自动更新用户的 Discord 昵称以匹配他们的 VRChat 显示名称。\n   当前:**{current}**",
         "dm_role_failed_bot_position":"我无法在 {server} 为你分配“{role}”角色。通常是因为 VRCVerify 机器人的角色没有位于已验证（和未验证）角色之上。请让服务器管理员将 VRCVerify 机器人的角色移动到这些角色之上，然后再试一次。",
-        "dm_unverified_failed_bot_position": "Could not remove the {unverified_role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
     },
 
     "ja": {
@@ -137,7 +137,7 @@ localizations: dict[str, dict[str, str]] = {
         "btn_update_nickname":        "ニックネームを更新",
         "settings_intro":             "**VRChat 認証設定**\n\n1.) **自動ニックネーム変更を有効にする**\n   ユーザーの Discord ニックネームを VRChat の表示名に合わせて自動的に更新します。\n   現在: **{current}**",
         "dm_role_failed_bot_position":"{server} で「{role}」ロールを付与できませんでした。多くの場合、VRCVerify ボットのロールが、Verified（および Unverified）ロールより上にないことが原因です。サーバー管理者に依頼して、VRCVerify ボットのロールをそれらのロールより上に移動してから、もう一度お試しください。",
-        "dm_unverified_failed_bot_position": "Could not remove the {unverified_role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
     },
 
     "de": {
@@ -170,7 +170,7 @@ localizations: dict[str, dict[str, str]] = {
         "btn_update_nickname":        "Spitznamen aktualisieren",
         "settings_intro":             "**VRChat-Verifizierungseinstellungen**\n\n1.) **Automatische Änderung des Spitznamens aktivieren**\n   Aktualisieren Sie automatisch die Discord-Spitznamen der Benutzer, um mit ihren VRChat-Anzeigenamen übereinzustimmen。\n   Aktuell: **{current}**",
         "dm_role_failed_bot_position":"Ich konnte die Rolle „{role}“ in {server} nicht zuweisen. Das passiert meist, wenn die Rolle des VRCVerify-Bots nicht über den Rollen „Verified“ (und „Unverified“) in der Server-Rollenliste steht. Bitte bitte einen Administrator, die Bot-Rolle über diese Rollen zu verschieben, und versuche es erneut。",
-        "dm_unverified_failed_bot_position": "Could not remove the {unverified_role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
     },
 
     "nl": {
@@ -203,7 +203,7 @@ localizations: dict[str, dict[str, str]] = {
         "btn_update_nickname":        "Bijnaam bijwerken",
         "settings_intro":             "**VRChat Verificatie-instellingen**\n\n1.) **Automatische bijnaamwijziging inschakelen**\n   Werk automatisch de Discord-bijlenamen van gebruikers bij om overeen te komen met hun VRChat-weergavenamen。\n   Huidig: **{current}**",
         "dm_role_failed_bot_position":"Ik kon de rol '{role}' in {server} niet toekennen. Dit gebeurt meestal wanneer de rol van de VRCVerify-bot niet boven de rollen 'verified' (en 'unverified') staat in de rollenlijst. Vraag een beheerder om de VRCVerify-botrol boven die rollen te plaatsen en probeer het opnieuw。",
-        "dm_unverified_failed_bot_position": "Could not remove the {unverified_role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
     },
 
     "hi-IN": {
@@ -236,7 +236,7 @@ localizations: dict[str, dict[str, str]] = {
         "btn_update_nickname":        "उपनाम अपडेट करें",
         "settings_intro":             "**VRChat सत्यापन सेटिंग्स**\n\n1.) **स्वचालित उपनाम परिवर्तन सक्षम करें**\n   उपयोगकर्ताओं के Discord उपनामों को उनके VRChat प्रदर्शन नामों के साथ मेल खाने के लिए स्वचालित रूप से अपडेट करें。\n   वर्तमान: **{current}**",
         "dm_role_failed_bot_position":"मैं {server} में '{role}' भूमिका असाइन नहीं कर सका। आमतौर पर ऐसा तब होता है जब VRCVerify बॉट की भूमिका सर्वर की भूमिका सूची में verified (और unverified) भूमिकाओं से ऊपर नहीं होती। कृपया किसी व्यवस्थापक से कहें कि VRCVerify बॉट की भूमिका को उन भूमिकाओं के ऊपर ले जाएँ और फिर से प्रयास करें。",
-        "dm_unverified_failed_bot_position": "Could not remove the {unverified_role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
     },
 
     "ar": {
@@ -269,7 +269,7 @@ localizations: dict[str, dict[str, str]] = {
         "btn_update_nickname":        "تحديث الاسم المستعار",
         "settings_intro":             "**إعدادات تحقق VRChat**\n\n1.) **تمكين تغيير اللقب التلقائي**\n   تحديث ألقاب Discord الخاصة بالمستخدمين تلقائيًا لتتوافق مع أسماء عرض VRChat الخاصة بهم。\n   الحالي: **{current}**",
         "dm_role_failed_bot_position":"تعذّر عليّ منح دور '{role}' في {server}. يحدث هذا عادةً عندما لا تكون رتبة بوت VRCVerify أعلى من رتبتي Verified (و Unverified) في قائمة رتب الخادم. الرجاء طلب من مسؤول الخادم نقل رتبة بوت VRCVerify أعلى تلك الرتب ثم المحاولة مرة أخرى。",
-        "dm_unverified_failed_bot_position": "Could not remove the {unverified_role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
     },
 
     "bn": {
@@ -302,7 +302,7 @@ localizations: dict[str, dict[str, str]] = {
         "btn_update_nickname":        "ডাকনাম আপডেট করুন",
         "settings_intro":             "**VRChat যাচাইকরণ সেটিংস**\n\n1.) **স্বয়ংক্রিয় ডাকনাম পরিবর্তন সক্রিয় করুন**\n   ব্যবহারকারীদের Discord ডাকনাম স্বয়ংক্রিয়ভাবে তাদের VRChat প্রদর্শন নামের সাথে মিলিয়ে আপডেট করুন。\n   বর্তমান: **{current}**",
         "dm_role_failed_bot_position":"আমি {server}-এ আপনাকে '{role}' ভূমিকা দিতে পারিনি। সাধারণত এটি ঘটে যখন VRCVerify বটের ভূমিকা সার্ভারের রোল তালিকায় verified (এবং unverified) ভূমিকার উপরে না থাকে। দয়া করে কোনো অ্যাডমিনকে বলুন VRCVerify বটের ভূমিকা ওই ভূমিগুলোর উপরে নিয়ে যেতে এবং আবার চেষ্টা করুন।",
-        "dm_unverified_failed_bot_position": "Could not remove the {unverified_role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
     },
 
     "pt-BR": {
@@ -335,7 +335,7 @@ localizations: dict[str, dict[str, str]] = {
         "btn_update_nickname":        "Atualizar Apelido",
         "settings_intro":             "**Configurações de Verificação do VRChat**\n\n1.) **Ativar alteração automática de apelido**\n   Atualize automaticamente os apelidos do Discord dos usuários para corresponder aos seus nomes de exibição do VRChat。\n   Atual: **{current}**",
         "dm_role_failed_bot_position":"Não consegui atribuir o cargo '{role}' em {server}. Isso geralmente acontece quando o cargo do bot VRCVerify não está acima dos cargos de verificado (e não verificado) na lista de cargos do servidor. Peça a um administrador para mover o cargo do bot VRCVerify acima desses cargos e tente novamente。",
-        "dm_unverified_failed_bot_position": "Could not remove the {unverified_role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
     },
 
     "ru": {
@@ -368,7 +368,7 @@ localizations: dict[str, dict[str, str]] = {
         "btn_update_nickname":        "Обновить никнейм",
         "settings_intro":             "**Настройки проверки VRChat**\n\n1.) **Включить автоматическую смену никнейма**\n   Автоматически обновлять никнеймы пользователей Discord в соответствии с их отображаемыми именами VRChat。\n   Текущий: **{current}**",
         "dm_role_failed_bot_position":"Мне не удалось выдать роль «{role}» на сервере {server}. Обычно это происходит, когда роль бота VRCVerify находится ниже ролей Verified (и Unverified) в списке ролей сервера. Попросите администратора переместить роль бота VRCVerify выше этих ролей и повторите попытку。",
-        "dm_unverified_failed_bot_position": "Could not remove the {unverified_role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
     },
 
     "pa-IN": {
@@ -401,6 +401,6 @@ localizations: dict[str, dict[str, str]] = {
         "btn_update_nickname":        "ਨਿਕਨੇਮ ਅਪਡੇਟ ਕਰੋ",
         "settings_intro":             "**VRChat ਪ੍ਰਮਾਣੀਕਰਨ ਸੈਟਿੰਗਸ**\n\n1.) **ਆਟੋ-ਨਿਕਨੇਮ ਬਦਲਣਾ ਯਕੀਨੀ ਬਣਾਓ**\n   ਵਰਤੋਂਕਾਰਾਂ ਦੇ Discord ਨਿਕਨੇਮਾਂ ਨੂੰ ਉਹਨਾਂ ਦੇ VRChat ਪ੍ਰਦਰਸ਼ਨ ਨਾਮਾਂ ਦੇ ਨਾਲ ਮੇਲ ਖਾਣ ਲਈ ਆਟੋਮੈਟਿਕ ਤੌਰ 'ਤੇ ਅਪਡੇਟ ਕਰੋ。\n   ਮੌਜੂਦਾ: **{current}**",
         "dm_role_failed_bot_position":"ਮੈਂ {server} ਵਿੱਚ ਤੁਹਾਨੂੰ '{role}' ਰੋਲ ਨਹੀਂ ਦੇ ਸਕਿਆ। ਆਮ ਤੌਰ ਤੇ ਇਹ ਤਦ ਹੁੰਦਾ ਹੈ ਜਦੋਂ VRCVerify ਬੋਟ ਦਾ ਰੋਲ ਸਰਵਰ ਦੀ ਰੋਲ ਲਿਸਟ ਵਿੱਚ verified (ਅਤੇ unverified) ਰੋਲਾਂ ਤੋਂ ਉੱਪਰ ਨਹੀਂ ਹੁੰਦਾ। ਕਿਰਪਾ ਕਰਕੇ ਕਿਸੇ ਐਡਮਿਨ ਨੂੰ ਕਹੋ ਕਿ VRCVerify ਬੋਟ ਦਾ ਰੋਲ ਉਹਨਾਂ ਰੋਲਾਂ ਤੋਂ ਉੱਪਰ ਰੱਖੇ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ。",
-        "dm_unverified_failed_bot_position": "Could not remove the {unverified_role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
     }
 }
