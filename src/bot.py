@@ -14,7 +14,16 @@ from discord.ext import commands
 from discord.ui import View, Button, Select
 
 import pika
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, text, inspect
+from sqlalchemy import (
+    create_engine,
+    Column,
+    Integer,
+    String,
+    Boolean,
+    DateTime,
+    text,
+    inspect,
+)
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import IntegrityError
 from contextlib import contextmanager
@@ -22,41 +31,48 @@ from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from locales import localizations, LANGUAGE_CODES
 
+
 # --- Localization Helpers ---
 def get_locale(interaction: discord.Interaction) -> str:
     """Return best matching locale code or fallback to English."""
-    loc = getattr(interaction, 'locale', None)
-    return loc if loc in LANGUAGE_CODES else 'en-US'
+    loc = getattr(interaction, "locale", None)
+    return loc if loc in LANGUAGE_CODES else "en-US"
+
 
 def get_message(key: str, interaction: discord.Interaction, **kwargs) -> str:
     """Fetch localized template and format with kwargs."""
     locale = get_locale(interaction)
-    template = localizations.get(locale, localizations['en-US']).get(key)
+    template = localizations.get(locale, localizations["en-US"]).get(key)
     if template is None:
-        template = localizations['en-US'].get(key, key)
+        template = localizations["en-US"].get(key, key)
     return template.format(**kwargs)
+
+
 from locales import localizations, LANGUAGE_CODES
+
 
 def get_locale(interaction: discord.Interaction) -> str:
     """Return the best matching locale for this interaction."""
-    loc = getattr(interaction, 'locale', None)
-    return loc if loc in LANGUAGE_CODES else 'en-US'
+    loc = getattr(interaction, "locale", None)
+    return loc if loc in LANGUAGE_CODES else "en-US"
+
 
 def get_message(key: str, interaction: discord.Interaction, **kwargs) -> str:
     """Fetch a localized message by key for the given interaction."""
     locale = get_locale(interaction)
-    template = localizations.get(locale, localizations['en-US']).get(key)
+    template = localizations.get(locale, localizations["en-US"]).get(key)
     if template is None:
-        template = localizations['en-US'].get(key, key)
+        template = localizations["en-US"].get(key, key)
     return template.format(**kwargs)
+
 
 # -------------------------------------------------------------------
 # Load environment variables
 # -------------------------------------------------------------------
 load_dotenv()
 
-DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
-DATABASE_URL = os.getenv('DATABASE_URL')
+DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 RABBITMQ_REQUEST_QUEUE = os.getenv("RABBITMQ_QUEUE_NAME") # The queue to which we send verification requests (the "inbound" queue for vrc_online_checker).
@@ -70,11 +86,11 @@ RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST")
 # -------------------------------------------------------------------
 # Logging setup
 # -------------------------------------------------------------------
-log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=getattr(logging, log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
@@ -84,6 +100,7 @@ logger = logging.getLogger(__name__)
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 Base = declarative_base()
+
 
 @contextmanager
 def session_scope():
@@ -98,11 +115,12 @@ def session_scope():
     finally:
         session.close()
 
+
 # -------------------------------------------------------------------
 # Database Models
 # -------------------------------------------------------------------
 class Server(Base):
-    __tablename__ = 'servers'
+    __tablename__ = "servers"
     id = Column(Integer, primary_key=True)
     server_id = Column(String, unique=True, nullable=False)
     owner_id = Column(String, nullable=False)
@@ -116,18 +134,19 @@ class Server(Base):
     instructions_channel_id = Column(String, nullable=True)
     instructions_message_id = Column(String, nullable=True)
     auto_nickname_change = Column(Boolean, default=False)
-    instructions_locale = Column(String, default='en-US', nullable=False)
+    instructions_locale = Column(String, default="en-US", nullable=False)
     # New setting: auto verify new members on join (default ON)
     auto_verify_new_members = Column(Boolean, default=True, nullable=False)
 
 
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = "users"
     id = Column(Integer, primary_key=True)
     discord_id = Column(String(30), unique=True, nullable=False)
     verification_status = Column(Boolean, default=False)
     vrc_user_id = Column(String(50), nullable=True)
     last_verification_attempt = Column(DateTime(timezone=True))
+
 
 class PendingVerification(Base):
     __tablename__ = "pending_verifications"
@@ -139,18 +158,21 @@ class PendingVerification(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
+
 # Create tables and ensure the new instructions_locale column exists
 Base.metadata.create_all(engine)
+
 
 # Helper: check if a column exists on the 'servers' table (no auto-migration)
 def server_has_column(column_name: str) -> bool:
     try:
         insp = inspect(engine)
-        cols = [c['name'] for c in insp.get_columns('servers')]
+        cols = [c["name"] for c in insp.get_columns("servers")]
         return column_name in cols
     except Exception:
         logger.warning("⚠️ Could not inspect database for column presence.", exc_info=True)
         return False
+
 
 # -------------------------------------------------------------------
 # RabbitMQ Setup
@@ -174,11 +196,12 @@ REST_TTL_SECONDS = int(os.getenv("REST_TTL_SECONDS", "180"))
 REST_CACHE_MAX = int(os.getenv("REST_CACHE_MAX", "10000"))
 REST_CONCURRENCY = int(os.getenv("REST_CONCURRENCY", "8"))
 
+
 class _TTLCache:
     def __init__(self, maxsize: int, ttl: int):
         self.maxsize = maxsize
         self.ttl = ttl
-        self._store: dict[tuple[int,int], tuple[float, object]] = {}
+        self._store: dict[tuple[int, int], tuple[float, object]] = {}
 
     def get(self, key):
         item = self._store.get(key)
@@ -200,6 +223,7 @@ class _TTLCache:
                 pass
         self._store[key] = (asyncio.get_event_loop().time() + self.ttl, value)
 
+
 _member_fetch_cache = _TTLCache(REST_CACHE_MAX, REST_TTL_SECONDS)
 _rest_semaphore = asyncio.Semaphore(REST_CONCURRENCY)
 
@@ -218,20 +242,20 @@ async def fetch_member_cached(guild: discord.Guild, user_id: int) -> discord.Mem
         except discord.NotFound:
             return None
 
+
 class VRCVerifyBot(discord.Client):
     def __init__(self):
         flags = discord.MemberCacheFlags.none()
         flags.joined = True
         super().__init__(
-            intents=intents,
-            chunk_guilds_at_startup=False,
-            member_cache_flags=flags
+            intents=intents, chunk_guilds_at_startup=False, member_cache_flags=flags
         )
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
         # Sync slash commands to the server
         await self.tree.sync()
+
 
 bot = VRCVerifyBot()
 
@@ -266,8 +290,7 @@ class VRCVerifyInstructionView(View):
             user = session.query(User).filter_by(discord_id=user_id).first()
             if not user:
                 return await interaction.response.send_message(
-                    get_message('not_verified', interaction),
-                    ephemeral=True
+                    get_message("not_verified", interaction), ephemeral=True
                 )
             # ensure string type
             vrc_user_id = str(user.vrc_user_id)
@@ -282,15 +305,22 @@ class VRCVerifyInstructionView(View):
         )
         # localized confirmation
         await interaction.response.send_message(
-            get_message('nickname_update_requested', interaction),
-            ephemeral=True
+            get_message("nickname_update_requested", interaction), ephemeral=True
         )
+
 
 # -------------------------------------------------------------------
 # Show Settings View (Paged)
 # -------------------------------------------------------------------
 class PagedSettingsView(View):
-    def __init__(self, auto_nick: bool, instr_locale: str, auto_verify: bool, auto_verify_available: bool = True, page_index: int = 0):
+    def __init__(
+        self,
+        auto_nick: bool,
+        instr_locale: str,
+        auto_verify: bool,
+        auto_verify_available: bool = True,
+        page_index: int = 0
+    ):
         super().__init__(timeout=None)
         # Current values (mutated by selects)
         self.auto_nick: bool = auto_nick
@@ -344,9 +374,11 @@ class PagedSettingsView(View):
                 max_values=1,
                 options=nick_options
             )
+
             async def on_nick_select(interaction: discord.Interaction):
                 self.auto_nick = (interaction.data["values"][0] == "yes")
                 await interaction.response.defer(ephemeral=True)
+
             nick_dropdown.callback = on_nick_select
             self.add_item(nick_dropdown)
 
@@ -362,11 +394,13 @@ class PagedSettingsView(View):
                 options=av_options,
                 disabled=not self.auto_verify_available
             )
+
             async def on_auto_verify_select(interaction: discord.Interaction):
                 # Only mutate if available
                 if self.auto_verify_available:
                     self.auto_verify = (interaction.data["values"][0] == "yes")
                 await interaction.response.defer(ephemeral=True)
+
             av_dropdown.callback = on_auto_verify_select
             self.add_item(av_dropdown)
 
@@ -381,9 +415,11 @@ class PagedSettingsView(View):
                 max_values=1,
                 options=locale_options
             )
+
             async def on_locale_select(interaction: discord.Interaction):
                 self.instr_locale = interaction.data["values"][0]
                 await interaction.response.defer(ephemeral=True)
+
             locale_dropdown.callback = on_locale_select
             self.add_item(locale_dropdown)
 
@@ -393,11 +429,29 @@ class PagedSettingsView(View):
         save_btn = Button(label="Save", style=discord.ButtonStyle.primary)
 
         async def on_back(interaction: discord.Interaction):
-            new_view = PagedSettingsView(self.auto_nick, self.instr_locale, self.auto_verify, self.auto_verify_available, page_index=self.page - 1)
-            await interaction.response.edit_message(content=new_view.render_content(), view=new_view)
+            new_view = PagedSettingsView(
+                self.auto_nick,
+                self.instr_locale,
+                self.auto_verify,
+                self.auto_verify_available,
+                page_index=self.page - 1
+            )
+            await interaction.response.edit_message(
+                content=new_view.render_content(), view=new_view
+            )
+
         async def on_next(interaction: discord.Interaction):
-            new_view = PagedSettingsView(self.auto_nick, self.instr_locale, self.auto_verify, self.auto_verify_available, page_index=self.page + 1)
-            await interaction.response.edit_message(content=new_view.render_content(), view=new_view)
+            new_view = PagedSettingsView(
+                self.auto_nick,
+                self.instr_locale,
+                self.auto_verify,
+                self.auto_verify_available,
+                page_index=self.page + 1
+            )
+            await interaction.response.edit_message(
+                content=new_view.render_content(), view=new_view
+            )
+
         async def on_save(interaction: discord.Interaction):
             # persist into your servers table
             with session_scope() as session:
@@ -408,12 +462,22 @@ class PagedSettingsView(View):
                 srv.auto_nickname_change = bool(self.auto_nick)
                 srv.instructions_locale = str(self.instr_locale)
                 if self.auto_verify_available:
-                    setattr(srv, 'auto_verify_new_members', bool(self.auto_verify))
+                    setattr(srv, "auto_verify_new_members", bool(self.auto_verify))
 
-            extra_note = "" if self.auto_verify_available else "\n(Note: 'Auto verify new members' not saved; DB column missing.)"
-            msg = get_message('settings_saved', interaction,
-                              nickname='Yes' if self.auto_nick else 'No',
-                              locale=self.instr_locale) + extra_note
+            extra_note = (
+                ""
+                if self.auto_verify_available
+                else "\n(Note: 'Auto verify new members' not saved; DB column missing.)"
+            )
+            msg = (
+                get_message(
+                    "settings_saved",
+                    interaction,
+                    nickname="Yes" if self.auto_nick else "No",
+                    locale=self.instr_locale,
+                )
+                + extra_note
+            )
             await interaction.response.edit_message(content=msg, view=None)
 
         back_btn.callback = on_back
@@ -424,13 +488,22 @@ class PagedSettingsView(View):
         self.add_item(next_btn)
         self.add_item(save_btn)
 
+
 # -------------------------------------------------------------------
 # Helpers
 # -------------------------------------------------------------------
-async def dm_localized(member: discord.Member, guild: discord.Guild, key: str, instr_locale: Optional[str] = None, **kwargs):
+async def dm_localized(
+    member: discord.Member,
+    guild: discord.Guild,
+    key: str,
+    instr_locale: Optional[str] = None,
+    **kwargs,
+):
     """Send a localized DM to a member; ignore DM permission errors."""
     try:
-        locale_code = (instr_locale or getattr(guild, 'preferred_locale', None)) or 'en-US'
+        locale_code = (
+            instr_locale or getattr(guild, "preferred_locale", None)
+        ) or "en-US"
         ctx = SimpleNamespace(locale=locale_code)
         await member.send(get_message(key, ctx, **kwargs))
     except discord.Forbidden:
@@ -438,9 +511,24 @@ async def dm_localized(member: discord.Member, guild: discord.Guild, key: str, i
     except Exception:
         logger.exception("Unexpected error sending DM.")
 
-async def dm_role_assignment_failure(member: discord.Member, role: discord.Role, guild: discord.Guild, instr_locale: Optional[str] = None):
+
+async def dm_role_assignment_failure(
+    member: discord.Member,
+    role: discord.Role,
+    guild: discord.Guild,
+    instr_locale: Optional[str] = None,
+):
     """Explain the common cause: bot role must be above verified/unverified roles."""
-    await dm_localized(member, guild, 'dm_role_failed_bot_position', instr_locale, role=role.name, server=guild.name)
+    await dm_localized(
+        member,
+        guild,
+        "dm_role_failed_bot_position",
+        instr_locale,
+        role=role.name,
+        server=guild.name,
+    )
+
+
 async def process_verification(interaction: discord.Interaction):
     """
     Processes a verification request by doing one of the following:
@@ -457,8 +545,7 @@ async def process_verification(interaction: discord.Interaction):
         server = session.query(Server).filter_by(server_id=guild_id).first()
         if not server or not server.role_id:
             await interaction.response.send_message(
-                get_message('setup_missing', interaction),
-                ephemeral=True
+                get_message("setup_missing", interaction), ephemeral=True
             )
             return
 
@@ -478,8 +565,7 @@ async def process_verification(interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         await assign_role(user_id, True, guild_id)
         await interaction.followup.send(
-            get_message('already_verified', interaction),
-            ephemeral=True
+            get_message("already_verified", interaction), ephemeral=True
         )
         return
 
@@ -493,16 +579,17 @@ async def process_verification(interaction: discord.Interaction):
             code=None  # No-code re-check
         )
         await interaction.followup.send(
-            get_message('recheck_started', interaction),
-            ephemeral=True
+            get_message("recheck_started", interaction), ephemeral=True
         )
         return
 
     # CASE C: User is not in the database => show the VRChat username modal.
     await interaction.response.send_modal(VRCUsernameModal(interaction))
 
+
 def generate_verification_code() -> str:
-    return "VRC-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return "VRC-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
 
 async def publish_to_vrc_checker(
     discord_id: str,
@@ -521,13 +608,11 @@ async def publish_to_vrc_checker(
         if update_nickname:
             message["updateNickname"] = True
 
-        conn    = pika.BlockingConnection(parameters)
+        conn = pika.BlockingConnection(parameters)
         channel = conn.channel()
         channel.queue_declare(queue=RABBITMQ_REQUEST_QUEUE, durable=True)
         channel.basic_publish(
-            exchange="",
-            routing_key=RABBITMQ_REQUEST_QUEUE,
-            body=json.dumps(message)
+            exchange="", routing_key=RABBITMQ_REQUEST_QUEUE, body=json.dumps(message)
         )
         conn.close()
         logger.info("📤 Sent to vrc_online_checker: %s", message)
@@ -535,12 +620,13 @@ async def publish_to_vrc_checker(
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, _publish)
 
+
 async def assign_role(
     discord_id: str,
     is_18_plus: bool,
     guild_id: str,
-    verification_code: str | None = None,   # no longer required for nickname logic
-    display_name:   str | None = None
+    verification_code: str | None = None,  # no longer required for nickname logic
+    display_name: str | None = None
 ):
     """
     Assigns or skips the 18+ role in one guild.
@@ -551,7 +637,7 @@ async def assign_role(
         server = session.query(Server).filter_by(server_id=guild_id).first()
         role_id = server.role_id if server else None
         # Optional unverified role to remove on success
-        unverified_role_id = getattr(server, 'unverified_role_id', None) if server else None
+        unverified_role_id = getattr(server, "unverified_role_id", None) if server else None
         auto_nick = server.auto_nickname_change if server else False
         instr_locale = (server.instructions_locale if server and server.instructions_locale else None)
 
@@ -580,7 +666,7 @@ async def assign_role(
         try:
             await member.add_roles(role)
             logger.info(f"Assigned role {role.name} to {member}.")
-            await dm_localized(member, guild, 'dm_role_success', instr_locale, role=role.name, server=guild.name)
+            await dm_localized(member, guild, "dm_role_success", instr_locale, role=role.name, server=guild.name)
         except discord.Forbidden:
             logger.warning(f"Missing permission to add {role.name} in {guild_id}.")
             await dm_role_assignment_failure(member, role, guild, instr_locale)
@@ -621,12 +707,12 @@ async def assign_role(
             try:
                 await member.edit(nick=display_name)
                 logger.info(f"🔄 Updated nickname to {display_name} for {member}.")
-                await dm_localized(member, guild, 'nickname_updated', instr_locale, display_name=display_name)
+                await dm_localized(member, guild, "nickname_updated", instr_locale, display_name=display_name)
             except discord.Forbidden:
-                await dm_localized(member, guild, 'nickname_update_failed', instr_locale)
+                await dm_localized(member, guild, "nickname_update_failed", instr_locale)
     else:
         # Not 18+
-        await dm_localized(member, guild, 'not_18_plus', instr_locale)
+        await dm_localized(member, guild, "not_18_plus", instr_locale)
 
 
 # -------------------------------------------------------------------
@@ -646,18 +732,17 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
         raw_input = self.vrc_username.value.strip()
 
         # 1) If they pasted the full URL, extract the userID
-        url_pattern = r'https?://vrchat\.com/home/user/([A-Za-z0-9\-_]+)'
+        url_pattern = r"https?://vrchat\.com/home/user/([A-Za-z0-9\-_]+)"
         m = re.match(url_pattern, raw_input)
         if m:
             vrc_user_id = m.group(1)
         # 2) If they already only entered the usr_… ID, accept it
-        elif raw_input.startswith('usr_'):
+        elif raw_input.startswith("usr_"):
             vrc_user_id = raw_input
         # 3) Otherwise, they probably typed a display name ➔ warn & cancel
         else:
             await interaction.response.send_message(
-                get_message('invalid_vrc_id_input', interaction),
-                ephemeral=True
+                get_message("invalid_vrc_id_input", interaction), ephemeral=True
             )
             return
 
@@ -690,6 +775,7 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
             ephemeral=True
         )
 
+
 # -------------------------------------------------------------------
 # Button: triggers code-based check
 # -------------------------------------------------------------------
@@ -703,23 +789,20 @@ class VRCVerificationButton(discord.ui.View):
     @discord.ui.button(label="Verify", style=discord.ButtonStyle.green)
     async def verify_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """
-        When pressed, we publish a request with verificationCode != None, 
-        meaning code-based flow. 
+        When pressed, we publish a request with verificationCode != None,
+        meaning code-based flow.
         """
         discord_id = str(interaction.user.id)
         await interaction.response.defer(ephemeral=True)
 
         await publish_to_vrc_checker(
-            discord_id,
-            self.vrc_username,
-            self.guild_id,
-            self.verification_code
+            discord_id, self.vrc_username, self.guild_id, self.verification_code
         )
 
         await interaction.followup.send(
-            get_message('verification_requested', interaction),
-            ephemeral=True
+            get_message("verification_requested", interaction), ephemeral=True
         )
+
 
 # -------------------------------------------------------------------
 # Slash Command: /vrcverify
@@ -728,22 +811,27 @@ class VRCVerificationButton(discord.ui.View):
 async def vrcverify(interaction: discord.Interaction):
     await process_verification(interaction)
 
+
 # -------------------------------------------------------------------
 # Slash Command: /vrcverify_setup
 # -------------------------------------------------------------------
 @app_commands.checks.has_permissions(administrator=True)
-@bot.tree.command(name="vrcverify_setup", description="Admin command: Set or update the verified role for this server.")
+@bot.tree.command(
+    name="vrcverify_setup",
+    description="Admin command: Set or update the verified role for this server."
+)
 @app_commands.describe(
     verified_role="Role to assign to verified users (required)",
     unverified_role="Optional role to remove from users once verified"
 )
-@app_commands.rename(
-    verified_role='verified-role',
-    unverified_role='unverified-role'
-)
-async def vrcverify_setup(interaction: discord.Interaction, verified_role: discord.Role, unverified_role: Optional[discord.Role] = None):
+@app_commands.rename(verified_role="verified-role", unverified_role="unverified-role")
+async def vrcverify_setup(
+    interaction: discord.Interaction,
+    verified_role: discord.Role,
+    unverified_role: Optional[discord.Role] = None
+):
     """
-    Inserts or updates a row in the 'servers' table with this server_id, 
+    Inserts or updates a row in the 'servers' table with this server_id,
     storing the admin's user ID as 'owner_id' and the chosen role ID as 'role_id'.
     """
     guild_id = str(interaction.guild.id)
@@ -782,21 +870,36 @@ async def vrcverify_setup(interaction: discord.Interaction, verified_role: disco
         extra = "\n(Unverified role not set; no role will be removed on verification.)"
 
         # Localized confirmation
-        base = get_message('setup_success', interaction, action=action, role=verified_role.name, role_id=verified_role.id)
+        base = get_message(
+            "setup_success",
+            interaction,
+            action=action,
+            role=verified_role.name,
+            role_id=verified_role.id
+        )
         if unverified_role:
-            extra_local = get_message('setup_unverified_set', interaction, role=unverified_role.name, role_id=unverified_role.id)
+            extra_local = get_message(
+                "setup_unverified_set",
+                interaction,
+                role=unverified_role.name,
+                role_id=unverified_role.id
+            )
         else:
-            extra_local = get_message('setup_unverified_missing', interaction)
+            extra_local = get_message("setup_unverified_missing", interaction)
         await interaction.response.send_message(base + extra_local, ephemeral=True)
+
 
 # -------------------------------------------------------------------
 # Slash Command: /vrcverify_subscription
 # -------------------------------------------------------------------
 @app_commands.checks.has_permissions(administrator=True)
-@bot.tree.command(name="vrcverify_subscription", description="Admin command: Get subscription info to unlock premium features.")
+@bot.tree.command(
+    name="vrcverify_subscription",
+    description="Admin command: Get subscription info to unlock premium features."
+)
 async def vrcverify_subscription(interaction: discord.Interaction):
     """
-    Sends an ephemeral link or info to the admin about how to subscribe or purchase 
+    Sends an ephemeral link or info to the admin about how to subscribe or purchase
     premium features for your VRChat verification bot.
     """
     subscription_link = "https://esattotech.com/vrcverify-vrchat-age-verifier-for-discord/"
@@ -804,14 +907,18 @@ async def vrcverify_subscription(interaction: discord.Interaction):
 
     # localized subscription info
     await interaction.response.send_message(
-        get_message('subscription_info', interaction, kofi_link=kofi_link),
+        get_message("subscription_info", interaction, kofi_link=kofi_link),
         ephemeral=True
     )
+
 
 # -------------------------------------------------------------------
 # Slash Command: /vrcverify_support
 # -------------------------------------------------------------------
-@bot.tree.command(name="vrcverify_support", description="Get help with the VRChat 18+ verification process.")
+@bot.tree.command(
+    name="vrcverify_support",
+    description="Get help with the VRChat 18+ verification process."
+)
 async def vrcverify_support(interaction: discord.Interaction):
     """
     Sends an ephemeral message to the user with instructions on how to get support,
@@ -820,34 +927,38 @@ async def vrcverify_support(interaction: discord.Interaction):
     # Customize the text below however you like
     # localized support info
     await interaction.response.send_message(
-        get_message('support_info', interaction),
-        ephemeral=True
+        get_message("support_info", interaction), ephemeral=True
     )
+
 
 # -------------------------------------------------------------------
 # Slash Command: /vrcverify_instructions
 # -------------------------------------------------------------------
 @app_commands.checks.has_permissions(administrator=True)
-@bot.tree.command(name="vrcverify_instructions", description="Admin only: Post instructions for using the verification bot.")
+@bot.tree.command(
+    name="vrcverify_instructions",
+    description="Admin only: Post instructions for using the verification bot."
+)
 async def vrcverify_instructions(interaction: discord.Interaction):
     # determine instructions locale (server setting overrides user locale)
     with session_scope() as session:
-        srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
-        instr_locale = str(srv.instructions_locale) if srv and srv.instructions_locale else get_locale(interaction)
+        srv = (
+            session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
+        )
+        instr_locale = (
+            str(srv.instructions_locale)
+            if srv and srv.instructions_locale
+            else get_locale(interaction)
+        )
     # fetch localized messages for instructions
-    strings = localizations.get(instr_locale, localizations['en-US'])
+    strings = localizations.get(instr_locale, localizations["en-US"])
     embed = Embed(
-        title=strings['instructions_title'],
-        description=strings['instructions_desc'],
+        title=strings["instructions_title"],
+        description=strings["instructions_desc"],
         color=discord.Color.blue()
     )
 
-    usage_example = (
-        "**Example Usage**:\n"
-        "```bash\n"
-        "/vrcverify\n"
-        "```"
-    )
+    usage_example = "**Example Usage**:\n" "```bash\n" "/vrcverify\n" "```"
     embed.add_field(name="Example Command", value=usage_example, inline=False)
 
     view = VRCVerifyInstructionView(locale=instr_locale)
@@ -869,32 +980,36 @@ async def vrcverify_instructions(interaction: discord.Interaction):
 # Slash Command: /vrcverify_settings
 # -------------------------------------------------------------------
 @bot.tree.command(
-    name="vrcverify_settings",
-    description="Admin: Configure VRChat-Verify settings"
+    name="vrcverify_settings", description="Admin: Configure VRChat-Verify settings"
 )
 @app_commands.checks.has_permissions(administrator=True)
 async def vrcverify_settings(interaction: discord.Interaction):
     """Show a paged settings view with one control per page and a title above it."""
-    has_av_col = server_has_column('auto_verify_new_members')
+    has_av_col = server_has_column("auto_verify_new_members")
     with session_scope() as session:
         srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
         if srv:
             current_nick = bool(srv.auto_nickname_change)
-            raw_locale = getattr(srv, 'instructions_locale', None)
-            current_locale = raw_locale or 'en-US'
-            raw_av = getattr(srv, 'auto_verify_new_members', None)
+            raw_locale = getattr(srv, "instructions_locale", None)
+            current_locale = raw_locale or "en-US"
+            raw_av = getattr(srv, "auto_verify_new_members", None)
             current_auto_verify = True if raw_av is None else bool(raw_av)
         else:
             current_nick = False
-            current_locale = 'en-US'
+            current_locale = "en-US"
             current_auto_verify = True
 
-    view = PagedSettingsView(current_nick, current_locale, current_auto_verify, auto_verify_available=has_av_col, page_index=0)
-    await interaction.response.send_message(
-        content=view.render_content(),
-        view=view,
-        ephemeral=True
+    view = PagedSettingsView(
+        current_nick,
+        current_locale,
+        current_auto_verify,
+        auto_verify_available=has_av_col,
+        page_index=0
     )
+    await interaction.response.send_message(
+        content=view.render_content(), view=view, ephemeral=True
+    )
+
 
 # -------------------------------------------------------------------
 # RabbitMQ Consumer - handle verification results
@@ -923,6 +1038,7 @@ async def consume_results_queue():
             logger.error(f"❌ RabbitMQ connection failed: {e}")
 
     await loop.run_in_executor(None, do_blocking_consume)
+
 
 async def handle_verification_result(data: dict):
     """
@@ -982,7 +1098,11 @@ async def handle_verification_result(data: dict):
         with session_scope() as session:
             pending = (
                 session.query(PendingVerification)
-                .filter_by(discord_id=discord_id, guild_id=guild_id, verification_code=verification_code)
+                .filter_by(
+                    discord_id=discord_id,
+                    guild_id=guild_id,
+                    verification_code=verification_code
+                )
                 .first()
             )
             if not pending:
@@ -998,7 +1118,12 @@ async def handle_verification_result(data: dict):
                 member = await fetch_member_cached(guild, int(discord_id)) if guild else None
                 if member:
                     try:
-                        await member.send(get_message('code_not_found', SimpleNamespace(locale=(getattr(guild, 'preferred_locale', None) or 'en-US'))))
+                        await member.send(
+                            get_message(
+                                "code_not_found",
+                                SimpleNamespace(locale=(getattr(guild, "preferred_locale", None) or "en-US"))
+                            )
+                        )
                     except discord.Forbidden:
                         logger.warning("⚠️ Cannot DM user about missing code.")
                 return
@@ -1019,6 +1144,7 @@ async def handle_verification_result(data: dict):
 
     except Exception:
         logger.error("❌ Exception in handle_verification_result", exc_info=True)
+
 
 # -------------------------------------------------------------------
 # Background cleanup: remove expired pending verifications
@@ -1041,6 +1167,7 @@ async def expired_pending_cleanup_task(interval_seconds: int = 60):
             logger.error("Exception during expired pending cleanup", exc_info=True)
         await asyncio.sleep(interval_seconds)
 
+
 # -------------------------------------------------------------------
 # Bot Events
 # -------------------------------------------------------------------
@@ -1053,9 +1180,9 @@ async def on_ready():
 
     # Reinitialize instruction messages across servers (with locale)
     with session_scope() as session:
-        servers = session.query(Server) \
-                         .filter(Server.instructions_message_id != None) \
-                         .all()
+        servers = (
+            session.query(Server).filter(Server.instructions_message_id != None).all()
+        )
         # Build a list carrying each server’s locale
         servers_data = [
             {
@@ -1084,6 +1211,7 @@ async def on_ready():
 
     logger.info("Bot is reinitialized and ready to go!")
 
+
 @bot.event
 async def on_member_join(member: discord.Member):
     """Auto-verify users who are already verified in our database when they join a server."""
@@ -1097,7 +1225,7 @@ async def on_member_join(member: discord.Member):
                 return
 
             # Respect setting: treat None or missing column as enabled by default
-            raw_av = getattr(server, 'auto_verify_new_members', None)
+            raw_av = getattr(server, "auto_verify_new_members", None)
             enabled = True if raw_av is None else bool(raw_av)
             if not enabled:
                 return
@@ -1115,8 +1243,9 @@ async def on_member_join(member: discord.Member):
     except Exception:
         logger.error("❌ Exception in on_member_join", exc_info=True)
 
+
 # -------------------------------------------------------------------
 # Main
 # -------------------------------------------------------------------
-if __name__ == '__main__':
+if __name__ == "__main__":
     bot.run(DISCORD_BOT_TOKEN)
