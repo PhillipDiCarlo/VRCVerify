@@ -45,8 +45,8 @@ numeric_level = getattr(logging, log_level_str, logging.INFO)
 # -------------------------------------------------------------------
 logging.basicConfig(
     level=numeric_level,
-    format='%(asctime)s %(levelname)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format="%(asctime)s %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 # -------------------------------------------------------------------
@@ -57,8 +57,9 @@ parameters = pika.ConnectionParameters(
     host=RABBITMQ_HOST,
     port=RABBITMQ_PORT,
     virtual_host=RABBITMQ_VHOST,
-    credentials=credentials
+    credentials=credentials,
 )
+
 
 # -------------------------------------------------------------------
 # Function to Fetch 2FA Code from Gmail
@@ -114,14 +115,14 @@ def fetch_latest_2fa_code():
     logging.error("Failed to retrieve VRChat 2FA code after multiple attempts.")
     return None
 
+
 # -------------------------------------------------------------------
 # VRChat Login with Auto 2FA
 # -------------------------------------------------------------------
 def login_to_vrchat():
     """Logs into VRChat and handles possible 2FA prompts automatically."""
     configuration = vrchatapi.Configuration(
-        username=VRCHAT_USERNAME,
-        password=VRCHAT_PASSWORD
+        username=VRCHAT_USERNAME, password=VRCHAT_PASSWORD
     )
 
     api_client = vrchatapi.ApiClient(configuration)
@@ -159,6 +160,7 @@ def login_to_vrchat():
         logging.error("VRChat API error: %s", e)
         return None
 
+
 # One-time login
 vrchat_api_client = login_to_vrchat()
 if not vrchat_api_client:
@@ -169,6 +171,7 @@ if not vrchat_api_client:
 # -------------------------------------------------------------------
 VRCHAT_TTL_SECONDS = int(os.getenv("VRCHAT_TTL_SECONDS", "180"))
 VRCHAT_CACHE_MAX = int(os.getenv("VRCHAT_CACHE_MAX", "10000"))
+
 
 class _TTLCache:
     def __init__(self, maxsize: int, ttl_seconds: int):
@@ -194,7 +197,9 @@ class _TTLCache:
                 pass
         self._store[key] = (time.monotonic() + self.ttl, value)
 
+
 _vrc_cache = _TTLCache(VRCHAT_CACHE_MAX, VRCHAT_TTL_SECONDS)
+
 
 # -------------------------------------------------------------------
 # Verification Logic
@@ -224,13 +229,14 @@ def process_verification_request(ch, method, properties, body):
         discord_id=discord_id,
         vrc_user_id=vrc_user_id,
         guild_id=guild_id,
-        verification_code=verification_code
+        verification_code=verification_code,
     )
 
     if update_nickname:
         result["updateNickname"] = True
 
     send_verification_result(result)
+
 
 def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code):
     """
@@ -250,7 +256,7 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
             "is_18_plus": False,
             "verificationCode": verification_code,
             "code_found": False,
-            "display_name": None
+            "display_name": None,
         }
 
     users_api_instance = users_api.UsersApi(vrchat_api_client)
@@ -273,14 +279,19 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
                 "is_18_plus": False,
                 "verificationCode": verification_code,
                 "code_found": False,
-                "display_name": display_name
+                "display_name": display_name,
             }
 
     age_status = getattr(vrc_user, "age_verification_status", "unknown")
     bio = getattr(vrc_user, "bio", "")
-    logging.info("[verify_and_build_result] user=%s, age_status=%s, bio=%s", vrc_user_id, age_status, bio)
+    logging.info(
+        "[verify_and_build_result] user=%s, age_status=%s, bio=%s",
+        vrc_user_id,
+        age_status,
+        bio,
+    )
 
-    is_18_plus = (age_status == "18+")
+    is_18_plus = age_status == "18+"
 
     code_found = False
     if verification_code is not None:
@@ -299,8 +310,9 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
         "is_18_plus": is_18_plus,
         "verificationCode": verification_code,
         "code_found": code_found,
-        "display_name": display_name
+        "display_name": display_name,
     }
+
 
 def send_verification_result(result: dict):
     """Publish the verification result to the bot's queue."""
@@ -309,11 +321,7 @@ def send_verification_result(result: dict):
     channel.queue_declare(queue=RESULT_QUEUE_NAME, durable=True)
 
     message_str = json.dumps(result)
-    channel.basic_publish(
-        exchange="",
-        routing_key=RESULT_QUEUE_NAME,
-        body=message_str
-    )
+    channel.basic_publish(exchange="", routing_key=RESULT_QUEUE_NAME, body=message_str)
     connection.close()
 
     logging.info("Sent verification result to '%s': %s", RESULT_QUEUE_NAME, message_str)
@@ -330,10 +338,11 @@ def listen_for_verifications():
     channel.basic_consume(
         queue=RABBITMQ_QUEUE_NAME,
         on_message_callback=process_verification_request,
-        auto_ack=True
+        auto_ack=True,
     )
     logging.info("Listening for verification requests on '%s'...", RABBITMQ_QUEUE_NAME)
     channel.start_consuming()
+
 
 # -------------------------------------------------------------------
 # Main
