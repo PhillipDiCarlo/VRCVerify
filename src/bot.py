@@ -137,6 +137,8 @@ class Server(Base):
     instructions_locale = Column(String, default="en-US", nullable=False)
     # New setting: auto verify new members on join (default ON)
     auto_verify_new_members = Column(Boolean, default=True, nullable=False)
+    # Custom message shown after user clicks Verify (optional)
+    custom_verification_requested_message = Column(String, nullable=True)
 
 
 class User(Base):
@@ -640,6 +642,9 @@ async def assign_role(
         unverified_role_id = getattr(server, "unverified_role_id", None) if server else None
         auto_nick = server.auto_nickname_change if server else False
         instr_locale = (server.instructions_locale if server and server.instructions_locale else None)
+        custom_success_msg = (
+            server.custom_verification_requested_message if server and server.custom_verification_requested_message else None
+        )
 
     guild = bot.get_guild(int(guild_id))
     if not guild:
@@ -666,7 +671,13 @@ async def assign_role(
         try:
             await member.add_roles(role)
             logger.info(f"Assigned role {role.name} to {member}.")
-            await dm_localized(member, guild, "dm_role_success", instr_locale, role=role.name, server=guild.name)
+            if custom_success_msg:
+                try:
+                    await member.send(custom_success_msg)
+                except discord.Forbidden:
+                    logger.warning(f"⚠️ Cannot DM user {member.id} custom success message.")
+            else:
+                await dm_localized(member, guild, "dm_role_success", instr_locale, role=role.name, server=guild.name)
         except discord.Forbidden:
             logger.warning(f"Missing permission to add {role.name} in {guild_id}.")
             await dm_role_assignment_failure(member, role, guild, instr_locale)
@@ -1011,6 +1022,75 @@ async def vrcverify_settings(interaction: discord.Interaction):
     await interaction.response.send_message(
         content=view.render_content(), view=view, ephemeral=True
     )
+
+
+class SetRequestMessageModal(discord.ui.Modal, title="Set Custom Verification Message"):
+    custom_message: discord.ui.TextInput = discord.ui.TextInput(
+        label="Custom message (leave blank to clear)",
+        style=discord.TextStyle.paragraph,
+        required=False,
+        max_length=1000,
+        placeholder="Enter message shown after successful verification. Only discord.com / vrchat.com links allowed."
+    )
+
+    def __init__(self, interaction: discord.Interaction):
+        super().__init__()
+        self._orig_interaction = interaction
+
+    async def on_submit(self, interaction: discord.Interaction):
+        raw = (self.custom_message.value or "").strip()
+        clearing = raw == "" or raw.lower() in {"clear", "reset", "none", "default"}
+
+        # Sanitize & validate only if not clearing
+        if not clearing:
+            # Strip zero-width chars
+            raw = re.sub(r"[\u200B-\u200D\uFEFF]", "", raw)
+            # Neutralize mass mentions
+            raw = re.sub(r"@(everyone|here)\b", r"@ \1", raw, flags=re.IGNORECASE)
+            # URL allowlist
+            allowed_prefixes = (
+                "https://discord.com/",
+                "https://discord.com",
+                "https://vrchat.com/",
+                "https://vrchat.com",
+            )
+            url_pattern = re.compile(r"https?://[^\s>]+", re.IGNORECASE)
+            urls = url_pattern.findall(raw)
+            invalid = [u for u in urls if not any(u.lower().startswith(p) for p in allowed_prefixes)]
+            if invalid:
+                pretty_invalid = "\n".join(f"- {u}" for u in invalid[:10])
+                return await interaction.response.send_message(
+                    get_message("custom_msg_invalid_links", interaction, invalid_list=pretty_invalid),
+                    ephemeral=True,
+                )
+
+        guild_id = str(interaction.guild.id)
+        with session_scope() as session:
+            server = session.query(Server).filter_by(server_id=guild_id).first()
+            if not server:
+                server = Server(server_id=guild_id, owner_id=str(interaction.user.id))
+                session.add(server)
+
+            if clearing:
+                server.custom_verification_requested_message = None
+                result = get_message("custom_msg_cleared", interaction)
+            else:
+                server.custom_verification_requested_message = raw
+                result = get_message("custom_msg_saved", interaction)
+
+        await interaction.response.send_message(result, ephemeral=True)
+
+
+# -------------------------------------------------------------------
+# Slash Command: /vrcverify_setrequestmessage (modal-based)
+# -------------------------------------------------------------------
+@app_commands.checks.has_permissions(administrator=True)
+@bot.tree.command(
+    name="vrcverify_setrequestmessage",
+    description="Admin: Open a modal to set/clear the post-Verify success message."
+)
+async def vrcverify_setrequestmessage(interaction: discord.Interaction):
+    await interaction.response.send_modal(SetRequestMessageModal(interaction))
 
 
 # -------------------------------------------------------------------

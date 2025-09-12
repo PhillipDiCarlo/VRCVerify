@@ -14,7 +14,7 @@ localizations: dict[str, dict[str, str]] = {
         "recheck_started":            "We're re-checking your VRChat 18+ status. If you've updated your VRChat age verification, you'll get a DM soon!",
         "dm_role_success":            "You've been verified and given **{role}** in **{server}**!",
         "nickname_update_requested":  "Nickname update requested. I'll DM you once it's done!",
-        "verification_requested":     "Verification request sent! We'll DM you once we finish checking your VRChat profile.",
+        "verification_requested":     "Verification request received! We'll DM you with the results. Please make sure your DMs for this server are open so you can receive the message.",
         "setup_missing":              "This server hasn't set up a verification role yet. Please contact an admin.",
         "not_18_plus":                "You are not 18+ according to VRChat. Contact an admin if this is an error.",
         "support_info":               "Need help with verification?\n- Contact a server admin for assistance\n- Or visit our support page at https://esattotech.com/contact-us/\n\nIf this is an error, please let us know!",
@@ -39,6 +39,10 @@ localizations: dict[str, dict[str, str]] = {
         "settings_intro":             "**VRChat Verify Settings**\n\n1.) **Enable auto nickname change**\n   Automatically update users' Discord nicknames to match their VRChat display names.\n   Current: **{current}**",
         "dm_role_failed_bot_position":"I couldn't assign the '{role}' role in {server}. This usually happens when the VRCVerify bot's role is not above the verified (and unverified) roles in the server's role list. Please ask a server admin to move the VRCVerify bot role above those roles and try again.",
         "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "custom_msg_cleared":         "Custom verification request message cleared. Default will be used.",
+        "custom_msg_saved":           "Custom verification request message saved.",
+        "custom_msg_too_long":        "Message too long (max 1000 characters).",
+        "custom_msg_invalid_links":   "Blocked: Only discord.com or vrchat.com links allowed. Invalid link(s):\n{invalid_list}",
     },
 
     "es-ES": {
@@ -47,7 +51,7 @@ localizations: dict[str, dict[str, str]] = {
         "recheck_started":            "Estamos revisando de nuevo tu estado 18+. Si has actualizado tu verificación de edad, ¡recibirás un DM pronto!",
         "dm_role_success":            "¡Has sido verificado y se te ha asignado **{role}** en **{server}**!",
         "nickname_update_requested":  "Solicitud de actualización de apodo enviada. ¡Te enviaré un DM cuando esté listo!",
-        "verification_requested":     "Solicitud de verificación enviada. ¡Te enviaré un DM cuando terminemos de verificar tu perfil de VRChat!",
+        "verification_requested":     "¡Solicitud de verificación recibida! Te enviaremos un DM con los resultados. Asegúrate de tener los DMs abiertos para este servidor.",
         "setup_missing":              "Este servidor aún no ha configurado un rol de verificación. Por favor, contacta a un administrador.",
         "not_18_plus":                "No tienes 18+ según VRChat. Contacta a un administrador si esto es un error.",
         "support_info":               "¿Necesitas ayuda con la verificación?\n- Contacta a un administrador del servidor para asistencia\n- O visita nuestra página de soporte en https://esattotech.com/contact-us/\n\n¡Si esto es un error, háznoslo saber!",
@@ -72,6 +76,10 @@ localizations: dict[str, dict[str, str]] = {
         "settings_intro":             "**Configuración de Verificación VRChat**\n\n1.) **Habilitar cambio automático de apodo**\n   Actualiza automáticamente los apodos de Discord de los usuarios para que coincidan con sus nombres de pantalla de VRChat.\n   Actual: **{current}**",
         "dm_role_failed_bot_position":"No pude asignar el rol '{role}' en {server}. Esto suele ocurrir cuando el rol del bot VRCVerify no está por encima de los roles verificado (y no verificado) en la lista de roles del servidor. Pide a un administrador que mueva el rol del bot VRCVerify por encima de esos roles e inténtalo de nuevo.",
         "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "custom_msg_cleared":         "Mensaje de solicitud de verificación personalizado borrado. Se usará el predeterminado.",
+        "custom_msg_saved":           "Mensaje de solicitud de verificación personalizado guardado.",
+        "custom_msg_too_long":        "Mensaje demasiado largo (máx. 1000 caracteres).",
+        "custom_msg_invalid_links":   "Bloqueado: Solo se permiten enlaces de discord.com o vrchat.com. Enlace(s) no válido(s):\n{invalid_list}",
     },
 
     "zh-CN": {
@@ -80,7 +88,7 @@ localizations: dict[str, dict[str, str]] = {
         "recheck_started":            "我们正在重新检查您的 18+ 状态。如果您已更新 VRChat 年龄验证,很快就会收到私信! ",
         "dm_role_success":            "您已验证并获得 **{role}** 角色,位于 **{server}**!",
         "nickname_update_requested":  "已请求更新昵称。完成后我会通过私信通知您! ",
-        "verification_requested":     "验证请求已发送! 完成检查后,我会私信通知您! ",
+        "verification_requested":     "验证请求已收到！完成后我们会私信通知您。请确保已开启此服务器的私信。",
         "setup_missing":              "此服务器尚未设置验证角色。请联系管理员。",
         "not_18_plus":                "根据VRChat,您未满18岁。如果有误,请联系管理员。",
         "support_info":               "需要验证帮助？\n- 联系服务器管理员获取帮助\n- 或访问我们的支持页面:https://esattotech.com/contact-us/\n\n如果有误,请告诉我们! ",
@@ -105,6 +113,10 @@ localizations: dict[str, dict[str, str]] = {
         "settings_intro":             "**VRChat 验证设置**\n\n1.) **启用自动昵称更改**\n   自动更新用户的 Discord 昵称以匹配他们的 VRChat 显示名称。\n   当前:**{current}**",
         "dm_role_failed_bot_position":"我无法在 {server} 为你分配“{role}”角色。通常是因为 VRCVerify 机器人的角色没有位于已验证（和未验证）角色之上。请让服务器管理员将 VRCVerify 机器人的角色移动到这些角色之上，然后再试一次。",
         "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "custom_msg_cleared":         "自定义验证请求消息已清除。将使用默认消息。",
+        "custom_msg_saved":           "自定义验证请求消息已保存。",
+        "custom_msg_too_long":        "消息过长（最多1000字符）。",
+        "custom_msg_invalid_links":   "已阻止：只允许 discord.com 或 vrchat.com 链接。无效链接：\n{invalid_list}",
     },
 
     "ja": {
@@ -113,7 +125,7 @@ localizations: dict[str, dict[str, str]] = {
         "recheck_started":            "VRChat の 18+ ステータスを再チェックしています。年齢認証を更新している場合は、すぐにDMが届きます!",
         "dm_role_success":            "認証され、**{server}** の **{role}** ロールが付与されました! ",
         "nickname_update_requested":  "ニックネーム更新をリクエストしました。完了したらDMでお知らせします!",
-        "verification_requested":     "検証リクエストを送信しました! 完了後にDMでお知らせします! ",
+        "verification_requested":     "検証リクエストを受信しました。結果はDMでお知らせします。サーバーのDMを開放していることを確認してください。",
         "setup_missing":              "このサーバーはまだ検証ロールを設定していません。管理者に連絡してください。",
         "not_18_plus":                "VRChatによると18歳以上ではありません。エラーの場合は管理者にお問い合わせください。",
         "support_info":               "検証に関するサポートが必要ですか？\n- サーバー管理者にお問い合わせください\n- サポートページ:https://esattotech.com/contact-us/\n\nエラーの場合はお知らせください! ",
@@ -138,6 +150,10 @@ localizations: dict[str, dict[str, str]] = {
         "settings_intro":             "**VRChat 認証設定**\n\n1.) **自動ニックネーム変更を有効にする**\n   ユーザーの Discord ニックネームを VRChat の表示名に合わせて自動的に更新します。\n   現在: **{current}**",
         "dm_role_failed_bot_position":"{server} で「{role}」ロールを付与できませんでした。多くの場合、VRCVerify ボットのロールが、Verified（および Unverified）ロールより上にないことが原因です。サーバー管理者に依頼して、VRCVerify ボットのロールをそれらのロールより上に移動してから、もう一度お試しください。",
         "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "custom_msg_cleared":         "カスタム検証リクエストメッセージをクリアしました。デフォルトを使用します。",
+        "custom_msg_saved":           "カスタム検証リクエストメッセージを保存しました。",
+        "custom_msg_too_long":        "メッセージが長すぎます（最大1000文字）。",
+        "custom_msg_invalid_links":   "ブロック: discord.com または vrchat.com へのリンクのみ許可されます。無効なリンク:\n{invalid_list}",
     },
 
     "de": {
@@ -146,7 +162,7 @@ localizations: dict[str, dict[str, str]] = {
         "recheck_started":            "Wir prüfen deinen 18+ Status erneut. Wenn du deine Altersverifizierung aktualisiert hast, erhältst du bald eine DM!",
         "dm_role_success":            "Du wurdest verifiziert und hast die Rolle **{role}** auf **{server}** erhalten!",
         "nickname_update_requested":  "Anfrage zur Spitznamenaktualisierung gesendet. Ich werde dich per DM benachrichtigen, sobald es fertig ist!",
-        "verification_requested":     "Verifizierungsanfrage gesendet! Ich sende dir eine DM, sobald die Überprüfung abgeschlossen ist!",
+        "verification_requested":     "Verifizierungsanfrage erhalten! Wir senden dir eine DM mit den Ergebnissen. Bitte stelle sicher, dass deine DMs für diesen Server offen sind.",
         "setup_missing":              "Dieser Server hat noch keine Verifizierungsrolle eingerichtet. Bitte kontaktiere einen Administrator.",
         "not_18_plus":                "Laut VRChat bist du nicht 18+. Kontaktiere einen Administrator, wenn dies ein Fehler ist.",
         "support_info":               "Brauchst du Hilfe bei der Verifizierung?\n- Kontaktiere einen Server-Administrator\n- Oder besuche unsere Support-Seite: https://esattotech.com/contact-us/\n\nWenn dies ein Fehler ist, lass es uns wissen!",
@@ -171,6 +187,10 @@ localizations: dict[str, dict[str, str]] = {
         "settings_intro":             "**VRChat-Verifizierungseinstellungen**\n\n1.) **Automatische Änderung des Spitznamens aktivieren**\n   Aktualisieren Sie automatisch die Discord-Spitznamen der Benutzer, um mit ihren VRChat-Anzeigenamen übereinzustimmen。\n   Aktuell: **{current}**",
         "dm_role_failed_bot_position":"Ich konnte die Rolle „{role}“ in {server} nicht zuweisen. Das passiert meist, wenn die Rolle des VRCVerify-Bots nicht über den Rollen „Verified“ (und „Unverified“) in der Server-Rollenliste steht. Bitte bitte einen Administrator, die Bot-Rolle über diese Rollen zu verschieben, und versuche es erneut。",
         "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "custom_msg_cleared":         "Benutzerdefinierte Verifizierungsanfrage-Nachricht gelöscht. Standard wird verwendet.",
+        "custom_msg_saved":           "Benutzerdefinierte Verifizierungsanfrage-Nachricht gespeichert.",
+        "custom_msg_too_long":        "Nachricht zu lang (max. 1000 Zeichen).",
+        "custom_msg_invalid_links":   "Blockiert: Nur Links zu discord.com oder vrchat.com erlaubt. Ungültige Links:\n{invalid_list}",
     },
 
     "nl": {
@@ -179,7 +199,7 @@ localizations: dict[str, dict[str, str]] = {
         "recheck_started":            "We controleren je 18+ status opnieuw. Als je je leeftijdsverificatie hebt bijgewerkt, ontvang je binnenkort een DM!",
         "dm_role_success":            "Je bent geverifieerd en hebt de rol **{role}** in **{server}** ontvangen!",
         "nickname_update_requested":  "Verzoek om bijnaam bij te werken verstuurd. Ik stuur je een DM zodra het klaar is!",
-        "verification_requested":     "Verificatieverzoek verzonden! Ik stuur je een DM zodra de controle is voltooid!",
+        "verification_requested":     "Verificatieverzoek ontvangen! We sturen je een DM met de resultaten. Zorg dat je DM's voor deze server open staan.",
         "setup_missing":              "Deze server heeft nog geen verificatierol ingesteld. Neem contact op met een beheerder.",
         "not_18_plus":                "Volgens VRChat ben je niet 18+. Neem contact op met een beheerder als dit een fout is.",
         "support_info":               "Heb je hulp nodig bij verificatie?\n- Neem contact op met een serverbeheerder\n- Of bezoek onze ondersteuningspagina: https://esattotech.com/contact-us/\n\nLaat ons weten als dit een fout is!",
@@ -204,6 +224,10 @@ localizations: dict[str, dict[str, str]] = {
         "settings_intro":             "**VRChat Verificatie-instellingen**\n\n1.) **Automatische bijnaamwijziging inschakelen**\n   Werk automatisch de Discord-bijlenamen van gebruikers bij om overeen te komen met hun VRChat-weergavenamen。\n   Huidig: **{current}**",
         "dm_role_failed_bot_position":"Ik kon de rol '{role}' in {server} niet toekennen. Dit gebeurt meestal wanneer de rol van de VRCVerify-bot niet boven de rollen 'verified' (en 'unverified') staat in de rollenlijst. Vraag een beheerder om de VRCVerify-botrol boven die rollen te plaatsen en probeer het opnieuw。",
         "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "custom_msg_cleared":         "Aangepast verificatieverzoekbericht gewist. Standaard wordt gebruikt.",
+        "custom_msg_saved":           "Aangepast verificatieverzoekbericht opgeslagen.",
+        "custom_msg_too_long":        "Bericht te lang (max 1000 tekens).",
+        "custom_msg_invalid_links":   "Geblokkeerd: Alleen discord.com of vrchat.com links toegestaan. Ongeldige links:\n{invalid_list}",
     },
 
     "hi-IN": {
@@ -212,7 +236,7 @@ localizations: dict[str, dict[str, str]] = {
         "recheck_started":            "हम आपके VRChat 18+ स्थिति की पुनः जाँच कर रहे हैं। यदि आपने अपना आयु सत्यापन अपडेट किया है, तो आपको जल्द ही एक डीएम मिलेगा!",
         "dm_role_success":            "आप सत्यापित हैं और आपको **{role}** भूमिका **{server}** में प्रदान की गई है!",
         "nickname_update_requested":  "उपनाम अपडेट का अनुरोध भेजा गया। पूर्ण होने पर मैं आपको डीएम करूँगा!",
-        "verification_requested":     "सत्यापन अनुरोध भेजा गया! जाँच पूरी होने पर डीएम मिल जाएगी!",
+        "verification_requested":     "सत्यापन अनुरोध प्राप्त हुआ! परिणाम आपको DM में भेजे जाएंगे। कृपया सुनिश्चित करें कि इस सर्वर के लिए आपके DM खुले हैं।",
         "setup_missing":              "इस सर्वर ने अभी तक कोई सत्यापन भूमिका सेट नहीं की है। कृपया एक व्यवस्थापक से संपर्क करें।",
         "not_18_plus":                "VRChat के अनुसार आप 18+ नहीं हैं। त्रुटि होने पर एक व्यवस्थापक से संपर्क करें।",
         "support_info":               "सत्यापन में सहायता चाहिए?\n- सहायता के लिए सर्वर व्यवस्थापक से संपर्क करें\n- या हमारी सहायता पृष्ठ देखें: https://esattotech.com/contact-us/\n\nयदि यह त्रुटिपूर्ण है, तो हमें बताएं!",
@@ -237,6 +261,10 @@ localizations: dict[str, dict[str, str]] = {
         "settings_intro":             "**VRChat सत्यापन सेटिंग्स**\n\n1.) **स्वचालित उपनाम परिवर्तन सक्षम करें**\n   उपयोगकर्ताओं के Discord उपनामों को उनके VRChat प्रदर्शन नामों के साथ मेल खाने के लिए स्वचालित रूप से अपडेट करें。\n   वर्तमान: **{current}**",
         "dm_role_failed_bot_position":"मैं {server} में '{role}' भूमिका असाइन नहीं कर सका। आमतौर पर ऐसा तब होता है जब VRCVerify बॉट की भूमिका सर्वर की भूमिका सूची में verified (और unverified) भूमिकाओं से ऊपर नहीं होती। कृपया किसी व्यवस्थापक से कहें कि VRCVerify बॉट की भूमिका को उन भूमिकाओं के ऊपर ले जाएँ और फिर से प्रयास करें。",
         "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "custom_msg_cleared":         "कस्टम सत्यापन अनुरोध संदेश हटाया गया। डिफ़ॉल्ट उपयोग होगा।",
+        "custom_msg_saved":           "कस्टम सत्यापन अनुरोध संदेश सहेजा गया।",
+        "custom_msg_too_long":        "संदेश बहुत लंबा है (अधिकतम 1000 अक्षर)।",
+        "custom_msg_invalid_links":   "अवरुद्ध: केवल discord.com या vrchat.com लिंक की अनुमति है। अमान्य लिंक:\n{invalid_list}",
     },
 
     "ar": {
@@ -245,7 +273,7 @@ localizations: dict[str, dict[str, str]] = {
         "recheck_started":            "نقوم بإعادة التحقق من حالة 18+ في VRChat الخاصة بك. إذا قمت بتحديث التحقق من العمر، ستتلقى رسالة خاصة قريبًا!",
         "dm_role_success":            "لقد تم التحقق منك ومنحت **{role}** في **{server}**!",
         "nickname_update_requested":  "تم إرسال طلب تحديث الاسم المستعار. سأرسل لك رسالة خاصة عند الانتهاء!",
-        "verification_requested":     "تم إرسال طلب التحقق! سأرسل لك رسالة خاصة بمجرد الانتهاء من التحقق من ملفك الشخصي في VRChat!",
+        "verification_requested":     "تم استلام طلب التحقق! سنرسل لك رسالة خاصة بالنتائج. تأكد من تفعيل الرسائل الخاصة لهذا الخادم.",
         "setup_missing":              "لم يتم إعداد دور التحقق في هذا الخادم بعد. الرجاء الاتصال بمسؤول.",
         "not_18_plus":                "وفقًا لـ VRChat، أنت لست 18+. اتصل بمسؤول إذا كان هذا خطأً.",
         "support_info":               "تحتاج مساعدة في التحقق؟\n- اتصل بمسؤول الخادم للمساعدة\n- أو قم بزيارة صفحة الدعم: https://esattotech.com/contact-us/\n\nإذا كان هذا خطأً، فأخبرنا!",
@@ -270,6 +298,10 @@ localizations: dict[str, dict[str, str]] = {
         "settings_intro":             "**إعدادات تحقق VRChat**\n\n1.) **تمكين تغيير اللقب التلقائي**\n   تحديث ألقاب Discord الخاصة بالمستخدمين تلقائيًا لتتوافق مع أسماء عرض VRChat الخاصة بهم。\n   الحالي: **{current}**",
         "dm_role_failed_bot_position":"تعذّر عليّ منح دور '{role}' في {server}. يحدث هذا عادةً عندما لا تكون رتبة بوت VRCVerify أعلى من رتبتي Verified (و Unverified) في قائمة رتب الخادم. الرجاء طلب من مسؤول الخادم نقل رتبة بوت VRCVerify أعلى تلك الرتب ثم المحاولة مرة أخرى。",
         "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "custom_msg_cleared":         "تم مسح رسالة طلب التحقق المخصصة. سيتم استخدام الافتراضية.",
+        "custom_msg_saved":           "تم حفظ رسالة طلب التحقق المخصصة.",
+        "custom_msg_too_long":        "الرسالة طويلة جدًا (الحد الأقصى 1000 حرف).",
+        "custom_msg_invalid_links":   "تم الحظر: يُسمح فقط بروابط discord.com أو vrchat.com. الروابط غير الصالحة:\n{invalid_list}",
     },
 
     "bn": {
@@ -278,7 +310,7 @@ localizations: dict[str, dict[str, str]] = {
         "recheck_started":            "আমরা আপনার VRChat 18+ অবস্থা পুনরায় যাচাই করছি। যদি আপনি আপনার বয়স যাচাই আপডেট করে থাকেন, আপনি শীঘ্রই একটি ডিএম পাবেন!",
         "dm_role_success":            "আপনি যাচাইপ্রক্রিয়া সম্পন্ন করেছেন এবং **{role}** ভূমিকা **{server}**-এ পেয়েছেন!",
         "nickname_update_requested":  "ডাকনাম আপডেটের অনুরোধ পাঠানো হয়েছে। সম্পন্ন হলে আমি আপনাকে ডিএম করবো!",
-        "verification_requested":     "যাচাইকরণ অনুরোধ প্রেরণ করা হয়েছে! VRChat প্রোফাইল পরীক্ষা শেষ হলে আমি আপনাকে ডিএম করবো!",
+        "verification_requested":     "যাচাইকরণ অনুরোধ গৃহীত হয়েছে! ফলাফল আমরা আপনাকে DM করব। নিশ্চিত করুন এই সার্ভারের জন্য আপনার DM চালু আছে।",
         "setup_missing":              "এই সার্ভারে এখনও যাচাইকরণ ভূমিকা সেট করা হয়নি। অনুগ্রহ করে একজন অ্যাডমিনের সাথে যোগাযোগ করুন।",
         "not_18_plus":                "VRChat অনুযায়ী আপনি 18+ নন। যদি এটি ত্রুটি হয়, একজন অ্যাডমিনের সাথে যোগাযোগ করুন।",
         "support_info":               "যাচাই নিয়ে সহায়তা প্রয়োজন?\n- সহায়তার জন্য সার্ভার অ্যাডমিনের সাথে যোগাযোগ করুন\n- অথবা আমাদের সমর্থন পৃষ্ঠা দেখুন: https://esattotech.com/contact-us/\n\nযদি এটি ত্রুটি হয়, আমাদের জানান!",
@@ -303,6 +335,10 @@ localizations: dict[str, dict[str, str]] = {
         "settings_intro":             "**VRChat যাচাইকরণ সেটিংস**\n\n1.) **স্বয়ংক্রিয় ডাকনাম পরিবর্তন সক্রিয় করুন**\n   ব্যবহারকারীদের Discord ডাকনাম স্বয়ংক্রিয়ভাবে তাদের VRChat প্রদর্শন নামের সাথে মিলিয়ে আপডেট করুন。\n   বর্তমান: **{current}**",
         "dm_role_failed_bot_position":"আমি {server}-এ আপনাকে '{role}' ভূমিকা দিতে পারিনি। সাধারণত এটি ঘটে যখন VRCVerify বটের ভূমিকা সার্ভারের রোল তালিকায় verified (এবং unverified) ভূমিকার উপরে না থাকে। দয়া করে কোনো অ্যাডমিনকে বলুন VRCVerify বটের ভূমিকা ওই ভূমিগুলোর উপরে নিয়ে যেতে এবং আবার চেষ্টা করুন।",
         "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "custom_msg_cleared":         "কাস্টম যাচাইকরণ অনুরোধ বার্তা মুছে ফেলা হয়েছে। ডিফল্ট ব্যবহার হবে।",
+        "custom_msg_saved":           "কাস্টম যাচাইকরণ অনুরোধ বার্তা সংরক্ষিত হয়েছে।",
+        "custom_msg_too_long":        "বার্তা অনেক বড় (সর্বোচ্চ 1000 অক্ষর)।",
+        "custom_msg_invalid_links":   "ব্লক করা হয়েছে: শুধুমাত্র discord.com বা vrchat.com লিঙ্ক অনুমোদিত। অবৈধ লিঙ্ক:\n{invalid_list}",
     },
 
     "pt-BR": {
@@ -311,7 +347,7 @@ localizations: dict[str, dict[str, str]] = {
         "recheck_started":            "Estamos verificando novamente seu status 18+ no VRChat. Se você atualizou sua verificação de idade, receberá uma DM em breve!",
         "dm_role_success":            "Você foi verificado e recebeu **{role}** em **{server}**!",
         "nickname_update_requested":  "Solicitação de atualização de apelido enviada. Te enviarei uma DM quando estiver pronto!",
-        "verification_requested":     "Solicitação de verificação enviada! Enviarei uma DM quando terminarmos de verificar seu perfil no VRChat!",
+        "verification_requested":     "Solicitação de verificação recebida! Enviaremos uma DM com os resultados. Certifique-se de que suas DMs para este servidor estejam abertas.",
         "setup_missing":              "Este servidor ainda não configurou uma função de verificação. Por favor, contate um administrador.",
         "not_18_plus":                "De acordo com o VRChat, você não tem 18+. Contate um administrador se isso for um erro.",
         "support_info":               "Precisa de ajuda com a verificação?\n- Contate um administrador do servidor\n- Ou visite nossa página de suporte: https://esattotech.com/contact-us/\n\nSe isso for um erro, por favor nos avise!",
@@ -336,6 +372,10 @@ localizations: dict[str, dict[str, str]] = {
         "settings_intro":             "**Configurações de Verificação do VRChat**\n\n1.) **Ativar alteração automática de apelido**\n   Atualize automaticamente os apelidos do Discord dos usuários para corresponder aos seus nomes de exibição do VRChat。\n   Atual: **{current}**",
         "dm_role_failed_bot_position":"Não consegui atribuir o cargo '{role}' em {server}. Isso geralmente acontece quando o cargo do bot VRCVerify não está acima dos cargos de verificado (e não verificado) na lista de cargos do servidor. Peça a um administrador para mover o cargo do bot VRCVerify acima desses cargos e tente novamente。",
         "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "custom_msg_cleared":         "Mensagem de solicitação de verificação personalizada limpa. A padrão será usada.",
+        "custom_msg_saved":           "Mensagem de solicitação de verificação personalizada salva.",
+        "custom_msg_too_long":        "Mensagem muito longa (máx. 1000 caracteres).",
+        "custom_msg_invalid_links":   "Bloqueado: Apenas links discord.com ou vrchat.com permitidos. Links inválidos:\n{invalid_list}",
     },
 
     "ru": {
@@ -344,7 +384,7 @@ localizations: dict[str, dict[str, str]] = {
         "recheck_started":            "Мы повторно проверяем ваш статус 18+ в VRChat. Если вы обновили проверку возраста, вскоре получите личное сообщение!",
         "dm_role_success":            "Вы прошли проверку и получили роль **{role}** на **{server}**!",
         "nickname_update_requested":  "Запрошено обновление ника. Я отправлю вам личное сообщение, когда все будет готово!",
-        "verification_requested":     "Запрос на проверку отправлен! Я пришлю вам личное сообщение, как только завершу проверку вашего профиля VRChat!",
+        "verification_requested":     "Запрос на проверку получен! Мы пришлём вам ЛС с результатами. Убедитесь, что ЛС для этого сервера открыты.",
         "setup_missing":              "Этот сервер еще не настроил роль проверки. Пожалуйста, свяжитесь с администратором.",
         "not_18_plus":                "По данным VRChat вам нет 18+. Свяжитесь с администратором, если это ошибка.",
         "support_info":               "Нужна помощь с проверкой?\n- Обратитесь к администратору сервера\n- Или посетите нашу страницу поддержки: https://esattotech.com/contact-us/\n\nЕсли это ошибка, дайте нам знать!",
@@ -369,6 +409,10 @@ localizations: dict[str, dict[str, str]] = {
         "settings_intro":             "**Настройки проверки VRChat**\n\n1.) **Включить автоматическую смену никнейма**\n   Автоматически обновлять никнеймы пользователей Discord в соответствии с их отображаемыми именами VRChat。\n   Текущий: **{current}**",
         "dm_role_failed_bot_position":"Мне не удалось выдать роль «{role}» на сервере {server}. Обычно это происходит, когда роль бота VRCVerify находится ниже ролей Verified (и Unverified) в списке ролей сервера. Попросите администратора переместить роль бота VRCVerify выше этих ролей и повторите попытку。",
         "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "custom_msg_cleared":         "Пользовательское сообщение запроса проверки очищено. Будет использовано стандартное.",
+        "custom_msg_saved":           "Пользовательское сообщение запроса проверки сохранено.",
+        "custom_msg_too_long":        "Слишком длинное сообщение (макс. 1000 символов).",
+        "custom_msg_invalid_links":   "Блокировано: Разрешены только ссылки на discord.com или vrchat.com. Неверные ссылки:\n{invalid_list}",
     },
 
     "pa-IN": {
@@ -377,7 +421,7 @@ localizations: dict[str, dict[str, str]] = {
         "recheck_started":            "ਅਸੀਂ ਤੁਹਾਡੀ VRChat 18+ ਸਥਿਤੀ ਨੂੰ ਦੁਬਾਰਾ ਜਾਂਚ ਰਹੇ ਹਾਂ। ਜੇ ਤੁਸੀਂ ਆਪਣੀ ਉਮਰ ਸਤਿਆਪਨ ਅੱਪਡੇਟ ਕੀਤੀ ਹੈ, ਤਾਂ ਤੁਹਾਨੂੰ ਜਲਦੀ ਹੀ ਇੱਕ ਡੀਐਮ ਮਿਲੇਗੀ!",
         "dm_role_success":            "ਤੁਹਾਨੂੰ ਸਤਿਆਪਿਤ ਕੀਤਾ ਗਿਆ ਹੈ ਅਤੇ **{role}** ਭੂਮਿਕਾ **{server}** ਵਿੱਚ ਦਿੱਤੀ ਗਈ ਹੈ!",
         "nickname_update_requested":  "ਨਿਕਨੇਮ ਅਪਡੇਟ ਕਰਨ ਦੀ ਬੇਨਤੀ ਭੇਤੀ ਗਈ। ਜਦੋਂ ਇਹ ਹੋ ਜਾਵੇਗਾ ਤਾਂ ਮੈਂ ਤੁਹਾਨੂੰ DM ਕਰਾਂਗਾ!",
-        "verification_requested":     "ਪ੍ਰਮਾਣੀਕਰਨ ਬੇਨਤੀ ਭੇਜ ਦਿੱਤੀ ਗਈ! VRChat ਪ੍ਰੋਫਾਈਲ ਚੈਕ ਹੋਣ 'ਤੇ ਮੈਂ ਤੁਹਾਨੂੰ DM ਭੇਜਾਂਗਾ!",
+        "verification_requested":     "ਪ੍ਰਮਾਣੀਕਰਨ ਬੇਨਤੀ ਪ੍ਰਾਪਤ ਹੋਈ! ਨਤੀਜੇ ਤੁਹਾਨੂੰ DM ਦੁਆਰਾ ਭੇਜੇ ਜਾਣਗੇ। ਯਕੀਨੀ ਬਣਾਓ ਕਿ ਇਸ ਸਰਵਰ ਲਈ ਤੁਹਾਡੇ DM ਖੁੱਲ੍ਹੇ ਹਨ।",
         "setup_missing":              "ਇਸ ਸਰਵਰ 'ਤੇ ਪ੍ਰਮਾਣੀਕਰਨ ਭੂਮਿਕਾ ਅਜੇ ਤੱਕ ਸੈੱਟ ਨਹੀਂ ਕੀਤੀ ਗਈ। ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
         "not_18_plus":                "VRChat ਅਨੁਸਾਰ ਤੁਹਾਡੇ ਕੋਲ 18+ ਨਹੀਂ ਹੈ। ਜੇ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਇੱਕ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
         "support_info":               "ਪ੍ਰਮਾਣੀਕਰਨ ਵਿੱਚ ਸਹਾਇਤਾ ਚਾਹੀਦੀ ਹੈ?\n- ਸਹਾਇਤਾ ਲਈ ਸਰਵਰ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ\n- ਜਾਂ ਆਪਣੀ ਸਹਾਇਤਾ ਸਫ਼ਾ ਵੇਖੋ: https://esattotech.com/contact-us/\n\nਜੇ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਸਾਨੂੰ ਦੱਸੋ!",
@@ -402,5 +446,9 @@ localizations: dict[str, dict[str, str]] = {
         "settings_intro":             "**VRChat ਪ੍ਰਮਾਣੀਕਰਨ ਸੈਟਿੰਗਸ**\n\n1.) **ਆਟੋ-ਨਿਕਨੇਮ ਬਦਲਣਾ ਯਕੀਨੀ ਬਣਾਓ**\n   ਵਰਤੋਂਕਾਰਾਂ ਦੇ Discord ਨਿਕਨੇਮਾਂ ਨੂੰ ਉਹਨਾਂ ਦੇ VRChat ਪ੍ਰਦਰਸ਼ਨ ਨਾਮਾਂ ਦੇ ਨਾਲ ਮੇਲ ਖਾਣ ਲਈ ਆਟੋਮੈਟਿਕ ਤੌਰ 'ਤੇ ਅਪਡੇਟ ਕਰੋ。\n   ਮੌਜੂਦਾ: **{current}**",
         "dm_role_failed_bot_position":"ਮੈਂ {server} ਵਿੱਚ ਤੁਹਾਨੂੰ '{role}' ਰੋਲ ਨਹੀਂ ਦੇ ਸਕਿਆ। ਆਮ ਤੌਰ ਤੇ ਇਹ ਤਦ ਹੁੰਦਾ ਹੈ ਜਦੋਂ VRCVerify ਬੋਟ ਦਾ ਰੋਲ ਸਰਵਰ ਦੀ ਰੋਲ ਲਿਸਟ ਵਿੱਚ verified (ਅਤੇ unverified) ਰੋਲਾਂ ਤੋਂ ਉੱਪਰ ਨਹੀਂ ਹੁੰਦਾ। ਕਿਰਪਾ ਕਰਕੇ ਕਿਸੇ ਐਡਮਿਨ ਨੂੰ ਕਹੋ ਕਿ VRCVerify ਬੋਟ ਦਾ ਰੋਲ ਉਹਨਾਂ ਰੋਲਾਂ ਤੋਂ ਉੱਪਰ ਰੱਖੇ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ。",
         "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
+        "custom_msg_cleared":         "ਕਸਟਮ ਪ੍ਰਮਾਣੀਕਰਨ ਬੇਨਤੀ ਸੁਨੇਹਾ ਸਾਫ਼ ਕੀਤਾ ਗਿਆ। ਡਿਫਾਲਟ ਵਰਤਿਆ ਜਾਵੇਗਾ।",
+        "custom_msg_saved":           "ਕਸਟਮ ਪ੍ਰਮਾਣੀਕਰਨ ਬੇਨਤੀ ਸੁਨੇਹਾ ਸੰਭਾਲਿਆ ਗਿਆ।",
+        "custom_msg_too_long":        "ਸੁਨੇਹਾ ਬਹੁਤ ਲੰਮਾ ਹੈ (ਵੱਧ ਤੋਂ ਵੱਧ 1000 ਅੱਖਰ)।",
+        "custom_msg_invalid_links":   "ਬਲਾਕ ਕੀਤਾ: ਸਿਰਫ discord.com ਜਾਂ vrchat.com ਲਿੰਕ ਮਨਜ਼ੂਰ ਹਨ। ਗਲਤ ਲਿੰਕ:\n{invalid_list}",
     }
 }
