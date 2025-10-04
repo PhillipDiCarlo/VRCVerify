@@ -1408,6 +1408,7 @@ async def on_ready():
             logger.error(f"Error reinitializing instructions message for guild {entry['server_id']}: {e}")
 
     # Start watching for a trigger file so you can update instructions at runtime
+    # To trigger an instruction panel update type "touch /tmp/update_instructions.trigger" into a terminal
     trigger_path = os.getenv("INSTRUCTIONS_TRIGGER_PATH", "/tmp/update_instructions.trigger")
     poll = int(os.getenv("INSTRUCTIONS_TRIGGER_POLL", "5"))
     bot.loop.create_task(watch_update_trigger_file(trigger_path, poll))
