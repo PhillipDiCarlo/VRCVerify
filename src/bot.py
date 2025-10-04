@@ -786,11 +786,14 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
             session.add(pending)
 
         view = VRCVerificationButton(vrc_user_id, verification_code, guild_id)
+        # Use localized instruction strings for the numbered steps
+        step1 = get_message("bio_verify_instructions1", interaction)
+        step2 = get_message("bio_verify_instructions2", interaction)
         await interaction.response.send_message(
             f"✅ **VRChat userID saved!**\n\n"
-            f"**1) Add this code to your VRChat bio:**\n"
+            f"{step1}\n"
             f"```\n{verification_code}\n```\n"
-            f"**2) Once you've updated your bio, click “Verify” below (within 10 minutes).**",
+            f"{step2}",
             view=view,
             ephemeral=True
         )
