@@ -1,0 +1,37 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# IDE/OS
+.vscode/
+.idea/
+.DS_Store
+
+# Python caches and virtual envs
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.venv/
+venv/
+
+# Environment files
+.env
+
+# Tests and local assets not needed in images
+tests/
+Logos/
+
+# Cache/coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+
+# Local scripts not required in image
+ tag_and_push_images.ps1
+ tag_and_push_images.sh
