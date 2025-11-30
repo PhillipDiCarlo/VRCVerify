@@ -786,11 +786,14 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
             session.add(pending)
 
         view = VRCVerificationButton(vrc_user_id, verification_code, guild_id)
+        # Use localized instruction strings for the numbered steps
+        step1 = get_message("bio_verify_instructions1", interaction)
+        step2 = get_message("bio_verify_instructions2", interaction)
         await interaction.response.send_message(
             f"✅ **VRChat userID saved!**\n\n"
-            f"**1) Add this code to your VRChat bio:**\n"
+            f"{step1}\n"
             f"```\n{verification_code}\n```\n"
-            f"**2) Once you've updated your bio, click “Verify” below (within 10 minutes).**",
+            f"{step2}",
             view=view,
             ephemeral=True
         )
@@ -1250,6 +1253,119 @@ async def expired_pending_cleanup_task(interval_seconds: int = 60):
         await asyncio.sleep(interval_seconds)
 
 
+async def update_all_instruction_messages():
+    """Rebuild and edit saved instruction messages for all servers (uses DB-stored locale)."""
+    with session_scope() as session:
+        servers = (
+            session.query(Server).filter(Server.instructions_message_id != None).all()
+        )
+        servers_data = [
+            {
+                "server_id": server.server_id,
+                "channel_id": server.instructions_channel_id,
+                "message_id": server.instructions_message_id,
+                "locale": server.instructions_locale or "en-US",
+            }
+            for server in servers
+        ]
+
+    for entry in servers_data:
+        channel_id = entry.get("channel_id")
+        message_id = entry.get("message_id")
+        if not channel_id or not message_id:
+            logger.warning(f"⚠️ Missing channel/message id for guild {entry['server_id']}; skipping.")
+            continue
+
+        # Try to obtain the channel via cache first, then the API. This avoids requiring the
+        # guild to be present in the gateway cache (previously caused 'guild not cached').
+        try:
+            ch = bot.get_channel(int(channel_id))
+            if ch is None:
+                ch = await bot.fetch_channel(int(channel_id))
+        except discord.NotFound:
+            logger.warning(f"⚠️ Channel {channel_id} not found (404) for guild {entry['server_id']}; removing saved message reference.")
+            # clear DB entry so we don't repeatedly try to update a missing channel/message
+            try:
+                with session_scope() as session:
+                    srv = session.query(Server).filter_by(server_id=entry["server_id"]).first()
+                    if srv:
+                        srv.instructions_channel_id = None
+                        srv.instructions_message_id = None
+            except Exception:
+                logger.exception("Failed to clear missing channel entry in DB.")
+            continue
+        except discord.Forbidden:
+            logger.warning(f"⚠️ No permission to access channel {channel_id} in guild {entry['server_id']}; skipping.")
+            continue
+        except Exception:
+            logger.exception(f"Unexpected error fetching channel {channel_id} for guild {entry['server_id']}")
+            continue
+
+        try:
+            message = await ch.fetch_message(int(message_id))
+        except discord.NotFound:
+            logger.warning(f"⚠️ Message {message_id} not found (404) in channel {channel_id} for guild {entry['server_id']}; removing saved message reference.")
+            try:
+                with session_scope() as session:
+                    srv = session.query(Server).filter_by(server_id=entry["server_id"]).first()
+                    if srv:
+                        srv.instructions_channel_id = None
+                        srv.instructions_message_id = None
+            except Exception:
+                logger.exception("Failed to clear missing message entry in DB.")
+            continue
+        except discord.Forbidden:
+            logger.warning(f"⚠️ No permission to fetch message {message_id} in channel {channel_id} for guild {entry['server_id']}; skipping.")
+            continue
+        except Exception:
+            logger.exception(f"Unexpected error fetching message {message_id} in channel {channel_id} for guild {entry['server_id']}")
+            continue
+
+        # Rebuild localized embed + example field
+        try:
+            strings = localizations.get(entry["locale"], localizations["en-US"])
+            new_embed = Embed(
+                title=strings.get("instructions_title", ""),
+                description=strings.get("instructions_desc", ""),
+                color=discord.Color.blue(),
+            )
+            usage_example = "**Example Usage**:\n" "```bash\n" "/vrcverify\n" "```"
+            new_embed.clear_fields()
+            new_embed.add_field(name="Example Command", value=usage_example, inline=False)
+            view = VRCVerifyInstructionView(locale=entry["locale"])
+            await message.edit(embed=new_embed, view=view)
+            logger.info(f"Updated instructions message for guild {entry['server_id']}")
+        except Exception:
+            logger.exception(f"Failed to edit instructions message for guild {entry['server_id']}")
+
+
+async def watch_update_trigger_file(path: str = None, poll_interval: int = 5):
+    """Poll for existence of `path`. When created, run update_all_instruction_messages() once and remove the file."""
+    trigger_path = path or os.getenv("INSTRUCTIONS_TRIGGER_PATH", "/tmp/update_instructions.trigger")
+    try:
+        poll = int(os.getenv("INSTRUCTIONS_TRIGGER_POLL", str(poll_interval)))
+    except Exception:
+        poll = poll_interval
+
+    logger.info(f"Instruction update trigger watcher started (path={trigger_path}, interval={poll}s)")
+    while True:
+        try:
+            if os.path.exists(trigger_path):
+                logger.info("Trigger file detected — updating all instruction messages.")
+                try:
+                    await update_all_instruction_messages()
+                except Exception:
+                    logger.exception("Failed to update all instruction messages.")
+                # attempt to remove the trigger so it can be reused later
+                try:
+                    os.remove(trigger_path)
+                except Exception:
+                    logger.warning("Could not remove trigger file; manual cleanup may be required.")
+        except Exception:
+            logger.exception("Unexpected error in trigger watcher loop.")
+        await asyncio.sleep(poll)
+
+
 # -------------------------------------------------------------------
 # Bot Events
 # -------------------------------------------------------------------
@@ -1290,6 +1406,12 @@ async def on_ready():
                 logger.info(f"Reinitialized instructions message for guild {entry['server_id']}")
         except Exception as e:
             logger.error(f"Error reinitializing instructions message for guild {entry['server_id']}: {e}")
+
+    # Start watching for a trigger file so you can update instructions at runtime
+    # To trigger an instruction panel update type "touch /tmp/update_instructions.trigger" into a terminal
+    trigger_path = os.getenv("INSTRUCTIONS_TRIGGER_PATH", "/tmp/update_instructions.trigger")
+    poll = int(os.getenv("INSTRUCTIONS_TRIGGER_POLL", "5"))
+    bot.loop.create_task(watch_update_trigger_file(trigger_path, poll))
 
     logger.info("Bot is reinitialized and ready to go!")
 

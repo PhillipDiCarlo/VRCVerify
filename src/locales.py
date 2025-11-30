@@ -21,7 +21,7 @@ localizations: dict[str, dict[str, str]] = {
         "subscription_info":          "I've decided to offer this free of charge however if you wish to still support me, you can find my Ko-fi here:{kofi_link}. Thank you for your continued support",
         "settings_saved":             "Settings saved!",
         "invalid_vrc_id_input":       "It looks like you entered your display name instead of your VRChat userID.\nPlease enter either the full profile URL or your userID (which always starts with `usr_`).\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "We couldn't find your code in your VRChat bio. Please try again.",
+        "code_not_found":             "We couldn't find your code in your VRChat bio. Please try again. \n**Double check that the code is on its own line.**",
         "nickname_updated":           "Your nickname was updated to {display_name}.",
         "nickname_update_failed":     "We could not update your nickname.",
         "setup_success":              "Successfully {action} server config.\nVerified Role set to: `{role}` (ID={role_id})",
@@ -31,9 +31,11 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc":          "**Follow these steps** to verify your 18+ status:\n\n"
                                       "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
                                       "2. If you're new, you'll be asked for your VRChat username\n"
-                                      "3. The bot will give you a unique code - put this in your VRChat bio\n"
+                                      "3. The bot will give you a unique code - put this in your VRChat bio **ON ITS OWN LINE**\n"
                                       "4. Press **Verify** in Discord once your bio is updated\n\n"
                                       "If you need additional help, contact an admin or type `/vrcverify_support`.",
+        "bio_verify_instructions1":    "**1)** Add the code to your VRChat bio on its own line.",
+        "bio_verify_instructions2":    "**2)** Once your bio is updated, click **Verify** in Discord (within 10 minutes).",
         "btn_begin_verification":     "Begin Verification",
         "btn_update_nickname":        "Update Nickname",
         "settings_intro":             "**VRChat Verify Settings**\n\n1.) **Enable auto nickname change**\n   Automatically update users' Discord nicknames to match their VRChat display names.\n   Current: **{current}**",
@@ -58,7 +60,7 @@ localizations: dict[str, dict[str, str]] = {
         "subscription_info":          "He decidido ofrecer esto de forma gratuita, pero si deseas apoyarme, puedes encontrar mi Ko-fi aquí:{kofi_link}. ¡Gracias por tu continuo apoyo!",
         "settings_saved":             "¡Configuración guardada!",
         "invalid_vrc_id_input":       "Parece que ingresaste tu nombre para mostrar en lugar de tu ID de usuario de VRChat.\nPor favor, ingresa la URL completa del perfil o tu ID de usuario (que siempre comienza con `usr_`).\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "No pudimos encontrar tu código en tu biografía de VRChat. Inténtalo de nuevo.",
+        "code_not_found":             "No pudimos encontrar tu código en tu biografía de VRChat. Inténtalo de nuevo. \n**Comprueba que el código esté en su propia línea.**",
         "nickname_updated":           "Tu apodo fue actualizado a {display_name}.",
         "nickname_update_failed":     "No pudimos actualizar tu apodo.",
         "setup_success":              "Configuración del servidor {action}.\nRol verificado establecido en: `{role}` (ID={role_id})",
@@ -68,7 +70,7 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc":          "**Sigue estos pasos** para verificar tu estado 18+:\n\n"
                                       "1. Haz clic en el botón **Iniciar Verificación** (si se muestra) o escribe `/vrcverify` en cualquier lugar.\n"
                                       "2. Si eres nuevo, se te pedirá tu nombre de usuario de VRChat\n"
-                                      "3. El bot te dará un código único - colócalo en tu biografía de VRChat\n"
+                                      "3. El bot te dará un código único - colócalo en tu biografía de VRChat **EN SU PROPIA LÍNEA**\n"
                                       "4. Presiona **Verificar** en Discord una vez que tu biografía esté actualizada\n\n"
                                       "Si necesitas ayuda adicional, contacta a un admin o escribe `/vrcverify_support`.",
         "btn_begin_verification":     "Iniciar Verificación",
@@ -80,6 +82,8 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_saved":           "Mensaje de solicitud de verificación personalizado guardado.",
         "custom_msg_too_long":        "Mensaje demasiado largo (máx. 1000 caracteres).",
         "custom_msg_invalid_links":   "Bloqueado: Solo se permiten enlaces de discord.com o vrchat.com. Enlace(s) no válido(s):\n{invalid_list}",
+        "bio_verify_instructions1":   "**1)** Añade el código a tu biografía de VRChat en su propia línea.",
+        "bio_verify_instructions2":   "**2)** Una vez actualizada, haz clic en **Verificar** en Discord (dentro de 10 minutos).",
     },
 
     "zh-CN": {
@@ -95,7 +99,7 @@ localizations: dict[str, dict[str, str]] = {
         "subscription_info":          "我决定免费提供此功能,如果您愿意支持我,可以点击此处的我的Ko-fi:{kofi_link}。感谢您的持续支持! ",
         "settings_saved":             "设置已保存!",
         "invalid_vrc_id_input":       "您似乎输入了显示名称而不是 VRChat 用户ID。\n请输入完整的个人资料 URL 或以 `usr_` 开头的用户ID。\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "我们未能在您的 VRChat 简介中找到该代码。请重试。",
+        "code_not_found":             "我们未能在您的 VRChat 简介中找到该代码。请重试。\n**请确认代码位于单独一行。**",
         "nickname_updated":           "您的昵称已更新为 {display_name}。",
         "nickname_update_failed":     "我们无法更新您的昵称。",
         "setup_success":              "成功{action} 服务器配置。\n已将已验证角色设置为: `{role}` (ID={role_id})",
@@ -105,7 +109,7 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc":          "**按照这些步骤** 验证您的 18+ 状态:\n\n"
                                       "1. 点击 **开始验证** 按钮（如果显示）或在任何地方输入 `/vrcverify`。\n"
                                       "2. 如果您是新用户,系统会要求您提供 VRChat 用户名\n"
-                                      "3. 机器人会给您一个唯一的代码 - 将其放入您的 VRChat 个人资料中\n"
+                                      "3. 机器人会给您一个唯一的代码 - 将其放入您的 VRChat 个人资料中 **单独一行**\n"
                                       "4. 更新个人资料后,在 Discord 中按 **验证**\n\n"
                                       "如果您需要额外的帮助,请联系管理员或输入 `/vrcverify_support`。",
         "btn_begin_verification":     "开始验证",
@@ -117,6 +121,8 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_saved":           "自定义验证请求消息已保存。",
         "custom_msg_too_long":        "消息过长（最多1000字符）。",
         "custom_msg_invalid_links":   "已阻止：只允许 discord.com 或 vrchat.com 链接。无效链接：\n{invalid_list}",
+        "bio_verify_instructions1":   "**1)** 将代码添加到您的 VRChat 个人资料简介中的单独一行。",
+        "bio_verify_instructions2":   "**2)** 更新后，在 Discord 中点击 **验证**（在 10 分钟内）。",
     },
 
     "ja": {
@@ -132,7 +138,7 @@ localizations: dict[str, dict[str, str]] = {
         "subscription_info":          "この機能は無料で提供していますが、サポートしていただける場合はKo-fiをご覧ください:{kofi_link}。継続的なサポートに感謝します! ",
         "settings_saved":             "設定が保存されました!",
         "invalid_vrc_id_input":       "表示名ではなく VRChat のユーザーID を入力してください。\nプロフィール URL または `usr_` で始まるユーザーID を入力してください。\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "VRChat の自己紹介にコードが見つかりませんでした。もう一度お試しください。",
+        "code_not_found":             "VRChat の自己紹介にコードが見つかりませんでした。もう一度お試しください。\n**コードが単独の行にあることを再確認してください。**",
         "nickname_updated":           "ニックネームを {display_name} に更新しました。",
         "nickname_update_failed":     "ニックネームを更新できませんでした。",
         "setup_success":              "サーバー設定を{action}しました。\n認証済みロール: `{role}` (ID={role_id})",
@@ -142,7 +148,7 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc":          "**この手順に従って** 18 歳以上であることを確認してください:\n\n"
                                       "1. **認証を開始** ボタンをクリックするか、任意の場所に `/vrcverify` と入力します。\n"
                                       "2. 初めての場合は、VRChat ユーザー名を求められます。\n"
-                                      "3. ボットが一意のコードを提供します。このコードを VRChat の自己紹介に入力します。\n"
+                                      "3. ボットが一意のコードを提供します。このコードを VRChat の自己紹介に **単独の行で** 入力します。\n"
                                       "4. 自己紹介を更新したら、Discord で **確認** を押します。\n\n"
                                       "追加のヘルプが必要な場合は、管理者に連絡するか、`/vrcverify_support` と入力してください。",
         "btn_begin_verification":     "認証を開始",
@@ -154,6 +160,8 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_saved":           "カスタム検証リクエストメッセージを保存しました。",
         "custom_msg_too_long":        "メッセージが長すぎます（最大1000文字）。",
         "custom_msg_invalid_links":   "ブロック: discord.com または vrchat.com へのリンクのみ許可されます。無効なリンク:\n{invalid_list}",
+        "bio_verify_instructions1":   "**1)** コードを VRChat の自己紹介に単独の行として追加してください。",
+        "bio_verify_instructions2":   "**2)** 自己紹介を更新したら、Discord で **確認** をクリックしてください（10分以内）。",
     },
 
     "de": {
@@ -169,7 +177,7 @@ localizations: dict[str, dict[str, str]] = {
         "subscription_info":          "Ich biete dies kostenlos an, aber wenn du mich unterstützen möchtest, findest du meinen Ko-fi hier: {kofi_link}. Danke für deine Unterstützung!",
         "settings_saved":             "Einstellungen gespeichert!",
         "invalid_vrc_id_input":       "Du hast offenbar deinen Anzeigenamen statt deiner VRChat-Benutzer-ID eingegeben.\nBitte gib die vollständige Profil-URL oder deine Benutzer-ID (beginnt immer mit `usr_`) ein.\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "Wir konnten deinen Code nicht in deiner VRChat-Biografie finden. Bitte versuche es erneut.",
+        "code_not_found":             "Wir konnten deinen Code nicht in deiner VRChat-Biografie finden. Bitte versuche es erneut.\n**Überprüfe, dass der Code in einer eigenen Zeile steht.**",
         "nickname_updated":           "Dein Spitzname wurde auf {display_name} aktualisiert.",
         "nickname_update_failed":     "Wir konnten deinen Spitznamen nicht aktualisieren.",
         "setup_success":              "Serverkonfiguration {action}.\nVerifizierte Rolle festgelegt auf: `{role}` (ID={role_id})",
@@ -179,7 +187,7 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc":          "**Befolgen Sie diese Schritte**, um Ihren 18+-Status zu überprüfen:\n\n"
                                       "1. Klicken Sie auf die Schaltfläche **Verifizierung starten** (falls angezeigt) oder geben Sie `/vrcverify` überall ein.\n"
                                       "2. Wenn Sie neu sind, werden Sie nach Ihrem VRChat-Benutzernamen gefragt.\n"
-                                      "3. Der Bot gibt Ihnen einen eindeutigen Code - fügen Sie diesen in Ihre VRChat-Biografie ein。\n"
+                                      "3. Der Bot gibt Ihnen einen eindeutigen Code - fügen Sie diesen in Ihre VRChat-Biografie **in einer eigenen Zeile** ein。\n"
                                       "4. Drücken Sie **Überprüfen** in Discord, sobald Ihre Biografie aktualisiert wurde。\n\n"
                                       "Wenn Sie zusätzliche Hilfe benötigen, wenden Sie sich an einen Administrator oder geben Sie `/vrcverify_support` ein。",
         "btn_begin_verification":     "Verifizierung starten",
@@ -191,6 +199,8 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_saved":           "Benutzerdefinierte Verifizierungsanfrage-Nachricht gespeichert.",
         "custom_msg_too_long":        "Nachricht zu lang (max. 1000 Zeichen).",
         "custom_msg_invalid_links":   "Blockiert: Nur Links zu discord.com oder vrchat.com erlaubt. Ungültige Links:\n{invalid_list}",
+        "bio_verify_instructions1":   "**1)** Füge den Code in deine VRChat-Biografie in einer eigenen Zeile ein.",
+        "bio_verify_instructions2":   "**2)** Sobald deine Biografie aktualisiert ist, klicke in Discord auf **Überprüfen** (innerhalb von 10 Minuten).",
     },
 
     "nl": {
@@ -206,7 +216,7 @@ localizations: dict[str, dict[str, str]] = {
         "subscription_info":          "Ik bied dit gratis aan, maar als je me wilt ondersteunen, vind je mijn Ko-fi hier: {kofi_link}. Dank je voor je steun!",
         "settings_saved":             "Instellingen opgeslagen!",
         "invalid_vrc_id_input":       "Het lijkt erop dat je je weergavenaam hebt ingevoerd in plaats van je VRChat userID.\nVoer de volledige profiel-URL in of je userID (begint altijd met `usr_`).\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "We konden je code niet vinden in je VRChat-bio. Probeer het opnieuw.",
+        "code_not_found":             "We konden je code niet vinden in je VRChat-bio. Probeer het opnieuw.\n**Controleer of de code op een aparte regel staat.**",
         "nickname_updated":           "Je bijnaam is bijgewerkt naar {display_name}.",
         "nickname_update_failed":     "We konden je bijnaam niet bijwerken.",
         "setup_success":              "Serverconfiguratie {action}.\nGeverifieerde rol ingesteld op: `{role}` (ID={role_id})",
@@ -216,7 +226,7 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc":          "**Volg deze stappen** om je 18+ status te verifiëren:\n\n"
                                       "1. Klik op de knop **Verificatie starten** (indien weergegeven) of typ `/vrcverify` ergens。\n"
                                       "2. Als je nieuw bent, word je gevraagd naar je VRChat-gebruikersnaam。\n"
-                                      "3. De bot geeft je een unieke code - zet deze in je VRChat-bio。\n"
+                                      "3. De bot geeft je een unieke code - zet deze in je VRChat-bio **op een aparte regel**。\n"
                                       "4. Druk op **Verifiëren** in Discord zodra je bio is bijgewerkt。\n\n"
                                       "Als je extra hulp nodig hebt, neem dan contact op met een beheerder of typ `/vrcverify_support`。",
         "btn_begin_verification":     "Verificatie starten",
@@ -228,6 +238,8 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_saved":           "Aangepast verificatieverzoekbericht opgeslagen.",
         "custom_msg_too_long":        "Bericht te lang (max 1000 tekens).",
         "custom_msg_invalid_links":   "Geblokkeerd: Alleen discord.com of vrchat.com links toegestaan. Ongeldige links:\n{invalid_list}",
+        "bio_verify_instructions1":   "**1)** Voeg de code toe aan je VRChat-bio op een eigen regel.",
+        "bio_verify_instructions2":   "**2)** Zodra je bio is bijgewerkt, klik op **Verifiëren** in Discord (binnen 10 minuten).",
     },
 
     "hi-IN": {
@@ -243,7 +255,7 @@ localizations: dict[str, dict[str, str]] = {
         "subscription_info":          "मैं यह नि:शुल्क प्रदान कर रहा हूं, लेकिन यदि आप मेरा समर्थन करना चाहते हैं, तो मेरा Ko-fi यहाँ देखें: {kofi_link}. आपके समर्थन के लिए धन्यवाद!",
         "settings_saved":             "सेटिंग्स सहेजी गईं!",
         "invalid_vrc_id_input":       "ऐसा लगता है कि आपने VRChat userID के बजाय अपना display name दर्ज किया है。\nकृपया पूर्ण प्रोफ़ाइल URL या अपना userID दर्ज करें (जो हमेशा `usr_` से शुरू होता है)。\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "हमें आपकी VRChat बायो में आपका कोड नहीं मिला। कृपया फिर से प्रयास करें।",
+        "code_not_found":             "हमें आपकी VRChat बायो में आपका कोड नहीं मिला। कृपया फिर से प्रयास करें।\n**कृपया सुनिश्चित करें कि कोड अपनी अलग पंक्ति पर है।**",
         "nickname_updated":           "आपका उपनाम {display_name} में अपडेट किया गया है।",
         "nickname_update_failed":     "हम आपका उपनाम अपडेट नहीं कर सके।",
         "setup_success":              "सर्वर कॉन्फ़िग {action} सफल。\nसत्यापित भूमिका सेट: `{role}` (ID={role_id})",
@@ -253,7 +265,7 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc":          "**इन चरणों का पालन करें** अपने 18+ स्थिति की पुष्टि करने के लिए:\n\n"
                                       "1. क्लिक करें **सत्यापन प्रारंभ करें** बटन (यदि दिखाया गया हो) या कहीं भी टाइप करें `/vrcverify`。\n"
                                       "2. यदि आप नए हैं, तो आपसे आपका VRChat उपयोगकर्ता नाम पूछा जाएगा。\n"
-                                      "3. बॉट आपको एक अद्वितीय कोड देगा - इसे अपने VRChat जैव में डालें。\n"
+                                      "3. बॉट आपको एक अद्वितीय कोड देगा - इसे अपने VRChat जैव में **अपनी अलग पंक्ति में** डालें。\n"
                                       "4. अपने जैव को अपडेट करने के बाद Discord में **सत्यापित करें** पर दबाएं。\n\n"
                                       "यदि आपको अतिरिक्त सहायता की आवश्यकता है, तो एक व्यवस्थापक से संपर्क करें या टाइप करें `/vrcverify_support`。",
         "btn_begin_verification":     "पुष्टि शुरू करें",
@@ -265,6 +277,8 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_saved":           "कस्टम सत्यापन अनुरोध संदेश सहेजा गया।",
         "custom_msg_too_long":        "संदेश बहुत लंबा है (अधिकतम 1000 अक्षर)।",
         "custom_msg_invalid_links":   "अवरुद्ध: केवल discord.com या vrchat.com लिंक की अनुमति है। अमान्य लिंक:\n{invalid_list}",
+        "bio_verify_instructions1":   "**1)** अपने VRChat बायो में कोड को अपनी अलग पंक्ति पर जोड़ें।",
+        "bio_verify_instructions2":   "**2)** अपडेट करने के बाद, Discord में **सत्यापित करें** पर क्लिक करें (10 मिनट के अंदर)。",
     },
 
     "ar": {
@@ -280,7 +294,7 @@ localizations: dict[str, dict[str, str]] = {
         "subscription_info":          "أقدم هذا مجانًا، ولكن إذا كنت ترغب في دعمي، يمكنك العثور على Ko-fi الخاص بي هنا: {kofi_link}. شكرًا لدعمك المستمر!",
         "settings_saved":             "تم حفظ الإعدادات!",
         "invalid_vrc_id_input":       "يبدو أنك أدخلت اسم العرض بدلاً من معرف مستخدم VRChat. الرجاء إدخال رابط الملف الشخصي الكامل أو معرف المستخدم الخاص بك (الذي يبدأ دائمًا بـ `usr_`).\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "لم نعثر على الرمز في سيرتك في VRChat. يرجى المحاولة مرة أخرى.",
+        "code_not_found":             "لم نعثر على الرمز في سيرتك في VRChat. يرجى المحاولة مرة أخرى.\n**تحقق مزدوجًا من أن الرمز في سطر منفصل.**",
         "nickname_updated":           "تم تحديث لقبك إلى {display_name}.",
         "nickname_update_failed":     "لم نتمكن من تحديث لقبك.",
         "setup_success":              "تم {action} إعداد الخادم بنجاح.\nتم تعيين الدور الموثّق إلى: `{role}` (المعرف={role_id})",
@@ -290,7 +304,7 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc":          "**اتبع هذه الخطوات** للتحقق من حالة 18+ الخاصة بك:\n\n"
                                       "1. انقر على زر **بدء التحقق** (إذا تم عرضه) أو اكتب `/vrcverify` في أي مكان。\n"
                                       "2. إذا كنت جديدًا، سيُطلب منك اسم مستخدم VRChat الخاص بك。\n"
-                                      "3. سيعطيك الروبوت رمزًا فريدًا - ضع هذا في سيرتك الذاتية على VRChat。\n"
+                                      "3. سيعطيك الروبوت رمزًا فريدًا - ضع هذا في سيرتك الذاتية على VRChat **في سطر منفصل**。\n"
                                       "4. اضغط على **تحقق** في Discord بمجرد تحديث سيرتك الذاتية。\n\n"
                                       "إذا كنت بحاجة إلى مساعدة إضافية، فاتصل بالمسؤول أو اكتب `/vrcverify_support`。",
         "btn_begin_verification":     "بدء التحقق",
@@ -302,6 +316,8 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_saved":           "تم حفظ رسالة طلب التحقق المخصصة.",
         "custom_msg_too_long":        "الرسالة طويلة جدًا (الحد الأقصى 1000 حرف).",
         "custom_msg_invalid_links":   "تم الحظر: يُسمح فقط بروابط discord.com أو vrchat.com. الروابط غير الصالحة:\n{invalid_list}",
+        "bio_verify_instructions1":   "**1)** أضف الكود إلى سيرتك الذاتية في VRChat في سطر مستقل.",
+        "bio_verify_instructions2":   "**2)** بمجرد تحديث سيرتك الذاتية، انقر على **تحقق** في Discord (خلال 10 دقائق).",
     },
 
     "bn": {
@@ -317,7 +333,7 @@ localizations: dict[str, dict[str, str]] = {
         "subscription_info":          "এটি আমি বিনামূল্যে প্রদান করছি, তবে আপনি যদি আমাকে সমর্থন করতে চান তবে আমার Ko-fi এখানে দেখুন: {kofi_link}. আপনাদের সমর্থনের জন্য ধন্যবাদ!",
         "settings_saved":             "সেটিংস সংরক্ষিত হয়েছে!",
         "invalid_vrc_id_input":       "মনে হচ্ছে আপনি VRChat userID-এর বদলে আপনার প্রদর্শন নাম লিখেছেন。\nঅনুগ্রহ করে সম্পূর্ণ প্রোফাইল URL বা আপনার userID লিখুন (যা সবসময় `usr_` দিয়ে শুরু হয়)।\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "আপনার VRChat বায়োতে আমরা কোডটি খুঁজে পাইনি। অনুগ্রহ করে আবার চেষ্টা করুন।",
+        "code_not_found":             "আপনার VRChat বায়োতে আমরা কোডটি খুঁজে পাইনি। অনুগ্রহ করে আবার চেষ্টা করুন।\n**নিশ্চিত করুন যে কোডটি একটি পৃথক লাইনে আছে।**",
         "nickname_updated":           "আপনার ডাকনাম {display_name} এ আপডেট হয়েছে।",
         "nickname_update_failed":     "আমরা আপনার ডাকনাম আপডেট করতে পারিনি।",
         "setup_success":              "সার্ভার কনফিগ {action} সফল。\nযাচাইকৃত ভূমিকা সেট করা হয়েছে: `{role}` (ID={role_id})",
@@ -327,7 +343,7 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc":          "**এই পদক্ষেপগুলি অনুসরণ করুন** আপনার 18+ স্থিতি যাচাই করতে:\n\n"
                                       "1. ক্লিক করুন **যাচাই শুরু করুন** বোতামে (যদি প্রদর্শিত হয়) অথবা যেকোনো জায়গায় টাইপ করুন `/vrcverify`。\n"
                                       "2. যদি আপনি নতুন হন, তবে আপনাকে আপনার VRChat ব্যবহারকারীর নাম দেওয়ার জন্য বলা হবে。\n"
-                                      "3. বট আপনাকে একটি অনন্য কোড দেবে - এটি আপনার VRChat জীবনীতে রাখুন。\n"
+                                      "3. বট আপনাকে একটি অনন্য কোড দেবে - এটি আপনার VRChat জীবনীতে **একটি পৃথক লাইনে** রাখুন。\n"
                                       "4. আপনার জীবনী আপডেট হলে Discord-এ **যাচাই করুন** এ ক্লিক করুন。\n\n"
                                       "যদি আপনার অতিরিক্ত সহায়তার প্রয়োজন হয়, তবে একটি প্রশাসকের সাথে যোগাযোগ করুন বা টাইপ করুন `/vrcverify_support`。",
         "btn_begin_verification":     "যাচাই শুরু করুন",
@@ -339,6 +355,8 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_saved":           "কাস্টম যাচাইকরণ অনুরোধ বার্তা সংরক্ষিত হয়েছে।",
         "custom_msg_too_long":        "বার্তা অনেক বড় (সর্বোচ্চ 1000 অক্ষর)।",
         "custom_msg_invalid_links":   "ব্লক করা হয়েছে: শুধুমাত্র discord.com বা vrchat.com লিঙ্ক অনুমোদিত। অবৈধ লিঙ্ক:\n{invalid_list}",
+        "bio_verify_instructions1":   "**1)** কোডটি আপনার VRChat বায়োতে একটি স্বতন্ত্র লাইনে যোগ করুন।",
+        "bio_verify_instructions2":   "**2)** আপডেট হওয়ার পরে, Discord-এ **যাচাই করুন** ক্লিক করুন (10 মিনিটের মধ্যে)。",
     },
 
     "pt-BR": {
@@ -354,7 +372,7 @@ localizations: dict[str, dict[str, str]] = {
         "subscription_info":          "Estou oferecendo isso gratuitamente, mas se quiser me apoiar, você pode encontrar meu Ko-fi aqui: {kofi_link}. Obrigado pelo apoio!",
         "settings_saved":             "Configurações salvas!",
         "invalid_vrc_id_input":       "Parece que você digitou seu nome de exibição em vez do seu userID do VRChat。\nInsira a URL completa do perfil ou seu userID (que sempre começa com `usr_`)。\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "Não encontramos seu código na sua bio do VRChat. Tente novamente.",
+        "code_not_found":             "Não encontramos seu código na sua bio do VRChat. Tente novamente.\n**Verifique se o código está em sua própria linha.**",
         "nickname_updated":           "Seu apelido foi atualizado para {display_name}.",
         "nickname_update_failed":     "Não foi possível atualizar seu apelido.",
         "setup_success":              "Configuração do servidor {action}。\nFunção verificada definida como: `{role}` (ID={role_id})",
@@ -364,7 +382,7 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc":          "**Siga estas etapas** para verificar seu status 18+:\n\n"
                                       "1. Clique no botão **Iniciar Verificação** (se mostrado) ou digite `/vrcverify` em qualquer lugar。\n"
                                       "2. Se você é novo, será solicitado seu nome de usuário do VRChat。\n"
-                                      "3. O bot lhe dará um código único - coloque isso na sua biografia do VRChat。\n"
+                                      "3. O bot lhe dará um código único - coloque isso na sua biografia do VRChat **em sua própria linha**。\n"
                                       "4. Pressione **Verificar** no Discord assim que sua biografia estiver atualizada。\n\n"
                                       "Se você precisar de ajuda adicional, entre em contato com um administrador ou digite `/vrcverify_support`。",
         "btn_begin_verification":     "Iniciar Verificação",
@@ -376,6 +394,8 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_saved":           "Mensagem de solicitação de verificação personalizada salva.",
         "custom_msg_too_long":        "Mensagem muito longa (máx. 1000 caracteres).",
         "custom_msg_invalid_links":   "Bloqueado: Apenas links discord.com ou vrchat.com permitidos. Links inválidos:\n{invalid_list}",
+        "bio_verify_instructions1":   "**1)** Adicione o código à sua bio do VRChat em sua própria linha.",
+        "bio_verify_instructions2":   "**2)** Assim que sua bio for atualizada, clique em **Verificar** no Discord (dentro de 10 minutos).",
     },
 
     "ru": {
@@ -391,7 +411,7 @@ localizations: dict[str, dict[str, str]] = {
         "subscription_info":          "Я предоставляю это бесплатно, но если вы хотите меня поддержать, вы можете найти мой Ko-fi здесь: {kofi_link}. Спасибо за вашу поддержку!",
         "settings_saved":             "Настройки сохранены!",
         "invalid_vrc_id_input":       "Похоже, вы ввели отображаемое имя вместо идентификатора пользователя VRChat。\nВведите полный URL профиля или ваш userID (всегда начинается с `usr_`)。\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "Мы не нашли ваш код в вашей биографии VRChat. Пожалуйста, попробуйте ещё раз.",
+        "code_not_found":             "Мы не нашли ваш код в вашей биографии VRChat. Пожалуйста, попробуйте ещё раз.\n**Проверьте, что код находится в отдельной строке.**",
         "nickname_updated":           "Ваш ник обновлён на {display_name}.",
         "nickname_update_failed":     "Не удалось обновить ваш ник.",
         "setup_success":              "Успешно {action} конфигурацию сервера。\nУстановлена проверенная роль: `{role}` (ID={role_id})",
@@ -401,7 +421,7 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc":          "**Следуйте этим шагам**, чтобы проверить свой статус 18+:\n\n"
                                       "1. Нажмите кнопку **Начать проверку** (если отображается) или введите `/vrcverify` в любом месте。\n"
                                       "2. Если вы новичок, вас попросят ввести имя пользователя VRChat。\n"
-                                      "3. Бот даст вам уникальный код - поместите его в свою биографию VRChat。\n"
+                                      "3. Бот даст вам уникальный код - поместите его в свою биографию VRChat **в отдельной строке**。\n"
                                       "4. Нажмите **Проверить** в Discord, как только ваша биография будет обновлена。\n\n"
                                       "Если вам нужна дополнительная помощь, свяжитесь с администратором или введите `/vrcverify_support`。",
         "btn_begin_verification":     "Начать проверку",
@@ -413,6 +433,8 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_saved":           "Пользовательское сообщение запроса проверки сохранено.",
         "custom_msg_too_long":        "Слишком длинное сообщение (макс. 1000 символов).",
         "custom_msg_invalid_links":   "Блокировано: Разрешены только ссылки на discord.com или vrchat.com. Неверные ссылки:\n{invalid_list}",
+        "bio_verify_instructions1":   "**1)** Добавьте код в вашу биографию VRChat в отдельной строке.",
+        "bio_verify_instructions2":   "**2)** Как только ваша биография будет обновлена, нажмите **Проверить** в Discord (в течение 10 минут).",
     },
 
     "pa-IN": {
@@ -428,7 +450,7 @@ localizations: dict[str, dict[str, str]] = {
         "subscription_info":          "ਮੈਂ ਇਹ ਮੁਫ਼ਤ ਪ੍ਰਦਾਨ ਕਰ ਰਿਹਾ ਹਾਂ, ਪਰ ਜੇ ਤੁਸੀਂ ਮੇਰੀ ਸਹਾਇਤਾ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ, ਤਾਂ ਮੇਰਾ Ko-fi ਇਥੇ ਵੇਖੋ: {kofi_link}. ਤੁਹਾਡੇ ਸਹਿਯੋਗ ਲਈ ਧੰਨਵਾਦ!",
         "settings_saved":             "ਸੈਟਿੰਗਸ ਸੁਰੱਖਿਅਤ ਕੀਤੀਆਂ ਗਈਆਂ!",
         "invalid_vrc_id_input":       "ਲੱਗਦਾ ਹੈ ਤੁਸੀਂ VRChat userID ਦੀ ਬਜਾਏ ਆਪਣਾ ਡਿਸਪਲੇ ਨਾਂ ਦਰਜ ਕੀਤਾ ਹੈ。\nਕਿਰਪਾ ਕਰਕੇ ਪੂਰਾ ਪ੍ਰੋਫ਼ਾਈਲ URL ਜਾਂ ਆਪਣਾ userID ਦਰਜ ਕਰੋ (ਜੋ ਹਮੇਸ਼ਾਂ `usr_` ਨਾਲ ਸ਼ੁਰੂ ਹੁੰਦਾ ਹੈ)。\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "ਅਸੀਂ ਤੁਹਾਡੇ VRChat ਬਾਇਓ ਵਿੱਚ ਤੁਹਾਡਾ ਕੋਡ ਨਹੀਂ ਲੱਭ ਸਕੇ। ਕਿਰਪਾ ਕਰਕੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+        "code_not_found":             "ਅਸੀਂ ਤੁਹਾਡੇ VRChat ਬਾਇਓ ਵਿੱਚ ਤੁਹਾਡਾ ਕੋਡ ਨਹੀਂ ਲੱਭ ਸਕੇ। ਕਿਰਪਾ ਕਰਕੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।\n**ਕਿਰਪਾ ਕਰਕੇ ਜਾਂਚੋ ਕਿ ਕੋਡ ਆਪਣੀ ਵੱਖਰੀ ਲਾਈਨ 'ਤੇ ਹੈ।**",
         "nickname_updated":           "ਤੁਹਾਡਾ ਨਿਕਨੇਮ {display_name} ਵਿੱਚ ਅਪਡੇਟ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ।",
         "nickname_update_failed":     "ਅਸੀਂ ਤੁਹਾਡਾ ਨਿਕਨੇਮ ਅਪਡੇਟ ਨਹੀਂ ਕਰ ਸਕੇ।",
         "setup_success":              "ਸਰਵਰ ਕਨਫ਼ਿਗ {action} ਸਫਲ。\nਪ੍ਰਮਾਣਿਤ ਰੋਲ ਸੈੱਟ ਕੀਤਾ: `{role}` (ID={role_id})",
@@ -438,7 +460,7 @@ localizations: dict[str, dict[str, str]] = {
         "instructions_desc":          "**ਇਹਨਾਂ ਕਦਮਾਂ ਦੀ ਪਾਲਣਾ ਕਰੋ** ਆਪਣੇ 18+ ਸਥਿਤੀ ਦੀ ਪੁਸ਼ਟੀ ਕਰਨ ਲਈ:\n\n"
                                       "1. 'ਤੇ ਕਲਿੱਕ ਕਰੋ **ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ** ਬਟਨ (ਜੇ ਦਿਖਾਇਆ ਗਿਆ ਹੋਵੇ) ਜਾਂ ਕਿਸੇ ਵੀ ਜਗ੍ਹਾ ਟਾਈਪ ਕਰੋ `/vrcverify`。\n"
                                       "2. ਜੇ ਤੁਸੀਂ ਨਵੇਂ ਹੋ, ਤਾਂ ਤੁਹਾਡੇ ਤੋਂ ਤੁਹਾਡਾ VRChat ਯੂਜ਼ਰ ਨਾਮ ਪੁੱਛਿਆ ਜਾਵੇਗਾ。\n"
-                                      "3. ਬੋਟ ਤੁਹਾਨੂੰ ਇੱਕ ਵਿਲੱਖਣ ਕੋਡ ਦੇਵੇਗਾ - ਇਸਨੂੰ ਆਪਣੇ VRChat ਜੀਵਨ ਚਰਿਤ੍ਰ ਵਿੱਚ ਰੱਖੋ。\n"
+                                      "3. ਬੋਟ ਤੁਹਾਨੂੰ ਇੱਕ ਵਿਲੱਖਣ ਕੋਡ ਦੇਵੇਗਾ - ਇਸਨੂੰ ਆਪਣੇ VRChat ਜੀਵਨ ਚਰਿਤ੍ਰ ਵਿੱਚ **ਇੱਕ ਵੱਖਰੀ ਲਾਈਨ 'ਤੇ** ਰੱਖੋ。\n"
                                       "4. ਆਪਣੇ ਜੀਵਨ ਚਰਿਤ੍ਰ ਨੂੰ ਅਪਡੇਟ ਕਰਨ ਤੋਂ ਬਾਅਦ Discord ਵਿੱਚ **ਸত্যਾਪਿਤ ਕਰੋ** 'ਤੇ ਦਬਾਓ。\n\n"
                                       "ਜੇ ਤੁਹਾਨੂੰ ਵਾਧੂ ਸਹਾਇਤਾ ਦੀ ਲੋੜ ਹੈ, ਤਾਂ ਇੱਕ ਪ੍ਰਬੰਧਕ ਨਾਲ ਸੰਪਰਕ ਕਰੋ ਜਾਂ ਟਾਈਪ ਕਰੋ `/vrcverify_support`。",
         "btn_begin_verification":     "ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ",
@@ -450,5 +472,7 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_saved":           "ਕਸਟਮ ਪ੍ਰਮਾਣੀਕਰਨ ਬੇਨਤੀ ਸੁਨੇਹਾ ਸੰਭਾਲਿਆ ਗਿਆ।",
         "custom_msg_too_long":        "ਸੁਨੇਹਾ ਬਹੁਤ ਲੰਮਾ ਹੈ (ਵੱਧ ਤੋਂ ਵੱਧ 1000 ਅੱਖਰ)।",
         "custom_msg_invalid_links":   "ਬਲਾਕ ਕੀਤਾ: ਸਿਰਫ discord.com ਜਾਂ vrchat.com ਲਿੰਕ ਮਨਜ਼ੂਰ ਹਨ। ਗਲਤ ਲਿੰਕ:\n{invalid_list}",
+        "bio_verify_instructions1":   "**1)** ਕੋਡ ਨੂੰ ਆਪਣੇ VRChat ਬਾਇਓ ਵਿੱਚ ਇੱਕ ਅਲੱਗ ਲਾਈਨ 'ਤੇ ਸ਼ਾਮਿਲ ਕਰੋ।",
+        "bio_verify_instructions2":   "**2)** ਅਪਡੇਟ ਹੋਣ 'ਤੇ, Discord ਵਿੱਚ **ਸत्यਾਪਿਤ ਕਰੋ** 'ਤੇ ਕਲਿਕ ਕਰੋ (10 ਮਿੰਟਾਂ ਵਿੱਚ)。",
     }
 }
