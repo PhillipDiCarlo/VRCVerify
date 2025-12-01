@@ -45,6 +45,7 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_saved":           "Custom verification request message saved.",
         "custom_msg_too_long":        "Message too long (max 1000 characters).",
         "custom_msg_invalid_links":   "Blocked: Only discord.com or vrchat.com links allowed. Invalid link(s):\n{invalid_list}",
+        "vrc_id_already_linked":      "The VRChat profile you tried to use is already registered to a different Discord account. If you believe this is a mistake, please contact a server admin.",
     },
 
     "es-ES": {
@@ -84,6 +85,7 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_invalid_links":   "Bloqueado: Solo se permiten enlaces de discord.com o vrchat.com. Enlace(s) no válido(s):\n{invalid_list}",
         "bio_verify_instructions1":   "**1)** Añade el código a tu biografía de VRChat en su propia línea.",
         "bio_verify_instructions2":   "**2)** Una vez actualizada, haz clic en **Verificar** en Discord (dentro de 10 minutos).",
+        "vrc_id_already_linked":      "El perfil de VRChat que intentaste usar ya está registrado a otra cuenta de Discord. Si crees que se trata de un error, por favor contacta a un administrador del servidor.",
     },
 
     "zh-CN": {
@@ -123,6 +125,7 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_invalid_links":   "已阻止：只允许 discord.com 或 vrchat.com 链接。无效链接：\n{invalid_list}",
         "bio_verify_instructions1":   "**1)** 将代码添加到您的 VRChat 个人资料简介中的单独一行。",
         "bio_verify_instructions2":   "**2)** 更新后，在 Discord 中点击 **验证**（在 10 分钟内）。",
+        "vrc_id_already_linked":      "您尝试使用的 VRChat 个人资料已经绑定到另一位 Discord 帐号。如果您认为这是错误的，请联系服务器管理员。",
     },
 
     "ja": {
@@ -162,6 +165,7 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_invalid_links":   "ブロック: discord.com または vrchat.com へのリンクのみ許可されます。無効なリンク:\n{invalid_list}",
         "bio_verify_instructions1":   "**1)** コードを VRChat の自己紹介に単独の行として追加してください。",
         "bio_verify_instructions2":   "**2)** 自己紹介を更新したら、Discord で **確認** をクリックしてください（10分以内）。",
+        "vrc_id_already_linked":      "使用しようとしたVRChatプロフィールは、すでに別のDiscordアカウントに登録されています。間違いだと思う場合はサーバー管理者に連絡してください。",
     },
 
     "de": {
@@ -201,6 +205,7 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_invalid_links":   "Blockiert: Nur Links zu discord.com oder vrchat.com erlaubt. Ungültige Links:\n{invalid_list}",
         "bio_verify_instructions1":   "**1)** Füge den Code in deine VRChat-Biografie in einer eigenen Zeile ein.",
         "bio_verify_instructions2":   "**2)** Sobald deine Biografie aktualisiert ist, klicke in Discord auf **Überprüfen** (innerhalb von 10 Minuten).",
+        "vrc_id_already_linked":      "Das VRChat-Profil, das du verwenden wolltest, ist bereits mit einem anderen Discord-Konto verknüpft. Wenn du glaubst, dass dies ein Fehler ist, wende dich bitte an einen Server-Administrator.",
     },
 
     "nl": {
@@ -240,6 +245,7 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_invalid_links":   "Geblokkeerd: Alleen discord.com of vrchat.com links toegestaan. Ongeldige links:\n{invalid_list}",
         "bio_verify_instructions1":   "**1)** Voeg de code toe aan je VRChat-bio op een eigen regel.",
         "bio_verify_instructions2":   "**2)** Zodra je bio is bijgewerkt, klik op **Verifiëren** in Discord (binnen 10 minuten).",
+        "vrc_id_already_linked":      "Het VRChat-profiel dat je probeerde te gebruiken, is al geregistreerd op een ander Discord-account. Als je denkt dat dit een fout is, neem dan contact op met een serverbeheerder.",
     },
 
     "hi-IN": {
@@ -279,6 +285,7 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_invalid_links":   "अवरुद्ध: केवल discord.com या vrchat.com लिंक की अनुमति है। अमान्य लिंक:\n{invalid_list}",
         "bio_verify_instructions1":   "**1)** अपने VRChat बायो में कोड को अपनी अलग पंक्ति पर जोड़ें।",
         "bio_verify_instructions2":   "**2)** अपडेट करने के बाद, Discord में **सत्यापित करें** पर क्लिक करें (10 मिनट के अंदर)。",
+        "vrc_id_already_linked":      "जिस VRChat प्रोफ़ाइल का आपने उपयोग करने की कोशिश की, वह पहले से किसी अन्य Discord खाते से जुड़ी हुई है। यदि आपको लगता है कि यह गलती है, तो कृपया सर्वर ऐडमिन से संपर्क करें।",
     },
 
     "ar": {
@@ -318,6 +325,7 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_invalid_links":   "تم الحظر: يُسمح فقط بروابط discord.com أو vrchat.com. الروابط غير الصالحة:\n{invalid_list}",
         "bio_verify_instructions1":   "**1)** أضف الكود إلى سيرتك الذاتية في VRChat في سطر مستقل.",
         "bio_verify_instructions2":   "**2)** بمجرد تحديث سيرتك الذاتية، انقر على **تحقق** في Discord (خلال 10 دقائق).",
+        "vrc_id_already_linked":      "ملف الـ VRChat الذي حاولت استخدامه مسجّل بالفعل على حساب Discord آخر. إذا كنت تعتقد أن هذا خطأ، يرجى الاتصال بمسؤول الخادم.",
     },
 
     "bn": {
@@ -357,6 +365,7 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_invalid_links":   "ব্লক করা হয়েছে: শুধুমাত্র discord.com বা vrchat.com লিঙ্ক অনুমোদিত। অবৈধ লিঙ্ক:\n{invalid_list}",
         "bio_verify_instructions1":   "**1)** কোডটি আপনার VRChat বায়োতে একটি স্বতন্ত্র লাইনে যোগ করুন।",
         "bio_verify_instructions2":   "**2)** আপডেট হওয়ার পরে, Discord-এ **যাচাই করুন** ক্লিক করুন (10 মিনিটের মধ্যে)。",
+        "vrc_id_already_linked":      "আপনি যে VRChat প্রোফাইলটি ব্যবহার করার চেষ্টা করেছেন, সেটি ইতিমধ্যেই অন্য একটি Discord অ্যাকাউন্টের সাথে নিবন্ধিত। যদি আপনি মনে করেন এটি একটি ভুল, তবে অনুগ্রহ করে সার্ভার অ্যাডমিনের সাথে যোগাযোগ করুন।",
     },
 
     "pt-BR": {
@@ -396,6 +405,7 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_invalid_links":   "Bloqueado: Apenas links discord.com ou vrchat.com permitidos. Links inválidos:\n{invalid_list}",
         "bio_verify_instructions1":   "**1)** Adicione o código à sua bio do VRChat em sua própria linha.",
         "bio_verify_instructions2":   "**2)** Assim que sua bio for atualizada, clique em **Verificar** no Discord (dentro de 10 minutos).",
+        "vrc_id_already_linked":      "O perfil do VRChat que você tentou usar já está registrado em outra conta do Discord. Se você acha que isso é um engano, entre em contato com um administrador do servidor.",
     },
 
     "ru": {
@@ -435,6 +445,7 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_invalid_links":   "Блокировано: Разрешены только ссылки на discord.com или vrchat.com. Неверные ссылки:\n{invalid_list}",
         "bio_verify_instructions1":   "**1)** Добавьте код в вашу биографию VRChat в отдельной строке.",
         "bio_verify_instructions2":   "**2)** Как только ваша биография будет обновлена, нажмите **Проверить** в Discord (в течение 10 минут).",
+        "vrc_id_already_linked":      "Профиль VRChat, который вы попытались использовать, уже привязан к другой учётной записи Discord. Если вы считаете, что это ошибка, свяжитесь с администратором сервера.",
     },
 
     "pa-IN": {
@@ -474,5 +485,6 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_invalid_links":   "ਬਲਾਕ ਕੀਤਾ: ਸਿਰਫ discord.com ਜਾਂ vrchat.com ਲਿੰਕ ਮਨਜ਼ੂਰ ਹਨ। ਗਲਤ ਲਿੰਕ:\n{invalid_list}",
         "bio_verify_instructions1":   "**1)** ਕੋਡ ਨੂੰ ਆਪਣੇ VRChat ਬਾਇਓ ਵਿੱਚ ਇੱਕ ਅਲੱਗ ਲਾਈਨ 'ਤੇ ਸ਼ਾਮਿਲ ਕਰੋ।",
         "bio_verify_instructions2":   "**2)** ਅਪਡੇਟ ਹੋਣ 'ਤੇ, Discord ਵਿੱਚ **ਸत्यਾਪਿਤ ਕਰੋ** 'ਤੇ ਕਲਿਕ ਕਰੋ (10 ਮਿੰਟਾਂ ਵਿੱਚ)。",
+        "vrc_id_already_linked":      "ਜਿਸ VRChat ਪ੍ਰੋਫ਼ਾਈਲ ਨੂੰ ਤੁਸੀਂ ਵਰਤਣ ਦੀ ਕੋਸ਼ਿਸ਼ ਕੀਤੀ, ਉਹ ਪਹਿਲਾਂ ਹੀ ਕਿਸੇ ਹੋਰ Discord ਖਾਤੇ ਨਾਲ ਰਜਿਸਟਰ ਹੈ। ਜੇ ਤੁਹਾਨੂੰ ਲੱਗਦਾ ਹੈ ਕਿ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਕਿਰਪਾ ਕਰਕੇ ਸਰਵਰ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
     }
 }
