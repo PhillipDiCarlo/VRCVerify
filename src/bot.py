@@ -767,15 +767,33 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
             )
             return
 
-        # …and now proceed exactly as before, but using `vrc_user_id`
         discord_id = str(interaction.user.id)
         guild_id = str(interaction.guild_id)
-        verification_code = generate_verification_code()
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
+        # Check if this VRChat ID is already linked to a *different* Discord account
         with session_scope() as session:
+            existing_user = session.query(User).filter_by(vrc_user_id=vrc_user_id).first()
+            if existing_user and existing_user.discord_id != discord_id:
+                # This VRChat profile is already registered to another Discord account
+                # (you can localize this later if you want)
+                await interaction.response.send_message(
+                    get_message("vrc_id_already_linked", interaction),
+                    ephemeral=True
+                )
+                return
+
+            # If we reach here, either:
+            #  - no one is using this vrc_user_id, or
+            #  - it's the same Discord user (which shouldn't happen for this modal path, but is safe)
+
+            verification_code = generate_verification_code()
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+
             # Remove any old pending entry for this user/guild
-            session.query(PendingVerification).filter_by(discord_id=discord_id, guild_id=guild_id).delete()
+            session.query(PendingVerification).filter_by(
+                discord_id=discord_id,
+                guild_id=guild_id
+            ).delete()
 
             pending = PendingVerification(
                 discord_id=discord_id,
