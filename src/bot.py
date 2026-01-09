@@ -263,6 +263,37 @@ class VRCVerifyBot(discord.Client):
 bot = VRCVerifyBot()
 
 
+@bot.tree.error
+async def on_app_command_error(
+    interaction: discord.Interaction, error: app_commands.AppCommandError
+):
+    """Handle common slash-command errors without noisy tracebacks."""
+    original = getattr(error, "original", error)
+
+    if isinstance(original, app_commands.MissingPermissions):
+        missing = ", ".join(original.missing_permissions)
+        msg = (
+            "You don't have permission to use this command. "
+            f"Missing permission(s): {missing}."
+        )
+    elif isinstance(original, app_commands.NoPrivateMessage):
+        msg = "This command can only be used in a server (not in DMs)."
+    elif isinstance(original, app_commands.CheckFailure):
+        msg = "You can't use this command here."
+    else:
+        logger.exception("Unhandled app command error", exc_info=original)
+        msg = "Something went wrong while running that command."
+
+    try:
+        if interaction.response.is_done():
+            await interaction.followup.send(msg, ephemeral=True)
+        else:
+            await interaction.response.send_message(msg, ephemeral=True)
+    except Exception:
+        # If we can't respond (e.g., already responded and followup failed), just swallow.
+        pass
+
+
 # -------------------------------------------------------------------
 # Instruction Button
 # -------------------------------------------------------------------
@@ -287,6 +318,12 @@ class VRCVerifyInstructionView(View):
         await process_verification(interaction)
 
     async def update_nickname(self, interaction: discord.Interaction):
+        if interaction.guild_id is None:
+            return await interaction.response.send_message(
+                "Please use this button inside the server (not in DMs).",
+                ephemeral=True,
+            )
+
         user_id = str(interaction.user.id)
         # fetch user and vrc_user_id
         with session_scope() as session:
@@ -302,7 +339,7 @@ class VRCVerifyInstructionView(View):
         await publish_to_vrc_checker(
             discord_id=user_id,
             vrc_user_id=vrc_user_id,
-            guild_id=str(interaction.guild.id),
+            guild_id=str(interaction.guild_id),
             code=None,
             update_nickname=True
         )
@@ -540,7 +577,16 @@ async def process_verification(interaction: discord.Interaction):
       3. If the user exists but is not verified, it triggers a "no-code" re-check by publishing a verification request.
       4. If the user is not in the database, it presents a modal for the user to enter their VRChat username.
     """
-    guild_id = str(interaction.guild.id)
+    if interaction.guild_id is None:
+        # Happens when the command is used in DMs / user-install context.
+        msg = "Please run this command inside the server you want to verify in."
+        if interaction.response.is_done():
+            await interaction.followup.send(msg, ephemeral=True)
+        else:
+            await interaction.response.send_message(msg, ephemeral=True)
+        return
+
+    guild_id = str(interaction.guild_id)
     user_id = str(interaction.user.id)
 
     # Use a session block to load data and extract only the necessary values.
@@ -574,6 +620,11 @@ async def process_verification(interaction: discord.Interaction):
 
     # CASE B: User exists but is not verified => trigger a "no-code" re-check.
     if user is not None and not is_verified:
+        # If we don't have a stored VRChat user id, fall back to relinking.
+        if not stored_vrc_user_id:
+            await interaction.response.send_modal(VRCUsernameModal(interaction))
+            return
+
         await interaction.response.defer(ephemeral=True)
         await publish_to_vrc_checker(
             discord_id=user_id,
@@ -849,6 +900,7 @@ class VRCVerificationButton(discord.ui.View):
 # -------------------------------------------------------------------
 # Slash Command: /vrcverify
 # -------------------------------------------------------------------
+@app_commands.guild_only()
 @bot.tree.command(name="vrcverify", description="Verify your VRChat 18+ status")
 async def vrcverify(interaction: discord.Interaction):
     await process_verification(interaction)
