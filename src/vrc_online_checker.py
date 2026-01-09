@@ -1,11 +1,9 @@
 import time
 import imaplib
-import email
 import re
 import os
 import json
 import pika
-import psycopg2
 import logging
 from dotenv import load_dotenv
 
@@ -23,7 +21,6 @@ load_dotenv()
 
 VRCHAT_USERNAME = os.getenv("VRCHAT_USERNAME")
 VRCHAT_PASSWORD = os.getenv("VRCHAT_PASSWORD")
-DATABASE_URL = os.getenv("DATABASE_URL")
 
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT"))
@@ -167,6 +164,15 @@ vrchat_api_client = login_to_vrchat()
 if not vrchat_api_client:
     logging.error("VRChat login failed. Exiting soon...")
 
+
+def ensure_vrchat_session() -> vrchatapi.ApiClient | None:
+    """Ensure we have a logged-in VRChat API client (attempts relogin if needed)."""
+    global vrchat_api_client
+    if vrchat_api_client:
+        return vrchat_api_client
+    vrchat_api_client = login_to_vrchat()
+    return vrchat_api_client
+
 # -------------------------------------------------------------------
 # Small TTL cache for VRChat user lookups (dedupe repeated requests)
 # -------------------------------------------------------------------
@@ -206,16 +212,14 @@ _vrc_cache = _TTLCache(VRCHAT_CACHE_MAX, VRCHAT_TTL_SECONDS)
 # Verification Logic
 # -------------------------------------------------------------------
 def process_verification_request(ch, method, properties, body):
-    """
-    The bot sends us JSON with:
-      - discordID
-      - vrcUserID
-      - guildID
-      - verificationCode (possibly None)
-      - update_nickname (optional, default False)
-    We'll check VRChat, then publish a result back to RESULT_QUEUE_NAME.
-    """
-    data = json.loads(body)
+    """RabbitMQ callback: verify, publish result, then ACK/NACK."""
+    try:
+        data = json.loads(body)
+    except Exception:
+        logging.exception("Invalid JSON body; dropping message")
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        return
+
     discord_id = data.get("discordID")
     vrc_user_id = data.get("vrcUserID")
     guild_id = data.get("guildID")
@@ -224,19 +228,29 @@ def process_verification_request(ch, method, properties, body):
 
     logging.info("Received verification request: %s", data)
 
-    # If verification_code is None => "re-check"
-    # If not None => "new code" approach
-    result = verify_and_build_result(
-        discord_id=discord_id,
-        vrc_user_id=vrc_user_id,
-        guild_id=guild_id,
-        verification_code=verification_code,
-    )
+    try:
+        # If verification_code is None => "re-check"
+        # If not None => "new code" approach
+        result = verify_and_build_result(
+            discord_id=discord_id,
+            vrc_user_id=vrc_user_id,
+            guild_id=guild_id,
+            verification_code=verification_code,
+        )
 
-    if update_nickname:
-        result["updateNickname"] = True
+        if update_nickname:
+            result["updateNickname"] = True
 
-    send_verification_result(result)
+        send_verification_result(result)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+    except pika.exceptions.AMQPError:
+        # Broker/network issue while publishing; retry later.
+        logging.exception("RabbitMQ publish failed; requeueing request")
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+    except Exception:
+        # Unknown failure; requeue once (may need DLQ in production).
+        logging.exception("Unexpected error processing request; requeueing")
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
 
 def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code):
@@ -248,7 +262,8 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
       - "verificationCode"
       - etc.
     """
-    if not vrchat_api_client:
+    client = ensure_vrchat_session()
+    if not client:
         logging.error("VRChat session not active. Failing verification.")
         return {
             "discordID": discord_id,
@@ -260,7 +275,7 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
             "display_name": None,
         }
 
-    users_api_instance = users_api.UsersApi(vrchat_api_client)
+    users_api_instance = users_api.UsersApi(client)
     display_name = None
 
     # Try cache first
@@ -271,6 +286,38 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
         try:
             vrc_user = users_api_instance.get_user(vrc_user_id)
             _vrc_cache.set(vrc_user_id, vrc_user)
+        except UnauthorizedException:
+            # Session can expire; try one relogin + retry.
+            logging.warning("VRChat session unauthorized; attempting relogin")
+            global vrchat_api_client
+            vrchat_api_client = None
+            client = ensure_vrchat_session()
+            if not client:
+                logging.error("Relogin failed; cannot verify right now")
+                return {
+                    "discordID": discord_id,
+                    "vrcUserID": vrc_user_id,
+                    "guildID": guild_id,
+                    "is_18_plus": False,
+                    "verificationCode": verification_code,
+                    "code_found": False,
+                    "display_name": display_name,
+                }
+            users_api_instance = users_api.UsersApi(client)
+            try:
+                vrc_user = users_api_instance.get_user(vrc_user_id)
+                _vrc_cache.set(vrc_user_id, vrc_user)
+            except Exception as e:
+                logging.error("Failed to fetch VRChat user %s after relogin. Error: %s", vrc_user_id, e)
+                return {
+                    "discordID": discord_id,
+                    "vrcUserID": vrc_user_id,
+                    "guildID": guild_id,
+                    "is_18_plus": False,
+                    "verificationCode": verification_code,
+                    "code_found": False,
+                    "display_name": display_name,
+                }
         except ApiException as e:
             logging.error("Failed to fetch VRChat user %s. Error: %s", vrc_user_id, e)
             return {
@@ -336,10 +383,11 @@ def listen_for_verifications():
     channel = connection.channel()
 
     channel.queue_declare(queue=RABBITMQ_QUEUE_NAME, durable=True)
+    channel.basic_qos(prefetch_count=1)
     channel.basic_consume(
         queue=RABBITMQ_QUEUE_NAME,
         on_message_callback=process_verification_request,
-        auto_ack=True,
+        auto_ack=False,
     )
     logging.info("Listening for verification requests on '%s'...", RABBITMQ_QUEUE_NAME)
     channel.start_consuming()
