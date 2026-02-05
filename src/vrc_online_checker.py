@@ -6,6 +6,7 @@ import json
 import pika
 import logging
 from dotenv import load_dotenv
+from pika.exceptions import AMQPError
 
 # VRChat API imports
 import vrchatapi
@@ -51,12 +52,46 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 # RabbitMQ Setup
 # -------------------------------------------------------------------
 credentials = pika.PlainCredentials(RABBITMQ_USERNAME, RABBITMQ_PASSWORD)
-parameters = pika.ConnectionParameters(
-    host=RABBITMQ_HOST,
-    port=RABBITMQ_PORT,
-    virtual_host=RABBITMQ_VHOST,
-    credentials=credentials,
-)
+
+
+def _rabbitmq_parameters() -> pika.ConnectionParameters:
+    """Build connection parameters with heartbeats/timeouts so stale connections get detected."""
+    heartbeat = int(os.getenv("RABBITMQ_HEARTBEAT", "60"))
+    blocked_timeout = int(os.getenv("RABBITMQ_BLOCKED_TIMEOUT", "60"))
+    connection_attempts = int(os.getenv("RABBITMQ_CONN_ATTEMPTS", "3"))
+    retry_delay = float(os.getenv("RABBITMQ_RETRY_DELAY", "2"))
+    socket_timeout = float(os.getenv("RABBITMQ_SOCKET_TIMEOUT", "10"))
+
+    return pika.ConnectionParameters(
+        host=RABBITMQ_HOST,
+        port=RABBITMQ_PORT,
+        virtual_host=RABBITMQ_VHOST,
+        credentials=credentials,
+        heartbeat=heartbeat,
+        blocked_connection_timeout=blocked_timeout,
+        connection_attempts=connection_attempts,
+        retry_delay=retry_delay,
+        socket_timeout=socket_timeout,
+    )
+
+
+def _rabbitmq_connect_with_retry(max_tries: int = 0) -> pika.BlockingConnection:
+    """Connect to RabbitMQ with retries.
+
+    max_tries=0 means retry forever (used by long-running consumers).
+    """
+    params = _rabbitmq_parameters()
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            return pika.BlockingConnection(params)
+        except pika.exceptions.AMQPConnectionError:
+            if max_tries and attempt >= max_tries:
+                raise
+            delay = min(30.0, 2.0 * attempt)
+            logging.warning("RabbitMQ connection failed; retrying in %.1fs (attempt %s)", delay, attempt)
+            time.sleep(delay)
 
 
 # -------------------------------------------------------------------
@@ -364,33 +399,77 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
 
 def send_verification_result(result: dict):
     """Publish the verification result to the bot's queue."""
-    connection = pika.BlockingConnection(parameters)
-    channel = connection.channel()
-    channel.queue_declare(queue=RESULT_QUEUE_NAME, durable=True)
-
     message_str = json.dumps(result)
-    channel.basic_publish(exchange="", routing_key=RESULT_QUEUE_NAME, body=message_str)
-    connection.close()
+    properties = pika.BasicProperties(
+        content_type="application/json",
+        delivery_mode=2,  # persistent
+    )
 
-    logging.info("Sent verification result to '%s': %s", RESULT_QUEUE_NAME, message_str)
+    max_publish_tries = int(os.getenv("RABBITMQ_PUBLISH_TRIES", "3"))
+    last_exc: Exception | None = None
+    for attempt in range(1, max_publish_tries + 1):
+        connection = None
+        try:
+            connection = _rabbitmq_connect_with_retry(max_tries=1)
+            channel = connection.channel()
+            channel.queue_declare(queue=RESULT_QUEUE_NAME, durable=True)
+            channel.basic_publish(
+                exchange="",
+                routing_key=RESULT_QUEUE_NAME,
+                body=message_str,
+                properties=properties,
+            )
+            logging.info("Sent verification result to '%s': %s", RESULT_QUEUE_NAME, message_str)
+            return
+        except AMQPError as e:
+            last_exc = e
+            logging.warning(
+                "RabbitMQ result publish failed (attempt %s/%s); retrying...",
+                attempt,
+                max_publish_tries,
+                exc_info=True,
+            )
+            time.sleep(min(10.0, 1.5 * attempt))
+        finally:
+            try:
+                if connection and connection.is_open:
+                    connection.close()
+            except Exception:
+                pass
+
+    logging.error("RabbitMQ result publish failed after retries; giving up", exc_info=last_exc)
 
 
 def listen_for_verifications():
     """Blocking function that listens for new requests from the bot."""
     if not vrchat_api_client:
         logging.warning("VRChat login was not successful. We might fail all requests.")
-    connection = pika.BlockingConnection(parameters)
-    channel = connection.channel()
-
-    channel.queue_declare(queue=RABBITMQ_QUEUE_NAME, durable=True)
-    channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(
-        queue=RABBITMQ_QUEUE_NAME,
-        on_message_callback=process_verification_request,
-        auto_ack=False,
-    )
-    logging.info("Listening for verification requests on '%s'...", RABBITMQ_QUEUE_NAME)
-    channel.start_consuming()
+    while True:
+        connection = None
+        try:
+            connection = _rabbitmq_connect_with_retry(max_tries=0)
+            channel = connection.channel()
+            channel.queue_declare(queue=RABBITMQ_QUEUE_NAME, durable=True)
+            channel.basic_qos(prefetch_count=1)
+            channel.basic_consume(
+                queue=RABBITMQ_QUEUE_NAME,
+                on_message_callback=process_verification_request,
+                auto_ack=False,
+            )
+            logging.info("Listening for verification requests on '%s'...", RABBITMQ_QUEUE_NAME)
+            channel.start_consuming()
+        except (pika.exceptions.AMQPConnectionError, pika.exceptions.StreamLostError, OSError):
+            logging.warning("RabbitMQ consumer disconnected; reconnecting soon...", exc_info=True)
+            time.sleep(3)
+        except Exception:
+            logging.exception("Unexpected error in RabbitMQ consume loop; restarting")
+            time.sleep(3)
+        finally:
+            try:
+                if connection and connection.is_open:
+                    connection.close()
+            except Exception:
+                pass
 
 
 # -------------------------------------------------------------------
