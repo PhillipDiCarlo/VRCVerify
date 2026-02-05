@@ -14,6 +14,7 @@ from discord.ext import commands
 from discord.ui import View, Button, Select
 
 import pika
+from pika.exceptions import AMQPError
 from sqlalchemy import (
     create_engine,
     Column,
@@ -181,12 +182,48 @@ def server_has_column(column_name: str) -> bool:
 # RabbitMQ Setup
 # -------------------------------------------------------------------
 credentials = pika.PlainCredentials(RABBITMQ_USERNAME, RABBITMQ_PASSWORD)
-parameters = pika.ConnectionParameters(
-    host=RABBITMQ_HOST,
-    port=RABBITMQ_PORT,
-    virtual_host=RABBITMQ_VHOST,
-    credentials=credentials
-)
+
+
+def _rabbitmq_parameters() -> pika.ConnectionParameters:
+    """Build connection parameters with heartbeats/timeouts so stale connections get detected."""
+    heartbeat = int(os.getenv("RABBITMQ_HEARTBEAT", "60"))
+    blocked_timeout = int(os.getenv("RABBITMQ_BLOCKED_TIMEOUT", "60"))
+    connection_attempts = int(os.getenv("RABBITMQ_CONN_ATTEMPTS", "3"))
+    retry_delay = float(os.getenv("RABBITMQ_RETRY_DELAY", "2"))
+    socket_timeout = float(os.getenv("RABBITMQ_SOCKET_TIMEOUT", "10"))
+
+    return pika.ConnectionParameters(
+        host=RABBITMQ_HOST,
+        port=RABBITMQ_PORT,
+        virtual_host=RABBITMQ_VHOST,
+        credentials=credentials,
+        heartbeat=heartbeat,
+        blocked_connection_timeout=blocked_timeout,
+        connection_attempts=connection_attempts,
+        retry_delay=retry_delay,
+        socket_timeout=socket_timeout,
+    )
+
+
+def _rabbitmq_connect_with_retry(max_tries: int = 0) -> pika.BlockingConnection:
+    """Connect to RabbitMQ with retries.
+
+    max_tries=0 means retry forever (used by long-running consumers).
+    """
+    params = _rabbitmq_parameters()
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            return pika.BlockingConnection(params)
+        except pika.exceptions.AMQPConnectionError:
+            if max_tries and attempt >= max_tries:
+                raise
+            delay = min(30.0, 2.0 * attempt)
+            logger.warning("RabbitMQ connection failed; retrying in %.1fs (attempt %s)", delay, attempt)
+            import time
+
+            time.sleep(delay)
 
 # -------------------------------------------------------------------
 # Discord Bot
@@ -662,14 +699,45 @@ async def publish_to_vrc_checker(
         if update_nickname:
             message["updateNickname"] = True
 
-        conn = pika.BlockingConnection(parameters)
-        channel = conn.channel()
-        channel.queue_declare(queue=RABBITMQ_REQUEST_QUEUE, durable=True)
-        channel.basic_publish(
-            exchange="", routing_key=RABBITMQ_REQUEST_QUEUE, body=json.dumps(message)
+        properties = pika.BasicProperties(
+            content_type="application/json",
+            delivery_mode=2,  # persistent
         )
-        conn.close()
-        logger.info("📤 Sent to vrc_online_checker: %s", message)
+
+        max_publish_tries = int(os.getenv("RABBITMQ_PUBLISH_TRIES", "3"))
+        last_exc: Exception | None = None
+        for attempt in range(1, max_publish_tries + 1):
+            conn = None
+            try:
+                conn = _rabbitmq_connect_with_retry(max_tries=1)
+                channel = conn.channel()
+                channel.queue_declare(queue=RABBITMQ_REQUEST_QUEUE, durable=True)
+                channel.basic_publish(
+                    exchange="",
+                    routing_key=RABBITMQ_REQUEST_QUEUE,
+                    body=json.dumps(message),
+                    properties=properties,
+                )
+                logger.info("📤 Sent to vrc_online_checker: %s", message)
+                return
+            except AMQPError as e:
+                last_exc = e
+                logger.warning(
+                    "RabbitMQ publish failed (attempt %s/%s); retrying...",
+                    attempt,
+                    max_publish_tries,
+                    exc_info=True,
+                )
+                import time
+
+                time.sleep(min(10.0, 1.5 * attempt))
+            finally:
+                try:
+                    if conn and conn.is_open:
+                        conn.close()
+                except Exception:
+                    pass
+        logger.error("RabbitMQ publish failed after retries; dropping request", exc_info=last_exc)
 
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, _publish)
@@ -1174,24 +1242,45 @@ async def consume_results_queue():
     loop = asyncio.get_running_loop()
 
     def on_message(ch, method, properties, body):
-        data = json.loads(body)
-        future = asyncio.run_coroutine_threadsafe(handle_verification_result(data), loop)
+        try:
+            data = json.loads(body)
+        except Exception:
+            logger.exception("Invalid JSON in results queue; dropping message")
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            return
+
+        asyncio.run_coroutine_threadsafe(handle_verification_result(data), loop)
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def do_blocking_consume():
-        try:
-            connection = pika.BlockingConnection(parameters)
-            channel = connection.channel()
-            channel.queue_declare(queue=RABBITMQ_RESULT_QUEUE, durable=True)
-            logger.info(f"✅ Listening for verification results on '{RABBITMQ_RESULT_QUEUE}'...")
-            channel.basic_consume(
-                queue=RABBITMQ_RESULT_QUEUE,
-                on_message_callback=on_message,
-                auto_ack=False
-            )
-            channel.start_consuming()
-        except pika.exceptions.AMQPConnectionError as e:
-            logger.error(f"❌ RabbitMQ connection failed: {e}")
+        import time
+
+        while True:
+            connection = None
+            try:
+                connection = _rabbitmq_connect_with_retry(max_tries=0)
+                channel = connection.channel()
+                channel.queue_declare(queue=RABBITMQ_RESULT_QUEUE, durable=True)
+                channel.basic_qos(prefetch_count=10)
+                logger.info("✅ Listening for verification results on '%s'...", RABBITMQ_RESULT_QUEUE)
+                channel.basic_consume(
+                    queue=RABBITMQ_RESULT_QUEUE,
+                    on_message_callback=on_message,
+                    auto_ack=False,
+                )
+                channel.start_consuming()
+            except (pika.exceptions.AMQPConnectionError, pika.exceptions.StreamLostError, OSError):
+                logger.warning("RabbitMQ consumer disconnected; reconnecting soon...", exc_info=True)
+                time.sleep(3)
+            except Exception:
+                logger.exception("Unexpected error in RabbitMQ consumer; restarting consumer loop")
+                time.sleep(3)
+            finally:
+                try:
+                    if connection and connection.is_open:
+                        connection.close()
+                except Exception:
+                    pass
 
     await loop.run_in_executor(None, do_blocking_consume)
 
