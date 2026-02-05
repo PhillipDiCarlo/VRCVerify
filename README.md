@@ -29,6 +29,7 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
   - Optional removal of an "unverified" role once a user becomes verified.
 - Instructions posting command (/vrcverify_instructions) that publishes a localized, interactive instruction embed with buttons.
 - Robust request/result flow via RabbitMQ including a dedicated result consumer in the bot.
+- Improved RabbitMQ reliability: both services auto-reconnect after broker restarts/idle disconnects; publishes retry and use persistent delivery.
 - Ephemeral "pending verification" records with background cleanup of expired requests.
 - REST and VRChat API TTL caches to reduce rate-limit pressure and speed up repeated checks.
 
@@ -51,6 +52,8 @@ See the sections below for details and configuration.
   Uses the pika library to handle two queues:
   - A request queue (for sending verification requests from the bot to the checker).
   - A result queue (for receiving verification outcomes back in the bot).
+  
+  Reliability note: both components run a long-lived consumer and will automatically reconnect if the RabbitMQ container restarts or the connection becomes stale. Publishing is retried and messages are marked persistent.
 
 - **VRChat API Integration:**  
   Uses the `vrchatapi` library to interact with VRChat’s API. The online checker handles VRChat login, including two-factor authentication by checking the inbox of a Gmail account via IMAP.
@@ -138,6 +141,15 @@ See the sections below for details and configuration.
    RABBITMQ_QUEUE_NAME=your_request_queue_name
    RABBITMQ_RESULT_QUEUE=your_result_queue_name
 
+  # Optional: RabbitMQ connection health + retry tuning (recommended for long uptime)
+  # These are used by BOTH the bot and checker.
+  RABBITMQ_HEARTBEAT=60
+  RABBITMQ_BLOCKED_TIMEOUT=60
+  RABBITMQ_CONN_ATTEMPTS=3
+  RABBITMQ_RETRY_DELAY=2
+  RABBITMQ_SOCKET_TIMEOUT=10
+  RABBITMQ_PUBLISH_TRIES=3
+
    # Gmail Login for 2FA Code Fetching
    GMAIL_USER=your_gmail_address
    GMAIL_APP_PASSWORD=your_gmail_app_password
@@ -190,6 +202,8 @@ Each component connects to RabbitMQ to exchange verification requests and result
   ## Background jobs and reliability
 
   - A dedicated RabbitMQ consumer in the bot listens for verification results from the checker and assigns/removes roles accordingly.
+  - Both the bot and checker use resilient RabbitMQ connections (heartbeats + timeouts) and will automatically reconnect if the broker restarts.
+  - RabbitMQ publishes are retried and sent as persistent messages (delivery_mode=2).
   - A periodic cleanup task removes expired entries from the `PendingVerification` table to keep the database tidy.
   - TTL caches and concurrency gates help reduce rate-limit pressure on Discord and VRChat APIs.
 
