@@ -6,6 +6,7 @@ import random
 import string
 import re
 from typing import Optional
+from html import escape
 from types import SimpleNamespace
 
 import discord
@@ -605,6 +606,45 @@ async def dm_role_assignment_failure(
         server=guild.name,
     )
 
+
+def build_vrchat_issue_message(data: dict) -> str:
+    error_type = data.get("error_type") or "vrchat_error"
+    confirmed_outage = bool(data.get("vrchat_outage_confirmed"))
+    suspected_outage = bool(data.get("vrchat_outage"))
+    status_message = (data.get("vrchat_status_message") or "").strip()
+    status_page = data.get("vrchat_status_page") or "https://status.vrchat.com/"
+
+    if error_type == "vrchat_user_not_found":
+        return (
+            "We could not find that VRChat account. Please double-check that you pasted your VRChat profile URL or `usr_...` user ID correctly."
+        )
+
+    if error_type == "vrchat_rate_limited":
+        return (
+            "VRChat is rate limiting verification lookups right now. Please wait a minute and try again."
+        )
+
+    if error_type in {"vrchat_auth_error", "vrchat_session_unavailable"}:
+        return (
+            "VRCVerify is temporarily unable to talk to VRChat right now. Please try again in a little while."
+        )
+
+    if confirmed_outage:
+        msg = (
+            "VRChat is currently reporting a service issue that is affecting verification. "
+            f"Please try again later.\n\nStatus page: {status_page}"
+        )
+        if status_message:
+            msg += f"\n\nReported status: {escape(status_message[:500])}"
+        return msg
+
+    if suspected_outage or error_type in {"vrchat_upstream_error", "vrchat_timeout"}:
+        return (
+            "VRChat appears to be having temporary API issues, so verification could not be completed right now. "
+            f"Please try again later.\n\nStatus page: {status_page}"
+        )
+
+    return "Verification could not be completed because VRChat returned an unexpected error. Please try again later."
 
 async def process_verification(interaction: discord.Interaction):
     """
@@ -1299,11 +1339,21 @@ async def handle_verification_result(data: dict):
         verification_code = data.get("verificationCode")   # None => re-check
         update_nick       = data.get("updateNickname", False)
         display_name      = data.get("display_name")
+        lookup_ok         = data.get("lookup_ok", True)
+        guild  = bot.get_guild(int(guild_id)) if guild_id else None
+        member = await fetch_member_cached(guild, int(discord_id)) if guild and discord_id else None
+
+        if not lookup_ok:
+            issue_message = build_vrchat_issue_message(data)
+            if member:
+                try:
+                    await member.send(issue_message)
+                except discord.Forbidden:
+                    logger.warning("⚠️ Cannot DM user about VRChat outage / API issue.")
+            return
 
         # — On-demand nickname update flow —
         if update_nick:
-            guild  = bot.get_guild(int(guild_id))
-            member = await fetch_member_cached(guild, int(discord_id)) if guild else None
             if member and display_name:
                 # try to change nickname
                 try:
