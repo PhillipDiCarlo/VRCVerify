@@ -5,6 +5,8 @@ import os
 import json
 import pika
 import logging
+import random
+from urllib import request as urllib_request, error as urllib_error
 from dotenv import load_dotenv
 from pika.exceptions import AMQPError
 
@@ -244,6 +246,211 @@ _vrc_cache = _TTLCache(VRCHAT_CACHE_MAX, VRCHAT_TTL_SECONDS)
 
 
 # -------------------------------------------------------------------
+# VRChat status page / outage helpers
+# -------------------------------------------------------------------
+VRCHAT_STATUS_SUMMARY_URL = os.getenv("VRCHAT_STATUS_SUMMARY_URL", "https://status.vrchat.com/api/v2/summary.json")
+VRCHAT_STATUS_CACHE_SECONDS = int(os.getenv("VRCHAT_STATUS_CACHE_SECONDS", "120"))
+VRCHAT_LOOKUP_RETRIES = int(os.getenv("VRCHAT_LOOKUP_RETRIES", "3"))
+VRCHAT_LOOKUP_BACKOFF_BASE = float(os.getenv("VRCHAT_LOOKUP_BACKOFF_BASE", "1.5"))
+
+_vrchat_status_cache: dict[str, object] = {
+    "expires_at": 0.0,
+    "value": None,
+}
+
+
+def _result_payload(discord_id, vrc_user_id, guild_id, verification_code, **extra):
+    payload = {
+        "discordID": discord_id,
+        "vrcUserID": vrc_user_id,
+        "guildID": guild_id,
+        "is_18_plus": False,
+        "verificationCode": verification_code,
+        "code_found": False,
+        "display_name": None,
+        "lookup_ok": True,
+        "error_type": None,
+        "error_message": None,
+        "vrchat_outage": False,
+        "vrchat_outage_confirmed": False,
+        "vrchat_status_message": None,
+        "vrchat_status_indicator": None,
+        "vrchat_status_page": "https://status.vrchat.com/",
+    }
+    payload.update(extra)
+    return payload
+
+
+def _fetch_vrchat_status_summary(force_refresh: bool = False) -> dict | None:
+    now = time.monotonic()
+    cached = _vrchat_status_cache.get("value")
+    expires_at = float(_vrchat_status_cache.get("expires_at") or 0.0)
+    if cached is not None and not force_refresh and expires_at > now:
+        return cached  # type: ignore[return-value]
+
+    try:
+        req = urllib_request.Request(
+            VRCHAT_STATUS_SUMMARY_URL,
+            headers={
+                "User-Agent": "VRCVerifyBot/1.0 (+https://status.vrchat.com/)"
+            },
+        )
+        with urllib_request.urlopen(req, timeout=8) as resp:
+            raw = resp.read().decode("utf-8")
+        data = json.loads(raw)
+        _vrchat_status_cache["value"] = data
+        _vrchat_status_cache["expires_at"] = now + VRCHAT_STATUS_CACHE_SECONDS
+        return data
+    except Exception:
+        logging.warning("Failed to fetch VRChat status summary", exc_info=True)
+        if cached is not None:
+            return cached  # type: ignore[return-value]
+        return None
+
+
+def _extract_relevant_vrchat_status() -> dict:
+    summary = _fetch_vrchat_status_summary()
+    if not summary:
+        return {
+            "vrchat_outage": False,
+            "vrchat_outage_confirmed": False,
+            "vrchat_status_message": None,
+            "vrchat_status_indicator": None,
+        }
+
+    overall = (summary.get("status") or {})
+    incidents = summary.get("incidents") or []
+    components = summary.get("components") or []
+
+    keywords = ("api", "authentication", "login", "website")
+    relevant_components = []
+    for component in components:
+        name = str(component.get("name") or "")
+        lower = name.lower()
+        if any(k in lower for k in keywords):
+            relevant_components.append(component)
+
+    degraded_statuses = {"degraded_performance", "partial_outage", "major_outage", "under_maintenance"}
+    confirmed = any((c.get("status") in degraded_statuses) for c in relevant_components)
+
+    active_incidents = []
+    for incident in incidents:
+        incident_status = str(incident.get("status") or "")
+        if incident_status not in {"resolved", "completed", "postmortem", "none"}:
+            active_incidents.append(incident)
+
+    if not confirmed and active_incidents:
+        for incident in active_incidents:
+            name = str(incident.get("name") or "").lower()
+            body = str((incident.get("incident_updates") or [{}])[0].get("body") or "").lower()
+            if any(k in name or k in body for k in keywords):
+                confirmed = True
+                break
+
+    message = None
+    indicator = overall.get("indicator")
+    if active_incidents:
+        first = active_incidents[0]
+        updates = first.get("incident_updates") or []
+        latest_update = updates[0] if updates else {}
+        incident_name = first.get("name")
+        update_body = latest_update.get("body")
+        message = incident_name or update_body
+        if incident_name and update_body:
+            message = f"{incident_name}: {update_body}"
+    elif relevant_components:
+        degraded = [c for c in relevant_components if c.get("status") in degraded_statuses]
+        if degraded:
+            message = ", ".join(f"{c.get('name')}: {c.get('status')}" for c in degraded)
+
+    return {
+        "vrchat_outage": confirmed,
+        "vrchat_outage_confirmed": confirmed,
+        "vrchat_status_message": message,
+        "vrchat_status_indicator": indicator,
+    }
+
+
+def _classify_vrchat_api_error(exc: Exception) -> dict:
+    status = getattr(exc, "status", None)
+    reason = str(getattr(exc, "reason", exc) or exc)
+    body = str(getattr(exc, "body", "") or "")
+    text = f"{reason} {body}".lower()
+
+    error_type = "vrchat_error"
+    likely_outage = False
+
+    if status in {500, 502, 503, 504}:
+        error_type = "vrchat_upstream_error"
+        likely_outage = True
+    elif status == 429:
+        error_type = "vrchat_rate_limited"
+    elif status in {401, 403}:
+        error_type = "vrchat_auth_error"
+    elif status == 404:
+        error_type = "vrchat_user_not_found"
+    elif "timed out" in text or "timeout" in text:
+        error_type = "vrchat_timeout"
+        likely_outage = True
+    elif "application error" in text or "internal server error" in text or "bad gateway" in text or "service unavailable" in text:
+        error_type = "vrchat_upstream_error"
+        likely_outage = True
+
+    status_meta = _extract_relevant_vrchat_status() if likely_outage else {
+        "vrchat_outage": False,
+        "vrchat_outage_confirmed": False,
+        "vrchat_status_message": None,
+        "vrchat_status_indicator": None,
+    }
+
+    return {
+        "lookup_ok": False,
+        "error_type": error_type,
+        "error_message": reason if len(reason) < 500 else reason[:500],
+        "vrchat_outage": bool(likely_outage or status_meta.get("vrchat_outage")),
+        "vrchat_outage_confirmed": bool(status_meta.get("vrchat_outage_confirmed")),
+        "vrchat_status_message": status_meta.get("vrchat_status_message"),
+        "vrchat_status_indicator": status_meta.get("vrchat_status_indicator"),
+    }
+
+
+def _get_vrchat_user_with_retry(users_api_instance, vrc_user_id: str):
+    last_exc = None
+    for attempt in range(1, VRCHAT_LOOKUP_RETRIES + 1):
+        try:
+            return users_api_instance.get_user(vrc_user_id)
+        except ApiException as e:
+            last_exc = e
+            status = getattr(e, "status", None)
+            if status not in {500, 502, 503, 504, 429}:
+                raise
+            if attempt >= VRCHAT_LOOKUP_RETRIES:
+                raise
+            delay = min(8.0, VRCHAT_LOOKUP_BACKOFF_BASE * attempt) + random.uniform(0.0, 0.35)
+            logging.warning(
+                "Transient VRChat get_user failure for %s (status=%s). Retrying in %.2fs (attempt %s/%s)",
+                vrc_user_id,
+                status,
+                delay,
+                attempt,
+                VRCHAT_LOOKUP_RETRIES,
+            )
+            time.sleep(delay)
+        except Exception as e:
+            last_exc = e
+            if attempt >= VRCHAT_LOOKUP_RETRIES:
+                raise
+            delay = min(8.0, VRCHAT_LOOKUP_BACKOFF_BASE * attempt) + random.uniform(0.0, 0.35)
+            logging.warning(
+                "Transient VRChat get_user failure for %s. Retrying in %.2fs (attempt %s/%s)",
+                vrc_user_id, delay, attempt, VRCHAT_LOOKUP_RETRIES, exc_info=True
+            )
+            time.sleep(delay)
+    if last_exc:
+        raise last_exc
+
+
+# -------------------------------------------------------------------
 # Verification Logic
 # -------------------------------------------------------------------
 def process_verification_request(ch, method, properties, body):
@@ -295,23 +502,22 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
       - "is_18_plus"
       - "code_found" (bool)
       - "verificationCode"
-      - etc.
+      - outage / lookup metadata when VRChat is unhealthy
     """
     client = ensure_vrchat_session()
     if not client:
         logging.error("VRChat session not active. Failing verification.")
-        return {
-            "discordID": discord_id,
-            "vrcUserID": vrc_user_id,
-            "guildID": guild_id,
-            "is_18_plus": False,
-            "verificationCode": verification_code,
-            "code_found": False,
-            "display_name": None,
-        }
+        return _result_payload(
+            discord_id,
+            vrc_user_id,
+            guild_id,
+            verification_code,
+            lookup_ok=False,
+            error_type="vrchat_session_unavailable",
+            error_message="VRChat session not active",
+        )
 
     users_api_instance = users_api.UsersApi(client)
-    display_name = None
 
     # Try cache first
     cached = _vrc_cache.get(vrc_user_id)
@@ -319,7 +525,7 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
         vrc_user = cached
     else:
         try:
-            vrc_user = users_api_instance.get_user(vrc_user_id)
+            vrc_user = _get_vrchat_user_with_retry(users_api_instance, vrc_user_id)
             _vrc_cache.set(vrc_user_id, vrc_user)
         except UnauthorizedException:
             # Session can expire; try one relogin + retry.
@@ -329,41 +535,46 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
             client = ensure_vrchat_session()
             if not client:
                 logging.error("Relogin failed; cannot verify right now")
-                return {
-                    "discordID": discord_id,
-                    "vrcUserID": vrc_user_id,
-                    "guildID": guild_id,
-                    "is_18_plus": False,
-                    "verificationCode": verification_code,
-                    "code_found": False,
-                    "display_name": display_name,
-                }
+                return _result_payload(
+                    discord_id,
+                    vrc_user_id,
+                    guild_id,
+                    verification_code,
+                    lookup_ok=False,
+                    error_type="vrchat_auth_error",
+                    error_message="VRChat relogin failed",
+                )
             users_api_instance = users_api.UsersApi(client)
             try:
-                vrc_user = users_api_instance.get_user(vrc_user_id)
+                vrc_user = _get_vrchat_user_with_retry(users_api_instance, vrc_user_id)
                 _vrc_cache.set(vrc_user_id, vrc_user)
             except Exception as e:
                 logging.error("Failed to fetch VRChat user %s after relogin. Error: %s", vrc_user_id, e)
-                return {
-                    "discordID": discord_id,
-                    "vrcUserID": vrc_user_id,
-                    "guildID": guild_id,
-                    "is_18_plus": False,
-                    "verificationCode": verification_code,
-                    "code_found": False,
-                    "display_name": display_name,
-                }
+                return _result_payload(
+                    discord_id,
+                    vrc_user_id,
+                    guild_id,
+                    verification_code,
+                    **_classify_vrchat_api_error(e),
+                )
         except ApiException as e:
             logging.error("Failed to fetch VRChat user %s. Error: %s", vrc_user_id, e)
-            return {
-                "discordID": discord_id,
-                "vrcUserID": vrc_user_id,
-                "guildID": guild_id,
-                "is_18_plus": False,
-                "verificationCode": verification_code,
-                "code_found": False,
-                "display_name": display_name,
-            }
+            return _result_payload(
+                discord_id,
+                vrc_user_id,
+                guild_id,
+                verification_code,
+                **_classify_vrchat_api_error(e),
+            )
+        except Exception as e:
+            logging.error("Unexpected failure while fetching VRChat user %s. Error: %s", vrc_user_id, e)
+            return _result_payload(
+                discord_id,
+                vrc_user_id,
+                guild_id,
+                verification_code,
+                **_classify_vrchat_api_error(e),
+            )
 
     age_status = getattr(vrc_user, "age_verification_status", "unknown")
     bio = getattr(vrc_user, "bio", "")
@@ -386,15 +597,15 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
 
     display_name = getattr(vrc_user, "display_name", None)
 
-    return {
-        "discordID": discord_id,
-        "vrcUserID": vrc_user_id,
-        "guildID": guild_id,
-        "is_18_plus": is_18_plus,
-        "verificationCode": verification_code,
-        "code_found": code_found,
-        "display_name": display_name,
-    }
+    return _result_payload(
+        discord_id,
+        vrc_user_id,
+        guild_id,
+        verification_code,
+        is_18_plus=is_18_plus,
+        code_found=code_found,
+        display_name=display_name,
+    )
 
 
 def send_verification_result(result: dict):
