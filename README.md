@@ -14,8 +14,10 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
 2. **VRChat Online Checker (vrc_online_checker.py):**  
    - Listens for verification requests on a RabbitMQ queue.
    - Logs into VRChat using the [vrchatapi](https://github.com/vrchatapi/vrchatapi) library. Handles two-factor authentication automatically by fetching a 2FA code from a Gmail account.
+  - Retries VRChat login in the background on a fixed interval when the session is unavailable, instead of relogging on every verification request.
+  - Applies explicit VRChat API connect/read timeouts so stalled upstream requests fail visibly instead of hanging forever.
    - Checks the target VRChat user’s profile for age verification status and whether the provided code is present in their bio.
-   - Sends back the verification result via a RabbitMQ result queue.
+  - Sends back the verification result via a RabbitMQ result queue, including structured outage/auth metadata when VRChat is unavailable.
 
 ---
 
@@ -32,6 +34,8 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
 - Improved RabbitMQ reliability: both services auto-reconnect after broker restarts/idle disconnects; publishes retry and use persistent delivery.
 - Ephemeral "pending verification" records with background cleanup of expired requests.
 - REST and VRChat API TTL caches to reduce rate-limit pressure and speed up repeated checks.
+- Checker-side outage-aware responses and background relogin scheduling for expired or failed VRChat sessions.
+- VRChat API connect/read timeout controls to prevent the checker from hanging during login or lookups.
 
 See the sections below for details and configuration.
 
@@ -56,10 +60,13 @@ See the sections below for details and configuration.
   Reliability note: both components run a long-lived consumer and will automatically reconnect if the RabbitMQ container restarts or the connection becomes stale. Publishing is retried and messages are marked persistent.
 
 - **VRChat API Integration:**  
-  Uses the `vrchatapi` library to interact with VRChat’s API. The online checker handles VRChat login, including two-factor authentication by checking the inbox of a Gmail account via IMAP.
+  Uses the `vrchatapi` library to interact with VRChat’s API. The online checker handles VRChat login, including two-factor authentication by checking the inbox of a Gmail account via IMAP. When login fails or a session expires, the checker continues serving requests with structured temporary-unavailable or outage metadata and retries login on a background interval.
 
 - **Caching and Rate Control:**  
   Both the bot and the checker use small TTL caches to avoid duplicate external requests and configurable concurrency limits on REST calls.
+
+- **Operational Notes:**
+  The checker performs one login attempt at startup, then retries in the background according to `VRCHAT_RELOGIN_INTERVAL_SECONDS` when logged out. VRChat API requests use explicit connect/read timeouts configured through environment variables.
 
 ---
 
@@ -72,6 +79,7 @@ See the sections below for details and configuration.
   - Auto nickname change (on successful verification, set Discord nickname to VRChat display name).
   - Instructions language (server-wide locale).
   - Auto-verify new members (attempt verification or initiate the flow when a member joins).
+- `/vrcverify_setrequestmessage` – Admin-only. Opens a modal to set or clear the custom DM shown after a successful verification role assignment.
 - `/vrcverify_support` – Anyone. Sends help/support information.
 - `/vrcverify_subscription` – Admin-only. Shows subscription info to unlock premium features.
 
@@ -79,7 +87,7 @@ See the sections below for details and configuration.
 
 ## Tech Stack
 
-- **Language:** Python 3.8+
+- **Language:** Python 3.12 in the current containerized deployment
 - **Discord Bot Library:** [discord.py](https://github.com/Rapptz/discord.py)
 - **Database ORM:** SQLAlchemy
 - **Message Queue:** RabbitMQ (via pika)
@@ -93,7 +101,7 @@ See the sections below for details and configuration.
 
 ### Prerequisites
 
-- **Python:** Version 3.8 or higher.
+- **Python:** Version 3.12 is used in the current containerized environment. Python 3.8+ may work, but current behavior and dependencies are validated against Python 3.12.
 - **Discord Bot:** Create a Discord application and bot account. Obtain the bot token.
 - **Database:** A PostgreSQL (or compatible) database. Set the connection URL in your `.env`.
 - **RabbitMQ:** A RabbitMQ server instance with the appropriate queues set up.
@@ -116,8 +124,13 @@ See the sections below for details and configuration.
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
+  pip install -r config/other_configs/requirements.txt
    ```
+
+  Docker builds use split requirement files:
+
+  - `config/other_configs/requirements-bot.txt` for `src/bot.py`
+  - `config/other_configs/requirements-checker.txt` for `src/vrc_online_checker.py`
 
 3. **Create and Configure the `.env` File:**
 
@@ -165,6 +178,19 @@ See the sections below for details and configuration.
   # Optional: VRChat API response cache in the checker
   VRCHAT_TTL_SECONDS=180
   VRCHAT_CACHE_MAX=10000
+
+  # Optional: VRChat checker login/lookup tuning
+  VRCHAT_RELOGIN_INTERVAL_SECONDS=600
+  VRCHAT_API_CONNECT_TIMEOUT_SECONDS=10
+  VRCHAT_API_READ_TIMEOUT_SECONDS=20
+  VRCHAT_STATUS_SUMMARY_URL=https://status.vrchat.com/api/v2/summary.json
+  VRCHAT_STATUS_CACHE_SECONDS=120
+  VRCHAT_LOOKUP_RETRIES=3
+  VRCHAT_LOOKUP_BACKOFF_BASE=1.5
+
+  # Optional: instruction message refresh trigger watched by bot.py
+  INSTRUCTIONS_TRIGGER_PATH=/tmp/update_instructions.trigger
+  INSTRUCTIONS_TRIGGER_POLL=5
    ```
 
 4. **Database Setup:**
@@ -178,13 +204,13 @@ See the sections below for details and configuration.
 - **Start the Discord Bot:**
 
   ```bash
-  python bot.py
+  python src/bot.py
   ```
 
 - **Start the VRChat Online Checker (in a separate terminal):**
 
   ```bash
-  python vrc_online_checker.py
+  python src/vrc_online_checker.py
   ```
 
 Each component connects to RabbitMQ to exchange verification requests and results.
@@ -206,6 +232,9 @@ Each component connects to RabbitMQ to exchange verification requests and result
   - RabbitMQ publishes are retried and sent as persistent messages (delivery_mode=2).
   - A periodic cleanup task removes expired entries from the `PendingVerification` table to keep the database tidy.
   - TTL caches and concurrency gates help reduce rate-limit pressure on Discord and VRChat APIs.
+  - The checker attempts VRChat login once at startup, then retries on a background interval instead of retrying on every verification request.
+  - When VRChat is unavailable or auth is temporarily broken, the checker still returns structured failure metadata so the bot can DM users a localized temporary-unavailable or outage message.
+  - VRChat login and lookup requests use explicit connect/read timeouts controlled by environment variables.
 
 ---
 
@@ -246,7 +275,8 @@ Each component connects to RabbitMQ to exchange verification requests and result
   - `/vrcverify_subscription` – Get subscription or premium feature information.
   - `/vrcverify_support` – Receive help and support information.
   - `/vrcverify_instructions` – Post instructions in an embed for server members.
-    - `/vrcverify_settings` – Configure auto nickname change, instructions language, and auto-verify-on-join.
+  - `/vrcverify_settings` – Configure auto nickname change, instructions language, and auto-verify-on-join.
+  - `/vrcverify_setrequestmessage` – Configure the optional custom success DM sent after successful verification.
 
 ---
 
