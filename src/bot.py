@@ -6,6 +6,7 @@ import random
 import string
 import re
 from typing import Optional
+from html import escape
 from types import SimpleNamespace
 
 import discord
@@ -605,6 +606,60 @@ async def dm_role_assignment_failure(
         server=guild.name,
     )
 
+
+def get_server_locale_code(guild_id: str | None, guild: Optional[discord.Guild] = None) -> str:
+    if guild_id:
+        try:
+            with session_scope() as session:
+                server = session.query(Server).filter_by(server_id=guild_id).first()
+                if server and server.instructions_locale in LANGUAGE_CODES:
+                    return str(server.instructions_locale)
+        except Exception:
+            logger.warning("Could not load server locale; falling back.", exc_info=True)
+
+    preferred_locale = getattr(guild, "preferred_locale", None) if guild else None
+    return preferred_locale if preferred_locale in LANGUAGE_CODES else "en-US"
+
+
+def build_vrchat_issue_message(data: dict, locale_code: str = "en-US") -> str:
+    error_type = data.get("error_type") or "vrchat_error"
+    confirmed_outage = bool(data.get("vrchat_outage_confirmed"))
+    suspected_outage = bool(data.get("vrchat_outage"))
+    status_message = (data.get("vrchat_status_message") or "").strip()
+    status_page = data.get("vrchat_status_page") or "https://status.vrchat.com/"
+    ctx = SimpleNamespace(locale=locale_code)
+
+    if error_type == "vrchat_user_not_found":
+        return get_message("vrchat_issue_user_not_found", ctx)
+
+    if error_type == "vrchat_rate_limited":
+        return get_message("vrchat_issue_rate_limited", ctx)
+
+    if error_type in {"vrchat_auth_error", "vrchat_session_unavailable"}:
+        return get_message("vrchat_issue_temp_unavailable", ctx)
+
+    if confirmed_outage:
+        if status_message:
+            return get_message(
+                "vrchat_issue_outage_confirmed_with_status",
+                ctx,
+                status_page=status_page,
+                status_message=escape(status_message[:500]),
+            )
+        return get_message(
+            "vrchat_issue_outage_confirmed",
+            ctx,
+            status_page=status_page,
+        )
+
+    if suspected_outage or error_type in {"vrchat_upstream_error", "vrchat_timeout"}:
+        return get_message(
+            "vrchat_issue_outage_suspected",
+            ctx,
+            status_page=status_page,
+        )
+
+    return get_message("vrchat_issue_unexpected", ctx)
 
 async def process_verification(interaction: discord.Interaction):
     """
@@ -1299,11 +1354,32 @@ async def handle_verification_result(data: dict):
         verification_code = data.get("verificationCode")   # None => re-check
         update_nick       = data.get("updateNickname", False)
         display_name      = data.get("display_name")
+        lookup_ok         = data.get("lookup_ok", True)
+        guild  = bot.get_guild(int(guild_id)) if guild_id else None
+        member = await fetch_member_cached(guild, int(discord_id)) if guild and discord_id else None
+
+        if not lookup_ok:
+            locale_code = get_server_locale_code(guild_id, guild)
+            issue_message = build_vrchat_issue_message(data, locale_code)
+            logger.warning(
+                "VRChat lookup/session failure for discord_id=%s guild_id=%s error_type=%s outage=%s confirmed=%s",
+                discord_id,
+                guild_id,
+                data.get("error_type"),
+                data.get("vrchat_outage"),
+                data.get("vrchat_outage_confirmed"),
+            )
+            if member:
+                try:
+                    await member.send(issue_message)
+                except discord.Forbidden:
+                    logger.warning("⚠️ Cannot DM user about VRChat outage / API issue.")
+            else:
+                logger.warning("⚠️ Could not find guild member %s in guild %s to DM VRChat issue.", discord_id, guild_id)
+            return
 
         # — On-demand nickname update flow —
         if update_nick:
-            guild  = bot.get_guild(int(guild_id))
-            member = await fetch_member_cached(guild, int(discord_id)) if guild else None
             if member and display_name:
                 # try to change nickname
                 try:
