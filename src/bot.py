@@ -1361,11 +1361,21 @@ async def handle_verification_result(data: dict):
         if not lookup_ok:
             locale_code = get_server_locale_code(guild_id, guild)
             issue_message = build_vrchat_issue_message(data, locale_code)
+            logger.warning(
+                "VRChat lookup/session failure for discord_id=%s guild_id=%s error_type=%s outage=%s confirmed=%s",
+                discord_id,
+                guild_id,
+                data.get("error_type"),
+                data.get("vrchat_outage"),
+                data.get("vrchat_outage_confirmed"),
+            )
             if member:
                 try:
                     await member.send(issue_message)
                 except discord.Forbidden:
                     logger.warning("⚠️ Cannot DM user about VRChat outage / API issue.")
+            else:
+                logger.warning("⚠️ Could not find guild member %s in guild %s to DM VRChat issue.", discord_id, guild_id)
             return
 
         # — On-demand nickname update flow —
