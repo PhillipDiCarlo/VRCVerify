@@ -607,44 +607,59 @@ async def dm_role_assignment_failure(
     )
 
 
-def build_vrchat_issue_message(data: dict) -> str:
+def get_server_locale_code(guild_id: str | None, guild: Optional[discord.Guild] = None) -> str:
+    if guild_id:
+        try:
+            with session_scope() as session:
+                server = session.query(Server).filter_by(server_id=guild_id).first()
+                if server and server.instructions_locale in LANGUAGE_CODES:
+                    return str(server.instructions_locale)
+        except Exception:
+            logger.warning("Could not load server locale; falling back.", exc_info=True)
+
+    preferred_locale = getattr(guild, "preferred_locale", None) if guild else None
+    return preferred_locale if preferred_locale in LANGUAGE_CODES else "en-US"
+
+
+def build_vrchat_issue_message(data: dict, locale_code: str = "en-US") -> str:
     error_type = data.get("error_type") or "vrchat_error"
     confirmed_outage = bool(data.get("vrchat_outage_confirmed"))
     suspected_outage = bool(data.get("vrchat_outage"))
     status_message = (data.get("vrchat_status_message") or "").strip()
     status_page = data.get("vrchat_status_page") or "https://status.vrchat.com/"
+    ctx = SimpleNamespace(locale=locale_code)
 
     if error_type == "vrchat_user_not_found":
-        return (
-            "We could not find that VRChat account. Please double-check that you pasted your VRChat profile URL or `usr_...` user ID correctly."
-        )
+        return get_message("vrchat_issue_user_not_found", ctx)
 
     if error_type == "vrchat_rate_limited":
-        return (
-            "VRChat is rate limiting verification lookups right now. Please wait a minute and try again."
-        )
+        return get_message("vrchat_issue_rate_limited", ctx)
 
     if error_type in {"vrchat_auth_error", "vrchat_session_unavailable"}:
-        return (
-            "VRCVerify is temporarily unable to talk to VRChat right now. Please try again in a little while."
-        )
+        return get_message("vrchat_issue_temp_unavailable", ctx)
 
     if confirmed_outage:
-        msg = (
-            "VRChat is currently reporting a service issue that is affecting verification. "
-            f"Please try again later.\n\nStatus page: {status_page}"
-        )
         if status_message:
-            msg += f"\n\nReported status: {escape(status_message[:500])}"
-        return msg
+            return get_message(
+                "vrchat_issue_outage_confirmed_with_status",
+                ctx,
+                status_page=status_page,
+                status_message=escape(status_message[:500]),
+            )
+        return get_message(
+            "vrchat_issue_outage_confirmed",
+            ctx,
+            status_page=status_page,
+        )
 
     if suspected_outage or error_type in {"vrchat_upstream_error", "vrchat_timeout"}:
-        return (
-            "VRChat appears to be having temporary API issues, so verification could not be completed right now. "
-            f"Please try again later.\n\nStatus page: {status_page}"
+        return get_message(
+            "vrchat_issue_outage_suspected",
+            ctx,
+            status_page=status_page,
         )
 
-    return "Verification could not be completed because VRChat returned an unexpected error. Please try again later."
+    return get_message("vrchat_issue_unexpected", ctx)
 
 async def process_verification(interaction: discord.Interaction):
     """
@@ -1344,7 +1359,8 @@ async def handle_verification_result(data: dict):
         member = await fetch_member_cached(guild, int(discord_id)) if guild and discord_id else None
 
         if not lookup_ok:
-            issue_message = build_vrchat_issue_message(data)
+            locale_code = get_server_locale_code(guild_id, guild)
+            issue_message = build_vrchat_issue_message(data, locale_code)
             if member:
                 try:
                     await member.send(issue_message)

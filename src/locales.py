@@ -46,6 +46,13 @@ localizations: dict[str, dict[str, str]] = {
         "custom_msg_too_long":        "Message too long (max 1000 characters).",
         "custom_msg_invalid_links":   "Blocked: Only discord.com or vrchat.com links allowed. Invalid link(s):\n{invalid_list}",
         "vrc_id_already_linked":      "The VRChat profile you tried to use is already registered to a different Discord account. If you believe this is a mistake, please contact a server admin.",
+        "vrchat_issue_user_not_found": "We could not find that VRChat account. Please double-check that you pasted your VRChat profile URL or `usr_...` user ID correctly.",
+        "vrchat_issue_rate_limited": "VRChat is rate limiting verification lookups right now. Please wait a minute and try again.",
+        "vrchat_issue_temp_unavailable": "VRCVerify is temporarily unable to talk to VRChat right now. Please try again in a little while.",
+        "vrchat_issue_outage_confirmed": "VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n\nStatus page: {status_page}",
+        "vrchat_issue_outage_confirmed_with_status": "VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n\nStatus page: {status_page}\n\nReported status: {status_message}",
+        "vrchat_issue_outage_suspected": "VRChat appears to be having temporary API issues, so verification could not be completed right now. Please try again later.\n\nStatus page: {status_page}",
+        "vrchat_issue_unexpected": "Verification could not be completed because VRChat returned an unexpected error. Please try again later.",
     },
 
     "es-ES": {
@@ -86,6 +93,13 @@ localizations: dict[str, dict[str, str]] = {
         "bio_verify_instructions1":   "**1)** Añade el código a tu biografía de VRChat en su propia línea.",
         "bio_verify_instructions2":   "**2)** Una vez actualizada, haz clic en **Verificar** en Discord (dentro de 10 minutos).",
         "vrc_id_already_linked":      "El perfil de VRChat que intentaste usar ya está registrado a otra cuenta de Discord. Si crees que se trata de un error, por favor contacta a un administrador del servidor.",
+        "vrchat_issue_user_not_found": "No pudimos encontrar esa cuenta de VRChat. Comprueba que hayas pegado correctamente la URL del perfil de VRChat o el ID de usuario `usr_...`.",
+        "vrchat_issue_rate_limited": "VRChat está limitando las consultas de verificación en este momento. Espera un minuto y vuelve a intentarlo.",
+        "vrchat_issue_temp_unavailable": "VRCVerify no puede comunicarse con VRChat temporalmente en este momento. Inténtalo de nuevo dentro de un rato.",
+        "vrchat_issue_outage_confirmed": "VRChat está informando actualmente de un problema de servicio que está afectando a la verificación. Inténtalo de nuevo más tarde.\n\nPágina de estado: {status_page}",
+        "vrchat_issue_outage_confirmed_with_status": "VRChat está informando actualmente de un problema de servicio que está afectando a la verificación. Inténtalo de nuevo más tarde.\n\nPágina de estado: {status_page}\n\nEstado informado: {status_message}",
+        "vrchat_issue_outage_suspected": "Parece que VRChat está teniendo problemas temporales con la API, por lo que la verificación no pudo completarse en este momento. Inténtalo de nuevo más tarde.\n\nPágina de estado: {status_page}",
+        "vrchat_issue_unexpected": "La verificación no pudo completarse porque VRChat devolvió un error inesperado. Inténtalo de nuevo más tarde.",
     },
 
     "zh-CN": {
@@ -126,6 +140,13 @@ localizations: dict[str, dict[str, str]] = {
         "bio_verify_instructions1":   "**1)** 将代码添加到您的 VRChat 个人资料简介中的单独一行。",
         "bio_verify_instructions2":   "**2)** 更新后，在 Discord 中点击 **验证**（在 10 分钟内）。",
         "vrc_id_already_linked":      "您尝试使用的 VRChat 个人资料已经绑定到另一位 Discord 帐号。如果您认为这是错误的，请联系服务器管理员。",
+        "vrchat_issue_user_not_found": "我们找不到该 VRChat 账号。请再次确认您粘贴的 VRChat 个人资料链接或 `usr_...` 用户 ID 是否正确。",
+        "vrchat_issue_rate_limited": "VRChat 目前正在限制验证查询请求。请稍等一分钟后再试。",
+        "vrchat_issue_temp_unavailable": "VRCVerify 目前暂时无法连接到 VRChat。请稍后再试。",
+        "vrchat_issue_outage_confirmed": "VRChat 当前报告了影响验证流程的服务问题。请稍后再试。\n\n状态页面：{status_page}",
+        "vrchat_issue_outage_confirmed_with_status": "VRChat 当前报告了影响验证流程的服务问题。请稍后再试。\n\n状态页面：{status_page}\n\n报告状态：{status_message}",
+        "vrchat_issue_outage_suspected": "VRChat 似乎暂时出现了 API 问题，因此目前无法完成验证。请稍后再试。\n\n状态页面：{status_page}",
+        "vrchat_issue_unexpected": "由于 VRChat 返回了意外错误，验证无法完成。请稍后再试。",
     },
 
     "ja": {
@@ -166,6 +187,13 @@ localizations: dict[str, dict[str, str]] = {
         "bio_verify_instructions1":   "**1)** コードを VRChat の自己紹介に単独の行として追加してください。",
         "bio_verify_instructions2":   "**2)** 自己紹介を更新したら、Discord で **確認** をクリックしてください（10分以内）。",
         "vrc_id_already_linked":      "使用しようとしたVRChatプロフィールは、すでに別のDiscordアカウントに登録されています。間違いだと思う場合はサーバー管理者に連絡してください。",
+        "vrchat_issue_user_not_found": "そのVRChatアカウントが見つかりませんでした。貼り付けたVRChatプロフィールURLまたは `usr_...` のユーザーIDが正しいか確認してください。",
+        "vrchat_issue_rate_limited": "現在、VRChat が認証確認リクエストをレート制限しています。1分ほど待ってからもう一度お試しください。",
+        "vrchat_issue_temp_unavailable": "現在、VRCVerify は一時的に VRChat と通信できません。しばらくしてからもう一度お試しください。",
+        "vrchat_issue_outage_confirmed": "現在、VRChat は認証に影響するサービス障害を報告しています。後でもう一度お試しください。\n\nステータスページ: {status_page}",
+        "vrchat_issue_outage_confirmed_with_status": "現在、VRChat は認証に影響するサービス障害を報告しています。後でもう一度お試しください。\n\nステータスページ: {status_page}\n\n報告された状態: {status_message}",
+        "vrchat_issue_outage_suspected": "VRChat で一時的な API 障害が発生しているようで、現在は認証を完了できません。後でもう一度お試しください。\n\nステータスページ: {status_page}",
+        "vrchat_issue_unexpected": "VRChat から予期しないエラーが返されたため、認証を完了できませんでした。後でもう一度お試しください。",
     },
 
     "de": {
@@ -206,6 +234,13 @@ localizations: dict[str, dict[str, str]] = {
         "bio_verify_instructions1":   "**1)** Füge den Code in deine VRChat-Biografie in einer eigenen Zeile ein.",
         "bio_verify_instructions2":   "**2)** Sobald deine Biografie aktualisiert ist, klicke in Discord auf **Überprüfen** (innerhalb von 10 Minuten).",
         "vrc_id_already_linked":      "Das VRChat-Profil, das du verwenden wolltest, ist bereits mit einem anderen Discord-Konto verknüpft. Wenn du glaubst, dass dies ein Fehler ist, wende dich bitte an einen Server-Administrator.",
+        "vrchat_issue_user_not_found": "Wir konnten dieses VRChat-Konto nicht finden. Bitte prüfe, ob du die VRChat-Profil-URL oder die `usr_...`-Benutzer-ID korrekt eingefügt hast.",
+        "vrchat_issue_rate_limited": "VRChat begrenzt derzeit Verifizierungsabfragen. Bitte warte eine Minute und versuche es dann erneut.",
+        "vrchat_issue_temp_unavailable": "VRCVerify kann derzeit vorübergehend nicht mit VRChat kommunizieren. Bitte versuche es in kurzer Zeit erneut.",
+        "vrchat_issue_outage_confirmed": "VRChat meldet derzeit eine Dienststörung, die die Verifizierung beeinträchtigt. Bitte versuche es später erneut.\n\nStatusseite: {status_page}",
+        "vrchat_issue_outage_confirmed_with_status": "VRChat meldet derzeit eine Dienststörung, die die Verifizierung beeinträchtigt. Bitte versuche es später erneut.\n\nStatusseite: {status_page}\n\nGemeldeter Status: {status_message}",
+        "vrchat_issue_outage_suspected": "VRChat scheint vorübergehende API-Probleme zu haben, daher konnte die Verifizierung derzeit nicht abgeschlossen werden. Bitte versuche es später erneut.\n\nStatusseite: {status_page}",
+        "vrchat_issue_unexpected": "Die Verifizierung konnte nicht abgeschlossen werden, weil VRChat einen unerwarteten Fehler zurückgegeben hat. Bitte versuche es später erneut.",
     },
 
     "nl": {
@@ -246,6 +281,13 @@ localizations: dict[str, dict[str, str]] = {
         "bio_verify_instructions1":   "**1)** Voeg de code toe aan je VRChat-bio op een eigen regel.",
         "bio_verify_instructions2":   "**2)** Zodra je bio is bijgewerkt, klik op **Verifiëren** in Discord (binnen 10 minuten).",
         "vrc_id_already_linked":      "Het VRChat-profiel dat je probeerde te gebruiken, is al geregistreerd op een ander Discord-account. Als je denkt dat dit een fout is, neem dan contact op met een serverbeheerder.",
+        "vrchat_issue_user_not_found": "We konden dat VRChat-account niet vinden. Controleer of je de VRChat-profiel-URL of de `usr_...` gebruikers-ID correct hebt geplakt.",
+        "vrchat_issue_rate_limited": "VRChat beperkt momenteel verificatieverzoeken. Wacht een minuut en probeer het opnieuw.",
+        "vrchat_issue_temp_unavailable": "VRCVerify kan momenteel tijdelijk geen verbinding maken met VRChat. Probeer het over een tijdje opnieuw.",
+        "vrchat_issue_outage_confirmed": "VRChat meldt momenteel een serviceprobleem dat verificatie beïnvloedt. Probeer het later opnieuw.\n\nStatuspagina: {status_page}",
+        "vrchat_issue_outage_confirmed_with_status": "VRChat meldt momenteel een serviceprobleem dat verificatie beïnvloedt. Probeer het later opnieuw.\n\nStatuspagina: {status_page}\n\nGemelde status: {status_message}",
+        "vrchat_issue_outage_suspected": "VRChat lijkt tijdelijke API-problemen te hebben, waardoor verificatie nu niet kon worden voltooid. Probeer het later opnieuw.\n\nStatuspagina: {status_page}",
+        "vrchat_issue_unexpected": "De verificatie kon niet worden voltooid omdat VRChat een onverwachte fout teruggaf. Probeer het later opnieuw.",
     },
 
     "hi-IN": {
@@ -286,6 +328,13 @@ localizations: dict[str, dict[str, str]] = {
         "bio_verify_instructions1":   "**1)** अपने VRChat बायो में कोड को अपनी अलग पंक्ति पर जोड़ें।",
         "bio_verify_instructions2":   "**2)** अपडेट करने के बाद, Discord में **सत्यापित करें** पर क्लिक करें (10 मिनट के अंदर)。",
         "vrc_id_already_linked":      "जिस VRChat प्रोफ़ाइल का आपने उपयोग करने की कोशिश की, वह पहले से किसी अन्य Discord खाते से जुड़ी हुई है। यदि आपको लगता है कि यह गलती है, तो कृपया सर्वर ऐडमिन से संपर्क करें।",
+        "vrchat_issue_user_not_found": "हमें वह VRChat खाता नहीं मिला। कृपया दोबारा जांचें कि आपने VRChat प्रोफ़ाइल URL या `usr_...` user ID सही तरह पेस्ट की है।",
+        "vrchat_issue_rate_limited": "VRChat इस समय सत्यापन अनुरोधों पर rate limit लगा रहा है। कृपया एक मिनट रुकें और फिर से प्रयास करें।",
+        "vrchat_issue_temp_unavailable": "VRCVerify इस समय अस्थायी रूप से VRChat से बात नहीं कर पा रहा है। कृपया थोड़ी देर बाद फिर से प्रयास करें।",
+        "vrchat_issue_outage_confirmed": "VRChat इस समय एक ऐसी सेवा समस्या की रिपोर्ट कर रहा है जो सत्यापन को प्रभावित कर रही है। कृपया बाद में फिर प्रयास करें।\n\nस्थिति पृष्ठ: {status_page}",
+        "vrchat_issue_outage_confirmed_with_status": "VRChat इस समय एक ऐसी सेवा समस्या की रिपोर्ट कर रहा है जो सत्यापन को प्रभावित कर रही है। कृपया बाद में फिर प्रयास करें।\n\nस्थिति पृष्ठ: {status_page}\n\nरिपोर्ट की गई स्थिति: {status_message}",
+        "vrchat_issue_outage_suspected": "ऐसा लगता है कि VRChat को अस्थायी API समस्याएँ हो रही हैं, इसलिए अभी सत्यापन पूरा नहीं किया जा सका। कृपया बाद में फिर प्रयास करें।\n\nस्थिति पृष्ठ: {status_page}",
+        "vrchat_issue_unexpected": "सत्यापन पूरा नहीं हो सका क्योंकि VRChat ने एक अप्रत्याशित त्रुटि लौटाई। कृपया बाद में फिर प्रयास करें।",
     },
 
     "ar": {
@@ -326,6 +375,13 @@ localizations: dict[str, dict[str, str]] = {
         "bio_verify_instructions1":   "**1)** أضف الكود إلى سيرتك الذاتية في VRChat في سطر مستقل.",
         "bio_verify_instructions2":   "**2)** بمجرد تحديث سيرتك الذاتية، انقر على **تحقق** في Discord (خلال 10 دقائق).",
         "vrc_id_already_linked":      "ملف الـ VRChat الذي حاولت استخدامه مسجّل بالفعل على حساب Discord آخر. إذا كنت تعتقد أن هذا خطأ، يرجى الاتصال بمسؤول الخادم.",
+        "vrchat_issue_user_not_found": "تعذر علينا العثور على حساب VRChat هذا. يرجى التأكد من أنك لصقت رابط ملف VRChat الشخصي أو معرّف المستخدم `usr_...` بشكل صحيح.",
+        "vrchat_issue_rate_limited": "يقوم VRChat حاليًا بفرض حد على طلبات التحقق. يرجى الانتظار دقيقة ثم المحاولة مرة أخرى.",
+        "vrchat_issue_temp_unavailable": "يتعذر على VRCVerify التواصل مع VRChat مؤقتًا الآن. يرجى المحاولة مرة أخرى بعد قليل.",
+        "vrchat_issue_outage_confirmed": "يبلغ VRChat حاليًا عن مشكلة في الخدمة تؤثر على التحقق. يرجى المحاولة مرة أخرى لاحقًا.\n\nصفحة الحالة: {status_page}",
+        "vrchat_issue_outage_confirmed_with_status": "يبلغ VRChat حاليًا عن مشكلة في الخدمة تؤثر على التحقق. يرجى المحاولة مرة أخرى لاحقًا.\n\nصفحة الحالة: {status_page}\n\nالحالة المبلغ عنها: {status_message}",
+        "vrchat_issue_outage_suspected": "يبدو أن VRChat يواجه مشكلات مؤقتة في واجهة API، لذلك تعذر إكمال التحقق الآن. يرجى المحاولة مرة أخرى لاحقًا.\n\nصفحة الحالة: {status_page}",
+        "vrchat_issue_unexpected": "تعذر إكمال التحقق لأن VRChat أعاد خطأ غير متوقع. يرجى المحاولة مرة أخرى لاحقًا.",
     },
 
     "bn": {
@@ -366,6 +422,13 @@ localizations: dict[str, dict[str, str]] = {
         "bio_verify_instructions1":   "**1)** কোডটি আপনার VRChat বায়োতে একটি স্বতন্ত্র লাইনে যোগ করুন।",
         "bio_verify_instructions2":   "**2)** আপডেট হওয়ার পরে, Discord-এ **যাচাই করুন** ক্লিক করুন (10 মিনিটের মধ্যে)。",
         "vrc_id_already_linked":      "আপনি যে VRChat প্রোফাইলটি ব্যবহার করার চেষ্টা করেছেন, সেটি ইতিমধ্যেই অন্য একটি Discord অ্যাকাউন্টের সাথে নিবন্ধিত। যদি আপনি মনে করেন এটি একটি ভুল, তবে অনুগ্রহ করে সার্ভার অ্যাডমিনের সাথে যোগাযোগ করুন।",
+        "vrchat_issue_user_not_found": "আমরা ওই VRChat অ্যাকাউন্টটি খুঁজে পাইনি। অনুগ্রহ করে আবার যাচাই করুন যে আপনি VRChat প্রোফাইল URL বা `usr_...` user ID সঠিকভাবে পেস্ট করেছেন।",
+        "vrchat_issue_rate_limited": "VRChat এই মুহূর্তে যাচাইকরণ অনুরোধগুলিকে rate limit করছে। অনুগ্রহ করে এক মিনিট অপেক্ষা করে আবার চেষ্টা করুন।",
+        "vrchat_issue_temp_unavailable": "VRCVerify এই মুহূর্তে সাময়িকভাবে VRChat-এর সাথে যোগাযোগ করতে পারছে না। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন।",
+        "vrchat_issue_outage_confirmed": "VRChat বর্তমানে এমন একটি পরিষেবা সমস্যার কথা জানাচ্ছে যা যাচাইকরণকে প্রভাবিত করছে। অনুগ্রহ করে পরে আবার চেষ্টা করুন।\n\nস্ট্যাটাস পেজ: {status_page}",
+        "vrchat_issue_outage_confirmed_with_status": "VRChat বর্তমানে এমন একটি পরিষেবা সমস্যার কথা জানাচ্ছে যা যাচাইকরণকে প্রভাবিত করছে। অনুগ্রহ করে পরে আবার চেষ্টা করুন।\n\nস্ট্যাটাস পেজ: {status_page}\n\nরিপোর্ট করা অবস্থা: {status_message}",
+        "vrchat_issue_outage_suspected": "মনে হচ্ছে VRChat-এর সাময়িক API সমস্যা হচ্ছে, তাই এই মুহূর্তে যাচাইকরণ সম্পন্ন করা যায়নি। অনুগ্রহ করে পরে আবার চেষ্টা করুন।\n\nস্ট্যাটাস পেজ: {status_page}",
+        "vrchat_issue_unexpected": "যাচাইকরণ সম্পন্ন করা যায়নি, কারণ VRChat একটি অপ্রত্যাশিত ত্রুটি ফিরিয়েছে। অনুগ্রহ করে পরে আবার চেষ্টা করুন।",
     },
 
     "pt-BR": {
@@ -406,6 +469,13 @@ localizations: dict[str, dict[str, str]] = {
         "bio_verify_instructions1":   "**1)** Adicione o código à sua bio do VRChat em sua própria linha.",
         "bio_verify_instructions2":   "**2)** Assim que sua bio for atualizada, clique em **Verificar** no Discord (dentro de 10 minutos).",
         "vrc_id_already_linked":      "O perfil do VRChat que você tentou usar já está registrado em outra conta do Discord. Se você acha que isso é um engano, entre em contato com um administrador do servidor.",
+        "vrchat_issue_user_not_found": "Não conseguimos encontrar essa conta do VRChat. Verifique se você colou corretamente a URL do perfil do VRChat ou o ID de usuário `usr_...`.",
+        "vrchat_issue_rate_limited": "O VRChat está limitando as consultas de verificação neste momento. Aguarde um minuto e tente novamente.",
+        "vrchat_issue_temp_unavailable": "O VRCVerify está temporariamente sem conseguir se comunicar com o VRChat no momento. Tente novamente daqui a pouco.",
+        "vrchat_issue_outage_confirmed": "O VRChat está relatando um problema de serviço que está afetando a verificação. Tente novamente mais tarde.\n\nPágina de status: {status_page}",
+        "vrchat_issue_outage_confirmed_with_status": "O VRChat está relatando um problema de serviço que está afetando a verificação. Tente novamente mais tarde.\n\nPágina de status: {status_page}\n\nStatus reportado: {status_message}",
+        "vrchat_issue_outage_suspected": "Parece que o VRChat está enfrentando problemas temporários de API, então a verificação não pôde ser concluída agora. Tente novamente mais tarde.\n\nPágina de status: {status_page}",
+        "vrchat_issue_unexpected": "A verificação não pôde ser concluída porque o VRChat retornou um erro inesperado. Tente novamente mais tarde.",
     },
 
     "ru": {
@@ -446,6 +516,13 @@ localizations: dict[str, dict[str, str]] = {
         "bio_verify_instructions1":   "**1)** Добавьте код в вашу биографию VRChat в отдельной строке.",
         "bio_verify_instructions2":   "**2)** Как только ваша биография будет обновлена, нажмите **Проверить** в Discord (в течение 10 минут).",
         "vrc_id_already_linked":      "Профиль VRChat, который вы попытались использовать, уже привязан к другой учётной записи Discord. Если вы считаете, что это ошибка, свяжитесь с администратором сервера.",
+        "vrchat_issue_user_not_found": "Нам не удалось найти эту учётную запись VRChat. Пожалуйста, проверьте, что вы правильно вставили ссылку на профиль VRChat или user ID `usr_...`.",
+        "vrchat_issue_rate_limited": "VRChat сейчас ограничивает запросы на проверку. Подождите минуту и попробуйте снова.",
+        "vrchat_issue_temp_unavailable": "VRCVerify временно не может связаться с VRChat. Пожалуйста, попробуйте немного позже.",
+        "vrchat_issue_outage_confirmed": "VRChat сейчас сообщает о проблеме сервиса, которая влияет на проверку. Пожалуйста, попробуйте позже.\n\nСтраница статуса: {status_page}",
+        "vrchat_issue_outage_confirmed_with_status": "VRChat сейчас сообщает о проблеме сервиса, которая влияет на проверку. Пожалуйста, попробуйте позже.\n\nСтраница статуса: {status_page}\n\nСообщённый статус: {status_message}",
+        "vrchat_issue_outage_suspected": "Похоже, у VRChat временные проблемы с API, поэтому сейчас завершить проверку не удалось. Пожалуйста, попробуйте позже.\n\nСтраница статуса: {status_page}",
+        "vrchat_issue_unexpected": "Проверка не может быть завершена, потому что VRChat вернул непредвиденную ошибку. Пожалуйста, попробуйте позже.",
     },
 
     "pa-IN": {
@@ -486,5 +563,12 @@ localizations: dict[str, dict[str, str]] = {
         "bio_verify_instructions1":   "**1)** ਕੋਡ ਨੂੰ ਆਪਣੇ VRChat ਬਾਇਓ ਵਿੱਚ ਇੱਕ ਅਲੱਗ ਲਾਈਨ 'ਤੇ ਸ਼ਾਮਿਲ ਕਰੋ।",
         "bio_verify_instructions2":   "**2)** ਅਪਡੇਟ ਹੋਣ 'ਤੇ, Discord ਵਿੱਚ **ਸत्यਾਪਿਤ ਕਰੋ** 'ਤੇ ਕਲਿਕ ਕਰੋ (10 ਮਿੰਟਾਂ ਵਿੱਚ)。",
         "vrc_id_already_linked":      "ਜਿਸ VRChat ਪ੍ਰੋਫ਼ਾਈਲ ਨੂੰ ਤੁਸੀਂ ਵਰਤਣ ਦੀ ਕੋਸ਼ਿਸ਼ ਕੀਤੀ, ਉਹ ਪਹਿਲਾਂ ਹੀ ਕਿਸੇ ਹੋਰ Discord ਖਾਤੇ ਨਾਲ ਰਜਿਸਟਰ ਹੈ। ਜੇ ਤੁਹਾਨੂੰ ਲੱਗਦਾ ਹੈ ਕਿ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਕਿਰਪਾ ਕਰਕੇ ਸਰਵਰ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
+        "vrchat_issue_user_not_found": "ਅਸੀਂ ਉਹ VRChat ਖਾਤਾ ਨਹੀਂ ਲੱਭ ਸਕੇ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਜਾਂਚੋ ਕਿ ਤੁਸੀਂ VRChat ਪ੍ਰੋਫ਼ਾਈਲ URL ਜਾਂ `usr_...` user ID ਠੀਕ ਤਰ੍ਹਾਂ ਪੇਸਟ ਕੀਤੀ ਹੈ।",
+        "vrchat_issue_rate_limited": "VRChat ਇਸ ਵੇਲੇ ਪ੍ਰਮਾਣਿਕਰਨ ਲੁੱਕਅੱਪਾਂ 'ਤੇ rate limit ਲਾ ਰਿਹਾ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਮਿੰਟ ਉਡੀਕੋ ਅਤੇ ਫਿਰ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+        "vrchat_issue_temp_unavailable": "VRCVerify ਇਸ ਵੇਲੇ ਅਸਥਾਈ ਤੌਰ 'ਤੇ VRChat ਨਾਲ ਗੱਲ ਨਹੀਂ ਕਰ ਸਕਦਾ। ਕਿਰਪਾ ਕਰਕੇ ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+        "vrchat_issue_outage_confirmed": "VRChat ਇਸ ਵੇਲੇ ਇੱਕ ਸਰਵਿਸ ਸਮੱਸਿਆ ਦੀ ਰਿਪੋਰਟ ਕਰ ਰਿਹਾ ਹੈ ਜੋ ਪ੍ਰਮਾਣਿਕਰਨ ਨੂੰ ਪ੍ਰਭਾਵਿਤ ਕਰ ਰਹੀ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।\n\nਸਟੇਟਸ ਪੇਜ: {status_page}",
+        "vrchat_issue_outage_confirmed_with_status": "VRChat ਇਸ ਵੇਲੇ ਇੱਕ ਸਰਵਿਸ ਸਮੱਸਿਆ ਦੀ ਰਿਪੋਰਟ ਕਰ ਰਿਹਾ ਹੈ ਜੋ ਪ੍ਰਮਾਣਿਕਰਨ ਨੂੰ ਪ੍ਰਭਾਵਿਤ ਕਰ ਰਹੀ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।\n\nਸਟੇਟਸ ਪੇਜ: {status_page}\n\nਰਿਪੋਰਟ ਕੀਤੀ ਹਾਲਤ: {status_message}",
+        "vrchat_issue_outage_suspected": "ਇਹ ਲੱਗਦਾ ਹੈ ਕਿ VRChat ਨੂੰ ਅਸਥਾਈ API ਸਮੱਸਿਆਵਾਂ ਆ ਰਹੀਆਂ ਹਨ, ਇਸ ਕਰਕੇ ਇਸ ਵੇਲੇ ਪ੍ਰਮਾਣਿਕਰਨ ਪੂਰਾ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।\n\nਸਟੇਟਸ ਪੇਜ: {status_page}",
+        "vrchat_issue_unexpected": "ਪ੍ਰਮਾਣਿਕਰਨ ਪੂਰਾ ਨਹੀਂ ਹੋ ਸਕਿਆ ਕਿਉਂਕਿ VRChat ਨੇ ਇੱਕ ਅਣਉਮੀਦ ਗਲਤੀ ਵਾਪਸ ਕੀਤੀ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
     }
 }
