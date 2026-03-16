@@ -40,6 +40,8 @@ GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 
 log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
 numeric_level = getattr(logging, log_level_str, logging.INFO)
+VRCHAT_API_CONNECT_TIMEOUT_SECONDS = float(os.getenv("VRCHAT_API_CONNECT_TIMEOUT_SECONDS", "10"))
+VRCHAT_API_READ_TIMEOUT_SECONDS = float(os.getenv("VRCHAT_API_READ_TIMEOUT_SECONDS", "20"))
 
 # -------------------------------------------------------------------
 # Logging configuration
@@ -55,6 +57,10 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 # RabbitMQ Setup
 # -------------------------------------------------------------------
 credentials = pika.PlainCredentials(RABBITMQ_USERNAME, RABBITMQ_PASSWORD)
+
+
+def _vrchat_request_timeout() -> tuple[float, float]:
+    return (VRCHAT_API_CONNECT_TIMEOUT_SECONDS, VRCHAT_API_READ_TIMEOUT_SECONDS)
 
 
 def _rabbitmq_parameters() -> pika.ConnectionParameters:
@@ -171,9 +177,10 @@ def login_to_vrchat():
     api_client = vrchatapi.ApiClient(configuration)
     api_client.user_agent = "VRCVerifyBot/1.0 (contact@yourdomain.com)"
     auth_api = authentication_api.AuthenticationApi(api_client)
+    request_timeout = _vrchat_request_timeout()
 
     try:
-        current_user = auth_api.get_current_user()
+        current_user = auth_api.get_current_user(_request_timeout=request_timeout)
         logging.info("Successfully logged in as %s", current_user.display_name)
         return api_client, None
 
@@ -196,11 +203,17 @@ def login_to_vrchat():
                 }
 
             if "Email 2 Factor Authentication" in e.reason:
-                auth_api.verify2_fa_email_code(TwoFactorEmailCode(two_factor_code))
+                auth_api.verify2_fa_email_code(
+                    TwoFactorEmailCode(two_factor_code),
+                    _request_timeout=request_timeout,
+                )
             else:
-                auth_api.verify2_fa(TwoFactorAuthCode(two_factor_code))
+                auth_api.verify2_fa(
+                    TwoFactorAuthCode(two_factor_code),
+                    _request_timeout=request_timeout,
+                )
 
-            current_user = auth_api.get_current_user()
+            current_user = auth_api.get_current_user(_request_timeout=request_timeout)
             logging.info("Successfully logged in as %s", current_user.display_name)
             return api_client, None
 
@@ -216,10 +229,21 @@ def login_to_vrchat():
         }
 
     except ApiException as e:
-        logging.error("VRChat API error during login: %s", e)
+        logging.error(
+            "VRChat API error during login (timeout=%ss/%ss): %s",
+            VRCHAT_API_CONNECT_TIMEOUT_SECONDS,
+            VRCHAT_API_READ_TIMEOUT_SECONDS,
+            e,
+        )
         return None, _classify_vrchat_api_error(e)
     except Exception as e:
-        logging.error("Unexpected VRChat login error: %s", e, exc_info=True)
+        logging.error(
+            "Unexpected VRChat login error (timeout=%ss/%ss): %s",
+            VRCHAT_API_CONNECT_TIMEOUT_SECONDS,
+            VRCHAT_API_READ_TIMEOUT_SECONDS,
+            e,
+            exc_info=True,
+        )
         return None, _classify_vrchat_api_error(e)
 
 
@@ -317,14 +341,6 @@ def _vrchat_relogin_loop():
         logging.info("Attempting scheduled VRChat login retry")
         attempt_vrchat_login(force=True)
         time.sleep(5)
-
-
-# One-time startup login, then background retry on a fixed cadence.
-attempt_vrchat_login(force=True)
-if not get_vrchat_session()[0]:
-    logging.error("Initial VRChat login failed. Continuing to serve queue with outage-aware responses.")
-
-threading.Thread(target=_vrchat_relogin_loop, name="vrchat-relogin", daemon=True).start()
 
 # -------------------------------------------------------------------
 # Small TTL cache for VRChat user lookups (dedupe repeated requests)
@@ -530,11 +546,20 @@ def _classify_vrchat_api_error(exc: Exception) -> dict:
     }
 
 
+logging.info("Attempting initial VRChat login")
+attempt_vrchat_login(force=True)
+if not get_vrchat_session()[0]:
+    logging.error("Initial VRChat login failed. Continuing to serve queue with outage-aware responses.")
+
+threading.Thread(target=_vrchat_relogin_loop, name="vrchat-relogin", daemon=True).start()
+
+
 def _get_vrchat_user_with_retry(users_api_instance, vrc_user_id: str):
     last_exc = None
+    request_timeout = _vrchat_request_timeout()
     for attempt in range(1, VRCHAT_LOOKUP_RETRIES + 1):
         try:
-            return users_api_instance.get_user(vrc_user_id)
+            return users_api_instance.get_user(vrc_user_id, _request_timeout=request_timeout)
         except ApiException as e:
             last_exc = e
             status = getattr(e, "status", None)
