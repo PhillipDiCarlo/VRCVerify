@@ -139,7 +139,8 @@ def fetch_latest_2fa_code():
 
             if subject_match:
                 vrchat_2fa_code = subject_match.group(1)
-                logging.info("Found VRChat 2FA Code: %s", vrchat_2fa_code)
+                # Never log the code itself: log files shouldn't hold auth secrets.
+                logging.info("Found VRChat 2FA code in email subject.")
                 return vrchat_2fa_code
 
             logging.warning("No 2FA code found in email subject. Retrying...")
@@ -702,18 +703,22 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
 
     age_status = getattr(vrc_user, "age_verification_status", "unknown")
     bio = getattr(vrc_user, "bio", "")
-    logging.info(
-        "[verify_and_build_result] user=%s, age_status=%s, bio=%s",
-        vrc_user_id,
-        age_status,
-        bio,
-    )
 
     is_18_plus = age_status == "18+"
 
     code_found = False
     if verification_code is not None:
         code_found = bio_contains_code(bio, verification_code)
+
+    # Bios are third-party PII; keep them out of INFO logs (full bio at DEBUG only).
+    logging.info(
+        "[verify_and_build_result] user=%s, age_status=%s, code_expected=%s, code_found=%s",
+        vrc_user_id,
+        age_status,
+        verification_code is not None,
+        code_found,
+    )
+    logging.debug("[verify_and_build_result] user=%s bio=%r", vrc_user_id, bio)
 
     display_name = getattr(vrc_user, "display_name", None)
 
