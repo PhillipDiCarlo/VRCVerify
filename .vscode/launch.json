@@ -28,14 +28,6 @@
             "program": "${workspaceFolder}/src/test_vrc.py",
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/.venv/Scripts/python.exe"
-        },
-        {
-            "name": "Sub Manager GumRoad",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/gumroad_subscription_manager.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/.venv/Scripts/python.exe"
         }
     ]
 }

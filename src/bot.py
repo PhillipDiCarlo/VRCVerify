@@ -718,6 +718,50 @@ def generate_verification_code() -> str:
     return "VRC-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 
+VRC_PROFILE_URL_PATTERN = re.compile(r"https?://vrchat\.com/home/user/([A-Za-z0-9\-_]+)")
+
+
+def parse_vrc_user_input(raw_input: str) -> str | None:
+    """Extract a VRChat user ID from a profile URL or a raw usr_ ID.
+
+    Returns None when the input looks like a display name (or anything else
+    we can't safely resolve to a user ID).
+    """
+    raw_input = raw_input.strip()
+    m = VRC_PROFILE_URL_PATTERN.match(raw_input)
+    if m:
+        return m.group(1)
+    if raw_input.startswith("usr_"):
+        return raw_input
+    return None
+
+
+CUSTOM_MESSAGE_ALLOWED_URL_PREFIXES = (
+    "https://discord.com/",
+    "https://discord.com",
+    "https://vrchat.com/",
+    "https://vrchat.com",
+)
+
+
+def sanitize_custom_message(raw: str) -> tuple[str, list[str]]:
+    """Sanitize an admin-provided custom message.
+
+    Strips zero-width characters, neutralizes @everyone/@here, and returns
+    (sanitized_text, invalid_urls) where invalid_urls lists any link not on
+    the discord.com / vrchat.com allowlist.
+    """
+    raw = re.sub("[\u200B-\u200D\uFEFF]", "", raw)
+    raw = re.sub(r"@(everyone|here)\b", r"@ \1", raw, flags=re.IGNORECASE)
+    url_pattern = re.compile(r"https?://[^\s>]+", re.IGNORECASE)
+    urls = url_pattern.findall(raw)
+    invalid = [
+        u for u in urls
+        if not any(u.lower().startswith(p) for p in CUSTOM_MESSAGE_ALLOWED_URL_PREFIXES)
+    ]
+    return raw, invalid
+
+
 async def publish_to_vrc_checker(
     discord_id: str,
     vrc_user_id: str,
@@ -905,18 +949,9 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
         self.interaction = interaction
 
     async def on_submit(self, interaction: discord.Interaction):
-        raw_input = self.vrc_username.value.strip()
-
-        # 1) If they pasted the full URL, extract the userID
-        url_pattern = r"https?://vrchat\.com/home/user/([A-Za-z0-9\-_]+)"
-        m = re.match(url_pattern, raw_input)
-        if m:
-            vrc_user_id = m.group(1)
-        # 2) If they already only entered the usr_… ID, accept it
-        elif raw_input.startswith("usr_"):
-            vrc_user_id = raw_input
-        # 3) Otherwise, they probably typed a display name ➔ warn & cancel
-        else:
+        # Accept a full profile URL or a raw usr_… ID; reject display names
+        vrc_user_id = parse_vrc_user_input(self.vrc_username.value)
+        if vrc_user_id is None:
             await interaction.response.send_message(
                 get_message("invalid_vrc_id_input", interaction), ephemeral=True
             )
@@ -1221,20 +1256,7 @@ class SetRequestMessageModal(discord.ui.Modal, title="Set Custom Verification Me
 
         # Sanitize & validate only if not clearing
         if not clearing:
-            # Strip zero-width chars
-            raw = re.sub(r"[\u200B-\u200D\uFEFF]", "", raw)
-            # Neutralize mass mentions
-            raw = re.sub(r"@(everyone|here)\b", r"@ \1", raw, flags=re.IGNORECASE)
-            # URL allowlist
-            allowed_prefixes = (
-                "https://discord.com/",
-                "https://discord.com",
-                "https://vrchat.com/",
-                "https://vrchat.com",
-            )
-            url_pattern = re.compile(r"https?://[^\s>]+", re.IGNORECASE)
-            urls = url_pattern.findall(raw)
-            invalid = [u for u in urls if not any(u.lower().startswith(p) for p in allowed_prefixes)]
+            raw, invalid = sanitize_custom_message(raw)
             if invalid:
                 pretty_invalid = "\n".join(f"- {u}" for u in invalid[:10])
                 return await interaction.response.send_message(

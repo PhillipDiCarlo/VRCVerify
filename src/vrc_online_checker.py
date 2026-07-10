@@ -546,14 +546,6 @@ def _classify_vrchat_api_error(exc: Exception) -> dict:
     }
 
 
-logging.info("Attempting initial VRChat login")
-attempt_vrchat_login(force=True)
-if not get_vrchat_session()[0]:
-    logging.error("Initial VRChat login failed. Continuing to serve queue with outage-aware responses.")
-
-threading.Thread(target=_vrchat_relogin_loop, name="vrchat-relogin", daemon=True).start()
-
-
 def _get_vrchat_user_with_retry(users_api_instance, vrc_user_id: str):
     last_exc = None
     request_timeout = _vrchat_request_timeout()
@@ -594,6 +586,15 @@ def _get_vrchat_user_with_retry(users_api_instance, vrc_user_id: str):
 # -------------------------------------------------------------------
 # Verification Logic
 # -------------------------------------------------------------------
+def bio_contains_code(bio: str | None, verification_code: str) -> bool:
+    """True if the verification code appears on its own line in the bio."""
+    stripped_code = verification_code.strip()
+    for line in (bio or "").splitlines():
+        if stripped_code == line.strip():
+            return True
+    return False
+
+
 def process_verification_request(ch, method, properties, body):
     """RabbitMQ callback: verify, publish result, then ACK/NACK."""
     try:
@@ -712,11 +713,7 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
 
     code_found = False
     if verification_code is not None:
-        stripped_code = verification_code.strip()
-        for line in bio.splitlines():
-            if stripped_code == line.strip():
-                code_found = True
-                break
+        code_found = bio_contains_code(bio, verification_code)
 
     display_name = getattr(vrc_user, "display_name", None)
 
@@ -810,4 +807,11 @@ def listen_for_verifications():
 # Main
 # -------------------------------------------------------------------
 if __name__ == "__main__":
+    logging.info("Attempting initial VRChat login")
+    attempt_vrchat_login(force=True)
+    if not get_vrchat_session()[0]:
+        logging.error("Initial VRChat login failed. Continuing to serve queue with outage-aware responses.")
+
+    threading.Thread(target=_vrchat_relogin_loop, name="vrchat-relogin", daemon=True).start()
+
     listen_for_verifications()
