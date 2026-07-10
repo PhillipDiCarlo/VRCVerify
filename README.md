@@ -245,12 +245,21 @@ Each component connects to RabbitMQ to exchange verification requests and result
   - `docker/Dockerfile-bot`
   - `docker/Dockerfile-online-checker`
 
-  There is also an example Compose file under `config/other_configs/docker-compose.yml` you can adapt. Make sure your environment variables are provided via an `.env` file or your preferred secret management solution.
+  There are two example Compose files under `config/other_configs/`:
 
-  Example (adjust paths and variables to your environment):
+  - `docker-compose.yml` — builds images locally from this repo (development).
+  - `docker-compose.deploy.yml` — pulls published images from Docker Hub by **explicit version tag**. `VRCVERIFY_VERSION` is required and there is deliberately no `latest` fallback: deploying a mutable `latest` tag would mean a registry-account compromise turns into code execution on the deploy host at the next pull.
+
+  Make sure your environment variables are provided via an `.env` file or your preferred secret management solution.
+
+  Examples (adjust paths and variables to your environment):
 
   ```bash
+  # Local build (development)
   docker compose -f config/other_configs/docker-compose.yml up -d
+
+  # Deployment: pin to the version you just pushed
+  VRCVERIFY_VERSION=1.4.0 docker compose -f config/other_configs/docker-compose.deploy.yml up -d
   ```
 
   To tag and push images, optional helper scripts are provided:

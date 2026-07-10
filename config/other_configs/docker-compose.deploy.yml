@@ -1,0 +1,52 @@
+# Deployment compose file — pulls published images from Docker Hub.
+#
+# Security note: images are pulled by EXPLICIT version tag, never :latest.
+# A mutable :latest tag means a registry-account compromise becomes code
+# execution on the deploy host at the next pull. VRCVERIFY_VERSION is
+# required; compose refuses to start without it.
+#
+# Usage (on the deploy host, next to your .env):
+#   VRCVERIFY_VERSION=1.4.0 docker compose -f docker-compose.deploy.yml up -d
+# or add VRCVERIFY_VERSION=1.4.0 to the .env file.
+
+services:
+  discord-bot:
+    image: italiandogs/vrcverify-discord-bot:${VRCVERIFY_VERSION:?Set VRCVERIFY_VERSION to a pushed version tag (never latest)}
+    env_file:
+      - .env
+    environment:
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_QUEUE_NAME: ${RABBITMQ_QUEUE_NAME}
+      RABBITMQ_RESULT_QUEUE: ${RABBITMQ_RESULT_QUEUE}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      REST_TTL_SECONDS: ${REST_TTL_SECONDS:-180}
+      REST_CACHE_MAX: ${REST_CACHE_MAX:-10000}
+      REST_CONCURRENCY: ${REST_CONCURRENCY:-8}
+    restart: unless-stopped
+
+  vrc-online-checker:
+    image: italiandogs/vrcverify-vrc-online-checker:${VRCVERIFY_VERSION:?Set VRCVERIFY_VERSION to a pushed version tag (never latest)}
+    env_file:
+      - .env
+    environment:
+      RABBITMQ_QUEUE_NAME: ${RABBITMQ_QUEUE_NAME}
+      RABBITMQ_RESULT_QUEUE: ${RABBITMQ_RESULT_QUEUE}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      VRCHAT_USERNAME: ${VRCHAT_USERNAME}
+      VRCHAT_PASSWORD: ${VRCHAT_PASSWORD}
+      GMAIL_USER: ${GMAIL_USER}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
+      VRCHAT_TTL_SECONDS: ${VRCHAT_TTL_SECONDS:-180}
+      VRCHAT_CACHE_MAX: ${VRCHAT_CACHE_MAX:-10000}
+    restart: unless-stopped
