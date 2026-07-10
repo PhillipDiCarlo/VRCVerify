@@ -87,6 +87,20 @@ class TestVerificationCooldown:
         bot.check_verification_cooldown("user1", window_seconds=0)
         assert bot.check_verification_cooldown("user1", window_seconds=0) == 0
 
+    def test_verify_button_never_blocked_by_recheck_cooldown(self):
+        # Regression: user triggers a re-check (default scope), then presses
+        # the green Verify button — that must always be allowed.
+        assert bot.check_verification_cooldown("user1") == 0
+        assert bot.check_verification_cooldown("user1", scope="verify") == 0
+
+    def test_repeated_verify_presses_still_throttled(self):
+        assert bot.check_verification_cooldown("user1", scope="verify") == 0
+        assert bot.check_verification_cooldown("user1", scope="verify") > 0
+
+    def test_verify_cooldown_does_not_block_recheck(self):
+        assert bot.check_verification_cooldown("user1", scope="verify") == 0
+        assert bot.check_verification_cooldown("user1") == 0
+
     def test_cooldown_message_localized_everywhere(self):
         from locales import localizations, LANGUAGE_CODES
         for code in LANGUAGE_CODES:

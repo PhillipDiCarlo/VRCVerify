@@ -743,19 +743,29 @@ VERIFICATION_COOLDOWN_SECONDS = int(os.getenv("VERIFICATION_COOLDOWN_SECONDS", "
 _verification_cooldowns: dict[str, float] = {}
 
 
-def check_verification_cooldown(user_id: str, window_seconds: int | None = None) -> int:
-    """Start the user's cooldown if none is active.
+def check_verification_cooldown(
+    user_id: str,
+    window_seconds: int | None = None,
+    scope: str = "default",
+) -> int:
+    """Start the user's cooldown for the given action scope if none is active.
 
     Returns 0 when the action is allowed (cooldown now started), otherwise the
     whole seconds remaining. Blocked attempts do not extend the cooldown.
+
+    Scopes are independent buckets: the code-based Verify button uses its own
+    scope so a user who just triggered a re-check or nickname update is never
+    blocked from completing verification — only repeated presses of the same
+    action are throttled.
     """
     window = VERIFICATION_COOLDOWN_SECONDS if window_seconds is None else window_seconds
     now = time.monotonic()
-    expires_at = _verification_cooldowns.get(user_id, 0.0)
+    key = f"{scope}:{user_id}"
+    expires_at = _verification_cooldowns.get(key, 0.0)
     if now < expires_at:
         return int(expires_at - now) + 1
 
-    _verification_cooldowns[user_id] = now + window
+    _verification_cooldowns[key] = now + window
     # Opportunistic cleanup so the map can't grow unbounded.
     if len(_verification_cooldowns) > 10_000:
         for key, expiry in list(_verification_cooldowns.items()):
@@ -1072,7 +1082,8 @@ class VRCVerificationButton(discord.ui.View):
         """
         discord_id = str(interaction.user.id)
 
-        remaining = check_verification_cooldown(discord_id)
+        # Own scope: a prior re-check/nickname request must never block Verify.
+        remaining = check_verification_cooldown(discord_id, scope="verify")
         if remaining:
             await interaction.response.send_message(
                 get_message("cooldown_active", interaction, seconds=remaining),
