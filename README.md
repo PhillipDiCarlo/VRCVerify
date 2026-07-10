@@ -280,6 +280,19 @@ Each component connects to RabbitMQ to exchange verification requests and result
 
 ---
 
+## Testing
+
+Unit tests live under `tests/` and cover locale consistency, bot helper logic (input parsing, custom-message sanitizing, outage message mapping), and checker logic (bio code matching, API error classification, status-page parsing) with all network access mocked.
+
+```bash
+pip install -r config/other_configs/requirements-dev.txt
+pytest
+```
+
+Note: `src/test_vrc.py` is a manual VRChat login script, not part of the automated suite (pytest only collects from `tests/`, per `pytest.ini`).
+
+---
+
 ## Contributing
 
 Contributions to VRChat Verify Bot are welcome. If you have suggestions or improvements, please fork the repository and open a pull request. Be sure to update tests as appropriate.
