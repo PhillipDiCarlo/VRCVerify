@@ -738,7 +738,7 @@ def generate_verification_code() -> str:
 
 # Per-user cooldown on actions that publish to the checker, so a single user
 # can't hammer the VRChat API through us (protects the shared bot account).
-VERIFICATION_COOLDOWN_SECONDS = int(os.getenv("VERIFICATION_COOLDOWN_SECONDS", "30"))
+VERIFICATION_COOLDOWN_SECONDS = int(os.getenv("VERIFICATION_COOLDOWN_SECONDS", "10"))
 
 _verification_cooldowns: dict[str, float] = {}
 
