@@ -49,25 +49,6 @@ def get_message(key: str, interaction: discord.Interaction, **kwargs) -> str:
         template = localizations["en-US"].get(key, key)
     return template.format(**kwargs)
 
-
-from locales import localizations, LANGUAGE_CODES
-
-
-def get_locale(interaction: discord.Interaction) -> str:
-    """Return the best matching locale for this interaction."""
-    loc = getattr(interaction, "locale", None)
-    return loc if loc in LANGUAGE_CODES else "en-US"
-
-
-def get_message(key: str, interaction: discord.Interaction, **kwargs) -> str:
-    """Fetch a localized message by key for the given interaction."""
-    locale = get_locale(interaction)
-    template = localizations.get(locale, localizations["en-US"]).get(key)
-    if template is None:
-        template = localizations["en-US"].get(key, key)
-    return template.format(**kwargs)
-
-
 # -------------------------------------------------------------------
 # Load environment variables
 # -------------------------------------------------------------------
