@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Python dependencies (all requirements*.txt live here)
+  - package-ecosystem: "pip"
+    directory: "/config/other_configs"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-deps:
+        patterns: ["*"]
+
+  # Base images in both Dockerfiles
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
+
+  # GitHub Actions used by CI (CodeQL workflow)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

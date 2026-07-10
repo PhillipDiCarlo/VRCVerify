@@ -1,5 +1,5 @@
-discord.py
-python-dotenv
-SQLAlchemy>=2.0
-psycopg2-binary
-pika
+discord.py==2.6.2
+python-dotenv==1.1.1
+SQLAlchemy==2.0.43
+psycopg2-binary==2.9.10
+pika==1.3.2
