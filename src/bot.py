@@ -7,6 +7,7 @@ import string
 import re
 from typing import Optional
 from html import escape
+from urllib.parse import urlparse
 from types import SimpleNamespace
 
 import discord
@@ -736,29 +737,29 @@ def parse_vrc_user_input(raw_input: str) -> str | None:
     return None
 
 
-CUSTOM_MESSAGE_ALLOWED_URL_PREFIXES = (
-    "https://discord.com/",
-    "https://discord.com",
-    "https://vrchat.com/",
-    "https://vrchat.com",
-)
+CUSTOM_MESSAGE_ALLOWED_HOSTS = {"discord.com", "www.discord.com", "vrchat.com", "www.vrchat.com"}
+
+
+def _is_allowed_custom_message_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    return parsed.scheme == "https" and (parsed.hostname or "").lower() in CUSTOM_MESSAGE_ALLOWED_HOSTS
 
 
 def sanitize_custom_message(raw: str) -> tuple[str, list[str]]:
     """Sanitize an admin-provided custom message.
 
     Strips zero-width characters, neutralizes @everyone/@here, and returns
-    (sanitized_text, invalid_urls) where invalid_urls lists any link not on
-    the discord.com / vrchat.com allowlist.
+    (sanitized_text, invalid_urls) where invalid_urls lists any link whose
+    host is not discord.com / vrchat.com (https only).
     """
     raw = re.sub("[\u200B-\u200D\uFEFF]", "", raw)
     raw = re.sub(r"@(everyone|here)\b", r"@ \1", raw, flags=re.IGNORECASE)
     url_pattern = re.compile(r"https?://[^\s>]+", re.IGNORECASE)
     urls = url_pattern.findall(raw)
-    invalid = [
-        u for u in urls
-        if not any(u.lower().startswith(p) for p in CUSTOM_MESSAGE_ALLOWED_URL_PREFIXES)
-    ]
+    invalid = [u for u in urls if not _is_allowed_custom_message_url(u)]
     return raw, invalid
 
 
