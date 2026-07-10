@@ -28,6 +28,15 @@
             "program": "${workspaceFolder}/src/test_vrc.py",
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/.venv/Scripts/python.exe"
+        },
+        {
+            "name": "Debug Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "purpose": ["debug-test"],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe"
         }
     ]
 }
