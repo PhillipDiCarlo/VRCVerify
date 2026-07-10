@@ -59,6 +59,42 @@ class TestGenerateVerificationCode:
 
 
 # ---------------------------------------------------------------
+# Verification cooldown
+# ---------------------------------------------------------------
+class TestVerificationCooldown:
+    def setup_method(self):
+        bot._verification_cooldowns.clear()
+
+    def test_first_attempt_allowed(self):
+        assert bot.check_verification_cooldown("user1") == 0
+
+    def test_second_attempt_blocked_with_remaining_seconds(self):
+        bot.check_verification_cooldown("user1", window_seconds=30)
+        remaining = bot.check_verification_cooldown("user1", window_seconds=30)
+        assert 0 < remaining <= 31
+
+    def test_blocked_attempt_does_not_extend_cooldown(self):
+        bot.check_verification_cooldown("user1", window_seconds=30)
+        first = bot.check_verification_cooldown("user1", window_seconds=30)
+        second = bot.check_verification_cooldown("user1", window_seconds=30)
+        assert second <= first
+
+    def test_users_are_independent(self):
+        bot.check_verification_cooldown("user1")
+        assert bot.check_verification_cooldown("user2") == 0
+
+    def test_expired_cooldown_allows_again(self):
+        bot.check_verification_cooldown("user1", window_seconds=0)
+        assert bot.check_verification_cooldown("user1", window_seconds=0) == 0
+
+    def test_cooldown_message_localized_everywhere(self):
+        from locales import localizations, LANGUAGE_CODES
+        for code in LANGUAGE_CODES:
+            msg = localizations[code]["cooldown_active"].format(seconds=30)
+            assert "30" in msg
+
+
+# ---------------------------------------------------------------
 # VRChat user input parsing
 # ---------------------------------------------------------------
 class TestParseVrcUserInput:

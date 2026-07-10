@@ -53,6 +53,7 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_confirmed_with_status": "VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n\nStatus page: {status_page}\n\nReported status: {status_message}",
         "vrchat_issue_outage_suspected":            "VRChat appears to be having temporary API issues, so verification could not be completed right now. Please try again later.\n\nStatus page: {status_page}",
         "vrchat_issue_unexpected":                   "Verification could not be completed because VRChat returned an unexpected error. Please try again later.",
+        "cooldown_active":            "You're doing that too fast. Please wait {seconds} seconds and try again.",
     },
 
     "es-ES": {
@@ -100,6 +101,7 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_confirmed_with_status": "VRChat está informando actualmente de un problema de servicio que está afectando a la verificación. Inténtalo de nuevo más tarde.\n\nPágina de estado: {status_page}\n\nEstado informado: {status_message}",
         "vrchat_issue_outage_suspected":            "Parece que VRChat está teniendo problemas temporales con la API, por lo que la verificación no pudo completarse en este momento. Inténtalo de nuevo más tarde.\n\nPágina de estado: {status_page}",
         "vrchat_issue_unexpected":                   "La verificación no pudo completarse porque VRChat devolvió un error inesperado. Inténtalo de nuevo más tarde.",
+        "cooldown_active":            "Vas demasiado rápido. Espera {seconds} segundos e inténtalo de nuevo.",
     },
 
     "zh-CN": {
@@ -147,6 +149,7 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_confirmed_with_status": "VRChat 当前报告了影响验证流程的服务问题。请稍后再试。\n\n状态页面：{status_page}\n\n报告状态：{status_message}",
         "vrchat_issue_outage_suspected":            "VRChat 似乎暂时出现了 API 问题，因此目前无法完成验证。请稍后再试。\n\n状态页面：{status_page}",
         "vrchat_issue_unexpected":                   "由于 VRChat 返回了意外错误，验证无法完成。请稍后再试。",
+        "cooldown_active":            "操作太频繁。请等待 {seconds} 秒后再试。",
     },
 
     "ja": {
@@ -194,6 +197,7 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_confirmed_with_status": "現在、VRChat は認証に影響するサービス障害を報告しています。後でもう一度お試しください。\n\nステータスページ: {status_page}\n\n報告された状態: {status_message}",
         "vrchat_issue_outage_suspected":            "VRChat で一時的な API 障害が発生しているようで、現在は認証を完了できません。後でもう一度お試しください。\n\nステータスページ: {status_page}",
         "vrchat_issue_unexpected":                   "VRChat から予期しないエラーが返されたため、認証を完了できませんでした。後でもう一度お試しください。",
+        "cooldown_active":            "操作が早すぎます。{seconds}秒待ってからもう一度お試しください。",
     },
 
     "de": {
@@ -241,6 +245,7 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_confirmed_with_status": "VRChat meldet derzeit eine Dienststörung, die die Verifizierung beeinträchtigt. Bitte versuche es später erneut.\n\nStatusseite: {status_page}\n\nGemeldeter Status: {status_message}",
         "vrchat_issue_outage_suspected":            "VRChat scheint vorübergehende API-Probleme zu haben, daher konnte die Verifizierung derzeit nicht abgeschlossen werden. Bitte versuche es später erneut.\n\nStatusseite: {status_page}",
         "vrchat_issue_unexpected":                   "Die Verifizierung konnte nicht abgeschlossen werden, weil VRChat einen unerwarteten Fehler zurückgegeben hat. Bitte versuche es später erneut.",
+        "cooldown_active":            "Das ging zu schnell. Bitte warte {seconds} Sekunden und versuche es erneut.",
     },
 
     "nl": {
@@ -288,6 +293,7 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_confirmed_with_status": "VRChat meldt momenteel een serviceprobleem dat verificatie beïnvloedt. Probeer het later opnieuw.\n\nStatuspagina: {status_page}\n\nGemelde status: {status_message}",
         "vrchat_issue_outage_suspected":            "VRChat lijkt tijdelijke API-problemen te hebben, waardoor verificatie nu niet kon worden voltooid. Probeer het later opnieuw.\n\nStatuspagina: {status_page}",
         "vrchat_issue_unexpected":                   "De verificatie kon niet worden voltooid omdat VRChat een onverwachte fout teruggaf. Probeer het later opnieuw.",
+        "cooldown_active":            "Je gaat te snel. Wacht {seconds} seconden en probeer het opnieuw.",
     },
 
     "hi-IN": {
@@ -335,6 +341,7 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_confirmed_with_status": "VRChat इस समय एक ऐसी सेवा समस्या की रिपोर्ट कर रहा है जो सत्यापन को प्रभावित कर रही है। कृपया बाद में फिर प्रयास करें।\n\nस्थिति पृष्ठ: {status_page}\n\nरिपोर्ट की गई स्थिति: {status_message}",
         "vrchat_issue_outage_suspected":            "ऐसा लगता है कि VRChat को अस्थायी API समस्याएँ हो रही हैं, इसलिए अभी सत्यापन पूरा नहीं किया जा सका। कृपया बाद में फिर प्रयास करें।\n\nस्थिति पृष्ठ: {status_page}",
         "vrchat_issue_unexpected":                   "सत्यापन पूरा नहीं हो सका क्योंकि VRChat ने एक अप्रत्याशित त्रुटि लौटाई। कृपया बाद में फिर प्रयास करें।",
+        "cooldown_active":            "आप बहुत तेज़ी से प्रयास कर रहे हैं। कृपया {seconds} सेकंड प्रतीक्षा करें और फिर से प्रयास करें।",
     },
 
     "ar": {
@@ -382,6 +389,7 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_confirmed_with_status": "يبلغ VRChat حاليًا عن مشكلة في الخدمة تؤثر على التحقق. يرجى المحاولة مرة أخرى لاحقًا.\n\nصفحة الحالة: {status_page}\n\nالحالة المبلغ عنها: {status_message}",
         "vrchat_issue_outage_suspected":            "يبدو أن VRChat يواجه مشكلات مؤقتة في واجهة API، لذلك تعذر إكمال التحقق الآن. يرجى المحاولة مرة أخرى لاحقًا.\n\nصفحة الحالة: {status_page}",
         "vrchat_issue_unexpected":                   "تعذر إكمال التحقق لأن VRChat أعاد خطأ غير متوقع. يرجى المحاولة مرة أخرى لاحقًا.",
+        "cooldown_active":            "أنت تحاول بسرعة كبيرة. يرجى الانتظار {seconds} ثانية والمحاولة مرة أخرى.",
     },
 
     "bn": {
@@ -429,6 +437,7 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_confirmed_with_status": "VRChat বর্তমানে এমন একটি পরিষেবা সমস্যার কথা জানাচ্ছে যা যাচাইকরণকে প্রভাবিত করছে। অনুগ্রহ করে পরে আবার চেষ্টা করুন।\n\nস্ট্যাটাস পেজ: {status_page}\n\nরিপোর্ট করা অবস্থা: {status_message}",
         "vrchat_issue_outage_suspected":            "মনে হচ্ছে VRChat-এর সাময়িক API সমস্যা হচ্ছে, তাই এই মুহূর্তে যাচাইকরণ সম্পন্ন করা যায়নি। অনুগ্রহ করে পরে আবার চেষ্টা করুন।\n\nস্ট্যাটাস পেজ: {status_page}",
         "vrchat_issue_unexpected":                   "যাচাইকরণ সম্পন্ন করা যায়নি, কারণ VRChat একটি অপ্রত্যাশিত ত্রুটি ফিরিয়েছে। অনুগ্রহ করে পরে আবার চেষ্টা করুন।",
+        "cooldown_active":            "আপনি খুব দ্রুত চেষ্টা করছেন। অনুগ্রহ করে {seconds} সেকেন্ড অপেক্ষা করে আবার চেষ্টা করুন।",
     },
 
     "pt-BR": {
@@ -476,6 +485,7 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_confirmed_with_status": "O VRChat está relatando um problema de serviço que está afetando a verificação. Tente novamente mais tarde.\n\nPágina de status: {status_page}\n\nStatus reportado: {status_message}",
         "vrchat_issue_outage_suspected":            "Parece que o VRChat está enfrentando problemas temporários de API, então a verificação não pôde ser concluída agora. Tente novamente mais tarde.\n\nPágina de status: {status_page}",
         "vrchat_issue_unexpected":                   "A verificação não pôde ser concluída porque o VRChat retornou um erro inesperado. Tente novamente mais tarde.",
+        "cooldown_active":            "Você está indo rápido demais. Aguarde {seconds} segundos e tente novamente.",
     },
 
     "ru": {
@@ -523,6 +533,7 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_confirmed_with_status": "VRChat сейчас сообщает о проблеме сервиса, которая влияет на проверку. Пожалуйста, попробуйте позже.\n\nСтраница статуса: {status_page}\n\nСообщённый статус: {status_message}",
         "vrchat_issue_outage_suspected":            "Похоже, у VRChat временные проблемы с API, поэтому сейчас завершить проверку не удалось. Пожалуйста, попробуйте позже.\n\nСтраница статуса: {status_page}",
         "vrchat_issue_unexpected":                   "Проверка не может быть завершена, потому что VRChat вернул непредвиденную ошибку. Пожалуйста, попробуйте позже.",
+        "cooldown_active":            "Слишком часто. Подождите {seconds} секунд и попробуйте снова.",
     },
 
     "pa-IN": {
@@ -570,5 +581,6 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_confirmed_with_status": "VRChat ਇਸ ਵੇਲੇ ਇੱਕ ਸਰਵਿਸ ਸਮੱਸਿਆ ਦੀ ਰਿਪੋਰਟ ਕਰ ਰਿਹਾ ਹੈ ਜੋ ਪ੍ਰਮਾਣਿਕਰਨ ਨੂੰ ਪ੍ਰਭਾਵਿਤ ਕਰ ਰਹੀ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।\n\nਸਟੇਟਸ ਪੇਜ: {status_page}\n\nਰਿਪੋਰਟ ਕੀਤੀ ਹਾਲਤ: {status_message}",
         "vrchat_issue_outage_suspected":            "ਇਹ ਲੱਗਦਾ ਹੈ ਕਿ VRChat ਨੂੰ ਅਸਥਾਈ API ਸਮੱਸਿਆਵਾਂ ਆ ਰਹੀਆਂ ਹਨ, ਇਸ ਕਰਕੇ ਇਸ ਵੇਲੇ ਪ੍ਰਮਾਣਿਕਰਨ ਪੂਰਾ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।\n\nਸਟੇਟਸ ਪੇਜ: {status_page}",
         "vrchat_issue_unexpected":                   "ਪ੍ਰਮਾਣਿਕਰਨ ਪੂਰਾ ਨਹੀਂ ਹੋ ਸਕਿਆ ਕਿਉਂਕਿ VRChat ਨੇ ਇੱਕ ਅਣਉਮੀਦ ਗਲਤੀ ਵਾਪਸ ਕੀਤੀ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+        "cooldown_active":            "ਤੁਸੀਂ ਬਹੁਤ ਤੇਜ਼ੀ ਨਾਲ ਕੋਸ਼ਿਸ਼ ਕਰ ਰਹੇ ਹੋ। ਕਿਰਪਾ ਕਰਕੇ {seconds} ਸਕਿੰਟ ਉਡੀਕ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
     }
 }

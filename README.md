@@ -175,6 +175,9 @@ See the sections below for details and configuration.
   REST_CACHE_MAX=10000
   REST_CONCURRENCY=8
 
+  # Optional: per-user cooldown (seconds) between verification/nickname requests
+  VERIFICATION_COOLDOWN_SECONDS=30
+
   # Optional: VRChat API response cache in the checker
   VRCHAT_TTL_SECONDS=180
   VRCHAT_CACHE_MAX=10000

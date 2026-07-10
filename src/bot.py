@@ -5,6 +5,7 @@ import logging
 import random
 import string
 import re
+import time
 from typing import Optional
 from html import escape
 from urllib.parse import urlparse
@@ -345,6 +346,14 @@ class VRCVerifyInstructionView(View):
             )
 
         user_id = str(interaction.user.id)
+
+        remaining = check_verification_cooldown(user_id)
+        if remaining:
+            return await interaction.response.send_message(
+                get_message("cooldown_active", interaction, seconds=remaining),
+                ephemeral=True,
+            )
+
         # fetch user and vrc_user_id
         with session_scope() as session:
             user = session.query(User).filter_by(discord_id=user_id).first()
@@ -699,6 +708,14 @@ async def process_verification(interaction: discord.Interaction):
             await interaction.response.send_modal(VRCUsernameModal(interaction))
             return
 
+        remaining = check_verification_cooldown(user_id)
+        if remaining:
+            await interaction.response.send_message(
+                get_message("cooldown_active", interaction, seconds=remaining),
+                ephemeral=True,
+            )
+            return
+
         await interaction.response.defer(ephemeral=True)
         await publish_to_vrc_checker(
             discord_id=user_id,
@@ -717,6 +734,34 @@ async def process_verification(interaction: discord.Interaction):
 
 def generate_verification_code() -> str:
     return "VRC-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+
+# Per-user cooldown on actions that publish to the checker, so a single user
+# can't hammer the VRChat API through us (protects the shared bot account).
+VERIFICATION_COOLDOWN_SECONDS = int(os.getenv("VERIFICATION_COOLDOWN_SECONDS", "30"))
+
+_verification_cooldowns: dict[str, float] = {}
+
+
+def check_verification_cooldown(user_id: str, window_seconds: int | None = None) -> int:
+    """Start the user's cooldown if none is active.
+
+    Returns 0 when the action is allowed (cooldown now started), otherwise the
+    whole seconds remaining. Blocked attempts do not extend the cooldown.
+    """
+    window = VERIFICATION_COOLDOWN_SECONDS if window_seconds is None else window_seconds
+    now = time.monotonic()
+    expires_at = _verification_cooldowns.get(user_id, 0.0)
+    if now < expires_at:
+        return int(expires_at - now) + 1
+
+    _verification_cooldowns[user_id] = now + window
+    # Opportunistic cleanup so the map can't grow unbounded.
+    if len(_verification_cooldowns) > 10_000:
+        for key, expiry in list(_verification_cooldowns.items()):
+            if expiry <= now:
+                _verification_cooldowns.pop(key, None)
+    return 0
 
 
 VRC_PROFILE_URL_PATTERN = re.compile(r"https?://vrchat\.com/home/user/([A-Za-z0-9\-_]+)")
@@ -1026,6 +1071,15 @@ class VRCVerificationButton(discord.ui.View):
         meaning code-based flow.
         """
         discord_id = str(interaction.user.id)
+
+        remaining = check_verification_cooldown(discord_id)
+        if remaining:
+            await interaction.response.send_message(
+                get_message("cooldown_active", interaction, seconds=remaining),
+                ephemeral=True,
+            )
+            return
+
         await interaction.response.defer(ephemeral=True)
 
         await publish_to_vrc_checker(
