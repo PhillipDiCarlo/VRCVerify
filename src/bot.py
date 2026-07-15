@@ -68,6 +68,12 @@ RABBITMQ_USERNAME = os.getenv("RABBITMQ_USERNAME")
 RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD")
 RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST")
 
+# Donation link surfaced on the instruction panel, admin confirmations,
+# and the one-time milestone DM.
+KOFI_URL = "https://ko-fi.com/italiandogs"
+# Verifications a guild must complete before the one-time owner thank-you DM.
+MILESTONE_VERIFICATION_COUNT = 100
+
 # -------------------------------------------------------------------
 # Logging setup
 # -------------------------------------------------------------------
@@ -125,6 +131,9 @@ class Server(Base):
     auto_verify_new_members = Column(Boolean, default=True, nullable=False)
     # Custom message shown after user clicks Verify (optional)
     custom_verification_requested_message = Column(String, nullable=True)
+    # Completed 18+ verifications in this guild (for the one-time milestone DM)
+    verification_count = Column(Integer, default=0, nullable=False)
+    milestone_dm_sent = Column(Boolean, default=False, nullable=False)
 
 
 class User(Base):
@@ -333,6 +342,10 @@ class VRCVerifyInstructionView(View):
         update_btn = Button(label=update_label, style=discord.ButtonStyle.secondary)
         update_btn.callback = self.update_nickname
         self.add_item(update_btn)
+        # Donate button (link buttons can't be colored; the emoji makes it stand out)
+        donate_label = localizations.get(locale, localizations['en-US'])['btn_donate']
+        donate_btn = Button(label=donate_label, emoji="☕", style=discord.ButtonStyle.link, url=KOFI_URL)
+        self.add_item(donate_btn)
 
     async def begin_verification(self, interaction: discord.Interaction):
         # call the verification helper
@@ -596,6 +609,57 @@ async def dm_role_assignment_failure(
         role=role.name,
         server=guild.name,
     )
+
+
+async def record_guild_verification(guild_id: str, guild: Optional[discord.Guild]):
+    """
+    Count a completed 18+ verification for a guild. When the guild crosses
+    MILESTONE_VERIFICATION_COUNT, DM the admin who configured the bot
+    (fallback: the guild owner) a one-time thank-you with the donation link.
+    """
+    if not guild_id:
+        return
+    # Columns may not exist yet if the manual migration hasn't been applied.
+    if not (server_has_column("verification_count") and server_has_column("milestone_dm_sent")):
+        return
+
+    owner_to_dm = None
+    milestone_count = 0
+    instr_locale = None
+    try:
+        with session_scope() as session:
+            server = session.query(Server).filter_by(server_id=str(guild_id)).first()
+            if not server:
+                return
+            server.verification_count = (server.verification_count or 0) + 1
+            if (
+                server.verification_count >= MILESTONE_VERIFICATION_COUNT
+                and not server.milestone_dm_sent
+            ):
+                # Flag first so a DM failure can never cause repeat sends.
+                server.milestone_dm_sent = True
+                owner_to_dm = server.owner_id
+                milestone_count = server.verification_count
+                instr_locale = server.instructions_locale
+    except Exception:
+        logger.warning("⚠️ Could not record guild verification count.", exc_info=True)
+        return
+
+    if owner_to_dm is None or guild is None:
+        return
+    member = await fetch_member_cached(guild, int(owner_to_dm))
+    if member is None:
+        member = guild.owner or await fetch_member_cached(guild, guild.owner_id)
+    if member:
+        await dm_localized(
+            member,
+            guild,
+            "milestone_owner_dm",
+            instr_locale,
+            server=guild.name,
+            count=milestone_count,
+            kofi_link=KOFI_URL,
+        )
 
 
 def get_server_locale_code(guild_id: str | None, guild: Optional[discord.Guild] = None) -> str:
@@ -1178,7 +1242,8 @@ async def vrcverify_setup(
             )
         else:
             extra_local = get_message("setup_unverified_missing", interaction)
-        await interaction.response.send_message(base + extra_local, ephemeral=True)
+        donate_hint = get_message("setup_donate_hint", interaction, kofi_link=KOFI_URL)
+        await interaction.response.send_message(base + extra_local + donate_hint, ephemeral=True)
 
 
 # -------------------------------------------------------------------
@@ -1195,7 +1260,7 @@ async def vrcverify_subscription(interaction: discord.Interaction):
     premium features for your VRChat verification bot.
     """
     subscription_link = "https://esattotech.com/vrcverify-vrchat-age-verifier-for-discord/"
-    kofi_link = "https://ko-fi.com/italiandogs"
+    kofi_link = KOFI_URL
 
     # localized subscription info
     await interaction.response.send_message(
@@ -1266,6 +1331,12 @@ async def vrcverify_instructions(interaction: discord.Interaction):
         if server:
             server.instructions_channel_id = channel_id
             server.instructions_message_id = str(message.id)
+
+    # Quiet, admin-only nudge after the public panel is posted
+    await interaction.followup.send(
+        get_message("setup_donate_hint", interaction, kofi_link=KOFI_URL).strip(),
+        ephemeral=True,
+    )
 
 
 # -------------------------------------------------------------------
@@ -1481,6 +1552,8 @@ async def handle_verification_result(data: dict):
 
             # Now assign role + maybe nickname
             await assign_role(discord_id, is_18_plus, guild_id, display_name=display_name)
+            if is_18_plus:
+                await record_guild_verification(guild_id, guild)
             return
 
         # — Code-based flow —
@@ -1531,6 +1604,8 @@ async def handle_verification_result(data: dict):
 
         # Assign role + maybe nickname
         await assign_role(discord_id, is_18_plus, guild_id, display_name=display_name)
+        if is_18_plus:
+            await record_guild_verification(guild_id, guild)
 
     except Exception:
         logger.error("❌ Exception in handle_verification_result", exc_info=True)
