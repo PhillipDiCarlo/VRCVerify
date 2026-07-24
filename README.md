@@ -178,10 +178,6 @@ See the sections below for details and configuration.
   # Optional: per-user cooldown (seconds) between verification/nickname requests
   VERIFICATION_COOLDOWN_SECONDS=10
 
-  # Optional: VRChat API response cache in the checker
-  VRCHAT_TTL_SECONDS=180
-  VRCHAT_CACHE_MAX=10000
-
   # Optional: VRChat checker login/lookup tuning
   VRCHAT_RELOGIN_INTERVAL_SECONDS=600
   VRCHAT_API_CONNECT_TIMEOUT_SECONDS=10

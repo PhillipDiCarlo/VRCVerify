@@ -49,7 +49,4 @@ services:
       VRCHAT_PASSWORD: ${VRCHAT_PASSWORD}
       GMAIL_USER: ${GMAIL_USER}
       GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
-      # Optional cache knobs used by the checker
-      VRCHAT_TTL_SECONDS: ${VRCHAT_TTL_SECONDS:-180}
-      VRCHAT_CACHE_MAX: ${VRCHAT_CACHE_MAX:-10000}
     restart: unless-stopped

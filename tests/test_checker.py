@@ -2,8 +2,8 @@
 
 All network paths (VRChat login, status page, RabbitMQ) are monkeypatched;
 these tests exercise pure logic: bio code matching, error classification,
-outage detection from status-page summaries, result payload shape, the TTL
-cache, and verify_and_build_result with a faked VRChat session.
+outage detection from status-page summaries, result payload shape, and
+verify_and_build_result with a faked VRChat session.
 """
 
 from types import SimpleNamespace
@@ -183,31 +183,6 @@ class TestExtractRelevantVrchatStatus:
         monkeypatch.setattr(checker, "_fetch_vrchat_status_summary", lambda force_refresh=False: summary)
         status = checker._extract_relevant_vrchat_status()
         assert status["vrchat_outage_confirmed"] is False
-
-
-# ---------------------------------------------------------------
-# TTL cache
-# ---------------------------------------------------------------
-class TestTTLCache:
-    def test_set_and_get(self):
-        cache = checker._TTLCache(maxsize=10, ttl_seconds=1000)
-        cache.set("k", "v")
-        assert cache.get("k") == "v"
-
-    def test_expired_entry_returns_none(self):
-        cache = checker._TTLCache(maxsize=10, ttl_seconds=-1)
-        cache.set("k", "v")
-        assert cache.get("k") is None
-
-    def test_missing_key(self):
-        cache = checker._TTLCache(maxsize=10, ttl_seconds=1000)
-        assert cache.get("nope") is None
-
-    def test_eviction_keeps_size_bounded(self):
-        cache = checker._TTLCache(maxsize=2, ttl_seconds=1000)
-        for i in range(5):
-            cache.set(f"k{i}", i)
-        assert len(cache._store) <= 2
 
 
 # ---------------------------------------------------------------
