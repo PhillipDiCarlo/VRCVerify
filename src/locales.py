@@ -54,6 +54,9 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_suspected":            "VRChat appears to be having temporary API issues, so verification could not be completed right now. Please try again later.\n\nStatus page: {status_page}",
         "vrchat_issue_unexpected":                   "Verification could not be completed because VRChat returned an unexpected error. Please try again later.",
         "cooldown_active":            "You're doing that too fast. Please wait {seconds} seconds and try again.",
+        "btn_donate":                 "Donate",
+        "setup_donate_hint":          "\n\n☕ VRCVerify is free thanks to donations. If it helps your community, you can support it here: {kofi_link}",
+        "milestone_owner_dm":         "🎉 **{server}** has reached {count} completed verifications with VRCVerify!\nThe bot is free and runs on donations — if it's been useful to your community, you can support it here: {kofi_link}\n(This is a one-time message.)",
     },
 
     "es-ES": {
@@ -102,6 +105,9 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_suspected":            "Parece que VRChat está teniendo problemas temporales con la API, por lo que la verificación no pudo completarse en este momento. Inténtalo de nuevo más tarde.\n\nPágina de estado: {status_page}",
         "vrchat_issue_unexpected":                   "La verificación no pudo completarse porque VRChat devolvió un error inesperado. Inténtalo de nuevo más tarde.",
         "cooldown_active":            "Vas demasiado rápido. Espera {seconds} segundos e inténtalo de nuevo.",
+        "btn_donate":                 "Donar",
+        "setup_donate_hint":          "\n\n☕ VRCVerify es gratuito gracias a las donaciones. Si ayuda a tu comunidad, puedes apoyarlo aquí: {kofi_link}",
+        "milestone_owner_dm":         "🎉 ¡**{server}** ha alcanzado {count} verificaciones completadas con VRCVerify!\nEl bot es gratuito y se mantiene gracias a las donaciones. Si le ha sido útil a tu comunidad, puedes apoyarlo aquí: {kofi_link}\n(Este es un mensaje único.)",
     },
 
     "zh-CN": {
@@ -150,6 +156,9 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_suspected":            "VRChat 似乎暂时出现了 API 问题，因此目前无法完成验证。请稍后再试。\n\n状态页面：{status_page}",
         "vrchat_issue_unexpected":                   "由于 VRChat 返回了意外错误，验证无法完成。请稍后再试。",
         "cooldown_active":            "操作太频繁。请等待 {seconds} 秒后再试。",
+        "btn_donate":                 "捐赠",
+        "setup_donate_hint":          "\n\n☕ VRCVerify 依靠捐赠免费提供。如果它对您的社区有帮助,您可以在这里支持我们:{kofi_link}",
+        "milestone_owner_dm":         "🎉 **{server}** 已通过 VRCVerify 完成 {count} 次验证!\n本机器人免费提供,依靠捐赠维持运营。如果它对您的社区有帮助,您可以在这里支持我们:{kofi_link}\n(此消息仅发送一次。)",
     },
 
     "ja": {
@@ -198,6 +207,9 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_suspected":            "VRChat で一時的な API 障害が発生しているようで、現在は認証を完了できません。後でもう一度お試しください。\n\nステータスページ: {status_page}",
         "vrchat_issue_unexpected":                   "VRChat から予期しないエラーが返されたため、認証を完了できませんでした。後でもう一度お試しください。",
         "cooldown_active":            "操作が早すぎます。{seconds}秒待ってからもう一度お試しください。",
+        "btn_donate":                 "寄付",
+        "setup_donate_hint":          "\n\n☕ VRCVerifyは寄付のおかげで無料で提供されています。コミュニティのお役に立てましたら、こちらからご支援ください:{kofi_link}",
+        "milestone_owner_dm":         "🎉 **{server}** はVRCVerifyで{count}件の認証を達成しました!\nこのボットは無料で、寄付によって運営されています。コミュニティのお役に立てましたら、こちらからご支援ください:{kofi_link}\n(このメッセージは一度だけ送信されます。)",
     },
 
     "de": {
@@ -246,6 +258,9 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_suspected":            "VRChat scheint vorübergehende API-Probleme zu haben, daher konnte die Verifizierung derzeit nicht abgeschlossen werden. Bitte versuche es später erneut.\n\nStatusseite: {status_page}",
         "vrchat_issue_unexpected":                   "Die Verifizierung konnte nicht abgeschlossen werden, weil VRChat einen unerwarteten Fehler zurückgegeben hat. Bitte versuche es später erneut.",
         "cooldown_active":            "Das ging zu schnell. Bitte warte {seconds} Sekunden und versuche es erneut.",
+        "btn_donate":                 "Spenden",
+        "setup_donate_hint":          "\n\n☕ VRCVerify ist dank Spenden kostenlos. Wenn es deiner Community hilft, kannst du es hier unterstützen: {kofi_link}",
+        "milestone_owner_dm":         "🎉 **{server}** hat {count} abgeschlossene Verifizierungen mit VRCVerify erreicht!\nDer Bot ist kostenlos und wird durch Spenden finanziert – wenn er deiner Community geholfen hat, kannst du ihn hier unterstützen: {kofi_link}\n(Dies ist eine einmalige Nachricht.)",
     },
 
     "nl": {
@@ -294,6 +309,9 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_suspected":            "VRChat lijkt tijdelijke API-problemen te hebben, waardoor verificatie nu niet kon worden voltooid. Probeer het later opnieuw.\n\nStatuspagina: {status_page}",
         "vrchat_issue_unexpected":                   "De verificatie kon niet worden voltooid omdat VRChat een onverwachte fout teruggaf. Probeer het later opnieuw.",
         "cooldown_active":            "Je gaat te snel. Wacht {seconds} seconden en probeer het opnieuw.",
+        "btn_donate":                 "Doneren",
+        "setup_donate_hint":          "\n\n☕ VRCVerify is gratis dankzij donaties. Als het je community helpt, kun je het hier steunen: {kofi_link}",
+        "milestone_owner_dm":         "🎉 **{server}** heeft {count} voltooide verificaties met VRCVerify bereikt!\nDe bot is gratis en draait op donaties – als hij nuttig is geweest voor je community, kun je hem hier steunen: {kofi_link}\n(Dit is een eenmalig bericht.)",
     },
 
     "hi-IN": {
@@ -342,6 +360,9 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_suspected":            "ऐसा लगता है कि VRChat को अस्थायी API समस्याएँ हो रही हैं, इसलिए अभी सत्यापन पूरा नहीं किया जा सका। कृपया बाद में फिर प्रयास करें।\n\nस्थिति पृष्ठ: {status_page}",
         "vrchat_issue_unexpected":                   "सत्यापन पूरा नहीं हो सका क्योंकि VRChat ने एक अप्रत्याशित त्रुटि लौटाई। कृपया बाद में फिर प्रयास करें।",
         "cooldown_active":            "आप बहुत तेज़ी से प्रयास कर रहे हैं। कृपया {seconds} सेकंड प्रतीक्षा करें और फिर से प्रयास करें।",
+        "btn_donate":                 "दान करें",
+        "setup_donate_hint":          "\n\n☕ VRCVerify दान की बदौलत मुफ़्त है। यदि यह आपके समुदाय की मदद करता है, तो आप यहाँ समर्थन कर सकते हैं: {kofi_link}",
+        "milestone_owner_dm":         "🎉 **{server}** ने VRCVerify के साथ {count} सत्यापन पूरे कर लिए हैं!\nयह बॉट मुफ़्त है और दान पर चलता है — यदि यह आपके समुदाय के लिए उपयोगी रहा है, तो आप यहाँ समर्थन कर सकते हैं: {kofi_link}\n(यह संदेश केवल एक बार भेजा जाता है।)",
     },
 
     "ar": {
@@ -390,6 +411,9 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_suspected":            "يبدو أن VRChat يواجه مشكلات مؤقتة في واجهة API، لذلك تعذر إكمال التحقق الآن. يرجى المحاولة مرة أخرى لاحقًا.\n\nصفحة الحالة: {status_page}",
         "vrchat_issue_unexpected":                   "تعذر إكمال التحقق لأن VRChat أعاد خطأ غير متوقع. يرجى المحاولة مرة أخرى لاحقًا.",
         "cooldown_active":            "أنت تحاول بسرعة كبيرة. يرجى الانتظار {seconds} ثانية والمحاولة مرة أخرى.",
+        "btn_donate":                 "تبرع",
+        "setup_donate_hint":          "\n\n☕ VRCVerify مجاني بفضل التبرعات. إذا كان يساعد مجتمعك، يمكنك دعمه هنا: {kofi_link}",
+        "milestone_owner_dm":         "🎉 وصل **{server}** إلى {count} عملية تحقق مكتملة مع VRCVerify!\nالبوت مجاني ويعتمد على التبرعات — إذا كان مفيدًا لمجتمعك، يمكنك دعمه هنا: {kofi_link}\n(هذه رسالة تُرسل مرة واحدة فقط.)",
     },
 
     "bn": {
@@ -438,6 +462,9 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_suspected":            "মনে হচ্ছে VRChat-এর সাময়িক API সমস্যা হচ্ছে, তাই এই মুহূর্তে যাচাইকরণ সম্পন্ন করা যায়নি। অনুগ্রহ করে পরে আবার চেষ্টা করুন।\n\nস্ট্যাটাস পেজ: {status_page}",
         "vrchat_issue_unexpected":                   "যাচাইকরণ সম্পন্ন করা যায়নি, কারণ VRChat একটি অপ্রত্যাশিত ত্রুটি ফিরিয়েছে। অনুগ্রহ করে পরে আবার চেষ্টা করুন।",
         "cooldown_active":            "আপনি খুব দ্রুত চেষ্টা করছেন। অনুগ্রহ করে {seconds} সেকেন্ড অপেক্ষা করে আবার চেষ্টা করুন।",
+        "btn_donate":                 "দান করুন",
+        "setup_donate_hint":          "\n\n☕ দানের কারণে VRCVerify বিনামূল্যে। যদি এটি আপনার কমিউনিটিকে সাহায্য করে, আপনি এখানে সমর্থন করতে পারেন: {kofi_link}",
+        "milestone_owner_dm":         "🎉 **{server}** VRCVerify দিয়ে {count}টি যাচাইকরণ সম্পন্ন করেছে!\nবটটি বিনামূল্যে এবং দানের উপর চলে — যদি এটি আপনার কমিউনিটির জন্য উপযোগী হয়ে থাকে, আপনি এখানে সমর্থন করতে পারেন: {kofi_link}\n(এই বার্তাটি শুধুমাত্র একবার পাঠানো হয়।)",
     },
 
     "pt-BR": {
@@ -486,6 +513,9 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_suspected":            "Parece que o VRChat está enfrentando problemas temporários de API, então a verificação não pôde ser concluída agora. Tente novamente mais tarde.\n\nPágina de status: {status_page}",
         "vrchat_issue_unexpected":                   "A verificação não pôde ser concluída porque o VRChat retornou um erro inesperado. Tente novamente mais tarde.",
         "cooldown_active":            "Você está indo rápido demais. Aguarde {seconds} segundos e tente novamente.",
+        "btn_donate":                 "Doar",
+        "setup_donate_hint":          "\n\n☕ O VRCVerify é gratuito graças a doações. Se ele ajuda a sua comunidade, você pode apoiá-lo aqui: {kofi_link}",
+        "milestone_owner_dm":         "🎉 **{server}** alcançou {count} verificações concluídas com o VRCVerify!\nO bot é gratuito e se mantém com doações — se ele foi útil para a sua comunidade, você pode apoiá-lo aqui: {kofi_link}\n(Esta é uma mensagem única.)",
     },
 
     "ru": {
@@ -534,6 +564,9 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_suspected":            "Похоже, у VRChat временные проблемы с API, поэтому сейчас завершить проверку не удалось. Пожалуйста, попробуйте позже.\n\nСтраница статуса: {status_page}",
         "vrchat_issue_unexpected":                   "Проверка не может быть завершена, потому что VRChat вернул непредвиденную ошибку. Пожалуйста, попробуйте позже.",
         "cooldown_active":            "Слишком часто. Подождите {seconds} секунд и попробуйте снова.",
+        "btn_donate":                 "Поддержать",
+        "setup_donate_hint":          "\n\n☕ VRCVerify бесплатен благодаря пожертвованиям. Если он помогает вашему сообществу, вы можете поддержать его здесь: {kofi_link}",
+        "milestone_owner_dm":         "🎉 **{server}** достиг {count} завершённых проверок с VRCVerify!\nБот бесплатный и существует на пожертвования — если он был полезен вашему сообществу, вы можете поддержать его здесь: {kofi_link}\n(Это одноразовое сообщение.)",
     },
 
     "pa-IN": {
@@ -582,5 +615,8 @@ localizations: dict[str, dict[str, str]] = {
         "vrchat_issue_outage_suspected":            "ਇਹ ਲੱਗਦਾ ਹੈ ਕਿ VRChat ਨੂੰ ਅਸਥਾਈ API ਸਮੱਸਿਆਵਾਂ ਆ ਰਹੀਆਂ ਹਨ, ਇਸ ਕਰਕੇ ਇਸ ਵੇਲੇ ਪ੍ਰਮਾਣਿਕਰਨ ਪੂਰਾ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।\n\nਸਟੇਟਸ ਪੇਜ: {status_page}",
         "vrchat_issue_unexpected":                   "ਪ੍ਰਮਾਣਿਕਰਨ ਪੂਰਾ ਨਹੀਂ ਹੋ ਸਕਿਆ ਕਿਉਂਕਿ VRChat ਨੇ ਇੱਕ ਅਣਉਮੀਦ ਗਲਤੀ ਵਾਪਸ ਕੀਤੀ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
         "cooldown_active":            "ਤੁਸੀਂ ਬਹੁਤ ਤੇਜ਼ੀ ਨਾਲ ਕੋਸ਼ਿਸ਼ ਕਰ ਰਹੇ ਹੋ। ਕਿਰਪਾ ਕਰਕੇ {seconds} ਸਕਿੰਟ ਉਡੀਕ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+        "btn_donate":                 "ਦਾਨ ਕਰੋ",
+        "setup_donate_hint":          "\n\n☕ VRCVerify ਦਾਨ ਸਦਕਾ ਮੁਫ਼ਤ ਹੈ। ਜੇ ਇਹ ਤੁਹਾਡੀ ਕਮਿਊਨਿਟੀ ਦੀ ਮਦਦ ਕਰਦਾ ਹੈ, ਤਾਂ ਤੁਸੀਂ ਇੱਥੇ ਸਮਰਥਨ ਕਰ ਸਕਦੇ ਹੋ: {kofi_link}",
+        "milestone_owner_dm":         "🎉 **{server}** ਨੇ VRCVerify ਨਾਲ {count} ਤਸਦੀਕਾਂ ਪੂਰੀਆਂ ਕਰ ਲਈਆਂ ਹਨ!\nਇਹ ਬੋਟ ਮੁਫ਼ਤ ਹੈ ਅਤੇ ਦਾਨ 'ਤੇ ਚੱਲਦਾ ਹੈ — ਜੇ ਇਹ ਤੁਹਾਡੀ ਕਮਿਊਨਿਟੀ ਲਈ ਲਾਭਦਾਇਕ ਰਿਹਾ ਹੈ, ਤਾਂ ਤੁਸੀਂ ਇੱਥੇ ਸਮਰਥਨ ਕਰ ਸਕਦੇ ਹੋ: {kofi_link}\n(ਇਹ ਸੁਨੇਹਾ ਸਿਰਫ਼ ਇੱਕ ਵਾਰ ਭੇਜਿਆ ਜਾਂਦਾ ਹੈ।)",
     }
 }
