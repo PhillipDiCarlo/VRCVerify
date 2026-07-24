@@ -1143,6 +1143,12 @@ class VRCVerificationButton(discord.ui.View):
         """
         When pressed, we publish a request with verificationCode != None,
         meaning code-based flow.
+
+        Always looks up the *current* pending code from the DB instead of
+        trusting self.verification_code: /vrcverify replaces a user's pending
+        row on every run, so an older instruction message's button would
+        otherwise keep re-submitting a stale code that no longer matches
+        what the user was told to put in their bio.
         """
         discord_id = str(interaction.user.id)
 
@@ -1155,10 +1161,24 @@ class VRCVerificationButton(discord.ui.View):
             )
             return
 
+        with session_scope() as session:
+            pending = (
+                session.query(PendingVerification)
+                .filter_by(discord_id=discord_id, guild_id=self.guild_id)
+                .first()
+            )
+            if not pending or datetime.now(timezone.utc) > pending.expires_at:
+                await interaction.response.send_message(
+                    get_message("verify_button_expired", interaction), ephemeral=True
+                )
+                return
+            vrc_user_id = pending.vrc_user_id
+            verification_code = pending.verification_code
+
         await interaction.response.defer(ephemeral=True)
 
         await publish_to_vrc_checker(
-            discord_id, self.vrc_username, self.guild_id, self.verification_code
+            discord_id, vrc_user_id, self.guild_id, verification_code
         )
 
         await interaction.followup.send(
