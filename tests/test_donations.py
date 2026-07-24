@@ -441,7 +441,9 @@ class TestVerificationResultCountsMilestone:
         run(bot.handle_verification_result(self._code_data(code_found=False)))
         assert spies.assign == []
         assert spies.record == []
-        assert self._pending_count() == 0
+        # Pending row must survive so the "try again" DM's Verify button
+        # (which re-sends the same code) can still find a match.
+        assert self._pending_count() == 1
 
     def test_unknown_code_never_counts(self, spies, user_row, naive_now):
         # No pending row at all

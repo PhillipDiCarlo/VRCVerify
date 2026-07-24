@@ -1576,7 +1576,12 @@ async def handle_verification_result(data: dict):
                 logger.warning(f"⚠️ Verification code expired for {discord_id}.")
                 return
             if not data.get("code_found", False):
-                session.delete(pending)
+                # Don't delete the pending row here: the DM tells the user to
+                # "try again", which means clicking the same Verify button.
+                # That re-sends this same verification_code, so the pending
+                # row needs to still exist for the retry to find a match.
+                # It gets cleaned up by expiry (expired_pending_cleanup_task)
+                # or replaced when they resubmit /vrcverify.
                 guild  = bot.get_guild(int(guild_id))
                 member = await fetch_member_cached(guild, int(discord_id)) if guild else None
                 if member:
