@@ -51,4 +51,13 @@ services:
       GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
       # Kill switch for the /profile bio lookup; see README
       VRCHAT_USE_PROFILE_ENDPOINT: ${VRCHAT_USE_PROFILE_ENDPOINT:-true}
+      # Reuse the VRChat session across restarts so redeploys don't burn a
+      # 2FA email (and risk a 429 lockout). Unset to disable.
+      VRCHAT_SESSION_FILE: ${VRCHAT_SESSION_FILE-/data/vrchat_session.txt}
+    volumes:
+      - vrchat-session:/data
     restart: unless-stopped
+
+volumes:
+  # Persists the VRChat auth cookie so restarts skip re-authentication.
+  vrchat-session:

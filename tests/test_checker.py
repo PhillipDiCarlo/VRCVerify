@@ -310,6 +310,137 @@ class TestFetchProfileSnapshot:
         assert result["display_name"] == "Fresh"
 
 
+class TestSessionPersistence:
+    """Storing the auth cookie keeps restarts from re-authenticating.
+
+    Every fresh login burns a 2FA email and VRChat rate-limits that endpoint,
+    so a few quick redeploys can lock the account out and take verification
+    down. None of this may ever block a login, hence the tolerance tests.
+    """
+
+    def _client(self):
+        return SimpleNamespace(rest_client=SimpleNamespace(cookie_jar=object()))
+
+    def test_disabled_when_unset(self, monkeypatch):
+        monkeypatch.setattr(checker, "VRCHAT_SESSION_FILE", "")
+        assert checker._attach_session_store(self._client()) is None
+
+    def test_roundtrip_persists_and_reloads(self, monkeypatch, tmp_path):
+        path = tmp_path / "session.txt"
+        monkeypatch.setattr(checker, "VRCHAT_SESSION_FILE", str(path))
+
+        client = self._client()
+        jar = checker._attach_session_store(client)
+        assert jar is not None
+        assert client.rest_client.cookie_jar is jar
+
+        checker._persist_session(jar)
+        assert path.exists()
+
+        # A second client picks the stored session back up.
+        assert checker._attach_session_store(self._client()) is not None
+
+    def test_corrupt_session_file_is_ignored(self, monkeypatch, tmp_path):
+        path = tmp_path / "session.txt"
+        path.write_text("this is not a cookie jar", encoding="utf-8")
+        monkeypatch.setattr(checker, "VRCHAT_SESSION_FILE", str(path))
+        # Must not raise: a bad file falls back to a normal login.
+        assert checker._attach_session_store(self._client()) is not None
+
+    def test_persist_failure_is_swallowed(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(checker, "VRCHAT_SESSION_FILE", str(tmp_path / "s.txt"))
+        jar = checker._attach_session_store(self._client())
+
+        def boom(*a, **k):
+            raise OSError("read-only filesystem")
+
+        monkeypatch.setattr(jar, "save", boom)
+        checker._persist_session(jar)  # must not raise
+
+    def test_persist_noop_when_disabled(self):
+        checker._persist_session(None)  # must not raise
+
+    def test_discard_removes_file(self, monkeypatch, tmp_path):
+        path = tmp_path / "session.txt"
+        path.write_text("x", encoding="utf-8")
+        monkeypatch.setattr(checker, "VRCHAT_SESSION_FILE", str(path))
+        checker._discard_stored_session()
+        assert not path.exists()
+        checker._discard_stored_session()  # already gone: still must not raise
+
+    def _patch_login_stack(self, monkeypatch, get_current_user):
+        """Fake out ApiClient/AuthenticationApi for login_to_vrchat."""
+        monkeypatch.setattr(
+            checker.vrchatapi, "Configuration", lambda **k: SimpleNamespace()
+        )
+        monkeypatch.setattr(
+            checker.vrchatapi,
+            "ApiClient",
+            lambda cfg: SimpleNamespace(
+                user_agent="", rest_client=SimpleNamespace(cookie_jar=None)
+            ),
+        )
+        monkeypatch.setattr(
+            checker.authentication_api,
+            "AuthenticationApi",
+            lambda c: SimpleNamespace(get_current_user=get_current_user),
+        )
+
+    def test_rejected_stored_session_retries_clean_without_looping(self, monkeypatch):
+        """A stale cookie must not strand us or recurse forever.
+
+        Without this, a rejected stored session would be sent through the 2FA
+        path -- the exact endpoint VRChat rate-limits.
+        """
+        calls = {"get_current_user": 0, "discarded": 0, "attach": 0}
+
+        def get_current_user(**kwargs):
+            calls["get_current_user"] += 1
+            if calls["get_current_user"] == 1:
+                raise checker.UnauthorizedException(status=401)
+            return SimpleNamespace(display_name="ClubLA Bot")
+
+        self._patch_login_stack(monkeypatch, get_current_user)
+
+        def fake_attach(client):
+            calls["attach"] += 1
+            # Non-empty jar on the first pass => a stored session was reused.
+            return ["cookie"] if calls["attach"] == 1 else None
+
+        monkeypatch.setattr(checker, "_attach_session_store", fake_attach)
+        monkeypatch.setattr(checker, "_persist_session", lambda jar: None)
+        monkeypatch.setattr(
+            checker,
+            "_discard_stored_session",
+            lambda: calls.__setitem__("discarded", calls["discarded"] + 1),
+        )
+
+        client, err = checker.login_to_vrchat()
+
+        assert err is None and client is not None
+        assert calls["discarded"] == 1
+        assert calls["get_current_user"] == 2  # retried exactly once
+        assert calls["attach"] == 1  # retry did not re-load the stored session
+
+    def test_stored_session_skips_2fa_entirely(self, monkeypatch):
+        def get_current_user(**kwargs):
+            return SimpleNamespace(display_name="ClubLA Bot")
+
+        self._patch_login_stack(monkeypatch, get_current_user)
+        monkeypatch.setattr(checker, "_attach_session_store", lambda c: ["cookie"])
+        saved = []
+        monkeypatch.setattr(checker, "_persist_session", lambda jar: saved.append(jar))
+
+        def no_2fa():
+            raise AssertionError("2FA must not be used when a session is reused")
+
+        monkeypatch.setattr(checker, "fetch_latest_2fa_code", no_2fa)
+
+        client, err = checker.login_to_vrchat()
+        assert err is None and client is not None
+        assert saved  # session refreshed on disk
+
+
 class TestVerifyAndBuildResult:
     def test_no_session_returns_unavailable(self, monkeypatch):
         monkeypatch.setattr(checker, "get_vrchat_session", lambda: (None, None))

@@ -187,6 +187,15 @@ See the sections below for details and configuration.
   VRCHAT_LOOKUP_RETRIES=3
   VRCHAT_LOOKUP_BACKOFF_BASE=1.5
 
+  # Optional: persist the VRChat auth cookie so a restarted checker resumes
+  # its session instead of re-authenticating. Every fresh login consumes a
+  # 2FA email and VRChat rate-limits that endpoint (429), so several quick
+  # redeploys can lock the account out of logging in at all. The file is an
+  # auth credential: it is written 0600 and belongs on a private volume.
+  # Leave unset to disable. Docker Compose defaults it to /data (a named
+  # volume); a stale/rejected session is discarded and login retried clean.
+  VRCHAT_SESSION_FILE=/data/vrchat_session.txt
+
   # Optional: read bios from VRChat's newer GET /profile/{id} endpoint.
   # Defaults to true. GET /users/{id} can return a bio that is hours stale,
   # which silently fails verification for users whose code really is in their

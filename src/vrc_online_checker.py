@@ -7,6 +7,7 @@ import pika
 import logging
 import random
 import threading
+from http.cookiejar import MozillaCookieJar
 from urllib import request as urllib_request, error as urllib_error
 from dotenv import load_dotenv
 from pika.exceptions import AMQPError
@@ -160,10 +161,92 @@ def fetch_latest_2fa_code():
 
 
 # -------------------------------------------------------------------
+# Session persistence
+#
+# Every fresh login consumes a 2FA email and VRChat rate-limits the 2FA
+# endpoint (429). A couple of redeploys in quick succession can therefore
+# lock the bot account out of logging in at all, which takes verification
+# down completely -- restarting is exactly when that must not happen.
+# Storing the auth cookie lets a restarted checker resume its session
+# without re-authenticating.
+#
+# The cookie is an auth credential, so the file is written 0600 and should
+# live on a volume that is not world-readable. Leave VRCHAT_SESSION_FILE
+# unset to disable persistence entirely.
+# -------------------------------------------------------------------
+VRCHAT_SESSION_FILE = os.getenv("VRCHAT_SESSION_FILE", "").strip()
+
+
+def _attach_session_store(api_client) -> MozillaCookieJar | None:
+    """Back the client's cookie jar with VRCHAT_SESSION_FILE, if configured.
+
+    Returns the jar so a caller can persist it after a successful login, or
+    None when persistence is disabled. Never raises: failing to reuse a
+    stored session must never prevent logging in normally.
+    """
+    if not VRCHAT_SESSION_FILE:
+        return None
+
+    jar = MozillaCookieJar(VRCHAT_SESSION_FILE)
+    if os.path.exists(VRCHAT_SESSION_FILE):
+        try:
+            jar.load(ignore_discard=True, ignore_expires=True)
+            logging.info("Loaded stored VRChat session from %s", VRCHAT_SESSION_FILE)
+        except Exception:
+            logging.warning(
+                "Stored VRChat session at %s is unreadable; ignoring it",
+                VRCHAT_SESSION_FILE,
+                exc_info=True,
+            )
+    try:
+        api_client.rest_client.cookie_jar = jar
+    except Exception:
+        logging.warning("Could not attach session store to client", exc_info=True)
+        return None
+    return jar
+
+
+def _persist_session(jar: MozillaCookieJar | None) -> None:
+    """Write the auth cookie to disk, owner-readable only."""
+    if jar is None:
+        return
+    try:
+        parent = os.path.dirname(os.path.abspath(VRCHAT_SESSION_FILE))
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        jar.save(ignore_discard=True, ignore_expires=True)
+        os.chmod(VRCHAT_SESSION_FILE, 0o600)
+        logging.info("Stored VRChat session to %s", VRCHAT_SESSION_FILE)
+    except Exception:
+        logging.warning(
+            "Could not persist VRChat session to %s (continuing without it)",
+            VRCHAT_SESSION_FILE,
+            exc_info=True,
+        )
+
+
+def _discard_stored_session() -> None:
+    """Delete a stored session that failed to authenticate."""
+    if not VRCHAT_SESSION_FILE:
+        return
+    try:
+        os.remove(VRCHAT_SESSION_FILE)
+        logging.info("Discarded stale VRChat session file %s", VRCHAT_SESSION_FILE)
+    except FileNotFoundError:
+        pass
+    except Exception:
+        logging.warning("Could not remove %s", VRCHAT_SESSION_FILE, exc_info=True)
+
+
+# -------------------------------------------------------------------
 # VRChat Login with Auto 2FA
 # -------------------------------------------------------------------
-def login_to_vrchat():
+def login_to_vrchat(use_stored_session: bool = True):
     """Logs into VRChat and handles possible 2FA prompts automatically.
+
+    Reuses a stored session cookie when one is available so that restarts do
+    not burn a 2FA email (see VRCHAT_SESSION_FILE). A stored session that
+    fails to authenticate is discarded and the login retried from scratch.
 
     Returns:
         tuple[vrchatapi.ApiClient | None, dict | None]:
@@ -177,15 +260,27 @@ def login_to_vrchat():
 
     api_client = vrchatapi.ApiClient(configuration)
     api_client.user_agent = "VRCVerifyBot/1.0 (contact@yourdomain.com)"
+    session_jar = _attach_session_store(api_client) if use_stored_session else None
+    reused_session = bool(session_jar and len(session_jar))
     auth_api = authentication_api.AuthenticationApi(api_client)
     request_timeout = _vrchat_request_timeout()
 
     try:
         current_user = auth_api.get_current_user(_request_timeout=request_timeout)
+        if reused_session:
+            logging.info("Reused stored VRChat session (no 2FA needed)")
         logging.info("Successfully logged in as %s", current_user.display_name)
+        _persist_session(session_jar)
         return api_client, None
 
     except UnauthorizedException as e:
+        # A stored cookie that no longer authenticates should not force us
+        # through 2FA (or strand us on a 429) -- drop it and try clean once.
+        if reused_session:
+            logging.warning("Stored VRChat session rejected; retrying with a fresh login")
+            _discard_stored_session()
+            return login_to_vrchat(use_stored_session=False)
+
         if e.status == 200:
             logging.info("2FA Required! Fetching code from email...")
 
@@ -216,6 +311,7 @@ def login_to_vrchat():
 
             current_user = auth_api.get_current_user(_request_timeout=request_timeout)
             logging.info("Successfully logged in as %s", current_user.display_name)
+            _persist_session(session_jar)
             return api_client, None
 
         logging.error("VRChat login failed: %s", e)
