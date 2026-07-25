@@ -2,7 +2,7 @@ import os
 import json
 import asyncio
 import logging
-import random
+import secrets
 import string
 import re
 import time
@@ -797,7 +797,23 @@ async def process_verification(interaction: discord.Interaction):
 
 
 def generate_verification_code() -> str:
-    return "VRC-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    # secrets, not random: this token gates 18+ verification, and random's
+    # Mersenne Twister is predictable from observed output. 36**6 keyspace.
+    return "VRC-" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+
+
+# Discord rejects nicknames over 32 characters with a 400 -- which surfaces as
+# discord.HTTPException, NOT Forbidden. VRChat display names have no such
+# limit, so clamp before sending or the edit raises past the Forbidden-only
+# handlers and skips the bookkeeping that follows it.
+DISCORD_NICK_MAX_LEN = 32
+
+
+def discord_safe_nickname(display_name) -> str | None:
+    """Clamp a VRChat display name to something Discord will accept."""
+    if not isinstance(display_name, str):
+        return None
+    return display_name.strip()[:DISCORD_NICK_MAX_LEN] or None
 
 
 # Per-user cooldown on actions that publish to the checker, so a single user
@@ -1043,12 +1059,17 @@ async def assign_role(
                 asyncio.create_task(_delayed_cleanup())
 
         # Auto-nickname change if enabled
-        if auto_nick and display_name:
+        safe_nick = discord_safe_nickname(display_name)
+        if auto_nick and safe_nick:
             try:
-                await member.edit(nick=display_name)
-                logger.info(f"🔄 Updated nickname to {display_name} for {member}.")
-                await dm_localized(member, guild, "nickname_updated", instr_locale, display_name=display_name)
-            except discord.Forbidden:
+                await member.edit(nick=safe_nick)
+                logger.info(f"🔄 Updated nickname to {safe_nick} for {member}.")
+                await dm_localized(member, guild, "nickname_updated", instr_locale, display_name=safe_nick)
+            # Forbidden subclasses HTTPException; catching the parent also covers
+            # a 400 from an unacceptable nickname. Letting that escape would skip
+            # the milestone bookkeeping that runs after assign_role returns.
+            except discord.HTTPException:
+                logger.warning(f"Could not set nickname for {member}.", exc_info=True)
                 await dm_localized(member, guild, "nickname_update_failed", instr_locale)
     else:
         # Not 18+
@@ -1540,11 +1561,15 @@ async def handle_verification_result(data: dict):
 
         # — On-demand nickname update flow —
         if update_nick:
-            if member and display_name:
+            safe_nick = discord_safe_nickname(display_name)
+            if member and safe_nick:
                 # try to change nickname
                 try:
-                    await member.edit(nick=display_name)
-                except discord.Forbidden:
+                    await member.edit(nick=safe_nick)
+                # Forbidden subclasses HTTPException; the parent also covers a
+                # 400 from a nickname Discord won't accept.
+                except discord.HTTPException:
+                    logger.warning("Could not update nickname for %s.", discord_id, exc_info=True)
                     # Notify user on failure
                     try:
                         await member.send("⚠️ We could not update your username.")
@@ -1553,7 +1578,7 @@ async def handle_verification_result(data: dict):
                     return
                 # Confirm on success
                 try:
-                    await member.send(f"✅ Your nickname has been updated to **{display_name}**.")
+                    await member.send(f"✅ Your nickname has been updated to **{safe_nick}**.")
                 except discord.Forbidden:
                     logger.warning("⚠️ Cannot DM user after nickname success.")
             return

@@ -173,6 +173,12 @@ cython_debug/
 # Local security audit notes (never commit)
 SECURITY_AUDIT.md
 
-# VRChat session cookie store (VRCHAT_SESSION_FILE) - an auth credential
+# VRChat session cookie store (VRCHAT_SESSION_FILE) - an auth credential.
+# Broad on purpose: any of these are plausible local VRCHAT_SESSION_FILE
+# values and none of them may ever be committed.
 vrchat_session.txt
+vrchat_session.txt.tmp
 *.session.txt
+*session*.txt
+cookies.txt
+*cookiejar*

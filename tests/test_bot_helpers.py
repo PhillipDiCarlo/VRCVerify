@@ -223,3 +223,56 @@ class TestBuildVrchatIssueMessage:
             {"error_type": "vrchat_user_not_found"}, locale_code="es-ES"
         )
         assert msg == localizations["es-ES"]["vrchat_issue_user_not_found"]
+
+
+class TestDiscordSafeNickname:
+    """Discord caps nicknames at 32 chars and 400s on longer values.
+
+    That surfaces as discord.HTTPException, NOT Forbidden, so an over-long
+    VRChat display name used to escape the Forbidden-only handler in
+    assign_role and skip the milestone bookkeeping that runs after it.
+    """
+
+    def test_short_name_passes_through(self):
+        assert bot.discord_safe_nickname("Italiandogs") == "Italiandogs"
+
+    def test_over_long_name_is_clamped(self):
+        name = "A" * 100
+        out = bot.discord_safe_nickname(name)
+        assert len(out) == bot.DISCORD_NICK_MAX_LEN == 32
+
+    def test_exactly_at_limit_is_untouched(self):
+        name = "B" * 32
+        assert bot.discord_safe_nickname(name) == name
+
+    def test_whitespace_is_trimmed(self):
+        assert bot.discord_safe_nickname("  Name  ") == "Name"
+
+    def test_whitespace_only_becomes_none(self):
+        # Discord rejects an empty nickname; None means "skip the edit".
+        assert bot.discord_safe_nickname("   ") is None
+
+    @pytest.mark.parametrize("bad", [None, 123, {"n": "x"}, ["n"], True])
+    def test_non_string_becomes_none(self, bad):
+        # display_name arrives from raw /profile JSON over RabbitMQ.
+        assert bot.discord_safe_nickname(bad) is None
+
+
+class TestVerificationCodeGeneration:
+    def test_uses_cryptographic_randomness(self):
+        # The code gates 18+ verification; random's Mersenne Twister is
+        # predictable from observed output, so secrets must be used.
+        import inspect
+
+        src = inspect.getsource(bot.generate_verification_code)
+        assert "secrets." in src
+        assert "random." not in src
+
+    def test_shape_and_charset(self):
+        codes = {bot.generate_verification_code() for _ in range(200)}
+        assert len(codes) > 190  # no obvious collisions
+        for c in codes:
+            assert c.startswith("VRC-")
+            body = c[4:]
+            assert len(body) == 6
+            assert all(ch in string.ascii_uppercase + string.digits for ch in body)
