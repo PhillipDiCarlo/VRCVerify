@@ -13,6 +13,12 @@ COPY config/other_configs/requirements-checker.txt ./requirements.txt
 RUN pip install --no-compile -r requirements.txt
 
 RUN useradd --create-home --uid 10001 appuser
+
+# Holds the persisted VRChat session cookie (VRCHAT_SESSION_FILE). Created
+# here so a fresh named volume mounted at /data inherits appuser ownership
+# instead of defaulting to root and being unwritable.
+RUN mkdir -p /data && chown appuser:appuser /data && chmod 700 /data
+
 COPY --chown=appuser:appuser src/ ./src/
 USER appuser
 

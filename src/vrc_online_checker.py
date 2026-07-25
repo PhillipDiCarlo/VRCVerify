@@ -7,6 +7,7 @@ import pika
 import logging
 import random
 import threading
+from http.cookiejar import MozillaCookieJar
 from urllib import request as urllib_request, error as urllib_error
 from dotenv import load_dotenv
 from pika.exceptions import AMQPError
@@ -160,10 +161,92 @@ def fetch_latest_2fa_code():
 
 
 # -------------------------------------------------------------------
+# Session persistence
+#
+# Every fresh login consumes a 2FA email and VRChat rate-limits the 2FA
+# endpoint (429). A couple of redeploys in quick succession can therefore
+# lock the bot account out of logging in at all, which takes verification
+# down completely -- restarting is exactly when that must not happen.
+# Storing the auth cookie lets a restarted checker resume its session
+# without re-authenticating.
+#
+# The cookie is an auth credential, so the file is written 0600 and should
+# live on a volume that is not world-readable. Leave VRCHAT_SESSION_FILE
+# unset to disable persistence entirely.
+# -------------------------------------------------------------------
+VRCHAT_SESSION_FILE = os.getenv("VRCHAT_SESSION_FILE", "").strip()
+
+
+def _attach_session_store(api_client) -> MozillaCookieJar | None:
+    """Back the client's cookie jar with VRCHAT_SESSION_FILE, if configured.
+
+    Returns the jar so a caller can persist it after a successful login, or
+    None when persistence is disabled. Never raises: failing to reuse a
+    stored session must never prevent logging in normally.
+    """
+    if not VRCHAT_SESSION_FILE:
+        return None
+
+    jar = MozillaCookieJar(VRCHAT_SESSION_FILE)
+    if os.path.exists(VRCHAT_SESSION_FILE):
+        try:
+            jar.load(ignore_discard=True, ignore_expires=True)
+            logging.info("Loaded stored VRChat session from %s", VRCHAT_SESSION_FILE)
+        except Exception:
+            logging.warning(
+                "Stored VRChat session at %s is unreadable; ignoring it",
+                VRCHAT_SESSION_FILE,
+                exc_info=True,
+            )
+    try:
+        api_client.rest_client.cookie_jar = jar
+    except Exception:
+        logging.warning("Could not attach session store to client", exc_info=True)
+        return None
+    return jar
+
+
+def _persist_session(jar: MozillaCookieJar | None) -> None:
+    """Write the auth cookie to disk, owner-readable only."""
+    if jar is None:
+        return
+    try:
+        parent = os.path.dirname(os.path.abspath(VRCHAT_SESSION_FILE))
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        jar.save(ignore_discard=True, ignore_expires=True)
+        os.chmod(VRCHAT_SESSION_FILE, 0o600)
+        logging.info("Stored VRChat session to %s", VRCHAT_SESSION_FILE)
+    except Exception:
+        logging.warning(
+            "Could not persist VRChat session to %s (continuing without it)",
+            VRCHAT_SESSION_FILE,
+            exc_info=True,
+        )
+
+
+def _discard_stored_session() -> None:
+    """Delete a stored session that failed to authenticate."""
+    if not VRCHAT_SESSION_FILE:
+        return
+    try:
+        os.remove(VRCHAT_SESSION_FILE)
+        logging.info("Discarded stale VRChat session file %s", VRCHAT_SESSION_FILE)
+    except FileNotFoundError:
+        pass
+    except Exception:
+        logging.warning("Could not remove %s", VRCHAT_SESSION_FILE, exc_info=True)
+
+
+# -------------------------------------------------------------------
 # VRChat Login with Auto 2FA
 # -------------------------------------------------------------------
-def login_to_vrchat():
+def login_to_vrchat(use_stored_session: bool = True):
     """Logs into VRChat and handles possible 2FA prompts automatically.
+
+    Reuses a stored session cookie when one is available so that restarts do
+    not burn a 2FA email (see VRCHAT_SESSION_FILE). A stored session that
+    fails to authenticate is discarded and the login retried from scratch.
 
     Returns:
         tuple[vrchatapi.ApiClient | None, dict | None]:
@@ -177,15 +260,27 @@ def login_to_vrchat():
 
     api_client = vrchatapi.ApiClient(configuration)
     api_client.user_agent = "VRCVerifyBot/1.0 (contact@yourdomain.com)"
+    session_jar = _attach_session_store(api_client) if use_stored_session else None
+    reused_session = bool(session_jar and len(session_jar))
     auth_api = authentication_api.AuthenticationApi(api_client)
     request_timeout = _vrchat_request_timeout()
 
     try:
         current_user = auth_api.get_current_user(_request_timeout=request_timeout)
+        if reused_session:
+            logging.info("Reused stored VRChat session (no 2FA needed)")
         logging.info("Successfully logged in as %s", current_user.display_name)
+        _persist_session(session_jar)
         return api_client, None
 
     except UnauthorizedException as e:
+        # A stored cookie that no longer authenticates should not force us
+        # through 2FA (or strand us on a 429) -- drop it and try clean once.
+        if reused_session:
+            logging.warning("Stored VRChat session rejected; retrying with a fresh login")
+            _discard_stored_session()
+            return login_to_vrchat(use_stored_session=False)
+
         if e.status == 200:
             logging.info("2FA Required! Fetching code from email...")
 
@@ -216,6 +311,7 @@ def login_to_vrchat():
 
             current_user = auth_api.get_current_user(_request_timeout=request_timeout)
             logging.info("Successfully logged in as %s", current_user.display_name)
+            _persist_session(session_jar)
             return api_client, None
 
         logging.error("VRChat login failed: %s", e)
@@ -550,6 +646,120 @@ def _get_vrchat_user_with_retry(users_api_instance, vrc_user_id: str):
 
 
 # -------------------------------------------------------------------
+# Profile lookup
+#
+# As of 2026-07-25 VRChat split the profile read path: GET /users/{id} can
+# serve a bio that is hours out of date (measured: a bio edit still missing
+# after 20+ minutes, across 15 distinct API backends, with no caching in
+# play) while GET /profile/{id} reflects the edit immediately. Verification
+# reads the bio, so we must use /profile/{id}.
+#
+# That endpoint is not in the OpenAPI spec yet, so vrchatapi has no model for
+# it and we call it raw. Because it is undocumented it could change shape or
+# disappear without notice, so every failure falls back to /users/{id}: a
+# stale bio only costs a retry, but a hard failure blocks verification.
+# Set VRCHAT_USE_PROFILE_ENDPOINT=false to force the old behaviour.
+# -------------------------------------------------------------------
+VRCHAT_USE_PROFILE_ENDPOINT = os.getenv(
+    "VRCHAT_USE_PROFILE_ENDPOINT", "true"
+).strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _fetch_vrchat_profile(client, vrc_user_id: str) -> dict:
+    """GET /profile/{userId} and return the decoded JSON body."""
+    raw = client.call_api(
+        "/profile/{userId}", "GET",
+        {"userId": vrc_user_id},
+        [],
+        {"Accept": "application/json"},
+        body=None,
+        post_params=[],
+        files={},
+        response_types_map={},
+        auth_settings=["authCookie"],
+        async_req=False,
+        _return_http_data_only=True,
+        _preload_content=False,  # no generated model exists; decode by hand
+        _request_timeout=_vrchat_request_timeout(),
+        collection_formats={},
+    )
+    payload = json.loads(raw.data.decode("utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"unexpected /profile payload: {type(payload).__name__}")
+    return payload
+
+
+def _get_vrchat_profile_with_retry(client, vrc_user_id: str) -> dict:
+    """Fetch /profile/{id}, retrying only transient upstream failures.
+
+    Anything else raises immediately so the caller can fall back to
+    /users/{id} without first stacking retry delays on a permanent error.
+    """
+    for attempt in range(1, VRCHAT_LOOKUP_RETRIES + 1):
+        try:
+            return _fetch_vrchat_profile(client, vrc_user_id)
+        except ApiException as e:
+            status = getattr(e, "status", None)
+            if status not in {500, 502, 503, 504, 429} or attempt >= VRCHAT_LOOKUP_RETRIES:
+                raise
+            delay = min(8.0, VRCHAT_LOOKUP_BACKOFF_BASE * attempt) + random.uniform(0.0, 0.35)
+            logging.warning(
+                "Transient VRChat /profile failure for %s (status=%s). Retrying in %.2fs (attempt %s/%s)",
+                vrc_user_id,
+                status,
+                delay,
+                attempt,
+                VRCHAT_LOOKUP_RETRIES,
+            )
+            time.sleep(delay)
+    raise AssertionError("unreachable: retry loop always returns or raises")
+
+
+def fetch_profile_snapshot(client, vrc_user_id: str) -> tuple[str, str, str | None, str]:
+    """Return (bio, age_status, display_name, source) for a VRChat user.
+
+    Reads /profile/{id} first since it is the only endpoint currently
+    reflecting recent bio edits, falling back to /users/{id} when the newer
+    endpoint fails or omits a field we need. UnauthorizedException is never
+    swallowed: it means the session is dead and the caller must handle it.
+    """
+    if VRCHAT_USE_PROFILE_ENDPOINT:
+        profile = None
+        try:
+            profile = _get_vrchat_profile_with_retry(client, vrc_user_id)
+        except UnauthorizedException:
+            raise
+        except Exception:
+            logging.warning(
+                "VRChat /profile lookup failed for %s; falling back to /users",
+                vrc_user_id,
+                exc_info=True,
+            )
+
+        if profile is not None:
+            bio = profile.get("bio")
+            age_status = profile.get("ageVerificationStatus")
+            # Age gating is the security-critical field, so only trust this
+            # response when both fields are actually present.
+            if bio is not None and age_status is not None:
+                return bio, age_status, profile.get("displayName"), "profile"
+            logging.warning(
+                "VRChat /profile for %s missing fields (bio=%s, age=%s); falling back to /users",
+                vrc_user_id,
+                bio is not None,
+                age_status is not None,
+            )
+
+    vrc_user = _get_vrchat_user_with_retry(users_api.UsersApi(client), vrc_user_id)
+    return (
+        getattr(vrc_user, "bio", "") or "",
+        getattr(vrc_user, "age_verification_status", "unknown"),
+        getattr(vrc_user, "display_name", None),
+        "users",
+    )
+
+
+# -------------------------------------------------------------------
 # Verification Logic
 # -------------------------------------------------------------------
 def bio_contains_code(bio: str | None, verification_code: str) -> bool:
@@ -624,10 +834,8 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
             **meta,
         )
 
-    users_api_instance = users_api.UsersApi(client)
-
     try:
-        vrc_user = _get_vrchat_user_with_retry(users_api_instance, vrc_user_id)
+        bio, age_status, display_name, source = fetch_profile_snapshot(client, vrc_user_id)
     except UnauthorizedException as e:
         logging.warning("VRChat session unauthorized; deferring relogin to background worker")
         meta = _classify_vrchat_api_error(e)
@@ -660,9 +868,6 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
             **_classify_vrchat_api_error(e),
         )
 
-    age_status = getattr(vrc_user, "age_verification_status", "unknown")
-    bio = getattr(vrc_user, "bio", "")
-
     is_18_plus = age_status == "18+"
 
     code_found = False
@@ -670,16 +875,17 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
         code_found = bio_contains_code(bio, verification_code)
 
     # Bios are third-party PII; keep them out of INFO logs (full bio at DEBUG only).
+    # 'source' shows which endpoint answered, so a silent slide back onto the
+    # stale /users/ bio is visible in the logs rather than mysterious.
     logging.info(
-        "[verify_and_build_result] user=%s, age_status=%s, code_expected=%s, code_found=%s",
+        "[verify_and_build_result] user=%s, age_status=%s, code_expected=%s, code_found=%s, source=%s",
         vrc_user_id,
         age_status,
         verification_code is not None,
         code_found,
+        source,
     )
     logging.debug("[verify_and_build_result] user=%s bio=%r", vrc_user_id, bio)
-
-    display_name = getattr(vrc_user, "display_name", None)
 
     return _result_payload(
         discord_id,
