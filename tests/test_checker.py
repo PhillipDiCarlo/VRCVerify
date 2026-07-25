@@ -8,6 +8,7 @@ faked VRChat session.
 """
 
 import json
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -57,6 +58,17 @@ class TestBioContainsCode:
 
     def test_none_bio_does_not_crash(self):
         assert not checker.bio_contains_code(None, "VRC-ABC123")
+
+    @pytest.mark.parametrize("bad", [{"t": "x"}, 123, ["VRC-ABC123"], True, object()])
+    def test_non_string_bio_is_false_not_an_exception(self, bad):
+        # Callers turn exceptions into requeued RabbitMQ messages, so this
+        # must fail closed rather than raise.
+        assert checker.bio_contains_code(bad, "VRC-ABC123") is False
+
+    @pytest.mark.parametrize("bad", [None, 123, {"c": "x"}])
+    def test_non_string_code_is_false_not_an_exception(self, bad):
+        # The code arrives over RabbitMQ and is not guaranteed to be a string.
+        assert checker.bio_contains_code("VRC-ABC123", bad) is False
 
 
 # ---------------------------------------------------------------
@@ -266,6 +278,57 @@ class TestFetchProfileSnapshot:
         assert bio == ""
         assert age == "none"
 
+    @pytest.mark.parametrize(
+        "bad_bio", [{"text": "VRC-ABC123"}, 12345, ["VRC-ABC123"], True]
+    )
+    def test_non_string_bio_falls_back_instead_of_raising(self, monkeypatch, bad_bio):
+        """A type change on the undocumented endpoint must not wedge the queue.
+
+        Regression: the guard used to check presence, not type, so a non-str
+        bio reached bio_contains_code and raised AttributeError. That escapes
+        verify_and_build_result into process_verification_request, which does
+        nack(requeue=True) -- with prefetch_count=1 that redelivers forever
+        and stops verification for every server.
+        """
+        client = self._client({"bio": bad_bio, "ageVerificationStatus": "18+"})
+        user = SimpleNamespace(
+            age_verification_status="18+", bio="from users", display_name="U"
+        )
+        monkeypatch.setattr(checker.users_api, "UsersApi", fake_users_api(user))
+        bio, _, _, source = checker.fetch_profile_snapshot(client, "usr_1")
+        assert source == "users"
+        assert bio == "from users"
+
+    def test_non_string_age_status_falls_back(self, monkeypatch):
+        client = self._client({"bio": "ok", "ageVerificationStatus": {"v": "18+"}})
+        user = SimpleNamespace(
+            age_verification_status="18+", bio="from users", display_name="U"
+        )
+        monkeypatch.setattr(checker.users_api, "UsersApi", fake_users_api(user))
+        _, _, _, source = checker.fetch_profile_snapshot(client, "usr_1")
+        assert source == "users"
+
+    def test_non_string_display_name_becomes_none(self):
+        """displayName crosses RabbitMQ into Discord nickname handling."""
+        client = self._client(
+            {"bio": "b", "ageVerificationStatus": "18+", "displayName": {"n": "x"}}
+        )
+        _, _, display_name, source = checker.fetch_profile_snapshot(client, "usr_1")
+        assert source == "profile"
+        assert display_name is None
+
+    def test_verify_survives_malformed_profile_bio(self, monkeypatch):
+        """End-to-end: a bad payload degrades, it does not raise."""
+        client = self._client({"bio": {"t": "x"}, "ageVerificationStatus": "18+"})
+        user = SimpleNamespace(
+            age_verification_status="18+", bio="my bio", display_name="U"
+        )
+        monkeypatch.setattr(checker, "get_vrchat_session", lambda: (client, None))
+        monkeypatch.setattr(checker.users_api, "UsersApi", fake_users_api(user))
+        result = checker.verify_and_build_result("d1", "usr_1", "g1", "VRC-ABC123")
+        assert result["lookup_ok"] is True
+        assert result["code_found"] is False
+
     def test_unauthorized_propagates(self, monkeypatch):
         # Must not be swallowed: the caller invalidates the session on this.
         client = self._client(exc=checker.UnauthorizedException(status=401))
@@ -308,6 +371,47 @@ class TestFetchProfileSnapshot:
         assert result["code_found"] is True
         assert result["is_18_plus"] is True
         assert result["display_name"] == "Fresh"
+
+
+class TestRetryCountFloor:
+    """VRCHAT_LOOKUP_RETRIES counts total attempts, not extra retries.
+
+    Regression: at 0 both retry loops fell through without ever calling
+    VRChat. The profile loop hit a bogus "unreachable" AssertionError and
+    get_user returned None, which became bio="" / age="unknown" -- every
+    user reported "code not found" with lookup_ok=True, i.e. a silent lie.
+    """
+
+    def test_config_floor_is_at_least_one(self, monkeypatch):
+        monkeypatch.setenv("VRCHAT_LOOKUP_RETRIES", "0")
+        assert max(1, int(os.environ["VRCHAT_LOOKUP_RETRIES"])) == 1
+
+    def test_get_user_never_returns_none(self, monkeypatch):
+        monkeypatch.setattr(checker, "VRCHAT_LOOKUP_RETRIES", 0)
+        calls = []
+
+        class Api:
+            def get_user(self, uid, _request_timeout=None):
+                calls.append(uid)
+                return SimpleNamespace(
+                    age_verification_status="18+", bio="b", display_name="U"
+                )
+
+        result = checker._get_vrchat_user_with_retry(Api(), "usr_1")
+        assert calls == ["usr_1"]  # the API was actually called
+        assert result is not None
+
+    def test_profile_lookup_still_runs(self, monkeypatch):
+        monkeypatch.setattr(checker, "VRCHAT_LOOKUP_RETRIES", 0)
+        calls = []
+
+        def fake_fetch(client, uid):
+            calls.append(uid)
+            return {"bio": "b", "ageVerificationStatus": "18+"}
+
+        monkeypatch.setattr(checker, "_fetch_vrchat_profile", fake_fetch)
+        assert checker._get_vrchat_profile_with_retry(object(), "usr_1")
+        assert calls == ["usr_1"]
 
 
 class TestSessionPersistence:

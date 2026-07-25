@@ -444,7 +444,10 @@ def _vrchat_relogin_loop():
 # -------------------------------------------------------------------
 VRCHAT_STATUS_SUMMARY_URL = os.getenv("VRCHAT_STATUS_SUMMARY_URL", "https://status.vrchat.com/api/v2/summary.json")
 VRCHAT_STATUS_CACHE_SECONDS = int(os.getenv("VRCHAT_STATUS_CACHE_SECONDS", "120"))
-VRCHAT_LOOKUP_RETRIES = int(os.getenv("VRCHAT_LOOKUP_RETRIES", "3"))
+# Floor of 1: this counts total attempts, not extra retries. At 0 the retry
+# loops would fall through without ever calling VRChat, reporting every user
+# as "code not found" with lookup_ok=True -- a silent, misdiagnosable failure.
+VRCHAT_LOOKUP_RETRIES = max(1, int(os.getenv("VRCHAT_LOOKUP_RETRIES", "3")))
 VRCHAT_LOOKUP_BACKOFF_BASE = float(os.getenv("VRCHAT_LOOKUP_BACKOFF_BASE", "1.5"))
 
 _vrchat_status_cache: dict[str, object] = {
@@ -611,7 +614,8 @@ def _classify_vrchat_api_error(exc: Exception) -> dict:
 def _get_vrchat_user_with_retry(users_api_instance, vrc_user_id: str):
     last_exc = None
     request_timeout = _vrchat_request_timeout()
-    for attempt in range(1, VRCHAT_LOOKUP_RETRIES + 1):
+    attempts = max(1, VRCHAT_LOOKUP_RETRIES)  # never skip the call entirely
+    for attempt in range(1, attempts + 1):
         try:
             return users_api_instance.get_user(vrc_user_id, _request_timeout=request_timeout)
         except ApiException as e:
@@ -619,7 +623,7 @@ def _get_vrchat_user_with_retry(users_api_instance, vrc_user_id: str):
             status = getattr(e, "status", None)
             if status not in {500, 502, 503, 504, 429}:
                 raise
-            if attempt >= VRCHAT_LOOKUP_RETRIES:
+            if attempt >= attempts:
                 raise
             delay = min(8.0, VRCHAT_LOOKUP_BACKOFF_BASE * attempt) + random.uniform(0.0, 0.35)
             logging.warning(
@@ -628,21 +632,22 @@ def _get_vrchat_user_with_retry(users_api_instance, vrc_user_id: str):
                 status,
                 delay,
                 attempt,
-                VRCHAT_LOOKUP_RETRIES,
+                attempts,
             )
             time.sleep(delay)
         except Exception as e:
             last_exc = e
-            if attempt >= VRCHAT_LOOKUP_RETRIES:
+            if attempt >= attempts:
                 raise
             delay = min(8.0, VRCHAT_LOOKUP_BACKOFF_BASE * attempt) + random.uniform(0.0, 0.35)
             logging.warning(
                 "Transient VRChat get_user failure for %s. Retrying in %.2fs (attempt %s/%s)",
-                vrc_user_id, delay, attempt, VRCHAT_LOOKUP_RETRIES, exc_info=True
+                vrc_user_id, delay, attempt, attempts, exc_info=True
             )
             time.sleep(delay)
-    if last_exc:
-        raise last_exc
+    # Returning None here would silently become bio="" / age="unknown", i.e.
+    # a false "code not found" with lookup_ok=True. Fail loudly instead.
+    raise last_exc or RuntimeError("VRChat get_user retry loop exited without a result")
 
 
 # -------------------------------------------------------------------
@@ -695,12 +700,13 @@ def _get_vrchat_profile_with_retry(client, vrc_user_id: str) -> dict:
     Anything else raises immediately so the caller can fall back to
     /users/{id} without first stacking retry delays on a permanent error.
     """
-    for attempt in range(1, VRCHAT_LOOKUP_RETRIES + 1):
+    attempts = max(1, VRCHAT_LOOKUP_RETRIES)  # never skip the call entirely
+    for attempt in range(1, attempts + 1):
         try:
             return _fetch_vrchat_profile(client, vrc_user_id)
         except ApiException as e:
             status = getattr(e, "status", None)
-            if status not in {500, 502, 503, 504, 429} or attempt >= VRCHAT_LOOKUP_RETRIES:
+            if status not in {500, 502, 503, 504, 429} or attempt >= attempts:
                 raise
             delay = min(8.0, VRCHAT_LOOKUP_BACKOFF_BASE * attempt) + random.uniform(0.0, 0.35)
             logging.warning(
@@ -709,10 +715,11 @@ def _get_vrchat_profile_with_retry(client, vrc_user_id: str) -> dict:
                 status,
                 delay,
                 attempt,
-                VRCHAT_LOOKUP_RETRIES,
+                attempts,
             )
             time.sleep(delay)
-    raise AssertionError("unreachable: retry loop always returns or raises")
+    # Only reachable if the loop body never ran, which max(1, ...) prevents.
+    raise RuntimeError("VRChat /profile retry loop exited without a result")
 
 
 def fetch_profile_snapshot(client, vrc_user_id: str) -> tuple[str, str, str | None, str]:
@@ -739,15 +746,25 @@ def fetch_profile_snapshot(client, vrc_user_id: str) -> tuple[str, str, str | No
         if profile is not None:
             bio = profile.get("bio")
             age_status = profile.get("ageVerificationStatus")
-            # Age gating is the security-critical field, so only trust this
-            # response when both fields are actually present.
-            if bio is not None and age_status is not None:
-                return bio, age_status, profile.get("displayName"), "profile"
+            display_name = profile.get("displayName")
+            # /profile is undocumented and parsed as raw JSON, so validate
+            # TYPES, not just presence. A non-str bio would otherwise reach
+            # bio_contains_code and raise, and that exception is turned into
+            # nack(requeue=True) upstream -- an infinite redelivery loop that
+            # wedges the whole queue. Falling back is always cheaper.
+            if isinstance(bio, str) and isinstance(age_status, str):
+                return (
+                    bio,
+                    age_status,
+                    display_name if isinstance(display_name, str) else None,
+                    "profile",
+                )
             logging.warning(
-                "VRChat /profile for %s missing fields (bio=%s, age=%s); falling back to /users",
+                "VRChat /profile for %s has unusable fields "
+                "(bio=%s, ageVerificationStatus=%s); falling back to /users",
                 vrc_user_id,
-                bio is not None,
-                age_status is not None,
+                type(bio).__name__,
+                type(age_status).__name__,
             )
 
     vrc_user = _get_vrchat_user_with_retry(users_api.UsersApi(client), vrc_user_id)
@@ -763,9 +780,17 @@ def fetch_profile_snapshot(client, vrc_user_id: str) -> tuple[str, str, str | No
 # Verification Logic
 # -------------------------------------------------------------------
 def bio_contains_code(bio: str | None, verification_code: str) -> bool:
-    """True if the verification code appears on its own line in the bio."""
+    """True if the verification code appears on its own line in the bio.
+
+    Defensive about both arguments: the bio can come from an undocumented
+    endpoint parsed as raw JSON, and the code arrives over RabbitMQ, so
+    neither is guaranteed to be a string. Returning False (fail-closed)
+    beats raising, because callers turn exceptions into requeued messages.
+    """
+    if not isinstance(bio, str) or not isinstance(verification_code, str):
+        return False
     stripped_code = verification_code.strip()
-    for line in (bio or "").splitlines():
+    for line in bio.splitlines():
         if stripped_code == line.strip():
             return True
     return False
@@ -868,6 +893,11 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
             **_classify_vrchat_api_error(e),
         )
 
+    # Do NOT swap this for /profile's `ageVerified` boolean: they disagree.
+    # A live user was observed with ageVerificationStatus="hidden" but
+    # ageVerified=true, so trusting the boolean would verify users VRChat
+    # has not age-verified. Both endpoints use this same status vocabulary
+    # ("18+", "hidden", "none"), verified across users of each kind.
     is_18_plus = age_status == "18+"
 
     code_found = False
