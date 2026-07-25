@@ -187,6 +187,13 @@ See the sections below for details and configuration.
   VRCHAT_LOOKUP_RETRIES=3
   VRCHAT_LOOKUP_BACKOFF_BASE=1.5
 
+  # Optional: read bios from VRChat's newer GET /profile/{id} endpoint.
+  # Defaults to true. GET /users/{id} can return a bio that is hours stale,
+  # which silently fails verification for users whose code really is in their
+  # bio; /profile/{id} reflects edits immediately. Falls back to /users/{id}
+  # automatically if /profile/ errors. Set to false to force the old path.
+  VRCHAT_USE_PROFILE_ENDPOINT=true
+
   # Optional: instruction message refresh trigger watched by bot.py
   INSTRUCTIONS_TRIGGER_PATH=/tmp/update_instructions.trigger
   INSTRUCTIONS_TRIGGER_POLL=5

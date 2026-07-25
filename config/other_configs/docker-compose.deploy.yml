@@ -47,4 +47,6 @@ services:
       VRCHAT_PASSWORD: ${VRCHAT_PASSWORD}
       GMAIL_USER: ${GMAIL_USER}
       GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
+      # Kill switch for the /profile bio lookup; see README
+      VRCHAT_USE_PROFILE_ENDPOINT: ${VRCHAT_USE_PROFILE_ENDPOINT:-true}
     restart: unless-stopped
