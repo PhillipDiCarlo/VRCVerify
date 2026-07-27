@@ -73,15 +73,27 @@ RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST")
 KOFI_URL = "https://ko-fi.com/italiandogs"
 # Verifications a guild must complete before the one-time owner thank-you DM.
 MILESTONE_VERIFICATION_COUNT = 100
-# Instruction panels are refreshed concurrently rather than one guild at a time;
-# this caps how many Discord edits are in flight so a few thousand panels don't
+# Instruction panels are refreshed concurrently rather than one guild at a time.
+# Two independent limits apply:
+#
+# CONCURRENCY caps how many edits are in flight, so a few thousand panels don't
 # serialize behind each other's round trips.
-try:
-    INSTRUCTIONS_REFRESH_CONCURRENCY = max(
-        1, int(os.getenv("INSTRUCTIONS_REFRESH_CONCURRENCY", "10"))
-    )
-except ValueError:
-    INSTRUCTIONS_REFRESH_CONCURRENCY = 10
+#
+# RATE caps how many we *start* per second. A concurrency cap alone does not
+# bound the request rate: these edits often fail fast (403/404 come back in tens
+# of milliseconds), so even a handful of workers can push well past Discord's
+# ~50 req/s global ceiling. Exceeding it throttles the whole bot — verification
+# results and command replies included — not just this loop. Default 25 leaves
+# half the global budget for real traffic.
+def _int_env(name: str, default: int) -> int:
+    try:
+        return max(1, int(os.getenv(name, str(default))))
+    except ValueError:
+        return default
+
+
+INSTRUCTIONS_REFRESH_CONCURRENCY = _int_env("INSTRUCTIONS_REFRESH_CONCURRENCY", 10)
+INSTRUCTIONS_REFRESH_RATE = _int_env("INSTRUCTIONS_REFRESH_RATE", 25)
 
 # -------------------------------------------------------------------
 # Logging setup
@@ -1688,6 +1700,28 @@ async def expired_pending_cleanup_task(interval_seconds: int = 60):
 instruction_refresh_lock = asyncio.Lock()
 
 
+class RequestPacer:
+    """Hands out evenly spaced start times to stay under a per-second ceiling.
+
+    discord.py only reacts to 429s after the fact; this keeps the fleet refresh
+    from provoking them in the first place.
+    """
+
+    def __init__(self, per_second: float):
+        self.min_interval = 1.0 / per_second
+        self.next_slot = 0.0
+        self.lock = asyncio.Lock()
+
+    async def wait(self):
+        async with self.lock:
+            now = time.monotonic()
+            slot = max(now, self.next_slot)
+            self.next_slot = slot + self.min_interval
+        delay = slot - now
+        if delay > 0:
+            await asyncio.sleep(delay)
+
+
 def load_instruction_panels():
     """Snapshot every saved instruction panel (guild/channel/message/locale) from the DB."""
     with session_scope() as session:
@@ -1773,13 +1807,23 @@ async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
             f"{channel_id} for guild {entry['server_id']}; skipping."
         )
         return False
+    except discord.HTTPException as error:
+        # Discord refused the edit for a reason that isn't ours to fix — most
+        # often 50083, the panel lives in a thread that has since been archived.
+        # The reference is still valid (unarchiving revives it), so keep it and
+        # log a single line instead of a traceback per guild.
+        logger.warning(
+            f"⚠️ Discord rejected the instruction panel edit for guild "
+            f"{entry['server_id']} (HTTP {error.status}, code {error.code}): {error.text}"
+        )
+        return False
     except Exception:
         logger.exception(f"Failed to edit instructions message for guild {entry['server_id']}")
         return False
 
 
 async def refresh_all_instruction_panels(rebuild_embed: bool, reason: str):
-    """Refresh every saved instruction panel concurrently, bounded by a semaphore.
+    """Refresh every saved instruction panel concurrently, paced and bounded.
 
     Serialized behind a lock so a startup pass and a trigger-file pass can't
     fight over the same messages.
@@ -1792,8 +1836,12 @@ async def refresh_all_instruction_panels(rebuild_embed: bool, reason: str):
 
         started = time.monotonic()
         semaphore = asyncio.Semaphore(INSTRUCTIONS_REFRESH_CONCURRENCY)
+        pacer = RequestPacer(INSTRUCTIONS_REFRESH_RATE)
 
         async def refresh_one(entry):
+            # Pace before taking a slot so waiting tasks don't idle in the
+            # semaphore and starve the ones ready to run.
+            await pacer.wait()
             async with semaphore:
                 return await refresh_instruction_panel(entry, rebuild_embed)
 

@@ -207,8 +207,11 @@ See the sections below for details and configuration.
   INSTRUCTIONS_TRIGGER_PATH=/tmp/update_instructions.trigger
   INSTRUCTIONS_TRIGGER_POLL=5
 
-  # Optional: concurrent instruction panel edits on startup (default 10)
+  # Optional: startup instruction panel refresh tuning
+  # (edits in flight, and edits started per second; keep RATE under
+  # Discord's ~50 req/s global ceiling so verification traffic isn't throttled)
   INSTRUCTIONS_REFRESH_CONCURRENCY=10
+  INSTRUCTIONS_REFRESH_RATE=25
    ```
 
 4. **Database Setup:**

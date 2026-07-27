@@ -25,9 +25,15 @@ def run(coro):
     return asyncio.run(coro)
 
 
-def http_error(exc_type, status):
+def http_error(exc_type, status, code=0, message="test"):
     """Build a discord HTTPException subclass without a real aiohttp response."""
-    return exc_type(SimpleNamespace(status=status, reason="test"), "test")
+    payload = {"code": code, "message": message}
+    return exc_type(SimpleNamespace(status=status, reason="test"), payload)
+
+
+def archived_thread_error():
+    """The 400 Discord returns when a panel's thread has been archived."""
+    return http_error(discord.HTTPException, 400, code=50083, message="Thread is archived")
 
 
 def make_server(server_id, channel_id="222", message_id="111", **overrides):
@@ -72,6 +78,12 @@ def clean_servers():
 def fresh_lock(monkeypatch):
     """Each test gets its own loop via asyncio.run, so give it its own lock."""
     monkeypatch.setattr(bot, "instruction_refresh_lock", asyncio.Lock())
+
+
+@pytest.fixture(autouse=True)
+def unpaced(monkeypatch):
+    """Default to effectively no pacing; TestRequestPacing opts back in."""
+    monkeypatch.setattr(bot, "INSTRUCTIONS_REFRESH_RATE", 1_000_000)
 
 
 class Recorder:
@@ -200,6 +212,38 @@ class TestRefreshFailures:
         assert run(bot.refresh_instruction_panel(entry(), rebuild_embed=False)) is False
         assert saved_panel(GUILD_ID) == ("222", "111")
 
+    def test_archived_thread_keeps_saved_panel(self, monkeypatch, clean_servers):
+        # Unarchiving the thread revives the panel, so the reference is still good.
+        make_server(GUILD_ID)
+        Recorder(error_for={111: archived_thread_error()}).install(monkeypatch)
+
+        assert run(bot.refresh_instruction_panel(entry(), rebuild_embed=False)) is False
+        assert saved_panel(GUILD_ID) == ("222", "111")
+
+    def test_archived_thread_logs_one_line_not_a_traceback(
+        self, monkeypatch, clean_servers, caplog
+    ):
+        make_server(GUILD_ID)
+        Recorder(error_for={111: archived_thread_error()}).install(monkeypatch)
+
+        with caplog.at_level("WARNING"):
+            run(bot.refresh_instruction_panel(entry(), rebuild_embed=False))
+
+        assert "50083" in caplog.text
+        assert "Thread is archived" in caplog.text
+        assert "Traceback" not in caplog.text
+
+    def test_rejected_edit_does_not_stop_the_fleet(self, monkeypatch, clean_servers):
+        for i in range(4):
+            make_server(str(1000 + i), channel_id=str(2000 + i), message_id=str(3000 + i))
+        rec = Recorder(error_for={3001: archived_thread_error()})
+        rec.install(monkeypatch)
+
+        run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+
+        assert len(rec.edits) == 3
+        assert saved_panel("1001") == ("2001", "3001")
+
 
 # ---------------------------------------------------------------
 # Fleet-wide refresh
@@ -280,3 +324,83 @@ class TestRefreshAllPanels:
         run(bot.update_all_instruction_messages())
 
         assert "embed" in rec.edits[0][2]
+
+
+# ---------------------------------------------------------------
+# Request pacing (keeps us off Discord's global 50 req/s ceiling)
+# ---------------------------------------------------------------
+class TestRequestPacing:
+    """Slot arithmetic is asserted against recorded sleeps rather than a wall
+    clock: asyncio timers can fire up to one clock tick early (~15.6ms on
+    Windows), which makes direct elapsed-time thresholds flaky.
+    """
+
+    @staticmethod
+    def recorded_delays(monkeypatch, per_second, calls):
+        delays = []
+
+        async def fake_sleep(delay):
+            delays.append(delay)
+
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        async def scenario():
+            pacer = bot.RequestPacer(per_second=per_second)
+            for _ in range(calls):
+                await pacer.wait()
+
+        run(scenario())
+        return delays
+
+    def test_first_call_does_not_wait(self, monkeypatch):
+        assert self.recorded_delays(monkeypatch, per_second=10, calls=1) == []
+
+    def test_each_further_call_waits_one_more_slot(self, monkeypatch):
+        delays = self.recorded_delays(monkeypatch, per_second=10, calls=5)
+
+        # 10/s == a 100ms slot; the clock barely moves because sleeps are faked,
+        # so the Nth caller waits roughly N slots.
+        assert len(delays) == 4
+        for i, delay in enumerate(delays, start=1):
+            assert abs(delay - i * 0.1) < 0.02, delays
+
+    def test_rate_sets_the_slot_width(self, monkeypatch):
+        assert bot.RequestPacer(per_second=25).min_interval == pytest.approx(0.04)
+        assert bot.RequestPacer(per_second=50).min_interval == pytest.approx(0.02)
+
+    def test_concurrent_waiters_each_get_their_own_slot(self, monkeypatch):
+        delays = []
+
+        async def fake_sleep(delay):
+            delays.append(delay)
+
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        async def scenario():
+            pacer = bot.RequestPacer(per_second=100)
+            await asyncio.gather(*(pacer.wait() for _ in range(10)))
+
+        run(scenario())
+
+        # No two callers were handed the same slot.
+        assert len(delays) == 9
+        assert len(set(delays)) == 9
+
+    def test_fleet_refresh_is_paced(self, monkeypatch, clean_servers):
+        monkeypatch.setattr(bot, "INSTRUCTIONS_REFRESH_RATE", 100)
+        monkeypatch.setattr(bot, "INSTRUCTIONS_REFRESH_CONCURRENCY", 50)
+        for i in range(20):
+            make_server(str(1000 + i), channel_id=str(2000 + i), message_id=str(3000 + i))
+        rec = Recorder().install(monkeypatch)
+
+        async def scenario():
+            began = asyncio.get_running_loop().time()
+            await bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test")
+            return asyncio.get_running_loop().time() - began
+
+        elapsed = run(scenario())
+
+        assert len(rec.edits) == 20
+        # Unpaced, 20 instant edits finish in ~1ms. At 100/s they need ~190ms;
+        # the floor here is loose enough to absorb early-firing timers.
+        assert elapsed >= 0.1
