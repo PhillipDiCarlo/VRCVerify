@@ -1838,27 +1838,73 @@ async def watch_update_trigger_file(path: str = None, poll_interval: int = 5):
 
 
 # -------------------------------------------------------------------
+# Background task supervision
+# -------------------------------------------------------------------
+# on_ready fires again after every gateway reconnect, so anything it starts has
+# to be idempotent. Without this, each reconnect leaked another RabbitMQ
+# consumer (plus its executor thread), another cleanup loop, and another
+# trigger-file watcher racing the others to os.remove() the same file.
+background_tasks = {}
+
+
+def start_background_task(name: str, coro, run_once: bool = False):
+    """Schedule `coro` under `name`, unless that task is already accounted for.
+
+    A long-lived task is (re)started only when it is missing or has died, so a
+    crashed consumer recovers on the next reconnect. `run_once` work — the
+    startup panel refresh — never runs a second time in the same process, since
+    its views stay registered with discord.py across reconnects.
+    """
+    existing = background_tasks.get(name)
+    if existing is not None and (run_once or not existing.done()):
+        # We never awaited this one; close it so Python doesn't warn about it.
+        coro.close()
+        return existing
+
+    task = asyncio.create_task(coro, name=name)
+
+    def report_exit(finished):
+        if finished.cancelled():
+            logger.info(f"Background task '{name}' was cancelled.")
+            return
+        error = finished.exception()
+        if error is not None:
+            logger.error(
+                f"Background task '{name}' died; it will restart on the next reconnect.",
+                exc_info=error,
+            )
+
+    task.add_done_callback(report_exit)
+    background_tasks[name] = task
+    return task
+
+
+# -------------------------------------------------------------------
 # Bot Events
 # -------------------------------------------------------------------
 @bot.event
 async def on_ready():
     logger.info(f"Bot is ready. Logged in as {bot.user} (ID: {bot.user.id})")
-    bot.loop.create_task(consume_results_queue())
+    start_background_task("results_consumer", consume_results_queue())
     # Start periodic cleanup of expired pending verifications
-    bot.loop.create_task(expired_pending_cleanup_task())
+    start_background_task("expired_pending_cleanup", expired_pending_cleanup_task())
 
     # Reinitialize instruction messages across servers (with locale). Runs in the
     # background so the bot starts serving commands immediately instead of waiting
     # on one edit per guild.
-    bot.loop.create_task(
-        refresh_all_instruction_panels(rebuild_embed=False, reason="startup")
+    start_background_task(
+        "instruction_panel_refresh",
+        refresh_all_instruction_panels(rebuild_embed=False, reason="startup"),
+        run_once=True,
     )
 
     # Start watching for a trigger file so you can update instructions at runtime
     # To trigger an instruction panel update type "touch /tmp/update_instructions.trigger" into a terminal
     trigger_path = os.getenv("INSTRUCTIONS_TRIGGER_PATH", "/tmp/update_instructions.trigger")
     poll = int(os.getenv("INSTRUCTIONS_TRIGGER_POLL", "5"))
-    bot.loop.create_task(watch_update_trigger_file(trigger_path, poll))
+    start_background_task(
+        "instructions_trigger_watcher", watch_update_trigger_file(trigger_path, poll)
+    )
 
     # Panel refresh logs its own completion summary once it finishes.
     logger.info("Bot startup tasks launched and ready to go!")
