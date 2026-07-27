@@ -73,6 +73,15 @@ RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST")
 KOFI_URL = "https://ko-fi.com/italiandogs"
 # Verifications a guild must complete before the one-time owner thank-you DM.
 MILESTONE_VERIFICATION_COUNT = 100
+# Instruction panels are refreshed concurrently rather than one guild at a time;
+# this caps how many Discord edits are in flight so a few thousand panels don't
+# serialize behind each other's round trips.
+try:
+    INSTRUCTIONS_REFRESH_CONCURRENCY = max(
+        1, int(os.getenv("INSTRUCTIONS_REFRESH_CONCURRENCY", "10"))
+    )
+except ValueError:
+    INSTRUCTIONS_REFRESH_CONCURRENCY = 10
 
 # -------------------------------------------------------------------
 # Logging setup
@@ -1683,13 +1692,17 @@ async def expired_pending_cleanup_task(interval_seconds: int = 60):
         await asyncio.sleep(interval_seconds)
 
 
-async def update_all_instruction_messages():
-    """Rebuild and edit saved instruction messages for all servers (uses DB-stored locale)."""
+# Guards against a startup refresh and a trigger-file refresh overlapping.
+instruction_refresh_lock = asyncio.Lock()
+
+
+def load_instruction_panels():
+    """Snapshot every saved instruction panel (guild/channel/message/locale) from the DB."""
     with session_scope() as session:
         servers = (
             session.query(Server).filter(Server.instructions_message_id != None).all()
         )
-        servers_data = [
+        return [
             {
                 "server_id": server.server_id,
                 "channel_id": server.instructions_channel_id,
@@ -1699,74 +1712,110 @@ async def update_all_instruction_messages():
             for server in servers
         ]
 
-    for entry in servers_data:
-        channel_id = entry.get("channel_id")
-        message_id = entry.get("message_id")
-        if not channel_id or not message_id:
-            logger.warning(f"⚠️ Missing channel/message id for guild {entry['server_id']}; skipping.")
-            continue
 
-        # Try to obtain the channel via cache first, then the API. This avoids requiring the
-        # guild to be present in the gateway cache (previously caused 'guild not cached').
-        try:
-            ch = bot.get_channel(int(channel_id))
-            if ch is None:
-                ch = await bot.fetch_channel(int(channel_id))
-        except discord.NotFound:
-            logger.warning(f"⚠️ Channel {channel_id} not found (404) for guild {entry['server_id']}; removing saved message reference.")
-            # clear DB entry so we don't repeatedly try to update a missing channel/message
-            try:
-                with session_scope() as session:
-                    srv = session.query(Server).filter_by(server_id=entry["server_id"]).first()
-                    if srv:
-                        srv.instructions_channel_id = None
-                        srv.instructions_message_id = None
-            except Exception:
-                logger.exception("Failed to clear missing channel entry in DB.")
-            continue
-        except discord.Forbidden:
-            logger.warning(f"⚠️ No permission to access channel {channel_id} in guild {entry['server_id']}; skipping.")
-            continue
-        except Exception:
-            logger.exception(f"Unexpected error fetching channel {channel_id} for guild {entry['server_id']}")
-            continue
+def forget_instruction_panel(server_id: str):
+    """Drop a saved panel reference whose channel or message no longer exists."""
+    try:
+        with session_scope() as session:
+            srv = session.query(Server).filter_by(server_id=server_id).first()
+            if srv:
+                srv.instructions_channel_id = None
+                srv.instructions_message_id = None
+    except Exception:
+        logger.exception(f"Failed to clear missing instruction panel for guild {server_id}")
 
-        try:
-            message = await ch.fetch_message(int(message_id))
-        except discord.NotFound:
-            logger.warning(f"⚠️ Message {message_id} not found (404) in channel {channel_id} for guild {entry['server_id']}; removing saved message reference.")
-            try:
-                with session_scope() as session:
-                    srv = session.query(Server).filter_by(server_id=entry["server_id"]).first()
-                    if srv:
-                        srv.instructions_channel_id = None
-                        srv.instructions_message_id = None
-            except Exception:
-                logger.exception("Failed to clear missing message entry in DB.")
-            continue
-        except discord.Forbidden:
-            logger.warning(f"⚠️ No permission to fetch message {message_id} in channel {channel_id} for guild {entry['server_id']}; skipping.")
-            continue
-        except Exception:
-            logger.exception(f"Unexpected error fetching message {message_id} in channel {channel_id} for guild {entry['server_id']}")
-            continue
 
-        # Rebuild localized embed + example field
-        try:
-            strings = localizations.get(entry["locale"], localizations["en-US"])
-            new_embed = Embed(
-                title=strings.get("instructions_title", ""),
-                description=strings.get("instructions_desc", ""),
-                color=discord.Color.blue(),
-            )
-            usage_example = "**Example Usage**:\n" "```bash\n" "/vrcverify\n" "```"
-            new_embed.clear_fields()
-            new_embed.add_field(name="Example Command", value=usage_example, inline=False)
-            view = VRCVerifyInstructionView(locale=entry["locale"])
-            await message.edit(embed=new_embed, view=view)
-            logger.info(f"Updated instructions message for guild {entry['server_id']}")
-        except Exception:
-            logger.exception(f"Failed to edit instructions message for guild {entry['server_id']}")
+def build_instructions_embed(locale: str) -> Embed:
+    """Build the localized instruction panel embed."""
+    strings = localizations.get(locale, localizations["en-US"])
+    embed = Embed(
+        title=strings.get("instructions_title", ""),
+        description=strings.get("instructions_desc", ""),
+        color=discord.Color.blue(),
+    )
+    usage_example = "**Example Usage**:\n" "```bash\n" "/vrcverify\n" "```"
+    embed.add_field(name="Example Command", value=usage_example, inline=False)
+    return embed
+
+
+async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
+    """Re-attach a fresh view (and optionally a rebuilt embed) to one saved panel.
+
+    Uses a partial message so this costs exactly one API call and needs nothing
+    in the gateway cache — no channel fetch, no message fetch.
+    """
+    channel_id = entry.get("channel_id")
+    message_id = entry.get("message_id")
+    if not channel_id or not message_id:
+        logger.warning(f"⚠️ Missing channel/message id for guild {entry['server_id']}; skipping.")
+        return False
+
+    try:
+        message = bot.get_partial_messageable(int(channel_id)).get_partial_message(
+            int(message_id)
+        )
+    except (TypeError, ValueError):
+        logger.warning(f"⚠️ Malformed channel/message id for guild {entry['server_id']}; skipping.")
+        return False
+
+    payload = {"view": VRCVerifyInstructionView(locale=entry["locale"])}
+    if rebuild_embed:
+        payload["embed"] = build_instructions_embed(entry["locale"])
+
+    try:
+        await message.edit(**payload)
+        logger.debug(f"Refreshed instructions message for guild {entry['server_id']}")
+        return True
+    except discord.NotFound:
+        # Either the channel or the message is gone; both cases make the saved
+        # reference useless, so stop retrying it on every restart.
+        logger.warning(
+            f"⚠️ Instruction panel {message_id} in channel {channel_id} not found (404) "
+            f"for guild {entry['server_id']}; removing saved message reference."
+        )
+        forget_instruction_panel(entry["server_id"])
+        return False
+    except discord.Forbidden:
+        logger.warning(
+            f"⚠️ No permission to edit instruction panel {message_id} in channel "
+            f"{channel_id} for guild {entry['server_id']}; skipping."
+        )
+        return False
+    except Exception:
+        logger.exception(f"Failed to edit instructions message for guild {entry['server_id']}")
+        return False
+
+
+async def refresh_all_instruction_panels(rebuild_embed: bool, reason: str):
+    """Refresh every saved instruction panel concurrently, bounded by a semaphore.
+
+    Serialized behind a lock so a startup pass and a trigger-file pass can't
+    fight over the same messages.
+    """
+    async with instruction_refresh_lock:
+        panels = load_instruction_panels()
+        if not panels:
+            logger.info(f"No saved instruction panels to refresh ({reason}).")
+            return
+
+        started = time.monotonic()
+        semaphore = asyncio.Semaphore(INSTRUCTIONS_REFRESH_CONCURRENCY)
+
+        async def refresh_one(entry):
+            async with semaphore:
+                return await refresh_instruction_panel(entry, rebuild_embed)
+
+        results = await asyncio.gather(*(refresh_one(entry) for entry in panels))
+        elapsed = time.monotonic() - started
+        logger.info(
+            f"Instruction panel refresh ({reason}): {sum(results)}/{len(panels)} "
+            f"updated in {elapsed:.1f}s"
+        )
+
+
+async def update_all_instruction_messages():
+    """Rebuild and edit saved instruction messages for all servers (uses DB-stored locale)."""
+    await refresh_all_instruction_panels(rebuild_embed=True, reason="manual trigger")
 
 
 async def watch_update_trigger_file(path: str = None, poll_interval: int = 5):
@@ -1806,36 +1855,12 @@ async def on_ready():
     # Start periodic cleanup of expired pending verifications
     bot.loop.create_task(expired_pending_cleanup_task())
 
-    # Reinitialize instruction messages across servers (with locale)
-    with session_scope() as session:
-        servers = (
-            session.query(Server).filter(Server.instructions_message_id != None).all()
-        )
-        # Build a list carrying each server’s locale
-        servers_data = [
-            {
-                "server_id": server.server_id,
-                "channel_id": server.instructions_channel_id,
-                "message_id": server.instructions_message_id,
-                "locale": server.instructions_locale or "en-US"
-            }
-            for server in servers
-        ]
-
-    for entry in servers_data:
-        guild = bot.get_guild(int(entry["server_id"]))
-        if not guild:
-            continue
-        try:
-            channel = guild.get_channel(int(entry["channel_id"]))
-            if channel:
-                message = await channel.fetch_message(int(entry["message_id"]))
-                # Pass in the stored locale when reconstructing the view
-                view = VRCVerifyInstructionView(locale=entry["locale"])
-                await message.edit(view=view)
-                logger.info(f"Reinitialized instructions message for guild {entry['server_id']}")
-        except Exception as e:
-            logger.error(f"Error reinitializing instructions message for guild {entry['server_id']}: {e}")
+    # Reinitialize instruction messages across servers (with locale). Runs in the
+    # background so the bot starts serving commands immediately instead of waiting
+    # on one edit per guild.
+    bot.loop.create_task(
+        refresh_all_instruction_panels(rebuild_embed=False, reason="startup")
+    )
 
     # Start watching for a trigger file so you can update instructions at runtime
     # To trigger an instruction panel update type "touch /tmp/update_instructions.trigger" into a terminal
@@ -1843,7 +1868,8 @@ async def on_ready():
     poll = int(os.getenv("INSTRUCTIONS_TRIGGER_POLL", "5"))
     bot.loop.create_task(watch_update_trigger_file(trigger_path, poll))
 
-    logger.info("Bot is reinitialized and ready to go!")
+    # Panel refresh logs its own completion summary once it finishes.
+    logger.info("Bot startup tasks launched and ready to go!")
 
 
 @bot.event
