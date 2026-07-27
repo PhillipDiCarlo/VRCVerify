@@ -70,6 +70,7 @@ localizations: dict[str, dict[str, str]] = {
         "status_panel_archived":      "⚠️ The instructions panel is in a thread that has been archived, so the bot can't update it. Un-archive the thread, or post a fresh panel in a normal text channel.",
         "status_panel_gone":          "❌ The saved instructions panel no longer exists — it or its channel was deleted. Run `/vrcverify_instructions` again to post a new one.",
         "status_tips":                "\n**Tips**\n• Post the panel in a normal text channel everyone can see — threads auto-archive and silently break it.\n• Keep the bot's **View Channel**, **Send Messages** and **Embed Links** permissions in that channel.\n• If you delete or recreate that channel, run `/vrcverify_instructions` again.",
+        "guild_join_welcome_dm":      "👋 Thanks for adding VRCVerify to **{server}**!\n\nTo get set up:\n1. Run `/vrcverify_setup` to choose the role members get once verified.\n2. Run `/vrcverify_instructions` in the channel you want members to verify from — use a normal text channel everyone can see, not a thread, since threads auto-archive and quietly break the panel.\n\nNeed a hand? `/vrcverify_support` has you covered.",
     },
 
     "es-ES": {
@@ -134,6 +135,7 @@ localizations: dict[str, dict[str, str]] = {
         "status_panel_archived":      "⚠️ El panel de instrucciones está en un hilo que se ha archivado, así que el bot no puede actualizarlo. Desarchiva el hilo o publica un panel nuevo en un canal de texto normal.",
         "status_panel_gone":          "❌ El panel de instrucciones guardado ya no existe: se eliminó él o su canal. Ejecuta `/vrcverify_instructions` de nuevo para publicar uno nuevo.",
         "status_tips":                "\n**Consejos**\n• Publica el panel en un canal de texto normal que todos puedan ver: los hilos se archivan solos y lo rompen en silencio.\n• Mantén los permisos **Ver canal**, **Enviar mensajes** e **Insertar enlaces** del bot en ese canal.\n• Si eliminas o vuelves a crear ese canal, ejecuta `/vrcverify_instructions` otra vez.",
+        "guild_join_welcome_dm":      "👋 ¡Gracias por añadir VRCVerify a **{server}**!\n\nPara configurarlo:\n1. Ejecuta `/vrcverify_setup` para elegir el rol que reciben los miembros al verificarse.\n2. Ejecuta `/vrcverify_instructions` en el canal desde el que quieras que se verifiquen — usa un canal de texto normal que todos puedan ver, no un hilo, ya que los hilos se archivan solos y rompen el panel sin avisar.\n\n¿Necesitas ayuda? `/vrcverify_support` está para eso.",
     },
 
     "zh-CN": {
@@ -198,6 +200,7 @@ localizations: dict[str, dict[str, str]] = {
         "status_panel_archived":      "⚠️ 说明面板位于已存档的子区中,机器人无法更新它。请取消存档该子区,或在普通文字频道中重新发布面板。",
         "status_panel_gone":          "❌ 已保存的说明面板不存在了 — 面板或其频道已被删除。请再次运行 `/vrcverify_instructions` 发布新的面板。",
         "status_tips":                "\n**提示**\n• 请把面板发布在所有人都能看到的普通文字频道 — 子区会自动存档并悄悄使其失效。\n• 请保留机器人在该频道的**查看频道**、**发送消息**和**嵌入链接**权限。\n• 如果你删除或重建了该频道,请再次运行 `/vrcverify_instructions`。",
+        "guild_join_welcome_dm":      "👋 感谢将 VRCVerify 添加到 **{server}**!\n\n设置步骤:\n1. 运行 `/vrcverify_setup` 选择成员验证后获得的身份组。\n2. 在你希望成员进行验证的频道中运行 `/vrcverify_instructions` — 请使用所有人都能看到的普通文字频道,不要使用子区,因为子区会自动存档并悄悄使面板失效。\n\n需要帮助?可以使用 `/vrcverify_support`。",
     },
 
     "ja": {
@@ -262,6 +265,7 @@ localizations: dict[str, dict[str, str]] = {
         "status_panel_archived":      "⚠️ 説明パネルがアーカイブ済みのスレッド内にあるため、ボットが更新できません。スレッドのアーカイブを解除するか、通常のテキストチャンネルにパネルを投稿し直してください。",
         "status_panel_gone":          "❌ 保存されていた説明パネルが存在しません。パネルまたはそのチャンネルが削除されています。`/vrcverify_instructions` をもう一度実行して新しく投稿してください。",
         "status_tips":                "\n**ヒント**\n• パネルは全員が常に見られる通常のテキストチャンネルに投稿してください。スレッドは自動アーカイブされ、静かに機能しなくなります。\n• そのチャンネルでボットの**チャンネルを見る**、**メッセージを送信**、**埋め込みリンク**の権限を維持してください。\n• そのチャンネルを削除したり作り直したりした場合は、`/vrcverify_instructions` を再実行してください。",
+        "guild_join_welcome_dm":      "👋 **{server}** に VRCVerify を追加していただきありがとうございます!\n\n設定手順:\n1. `/vrcverify_setup` を実行し、認証済みメンバーに付与するロールを選んでください。\n2. メンバーに認証してほしいチャンネルで `/vrcverify_instructions` を実行してください。スレッドではなく、全員が常に見られる通常のテキストチャンネルをお使いください。スレッドは自動アーカイブされ、パネルが気づかないうちに動かなくなります。\n\n困ったときは `/vrcverify_support` をご利用ください。",
     },
 
     "de": {
@@ -326,6 +330,7 @@ localizations: dict[str, dict[str, str]] = {
         "status_panel_archived":      "⚠️ Das Anleitungs-Panel liegt in einem archivierten Thread, deshalb kann der Bot es nicht aktualisieren. Hebe die Archivierung auf oder poste ein neues Panel in einem normalen Textkanal.",
         "status_panel_gone":          "❌ Das gespeicherte Anleitungs-Panel existiert nicht mehr – es oder sein Kanal wurde gelöscht. Führe `/vrcverify_instructions` erneut aus, um ein neues zu posten.",
         "status_tips":                "\n**Tipps**\n• Poste das Panel in einem normalen Textkanal, den alle sehen können – Threads werden automatisch archiviert und machen es stillschweigend kaputt.\n• Behalte die Rechte **Kanal ansehen**, **Nachrichten senden** und **Links einbetten** für den Bot in diesem Kanal bei.\n• Wenn du diesen Kanal löschst oder neu erstellst, führe `/vrcverify_instructions` erneut aus.",
+        "guild_join_welcome_dm":      "👋 Danke, dass du VRCVerify zu **{server}** hinzugefügt hast!\n\nSo richtest du es ein:\n1. Führe `/vrcverify_setup` aus, um die Rolle zu wählen, die verifizierte Mitglieder erhalten.\n2. Führe `/vrcverify_instructions` in dem Kanal aus, in dem sich Mitglieder verifizieren sollen – nutze einen normalen Textkanal, den alle sehen können, keinen Thread, da Threads automatisch archiviert werden und das Panel stillschweigend kaputtgeht.\n\nBrauchst du Hilfe? `/vrcverify_support` hilft dir weiter.",
     },
 
     "nl": {
@@ -390,6 +395,7 @@ localizations: dict[str, dict[str, str]] = {
         "status_panel_archived":      "⚠️ Het instructiepaneel staat in een thread die is gearchiveerd, dus de bot kan het niet bijwerken. Haal de thread uit het archief of plaats een nieuw paneel in een gewoon tekstkanaal.",
         "status_panel_gone":          "❌ Het opgeslagen instructiepaneel bestaat niet meer – het paneel of het kanaal is verwijderd. Voer `/vrcverify_instructions` opnieuw uit om een nieuw paneel te plaatsen.",
         "status_tips":                "\n**Tips**\n• Plaats het paneel in een gewoon tekstkanaal dat iedereen kan zien – threads worden automatisch gearchiveerd en breken het stilletjes.\n• Zorg dat de bot **Kanaal bekijken**, **Berichten versturen** en **Links insluiten** houdt in dat kanaal.\n• Als je dat kanaal verwijdert of opnieuw aanmaakt, voer dan `/vrcverify_instructions` opnieuw uit.",
+        "guild_join_welcome_dm":      "👋 Bedankt voor het toevoegen van VRCVerify aan **{server}**!\n\nZo stel je het in:\n1. Voer `/vrcverify_setup` uit om de rol te kiezen die geverifieerde leden krijgen.\n2. Voer `/vrcverify_instructions` uit in het kanaal waar je wilt dat leden zich verifiëren – gebruik een gewoon tekstkanaal dat iedereen kan zien, geen thread, want threads worden automatisch gearchiveerd en het paneel werkt dan ongemerkt niet meer.\n\nHulp nodig? `/vrcverify_support` staat voor je klaar.",
     },
 
     "hi-IN": {
@@ -454,6 +460,7 @@ localizations: dict[str, dict[str, str]] = {
         "status_panel_archived":      "⚠️ निर्देश पैनल एक ऐसे थ्रेड में है जो संग्रहित हो चुका है, इसलिए बॉट उसे अपडेट नहीं कर सकता। थ्रेड को अनआर्काइव करें, या किसी सामान्य टेक्स्ट चैनल में नया पैनल पोस्ट करें।",
         "status_panel_gone":          "❌ सहेजा गया निर्देश पैनल अब मौजूद नहीं है — वह या उसका चैनल हटा दिया गया है। नया पोस्ट करने के लिए `/vrcverify_instructions` फिर से चलाएँ।",
         "status_tips":                "\n**सुझाव**\n• पैनल ऐसे सामान्य टेक्स्ट चैनल में पोस्ट करें जिसे सब देख सकें — थ्रेड अपने आप संग्रहित होकर उसे चुपचाप तोड़ देते हैं।\n• उस चैनल में बॉट की **चैनल देखें**, **संदेश भेजें** और **लिंक एम्बेड करें** अनुमतियाँ बनाए रखें।\n• अगर आप वह चैनल हटाते या दोबारा बनाते हैं, तो `/vrcverify_instructions` फिर से चलाएँ।",
+        "guild_join_welcome_dm":      "👋 **{server}** में VRCVerify जोड़ने के लिए धन्यवाद!\n\nशुरू करने के लिए:\n1. सत्यापित सदस्यों को मिलने वाली भूमिका चुनने के लिए `/vrcverify_setup` चलाएँ।\n2. जिस चैनल से आप सदस्यों की तसदीक करवाना चाहते हैं, वहाँ `/vrcverify_instructions` चलाएँ — थ्रेड के बजाय ऐसा सामान्य टेक्स्ट चैनल इस्तेमाल करें जिसे सब देख सकें, क्योंकि थ्रेड अपने आप संग्रहित हो जाते हैं और पैनल चुपचाप काम करना बंद कर देता है।\n\nमदद चाहिए? `/vrcverify_support` आज़माएँ।",
     },
 
     "ar": {
@@ -518,6 +525,7 @@ localizations: dict[str, dict[str, str]] = {
         "status_panel_archived":      "⚠️ لوحة التعليمات داخل موضوع (Thread) تمت أرشفته، لذا لا يستطيع البوت تحديثها. ألغِ أرشفة الموضوع، أو انشر لوحة جديدة في قناة نصية عادية.",
         "status_panel_gone":          "❌ لوحة التعليمات المحفوظة لم تعد موجودة — حُذفت هي أو قناتها. نفّذ `/vrcverify_instructions` مرة أخرى لنشر لوحة جديدة.",
         "status_tips":                "\n**نصائح**\n• انشر اللوحة في قناة نصية عادية يراها الجميع — المواضيع تُؤرشف تلقائيًا وتُعطّلها بهدوء.\n• حافظ على صلاحيات البوت **عرض القناة** و**إرسال الرسائل** و**تضمين الروابط** في تلك القناة.\n• إذا حذفت تلك القناة أو أعدت إنشاءها، فنفّذ `/vrcverify_instructions` من جديد.",
+        "guild_join_welcome_dm":      "👋 شكرًا لإضافة VRCVerify إلى **{server}**!\n\nللإعداد:\n1. نفّذ `/vrcverify_setup` لاختيار الرتبة التي يحصل عليها الأعضاء بعد التحقق.\n2. نفّذ `/vrcverify_instructions` في القناة التي تريد أن يتحقق منها الأعضاء — استخدم قناة نصية عادية يراها الجميع، وليس موضوعًا (Thread)، لأن المواضيع تُؤرشف تلقائيًا فتتوقف اللوحة عن العمل دون تنبيه.\n\nهل تحتاج مساعدة؟ جرّب `/vrcverify_support`.",
     },
 
     "bn": {
@@ -582,6 +590,7 @@ localizations: dict[str, dict[str, str]] = {
         "status_panel_archived":      "⚠️ নির্দেশনা প্যানেলটি এমন একটি থ্রেডে আছে যা আর্কাইভ হয়ে গেছে, তাই বট এটি আপডেট করতে পারছে না। থ্রেডটি আন-আর্কাইভ করুন, অথবা একটি সাধারণ টেক্সট চ্যানেলে নতুন প্যানেল পোস্ট করুন।",
         "status_panel_gone":          "❌ সংরক্ষিত নির্দেশনা প্যানেলটি আর নেই — প্যানেল বা তার চ্যানেল মুছে ফেলা হয়েছে। নতুন একটি পোস্ট করতে আবার `/vrcverify_instructions` চালান।",
         "status_tips":                "\n**পরামর্শ**\n• প্যানেলটি এমন একটি সাধারণ টেক্সট চ্যানেলে পোস্ট করুন যা সবাই দেখতে পায় — থ্রেড নিজে থেকেই আর্কাইভ হয়ে নীরবে এটি নষ্ট করে দেয়।\n• ওই চ্যানেলে বটের **চ্যানেল দেখুন**, **বার্তা পাঠান** এবং **লিঙ্ক এম্বেড করুন** অনুমতিগুলি বজায় রাখুন।\n• ওই চ্যানেল মুছে ফেললে বা নতুন করে তৈরি করলে আবার `/vrcverify_instructions` চালান।",
+        "guild_join_welcome_dm":      "👋 **{server}**-এ VRCVerify যোগ করার জন্য ধন্যবাদ!\n\nসেট আপ করতে:\n1. যাচাইকৃত সদস্যরা যে রোল পাবেন তা বেছে নিতে `/vrcverify_setup` চালান।\n2. যে চ্যানেল থেকে সদস্যদের যাচাই করাতে চান, সেখানে `/vrcverify_instructions` চালান — থ্রেডের বদলে এমন একটি সাধারণ টেক্সট চ্যানেল ব্যবহার করুন যা সবাই দেখতে পায়, কারণ থ্রেড নিজে থেকেই আর্কাইভ হয়ে যায় এবং প্যানেলটি নীরবে কাজ করা বন্ধ করে দেয়।\n\nসাহায্য দরকার? `/vrcverify_support` ব্যবহার করুন।",
     },
 
     "pt-BR": {
@@ -646,6 +655,7 @@ localizations: dict[str, dict[str, str]] = {
         "status_panel_archived":      "⚠️ O painel de instruções está em um tópico que foi arquivado, então o bot não consegue atualizá-lo. Desarquive o tópico ou publique um painel novo em um canal de texto normal.",
         "status_panel_gone":          "❌ O painel de instruções salvo não existe mais — ele ou o canal dele foi excluído. Execute `/vrcverify_instructions` novamente para publicar outro.",
         "status_tips":                "\n**Dicas**\n• Publique o painel em um canal de texto normal que todos possam ver — tópicos são arquivados sozinhos e o quebram silenciosamente.\n• Mantenha as permissões **Ver canal**, **Enviar mensagens** e **Inserir links** do bot nesse canal.\n• Se você excluir ou recriar esse canal, execute `/vrcverify_instructions` novamente.",
+        "guild_join_welcome_dm":      "👋 Obrigado por adicionar o VRCVerify a **{server}**!\n\nPara configurar:\n1. Execute `/vrcverify_setup` para escolher o cargo que os membros recebem ao se verificar.\n2. Execute `/vrcverify_instructions` no canal de onde quiser que eles se verifiquem — use um canal de texto normal que todos possam ver, não um tópico, já que tópicos são arquivados sozinhos e quebram o painel silenciosamente.\n\nPrecisa de ajuda? Use `/vrcverify_support`.",
     },
 
     "ru": {
@@ -710,6 +720,7 @@ localizations: dict[str, dict[str, str]] = {
         "status_panel_archived":      "⚠️ Панель инструкций находится в заархивированной ветке, поэтому бот не может её обновить. Разархивируйте ветку или опубликуйте новую панель в обычном текстовом канале.",
         "status_panel_gone":          "❌ Сохранённой панели инструкций больше не существует — удалена сама панель или её канал. Выполните `/vrcverify_instructions` ещё раз, чтобы опубликовать новую.",
         "status_tips":                "\n**Советы**\n• Публикуйте панель в обычном текстовом канале, видимом всем: ветки автоматически архивируются и незаметно её ломают.\n• Сохраняйте у бота права **Просмотр канала**, **Отправка сообщений** и **Встраивание ссылок** в этом канале.\n• Если вы удалили или пересоздали этот канал, выполните `/vrcverify_instructions` заново.",
+        "guild_join_welcome_dm":      "👋 Спасибо, что добавили VRCVerify на сервер **{server}**!\n\nЧтобы всё настроить:\n1. Выполните `/vrcverify_setup`, чтобы выбрать роль, которую получают проверенные участники.\n2. Выполните `/vrcverify_instructions` в канале, из которого участники должны проходить проверку — используйте обычный текстовый канал, видимый всем, а не ветку: ветки автоматически архивируются, и панель тихо перестаёт работать.\n\nНужна помощь? Загляните в `/vrcverify_support`.",
     },
 
     "pa-IN": {
@@ -774,5 +785,6 @@ localizations: dict[str, dict[str, str]] = {
         "status_panel_archived":      "⚠️ ਹਦਾਇਤ ਪੈਨਲ ਅਜਿਹੇ ਥ੍ਰੈੱਡ ਵਿੱਚ ਹੈ ਜੋ ਆਰਕਾਈਵ ਹੋ ਚੁੱਕਾ ਹੈ, ਇਸ ਲਈ ਬੌਟ ਇਸਨੂੰ ਅੱਪਡੇਟ ਨਹੀਂ ਕਰ ਸਕਦਾ। ਥ੍ਰੈੱਡ ਨੂੰ ਅਣ-ਆਰਕਾਈਵ ਕਰੋ, ਜਾਂ ਕਿਸੇ ਆਮ ਟੈਕਸਟ ਚੈਨਲ ਵਿੱਚ ਨਵਾਂ ਪੈਨਲ ਪੋਸਟ ਕਰੋ।",
         "status_panel_gone":          "❌ ਸੰਭਾਲਿਆ ਹਦਾਇਤ ਪੈਨਲ ਹੁਣ ਮੌਜੂਦ ਨਹੀਂ ਹੈ — ਪੈਨਲ ਜਾਂ ਇਸਦਾ ਚੈਨਲ ਮਿਟਾ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਨਵਾਂ ਪੋਸਟ ਕਰਨ ਲਈ `/vrcverify_instructions` ਦੁਬਾਰਾ ਚਲਾਓ।",
         "status_tips":                "\n**ਸੁਝਾਅ**\n• ਪੈਨਲ ਅਜਿਹੇ ਆਮ ਟੈਕਸਟ ਚੈਨਲ ਵਿੱਚ ਪੋਸਟ ਕਰੋ ਜੋ ਸਾਰਿਆਂ ਨੂੰ ਦਿਸਦਾ ਹੋਵੇ — ਥ੍ਰੈੱਡ ਆਪਣੇ ਆਪ ਆਰਕਾਈਵ ਹੋ ਕੇ ਇਸਨੂੰ ਚੁੱਪ-ਚਾਪ ਤੋੜ ਦਿੰਦੇ ਹਨ।\n• ਉਸ ਚੈਨਲ ਵਿੱਚ ਬੌਟ ਦੀਆਂ **ਚੈਨਲ ਵੇਖੋ**, **ਸੁਨੇਹੇ ਭੇਜੋ** ਅਤੇ **ਲਿੰਕ ਏਮਬੈੱਡ ਕਰੋ** ਇਜਾਜ਼ਤਾਂ ਬਰਕਰਾਰ ਰੱਖੋ।\n• ਜੇ ਤੁਸੀਂ ਉਹ ਚੈਨਲ ਮਿਟਾਉਂਦੇ ਜਾਂ ਦੁਬਾਰਾ ਬਣਾਉਂਦੇ ਹੋ, ਤਾਂ `/vrcverify_instructions` ਦੁਬਾਰਾ ਚਲਾਓ।",
+        "guild_join_welcome_dm":      "👋 **{server}** ਵਿੱਚ VRCVerify ਜੋੜਨ ਲਈ ਧੰਨਵਾਦ!\n\nਸ਼ੁਰੂ ਕਰਨ ਲਈ:\n1. ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਨੂੰ ਮਿਲਣ ਵਾਲੀ ਭੂਮਿਕਾ ਚੁਣਨ ਲਈ `/vrcverify_setup` ਚਲਾਓ।\n2. ਜਿਸ ਚੈਨਲ ਤੋਂ ਤੁਸੀਂ ਮੈਂਬਰਾਂ ਦੀ ਤਸਦੀਕ ਕਰਵਾਉਣੀ ਹੈ, ਉੱਥੇ `/vrcverify_instructions` ਚਲਾਓ — ਥ੍ਰੈੱਡ ਦੀ ਥਾਂ ਅਜਿਹਾ ਆਮ ਟੈਕਸਟ ਚੈਨਲ ਵਰਤੋ ਜੋ ਸਾਰਿਆਂ ਨੂੰ ਦਿਸਦਾ ਹੋਵੇ, ਕਿਉਂਕਿ ਥ੍ਰੈੱਡ ਆਪਣੇ ਆਪ ਆਰਕਾਈਵ ਹੋ ਜਾਂਦੇ ਹਨ ਅਤੇ ਪੈਨਲ ਚੁੱਪ-ਚਾਪ ਕੰਮ ਕਰਨਾ ਬੰਦ ਕਰ ਦਿੰਦਾ ਹੈ।\n\nਮਦਦ ਚਾਹੀਦੀ ਹੈ? `/vrcverify_support` ਵਰਤੋ।",
     }
 }

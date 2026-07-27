@@ -2423,6 +2423,23 @@ async def on_ready():
 
 
 @bot.event
+async def on_guild_join(guild: discord.Guild):
+    """DM the server owner a quick heads-up on finishing setup.
+
+    Fires once, only for a genuine new join (discord.py does not re-dispatch
+    this for guilds already in the cache on reconnect), so no idempotency
+    guard is needed the way on_ready's background tasks require one.
+    """
+    logger.info(f"Joined guild {guild.id} ({guild.name})")
+    try:
+        owner = guild.owner or await fetch_member_cached(guild, guild.owner_id)
+        if owner:
+            await dm_localized(owner, guild, "guild_join_welcome_dm", server=guild.name)
+    except Exception:
+        logger.exception(f"Failed to send welcome DM for guild {guild.id}")
+
+
+@bot.event
 async def on_member_join(member: discord.Member):
     """Auto-verify users who are already verified in our database when they join a server."""
     try:

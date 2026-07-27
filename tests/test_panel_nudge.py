@@ -736,6 +736,62 @@ class TestInstructionsClearsNudge:
 # ---------------------------------------------------------------
 # Locale coverage for the new strings
 # ---------------------------------------------------------------
+# ---------------------------------------------------------------
+# on_guild_join: welcome DM to the server owner
+# ---------------------------------------------------------------
+class TestGuildJoinWelcomeDm:
+    def fake_guild(self, owner=None, owner_id=999, preferred_locale="en-US"):
+        return SimpleNamespace(
+            id=int(GUILD_ID),
+            name="Test Guild",
+            owner=owner,
+            owner_id=owner_id,
+            preferred_locale=preferred_locale,
+        )
+
+    def test_dms_the_cached_owner(self, dm_spy):
+        owner = SimpleNamespace(id=999, name="owner")
+        guild = self.fake_guild(owner=owner)
+        run(bot.on_guild_join(guild))
+        assert len(dm_spy) == 1
+        assert dm_spy[0].member is owner
+        assert dm_spy[0].key == "guild_join_welcome_dm"
+        assert dm_spy[0].kwargs == {"server": guild.name}
+
+    def test_falls_back_to_fetching_the_owner(self, dm_spy, monkeypatch):
+        fetched = SimpleNamespace(id=999, name="fetched-owner")
+
+        async def fake_fetch(guild, user_id):
+            return fetched if user_id == 999 else None
+
+        monkeypatch.setattr(bot, "fetch_member_cached", fake_fetch)
+        guild = self.fake_guild(owner=None)
+        run(bot.on_guild_join(guild))
+        assert dm_spy[0].member is fetched
+
+    def test_no_owner_resolvable_sends_nothing(self, dm_spy, monkeypatch):
+        async def nobody(guild, user_id):
+            return None
+
+        monkeypatch.setattr(bot, "fetch_member_cached", nobody)
+        run(bot.on_guild_join(self.fake_guild(owner=None)))
+        assert dm_spy == []
+
+    def test_dm_failure_does_not_raise(self, monkeypatch):
+        async def exploding_dm(*args, **kwargs):
+            raise RuntimeError("discord down")
+
+        monkeypatch.setattr(bot, "dm_localized", exploding_dm)
+        owner = SimpleNamespace(id=999, name="owner")
+        run(bot.on_guild_join(self.fake_guild(owner=owner)))  # must not raise
+
+    def test_join_creates_no_onboarding_row(self, dm_spy):
+        # The 48h nudge clock starts at /vrcverify_setup, not at join.
+        owner = SimpleNamespace(id=999, name="owner")
+        run(bot.on_guild_join(self.fake_guild(owner=owner)))
+        assert onboarding_row() is None
+
+
 NEW_KEYS = (
     "setup_panel_nudge",
     "panel_nudge_dm",
@@ -749,6 +805,7 @@ NEW_KEYS = (
     "status_panel_archived",
     "status_panel_gone",
     "status_tips",
+    "guild_join_welcome_dm",
 )
 
 
@@ -769,6 +826,7 @@ class TestNudgeLocaleStrings:
         assert "SrvName" in strings["panel_nudge_dm"].format(server="SrvName")
         assert "SrvName" in strings["status_header"].format(server="SrvName")
         assert "RoleName" in strings["status_role_ok"].format(role="RoleName")
+        assert "SrvName" in strings["guild_join_welcome_dm"].format(server="SrvName")
 
     @pytest.mark.parametrize("locale", LANGUAGE_CODES)
     def test_plain_strings_take_no_placeholders(self, locale):
@@ -790,6 +848,8 @@ class TestNudgeLocaleStrings:
         # The command name is the actionable part; it stays literal everywhere.
         assert "/vrcverify_instructions" in localizations[locale]["setup_panel_nudge"]
         assert "/vrcverify_instructions" in localizations[locale]["panel_nudge_dm"]
+        assert "/vrcverify_setup" in localizations[locale]["guild_join_welcome_dm"]
+        assert "/vrcverify_instructions" in localizations[locale]["guild_join_welcome_dm"]
 
     def test_every_probe_outcome_has_a_message(self):
         outcomes = {"ok", "gone", "missing_ids", "malformed", "forbidden", "archived", "http_error", "error"}
