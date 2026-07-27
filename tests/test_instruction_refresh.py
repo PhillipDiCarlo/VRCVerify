@@ -67,11 +67,16 @@ def entry(server_id=GUILD_ID, channel_id="222", message_id="111", locale="en-US"
 
 @pytest.fixture
 def clean_servers():
-    with bot.session_scope() as session:
-        session.query(bot.Server).delete()
+    def wipe():
+        with bot.session_scope() as session:
+            session.query(bot.Server).delete()
+            # Successful refreshes now record a view version; clear it too so
+            # stale_only tests can't inherit another test's bookkeeping.
+            session.query(bot.InstructionPanelView).delete()
+
+    wipe()
     yield
-    with bot.session_scope() as session:
-        session.query(bot.Server).delete()
+    wipe()
 
 
 @pytest.fixture(autouse=True)
@@ -324,6 +329,109 @@ class TestRefreshAllPanels:
         run(bot.update_all_instruction_messages())
 
         assert "embed" in rec.edits[0][2]
+
+
+# ---------------------------------------------------------------
+# Startup migration to the persistent view (tier 2)
+# ---------------------------------------------------------------
+class TestStartupMigration:
+    @staticmethod
+    def startup():
+        return bot.refresh_all_instruction_panels(
+            rebuild_embed=False, reason="startup", stale_only=True
+        )
+
+    def test_first_boot_migrates_and_records_every_panel(self, monkeypatch, clean_servers):
+        for i in range(5):
+            make_server(str(1000 + i), channel_id=str(2000 + i), message_id=str(3000 + i))
+        rec = Recorder().install(monkeypatch)
+
+        run(self.startup())
+
+        assert len(rec.edits) == 5
+        with bot.session_scope() as session:
+            assert session.query(bot.InstructionPanelView).count() == 5
+
+    def test_second_boot_touches_nothing(self, monkeypatch, clean_servers):
+        # This is the tier 2 payoff: a fully migrated fleet costs zero API calls.
+        for i in range(5):
+            make_server(str(1000 + i), channel_id=str(2000 + i), message_id=str(3000 + i))
+        rec = Recorder().install(monkeypatch)
+        run(self.startup())
+        assert len(rec.edits) == 5
+
+        second = Recorder().install(monkeypatch)
+        run(self.startup())
+
+        assert second.edits == []
+
+    def test_only_failed_panels_are_retried(self, monkeypatch, clean_servers):
+        for i in range(5):
+            make_server(str(1000 + i), channel_id=str(2000 + i), message_id=str(3000 + i))
+        # 3002 is forbidden, 3004 sits in an archived thread; neither migrates.
+        first = Recorder(
+            error_for={
+                3002: http_error(discord.Forbidden, 403),
+                3004: archived_thread_error(),
+            }
+        )
+        first.install(monkeypatch)
+        run(self.startup())
+        assert len(first.edits) == 3
+
+        second = Recorder().install(monkeypatch)
+        run(self.startup())
+
+        assert sorted(e[1] for e in second.edits) == [3002, 3004]
+
+    def test_a_recovered_panel_stops_being_retried(self, monkeypatch, clean_servers):
+        make_server(GUILD_ID)
+        Recorder(error_for={111: http_error(discord.Forbidden, 403)}).install(monkeypatch)
+        run(self.startup())
+
+        # Admin restores permissions; next boot succeeds and records the version.
+        recovered = Recorder().install(monkeypatch)
+        run(self.startup())
+        assert len(recovered.edits) == 1
+
+        quiet = Recorder().install(monkeypatch)
+        run(self.startup())
+        assert quiet.edits == []
+
+    def test_a_bumped_version_re_migrates_the_fleet(self, monkeypatch, clean_servers):
+        for i in range(3):
+            make_server(str(1000 + i), channel_id=str(2000 + i), message_id=str(3000 + i))
+        Recorder().install(monkeypatch)
+        run(self.startup())
+
+        monkeypatch.setattr(bot, "INSTRUCTIONS_VIEW_VERSION", bot.INSTRUCTIONS_VIEW_VERSION + 1)
+        rec = Recorder().install(monkeypatch)
+        run(self.startup())
+
+        assert len(rec.edits) == 3
+
+    def test_manual_trigger_still_refreshes_migrated_panels(self, monkeypatch, clean_servers):
+        for i in range(4):
+            make_server(str(1000 + i), channel_id=str(2000 + i), message_id=str(3000 + i))
+        Recorder().install(monkeypatch)
+        run(self.startup())
+
+        rec = Recorder().install(monkeypatch)
+        run(bot.update_all_instruction_messages())
+
+        # The trigger path exists to push copy/locale changes, so it must not
+        # skip panels merely because their buttons are current.
+        assert len(rec.edits) == 4
+
+    def test_404_during_migration_clears_both_records(self, monkeypatch, clean_servers):
+        make_server(GUILD_ID)
+        Recorder(error_for={111: http_error(discord.NotFound, 404)}).install(monkeypatch)
+
+        run(self.startup())
+
+        assert saved_panel(GUILD_ID) == (None, None)
+        with bot.session_scope() as session:
+            assert session.query(bot.InstructionPanelView).count() == 0
 
 
 # ---------------------------------------------------------------
