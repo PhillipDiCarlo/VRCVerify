@@ -716,6 +716,22 @@ async def dm_role_assignment_failure(
     )
 
 
+async def resolve_config_admin(guild: discord.Guild, owner_id) -> Optional[discord.Member]:
+    """Find who to DM about a guild's configuration.
+
+    The admin who ran /vrcverify_setup first, since they're the one who made
+    the choices; the guild owner if that admin has since left.
+    """
+    member = None
+    try:
+        member = await fetch_member_cached(guild, int(owner_id))
+    except (TypeError, ValueError):
+        pass
+    if member is None:
+        member = guild.owner or await fetch_member_cached(guild, guild.owner_id)
+    return member
+
+
 async def record_guild_verification(guild_id: str, guild: Optional[discord.Guild]):
     """
     Count a completed 18+ verification for a guild. When the guild crosses
@@ -752,9 +768,7 @@ async def record_guild_verification(guild_id: str, guild: Optional[discord.Guild
 
     if owner_to_dm is None or guild is None:
         return
-    member = await fetch_member_cached(guild, int(owner_to_dm))
-    if member is None:
-        member = guild.owner or await fetch_member_cached(guild, guild.owner_id)
+    member = await resolve_config_admin(guild, owner_to_dm)
     if member:
         await dm_localized(
             member,
@@ -1540,6 +1554,104 @@ async def vrcverify_settings(interaction: discord.Interaction):
     )
 
 
+# -------------------------------------------------------------------
+# Slash Command: /vrcverify_status
+# -------------------------------------------------------------------
+def load_status_snapshot(guild_id: str):
+    """Read everything /vrcverify_status needs in one session.
+
+    Returns (role_id, panel_entry). `panel_entry` is None when no panel has
+    ever been posted, otherwise it is shaped for probe_instruction_panel().
+    """
+    with session_scope() as session:
+        srv = session.query(Server).filter_by(server_id=guild_id).first()
+        if not srv:
+            return None, None
+        if not srv.instructions_message_id:
+            return srv.role_id, None
+        version_row = (
+            session.query(InstructionPanelView)
+            .filter_by(server_id=panel_view_key(srv.server_id))
+            .first()
+        )
+        entry = {
+            "server_id": srv.server_id,
+            "channel_id": srv.instructions_channel_id,
+            "message_id": srv.instructions_message_id,
+            "locale": srv.instructions_locale or "en-US",
+            "view_version": version_row.view_version if version_row else 0,
+        }
+        return srv.role_id, entry
+
+
+# How each probe outcome reads to an admin. "gone" and the two malformed-id
+# cases collapse together: from the admin's side all three mean "the saved
+# panel isn't there any more, post a new one".
+PANEL_STATUS_MESSAGE_KEYS = {
+    "ok": "status_panel_ok",
+    "gone": "status_panel_gone",
+    "missing_ids": "status_panel_gone",
+    "malformed": "status_panel_gone",
+    "forbidden": "status_panel_unreachable",
+    "archived": "status_panel_archived",
+    "http_error": "status_panel_unreachable",
+    "error": "status_panel_unreachable",
+}
+
+
+@bot.tree.command(
+    name="vrcverify_status",
+    description="Admin: Check whether this server's verification setup is healthy.",
+)
+@app_commands.guild_only()
+@app_commands.checks.has_permissions(administrator=True)
+async def vrcverify_status(interaction: discord.Interaction):
+    """Report the two things that silently leave a server unable to verify:
+    a missing/deleted verified role, and a missing or unreachable panel."""
+    guild = interaction.guild
+    guild_id = str(guild.id)
+
+    # Probing the panel means a real message edit, which can outrun the 3s
+    # window Discord gives us to answer an interaction.
+    await interaction.response.defer(ephemeral=True)
+
+    role_id, panel_entry = load_status_snapshot(guild_id)
+
+    lines = [get_message("status_header", interaction, server=guild.name)]
+
+    if not role_id:
+        lines.append(get_message("status_role_missing", interaction))
+    else:
+        try:
+            role = guild.get_role(int(role_id))
+        except (TypeError, ValueError):
+            role = None
+        if role is None:
+            lines.append(get_message("status_role_deleted", interaction))
+        else:
+            lines.append(get_message("status_role_ok", interaction, role=role.name))
+
+    if panel_entry is None:
+        panel_healthy = False
+        lines.append(get_message("status_panel_missing", interaction))
+    else:
+        # Re-attaching the same view is idempotent, so using the refresh path as
+        # the probe costs one API call and changes nothing for members.
+        outcome = await probe_instruction_panel(panel_entry, rebuild_embed=False)
+        panel_healthy = outcome == "ok"
+        lines.append(
+            get_message(
+                PANEL_STATUS_MESSAGE_KEYS.get(outcome, "status_panel_unreachable"),
+                interaction,
+            )
+        )
+
+    if not panel_healthy:
+        lines.append(get_message("status_tips", interaction))
+
+    await interaction.followup.send("\n".join(lines), ephemeral=True)
+
+
 class SetRequestMessageModal(discord.ui.Modal, title="Set Custom Verification Message"):
     custom_message: discord.ui.TextInput = discord.ui.TextInput(
         label="Custom message (leave blank to clear)",
@@ -1805,6 +1917,106 @@ async def expired_pending_cleanup_task(interval_seconds: int = 60):
                 logger.info(f"Removed {deleted} expired pending verification(s)")
         except Exception:
             logger.error("Exception during expired pending cleanup", exc_info=True)
+        await asyncio.sleep(interval_seconds)
+
+
+# -------------------------------------------------------------------
+# Background nudge: servers that were set up but never posted a panel
+# -------------------------------------------------------------------
+def load_panel_nudge_candidates(limit: int):
+    """Guilds past the grace period that still have no instruction panel.
+
+    Only guilds with a guild_onboarding row can appear here, and that table is
+    only written from this release onward — which is what keeps the nudge off
+    servers that were configured long before it existed.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=PANEL_NUDGE_GRACE_HOURS)
+    with session_scope() as session:
+        rows = (
+            session.query(GuildOnboarding)
+            .filter(GuildOnboarding.panel_nudge_dm_sent == False)  # noqa: E712
+            .filter(GuildOnboarding.setup_at <= cutoff)
+            .order_by(GuildOnboarding.setup_at)
+            .limit(limit)
+            .all()
+        )
+        candidates = []
+        for row in rows:
+            srv = (
+                session.query(Server)
+                .filter_by(server_id=panel_view_key(row.server_id))
+                .first()
+            )
+            # Panel posted in the meantime, or the config row vanished — either
+            # way there is nothing to nudge about.
+            if srv is None or srv.instructions_message_id:
+                continue
+            candidates.append({"server_id": row.server_id, "owner_id": srv.owner_id})
+        return candidates
+
+
+async def send_panel_nudge_dm(candidate) -> bool:
+    """DM one guild's configuring admin about the missing panel."""
+    server_id = candidate["server_id"]
+    try:
+        guild = bot.get_guild(int(server_id))
+    except (TypeError, ValueError):
+        guild = None
+
+    if guild is None:
+        # We're not in this guild any more; drop the row instead of retrying
+        # forever, and don't burn the guild's one nudge on nobody.
+        forget_guild_onboarding(server_id)
+        return False
+
+    # Mark before sending, exactly like the milestone DM: a delivery failure
+    # must never turn into a repeat send.
+    complete_guild_onboarding(server_id)
+
+    member = await resolve_config_admin(guild, candidate["owner_id"])
+    if member is None:
+        return False
+
+    await dm_localized(
+        member,
+        guild,
+        "panel_nudge_dm",
+        get_server_locale_code(server_id, guild),
+        server=guild.name,
+    )
+    return True
+
+
+async def panel_nudge_sweep_task(interval_seconds: int = PANEL_NUDGE_INTERVAL):
+    """Periodically DM admins whose server never got an instruction panel.
+
+    Capped per sweep and spaced between sends. A blast of DMs to unrelated
+    servers is exactly the shape Discord's anti-spam heuristics look for, so a
+    backlog, a clock jump, or a long outage has to trickle out over subsequent
+    sweeps rather than going out all at once.
+    """
+    while True:
+        try:
+            candidates = load_panel_nudge_candidates(PANEL_NUDGE_MAX_PER_SWEEP)
+            sent = 0
+            for index, candidate in enumerate(candidates):
+                if index:
+                    await asyncio.sleep(PANEL_NUDGE_DM_SPACING)
+                try:
+                    if await send_panel_nudge_dm(candidate):
+                        sent += 1
+                except Exception:
+                    logger.exception(
+                        f"Failed to send panel nudge for guild {candidate['server_id']}"
+                    )
+            if candidates:
+                logger.info(
+                    f"Panel nudge sweep: DMed {sent}/{len(candidates)} eligible server(s)."
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.error("Exception during panel nudge sweep", exc_info=True)
         await asyncio.sleep(interval_seconds)
 
 
@@ -2182,6 +2394,9 @@ async def on_ready():
     start_background_task("results_consumer", consume_results_queue())
     # Start periodic cleanup of expired pending verifications
     start_background_task("expired_pending_cleanup", expired_pending_cleanup_task())
+
+    # Follow up with admins who ran /vrcverify_setup but never posted a panel.
+    start_background_task("panel_nudge_sweep", panel_nudge_sweep_task())
 
     # Panels already carrying the current custom_ids are handled by the
     # persistent view registered in setup_hook, so this only has to re-edit the
