@@ -301,6 +301,28 @@ class TestNudgeCandidates:
             make_onboarding(server_id=sid, hours_ago=index + 1)
         assert len(bot.load_panel_nudge_candidates(2)) == 2
 
+    def test_unactionable_rows_are_retired_not_just_skipped(self, monkeypatch):
+        # Regression: LIMIT is applied before the panel/config filtering, so a
+        # row that can never be acted on used to come back at the front of
+        # every sweep (it is the oldest) and permanently eat a slot.
+        monkeypatch.setattr(bot, "PANEL_NUDGE_GRACE_HOURS", 0)
+        # Two rows that can never be nudged...
+        make_onboarding(server_id="9001", hours_ago=100)  # no Server row
+        make_server(server_id="9002", instructions_message_id="1", instructions_channel_id="2")
+        make_onboarding(server_id="9002", hours_ago=99)  # panel already posted
+        # ...ahead of one that can.
+        make_server(server_id="9003")
+        make_onboarding(server_id="9003", hours_ago=1)
+
+        # With only two slots the real candidate is starved on the first pass,
+        # but the dead rows must not survive to starve it again.
+        bot.load_panel_nudge_candidates(2)
+        assert onboarding_row("9001") is None  # deleted
+        assert onboarding_row("9002").sent is True  # retired
+
+        second_pass = bot.load_panel_nudge_candidates(2)
+        assert [c["server_id"] for c in second_pass] == ["9003"]
+
     def test_oldest_setups_come_first(self, monkeypatch):
         monkeypatch.setattr(bot, "PANEL_NUDGE_GRACE_HOURS", 0)
         for sid, age in (("1001", 5), ("1002", 90), ("1003", 40)):
@@ -500,11 +522,19 @@ class TestPanelNudgeSweep:
 # /vrcverify_status
 # ---------------------------------------------------------------
 class TestStatusCommand:
-    def interaction(self, role=None, locale="en-US"):
+    @pytest.fixture(autouse=True)
+    def no_cooldown(self, monkeypatch):
+        """Each test is a fresh admin; the throttle has its own test below."""
+        monkeypatch.setattr(bot, "_verification_cooldowns", {})
+
+    def interaction(self, role=None, locale="en-US", user_id=int(OWNER_ID)):
         sent = []
 
         async def defer(ephemeral=False):
             sent.append(SimpleNamespace(kind="defer", ephemeral=ephemeral))
+
+        async def send_message(msg, ephemeral=False):
+            sent.append(SimpleNamespace(kind="send", msg=msg, ephemeral=ephemeral))
 
         async def followup_send(msg, ephemeral=False):
             sent.append(SimpleNamespace(kind="send", msg=msg, ephemeral=ephemeral))
@@ -513,12 +543,32 @@ class TestStatusCommand:
             guild=SimpleNamespace(
                 id=int(GUILD_ID), name="Test Guild", get_role=lambda rid: role
             ),
-            user=SimpleNamespace(id=int(OWNER_ID)),
+            user=SimpleNamespace(id=user_id),
             locale=locale,
-            response=SimpleNamespace(defer=defer),
+            response=SimpleNamespace(defer=defer, send_message=send_message),
             followup=SimpleNamespace(send=followup_send),
         )
         return interaction, sent
+
+    def test_repeat_calls_are_throttled(self, monkeypatch):
+        # Every run edits the member-visible panel, so this must not be free.
+        make_server()
+        interaction, sent = self.interaction()
+        run(bot.vrcverify_status.callback(interaction))
+        second, second_sent = self.interaction()
+        run(bot.vrcverify_status.callback(second))
+        # Refused up front: no defer, no probe, just the cooldown notice.
+        assert [s.kind for s in second_sent] == ["send"]
+        assert second_sent[0].ephemeral is True
+        assert "status_panel" not in second_sent[0].msg
+
+    def test_throttle_is_per_user(self, monkeypatch):
+        make_server()
+        first, _ = self.interaction()
+        run(bot.vrcverify_status.callback(first))
+        other, other_sent = self.interaction(user_id=777)
+        run(bot.vrcverify_status.callback(other))
+        assert any(s.kind == "defer" for s in other_sent)
 
     def reply(self, sent):
         return next(s.msg for s in sent if s.kind == "send")
@@ -790,6 +840,27 @@ class TestGuildJoinWelcomeDm:
         owner = SimpleNamespace(id=999, name="owner")
         run(bot.on_guild_join(self.fake_guild(owner=owner)))
         assert onboarding_row() is None
+
+    def test_welcome_dm_uses_the_guild_language(self):
+        # Regression: guild.preferred_locale is a discord.Locale enum, which
+        # never compares equal to the plain strings in LANGUAGE_CODES. Without
+        # coercion this DM came out in English for every non-English guild,
+        # making all eleven translations dead code.
+        delivered = []
+
+        class Owner:
+            id = 999
+
+            async def send(self, msg):
+                delivered.append(msg)
+
+        guild = self.fake_guild(
+            owner=Owner(), preferred_locale=discord.Locale.german
+        )
+        run(bot.on_guild_join(guild))
+        assert delivered == [
+            localizations["de"]["guild_join_welcome_dm"].format(server=guild.name)
+        ]
 
 
 NEW_KEYS = (

@@ -691,7 +691,11 @@ async def dm_localized(
         locale_code = (
             instr_locale or getattr(guild, "preferred_locale", None)
         ) or "en-US"
-        ctx = SimpleNamespace(locale=locale_code)
+        # guild.preferred_locale is a discord.Locale enum, and an enum never
+        # compares equal to the plain strings in LANGUAGE_CODES — without this
+        # coercion every DM that falls back to the guild's language silently
+        # came out in English instead. str(Locale.german) == "de".
+        ctx = SimpleNamespace(locale=str(locale_code))
         await member.send(get_message(key, ctx, **kwargs))
     except discord.Forbidden:
         logger.warning(f"⚠️ Cannot DM user {member.id} for key '{key}'.")
@@ -1611,6 +1615,17 @@ async def vrcverify_status(interaction: discord.Interaction):
     guild = interaction.guild
     guild_id = str(guild.id)
 
+    # Each run edits the real, member-visible panel message, so repeated
+    # invocations burn the per-channel edit budget. Same throttle the
+    # verification actions use, on its own scope.
+    remaining = check_verification_cooldown(str(interaction.user.id), scope="status")
+    if remaining:
+        await interaction.response.send_message(
+            get_message("cooldown_active", interaction, seconds=remaining),
+            ephemeral=True,
+        )
+        return
+
     # Probing the panel means a real message edit, which can outrun the 3s
     # window Discord gives us to answer an interaction.
     await interaction.response.defer(ephemeral=True)
@@ -1635,8 +1650,10 @@ async def vrcverify_status(interaction: discord.Interaction):
         panel_healthy = False
         lines.append(get_message("status_panel_missing", interaction))
     else:
-        # Re-attaching the same view is idempotent, so using the refresh path as
-        # the probe costs one API call and changes nothing for members.
+        # Re-attaching the same view is idempotent, so using the refresh path
+        # as the probe costs one API call and leaves the panel looking the
+        # same. It does bump the message's edited timestamp, which is why this
+        # command is throttled above.
         outcome = await probe_instruction_panel(panel_entry, rebuild_embed=False)
         panel_healthy = outcome == "ok"
         lines.append(
@@ -1947,9 +1964,19 @@ def load_panel_nudge_candidates(limit: int):
                 .filter_by(server_id=panel_view_key(row.server_id))
                 .first()
             )
-            # Panel posted in the meantime, or the config row vanished — either
-            # way there is nothing to nudge about.
-            if srv is None or srv.instructions_message_id:
+            # Rows we can never act on have to be retired here, not just
+            # skipped. The LIMIT above is applied before this filtering, so a
+            # skipped row comes back at the front of every future sweep (it is
+            # the oldest) and permanently consumes one of the slots — enough of
+            # them and real candidates behind them are never reached.
+            if srv is None:
+                # No config row to nudge about.
+                session.delete(row)
+                continue
+            if srv.instructions_message_id:
+                # Panel went up but the flag never got set (the helper that
+                # sets it swallows its own errors). Retire it now.
+                row.panel_nudge_dm_sent = True
                 continue
             candidates.append({"server_id": row.server_id, "owner_id": srv.owner_id})
         return candidates
