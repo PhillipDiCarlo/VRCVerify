@@ -1768,6 +1768,18 @@ class RequestPacer:
             await asyncio.sleep(delay)
 
 
+def panel_view_key(server_id) -> str:
+    """Normalise a guild id for the instruction_panel_views table.
+
+    `servers.server_id` is declared String but can come back as an int, because
+    the deployed column is an integer type and SQLAlchemy returns whatever the
+    driver gives. instruction_panel_views.server_id really is text, so an
+    un-normalised id makes Postgres reject `character varying = bigint` — and,
+    worse, makes the in-memory version lookup silently never match.
+    """
+    return str(server_id)
+
+
 def load_instruction_panels(stale_only: bool = False):
     """Snapshot saved instruction panels from the DB.
 
@@ -1780,12 +1792,12 @@ def load_instruction_panels(stale_only: bool = False):
             session.query(Server).filter(Server.instructions_message_id != None).all()
         )
         versions = {
-            row.server_id: row.view_version
+            panel_view_key(row.server_id): row.view_version
             for row in session.query(InstructionPanelView).all()
         }
         panels = []
         for server in servers:
-            version = versions.get(server.server_id, 0)
+            version = versions.get(panel_view_key(server.server_id), 0)
             if stale_only and version >= INSTRUCTIONS_VIEW_VERSION:
                 continue
             panels.append(
@@ -1800,15 +1812,14 @@ def load_instruction_panels(stale_only: bool = False):
         return panels
 
 
-def record_panel_view_version(server_id: str, version: int = INSTRUCTIONS_VIEW_VERSION):
+def record_panel_view_version(server_id, version: int = INSTRUCTIONS_VIEW_VERSION):
     """Remember that this guild's panel now carries `version`'s custom_ids."""
+    key = panel_view_key(server_id)
     try:
         with session_scope() as session:
-            row = (
-                session.query(InstructionPanelView).filter_by(server_id=server_id).first()
-            )
+            row = session.query(InstructionPanelView).filter_by(server_id=key).first()
             if row is None:
-                row = InstructionPanelView(server_id=server_id)
+                row = InstructionPanelView(server_id=key)
                 session.add(row)
             row.view_version = version
             row.updated_at = datetime.now(timezone.utc)
@@ -1817,11 +1828,13 @@ def record_panel_view_version(server_id: str, version: int = INSTRUCTIONS_VIEW_V
         logger.exception(f"Failed to record panel view version for guild {server_id}")
 
 
-def forget_panel_view_version(server_id: str):
+def forget_panel_view_version(server_id):
     """Drop the recorded version so a re-posted panel is never wrongly skipped."""
     try:
         with session_scope() as session:
-            session.query(InstructionPanelView).filter_by(server_id=server_id).delete()
+            session.query(InstructionPanelView).filter_by(
+                server_id=panel_view_key(server_id)
+            ).delete()
     except Exception:
         logger.exception(f"Failed to clear panel view version for guild {server_id}")
 

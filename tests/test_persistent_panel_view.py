@@ -172,3 +172,72 @@ class TestVersionRecording:
         mark_migrated("a")
 
         assert len(bot.load_instruction_panels()) == 2
+
+
+# ---------------------------------------------------------------
+# Guild id type coercion
+# ---------------------------------------------------------------
+class TestServerIdCoercion:
+    """`servers.server_id` is declared String but the deployed Postgres column
+    is an integer type, so SQLAlchemy hands back ints. Against the text column
+    in instruction_panel_views that made Postgres reject `varchar = bigint` on
+    write, and made the version lookup silently miss on read. Everything
+    touching that table has to normalise first.
+    """
+
+    def test_key_normalises_ints(self):
+        assert bot.panel_view_key(123) == "123"
+        assert bot.panel_view_key("123") == "123"
+
+    def test_recording_with_an_int_is_found_by_a_str_lookup(self, clean_db):
+        make_server(GUILD_ID)  # stored as str, as the model declares
+
+        bot.record_panel_view_version(int(GUILD_ID))
+
+        # The read side must match despite the write coming in as an int.
+        assert bot.load_instruction_panels(stale_only=True) == []
+
+    def test_recording_with_a_str_is_forgotten_by_an_int(self, clean_db):
+        make_server(GUILD_ID)
+        bot.record_panel_view_version(GUILD_ID)
+
+        bot.forget_panel_view_version(int(GUILD_ID))
+
+        with bot.session_scope() as session:
+            assert session.query(bot.InstructionPanelView).count() == 0
+
+    def test_int_and_str_never_create_two_rows(self, clean_db):
+        bot.record_panel_view_version(int(GUILD_ID))
+        bot.record_panel_view_version(GUILD_ID)
+
+        with bot.session_scope() as session:
+            assert session.query(bot.InstructionPanelView).count() == 1
+
+    def test_version_is_visible_when_ids_differ_in_type(self, clean_db):
+        make_server(GUILD_ID)
+        bot.record_panel_view_version(int(GUILD_ID))
+
+        panel = bot.load_instruction_panels()[0]
+
+        assert panel["view_version"] == bot.INSTRUCTIONS_VIEW_VERSION
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            pytest.param(lambda: bot.record_panel_view_version(GUILD_ID), id="record"),
+            pytest.param(lambda: bot.forget_panel_view_version(GUILD_ID), id="forget"),
+            pytest.param(lambda: bot.load_instruction_panels(), id="load"),
+        ],
+    )
+    def test_every_table_access_normalises_first(self, clean_db, monkeypatch, call):
+        # The round-trip tests above cannot fail on SQLite, whose TEXT affinity
+        # quietly coerces ints on the way in. Postgres does not, so the real
+        # invariant to protect is that nothing reaches this table un-normalised.
+        make_server(GUILD_ID)
+        seen = []
+        real = bot.panel_view_key
+        monkeypatch.setattr(bot, "panel_view_key", lambda v: (seen.append(v), real(v))[1])
+
+        call()
+
+        assert seen, "guild id reached instruction_panel_views without normalising"
