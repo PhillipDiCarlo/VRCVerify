@@ -85,15 +85,34 @@ MILESTONE_VERIFICATION_COUNT = 100
 # ~50 req/s global ceiling. Exceeding it throttles the whole bot — verification
 # results and command replies included — not just this loop. Default 25 leaves
 # half the global budget for real traffic.
-def _int_env(name: str, default: int) -> int:
+def _int_env(name: str, default: int, minimum: int = 1) -> int:
     try:
-        return max(1, int(os.getenv(name, str(default))))
+        return max(minimum, int(os.getenv(name, str(default))))
+    except ValueError:
+        return default
+
+
+def _float_env(name: str, default: float) -> float:
+    try:
+        return max(0.0, float(os.getenv(name, str(default))))
     except ValueError:
         return default
 
 
 INSTRUCTIONS_REFRESH_CONCURRENCY = _int_env("INSTRUCTIONS_REFRESH_CONCURRENCY", 10)
 INSTRUCTIONS_REFRESH_RATE = _int_env("INSTRUCTIONS_REFRESH_RATE", 25)
+
+# A server that ran /vrcverify_setup but never posted an instruction panel is
+# half-configured: members have no button to click. After a grace period we DM
+# the admin who ran setup, once.
+#
+# The spacing and per-sweep cap exist because a blast of DMs is exactly what
+# Discord's anti-spam heuristics look for. A backlog, clock skew, or a long
+# outage must never turn into a burst — it trickles out over later sweeps.
+PANEL_NUDGE_GRACE_HOURS = _int_env("PANEL_NUDGE_GRACE_HOURS", 48, minimum=0)
+PANEL_NUDGE_INTERVAL = _int_env("PANEL_NUDGE_INTERVAL", 3600)
+PANEL_NUDGE_MAX_PER_SWEEP = _int_env("PANEL_NUDGE_MAX_PER_SWEEP", 20)
+PANEL_NUDGE_DM_SPACING = _float_env("PANEL_NUDGE_DM_SPACING", 2.0)
 
 # Instruction panel buttons carry fixed custom_ids so a single bot.add_view()
 # call routes clicks for every panel ever posted, instead of the bot having to
@@ -202,6 +221,24 @@ class InstructionPanelView(Base):
     server_id = Column(String, primary_key=True)
     view_version = Column(Integer, nullable=False, default=0)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class GuildOnboarding(Base):
+    """Panel-nudge state for guilds configured from this release onward.
+
+    A separate table for the same reason as InstructionPanelView above:
+    create_all() adds missing tables but never columns.
+
+    It also gives the "new servers only" rule for free. Guilds set up before
+    this shipped have no row here, so the nudge sweep cannot reach them — the
+    scope limit is structural rather than a date comparison someone could get
+    wrong later.
+    """
+
+    __tablename__ = "guild_onboarding"
+    server_id = Column(String, primary_key=True)
+    setup_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    panel_nudge_dm_sent = Column(Boolean, nullable=False, default=False)
 
 
 # Creates any missing tables. Note this does NOT add columns to tables that
@@ -1846,6 +1883,47 @@ def forget_panel_view_version(server_id):
             ).delete()
     except Exception:
         logger.exception(f"Failed to clear panel view version for guild {server_id}")
+
+
+def record_guild_onboarding(server_id):
+    """Start this guild's panel-nudge clock, if it isn't already running.
+
+    `setup_at` is deliberately never updated: re-running /vrcverify_setup must
+    not keep pushing the deadline out, or an admin who tweaks roles every day
+    would never be nudged at all.
+    """
+    key = panel_view_key(server_id)
+    try:
+        with session_scope() as session:
+            row = session.query(GuildOnboarding).filter_by(server_id=key).first()
+            if row is None:
+                session.add(GuildOnboarding(server_id=key))
+    except Exception:
+        # Bookkeeping only — never let this break the setup command.
+        logger.exception(f"Failed to record onboarding for guild {server_id}")
+
+
+def complete_guild_onboarding(server_id):
+    """Retire the pending nudge — the panel is up, or the DM just went out."""
+    key = panel_view_key(server_id)
+    try:
+        with session_scope() as session:
+            row = session.query(GuildOnboarding).filter_by(server_id=key).first()
+            if row is not None:
+                row.panel_nudge_dm_sent = True
+    except Exception:
+        logger.exception(f"Failed to complete onboarding for guild {server_id}")
+
+
+def forget_guild_onboarding(server_id):
+    """Drop onboarding state for a guild the bot is no longer in."""
+    try:
+        with session_scope() as session:
+            session.query(GuildOnboarding).filter_by(
+                server_id=panel_view_key(server_id)
+            ).delete()
+    except Exception:
+        logger.exception(f"Failed to clear onboarding for guild {server_id}")
 
 
 def forget_instruction_panel(server_id: str):
