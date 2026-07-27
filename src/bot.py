@@ -860,10 +860,15 @@ async def process_verification(interaction: discord.Interaction):
     await interaction.response.send_modal(VRCUsernameModal(interaction))
 
 
+# O/I are excluded: visually indistinguishable from 0/1 in the fonts users
+# read their code in, which caused users to mistype the code into their bio.
+_VERIFICATION_CODE_ALPHABET = "".join(c for c in string.ascii_uppercase + string.digits if c not in "OI")
+
+
 def generate_verification_code() -> str:
     # secrets, not random: this token gates 18+ verification, and random's
-    # Mersenne Twister is predictable from observed output. 36**6 keyspace.
-    return "VRC-" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+    # Mersenne Twister is predictable from observed output. 34**6 keyspace.
+    return "VRC-" + "".join(secrets.choice(_VERIFICATION_CODE_ALPHABET) for _ in range(6))
 
 
 # Discord rejects nicknames over 32 characters with a 400 -- which surfaces as

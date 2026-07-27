@@ -57,6 +57,15 @@ class TestGenerateVerificationCode:
         codes = {bot.generate_verification_code() for _ in range(50)}
         assert len(codes) > 1
 
+    def test_excludes_ambiguous_letters(self):
+        # O/I are visually indistinguishable from 0/1 in the fonts users read
+        # their code in, which caused users to mistype the code into their bio.
+        codes = {bot.generate_verification_code() for _ in range(200)}
+        for c in codes:
+            suffix = c.removeprefix("VRC-")
+            assert "O" not in suffix
+            assert "I" not in suffix
+
 
 # ---------------------------------------------------------------
 # Verification cooldown
@@ -276,3 +285,4 @@ class TestVerificationCodeGeneration:
             body = c[4:]
             assert len(body) == 6
             assert all(ch in string.ascii_uppercase + string.digits for ch in body)
+            assert "O" not in body and "I" not in body
