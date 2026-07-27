@@ -511,6 +511,47 @@ class TestFleetIsolation:
 
         assert "locale table is corrupt" in caplog.text
 
+    @staticmethod
+    def escaping_worker(monkeypatch, bad_server):
+        """Simulate an error raised outside refresh_instruction_panel's own guard.
+
+        Its internal try only wraps the edit; anything before that (id parsing,
+        pacing) escapes to the gather, which is what return_exceptions defends.
+        """
+        real = bot.refresh_instruction_panel
+
+        async def flaky(entry, rebuild_embed):
+            if entry["server_id"] == bad_server:
+                raise RuntimeError("escaped the worker guard")
+            return await real(entry, rebuild_embed)
+
+        monkeypatch.setattr(bot, "refresh_instruction_panel", flaky)
+
+    def test_an_escape_from_the_worker_does_not_abort_the_pass(
+        self, monkeypatch, clean_servers
+    ):
+        make_server("a", channel_id="1", message_id="10")
+        make_server("b", channel_id="2", message_id="20")
+        make_server("c", channel_id="3", message_id="30")
+        rec = Recorder().install(monkeypatch)
+        self.escaping_worker(monkeypatch, "a")
+
+        run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+
+        assert sorted(e[1] for e in rec.edits) == [20, 30]
+
+    def test_summary_survives_an_escaped_error(self, monkeypatch, clean_servers, caplog):
+        make_server("a", channel_id="1", message_id="10")
+        make_server("b", channel_id="2", message_id="20")
+        Recorder().install(monkeypatch)
+        self.escaping_worker(monkeypatch, "a")
+
+        with caplog.at_level("INFO"):
+            run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+
+        assert "1/2 updated" in caplog.text
+        assert "1 crashed" in caplog.text
+
     def test_cancellation_is_not_swallowed(self, monkeypatch, clean_servers):
         # return_exceptions=True captures CancelledError too; a shutdown must
         # still propagate rather than be logged as a per-panel failure.
