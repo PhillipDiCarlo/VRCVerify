@@ -1357,16 +1357,8 @@ async def vrcverify_instructions(interaction: discord.Interaction):
             if srv and srv.instructions_locale
             else get_locale(interaction)
         )
-    # fetch localized messages for instructions
-    strings = localizations.get(instr_locale, localizations["en-US"])
-    embed = Embed(
-        title=strings["instructions_title"],
-        description=strings["instructions_desc"],
-        color=discord.Color.blue()
-    )
-
-    usage_example = "**Example Usage**:\n" "```bash\n" "/vrcverify\n" "```"
-    embed.add_field(name="Example Command", value=usage_example, inline=False)
+    # Same builder the refresh path uses, so a posted panel and a refreshed one match.
+    embed = build_instructions_embed(instr_locale)
 
     view = VRCVerifyInstructionView(locale=instr_locale)
     # Send the initial response and then fetch the message
