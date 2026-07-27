@@ -214,6 +214,15 @@ See the sections below for details and configuration.
   INSTRUCTIONS_REFRESH_RATE=25
    ```
 
+   **Instruction panel buttons on restart.** Panel buttons use fixed
+   `custom_id`s and are registered once at startup via a persistent view, so
+   already-posted panels keep working across restarts without being re-edited.
+   The `instruction_panel_views` table records which button version each guild's
+   panel carries; it is created automatically, no manual migration needed. On
+   boot the bot only re-edits panels that predate the current version, plus any
+   that previously failed (revoked permissions, archived threads), which are
+   retried each boot so they recover once an admin fixes the channel.
+
 4. **Database Setup:**
 
    The bot automatically creates the necessary tables using SQLAlchemy when it runs. Make sure your database is reachable via the `DATABASE_URL`.
