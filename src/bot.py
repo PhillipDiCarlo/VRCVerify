@@ -1372,25 +1372,37 @@ async def vrcverify_setup(
                 pass
             action = "updated"
 
-        # Localized confirmation
-        base = get_message(
-            "setup_success",
+        has_panel = bool(server.instructions_message_id)
+
+    # A configured server with no panel is half-configured — members have no
+    # button to click. Start the nudge clock so we can follow up if it stays
+    # that way. Servers that already have a panel need neither.
+    if not has_panel:
+        record_guild_onboarding(guild_id)
+
+    # Localized confirmation
+    base = get_message(
+        "setup_success",
+        interaction,
+        action=action,
+        role=verified_role.name,
+        role_id=verified_role.id
+    )
+    if unverified_role:
+        extra_local = get_message(
+            "setup_unverified_set",
             interaction,
-            action=action,
-            role=verified_role.name,
-            role_id=verified_role.id
+            role=unverified_role.name,
+            role_id=unverified_role.id
         )
-        if unverified_role:
-            extra_local = get_message(
-                "setup_unverified_set",
-                interaction,
-                role=unverified_role.name,
-                role_id=unverified_role.id
-            )
-        else:
-            extra_local = get_message("setup_unverified_missing", interaction)
-        donate_hint = get_message("setup_donate_hint", interaction, kofi_link=KOFI_URL)
-        await interaction.response.send_message(base + extra_local + donate_hint, ephemeral=True)
+    else:
+        extra_local = get_message("setup_unverified_missing", interaction)
+    panel_nudge = "" if has_panel else get_message("setup_panel_nudge", interaction)
+    donate_hint = get_message("setup_donate_hint", interaction, kofi_link=KOFI_URL)
+    # Donate hint stays last so it reads as a footer under everything else.
+    await interaction.response.send_message(
+        base + extra_local + panel_nudge + donate_hint, ephemeral=True
+    )
 
 
 # -------------------------------------------------------------------
@@ -1467,12 +1479,20 @@ async def vrcverify_instructions(interaction: discord.Interaction):
     channel_id = str(interaction.channel.id)
     with session_scope() as session:
         server = session.query(Server).filter_by(server_id=guild_id).first()
-        if server:
-            server.instructions_channel_id = channel_id
-            server.instructions_message_id = str(message.id)
+        if not server:
+            # Posting the panel before running /vrcverify_setup used to drop the
+            # ids on the floor: the panel went up but nothing tracked it, so the
+            # startup refresh never saw it and /vrcverify_status would call it
+            # missing. Create the row like the settings view does instead.
+            server = Server(server_id=guild_id, owner_id=str(interaction.user.id))
+            session.add(server)
+        server.instructions_channel_id = channel_id
+        server.instructions_message_id = str(message.id)
 
     # Posted with the current custom_ids already, so no restart needs to touch it.
     record_panel_view_version(guild_id)
+    # Panel is up; retire any pending nudge for this guild.
+    complete_guild_onboarding(guild_id)
 
     # Quiet, admin-only nudge after the public panel is posted
     await interaction.followup.send(
