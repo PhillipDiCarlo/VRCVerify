@@ -206,6 +206,9 @@ See the sections below for details and configuration.
   # Optional: instruction message refresh trigger watched by bot.py
   INSTRUCTIONS_TRIGGER_PATH=/tmp/update_instructions.trigger
   INSTRUCTIONS_TRIGGER_POLL=5
+
+  # Optional: concurrent instruction panel edits on startup (default 10)
+  INSTRUCTIONS_REFRESH_CONCURRENCY=10
    ```
 
 4. **Database Setup:**
