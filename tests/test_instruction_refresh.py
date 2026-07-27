@@ -435,6 +435,145 @@ class TestStartupMigration:
 
 
 # ---------------------------------------------------------------
+# Blast radius: one bad guild must not take down the pass
+# ---------------------------------------------------------------
+class TestFleetIsolation:
+    """The startup pass is run_once, so anything escaping a single panel would
+    strand every remaining guild until the process restarts. Nothing may
+    propagate out of a worker.
+    """
+
+    @staticmethod
+    def exploding_view(fail_on_locale, monkeypatch):
+        real = bot.VRCVerifyInstructionView
+
+        def build(locale):
+            if locale == fail_on_locale:
+                raise RuntimeError("locale table is corrupt")
+            return real(locale)
+
+        monkeypatch.setattr(bot, "VRCVerifyInstructionView", build)
+
+    def test_view_construction_failure_does_not_abort_the_fleet(
+        self, monkeypatch, clean_servers
+    ):
+        make_server("a", channel_id="1", message_id="10")
+        make_server("b", channel_id="2", message_id="20", instructions_locale="de")
+        make_server("c", channel_id="3", message_id="30")
+        rec = Recorder().install(monkeypatch)
+        self.exploding_view("de", monkeypatch)
+
+        run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+
+        assert sorted(e[1] for e in rec.edits) == [10, 30]
+
+    def test_embed_construction_failure_is_contained(self, monkeypatch, clean_servers):
+        make_server("a", channel_id="1", message_id="10")
+        make_server("b", channel_id="2", message_id="20")
+        rec = Recorder().install(monkeypatch)
+        real = bot.build_instructions_embed
+        seen = []
+
+        def build(locale):
+            seen.append(locale)
+            if len(seen) == 1:
+                raise ValueError("bad embed")
+            return real(locale)
+
+        monkeypatch.setattr(bot, "build_instructions_embed", build)
+
+        run(bot.refresh_all_instruction_panels(rebuild_embed=True, reason="test"))
+
+        assert len(rec.edits) == 1
+
+    def test_summary_still_logs_when_a_worker_crashes(
+        self, monkeypatch, clean_servers, caplog
+    ):
+        make_server("a", channel_id="1", message_id="10")
+        make_server("b", channel_id="2", message_id="20", instructions_locale="de")
+        Recorder().install(monkeypatch)
+        self.exploding_view("de", monkeypatch)
+
+        with caplog.at_level("INFO"):
+            run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+
+        assert "Instruction panel refresh (test): 1/2" in caplog.text
+
+    def test_an_escaped_error_is_reported_not_silently_counted(
+        self, monkeypatch, clean_servers, caplog
+    ):
+        make_server("a", channel_id="1", message_id="10", instructions_locale="de")
+        Recorder().install(monkeypatch)
+        self.exploding_view("de", monkeypatch)
+
+        with caplog.at_level("ERROR"):
+            run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+
+        assert "locale table is corrupt" in caplog.text
+
+    def test_cancellation_is_not_swallowed(self, monkeypatch, clean_servers):
+        # return_exceptions=True captures CancelledError too; a shutdown must
+        # still propagate rather than be logged as a per-panel failure.
+        make_server("a", channel_id="1", message_id="10")
+        Recorder().install(monkeypatch)
+
+        async def cancel_one(entry, rebuild_embed):
+            raise asyncio.CancelledError()
+
+        monkeypatch.setattr(bot, "refresh_instruction_panel", cancel_one)
+
+        with pytest.raises(asyncio.CancelledError):
+            run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+
+
+# ---------------------------------------------------------------
+# Release rollback
+# ---------------------------------------------------------------
+class TestVersionRollback:
+    def test_a_newer_recorded_panel_is_re_migrated(self, monkeypatch, clean_servers):
+        # Deploy v2, migrate, then roll back to v1. The panel carries v2
+        # custom_ids this process never registered, so skipping it would leave
+        # the buttons permanently dead.
+        make_server(GUILD_ID)
+        bot.record_panel_view_version(GUILD_ID, bot.INSTRUCTIONS_VIEW_VERSION + 1)
+        rec = Recorder().install(monkeypatch)
+
+        run(
+            bot.refresh_all_instruction_panels(
+                rebuild_embed=False, reason="rollback", stale_only=True
+            )
+        )
+
+        assert len(rec.edits) == 1
+
+    def test_rollback_rewrites_the_version_downwards(self, monkeypatch, clean_servers):
+        make_server(GUILD_ID)
+        bot.record_panel_view_version(GUILD_ID, bot.INSTRUCTIONS_VIEW_VERSION + 5)
+        Recorder().install(monkeypatch)
+
+        run(
+            bot.refresh_all_instruction_panels(
+                rebuild_embed=False, reason="rollback", stale_only=True
+            )
+        )
+
+        assert bot.load_instruction_panels()[0]["view_version"] == bot.INSTRUCTIONS_VIEW_VERSION
+
+    def test_exact_match_is_still_skipped(self, monkeypatch, clean_servers):
+        make_server(GUILD_ID)
+        bot.record_panel_view_version(GUILD_ID)
+        rec = Recorder().install(monkeypatch)
+
+        run(
+            bot.refresh_all_instruction_panels(
+                rebuild_embed=False, reason="test", stale_only=True
+            )
+        )
+
+        assert rec.edits == []
+
+
+# ---------------------------------------------------------------
 # Request pacing (keeps us off Discord's global 50 req/s ceiling)
 # ---------------------------------------------------------------
 class TestRequestPacing:

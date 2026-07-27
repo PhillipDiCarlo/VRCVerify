@@ -1798,7 +1798,11 @@ def load_instruction_panels(stale_only: bool = False):
         panels = []
         for server in servers:
             version = versions.get(panel_view_key(server.server_id), 0)
-            if stale_only and version >= INSTRUCTIONS_VIEW_VERSION:
+            # Deliberately `==`, not `>=`: skip only panels matching this
+            # process exactly. One recorded *newer* carries custom_ids we never
+            # registered, so rolling a release back has to re-migrate it or its
+            # buttons stay dead.
+            if stale_only and version == INSTRUCTIONS_VIEW_VERSION:
                 continue
             panels.append(
                 {
@@ -1885,11 +1889,12 @@ async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
         logger.warning(f"⚠️ Malformed channel/message id for guild {entry['server_id']}; skipping.")
         return False
 
-    payload = {"view": VRCVerifyInstructionView(locale=entry["locale"])}
-    if rebuild_embed:
-        payload["embed"] = build_instructions_embed(entry["locale"])
-
     try:
+        # Built inside the try on purpose: a bad locale row must not escape and
+        # abort the whole fleet pass, it only costs this one guild.
+        payload = {"view": VRCVerifyInstructionView(locale=entry["locale"])}
+        if rebuild_embed:
+            payload["embed"] = build_instructions_embed(entry["locale"])
         await message.edit(**payload)
         if entry.get("view_version") != INSTRUCTIONS_VIEW_VERSION:
             record_panel_view_version(entry["server_id"])
@@ -1950,11 +1955,29 @@ async def refresh_all_instruction_panels(
             async with semaphore:
                 return await refresh_instruction_panel(entry, rebuild_embed)
 
-        results = await asyncio.gather(*(refresh_one(entry) for entry in panels))
+        # return_exceptions so one guild can never abort the pass: the startup
+        # task is run_once, so an escaped error would strand every remaining
+        # panel until the next process restart.
+        results = await asyncio.gather(
+            *(refresh_one(entry) for entry in panels), return_exceptions=True
+        )
+
+        updated = 0
+        crashed = 0
+        for result in results:
+            if result is True:
+                updated += 1
+            elif isinstance(result, asyncio.CancelledError):
+                raise result  # shutdown; don't report it as a per-panel failure
+            elif isinstance(result, BaseException):
+                crashed += 1
+                logger.error("Instruction panel refresh worker crashed", exc_info=result)
+
         elapsed = time.monotonic() - started
+        crashed_note = f", {crashed} crashed" if crashed else ""
         logger.info(
-            f"Instruction panel refresh ({reason}): {sum(results)}/{len(panels)} "
-            f"updated in {elapsed:.1f}s"
+            f"Instruction panel refresh ({reason}): {updated}/{len(panels)} "
+            f"updated in {elapsed:.1f}s{crashed_note}"
         )
 
 
