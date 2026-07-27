@@ -125,6 +125,10 @@ INSTRUCTIONS_VIEW_VERSION = 1
 BEGIN_VERIFICATION_CUSTOM_ID = f"vrcverify:begin:v{INSTRUCTIONS_VIEW_VERSION}"
 UPDATE_NICKNAME_CUSTOM_ID = f"vrcverify:nickname:v{INSTRUCTIONS_VIEW_VERSION}"
 
+# Discord's "thread is archived" rejection. Worth naming because it is by far
+# the most common way a panel degrades without anyone noticing.
+ARCHIVED_THREAD_ERROR_CODE = 50083
+
 # -------------------------------------------------------------------
 # Logging setup
 # -------------------------------------------------------------------
@@ -1972,17 +1976,23 @@ def build_instructions_embed(locale: str) -> Embed:
     return embed
 
 
-async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
+async def probe_instruction_panel(entry, rebuild_embed: bool) -> str:
     """Re-attach a fresh view (and optionally a rebuilt embed) to one saved panel.
 
     Uses a partial message so this costs exactly one API call and needs nothing
     in the gateway cache — no channel fetch, no message fetch.
+
+    Returns why it went the way it did, not just whether it worked: the fleet
+    refresh only needs the boolean, but /vrcverify_status has to tell an admin
+    which of these it is. Editing the panel is the only honest test of whether
+    the bot can still reach it, so the status command shares this exact path
+    rather than guessing from cached permissions.
     """
     channel_id = entry.get("channel_id")
     message_id = entry.get("message_id")
     if not channel_id or not message_id:
         logger.warning(f"⚠️ Missing channel/message id for guild {entry['server_id']}; skipping.")
-        return False
+        return "missing_ids"
 
     try:
         message = bot.get_partial_messageable(int(channel_id)).get_partial_message(
@@ -1990,7 +2000,7 @@ async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
         )
     except (TypeError, ValueError):
         logger.warning(f"⚠️ Malformed channel/message id for guild {entry['server_id']}; skipping.")
-        return False
+        return "malformed"
 
     try:
         # Built inside the try on purpose: a bad locale row must not escape and
@@ -2002,7 +2012,7 @@ async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
         if entry.get("view_version") != INSTRUCTIONS_VIEW_VERSION:
             record_panel_view_version(entry["server_id"])
         logger.debug(f"Refreshed instructions message for guild {entry['server_id']}")
-        return True
+        return "ok"
     except discord.NotFound:
         # Either the channel or the message is gone; both cases make the saved
         # reference useless, so stop retrying it on every restart.
@@ -2011,13 +2021,13 @@ async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
             f"for guild {entry['server_id']}; removing saved message reference."
         )
         forget_instruction_panel(entry["server_id"])
-        return False
+        return "gone"
     except discord.Forbidden:
         logger.warning(
             f"⚠️ No permission to edit instruction panel {message_id} in channel "
             f"{channel_id} for guild {entry['server_id']}; skipping."
         )
-        return False
+        return "forbidden"
     except discord.HTTPException as error:
         # Discord refused the edit for a reason that isn't ours to fix — most
         # often 50083, the panel lives in a thread that has since been archived.
@@ -2027,10 +2037,15 @@ async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
             f"⚠️ Discord rejected the instruction panel edit for guild "
             f"{entry['server_id']} (HTTP {error.status}, code {error.code}): {error.text}"
         )
-        return False
+        return "archived" if error.code == ARCHIVED_THREAD_ERROR_CODE else "http_error"
     except Exception:
         logger.exception(f"Failed to edit instructions message for guild {entry['server_id']}")
-        return False
+        return "error"
+
+
+async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
+    """Fleet-refresh wrapper: all the caller there needs is did-it-work."""
+    return await probe_instruction_panel(entry, rebuild_embed) == "ok"
 
 
 async def refresh_all_instruction_panels(
