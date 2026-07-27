@@ -2149,11 +2149,18 @@ def forget_panel_view_version(server_id):
 
 
 def record_guild_onboarding(server_id):
-    """Start this guild's panel-nudge clock, if it isn't already running.
+    """Start this guild's panel-nudge clock for the current gap.
 
-    `setup_at` is deliberately never updated: re-running /vrcverify_setup must
-    not keep pushing the deadline out, or an admin who tweaks roles every day
-    would never be nudged at all.
+    Callers only reach this when the guild has no panel, so a row that is
+    already flagged as nudged means the last gap was closed and a *new* one has
+    opened — the panel was posted and has since been deleted or lost. Reopen
+    it: one nudge per gap, not one per server for all time. Otherwise the
+    feature goes permanently quiet on exactly the degraded servers it exists
+    to catch.
+
+    Within a single open gap `setup_at` is never touched, so re-running
+    /vrcverify_setup cannot keep pushing the deadline out — an admin who tweaks
+    roles daily would otherwise never be nudged at all.
     """
     key = panel_view_key(server_id)
     try:
@@ -2161,6 +2168,11 @@ def record_guild_onboarding(server_id):
             row = session.query(GuildOnboarding).filter_by(server_id=key).first()
             if row is None:
                 session.add(GuildOnboarding(server_id=key))
+            elif row.panel_nudge_dm_sent:
+                # New gap: restart the grace period rather than firing on the
+                # next sweep, so this behaves like a fresh setup.
+                row.panel_nudge_dm_sent = False
+                row.setup_at = datetime.now(timezone.utc)
     except Exception:
         # Bookkeeping only — never let this break the setup command.
         logger.exception(f"Failed to record onboarding for guild {server_id}")

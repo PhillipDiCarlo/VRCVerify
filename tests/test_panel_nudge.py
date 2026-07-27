@@ -197,6 +197,29 @@ class TestSetupNudge:
         run(bot.vrcverify_setup.callback(interaction, self.ROLE, None))
         assert onboarding_row() is None
 
+    def test_broken_panel_plus_resetup_reopens_the_nudge(self):
+        # The full degraded-server path issue #51 cares about: panel posted,
+        # channel later deleted (a 404 clears the saved ids), admin re-runs
+        # setup. That server must become nudgeable again.
+        make_server(instructions_channel_id="222", instructions_message_id="111")
+        bot.record_guild_onboarding(GUILD_ID)
+        bot.complete_guild_onboarding(GUILD_ID)
+        bot.forget_instruction_panel(GUILD_ID)
+
+        interaction, _ = setup_interaction()
+        run(bot.vrcverify_setup.callback(interaction, self.ROLE, None))
+        assert onboarding_row().sent is False
+
+    def test_resetup_with_a_working_panel_stays_quiet(self):
+        # A healthy server re-running setup must not reopen anything.
+        make_server(instructions_channel_id="222", instructions_message_id="111")
+        bot.record_guild_onboarding(GUILD_ID)
+        bot.complete_guild_onboarding(GUILD_ID)
+
+        interaction, _ = setup_interaction()
+        run(bot.vrcverify_setup.callback(interaction, self.ROLE, None))
+        assert onboarding_row().sent is True
+
     def test_rerunning_setup_does_not_extend_the_deadline(self):
         # Otherwise an admin who tweaks roles daily is never nudged at all.
         make_onboarding(hours_ago=100)
@@ -221,6 +244,33 @@ class TestOnboardingHelpers:
     def test_record_normalises_int_guild_ids(self):
         bot.record_guild_onboarding(int(GUILD_ID))
         assert onboarding_row(GUILD_ID) is not None
+
+    def test_reopens_a_new_gap_after_a_previous_nudge(self):
+        # Panel was posted (flag set), then lost. Running setup again opens a
+        # new gap: one nudge per gap, not one per server for all time.
+        make_onboarding(hours_ago=500, sent=True)
+        stale = onboarding_row().setup_at
+        bot.record_guild_onboarding(GUILD_ID)
+        row = onboarding_row()
+        assert row.sent is False
+        # The clock restarts, so they get a fresh grace period rather than
+        # being DMed on the very next sweep.
+        assert row.setup_at > stale
+
+    def test_reopened_gap_respects_the_grace_period(self, monkeypatch):
+        monkeypatch.setattr(bot, "PANEL_NUDGE_GRACE_HOURS", 48)
+        make_server()
+        make_onboarding(hours_ago=500, sent=True)
+        bot.record_guild_onboarding(GUILD_ID)
+        assert bot.load_panel_nudge_candidates(10) == []
+
+    def test_open_gap_is_not_reset_by_a_repeat_call(self):
+        # The reopen must not become a way to extend an already-running clock.
+        make_onboarding(hours_ago=100, sent=False)
+        original = onboarding_row().setup_at
+        bot.record_guild_onboarding(GUILD_ID)
+        assert onboarding_row().setup_at == original
+        assert onboarding_row().sent is False
 
     def test_complete_marks_sent(self):
         make_onboarding()
