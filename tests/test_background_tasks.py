@@ -35,7 +35,7 @@ def clean_tasks(monkeypatch):
 
 @pytest.fixture
 def stub_startup(monkeypatch):
-    """Replace on_ready's four background coroutines with inert stand-ins."""
+    """Replace on_ready's background coroutines with inert stand-ins."""
     started = []
 
     def make(name):
@@ -49,6 +49,7 @@ def stub_startup(monkeypatch):
     for attr, name in [
         ("consume_results_queue", "results_consumer"),
         ("expired_pending_cleanup_task", "expired_pending_cleanup"),
+        ("panel_nudge_sweep_task", "panel_nudge_sweep"),
         ("refresh_all_instruction_panels", "instruction_panel_refresh"),
         ("watch_update_trigger_file", "instructions_trigger_watcher"),
     ]:
@@ -159,6 +160,7 @@ class TestOnReadyReentry:
     EXPECTED = {
         "results_consumer",
         "expired_pending_cleanup",
+        "panel_nudge_sweep",
         "instruction_panel_refresh",
         "instructions_trigger_watcher",
     }
