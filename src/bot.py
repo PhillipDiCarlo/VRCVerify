@@ -95,6 +95,17 @@ def _int_env(name: str, default: int) -> int:
 INSTRUCTIONS_REFRESH_CONCURRENCY = _int_env("INSTRUCTIONS_REFRESH_CONCURRENCY", 10)
 INSTRUCTIONS_REFRESH_RATE = _int_env("INSTRUCTIONS_REFRESH_RATE", 25)
 
+# Instruction panel buttons carry fixed custom_ids so a single bot.add_view()
+# call routes clicks for every panel ever posted, instead of the bot having to
+# re-edit all of them on boot just to hand out ids it recognises.
+#
+# Bump this when the button set changes: the custom_ids change with it, panels
+# still carrying an older version stop matching the registered view, and the
+# startup pass re-edits exactly those.
+INSTRUCTIONS_VIEW_VERSION = 1
+BEGIN_VERIFICATION_CUSTOM_ID = f"vrcverify:begin:v{INSTRUCTIONS_VIEW_VERSION}"
+UPDATE_NICKNAME_CUSTOM_ID = f"vrcverify:nickname:v{INSTRUCTIONS_VIEW_VERSION}"
+
 # -------------------------------------------------------------------
 # Logging setup
 # -------------------------------------------------------------------
@@ -177,7 +188,24 @@ class PendingVerification(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
 
-# Create tables and ensure the new instructions_locale column exists
+class InstructionPanelView(Base):
+    """Which button custom_id set each guild's posted panel is carrying.
+
+    A separate table rather than a column on `servers` on purpose: create_all()
+    below creates missing *tables* automatically but never adds columns to an
+    existing one, and a column present in the model but absent in the database
+    breaks every Server query — not just the ones reading it. This keeps the
+    rollout to zero manual DDL.
+    """
+
+    __tablename__ = "instruction_panel_views"
+    server_id = Column(String, primary_key=True)
+    view_version = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+# Creates any missing tables. Note this does NOT add columns to tables that
+# already exist — those still need a manual ALTER.
 Base.metadata.create_all(engine)
 
 
@@ -307,6 +335,12 @@ class VRCVerifyBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
+        # One persistent registration handles button clicks on every panel in
+        # every guild. Only the custom_ids are matched, so this instance's
+        # locale (and therefore its labels) never reaches a user — each panel
+        # keeps whatever labels it was rendered with, and the callbacks resolve
+        # locale per interaction.
+        self.add_view(VRCVerifyInstructionView(locale="en-US"))
         # Sync slash commands to the server
         await self.tree.sync()
 
@@ -355,12 +389,21 @@ class VRCVerifyInstructionView(View):
         # dynamic labels from localization
         begin_label = localizations.get(locale, localizations['en-US'])['btn_begin_verification']
         update_label = localizations.get(locale, localizations['en-US'])['btn_update_nickname']
-        # Begin Verification button
-        begin_btn = Button(label=begin_label, style=discord.ButtonStyle.primary)
+        # Fixed custom_ids keep already-posted panels routable after a restart;
+        # the labels below are per-guild, but the ids never vary.
+        begin_btn = Button(
+            label=begin_label,
+            style=discord.ButtonStyle.primary,
+            custom_id=BEGIN_VERIFICATION_CUSTOM_ID,
+        )
         begin_btn.callback = self.begin_verification
         self.add_item(begin_btn)
         # Update Nickname button
-        update_btn = Button(label=update_label, style=discord.ButtonStyle.secondary)
+        update_btn = Button(
+            label=update_label,
+            style=discord.ButtonStyle.secondary,
+            custom_id=UPDATE_NICKNAME_CUSTOM_ID,
+        )
         update_btn.callback = self.update_nickname
         self.add_item(update_btn)
         # Donate button (link buttons can't be colored; the emoji makes it stand out)
@@ -1386,6 +1429,9 @@ async def vrcverify_instructions(interaction: discord.Interaction):
             server.instructions_channel_id = channel_id
             server.instructions_message_id = str(message.id)
 
+    # Posted with the current custom_ids already, so no restart needs to touch it.
+    record_panel_view_version(guild_id)
+
     # Quiet, admin-only nudge after the public panel is posted
     await interaction.followup.send(
         get_message("setup_donate_hint", interaction, kofi_link=KOFI_URL).strip(),
@@ -1722,21 +1768,62 @@ class RequestPacer:
             await asyncio.sleep(delay)
 
 
-def load_instruction_panels():
-    """Snapshot every saved instruction panel (guild/channel/message/locale) from the DB."""
+def load_instruction_panels(stale_only: bool = False):
+    """Snapshot saved instruction panels from the DB.
+
+    With `stale_only`, returns just the panels whose buttons predate the current
+    INSTRUCTIONS_VIEW_VERSION — the ones a restart actually has to re-edit.
+    Everything else is already routable through the persistent view.
+    """
     with session_scope() as session:
         servers = (
             session.query(Server).filter(Server.instructions_message_id != None).all()
         )
-        return [
-            {
-                "server_id": server.server_id,
-                "channel_id": server.instructions_channel_id,
-                "message_id": server.instructions_message_id,
-                "locale": server.instructions_locale or "en-US",
-            }
-            for server in servers
-        ]
+        versions = {
+            row.server_id: row.view_version
+            for row in session.query(InstructionPanelView).all()
+        }
+        panels = []
+        for server in servers:
+            version = versions.get(server.server_id, 0)
+            if stale_only and version >= INSTRUCTIONS_VIEW_VERSION:
+                continue
+            panels.append(
+                {
+                    "server_id": server.server_id,
+                    "channel_id": server.instructions_channel_id,
+                    "message_id": server.instructions_message_id,
+                    "locale": server.instructions_locale or "en-US",
+                    "view_version": version,
+                }
+            )
+        return panels
+
+
+def record_panel_view_version(server_id: str, version: int = INSTRUCTIONS_VIEW_VERSION):
+    """Remember that this guild's panel now carries `version`'s custom_ids."""
+    try:
+        with session_scope() as session:
+            row = (
+                session.query(InstructionPanelView).filter_by(server_id=server_id).first()
+            )
+            if row is None:
+                row = InstructionPanelView(server_id=server_id)
+                session.add(row)
+            row.view_version = version
+            row.updated_at = datetime.now(timezone.utc)
+    except Exception:
+        # Losing this only costs a redundant edit on the next boot.
+        logger.exception(f"Failed to record panel view version for guild {server_id}")
+
+
+def forget_panel_view_version(server_id: str):
+    """Drop the recorded version so a re-posted panel is never wrongly skipped."""
+    try:
+        with session_scope() as session:
+            session.query(InstructionPanelView).filter_by(server_id=server_id).delete()
+    except Exception:
+        logger.exception(f"Failed to clear panel view version for guild {server_id}")
 
 
 def forget_instruction_panel(server_id: str):
@@ -1749,6 +1836,7 @@ def forget_instruction_panel(server_id: str):
                 srv.instructions_message_id = None
     except Exception:
         logger.exception(f"Failed to clear missing instruction panel for guild {server_id}")
+    forget_panel_view_version(server_id)
 
 
 def build_instructions_embed(locale: str) -> Embed:
@@ -1790,6 +1878,8 @@ async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
 
     try:
         await message.edit(**payload)
+        if entry.get("view_version") != INSTRUCTIONS_VIEW_VERSION:
+            record_panel_view_version(entry["server_id"])
         logger.debug(f"Refreshed instructions message for guild {entry['server_id']}")
         return True
     except discord.NotFound:
@@ -1822,16 +1912,18 @@ async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
         return False
 
 
-async def refresh_all_instruction_panels(rebuild_embed: bool, reason: str):
-    """Refresh every saved instruction panel concurrently, paced and bounded.
+async def refresh_all_instruction_panels(
+    rebuild_embed: bool, reason: str, stale_only: bool = False
+):
+    """Refresh saved instruction panels concurrently, paced and bounded.
 
     Serialized behind a lock so a startup pass and a trigger-file pass can't
     fight over the same messages.
     """
     async with instruction_refresh_lock:
-        panels = load_instruction_panels()
+        panels = load_instruction_panels(stale_only=stale_only)
         if not panels:
-            logger.info(f"No saved instruction panels to refresh ({reason}).")
+            logger.info(f"No instruction panels need refreshing ({reason}).")
             return
 
         started = time.monotonic()
@@ -1937,12 +2029,15 @@ async def on_ready():
     # Start periodic cleanup of expired pending verifications
     start_background_task("expired_pending_cleanup", expired_pending_cleanup_task())
 
-    # Reinitialize instruction messages across servers (with locale). Runs in the
-    # background so the bot starts serving commands immediately instead of waiting
-    # on one edit per guild.
+    # Panels already carrying the current custom_ids are handled by the
+    # persistent view registered in setup_hook, so this only has to re-edit the
+    # stragglers: panels posted before this version, and ones that failed
+    # earlier (revoked permissions, archived threads) and are retried each boot.
     start_background_task(
         "instruction_panel_refresh",
-        refresh_all_instruction_panels(rebuild_embed=False, reason="startup"),
+        refresh_all_instruction_panels(
+            rebuild_embed=False, reason="startup", stale_only=True
+        ),
         run_once=True,
     )
 
