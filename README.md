@@ -206,7 +206,22 @@ See the sections below for details and configuration.
   # Optional: instruction message refresh trigger watched by bot.py
   INSTRUCTIONS_TRIGGER_PATH=/tmp/update_instructions.trigger
   INSTRUCTIONS_TRIGGER_POLL=5
+
+  # Optional: startup instruction panel refresh tuning
+  # (edits in flight, and edits started per second; keep RATE under
+  # Discord's ~50 req/s global ceiling so verification traffic isn't throttled)
+  INSTRUCTIONS_REFRESH_CONCURRENCY=10
+  INSTRUCTIONS_REFRESH_RATE=25
    ```
+
+   **Instruction panel buttons on restart.** Panel buttons use fixed
+   `custom_id`s and are registered once at startup via a persistent view, so
+   already-posted panels keep working across restarts without being re-edited.
+   The `instruction_panel_views` table records which button version each guild's
+   panel carries; it is created automatically, no manual migration needed. On
+   boot the bot only re-edits panels that predate the current version, plus any
+   that previously failed (revoked permissions, archived threads), which are
+   retried each boot so they recover once an admin fixes the channel.
 
 4. **Database Setup:**
 

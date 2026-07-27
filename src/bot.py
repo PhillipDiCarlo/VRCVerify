@@ -73,6 +73,38 @@ RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST")
 KOFI_URL = "https://ko-fi.com/italiandogs"
 # Verifications a guild must complete before the one-time owner thank-you DM.
 MILESTONE_VERIFICATION_COUNT = 100
+# Instruction panels are refreshed concurrently rather than one guild at a time.
+# Two independent limits apply:
+#
+# CONCURRENCY caps how many edits are in flight, so a few thousand panels don't
+# serialize behind each other's round trips.
+#
+# RATE caps how many we *start* per second. A concurrency cap alone does not
+# bound the request rate: these edits often fail fast (403/404 come back in tens
+# of milliseconds), so even a handful of workers can push well past Discord's
+# ~50 req/s global ceiling. Exceeding it throttles the whole bot — verification
+# results and command replies included — not just this loop. Default 25 leaves
+# half the global budget for real traffic.
+def _int_env(name: str, default: int) -> int:
+    try:
+        return max(1, int(os.getenv(name, str(default))))
+    except ValueError:
+        return default
+
+
+INSTRUCTIONS_REFRESH_CONCURRENCY = _int_env("INSTRUCTIONS_REFRESH_CONCURRENCY", 10)
+INSTRUCTIONS_REFRESH_RATE = _int_env("INSTRUCTIONS_REFRESH_RATE", 25)
+
+# Instruction panel buttons carry fixed custom_ids so a single bot.add_view()
+# call routes clicks for every panel ever posted, instead of the bot having to
+# re-edit all of them on boot just to hand out ids it recognises.
+#
+# Bump this when the button set changes: the custom_ids change with it, panels
+# still carrying an older version stop matching the registered view, and the
+# startup pass re-edits exactly those.
+INSTRUCTIONS_VIEW_VERSION = 1
+BEGIN_VERIFICATION_CUSTOM_ID = f"vrcverify:begin:v{INSTRUCTIONS_VIEW_VERSION}"
+UPDATE_NICKNAME_CUSTOM_ID = f"vrcverify:nickname:v{INSTRUCTIONS_VIEW_VERSION}"
 
 # -------------------------------------------------------------------
 # Logging setup
@@ -156,7 +188,24 @@ class PendingVerification(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
 
-# Create tables and ensure the new instructions_locale column exists
+class InstructionPanelView(Base):
+    """Which button custom_id set each guild's posted panel is carrying.
+
+    A separate table rather than a column on `servers` on purpose: create_all()
+    below creates missing *tables* automatically but never adds columns to an
+    existing one, and a column present in the model but absent in the database
+    breaks every Server query — not just the ones reading it. This keeps the
+    rollout to zero manual DDL.
+    """
+
+    __tablename__ = "instruction_panel_views"
+    server_id = Column(String, primary_key=True)
+    view_version = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+# Creates any missing tables. Note this does NOT add columns to tables that
+# already exist — those still need a manual ALTER.
 Base.metadata.create_all(engine)
 
 
@@ -286,6 +335,12 @@ class VRCVerifyBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
+        # One persistent registration handles button clicks on every panel in
+        # every guild. Only the custom_ids are matched, so this instance's
+        # locale (and therefore its labels) never reaches a user — each panel
+        # keeps whatever labels it was rendered with, and the callbacks resolve
+        # locale per interaction.
+        self.add_view(VRCVerifyInstructionView(locale="en-US"))
         # Sync slash commands to the server
         await self.tree.sync()
 
@@ -334,12 +389,21 @@ class VRCVerifyInstructionView(View):
         # dynamic labels from localization
         begin_label = localizations.get(locale, localizations['en-US'])['btn_begin_verification']
         update_label = localizations.get(locale, localizations['en-US'])['btn_update_nickname']
-        # Begin Verification button
-        begin_btn = Button(label=begin_label, style=discord.ButtonStyle.primary)
+        # Fixed custom_ids keep already-posted panels routable after a restart;
+        # the labels below are per-guild, but the ids never vary.
+        begin_btn = Button(
+            label=begin_label,
+            style=discord.ButtonStyle.primary,
+            custom_id=BEGIN_VERIFICATION_CUSTOM_ID,
+        )
         begin_btn.callback = self.begin_verification
         self.add_item(begin_btn)
         # Update Nickname button
-        update_btn = Button(label=update_label, style=discord.ButtonStyle.secondary)
+        update_btn = Button(
+            label=update_label,
+            style=discord.ButtonStyle.secondary,
+            custom_id=UPDATE_NICKNAME_CUSTOM_ID,
+        )
         update_btn.callback = self.update_nickname
         self.add_item(update_btn)
         # Donate button (link buttons can't be colored; the emoji makes it stand out)
@@ -1348,16 +1412,8 @@ async def vrcverify_instructions(interaction: discord.Interaction):
             if srv and srv.instructions_locale
             else get_locale(interaction)
         )
-    # fetch localized messages for instructions
-    strings = localizations.get(instr_locale, localizations["en-US"])
-    embed = Embed(
-        title=strings["instructions_title"],
-        description=strings["instructions_desc"],
-        color=discord.Color.blue()
-    )
-
-    usage_example = "**Example Usage**:\n" "```bash\n" "/vrcverify\n" "```"
-    embed.add_field(name="Example Command", value=usage_example, inline=False)
+    # Same builder the refresh path uses, so a posted panel and a refreshed one match.
+    embed = build_instructions_embed(instr_locale)
 
     view = VRCVerifyInstructionView(locale=instr_locale)
     # Send the initial response and then fetch the message
@@ -1372,6 +1428,9 @@ async def vrcverify_instructions(interaction: discord.Interaction):
         if server:
             server.instructions_channel_id = channel_id
             server.instructions_message_id = str(message.id)
+
+    # Posted with the current custom_ids already, so no restart needs to touch it.
+    record_panel_view_version(guild_id)
 
     # Quiet, admin-only nudge after the public panel is posted
     await interaction.followup.send(
@@ -1683,90 +1742,248 @@ async def expired_pending_cleanup_task(interval_seconds: int = 60):
         await asyncio.sleep(interval_seconds)
 
 
-async def update_all_instruction_messages():
-    """Rebuild and edit saved instruction messages for all servers (uses DB-stored locale)."""
+# Guards against a startup refresh and a trigger-file refresh overlapping.
+instruction_refresh_lock = asyncio.Lock()
+
+
+class RequestPacer:
+    """Hands out evenly spaced start times to stay under a per-second ceiling.
+
+    discord.py only reacts to 429s after the fact; this keeps the fleet refresh
+    from provoking them in the first place.
+    """
+
+    def __init__(self, per_second: float):
+        self.min_interval = 1.0 / per_second
+        self.next_slot = 0.0
+        self.lock = asyncio.Lock()
+
+    async def wait(self):
+        async with self.lock:
+            now = time.monotonic()
+            slot = max(now, self.next_slot)
+            self.next_slot = slot + self.min_interval
+        delay = slot - now
+        if delay > 0:
+            await asyncio.sleep(delay)
+
+
+def panel_view_key(server_id) -> str:
+    """Normalise a guild id for the instruction_panel_views table.
+
+    `servers.server_id` is declared String but can come back as an int, because
+    the deployed column is an integer type and SQLAlchemy returns whatever the
+    driver gives. instruction_panel_views.server_id really is text, so an
+    un-normalised id makes Postgres reject `character varying = bigint` — and,
+    worse, makes the in-memory version lookup silently never match.
+    """
+    return str(server_id)
+
+
+def load_instruction_panels(stale_only: bool = False):
+    """Snapshot saved instruction panels from the DB.
+
+    With `stale_only`, returns just the panels whose buttons predate the current
+    INSTRUCTIONS_VIEW_VERSION — the ones a restart actually has to re-edit.
+    Everything else is already routable through the persistent view.
+    """
     with session_scope() as session:
         servers = (
             session.query(Server).filter(Server.instructions_message_id != None).all()
         )
-        servers_data = [
-            {
-                "server_id": server.server_id,
-                "channel_id": server.instructions_channel_id,
-                "message_id": server.instructions_message_id,
-                "locale": server.instructions_locale or "en-US",
-            }
-            for server in servers
-        ]
-
-    for entry in servers_data:
-        channel_id = entry.get("channel_id")
-        message_id = entry.get("message_id")
-        if not channel_id or not message_id:
-            logger.warning(f"⚠️ Missing channel/message id for guild {entry['server_id']}; skipping.")
-            continue
-
-        # Try to obtain the channel via cache first, then the API. This avoids requiring the
-        # guild to be present in the gateway cache (previously caused 'guild not cached').
-        try:
-            ch = bot.get_channel(int(channel_id))
-            if ch is None:
-                ch = await bot.fetch_channel(int(channel_id))
-        except discord.NotFound:
-            logger.warning(f"⚠️ Channel {channel_id} not found (404) for guild {entry['server_id']}; removing saved message reference.")
-            # clear DB entry so we don't repeatedly try to update a missing channel/message
-            try:
-                with session_scope() as session:
-                    srv = session.query(Server).filter_by(server_id=entry["server_id"]).first()
-                    if srv:
-                        srv.instructions_channel_id = None
-                        srv.instructions_message_id = None
-            except Exception:
-                logger.exception("Failed to clear missing channel entry in DB.")
-            continue
-        except discord.Forbidden:
-            logger.warning(f"⚠️ No permission to access channel {channel_id} in guild {entry['server_id']}; skipping.")
-            continue
-        except Exception:
-            logger.exception(f"Unexpected error fetching channel {channel_id} for guild {entry['server_id']}")
-            continue
-
-        try:
-            message = await ch.fetch_message(int(message_id))
-        except discord.NotFound:
-            logger.warning(f"⚠️ Message {message_id} not found (404) in channel {channel_id} for guild {entry['server_id']}; removing saved message reference.")
-            try:
-                with session_scope() as session:
-                    srv = session.query(Server).filter_by(server_id=entry["server_id"]).first()
-                    if srv:
-                        srv.instructions_channel_id = None
-                        srv.instructions_message_id = None
-            except Exception:
-                logger.exception("Failed to clear missing message entry in DB.")
-            continue
-        except discord.Forbidden:
-            logger.warning(f"⚠️ No permission to fetch message {message_id} in channel {channel_id} for guild {entry['server_id']}; skipping.")
-            continue
-        except Exception:
-            logger.exception(f"Unexpected error fetching message {message_id} in channel {channel_id} for guild {entry['server_id']}")
-            continue
-
-        # Rebuild localized embed + example field
-        try:
-            strings = localizations.get(entry["locale"], localizations["en-US"])
-            new_embed = Embed(
-                title=strings.get("instructions_title", ""),
-                description=strings.get("instructions_desc", ""),
-                color=discord.Color.blue(),
+        versions = {
+            panel_view_key(row.server_id): row.view_version
+            for row in session.query(InstructionPanelView).all()
+        }
+        panels = []
+        for server in servers:
+            version = versions.get(panel_view_key(server.server_id), 0)
+            # Deliberately `==`, not `>=`: skip only panels matching this
+            # process exactly. One recorded *newer* carries custom_ids we never
+            # registered, so rolling a release back has to re-migrate it or its
+            # buttons stay dead.
+            if stale_only and version == INSTRUCTIONS_VIEW_VERSION:
+                continue
+            panels.append(
+                {
+                    "server_id": server.server_id,
+                    "channel_id": server.instructions_channel_id,
+                    "message_id": server.instructions_message_id,
+                    "locale": server.instructions_locale or "en-US",
+                    "view_version": version,
+                }
             )
-            usage_example = "**Example Usage**:\n" "```bash\n" "/vrcverify\n" "```"
-            new_embed.clear_fields()
-            new_embed.add_field(name="Example Command", value=usage_example, inline=False)
-            view = VRCVerifyInstructionView(locale=entry["locale"])
-            await message.edit(embed=new_embed, view=view)
-            logger.info(f"Updated instructions message for guild {entry['server_id']}")
-        except Exception:
-            logger.exception(f"Failed to edit instructions message for guild {entry['server_id']}")
+        return panels
+
+
+def record_panel_view_version(server_id, version: int = INSTRUCTIONS_VIEW_VERSION):
+    """Remember that this guild's panel now carries `version`'s custom_ids."""
+    key = panel_view_key(server_id)
+    try:
+        with session_scope() as session:
+            row = session.query(InstructionPanelView).filter_by(server_id=key).first()
+            if row is None:
+                row = InstructionPanelView(server_id=key)
+                session.add(row)
+            row.view_version = version
+            row.updated_at = datetime.now(timezone.utc)
+    except Exception:
+        # Losing this only costs a redundant edit on the next boot.
+        logger.exception(f"Failed to record panel view version for guild {server_id}")
+
+
+def forget_panel_view_version(server_id):
+    """Drop the recorded version so a re-posted panel is never wrongly skipped."""
+    try:
+        with session_scope() as session:
+            session.query(InstructionPanelView).filter_by(
+                server_id=panel_view_key(server_id)
+            ).delete()
+    except Exception:
+        logger.exception(f"Failed to clear panel view version for guild {server_id}")
+
+
+def forget_instruction_panel(server_id: str):
+    """Drop a saved panel reference whose channel or message no longer exists."""
+    try:
+        with session_scope() as session:
+            srv = session.query(Server).filter_by(server_id=server_id).first()
+            if srv:
+                srv.instructions_channel_id = None
+                srv.instructions_message_id = None
+    except Exception:
+        logger.exception(f"Failed to clear missing instruction panel for guild {server_id}")
+    forget_panel_view_version(server_id)
+
+
+def build_instructions_embed(locale: str) -> Embed:
+    """Build the localized instruction panel embed."""
+    strings = localizations.get(locale, localizations["en-US"])
+    embed = Embed(
+        title=strings.get("instructions_title", ""),
+        description=strings.get("instructions_desc", ""),
+        color=discord.Color.blue(),
+    )
+    usage_example = "**Example Usage**:\n" "```bash\n" "/vrcverify\n" "```"
+    embed.add_field(name="Example Command", value=usage_example, inline=False)
+    return embed
+
+
+async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
+    """Re-attach a fresh view (and optionally a rebuilt embed) to one saved panel.
+
+    Uses a partial message so this costs exactly one API call and needs nothing
+    in the gateway cache — no channel fetch, no message fetch.
+    """
+    channel_id = entry.get("channel_id")
+    message_id = entry.get("message_id")
+    if not channel_id or not message_id:
+        logger.warning(f"⚠️ Missing channel/message id for guild {entry['server_id']}; skipping.")
+        return False
+
+    try:
+        message = bot.get_partial_messageable(int(channel_id)).get_partial_message(
+            int(message_id)
+        )
+    except (TypeError, ValueError):
+        logger.warning(f"⚠️ Malformed channel/message id for guild {entry['server_id']}; skipping.")
+        return False
+
+    try:
+        # Built inside the try on purpose: a bad locale row must not escape and
+        # abort the whole fleet pass, it only costs this one guild.
+        payload = {"view": VRCVerifyInstructionView(locale=entry["locale"])}
+        if rebuild_embed:
+            payload["embed"] = build_instructions_embed(entry["locale"])
+        await message.edit(**payload)
+        if entry.get("view_version") != INSTRUCTIONS_VIEW_VERSION:
+            record_panel_view_version(entry["server_id"])
+        logger.debug(f"Refreshed instructions message for guild {entry['server_id']}")
+        return True
+    except discord.NotFound:
+        # Either the channel or the message is gone; both cases make the saved
+        # reference useless, so stop retrying it on every restart.
+        logger.warning(
+            f"⚠️ Instruction panel {message_id} in channel {channel_id} not found (404) "
+            f"for guild {entry['server_id']}; removing saved message reference."
+        )
+        forget_instruction_panel(entry["server_id"])
+        return False
+    except discord.Forbidden:
+        logger.warning(
+            f"⚠️ No permission to edit instruction panel {message_id} in channel "
+            f"{channel_id} for guild {entry['server_id']}; skipping."
+        )
+        return False
+    except discord.HTTPException as error:
+        # Discord refused the edit for a reason that isn't ours to fix — most
+        # often 50083, the panel lives in a thread that has since been archived.
+        # The reference is still valid (unarchiving revives it), so keep it and
+        # log a single line instead of a traceback per guild.
+        logger.warning(
+            f"⚠️ Discord rejected the instruction panel edit for guild "
+            f"{entry['server_id']} (HTTP {error.status}, code {error.code}): {error.text}"
+        )
+        return False
+    except Exception:
+        logger.exception(f"Failed to edit instructions message for guild {entry['server_id']}")
+        return False
+
+
+async def refresh_all_instruction_panels(
+    rebuild_embed: bool, reason: str, stale_only: bool = False
+):
+    """Refresh saved instruction panels concurrently, paced and bounded.
+
+    Serialized behind a lock so a startup pass and a trigger-file pass can't
+    fight over the same messages.
+    """
+    async with instruction_refresh_lock:
+        panels = load_instruction_panels(stale_only=stale_only)
+        if not panels:
+            logger.info(f"No instruction panels need refreshing ({reason}).")
+            return
+
+        started = time.monotonic()
+        semaphore = asyncio.Semaphore(INSTRUCTIONS_REFRESH_CONCURRENCY)
+        pacer = RequestPacer(INSTRUCTIONS_REFRESH_RATE)
+
+        async def refresh_one(entry):
+            # Pace before taking a slot so waiting tasks don't idle in the
+            # semaphore and starve the ones ready to run.
+            await pacer.wait()
+            async with semaphore:
+                return await refresh_instruction_panel(entry, rebuild_embed)
+
+        # return_exceptions so one guild can never abort the pass: the startup
+        # task is run_once, so an escaped error would strand every remaining
+        # panel until the next process restart.
+        results = await asyncio.gather(
+            *(refresh_one(entry) for entry in panels), return_exceptions=True
+        )
+
+        updated = 0
+        crashed = 0
+        for result in results:
+            if result is True:
+                updated += 1
+            elif isinstance(result, asyncio.CancelledError):
+                raise result  # shutdown; don't report it as a per-panel failure
+            elif isinstance(result, BaseException):
+                crashed += 1
+                logger.error("Instruction panel refresh worker crashed", exc_info=result)
+
+        elapsed = time.monotonic() - started
+        crashed_note = f", {crashed} crashed" if crashed else ""
+        logger.info(
+            f"Instruction panel refresh ({reason}): {updated}/{len(panels)} "
+            f"updated in {elapsed:.1f}s{crashed_note}"
+        )
+
+
+async def update_all_instruction_messages():
+    """Rebuild and edit saved instruction messages for all servers (uses DB-stored locale)."""
+    await refresh_all_instruction_panels(rebuild_embed=True, reason="manual trigger")
 
 
 async def watch_update_trigger_file(path: str = None, poll_interval: int = 5):
@@ -1797,53 +2014,79 @@ async def watch_update_trigger_file(path: str = None, poll_interval: int = 5):
 
 
 # -------------------------------------------------------------------
+# Background task supervision
+# -------------------------------------------------------------------
+# on_ready fires again after every gateway reconnect, so anything it starts has
+# to be idempotent. Without this, each reconnect leaked another RabbitMQ
+# consumer (plus its executor thread), another cleanup loop, and another
+# trigger-file watcher racing the others to os.remove() the same file.
+background_tasks = {}
+
+
+def start_background_task(name: str, coro, run_once: bool = False):
+    """Schedule `coro` under `name`, unless that task is already accounted for.
+
+    A long-lived task is (re)started only when it is missing or has died, so a
+    crashed consumer recovers on the next reconnect. `run_once` work — the
+    startup panel refresh — never runs a second time in the same process, since
+    its views stay registered with discord.py across reconnects.
+    """
+    existing = background_tasks.get(name)
+    if existing is not None and (run_once or not existing.done()):
+        # We never awaited this one; close it so Python doesn't warn about it.
+        coro.close()
+        return existing
+
+    task = asyncio.create_task(coro, name=name)
+
+    def report_exit(finished):
+        if finished.cancelled():
+            logger.info(f"Background task '{name}' was cancelled.")
+            return
+        error = finished.exception()
+        if error is not None:
+            logger.error(
+                f"Background task '{name}' died; it will restart on the next reconnect.",
+                exc_info=error,
+            )
+
+    task.add_done_callback(report_exit)
+    background_tasks[name] = task
+    return task
+
+
+# -------------------------------------------------------------------
 # Bot Events
 # -------------------------------------------------------------------
 @bot.event
 async def on_ready():
     logger.info(f"Bot is ready. Logged in as {bot.user} (ID: {bot.user.id})")
-    bot.loop.create_task(consume_results_queue())
+    start_background_task("results_consumer", consume_results_queue())
     # Start periodic cleanup of expired pending verifications
-    bot.loop.create_task(expired_pending_cleanup_task())
+    start_background_task("expired_pending_cleanup", expired_pending_cleanup_task())
 
-    # Reinitialize instruction messages across servers (with locale)
-    with session_scope() as session:
-        servers = (
-            session.query(Server).filter(Server.instructions_message_id != None).all()
-        )
-        # Build a list carrying each server’s locale
-        servers_data = [
-            {
-                "server_id": server.server_id,
-                "channel_id": server.instructions_channel_id,
-                "message_id": server.instructions_message_id,
-                "locale": server.instructions_locale or "en-US"
-            }
-            for server in servers
-        ]
-
-    for entry in servers_data:
-        guild = bot.get_guild(int(entry["server_id"]))
-        if not guild:
-            continue
-        try:
-            channel = guild.get_channel(int(entry["channel_id"]))
-            if channel:
-                message = await channel.fetch_message(int(entry["message_id"]))
-                # Pass in the stored locale when reconstructing the view
-                view = VRCVerifyInstructionView(locale=entry["locale"])
-                await message.edit(view=view)
-                logger.info(f"Reinitialized instructions message for guild {entry['server_id']}")
-        except Exception as e:
-            logger.error(f"Error reinitializing instructions message for guild {entry['server_id']}: {e}")
+    # Panels already carrying the current custom_ids are handled by the
+    # persistent view registered in setup_hook, so this only has to re-edit the
+    # stragglers: panels posted before this version, and ones that failed
+    # earlier (revoked permissions, archived threads) and are retried each boot.
+    start_background_task(
+        "instruction_panel_refresh",
+        refresh_all_instruction_panels(
+            rebuild_embed=False, reason="startup", stale_only=True
+        ),
+        run_once=True,
+    )
 
     # Start watching for a trigger file so you can update instructions at runtime
     # To trigger an instruction panel update type "touch /tmp/update_instructions.trigger" into a terminal
     trigger_path = os.getenv("INSTRUCTIONS_TRIGGER_PATH", "/tmp/update_instructions.trigger")
     poll = int(os.getenv("INSTRUCTIONS_TRIGGER_POLL", "5"))
-    bot.loop.create_task(watch_update_trigger_file(trigger_path, poll))
+    start_background_task(
+        "instructions_trigger_watcher", watch_update_trigger_file(trigger_path, poll)
+    )
 
-    logger.info("Bot is reinitialized and ready to go!")
+    # Panel refresh logs its own completion summary once it finishes.
+    logger.info("Bot startup tasks launched and ready to go!")
 
 
 @bot.event
