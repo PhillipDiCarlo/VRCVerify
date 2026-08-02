@@ -470,6 +470,13 @@ PREMIUM_ENFORCED = PREMIUM_SKU_ID is not None
 # guild immediately, so the TTL only bounds how stale a *missed* event can get.
 PREMIUM_STATUS_TTL = _int_env("PREMIUM_STATUS_TTL", 900)
 
+# How long a *guessed* answer is reused after a failed lookup. Short, because
+# it is a guess — but not zero, because without it a Discord outage turns every
+# single verification into another failing REST call. That storm arrives
+# precisely when Discord is already struggling, and discord.py's 429 backoff
+# would then throttle the whole bot, verification DMs included.
+PREMIUM_FAILURE_TTL = _int_env("PREMIUM_FAILURE_TTL", 60)
+
 # Premium guilds get a shorter throttle on actions that hit the shared VRChat
 # account. 0 disables the wait entirely.
 PREMIUM_VERIFICATION_COOLDOWN_SECONDS = _int_env(
@@ -515,6 +522,7 @@ PREMIUM_CUTOVER_TRIGGER_PATH = os.getenv(
 PREMIUM_CUTOVER_INTERVAL = _int_env("PREMIUM_CUTOVER_INTERVAL", 300)
 PREMIUM_CUTOVER_MAX_PER_SWEEP = _int_env("PREMIUM_CUTOVER_MAX_PER_SWEEP", 20)
 PREMIUM_CUTOVER_DM_SPACING = _float_env("PREMIUM_CUTOVER_DM_SPACING", 2.0)
+PREMIUM_CUTOVER_MAX_FAILURES = _int_env("PREMIUM_CUTOVER_MAX_FAILURES", 3)
 
 
 class PremiumStatusCache:
@@ -550,8 +558,21 @@ class PremiumStatusCache:
         return self._last_known.get(guild_id)
 
     def set(self, guild_id: str, value: bool) -> None:
+        """Record a value we actually know, and make it the fallback."""
         self._fresh[guild_id] = (time.monotonic() + self.ttl, value)
         self._last_known[guild_id] = value
+
+    def set_provisional(self, guild_id: str, value: bool, ttl: int) -> None:
+        """Cache a value we merely inferred, without touching the fallback.
+
+        Two callers, both of which produce answers that are good enough to act
+        on but not good enough to become the permanent fail-open baseline: the
+        guess made when a lookup fails, and a *negative* read of an interaction
+        payload (where "no entitlements field" and "no entitlements" are
+        indistinguishable). Letting either write _last_known would let a bad
+        guess outlive itself and invert the fail-open behaviour.
+        """
+        self._fresh[guild_id] = (time.monotonic() + ttl, value)
 
     def invalidate(self, guild_id: str) -> None:
         """Force the next read to re-check with Discord.
@@ -598,7 +619,17 @@ def premium_from_interaction(interaction: discord.Interaction) -> bool:
     if interaction.guild_id is None:
         return False
     is_premium = entitlements_grant_premium(getattr(interaction, "entitlements", None))
-    premium_status_cache.set(str(interaction.guild_id), is_premium)
+    key = str(interaction.guild_id)
+    if is_premium:
+        # Finding our SKU here is proof. Safe to make it the fallback.
+        premium_status_cache.set(key, is_premium)
+    else:
+        # Not finding it is only as trustworthy as the payload's completeness,
+        # and discord.py builds this from data.get('entitlements', []) — an
+        # absent field and a genuinely empty one look identical. Good enough to
+        # answer this interaction with, not good enough to become the value a
+        # future outage falls back on.
+        premium_status_cache.set_provisional(key, is_premium, PREMIUM_STATUS_TTL)
     return is_premium
 
 
@@ -633,13 +664,19 @@ async def guild_has_premium(guild_id) -> bool:
         return found
     except Exception:
         last_known = premium_status_cache.get_last_known(key)
+        answer = True if last_known is None else last_known
+        # Hold the guess briefly so a sustained outage doesn't turn every
+        # verification into another failing call. Provisional, so it can never
+        # become the fallback it was itself derived from.
+        premium_status_cache.set_provisional(key, answer, PREMIUM_FAILURE_TTL)
         logger.warning(
-            "Entitlement lookup failed for guild %s; falling back to %s.",
+            "Entitlement lookup failed for guild %s; falling back to %s for %ss.",
             key,
             "last known value" if last_known is not None else "premium (fail-open)",
+            PREMIUM_FAILURE_TTL,
             exc_info=True,
         )
-        return True if last_known is None else last_known
+        return answer
 
 
 def is_grandfathered(guild_id) -> bool:
@@ -716,12 +753,6 @@ def resolve_premium_flags_from_interaction(
     premium = premium_from_interaction(interaction)
     grandfathered = False if premium else is_grandfathered(interaction.guild_id)
     return PremiumFlags(premium=premium, grandfathered=grandfathered)
-
-
-async def feature_enabled(guild_id, feature: str) -> bool:
-    """Single-feature convenience wrapper around resolve_premium_flags."""
-    flags = await resolve_premium_flags(guild_id)
-    return flags.allows(feature)
 
 
 # -------------------------------------------------------------------
@@ -1471,18 +1502,6 @@ async def assign_role(
             server.custom_verification_requested_message if server and server.custom_verification_requested_message else None
         )
 
-    # Resolved once: this function gates three separate premium features, and
-    # asking per-feature would mean three entitlement reads per verification.
-    premium = await resolve_premium_flags(guild_id)
-    if not premium.allows(FEATURE_UNVERIFIED_ROLE_REMOVAL):
-        unverified_role_id = None
-    if not premium.allows(FEATURE_NICKNAME_SYNC):
-        auto_nick = False
-    if not premium.allows(FEATURE_CUSTOM_DM):
-        # Falls through to the standard localized success DM below, so the
-        # member still hears that they were verified.
-        custom_success_msg = None
-
     guild = bot.get_guild(int(guild_id))
     if not guild:
         logger.warning(f"⚠️ Guild {guild_id} not found.")
@@ -1504,6 +1523,24 @@ async def assign_role(
 
     # Assign or notify
     if is_18_plus:
+        # Resolved here rather than at the top of the function: every gated
+        # feature below lives in this branch, and everything above can return
+        # early. Resolving sooner meant a REST round-trip for members who had
+        # left, guilds with no role configured, and — on every failed
+        # verification — the not-18+ path, which uses none of these.
+        #
+        # Resolved once rather than per-feature, since three separate calls
+        # would mean three entitlement reads per verification.
+        premium = await resolve_premium_flags(guild_id)
+        if not premium.allows(FEATURE_UNVERIFIED_ROLE_REMOVAL):
+            unverified_role_id = None
+        if not premium.allows(FEATURE_NICKNAME_SYNC):
+            auto_nick = False
+        if not premium.allows(FEATURE_CUSTOM_DM):
+            # Falls through to the standard localized success DM below, so the
+            # member still hears that they were verified.
+            custom_success_msg = None
+
         # 1) Add verified role first
         try:
             await member.add_roles(role)
@@ -2562,6 +2599,7 @@ async def premium_cutover_sweep_task(interval_seconds: int = PREMIUM_CUTOVER_INT
     """
     logger.info("Premium cutover DM campaign started.")
     total = 0
+    consecutive_failures = 0
     while True:
         try:
             candidates = load_premium_cutover_candidates(PREMIUM_CUTOVER_MAX_PER_SWEEP)
@@ -2582,13 +2620,34 @@ async def premium_cutover_sweep_task(interval_seconds: int = PREMIUM_CUTOVER_INT
                         f"Failed to send cutover DM for guild {candidate['server_id']}"
                     )
             total += sent
+            consecutive_failures = 0
             logger.info(
                 f"Premium cutover sweep: DMed {sent}/{len(candidates)} server(s)."
             )
         except asyncio.CancelledError:
             raise
         except Exception:
-            logger.error("Exception during premium cutover sweep", exc_info=True)
+            # Give up rather than spin. The caller is the trigger watcher, and
+            # it cannot get back to polling while this is still running — so an
+            # unbounded retry here would wedge the watcher for the life of the
+            # process on something like a DB outage. Every server already
+            # reached stays marked, so re-touching the trigger resumes cleanly.
+            consecutive_failures += 1
+            logger.error(
+                "Exception during premium cutover sweep (%s/%s)",
+                consecutive_failures,
+                PREMIUM_CUTOVER_MAX_FAILURES,
+                exc_info=True,
+            )
+            if consecutive_failures >= PREMIUM_CUTOVER_MAX_FAILURES:
+                logger.error(
+                    "Premium cutover campaign giving up after %s consecutive "
+                    "failures; %s server(s) notified. Re-create %s to resume.",
+                    consecutive_failures,
+                    total,
+                    PREMIUM_CUTOVER_TRIGGER_PATH,
+                )
+                return
         await asyncio.sleep(interval_seconds)
 
 
@@ -2600,6 +2659,13 @@ async def watch_premium_cutover_trigger(
     Deliberately not started from on_ready without the file: an announcement
     to the whole install base should go out because you decided it was time,
     not because a container restarted.
+
+    That cuts both ways, and it is worth being plain about it. The trigger is
+    removed *before* the campaign runs, so a crash or a redeploy part-way
+    through leaves the remaining servers un-notified with nothing left to fire.
+    This is not self-healing: re-create the trigger file to resume. Doing so is
+    safe at any point, because every server already reached is marked in
+    premium_cutover_notice and is skipped on the next pass.
     """
     logger.info(f"Premium cutover trigger watcher started (path={path})")
     while True:

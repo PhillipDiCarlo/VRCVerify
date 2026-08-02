@@ -75,6 +75,23 @@ def fake_entitlements_api(*items, error: Exception | None = None):
     return _entitlements
 
 
+def counting_entitlements_api(*items, error: Exception | None = None):
+    """Same, but records every call so a test can assert it was never made.
+
+    Asserting "must not be called" by raising from the stub does not work here:
+    guild_has_premium catches Exception and fails open, so the raise would be
+    swallowed and the test would pass while the regression it guards against
+    was live. Count the calls instead.
+    """
+    calls = []
+
+    def _entitlements(**kwargs):
+        calls.append(kwargs)
+        return fake_entitlements_api(*items, error=error)(**kwargs)
+
+    return _entitlements, calls
+
+
 def make_interaction(entitlements=(), guild_id=GUILD_ID, locale="en-US"):
     return SimpleNamespace(
         guild_id=int(guild_id) if guild_id is not None else None,
@@ -208,6 +225,29 @@ class TestPremiumFromInteraction:
     def test_outside_a_guild_is_never_premium(self, enforced):
         assert bot.premium_from_interaction(make_interaction(guild_id=None)) is False
 
+    def test_a_positive_read_becomes_the_fallback(self, enforced):
+        # Finding our SKU in the payload is proof, so it is safe to promote.
+        bot.premium_from_interaction(make_interaction([FakeEntitlement()]))
+        assert bot.premium_status_cache.get_last_known(GUILD_ID) is True
+
+    def test_a_negative_read_never_poisons_the_fallback(self, enforced, monkeypatch):
+        """The riskiest failure mode in the whole cache.
+
+        discord.py builds entitlements from data.get('entitlements', []), so an
+        absent field is indistinguishable from a genuinely empty one. If a
+        negative read were promoted to the last-known value, a paying guild
+        would fail *closed* on the next outage — the exact inverse of what the
+        fail-open design promises, and silent.
+        """
+        assert bot.premium_from_interaction(make_interaction([])) is False
+        assert bot.premium_status_cache.get_last_known(GUILD_ID) is None
+
+        bot.premium_status_cache.invalidate(GUILD_ID)
+        monkeypatch.setattr(
+            bot.bot, "entitlements", fake_entitlements_api(error=RuntimeError("boom"))
+        )
+        assert run(bot.guild_has_premium(GUILD_ID)) is True
+
 
 # ---------------------------------------------------------------
 # The cache, and what happens when Discord is unreachable
@@ -268,6 +308,31 @@ class TestGuildHasPremium:
         )
         # Cold cache during a Discord incident: a paying server keeps working.
         assert run(bot.guild_has_premium(GUILD_ID)) is True
+
+    def test_a_sustained_outage_does_not_amplify_into_a_call_per_check(
+        self, enforced, monkeypatch
+    ):
+        """Failures must be cached too, or an outage becomes a request storm.
+
+        Without this, every verification result retries the failing endpoint
+        with no backoff, and discord.py's 429 handling then throttles the whole
+        bot — verification DMs included — exactly when Discord is struggling.
+        """
+        api, calls = counting_entitlements_api(error=RuntimeError("boom"))
+        monkeypatch.setattr(bot.bot, "entitlements", api)
+
+        for _ in range(5):
+            assert run(bot.guild_has_premium(GUILD_ID)) is True
+        assert len(calls) == 1
+
+    def test_a_guess_never_becomes_the_permanent_fallback(self, enforced, monkeypatch):
+        monkeypatch.setattr(
+            bot.bot, "entitlements", fake_entitlements_api(error=RuntimeError("boom"))
+        )
+        assert run(bot.guild_has_premium(GUILD_ID)) is True
+        # Cached, so the outage is throttled — but not promoted to knowledge,
+        # or the fail-open value would end up deriving from itself.
+        assert bot.premium_status_cache.get_last_known(GUILD_ID) is None
 
     def test_entitlement_event_forces_a_re_read(self, enforced, monkeypatch):
         monkeypatch.setattr(bot.bot, "entitlements", fake_entitlements_api())
@@ -451,6 +516,54 @@ class TestAssignRoleGating:
         assert events.dms == ["Welcome aboard!"]
 
 
+class TestAssignRoleSkipsNeedlessLookups:
+    """Premium is resolved inside the 18+ branch, after the early returns.
+
+    Resolving it at the top of assign_role cost a REST round-trip on paths that
+    cannot use the answer — including every failed verification, which is not a
+    rare case.
+    """
+
+    def setup_server(self):
+        make_server(row_id=NEW_ID, role_id="1", unverified_role_id="2")
+
+    def test_a_failed_verification_never_consults_entitlements(
+        self, enforced, monkeypatch, assign_role_harness
+    ):
+        self.setup_server()
+        api, calls = counting_entitlements_api()
+        monkeypatch.setattr(bot.bot, "entitlements", api)
+
+        run_and_drain(bot.assign_role("42", False, GUILD_ID))
+
+        assert calls == []
+        assert assign_role_harness.localized == ["not_18_plus"]
+
+    def test_a_departed_member_never_consults_entitlements(
+        self, enforced, monkeypatch, assign_role_harness
+    ):
+        self.setup_server()
+        api, calls = counting_entitlements_api()
+        monkeypatch.setattr(bot.bot, "entitlements", api)
+
+        async def gone(guild, user_id):
+            return None
+
+        monkeypatch.setattr(bot, "fetch_member_cached", gone)
+        run_and_drain(bot.assign_role("42", True, GUILD_ID))
+        assert calls == []
+
+    def test_an_unconfigured_role_never_consults_entitlements(
+        self, enforced, monkeypatch, assign_role_harness
+    ):
+        make_server(row_id=NEW_ID, role_id=None)
+        api, calls = counting_entitlements_api()
+        monkeypatch.setattr(bot.bot, "entitlements", api)
+
+        run_and_drain(bot.assign_role("42", True, GUILD_ID))
+        assert calls == []
+
+
 class TestAutoVerifyOnJoinIsFree:
     """Auto-verify-on-join must never become a paid feature.
 
@@ -501,15 +614,17 @@ class TestAutoVerifyOnJoinIsFree:
     def test_it_never_consults_entitlements_at_all(self, enforced, monkeypatch):
         # Not merely allowed — the join path must not even ask, so a Discord
         # outage can't slow down or break member joins.
+        #
+        # Counted rather than raised from the stub: guild_has_premium catches
+        # Exception and fails open, so a raise would be swallowed and this
+        # would pass even if the gate came back.
         self.prepare(row_id=NEW_ID)
-        monkeypatch.setattr(
-            bot.bot,
-            "entitlements",
-            fake_entitlements_api(error=AssertionError("must not be called")),
-        )
+        api, calls = counting_entitlements_api()
+        monkeypatch.setattr(bot.bot, "entitlements", api)
         assigned = self.assigned_roles(monkeypatch)
         run(bot.on_member_join(self.make_member()))
         assert assigned == [("42", True, GUILD_ID)]
+        assert calls == []
 
     def test_the_server_setting_still_turns_it_off(self, enforced, monkeypatch):
         # Free, but still the admin's choice to make.
@@ -653,3 +768,42 @@ class TestCutoverCampaign:
         # No rows at all: the loop must return rather than idling forever.
         run(bot.premium_cutover_sweep_task())
         assert cutover_harness.dms == []
+
+    def test_it_gives_up_after_repeated_failures(self, monkeypatch, cutover_harness):
+        """A persistent error must not spin forever.
+
+        The trigger watcher awaits this task, so it cannot get back to polling
+        while the sweep is still running. An unbounded retry on something like
+        a DB outage would wedge the watcher for the life of the process.
+        """
+        calls = []
+
+        def boom(limit):
+            calls.append(limit)
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr(bot, "load_premium_cutover_candidates", boom)
+        monkeypatch.setattr(bot, "PREMIUM_CUTOVER_MAX_FAILURES", 3)
+
+        run(bot.premium_cutover_sweep_task())  # must return, not hang
+        assert len(calls) == 3
+
+    def test_a_recovered_sweep_resets_the_failure_count(
+        self, monkeypatch, cutover_harness
+    ):
+        # One blip must not count toward the give-up threshold forever.
+        make_server(row_id=OLD_ID)
+        real = bot.load_premium_cutover_candidates
+        state = {"first": True}
+
+        def flaky(limit):
+            if state["first"]:
+                state["first"] = False
+                raise RuntimeError("transient")
+            return real(limit)
+
+        monkeypatch.setattr(bot, "load_premium_cutover_candidates", flaky)
+        monkeypatch.setattr(bot, "PREMIUM_CUTOVER_MAX_FAILURES", 2)
+
+        run(bot.premium_cutover_sweep_task())
+        assert cutover_harness.dms == ["Test Server"]
