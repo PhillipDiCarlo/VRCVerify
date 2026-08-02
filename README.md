@@ -47,10 +47,11 @@ See the sections below for details and configuration.
   Uses the [discord.py](https://github.com/Rapptz/discord.py) library to create slash commands (e.g., `/vrcverify`, `/vrcverify_setup`, `/vrcverify_support`) that let users initiate the verification process and administrators configure server settings.
 
 - **Database:**  
-  Utilizes SQLAlchemy to manage three primary models:
-  - **Server:** Holds configuration for each Discord server (guild), including role assignments and subscription details.
+  Utilizes SQLAlchemy to manage these models:
+  - **Server:** Holds configuration for each Discord server (guild), including role assignments. (Its `subscription_status` / `email` / `last_renewal_date` columns are dormant leftovers from a removed Stripe integration and are not used by anything — premium keys off Discord entitlements instead.)
   - **User:** Stores individual user verification statuses and VRChat IDs.
   - **PendingVerification:** Temporarily holds verification requests until they are processed.
+  - **PremiumCutoverNotice:** Which guilds have already had the one-time premium announcement DM. (Whether a server is *grandfathered* is not stored — it's `servers.id <= PREMIUM_GRANDFATHER_MAX_ID`.)
 
 - **Messaging with RabbitMQ:**  
   Uses the pika library to handle two queues:
@@ -81,7 +82,54 @@ See the sections below for details and configuration.
   - Auto-verify new members (attempt verification or initiate the flow when a member joins).
 - `/vrcverify_setrequestmessage` – Admin-only. Opens a modal to set or clear the custom DM shown after a successful verification role assignment.
 - `/vrcverify_support` – Anyone. Sends help/support information.
-- `/vrcverify_subscription` – Admin-only. Shows subscription info to unlock premium features.
+- `/vrcverify_subscription` – Admin-only. Shows this server's premium status and, if it isn't subscribed, Discord's purchase button.
+
+---
+
+## Premium tier
+
+18+ verification itself is free and always will be. A per-server subscription,
+billed natively through Discord App Subscriptions (guild-scoped SKU, monthly),
+unlocks the automation around it:
+
+| Feature | Free | Grandfathered\* | Premium |
+| --- | :---: | :---: | :---: |
+| 18+ verification | ✅ | ✅ | ✅ |
+| **Auto-verify-on-join** | ✅ | ✅ | ✅ |
+| Manual **Update Nickname** button | ✅ | ✅ | ✅ |
+| Instructions language | ✅ | ✅ | ✅ |
+| Unverified-role auto-removal | — | ✅ | ✅ |
+| Auto-nickname sync | — | ✅ | ✅ |
+| Custom post-verification DM | — | ✅ | ✅ |
+| Reduced verification cooldown | — | — | ✅ |
+
+Auto-verify-on-join is free for everyone and is deliberately not gated at all —
+`on_member_join` never so much as reads an entitlement. Users read "the bot
+recognises me and gives me the role" as simply how a verification bot works, so
+charging for it reads as the bot being broken rather than as an upsell. It's
+also the only gated feature a *member* could perceive, and members move between
+servers. `tests/test_premium.py::TestAutoVerifyOnJoinIsFree` pins this so it
+can't drift back behind the paywall.
+
+\* Servers configured before the tier launched — defined as
+`servers.id <= PREMIUM_GRANDFATHER_MAX_ID` (default 820, where the
+autoincrementing key stood at the start of July 2026). Using the existing
+primary key means there is nothing to backfill and no way for the line to
+drift; a restored database draws it in exactly the same place.
+
+**The tier is off until `PREMIUM_SKU_ID` is set.** With it unset every gate
+answers "allowed", so this code runs identically to the free bot — the SKU can
+be created and the tier switched on without a redeploy.
+
+Entitlements are read from `interaction.entitlements` where an interaction is
+available (free, authoritative) and from the REST entitlements endpoint
+otherwise, cached with a TTL and invalidated by the `ENTITLEMENT_*` gateway
+events. A lookup failure **fails open** to the last known value, so a Discord
+outage can't silently disable a paying server's automation.
+
+The one-time cutover announcement to existing servers is manually triggered:
+`touch` the file at `PREMIUM_CUTOVER_TRIGGER_PATH` and it trickles out under a
+per-sweep cap, then stops on its own.
 
 ---
 
@@ -311,10 +359,10 @@ Each component connects to RabbitMQ to exchange verification requests and result
 - **Setup Server Configuration:**  
   Use `/vrcverify_setup` to set or update the role that will be assigned to verified users.
 - **Additional Commands:**
-  - `/vrcverify_subscription` – Get subscription or premium feature information.
+  - `/vrcverify_subscription` – See this server's premium status, and subscribe if it isn't.
   - `/vrcverify_support` – Receive help and support information.
   - `/vrcverify_instructions` – Post instructions in an embed for server members.
-  - `/vrcverify_settings` – Configure auto nickname change, instructions language, and auto-verify-on-join.
+  - `/vrcverify_settings` – Configure auto nickname change, instructions language, and auto-verify-on-join. The auto-nickname page is shown locked with a purchase button (rather than hidden) on servers without premium.
   - `/vrcverify_setrequestmessage` – Configure the optional custom success DM sent after successful verification.
 
 ---

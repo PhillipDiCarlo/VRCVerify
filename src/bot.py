@@ -245,6 +245,24 @@ class GuildOnboarding(Base):
     panel_nudge_dm_sent = Column(Boolean, nullable=False, default=False)
 
 
+class PremiumCutoverNotice(Base):
+    """Which guilds have already had the one-time premium announcement DM.
+
+    A separate table for the same reason as the two above: create_all() adds
+    missing tables but never columns. Presence of a row means "already told" —
+    there is no boolean to get out of sync, and mark-before-send is a plain
+    insert.
+
+    Note this is only the DM ledger. Whether a server is *grandfathered* is not
+    stored anywhere: it is `servers.id <= PREMIUM_GRANDFATHER_MAX_ID`, which
+    needs no backfill, no marker, and survives a database restore unchanged.
+    """
+
+    __tablename__ = "premium_cutover_notice"
+    server_id = Column(String, primary_key=True)
+    sent_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
 # Creates any missing tables. Note this does NOT add columns to tables that
 # already exist — those still need a manual ALTER.
 Base.metadata.create_all(engine)
@@ -421,6 +439,292 @@ async def on_app_command_error(
 
 
 # -------------------------------------------------------------------
+# Premium (Discord App Subscriptions)
+# -------------------------------------------------------------------
+# A guild-scoped subscription SKU: one purchase by a server owner entitles the
+# whole guild. Gating reads Discord entitlements and nothing else — the
+# subscription_status / email / last_renewal_date columns on `servers` are dead
+# Stripe leftovers and are deliberately never consulted.
+
+
+def _optional_int_env(name: str) -> int | None:
+    raw = (os.getenv(name) or "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning("⚠️ %s is set but is not an integer; ignoring it.", name)
+        return None
+
+
+# The kill switch. With no SKU configured every gate answers "allowed", so this
+# code can ship and run in production before the SKU is even published, with
+# behaviour identical to the free bot. Turning the tier on is one env var, not
+# a deploy — and if it ever needs turning back off, that is one env var too.
+PREMIUM_SKU_ID = _optional_int_env("PREMIUM_SKU_ID")
+PREMIUM_ENFORCED = PREMIUM_SKU_ID is not None
+
+# How long a resolved entitlement is trusted before we ask Discord again.
+# Purchases don't wait for this: the entitlement gateway events invalidate the
+# guild immediately, so the TTL only bounds how stale a *missed* event can get.
+PREMIUM_STATUS_TTL = _int_env("PREMIUM_STATUS_TTL", 900)
+
+# Premium guilds get a shorter throttle on actions that hit the shared VRChat
+# account. 0 disables the wait entirely.
+PREMIUM_VERIFICATION_COOLDOWN_SECONDS = _int_env(
+    "PREMIUM_VERIFICATION_COOLDOWN_SECONDS", 3, minimum=0
+)
+
+# Auto-verify-on-join is deliberately NOT in this list, and is not gated at
+# all. Users expect a verification bot to recognise them and hand out the role
+# on join — a server owner described it as simply how these bots work. Charging
+# for behaviour people read as baseline doesn't land as "premium", it lands as
+# the bot being worse than the alternatives until you pay. It is also the only
+# gated feature a *member* could perceive, and members move between servers.
+FEATURE_UNVERIFIED_ROLE_REMOVAL = "unverified_role_removal"
+FEATURE_NICKNAME_SYNC = "nickname_sync"
+FEATURE_CUSTOM_DM = "custom_dm"
+FEATURE_REDUCED_COOLDOWN = "reduced_cooldown"
+
+# Servers configured before the cutover keep these three for free, forever.
+# The reduced cooldown is new, so nobody is losing it.
+GRANDFATHERED_FEATURES = frozenset(
+    {FEATURE_UNVERIFIED_ROLE_REMOVAL, FEATURE_NICKNAME_SYNC, FEATURE_CUSTOM_DM}
+)
+
+# The grandfather line, drawn on the servers table's autoincrementing primary
+# key. 820 is where it stood at the start of July 2026.
+#
+# The id is the cheapest honest answer to "was this server here first": it is
+# already recorded, strictly increasing, and needs no backfill, no marker table
+# and no date column that `servers` does not have. It also means the answer is
+# identical on a restored database — a snapshot-at-first-boot approach would
+# quietly re-draw the line wherever the restore happened to land.
+PREMIUM_GRANDFATHER_MAX_ID = _int_env("PREMIUM_GRANDFATHER_MAX_ID", 820, minimum=0)
+
+# The one-time DM telling existing servers the tier is launching. Manually
+# triggered rather than automatic: this is a one-shot announcement to every
+# server we have, and it should go out when you decide, not because a container
+# happened to restart. Same trickle discipline as the panel nudge once started —
+# a burst of DMs across hundreds of unrelated servers is precisely the shape
+# Discord's anti-spam heuristics look for.
+PREMIUM_CUTOVER_TRIGGER_PATH = os.getenv(
+    "PREMIUM_CUTOVER_TRIGGER_PATH", "/tmp/premium_cutover.trigger"
+)
+PREMIUM_CUTOVER_INTERVAL = _int_env("PREMIUM_CUTOVER_INTERVAL", 300)
+PREMIUM_CUTOVER_MAX_PER_SWEEP = _int_env("PREMIUM_CUTOVER_MAX_PER_SWEEP", 20)
+PREMIUM_CUTOVER_DM_SPACING = _float_env("PREMIUM_CUTOVER_DM_SPACING", 2.0)
+
+
+class PremiumStatusCache:
+    """Per-guild entitlement state, in two layers.
+
+    The TTL'd layer keeps us from asking Discord about the same guild on every
+    verification. The last-known layer never expires and exists purely for the
+    failure path: when a lookup raises, a paying server has to keep working.
+    Failing closed there would silently switch off a customer's automation
+    because Discord had a bad five minutes, with nothing in the UI to explain
+    it — far worse than briefly extending automation to a free server.
+
+    Both maps are bounded by the number of guilds the bot is in, and hold one
+    bool each, so there is nothing here for a user to grow on purpose.
+    """
+
+    def __init__(self, ttl: int):
+        self.ttl = ttl
+        self._fresh: dict[str, tuple[float, bool]] = {}
+        self._last_known: dict[str, bool] = {}
+
+    def get_fresh(self, guild_id: str) -> bool | None:
+        entry = self._fresh.get(guild_id)
+        if entry is None:
+            return None
+        expires_at, value = entry
+        if expires_at <= time.monotonic():
+            self._fresh.pop(guild_id, None)
+            return None
+        return value
+
+    def get_last_known(self, guild_id: str) -> bool | None:
+        return self._last_known.get(guild_id)
+
+    def set(self, guild_id: str, value: bool) -> None:
+        self._fresh[guild_id] = (time.monotonic() + self.ttl, value)
+        self._last_known[guild_id] = value
+
+    def invalidate(self, guild_id: str) -> None:
+        """Force the next read to re-check with Discord.
+
+        The last-known value deliberately survives: an entitlement event is a
+        reason to re-ask, not a reason to forget what we knew if the re-ask
+        then fails.
+        """
+        self._fresh.pop(guild_id, None)
+
+    def clear(self) -> None:
+        self._fresh.clear()
+        self._last_known.clear()
+
+
+premium_status_cache = PremiumStatusCache(PREMIUM_STATUS_TTL)
+
+
+def entitlements_grant_premium(entitlements) -> bool:
+    """Does this collection of entitlements include a live one for our SKU?"""
+    for entitlement in entitlements or ():
+        if getattr(entitlement, "sku_id", None) != PREMIUM_SKU_ID:
+            continue
+        # A refund marks the entitlement deleted; a cancellation leaves it live
+        # until the paid period actually runs out. So presence alone is not the
+        # test — both of these have to be checked.
+        if getattr(entitlement, "deleted", False):
+            continue
+        if entitlement.is_expired():
+            continue
+        return True
+    return False
+
+
+def premium_from_interaction(interaction: discord.Interaction) -> bool:
+    """Resolve premium straight off an interaction payload, seeding the cache.
+
+    Discord ships the guild's entitlements with every interaction, so this is
+    both authoritative and free — no REST call. Absence of our SKU here means
+    not entitled, it is not an inconclusive answer.
+    """
+    if not PREMIUM_ENFORCED:
+        return True
+    if interaction.guild_id is None:
+        return False
+    is_premium = entitlements_grant_premium(getattr(interaction, "entitlements", None))
+    premium_status_cache.set(str(interaction.guild_id), is_premium)
+    return is_premium
+
+
+async def guild_has_premium(guild_id) -> bool:
+    """Resolve premium for a guild with no interaction to read it from.
+
+    Used by the paths that run off the RabbitMQ result consumer and the member
+    join event. Fails open — see PremiumStatusCache for why.
+    """
+    if not PREMIUM_ENFORCED:
+        return True
+    if guild_id is None:
+        return False
+
+    key = str(guild_id)
+    cached = premium_status_cache.get_fresh(key)
+    if cached is not None:
+        return cached
+
+    try:
+        found = False
+        async for entitlement in bot.entitlements(
+            guild=discord.Object(id=int(key)),
+            skus=[discord.Object(id=PREMIUM_SKU_ID)],
+            exclude_ended=True,
+            exclude_deleted=True,
+        ):
+            if entitlements_grant_premium([entitlement]):
+                found = True
+                break
+        premium_status_cache.set(key, found)
+        return found
+    except Exception:
+        last_known = premium_status_cache.get_last_known(key)
+        logger.warning(
+            "Entitlement lookup failed for guild %s; falling back to %s.",
+            key,
+            "last known value" if last_known is not None else "premium (fail-open)",
+            exc_info=True,
+        )
+        return True if last_known is None else last_known
+
+
+def is_grandfathered(guild_id) -> bool:
+    """Was this guild configured before the premium cutover?
+
+    Read straight off the `servers` primary key, so nothing has to be written
+    at cutover time and the answer can never drift.
+    """
+    if guild_id is None:
+        return False
+    try:
+        with session_scope() as session:
+            row = (
+                session.query(Server.id)
+                .filter_by(server_id=panel_view_key(guild_id))
+                .first()
+            )
+            # No config row at all: nothing was ever configured here, so there
+            # is no automation to preserve.
+            if row is None or row.id is None:
+                return False
+            return row.id <= PREMIUM_GRANDFATHER_MAX_ID
+    except Exception:
+        # Same reasoning as the entitlement fail-open: if we can't tell, don't
+        # be the reason an existing server loses automation it already had.
+        logger.warning(
+            "Could not read grandfather status for guild %s; assuming yes.",
+            guild_id,
+            exc_info=True,
+        )
+        return True
+
+
+class PremiumFlags:
+    """Which gated features a guild may use, resolved once.
+
+    assign_role needs three of these answers at once; resolving them
+    individually would mean three entitlement reads and three DB queries for a
+    single verification.
+    """
+
+    def __init__(self, premium: bool, grandfathered: bool):
+        self.premium = premium
+        self.grandfathered = grandfathered
+
+    def allows(self, feature: str) -> bool:
+        if not PREMIUM_ENFORCED or self.premium:
+            return True
+        return self.grandfathered and feature in GRANDFATHERED_FEATURES
+
+    def cooldown_window(self) -> int | None:
+        """The throttle this guild gets, or None for the standard one."""
+        if self.allows(FEATURE_REDUCED_COOLDOWN):
+            return PREMIUM_VERIFICATION_COOLDOWN_SECONDS
+        return None
+
+
+async def resolve_premium_flags(guild_id) -> PremiumFlags:
+    """Resolve every gate for a guild in one pass (no interaction available)."""
+    if not PREMIUM_ENFORCED:
+        return PremiumFlags(premium=True, grandfathered=True)
+    premium = await guild_has_premium(guild_id)
+    # Only worth a DB hit when the answer could still change the outcome.
+    grandfathered = False if premium else is_grandfathered(guild_id)
+    return PremiumFlags(premium=premium, grandfathered=grandfathered)
+
+
+def resolve_premium_flags_from_interaction(
+    interaction: discord.Interaction,
+) -> PremiumFlags:
+    """Same, for a command or button where the payload already has the answer."""
+    if not PREMIUM_ENFORCED:
+        return PremiumFlags(premium=True, grandfathered=True)
+    premium = premium_from_interaction(interaction)
+    grandfathered = False if premium else is_grandfathered(interaction.guild_id)
+    return PremiumFlags(premium=premium, grandfathered=grandfathered)
+
+
+async def feature_enabled(guild_id, feature: str) -> bool:
+    """Single-feature convenience wrapper around resolve_premium_flags."""
+    flags = await resolve_premium_flags(guild_id)
+    return flags.allows(feature)
+
+
+# -------------------------------------------------------------------
 # Instruction Button
 # -------------------------------------------------------------------
 class VRCVerifyInstructionView(View):
@@ -465,7 +769,12 @@ class VRCVerifyInstructionView(View):
 
         user_id = str(interaction.user.id)
 
-        remaining = check_verification_cooldown(user_id)
+        remaining = check_verification_cooldown(
+            user_id,
+            window_seconds=resolve_premium_flags_from_interaction(
+                interaction
+            ).cooldown_window(),
+        )
         if remaining:
             return await interaction.response.send_message(
                 get_message("cooldown_active", interaction, seconds=remaining),
@@ -499,6 +808,13 @@ class VRCVerifyInstructionView(View):
 # -------------------------------------------------------------------
 # Show Settings View (Paged)
 # -------------------------------------------------------------------
+# Which premium feature each settings page controls. Pages 1 (auto-verify) and
+# 2 (language) are free, so they are absent.
+SETTINGS_PAGE_FEATURE = {
+    0: FEATURE_NICKNAME_SYNC,
+}
+
+
 class PagedSettingsView(View):
     def __init__(
         self,
@@ -506,7 +822,8 @@ class PagedSettingsView(View):
         instr_locale: str,
         auto_verify: bool,
         auto_verify_available: bool = True,
-        page_index: int = 0
+        page_index: int = 0,
+        premium: Optional["PremiumFlags"] = None,
     ):
         super().__init__(timeout=None)
         # Current values (mutated by selects)
@@ -515,13 +832,35 @@ class PagedSettingsView(View):
         self.auto_verify: bool = auto_verify
         self.auto_verify_available: bool = auto_verify_available
         self.page: int = page_index  # 0: nick, 1: auto-verify, 2: locale
+        # Resolved once by the command and threaded through every Back/Next
+        # rebuild, so paging around can't re-ask Discord on each click.
+        self.premium: PremiumFlags = premium or PremiumFlags(
+            premium=True, grandfathered=True
+        )
 
         # Build the initial controls for the current page
         self._add_controls_for_page()
 
     # ----- Rendering helpers -----
+    def _page_locked(self) -> bool:
+        """Is the current page's feature unavailable on this server's plan?"""
+        feature = SETTINGS_PAGE_FEATURE.get(self.page)
+        return feature is not None and not self.premium.allows(feature)
+
+    def _rebuilt(self, page_index: int) -> "PagedSettingsView":
+        """A copy of this view on another page, carrying every current value."""
+        return PagedSettingsView(
+            self.auto_nick,
+            self.instr_locale,
+            self.auto_verify,
+            self.auto_verify_available,
+            page_index=page_index,
+            premium=self.premium,
+        )
+
     def _page_title_and_desc(self) -> tuple[str, str, str]:
         """Return (title, description, current_str) for the active page."""
+        locked = self._page_locked()
         if self.page == 0:
             title = "1.) Enable auto nickname change"
             desc = "Automatically update users’ Discord nicknames to match their VRChat display names."
@@ -537,6 +876,10 @@ class PagedSettingsView(View):
             title = "3.) Instructions message language"
             desc = "Choose the language used for the instructions message/buttons."
             current = f"Current: {self.instr_locale}"
+
+        if locked:
+            current += "\n(Premium feature — not active on this server.)"
+            desc += "\n\n🔒 Core 18+ verification stays free. This particular automation is part of VRCVerify Premium — use the button below to unlock it for this server."
         return title, desc, current
 
     def render_content(self) -> str:
@@ -555,15 +898,22 @@ class PagedSettingsView(View):
                 discord.SelectOption(label="Yes", value="yes", default=self.auto_nick),
                 discord.SelectOption(label="No",  value="no",  default=not self.auto_nick),
             ]
+            nick_locked = self._page_locked()
             nick_dropdown = Select(
-                placeholder="Choose Yes or No",
+                placeholder=(
+                    "Premium feature — unlock below"
+                    if nick_locked
+                    else "Choose Yes or No"
+                ),
                 min_values=1,
                 max_values=1,
-                options=nick_options
+                options=nick_options,
+                disabled=nick_locked,
             )
 
             async def on_nick_select(interaction: discord.Interaction):
-                self.auto_nick = (interaction.data["values"][0] == "yes")
+                if not nick_locked:
+                    self.auto_nick = (interaction.data["values"][0] == "yes")
                 await interaction.response.defer(ephemeral=True)
 
             nick_dropdown.callback = on_nick_select
@@ -575,11 +925,15 @@ class PagedSettingsView(View):
                 discord.SelectOption(label="No",  value="no",  default=not self.auto_verify),
             ]
             av_dropdown = Select(
-                placeholder=("Choose Yes or No" if self.auto_verify_available else "DB column missing; cannot change"),
+                placeholder=(
+                    "Choose Yes or No"
+                    if self.auto_verify_available
+                    else "DB column missing; cannot change"
+                ),
                 min_values=1,
                 max_values=1,
                 options=av_options,
-                disabled=not self.auto_verify_available
+                disabled=not self.auto_verify_available,
             )
 
             async def on_auto_verify_select(interaction: discord.Interaction):
@@ -616,46 +970,43 @@ class PagedSettingsView(View):
         save_btn = Button(label="Save", style=discord.ButtonStyle.primary)
 
         async def on_back(interaction: discord.Interaction):
-            new_view = PagedSettingsView(
-                self.auto_nick,
-                self.instr_locale,
-                self.auto_verify,
-                self.auto_verify_available,
-                page_index=self.page - 1
-            )
+            new_view = self._rebuilt(self.page - 1)
             await interaction.response.edit_message(
                 content=new_view.render_content(), view=new_view
             )
 
         async def on_next(interaction: discord.Interaction):
-            new_view = PagedSettingsView(
-                self.auto_nick,
-                self.instr_locale,
-                self.auto_verify,
-                self.auto_verify_available,
-                page_index=self.page + 1
-            )
+            new_view = self._rebuilt(self.page + 1)
             await interaction.response.edit_message(
                 content=new_view.render_content(), view=new_view
             )
 
         async def on_save(interaction: discord.Interaction):
+            # A locked page's control is disabled, so its value can't have been
+            # changed here — but it must not be written back either. Leaving the
+            # stored preference untouched means an admin who subscribes later
+            # gets their original choice back instead of whatever this view
+            # happened to be holding.
+            nick_allowed = self.premium.allows(FEATURE_NICKNAME_SYNC)
+
             # persist into your servers table
             with session_scope() as session:
                 srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
                 if not srv:
                     srv = Server(server_id=str(interaction.guild.id), owner_id=str(interaction.user.id))
                     session.add(srv)
-                srv.auto_nickname_change = bool(self.auto_nick)
+                if nick_allowed:
+                    srv.auto_nickname_change = bool(self.auto_nick)
                 srv.instructions_locale = str(self.instr_locale)
                 if self.auto_verify_available:
                     setattr(srv, "auto_verify_new_members", bool(self.auto_verify))
 
-            extra_note = (
-                ""
-                if self.auto_verify_available
-                else "\n(Note: 'Auto verify new members' not saved; DB column missing.)"
-            )
+            notes = ""
+            if not self.auto_verify_available:
+                notes += "\n(Note: 'Auto verify new members' not saved; DB column missing.)"
+            if not nick_allowed:
+                notes += "\n(Note: 'Auto nickname change' is a premium feature and was not changed.)"
+
             msg = (
                 get_message(
                     "settings_saved",
@@ -663,7 +1014,7 @@ class PagedSettingsView(View):
                     nickname="Yes" if self.auto_nick else "No",
                     locale=self.instr_locale,
                 )
-                + extra_note
+                + notes
             )
             await interaction.response.edit_message(content=msg, view=None)
 
@@ -674,6 +1025,11 @@ class PagedSettingsView(View):
         self.add_item(back_btn)
         self.add_item(next_btn)
         self.add_item(save_btn)
+
+        # Discord renders the label and price on a premium button itself, so it
+        # always shows the live price rather than one hardcoded here.
+        if self._page_locked() and PREMIUM_SKU_ID is not None:
+            self.add_item(Button(sku_id=PREMIUM_SKU_ID))
 
 
 # -------------------------------------------------------------------
@@ -895,7 +1251,12 @@ async def process_verification(interaction: discord.Interaction):
             await interaction.response.send_modal(VRCUsernameModal(interaction))
             return
 
-        remaining = check_verification_cooldown(user_id)
+        remaining = check_verification_cooldown(
+            user_id,
+            window_seconds=resolve_premium_flags_from_interaction(
+                interaction
+            ).cooldown_window(),
+        )
         if remaining:
             await interaction.response.send_message(
                 get_message("cooldown_active", interaction, seconds=remaining),
@@ -1110,6 +1471,18 @@ async def assign_role(
             server.custom_verification_requested_message if server and server.custom_verification_requested_message else None
         )
 
+    # Resolved once: this function gates three separate premium features, and
+    # asking per-feature would mean three entitlement reads per verification.
+    premium = await resolve_premium_flags(guild_id)
+    if not premium.allows(FEATURE_UNVERIFIED_ROLE_REMOVAL):
+        unverified_role_id = None
+    if not premium.allows(FEATURE_NICKNAME_SYNC):
+        auto_nick = False
+    if not premium.allows(FEATURE_CUSTOM_DM):
+        # Falls through to the standard localized success DM below, so the
+        # member still hears that they were verified.
+        custom_success_msg = None
+
     guild = bot.get_guild(int(guild_id))
     if not guild:
         logger.warning(f"⚠️ Guild {guild_id} not found.")
@@ -1302,7 +1675,13 @@ class VRCVerificationButton(discord.ui.View):
         discord_id = str(interaction.user.id)
 
         # Own scope: a prior re-check/nickname request must never block Verify.
-        remaining = check_verification_cooldown(discord_id, scope="verify")
+        remaining = check_verification_cooldown(
+            discord_id,
+            window_seconds=resolve_premium_flags_from_interaction(
+                interaction
+            ).cooldown_window(),
+            scope="verify",
+        )
         if remaining:
             await interaction.response.send_message(
                 get_message("cooldown_active", interaction, seconds=remaining),
@@ -1430,24 +1809,60 @@ async def vrcverify_setup(
 # -------------------------------------------------------------------
 # Slash Command: /vrcverify_subscription
 # -------------------------------------------------------------------
+class PremiumUpgradeView(View):
+    """Carries Discord's own purchase button for the premium SKU.
+
+    Discord renders the label and the current price itself, so nothing here
+    needs to know what the tier costs.
+    """
+
+    def __init__(self):
+        super().__init__(timeout=None)
+        if PREMIUM_SKU_ID is not None:
+            self.add_item(Button(sku_id=PREMIUM_SKU_ID))
+
+
+@app_commands.guild_only()
 @app_commands.checks.has_permissions(administrator=True)
 @bot.tree.command(
     name="vrcverify_subscription",
     description="Admin command: Get subscription info to unlock premium features."
 )
 async def vrcverify_subscription(interaction: discord.Interaction):
-    """
-    Sends an ephemeral link or info to the admin about how to subscribe or purchase
-    premium features for your VRChat verification bot.
-    """
-    subscription_link = "https://esattotech.com/vrcverify-vrchat-age-verifier-for-discord/"
-    kofi_link = KOFI_URL
+    """Show this server's premium status and, if it isn't subscribed, how to.
 
-    # localized subscription info
-    await interaction.response.send_message(
-        get_message("subscription_info", interaction, kofi_link=kofi_link),
-        ephemeral=True
-    )
+    Ko-fi deliberately does not appear here. Donations and the subscription are
+    separate things, and mixing them in the one place people come to buy makes
+    both read as optional. Ko-fi still has the instruction-panel button and the
+    setup hint.
+    """
+    # Before the SKU exists there is nothing to sell, so this stays the honest
+    # "it's free, tips welcome" message it has always been.
+    if not PREMIUM_ENFORCED:
+        await interaction.response.send_message(
+            get_message("subscription_info", interaction, kofi_link=KOFI_URL),
+            ephemeral=True,
+        )
+        return
+
+    flags = resolve_premium_flags_from_interaction(interaction)
+    server_name = interaction.guild.name if interaction.guild else "this server"
+
+    if flags.premium:
+        message = get_message("premium_status_active", interaction, server=server_name)
+        # No purchase button: they already bought it. send_message() calls
+        # view.is_finished(), so an absent view has to be MISSING, not None.
+        extra = {}
+    else:
+        key = (
+            "premium_status_grandfathered"
+            if flags.grandfathered
+            else "premium_status_inactive"
+        )
+        message = get_message(key, interaction, server=server_name)
+        extra = {"view": PremiumUpgradeView()}
+
+    await interaction.response.send_message(message, ephemeral=True, **extra)
 
 
 # -------------------------------------------------------------------
@@ -1551,7 +1966,8 @@ async def vrcverify_settings(interaction: discord.Interaction):
         current_locale,
         current_auto_verify,
         auto_verify_available=has_av_col,
-        page_index=0
+        page_index=0,
+        premium=resolve_premium_flags_from_interaction(interaction),
     )
     await interaction.response.send_message(
         content=view.render_content(), view=view, ephemeral=True
@@ -1618,6 +2034,10 @@ async def vrcverify_status(interaction: discord.Interaction):
     # Each run edits the real, member-visible panel message, so repeated
     # invocations burn the per-channel edit budget. Same throttle the
     # verification actions use, on its own scope.
+    #
+    # Deliberately not shortened for premium: this one protects Discord's edit
+    # budget, not the shared VRChat account, so paying for the tier is no
+    # reason to let it be hit harder.
     remaining = check_verification_cooldown(str(interaction.user.id), scope="status")
     if remaining:
         await interaction.response.send_message(
@@ -2047,6 +2467,168 @@ async def panel_nudge_sweep_task(interval_seconds: int = PANEL_NUDGE_INTERVAL):
         await asyncio.sleep(interval_seconds)
 
 
+# -------------------------------------------------------------------
+# Background campaign: one-time premium cutover announcement
+# -------------------------------------------------------------------
+def load_premium_cutover_candidates(limit: int):
+    """Grandfathered guilds that still owe a cutover DM.
+
+    Driven off `servers` itself rather than a ledger of who *should* be told,
+    with the notice table used only to exclude the already-told. That way the
+    campaign has nothing to backfill before it can run, and the audience is
+    exactly the set of servers the grandfather rule actually covers.
+
+    The LIMIT lands after the not-yet-notified filter, so unlike the panel
+    nudge there is no way for an unreachable row to sit at the front of every
+    sweep eating a slot — send_premium_cutover_dm marks before it sends, which
+    removes a row from this query whether the DM lands or not.
+    """
+    with session_scope() as session:
+        notified = {
+            panel_view_key(row.server_id)
+            for row in session.query(PremiumCutoverNotice.server_id).all()
+        }
+        rows = (
+            session.query(Server)
+            .filter(Server.id <= PREMIUM_GRANDFATHER_MAX_ID)
+            .order_by(Server.id)
+            .all()
+        )
+        candidates = []
+        for srv in rows:
+            if panel_view_key(srv.server_id) in notified:
+                continue
+            candidates.append(
+                {"server_id": panel_view_key(srv.server_id), "owner_id": srv.owner_id}
+            )
+            if len(candidates) >= limit:
+                break
+        return candidates
+
+
+def complete_premium_cutover(server_id) -> None:
+    """Record that this guild has had its announcement, once and for all."""
+    key = panel_view_key(server_id)
+    try:
+        with session_scope() as session:
+            existing = (
+                session.query(PremiumCutoverNotice).filter_by(server_id=key).first()
+            )
+            if existing is None:
+                session.add(PremiumCutoverNotice(server_id=key))
+    except Exception:
+        logger.exception(f"Failed to mark cutover DM sent for guild {server_id}")
+
+
+async def send_premium_cutover_dm(candidate) -> bool:
+    """DM one guild's configuring admin about the premium cutover."""
+    server_id = candidate["server_id"]
+    try:
+        guild = bot.get_guild(int(server_id))
+    except (TypeError, ValueError):
+        guild = None
+
+    if guild is None:
+        # Not in this guild any more. Retire it rather than retrying forever.
+        # Grandfathering itself is unaffected: it is the server's row id, so
+        # the deal survives a re-invite regardless of this ledger.
+        complete_premium_cutover(server_id)
+        return False
+
+    # Mark before sending, exactly like the milestone and nudge DMs: this is a
+    # one-shot announcement, and a delivery failure must never turn into a
+    # second copy landing in someone's DMs.
+    complete_premium_cutover(server_id)
+
+    member = await resolve_config_admin(guild, candidate["owner_id"])
+    if member is None:
+        return False
+
+    await dm_localized(
+        member,
+        guild,
+        "premium_cutover_dm",
+        get_server_locale_code(server_id, guild),
+        server=guild.name,
+    )
+    return True
+
+
+async def premium_cutover_sweep_task(interval_seconds: int = PREMIUM_CUTOVER_INTERVAL):
+    """Trickle the cutover announcement out until every guild has had it.
+
+    Exits once there is nothing left to send, so the campaign is genuinely
+    one-shot rather than a loop that idles forever after it finishes.
+    """
+    logger.info("Premium cutover DM campaign started.")
+    total = 0
+    while True:
+        try:
+            candidates = load_premium_cutover_candidates(PREMIUM_CUTOVER_MAX_PER_SWEEP)
+            if not candidates:
+                logger.info(
+                    "Premium cutover DM campaign finished; %s server(s) notified.", total
+                )
+                return
+            sent = 0
+            for index, candidate in enumerate(candidates):
+                if index:
+                    await asyncio.sleep(PREMIUM_CUTOVER_DM_SPACING)
+                try:
+                    if await send_premium_cutover_dm(candidate):
+                        sent += 1
+                except Exception:
+                    logger.exception(
+                        f"Failed to send cutover DM for guild {candidate['server_id']}"
+                    )
+            total += sent
+            logger.info(
+                f"Premium cutover sweep: DMed {sent}/{len(candidates)} server(s)."
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.error("Exception during premium cutover sweep", exc_info=True)
+        await asyncio.sleep(interval_seconds)
+
+
+async def watch_premium_cutover_trigger(
+    path: str = PREMIUM_CUTOVER_TRIGGER_PATH, poll_interval: int = 30
+):
+    """Wait for the trigger file, then run the campaign exactly once.
+
+    Deliberately not started from on_ready without the file: an announcement
+    to the whole install base should go out because you decided it was time,
+    not because a container restarted.
+    """
+    logger.info(f"Premium cutover trigger watcher started (path={path})")
+    while True:
+        try:
+            if os.path.exists(path):
+                logger.info("Premium cutover trigger detected — starting campaign.")
+                # Remove first. If the campaign raises partway, the marked rows
+                # mean a rerun only picks up what is genuinely still owed, but
+                # a trigger file left behind would restart it on every poll.
+                try:
+                    os.remove(path)
+                except Exception:
+                    logger.warning(
+                        "Could not remove premium cutover trigger file; "
+                        "manual cleanup may be required."
+                    )
+                try:
+                    await premium_cutover_sweep_task()
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.exception("Premium cutover campaign failed.")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Unexpected error in premium cutover trigger watcher.")
+        await asyncio.sleep(poll_interval)
+
+
 # Guards against a startup refresh and a trigger-file refresh overlapping.
 instruction_refresh_lock = asyncio.Lock()
 
@@ -2437,6 +3019,11 @@ async def on_ready():
     # Follow up with admins who ran /vrcverify_setup but never posted a panel.
     start_background_task("panel_nudge_sweep", panel_nudge_sweep_task())
 
+    # Waits for its trigger file; sends nothing on its own.
+    start_background_task(
+        "premium_cutover_watcher", watch_premium_cutover_trigger()
+    )
+
     # Panels already carrying the current custom_ids are handled by the
     # persistent view registered in setup_hook, so this only has to re-edit the
     # stragglers: panels posted before this version, and ones that failed
@@ -2476,6 +3063,39 @@ async def on_guild_join(guild: discord.Guild):
             await dm_localized(owner, guild, "guild_join_welcome_dm", server=guild.name)
     except Exception:
         logger.exception(f"Failed to send welcome DM for guild {guild.id}")
+
+
+def _note_entitlement_change(entitlement: discord.Entitlement, event: str) -> None:
+    """Re-check a guild's plan on the next read, rather than waiting out the TTL.
+
+    Purchases and refunds are exactly the moments where a stale cached value is
+    most visible to the person who just paid, so these three events exist to
+    make the change take effect immediately.
+    """
+    guild_id = getattr(entitlement, "guild_id", None)
+    if guild_id is None:
+        # A user-scoped entitlement for some other SKU; nothing guild-gated
+        # depends on it.
+        return
+    premium_status_cache.invalidate(str(guild_id))
+    logger.info("Entitlement %s for guild %s; premium status will re-resolve.", event, guild_id)
+
+
+@bot.event
+async def on_entitlement_create(entitlement: discord.Entitlement):
+    _note_entitlement_change(entitlement, "created")
+
+
+@bot.event
+async def on_entitlement_update(entitlement: discord.Entitlement):
+    # Fires when a subscription is cancelled (gaining an ends_at) as well as
+    # when it renews, so this is not only a downgrade signal.
+    _note_entitlement_change(entitlement, "updated")
+
+
+@bot.event
+async def on_entitlement_delete(entitlement: discord.Entitlement):
+    _note_entitlement_change(entitlement, "deleted")
 
 
 @bot.event
