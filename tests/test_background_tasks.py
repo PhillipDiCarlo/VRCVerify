@@ -52,6 +52,7 @@ def stub_startup(monkeypatch):
         ("panel_nudge_sweep_task", "panel_nudge_sweep"),
         ("refresh_all_instruction_panels", "instruction_panel_refresh"),
         ("watch_update_trigger_file", "instructions_trigger_watcher"),
+        ("watch_premium_cutover_trigger", "premium_cutover_watcher"),
     ]:
         monkeypatch.setattr(bot, attr, make(name))
     return started
@@ -163,6 +164,7 @@ class TestOnReadyReentry:
         "panel_nudge_sweep",
         "instruction_panel_refresh",
         "instructions_trigger_watcher",
+        "premium_cutover_watcher",
     }
 
     def test_first_ready_starts_every_task(self, stub_startup):
