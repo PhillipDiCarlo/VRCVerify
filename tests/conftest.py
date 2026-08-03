@@ -29,4 +29,12 @@ TEST_ENV = {
 
 os.environ.update(TEST_ENV)
 
+# The grandfather line is captured into the database at launch, and the env var
+# is only an escape hatch. A developer's local .env setting it would silently
+# override that capture for the whole suite -- tests would then pass or fail
+# depending on an untracked file. Set it empty rather than deleting it: an
+# absent variable is one load_dotenv() would happily fill in from .env, while
+# an empty one it leaves alone and _optional_int_env reads as "not set".
+os.environ["PREMIUM_GRANDFATHER_MAX_ID"] = ""
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))

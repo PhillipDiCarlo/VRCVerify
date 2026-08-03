@@ -51,7 +51,8 @@ See the sections below for details and configuration.
   - **Server:** Holds configuration for each Discord server (guild), including role assignments. (Its `subscription_status` / `email` / `last_renewal_date` columns are dormant leftovers from a removed Stripe integration and are not used by anything — premium keys off Discord entitlements instead.)
   - **User:** Stores individual user verification statuses and VRChat IDs.
   - **PendingVerification:** Temporarily holds verification requests until they are processed.
-  - **PremiumCutoverNotice:** Which guilds have already had the one-time premium announcement DM. (Whether a server is *grandfathered* is not stored — it's `servers.id <= PREMIUM_GRANDFATHER_MAX_ID`.)
+  - **PremiumCutoverNotice:** Which guilds have already had the one-time premium announcement DM.
+  - **PremiumGrandfatherLine:** Single row holding `MAX(servers.id)` as of the moment the premium tier was switched on. Servers at or below it keep the grandfathered features free, permanently. Captured once, never moved.
   - **VerificationLogChannel:** Where a guild posts its verification activity log.
 
 - **Messaging with RabbitMQ:**  
@@ -115,17 +116,26 @@ also the only gated feature a *member* could perceive, and members move between
 servers. `tests/test_premium.py::TestAutoVerifyOnJoinIsFree` pins this so it
 can't drift back behind the paywall.
 
-\* Servers configured before the tier launched — defined as
-`servers.id <= PREMIUM_GRANDFATHER_MAX_ID`. Using the existing primary key
-means there is nothing to backfill and no way for the line to drift; a restored
-database draws it in exactly the same place.
+\* Servers installed before the tier went live. The line is **captured, not
+configured**: on the first startup that finds `PREMIUM_SKU_ID` set, the bot
+records `MAX(servers.id)` into `premium_grandfather_line` and never moves it.
 
-Set that variable to `MAX(servers.id)` immediately before launching, so every
-server already installed keeps what it has and only genuinely new servers ever
-pay for those three features. The 820 default is just a floor for a fresh
-deployment. Grandfathering costs less revenue than it looks like: the activity
-log, queue priority and everything built after them are premium for *every*
-server regardless, so the line only governs three features.
+That ordering is what makes switching the tier on safe — every server that
+already exists is grandfathered by construction, so no server can lose
+automation it was already using. Only servers added *after* launch are ever
+asked to pay for those three features. It also means the cutover DM is purely
+informational and can go out whenever, since it isn't warning anyone about a
+loss.
+
+The line lives in the database rather than an env var so a restore carries it
+alongside the servers it describes. Recomputing it after a restore would
+re-draw it wherever the restore landed, retroactively grandfathering everyone
+who signed up since. `PREMIUM_GRANDFATHER_MAX_ID` overrides the captured value
+and exists only as an escape hatch.
+
+Grandfathering costs less revenue than it looks like: the activity log, queue
+priority and everything built after them are premium for *every* server
+regardless, so the line only governs three features.
 
 **The tier is off until `PREMIUM_SKU_ID` is set.** With it unset every gate
 answers "allowed", so this code runs identically to the free bot — the SKU can
@@ -141,26 +151,24 @@ The one-time cutover announcement to existing servers is manually triggered:
 `touch` the file at `PREMIUM_CUTOVER_TRIGGER_PATH` and it trickles out under a
 per-sweep cap, then stops on its own.
 
-#### Launch order
+#### Launching
 
-`PREMIUM_GRANDFATHER_MAX_ID` decides both who keeps their features *and* who
-gets the announcement — it is the same predicate in both places, which is what
-makes the DM's "nothing about your server changes" true for everyone who
-receives it. So the steps have to happen in this order:
+1. Set `PREMIUM_SKU_ID` and restart. On that startup the grandfather line is
+   captured at `MAX(servers.id)`, which the bot logs. Every server that exists
+   at this moment keeps the three grandfathered features permanently.
+2. `touch` the trigger whenever you like afterwards. The campaign DMs those
+   servers to say the tier launched and nothing changed for them, trickling at
+   roughly 240 servers/hour (20 per sweep, 300s apart), then stops on its own.
 
-1. `SELECT max(id) FROM servers;` and set `PREMIUM_GRANDFATHER_MAX_ID` to it.
-   Restart. Nothing changes yet — the tier is still off.
-2. `touch` the trigger and let the campaign run to completion. At the default
-   pacing (20 per sweep, 300s apart) that is roughly 240 servers/hour.
-3. Re-run step 1 and re-trigger. Servers that installed *during* step 2 are
-   past the old line; this pulls them in. The notice table means the second
-   run only DMs the newcomers, so nobody gets a duplicate.
-4. Only now set `PREMIUM_SKU_ID`.
+There is deliberately no ordering hazard here. An earlier design had the line
+hand-set in the environment, which meant forgetting to update it before
+flipping the switch silently stripped automation from servers that had it
+([#59](https://github.com/PhillipDiCarlo/VRCVerify/issues/59)). Capturing the
+line at switch-on removes that failure entirely rather than detecting it.
 
-Doing step 4 early is the one genuinely bad outcome: servers lose working
-automation and find out by noticing it stopped. On startup the bot counts
-grandfathered servers with no notice row and warns if the tier is live while
-any remain, so getting the order wrong is at least visible in the logs.
+The bot logs a one-time reminder if the tier is live and the announcement is
+still outstanding. That is a courtesy nudge, not a safety check — those servers
+keep their features either way.
 
 ### Queue priority
 
