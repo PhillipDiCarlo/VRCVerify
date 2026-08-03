@@ -217,12 +217,15 @@ class TestStorage:
         with bot.session_scope() as session:
             assert session.query(bot.InstructionPanelBranding).count() == 1
 
-    def test_a_read_failure_falls_back_to_defaults(self, monkeypatch):
+    def test_a_read_failure_is_not_reported_as_no_branding(self, monkeypatch):
+        """"Couldn't tell" has to stay distinct from "definitely nothing"."""
+
         def boom():
             raise RuntimeError("db down")
 
         monkeypatch.setattr(bot, "session_scope", boom)
-        assert bot.load_panel_branding(GUILD_ID) is None
+        assert bot.load_panel_branding(GUILD_ID) is bot.BRANDING_UNREADABLE
+        assert bot.load_panel_branding(GUILD_ID) is not None
 
 
 # ---------------------------------------------------------------
@@ -297,6 +300,12 @@ class TestResolvePanelStyle:
 
     def test_it_is_not_a_grandfathered_feature(self):
         assert bot.FEATURE_BRANDED_PANEL not in bot.GRANDFATHERED_FEATURES
+
+    def test_unreadable_branding_declines_to_answer(self, enforced, monkeypatch):
+        monkeypatch.setattr(
+            bot, "load_panel_branding", lambda gid: bot.BRANDING_UNREADABLE
+        )
+        assert run(bot.resolve_panel_style(GUILD_ID, FakeGuild())) is None
 
     def test_no_branding_row_skips_the_entitlement_read(self, enforced, monkeypatch):
         """The fleet refresh would otherwise be one lookup per panel."""
@@ -381,6 +390,27 @@ class TestRestylePanel:
         run(bot.restyle_instruction_panel(GUILD_ID))
 
         assert bot.load_panel_branding(GUILD_ID) == (BRAND, True)
+
+    def test_an_unreadable_table_leaves_the_panel_untouched(
+        self, monkeypatch, premium
+    ):
+        """A database blip must not restyle a paying server back to default.
+
+        The view is still refreshed — that is what the pass is for — but no
+        embed goes in the payload, so the panel keeps the look it has.
+        """
+        make_server(row_id=NEW_ID)
+        set_branding()
+        rec = PanelRecorder().install(monkeypatch)
+        monkeypatch.setattr(
+            bot, "load_panel_branding", lambda gid: bot.BRANDING_UNREADABLE
+        )
+
+        run(bot.restyle_instruction_panel(GUILD_ID))
+
+        assert len(rec.edits) == 1
+        assert "embed" not in rec.edits[0]
+        assert isinstance(rec.edits[0]["view"], bot.VRCVerifyInstructionView)
 
     def test_a_guild_with_no_panel_is_a_no_op(self, monkeypatch, premium):
         make_server(row_id=NEW_ID, with_panel=False)
@@ -597,6 +627,23 @@ class TestEntitlementEvents:
         """Nothing to change, so there is no reason to spend an edit."""
         make_server(row_id=NEW_ID)
         called = []
+        monkeypatch.setattr(
+            bot, "restyle_instruction_panel", lambda gid: called.append(gid)
+        )
+        monkeypatch.setattr(bot.asyncio, "create_task", lambda coro: coro)
+
+        bot._note_entitlement_change(
+            SimpleNamespace(guild_id=int(GUILD_ID)), "updated"
+        )
+        assert called == []
+
+    def test_an_unreadable_table_buys_no_edit(self, monkeypatch):
+        make_server(row_id=NEW_ID)
+        set_branding()
+        called = []
+        monkeypatch.setattr(
+            bot, "load_panel_branding", lambda gid: bot.BRANDING_UNREADABLE
+        )
         monkeypatch.setattr(
             bot, "restyle_instruction_panel", lambda gid: called.append(gid)
         )

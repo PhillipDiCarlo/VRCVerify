@@ -1200,12 +1200,20 @@ def parse_hex_color(raw: str) -> Optional[int]:
     return NEAREST_RENDERABLE_BLACK if value == 0 else value
 
 
-def load_panel_branding(guild_id) -> Optional[tuple[Optional[int], bool]]:
-    """This guild's stored (colour, show_icon), or None if it has never set any.
+# Returned when the branding table cannot be read at all. Distinct from None,
+# which is the definite answer "this guild has no branding". Collapsing the two
+# would mean a database blip during a fleet refresh actively re-editing a
+# paying server's panel back to the default look — taking something away
+# because we couldn't tell, which is the opposite of how is_grandfathered and
+# the entitlement cache behave.
+BRANDING_UNREADABLE = object()
 
-    None and (None, False) are deliberately different answers: the first means
-    no row exists and no entitlement read is needed, the second means a row
-    exists but currently asks for default styling.
+
+def load_panel_branding(guild_id):
+    """This guild's stored (colour, show_icon).
+
+    Returns None when the guild definitely has no branding, or
+    BRANDING_UNREADABLE when the question could not be answered.
     """
     try:
         with session_scope() as session:
@@ -1220,11 +1228,11 @@ def load_panel_branding(guild_id) -> Optional[tuple[Optional[int], bool]]:
             return None if row is None else (row.embed_color, bool(row.show_icon))
     except Exception:
         logger.warning(
-            "Could not read panel branding for guild %s; using defaults.",
+            "Could not read panel branding for guild %s; leaving its panel alone.",
             guild_id,
             exc_info=True,
         )
-        return None
+        return BRANDING_UNREADABLE
 
 
 def save_panel_branding(guild_id, embed_color: Optional[int], show_icon: bool) -> None:
@@ -1284,14 +1292,21 @@ def panel_style(
 
 async def resolve_panel_style(
     guild_id, guild: Optional[discord.Guild]
-) -> tuple[discord.Color, Optional[str]]:
+) -> Optional[tuple[discord.Color, Optional[str]]]:
     """The styling this guild's panel should currently use.
+
+    None means "we could not tell, leave the panel as it is" — the caller skips
+    rebuilding the embed rather than rewriting it to the default. Restyling a
+    paying server's panel because of a database hiccup would be worse than
+    doing nothing, and the next refresh puts it right.
 
     Short-circuits before the entitlement read when nothing is configured,
     which is the overwhelming majority of guilds — the fleet refresh would
     otherwise turn into one entitlement lookup per panel.
     """
     branding = load_panel_branding(guild_id)
+    if branding is BRANDING_UNREADABLE:
+        return None
     if branding is None:
         return DEFAULT_PANEL_COLOR, None
     flags = await resolve_premium_flags(guild_id)
@@ -2828,6 +2843,10 @@ async def vrcverify_instructions(interaction: discord.Interaction):
     # match. Styling comes from the interaction's own entitlements, which costs
     # nothing, rather than the REST lookup the refresh path has to use.
     branding = load_panel_branding(interaction.guild.id)
+    if branding is BRANDING_UNREADABLE:
+        # Nothing to preserve on a panel being posted for the first time, so
+        # the default look is the right answer rather than a refusal.
+        branding = None
     style_flags = resolve_premium_flags_from_interaction(interaction)
     panel_color, panel_icon = panel_style(
         branding, interaction.guild, style_flags.allows(FEATURE_BRANDED_PANEL)
@@ -2890,8 +2909,11 @@ async def vrcverify_settings(interaction: discord.Interaction):
             current_auto_verify = True
 
     # (None, False) when nothing has been configured, which is the same thing
-    # the branding page shows for "default blue, no icon".
-    stored_color, stored_icon = load_panel_branding(interaction.guild.id) or (None, False)
+    # the branding page shows for "default blue, no icon". An unreadable table
+    # lands here too: the Server read above shares the same session, so a real
+    # outage fails this command long before this line.
+    stored = load_panel_branding(interaction.guild.id)
+    stored_color, stored_icon = stored if isinstance(stored, tuple) else (None, False)
 
     view = PagedSettingsView(
         current_nick,
@@ -4059,12 +4081,14 @@ async def probe_instruction_panel(entry, rebuild_embed: bool) -> str:
                 # still gets its rebuilt embed, and the existing malformed-id
                 # handling above owns deciding what to do about the id itself.
                 guild = None
-            panel_color, panel_icon = await resolve_panel_style(
-                entry["server_id"], guild
-            )
-            payload["embed"] = build_instructions_embed(
-                entry["locale"], panel_color, panel_icon
-            )
+            style = await resolve_panel_style(entry["server_id"], guild)
+            # None means the branding table could not be read. Leave the embed
+            # off the payload so the panel keeps whatever it already has — the
+            # view still gets refreshed, which is what this pass is for.
+            if style is not None:
+                payload["embed"] = build_instructions_embed(
+                    entry["locale"], *style
+                )
         await message.edit(**payload)
         if entry.get("view_version") != INSTRUCTIONS_VIEW_VERSION:
             record_panel_view_version(entry["server_id"])
@@ -4385,7 +4409,9 @@ def _note_entitlement_change(entitlement: discord.Entitlement, event: str) -> No
     # Deliberately fired on renewals and cancellations alike: the event only
     # says "re-resolve", and resolve_panel_style decides the outcome. A
     # subscription cancelled but not yet expired therefore keeps its styling.
-    if load_panel_branding(guild_id) is not None:
+    # isinstance rather than `is not None`: an unreadable table must not buy a
+    # panel edit that resolve_panel_style would then decline to apply anyway.
+    if isinstance(load_panel_branding(guild_id), tuple):
         asyncio.create_task(restyle_instruction_panel(guild_id))
 
 
