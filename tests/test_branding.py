@@ -184,11 +184,30 @@ class TestBuildInstructionsEmbed:
 # Storage
 # ---------------------------------------------------------------
 class TestStorage:
-    def test_no_row_is_distinct_from_a_default_row(self):
+    def test_styling_that_asks_for_nothing_stores_no_row(self):
+        """The settings view saves every page at once.
+
+        A premium server that only changed its nickname setting must not end up
+        with a row, because a row's existence costs an entitlement lookup on
+        every fleet refresh for styling that is the default anyway.
+        """
         make_server()
-        assert bot.load_panel_branding(GUILD_ID) is None
         set_branding(embed_color=None, show_icon=False)
-        assert bot.load_panel_branding(GUILD_ID) == (None, False)
+        assert bot.load_panel_branding(GUILD_ID) is None
+        with bot.session_scope() as session:
+            assert session.query(bot.InstructionPanelBranding).count() == 0
+
+    def test_clearing_a_colour_removes_the_row(self):
+        make_server()
+        set_branding(embed_color=BRAND, show_icon=False)
+        assert bot.load_panel_branding(GUILD_ID) == (BRAND, False)
+        set_branding(embed_color=None, show_icon=False)
+        assert bot.load_panel_branding(GUILD_ID) is None
+
+    def test_icon_alone_is_still_worth_a_row(self):
+        make_server()
+        set_branding(embed_color=None, show_icon=True)
+        assert bot.load_panel_branding(GUILD_ID) == (None, True)
 
     def test_saving_twice_updates_rather_than_duplicates(self):
         make_server()

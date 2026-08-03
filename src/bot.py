@@ -1228,13 +1228,26 @@ def load_panel_branding(guild_id) -> Optional[tuple[Optional[int], bool]]:
 
 
 def save_panel_branding(guild_id, embed_color: Optional[int], show_icon: bool) -> None:
-    """Store this guild's panel styling, creating the row on first use."""
+    """Store this guild's panel styling, creating the row on first use.
+
+    Styling that asks for nothing removes the row instead of storing it. The
+    settings view saves every page at once, so a premium server that only
+    touched its nickname setting would otherwise get a row meaning "default
+    colour, no icon" — indistinguishable in effect from having none, but enough
+    to make resolve_panel_style do an entitlement lookup for that guild on
+    every fleet refresh. That short-circuit is the reason the refresh does not
+    cost one REST call per panel, so it is worth protecting.
+    """
     key = panel_view_key(guild_id)
     try:
         with session_scope() as session:
             row = (
                 session.query(InstructionPanelBranding).filter_by(server_id=key).first()
             )
+            if embed_color is None and not show_icon:
+                if row is not None:
+                    session.delete(row)
+                return
             if row is None:
                 row = InstructionPanelBranding(server_id=key)
                 session.add(row)
