@@ -280,6 +280,42 @@ Two known limits, both deliberate:
 
 ---
 
+## Internal API (dashboard groundwork)
+
+Groundwork for the web dashboard in issue #65. **Off by default and off in
+production** — with `BOT_API_ENABLED` unset, `src/bot_api.py` never opens a
+socket and the bot behaves exactly as it did before this existed.
+
+When it *is* enabled, it runs inside the bot process (sharing the gateway
+cache, so it can answer questions about roles, channels and permissions without
+a second copy of anything) and serves read-only settings data to the dashboard.
+Three independent checks guard every request:
+
+1. **mTLS** against a private CA — see `scripts/gen_bot_api_certs.sh`. The
+   Tailscale tunnel it runs inside is a segmentation control, not an
+   authentication one, so the transport is authenticated in its own right.
+2. **A scoped token**, valid for one Discord user, one guild, one operation and
+   about thirty seconds, and single-use. A captured request cannot be replayed
+   against a different guild or a different endpoint.
+3. **The bot's own Administrator check**, re-run on every request rather than
+   cached against a session. Losing Administrator revokes access within one
+   request. Manage Server is not enough, matching every slash command.
+
+Deployment rules, all enforced or explained in `.env.example`:
+
+- `BOT_API_BIND` must be the tailnet address. The bot **refuses to start** on
+  `0.0.0.0`, `::` or a blank value rather than listening on every interface.
+- Never publish the port in Docker. Enabling the API means host networking —
+  the compose file explains why the alternative is worse.
+- A misconfiguration stops the API, never the bot. Verification keeps working
+  through an expired dashboard certificate; the log says so at `ERROR`.
+
+This phase is **read-only by construction**: the API is handed a set of reader
+callables and nothing else, so it cannot express a write at all.
+`tests/test_bot_api.py` pins both that and the absence of any non-GET route.
+
+---
+
 ## Tech Stack
 
 - **Language:** Python 3.12 in the current containerized deployment
