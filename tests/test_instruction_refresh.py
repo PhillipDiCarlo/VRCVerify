@@ -91,6 +91,19 @@ def unpaced(monkeypatch):
     monkeypatch.setattr(bot, "INSTRUCTIONS_REFRESH_RATE", 1_000_000)
 
 
+@pytest.fixture(autouse=True)
+def still_in_every_guild(monkeypatch):
+    """Default to the bot still being a member of each guild.
+
+    Every test in this file predates the departed-guild filter and implicitly
+    assumed it; without a guild in the cache they would all now be skipped
+    before any edit is attempted. TestDepartedGuilds opts back out.
+    """
+    monkeypatch.setattr(
+        bot.bot, "get_guild", lambda gid: SimpleNamespace(id=gid, name="Test Guild")
+    )
+
+
 class Recorder:
     """Stands in for the Discord HTTP layer and records every edit."""
 
@@ -104,7 +117,14 @@ class Recorder:
     def install(self, monkeypatch):
         monkeypatch.setattr(bot.bot, "get_partial_messageable", self._messageable)
         # The refresh path must not touch these; blow up loudly if it does.
-        for name in ("get_channel", "fetch_channel", "get_guild"):
+        #
+        # get_guild used to be in this list and deliberately is not any more.
+        # The invariant worth protecting is "no API call and no dependency on
+        # a cached channel or message" — that is what makes one edit per panel
+        # possible. get_guild is neither: it is a dict lookup on a cache that
+        # is fully populated before on_ready fires, and the refresh now needs
+        # it to avoid retrying panels in guilds the bot has been removed from.
+        for name in ("get_channel", "fetch_channel"):
             monkeypatch.setattr(bot.bot, name, self._forbidden_call(name))
         return self
 
@@ -692,3 +712,124 @@ class TestRequestPacing:
         # Unpaced, 20 instant edits finish in ~1ms. At 100/s they need ~190ms;
         # the floor here is loose enough to absorb early-firing timers.
         assert elapsed >= 0.1
+
+
+# ---------------------------------------------------------------
+# Guilds the bot has been removed from (issue #62)
+# ---------------------------------------------------------------
+class TestDepartedGuilds:
+    """Panels in guilds we've left can never be edited.
+
+    probe_instruction_panel deliberately keeps the saved reference on 403,
+    because a revoked permission can be restored. A kick cannot, so without a
+    filter those rows are retried on every boot forever and the count only
+    grows. In production this was 114 of them, and the noise buried the real
+    permission failures the refresh exists to surface.
+    """
+
+    def only_in(self, monkeypatch, *guild_ids):
+        present = {str(g) for g in guild_ids}
+
+        def get_guild(gid):
+            if str(gid) in present:
+                return SimpleNamespace(id=gid, name="Test Guild")
+            return None
+
+        monkeypatch.setattr(bot.bot, "get_guild", get_guild)
+
+    def test_departed_guilds_are_never_edited(self, monkeypatch, clean_servers):
+        make_server("111", channel_id="1", message_id="10")
+        make_server("222", channel_id="2", message_id="20")
+        rec = Recorder().install(monkeypatch)
+        self.only_in(monkeypatch, "111")
+
+        run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+
+        # Not merely "failed gracefully" — no API call was made at all.
+        assert [e[1] for e in rec.edits] == [10]
+
+    def test_the_skipped_count_is_reported(self, monkeypatch, clean_servers, caplog):
+        make_server("111", channel_id="1", message_id="10")
+        make_server("222", channel_id="2", message_id="20")
+        Recorder().install(monkeypatch)
+        self.only_in(monkeypatch, "111")
+
+        with caplog.at_level("INFO"):
+            run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+
+        assert "1/1" in caplog.text
+        assert "1 skipped" in caplog.text
+
+    def test_all_departed_still_logs_the_count(
+        self, monkeypatch, clean_servers, caplog
+    ):
+        # The 0/114 case: nothing to refresh, but the number must stay visible
+        # rather than vanishing into "nothing needs refreshing".
+        make_server("111", channel_id="1", message_id="10")
+        Recorder().install(monkeypatch)
+        self.only_in(monkeypatch)
+
+        with caplog.at_level("INFO"):
+            run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+
+        assert "1 skipped" in caplog.text
+
+    def test_saved_reference_is_left_alone(self, monkeypatch, clean_servers):
+        # Skipping is not deleting: a re-invite should find its panel intact,
+        # and a cold cache must not cost anyone their configuration.
+        make_server("111", channel_id="1", message_id="10")
+        Recorder().install(monkeypatch)
+        self.only_in(monkeypatch)
+
+        run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+
+        assert saved_panel("111") == ("1", "10")
+
+    def test_unparseable_ids_are_not_assumed_departed(self, monkeypatch, clean_servers):
+        # "I couldn't tell" is not "we left". Let it through so the existing
+        # malformed-id handling reports it instead of skipping it silently.
+        make_server("not-a-guild-id", channel_id="1", message_id="10")
+        rec = Recorder().install(monkeypatch)
+        self.only_in(monkeypatch)
+
+        run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+
+        assert [e[1] for e in rec.edits] == [10]
+
+
+class TestGuildRemoveCleanup:
+    def test_panel_and_onboarding_are_cleared(self, clean_servers):
+        make_server("111", channel_id="1", message_id="10")
+        bot.record_panel_view_version("111")
+        bot.record_guild_onboarding("111")
+
+        run(bot.on_guild_remove(SimpleNamespace(id=111, name="Gone")))
+
+        assert saved_panel("111") == (None, None)
+        with bot.session_scope() as session:
+            assert (
+                session.query(bot.GuildOnboarding).filter_by(server_id="111").first()
+                is None
+            )
+
+    def test_the_server_row_and_role_config_survive(self, clean_servers):
+        """Being removed is often temporary.
+
+        Forcing an admin back through /vrcverify_setup on re-invite costs them
+        far more than a stale row costs us.
+        """
+        make_server("111", channel_id="1", message_id="10", role_id="999")
+
+        run(bot.on_guild_remove(SimpleNamespace(id=111, name="Gone")))
+
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id="111").first()
+            assert srv is not None
+            assert srv.role_id == "999"
+
+    def test_failure_is_swallowed(self, monkeypatch, clean_servers):
+        def boom(_):
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr(bot, "forget_instruction_panel", boom)
+        run(bot.on_guild_remove(SimpleNamespace(id=111, name="Gone")))  # must not raise
