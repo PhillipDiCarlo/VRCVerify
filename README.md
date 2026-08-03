@@ -52,6 +52,7 @@ See the sections below for details and configuration.
   - **User:** Stores individual user verification statuses and VRChat IDs.
   - **PendingVerification:** Temporarily holds verification requests until they are processed.
   - **PremiumCutoverNotice:** Which guilds have already had the one-time premium announcement DM. (Whether a server is *grandfathered* is not stored — it's `servers.id <= PREMIUM_GRANDFATHER_MAX_ID`.)
+  - **VerificationLogChannel:** Where a guild posts its verification activity log.
 
 - **Messaging with RabbitMQ:**  
   Uses the pika library to handle two queues:
@@ -81,6 +82,7 @@ See the sections below for details and configuration.
   - Instructions language (server-wide locale).
   - Auto-verify new members (attempt verification or initiate the flow when a member joins).
 - `/vrcverify_setrequestmessage` – Admin-only. Opens a modal to set or clear the custom DM shown after a successful verification role assignment.
+- `/vrcverify_logchannel` – Admin-only, premium. Chooses where verification activity is logged; run with no channel to turn it off.
 - `/vrcverify_support` – Anyone. Sends help/support information.
 - `/vrcverify_subscription` – Admin-only. Shows this server's premium status and, if it isn't subscribed, Discord's purchase button.
 
@@ -102,6 +104,7 @@ unlocks the automation around it:
 | Auto-nickname sync | — | ✅ | ✅ |
 | Custom post-verification DM | — | ✅ | ✅ |
 | Reduced verification cooldown | — | — | ✅ |
+| Verification activity log channel | — | — | ✅ |
 
 Auto-verify-on-join is free for everyone and is deliberately not gated at all —
 `on_member_join` never so much as reads an entitlement. Users read "the bot
@@ -130,6 +133,37 @@ outage can't silently disable a paying server's automation.
 The one-time cutover announcement to existing servers is manually triggered:
 `touch` the file at `PREMIUM_CUTOVER_TRIGGER_PATH` and it trickles out under a
 per-sweep cap, then stops on its own.
+
+### Verification activity log
+
+`/vrcverify_logchannel #channel` posts each verification outcome to a channel —
+granted, refused, and (most usefully) *granted but the role could not be
+assigned*, which is otherwise a silent failure only the member ever hears about.
+Run it with no channel to turn logging off.
+
+Entries contain **the Discord member, the outcome, and the time. Nothing else.**
+No VRChat display name, no `usr_` ID. The bot knows the link between someone's
+Discord and VRChat identities because it has to; writing that into a server
+channel publishes it to everyone who can read there, in a place whose
+permissions we neither control nor can audit, and the member never agreed to it.
+`tests/test_activity_log.py` asserts this across every locale so it can't drift.
+
+Entries are buffered and posted in batches rather than one message each, and
+every send suppresses mentions — otherwise each entry would ping the member it
+reports on.
+
+Announcement channels are rejected. Other servers can follow them, which would
+republish your members' 18+ status outside your server.
+
+Two known limits, both deliberate:
+
+- The buffer is **in memory**, so up to `VERIFICATION_LOG_FLUSH_INTERVAL`
+  seconds of entries are lost when the bot restarts or redeploys. Persisting
+  them would mean a write per verification to guarantee a convenience feature.
+- When a batch can't be posted (permissions revoked, Discord erroring) those
+  entries are gone — but the count is carried forward, and the next batch that
+  does land says how many never made it. A gap in the log always has a line
+  accounting for it.
 
 ---
 

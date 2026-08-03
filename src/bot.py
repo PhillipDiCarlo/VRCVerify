@@ -263,6 +263,24 @@ class PremiumCutoverNotice(Base):
     sent_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
+class VerificationLogChannel(Base):
+    """Where a guild wants its verification activity posted.
+
+    A separate table for the same reason as the three above: create_all() adds
+    missing tables but never columns.
+
+    The row survives a lapsed subscription on purpose. Logging stops, but the
+    admin's choice of channel is theirs — clearing it would mean re-configuring
+    after every billing hiccup, and it matches how the settings view leaves a
+    locked setting's stored value alone.
+    """
+
+    __tablename__ = "verification_log_channel"
+    server_id = Column(String, primary_key=True)
+    channel_id = Column(String, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
 # Creates any missing tables. Note this does NOT add columns to tables that
 # already exist — those still need a manual ALTER.
 Base.metadata.create_all(engine)
@@ -493,9 +511,10 @@ FEATURE_UNVERIFIED_ROLE_REMOVAL = "unverified_role_removal"
 FEATURE_NICKNAME_SYNC = "nickname_sync"
 FEATURE_CUSTOM_DM = "custom_dm"
 FEATURE_REDUCED_COOLDOWN = "reduced_cooldown"
+FEATURE_ACTIVITY_LOG = "activity_log"
 
 # Servers configured before the cutover keep these three for free, forever.
-# The reduced cooldown is new, so nobody is losing it.
+# The reduced cooldown and the activity log are new, so nobody is losing them.
 GRANDFATHERED_FEATURES = frozenset(
     {FEATURE_UNVERIFIED_ROLE_REMOVAL, FEATURE_NICKNAME_SYNC, FEATURE_CUSTOM_DM}
 )
@@ -523,6 +542,21 @@ PREMIUM_CUTOVER_INTERVAL = _int_env("PREMIUM_CUTOVER_INTERVAL", 300)
 PREMIUM_CUTOVER_MAX_PER_SWEEP = _int_env("PREMIUM_CUTOVER_MAX_PER_SWEEP", 20)
 PREMIUM_CUTOVER_DM_SPACING = _float_env("PREMIUM_CUTOVER_DM_SPACING", 2.0)
 PREMIUM_CUTOVER_MAX_FAILURES = _int_env("PREMIUM_CUTOVER_MAX_FAILURES", 3)
+
+# Verification activity log. Entries are buffered and posted in batches rather
+# than one message per verification: Discord allows roughly 5 messages per 5s
+# per channel, and that budget is shared with verification DMs and command
+# replies. A server running a verification drive would otherwise throttle the
+# whole bot — the same reasoning as INSTRUCTIONS_REFRESH_RATE above.
+VERIFICATION_LOG_FLUSH_INTERVAL = _int_env("VERIFICATION_LOG_FLUSH_INTERVAL", 5)
+# Messages started per second across all guilds during a flush.
+VERIFICATION_LOG_RATE = _int_env("VERIFICATION_LOG_RATE", 5)
+# Ceiling on entries held for one guild between flushes. Reached only when a
+# guild's channel is unreachable or a verification drive outruns the flush, and
+# it exists so neither can grow the buffer without bound.
+VERIFICATION_LOG_MAX_BUFFERED = _int_env("VERIFICATION_LOG_MAX_BUFFERED", 200)
+# Discord's hard limit on message content.
+DISCORD_MESSAGE_MAX_LEN = 2000
 
 
 class PremiumStatusCache:
@@ -753,6 +787,348 @@ def resolve_premium_flags_from_interaction(
     premium = premium_from_interaction(interaction)
     grandfathered = False if premium else is_grandfathered(interaction.guild_id)
     return PremiumFlags(premium=premium, grandfathered=grandfathered)
+
+
+# -------------------------------------------------------------------
+# Verification activity log
+# -------------------------------------------------------------------
+# What a guild's log channel is told about each verification. Deliberately
+# limited to the Discord user, the outcome and the time.
+#
+# The VRChat display name and usr_ id are NOT logged, and this is not an
+# oversight to be tidied up later. The bot knows the link between someone's
+# Discord account and their VRChat identity because it has to; writing that
+# link into a server channel publishes it to everyone who can read there, in a
+# place whose permissions we neither control nor can audit, and the member
+# never agreed to that.
+LOG_OUTCOME_VERIFIED = "log_verified"
+LOG_OUTCOME_ROLE_FAILED = "log_role_failed"
+LOG_OUTCOME_NOT_18 = "log_not_18"
+
+
+class VerificationLogBuffer:
+    """Per-guild pending log lines, drained by the flush task.
+
+    Entries are held here rather than posted as they happen so a busy guild
+    becomes one message instead of dozens. Bounded per guild: an unreachable
+    channel or a verification drive that outruns the flush must not be able to
+    grow this without limit.
+    """
+
+    def __init__(self, max_per_guild: int):
+        self.max_per_guild = max_per_guild
+        self._lines: dict[str, list[str]] = {}
+        self._dropped: dict[str, int] = {}
+
+    def add(self, guild_id: str, line: str) -> None:
+        lines = self._lines.setdefault(guild_id, [])
+        lines.append(line)
+        # Drop the oldest rather than refusing the newest: if we are losing
+        # entries the recent ones are the ones an admin is looking at.
+        while len(lines) > self.max_per_guild:
+            lines.pop(0)
+            self._dropped[guild_id] = self._dropped.get(guild_id, 0) + 1
+
+    def note_lost(self, guild_id: str, count: int) -> None:
+        """Remember that a drained batch never made it to Discord.
+
+        Without this a failed send is invisible: the batch is already out of
+        the buffer, so the entries simply cease to exist and the log grows a
+        hole that nothing accounts for. An audit log that is quietly
+        incomplete is worse than one that is obviously broken.
+        """
+        if count > 0:
+            self._dropped[guild_id] = self._dropped.get(guild_id, 0) + count
+
+    def drain(self) -> dict[str, tuple[list[str], int]]:
+        """Take everything buffered, as {guild_id: (lines, dropped_count)}."""
+        drained = {
+            guild_id: (lines, self._dropped.get(guild_id, 0))
+            for guild_id, lines in self._lines.items()
+            if lines
+        }
+        self._lines.clear()
+        # Only clear counters we are actually reporting. A guild whose count
+        # was recorded while it had no pending lines keeps it for next time.
+        for guild_id in drained:
+            self._dropped.pop(guild_id, None)
+        return drained
+
+    def pending(self, guild_id: str) -> list[str]:
+        return list(self._lines.get(guild_id, []))
+
+    def clear(self) -> None:
+        self._lines.clear()
+        self._dropped.clear()
+
+
+verification_log_buffer = VerificationLogBuffer(VERIFICATION_LOG_MAX_BUFFERED)
+
+
+def load_log_channel_id(guild_id) -> Optional[str]:
+    """The channel this guild logs verifications to, if any."""
+    if guild_id is None:
+        return None
+    try:
+        with session_scope() as session:
+            row = (
+                session.query(VerificationLogChannel)
+                .filter_by(server_id=panel_view_key(guild_id))
+                .first()
+            )
+            return row.channel_id if row else None
+    except Exception:
+        # Logging is never worth breaking verification over.
+        logger.warning(
+            "Could not read log channel for guild %s.", guild_id, exc_info=True
+        )
+        return None
+
+
+def set_log_channel(guild_id, channel_id: Optional[str]) -> None:
+    """Point a guild's log at `channel_id`, or clear it when None."""
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        row = (
+            session.query(VerificationLogChannel).filter_by(server_id=key).first()
+        )
+        if channel_id is None:
+            if row is not None:
+                session.delete(row)
+            return
+        if row is None:
+            row = VerificationLogChannel(server_id=key, channel_id=str(channel_id))
+            session.add(row)
+        else:
+            row.channel_id = str(channel_id)
+        row.updated_at = datetime.now(timezone.utc)
+
+
+def forget_log_channel(guild_id) -> None:
+    """Drop a log channel reference whose channel no longer exists."""
+    try:
+        set_log_channel(guild_id, None)
+    except Exception:
+        logger.exception(f"Failed to clear log channel for guild {guild_id}")
+
+
+def build_log_line(outcome_key: str, user_id, locale_code: str) -> str:
+    """Render one entry.
+
+    The timestamp goes in as Discord's <t:unix:f> markup rather than formatted
+    text, so every reader sees it in their own timezone and locale without us
+    having to translate a date format twelve times.
+    """
+    when = int(datetime.now(timezone.utc).timestamp())
+    return get_message(
+        outcome_key,
+        SimpleNamespace(locale=locale_code),
+        user=f"<@{user_id}>",
+        when=f"<t:{when}:f>",
+    )
+
+
+def queue_verification_log(
+    guild_id, user_id, outcome_key: str, log_channel_id, locale: Optional[str] = None
+) -> None:
+    """Buffer one outcome for the guild's log channel.
+
+    Callers pass the channel id they already loaded, so the common case — a
+    guild with no log configured — costs nothing here. They pass the locale for
+    the same reason: assign_role has already read it off the server row, and
+    re-deriving it here would mean a second query per verification.
+
+    Swallows everything. This is called from inside the verification path, and
+    a bookkeeping feature must never be the reason someone fails to get a role.
+    """
+    if not log_channel_id:
+        return
+    try:
+        locale_code = locale if locale in LANGUAGE_CODES else None
+        if locale_code is None:
+            guild = bot.get_guild(int(guild_id)) if guild_id else None
+            locale_code = get_server_locale_code(str(guild_id), guild)
+        verification_log_buffer.add(
+            str(guild_id), build_log_line(outcome_key, user_id, locale_code)
+        )
+    except Exception:
+        logger.warning(
+            "Could not queue a verification log entry for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+
+
+async def log_channel_if_allowed(guild_id, log_channel_id) -> Optional[str]:
+    """The guild's log channel, if one is set and the plan allows it.
+
+    Short-circuits before the entitlement read when no channel is configured,
+    which is the overwhelming majority of guilds.
+    """
+    if not log_channel_id:
+        return None
+    flags = await resolve_premium_flags(guild_id)
+    return log_channel_id if flags.allows(FEATURE_ACTIVITY_LOG) else None
+
+
+def chunk_log_lines(lines: list[str], limit: int = DISCORD_MESSAGE_MAX_LEN) -> list[str]:
+    """Pack lines into as few messages as Discord's length limit allows."""
+    messages: list[str] = []
+    current = ""
+    for line in lines:
+        # A single line longer than the limit would loop forever otherwise.
+        line = line[:limit]
+        candidate = f"{current}\n{line}" if current else line
+        if len(candidate) > limit:
+            if current:
+                messages.append(current)
+            current = line
+        else:
+            current = candidate
+    if current:
+        messages.append(current)
+    return messages
+
+
+def load_log_channels(guild_ids) -> dict[str, str]:
+    """Channel ids for several guilds in one query.
+
+    The flush task holds every guild it is about to post to, so reading them
+    one at a time would mean a database round trip per guild per cycle, forever.
+    """
+    keys = [panel_view_key(guild_id) for guild_id in guild_ids]
+    if not keys:
+        return {}
+    try:
+        with session_scope() as session:
+            rows = (
+                session.query(VerificationLogChannel)
+                .filter(VerificationLogChannel.server_id.in_(keys))
+                .all()
+            )
+            return {row.server_id: row.channel_id for row in rows}
+    except Exception:
+        logger.warning("Could not load log channels for flush.", exc_info=True)
+        return {}
+
+
+async def flush_guild_log(
+    guild_id: str,
+    lines: list[str],
+    dropped: int,
+    channel_id: Optional[str] = None,
+    locale: Optional[str] = None,
+) -> str:
+    """Post one guild's buffered entries.
+
+    Returns why it went the way it did rather than just whether it worked: the
+    caller has to know the difference between "this guild does not want a log"
+    and "these entries were lost", because only the second needs reporting to
+    the admin later. Same shape as probe_instruction_panel. Never raises.
+    """
+    if channel_id is None:
+        channel_id = load_log_channel_id(guild_id)
+    if not channel_id:
+        return "no_channel"
+
+    if dropped:
+        # Prepended, not appended: the dropped entries are the OLDEST, so a
+        # note at the bottom would read as though the gap came after
+        # everything above it and put an admin's timeline backwards.
+        if locale not in LANGUAGE_CODES:
+            guild = bot.get_guild(int(guild_id)) if guild_id else None
+            locale = get_server_locale_code(guild_id, guild)
+        lines = [
+            get_message(
+                "log_entries_dropped",
+                SimpleNamespace(locale=locale),
+                count=dropped,
+            )
+        ] + lines
+
+    try:
+        channel = bot.get_partial_messageable(int(channel_id))
+    except (TypeError, ValueError):
+        logger.warning("Malformed log channel id for guild %s; clearing.", guild_id)
+        forget_log_channel(guild_id)
+        return "malformed"
+
+    for content in chunk_log_lines(lines):
+        try:
+            await channel.send(
+                content,
+                # Entries render a member as <@id> so they read as a name. Without
+                # this every single verification would ping that member, in a
+                # channel they may not even be able to see.
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+        except discord.NotFound:
+            logger.warning(
+                "Log channel %s for guild %s is gone; clearing the reference.",
+                channel_id,
+                guild_id,
+            )
+            forget_log_channel(guild_id)
+            return "gone"
+        except discord.Forbidden:
+            # Keep the row: permissions get restored, deleted channels do not.
+            logger.warning(
+                "No permission to post in log channel %s for guild %s; dropping batch.",
+                channel_id,
+                guild_id,
+            )
+            return "forbidden"
+        except discord.HTTPException:
+            logger.warning(
+                "Discord rejected a log post for guild %s; dropping batch.",
+                guild_id,
+                exc_info=True,
+            )
+            return "http_error"
+    return "ok"
+
+
+# A send that failed means those entries are gone — the batch left the buffer
+# before we tried. Only these outcomes count as loss worth telling the admin
+# about; "no_channel", "gone" and "malformed" mean the guild has no working log
+# to be missing entries from.
+LOG_OUTCOMES_LOSING_ENTRIES = {"forbidden", "http_error"}
+
+
+async def verification_log_flush_task(
+    interval_seconds: int = VERIFICATION_LOG_FLUSH_INTERVAL,
+):
+    """Post buffered verification entries, paced across guilds."""
+    while True:
+        await asyncio.sleep(interval_seconds)
+        try:
+            batches = verification_log_buffer.drain()
+            if not batches:
+                continue
+            channels = load_log_channels(batches.keys())
+            pacer = RequestPacer(VERIFICATION_LOG_RATE)
+            for guild_id, (lines, dropped) in batches.items():
+                await pacer.wait()
+                try:
+                    outcome = await flush_guild_log(
+                        guild_id,
+                        lines,
+                        dropped,
+                        channel_id=channels.get(panel_view_key(guild_id)),
+                    )
+                except Exception:
+                    logger.exception(
+                        f"Failed to flush verification log for guild {guild_id}"
+                    )
+                    outcome = "http_error"
+                if outcome in LOG_OUTCOMES_LOSING_ENTRIES:
+                    # Carry the count forward so the next batch that does land
+                    # says how many never made it.
+                    verification_log_buffer.note_lost(guild_id, len(lines) + dropped)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.error("Exception during verification log flush", exc_info=True)
 
 
 # -------------------------------------------------------------------
@@ -1501,6 +1877,15 @@ async def assign_role(
         custom_success_msg = (
             server.custom_verification_requested_message if server and server.custom_verification_requested_message else None
         )
+        # Read in the session we already have open. Most guilds have no log
+        # channel, and finding that out here means they never reach the
+        # entitlement check below.
+        log_row = (
+            session.query(VerificationLogChannel)
+            .filter_by(server_id=panel_view_key(guild_id))
+            .first()
+        )
+        log_channel_id = log_row.channel_id if log_row else None
 
     guild = bot.get_guild(int(guild_id))
     if not guild:
@@ -1541,10 +1926,16 @@ async def assign_role(
             # member still hears that they were verified.
             custom_success_msg = None
 
+        # Reuses the flags already resolved above rather than asking again.
+        loggable = log_channel_id if premium.allows(FEATURE_ACTIVITY_LOG) else None
+
         # 1) Add verified role first
         try:
             await member.add_roles(role)
             logger.info(f"Assigned role {role.name} to {member}.")
+            queue_verification_log(
+                guild_id, discord_id, LOG_OUTCOME_VERIFIED, loggable, instr_locale
+            )
             if custom_success_msg:
                 try:
                     await member.send(custom_success_msg)
@@ -1554,6 +1945,11 @@ async def assign_role(
                 await dm_localized(member, guild, "dm_role_success", instr_locale, role=role.name, server=guild.name)
         except discord.Forbidden:
             logger.warning(f"Missing permission to add {role.name} in {guild_id}.")
+            # The failure mode an admin would otherwise never learn about: the
+            # member is told privately, and the server sees nothing at all.
+            queue_verification_log(
+                guild_id, discord_id, LOG_OUTCOME_ROLE_FAILED, loggable, instr_locale
+            )
             await dm_role_assignment_failure(member, role, guild, instr_locale)
 
         # 2) Remove unverified role (if configured)
@@ -1610,7 +2006,16 @@ async def assign_role(
                 logger.warning(f"Could not set nickname for {member}.", exc_info=True)
                 await dm_localized(member, guild, "nickname_update_failed", instr_locale)
     else:
-        # Not 18+
+        # Not 18+. Resolved separately from the branch above, which never runs
+        # here — and still short-circuits before the entitlement read when the
+        # guild has no log channel configured.
+        queue_verification_log(
+            guild_id,
+            discord_id,
+            LOG_OUTCOME_NOT_18,
+            await log_channel_if_allowed(guild_id, log_channel_id),
+            instr_locale,
+        )
         await dm_localized(member, guild, "not_18_plus", instr_locale)
 
 
@@ -2168,6 +2573,101 @@ class SetRequestMessageModal(discord.ui.Modal, title="Set Custom Verification Me
                 result = get_message("custom_msg_saved", interaction)
 
         await interaction.response.send_message(result, ephemeral=True)
+
+
+# -------------------------------------------------------------------
+# Slash Command: /vrcverify_setrequestmessage (modal-based)
+# -------------------------------------------------------------------
+@app_commands.guild_only()
+@app_commands.checks.has_permissions(administrator=True)
+@bot.tree.command(
+    name="vrcverify_logchannel",
+    description="Admin: Choose where verification activity is logged (premium).",
+)
+@app_commands.describe(
+    channel="Channel to post verification activity in. Leave empty to turn logging off."
+)
+async def vrcverify_logchannel(
+    interaction: discord.Interaction,
+    channel: Optional[discord.TextChannel] = None,
+):
+    """Set or clear this server's verification log channel."""
+    guild_id = str(interaction.guild.id)
+
+    if channel is None:
+        set_log_channel(guild_id, None)
+        await interaction.response.send_message(
+            get_message("log_channel_cleared", interaction), ephemeral=True
+        )
+        return
+
+    # Announcement channels can be *followed* by other servers, which mirrors
+    # published messages into them via webhook. Every entry here pairs a
+    # Discord user with their 18+ status, so allowing that would let an age
+    # disclosure about a named member be republished into servers they have no
+    # relationship with. There is no good reason to want a verification log in
+    # an announcement channel, and one genuinely bad outcome, so it is refused.
+    if channel.is_news():
+        await interaction.response.send_message(
+            get_message(
+                "log_channel_announcement", interaction, channel=channel.mention
+            ),
+            ephemeral=True,
+        )
+        return
+
+    flags = resolve_premium_flags_from_interaction(interaction)
+    if not flags.allows(FEATURE_ACTIVITY_LOG):
+        # send_message calls view.is_finished(), so an absent view has to be
+        # omitted entirely rather than passed as None.
+        extra = {"view": PremiumUpgradeView()} if PREMIUM_SKU_ID is not None else {}
+        await interaction.response.send_message(
+            get_message("log_channel_premium_only", interaction),
+            ephemeral=True,
+            **extra,
+        )
+        return
+
+    # Post the confirmation into the target channel rather than only replying
+    # ephemerally. It doubles as a permissions check: if the bot cannot post
+    # there, the admin finds out now instead of discovering an empty log later.
+    try:
+        await channel.send(
+            get_message(
+                "log_channel_ready",
+                SimpleNamespace(
+                    locale=get_server_locale_code(guild_id, interaction.guild)
+                ),
+            ),
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            get_message(
+                "log_channel_no_permission", interaction, channel=channel.mention
+            ),
+            ephemeral=True,
+        )
+        return
+    except discord.HTTPException:
+        logger.warning(
+            "Could not post the log channel confirmation for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        await interaction.response.send_message(
+            get_message(
+                "log_channel_no_permission", interaction, channel=channel.mention
+            ),
+            ephemeral=True,
+        )
+        return
+
+    set_log_channel(guild_id, str(channel.id))
+    await interaction.response.send_message(
+        get_message("log_channel_set", interaction, channel=channel.mention),
+        ephemeral=True,
+    )
 
 
 # -------------------------------------------------------------------
@@ -3084,6 +3584,11 @@ async def on_ready():
 
     # Follow up with admins who ran /vrcverify_setup but never posted a panel.
     start_background_task("panel_nudge_sweep", panel_nudge_sweep_task())
+
+    # Drains buffered verification log entries into each guild's log channel.
+    start_background_task(
+        "verification_log_flush", verification_log_flush_task()
+    )
 
     # Waits for its trigger file; sends nothing on its own.
     start_background_task(

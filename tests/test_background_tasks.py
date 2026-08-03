@@ -53,6 +53,7 @@ def stub_startup(monkeypatch):
         ("refresh_all_instruction_panels", "instruction_panel_refresh"),
         ("watch_update_trigger_file", "instructions_trigger_watcher"),
         ("watch_premium_cutover_trigger", "premium_cutover_watcher"),
+        ("verification_log_flush_task", "verification_log_flush"),
     ]:
         monkeypatch.setattr(bot, attr, make(name))
     return started
@@ -165,6 +166,7 @@ class TestOnReadyReentry:
         "instruction_panel_refresh",
         "instructions_trigger_watcher",
         "premium_cutover_watcher",
+        "verification_log_flush",
     }
 
     def test_first_ready_starts_every_task(self, stub_startup):
