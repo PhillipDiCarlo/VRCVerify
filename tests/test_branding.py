@@ -612,10 +612,7 @@ class TestEntitlementEvents:
         set_branding()
         called = []
         monkeypatch.setattr(
-            bot, "restyle_instruction_panel", lambda gid: called.append(gid)
-        )
-        monkeypatch.setattr(
-            bot.asyncio, "create_task", lambda coro: coro
+            bot, "schedule_panel_restyle", lambda gid: called.append(gid)
         )
 
         bot._note_entitlement_change(
@@ -628,9 +625,8 @@ class TestEntitlementEvents:
         make_server(row_id=NEW_ID)
         called = []
         monkeypatch.setattr(
-            bot, "restyle_instruction_panel", lambda gid: called.append(gid)
+            bot, "schedule_panel_restyle", lambda gid: called.append(gid)
         )
-        monkeypatch.setattr(bot.asyncio, "create_task", lambda coro: coro)
 
         bot._note_entitlement_change(
             SimpleNamespace(guild_id=int(GUILD_ID)), "updated"
@@ -645,9 +641,8 @@ class TestEntitlementEvents:
             bot, "load_panel_branding", lambda gid: bot.BRANDING_UNREADABLE
         )
         monkeypatch.setattr(
-            bot, "restyle_instruction_panel", lambda gid: called.append(gid)
+            bot, "schedule_panel_restyle", lambda gid: called.append(gid)
         )
-        monkeypatch.setattr(bot.asyncio, "create_task", lambda coro: coro)
 
         bot._note_entitlement_change(
             SimpleNamespace(guild_id=int(GUILD_ID)), "updated"
@@ -659,9 +654,39 @@ class TestEntitlementEvents:
         set_branding()
         called = []
         monkeypatch.setattr(
-            bot, "restyle_instruction_panel", lambda gid: called.append(gid)
+            bot, "schedule_panel_restyle", lambda gid: called.append(gid)
         )
-        monkeypatch.setattr(bot.asyncio, "create_task", lambda coro: coro)
 
         bot._note_entitlement_change(SimpleNamespace(guild_id=None), "created")
         assert called == []
+
+
+class TestScheduledRestyleSurvives:
+    """asyncio only weakly references a running task.
+
+    A bare create_task() can be collected mid-flight, so the panel edit would
+    silently never happen. The task has to be held until it finishes.
+    """
+
+    def test_the_task_is_held_until_it_completes(self, monkeypatch, premium):
+        make_server(row_id=NEW_ID)
+        set_branding()
+        PanelRecorder().install(monkeypatch)
+
+        async def scenario():
+            bot._restyle_tasks.clear()
+            bot.schedule_panel_restyle(GUILD_ID)
+            # Referenced while in flight, which is what stops the collection.
+            assert len(bot._restyle_tasks) == 1
+            task = next(iter(bot._restyle_tasks))
+            await task
+            # And released once done, so the set cannot grow without bound.
+            assert bot._restyle_tasks == set()
+
+        asyncio.run(scenario())
+
+    def test_no_event_loop_is_not_an_error(self, monkeypatch):
+        """Called from sync code, there is nothing to schedule onto."""
+        bot._restyle_tasks.clear()
+        bot.schedule_panel_restyle(GUILD_ID)  # must not raise
+        assert bot._restyle_tasks == set()

@@ -3859,6 +3859,29 @@ def load_instruction_panel(guild_id) -> Optional[dict]:
         return None
 
 
+# asyncio only holds a weak reference to a running task, so a fire-and-forget
+# create_task() can be garbage collected mid-flight and the panel edit silently
+# never happens. Keeping the task here until it finishes is what stops that.
+# Not start_background_task: that is keyed by name and these are per-guild.
+_restyle_tasks: set = set()
+
+
+def schedule_panel_restyle(guild_id) -> None:
+    """Restyle a panel in the background, keeping the task alive until done."""
+    coro = restyle_instruction_panel(guild_id)
+    try:
+        task = asyncio.create_task(coro)
+    except RuntimeError:
+        # No running loop (e.g. called from sync code). Close the coroutine we
+        # never awaited, exactly as start_background_task does, so Python does
+        # not warn about it. The next refresh picks the styling up anyway.
+        coro.close()
+        logger.debug("No event loop to restyle guild %s on.", guild_id)
+        return
+    _restyle_tasks.add(task)
+    task.add_done_callback(_restyle_tasks.discard)
+
+
 async def restyle_instruction_panel(guild_id) -> str:
     """Re-edit one guild's panel so a styling change is visible right away.
 
@@ -4412,7 +4435,7 @@ def _note_entitlement_change(entitlement: discord.Entitlement, event: str) -> No
     # isinstance rather than `is not None`: an unreadable table must not buy a
     # panel edit that resolve_panel_style would then decline to apply anyway.
     if isinstance(load_panel_branding(guild_id), tuple):
-        asyncio.create_task(restyle_instruction_panel(guild_id))
+        schedule_panel_restyle(guild_id)
 
 
 @bot.event
