@@ -51,7 +51,8 @@ See the sections below for details and configuration.
   - **Server:** Holds configuration for each Discord server (guild), including role assignments. (Its `subscription_status` / `email` / `last_renewal_date` columns are dormant leftovers from a removed Stripe integration and are not used by anything — premium keys off Discord entitlements instead.)
   - **User:** Stores individual user verification statuses and VRChat IDs.
   - **PendingVerification:** Temporarily holds verification requests until they are processed.
-  - **PremiumCutoverNotice:** Which guilds have already had the one-time premium announcement DM. (Whether a server is *grandfathered* is not stored — it's `servers.id <= PREMIUM_GRANDFATHER_MAX_ID`.)
+  - **PremiumCutoverNotice:** Which guilds have already had the one-time premium announcement DM.
+  - **PremiumGrandfatherLine:** Single row holding `MAX(servers.id)` as of the moment the premium tier was switched on. Servers at or below it keep the grandfathered features free, permanently. Captured once, never moved.
   - **VerificationLogChannel:** Where a guild posts its verification activity log.
 
 - **Messaging with RabbitMQ:**  
@@ -115,11 +116,26 @@ also the only gated feature a *member* could perceive, and members move between
 servers. `tests/test_premium.py::TestAutoVerifyOnJoinIsFree` pins this so it
 can't drift back behind the paywall.
 
-\* Servers configured before the tier launched — defined as
-`servers.id <= PREMIUM_GRANDFATHER_MAX_ID` (default 820, where the
-autoincrementing key stood at the start of July 2026). Using the existing
-primary key means there is nothing to backfill and no way for the line to
-drift; a restored database draws it in exactly the same place.
+\* Servers installed before the tier went live. The line is **captured, not
+configured**: on the first startup that finds `PREMIUM_SKU_ID` set, the bot
+records `MAX(servers.id)` into `premium_grandfather_line` and never moves it.
+
+That ordering is what makes switching the tier on safe — every server that
+already exists is grandfathered by construction, so no server can lose
+automation it was already using. Only servers added *after* launch are ever
+asked to pay for those three features. It also means the cutover DM is purely
+informational and can go out whenever, since it isn't warning anyone about a
+loss.
+
+The line lives in the database rather than an env var so a restore carries it
+alongside the servers it describes. Recomputing it after a restore would
+re-draw it wherever the restore landed, retroactively grandfathering everyone
+who signed up since. `PREMIUM_GRANDFATHER_MAX_ID` overrides the captured value
+and exists only as an escape hatch.
+
+Grandfathering costs less revenue than it looks like: the activity log, queue
+priority and everything built after them are premium for *every* server
+regardless, so the line only governs three features.
 
 **The tier is off until `PREMIUM_SKU_ID` is set.** With it unset every gate
 answers "allowed", so this code runs identically to the free bot — the SKU can
@@ -134,6 +150,25 @@ outage can't silently disable a paying server's automation.
 The one-time cutover announcement to existing servers is manually triggered:
 `touch` the file at `PREMIUM_CUTOVER_TRIGGER_PATH` and it trickles out under a
 per-sweep cap, then stops on its own.
+
+#### Launching
+
+1. Set `PREMIUM_SKU_ID` and restart. On that startup the grandfather line is
+   captured at `MAX(servers.id)`, which the bot logs. Every server that exists
+   at this moment keeps the three grandfathered features permanently.
+2. `touch` the trigger whenever you like afterwards. The campaign DMs those
+   servers to say the tier launched and nothing changed for them, trickling at
+   roughly 240 servers/hour (20 per sweep, 300s apart), then stops on its own.
+
+There is deliberately no ordering hazard here. An earlier design had the line
+hand-set in the environment, which meant forgetting to update it before
+flipping the switch silently stripped automation from servers that had it
+([#59](https://github.com/PhillipDiCarlo/VRCVerify/issues/59)). Capturing the
+line at switch-on removes that failure entirely rather than detecting it.
+
+The bot logs a one-time reminder if the tier is live and the announcement is
+still outstanding. That is a courtesy nudge, not a safety check — those servers
+keep their features either way.
 
 ### Queue priority
 

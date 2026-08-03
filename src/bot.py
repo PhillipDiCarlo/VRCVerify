@@ -27,6 +27,7 @@ from sqlalchemy import (
     DateTime,
     text,
     inspect,
+    func,
 )
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import IntegrityError
@@ -307,14 +308,44 @@ class PremiumCutoverNotice(Base):
     there is no boolean to get out of sync, and mark-before-send is a plain
     insert.
 
-    Note this is only the DM ledger. Whether a server is *grandfathered* is not
-    stored anywhere: it is `servers.id <= PREMIUM_GRANDFATHER_MAX_ID`, which
-    needs no backfill, no marker, and survives a database restore unchanged.
+    Note this is only the DM ledger. Whether a server is *grandfathered* is
+    PremiumGrandfatherLine's job.
     """
 
     __tablename__ = "premium_cutover_notice"
     server_id = Column(String, primary_key=True)
     sent_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class PremiumGrandfatherLine(Base):
+    """Where the grandfather line was drawn, captured once and never moved.
+
+    Written on the first startup that finds the tier switched on, holding
+    MAX(servers.id) as of that moment. Every server already installed is
+    therefore grandfathered, and only servers added afterwards can ever be
+    asked to pay for GRANDFATHERED_FEATURES.
+
+    That ordering is the entire point: it makes "a server loses automation it
+    already had" impossible by construction rather than something we detect
+    afterwards and apologise for (issue #59). It also means the cutover DM can
+    go out after the switch without harm, since it is now purely informational.
+
+    Captured rather than configured because a hand-set line is a number someone
+    has to remember to update at exactly the right moment, and the cost of
+    forgetting is silently charging existing servers for what they already had.
+
+    Stored in the database, not a file or an env var, so a restore carries the
+    line with the servers it describes — recomputing it after a restore would
+    re-draw it wherever the restore happened to land, retroactively
+    grandfathering everyone who signed up since.
+    """
+
+    __tablename__ = "premium_grandfather_line"
+    # Single row, always id=1. A table rather than a column so create_all()
+    # brings it into being on its own, like the three above.
+    id = Column(Integer, primary_key=True)
+    max_server_id = Column(Integer, nullable=False)
+    captured_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class VerificationLogChannel(Base):
@@ -574,15 +605,19 @@ GRANDFATHERED_FEATURES = frozenset(
     {FEATURE_UNVERIFIED_ROLE_REMOVAL, FEATURE_NICKNAME_SYNC, FEATURE_CUSTOM_DM}
 )
 
-# The grandfather line, drawn on the servers table's autoincrementing primary
-# key. 820 is where it stood at the start of July 2026.
+# The grandfather line is drawn on the servers table's autoincrementing primary
+# key: servers at or below it keep GRANDFATHERED_FEATURES for free, forever.
 #
 # The id is the cheapest honest answer to "was this server here first": it is
-# already recorded, strictly increasing, and needs no backfill, no marker table
-# and no date column that `servers` does not have. It also means the answer is
-# identical on a restored database — a snapshot-at-first-boot approach would
-# quietly re-draw the line wherever the restore happened to land.
-PREMIUM_GRANDFATHER_MAX_ID = _int_env("PREMIUM_GRANDFATHER_MAX_ID", 820, minimum=0)
+# already recorded, strictly increasing, and needs no backfill and no date
+# column that `servers` does not have.
+#
+# The value itself is NOT configured here — it is captured into
+# premium_grandfather_line on the first startup that finds the tier switched
+# on. See that model for why. This override exists only as an escape hatch for
+# a capture that went wrong (and for tests); leave it unset in normal operation
+# so the line stays whatever was true at launch.
+PREMIUM_GRANDFATHER_MAX_ID_OVERRIDE = _optional_int_env("PREMIUM_GRANDFATHER_MAX_ID")
 
 # The one-time DM telling existing servers the tier is launching. Manually
 # triggered rather than automatic: this is a one-shot announcement to every
@@ -768,15 +803,83 @@ async def guild_has_premium(guild_id) -> bool:
         return answer
 
 
-def is_grandfathered(guild_id) -> bool:
-    """Was this guild configured before the premium cutover?
+def capture_grandfather_line() -> int | None:
+    """Freeze the grandfather line at today's MAX(servers.id), once, forever.
 
-    Read straight off the `servers` primary key, so nothing has to be written
-    at cutover time and the answer can never drift.
+    Called at startup and does nothing at all unless the tier is switched on
+    and no line has been captured yet, so it is a no-op on every boot but one.
+
+    Runs before the tier can gate anything because it happens in on_ready and
+    gating happens on interactions. If it fails, no row is written and
+    grandfather_line() keeps returning None, which fails open — an outage
+    during the one boot that matters must not decide that nobody is
+    grandfathered.
+    """
+    if not PREMIUM_ENFORCED:
+        return None
+    try:
+        with session_scope() as session:
+            existing = session.query(PremiumGrandfatherLine).filter_by(id=1).first()
+            if existing is not None:
+                return existing.max_server_id
+            # No servers yet (a brand-new deployment) draws the line at 0:
+            # nobody is grandfathered, which is correct — nobody has anything
+            # to lose.
+            highest = session.query(func.max(Server.id)).scalar() or 0
+            session.add(PremiumGrandfatherLine(id=1, max_server_id=highest))
+        logger.warning(
+            "Premium tier is live. Grandfather line captured at servers.id <= %d: "
+            "every server installed before now keeps %s free, permanently. "
+            "This is recorded once and will not move.",
+            highest,
+            ", ".join(sorted(GRANDFATHERED_FEATURES)),
+        )
+        return highest
+    except IntegrityError:
+        # Another writer got there first; theirs is as good as ours.
+        return grandfather_line()
+    except Exception:
+        logger.exception(
+            "Could not capture the grandfather line; every server will be "
+            "treated as grandfathered until this succeeds."
+        )
+        return None
+
+
+def grandfather_line() -> int | None:
+    """The captured line, or None if it has not been drawn yet.
+
+    None means "we cannot say", and every caller treats that as grandfathered.
+    Being wrong in that direction costs a subscription; being wrong the other
+    way takes working automation away from someone who had it.
+    """
+    if PREMIUM_GRANDFATHER_MAX_ID_OVERRIDE is not None:
+        return PREMIUM_GRANDFATHER_MAX_ID_OVERRIDE
+    try:
+        with session_scope() as session:
+            row = session.query(PremiumGrandfatherLine.max_server_id).filter_by(id=1).first()
+            return None if row is None else row.max_server_id
+    except Exception:
+        logger.warning("Could not read the grandfather line", exc_info=True)
+        return None
+
+
+def is_grandfathered(guild_id) -> bool:
+    """Was this guild installed before the tier went live?
+
+    Compares the server's primary key against the line captured at launch, so
+    the answer is fixed the moment the tier is switched on and cannot drift
+    afterwards.
     """
     if guild_id is None:
         return False
     try:
+        line = grandfather_line()
+        if line is None:
+            # Not captured (or unreadable). Same fail-open reasoning as the
+            # entitlement lookup: don't be the reason a server loses
+            # automation it already had.
+            return True
         with session_scope() as session:
             row = (
                 session.query(Server.id)
@@ -787,7 +890,7 @@ def is_grandfathered(guild_id) -> bool:
             # is no automation to preserve.
             if row is None or row.id is None:
                 return False
-            return row.id <= PREMIUM_GRANDFATHER_MAX_ID
+            return row.id <= line
     except Exception:
         # Same reasoning as the entitlement fail-open: if we can't tell, don't
         # be the reason an existing server loses automation it already had.
@@ -3095,7 +3198,15 @@ def load_premium_cutover_candidates(limit: int):
     nudge there is no way for an unreachable row to sit at the front of every
     sweep eating a slot — send_premium_cutover_dm marks before it sends, which
     removes a row from this query whether the DM lands or not.
+
+    Bounded by the captured grandfather line so the message only reaches the
+    servers it is true for: it says nothing changes for you, which is only
+    accurate for servers that predate the launch. An uncaptured line means the
+    tier has never been switched on, so there is nothing to announce yet.
     """
+    line = grandfather_line()
+    if line is None:
+        return []
     with session_scope() as session:
         notified = {
             panel_view_key(row.server_id)
@@ -3103,7 +3214,7 @@ def load_premium_cutover_candidates(limit: int):
         }
         rows = (
             session.query(Server)
-            .filter(Server.id <= PREMIUM_GRANDFATHER_MAX_ID)
+            .filter(Server.id <= line)
             .order_by(Server.id)
             .all()
         )
@@ -3117,6 +3228,83 @@ def load_premium_cutover_candidates(limit: int):
             if len(candidates) >= limit:
                 break
         return candidates
+
+
+def count_pending_cutover_notices() -> int:
+    """How many grandfathered servers still owe a cutover DM.
+
+    The same audience as load_premium_cutover_candidates, minus the limit —
+    this answers "has the campaign finished?", so it has to count the exact
+    set that campaign would send to.
+
+    The "already notified" half is matched in Python, not with a SQL IN, and
+    must stay that way: `servers.server_id` is an integer column on the
+    deployed database while `premium_cutover_notice.server_id` really is text,
+    so the comparison becomes `bigint = character varying` — which Postgres
+    rejects outright. See panel_view_key. SQLite types both as text, so a SQL
+    IN passes every test here and fails only in production.
+
+    Returns 0 on error. This only drives a warning; a database hiccup at
+    startup must not invent an alarming number, and a real backlog will still
+    be reported on the next boot.
+    """
+    line = grandfather_line()
+    if line is None:
+        return 0
+    try:
+        with session_scope() as session:
+            notified = {
+                panel_view_key(row.server_id)
+                for row in session.query(PremiumCutoverNotice.server_id).all()
+            }
+            rows = session.query(Server.server_id).filter(Server.id <= line).all()
+            return sum(
+                1 for row in rows if panel_view_key(row.server_id) not in notified
+            )
+    except Exception:
+        logger.warning("Could not count pending cutover notices", exc_info=True)
+        return 0
+
+
+# on_ready fires on every reconnect, so anything called from it that is not
+# idempotent has to say so itself — the same reasoning as start_background_task
+# below. This is a reminder, not a correctness guard: re-announcing an
+# outstanding campaign on every gateway blip is noise, and it would re-run two
+# queries on the event loop each time.
+_cutover_reminder_logged = False
+
+
+def warn_if_cutover_incomplete() -> int:
+    """Remind us, once, if the tier is live and servers still owe a DM.
+
+    Purely a courtesy check now. Under the captured-line model nobody can lose
+    a feature they already had, so an un-run campaign means existing servers
+    were never told the tier exists — untidy, not harmful. It no longer guards
+    a correctness property, and deliberately does not pretend to: what makes
+    issue #59 impossible is PremiumGrandfatherLine, not this.
+
+    Self-clearing: once every grandfathered server has its notice row this is
+    silent forever. Servers added after launch are past the line and are never
+    counted, so it cannot decay into a permanent warning.
+    """
+    global _cutover_reminder_logged
+    if not PREMIUM_ENFORCED or _cutover_reminder_logged:
+        return 0
+    pending = count_pending_cutover_notices()
+    # Set regardless of the outcome: the backlog can only shrink (the line is
+    # fixed, so no new server can fall inside it), which makes a second look
+    # pointless whether it found work or not. The cost of a database blip here
+    # is one missed reminder in one process lifetime, and a restart re-checks.
+    _cutover_reminder_logged = True
+    if pending:
+        logger.warning(
+            "%d server(s) predating the premium tier have not had the cutover "
+            "DM. They keep their grandfathered features either way; this is "
+            "just to say they were never told. Trigger the campaign: touch %s",
+            pending,
+            PREMIUM_CUTOVER_TRIGGER_PATH,
+        )
+    return pending
 
 
 def complete_premium_cutover(server_id) -> None:
@@ -3705,10 +3893,18 @@ async def on_ready():
         "verification_log_flush", verification_log_flush_task()
     )
 
+    # Draws the grandfather line on the first boot after the tier goes live,
+    # then never again. Must happen before the campaign watcher, which uses
+    # the line to pick its audience.
+    capture_grandfather_line()
+
     # Waits for its trigger file; sends nothing on its own.
     start_background_task(
         "premium_cutover_watcher", watch_premium_cutover_trigger()
     )
+
+    # A once-per-process reminder if the announcement is still outstanding.
+    warn_if_cutover_incomplete()
 
     # Panels already carrying the current custom_ids are handled by the
     # persistent view registered in setup_hook, so this only has to re-edit the

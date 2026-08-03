@@ -15,6 +15,8 @@ path:
 """
 
 import asyncio
+import logging
+from contextlib import contextmanager
 from types import SimpleNamespace
 
 import discord
@@ -102,10 +104,21 @@ def make_interaction(entitlements=(), guild_id=GUILD_ID, locale="en-US"):
     )
 
 
-# Grandfathering is `servers.id <= PREMIUM_GRANDFATHER_MAX_ID`, so tests pick
-# a row id on the side of the line they mean.
+# Grandfathering is `servers.id <= the captured line`, so tests pick a row id
+# on the side of the line they mean. The line itself is drawn by the autouse
+# fixture below.
+LINE = 820
 OLD_ID = 100  # comfortably before the cutover
 NEW_ID = 5000  # comfortably after it
+
+
+def draw_line(max_server_id=LINE):
+    """Capture the grandfather line, as the first enforced startup would."""
+    with bot.session_scope() as session:
+        session.query(bot.PremiumGrandfatherLine).delete()
+        session.add(
+            bot.PremiumGrandfatherLine(id=1, max_server_id=max_server_id)
+        )
 
 
 def make_server(server_id=GUILD_ID, row_id=OLD_ID, **overrides):
@@ -133,12 +146,19 @@ def clean_db():
             session.query(bot.Server).delete()
             session.query(bot.User).delete()
             session.query(bot.PremiumCutoverNotice).delete()
+            session.query(bot.PremiumGrandfatherLine).delete()
 
     wipe()
     bot.premium_status_cache.clear()
+    bot._cutover_reminder_logged = False
+    # Most tests care about which side of the line a server falls on, not about
+    # the capture itself, so start with the line already drawn. The tests that
+    # exercise capture clear it first.
+    draw_line()
     yield
     wipe()
     bot.premium_status_cache.clear()
+    bot._cutover_reminder_logged = False
 
 
 @pytest.fixture
@@ -395,15 +415,25 @@ class TestIsGrandfathered:
         make_server(row_id=NEW_ID)
         assert bot.is_grandfathered(GUILD_ID) is False
 
-    def test_the_boundary_id_is_included(self, monkeypatch):
-        monkeypatch.setattr(bot, "PREMIUM_GRANDFATHER_MAX_ID", 820)
-        make_server(row_id=820)
+    def test_the_boundary_id_is_included(self):
+        make_server(row_id=LINE)
         assert bot.is_grandfathered(GUILD_ID) is True
 
-    def test_one_past_the_boundary_is_not(self, monkeypatch):
-        monkeypatch.setattr(bot, "PREMIUM_GRANDFATHER_MAX_ID", 820)
-        make_server(row_id=821)
+    def test_one_past_the_boundary_is_not(self):
+        make_server(row_id=LINE + 1)
         assert bot.is_grandfathered(GUILD_ID) is False
+
+    def test_no_line_yet_means_grandfathered(self):
+        """Fail open: never take automation away because we couldn't tell."""
+        with bot.session_scope() as session:
+            session.query(bot.PremiumGrandfatherLine).delete()
+        make_server(row_id=NEW_ID)
+        assert bot.is_grandfathered(GUILD_ID) is True
+
+    def test_an_unreadable_line_also_fails_open(self, monkeypatch):
+        make_server(row_id=NEW_ID)
+        monkeypatch.setattr(bot, "grandfather_line", lambda: None)
+        assert bot.is_grandfathered(GUILD_ID) is True
 
     def test_unconfigured_guild(self):
         # No servers row means nothing was ever configured here, so there is no
@@ -723,6 +753,19 @@ class TestCutoverCampaign:
         run(bot.premium_cutover_sweep_task())
         assert cutover_harness.dms == []
 
+    def test_no_line_means_nothing_to_announce(self, cutover_harness):
+        """No captured line means the tier has never been switched on.
+
+        The DM says the tier launched and nothing changed for you; sending it
+        before either is true would be a lie to every server we have.
+        """
+        with bot.session_scope() as session:
+            session.query(bot.PremiumGrandfatherLine).delete()
+        make_server(row_id=OLD_ID)
+        assert bot.load_premium_cutover_candidates(10) == []
+        run(bot.premium_cutover_sweep_task())
+        assert cutover_harness.dms == []
+
     def test_servers_added_after_the_cutover_are_not_told(self, cutover_harness):
         # They never had the grandfathered features, so there is nothing to
         # announce to them.
@@ -807,3 +850,206 @@ class TestCutoverCampaign:
 
         run(bot.premium_cutover_sweep_task())
         assert cutover_harness.dms == ["Test Server"]
+
+
+class TestGrandfatherLineCapture:
+    """Issue #59: nobody may lose a feature they already had.
+
+    The line is captured at the moment the tier goes live, so every server
+    installed before then is grandfathered by construction. These pin the
+    properties that guarantee it.
+    """
+
+    @pytest.fixture(autouse=True)
+    def no_line_yet(self):
+        with bot.session_scope() as session:
+            session.query(bot.PremiumGrandfatherLine).delete()
+
+    def test_does_nothing_while_the_tier_is_off(self):
+        make_server(row_id=NEW_ID)
+        assert bot.capture_grandfather_line() is None
+        assert bot.grandfather_line() is None
+
+    def test_captures_the_highest_server_id(self, enforced):
+        make_server("a", row_id=10)
+        make_server("b", row_id=NEW_ID)
+        make_server("c", row_id=50)
+        assert bot.capture_grandfather_line() == NEW_ID
+        assert bot.grandfather_line() == NEW_ID
+
+    def test_every_existing_server_ends_up_grandfathered(self, enforced):
+        """The whole point: switching the tier on takes nothing from anyone."""
+        for index in range(1, 6):
+            make_server(f"s{index}", row_id=index * 37)
+        bot.capture_grandfather_line()
+        assert all(bot.is_grandfathered(f"s{i}") for i in range(1, 6))
+
+    def test_a_server_added_later_is_not_grandfathered(self, enforced):
+        make_server("early", row_id=10)
+        bot.capture_grandfather_line()
+        make_server("late", row_id=11)
+        assert bot.is_grandfathered("early") is True
+        assert bot.is_grandfathered("late") is False
+
+    def test_the_line_never_moves_once_drawn(self, enforced):
+        make_server("early", row_id=10)
+        assert bot.capture_grandfather_line() == 10
+        # A later boot, with more servers, must not redraw it -- otherwise
+        # every restart would retroactively grandfather everyone since.
+        make_server("late", row_id=999)
+        assert bot.capture_grandfather_line() == 10
+        assert bot.grandfather_line() == 10
+
+    def test_no_servers_at_all_draws_the_line_at_zero(self, enforced):
+        assert bot.capture_grandfather_line() == 0
+        assert bot.grandfather_line() == 0
+
+    def test_a_failed_capture_leaves_no_line(self, enforced, monkeypatch):
+        def boom():
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr(bot, "session_scope", boom)
+        assert bot.capture_grandfather_line() is None
+
+    def test_the_override_wins_when_set(self, enforced, monkeypatch):
+        make_server(row_id=NEW_ID)
+        bot.capture_grandfather_line()
+        monkeypatch.setattr(bot, "PREMIUM_GRANDFATHER_MAX_ID_OVERRIDE", 5)
+        assert bot.grandfather_line() == 5
+
+
+class TestCutoverCompletionWarning:
+    """Issue #59: the tier must not go live before everyone has been told.
+
+    The audience for the DM and the set of servers that keep their features are
+    the same predicate. These pin that they stay the same, and that flipping
+    the switch early is at least loud.
+    """
+
+    def test_counts_only_the_untold_inside_the_line(self):
+        make_server("told", row_id=OLD_ID)
+        make_server("untold", row_id=OLD_ID + 1)
+        mark_notified("told")
+        assert bot.count_pending_cutover_notices() == 1
+
+    def test_servers_past_the_line_are_not_counted(self):
+        # They never had the grandfathered features, so there is nothing to
+        # warn about — otherwise this would grow forever after launch and
+        # become noise instead of signal.
+        make_server("new", row_id=NEW_ID)
+        assert bot.count_pending_cutover_notices() == 0
+
+    def test_it_matches_the_campaign_audience(self):
+        """The count and the campaign must never disagree about who is owed."""
+        for index in range(4):
+            make_server(str(index), row_id=index + 1)
+        make_server("past", row_id=NEW_ID)
+        mark_notified("0")
+        assert bot.count_pending_cutover_notices() == len(
+            bot.load_premium_cutover_candidates(100)
+        )
+
+    def test_silent_while_the_tier_is_off(self, caplog):
+        make_server(row_id=OLD_ID)
+        with caplog.at_level(logging.WARNING):
+            assert bot.warn_if_cutover_incomplete() == 0
+        assert "cutover DM" not in caplog.text
+
+    def test_warns_when_enforced_with_sends_outstanding(self, enforced, caplog):
+        make_server(row_id=OLD_ID)
+        with caplog.at_level(logging.WARNING):
+            assert bot.warn_if_cutover_incomplete() == 1
+        assert "cutover DM" in caplog.text
+        # The fix has to be in the message, not just the complaint.
+        assert bot.PREMIUM_CUTOVER_TRIGGER_PATH in caplog.text
+
+    def test_it_only_speaks_once_per_process(self, enforced, caplog):
+        """on_ready fires on every reconnect; this must not follow it."""
+        make_server(row_id=OLD_ID)
+        with caplog.at_level(logging.WARNING):
+            assert bot.warn_if_cutover_incomplete() == 1
+            caplog.clear()
+            # A reconnect, with the campaign still outstanding.
+            assert bot.warn_if_cutover_incomplete() == 0
+        assert caplog.text == ""
+
+    def test_the_repeat_guard_skips_the_query_entirely(self, enforced, monkeypatch):
+        make_server(row_id=OLD_ID)
+        bot.warn_if_cutover_incomplete()
+
+        def boom():
+            raise AssertionError("queried the database on a reconnect")
+
+        monkeypatch.setattr(bot, "count_pending_cutover_notices", boom)
+        assert bot.warn_if_cutover_incomplete() == 0
+
+    def test_a_finished_campaign_also_stops_re_querying(self, enforced, monkeypatch):
+        """Nothing to report is still a reason not to look again.
+
+        The line never moves, so no server can later fall inside it — a
+        completed campaign stays completed, and re-checking it on every
+        reconnect is pure waste on the event loop.
+        """
+        make_server(row_id=OLD_ID)
+        mark_notified()
+        assert bot.warn_if_cutover_incomplete() == 0
+
+        def boom():
+            raise AssertionError("queried the database on a reconnect")
+
+        monkeypatch.setattr(bot, "count_pending_cutover_notices", boom)
+        assert bot.warn_if_cutover_incomplete() == 0
+
+    def test_silent_once_the_campaign_has_finished(self, enforced, caplog):
+        make_server(row_id=OLD_ID)
+        mark_notified()
+        with caplog.at_level(logging.WARNING):
+            assert bot.warn_if_cutover_incomplete() == 0
+        assert "cutover DM" not in caplog.text
+
+    def test_an_integer_server_id_still_matches_its_notice(self, monkeypatch):
+        """servers.server_id comes back as an int on the deployed database.
+
+        The notice table's column is genuinely text, so the two halves must be
+        normalised in Python before they are compared. This cannot be set up
+        through the real session: SQLite coerces an int written to a String
+        column back to str, which is exactly why the mismatch is invisible
+        locally and only bites on Postgres (`bigint = character varying`).
+        So the row types are forced directly. See panel_view_key.
+        """
+
+        class FakeQuery:
+            def __init__(self, rows):
+                self.rows = rows
+
+            def filter(self, *args, **kwargs):
+                return self
+
+            def all(self):
+                return self.rows
+
+        class FakeSession:
+            def query(self, column):
+                if column is bot.PremiumCutoverNotice.server_id:
+                    # As complete_premium_cutover wrote it: text.
+                    return FakeQuery([SimpleNamespace(server_id="123456789")])
+                # As the deployed integer column returns it.
+                return FakeQuery([SimpleNamespace(server_id=123456789)])
+
+        @contextmanager
+        def fake_scope():
+            yield FakeSession()
+
+        # Via the override, so resolving the line does not go through the fake
+        # session -- otherwise it fails, the count short-circuits to 0, and
+        # this test passes without ever comparing an id.
+        monkeypatch.setattr(bot, "PREMIUM_GRANDFATHER_MAX_ID_OVERRIDE", 10**9)
+        monkeypatch.setattr(bot, "session_scope", fake_scope)
+        assert bot.count_pending_cutover_notices() == 0
+
+    def test_a_database_failure_does_not_invent_a_number(self, monkeypatch):
+        def boom():
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr(bot, "session_scope", boom)
+        assert bot.count_pending_cutover_notices() == 0
