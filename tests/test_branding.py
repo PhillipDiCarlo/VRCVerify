@@ -79,6 +79,9 @@ def clean_db():
             session.query(bot.User).delete()
             session.query(bot.InstructionPanelBranding).delete()
             session.query(bot.PremiumGrandfatherLine).delete()
+            # Recorded panel versions leak between tests otherwise, and
+            # load_instruction_panel now reports the real one.
+            session.query(bot.InstructionPanelView).delete()
 
     wipe()
     bot.premium_status_cache.clear()
@@ -659,6 +662,36 @@ class TestEntitlementEvents:
 
         bot._note_entitlement_change(SimpleNamespace(guild_id=None), "created")
         assert called == []
+
+
+class TestSinglePanelLookup:
+    def test_it_reports_the_recorded_view_version(self):
+        """Otherwise every restyle re-records a version that already matched."""
+        make_server(row_id=NEW_ID)
+        bot.record_panel_view_version(GUILD_ID)
+        entry = bot.load_instruction_panel(GUILD_ID)
+        assert entry["view_version"] == bot.INSTRUCTIONS_VIEW_VERSION
+
+    def test_an_unrecorded_panel_reads_as_zero(self):
+        make_server(row_id=NEW_ID)
+        entry = bot.load_instruction_panel(GUILD_ID)
+        assert entry["view_version"] == 0
+
+    def test_a_restyle_does_not_rewrite_a_matching_version(self, monkeypatch, premium):
+        make_server(row_id=NEW_ID)
+        set_branding()
+        bot.record_panel_view_version(GUILD_ID)
+        PanelRecorder().install(monkeypatch)
+
+        def boom(*args, **kwargs):
+            raise AssertionError("re-recorded a version that already matched")
+
+        monkeypatch.setattr(bot, "record_panel_view_version", boom)
+        assert run(bot.restyle_instruction_panel(GUILD_ID)) == "ok"
+
+    def test_a_guild_with_no_panel_reads_as_none(self):
+        make_server(row_id=NEW_ID, with_panel=False)
+        assert bot.load_instruction_panel(GUILD_ID) is None
 
 
 class TestScheduledRestyleSurvives:

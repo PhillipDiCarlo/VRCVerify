@@ -3843,12 +3843,20 @@ def load_instruction_panel(guild_id) -> Optional[dict]:
             )
             if server is None or not server.instructions_message_id:
                 return None
+            # The real recorded version, not a placeholder: probe_instruction_panel
+            # re-records it whenever the entry disagrees, so hardcoding 0 would
+            # buy a redundant write on every restyle.
+            recorded = (
+                session.query(InstructionPanelView.view_version)
+                .filter_by(server_id=panel_view_key(guild_id))
+                .first()
+            )
             return {
                 "server_id": server.server_id,
                 "channel_id": server.instructions_channel_id,
                 "message_id": server.instructions_message_id,
                 "locale": server.instructions_locale or "en-US",
-                "view_version": 0,
+                "view_version": 0 if recorded is None else recorded.view_version,
             }
     except Exception:
         logger.warning(
