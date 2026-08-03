@@ -501,6 +501,18 @@ class _TTLCache:
 _member_fetch_cache = _TTLCache(REST_CACHE_MAX, REST_TTL_SECONDS)
 _rest_semaphore = asyncio.Semaphore(REST_CONCURRENCY)
 
+# Dashboard Administrator verdicts, cached separately from the member fetches
+# above and for far less time. 180 seconds is the right answer for the
+# verification path, where a slightly stale member costs nothing; it is the
+# wrong answer for an authority check, because it is also how long a demoted
+# admin would keep configuring the server after their role was pulled.
+#
+# 15s keeps a settings page (four API calls) to one lookup while making
+# revocation effectively immediate. Set 0 to expire entries as fast as the
+# clock allows, paying a REST call per check.
+BOT_API_ADMIN_TTL = _int_env("BOT_API_ADMIN_TTL", 15, minimum=0)
+_admin_check_cache = _TTLCache(REST_CACHE_MAX, BOT_API_ADMIN_TTL)
+
 async def fetch_member_cached(guild: discord.Guild, user_id: int) -> discord.Member | None:
     if not guild:
         return None
@@ -4379,10 +4391,19 @@ async def dashboard_is_admin(guild_id, user_id) -> bool:
     Deliberately not derived from the `permissions` field Discord handed the
     dashboard at login: that describes the user's guilds as of their last OAuth
     round trip, and an admin demoted since then would keep working until their
-    session expired. This asks the gateway, on every request.
+    session expired.
+
+    It also deliberately does NOT use fetch_member_cached. That cache serves
+    the verification hot path at REST_TTL_SECONDS (180s by default), and
+    reusing it here would mean a demoted admin — or a compromised account
+    someone is busy locking out — kept dashboard access for up to three
+    minutes. Revoking an admin role is the *first* thing anyone does during an
+    incident, so that is exactly the window that must not be three minutes.
+    BOT_API_ADMIN_TTL (15s) bounds it instead, and it is a separate cache so
+    tuning one workload can never silently widen the other.
 
     Owner first because it needs no member at all — `guild.owner_id` is always
-    cached, an owner always has Administrator, and it saves a REST fetch on the
+    cached, an owner always has Administrator, and it saves a REST call on the
     single most common case.
     """
     try:
@@ -4392,14 +4413,28 @@ async def dashboard_is_admin(guild_id, user_id) -> bool:
         member_id = int(user_id)
         if member_id == guild.owner_id:
             return True
-        # MemberCacheFlags is none() here, so get_member usually misses and the
-        # TTL-cached fetch is what actually answers.
-        member = guild.get_member(member_id) or await fetch_member_cached(
-            guild, member_id
-        )
+
+        key = (guild.id, member_id)
+        cached = _admin_check_cache.get(key)
+        if cached is not None:
+            return bool(cached.allowed)
+
+        # The gateway cache first: it is free, and GUILD_MEMBER_UPDATE keeps it
+        # current. MemberCacheFlags is none() here so it usually misses, which
+        # is why the fetch below is the path that normally answers.
+        member = guild.get_member(member_id)
         if member is None:
-            return False
-        return bool(member.guild_permissions.administrator)
+            async with _rest_semaphore:
+                try:
+                    member = await guild.fetch_member(member_id)
+                except discord.NotFound:
+                    member = None
+
+        allowed = bool(member is not None and member.guild_permissions.administrator)
+        # Only the verdict is cached, not the member. A stale Member object is
+        # a permission answer waiting to be recomputed wrongly somewhere else.
+        _admin_check_cache.set(key, SimpleNamespace(allowed=allowed))
+        return allowed
     except Exception:
         # Fail closed. An unanswerable authority question is a "no".
         logger.warning(
@@ -4409,6 +4444,51 @@ async def dashboard_is_admin(guild_id, user_id) -> bool:
             exc_info=True,
         )
         return False
+
+
+async def dashboard_admin_guilds(user_id, guild_ids) -> Optional[list]:
+    """Narrow a caller's own guild list to the ones they administer.
+
+    The picker's data source. Presence is checked first because it is free and
+    because it throws away most of the work: an id the bot has never joined
+    costs nothing and, importantly, is reported identically to a guild the
+    caller simply does not administer. The caller cannot tell those two apart,
+    which is the whole point — see handle_list_guilds in bot_api.py for what
+    went wrong when this endpoint answered on presence alone.
+    """
+    try:
+        member_id = int(user_id)
+        candidates = []
+        for guild_id in guild_ids:
+            try:
+                candidate = int(guild_id)
+            except (TypeError, ValueError):
+                continue
+            if bot.get_guild(candidate) is not None:
+                candidates.append(candidate)
+
+        if not candidates:
+            return []
+
+        # Concurrently, but every fetch inside dashboard_is_admin still passes
+        # through _rest_semaphore, so this cannot outrun the REST budget the
+        # rest of the bot shares.
+        verdicts = await asyncio.gather(
+            *(dashboard_is_admin(candidate, member_id) for candidate in candidates),
+            return_exceptions=True,
+        )
+        return [
+            candidate
+            for candidate, allowed in zip(candidates, verdicts)
+            if allowed is True
+        ]
+    except Exception:
+        logger.warning(
+            "Could not resolve the dashboard guild list for user %s.",
+            user_id,
+            exc_info=True,
+        )
+        return None
 
 
 async def read_dashboard_settings(guild_id) -> Optional[dict]:
@@ -4621,6 +4701,7 @@ def build_bot_api_deps() -> bot_api.BotAPIDeps:
         is_ready=bot.is_ready,
         guild_present=dashboard_guild_present,
         is_admin=dashboard_is_admin,
+        read_admin_guilds=dashboard_admin_guilds,
         read_settings=read_dashboard_settings,
         read_roles=read_dashboard_roles,
         read_channels=read_dashboard_channels,

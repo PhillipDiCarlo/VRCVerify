@@ -23,7 +23,9 @@ Three things guard every request, in this order:
 3. **The bot's own answer.** Authority never comes from the dashboard, from the
    token, or from the `permissions` field Discord handed the dashboard at login.
    It comes from asking the bot whether this user is an Administrator of this
-   guild, on every single request.
+   guild, re-checked per request against a cache with a deliberately short life
+   (`BOT_API_ADMIN_TTL`, 15s) — so revoking someone's admin role revokes their
+   dashboard access within seconds rather than whenever a session expires.
 
 The whole thing is inert unless `BOT_API_ENABLED` is set. With it unset nothing
 binds and nothing listens.
@@ -133,9 +135,15 @@ class BotAPIDeps:
     # Has the gateway connected? Answers are meaningless before it has.
     is_ready: Callable[[], bool]
     # Is the bot in this guild at all? A pure cache lookup, no REST.
+    # Used only to tell "no such guild" (404) from "not yours" (403) on the
+    # guild-scoped routes; it is never an answer on its own.
     guild_present: Callable[[int], bool]
     # The authority check. Async because an uncached member costs a fetch.
     is_admin: Callable[[int, int], Awaitable[bool]]
+    # The same check, for the picker: narrows a caller's own guild list to the
+    # ones they administer. Kept as its own reader rather than a loop over
+    # is_admin so the bot can bound the work it does in one pass.
+    read_admin_guilds: Callable[[int, list], Awaitable[Optional[list]]]
     read_settings: Callable[[int], Awaitable[Optional[dict]]]
     read_roles: Callable[[int], Awaitable[Optional[list]]]
     read_channels: Callable[[int], Awaitable[Optional[list]]]
@@ -635,19 +643,27 @@ async def handle_health(request: web.Request) -> web.Response:
 
 
 async def handle_list_guilds(request: web.Request) -> web.Response:
-    """Which of the caller's own guilds this bot is in.
+    """Which of the caller's guilds this bot is in AND the caller administers.
 
     Names and icons are NOT returned, because the dashboard already has them:
     they came from the user's OAuth guild list, which is where the picker gets
-    its tiles. All this adds is the one bit the dashboard cannot know — whether
-    the bot is present — which is what decides greyscale-with-an-invite versus a
-    link into the settings pages.
+    its tiles. All this adds is the bit the dashboard cannot know — whether the
+    bot is present — which decides greyscale-with-an-invite versus a link into
+    the settings pages.
 
-    Keeping it to that bit also keeps the endpoint cheap. Resolving names,
-    entitlements or Administrator for a user in a hundred guilds would mean a
-    hundred lookups behind one page load; the real Administrator check happens
-    on the per-guild endpoints, where it is one guild at a time and where it
-    actually gates something.
+    The Administrator filter is not decoration. An earlier version answered
+    "is the bot in this guild?" for any id the caller sent, which made this the
+    one endpoint not bounded by the bot's own authority check. Under the design
+    assumption that the public host is eventually compromised — and a
+    compromised host holds the signing key, so it can mint tokens for any
+    actor — that turned into an unbounded oracle: walk arbitrary ids and
+    enumerate every server running this bot, i.e. a census of communities
+    operating 18+ gating. Every other endpoint yields only what a real
+    administrator could already see, and this one now matches.
+
+    So the answer is never about a guild the caller has no standing in, and a
+    guild the caller does not administer is indistinguishable from one the bot
+    has never joined.
     """
     try:
         claims = await _authorize(request, guild_scoped=False)
@@ -663,15 +679,17 @@ async def handle_list_guilds(request: web.Request) -> web.Response:
     if len(candidates) > MAX_GUILD_IDS:
         return _deny(request, 400, "too_many_ids", actor=claims.actor_id)
 
-    present = []
+    guild_ids = []
     for candidate in candidates:
         try:
-            guild_id = int(candidate)
+            guild_ids.append(int(candidate))
         except ValueError:
             return _deny(request, 400, "bad_guild_id", actor=claims.actor_id)
-        if deps.guild_present(guild_id):
-            present.append(str(guild_id))
-    return _json({"present": present})
+
+    present = await deps.read_admin_guilds(claims.actor_id, guild_ids)
+    if present is None:
+        return _deny(request, 503, "unavailable", actor=claims.actor_id)
+    return _json({"present": [str(guild_id) for guild_id in present]})
 
 
 def _guild_reader(read: str):

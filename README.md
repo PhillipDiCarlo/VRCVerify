@@ -297,9 +297,16 @@ Three independent checks guard every request:
 2. **A scoped token**, valid for one Discord user, one guild, one operation and
    about thirty seconds, and single-use. A captured request cannot be replayed
    against a different guild or a different endpoint.
-3. **The bot's own Administrator check**, re-run on every request rather than
-   cached against a session. Losing Administrator revokes access within one
-   request. Manage Server is not enough, matching every slash command.
+3. **The bot's own Administrator check**, re-run per request against a
+   short-lived cache (`BOT_API_ADMIN_TTL`, 15s) rather than held against a
+   session — so pulling someone's admin role cuts off their dashboard access
+   within seconds, which is what you need when the role is being pulled
+   *because* an account is compromised. Manage Server is not enough, matching
+   every slash command.
+
+The server picker only answers for guilds the caller actually administers. It
+will not confirm whether the bot is in a guild you have no standing in, so a
+stolen session cannot be used to enumerate which servers run this bot.
 
 Deployment rules, all enforced or explained in `.env.example`:
 

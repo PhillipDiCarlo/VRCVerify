@@ -54,6 +54,11 @@ def make_deps(**overrides) -> bot_api.BotAPIDeps:
     async def is_admin(guild_id, user_id):
         return int(user_id) == ADMIN_ID
 
+    async def read_admin_guilds(user_id, guild_ids):
+        if int(user_id) != ADMIN_ID:
+            return []
+        return [gid for gid in guild_ids if int(gid) == GUILD_ID]
+
     async def read_settings(guild_id):
         return {"guild_id": str(guild_id), "fields": {}}
 
@@ -70,6 +75,7 @@ def make_deps(**overrides) -> bot_api.BotAPIDeps:
         is_ready=lambda: True,
         guild_present=lambda guild_id: int(guild_id) == GUILD_ID,
         is_admin=is_admin,
+        read_admin_guilds=read_admin_guilds,
         read_settings=read_settings,
         read_roles=read_roles,
         read_channels=read_channels,
@@ -592,19 +598,61 @@ class TestRequests:
 class TestGuildList:
     OP = bot_api.OP_LIST_GUILDS
 
+    def token(self, actor_id=ADMIN_ID):
+        return bot_api.mint_token(
+            SIGNING_KEY, actor_id=actor_id, operation=self.OP, guild_id=None
+        )
+
     def test_returns_only_the_guilds_the_bot_is_in(self):
         async def scenario(client):
             return await get(
                 client,
                 f"/api/v1/guilds?ids={GUILD_ID},{OTHER_GUILD_ID}",
-                bot_api.mint_token(
-                    SIGNING_KEY, actor_id=ADMIN_ID, operation=self.OP, guild_id=None
-                ),
+                self.token(),
             )
 
         status, body = serve(scenario)
         assert status == 200
         assert body == {"present": [str(GUILD_ID)]}
+
+    def test_it_is_not_a_bot_presence_oracle(self):
+        """The bug this endpoint shipped with, pinned shut.
+
+        It used to answer "is the bot in this guild?" for any id the caller
+        sent, making it the one endpoint not bounded by the bot's own authority
+        check. Since a compromised dashboard holds the signing key and can mint
+        a token for any actor, that let an attacker walk arbitrary ids and
+        enumerate every server running this bot.
+        """
+
+        async def scenario(client):
+            return await get(
+                client,
+                # GUILD_ID is a real guild the bot is in — but this caller has
+                # no standing in it, so it must come back indistinguishable
+                # from one the bot has never joined.
+                f"/api/v1/guilds?ids={GUILD_ID},{OTHER_GUILD_ID}",
+                self.token(actor_id=MEMBER_ID),
+            )
+
+        status, body = serve(scenario)
+        assert status == 200
+        assert body == {"present": []}
+
+    def test_an_unreadable_answer_is_a_503_not_an_empty_list(self):
+        """An empty list means "none of these"; it must not mean "we failed"."""
+
+        async def unavailable(user_id, guild_ids):
+            return None
+
+        async def scenario(client):
+            return await get(
+                client, f"/api/v1/guilds?ids={GUILD_ID}", self.token()
+            )
+
+        status, body = serve(scenario, deps=make_deps(read_admin_guilds=unavailable))
+        assert status == 503
+        assert body["error"] == "unavailable"
 
     def test_a_guild_scoped_token_cannot_reach_it(self):
         async def scenario(client):
@@ -617,17 +665,29 @@ class TestGuildList:
     def test_an_oversized_query_is_refused(self):
         async def scenario(client):
             ids = ",".join(str(n) for n in range(bot_api.MAX_GUILD_IDS + 1))
-            return await get(
-                client,
-                f"/api/v1/guilds?ids={ids}",
-                bot_api.mint_token(
-                    SIGNING_KEY, actor_id=ADMIN_ID, operation=self.OP, guild_id=None
-                ),
-            )
+            return await get(client, f"/api/v1/guilds?ids={ids}", self.token())
 
         status, body = serve(scenario)
         assert status == 400
         assert body["error"] == "too_many_ids"
+
+    def test_the_actor_is_taken_from_the_token_not_the_query(self):
+        """There is no way to ask on someone else's behalf."""
+        seen = {}
+
+        async def record(user_id, guild_ids):
+            seen["actor"] = int(user_id)
+            return []
+
+        async def scenario(client):
+            return await get(
+                client,
+                f"/api/v1/guilds?ids={GUILD_ID}&user_id={ADMIN_ID}",
+                self.token(actor_id=MEMBER_ID),
+            )
+
+        serve(scenario, deps=make_deps(read_admin_guilds=record))
+        assert seen["actor"] == MEMBER_ID
 
 
 # -------------------------------------------------------------------
@@ -647,6 +707,7 @@ class TestReadOnlyPhase:
                 "is_ready",
                 "guild_present",
                 "is_admin",
+                "read_admin_guilds",
                 "read_settings",
                 "read_roles",
                 "read_channels",
@@ -953,60 +1014,164 @@ class TestPanelReader:
         assert panel["channel_reachable"] is None
 
 
+def member(administrator=True):
+    return SimpleNamespace(
+        guild_permissions=SimpleNamespace(administrator=administrator)
+    )
+
+
+@pytest.fixture(autouse=True)
+def clear_admin_cache():
+    """Verdicts are cached, so they would otherwise leak between tests."""
+    bot._admin_check_cache._store.clear()
+    yield
+    bot._admin_check_cache._store.clear()
+
+
 class TestAdminCheck:
-    def test_the_owner_needs_no_lookup(self, monkeypatch):
-        guild = FakeGuild()
+    def guild_with(self, monkeypatch, fetch_result=None, fetches=None, **kwargs):
+        guild = FakeGuild(**kwargs)
 
-        async def never(*args):
-            raise AssertionError("the owner shortcut should avoid a fetch")
+        async def fetch_member(user_id):
+            if fetches is not None:
+                fetches.append(user_id)
+            if isinstance(fetch_result, Exception):
+                raise fetch_result
+            if fetch_result is None:
+                raise discord.NotFound(SimpleNamespace(status=404), "nope")
+            return fetch_result
 
+        guild.fetch_member = fetch_member
         monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
-        monkeypatch.setattr(bot, "fetch_member_cached", never)
+        return guild
+
+    def test_the_owner_needs_no_lookup(self, monkeypatch):
+        fetches = []
+        self.guild_with(monkeypatch, fetch_result=member(), fetches=fetches)
         assert run(bot.dashboard_is_admin(GUILD_ID, OWNER_ID)) is True
+        assert fetches == []
 
     def test_an_administrator_is_allowed(self, monkeypatch):
-        guild = FakeGuild()
-        member = SimpleNamespace(
-            guild_permissions=SimpleNamespace(administrator=True)
-        )
-
-        async def fetch(_guild, _user_id):
-            return member
-
-        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
-        monkeypatch.setattr(bot, "fetch_member_cached", fetch)
+        self.guild_with(monkeypatch, fetch_result=member(administrator=True))
         assert run(bot.dashboard_is_admin(GUILD_ID, ADMIN_ID)) is True
 
     def test_manage_server_is_not_enough(self, monkeypatch):
         """Administrator only, matching every slash command's own check."""
-        guild = FakeGuild()
-        member = SimpleNamespace(
-            guild_permissions=SimpleNamespace(administrator=False)
-        )
-
-        async def fetch(_guild, _user_id):
-            return member
-
-        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
-        monkeypatch.setattr(bot, "fetch_member_cached", fetch)
+        self.guild_with(monkeypatch, fetch_result=member(administrator=False))
         assert run(bot.dashboard_is_admin(GUILD_ID, ADMIN_ID)) is False
 
     def test_a_non_member_is_refused(self, monkeypatch):
-        async def fetch(_guild, _user_id):
-            return None
-
-        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: FakeGuild())
-        monkeypatch.setattr(bot, "fetch_member_cached", fetch)
+        self.guild_with(monkeypatch, fetch_result=None)
         assert run(bot.dashboard_is_admin(GUILD_ID, ADMIN_ID)) is False
 
     def test_an_unanswerable_question_fails_closed(self, monkeypatch):
-        async def boom(_guild, _user_id):
-            raise RuntimeError("gateway is unhappy")
-
-        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: FakeGuild())
-        monkeypatch.setattr(bot, "fetch_member_cached", boom)
+        self.guild_with(monkeypatch, fetch_result=RuntimeError("gateway is unhappy"))
         assert run(bot.dashboard_is_admin(GUILD_ID, ADMIN_ID)) is False
 
     def test_an_absent_guild_is_refused(self, monkeypatch):
         monkeypatch.setattr(bot.bot, "get_guild", lambda _id: None)
         assert run(bot.dashboard_is_admin(GUILD_ID, ADMIN_ID)) is False
+
+    def test_the_verdict_is_cached_across_a_page_load(self, monkeypatch):
+        """Four endpoint calls behind one page must not be four REST calls."""
+        fetches = []
+        self.guild_with(monkeypatch, fetch_result=member(), fetches=fetches)
+
+        async def scenario():
+            return [await bot.dashboard_is_admin(GUILD_ID, ADMIN_ID) for _ in range(4)]
+
+        assert run(scenario()) == [True] * 4
+        assert len(fetches) == 1
+
+    def test_the_admin_cache_is_not_the_verification_cache(self):
+        """The whole point of fix #2: a 180s member cache must not decide authority.
+
+        Sharing REST_TTL_SECONDS would mean a demoted admin kept configuring
+        the server for up to three minutes — precisely the window that matters
+        when the role is being pulled because an account was compromised.
+        """
+        assert bot._admin_check_cache is not bot._member_fetch_cache
+        assert bot._admin_check_cache.ttl < bot._member_fetch_cache.ttl
+        assert bot.BOT_API_ADMIN_TTL <= 30
+
+    def test_a_demotion_takes_effect_once_the_entry_expires(self, monkeypatch):
+        current = member(administrator=True)
+        fetches = []
+        self.guild_with(monkeypatch, fetch_result=current, fetches=fetches)
+
+        async def scenario():
+            assert await bot.dashboard_is_admin(GUILD_ID, ADMIN_ID) is True
+
+            current.guild_permissions.administrator = False
+
+            # Age the cached verdict past its TTL rather than deleting it, so
+            # this exercises _TTLCache's expiry branch — the thing that
+            # actually bounds how long a demoted admin keeps access.
+            store = bot._admin_check_cache._store
+            stale = asyncio.get_event_loop().time() - 1
+            for key, (_expires_at, value) in list(store.items()):
+                store[key] = (stale, value)
+
+            return await bot.dashboard_is_admin(GUILD_ID, ADMIN_ID)
+
+        assert run(scenario()) is False
+        assert len(fetches) == 2
+
+
+class TestAdminGuildList:
+    def setup_guilds(self, monkeypatch, present, admin_of):
+        def get_guild(guild_id):
+            if int(guild_id) not in present:
+                return None
+            guild = FakeGuild()
+            guild.id = int(guild_id)
+            return guild
+
+        async def is_admin(guild_id, user_id):
+            return int(guild_id) in admin_of
+
+        monkeypatch.setattr(bot.bot, "get_guild", get_guild)
+        monkeypatch.setattr(bot, "dashboard_is_admin", is_admin)
+
+    def test_returns_the_intersection(self, monkeypatch):
+        self.setup_guilds(monkeypatch, present={1, 2, 3}, admin_of={2, 3, 9})
+        assert run(bot.dashboard_admin_guilds(ADMIN_ID, [1, 2, 3, 9])) == [2, 3]
+
+    def test_a_guild_the_caller_does_not_administer_looks_absent(self, monkeypatch):
+        """Indistinguishable from one the bot never joined — that's the fix."""
+        self.setup_guilds(monkeypatch, present={1}, admin_of=set())
+        assert run(bot.dashboard_admin_guilds(MEMBER_ID, [1, 2])) == []
+
+    def test_absent_guilds_cost_no_authority_check(self, monkeypatch):
+        checked = []
+
+        async def is_admin(guild_id, user_id):
+            checked.append(int(guild_id))
+            return True
+
+        monkeypatch.setattr(bot.bot, "get_guild", lambda gid: None)
+        monkeypatch.setattr(bot, "dashboard_is_admin", is_admin)
+        assert run(bot.dashboard_admin_guilds(ADMIN_ID, [1, 2, 3])) == []
+        assert checked == []
+
+    def test_unparseable_ids_are_skipped_not_fatal(self, monkeypatch):
+        self.setup_guilds(monkeypatch, present={7}, admin_of={7})
+        assert run(bot.dashboard_admin_guilds(ADMIN_ID, ["7", "nonsense", None])) == [7]
+
+    def test_one_failed_check_does_not_grant_the_others(self, monkeypatch):
+        async def is_admin(guild_id, user_id):
+            if int(guild_id) == 2:
+                raise RuntimeError("gateway is unhappy")
+            return True
+
+        monkeypatch.setattr(bot.bot, "get_guild", lambda gid: FakeGuild())
+        monkeypatch.setattr(bot, "dashboard_is_admin", is_admin)
+        # The raiser is dropped, never treated as an allow.
+        assert run(bot.dashboard_admin_guilds(ADMIN_ID, [1, 2, 3])) == [1, 3]
+
+    def test_an_unanswerable_list_is_none_not_empty(self, monkeypatch):
+        def boom(_guild_id):
+            raise RuntimeError("cache is gone")
+
+        monkeypatch.setattr(bot.bot, "get_guild", boom)
+        assert run(bot.dashboard_admin_guilds(ADMIN_ID, [1])) is None
