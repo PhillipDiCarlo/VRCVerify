@@ -494,11 +494,11 @@ class TestFleetIsolation:
         real = bot.build_instructions_embed
         seen = []
 
-        def build(locale):
+        def build(locale, *args, **kwargs):
             seen.append(locale)
             if len(seen) == 1:
                 raise ValueError("bad embed")
-            return real(locale)
+            return real(locale, *args, **kwargs)
 
         monkeypatch.setattr(bot, "build_instructions_embed", build)
 

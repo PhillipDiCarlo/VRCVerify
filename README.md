@@ -29,6 +29,7 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
   - Instructions language (per-server locale) used for embeds and button flows.
   - Auto-verify new members when they join (opt-in).
   - Optional removal of an "unverified" role once a user becomes verified.
+  - Instructions panel colour and server-icon thumbnail (premium).
 - Instructions posting command (/vrcverify_instructions) that publishes a localized, interactive instruction embed with buttons.
 - Robust request/result flow via RabbitMQ including a dedicated result consumer in the bot.
 - Improved RabbitMQ reliability: both services auto-reconnect after broker restarts/idle disconnects; publishes retry and use persistent delivery.
@@ -53,6 +54,7 @@ See the sections below for details and configuration.
   - **PendingVerification:** Temporarily holds verification requests until they are processed.
   - **PremiumCutoverNotice:** Which guilds have already had the one-time premium announcement DM.
   - **PremiumGrandfatherLine:** Single row holding `MAX(servers.id)` as of the moment the premium tier was switched on. Servers at or below it keep the grandfathered features free, permanently. Captured once, never moved.
+  - **InstructionPanelBranding:** A premium server's chosen embed colour and whether to show its server icon on the instructions panel. Both default to off, so the row existing does not by itself restyle anything.
   - **VerificationLogChannel:** Where a guild posts its verification activity log.
 
 - **Messaging with RabbitMQ:**  
@@ -82,6 +84,7 @@ See the sections below for details and configuration.
   - Auto nickname change (on successful verification, set Discord nickname to VRChat display name).
   - Instructions language (server-wide locale).
   - Auto-verify new members (attempt verification or initiate the flow when a member joins).
+  - Instructions panel appearance — premium. Embed colour and whether to show the server icon as the thumbnail. The instruction text is never customisable.
 - `/vrcverify_setrequestmessage` – Admin-only. Opens a modal to set or clear the custom DM shown after a successful verification role assignment.
 - `/vrcverify_logchannel` – Admin-only, premium. Chooses where verification activity is logged; run with no channel to turn it off.
 - `/vrcverify_support` – Anyone. Sends help/support information.
@@ -107,6 +110,7 @@ unlocks the automation around it:
 | Reduced verification cooldown | — | — | ✅ |
 | Verification activity log channel | — | — | ✅ |
 | Priority placement in the verification queue | — | — | ✅ |
+| Branded instructions panel (colour + icon) | — | — | ✅ |
 
 Auto-verify-on-join is free for everyone and is deliberately not gated at all —
 `on_member_join` never so much as reads an entitlement. Users read "the bot
@@ -214,6 +218,34 @@ two services agree and that each actually passes the arguments.
 > If step 4 is skipped, both services log an explicit error naming the queue and the fix.
 > The bot stops publishing (rather than retrying something that can never succeed) and
 > the checker backs off; verification is stopped until the queue is deleted.
+
+### Branded instructions panel
+
+Page 4 of `/vrcverify_settings` lets a premium server set its own embed colour
+and show its server icon as the panel thumbnail. Colour is entered as a hex
+value (`#5865F2`, or `#58F` shorthand); Discord has no colour-picker component
+of any kind, so a text field is the only way to express an exact brand colour.
+`#000000` is nudged to `#010101`, because Discord reads a colour of 0 as "no
+colour" and would render the default grey.
+
+**The instruction copy itself is not customisable, deliberately.** It is the
+part that actually gets people through verification correctly, and letting
+servers rewrite it means support requests about instructions nobody here wrote.
+
+Both settings default to off, so subscribing does not restyle a panel the admin
+never asked to restyle. The thumbnail is the guild's own icon rather than an
+arbitrary URL — nothing to validate, and no way for a server to put unrelated
+imagery inside an age-verification panel.
+
+Styling is resolved at edit time, never stored with the panel, which is what
+makes a lapse revert: `resolve_panel_style` returns the defaults once the
+entitlement is gone. Since the panel is a persisted Discord message, something
+still has to re-edit it, so the bot does that when an admin saves and whenever a
+guild's entitlements change. Guilds with no branding row skip the entitlement
+read entirely, so the fleet refresh doesn't become one lookup per panel.
+
+A server that changes its Discord icon keeps the old thumbnail until its panel
+is next refreshed — the URL is baked into the message.
 
 ### Verification activity log
 
@@ -477,7 +509,7 @@ Each component connects to RabbitMQ to exchange verification requests and result
   - `/vrcverify_subscription` – See this server's premium status, and subscribe if it isn't.
   - `/vrcverify_support` – Receive help and support information.
   - `/vrcverify_instructions` – Post instructions in an embed for server members.
-  - `/vrcverify_settings` – Configure auto nickname change, instructions language, and auto-verify-on-join. The auto-nickname page is shown locked with a purchase button (rather than hidden) on servers without premium.
+  - `/vrcverify_settings` – Configure auto nickname change, instructions language, auto-verify-on-join, and instructions panel appearance. The auto-nickname and appearance pages are shown locked with a purchase button (rather than hidden) on servers without premium.
   - `/vrcverify_setrequestmessage` – Configure the optional custom success DM sent after successful verification.
 
 ---

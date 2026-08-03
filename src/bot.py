@@ -348,6 +348,35 @@ class PremiumGrandfatherLine(Base):
     captured_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
+class InstructionPanelBranding(Base):
+    """A premium server's own colour and thumbnail for its instructions panel.
+
+    A separate table for the same reason as the others: create_all() adds
+    missing tables but never columns.
+
+    Both settings default to "off", so the presence of a row does not by itself
+    change how a panel looks. That matters because subscribing should not
+    silently restyle a panel the admin never asked to restyle.
+
+    Only the styling is customisable. The instruction copy itself is not, and
+    deliberately: it is the part that actually gets people through verification
+    correctly, and letting servers rewrite it means support requests about
+    instructions nobody here wrote.
+
+    The row survives a lapsed subscription, like VerificationLogChannel above:
+    styling reverts to the default, but the admin's choices are theirs and come
+    back untouched if they resubscribe.
+    """
+
+    __tablename__ = "instruction_panel_branding"
+    server_id = Column(String, primary_key=True)
+    # Discord's native integer form. NULL means "use the default blue" rather
+    # than a sentinel colour, so "unset" and "deliberately dark" stay distinct.
+    embed_color = Column(Integer, nullable=True)
+    show_icon = Column(Boolean, nullable=False, default=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
 class VerificationLogChannel(Base):
     """Where a guild wants its verification activity posted.
 
@@ -598,6 +627,7 @@ FEATURE_CUSTOM_DM = "custom_dm"
 FEATURE_REDUCED_COOLDOWN = "reduced_cooldown"
 FEATURE_ACTIVITY_LOG = "activity_log"
 FEATURE_PRIORITY_QUEUE = "priority_queue"
+FEATURE_BRANDED_PANEL = "branded_panel"
 
 # Servers configured before the cutover keep these three for free, forever.
 # The reduced cooldown and the activity log are new, so nobody is losing them.
@@ -1135,6 +1165,154 @@ async def log_channel_if_allowed(guild_id, log_channel_id) -> Optional[str]:
     return log_channel_id if flags.allows(FEATURE_ACTIVITY_LOG) else None
 
 
+# -------------------------------------------------------------------
+# Premium: branded instructions panel (colour + thumbnail)
+# -------------------------------------------------------------------
+DEFAULT_PANEL_COLOR = discord.Color.blue()
+
+# Discord treats an embed colour of 0 as "no colour set" and renders the plain
+# grey sidebar, so a server asking for black would appear to have been ignored.
+# Nudge it to the darkest value that still registers as a colour.
+NEAREST_RENDERABLE_BLACK = 0x010101
+
+
+def parse_hex_color(raw: str) -> Optional[int]:
+    """Parse '#5865F2', '5865F2' or '0x5865F2' into Discord's integer form.
+
+    Returns None for anything else, so the caller can say so rather than
+    storing a colour the admin did not choose. Three-digit shorthand (#abc) is
+    accepted because people type it.
+    """
+    if not raw:
+        return None
+    text = raw.strip().lstrip("#")
+    if text[:2].lower() == "0x":
+        text = text[2:]
+    if len(text) == 3:
+        # #abc means #aabbcc.
+        text = "".join(char * 2 for char in text)
+    if len(text) != 6:
+        return None
+    try:
+        value = int(text, 16)
+    except ValueError:
+        return None
+    return NEAREST_RENDERABLE_BLACK if value == 0 else value
+
+
+# Returned when the branding table cannot be read at all. Distinct from None,
+# which is the definite answer "this guild has no branding". Collapsing the two
+# would mean a database blip during a fleet refresh actively re-editing a
+# paying server's panel back to the default look — taking something away
+# because we couldn't tell, which is the opposite of how is_grandfathered and
+# the entitlement cache behave.
+BRANDING_UNREADABLE = object()
+
+
+def load_panel_branding(guild_id):
+    """This guild's stored (colour, show_icon).
+
+    Returns None when the guild definitely has no branding, or
+    BRANDING_UNREADABLE when the question could not be answered.
+    """
+    try:
+        with session_scope() as session:
+            row = (
+                session.query(
+                    InstructionPanelBranding.embed_color,
+                    InstructionPanelBranding.show_icon,
+                )
+                .filter_by(server_id=panel_view_key(guild_id))
+                .first()
+            )
+            return None if row is None else (row.embed_color, bool(row.show_icon))
+    except Exception:
+        logger.warning(
+            "Could not read panel branding for guild %s; leaving its panel alone.",
+            guild_id,
+            exc_info=True,
+        )
+        return BRANDING_UNREADABLE
+
+
+def save_panel_branding(guild_id, embed_color: Optional[int], show_icon: bool) -> None:
+    """Store this guild's panel styling, creating the row on first use.
+
+    Styling that asks for nothing removes the row instead of storing it. The
+    settings view saves every page at once, so a premium server that only
+    touched its nickname setting would otherwise get a row meaning "default
+    colour, no icon" — indistinguishable in effect from having none, but enough
+    to make resolve_panel_style do an entitlement lookup for that guild on
+    every fleet refresh. That short-circuit is the reason the refresh does not
+    cost one REST call per panel, so it is worth protecting.
+    """
+    key = panel_view_key(guild_id)
+    try:
+        with session_scope() as session:
+            row = (
+                session.query(InstructionPanelBranding).filter_by(server_id=key).first()
+            )
+            if embed_color is None and not show_icon:
+                if row is not None:
+                    session.delete(row)
+                return
+            if row is None:
+                row = InstructionPanelBranding(server_id=key)
+                session.add(row)
+            row.embed_color = embed_color
+            row.show_icon = bool(show_icon)
+            row.updated_at = datetime.now(timezone.utc)
+    except Exception:
+        logger.exception(f"Failed to save panel branding for guild {guild_id}")
+
+
+def panel_style(
+    branding: Optional[tuple[Optional[int], bool]],
+    guild: Optional[discord.Guild],
+    allowed: bool,
+) -> tuple[discord.Color, Optional[str]]:
+    """Turn stored branding into the (colour, thumbnail_url) an embed needs.
+
+    Kept separate from the entitlement read so it can be exercised without a
+    database or a Discord connection, and so both call sites provably agree.
+
+    A guild with no icon yields no thumbnail even when show_icon is on: there
+    is nothing to show, and Discord rejects an empty URL.
+    """
+    if not allowed or branding is None:
+        return DEFAULT_PANEL_COLOR, None
+    stored_color, show_icon = branding
+    color = DEFAULT_PANEL_COLOR if stored_color is None else discord.Color(stored_color)
+    icon_url = None
+    if show_icon and guild is not None:
+        icon = getattr(guild, "icon", None)
+        icon_url = str(icon.url) if icon else None
+    return color, icon_url
+
+
+async def resolve_panel_style(
+    guild_id, guild: Optional[discord.Guild]
+) -> Optional[tuple[discord.Color, Optional[str]]]:
+    """The styling this guild's panel should currently use.
+
+    None means "we could not tell, leave the panel as it is" — the caller skips
+    rebuilding the embed rather than rewriting it to the default. Restyling a
+    paying server's panel because of a database hiccup would be worse than
+    doing nothing, and the next refresh puts it right.
+
+    Short-circuits before the entitlement read when nothing is configured,
+    which is the overwhelming majority of guilds — the fleet refresh would
+    otherwise turn into one entitlement lookup per panel.
+    """
+    branding = load_panel_branding(guild_id)
+    if branding is BRANDING_UNREADABLE:
+        return None
+    if branding is None:
+        return DEFAULT_PANEL_COLOR, None
+    flags = await resolve_premium_flags(guild_id)
+    return panel_style(branding, guild, flags.allows(FEATURE_BRANDED_PANEL))
+
+
 def chunk_log_lines(lines: list[str], limit: int = DISCORD_MESSAGE_MAX_LEN) -> list[str]:
     """Pack lines into as few messages as Discord's length limit allows."""
     messages: list[str] = []
@@ -1384,7 +1562,51 @@ class VRCVerifyInstructionView(View):
 # 2 (language) are free, so they are absent.
 SETTINGS_PAGE_FEATURE = {
     0: FEATURE_NICKNAME_SYNC,
+    3: FEATURE_BRANDED_PANEL,
 }
+
+# The last page index. Derived so adding a page means touching one constant
+# instead of hunting for the Next button's disabled check.
+SETTINGS_LAST_PAGE = 3
+
+
+class PanelColorModal(discord.ui.Modal, title="Instructions panel colour"):
+    """Collect a hex colour for the instructions panel.
+
+    A modal because Discord has no colour-picker component — the full component
+    set is buttons, selects, text inputs and layout containers, none of which
+    can express a wheel or a gradient. A Select could only offer a fixed
+    palette, which is no use to a server with an actual brand colour.
+    """
+
+    hex_value = discord.ui.TextInput(
+        label="Hex colour",
+        placeholder="#5865F2",
+        required=True,
+        min_length=3,
+        max_length=9,
+    )
+
+    def __init__(self, view: "PagedSettingsView"):
+        super().__init__()
+        self.settings_view = view
+        if view.embed_color is not None:
+            self.hex_value.default = f"#{view.embed_color:06X}"
+
+    async def on_submit(self, interaction: discord.Interaction):
+        parsed = parse_hex_color(str(self.hex_value.value))
+        if parsed is None:
+            await interaction.response.send_message(
+                get_message("panel_color_invalid", interaction), ephemeral=True
+            )
+            return
+        self.settings_view.embed_color = parsed
+        # Edits the settings message the modal was launched from, so the new
+        # value is visible immediately instead of only after a page flip.
+        refreshed = self.settings_view._rebuilt(self.settings_view.page)
+        await interaction.response.edit_message(
+            content=refreshed.render_content(), view=refreshed
+        )
 
 
 class PagedSettingsView(View):
@@ -1396,6 +1618,8 @@ class PagedSettingsView(View):
         auto_verify_available: bool = True,
         page_index: int = 0,
         premium: Optional["PremiumFlags"] = None,
+        embed_color: Optional[int] = None,
+        show_icon: bool = False,
     ):
         super().__init__(timeout=None)
         # Current values (mutated by selects)
@@ -1403,7 +1627,11 @@ class PagedSettingsView(View):
         self.instr_locale: str = instr_locale
         self.auto_verify: bool = auto_verify
         self.auto_verify_available: bool = auto_verify_available
-        self.page: int = page_index  # 0: nick, 1: auto-verify, 2: locale
+        # Panel branding. None colour means "the default blue", which is a
+        # different thing from any particular stored colour.
+        self.embed_color: Optional[int] = embed_color
+        self.show_icon: bool = show_icon
+        self.page: int = page_index  # 0: nick, 1: auto-verify, 2: locale, 3: branding
         # Resolved once by the command and threaded through every Back/Next
         # rebuild, so paging around can't re-ask Discord on each click.
         self.premium: PremiumFlags = premium or PremiumFlags(
@@ -1428,6 +1656,8 @@ class PagedSettingsView(View):
             self.auto_verify_available,
             page_index=page_index,
             premium=self.premium,
+            embed_color=self.embed_color,
+            show_icon=self.show_icon,
         )
 
     def _page_title_and_desc(self) -> tuple[str, str, str]:
@@ -1444,10 +1674,23 @@ class PagedSettingsView(View):
                 current = "Current: Yes (unavailable - DB column missing)"
             else:
                 current = f"Current: {'Yes' if self.auto_verify else 'No'}"
-        else:
+        elif self.page == 2:
             title = "3.) Instructions message language"
             desc = "Choose the language used for the instructions message/buttons."
             current = f"Current: {self.instr_locale}"
+        else:
+            title = "4.) Instructions panel appearance"
+            desc = (
+                "Put your server's own colour and icon on the instructions panel. "
+                "The instruction text itself never changes."
+            )
+            color_text = (
+                f"#{self.embed_color:06X}" if self.embed_color is not None else "Default blue"
+            )
+            current = (
+                f"Current colour: {color_text}\n"
+                f"Show server icon: {'Yes' if self.show_icon else 'No'}"
+            )
 
         if locked:
             current += "\n(Premium feature — not active on this server.)"
@@ -1517,6 +1760,58 @@ class PagedSettingsView(View):
             av_dropdown.callback = on_auto_verify_select
             self.add_item(av_dropdown)
 
+        elif self.page == SETTINGS_LAST_PAGE:
+            icon_locked = self._page_locked()
+            icon_options = [
+                discord.SelectOption(label="Yes", value="yes", default=self.show_icon),
+                discord.SelectOption(label="No", value="no", default=not self.show_icon),
+            ]
+            icon_dropdown = Select(
+                placeholder="Show your server icon on the panel?",
+                min_values=1,
+                max_values=1,
+                options=icon_options,
+                disabled=icon_locked,
+            )
+
+            async def on_icon_select(interaction: discord.Interaction):
+                if not icon_locked:
+                    self.show_icon = interaction.data["values"][0] == "yes"
+                await interaction.response.defer(ephemeral=True)
+
+            icon_dropdown.callback = on_icon_select
+            self.add_item(icon_dropdown)
+
+            # A modal rather than a Select: Discord has no colour picker
+            # component of any kind, and a dropdown could only ever offer a
+            # fixed palette rather than a server's actual brand colour.
+            color_btn = Button(
+                label="Set colour",
+                style=discord.ButtonStyle.secondary,
+                disabled=icon_locked,
+            )
+
+            async def on_color_button(interaction: discord.Interaction):
+                await interaction.response.send_modal(PanelColorModal(self))
+
+            color_btn.callback = on_color_button
+            self.add_item(color_btn)
+
+            if self.embed_color is not None and not icon_locked:
+                clear_btn = Button(
+                    label="Use default colour", style=discord.ButtonStyle.secondary
+                )
+
+                async def on_clear_color(interaction: discord.Interaction):
+                    self.embed_color = None
+                    refreshed = self._rebuilt(self.page)
+                    await interaction.response.edit_message(
+                        content=refreshed.render_content(), view=refreshed
+                    )
+
+                clear_btn.callback = on_clear_color
+                self.add_item(clear_btn)
+
         else:
             locale_options = [
                 discord.SelectOption(label=code, value=code, default=(code == self.instr_locale))
@@ -1538,7 +1833,11 @@ class PagedSettingsView(View):
 
         # Nav buttons
         back_btn = Button(label="Back", style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
-        next_btn = Button(label="Next", style=discord.ButtonStyle.secondary, disabled=(self.page == 2))
+        next_btn = Button(
+            label="Next",
+            style=discord.ButtonStyle.secondary,
+            disabled=(self.page == SETTINGS_LAST_PAGE),
+        )
         save_btn = Button(label="Save", style=discord.ButtonStyle.primary)
 
         async def on_back(interaction: discord.Interaction):
@@ -1560,6 +1859,7 @@ class PagedSettingsView(View):
             # gets their original choice back instead of whatever this view
             # happened to be holding.
             nick_allowed = self.premium.allows(FEATURE_NICKNAME_SYNC)
+            branding_allowed = self.premium.allows(FEATURE_BRANDED_PANEL)
 
             # persist into your servers table
             with session_scope() as session:
@@ -1573,11 +1873,18 @@ class PagedSettingsView(View):
                 if self.auto_verify_available:
                     setattr(srv, "auto_verify_new_members", bool(self.auto_verify))
 
+            if branding_allowed:
+                save_panel_branding(
+                    interaction.guild.id, self.embed_color, self.show_icon
+                )
+
             notes = ""
             if not self.auto_verify_available:
                 notes += "\n(Note: 'Auto verify new members' not saved; DB column missing.)"
             if not nick_allowed:
                 notes += "\n(Note: 'Auto nickname change' is a premium feature and was not changed.)"
+            if not branding_allowed:
+                notes += "\n(Note: 'Instructions panel appearance' is a premium feature and was not changed.)"
 
             msg = (
                 get_message(
@@ -1589,6 +1896,14 @@ class PagedSettingsView(View):
                 + notes
             )
             await interaction.response.edit_message(content=msg, view=None)
+
+            # Only after replying. Editing the panel is a real HTTP call, and
+            # message edits are rate limited per channel — discord.py sleeps
+            # through a 429, which can push the reply past the three seconds
+            # Discord allows. The admin would then be told the interaction
+            # failed even though the save and the restyle both worked.
+            if branding_allowed:
+                await restyle_instruction_panel(interaction.guild.id)
 
         back_btn.callback = on_back
         next_btn.callback = on_next
@@ -2524,8 +2839,19 @@ async def vrcverify_instructions(interaction: discord.Interaction):
             if srv and srv.instructions_locale
             else get_locale(interaction)
         )
-    # Same builder the refresh path uses, so a posted panel and a refreshed one match.
-    embed = build_instructions_embed(instr_locale)
+    # Same builder the refresh path uses, so a posted panel and a refreshed one
+    # match. Styling comes from the interaction's own entitlements, which costs
+    # nothing, rather than the REST lookup the refresh path has to use.
+    branding = load_panel_branding(interaction.guild.id)
+    if branding is BRANDING_UNREADABLE:
+        # Nothing to preserve on a panel being posted for the first time, so
+        # the default look is the right answer rather than a refusal.
+        branding = None
+    style_flags = resolve_premium_flags_from_interaction(interaction)
+    panel_color, panel_icon = panel_style(
+        branding, interaction.guild, style_flags.allows(FEATURE_BRANDED_PANEL)
+    )
+    embed = build_instructions_embed(instr_locale, panel_color, panel_icon)
 
     view = VRCVerifyInstructionView(locale=instr_locale)
     # Send the initial response and then fetch the message
@@ -2582,6 +2908,13 @@ async def vrcverify_settings(interaction: discord.Interaction):
             current_locale = "en-US"
             current_auto_verify = True
 
+    # (None, False) when nothing has been configured, which is the same thing
+    # the branding page shows for "default blue, no icon". An unreadable table
+    # lands here too: the Server read above shares the same session, so a real
+    # outage fails this command long before this line.
+    stored = load_panel_branding(interaction.guild.id)
+    stored_color, stored_icon = stored if isinstance(stored, tuple) else (None, False)
+
     view = PagedSettingsView(
         current_nick,
         current_locale,
@@ -2589,6 +2922,8 @@ async def vrcverify_settings(interaction: discord.Interaction):
         auto_verify_available=has_av_col,
         page_index=0,
         premium=resolve_premium_flags_from_interaction(interaction),
+        embed_color=stored_color,
+        show_icon=stored_icon,
     )
     await interaction.response.send_message(
         content=view.render_content(), view=view, ephemeral=True
@@ -3497,6 +3832,88 @@ def panel_view_key(server_id) -> str:
     return str(server_id)
 
 
+def load_instruction_panel(guild_id) -> Optional[dict]:
+    """One guild's saved panel, in the same shape load_instruction_panels uses."""
+    try:
+        with session_scope() as session:
+            server = (
+                session.query(Server)
+                .filter_by(server_id=panel_view_key(guild_id))
+                .first()
+            )
+            if server is None or not server.instructions_message_id:
+                return None
+            # The real recorded version, not a placeholder: probe_instruction_panel
+            # re-records it whenever the entry disagrees, so hardcoding 0 would
+            # buy a redundant write on every restyle.
+            recorded = (
+                session.query(InstructionPanelView.view_version)
+                .filter_by(server_id=panel_view_key(guild_id))
+                .first()
+            )
+            return {
+                "server_id": server.server_id,
+                "channel_id": server.instructions_channel_id,
+                "message_id": server.instructions_message_id,
+                "locale": server.instructions_locale or "en-US",
+                "view_version": 0 if recorded is None else recorded.view_version,
+            }
+    except Exception:
+        logger.warning(
+            "Could not load the instruction panel for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        return None
+
+
+# asyncio only holds a weak reference to a running task, so a fire-and-forget
+# create_task() can be garbage collected mid-flight and the panel edit silently
+# never happens. Keeping the task here until it finishes is what stops that.
+# Not start_background_task: that is keyed by name and these are per-guild.
+_restyle_tasks: set = set()
+
+
+def schedule_panel_restyle(guild_id) -> None:
+    """Restyle a panel in the background, keeping the task alive until done."""
+    coro = restyle_instruction_panel(guild_id)
+    try:
+        task = asyncio.create_task(coro)
+    except RuntimeError:
+        # No running loop (e.g. called from sync code). Close the coroutine we
+        # never awaited, exactly as start_background_task does, so Python does
+        # not warn about it. The next refresh picks the styling up anyway.
+        coro.close()
+        logger.debug("No event loop to restyle guild %s on.", guild_id)
+        return
+    _restyle_tasks.add(task)
+    task.add_done_callback(_restyle_tasks.discard)
+
+
+async def restyle_instruction_panel(guild_id) -> str:
+    """Re-edit one guild's panel so a styling change is visible right away.
+
+    The startup fleet refresh runs with rebuild_embed=False, so without this a
+    colour change would not show up until an operator triggered a full refresh
+    — potentially months. Called after an admin saves, and when a guild's
+    entitlements change.
+
+    Never raises: this is a nicety on top of a save that has already succeeded.
+    """
+    entry = load_instruction_panel(guild_id)
+    if entry is None:
+        return "no_panel"
+    try:
+        return await probe_instruction_panel(entry, rebuild_embed=True)
+    except Exception:
+        logger.warning(
+            "Could not restyle the instruction panel for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        return "error"
+
+
 def load_instruction_panels(stale_only: bool = False):
     """Snapshot saved instruction panels from the DB.
 
@@ -3626,16 +4043,31 @@ def forget_instruction_panel(server_id: str):
     forget_panel_view_version(server_id)
 
 
-def build_instructions_embed(locale: str) -> Embed:
-    """Build the localized instruction panel embed."""
+def build_instructions_embed(
+    locale: str,
+    color: Optional[discord.Color] = None,
+    icon_url: Optional[str] = None,
+) -> Embed:
+    """Build the localized instruction panel embed.
+
+    Styling arrives as arguments rather than being looked up here, so this stays
+    a pure function of its inputs: no database, no entitlement read, and no way
+    for the posted panel and the refreshed panel to disagree. Both call sites
+    resolve the style the same way and hand it in.
+
+    The instruction copy itself is never customisable — see
+    InstructionPanelBranding for why.
+    """
     strings = localizations.get(locale, localizations["en-US"])
     embed = Embed(
         title=strings.get("instructions_title", ""),
         description=strings.get("instructions_desc", ""),
-        color=discord.Color.blue(),
+        color=color if color is not None else DEFAULT_PANEL_COLOR,
     )
     usage_example = "**Example Usage**:\n" "```bash\n" "/vrcverify\n" "```"
     embed.add_field(name="Example Command", value=usage_example, inline=False)
+    if icon_url:
+        embed.set_thumbnail(url=icon_url)
     return embed
 
 
@@ -3670,7 +4102,24 @@ async def probe_instruction_panel(entry, rebuild_embed: bool) -> str:
         # abort the whole fleet pass, it only costs this one guild.
         payload = {"view": VRCVerifyInstructionView(locale=entry["locale"])}
         if rebuild_embed:
-            payload["embed"] = build_instructions_embed(entry["locale"])
+            # Resolving the style is what reverts a lapsed server to the default
+            # look, so it happens here rather than being cached with the panel.
+            # Guilds with no branding row skip the entitlement read entirely.
+            try:
+                guild = bot.get_guild(int(entry["server_id"]))
+            except (TypeError, ValueError):
+                # An unparseable id costs the thumbnail, nothing else. The panel
+                # still gets its rebuilt embed, and the existing malformed-id
+                # handling above owns deciding what to do about the id itself.
+                guild = None
+            style = await resolve_panel_style(entry["server_id"], guild)
+            # None means the branding table could not be read. Leave the embed
+            # off the payload so the panel keeps whatever it already has — the
+            # view still gets refreshed, which is what this pass is for.
+            if style is not None:
+                payload["embed"] = build_instructions_embed(
+                    entry["locale"], *style
+                )
         await message.edit(**payload)
         if entry.get("view_version") != INSTRUCTIONS_VIEW_VERSION:
             record_panel_view_version(entry["server_id"])
@@ -3982,6 +4431,19 @@ def _note_entitlement_change(entitlement: discord.Entitlement, event: str) -> No
         return
     premium_status_cache.invalidate(str(guild_id))
     logger.info("Entitlement %s for guild %s; premium status will re-resolve.", event, guild_id)
+
+    # A branded panel has to be re-edited for its styling to change, so a lapse
+    # would otherwise leave premium styling in place until an operator ran a
+    # fleet refresh. Only guilds that configured branding are touched; for
+    # everyone else there is nothing to change and no reason to spend an edit.
+    #
+    # Deliberately fired on renewals and cancellations alike: the event only
+    # says "re-resolve", and resolve_panel_style decides the outcome. A
+    # subscription cancelled but not yet expired therefore keeps its styling.
+    # isinstance rather than `is not None`: an unreadable table must not buy a
+    # panel edit that resolve_panel_style would then decline to apply anyway.
+    if isinstance(load_panel_branding(guild_id), tuple):
+        schedule_panel_restyle(guild_id)
 
 
 @bot.event

@@ -85,6 +85,7 @@ localizations: dict[str, dict[str, str]] = {
         "log_channel_premium_only":  "The verification activity log is a VRCVerify Premium feature. Core 18+ verification stays free for everyone.",
         "log_channel_no_permission": "I can't post in {channel}. Give the bot **View Channel** and **Send Messages** there, then run this command again.",
         "log_channel_announcement": "{channel} is an announcement channel. Other servers can follow it, which would republish your members' 18+ status outside this server, so it can't be used as a verification log. Please pick a normal text channel.",
+        "panel_color_invalid": "That doesn't look like a hex colour. Use something like `#5865F2` (or `#58F` for short).",
     },
 
     "es-ES": {
@@ -164,6 +165,7 @@ localizations: dict[str, dict[str, str]] = {
         "log_channel_premium_only":  "El registro de actividad de verificación es una función de VRCVerify Premium. La verificación 18+ sigue siendo gratuita para todos.",
         "log_channel_no_permission": "No puedo publicar en {channel}. Dale al bot **Ver canal** y **Enviar mensajes** ahí y vuelve a ejecutar este comando.",
         "log_channel_announcement": "{channel} es un canal de anuncios. Otros servidores pueden seguirlo, lo que republicaría el estado 18+ de tus miembros fuera de este servidor, así que no puede usarse como registro de verificación. Elige un canal de texto normal.",
+        "panel_color_invalid": "Eso no parece un color hexadecimal. Usa algo como `#5865F2` (o `#58F` en forma corta).",
     },
 
     "zh-CN": {
@@ -243,6 +245,7 @@ localizations: dict[str, dict[str, str]] = {
         "log_channel_premium_only":  "验证活动日志是 VRCVerify 高级版功能。核心的 18+ 验证对所有人始终免费。",
         "log_channel_no_permission": "我无法在 {channel} 中发言。请授予机器人该频道的**查看频道**和**发送消息**权限，然后重新运行此命令。",
         "log_channel_announcement": "{channel} 是公告频道。其他服务器可以关注它，这会把你成员的 18+ 状态转发到本服务器之外，因此不能用作验证日志。请选择一个普通文字频道。",
+        "panel_color_invalid": "这看起来不是十六进制颜色。请使用类似 `#5865F2` 的格式（也可以简写为 `#58F`）。",
     },
 
     "ja": {
@@ -322,6 +325,7 @@ localizations: dict[str, dict[str, str]] = {
         "log_channel_premium_only":  "認証アクティビティログは VRCVerify Premium の機能です。中心となる 18+ 認証は誰でも無料のままです。",
         "log_channel_no_permission": "{channel} に投稿できません。そのチャンネルで Bot に**チャンネルを見る**と**メッセージを送信**の権限を与えてから、もう一度実行してください。",
         "log_channel_announcement": "{channel} はアナウンスチャンネルです。他のサーバーがフォローできるため、メンバーの 18+ 状態がこのサーバーの外に再配信されてしまいます。認証ログには使えませんので、通常のテキストチャンネルを選んでください。",
+        "panel_color_invalid": "16進数のカラーコードではないようです。`#5865F2` のような形式（短縮形は `#58F`）で入力してください。",
     },
 
     "de": {
@@ -401,6 +405,7 @@ localizations: dict[str, dict[str, str]] = {
         "log_channel_premium_only":  "Das Verifizierungsprotokoll ist eine Funktion von VRCVerify Premium. Die eigentliche 18+-Verifizierung bleibt für alle kostenlos.",
         "log_channel_no_permission": "Ich kann in {channel} nichts posten. Gib dem Bot dort **Kanal ansehen** und **Nachrichten senden** und führe den Befehl erneut aus.",
         "log_channel_announcement": "{channel} ist ein Ankündigungskanal. Andere Server können ihm folgen, wodurch der 18+-Status deiner Mitglieder außerhalb dieses Servers erneut veröffentlicht würde. Er kann daher nicht als Verifizierungsprotokoll dienen. Bitte wähle einen normalen Textkanal.",
+        "panel_color_invalid": "Das sieht nicht nach einer Hex-Farbe aus. Verwende etwas wie `#5865F2` (oder kurz `#58F`).",
     },
 
     "nl": {
@@ -480,6 +485,7 @@ localizations: dict[str, dict[str, str]] = {
         "log_channel_premium_only":  "Het verificatielogboek is een functie van VRCVerify Premium. De 18+-verificatie zelf blijft voor iedereen gratis.",
         "log_channel_no_permission": "Ik kan niets plaatsen in {channel}. Geef de bot daar **Kanaal bekijken** en **Berichten versturen** en voer dit commando opnieuw uit.",
         "log_channel_announcement": "{channel} is een aankondigingskanaal. Andere servers kunnen het volgen, waardoor de 18+-status van je leden buiten deze server opnieuw wordt gepubliceerd. Het kan dus niet als verificatielogboek worden gebruikt. Kies een gewoon tekstkanaal.",
+        "panel_color_invalid": "Dat lijkt geen hexkleur te zijn. Gebruik iets als `#5865F2` (of kort `#58F`).",
     },
 
     "hi-IN": {
@@ -559,6 +565,7 @@ localizations: dict[str, dict[str, str]] = {
         "log_channel_premium_only":  "सत्यापन गतिविधि लॉग VRCVerify Premium की सुविधा है। मुख्य 18+ सत्यापन सबके लिए निःशुल्क रहता है।",
         "log_channel_no_permission": "मैं {channel} में पोस्ट नहीं कर सकता। वहाँ बॉट को **चैनल देखें** और **संदेश भेजें** अनुमति दें, फिर यह कमांड दोबारा चलाएँ।",
         "log_channel_announcement": "{channel} एक घोषणा चैनल है। दूसरे सर्वर इसे फ़ॉलो कर सकते हैं, जिससे आपके सदस्यों की 18+ स्थिति इस सर्वर के बाहर दोबारा प्रकाशित हो जाएगी, इसलिए इसे सत्यापन लॉग के रूप में इस्तेमाल नहीं किया जा सकता। कृपया एक सामान्य टेक्स्ट चैनल चुनें।",
+        "panel_color_invalid": "यह हेक्स रंग जैसा नहीं लगता। `#5865F2` जैसा कुछ इस्तेमाल करें (या संक्षेप में `#58F`)।",
     },
 
     "ar": {
@@ -638,6 +645,7 @@ localizations: dict[str, dict[str, str]] = {
         "log_channel_premium_only":  "سجل نشاط التحقق ميزة في VRCVerify Premium. أما التحقق من عمر 18+ نفسه فيبقى مجانيًا للجميع.",
         "log_channel_no_permission": "لا أستطيع النشر في {channel}. امنح البوت صلاحيتي **عرض القناة** و**إرسال الرسائل** هناك ثم نفّذ الأمر مرة أخرى.",
         "log_channel_announcement": "{channel} قناة إعلانات. يمكن لخوادم أخرى متابعتها، ما يعيد نشر حالة 18+ لأعضائك خارج هذا الخادم، لذا لا يمكن استخدامها كسجل تحقق. من فضلك اختر قناة نصية عادية.",
+        "panel_color_invalid": "لا يبدو هذا لونًا سِتّ عشريًا. استخدم شيئًا مثل `#5865F2` (أو `#58F` للاختصار).",
     },
 
     "bn": {
@@ -717,6 +725,7 @@ localizations: dict[str, dict[str, str]] = {
         "log_channel_premium_only":  "যাচাই কার্যক্রমের লগ VRCVerify Premium-এর সুবিধা। মূল 18+ যাচাই সবার জন্য বিনামূল্যেই থাকে।",
         "log_channel_no_permission": "আমি {channel}-এ পোস্ট করতে পারছি না। সেখানে বটকে **চ্যানেল দেখুন** ও **বার্তা পাঠান** অনুমতি দিন, তারপর আবার এই কমান্ড চালান।",
         "log_channel_announcement": "{channel} একটি ঘোষণা চ্যানেল। অন্য সার্ভার এটি ফলো করতে পারে, ফলে আপনার সদস্যদের 18+ অবস্থা এই সার্ভারের বাইরে পুনঃপ্রকাশিত হবে, তাই এটি যাচাই লগ হিসেবে ব্যবহার করা যাবে না। অনুগ্রহ করে একটি সাধারণ টেক্সট চ্যানেল বেছে নিন।",
+        "panel_color_invalid": "এটি হেক্স রঙ বলে মনে হচ্ছে না। `#5865F2` এর মতো কিছু ব্যবহার করুন (বা সংক্ষেপে `#58F`)।",
     },
 
     "pt-BR": {
@@ -796,6 +805,7 @@ localizations: dict[str, dict[str, str]] = {
         "log_channel_premium_only":  "O registro de atividade de verificação é um recurso do VRCVerify Premium. A verificação 18+ em si continua gratuita para todos.",
         "log_channel_no_permission": "Não consigo publicar em {channel}. Dê ao bot **Ver canal** e **Enviar mensagens** ali e execute este comando novamente.",
         "log_channel_announcement": "{channel} é um canal de anúncios. Outros servidores podem segui-lo, o que republicaria o status 18+ dos seus membros fora deste servidor, então ele não pode ser usado como registro de verificação. Escolha um canal de texto normal.",
+        "panel_color_invalid": "Isso não parece uma cor hexadecimal. Use algo como `#5865F2` (ou `#58F` de forma abreviada).",
     },
 
     "ru": {
@@ -875,6 +885,7 @@ localizations: dict[str, dict[str, str]] = {
         "log_channel_premium_only":  "Журнал активности проверок — возможность VRCVerify Premium. Сама проверка 18+ остаётся бесплатной для всех.",
         "log_channel_no_permission": "Я не могу писать в {channel}. Выдайте боту там права **Просмотр канала** и **Отправка сообщений** и выполните команду ещё раз.",
         "log_channel_announcement": "{channel} — канал объявлений. Другие серверы могут на него подписаться, и статус 18+ ваших участников будет переопубликован за пределами этого сервера, поэтому он не может служить журналом проверок. Выберите обычный текстовый канал.",
+        "panel_color_invalid": "Это не похоже на HEX-цвет. Используйте что-то вроде `#5865F2` (или `#58F` сокращённо).",
     },
 
     "pa-IN": {
@@ -954,5 +965,6 @@ localizations: dict[str, dict[str, str]] = {
         "log_channel_premium_only":  "ਤਸਦੀਕ ਗਤੀਵਿਧੀ ਲਾਗ VRCVerify Premium ਦੀ ਸਹੂਲਤ ਹੈ। ਮੁੱਖ 18+ ਤਸਦੀਕ ਸਾਰਿਆਂ ਲਈ ਮੁਫ਼ਤ ਰਹਿੰਦੀ ਹੈ।",
         "log_channel_no_permission": "ਮੈਂ {channel} ਵਿੱਚ ਪੋਸਟ ਨਹੀਂ ਕਰ ਸਕਦਾ। ਉੱਥੇ ਬੋਟ ਨੂੰ **ਚੈਨਲ ਵੇਖੋ** ਅਤੇ **ਸੁਨੇਹੇ ਭੇਜੋ** ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ, ਫਿਰ ਇਹ ਕਮਾਂਡ ਦੁਬਾਰਾ ਚਲਾਓ।",
         "log_channel_announcement": "{channel} ਇੱਕ ਐਲਾਨ ਚੈਨਲ ਹੈ। ਹੋਰ ਸਰਵਰ ਇਸਨੂੰ ਫਾਲੋ ਕਰ ਸਕਦੇ ਹਨ, ਜਿਸ ਨਾਲ ਤੁਹਾਡੇ ਮੈਂਬਰਾਂ ਦੀ 18+ ਸਥਿਤੀ ਇਸ ਸਰਵਰ ਤੋਂ ਬਾਹਰ ਦੁਬਾਰਾ ਪ੍ਰਕਾਸ਼ਿਤ ਹੋ ਜਾਵੇਗੀ, ਇਸ ਲਈ ਇਸਨੂੰ ਤਸਦੀਕ ਲਾਗ ਵਜੋਂ ਨਹੀਂ ਵਰਤਿਆ ਜਾ ਸਕਦਾ। ਕਿਰਪਾ ਕਰਕੇ ਆਮ ਟੈਕਸਟ ਚੈਨਲ ਚੁਣੋ।",
+        "panel_color_invalid": "ਇਹ ਹੈਕਸ ਰੰਗ ਵਰਗਾ ਨਹੀਂ ਲੱਗਦਾ। `#5865F2` ਵਰਗਾ ਕੁਝ ਵਰਤੋ (ਜਾਂ ਛੋਟੇ ਰੂਪ ਵਿੱਚ `#58F`)।",
     }
 }
