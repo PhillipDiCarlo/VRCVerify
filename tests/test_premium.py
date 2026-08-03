@@ -15,6 +15,7 @@ path:
 """
 
 import asyncio
+import logging
 from types import SimpleNamespace
 
 import discord
@@ -807,3 +808,63 @@ class TestCutoverCampaign:
 
         run(bot.premium_cutover_sweep_task())
         assert cutover_harness.dms == ["Test Server"]
+
+
+class TestCutoverCompletionWarning:
+    """Issue #59: the tier must not go live before everyone has been told.
+
+    The audience for the DM and the set of servers that keep their features are
+    the same predicate. These pin that they stay the same, and that flipping
+    the switch early is at least loud.
+    """
+
+    def test_counts_only_the_untold_inside_the_line(self):
+        make_server("told", row_id=OLD_ID)
+        make_server("untold", row_id=OLD_ID + 1)
+        mark_notified("told")
+        assert bot.count_pending_cutover_notices() == 1
+
+    def test_servers_past_the_line_are_not_counted(self):
+        # They never had the grandfathered features, so there is nothing to
+        # warn about — otherwise this would grow forever after launch and
+        # become noise instead of signal.
+        make_server("new", row_id=NEW_ID)
+        assert bot.count_pending_cutover_notices() == 0
+
+    def test_it_matches_the_campaign_audience(self):
+        """The count and the campaign must never disagree about who is owed."""
+        for index in range(4):
+            make_server(str(index), row_id=index + 1)
+        make_server("past", row_id=NEW_ID)
+        mark_notified("0")
+        assert bot.count_pending_cutover_notices() == len(
+            bot.load_premium_cutover_candidates(100)
+        )
+
+    def test_silent_while_the_tier_is_off(self, caplog):
+        make_server(row_id=OLD_ID)
+        with caplog.at_level(logging.WARNING):
+            assert bot.warn_if_cutover_incomplete() == 0
+        assert "cutover DM" not in caplog.text
+
+    def test_warns_when_enforced_with_sends_outstanding(self, enforced, caplog):
+        make_server(row_id=OLD_ID)
+        with caplog.at_level(logging.WARNING):
+            assert bot.warn_if_cutover_incomplete() == 1
+        assert "cutover DM" in caplog.text
+        # The fix has to be in the message, not just the complaint.
+        assert bot.PREMIUM_CUTOVER_TRIGGER_PATH in caplog.text
+
+    def test_silent_once_the_campaign_has_finished(self, enforced, caplog):
+        make_server(row_id=OLD_ID)
+        mark_notified()
+        with caplog.at_level(logging.WARNING):
+            assert bot.warn_if_cutover_incomplete() == 0
+        assert "cutover DM" not in caplog.text
+
+    def test_a_database_failure_does_not_invent_a_number(self, monkeypatch):
+        def boom():
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr(bot, "session_scope", boom)
+        assert bot.count_pending_cutover_notices() == 0

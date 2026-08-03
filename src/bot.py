@@ -575,13 +575,25 @@ GRANDFATHERED_FEATURES = frozenset(
 )
 
 # The grandfather line, drawn on the servers table's autoincrementing primary
-# key. 820 is where it stood at the start of July 2026.
+# key: servers at or below it keep GRANDFATHERED_FEATURES for free, forever.
 #
 # The id is the cheapest honest answer to "was this server here first": it is
 # already recorded, strictly increasing, and needs no backfill, no marker table
 # and no date column that `servers` does not have. It also means the answer is
 # identical on a restored database — a snapshot-at-first-boot approach would
 # quietly re-draw the line wherever the restore happened to land.
+#
+# Set this to `MAX(servers.id)` immediately before launching the tier, so that
+# every server already installed is grandfathered and only genuinely new ones
+# ever pay for the three features they'd otherwise be losing. The default of
+# 820 (start of July 2026) is only a floor for a fresh deployment — a running
+# install is expected to override it in the environment.
+#
+# This value and the cutover DM audience are THE SAME PREDICATE (see
+# load_premium_cutover_candidates). That is deliberate: it is what makes
+# "nothing about your server changes" true for every server that gets the DM.
+# Moving one without the other is how servers end up silently losing features,
+# which is the failure count_pending_cutover_notices exists to catch.
 PREMIUM_GRANDFATHER_MAX_ID = _int_env("PREMIUM_GRANDFATHER_MAX_ID", 820, minimum=0)
 
 # The one-time DM telling existing servers the tier is launching. Manually
@@ -3119,6 +3131,64 @@ def load_premium_cutover_candidates(limit: int):
         return candidates
 
 
+def count_pending_cutover_notices() -> int:
+    """How many grandfathered servers still owe a cutover DM.
+
+    Deliberately the same audience as load_premium_cutover_candidates, minus
+    the limit — this answers "has the campaign finished?", so it has to count
+    the exact set that campaign would send to.
+
+    Returns 0 on error. This only drives a warning; a database hiccup at
+    startup must not invent an alarming number, and a real backlog will still
+    be reported on the next boot.
+    """
+    try:
+        with session_scope() as session:
+            notified = {
+                panel_view_key(row.server_id)
+                for row in session.query(PremiumCutoverNotice.server_id).all()
+            }
+            rows = (
+                session.query(Server.server_id)
+                .filter(Server.id <= PREMIUM_GRANDFATHER_MAX_ID)
+                .all()
+            )
+            return sum(
+                1 for row in rows if panel_view_key(row.server_id) not in notified
+            )
+    except Exception:
+        logger.warning("Could not count pending cutover notices", exc_info=True)
+        return 0
+
+
+def warn_if_cutover_incomplete() -> int:
+    """Say so, loudly, if the tier is live before everyone has been told.
+
+    The ordering that matters at launch is: set the grandfather line, run the
+    cutover campaign to completion, *then* set PREMIUM_SKU_ID. Getting it
+    backwards means servers find out they lost automation by noticing it
+    stopped working, which is issue #59 — the whole reason this exists.
+
+    Only meaningful while the campaign is outstanding, so it self-clears: once
+    every grandfathered server has its notice row, this is silent forever.
+    Servers created after launch are not counted, because they are past the
+    line and never had the features to lose.
+    """
+    if not PREMIUM_ENFORCED:
+        return 0
+    pending = count_pending_cutover_notices()
+    if pending:
+        logger.warning(
+            "PREMIUM_SKU_ID is set but %d grandfathered server(s) have not had "
+            "the cutover DM. They keep their features (they are inside the "
+            "grandfather line) but were never told the tier launched. Trigger "
+            "the campaign: touch %s",
+            pending,
+            PREMIUM_CUTOVER_TRIGGER_PATH,
+        )
+    return pending
+
+
 def complete_premium_cutover(server_id) -> None:
     """Record that this guild has had its announcement, once and for all."""
     key = panel_view_key(server_id)
@@ -3709,6 +3779,9 @@ async def on_ready():
     start_background_task(
         "premium_cutover_watcher", watch_premium_cutover_trigger()
     )
+
+    # Silent unless the tier was switched on before the announcement finished.
+    warn_if_cutover_incomplete()
 
     # Panels already carrying the current custom_ids are handled by the
     # persistent view registered in setup_hook, so this only has to re-edit the

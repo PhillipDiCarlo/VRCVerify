@@ -116,10 +116,16 @@ servers. `tests/test_premium.py::TestAutoVerifyOnJoinIsFree` pins this so it
 can't drift back behind the paywall.
 
 \* Servers configured before the tier launched — defined as
-`servers.id <= PREMIUM_GRANDFATHER_MAX_ID` (default 820, where the
-autoincrementing key stood at the start of July 2026). Using the existing
-primary key means there is nothing to backfill and no way for the line to
-drift; a restored database draws it in exactly the same place.
+`servers.id <= PREMIUM_GRANDFATHER_MAX_ID`. Using the existing primary key
+means there is nothing to backfill and no way for the line to drift; a restored
+database draws it in exactly the same place.
+
+Set that variable to `MAX(servers.id)` immediately before launching, so every
+server already installed keeps what it has and only genuinely new servers ever
+pay for those three features. The 820 default is just a floor for a fresh
+deployment. Grandfathering costs less revenue than it looks like: the activity
+log, queue priority and everything built after them are premium for *every*
+server regardless, so the line only governs three features.
 
 **The tier is off until `PREMIUM_SKU_ID` is set.** With it unset every gate
 answers "allowed", so this code runs identically to the free bot — the SKU can
@@ -134,6 +140,27 @@ outage can't silently disable a paying server's automation.
 The one-time cutover announcement to existing servers is manually triggered:
 `touch` the file at `PREMIUM_CUTOVER_TRIGGER_PATH` and it trickles out under a
 per-sweep cap, then stops on its own.
+
+#### Launch order
+
+`PREMIUM_GRANDFATHER_MAX_ID` decides both who keeps their features *and* who
+gets the announcement — it is the same predicate in both places, which is what
+makes the DM's "nothing about your server changes" true for everyone who
+receives it. So the steps have to happen in this order:
+
+1. `SELECT max(id) FROM servers;` and set `PREMIUM_GRANDFATHER_MAX_ID` to it.
+   Restart. Nothing changes yet — the tier is still off.
+2. `touch` the trigger and let the campaign run to completion. At the default
+   pacing (20 per sweep, 300s apart) that is roughly 240 servers/hour.
+3. Re-run step 1 and re-trigger. Servers that installed *during* step 2 are
+   past the old line; this pulls them in. The notice table means the second
+   run only DMs the newcomers, so nobody gets a duplicate.
+4. Only now set `PREMIUM_SKU_ID`.
+
+Doing step 4 early is the one genuinely bad outcome: servers lose working
+automation and find out by noticing it stopped. On startup the bot counts
+grandfathered servers with no notice row and warns if the tier is live while
+any remain, so getting the order wrong is at least visible in the logs.
 
 ### Queue priority
 
