@@ -1862,9 +1862,6 @@ class PagedSettingsView(View):
                 save_panel_branding(
                     interaction.guild.id, self.embed_color, self.show_icon
                 )
-                # Show the change on the actual panel now, not whenever a fleet
-                # refresh next happens to run.
-                await restyle_instruction_panel(interaction.guild.id)
 
             notes = ""
             if not self.auto_verify_available:
@@ -1884,6 +1881,14 @@ class PagedSettingsView(View):
                 + notes
             )
             await interaction.response.edit_message(content=msg, view=None)
+
+            # Only after replying. Editing the panel is a real HTTP call, and
+            # message edits are rate limited per channel — discord.py sleeps
+            # through a 429, which can push the reply past the three seconds
+            # Discord allows. The admin would then be told the interaction
+            # failed even though the save and the restyle both worked.
+            if branding_allowed:
+                await restyle_instruction_panel(interaction.guild.id)
 
         back_btn.callback = on_back
         next_btn.callback = on_next

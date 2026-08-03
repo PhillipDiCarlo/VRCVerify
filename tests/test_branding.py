@@ -519,6 +519,60 @@ class TestSettingsBrandingPage:
         assert bot.SETTINGS_PAGE_FEATURE[self.PAGE] == bot.FEATURE_BRANDED_PANEL
 
 
+class TestSaveOrdering:
+    """Discord gives three seconds to acknowledge an interaction.
+
+    Editing the panel is a real HTTP call and message edits are rate limited
+    per channel, so it has to happen after the reply or a 429 turns a
+    successful save into "This interaction failed" for the admin.
+    """
+
+    def build_and_save(self, monkeypatch, premium_flag=True):
+        order = []
+
+        async def fake_restyle(guild_id):
+            order.append("panel_edit")
+            return "ok"
+
+        monkeypatch.setattr(bot, "restyle_instruction_panel", fake_restyle)
+
+        async def fake_response(**kwargs):
+            order.append("reply")
+
+        interaction = SimpleNamespace(
+            guild=SimpleNamespace(id=int(GUILD_ID)),
+            user=SimpleNamespace(id=int(OWNER_ID)),
+            locale="en-US",
+            response=SimpleNamespace(edit_message=fake_response),
+        )
+
+        view = bot.PagedSettingsView(
+            True,
+            "en-US",
+            True,
+            auto_verify_available=True,
+            page_index=bot.SETTINGS_LAST_PAGE,
+            premium=bot.PremiumFlags(premium=premium_flag, grandfathered=False),
+            embed_color=BRAND,
+            show_icon=True,
+        )
+        save = next(
+            i
+            for i in view.children
+            if isinstance(i, discord.ui.Button) and i.label == "Save"
+        )
+        run(save.callback(interaction))
+        return order
+
+    def test_the_reply_comes_before_the_panel_edit(self, monkeypatch, enforced):
+        make_server(row_id=NEW_ID)
+        assert self.build_and_save(monkeypatch) == ["reply", "panel_edit"]
+
+    def test_a_free_server_edits_no_panel(self, monkeypatch, enforced):
+        make_server(row_id=NEW_ID)
+        assert self.build_and_save(monkeypatch, premium_flag=False) == ["reply"]
+
+
 # ---------------------------------------------------------------
 # Entitlement events keep the live panel honest
 # ---------------------------------------------------------------
