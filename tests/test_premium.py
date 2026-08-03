@@ -918,6 +918,77 @@ class TestGrandfatherLineCapture:
         assert bot.grandfather_line() == 5
 
 
+class TestPremiumStatusCopy:
+    """The /vrcverify_subscription copy has to match what the tier actually is.
+
+    These strings double as the sales pitch and as the answer to "what am I
+    paying for", and they went stale twice already: written for the four
+    Phase 1 features, then left behind by the activity log, queue priority and
+    branded panel. Structure is asserted per locale so a translation cannot
+    quietly list a different set of features from English.
+    """
+
+    KEYS = (
+        "premium_status_active",
+        "premium_status_inactive",
+        "premium_status_grandfathered",
+    )
+
+    def bullets(self, locale, key):
+        text = bot.localizations[locale][key]
+        return [line for line in text.split("\n") if line.startswith("•")]
+
+    @pytest.mark.parametrize("key", KEYS)
+    def test_every_locale_lists_the_same_number_of_features(self, key):
+        expected = len(self.bullets("en-US", key))
+        for locale in bot.LANGUAGE_CODES:
+            assert len(self.bullets(locale, key)) == expected, (locale, key)
+
+    def test_subscribers_are_told_about_all_seven_features(self):
+        assert len(self.bullets("en-US", "premium_status_active")) == 7
+        assert len(self.bullets("en-US", "premium_status_inactive")) == 7
+
+    def test_grandfathered_copy_splits_free_from_paid(self):
+        """Three kept free, four that Premium adds.
+
+        The old copy said the only thing left was the cooldown, which
+        understated Premium by three features to the servers most likely to
+        already trust the bot.
+        """
+        assert len(self.bullets("en-US", "premium_status_grandfathered")) == 7
+
+    @pytest.mark.parametrize("key", KEYS)
+    def test_the_server_placeholder_survives_translation(self, key):
+        for locale in bot.LANGUAGE_CODES:
+            assert "{server}" in bot.localizations[locale][key], (locale, key)
+
+    @pytest.mark.parametrize("key", KEYS)
+    def test_it_formats_without_stray_placeholders(self, key):
+        for locale in bot.LANGUAGE_CODES:
+            # Any other {token} would raise KeyError here.
+            bot.localizations[locale][key].format(server="Test Server")
+
+    def test_auto_verify_is_named_as_free_never_as_a_benefit(self):
+        """It is free for everyone, so selling it would be a lie.
+
+        It is still worth naming above the bullets: it is the feature people
+        assume is paid, and saying nothing reads as it being missing.
+        """
+        pitch = bot.localizations["en-US"]["premium_status_inactive"]
+        assert "auto-verifying" in pitch
+        assert not any(
+            "auto-verif" in line.lower()
+            for line in self.bullets("en-US", "premium_status_inactive")
+        )
+
+    def test_the_commands_are_not_translated(self):
+        """Slash command names are literal; a translated one would not work."""
+        for locale in bot.LANGUAGE_CODES:
+            active = bot.localizations[locale]["premium_status_active"]
+            assert "/vrcverify_logchannel" in active, locale
+            assert "/vrcverify_settings" in active, locale
+
+
 class TestCutoverCompletionWarning:
     """Issue #59: the tier must not go live before everyone has been told.
 
