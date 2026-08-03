@@ -3523,6 +3523,36 @@ async def refresh_instruction_panel(entry, rebuild_embed: bool) -> bool:
     return await probe_instruction_panel(entry, rebuild_embed) == "ok"
 
 
+def partition_reachable_panels(panels):
+    """Split saved panels into ones we can still edit and ones we cannot.
+
+    A panel in a guild the bot has been removed from can never be edited: the
+    edit comes back 403, and probe_instruction_panel deliberately keeps the
+    saved reference on Forbidden because a revoked permission can be restored.
+    A kick cannot, so without this those rows are retried on every single boot
+    forever, and the count only grows as more servers remove the bot.
+
+    The cost is not really the wasted calls, it is that a genuine permission
+    problem in an active server ends up as one line among a hundred identical
+    ones — the exact signal this refresh exists to produce.
+
+    Skipping is deliberately non-destructive. If the guild cache were somehow
+    cold, the worst case is that a refresh waits for the next boot.
+    """
+    reachable, departed = [], []
+    for entry in panels:
+        try:
+            guild = bot.get_guild(int(entry["server_id"]))
+        except (TypeError, ValueError):
+            # An id we cannot parse is not evidence that we left the guild.
+            # Let it through so probe_instruction_panel reports it as
+            # malformed, rather than silently skipping it forever on a guess.
+            reachable.append(entry)
+            continue
+        (reachable if guild is not None else departed).append(entry)
+    return reachable, departed
+
+
 async def refresh_all_instruction_panels(
     rebuild_embed: bool, reason: str, stale_only: bool = False
 ):
@@ -3532,9 +3562,18 @@ async def refresh_all_instruction_panels(
     fight over the same messages.
     """
     async with instruction_refresh_lock:
-        panels = load_instruction_panels(stale_only=stale_only)
+        panels, departed = partition_reachable_panels(
+            load_instruction_panels(stale_only=stale_only)
+        )
+        departed_note = (
+            f", {len(departed)} skipped (bot no longer in the guild)"
+            if departed
+            else ""
+        )
         if not panels:
-            logger.info(f"No instruction panels need refreshing ({reason}).")
+            logger.info(
+                f"No instruction panels need refreshing ({reason}){departed_note}."
+            )
             return
 
         started = time.monotonic()
@@ -3570,7 +3609,7 @@ async def refresh_all_instruction_panels(
         crashed_note = f", {crashed} crashed" if crashed else ""
         logger.info(
             f"Instruction panel refresh ({reason}): {updated}/{len(panels)} "
-            f"updated in {elapsed:.1f}s{crashed_note}"
+            f"updated in {elapsed:.1f}s{crashed_note}{departed_note}"
         )
 
 
@@ -3710,6 +3749,27 @@ async def on_guild_join(guild: discord.Guild):
             await dm_localized(owner, guild, "guild_join_welcome_dm", server=guild.name)
     except Exception:
         logger.exception(f"Failed to send welcome DM for guild {guild.id}")
+
+
+@bot.event
+async def on_guild_remove(guild: discord.Guild):
+    """Drop the state that can only ever be wrong once we're out of a guild.
+
+    The saved panel points at a message in a channel we can no longer touch,
+    and the onboarding nudge has nobody left to nudge. Neither becomes valid
+    again on its own, so keeping them means retrying them forever.
+
+    The `servers` row and its role configuration are deliberately kept. Being
+    removed is frequently temporary — a permissions cleanup, a server rebuild,
+    an accidental kick — and forcing an admin back through /vrcverify_setup on
+    re-invite costs them far more than a stale row costs us.
+    """
+    logger.info(f"Removed from guild {guild.id} ({guild.name})")
+    try:
+        forget_instruction_panel(str(guild.id))
+        forget_guild_onboarding(str(guild.id))
+    except Exception:
+        logger.exception(f"Failed to clean up state for departed guild {guild.id}")
 
 
 def _note_entitlement_change(entitlement: discord.Entitlement, event: str) -> None:
