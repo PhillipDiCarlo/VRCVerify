@@ -35,6 +35,33 @@ RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST")
 RABBITMQ_QUEUE_NAME = os.getenv("RABBITMQ_QUEUE_NAME")
 RESULT_QUEUE_NAME = os.getenv("RABBITMQ_RESULT_QUEUE")
 
+# Priority levels on the request queue, so premium servers are served ahead of
+# free ones when a backlog forms.
+#
+# NOT an env var, deliberately, and it MUST stay identical to bot.py's
+# QUEUE_MAX_PRIORITY. Both services declare this queue, and RabbitMQ rejects a
+# declare whose arguments differ from the existing queue's with 406
+# PRECONDITION_FAILED — which would take down publishing and consuming at the
+# same time. Changing the value is a migration (delete and recreate the queue),
+# not a config tweak. tests/test_priority_queue.py pins that they agree.
+QUEUE_MAX_PRIORITY = 5
+
+# RabbitMQ's reply code for "this queue already exists with other arguments".
+QUEUE_ARGUMENT_MISMATCH_CODE = 406
+
+
+def request_queue_arguments() -> dict:
+    """Declaration arguments for the verification request queue.
+
+    Must return exactly what bot.py's function of the same name returns.
+    """
+    return {"x-max-priority": QUEUE_MAX_PRIORITY}
+
+
+def is_queue_argument_mismatch(error: Exception) -> bool:
+    """Is this the 406 you get from re-declaring a queue with new arguments?"""
+    return getattr(error, "reply_code", None) == QUEUE_ARGUMENT_MISMATCH_CODE
+
 # Gmail IMAP Credentials
 GMAIL_USER = os.getenv("GMAIL_USER")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
@@ -1036,7 +1063,11 @@ def listen_for_verifications():
         try:
             connection = _rabbitmq_connect_with_retry(max_tries=0)
             channel = connection.channel()
-            channel.queue_declare(queue=RABBITMQ_QUEUE_NAME, durable=True)
+            channel.queue_declare(
+                queue=RABBITMQ_QUEUE_NAME,
+                durable=True,
+                arguments=request_queue_arguments(),
+            )
             channel.basic_qos(prefetch_count=1)
             channel.basic_consume(
                 queue=RABBITMQ_QUEUE_NAME,
@@ -1045,6 +1076,24 @@ def listen_for_verifications():
             )
             logging.info("Listening for verification requests on '%s'...", RABBITMQ_QUEUE_NAME)
             channel.start_consuming()
+        except pika.exceptions.ChannelClosedByBroker as error:
+            if not is_queue_argument_mismatch(error):
+                raise
+            # Reconnecting cannot fix this — the queue's arguments will not
+            # change on their own — and the generic handler below would retry
+            # forever without ever explaining why. Say what is wrong and how to
+            # fix it, then back off hard so the log is readable.
+            logging.error(
+                "Queue '%s' already exists with different arguments, so it cannot be "
+                "declared with priority support (x-max-priority=%s). Verification is "
+                "STOPPED until this is fixed. Stop the bot, let this service drain the "
+                "queue to zero, stop it, delete the '%s' queue in RabbitMQ, then start "
+                "both again.",
+                RABBITMQ_QUEUE_NAME,
+                QUEUE_MAX_PRIORITY,
+                RABBITMQ_QUEUE_NAME,
+            )
+            time.sleep(60)
         except (pika.exceptions.AMQPConnectionError, pika.exceptions.StreamLostError, OSError):
             logging.warning("RabbitMQ consumer disconnected; reconnecting soon...", exc_info=True)
             time.sleep(3)

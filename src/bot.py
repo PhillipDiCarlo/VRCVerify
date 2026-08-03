@@ -68,6 +68,60 @@ RABBITMQ_USERNAME = os.getenv("RABBITMQ_USERNAME")
 RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD")
 RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST")
 
+# Priority levels on the request queue, so premium servers are served ahead of
+# free ones when a backlog forms. RabbitMQ only reorders messages already
+# waiting, so this changes nothing while the queue is empty — which is the
+# normal case — and everything when the single shared VRChat account falls
+# behind, which is the case worth paying for.
+#
+# NOT an env var, deliberately. vrc_online_checker.py declares the same queue
+# and the arguments must match exactly or every declare fails with 406
+# PRECONDITION_FAILED, taking down both services at once. Changing this value
+# is itself a migration — the queue has to be deleted and recreated — so it
+# must not look like something that can be tuned from config.
+# tests/test_priority_queue.py pins that both services agree.
+QUEUE_MAX_PRIORITY = 5
+PREMIUM_REQUEST_PRIORITY = QUEUE_MAX_PRIORITY
+DEFAULT_REQUEST_PRIORITY = 0
+
+# RabbitMQ's reply code for "this queue already exists with other arguments".
+QUEUE_ARGUMENT_MISMATCH_CODE = 406
+
+
+def request_queue_arguments() -> dict:
+    """Declaration arguments for the verification request queue.
+
+    Both services build them here-shaped so a mismatch is a test failure rather
+    than a production 406.
+    """
+    return {"x-max-priority": QUEUE_MAX_PRIORITY}
+
+
+def is_queue_argument_mismatch(error: Exception) -> bool:
+    """Is this the 406 you get from re-declaring a queue with new arguments?"""
+    return getattr(error, "reply_code", None) == QUEUE_ARGUMENT_MISMATCH_CODE
+
+
+def log_queue_argument_mismatch(queue_name: str) -> None:
+    """Say exactly what is wrong and exactly how to fix it.
+
+    Without this the failure is invisible: ChannelClosedByBroker subclasses
+    AMQPError, so the publisher swallows it in its generic retry loop and the
+    consumer reconnects forever, neither explaining why. That turns a one-line
+    operator fix into a mysterious outage across both services.
+    """
+    logger.error(
+        "Queue '%s' already exists with different arguments, so it cannot be "
+        "declared with priority support (x-max-priority=%s). Verification is "
+        "STOPPED until this is fixed. Stop the bot, let the checker drain the "
+        "queue to zero, stop the checker, delete the '%s' queue in RabbitMQ, "
+        "then start both again.",
+        queue_name,
+        QUEUE_MAX_PRIORITY,
+        queue_name,
+    )
+
+
 # Donation link surfaced on the instruction panel, admin confirmations,
 # and the one-time milestone DM.
 KOFI_URL = "https://ko-fi.com/italiandogs"
@@ -512,6 +566,7 @@ FEATURE_NICKNAME_SYNC = "nickname_sync"
 FEATURE_CUSTOM_DM = "custom_dm"
 FEATURE_REDUCED_COOLDOWN = "reduced_cooldown"
 FEATURE_ACTIVITY_LOG = "activity_log"
+FEATURE_PRIORITY_QUEUE = "priority_queue"
 
 # Servers configured before the cutover keep these three for free, forever.
 # The reduced cooldown and the activity log are new, so nobody is losing them.
@@ -766,6 +821,12 @@ class PremiumFlags:
         if self.allows(FEATURE_REDUCED_COOLDOWN):
             return PREMIUM_VERIFICATION_COOLDOWN_SECONDS
         return None
+
+    def request_priority(self) -> int:
+        """Where this guild's requests sit in the queue when there's a backlog."""
+        if self.allows(FEATURE_PRIORITY_QUEUE):
+            return PREMIUM_REQUEST_PRIORITY
+        return DEFAULT_REQUEST_PRIORITY
 
 
 async def resolve_premium_flags(guild_id) -> PremiumFlags:
@@ -1176,11 +1237,11 @@ class VRCVerifyInstructionView(View):
 
         user_id = str(interaction.user.id)
 
+        # Resolved once and reused for the queue priority below, so this costs
+        # no extra entitlement read.
+        flags = resolve_premium_flags_from_interaction(interaction)
         remaining = check_verification_cooldown(
-            user_id,
-            window_seconds=resolve_premium_flags_from_interaction(
-                interaction
-            ).cooldown_window(),
+            user_id, window_seconds=flags.cooldown_window()
         )
         if remaining:
             return await interaction.response.send_message(
@@ -1204,7 +1265,8 @@ class VRCVerifyInstructionView(View):
             vrc_user_id=vrc_user_id,
             guild_id=str(interaction.guild_id),
             code=None,
-            update_nickname=True
+            update_nickname=True,
+            priority=flags.request_priority(),
         )
         # localized confirmation
         await interaction.response.send_message(
@@ -1658,11 +1720,9 @@ async def process_verification(interaction: discord.Interaction):
             await interaction.response.send_modal(VRCUsernameModal(interaction))
             return
 
+        flags = resolve_premium_flags_from_interaction(interaction)
         remaining = check_verification_cooldown(
-            user_id,
-            window_seconds=resolve_premium_flags_from_interaction(
-                interaction
-            ).cooldown_window(),
+            user_id, window_seconds=flags.cooldown_window()
         )
         if remaining:
             await interaction.response.send_message(
@@ -1676,7 +1736,8 @@ async def process_verification(interaction: discord.Interaction):
             discord_id=user_id,
             vrc_user_id=stored_vrc_user_id,
             guild_id=guild_id,
-            code=None  # No-code re-check
+            code=None,  # No-code re-check
+            priority=flags.request_priority(),
         )
         await interaction.followup.send(
             get_message("recheck_started", interaction), ephemeral=True
@@ -1799,7 +1860,8 @@ async def publish_to_vrc_checker(
     vrc_user_id: str,
     guild_id: str,
     code: str | None,
-    update_nickname: bool = False
+    update_nickname: bool = False,
+    priority: int = DEFAULT_REQUEST_PRIORITY,
 ):
     def _publish():
         message = {
@@ -1814,6 +1876,7 @@ async def publish_to_vrc_checker(
         properties = pika.BasicProperties(
             content_type="application/json",
             delivery_mode=2,  # persistent
+            priority=priority,
         )
 
         max_publish_tries = int(os.getenv("RABBITMQ_PUBLISH_TRIES", "3"))
@@ -1823,7 +1886,11 @@ async def publish_to_vrc_checker(
             try:
                 conn = _rabbitmq_connect_with_retry(max_tries=1)
                 channel = conn.channel()
-                channel.queue_declare(queue=RABBITMQ_REQUEST_QUEUE, durable=True)
+                channel.queue_declare(
+                    queue=RABBITMQ_REQUEST_QUEUE,
+                    durable=True,
+                    arguments=request_queue_arguments(),
+                )
                 channel.basic_publish(
                     exchange="",
                     routing_key=RABBITMQ_REQUEST_QUEUE,
@@ -1833,6 +1900,12 @@ async def publish_to_vrc_checker(
                 logger.info("📤 Sent to vrc_online_checker: %s", message)
                 return
             except AMQPError as e:
+                # Retrying this one is pointless: the queue's arguments will not
+                # change on their own, so every attempt fails identically and
+                # the real cause never reaches the log.
+                if is_queue_argument_mismatch(e):
+                    log_queue_argument_mismatch(RABBITMQ_REQUEST_QUEUE)
+                    return
                 last_exc = e
                 logger.warning(
                     "RabbitMQ publish failed (attempt %s/%s); retrying...",
@@ -2116,12 +2189,11 @@ class VRCVerificationButton(discord.ui.View):
         """
         discord_id = str(interaction.user.id)
 
+        flags = resolve_premium_flags_from_interaction(interaction)
         # Own scope: a prior re-check/nickname request must never block Verify.
         remaining = check_verification_cooldown(
             discord_id,
-            window_seconds=resolve_premium_flags_from_interaction(
-                interaction
-            ).cooldown_window(),
+            window_seconds=flags.cooldown_window(),
             scope="verify",
         )
         if remaining:
@@ -2148,7 +2220,11 @@ class VRCVerificationButton(discord.ui.View):
         await interaction.response.defer(ephemeral=True)
 
         await publish_to_vrc_checker(
-            discord_id, vrc_user_id, self.guild_id, verification_code
+            discord_id,
+            vrc_user_id,
+            self.guild_id,
+            verification_code,
+            priority=flags.request_priority(),
         )
 
         await interaction.followup.send(

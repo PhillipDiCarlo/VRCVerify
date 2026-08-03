@@ -105,6 +105,7 @@ unlocks the automation around it:
 | Custom post-verification DM | — | ✅ | ✅ |
 | Reduced verification cooldown | — | — | ✅ |
 | Verification activity log channel | — | — | ✅ |
+| Priority placement in the verification queue | — | — | ✅ |
 
 Auto-verify-on-join is free for everyone and is deliberately not gated at all —
 `on_member_join` never so much as reads an entitlement. Users read "the bot
@@ -133,6 +134,51 @@ outage can't silently disable a paying server's automation.
 The one-time cutover announcement to existing servers is manually triggered:
 `touch` the file at `PREMIUM_CUTOVER_TRIGGER_PATH` and it trickles out under a
 per-sweep cap, then stops on its own.
+
+### Queue priority
+
+Premium servers' verification requests are published at a higher RabbitMQ priority than
+free ones. Every verification goes through a single shared VRChat account and a checker
+consuming with `prefetch_count=1`, so this decides who is served first **when a backlog
+exists** — RabbitMQ only reorders messages already waiting, so nothing changes while the
+queue is empty.
+
+`QUEUE_MAX_PRIORITY` is a hardcoded constant in **both** `src/bot.py` and
+`src/vrc_online_checker.py`, deliberately not an environment variable. Both services
+declare the same queue and the arguments must match exactly, or every declare fails with
+406 `PRECONDITION_FAILED` and takes down publishing and consuming at once. Changing the
+value is a migration, not a config change. `tests/test_priority_queue.py` pins that the
+two services agree and that each actually passes the arguments.
+
+> #### ⚠️ Upgrading to a build with queue priority
+>
+> The pre-existing request queue has no `x-max-priority` argument, and RabbitMQ will not
+> let it be re-declared with one. **It must be deleted and recreated.**
+>
+> The queue is the one named by **`RABBITMQ_QUEUE_NAME`** in your `.env` — check it
+> rather than assuming, since the deployed name is not the placeholder in
+> `.env.example`. Only the *request* queue changes; `RABBITMQ_RESULT_QUEUE` is untouched.
+>
+> This sequence loses nothing:
+>
+> 1. Stop **the bot only**. No new requests are published.
+> 2. In the RabbitMQ UI, watch that queue until **Ready = 0 and Unacked = 0** — the
+>    checker finishes the backlog normally.
+> 3. Stop the checker.
+> 4. Delete the (now empty) queue.
+> 5. Deploy both new images and start them.
+>
+> Deleting the queue while it still holds messages discards them, and each one is
+> somebody who pressed Verify and will never hear back — hence draining first.
+>
+> Do not delete it while the old containers are still running: the bot re-declares the
+> queue on every publish and the checker on every reconnect, so it would reappear within
+> seconds, still without priority. The delete has to land in the gap between stopping the
+> old containers and starting the new ones.
+>
+> If step 4 is skipped, both services log an explicit error naming the queue and the fix.
+> The bot stops publishing (rather than retrying something that can never succeed) and
+> the checker backs off; verification is stopped until the queue is deleted.
 
 ### Verification activity log
 
