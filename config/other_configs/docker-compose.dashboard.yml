@@ -1,4 +1,4 @@
-# The web dashboard, for the public VPS (issue #65). NOT the homelab pair —
+# The web dashboard, for the public VPS (issue #65). NOT the homelab pair --
 # that stays docker-compose.deploy.yml.
 #
 # Usage, on the VPS next to dashboard.env, cloudflared.env and certs/:
@@ -8,7 +8,7 @@
 #
 # 1. NEITHER SERVICE PUBLISHES A PORT. cloudflared dials out to Cloudflare and
 #    reaches the dashboard over the Docker network by name. The host firewall
-#    is default-deny inbound and the IONOS panel allows only Tailscale — but
+#    is default-deny inbound and the IONOS panel allows only Tailscale -- but
 #    neither of those would save you, because published Docker ports are DNAT'd
 #    in PREROUTING and never traverse the INPUT chain. The absence of `ports:`
 #    is the actual control.
