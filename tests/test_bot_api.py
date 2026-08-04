@@ -1,4 +1,4 @@
-"""Unit tests for the bot's internal API (issue #65, step 1).
+"""Unit tests for the bot's internal API (issue #65, steps 1 and 5).
 
 This is the first inbound surface the project has ever had, on a bot whose
 database links Discord identities to VRChat accounts and 18+ status, so these
@@ -8,8 +8,9 @@ should not be able to open it:
 - a token is good for one actor, one guild and one operation, once
 - authority is the bot's answer about Administrator, never the caller's claim
 - a misconfigured listener refuses to start rather than binding wider than asked
-- the phase itself is pinned: no write route and no writer capability can land
-  here without deliberately editing this file
+- the phase itself is pinned: the write surface is exactly one route and one
+  capability, and widening it means deliberately editing this file
+- a token minted to READ a guild's settings cannot be replayed to write them
 
 TLS is configured at the socket, not in the application, so the mTLS chain is
 verified by hand against a real listener (see the issue's step-1 checklist).
@@ -48,8 +49,14 @@ def run(coro):
 # -------------------------------------------------------------------
 # Fakes
 # -------------------------------------------------------------------
-def make_deps(**overrides) -> bot_api.BotAPIDeps:
-    """A permissive set of readers, so each test can break exactly one thing."""
+def make_deps(written=None, **overrides) -> bot_api.BotAPIDeps:
+    """A permissive set of capabilities, so each test breaks exactly one thing.
+
+    `written` collects what reached the writer, so a test can assert the
+    handler passed the body through unchanged -- and, more usefully, that a
+    refused request never reached it at all.
+    """
+    written = [] if written is None else written
 
     async def is_admin(guild_id, user_id):
         return int(user_id) == ADMIN_ID
@@ -71,6 +78,10 @@ def make_deps(**overrides) -> bot_api.BotAPIDeps:
     async def read_panel(guild_id):
         return {"posted": False}
 
+    async def write_settings(guild_id, actor_id, changes):
+        written.append((int(guild_id), int(actor_id), dict(changes)))
+        return {"guild_id": str(guild_id), "fields": {}, "written": dict(changes)}
+
     defaults = dict(
         is_ready=lambda: True,
         guild_present=lambda guild_id: int(guild_id) == GUILD_ID,
@@ -80,6 +91,7 @@ def make_deps(**overrides) -> bot_api.BotAPIDeps:
         read_roles=read_roles,
         read_channels=read_channels,
         read_panel=read_panel,
+        write_settings=write_settings,
     )
     defaults.update(overrides)
     return bot_api.BotAPIDeps(**defaults)
@@ -118,6 +130,13 @@ def serve(scenario, *, config=None, deps=None):
 async def get(client, path, token=None):
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     response = await client.get(path, headers=headers)
+    return response.status, await response.json()
+
+
+async def patch(client, path, token=None, json=None, data=None):
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    kwargs = {"data": data} if data is not None else {"json": json}
+    response = await client.patch(path, headers=headers, **kwargs)
     return response.status, await response.json()
 
 
@@ -693,15 +712,272 @@ class TestGuildList:
 # -------------------------------------------------------------------
 # Pinning the phase
 # -------------------------------------------------------------------
-class TestReadOnlyPhase:
-    """Step 1 is read-only. Both guards below have to be edited on purpose."""
+WRITE_OP = "PATCH /api/v1/guilds/{guild_id}/settings"
 
-    def test_no_route_can_change_anything(self):
+
+class TestTheWritePath:
+    """The one route that changes something gets the same gates as the reads."""
+
+    def path(self, guild_id=GUILD_ID):
+        return f"/api/v1/guilds/{guild_id}/settings"
+
+    def test_an_administrator_can_write(self):
+        written = []
+
+        async def scenario(client):
+            return await patch(
+                client,
+                self.path(),
+                token_for(WRITE_OP),
+                json={"fields": {"instructions_locale": "de"}},
+            )
+
+        status, body = serve(scenario, deps=make_deps(written=written))
+        assert status == 200
+        assert written == [(GUILD_ID, ADMIN_ID, {"instructions_locale": "de"})]
+
+    def test_a_read_token_cannot_be_replayed_as_a_write(self):
+        """The single most important property of this endpoint.
+
+        Both are `/api/v1/guilds/{id}/settings`; only the method differs, and
+        the method is inside the signed operation.
+        """
+        written = []
+
+        async def scenario(client):
+            return await patch(
+                client,
+                self.path(),
+                token_for(SETTINGS_OP),  # the GET token
+                json={"fields": {"instructions_locale": "de"}},
+            )
+
+        status, body = serve(scenario, deps=make_deps(written=written))
+        assert status == 403
+        assert body["error"] == "wrong_operation"
+        assert written == []
+
+    def test_a_write_token_for_one_guild_does_not_work_on_another(self):
+        written = []
+
+        async def scenario(client):
+            return await patch(
+                client,
+                self.path(),
+                token_for(WRITE_OP, guild_id=GUILD_ID + 1),
+                json={"fields": {"instructions_locale": "de"}},
+            )
+
+        status, body = serve(scenario, deps=make_deps(written=written))
+        assert status == 403
+        assert body["error"] == "wrong_guild"
+        assert written == []
+
+    def test_a_non_administrator_cannot_write(self):
+        written = []
+
+        async def scenario(client):
+            return await patch(
+                client,
+                self.path(),
+                token_for(WRITE_OP, actor_id=ADMIN_ID + 1),
+                json={"fields": {"instructions_locale": "de"}},
+            )
+
+        status, body = serve(scenario, deps=make_deps(written=written))
+        assert status == 403
+        assert body["error"] == "not_administrator"
+        assert written == []
+
+    def test_a_write_token_cannot_be_used_twice(self):
+        written = []
+        token = token_for(WRITE_OP)
+
+        async def scenario(client):
+            first = await patch(
+                client, self.path(), token, json={"fields": {"instructions_locale": "de"}}
+            )
+            second = await patch(
+                client, self.path(), token, json={"fields": {"instructions_locale": "ja"}}
+            )
+            return first, second
+
+        (first_status, _), (second_status, second_body) = serve(
+            scenario, deps=make_deps(written=written)
+        )
+        assert first_status == 200
+        # 401, same as a replayed read token: the token is simply no longer
+        # valid. 403 is reserved for a token that is valid but not for this.
+        assert second_status == 401
+        assert second_body["error"] == "replayed"
+        # And the replay never reached the database.
+        assert len(written) == 1
+
+    def test_no_token_is_a_401_and_writes_nothing(self):
+        written = []
+
+        async def scenario(client):
+            return await patch(
+                client, self.path(), json={"fields": {"instructions_locale": "de"}}
+            )
+
+        status, body = serve(scenario, deps=make_deps(written=written))
+        assert status == 401
+        assert written == []
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {},                       # no fields key
+            {"fields": {}},           # empty
+            {"fields": "everything"}, # not an object
+            {"fields": None},
+            ["fields"],               # not an object at the top level
+        ],
+    )
+    def test_a_malformed_body_is_refused(self, body):
+        written = []
+
+        async def scenario(client):
+            return await patch(client, self.path(), token_for(WRITE_OP), json=body)
+
+        status, _body = serve(scenario, deps=make_deps(written=written))
+        assert status == 400
+        assert written == []
+
+    def test_a_body_that_is_not_json_is_refused(self):
+        written = []
+
+        async def scenario(client):
+            return await patch(
+                client, self.path(), token_for(WRITE_OP), data=b"{not json"
+            )
+
+        status, body = serve(scenario, deps=make_deps(written=written))
+        assert status == 400
+        assert body["error"] == "bad_json"
+        assert written == []
+
+    def test_too_many_fields_is_refused_before_the_bot_is_asked(self):
+        written = []
+        crowd = {f"field_{n}": n for n in range(bot_api.MAX_SETTINGS_FIELDS + 1)}
+
+        async def scenario(client):
+            return await patch(
+                client, self.path(), token_for(WRITE_OP), json={"fields": crowd}
+            )
+
+        status, body = serve(scenario, deps=make_deps(written=written))
+        assert status == 400
+        assert body["error"] == "too_many_fields"
+        assert written == []
+
+    def test_a_rejected_setting_becomes_a_400(self):
+        async def refuse(guild_id, actor_id, changes):
+            raise bot_api.SettingRejected("instructions_locale", "unsupported_language")
+
+        async def scenario(client):
+            return await patch(
+                client,
+                self.path(),
+                token_for(WRITE_OP),
+                json={"fields": {"instructions_locale": "kl"}},
+            )
+
+        status, body = serve(scenario, deps=make_deps(write_settings=refuse))
+        assert status == 400
+        assert body["error"] == "unsupported_language"
+
+    def test_a_locked_setting_becomes_a_403(self):
+        async def refuse(guild_id, actor_id, changes):
+            raise bot_api.SettingRejected(
+                "panel_embed_color", "requires_premium", locked=True
+            )
+
+        async def scenario(client):
+            return await patch(
+                client,
+                self.path(),
+                token_for(WRITE_OP),
+                json={"fields": {"panel_embed_color": 255}},
+            )
+
+        status, body = serve(scenario, deps=make_deps(write_settings=refuse))
+        assert status == 403
+        assert body["error"] == "requires_premium"
+
+    def test_a_writer_that_cannot_complete_is_a_503(self):
+        async def give_up(guild_id, actor_id, changes):
+            return None
+
+        async def scenario(client):
+            return await patch(
+                client,
+                self.path(),
+                token_for(WRITE_OP),
+                json={"fields": {"instructions_locale": "de"}},
+            )
+
+        status, body = serve(scenario, deps=make_deps(write_settings=give_up))
+        assert status == 503
+        assert body["error"] == "unavailable"
+
+    def test_a_guild_the_bot_is_not_in_is_a_404(self):
+        written = []
+        other = GUILD_ID + 99
+
+        async def scenario(client):
+            return await patch(
+                client,
+                self.path(other),
+                token_for(WRITE_OP, guild_id=other),
+                json={"fields": {"instructions_locale": "de"}},
+            )
+
+        status, _body = serve(scenario, deps=make_deps(written=written))
+        assert status == 404
+        assert written == []
+
+    def test_the_actor_written_is_the_one_in_the_token(self):
+        """Not anything the dashboard put in the body."""
+        written = []
+
+        async def scenario(client):
+            return await patch(
+                client,
+                self.path(),
+                token_for(WRITE_OP),
+                json={
+                    "fields": {"instructions_locale": "de"},
+                    "actor_id": ADMIN_ID + 5000,
+                },
+            )
+
+        serve(scenario, deps=make_deps(written=written))
+        _guild, actor, _changes = written[0]
+        assert actor == ADMIN_ID
+
+
+class TestWriteSurfaceIsExactlyOneThing:
+    """Step 5 opens a write path. These pin how far it opens, and no further.
+
+    Editing any of them is how you widen what the website can do to a server,
+    which is the point: it cannot happen as a side effect of adding a route or
+    a dependency.
+    """
+
+    def test_the_only_write_route_is_the_settings_patch(self):
         app = bot_api.create_app(make_config(), make_deps())
-        methods = {route.method for route in app.router.routes()}
-        assert methods <= {"GET", "HEAD"}, f"a write route appeared: {methods}"
+        writes = {
+            (route.method, route.resource.canonical)
+            for route in app.router.routes()
+            if route.method not in {"GET", "HEAD"}
+        }
+        assert writes == {("PATCH", "/api/v1/guilds/{guild_id}/settings")}, (
+            f"an unexpected write route appeared: {writes}"
+        )
 
-    def test_the_api_holds_no_writer(self):
+    def test_the_api_holds_exactly_one_writer(self):
         assert bot_api.deps_field_names() == frozenset(
             {
                 "is_ready",
@@ -712,12 +988,24 @@ class TestReadOnlyPhase:
                 "read_roles",
                 "read_channels",
                 "read_panel",
+                "write_settings",
             }
         )
 
-    def test_every_capability_is_named_as_a_read(self):
+    def test_every_capability_is_named_for_what_it_does(self):
         for field in dataclass_fields(bot_api.BotAPIDeps):
-            assert field.name.startswith(("read_", "is_", "guild_"))
+            assert field.name.startswith(("read_", "is_", "guild_", "write_"))
+
+    def test_the_module_decides_nothing_about_which_fields_are_writable(self):
+        """The allowlist lives in the bot, not in the internet-facing path.
+
+        bot_api is imported by the dashboard's half of the contract and is the
+        module a compromised request reaches first. If it knew the field names
+        it would be a place to negotiate about them.
+        """
+        source = open(bot_api.__file__, encoding="utf-8").read()
+        for field_name in ("instructions_locale", "panel_embed_color", "panel_show_icon"):
+            assert field_name not in source
 
 
 # -------------------------------------------------------------------
@@ -796,6 +1084,7 @@ def clean_db():
             session.query(bot.VerificationLogChannel).delete()
             session.query(bot.PremiumGrandfatherLine).delete()
             session.query(bot.InstructionPanelView).delete()
+            session.query(bot.DashboardAudit).delete()
 
     wipe()
     bot.premium_status_cache.clear()
@@ -927,6 +1216,254 @@ class TestSettingsReader:
 
         monkeypatch.setattr(bot, "session_scope", boom)
         assert run(bot.read_dashboard_settings(GUILD_ID)) is None
+
+
+def audit_rows():
+    with bot.session_scope() as session:
+        return [
+            (row.field, row.old_value, row.new_value, row.actor_id)
+            for row in session.query(bot.DashboardAudit)
+            .order_by(bot.DashboardAudit.id)
+            .all()
+        ]
+
+
+def write(changes, guild_id=GUILD_ID, actor_id=ADMIN_ID):
+    return run(bot.write_dashboard_settings(guild_id, actor_id, changes))
+
+
+class TestSettingsWriter:
+    """The bot side of the first write path. Validation lives here, not on the
+    website, because the website is the half assumed to fall over eventually."""
+
+    def test_a_locale_is_stored_and_audited(self, subscribed):
+        make_server()
+        result = write({"instructions_locale": "de"})
+        assert result["fields"]["instructions_locale"]["value"] == "de"
+        assert audit_rows() == [
+            ("instructions_locale", "en-US", "de", str(ADMIN_ID))
+        ]
+
+    def test_branding_is_stored_and_audited(self, subscribed):
+        make_server()
+        write({"panel_embed_color": 0xFF0000, "panel_show_icon": True})
+        assert bot.load_panel_branding(GUILD_ID) == (0xFF0000, True)
+        assert {row[0] for row in audit_rows()} == {
+            "panel_embed_color",
+            "panel_show_icon",
+        }
+
+    def test_a_no_op_write_is_not_audited(self):
+        """A form posting every field must not bury the one line that matters."""
+        make_server(instructions_locale="en-US")
+        write({"instructions_locale": "en-US"})
+        assert audit_rows() == []
+
+    def test_half_a_branding_change_keeps_the_other_half(self, subscribed):
+        make_server()
+        write({"panel_embed_color": 0x00FF00, "panel_show_icon": True})
+        write({"panel_embed_color": 0x0000FF})
+        # The icon was not submitted, so it must survive the merge.
+        assert bot.load_panel_branding(GUILD_ID) == (0x0000FF, True)
+
+    @pytest.mark.parametrize(
+        "changes",
+        [
+            {"instructions_locale": "kl"},        # not a supported language
+            {"instructions_locale": 5},
+            {"panel_embed_color": -1},
+            {"panel_embed_color": 0x1000000},     # 25 bits
+            {"panel_embed_color": "red"},
+            {"panel_embed_color": True},          # bool is an int; not a colour
+            {"panel_show_icon": "yes"},
+            {"panel_show_icon": 1},
+        ],
+    )
+    def test_a_bad_value_is_rejected(self, changes, subscribed):
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            write(changes)
+        assert caught.value.locked is False
+        assert audit_rows() == []
+
+    @pytest.mark.parametrize(
+        "changes",
+        [
+            {"role_id": "1"},                     # writable later, not now
+            {"auto_verify_new_members": False},
+            {"custom_verification_requested_message": "hi"},
+            {"verification_log_channel_id": "5"},
+        ],
+    )
+    def test_a_field_not_yet_open_is_refused(self, changes, subscribed):
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            write(changes)
+        assert caught.value.reason == "not_writable_yet"
+        assert audit_rows() == []
+
+    def test_an_unknown_field_is_refused(self, subscribed):
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"is_admin": True})
+        assert caught.value.reason == "unknown_field"
+
+    def test_a_free_server_cannot_write_branding(self, free):
+        """The gate is here, not in whatever the website chose to render."""
+        make_server(row_id=500)
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"panel_embed_color": 0xFF0000})
+        assert caught.value.reason == "requires_premium"
+        assert caught.value.locked is True
+        assert bot.load_panel_branding(GUILD_ID) is None
+        assert audit_rows() == []
+
+    def test_a_free_server_can_still_write_its_language(self, free):
+        """instructions_locale is not a premium feature, and must not become one."""
+        make_server(row_id=500)
+        write({"instructions_locale": "ja"})
+        assert audit_rows()[0][:3] == ("instructions_locale", "en-US", "ja")
+
+    def test_one_bad_field_saves_none_of_them(self, subscribed):
+        make_server()
+        with pytest.raises(bot.SettingRejected):
+            write({"instructions_locale": "de", "panel_embed_color": "nope"})
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.instructions_locale == "en-US"
+        assert audit_rows() == []
+
+    def test_a_guild_that_never_ran_setup_cannot_set_a_language(self, subscribed):
+        """servers.owner_id is NOT NULL and the dashboard has no honest value.
+
+        Inserting a row would also mint a fresh servers.id, pushing the guild
+        above the grandfather line as a side effect of a language change.
+        """
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"instructions_locale": "de"})
+        assert caught.value.reason == "server_not_set_up"
+
+    def test_unreadable_branding_is_refused_rather_than_overwritten(
+        self, monkeypatch, subscribed
+    ):
+        make_server()
+        monkeypatch.setattr(
+            bot, "load_panel_branding", lambda guild_id: bot.BRANDING_UNREADABLE
+        )
+        assert write({"panel_embed_color": 0xFF0000}) is None
+        assert audit_rows() == []
+
+    def test_an_empty_change_set_is_refused(self, subscribed):
+        make_server()
+        for empty in ({}, None, "fields"):
+            with pytest.raises(bot.SettingRejected):
+                write(empty)
+
+    def test_the_writer_reports_the_stored_state_not_the_request(self, subscribed):
+        """What the admin sees next is what is saved, not what they submitted."""
+        make_server()
+        result = write({"instructions_locale": "ja"})
+        assert result == run(bot.read_dashboard_settings(GUILD_ID))
+
+
+class TestBothHalvesTogether:
+    """The dashboard's real client against the bot's real handler and writer.
+
+    Everything else in this file fakes one side or the other, which cannot
+    catch the seam between them: an operation string only one end updated, a
+    body key spelled differently on each side, a colour that survives one
+    validator and not the other. Here the only fake is the transport, which is
+    plain HTTP because TLS is configured at the socket rather than in either
+    application.
+    """
+
+    @pytest.fixture(autouse=True)
+    def placeholder_certs(self, tmp_path):
+        """requests stats these even for http, so they have to exist."""
+        for name in ("client.pem", "client.key", "ca.pem"):
+            (tmp_path / name).write_text("placeholder")
+        self.certs = tmp_path
+
+    def client_for(self, server):
+        botapi = pytest.importorskip("dashboard.botapi")
+        return botapi.BotAPIClient(
+            str(server.make_url("")).rstrip("/"),
+            client_cert=str(self.certs / "client.pem"),
+            client_key=str(self.certs / "client.key"),
+            ca_bundle=str(self.certs / "ca.pem"),
+            signing_key=SIGNING_KEY,
+        )
+
+    def run_against_bot(self, call):
+        """Drive the sync client from inside the loop running the server."""
+        app = bot_api.create_app(
+            make_config(),
+            make_deps(write_settings=bot.write_dashboard_settings,
+                      read_settings=bot.read_dashboard_settings),
+        )
+
+        async def runner():
+            server = TestServer(app)
+            await server.start_server()
+            try:
+                client = self.client_for(server)
+                loop = asyncio.get_running_loop()
+                return await loop.run_in_executor(None, lambda: call(client))
+            finally:
+                await server.close()
+
+        return asyncio.run(runner())
+
+    def test_a_save_travels_end_to_end(self, subscribed):
+        make_server()
+        result = self.run_against_bot(
+            lambda client: client.update_settings(
+                ADMIN_ID,
+                GUILD_ID,
+                {"instructions_locale": "ja", "panel_embed_color": 0x00FF00},
+            )
+        )
+        assert result["fields"]["instructions_locale"]["value"] == "ja"
+        assert bot.load_panel_branding(GUILD_ID) == (0x00FF00, False)
+        assert {row[0] for row in audit_rows()} == {
+            "instructions_locale",
+            "panel_embed_color",
+        }
+
+    def test_the_read_the_dashboard_gets_carries_what_it_needs_to_render(self):
+        """The two keys step 5 added, over the wire rather than in a fixture."""
+        make_server()
+        payload = self.run_against_bot(
+            lambda client: client.settings(ADMIN_ID, GUILD_ID)
+        )
+        assert payload["choices"]["instructions_locale"]
+        assert payload["fields"]["instructions_locale"]["writable"] is True
+        assert payload["fields"]["role_id"]["writable"] is False
+
+    def test_a_refusal_arrives_as_its_reason(self, free):
+        """The dashboard maps these to copy, so the string has to survive."""
+        botapi = pytest.importorskip("dashboard.botapi")
+        make_server(row_id=500)
+        with pytest.raises(botapi.BotAPIError) as caught:
+            self.run_against_bot(
+                lambda client: client.update_settings(
+                    ADMIN_ID, GUILD_ID, {"panel_embed_color": 0xFF0000}
+                )
+            )
+        assert str(caught.value) == "requires_premium"
+        assert caught.value.status == 403
+
+    def test_a_non_administrator_is_refused_end_to_end(self, subscribed):
+        botapi = pytest.importorskip("dashboard.botapi")
+        make_server()
+        with pytest.raises(botapi.BotAPIError) as caught:
+            self.run_against_bot(
+                lambda client: client.update_settings(
+                    MEMBER_ID, GUILD_ID, {"instructions_locale": "ja"}
+                )
+            )
+        assert caught.value.status == 403
+        assert audit_rows() == []
 
 
 class TestRoleReader:

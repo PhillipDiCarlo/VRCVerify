@@ -35,6 +35,10 @@ from typing import Optional
 # Step 5 must NOT build its locale <select> from this dict. The choices have to
 # come from the bot, or the dashboard could offer a language the bot cannot
 # render.
+# Shown in the colour picker when a server has chosen nothing. Cosmetic only:
+# what "no colour" means is the bot's business, and it stores NULL either way.
+DEFAULT_PANEL_SWATCH = "#5865f2"
+
 LOCALE_NAMES = {
     "en-US": "English",
     "es-ES": "Spanish",
@@ -68,6 +72,9 @@ class Field:
         locked: bool = False,
         swatch: Optional[str] = None,
         warnings: Optional[list] = None,
+        writable: bool = False,
+        choices: Optional[list] = None,
+        value=None,
     ):
         self.name = name
         self.label = label
@@ -80,6 +87,22 @@ class Field:
         self.locked = locked
         self.swatch = swatch
         self.warnings = warnings or []
+        self.writable = writable
+        self.choices = choices or []
+        # The raw value a form control needs, as distinct from `display`, which
+        # is prose for a human.
+        self.value = value
+
+    @property
+    def editable(self) -> bool:
+        """Render a control, rather than just the value.
+
+        Both halves come from the bot: `writable` is which fields the save path
+        accepts in this phase, `locked` is whether the plan allows it. The
+        website never decides either, and it renders a control only when the
+        bot would actually accept the value it produces.
+        """
+        return self.writable and not self.locked
 
     @property
     def badge(self) -> Optional[str]:
@@ -104,6 +127,10 @@ def _plan(state: dict) -> dict:
         "feature": state.get("feature"),
         "active": bool(state.get("active", True)),
         "locked": bool(state.get("locked", False)),
+        # Absent means no: a bot that has not said a field is writable has not
+        # said it, and defaulting the other way would render controls that the
+        # save path then refuses.
+        "writable": bool(state.get("writable", False)),
     }
 
 
@@ -193,7 +220,7 @@ def _bool_field(
     state = _state(settings, name)
     value = bool(state.get("value"))
     return Field(
-        name, label, description, "bool", on if value else off, **_plan(state)
+        name, label, description, "bool", on if value else off, value=value, **_plan(state)
     )
 
 
@@ -279,6 +306,11 @@ def build_groups(
             "blurb": "The message members use to start verification.",
             "fields": [locale, color, icon],
             "panel": panel_summary(panel),
+            # The only group with a save path so far. The template renders a
+            # form when a group names an endpoint AND the bot said at least one
+            # of its fields is writable, so opening the next group is a change
+            # here and in DASHBOARD_WRITABLE_FIELDS, not in the template.
+            "save_endpoint": "save_panel_settings",
         },
         {
             "title": "Logging",
@@ -306,17 +338,26 @@ def _custom_dm_field(settings: dict) -> Field:
     )
 
 
+def locale_label(code: str) -> str:
+    name = LOCALE_NAMES.get(code)
+    return f"{name} ({code})" if name else str(code)
+
+
 def _locale_field(settings: dict) -> Field:
     state = _state(settings, "instructions_locale")
     code = state.get("value") or "en-US"
-    name = LOCALE_NAMES.get(code)
-    display = f"{name} ({code})" if name else str(code)
+    # The options come from the bot, never from LOCALE_NAMES above -- that dict
+    # is for display, and a select built from it could offer a language the bot
+    # cannot render.
+    codes = (settings.get("choices") or {}).get("instructions_locale") or []
     return Field(
         "instructions_locale",
         "Language",
         "The language of the instructions panel and the bot's replies to members.",
         "locale",
-        display,
+        locale_label(code),
+        choices=[(one, locale_label(one)) for one in codes],
+        value=code,
         **_plan(state),
     )
 
@@ -332,6 +373,9 @@ def _panel_fields(settings: dict):
         swatch or "Default blue",
         empty=swatch is None,
         swatch=swatch,
+        # A colour input cannot be empty, so it needs something to show while
+        # the "use the default" box is ticked.
+        value=swatch or DEFAULT_PANEL_SWATCH,
         **_plan(color_state),
     )
 

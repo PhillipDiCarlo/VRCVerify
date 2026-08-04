@@ -326,9 +326,32 @@ callables and nothing else, so it cannot express a write at all.
 `src/dashboard/` is a small Flask app that signs an admin in with Discord OAuth,
 lists the servers they administer, and shows one server's settings. It holds no
 database credential and no bot token: everything it knows it asks the bot for
-over mTLS, and the bot decides what it is allowed to know. It is still
-**read-only** — the only `POST` route is sign-out, which `tests/test_dashboard.py`
-pins.
+over mTLS, and the bot decides what it is allowed to know.
+
+It can now **save the instructions panel group** — language, colour, server
+icon — and nothing else. That boundary is enforced in the bot by
+`DASHBOARD_WRITABLE_FIELDS`, not by which controls the website chose to draw,
+and the payload tells the dashboard which fields are open so the two cannot
+drift. The website renders a control only where the bot has said it would
+accept the value.
+
+The write path adds one route on each side, and both are pinned by tests:
+
+- `PATCH /api/v1/guilds/{id}/settings` on the bot, the only non-GET route.
+  Because the signed operation includes the **method**, a token minted to read
+  a guild's settings cannot be replayed to write them.
+- `POST /guild/<id>/panel` on the dashboard, behind a CSRF token and a
+  `SameSite=Lax` cookie — though the check that matters is the bot's, which
+  re-runs Administrator, re-runs the plan gate, and validates every value
+  against its own allowlist. Nothing the website sends is trusted by the thing
+  that writes the row.
+
+Every change that actually alters a value is recorded in `dashboard_audit`
+with the actor, the field, and both values. The actor comes from the verified
+token claims, never from the request body. Nothing in this codebase updates or
+deletes a row in that table: an audit trail exists to disagree with someone's
+account of events, which it cannot do if the code that made the change can
+rewrite the record of it.
 
 Two rules the settings page exists to honour:
 

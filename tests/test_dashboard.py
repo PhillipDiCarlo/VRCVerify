@@ -103,10 +103,19 @@ DEFAULT_VALUES = {
 }
 
 
-def make_settings(premium=False, values=None, auto_verify_column=True):
+# What the bot currently lets the website write. Mirrors
+# bot.DASHBOARD_WRITABLE_FIELDS -- the payload carries it so the dashboard
+# never has to know.
+WRITABLE = {"instructions_locale", "panel_embed_color", "panel_show_icon"}
+
+LOCALES = ["en-US", "es-ES", "ja", "de"]
+
+
+def make_settings(premium=False, values=None, auto_verify_column=True, writable=None):
     """A settings payload shaped exactly like read_dashboard_settings returns."""
     merged = dict(DEFAULT_VALUES)
     merged.update(values or {})
+    open_fields = WRITABLE if writable is None else set(writable)
     fields = {}
     for name, (feature, active, locked) in FREE_PLAN.items():
         fields[name] = {
@@ -114,11 +123,13 @@ def make_settings(premium=False, values=None, auto_verify_column=True):
             "feature": feature,
             "active": True if premium else active,
             "locked": False if premium else locked,
+            "writable": name in open_fields,
         }
     return {
         "guild_id": GUILD_IN,
         "premium": {"enforced": True, "premium": premium, "grandfathered": False},
         "auto_verify_column_present": auto_verify_column,
+        "choices": {"instructions_locale": list(LOCALES)},
         "fields": fields,
     }
 
@@ -187,6 +198,7 @@ class FakeBotAPI:
         self.fail = fail
         self.calls = []
         self.reads = []
+        self.saves = []
         self._settings = settings
         self._roles = DEFAULT_ROLES if roles is None else roles
         self._channels = DEFAULT_CHANNELS if channels is None else channels
@@ -223,6 +235,12 @@ class FakeBotAPI:
 
     def panel(self, actor_id, guild_id):
         return self._answer("panel", actor_id, guild_id, self._panel)
+
+    def update_settings(self, actor_id, guild_id, changes):
+        self.saves.append((str(actor_id), str(guild_id), dict(changes)))
+        if "update_settings" in self.errors:
+            raise self.errors["update_settings"]
+        return self._settings if self._settings is not None else make_settings()
 
 
 @pytest.fixture
@@ -841,6 +859,210 @@ class TestSecondaryReadsDegradeGracefully:
         assert b"Couldn't check" in response.data
 
 
+class TestSavingThePanelGroup:
+    """The app's only write. The bot re-decides everything below regardless."""
+
+    def post(self, test_client, session, **form):
+        form.setdefault("csrf_token", session.csrf_token)
+        return test_client.post(f"/guild/{GUILD_IN}/panel", data=form)
+
+    def logged_in(self, config, store, **kwargs):
+        api = FakeBotAPI(**kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        session = login_as(test_client, store)
+        return test_client, api, session
+
+    def test_a_save_reaches_the_bot_and_redirects(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        response = self.post(
+            test_client,
+            session,
+            instructions_locale="ja",
+            panel_fields_present="1",
+            panel_embed_color="#ff0000",
+            panel_show_icon="on",
+        )
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("saved=1")
+        actor, guild, changes = api.saves[-1]
+        assert (actor, guild) == (ACTOR, GUILD_IN)
+        assert changes == {
+            "instructions_locale": "ja",
+            "panel_embed_color": 0xFF0000,
+            "panel_show_icon": True,
+        }
+
+    def test_the_colour_is_sent_as_an_integer(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client,
+            session,
+            panel_fields_present="1",
+            panel_embed_color="#0a0b0c",
+        )
+        assert api.saves[-1][2]["panel_embed_color"] == 0x0A0B0C
+
+    def test_the_default_checkbox_clears_the_colour(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client,
+            session,
+            panel_fields_present="1",
+            panel_color_default="on",
+            panel_embed_color="#ff0000",
+        )
+        assert api.saves[-1][2]["panel_embed_color"] is None
+
+    def test_an_unticked_checkbox_is_a_false_not_a_missing_field(
+        self, config, store
+    ):
+        """A checkbox that is off sends nothing, which is why the form declares
+        that its branding controls were rendered at all."""
+        test_client, api, session = self.logged_in(config, store)
+        self.post(test_client, session, panel_fields_present="1")
+        assert api.saves[-1][2]["panel_show_icon"] is False
+
+    def test_branding_is_untouched_when_its_controls_were_not_rendered(
+        self, config, store
+    ):
+        """A free server posts only its language.
+
+        Without the declaration, a form with no branding controls would look
+        exactly like one whose icon box was unticked, and saving the language
+        would silently turn the icon off.
+        """
+        test_client, api, session = self.logged_in(config, store)
+        self.post(test_client, session, instructions_locale="de")
+        assert api.saves[-1][2] == {"instructions_locale": "de"}
+
+    def test_a_save_with_no_changes_touches_nothing(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        response = self.post(test_client, session)
+        assert response.status_code == 302
+        assert api.saves == []
+
+    # ----- the guards -----
+    def test_a_save_without_the_csrf_token_is_refused(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/panel",
+            data={"csrf_token": "wrong", "instructions_locale": "ja"},
+        )
+        assert response.status_code == 400
+        assert api.saves == []
+
+    def test_a_signed_out_visitor_cannot_save(self, client, bot_api):
+        response = client.post(
+            f"/guild/{GUILD_IN}/panel", data={"instructions_locale": "ja"}
+        )
+        assert response.status_code == 302
+        assert not getattr(bot_api, "saves", [])
+
+    def test_the_actor_is_the_session_owner_not_the_form(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client, session, instructions_locale="ja", actor_id="999999999999"
+        )
+        assert api.saves[-1][0] == ACTOR
+
+    # ----- refusals -----
+    @pytest.mark.parametrize(
+        "reason, expected",
+        [
+            ("requires_premium", "needs VRCVerify Premium"),
+            ("unsupported_language", "isn&#39;t one VRCVerify supports"),
+            ("server_not_set_up", "vrcverify_setup"),
+            ("unavailable", "couldn&#39;t complete the save"),
+        ],
+    )
+    def test_a_refusal_is_explained_in_our_own_words(
+        self, config, store, reason, expected
+    ):
+        test_client, _api, session = self.logged_in(
+            config, store, errors={"update_settings": BotAPIError(reason, 403)}
+        )
+        response = self.post(test_client, session, instructions_locale="ja")
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert expected in page
+
+    def test_an_unrecognised_refusal_never_reaches_the_page_as_text(
+        self, config, store
+    ):
+        """The bot's error strings must not become this app's HTML."""
+        leak = "surprising-internal-detail"
+        test_client, _api, session = self.logged_in(
+            config, store, errors={"update_settings": BotAPIError(leak, 400)}
+        )
+        response = self.post(test_client, session, instructions_locale="ja")
+        assert "error=unknown" in response.headers["Location"]
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert leak not in page
+        assert "couldn&#39;t be saved" in page
+
+    def test_an_arbitrary_error_code_in_the_url_is_not_reflected(
+        self, config, store
+    ):
+        test_client, _api, _session = self.logged_in(config, store)
+        page = test_client.get(
+            f"/guild/{GUILD_IN}?error=%3Cimg+src%3Dx+onerror%3Dalert(1)%3E"
+        ).data.decode()
+        assert "onerror" not in page
+        assert "couldn&#39;t be saved" in page
+
+
+class TestTheFormMatchesWhatTheBotAccepts:
+    """Controls appear only where the bot said it would take the value."""
+
+    def test_a_premium_server_gets_all_three_controls(self, config, store):
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(premium=True)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert 'name="instructions_locale"' in page
+        assert 'name="panel_embed_color"' in page
+        assert 'name="panel_show_icon"' in page
+        assert "Save changes" in page
+
+    def test_a_free_server_gets_the_language_control_only(self, config, store):
+        """Branding is write-locked, so no control -- but the language is free
+        and must stay editable."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert 'name="instructions_locale"' in page
+        assert 'type="color"' not in page
+        assert 'name="panel_show_icon"' not in page
+
+    def test_a_field_the_bot_has_not_opened_gets_no_control(self, config, store):
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(premium=True, writable=set())
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "<form" not in page.split("Instructions panel")[-1]
+        assert "Save changes" not in page
+
+    def test_the_language_options_come_from_the_bot(self, config, store):
+        """Not from the dashboard's display-name table, which may be stale."""
+        test_client, _api = settings_client(
+            config,
+            store,
+            settings=make_settings(premium=True),
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        for code in LOCALES:
+            assert f'value="{code}"' in page
+        # Present in LOCALE_NAMES, absent from what the bot offered.
+        assert 'value="pa-IN"' not in page
+
+    def test_every_form_carries_a_csrf_token(self, config, store):
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(premium=True)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert page.count('name="csrf_token"') >= page.count("<form")
+
+
 # -------------------------------------------------------------------
 # Hardening
 # -------------------------------------------------------------------
@@ -884,8 +1106,10 @@ class TestHardening:
         for path in ("/", f"/guild/{GUILD_IN}"):
             page = test_client.get(path).data
             assert b"style=" not in page, f"inline style on {path}"
-        # The swatch still rendered; it just isn't CSS.
-        assert b'fill="#ff00ff"' in test_client.get(f"/guild/{GUILD_IN}").data
+        # A swatch still rendered; it just isn't CSS. The verified role's is the
+        # stable one to look at -- role_id has no save path in this phase, so it
+        # is always the read-only presentation.
+        assert b'fill="#5865f2"' in test_client.get(f"/guild/{GUILD_IN}").data
 
     def test_logout_requires_the_csrf_token(self, client, store):
         session = login_as(client, store)
@@ -992,16 +1216,18 @@ class TestSettingsViewModel:
         assert settings_view.panel_summary({"posted": False})["posted"] is False
 
 
-class TestReadOnlyPhase:
-    """Step 3 is login and a picker. Nothing here may change a server."""
+class TestWriteSurface:
+    """Step 5 opens exactly one save path. Widening it means editing this."""
 
-    def test_the_only_post_route_is_logout(self, app):
+    def test_the_post_routes_are_logout_and_the_panel_save(self, app):
         posts = {
             rule.rule
             for rule in app.url_map.iter_rules()
             if "POST" in (rule.methods or set())
         }
-        assert posts == {"/logout"}, f"an unexpected write route appeared: {posts}"
+        assert posts == {"/logout", "/guild/<int:guild_id>/panel"}, (
+            f"an unexpected write route appeared: {posts}"
+        )
 
     def test_the_dashboard_holds_no_database_credential(self):
         """A compromise of the public host must not reach the users table."""

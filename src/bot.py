@@ -396,6 +396,41 @@ class VerificationLogChannel(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
+class DashboardAudit(Base):
+    """Who changed which setting, from the website, and to what.
+
+    The bot's own slash commands are already accountable: Discord records who
+    ran one, and an admin has to be in the server holding Administrator to do
+    it. The dashboard is different in kind — it is reachable from the public
+    internet, and the only thing standing between a stolen session and a
+    settings change is a cookie. So the first write path gets a durable record
+    in the same change that introduces it.
+
+    Deliberately append-only in use: nothing in this codebase updates or
+    deletes a row here. The value of an audit trail is precisely that it
+    disagrees with someone's account of events, which it cannot do if the code
+    that made the change can also rewrite the record of it.
+
+    Old and new values are stored as text, and are the *settings* only. No
+    member data, no VRChat identity, nothing about who is verified — this table
+    is about administrators changing configuration, and it should stay boring
+    enough that its own disclosure would not matter much.
+    """
+
+    __tablename__ = "dashboard_audit"
+    id = Column(Integer, primary_key=True)
+    server_id = Column(String, index=True, nullable=False)
+    # The Discord user the request was scoped to, taken from the verified token
+    # claims rather than from anything the dashboard put in a body.
+    actor_id = Column(String, nullable=False)
+    field = Column(String, nullable=False)
+    old_value = Column(String, nullable=True)
+    new_value = Column(String, nullable=True)
+    changed_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
 # Creates any missing tables. Note this does NOT add columns to tables that
 # already exist — those still need a manual ALTER.
 Base.metadata.create_all(engine)
@@ -712,6 +747,62 @@ SETTINGS_FIELDS = (
     SettingsField("panel_show_icon", FEATURE_BRANDED_PANEL, write_locked=True),
     SettingsField("verification_log_channel_id", FEATURE_ACTIVITY_LOG, write_locked=True),
 )
+
+SETTINGS_FIELDS_BY_NAME = {field.name: field for field in SETTINGS_FIELDS}
+
+# Which of those the dashboard may WRITE today. Everything else is readable and
+# refused on save, including fields that will open later.
+#
+# Step 5 of issue #65 opens the instructions panel group and nothing else. The
+# order is deliberate: every value here is a constrained type — one of a fixed
+# set of language codes, a 24-bit integer, a boolean — so the first write path
+# this project has ever had can be about the plumbing (authorisation, the audit
+# record, refusing a locked field) rather than about validating free text or
+# reasoning about role hierarchies at the same time.
+#
+# This list is the enforcement point, not the dashboard's form. The website is
+# untrusted: it renders whatever it likes, and the bot decides.
+DASHBOARD_WRITABLE_FIELDS = frozenset(
+    {"instructions_locale", "panel_embed_color", "panel_show_icon"}
+)
+
+
+# Raised by the writer below, mapped to a status by bot_api. It lives over
+# there because it is the contract between the two halves, not a detail of
+# either.
+SettingRejected = bot_api.SettingRejected
+
+
+def _coerce_locale(value):
+    if not isinstance(value, str) or value not in LANGUAGE_CODES:
+        raise SettingRejected("instructions_locale", "unsupported_language")
+    return value
+
+
+def _coerce_embed_color(value):
+    if value is None:
+        return None  # Explicitly back to the default blue.
+    # bool is a subclass of int, and True would otherwise sail through as the
+    # colour #000001.
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise SettingRejected("panel_embed_color", "not_a_colour")
+    if not 0 <= value <= 0xFFFFFF:
+        raise SettingRejected("panel_embed_color", "colour_out_of_range")
+    return value
+
+
+def _coerce_show_icon(value):
+    if not isinstance(value, bool):
+        raise SettingRejected("panel_show_icon", "not_a_boolean")
+    return value
+
+
+SETTING_COERCERS = {
+    "instructions_locale": _coerce_locale,
+    "panel_embed_color": _coerce_embed_color,
+    "panel_show_icon": _coerce_show_icon,
+}
+
 
 # The grandfather line is drawn on the servers table's autoincrementing primary
 # key: servers at or below it keep GRANDFATHERED_FEATURES for free, forever.
@@ -4555,8 +4646,21 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
             # A column the deployed database is missing is reported as such
             # rather than silently rendered as a working toggle.
             "auto_verify_column_present": has_auto_verify,
+            # The allowed values for anything the website renders as a choice.
+            # Sent rather than duplicated over there: a dashboard building its
+            # own language list could offer one the bot cannot render, and the
+            # admin would only find out when the panel came out in English.
+            "choices": {"instructions_locale": list(LANGUAGE_CODES)},
             "fields": {
-                field.name: {"value": values.get(field.name), **field.state(flags)}
+                field.name: {
+                    "value": values.get(field.name),
+                    # Whether the save path accepts this field yet. The bot is
+                    # the one phasing the write path in, so it is the one that
+                    # says so -- the website drawing its own conclusion is how
+                    # the two drift apart.
+                    "writable": field.name in DASHBOARD_WRITABLE_FIELDS,
+                    **field.state(flags),
+                }
                 for field in SETTINGS_FIELDS
             },
         }
@@ -4695,8 +4799,141 @@ async def read_dashboard_panel(guild_id) -> Optional[dict]:
         return None
 
 
+def _record_dashboard_audit(session, guild_id, actor_id, changed: list) -> None:
+    """Append one row per field that actually moved.
+
+    Only real changes are recorded. A form that posts every field on every save
+    would otherwise bury the one line that matters under identical no-ops, and
+    an audit trail nobody can read is not one.
+    """
+    key = panel_view_key(guild_id)
+    for field, old, new in changed:
+        session.add(
+            DashboardAudit(
+                server_id=key,
+                actor_id=str(actor_id),
+                field=field,
+                old_value=None if old is None else str(old),
+                new_value=None if new is None else str(new),
+            )
+        )
+
+
+async def write_dashboard_settings(guild_id, actor_id, changes: dict):
+    """Apply settings changes from the dashboard. The first write path here.
+
+    Raises SettingRejected for anything the caller did wrong -- an unknown
+    field, a field not yet open for writing, a bad value, or one their plan
+    does not include. Returns None if the write could not be completed, which
+    the API turns into a 503; returns the freshly re-read settings on success,
+    so the page an admin lands on is what is actually stored rather than what
+    they submitted.
+
+    Everything is validated before anything is applied. A batch with one bad
+    field changes nothing at all, rather than saving the first two and failing
+    on the third.
+    """
+    if not isinstance(changes, dict) or not changes:
+        raise SettingRejected("", "no_changes")
+
+    # --- Validate the whole batch first ---
+    coerced = {}
+    for name, value in changes.items():
+        if name not in SETTINGS_FIELDS_BY_NAME:
+            raise SettingRejected(str(name), "unknown_field")
+        if name not in DASHBOARD_WRITABLE_FIELDS:
+            raise SettingRejected(name, "not_writable_yet")
+        coerced[name] = SETTING_COERCERS[name](value)
+
+    # --- The plan gate, decided here and never by the website ---
+    try:
+        flags = await resolve_premium_flags(guild_id)
+    except Exception:
+        logger.warning(
+            "Could not resolve premium flags while saving guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        return None
+    for name in coerced:
+        field = SETTINGS_FIELDS_BY_NAME[name]
+        state = field.state(flags)
+        # Only write_locked fields are refused. The others save for anyone and
+        # simply are not acted on, which is what /vrcverify_setup already does
+        # -- see SettingsField.
+        if state["locked"]:
+            raise SettingRejected(name, "requires_premium", locked=True)
+
+    try:
+        changed = []
+
+        # --- Panel branding: one row, so read-modify-write as a whole ---
+        panel_names = {"panel_embed_color", "panel_show_icon"}
+        if panel_names & set(coerced):
+            branding = load_panel_branding(guild_id)
+            if branding is BRANDING_UNREADABLE:
+                # Writing a merged row on top of a value we could not read would
+                # silently reset whichever half was not submitted.
+                return None
+            old_color, old_icon = branding if branding else (None, False)
+            new_color = coerced.get("panel_embed_color", old_color)
+            new_icon = coerced.get("panel_show_icon", old_icon)
+            if "panel_embed_color" in coerced and new_color != old_color:
+                changed.append(("panel_embed_color", old_color, new_color))
+            if "panel_show_icon" in coerced and bool(new_icon) != bool(old_icon):
+                changed.append(("panel_show_icon", old_icon, new_icon))
+            save_panel_branding(guild_id, new_color, bool(new_icon))
+
+        # --- The locale lives on the servers row ---
+        if "instructions_locale" in coerced:
+            with session_scope() as session:
+                srv = (
+                    session.query(Server)
+                    .filter_by(server_id=panel_view_key(guild_id))
+                    .first()
+                )
+                if srv is None:
+                    # owner_id is NOT NULL and the dashboard has no honest value
+                    # for it -- the acting admin is not necessarily the owner.
+                    # Inserting a row here would also mint a fresh servers.id,
+                    # placing the guild above the grandfather line as a side
+                    # effect of changing its language.
+                    raise SettingRejected("instructions_locale", "server_not_set_up")
+                old_locale = srv.instructions_locale or "en-US"
+                if old_locale != coerced["instructions_locale"]:
+                    changed.append(
+                        ("instructions_locale", old_locale, coerced["instructions_locale"])
+                    )
+                    srv.instructions_locale = coerced["instructions_locale"]
+
+        if changed:
+            with session_scope() as session:
+                _record_dashboard_audit(session, guild_id, actor_id, changed)
+            logger.info(
+                "dashboard WRITE actor=%s guild=%s fields=%s",
+                actor_id,
+                guild_id,
+                ",".join(name for name, _old, _new in changed),
+            )
+    except SettingRejected:
+        raise
+    except Exception:
+        logger.warning(
+            "Could not save dashboard settings for guild %s.", guild_id, exc_info=True
+        )
+        return None
+
+    return await read_dashboard_settings(guild_id)
+
+
 def build_bot_api_deps() -> bot_api.BotAPIDeps:
-    """Hand the API its complete set of capabilities. All of them reads."""
+    """Hand the API its complete set of capabilities.
+
+    One writer, named. `write_settings` is the only way the API can change a
+    row, and it can only change the fields DASHBOARD_WRITABLE_FIELDS names --
+    so widening what the website may touch is an edit to this file, reviewable
+    on its own, rather than a query string nobody noticed.
+    """
     return bot_api.BotAPIDeps(
         is_ready=bot.is_ready,
         guild_present=dashboard_guild_present,
@@ -4706,6 +4943,7 @@ def build_bot_api_deps() -> bot_api.BotAPIDeps:
         read_roles=read_dashboard_roles,
         read_channels=read_dashboard_channels,
         read_panel=read_dashboard_panel,
+        write_settings=write_dashboard_settings,
     )
 
 
