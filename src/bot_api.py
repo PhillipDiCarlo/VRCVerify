@@ -88,6 +88,30 @@ class BotAPIConfigError(RuntimeError):
     """The API was switched on but cannot be started safely."""
 
 
+class SettingRejected(Exception):
+    """A submitted setting cannot be stored, with the reason a caller may see.
+
+    Defined here rather than in bot.py because it is the contract between the
+    two: the bot raises it from its writer, and this module maps it to a
+    status. It carries no data the caller did not already send.
+
+    `locked` separates "your plan does not include this" (403) from "that is
+    not a valid value" (400). Collapsing them would leave the website unable to
+    tell an admin which of the two happened.
+    """
+
+    def __init__(self, field: str, reason: str, *, locked: bool = False):
+        super().__init__(reason)
+        self.field = field
+        self.reason = reason
+        self.locked = locked
+
+
+# One call may not carry more fields than exist. Bounded here as well as by
+# client_max_size, because the cheap check is the one that runs first.
+MAX_SETTINGS_FIELDS = 32
+
+
 # Typed keys rather than bare strings, so a handler reaching for something the
 # app was never given fails at the lookup instead of at whatever it does with
 # the None it got back.
@@ -105,8 +129,14 @@ GLOBAL_RATE_KEY: "web.AppKey" = web.AppKey("global_rate_limiter")
 class BotAPIDeps:
     """The complete list of things the API can do to the bot.
 
-    Every entry is a reader. Keep it that way: `tests/test_bot_api.py` pins the
-    exact field set, so a writer cannot be added by accident.
+    All readers but one. `tests/test_bot_api.py` pins the exact field set, so a
+    second writer cannot be added by accident — adding one means editing that
+    test on purpose, which is a reviewable diff rather than a quiet widening.
+
+    `write_settings` is the whole write surface. It is a single named callable
+    that validates against its own allowlist inside the bot, not a generic
+    column setter, so the worst a compromised dashboard can do is submit valid
+    values for the handful of fields the bot has decided are writable.
 
     Readers take and return plain data — ids, dicts, lists — never discord.py
     objects. Shaping a Guild into JSON is the bot's job, not this module's,
@@ -130,6 +160,10 @@ class BotAPIDeps:
     read_roles: Callable[[int], Awaitable[Optional[list]]]
     read_channels: Callable[[int], Awaitable[Optional[list]]]
     read_panel: Callable[[int], Awaitable[Optional[dict]]]
+    # The only writer. Takes (guild_id, actor_id, changes) and either returns
+    # the re-read settings, returns None because it could not complete, or
+    # raises the bot's SettingRejected for anything the caller got wrong.
+    write_settings: Callable[[int, int, dict], Awaitable[Optional[dict]]]
 
 
 # -------------------------------------------------------------------
@@ -574,8 +608,63 @@ def _guild_reader(read: str):
     return handler
 
 
+async def handle_update_settings(request: web.Request) -> web.Response:
+    """The one route that changes anything. Same three gates as every read.
+
+    The token that authorises this is bound to `PATCH /...`, not just to the
+    path, so a token minted for the settings *read* cannot be replayed to write
+    them -- see `_operation_for`, which takes the method from the route the
+    router actually matched.
+
+    What may be written is decided entirely inside the bot. This handler does
+    not know which fields exist, which are premium, or what values are legal;
+    it validates the envelope, hands the body to the one writer in BotAPIDeps,
+    and turns a refusal into a status. That is deliberate: the dashboard is the
+    internet-facing half and is assumed to be compromised eventually, so the
+    list of writable fields must not live on that side of the wire, nor in a
+    module that could be talked into a generic update.
+    """
+    try:
+        claims = await _authorize(request, guild_scoped=True)
+    except _Denied as denied:
+        return denied.response
+
+    deps: BotAPIDeps = request.app[DEPS_KEY]
+    guild_id = int(request.match_info["guild_id"])
+
+    try:
+        body = await request.json()
+    except (ValueError, UnicodeDecodeError):
+        return _deny(request, 400, "bad_json", actor=claims.actor_id)
+
+    if not isinstance(body, dict):
+        return _deny(request, 400, "bad_json", actor=claims.actor_id)
+    changes = body.get("fields")
+    if not isinstance(changes, dict) or not changes:
+        return _deny(request, 400, "bad_fields", actor=claims.actor_id)
+    if len(changes) > MAX_SETTINGS_FIELDS:
+        return _deny(request, 400, "too_many_fields", actor=claims.actor_id)
+
+    try:
+        payload = await deps.write_settings(guild_id, claims.actor_id, changes)
+    except SettingRejected as rejected:
+        # 403 for "not on your plan", 400 for "that is not a valid value".
+        return _deny(
+            request,
+            403 if rejected.locked else 400,
+            rejected.reason,
+            actor=claims.actor_id,
+        )
+
+    if payload is None:
+        return _deny(request, 503, "unavailable", actor=claims.actor_id)
+    # The stored state, re-read, rather than an echo of the request. What the
+    # admin sees next is then what is actually saved.
+    return _json(payload)
+
+
 def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
-    """Wire the routes. Every route here is a GET, and that is load-bearing."""
+    """Wire the routes. One PATCH, everything else a GET."""
     app = web.Application(client_max_size=MAX_REQUEST_BYTES)
     app[CONFIG_KEY] = config
     app[DEPS_KEY] = deps
@@ -593,6 +682,9 @@ def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
         "/api/v1/guilds/{guild_id}/channels", _guild_reader("read_channels")
     )
     app.router.add_get("/api/v1/guilds/{guild_id}/panel", _guild_reader("read_panel"))
+    app.router.add_patch(
+        "/api/v1/guilds/{guild_id}/settings", handle_update_settings
+    )
 
     app.on_response_prepare.append(_harden_response)
     return app

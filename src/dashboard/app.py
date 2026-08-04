@@ -1,8 +1,15 @@
-"""The dashboard web app — steps 3 and 4 of issue #65: login, picker, settings.
+"""The dashboard web app — steps 3 to 5 of issue #65: login, picker, settings.
 
-Read-only. There is no route here that changes anything about a server; the
-bot API it talks to has no write endpoint to call even if there were. Saving
-settings is step 5, and it arrives with the audit trail.
+One write path, opened in step 5: the instructions panel group, and nothing
+else. Which fields that covers is the bot's decision, reported per field in the
+settings payload, so this app renders a control only where the bot has already
+said it would accept the value. It does not hold a copy of that list, because
+a second copy is a thing that can disagree with the enforcing one.
+
+Nothing here validates a value it sends. The bot re-checks Administrator,
+re-checks the plan, validates against its own allowlist, and records the change
+— which is the arrangement that lets this process be the one assumed to fall
+over.
 
 * **The page must say exactly what the bot would.** Two settings a lapsed plan
   saves but does not act on, three it refuses to save at all. Collapsing that
@@ -326,8 +333,78 @@ def _register_routes(app: Flask) -> None:
             premium=settings.get("premium") or {},
             names_resolved=roles is not None and channels is not None,
             auto_verify_column_present=settings.get("auto_verify_column_present", True),
+            saved=request.args.get("saved") == "1",
+            save_error=_save_error_message(request.args.get("error")),
             csrf_token=session.csrf_token,
         )
+
+    @app.post("/guild/<int:guild_id>/panel")
+    def save_panel_settings(guild_id: int):
+        """Save the instructions panel group. The only write in the app.
+
+        Three things guard it, and the third is the only one that counts:
+
+        1. A session cookie, `SameSite=Lax` and `HttpOnly`.
+        2. A CSRF token compared with `compare_digest`. The cookie policy
+           already stops a cross-site POST, so this is the second line.
+        3. The bot, which re-checks Administrator, re-checks the plan, and
+           validates every value against its own allowlist. Nothing below is
+           trusted by the thing that actually writes the row.
+
+        Values are turned into JSON types here because HTML forms only carry
+        strings, and the bot's API takes an int for a colour and a bool for a
+        toggle. That conversion is not validation -- a colour that survives it
+        can still be refused, and the refusal is what decides.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+
+        submitted = request.form.get("csrf_token", "")
+        if not secrets.compare_digest(session.csrf_token, submitted):
+            abort(400)
+
+        changes = {}
+
+        locale = request.form.get("instructions_locale")
+        if locale:
+            changes["instructions_locale"] = locale
+
+        if request.form.get("panel_fields_present"):
+            # A checkbox that is off sends nothing at all, so the form declares
+            # that its branding controls were on the page. Without this, an
+            # unticked "show icon" would be indistinguishable from a free
+            # server whose controls were never rendered, and the save would
+            # quietly turn the icon off.
+            changes["panel_show_icon"] = bool(request.form.get("panel_show_icon"))
+            if request.form.get("panel_color_default"):
+                changes["panel_embed_color"] = None
+            else:
+                changes["panel_embed_color"] = _colour_to_int(
+                    request.form.get("panel_embed_color")
+                )
+
+        if not changes:
+            return redirect(url_for("guild_settings", guild_id=guild_id))
+
+        try:
+            _bot_api().update_settings(int(session.discord_id), guild_id, changes)
+        except BotAPIError as error:
+            logger.warning("save refused for guild %s: %s", guild_id, error)
+            # A code, never the bot's text. What comes back is a fixed reason
+            # string today, but round-tripping it through a URL and into a page
+            # would make the bot's error strings part of this app's HTML, and
+            # the day one of them carries something a caller influenced is not
+            # the day to find that out.
+            return redirect(
+                url_for(
+                    "guild_settings",
+                    guild_id=guild_id,
+                    error=_save_error_code(error),
+                )
+            )
+
+        return redirect(url_for("guild_settings", guild_id=guild_id, saved=1))
 
     @app.post("/logout")
     def logout():
@@ -348,6 +425,59 @@ def _register_routes(app: Flask) -> None:
     @app.errorhandler(500)
     def server_error(_error):  # pragma: no cover - defensive
         return render_template("error.html", message="Something went wrong."), 500
+
+
+# The refusals worth explaining differently, and the copy for each. Anything
+# not listed falls through to the generic message, so an unrecognised reason
+# can never reach the page as text.
+SAVE_ERRORS = {
+    "requires_premium": (
+        "That setting needs VRCVerify Premium. Nothing was changed."
+    ),
+    "unsupported_language": (
+        "That language isn't one VRCVerify supports. Nothing was changed."
+    ),
+    "server_not_set_up": (
+        "Run /vrcverify_setup in your server first -- VRCVerify needs a "
+        "verified role before it can store anything else."
+    ),
+    "not_writable_yet": (
+        "That setting can't be changed from the website yet. Use "
+        "/vrcverify_settings in your server."
+    ),
+    "unavailable": (
+        "The bot couldn't complete the save, so nothing was changed. Try again "
+        "shortly."
+    ),
+}
+GENERIC_SAVE_ERROR = "That change couldn't be saved, so nothing was changed."
+
+
+def _save_error_code(error: BotAPIError) -> str:
+    reason = str(error)
+    return reason if reason in SAVE_ERRORS else "unknown"
+
+
+def _save_error_message(code: Optional[str]) -> Optional[str]:
+    """Copy for a refusal, chosen by us -- the code is only ever a lookup key."""
+    if not code:
+        return None
+    return SAVE_ERRORS.get(code, GENERIC_SAVE_ERROR)
+
+
+def _colour_to_int(raw: Optional[str]) -> Optional[int]:
+    """`#rrggbb` from a colour input, as the integer the bot stores.
+
+    Returns None for anything that is not that shape, which the bot then
+    refuses -- rather than guessing at a colour the admin did not pick.
+    """
+    text = (raw or "").strip().lstrip("#")
+    if len(text) != 6:
+        return None
+    try:
+        return int(text, 16)
+    except ValueError:
+        return None
 
 
 def _session_guild(session, guild_id: int) -> Optional[dict]:

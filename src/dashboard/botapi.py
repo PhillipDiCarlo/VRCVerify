@@ -30,6 +30,7 @@ from api_tokens import (
     OP_GUILD_ROLES,
     OP_GUILD_SETTINGS,
     OP_LIST_GUILDS,
+    OP_UPDATE_SETTINGS,
     mint_token,
 )
 
@@ -158,6 +159,51 @@ class BotAPIClient:
             actor_id,
             guild_id,
         )
+
+    # ----- the one write -----
+    def update_settings(self, actor_id: int, guild_id, changes: dict) -> dict:
+        """Ask the bot to store these settings. It decides whether to.
+
+        Nothing here validates the values. The bot owns the allowlist, the
+        types and the plan gate, and duplicating any of that on this side would
+        create a second opinion that can drift from the enforcing one -- while
+        adding nothing, because this process is the one an attacker would be
+        standing in.
+        """
+        token = mint_token(
+            self.signing_key,
+            actor_id=int(actor_id),
+            operation=OP_UPDATE_SETTINGS,
+            guild_id=int(guild_id),
+        )
+        try:
+            response = self._session.patch(
+                f"{self.base_url}/api/v1/guilds/{int(guild_id)}/settings",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"fields": changes},
+                timeout=self.timeout,
+            )
+        except requests.exceptions.SSLError as error:
+            raise BotAPIError(f"TLS failure talking to the bot API: {error}") from error
+        except requests.RequestException as error:
+            raise BotAPIError(f"could not reach the bot API: {error}") from error
+
+        if response.status_code == 200:
+            return response.json()
+
+        reason = ""
+        try:
+            reason = response.json().get("error", "")
+        except ValueError:
+            pass
+        logger.warning(
+            "bot API refused a save for actor=%s guild=%s: %s %s",
+            actor_id,
+            guild_id,
+            response.status_code,
+            reason,
+        )
+        raise BotAPIError(reason or "bot API refused the save", response.status_code)
 
     def panel(self, actor_id: int, guild_id) -> dict:
         return self._get(

@@ -215,6 +215,37 @@ button.link {
  * today, and dimming them would tell an admin something untrue. */
 .setting.locked .value { color: var(--muted); }
 
+.notice.ok {
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+}
+
+select,
+input[type="color"] {
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.3rem 0.4rem;
+  max-width: 100%;
+}
+
+input[type="color"] { padding: 0.15rem; width: 3.5rem; height: 2rem; }
+
+.actions { margin: 1.1rem 0 0; }
+
+button.button { border: 0; cursor: pointer; font: inherit; font-weight: 600; }
+
 .badge {
   font-size: 0.7rem;
   font-weight: 700;
