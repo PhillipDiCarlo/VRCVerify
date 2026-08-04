@@ -321,6 +321,34 @@ This phase is **read-only by construction**: the API is handed a set of reader
 callables and nothing else, so it cannot express a write at all.
 `tests/test_bot_api.py` pins both that and the absence of any non-GET route.
 
+### The dashboard itself
+
+`src/dashboard/` is a small Flask app that signs an admin in with Discord OAuth,
+lists the servers they administer, and shows one server's settings. It holds no
+database credential and no bot token: everything it knows it asks the bot for
+over mTLS, and the bot decides what it is allowed to know. It is still
+**read-only** — the only `POST` route is sign-out, which `tests/test_dashboard.py`
+pins.
+
+Two rules the settings page exists to honour:
+
+- **It mirrors the bot field for field, including the inconsistencies.** Some
+  settings a lapsed plan refuses to *save* (nickname sync, panel branding); some
+  it saves for anyone and simply doesn't *act* on (the unverified role, the
+  custom DM). Those get different badges, because rendering the second as the
+  first would leave the website refusing to show something an admin can plainly
+  set with a slash command. `SETTINGS_FIELDS` in `bot.py` is the single source
+  of that distinction, and a test fails if a field it defines goes unrendered.
+- **A 403 and a 404 from the bot are one indistinguishable answer.** The
+  difference is meaningful behind mTLS and dangerous on the open web: shown
+  separately, a signed-in user could walk guild ids and enumerate which servers
+  run 18+ gating.
+
+It also surfaces things the bot could previously only discover mid-verification
+— a verified role the bot cannot grant, a log channel it cannot post in, an
+announcement channel other servers could follow — while an admin is looking at
+the setting rather than when a member is waiting.
+
 ---
 
 ## Tech Stack

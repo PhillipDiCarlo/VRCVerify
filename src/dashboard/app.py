@@ -1,8 +1,13 @@
-"""The dashboard web app — step 3 of issue #65: login, session, picker.
+"""The dashboard web app — steps 3 and 4 of issue #65: login, picker, settings.
 
 Read-only. There is no route here that changes anything about a server; the
 bot API it talks to has no write endpoint to call even if there were. Saving
 settings is step 5, and it arrives with the audit trail.
+
+* **The page must say exactly what the bot would.** Two settings a lapsed plan
+  saves but does not act on, three it refuses to save at all. Collapsing that
+  into one "premium" state would make the website stricter than the slash
+  commands; `settings_view` keeps them apart.
 
 Design notes worth keeping in view while reading:
 
@@ -36,7 +41,7 @@ from flask import (
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from dashboard import oauth
+from dashboard import oauth, settings_view
 from dashboard.botapi import BotAPIClient, BotAPIError
 from dashboard.config import DashboardConfig
 from dashboard.sessions import SessionStore
@@ -278,6 +283,52 @@ def _register_routes(app: Flask) -> None:
             redirect(url_for("index")), session.sid, config.session_max_age
         )
 
+    @app.get("/guild/<int:guild_id>")
+    def guild_settings(guild_id: int):
+        """One server's settings, read-only.
+
+        Authority is the bot's, on every one of the calls below: each mints its
+        own token and the bot re-checks Administrator before answering. The
+        session is what proves who is asking, never what they may see -- so a
+        stale OAuth guild list cannot widen access, and a demotion in Discord
+        takes effect on the next page load rather than at session expiry.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+
+        actor = int(session.discord_id)
+        try:
+            settings = _bot_api().settings(actor, guild_id)
+        except BotAPIError as error:
+            return _settings_unavailable(error, guild_id, session)
+
+        # Names for ids, and the panel's whereabouts. Best-effort on purpose:
+        # an unresolved id renders as an id, which is less useful but still
+        # true, and that is a better page than an error over a secondary read.
+        # The settings themselves are not optional -- rendering defaults an
+        # admin never chose would be a lie the step-5 save path could persist.
+        roles = _optional_read(lambda: _bot_api().roles(actor, guild_id), "roles", guild_id)
+        channels = _optional_read(
+            lambda: _bot_api().channels(actor, guild_id), "channels", guild_id
+        )
+        panel = _optional_read(
+            lambda: _bot_api().panel(actor, guild_id), "panel", guild_id
+        )
+
+        guild = _session_guild(session, guild_id)
+        return render_template(
+            "settings.html",
+            guild_name=(guild or {}).get("name") or f"Server {guild_id}",
+            guild_icon=oauth.icon_url(guild) if guild else None,
+            guild_id=str(guild_id),
+            groups=settings_view.build_groups(settings, roles, channels, panel),
+            premium=settings.get("premium") or {},
+            names_resolved=roles is not None and channels is not None,
+            auto_verify_column_present=settings.get("auto_verify_column_present", True),
+            csrf_token=session.csrf_token,
+        )
+
     @app.post("/logout")
     def logout():
         session = _require_login()
@@ -297,6 +348,78 @@ def _register_routes(app: Flask) -> None:
     @app.errorhandler(500)
     def server_error(_error):  # pragma: no cover - defensive
         return render_template("error.html", message="Something went wrong."), 500
+
+
+def _session_guild(session, guild_id: int) -> Optional[dict]:
+    """The OAuth record for this guild, for its name and icon only.
+
+    Display, never authority -- the bot has already decided whether this page
+    may be rendered at all. A guild missing from the list still renders, because
+    an admin promoted since login has a stale list and is nonetheless entitled
+    to the page.
+    """
+    target = str(guild_id)
+    for guild in session.guilds or []:
+        if str(guild.get("id")) == target:
+            return guild
+    return None
+
+
+def _settings_unavailable(error: BotAPIError, guild_id: int, session):
+    """Turn a refusal into a page, without saying which refusal it was.
+
+    The bot distinguishes 404 "not in that guild" from 403 "you do not
+    administer it", which is right inside the mTLS boundary and wrong on the
+    open web. Rendered differently, a signed-in user could walk arbitrary guild
+    ids and learn which servers run VRCVerify -- a census of communities
+    operating 18+ gating, from a browser, with nothing compromised. It is the
+    same oracle handle_list_guilds was hardened against, arriving by a
+    different door.
+
+    503 is kept separate: it says the bot cannot answer right now, which
+    discloses nothing about any particular guild, and telling an admin to try
+    again is far better than telling them the server does not exist.
+    """
+    if error.status in (403, 404):
+        logger.info(
+            "settings page refused for actor=%s guild=%s (status %s)",
+            session.discord_id,
+            guild_id,
+            error.status,
+        )
+        return (
+            render_template(
+                "error.html",
+                message=(
+                    "That server isn't available. Either VRCVerify isn't in it, "
+                    "or you don't have the Administrator permission there."
+                ),
+                csrf_token=session.csrf_token,
+            ),
+            404,
+        )
+
+    logger.warning("settings read failed for guild %s: %s", guild_id, error)
+    return (
+        render_template(
+            "error.html",
+            message=(
+                "Can't reach the bot right now, so this server's settings can't "
+                "be shown. Nothing has changed. Try again shortly."
+            ),
+            csrf_token=session.csrf_token,
+        ),
+        503,
+    )
+
+
+def _optional_read(call, what: str, guild_id: int):
+    """A secondary read whose failure must not cost the whole page."""
+    try:
+        return call()
+    except BotAPIError as error:
+        logger.warning("could not read %s for guild %s: %s", what, guild_id, error)
+        return None
 
 
 def _invite_url(client_id: str, guild_id: str) -> str:

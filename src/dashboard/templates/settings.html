@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}{{ guild_name }} — VRCVerify{% endblock %}
+
+{% block content %}
+<p class="crumb"><a href="{{ url_for('index') }}">&larr; All servers</a></p>
+
+<section class="panel">
+  <header class="guild-head">
+    <span class="icon" aria-hidden="true">
+      {% if guild_icon %}
+        <img src="{{ guild_icon }}" alt="" width="64" height="64">
+      {% else %}
+        <span class="initial">{{ guild_name[:1] | upper }}</span>
+      {% endif %}
+    </span>
+    <div>
+      <h1>{{ guild_name }}</h1>
+      <p class="muted">
+        {% if premium.premium %}
+          VRCVerify Premium is active on this server.
+        {% elif premium.grandfathered %}
+          This server was set up before Premium launched, so it keeps several
+          extras free, permanently.
+        {% else %}
+          18+ verification is free on this server, and always will be.
+        {% endif %}
+      </p>
+    </div>
+  </header>
+
+  <p class="notice read-only">
+    This page is read-only for now. To change any of these, use
+    <code>/vrcverify_settings</code> in your server.
+  </p>
+
+  {% if not names_resolved %}
+    <p class="notice">
+      Couldn't load this server's roles and channels just now, so some settings
+      below show an ID instead of a name. The values themselves are correct.
+    </p>
+  {% endif %}
+
+  {% if not auto_verify_column_present %}
+    <p class="notice">
+      This bot's database is missing the auto-verify column, so that setting
+      isn't in effect regardless of what it shows. Contact the bot operator.
+    </p>
+  {% endif %}
+
+  {% for group in groups %}
+    <section class="group">
+      <h2>{{ group.title }}</h2>
+      <p class="muted blurb">{{ group.blurb }}</p>
+
+      <dl class="settings">
+        {% if group.panel %}
+          <div class="setting">
+            <dt>Where it's posted</dt>
+            <dd>
+              {% if not group.panel.known %}
+                <p class="value empty">Couldn't check</p>
+                <p class="muted desc">The bot didn't answer this one. Try again shortly.</p>
+              {% elif not group.panel.posted %}
+                <p class="value empty">No panel found</p>
+                <p class="muted desc">
+                  Post one with <code>/vrcverify_panel</code> so members have
+                  somewhere to start.
+                </p>
+              {% else %}
+                <p class="value">{{ group.panel.channel }}</p>
+                <p class="muted desc">Members use this message to begin verification.</p>
+                {% for warning in group.panel.warnings %}
+                  <p class="warn">{{ warning }}</p>
+                {% endfor %}
+              {% endif %}
+            </dd>
+          </div>
+        {% endif %}
+        {% for field in group.fields %}
+          <div class="setting{% if field.locked %} locked{% endif %}">
+            <dt>
+              {{ field.label }}
+              {% if field.badge == 'premium' %}
+                <span class="badge premium">Premium</span>
+              {% elif field.badge == 'inactive' %}
+                <span class="badge inactive">Not applied</span>
+              {% endif %}
+            </dt>
+            <dd>
+              <p class="value{% if field.empty %} empty{% endif %}">
+                {% if field.swatch %}
+                  {# An SVG, not a styled span: the CSP is style-src 'self',
+                     which blocks inline style attributes, and adding
+                     'unsafe-inline' to paint a square would be a poor trade.
+                     `fill` is a presentation attribute, not CSS. #}
+                  <svg class="swatch" width="14" height="14" aria-hidden="true">
+                    <rect width="14" height="14" rx="3" fill="{{ field.swatch }}"></rect>
+                  </svg>
+                {% endif %}
+                {{ field.display }}
+              </p>
+              <p class="muted desc">{{ field.description }}</p>
+
+              {% if field.badge == 'premium' %}
+                <p class="muted plan">
+                  Premium only.
+                  {%- if not field.empty %}
+                    Your saved value is kept, and comes back if the
+                    subscription is renewed.
+                  {%- endif %}
+                </p>
+              {% elif field.badge == 'inactive' %}
+                {# The distinction that keeps this site from being stricter
+                   than the slash commands: saved by anyone, acted on only
+                   with the feature. #}
+                <p class="muted plan">
+                  Saved, but not acted on without Premium. Anyone can set this;
+                  the bot just won't use it until the feature is active.
+                </p>
+              {% endif %}
+
+              {% for warning in field.warnings %}
+                <p class="warn">{{ warning }}</p>
+              {% endfor %}
+            </dd>
+          </div>
+        {% endfor %}
+      </dl>
+    </section>
+  {% endfor %}
+
+</section>
+{% endblock %}
