@@ -359,6 +359,19 @@ channels read fails, the field falls back to read-only — an empty `<select>`
 invites a save that would clear the verified role and stop verification for the
 whole server.
 
+It can also **post the instructions panel** into a channel — the one thing the
+dashboard makes the bot *do* in a server rather than store. That makes doing it
+twice by accident the main hazard, so the bot decides what a request means:
+
+- the panel is already in the chosen channel → **refresh** it, the same
+  one-call edit the fleet sweep uses. A double-click costs an edit, not a
+  second panel with live buttons that nothing tracks.
+- the panel is recorded elsewhere → **move**: post the new one, re-point the
+  ids, and tell the admin where the old one still is. Deleting it would be this
+  code destroying a message nobody pointed at.
+- the recorded location **cannot be read** → post nothing. That is the case
+  where "no panel exists" and "the database blinked" look identical.
+
 The write path adds one route on each side, and both are pinned by tests:
 
 - `PATCH /api/v1/guilds/{id}/settings` on the bot, the only non-GET route.
@@ -376,6 +389,13 @@ token claims, never from the request body. Nothing in this codebase updates or
 deletes a row in that table: an audit trail exists to disagree with someone's
 account of events, which it cannot do if the code that made the change can
 rewrite the record of it.
+
+The settings page shows that history back — ids resolved to names, an actor
+who has since left the server shown by id rather than dropped. It covers
+changes made **from the website only**; slash commands are not recorded, and
+the page says so rather than implying the list is everything that ever
+happened. An unreadable trail renders as "couldn't load", never as "no changes
+have been made" — those are different facts and only one of them is reassuring.
 
 Two rules the settings page exists to honour:
 

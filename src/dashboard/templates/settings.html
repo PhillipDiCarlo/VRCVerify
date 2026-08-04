@@ -39,6 +39,9 @@
   {% if saved %}
     <p class="notice ok">Saved.</p>
   {% endif %}
+  {% if panel_result %}
+    <p class="notice ok">{{ panel_result }}</p>
+  {% endif %}
   {% if save_error %}
     <p class="notice">{{ save_error }}</p>
   {% endif %}
@@ -204,8 +207,60 @@
         <p class="actions"><button type="submit" class="button">Save changes</button></p>
         </form>
       {% endif %}
+
+      {# Its own form, after the settings one closes: this posts to a different
+         endpoint, and a form inside a form is not a thing. #}
+      {% if group.panel_channels %}
+        <form method="post" action="{{ url_for('post_panel', guild_id=guild_id) }}"
+              class="panel-post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label for="panel_channel_id">Post the panel in</label>
+          <select name="panel_channel_id" id="panel_channel_id">
+            {% for channel_id, label in group.panel_channels %}
+              <option value="{{ channel_id }}"
+                {%- if channel_id == group.panel_channel_id %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="button">
+            {%- if group.panel.posted %}Repost or move panel{% else %}Post panel{% endif -%}
+          </button>
+          <span class="muted desc">
+            {% if group.panel.posted %}
+              Choosing the channel it's already in refreshes it rather than
+              posting a second one.
+            {% else %}
+              Members use this message to start verifying.
+            {% endif %}
+          </span>
+        </form>
+      {% endif %}
     </section>
   {% endfor %}
 
+  <section class="group">
+    <h2>Recent changes</h2>
+    <p class="muted blurb">
+      Settings changed from this website. Changes made with slash commands in
+      Discord aren't listed here.
+    </p>
+
+    {% if audit is none %}
+      <p class="muted">Couldn't load the history just now. Try again shortly.</p>
+    {% elif not audit %}
+      <p class="muted">No changes have been made from the website yet.</p>
+    {% else %}
+      <ul class="audit">
+        {% for entry in audit %}
+          <li>
+            <span class="audit-what">{{ entry.label }}</span>
+            <span class="muted">{{ entry.old }} &rarr; {{ entry.new }}</span>
+            <span class="muted audit-who">{{ entry.actor }}{% if entry.when %} &middot;
+              <time datetime="{{ entry.when }}">{{ entry.when[:16] | replace("T", " ") }} UTC</time>
+            {% endif %}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
 </section>
 {% endblock %}

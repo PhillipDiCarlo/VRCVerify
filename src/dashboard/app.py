@@ -322,6 +322,9 @@ def _register_routes(app: Flask) -> None:
         panel = _optional_read(
             lambda: _bot_api().panel(actor, guild_id), "panel", guild_id
         )
+        audit = _optional_read(
+            lambda: _bot_api().audit(actor, guild_id), "audit", guild_id
+        )
 
         guild = _session_guild(session, guild_id)
         return render_template(
@@ -330,10 +333,12 @@ def _register_routes(app: Flask) -> None:
             guild_icon=oauth.icon_url(guild) if guild else None,
             guild_id=str(guild_id),
             groups=settings_view.build_groups(settings, roles, channels, panel),
+            audit=settings_view.build_audit(audit, roles, channels),
             premium=settings.get("premium") or {},
             names_resolved=roles is not None and channels is not None,
             auto_verify_column_present=settings.get("auto_verify_column_present", True),
             saved=request.args.get("saved") == "1",
+            panel_result=PANEL_RESULTS.get(request.args.get("panel")),
             save_error=_save_error_message(request.args.get("error")),
             csrf_token=session.csrf_token,
         )
@@ -364,6 +369,47 @@ def _register_routes(app: Flask) -> None:
         _read_checkbox(changes, "auto_verify_new_members")
 
         return _save(guild_id, session, changes)
+
+    @app.post("/guild/<int:guild_id>/panel/post")
+    def post_panel(guild_id: int):
+        """Put the instructions panel in a channel.
+
+        The one control here that makes the bot act in a server rather than
+        store a value. What "put it there" means -- a fresh post, a refresh of
+        the one already there, or a move -- is decided by the bot, because it
+        is the only side that can see where the panel actually is. This route's
+        job is to carry the admin's choice of channel and report back what
+        happened.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        channel_id = (request.form.get("panel_channel_id") or "").strip()
+        if not channel_id:
+            return redirect(url_for("guild_settings", guild_id=guild_id))
+
+        try:
+            result = _bot_api().post_panel(
+                int(session.discord_id), guild_id, channel_id
+            )
+        except BotAPIError as error:
+            logger.warning("panel post refused for guild %s: %s", guild_id, error)
+            return redirect(
+                url_for(
+                    "guild_settings", guild_id=guild_id, error=_save_error_code(error)
+                )
+            )
+
+        return redirect(
+            url_for(
+                "guild_settings",
+                guild_id=guild_id,
+                panel=result.get("action", "posted"),
+            )
+        )
 
     @app.post("/guild/<int:guild_id>/member")
     def save_member_settings(guild_id: int):
@@ -527,6 +573,19 @@ SAVE_ERRORS = {
     ),
 }
 GENERIC_SAVE_ERROR = "That change couldn't be saved, so nothing was changed."
+
+# Same treatment as the refusals: a code chosen by the bot, copy chosen here.
+PANEL_RESULTS = {
+    "posted": "Panel posted.",
+    "refreshed": (
+        "That channel already had the panel, so it was refreshed rather than "
+        "posted again."
+    ),
+    "moved": (
+        "Panel posted in the new channel. The old one is still up in its "
+        "previous channel -- delete it in Discord when you're ready."
+    ),
+}
 
 
 def _read_checkbox(changes: dict, name: str) -> None:

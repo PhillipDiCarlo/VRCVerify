@@ -5,11 +5,12 @@ SQLAlchemy. Everything it is allowed to touch arrives as a callable on
 `BotAPIDeps`, which the bot builds and hands over at startup.
 
 That is not tidiness, it is the "least privilege on the API surface" control
-issue #65 asks for. There is no generic "write these columns" entry point here
-because there is no writer in `BotAPIDeps` at all — in this phase the API is
-structurally incapable of changing a row. Adding a write path later means
-adding a named writer to that dataclass, which is a visible, reviewable diff
-rather than a new query string someone slipped past.
+issue #65 asks for. There is no generic "write these columns" entry point here:
+`BotAPIDeps` carries exactly one writer, `write_settings`, and this module does
+not know which fields exist, which are premium, or what values are legal. It
+validates the envelope and hands the body to the bot, which decides. Adding a
+second writer means editing that dataclass and the test that pins it — a
+visible, reviewable diff rather than a new query string someone slipped past.
 
 Three things guard every request, in this order:
 
@@ -160,10 +161,15 @@ class BotAPIDeps:
     read_roles: Callable[[int], Awaitable[Optional[list]]]
     read_channels: Callable[[int], Awaitable[Optional[list]]]
     read_panel: Callable[[int], Awaitable[Optional[dict]]]
+    read_audit: Callable[[int], Awaitable[Optional[list]]]
     # The only writer. Takes (guild_id, actor_id, changes) and either returns
     # the re-read settings, returns None because it could not complete, or
     # raises the bot's SettingRejected for anything the caller got wrong.
     write_settings: Callable[[int, int, dict], Awaitable[Optional[dict]]]
+    # The one action. Everything else here stores a value; this makes the bot
+    # post a message in somebody's server, so it is named separately rather
+    # than folded into write_settings.
+    post_panel: Callable[[int, int, str], Awaitable[Optional[dict]]]
 
 
 # -------------------------------------------------------------------
@@ -663,8 +669,51 @@ async def handle_update_settings(request: web.Request) -> web.Response:
     return _json(payload)
 
 
+async def handle_post_panel(request: web.Request) -> web.Response:
+    """Post or refresh a guild's instructions panel.
+
+    The only endpoint whose effect is visible to people who are not the caller:
+    everything else changes a row, this puts a message in a server. It gets the
+    same three gates and one more consideration -- what happens when it is
+    called twice. That is answered inside the bot, which refreshes an existing
+    panel rather than posting a second one, so a double-click costs an edit.
+    """
+    try:
+        claims = await _authorize(request, guild_scoped=True)
+    except _Denied as denied:
+        return denied.response
+
+    deps: BotAPIDeps = request.app[DEPS_KEY]
+    guild_id = int(request.match_info["guild_id"])
+
+    try:
+        body = await request.json()
+    except (ValueError, UnicodeDecodeError):
+        return _deny(request, 400, "bad_json", actor=claims.actor_id)
+    if not isinstance(body, dict):
+        return _deny(request, 400, "bad_json", actor=claims.actor_id)
+
+    channel_id = body.get("channel_id")
+    if not isinstance(channel_id, (str, int)) or not str(channel_id).isdigit():
+        return _deny(request, 400, "bad_channel_id", actor=claims.actor_id)
+
+    try:
+        result = await deps.post_panel(guild_id, claims.actor_id, str(channel_id))
+    except SettingRejected as rejected:
+        return _deny(
+            request,
+            403 if rejected.locked else 400,
+            rejected.reason,
+            actor=claims.actor_id,
+        )
+
+    if result is None:
+        return _deny(request, 503, "unavailable", actor=claims.actor_id)
+    return _json(result)
+
+
 def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
-    """Wire the routes. One PATCH, everything else a GET."""
+    """Wire the routes. One PATCH, one POST, everything else a GET."""
     app = web.Application(client_max_size=MAX_REQUEST_BYTES)
     app[CONFIG_KEY] = config
     app[DEPS_KEY] = deps
@@ -682,9 +731,11 @@ def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
         "/api/v1/guilds/{guild_id}/channels", _guild_reader("read_channels")
     )
     app.router.add_get("/api/v1/guilds/{guild_id}/panel", _guild_reader("read_panel"))
+    app.router.add_get("/api/v1/guilds/{guild_id}/audit", _guild_reader("read_audit"))
     app.router.add_patch(
         "/api/v1/guilds/{guild_id}/settings", handle_update_settings
     )
+    app.router.add_post("/api/v1/guilds/{guild_id}/panel", handle_post_panel)
 
     app.on_response_prepare.append(_harden_response)
     return app

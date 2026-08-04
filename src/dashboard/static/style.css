@@ -295,3 +295,29 @@ textarea {
   padding: 0.45rem 0.55rem;
   resize: vertical;
 }
+
+/* --- change history --- */
+.audit { list-style: none; margin: 0; padding: 0; }
+
+.audit li {
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.audit-what { font-weight: 600; margin-right: 0.4rem; }
+.audit-who { display: block; font-size: 0.825rem; }
+
+.panel-post {
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.panel-post label { font-size: 0.95rem; }
+.panel-post .desc { flex-basis: 100%; margin: 0; }
