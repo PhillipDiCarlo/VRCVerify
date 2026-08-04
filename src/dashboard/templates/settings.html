@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% block title %}{{ guild_name }} — VRCVerify{% endblock %}
 
+{# An unticked checkbox submits nothing at all, which is indistinguishable from
+   a control that was never on the page -- and the difference matters, because
+   a free server's form has no branding controls and must not be read as having
+   switched them all off. So every checkbox declares itself. #}
+{% macro present(field) -%}
+  <input type="hidden" name="present_{{ field.name }}" value="1">
+{%- endmacro %}
+
 {% block content %}
 <p class="crumb"><a href="{{ url_for('index') }}">&larr; All servers</a></p>
 
@@ -102,7 +110,17 @@
             </dt>
             <dd>
               {% if field.editable %}
-                {% if field.kind == 'locale' %}
+                {% if field.kind in ('role', 'role_optional') %}
+                  <select name="{{ field.name }}" id="f-{{ field.name }}">
+                    {% if field.kind == 'role_optional' %}
+                      <option value="" {% if field.empty %}selected{% endif %}>None</option>
+                    {% endif %}
+                    {% for role_id, label in field.choices %}
+                      <option value="{{ role_id }}"
+                        {%- if role_id == field.value %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                {% elif field.kind == 'locale' %}
                   <select name="{{ field.name }}" id="f-{{ field.name }}">
                     {% for code, label in field.choices %}
                       <option value="{{ code }}"
@@ -112,7 +130,7 @@
                 {% elif field.kind == 'color' %}
                   {# A colour input cannot be empty, so "no colour" is its own
                      checkbox rather than a sentinel value pretending to be one. #}
-                  <input type="hidden" name="panel_fields_present" value="1">
+                  {{ present(field) }}
                   <label class="check">
                     <input type="checkbox" name="panel_color_default"
                            {%- if field.empty %} checked{% endif %}>
@@ -121,6 +139,7 @@
                   <input type="color" name="{{ field.name }}"
                          value="{{ field.value }}" aria-label="Panel colour">
                 {% elif field.kind == 'bool' %}
+                  {{ present(field) }}
                   <label class="check">
                     <input type="checkbox" name="{{ field.name }}"
                            {%- if field.value %} checked{% endif %}>
