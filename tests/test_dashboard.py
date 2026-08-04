@@ -192,6 +192,7 @@ class FakeBotAPI:
         roles=None,
         channels=None,
         panel=None,
+        audit=None,
         errors=None,
     ):
         self.installed = {str(g) for g in installed}
@@ -203,6 +204,7 @@ class FakeBotAPI:
         self._roles = DEFAULT_ROLES if roles is None else roles
         self._channels = DEFAULT_CHANNELS if channels is None else channels
         self._panel = {"posted": False} if panel is None else panel
+        self._audit = [] if audit is None else audit
         # {"settings": BotAPIError(...), ...} -- per-endpoint failures, so a
         # secondary read can be broken without breaking the page.
         self.errors = errors or {}
@@ -235,6 +237,9 @@ class FakeBotAPI:
 
     def panel(self, actor_id, guild_id):
         return self._answer("panel", actor_id, guild_id, self._panel)
+
+    def audit(self, actor_id, guild_id):
+        return self._answer("audit", actor_id, guild_id, self._audit)
 
     def update_settings(self, actor_id, guild_id, changes):
         self.saves.append((str(actor_id), str(guild_id), dict(changes)))
@@ -649,6 +654,7 @@ class TestSettingsPage:
             "roles",
             "channels",
             "panel",
+            "audit",
         }
         for _what, actor, guild in api.reads:
             assert actor == ACTOR
@@ -870,6 +876,17 @@ class TestSecondaryReadsDegradeGracefully:
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
         assert "no longer exists" not in page
+
+    def test_the_page_renders_without_the_audit_read(self, config, store):
+        """An empty history and an unavailable one are different facts."""
+        test_client, _api = settings_client(
+            config, store, errors={"audit": BotAPIError("unavailable", 503)}
+        )
+        response = test_client.get(f"/guild/{GUILD_IN}")
+        assert response.status_code == 200
+        page = response.data.decode()
+        assert "Couldn't load the history" in page
+        assert "No changes have been made" not in page
 
     def test_the_page_renders_without_the_panel_read(self, config, store):
         test_client, _api = settings_client(
@@ -1400,6 +1417,82 @@ class TestHardening:
 
     def test_healthz_says_nothing_useful(self, client):
         assert client.get("/healthz").get_json() == {"ok": True}
+
+
+AUDIT_ENTRIES = [
+    {
+        "actor_id": ACTOR,
+        "actor_name": "Sasha",
+        "field": "role_id",
+        "old_value": None,
+        "new_value": VERIFIED_ROLE,
+        "changed_at": "2026-08-04T09:15:00+00:00",
+    },
+    {
+        "actor_id": "555555555555",
+        "actor_name": None,
+        "field": "panel_embed_color",
+        "old_value": None,
+        "new_value": str(0xFF0000),
+        "changed_at": "2026-08-04T09:10:00+00:00",
+    },
+]
+
+
+class TestTheChangeHistory:
+    def test_it_names_the_setting_the_actor_and_both_values(self, config, store):
+        test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Verified role" in page
+        assert "Sasha" in page
+        # The id is resolved to the role's name, as on the settings above.
+        assert "not set &rarr; Verified" in page or "not set → Verified" in page
+
+    def test_an_actor_who_left_is_shown_by_id(self, config, store):
+        test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "ID 555555555555" in page
+
+    def test_a_colour_reads_as_a_colour(self, config, store):
+        test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
+        assert "#ff0000" in test_client.get(f"/guild/{GUILD_IN}").data.decode()
+
+    def test_an_empty_history_says_so(self, config, store):
+        test_client, _api = settings_client(config, store, audit=[])
+        assert b"No changes have been made" in test_client.get(
+            f"/guild/{GUILD_IN}"
+        ).data
+
+    def test_a_long_value_is_truncated(self):
+        entries = [
+            {
+                "actor_id": ACTOR,
+                "actor_name": "Sasha",
+                "field": "custom_verification_requested_message",
+                "old_value": None,
+                "new_value": "x" * 500,
+                "changed_at": None,
+            }
+        ]
+        rendered = settings_view.build_audit(entries, DEFAULT_ROLES, DEFAULT_CHANNELS)
+        assert len(rendered[0]["new"]) <= settings_view.AUDIT_VALUE_MAX
+
+    def test_a_deleted_role_is_named_as_gone_not_as_an_id(self):
+        entries = [
+            {
+                "actor_id": ACTOR,
+                "actor_name": None,
+                "field": "role_id",
+                "old_value": "404404404404",
+                "new_value": VERIFIED_ROLE,
+                "changed_at": None,
+            }
+        ]
+        rendered = settings_view.build_audit(entries, DEFAULT_ROLES, DEFAULT_CHANNELS)
+        assert "no longer exists" in rendered[0]["old"]
+
+    def test_an_unavailable_trail_is_none_not_empty(self):
+        assert settings_view.build_audit(None, DEFAULT_ROLES, DEFAULT_CHANNELS) is None
 
 
 class TestSettingsViewModel:

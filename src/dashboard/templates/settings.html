@@ -207,5 +207,30 @@
     </section>
   {% endfor %}
 
+  <section class="group">
+    <h2>Recent changes</h2>
+    <p class="muted blurb">
+      Settings changed from this website. Changes made with slash commands in
+      Discord aren't listed here.
+    </p>
+
+    {% if audit is none %}
+      <p class="muted">Couldn't load the history just now. Try again shortly.</p>
+    {% elif not audit %}
+      <p class="muted">No changes have been made from the website yet.</p>
+    {% else %}
+      <ul class="audit">
+        {% for entry in audit %}
+          <li>
+            <span class="audit-what">{{ entry.label }}</span>
+            <span class="muted">{{ entry.old }} &rarr; {{ entry.new }}</span>
+            <span class="muted audit-who">{{ entry.actor }}{% if entry.when %} &middot;
+              <time datetime="{{ entry.when }}">{{ entry.when[:16] | replace("T", " ") }} UTC</time>
+            {% endif %}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
 </section>
 {% endblock %}

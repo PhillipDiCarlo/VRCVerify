@@ -78,6 +78,9 @@ def make_deps(written=None, **overrides) -> bot_api.BotAPIDeps:
     async def read_panel(guild_id):
         return {"posted": False}
 
+    async def read_audit(guild_id):
+        return []
+
     async def write_settings(guild_id, actor_id, changes):
         written.append((int(guild_id), int(actor_id), dict(changes)))
         return {"guild_id": str(guild_id), "fields": {}, "written": dict(changes)}
@@ -91,6 +94,7 @@ def make_deps(written=None, **overrides) -> bot_api.BotAPIDeps:
         read_roles=read_roles,
         read_channels=read_channels,
         read_panel=read_panel,
+        read_audit=read_audit,
         write_settings=write_settings,
     )
     defaults.update(overrides)
@@ -988,6 +992,7 @@ class TestWriteSurfaceIsExactlyOneThing:
                 "read_roles",
                 "read_channels",
                 "read_panel",
+                "read_audit",
                 "write_settings",
             }
         )
@@ -1588,6 +1593,52 @@ class TestSettingsWriter:
         make_server()
         result = write({"instructions_locale": "ja"})
         assert result == run(bot.read_dashboard_settings(GUILD_ID))
+
+
+class TestAuditReader:
+    def test_it_returns_this_guilds_changes_newest_first(self, subscribed):
+        make_server()
+        write({"instructions_locale": "de"})
+        write({"instructions_locale": "ja"})
+        entries = run(bot.read_dashboard_audit(GUILD_ID))
+        assert [e["new_value"] for e in entries] == ["ja", "de"]
+        assert all(e["actor_id"] == str(ADMIN_ID) for e in entries)
+
+    def test_it_never_returns_another_guilds_history(self, subscribed):
+        make_server()
+        write({"instructions_locale": "de"})
+        assert run(bot.read_dashboard_audit(OTHER_GUILD_ID)) == []
+
+    def test_an_actor_still_in_the_guild_is_named(self, monkeypatch, subscribed):
+        guild = FakeGuild()
+        guild._members[ADMIN_ID] = SimpleNamespace(display_name="Sasha")
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        make_server()
+        write({"instructions_locale": "de"})
+        assert run(bot.read_dashboard_audit(GUILD_ID))[0]["actor_name"] == "Sasha"
+
+    def test_an_actor_who_left_is_still_an_entry(self, monkeypatch, subscribed):
+        """The admin who left is exactly the row worth keeping."""
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: FakeGuild())
+        make_server()
+        write({"instructions_locale": "de"})
+        entry = run(bot.read_dashboard_audit(GUILD_ID))[0]
+        assert entry["actor_name"] is None
+        assert entry["actor_id"] == str(ADMIN_ID)
+
+    def test_the_row_count_is_bounded(self, subscribed):
+        make_server()
+        assert run(bot.read_dashboard_audit(GUILD_ID, limit=10_000)) is not None
+        # A hostile limit cannot turn one page load into a table scan.
+        assert bot.MAX_AUDIT_ROWS <= 50
+
+    def test_an_unreadable_trail_is_none_not_an_empty_history(self, monkeypatch):
+        """Empty and unavailable must not look the same to an admin."""
+        def boom():
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr(bot, "session_scope", boom)
+        assert run(bot.read_dashboard_audit(GUILD_ID)) is None
 
 
 class TestBothHalvesTogether:

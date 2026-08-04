@@ -5,11 +5,12 @@ SQLAlchemy. Everything it is allowed to touch arrives as a callable on
 `BotAPIDeps`, which the bot builds and hands over at startup.
 
 That is not tidiness, it is the "least privilege on the API surface" control
-issue #65 asks for. There is no generic "write these columns" entry point here
-because there is no writer in `BotAPIDeps` at all — in this phase the API is
-structurally incapable of changing a row. Adding a write path later means
-adding a named writer to that dataclass, which is a visible, reviewable diff
-rather than a new query string someone slipped past.
+issue #65 asks for. There is no generic "write these columns" entry point here:
+`BotAPIDeps` carries exactly one writer, `write_settings`, and this module does
+not know which fields exist, which are premium, or what values are legal. It
+validates the envelope and hands the body to the bot, which decides. Adding a
+second writer means editing that dataclass and the test that pins it — a
+visible, reviewable diff rather than a new query string someone slipped past.
 
 Three things guard every request, in this order:
 
@@ -160,6 +161,7 @@ class BotAPIDeps:
     read_roles: Callable[[int], Awaitable[Optional[list]]]
     read_channels: Callable[[int], Awaitable[Optional[list]]]
     read_panel: Callable[[int], Awaitable[Optional[dict]]]
+    read_audit: Callable[[int], Awaitable[Optional[list]]]
     # The only writer. Takes (guild_id, actor_id, changes) and either returns
     # the re-read settings, returns None because it could not complete, or
     # raises the bot's SettingRejected for anything the caller got wrong.
@@ -682,6 +684,7 @@ def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
         "/api/v1/guilds/{guild_id}/channels", _guild_reader("read_channels")
     )
     app.router.add_get("/api/v1/guilds/{guild_id}/panel", _guild_reader("read_panel"))
+    app.router.add_get("/api/v1/guilds/{guild_id}/audit", _guild_reader("read_audit"))
     app.router.add_patch(
         "/api/v1/guilds/{guild_id}/settings", handle_update_settings
     )

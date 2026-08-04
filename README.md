@@ -377,6 +377,13 @@ deletes a row in that table: an audit trail exists to disagree with someone's
 account of events, which it cannot do if the code that made the change can
 rewrite the record of it.
 
+The settings page shows that history back — ids resolved to names, an actor
+who has since left the server shown by id rather than dropped. It covers
+changes made **from the website only**; slash commands are not recorded, and
+the page says so rather than implying the list is everything that ever
+happened. An unreadable trail renders as "couldn't load", never as "no changes
+have been made" — those are different facts and only one of them is reassuring.
+
 Two rules the settings page exists to honour:
 
 - **It mirrors the bot field for field, including the inconsistencies.** Some

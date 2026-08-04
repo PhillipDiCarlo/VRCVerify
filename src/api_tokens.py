@@ -39,6 +39,7 @@ OP_GUILD_SETTINGS = "GET /api/v1/guilds/{guild_id}/settings"
 OP_GUILD_ROLES = "GET /api/v1/guilds/{guild_id}/roles"
 OP_GUILD_CHANNELS = "GET /api/v1/guilds/{guild_id}/channels"
 OP_GUILD_PANEL = "GET /api/v1/guilds/{guild_id}/panel"
+OP_GUILD_AUDIT = "GET /api/v1/guilds/{guild_id}/audit"
 # The method is part of the operation, so a token minted to read a guild's
 # settings cannot be replayed to write them.
 OP_UPDATE_SETTINGS = "PATCH /api/v1/guilds/{guild_id}/settings"

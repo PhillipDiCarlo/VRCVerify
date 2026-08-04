@@ -29,6 +29,7 @@ from api_tokens import (
     OP_GUILD_PANEL,
     OP_GUILD_ROLES,
     OP_GUILD_SETTINGS,
+    OP_GUILD_AUDIT,
     OP_LIST_GUILDS,
     OP_UPDATE_SETTINGS,
     mint_token,
@@ -204,6 +205,11 @@ class BotAPIClient:
             reason,
         )
         raise BotAPIError(reason or "bot API refused the save", response.status_code)
+
+    def audit(self, actor_id: int, guild_id) -> list:
+        return self._get(
+            f"/api/v1/guilds/{int(guild_id)}/audit", OP_GUILD_AUDIT, actor_id, guild_id
+        )
 
     def panel(self, actor_id: int, guild_id) -> dict:
         return self._get(

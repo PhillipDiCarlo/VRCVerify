@@ -480,6 +480,71 @@ def _log_channel_field(settings: dict, channels: Optional[list]) -> Field:
     )
 
 
+# Labels for the audit list. Deliberately the same words the settings above
+# use, so a line of history is recognisably about a control on this page.
+AUDIT_LABELS = {
+    "role_id": "Verified role",
+    "unverified_role_id": "Unverified role",
+    "auto_verify_new_members": "Auto-verify on join",
+    "auto_nickname_change": "Nickname sync",
+    "custom_verification_requested_message": "Custom verification message",
+    "instructions_locale": "Language",
+    "panel_embed_color": "Panel colour",
+    "panel_show_icon": "Server icon on the panel",
+    "verification_log_channel_id": "Verification log channel",
+}
+
+# Long enough to recognise a message, short enough that one entry cannot push
+# the rest of the history off the screen.
+AUDIT_VALUE_MAX = 80
+
+
+def build_audit(
+    entries: Optional[list],
+    roles: Optional[list],
+    channels: Optional[list],
+) -> Optional[list]:
+    """The change history, with ids resolved and values fit to read.
+
+    None means the bot could not answer, which the page says out loud -- an
+    empty history and an unavailable one are different facts, and a trail that
+    quietly renders as "nothing happened" is worse than one that admits it does
+    not know.
+    """
+    if entries is None:
+        return None
+    return [
+        {
+            "label": AUDIT_LABELS.get(entry.get("field"), entry.get("field")),
+            "actor": entry.get("actor_name") or f"ID {entry.get('actor_id')}",
+            "old": _audit_value(entry.get("field"), entry.get("old_value"), roles, channels),
+            "new": _audit_value(entry.get("field"), entry.get("new_value"), roles, channels),
+            "when": entry.get("changed_at"),
+        }
+        for entry in entries
+    ]
+
+
+def _audit_value(field, raw, roles, channels) -> str:
+    """One stored value, as something an admin can read."""
+    if raw is None or raw == "":
+        return "not set"
+    if field in {"role_id", "unverified_role_id"}:
+        role = _lookup(roles, raw)
+        return role.get("name") if role else f"a role that no longer exists ({raw})"
+    if field == "verification_log_channel_id":
+        channel = _lookup(channels, raw)
+        return f"#{channel['name']}" if channel else f"a channel that no longer exists ({raw})"
+    if field == "panel_embed_color":
+        return _hex(raw) or str(raw)
+    if field == "instructions_locale":
+        return locale_label(str(raw))
+    if raw in {"True", "False"}:
+        return "on" if raw == "True" else "off"
+    text = str(raw)
+    return text if len(text) <= AUDIT_VALUE_MAX else text[: AUDIT_VALUE_MAX - 1] + "…"
+
+
 def panel_summary(panel: Optional[dict]) -> dict:
     """The instructions panel's whereabouts, as a template-ready dict.
 

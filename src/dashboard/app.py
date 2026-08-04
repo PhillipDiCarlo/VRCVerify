@@ -322,6 +322,9 @@ def _register_routes(app: Flask) -> None:
         panel = _optional_read(
             lambda: _bot_api().panel(actor, guild_id), "panel", guild_id
         )
+        audit = _optional_read(
+            lambda: _bot_api().audit(actor, guild_id), "audit", guild_id
+        )
 
         guild = _session_guild(session, guild_id)
         return render_template(
@@ -330,6 +333,7 @@ def _register_routes(app: Flask) -> None:
             guild_icon=oauth.icon_url(guild) if guild else None,
             guild_id=str(guild_id),
             groups=settings_view.build_groups(settings, roles, channels, panel),
+            audit=settings_view.build_audit(audit, roles, channels),
             premium=settings.get("premium") or {},
             names_resolved=roles is not None and channels is not None,
             auto_verify_column_present=settings.get("auto_verify_column_present", True),

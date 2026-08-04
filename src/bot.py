@@ -785,6 +785,10 @@ CUSTOM_MESSAGE_MAX_LEN = 1000
 # a value the slash command has no way to set.
 CUSTOM_MESSAGE_CLEARING = frozenset({"clear", "reset", "none", "default"})
 
+# How much history one call may ask for. The page shows a recent slice, not an
+# export -- an admin wanting the whole thing has the database.
+MAX_AUDIT_ROWS = 50
+
 
 # Raised by the writer below, mapped to a status by bot_api. It lives over
 # there because it is the contract between the two halves, not a detail of
@@ -4922,6 +4926,56 @@ async def read_dashboard_panel(guild_id) -> Optional[dict]:
         return None
 
 
+async def read_dashboard_audit(guild_id, limit: int = 25) -> Optional[list]:
+    """This guild's recent settings changes, newest first.
+
+    Only ever this guild's, and only the fields SETTINGS_FIELDS names -- an
+    admin can see who changed their own server's configuration, which is what
+    an audit trail is for, and nothing about any other server.
+
+    Actor names are resolved from the gateway cache when the member is still
+    around, and left as an id when they are not. No REST call: an admin who
+    left is exactly the entry worth keeping, and paying a fetch per row to
+    prettify history would make this the most expensive read on the page.
+    """
+    try:
+        guild = bot.get_guild(int(guild_id))
+        with session_scope() as session:
+            rows = (
+                session.query(DashboardAudit)
+                .filter_by(server_id=panel_view_key(guild_id))
+                .order_by(DashboardAudit.id.desc())
+                .limit(max(1, min(int(limit), MAX_AUDIT_ROWS)))
+                .all()
+            )
+            entries = []
+            for row in rows:
+                member = None
+                if guild is not None:
+                    try:
+                        member = guild.get_member(int(row.actor_id))
+                    except (TypeError, ValueError):
+                        member = None
+                entries.append(
+                    {
+                        "actor_id": row.actor_id,
+                        "actor_name": getattr(member, "display_name", None),
+                        "field": row.field,
+                        "old_value": row.old_value,
+                        "new_value": row.new_value,
+                        "changed_at": (
+                            row.changed_at.isoformat() if row.changed_at else None
+                        ),
+                    }
+                )
+            return entries
+    except Exception:
+        logger.warning(
+            "Could not read the audit trail for guild %s.", guild_id, exc_info=True
+        )
+        return None
+
+
 def _record_dashboard_audit(session, guild_id, actor_id, changed: list) -> None:
     """Append one row per field that actually moved.
 
@@ -5133,6 +5187,7 @@ def build_bot_api_deps() -> bot_api.BotAPIDeps:
         read_roles=read_dashboard_roles,
         read_channels=read_dashboard_channels,
         read_panel=read_dashboard_panel,
+        read_audit=read_dashboard_audit,
         write_settings=write_dashboard_settings,
     )
 
