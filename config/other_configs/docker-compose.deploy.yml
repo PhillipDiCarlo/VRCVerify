@@ -28,6 +28,35 @@ services:
       REST_TTL_SECONDS: ${REST_TTL_SECONDS:-180}
       REST_CACHE_MAX: ${REST_CACHE_MAX:-10000}
       REST_CONCURRENCY: ${REST_CONCURRENCY:-8}
+      # Internal API for the web dashboard (issue #65). Unset by default, so
+      # nothing binds. See .env.example before switching it on.
+      BOT_API_ENABLED: ${BOT_API_ENABLED:-}
+      BOT_API_BIND: ${BOT_API_BIND:-}
+      BOT_API_PORT: ${BOT_API_PORT:-5002}
+      BOT_API_CERT: ${BOT_API_CERT:-}
+      BOT_API_KEY: ${BOT_API_KEY:-}
+      BOT_API_CA: ${BOT_API_CA:-}
+      BOT_API_CLIENT_CN: ${BOT_API_CLIENT_CN:-}
+      BOT_API_TOKEN_SIGNING_KEY: ${BOT_API_TOKEN_SIGNING_KEY:-}
+    #
+    # TURNING THE API ON ALSO NEEDS THE TWO LINES BELOW UNCOMMENTED.
+    #
+    # There is deliberately no `ports:` mapping, and there should never be one.
+    # A bridged container cannot bind the host's tailnet address, so the usual
+    # workaround is to listen on 0.0.0.0 inside the container and publish it as
+    # `100.64.0.2:5002:5002`. The bot refuses to start on 0.0.0.0 precisely so
+    # that arrangement is not available: it puts one typo (a dropped IP prefix
+    # in the publish rule) between this port and the whole internet, and the
+    # container itself has no idea anything is wrong.
+    #
+    # Host networking instead means BOT_API_BIND is a real host interface and
+    # the refusal above means exactly what it says. Check DATABASE_URL and
+    # RABBITMQ_HOST before switching: on host networking, container names stop
+    # resolving and both must name a host address.
+    #
+    # network_mode: host
+    # volumes:
+    #   - ${BOT_API_CERT_DIR:-./certs}:/certs:ro
     restart: unless-stopped
 
   vrc-online-checker:

@@ -35,6 +35,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from locales import localizations, LANGUAGE_CODES
+import bot_api
 
 
 # --- Localization Helpers ---
@@ -500,6 +501,18 @@ class _TTLCache:
 _member_fetch_cache = _TTLCache(REST_CACHE_MAX, REST_TTL_SECONDS)
 _rest_semaphore = asyncio.Semaphore(REST_CONCURRENCY)
 
+# Dashboard Administrator verdicts, cached separately from the member fetches
+# above and for far less time. 180 seconds is the right answer for the
+# verification path, where a slightly stale member costs nothing; it is the
+# wrong answer for an authority check, because it is also how long a demoted
+# admin would keep configuring the server after their role was pulled.
+#
+# 15s keeps a settings page (four API calls) to one lookup while making
+# revocation effectively immediate. Set 0 to expire entries as fast as the
+# clock allows, paying a REST call per check.
+BOT_API_ADMIN_TTL = _int_env("BOT_API_ADMIN_TTL", 15, minimum=0)
+_admin_check_cache = _TTLCache(REST_CACHE_MAX, BOT_API_ADMIN_TTL)
+
 async def fetch_member_cached(guild: discord.Guild, user_id: int) -> discord.Member | None:
     if not guild:
         return None
@@ -534,6 +547,12 @@ class VRCVerifyBot(discord.Client):
         self.add_view(VRCVerifyInstructionView(locale="en-US"))
         # Sync slash commands to the server
         await self.tree.sync()
+
+    async def close(self):
+        # Stop listening before the gateway goes away, so the dashboard gets a
+        # refused connection rather than requests the bot can no longer answer.
+        await stop_bot_api()
+        await super().close()
 
 
 bot = VRCVerifyBot()
@@ -633,6 +652,65 @@ FEATURE_BRANDED_PANEL = "branded_panel"
 # The reduced cooldown and the activity log are new, so nobody is losing them.
 GRANDFATHERED_FEATURES = frozenset(
     {FEATURE_UNVERIFIED_ROLE_REMOVAL, FEATURE_NICKNAME_SYNC, FEATURE_CUSTOM_DM}
+)
+
+
+class SettingsField:
+    """One configurable setting, and exactly how its plan gate behaves.
+
+    Gating in this bot bites in two different places, and the difference is not
+    an accident:
+
+    * `auto_nickname_change` and the panel branding are refused at *save* time —
+      PagedSettingsView disables the control and deliberately leaves the stored
+      value untouched, so an admin who subscribes later gets their original
+      choice back.
+    * `unverified_role_id` and the custom DM are saved by anyone. /vrcverify_setup
+      stores an unverified role for a free server quite happily; the gate is in
+      assign_role, which simply doesn't act on it.
+
+    A dashboard that guessed would end up stricter than the bot on two settings
+    and admins would find the website refusing to show them something they can
+    plainly set with a slash command. So the difference is written down here,
+    once, and both the API and (later) the write path read it from here.
+
+    `write_locked` says whether an unavailable feature blocks the save.
+    `active` — feature allowed right now — is what the "not active on your plan"
+    badge keys off, and it is reported for locked and unlocked fields alike.
+    """
+
+    def __init__(self, name: str, feature: Optional[str], write_locked: bool):
+        self.name = name
+        self.feature = feature
+        self.write_locked = write_locked
+
+    def state(self, flags: "PremiumFlags") -> dict:
+        active = self.feature is None or flags.allows(self.feature)
+        return {
+            "feature": self.feature,
+            "active": active,
+            "locked": bool(self.write_locked and not active),
+        }
+
+
+# The complete set of settings the dashboard may ever see or set. An explicit
+# allowlist rather than "whatever columns exist": the API cannot express
+# "update an arbitrary row" if it only knows about these.
+SETTINGS_FIELDS = (
+    SettingsField("role_id", None, write_locked=False),
+    SettingsField(
+        "unverified_role_id", FEATURE_UNVERIFIED_ROLE_REMOVAL, write_locked=False
+    ),
+    # Never gated, for anyone, ever. See the note above the FEATURE_ constants.
+    SettingsField("auto_verify_new_members", None, write_locked=False),
+    SettingsField("auto_nickname_change", FEATURE_NICKNAME_SYNC, write_locked=True),
+    SettingsField(
+        "custom_verification_requested_message", FEATURE_CUSTOM_DM, write_locked=False
+    ),
+    SettingsField("instructions_locale", None, write_locked=False),
+    SettingsField("panel_embed_color", FEATURE_BRANDED_PANEL, write_locked=True),
+    SettingsField("panel_show_icon", FEATURE_BRANDED_PANEL, write_locked=True),
+    SettingsField("verification_log_channel_id", FEATURE_ACTIVITY_LOG, write_locked=True),
 )
 
 # The grandfather line is drawn on the servers table's autoincrementing primary
@@ -4292,6 +4370,392 @@ async def watch_update_trigger_file(path: str = None, poll_interval: int = 5):
 background_tasks = {}
 
 
+# -------------------------------------------------------------------
+# Dashboard API (issue #65)
+# -------------------------------------------------------------------
+# The readers the web dashboard is allowed to reach, and nothing else. They
+# take and return plain data so src/bot_api.py never has to touch a discord.py
+# object, a session, or a model — see the module docstring there for why that
+# separation is a security control rather than a style preference.
+def dashboard_guild_present(guild_id) -> bool:
+    """Is the bot in this guild? A cache lookup; never a REST call."""
+    try:
+        return bot.get_guild(int(guild_id)) is not None
+    except (TypeError, ValueError):
+        return False
+
+
+async def dashboard_is_admin(guild_id, user_id) -> bool:
+    """The authority check, answered by the bot and nobody else.
+
+    Deliberately not derived from the `permissions` field Discord handed the
+    dashboard at login: that describes the user's guilds as of their last OAuth
+    round trip, and an admin demoted since then would keep working until their
+    session expired.
+
+    It also deliberately does NOT use fetch_member_cached. That cache serves
+    the verification hot path at REST_TTL_SECONDS (180s by default), and
+    reusing it here would mean a demoted admin — or a compromised account
+    someone is busy locking out — kept dashboard access for up to three
+    minutes. Revoking an admin role is the *first* thing anyone does during an
+    incident, so that is exactly the window that must not be three minutes.
+    BOT_API_ADMIN_TTL (15s) bounds it instead, and it is a separate cache so
+    tuning one workload can never silently widen the other.
+
+    Owner first because it needs no member at all — `guild.owner_id` is always
+    cached, an owner always has Administrator, and it saves a REST call on the
+    single most common case.
+    """
+    try:
+        guild = bot.get_guild(int(guild_id))
+        if guild is None:
+            return False
+        member_id = int(user_id)
+        if member_id == guild.owner_id:
+            return True
+
+        key = (guild.id, member_id)
+        cached = _admin_check_cache.get(key)
+        if cached is not None:
+            return bool(cached.allowed)
+
+        # The gateway cache first: it is free, and GUILD_MEMBER_UPDATE keeps it
+        # current. MemberCacheFlags is none() here so it usually misses, which
+        # is why the fetch below is the path that normally answers.
+        member = guild.get_member(member_id)
+        if member is None:
+            async with _rest_semaphore:
+                try:
+                    member = await guild.fetch_member(member_id)
+                except discord.NotFound:
+                    member = None
+
+        allowed = bool(member is not None and member.guild_permissions.administrator)
+        # Only the verdict is cached, not the member. A stale Member object is
+        # a permission answer waiting to be recomputed wrongly somewhere else.
+        _admin_check_cache.set(key, SimpleNamespace(allowed=allowed))
+        return allowed
+    except Exception:
+        # Fail closed. An unanswerable authority question is a "no".
+        logger.warning(
+            "Could not resolve dashboard admin rights for user %s in guild %s.",
+            user_id,
+            guild_id,
+            exc_info=True,
+        )
+        return False
+
+
+async def dashboard_admin_guilds(user_id, guild_ids) -> Optional[list]:
+    """Narrow a caller's own guild list to the ones they administer.
+
+    The picker's data source. Presence is checked first because it is free and
+    because it throws away most of the work: an id the bot has never joined
+    costs nothing and, importantly, is reported identically to a guild the
+    caller simply does not administer. The caller cannot tell those two apart,
+    which is the whole point — see handle_list_guilds in bot_api.py for what
+    went wrong when this endpoint answered on presence alone.
+    """
+    try:
+        member_id = int(user_id)
+        candidates = []
+        for guild_id in guild_ids:
+            try:
+                candidate = int(guild_id)
+            except (TypeError, ValueError):
+                continue
+            if bot.get_guild(candidate) is not None:
+                candidates.append(candidate)
+
+        if not candidates:
+            return []
+
+        # Concurrently, but every fetch inside dashboard_is_admin still passes
+        # through _rest_semaphore, so this cannot outrun the REST budget the
+        # rest of the bot shares.
+        verdicts = await asyncio.gather(
+            *(dashboard_is_admin(candidate, member_id) for candidate in candidates),
+            return_exceptions=True,
+        )
+        return [
+            candidate
+            for candidate, allowed in zip(candidates, verdicts)
+            if allowed is True
+        ]
+    except Exception:
+        logger.warning(
+            "Could not resolve the dashboard guild list for user %s.",
+            user_id,
+            exc_info=True,
+        )
+        return None
+
+
+async def read_dashboard_settings(guild_id) -> Optional[dict]:
+    """Every setting in SETTINGS_FIELDS, with its plan state resolved.
+
+    Returns None when the answer can't be trusted, which the API turns into a
+    503 rather than into a page showing defaults an admin never chose.
+    """
+    try:
+        flags = await resolve_premium_flags(guild_id)
+
+        # Same guard /vrcverify_settings uses: the column post-dates some
+        # deployments and a missing one must not break the whole read.
+        has_auto_verify = server_has_column("auto_verify_new_members")
+
+        with session_scope() as session:
+            srv = (
+                session.query(Server)
+                .filter_by(server_id=panel_view_key(guild_id))
+                .first()
+            )
+            if srv is None:
+                values = {
+                    "role_id": None,
+                    "unverified_role_id": None,
+                    "auto_verify_new_members": True,
+                    "auto_nickname_change": False,
+                    "custom_verification_requested_message": None,
+                    "instructions_locale": "en-US",
+                }
+            else:
+                raw_auto_verify = getattr(srv, "auto_verify_new_members", None)
+                values = {
+                    "role_id": srv.role_id,
+                    "unverified_role_id": getattr(srv, "unverified_role_id", None),
+                    "auto_verify_new_members": (
+                        True if raw_auto_verify is None else bool(raw_auto_verify)
+                    ),
+                    "auto_nickname_change": bool(srv.auto_nickname_change),
+                    "custom_verification_requested_message": (
+                        srv.custom_verification_requested_message
+                    ),
+                    "instructions_locale": srv.instructions_locale or "en-US",
+                }
+
+        branding = load_panel_branding(guild_id)
+        if branding is BRANDING_UNREADABLE:
+            # Showing "default blue, no icon" for a server that chose otherwise
+            # would be a lie, and the step-6 write path would then save the lie
+            # back. Refuse the read instead, exactly as restyle does.
+            return None
+        embed_color, show_icon = branding if isinstance(branding, tuple) else (None, False)
+        values["panel_embed_color"] = embed_color
+        values["panel_show_icon"] = bool(show_icon)
+        values["verification_log_channel_id"] = load_log_channel_id(guild_id)
+
+        return {
+            "guild_id": str(guild_id),
+            "premium": {
+                "enforced": PREMIUM_ENFORCED,
+                "premium": flags.premium,
+                "grandfathered": flags.grandfathered,
+            },
+            # A column the deployed database is missing is reported as such
+            # rather than silently rendered as a working toggle.
+            "auto_verify_column_present": has_auto_verify,
+            "fields": {
+                field.name: {"value": values.get(field.name), **field.state(flags)}
+                for field in SETTINGS_FIELDS
+            },
+        }
+    except Exception:
+        logger.warning(
+            "Could not read dashboard settings for guild %s.", guild_id, exc_info=True
+        )
+        return None
+
+
+async def read_dashboard_roles(guild_id) -> Optional[list]:
+    """This guild's roles, with whether the bot could actually grant each one.
+
+    `assignable` is new information. Today an unassignable verified role is
+    only discovered when assign_role catches a Forbidden mid-verification, by
+    which point a member is already waiting — the point of putting it in the
+    picker is that the admin finds out while choosing.
+
+    It is None, not False, when `guild.me` is unavailable: "we cannot tell" and
+    "we checked and no" are different answers, and greying out every role
+    because the bot's own member object was missing would be the worse guess.
+    """
+    try:
+        guild = bot.get_guild(int(guild_id))
+        if guild is None:
+            return None
+        me = guild.me
+        top_role = me.top_role if me is not None else None
+
+        roles = []
+        for role in guild.roles:
+            if role.is_default():
+                continue  # @everyone: not a choice, never assignable
+            if top_role is None:
+                assignable = None
+            else:
+                # Managed roles belong to an integration and cannot be granted
+                # by anyone, whatever the hierarchy says.
+                assignable = bool(not role.managed and top_role > role)
+            roles.append(
+                {
+                    "id": str(role.id),
+                    "name": role.name,
+                    "position": role.position,
+                    "color": role.color.value,
+                    "managed": bool(role.managed),
+                    "assignable": assignable,
+                }
+            )
+        roles.sort(key=lambda entry: entry["position"], reverse=True)
+        return roles
+    except Exception:
+        logger.warning("Could not read roles for guild %s.", guild_id, exc_info=True)
+        return None
+
+
+async def read_dashboard_channels(guild_id) -> Optional[list]:
+    """Text channels, flagged the way /vrcverify_logchannel judges them.
+
+    `is_news` is surfaced because an announcement channel is refused outright
+    for the verification log: other servers can *follow* it, which would
+    republish an age disclosure about a named member into servers they have no
+    relationship with.
+    """
+    try:
+        guild = bot.get_guild(int(guild_id))
+        if guild is None:
+            return None
+        me = guild.me
+
+        channels = []
+        for channel in guild.text_channels:
+            if me is None:
+                can_send = None
+            else:
+                perms = channel.permissions_for(me)
+                can_send = bool(perms.view_channel and perms.send_messages)
+            channels.append(
+                {
+                    "id": str(channel.id),
+                    "name": channel.name,
+                    "category": channel.category.name if channel.category else None,
+                    "position": channel.position,
+                    "is_news": bool(channel.is_news()),
+                    "can_send": can_send,
+                }
+            )
+        channels.sort(key=lambda entry: entry["position"])
+        return channels
+    except Exception:
+        logger.warning("Could not read channels for guild %s.", guild_id, exc_info=True)
+        return None
+
+
+async def read_dashboard_panel(guild_id) -> Optional[dict]:
+    """Where this guild's instructions panel is, and whether it looks reachable.
+
+    A read only. probe_instruction_panel() would answer more precisely but it
+    *edits* the message to do it, and a page load must not rewrite a panel.
+
+    Only the channel is checked, not the message: confirming the message still
+    exists costs a REST call per page load. Note also that load_instruction_panel
+    returns None both for "never posted" and for "the database could not be
+    read", so `posted: false` is not proof no panel exists — whatever offers to
+    repost a panel in step 6 has to confirm before it posts a duplicate.
+    """
+    try:
+        entry = load_instruction_panel(guild_id)
+        if entry is None or not entry.get("channel_id"):
+            return {"posted": False}
+
+        guild = bot.get_guild(int(guild_id))
+        channel = None
+        if guild is not None:
+            try:
+                channel = guild.get_channel_or_thread(int(entry["channel_id"]))
+            except (TypeError, ValueError):
+                channel = None
+
+        reachable = None
+        if guild is not None and guild.me is not None and channel is not None:
+            perms = channel.permissions_for(guild.me)
+            reachable = bool(perms.view_channel and perms.send_messages)
+
+        return {
+            "posted": True,
+            "channel_id": str(entry["channel_id"]),
+            "message_id": str(entry["message_id"]),
+            "channel_name": getattr(channel, "name", None),
+            "channel_exists": channel is not None,
+            "channel_reachable": reachable,
+            "locale": entry.get("locale", "en-US"),
+        }
+    except Exception:
+        logger.warning("Could not read the panel for guild %s.", guild_id, exc_info=True)
+        return None
+
+
+def build_bot_api_deps() -> bot_api.BotAPIDeps:
+    """Hand the API its complete set of capabilities. All of them reads."""
+    return bot_api.BotAPIDeps(
+        is_ready=bot.is_ready,
+        guild_present=dashboard_guild_present,
+        is_admin=dashboard_is_admin,
+        read_admin_guilds=dashboard_admin_guilds,
+        read_settings=read_dashboard_settings,
+        read_roles=read_dashboard_roles,
+        read_channels=read_dashboard_channels,
+        read_panel=read_dashboard_panel,
+    )
+
+
+_bot_api_server: Optional[bot_api.BotAPIServer] = None
+
+
+async def start_bot_api() -> None:
+    """Bring the API up, if it is switched on and correctly configured.
+
+    A bad configuration stops the API, not the bot. Verification is the product
+    and it must keep working through an expired dashboard certificate — but the
+    listener never comes up in a weaker shape than intended, and the log says so
+    at ERROR rather than leaving an operator to wonder.
+    """
+    global _bot_api_server
+    if _bot_api_server is not None:
+        return  # on_ready fires again on every reconnect.
+
+    try:
+        config = bot_api.BotAPIConfig.from_env()
+    except bot_api.BotAPIConfigError as error:
+        logger.error("⚠️ Bot API is enabled but misconfigured; not starting it: %s", error)
+        return
+
+    if config is None:
+        logger.info(
+            "Bot API is disabled (BOT_API_ENABLED unset); nothing is listening."
+        )
+        return
+
+    try:
+        server = bot_api.BotAPIServer(config, build_bot_api_deps())
+        await server.start()
+        _bot_api_server = server
+    except Exception:
+        logger.error("⚠️ Bot API failed to start; continuing without it.", exc_info=True)
+
+
+async def stop_bot_api() -> None:
+    global _bot_api_server
+    if _bot_api_server is None:
+        return
+    try:
+        await _bot_api_server.stop()
+    except Exception:
+        logger.warning("Bot API did not shut down cleanly.", exc_info=True)
+    finally:
+        _bot_api_server = None
+
+
 def start_background_task(name: str, coro, run_once: bool = False):
     """Schedule `coro` under `name`, unless that task is already accounted for.
 
@@ -4374,6 +4838,11 @@ async def on_ready():
     start_background_task(
         "instructions_trigger_watcher", watch_update_trigger_file(trigger_path, poll)
     )
+
+    # The dashboard's door. Does nothing at all unless BOT_API_ENABLED is set,
+    # and awaited rather than backgrounded so a refusal to bind is reported
+    # here, in startup order, instead of surfacing later as a dead task.
+    await start_bot_api()
 
     # Panel refresh logs its own completion summary once it finishes.
     logger.info("Bot startup tasks launched and ready to go!")

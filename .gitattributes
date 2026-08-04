@@ -1,0 +1,7 @@
+# Shell scripts are written on Windows but run on the Linux deploy host, where
+# CRLF line endings produce "bad interpreter: /bin/bash^M" and the script never
+# runs. Pin them to LF so this does not depend on each clone's core.autocrlf.
+*.sh text eol=lf
+
+# PowerShell scripts are the Windows-side counterparts.
+*.ps1 text eol=crlf

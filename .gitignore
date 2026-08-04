@@ -173,6 +173,19 @@ cython_debug/
 # Local security audit notes (never commit)
 SECURITY_AUDIT.md
 
+# VPS provisioning runbook — names the real host, firewall layout and tailnet
+# addresses. Same reasoning as the audit above: the repo is public.
+VPS_RUNBOOK.md
+
+# Bot API mTLS material (scripts/gen_bot_api_certs.*). The private keys are
+# what the whole dashboard trust chain rests on, and ca.key can mint a client
+# the bot will trust. Broad on purpose — none of these may ever be committed.
+certs/
+*.key
+*.pem
+*.csr
+*.srl
+
 # VRChat session cookie store (VRCHAT_SESSION_FILE) - an auth credential.
 # Broad on purpose: any of these are plausible local VRCHAT_SESSION_FILE
 # values and none of them may ever be committed.
