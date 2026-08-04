@@ -117,6 +117,22 @@ def _require_file(name: str) -> str:
     path = _require(name)
     if not os.path.isfile(path):
         raise DashboardConfigError(f"{name} points at {path!r}, which is not a file.")
+    if not os.access(path, os.R_OK):
+        # Existence is not enough, and checking only existence is how this
+        # fails in the worst possible way: os.path.isfile is a stat, which
+        # succeeds on a file the process cannot open. The service then starts
+        # cleanly, serves pages, and dies at the first TLS handshake with an
+        # error that names neither the file nor the reason.
+        #
+        # In a container this is almost always ownership rather than mode: the
+        # image runs as uid 10001 and a key mounted from the host usually
+        # belongs to whoever generated it, at 0600.
+        raise DashboardConfigError(
+            f"{name} points at {path!r}, which this process cannot read. "
+            "If this is a container, check the file's owner against the uid "
+            "the image runs as -- mode 0600 plus a different owner reads as "
+            "'exists' but not as 'readable'."
+        )
     return path
 
 

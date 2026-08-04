@@ -515,3 +515,47 @@ class TestReadOnlyPhase:
         source = open(module.__file__, encoding="utf-8").read()
         for forbidden in ("DATABASE_URL", "psycopg2", "sqlalchemy", "DISCORD_BOT_TOKEN"):
             assert forbidden not in source
+
+
+class TestUnreadableCredentials:
+    """The same gap on the dashboard side, and the one that actually bit.
+
+    The client certificate key was mounted mode 0600 owned by the host user
+    while the image runs as uid 10001. `os.path.isfile` succeeded, the app
+    started, served the login page, and then failed every call to the bot with
+    a TLS error that named nothing useful. Checking readability turns that into
+    a refusal to start, with the cause in the message.
+    """
+
+    def test_an_unreadable_client_key_refuses_to_start(
+        self, monkeypatch, certs, tmp_path
+    ):
+        import os as os_module
+
+        from dashboard import config as config_module
+
+        key = certs / "client.key"
+        real_access = os_module.access
+
+        def no_read(path, mode):
+            if str(path) == str(key) and mode == os_module.R_OK:
+                return False
+            return real_access(path, mode)
+
+        monkeypatch.setattr(config_module.os, "access", no_read)
+        for name, value in {
+            "DISCORD_CLIENT_ID": "123",
+            "DISCORD_CLIENT_SECRET": "shh",
+            "OAUTH_REDIRECT_URI": "https://dashboard.vrcverify.com/callback",
+            "DASHBOARD_SECRET_KEY": SECRET_KEY,
+            "BOT_API_URL": "https://100.117.6.99:5002",
+            "BOT_API_CLIENT_CERT": str(certs / "client.pem"),
+            "BOT_API_CLIENT_KEY": str(key),
+            "BOT_API_CA": str(certs / "ca.pem"),
+            "BOT_API_TOKEN_SIGNING_KEY": SIGNING_KEY,
+        }.items():
+            monkeypatch.setenv(name, value)
+
+        with pytest.raises(DashboardConfigError) as error:
+            DashboardConfig.from_env()
+        assert "cannot read" in str(error.value)
