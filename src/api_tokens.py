@@ -43,6 +43,8 @@ OP_GUILD_AUDIT = "GET /api/v1/guilds/{guild_id}/audit"
 # The method is part of the operation, so a token minted to read a guild's
 # settings cannot be replayed to write them.
 OP_UPDATE_SETTINGS = "PATCH /api/v1/guilds/{guild_id}/settings"
+# An action, not a setting: it makes the bot post in a server.
+OP_POST_PANEL = "POST /api/v1/guilds/{guild_id}/panel"
 
 # Tokens are minted per request and used immediately. Thirty seconds is
 # generous for a call across a tunnel and short enough that a captured token is

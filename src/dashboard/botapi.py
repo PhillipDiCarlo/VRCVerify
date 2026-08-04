@@ -30,6 +30,7 @@ from api_tokens import (
     OP_GUILD_ROLES,
     OP_GUILD_SETTINGS,
     OP_GUILD_AUDIT,
+    OP_POST_PANEL,
     OP_LIST_GUILDS,
     OP_UPDATE_SETTINGS,
     mint_token,
@@ -205,6 +206,45 @@ class BotAPIClient:
             reason,
         )
         raise BotAPIError(reason or "bot API refused the save", response.status_code)
+
+    def post_panel(self, actor_id: int, guild_id, channel_id) -> dict:
+        """Ask the bot to put the instructions panel in this channel.
+
+        Whether that means posting a new one or refreshing the existing one is
+        the bot's call, not ours -- it is the only side that can see where the
+        panel actually is.
+        """
+        token = mint_token(
+            self.signing_key,
+            actor_id=int(actor_id),
+            operation=OP_POST_PANEL,
+            guild_id=int(guild_id),
+        )
+        try:
+            response = self._session.post(
+                f"{self.base_url}/api/v1/guilds/{int(guild_id)}/panel",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"channel_id": str(channel_id)},
+                timeout=self.timeout,
+            )
+        except requests.exceptions.SSLError as error:
+            raise BotAPIError(f"TLS failure talking to the bot API: {error}") from error
+        except requests.RequestException as error:
+            raise BotAPIError(f"could not reach the bot API: {error}") from error
+
+        if response.status_code == 200:
+            return response.json()
+
+        reason = ""
+        try:
+            reason = response.json().get("error", "")
+        except ValueError:
+            pass
+        logger.warning(
+            "bot API refused a panel post for actor=%s guild=%s: %s %s",
+            actor_id, guild_id, response.status_code, reason,
+        )
+        raise BotAPIError(reason or "bot API refused the panel post", response.status_code)
 
     def audit(self, actor_id: int, guild_id) -> list:
         return self._get(

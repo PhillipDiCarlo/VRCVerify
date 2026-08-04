@@ -4926,6 +4926,151 @@ async def read_dashboard_panel(guild_id) -> Optional[dict]:
         return None
 
 
+def _stored_panel_location(guild_id):
+    """This guild's recorded panel ids, distinguishing "none" from "unknown".
+
+    load_instruction_panel returns None for both, which is fine for a refresh
+    sweep and dangerous here: "no panel recorded" is the one condition under
+    which posting a new one is safe, and a database hiccup must not be allowed
+    to look like it. Raises rather than returning a sentinel, so a caller
+    cannot forget to check.
+    """
+    with session_scope() as session:
+        server = (
+            session.query(Server)
+            .filter_by(server_id=panel_view_key(guild_id))
+            .first()
+        )
+        if server is None or not server.instructions_message_id:
+            return None
+        return {
+            "server_id": server.server_id,
+            "channel_id": server.instructions_channel_id,
+            "message_id": server.instructions_message_id,
+            "locale": server.instructions_locale or "en-US",
+        }
+
+
+async def post_dashboard_panel(guild_id, actor_id, channel_id):
+    """Put this guild's instructions panel where the admin asked for it.
+
+    The only thing the dashboard can make the bot *do* in a server, as opposed
+    to store, so it is deliberately hard to do twice by accident:
+
+    * A panel already in the requested channel is REFRESHED -- the same
+      one-call edit the fleet sweep uses -- rather than posted again. A double
+      click therefore costs an edit, not a second panel with live buttons that
+      nothing tracks.
+    * A panel recorded elsewhere is a MOVE. The new one is posted and the ids
+      re-pointed, and the caller is told where the old one still is so an admin
+      can remove it. Deleting it here would be this code destroying a message
+      nobody pointed at.
+    * If the recorded location cannot be read at all, nothing is posted. That
+      is the case where "no panel exists" and "the database blinked" look
+      identical, and guessing wrong leaves a duplicate.
+
+    Returns a dict describing what happened, or None when it could not be done.
+    """
+    guild = bot.get_guild(int(guild_id))
+    if guild is None or guild.me is None:
+        return None
+
+    channel = next(
+        (c for c in guild.text_channels if str(c.id) == str(channel_id)), None
+    )
+    if channel is None:
+        raise SettingRejected("panel_channel", "channel_not_in_guild")
+    perms = channel.permissions_for(guild.me)
+    if not (perms.view_channel and perms.send_messages and perms.embed_links):
+        raise SettingRejected("panel_channel", "channel_not_writable")
+
+    try:
+        existing = _stored_panel_location(guild_id)
+    except Exception:
+        logger.warning(
+            "Could not read the panel location for guild %s; not posting.",
+            guild_id,
+            exc_info=True,
+        )
+        return None
+
+    # --- Already there: refresh in place ---
+    if existing and str(existing.get("channel_id")) == str(channel.id):
+        outcome = await probe_instruction_panel(existing, rebuild_embed=True)
+        if outcome == "ok":
+            _audit_panel(guild_id, actor_id, "refreshed", channel.id)
+            return {"action": "refreshed", "channel_id": str(channel.id)}
+        if outcome in {"gone", "missing_ids", "malformed"}:
+            # The record points at a message that is not there any more, so
+            # this is a first post rather than a duplicate.
+            existing = None
+        elif outcome == "forbidden":
+            raise SettingRejected("panel_channel", "channel_not_writable")
+        else:
+            return None
+
+    # --- Post a new one ---
+    style = await resolve_panel_style(guild_id, guild)
+    color, icon = style if style else (DEFAULT_PANEL_COLOR, None)
+    locale = get_server_locale_code(guild_id, guild)
+    embed = build_instructions_embed(locale, color, icon)
+
+    try:
+        message = await channel.send(
+            embed=embed, view=VRCVerifyInstructionView(locale=locale)
+        )
+    except discord.Forbidden:
+        raise SettingRejected("panel_channel", "channel_not_writable")
+    except Exception:
+        logger.exception("Failed to post the instructions panel for %s", guild_id)
+        return None
+
+    previous = str(existing["channel_id"]) if existing else None
+    try:
+        with session_scope() as session:
+            server = (
+                session.query(Server)
+                .filter_by(server_id=panel_view_key(guild_id))
+                .first()
+            )
+            if server is None:
+                # Same reasoning as /vrcverify_instructions: the panel is up, so
+                # something has to track it or the startup refresh never sees it.
+                server = Server(server_id=str(guild_id), owner_id=str(actor_id))
+                session.add(server)
+            server.instructions_channel_id = str(channel.id)
+            server.instructions_message_id = str(message.id)
+    except Exception:
+        # The message is already posted; failing to record it would leave an
+        # untracked panel, which is worse than saying the save half-failed.
+        logger.exception("Posted a panel for %s but could not record it", guild_id)
+        return None
+
+    record_panel_view_version(guild_id)
+    complete_guild_onboarding(guild_id)
+    _audit_panel(guild_id, actor_id, "moved" if previous else "posted", channel.id)
+    return {
+        "action": "moved" if previous else "posted",
+        "channel_id": str(channel.id),
+        "previous_channel_id": previous,
+    }
+
+
+def _audit_panel(guild_id, actor_id, action: str, channel_id) -> None:
+    try:
+        with session_scope() as session:
+            _record_dashboard_audit(
+                session,
+                guild_id,
+                actor_id,
+                [("instructions_panel", action, str(channel_id))],
+            )
+    except Exception:
+        logger.warning(
+            "Could not record the panel action for guild %s.", guild_id, exc_info=True
+        )
+
+
 async def read_dashboard_audit(guild_id, limit: int = 25) -> Optional[list]:
     """This guild's recent settings changes, newest first.
 
@@ -5189,6 +5334,7 @@ def build_bot_api_deps() -> bot_api.BotAPIDeps:
         read_panel=read_dashboard_panel,
         read_audit=read_dashboard_audit,
         write_settings=write_dashboard_settings,
+        post_panel=post_dashboard_panel,
     )
 
 

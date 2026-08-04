@@ -338,6 +338,17 @@ def build_groups(
             "blurb": "The message members use to start verification.",
             "fields": [locale, color, icon],
             "panel": panel_summary(panel),
+            # Where the panel may be posted. Announcement channels are NOT
+            # filtered out, unlike the log channel's picker: the panel is public
+            # instructions, and /vrcverify_instructions can be run in one, so
+            # excluding them would be stricter than the bot. Channels the bot
+            # cannot post in are excluded, because that is not a choice.
+            "panel_channels": [
+                (str(channel.get("id")), f"#{channel.get('name') or channel.get('id')}")
+                for channel in (channels or [])
+                if channel.get("can_send") is not False
+            ],
+            "panel_channel_id": (panel or {}).get("channel_id") or "",
             # The only group with a save path so far. The template renders a
             # form when a group names an endpoint AND the bot said at least one
             # of its fields is writable, so opening the next group is a change

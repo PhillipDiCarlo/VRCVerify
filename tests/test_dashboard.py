@@ -193,6 +193,7 @@ class FakeBotAPI:
         channels=None,
         panel=None,
         audit=None,
+        panel_result=None,
         errors=None,
     ):
         self.installed = {str(g) for g in installed}
@@ -200,11 +201,16 @@ class FakeBotAPI:
         self.calls = []
         self.reads = []
         self.saves = []
+        self.panel_posts = []
         self._settings = settings
         self._roles = DEFAULT_ROLES if roles is None else roles
         self._channels = DEFAULT_CHANNELS if channels is None else channels
         self._panel = {"posted": False} if panel is None else panel
         self._audit = [] if audit is None else audit
+        self._panel_result = (
+            {"action": "posted", "channel_id": LOG_CHANNEL}
+            if panel_result is None else panel_result
+        )
         # {"settings": BotAPIError(...), ...} -- per-endpoint failures, so a
         # secondary read can be broken without breaking the page.
         self.errors = errors or {}
@@ -240,6 +246,12 @@ class FakeBotAPI:
 
     def audit(self, actor_id, guild_id):
         return self._answer("audit", actor_id, guild_id, self._audit)
+
+    def post_panel(self, actor_id, guild_id, channel_id):
+        self.panel_posts.append((str(actor_id), str(guild_id), str(channel_id)))
+        if "post_panel" in self.errors:
+            raise self.errors["post_panel"]
+        return self._panel_result
 
     def update_settings(self, actor_id, guild_id, changes):
         self.saves.append((str(actor_id), str(guild_id), dict(changes)))
@@ -1280,7 +1292,8 @@ class TestTheFormMatchesWhatTheBotAccepts:
             config, store, settings=make_settings(premium=True, writable=set())
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
-        assert "<form" not in page.split("Instructions panel")[-1]
+        assert 'name="panel_embed_color"' not in page
+        assert 'name="instructions_locale"' not in page
         assert "Save changes" not in page
 
     def test_the_language_options_come_from_the_bot(self, config, store):
@@ -1307,8 +1320,23 @@ class TestTheFormMatchesWhatTheBotAccepts:
             config, store, settings=make_settings(premium=True)
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
-        assert f'value="{LOG_CHANNEL}"' in page
-        assert f'value="{NEWS_CHANNEL}"' not in page
+        logging_section = page.split("<h2>Logging</h2>")[1]
+        assert f'value="{LOG_CHANNEL}"' in logging_section
+        assert f'value="{NEWS_CHANNEL}"' not in logging_section
+
+    def test_the_panel_picker_does_offer_announcement_channels(self, config, store):
+        """The opposite call from the log channel, and deliberately so.
+
+        A panel is public instructions and /vrcverify_instructions can be run
+        in an announcement channel, so excluding them would be stricter than
+        the bot. The log channel is excluded because the bot refuses it.
+        """
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(premium=True)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        panel_form = page.split('class="panel-post"')[1]
+        assert f'value="{NEWS_CHANNEL}"' in panel_form
 
     def test_a_channel_picker_with_nothing_to_pick_is_not_offered(self, config, store):
         test_client, _api = settings_client(
@@ -1437,6 +1465,85 @@ AUDIT_ENTRIES = [
         "changed_at": "2026-08-04T09:10:00+00:00",
     },
 ]
+
+
+class TestPostingThePanel:
+    """The one control that makes the bot act in a server."""
+
+    def logged_in(self, config, store, **kwargs):
+        api = FakeBotAPI(**kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        return test_client, api, login_as(test_client, store)
+
+    def post(self, test_client, session, **form):
+        form.setdefault("csrf_token", session.csrf_token)
+        return test_client.post(f"/guild/{GUILD_IN}/panel/post", data=form)
+
+    def test_the_chosen_channel_reaches_the_bot(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        assert response.status_code == 302
+        assert api.panel_posts == [(ACTOR, GUILD_IN, LOG_CHANNEL)]
+
+    @pytest.mark.parametrize(
+        "action, expected",
+        [
+            ("posted", "Panel posted."),
+            ("refreshed", "refreshed rather than posted again"),
+            ("moved", "old one is still up"),
+        ],
+    )
+    def test_what_the_bot_did_is_reported_back(self, config, store, action, expected):
+        """The bot decides between post, refresh and move; the page explains it."""
+        test_client, _api, session = self.logged_in(
+            config, store, panel_result={"action": action, "channel_id": LOG_CHANNEL}
+        )
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert expected in page
+
+    def test_an_unknown_action_says_nothing_rather_than_echoing_it(
+        self, config, store
+    ):
+        test_client, _api, session = self.logged_in(
+            config, store, panel_result={"action": "<script>alert(1)</script>"}
+        )
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "alert(1)" not in page
+
+    def test_it_needs_the_csrf_token(self, config, store):
+        test_client, api, _session = self.logged_in(config, store)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/panel/post",
+            data={"csrf_token": "wrong", "panel_channel_id": LOG_CHANNEL},
+        )
+        assert response.status_code == 400
+        assert api.panel_posts == []
+
+    def test_a_signed_out_visitor_cannot_post_a_panel(self, client, bot_api):
+        response = client.post(
+            f"/guild/{GUILD_IN}/panel/post", data={"panel_channel_id": LOG_CHANNEL}
+        )
+        assert response.status_code == 302
+        assert not getattr(bot_api, "panel_posts", [])
+
+    def test_no_channel_means_no_call(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(test_client, session)
+        assert api.panel_posts == []
+
+    def test_a_refusal_is_explained(self, config, store):
+        test_client, _api, session = self.logged_in(
+            config,
+            store,
+            errors={"post_panel": BotAPIError("channel_not_writable", 400)},
+        )
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "can&#39;t post in that channel" in page
 
 
 class TestTheChangeHistory:
@@ -1582,6 +1689,8 @@ class TestWriteSurface:
             "/guild/<int:guild_id>/member",
             "/guild/<int:guild_id>/panel",
             "/guild/<int:guild_id>/logging",
+            # The one route that makes the bot act rather than store.
+            "/guild/<int:guild_id>/panel/post",
         }, f"an unexpected write route appeared: {posts}"
 
     def test_every_group_that_saves_names_a_route_that_exists(self, app, config):

@@ -49,14 +49,15 @@ def run(coro):
 # -------------------------------------------------------------------
 # Fakes
 # -------------------------------------------------------------------
-def make_deps(written=None, **overrides) -> bot_api.BotAPIDeps:
+def make_deps(written=None, posted=None, **overrides) -> bot_api.BotAPIDeps:
     """A permissive set of capabilities, so each test breaks exactly one thing.
 
-    `written` collects what reached the writer, so a test can assert the
-    handler passed the body through unchanged -- and, more usefully, that a
-    refused request never reached it at all.
+    `written` and `posted` collect what reached the two mutating capabilities,
+    so a test can assert the handler passed the body through unchanged -- and,
+    more usefully, that a refused request never reached them at all.
     """
     written = [] if written is None else written
+    posted = [] if posted is None else posted
 
     async def is_admin(guild_id, user_id):
         return int(user_id) == ADMIN_ID
@@ -81,6 +82,10 @@ def make_deps(written=None, **overrides) -> bot_api.BotAPIDeps:
     async def read_audit(guild_id):
         return []
 
+    async def post_panel(guild_id, actor_id, channel_id):
+        posted.append((int(guild_id), int(actor_id), str(channel_id)))
+        return {"action": "posted", "channel_id": str(channel_id)}
+
     async def write_settings(guild_id, actor_id, changes):
         written.append((int(guild_id), int(actor_id), dict(changes)))
         return {"guild_id": str(guild_id), "fields": {}, "written": dict(changes)}
@@ -96,6 +101,7 @@ def make_deps(written=None, **overrides) -> bot_api.BotAPIDeps:
         read_panel=read_panel,
         read_audit=read_audit,
         write_settings=write_settings,
+        post_panel=post_panel,
     )
     defaults.update(overrides)
     return bot_api.BotAPIDeps(**defaults)
@@ -962,26 +968,27 @@ class TestTheWritePath:
         assert actor == ADMIN_ID
 
 
-class TestWriteSurfaceIsExactlyOneThing:
-    """Step 5 opens a write path. These pin how far it opens, and no further.
+class TestWriteSurfaceIsExactlyTwoThings:
+    """These pin how far the API can change things, and no further.
 
     Editing any of them is how you widen what the website can do to a server,
     which is the point: it cannot happen as a side effect of adding a route or
     a dependency.
     """
 
-    def test_the_only_write_route_is_the_settings_patch(self):
+    def test_the_only_mutating_routes_are_the_settings_patch_and_the_panel_post(self):
         app = bot_api.create_app(make_config(), make_deps())
         writes = {
             (route.method, route.resource.canonical)
             for route in app.router.routes()
             if route.method not in {"GET", "HEAD"}
         }
-        assert writes == {("PATCH", "/api/v1/guilds/{guild_id}/settings")}, (
-            f"an unexpected write route appeared: {writes}"
-        )
+        assert writes == {
+            ("PATCH", "/api/v1/guilds/{guild_id}/settings"),
+            ("POST", "/api/v1/guilds/{guild_id}/panel"),
+        }, f"an unexpected write route appeared: {writes}"
 
-    def test_the_api_holds_exactly_one_writer(self):
+    def test_the_api_holds_one_writer_and_one_action(self):
         assert bot_api.deps_field_names() == frozenset(
             {
                 "is_ready",
@@ -994,12 +1001,13 @@ class TestWriteSurfaceIsExactlyOneThing:
                 "read_panel",
                 "read_audit",
                 "write_settings",
+                "post_panel",
             }
         )
 
     def test_every_capability_is_named_for_what_it_does(self):
         for field in dataclass_fields(bot_api.BotAPIDeps):
-            assert field.name.startswith(("read_", "is_", "guild_", "write_"))
+            assert field.name.startswith(("read_", "is_", "guild_", "write_", "post_"))
 
     def test_the_module_decides_nothing_about_which_fields_are_writable(self):
         """The allowlist lives in the bot, not in the internet-facing path.
@@ -1593,6 +1601,136 @@ class TestSettingsWriter:
         make_server()
         result = write({"instructions_locale": "ja"})
         assert result == run(bot.read_dashboard_settings(GUILD_ID))
+
+
+class TestPanelAction:
+    """Posting a panel is the one thing that shows up in somebody's server."""
+
+    def setup_guild(self, monkeypatch, sendable=True, sent=None):
+        sent = [] if sent is None else sent
+
+        class Sendable(FakeChannel):
+            async def send(self, **kwargs):
+                sent.append((self.id, kwargs))
+                return SimpleNamespace(id=555000 + self.id)
+
+            def permissions_for(self, _member):
+                return SimpleNamespace(
+                    view_channel=True, send_messages=sendable, embed_links=sendable
+                )
+
+        guild = FakeGuild(
+            channels=[Sendable(70, "verify"), Sendable(71, "general", position=1)]
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        monkeypatch.setattr(
+            bot, "build_instructions_embed", lambda *a, **k: SimpleNamespace()
+        )
+        monkeypatch.setattr(
+            bot, "VRCVerifyInstructionView", lambda **k: SimpleNamespace()
+        )
+        return sent
+
+    def post(self, channel_id="70"):
+        return run(bot.post_dashboard_panel(GUILD_ID, ADMIN_ID, channel_id))
+
+    def test_a_first_post_records_where_it_went(self, monkeypatch, subscribed):
+        sent = self.setup_guild(monkeypatch)
+        make_server()
+        result = self.post()
+        assert result["action"] == "posted"
+        assert len(sent) == 1
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.instructions_channel_id == "70"
+            assert srv.instructions_message_id == "555070"
+
+    def test_posting_into_the_same_channel_refreshes_instead(
+        self, monkeypatch, subscribed
+    ):
+        """The double-click case. One edit, not a second live panel."""
+        sent = self.setup_guild(monkeypatch)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        probed = []
+
+        async def fake_probe(entry, rebuild_embed):
+            probed.append(entry)
+            return "ok"
+
+        monkeypatch.setattr(bot, "probe_instruction_panel", fake_probe)
+
+        assert self.post()["action"] == "refreshed"
+        assert sent == []          # nothing new was posted
+        assert len(probed) == 1
+
+    def test_a_different_channel_is_a_move_and_says_where_the_old_one_is(
+        self, monkeypatch, subscribed
+    ):
+        sent = self.setup_guild(monkeypatch)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        result = self.post("71")
+        assert result["action"] == "moved"
+        assert result["previous_channel_id"] == "70"
+        assert len(sent) == 1
+
+    def test_a_record_pointing_at_a_deleted_message_posts_afresh(
+        self, monkeypatch, subscribed
+    ):
+        sent = self.setup_guild(monkeypatch)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+
+        async def gone(entry, rebuild_embed):
+            return "gone"
+
+        monkeypatch.setattr(bot, "probe_instruction_panel", gone)
+        assert self.post()["action"] == "posted"
+        assert len(sent) == 1
+
+    def test_nothing_is_posted_when_the_record_cannot_be_read(
+        self, monkeypatch, subscribed
+    ):
+        """"No panel" and "the database blinked" look identical here.
+
+        Guessing wrong leaves a duplicate in somebody's server, so it refuses.
+        """
+        sent = self.setup_guild(monkeypatch)
+        make_server()
+
+        def boom(_guild_id):
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr(bot, "_stored_panel_location", boom)
+        assert self.post() is None
+        assert sent == []
+
+    def test_a_channel_outside_the_guild_is_refused(self, monkeypatch, subscribed):
+        sent = self.setup_guild(monkeypatch)
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            self.post("9999")
+        assert caught.value.reason == "channel_not_in_guild"
+        assert sent == []
+
+    def test_a_channel_the_bot_cannot_post_in_is_refused(
+        self, monkeypatch, subscribed
+    ):
+        sent = self.setup_guild(monkeypatch, sendable=False)
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            self.post()
+        assert caught.value.reason == "channel_not_writable"
+        assert sent == []
+
+    def test_the_action_is_audited(self, monkeypatch, subscribed):
+        self.setup_guild(monkeypatch)
+        make_server()
+        self.post()
+        assert audit_rows()[0][:3] == ("instructions_panel", "posted", "70")
+
+    def test_a_guild_the_bot_cannot_see_posts_nothing(self, monkeypatch, subscribed):
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: None)
+        make_server()
+        assert self.post() is None
 
 
 class TestAuditReader:
