@@ -3255,3 +3255,47 @@ class TestNothingEditsSettingsFromDiscordAnyMore:
         assert callable(bot.sanitize_custom_message)
         cleaned, invalid = bot.sanitize_custom_message("hi @everyone")
         assert "@everyone" not in cleaned
+
+
+class TestUnreadableCredentials:
+    """Existence is not readability, and the gap cost a live debugging session.
+
+    `os.path.isfile` is a stat: it succeeds on a key the process cannot open.
+    The API then binds cleanly and fails every TLS handshake instead, with an
+    error naming neither the file nor the reason -- and from the client side it
+    looks like a client problem. This is what a container hits when a mounted
+    key is mode 0600 and owned by someone other than the image's user.
+
+    Permission semantics differ too much across platforms to test by really
+    chmod-ing a file (on Windows the owner keeps read access regardless), so
+    the check itself is what gets pinned here, on every platform.
+    """
+
+    def enable(self, monkeypatch, tmp_path):
+        for name in ("cert", "key", "ca"):
+            (tmp_path / f"{name}.pem").write_text("placeholder")
+        monkeypatch.setenv("BOT_API_ENABLED", "1")
+        monkeypatch.setenv("BOT_API_BIND", "100.64.0.2")
+        monkeypatch.setenv("BOT_API_CERT", str(tmp_path / "cert.pem"))
+        monkeypatch.setenv("BOT_API_KEY", str(tmp_path / "key.pem"))
+        monkeypatch.setenv("BOT_API_CA", str(tmp_path / "ca.pem"))
+        monkeypatch.setenv("BOT_API_TOKEN_SIGNING_KEY", "s" * 40)
+        return tmp_path / "key.pem"
+
+    def test_an_unreadable_key_refuses_to_start(self, monkeypatch, tmp_path):
+        secret = self.enable(monkeypatch, tmp_path)
+        real_access = bot_api.os.access
+
+        def no_read(path, mode):
+            if str(path) == str(secret) and mode == bot_api.os.R_OK:
+                return False
+            return real_access(path, mode)
+
+        monkeypatch.setattr(bot_api.os, "access", no_read)
+        with pytest.raises(bot_api.BotAPIConfigError) as error:
+            bot_api.BotAPIConfig.from_env()
+        assert "cannot read" in str(error.value)
+
+    def test_a_readable_key_is_accepted(self, monkeypatch, tmp_path):
+        self.enable(monkeypatch, tmp_path)
+        assert bot_api.BotAPIConfig.from_env() is not None
