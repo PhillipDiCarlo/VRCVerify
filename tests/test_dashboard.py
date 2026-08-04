@@ -1,4 +1,4 @@
-"""Unit tests for the web dashboard (issue #65, step 3).
+"""Unit tests for the web dashboard (issue #65, steps 3 and 4).
 
 This is the internet-facing half of the system, so the tests are mostly about
 the ways a login can be subverted rather than the happy path:
@@ -9,6 +9,14 @@ the ways a login can be subverted rather than the happy path:
 - authority is never taken from OAuth data or from Cf-Access-* headers
 - the app refuses to start on a weak or missing secret
 - nothing here can write: the read-only phase is pinned
+
+Step 4 adds one server's settings, where the recurring theme is that the page
+must say exactly what the bot would:
+
+- "refused at save time" and "saved but not acted on" are different badges
+- a 403 and a 404 from the bot are one indistinguishable answer, or the page
+  becomes an oracle for which servers run 18+ gating
+- a failed read shows an id or an apology, never a default nobody chose
 """
 
 import json
@@ -20,7 +28,7 @@ import pytest
 
 pytest.importorskip("flask")
 
-from dashboard import oauth  # noqa: E402
+from dashboard import oauth, settings_view  # noqa: E402
 from dashboard.app import CSP, SESSION_COOKIE, create_app  # noqa: E402
 from dashboard.botapi import BotAPIError  # noqa: E402
 from dashboard.config import DashboardConfig, DashboardConfigError  # noqa: E402
@@ -62,19 +70,159 @@ def config(tmp_path, certs):
     )
 
 
+VERIFIED_ROLE = "900000000001"
+UNVERIFIED_ROLE = "900000000002"
+UNASSIGNABLE_ROLE = "900000000003"
+LOG_CHANNEL = "800000000001"
+NEWS_CHANNEL = "800000000002"
+
+# What a free server looks like: the three write-locked features refused, the
+# two badge-only ones inactive but unlocked. Straight out of SETTINGS_FIELDS.
+FREE_PLAN = {
+    "role_id": (None, True, False),
+    "unverified_role_id": ("unverified_role_removal", False, False),
+    "auto_verify_new_members": (None, True, False),
+    "auto_nickname_change": ("nickname_sync", False, True),
+    "custom_verification_requested_message": ("custom_dm", False, False),
+    "instructions_locale": (None, True, False),
+    "panel_embed_color": ("branded_panel", False, True),
+    "panel_show_icon": ("branded_panel", False, True),
+    "verification_log_channel_id": ("activity_log", False, True),
+}
+
+DEFAULT_VALUES = {
+    "role_id": VERIFIED_ROLE,
+    "unverified_role_id": None,
+    "auto_verify_new_members": True,
+    "auto_nickname_change": False,
+    "custom_verification_requested_message": None,
+    "instructions_locale": "en-US",
+    "panel_embed_color": None,
+    "panel_show_icon": False,
+    "verification_log_channel_id": None,
+}
+
+
+def make_settings(premium=False, values=None, auto_verify_column=True):
+    """A settings payload shaped exactly like read_dashboard_settings returns."""
+    merged = dict(DEFAULT_VALUES)
+    merged.update(values or {})
+    fields = {}
+    for name, (feature, active, locked) in FREE_PLAN.items():
+        fields[name] = {
+            "value": merged[name],
+            "feature": feature,
+            "active": True if premium else active,
+            "locked": False if premium else locked,
+        }
+    return {
+        "guild_id": GUILD_IN,
+        "premium": {"enforced": True, "premium": premium, "grandfathered": False},
+        "auto_verify_column_present": auto_verify_column,
+        "fields": fields,
+    }
+
+
+DEFAULT_ROLES = [
+    {
+        "id": VERIFIED_ROLE,
+        "name": "Verified",
+        "position": 5,
+        "color": 0x5865F2,
+        "managed": False,
+        "assignable": True,
+    },
+    {
+        "id": UNVERIFIED_ROLE,
+        "name": "Unverified",
+        "position": 4,
+        "color": 0,
+        "managed": False,
+        "assignable": True,
+    },
+    {
+        "id": UNASSIGNABLE_ROLE,
+        "name": "Above The Bot",
+        "position": 90,
+        "color": 0,
+        "managed": False,
+        "assignable": False,
+    },
+]
+
+DEFAULT_CHANNELS = [
+    {
+        "id": LOG_CHANNEL,
+        "name": "verify-log",
+        "category": "Staff",
+        "position": 1,
+        "is_news": False,
+        "can_send": True,
+    },
+    {
+        "id": NEWS_CHANNEL,
+        "name": "announcements",
+        "category": None,
+        "position": 2,
+        "is_news": True,
+        "can_send": True,
+    },
+]
+
+
 class FakeBotAPI:
     """Stands in for the bot. Records what it was asked."""
 
-    def __init__(self, installed=(GUILD_IN,), fail=False):
+    def __init__(
+        self,
+        installed=(GUILD_IN,),
+        fail=False,
+        settings=None,
+        roles=None,
+        channels=None,
+        panel=None,
+        errors=None,
+    ):
         self.installed = {str(g) for g in installed}
         self.fail = fail
         self.calls = []
+        self.reads = []
+        self._settings = settings
+        self._roles = DEFAULT_ROLES if roles is None else roles
+        self._channels = DEFAULT_CHANNELS if channels is None else channels
+        self._panel = {"posted": False} if panel is None else panel
+        # {"settings": BotAPIError(...), ...} -- per-endpoint failures, so a
+        # secondary read can be broken without breaking the page.
+        self.errors = errors or {}
 
     def admin_guild_ids(self, actor_id, guild_ids):
         self.calls.append((actor_id, list(guild_ids)))
         if self.fail:
             raise BotAPIError("bot unreachable")
         return {g for g in map(str, guild_ids) if g in self.installed}
+
+    def _answer(self, what, actor_id, guild_id, payload):
+        self.reads.append((what, str(actor_id), str(guild_id)))
+        if what in self.errors:
+            raise self.errors[what]
+        return payload
+
+    def settings(self, actor_id, guild_id):
+        return self._answer(
+            "settings",
+            actor_id,
+            guild_id,
+            self._settings if self._settings is not None else make_settings(),
+        )
+
+    def roles(self, actor_id, guild_id):
+        return self._answer("roles", actor_id, guild_id, self._roles)
+
+    def channels(self, actor_id, guild_id):
+        return self._answer("channels", actor_id, guild_id, self._channels)
+
+    def panel(self, actor_id, guild_id):
+        return self._answer("panel", actor_id, guild_id, self._panel)
 
 
 @pytest.fixture
@@ -398,8 +546,11 @@ class TestPicker:
         response = client.get("/")
         assert response.status_code == 200
         assert b"Alpha Club" in response.data
-        assert b"Installed" in response.data
         assert b"Add to this server" in response.data
+        # Installed servers link into their settings; absent ones link to the
+        # invite instead.
+        assert f'href="/guild/{GUILD_IN}"'.encode() in response.data
+        assert f'href="/guild/{GUILD_OUT}"'.encode() not in response.data
 
     def test_servers_without_the_bot_offer_a_targeted_invite(self, client, store):
         login_as(client, store)
@@ -437,6 +588,260 @@ class TestPicker:
 
 
 # -------------------------------------------------------------------
+# One server's settings (step 4)
+# -------------------------------------------------------------------
+def settings_client(config, store, **kwargs):
+    """A logged-in client whose bot API is configured for these tests."""
+    api = FakeBotAPI(**kwargs)
+    app = create_app(config, store=store, client=api)
+    app.config.update(TESTING=True)
+    test_client = app.test_client()
+    login_as(test_client, store)
+    return test_client, api
+
+
+class TestSettingsPage:
+    def test_signed_out_visitors_are_sent_to_the_login_page(self, client):
+        response = client.get(f"/guild/{GUILD_IN}")
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/")
+
+    def test_values_are_shown_with_names_not_ids(self, config, store):
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Verified" in page
+        assert VERIFIED_ROLE not in page
+
+    def test_every_read_is_scoped_to_the_session_owner_and_that_guild(
+        self, config, store
+    ):
+        test_client, api = settings_client(config, store)
+        test_client.get(f"/guild/{GUILD_IN}")
+        assert {what for what, _, _ in api.reads} == {
+            "settings",
+            "roles",
+            "channels",
+            "panel",
+        }
+        for _what, actor, guild in api.reads:
+            assert actor == ACTOR
+            assert guild == GUILD_IN
+
+    def test_the_guild_name_comes_from_the_session_not_the_bot(self, config, store):
+        test_client, _api = settings_client(config, store)
+        assert b"Alpha Club" in test_client.get(f"/guild/{GUILD_IN}").data
+
+    def test_a_guild_missing_from_a_stale_oauth_list_still_renders(
+        self, config, store
+    ):
+        """Promotion to Administrator since login must not lock someone out.
+
+        The OAuth guild list is a display hint that ages; the bot has already
+        said yes by the time we get here.
+        """
+        api = FakeBotAPI()
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store, guilds=[])
+
+        response = test_client.get(f"/guild/{GUILD_IN}")
+        assert response.status_code == 200
+        assert b"Verified" in response.data
+
+
+class TestSettingsDoesNotLeakWhichServersRunTheBot:
+    """403 and 404 must be one indistinguishable answer.
+
+    The bot separates "not in that guild" from "you are not an administrator",
+    which is correct behind mTLS and dangerous on the open web: rendered
+    differently, any signed-in user could walk guild ids and enumerate the
+    servers running 18+ gating.
+    """
+
+    def _response(self, config, store, status):
+        test_client, _api = settings_client(
+            config, store, errors={"settings": BotAPIError("nope", status)}
+        )
+        return test_client.get(f"/guild/{GUILD_IN}")
+
+    def test_403_and_404_are_byte_identical(self, config, store):
+        # One client, so the comparison isn't confounded by the per-session
+        # CSRF token in the sign-out form.
+        test_client, api = settings_client(
+            config, store, errors={"settings": BotAPIError("nope", 403)}
+        )
+        forbidden = test_client.get(f"/guild/{GUILD_IN}")
+
+        api.errors = {"settings": BotAPIError("nope", 404)}
+        missing = test_client.get(f"/guild/{GUILD_IN}")
+
+        assert forbidden.status_code == missing.status_code == 404
+        assert forbidden.data == missing.data
+
+    def test_neither_names_the_reason(self, config, store):
+        page = self._response(config, store, 403).data.decode().lower()
+        # Both possibilities are offered and neither is confirmed.
+        assert "administrator permission there" in page
+        assert "vrcverify isn" in page
+        assert "403" not in page
+        assert "not_administrator" not in page
+
+    def test_an_unavailable_bot_is_a_different_answer(self, config, store):
+        """503 discloses nothing about a guild, so it may be honest."""
+        response = self._response(config, store, 503)
+        assert response.status_code == 503
+        assert b"Can&#39;t reach the bot" in response.data
+
+    def test_a_failed_settings_read_never_renders_defaults(self, config, store):
+        page = self._response(config, store, 503).data.decode()
+        for never in ("Not set", "Default blue", "en-US"):
+            assert never not in page
+
+
+class TestPlanBadgesMirrorTheBot:
+    """The site must be neither stricter nor looser than the slash commands."""
+
+    def test_write_locked_fields_are_marked_premium(self, config, store):
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Nickname sync" in page
+        assert "Premium</span>" in page
+
+    def test_badge_only_fields_are_not_shown_as_locked(self, config, store):
+        """/vrcverify_setup stores these for a free server quite happily.
+
+        Rendering them as Premium-locked would make the website refuse to show
+        something an admin can plainly set in Discord.
+        """
+        test_client, _api = settings_client(
+            config,
+            store,
+            settings=make_settings(
+                values={
+                    "unverified_role_id": UNVERIFIED_ROLE,
+                    "custom_verification_requested_message": "Welcome aboard!",
+                }
+            ),
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        # The values are shown, not hidden or replaced with an upsell.
+        assert "Unverified" in page
+        assert "Welcome aboard!" in page
+        assert "Not applied</span>" in page
+        assert "Saved, but not acted on without Premium" in page
+
+    def test_a_premium_server_sees_no_badges(self, config, store):
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(premium=True)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Premium</span>" not in page
+        assert "Not applied</span>" not in page
+        assert "VRCVerify Premium is active" in page
+
+    def test_auto_verify_is_never_gated(self, config, store):
+        """Free for everyone, forever -- mirrors TestAutoVerifyOnJoinIsFree."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        section = page.split("Auto-verify on join")[1].split("</div>")[0]
+        assert "badge" not in section
+
+    def test_a_missing_auto_verify_column_is_declared(self, config, store):
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(auto_verify_column=False)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "missing the auto-verify column" in page
+
+
+class TestSettingsWarnings:
+    """The point of the dashboard: say it now, not at verification time."""
+
+    def test_an_unassignable_verified_role_is_called_out(self, config, store):
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(values={"role_id": UNASSIGNABLE_ROLE})
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "cannot grant this role" in page
+        assert "Server Settings -&gt; Roles" in page
+
+    def test_a_deleted_role_is_called_out(self, config, store):
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(values={"role_id": "404404404404"})
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "no longer exists" in page
+
+    def test_no_verified_role_is_called_out(self, config, store):
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(values={"role_id": None})
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "verification cannot complete" in page
+
+    def test_an_announcement_log_channel_is_called_out(self, config, store):
+        """A followed channel republishes an age disclosure to strangers."""
+        test_client, _api = settings_client(
+            config,
+            store,
+            settings=make_settings(
+                premium=True, values={"verification_log_channel_id": NEWS_CHANNEL}
+            ),
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "republish age disclosures" in page
+
+    def test_an_unreachable_panel_channel_is_called_out(self, config, store):
+        test_client, _api = settings_client(
+            config,
+            store,
+            panel={
+                "posted": True,
+                "channel_id": "123",
+                "message_id": "456",
+                "channel_name": "verify",
+                "channel_exists": True,
+                "channel_reachable": False,
+                "locale": "en-US",
+            },
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "can no longer post in that channel" in page
+
+
+class TestSecondaryReadsDegradeGracefully:
+    """A name lookup failing must not cost the whole page."""
+
+    def test_the_page_renders_without_roles(self, config, store):
+        test_client, _api = settings_client(
+            config, store, errors={"roles": BotAPIError("unavailable", 503)}
+        )
+        response = test_client.get(f"/guild/{GUILD_IN}")
+        assert response.status_code == 200
+        page = response.data.decode()
+        assert f"Unknown role ({VERIFIED_ROLE})" in page
+        assert "show an ID instead of a name" in page
+
+    def test_an_unresolved_id_is_not_reported_as_deleted(self, config, store):
+        """"We could not check" and "it is gone" are different claims."""
+        test_client, _api = settings_client(
+            config, store, errors={"roles": BotAPIError("unavailable", 503)}
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "no longer exists" not in page
+
+    def test_the_page_renders_without_the_panel_read(self, config, store):
+        test_client, _api = settings_client(
+            config, store, errors={"panel": BotAPIError("unavailable", 503)}
+        )
+        response = test_client.get(f"/guild/{GUILD_IN}")
+        assert response.status_code == 200
+        # Literal template text, so the apostrophe is not entity-escaped here.
+        assert b"Couldn't check" in response.data
+
+
+# -------------------------------------------------------------------
 # Hardening
 # -------------------------------------------------------------------
 class TestHardening:
@@ -463,6 +868,24 @@ class TestHardening:
         login_as(client, store)
         for path in ("/", "/nonexistent"):
             assert b"<script" not in client.get(path).data
+
+    def test_no_page_carries_an_inline_style_attribute(self, config, store):
+        """style-src 'self' blocks these, and it blocks them *silently*.
+
+        Nothing errors -- the browser just drops the declaration and the page
+        renders subtly wrong, which is a bad way to find out. The role and panel
+        colour swatches are SVG fill attributes for exactly this reason.
+        """
+        test_client, _api = settings_client(
+            config,
+            store,
+            settings=make_settings(premium=True, values={"panel_embed_color": 0xFF00FF}),
+        )
+        for path in ("/", f"/guild/{GUILD_IN}"):
+            page = test_client.get(path).data
+            assert b"style=" not in page, f"inline style on {path}"
+        # The swatch still rendered; it just isn't CSS.
+        assert b'fill="#ff00ff"' in test_client.get(f"/guild/{GUILD_IN}").data
 
     def test_logout_requires_the_csrf_token(self, client, store):
         session = login_as(client, store)
@@ -495,6 +918,78 @@ class TestHardening:
 
     def test_healthz_says_nothing_useful(self, client):
         assert client.get("/healthz").get_json() == {"ok": True}
+
+
+class TestSettingsViewModel:
+    """The rendering rules, without a request in the way."""
+
+    def test_no_field_from_the_api_is_silently_dropped(self):
+        """Adding a setting to the bot must not quietly skip the website.
+
+        SETTINGS_FIELDS in bot.py is the allowlist for both ends. If a field
+        appears there and nothing renders it, an admin sees a page that claims
+        to be their settings and isn't -- so this fails rather than omitting.
+        """
+        settings = make_settings()
+        rendered = {
+            field.name
+            for group in settings_view.build_groups(
+                settings, DEFAULT_ROLES, DEFAULT_CHANNELS
+            )
+            for field in group["fields"]
+        }
+        assert rendered == set(settings["fields"])
+
+    def test_locked_beats_inactive_on_the_badge(self):
+        """A locked field is always inactive too; the stronger claim wins."""
+        field = settings_view.Field(
+            "x", "X", "", "bool", "On", active=False, locked=True
+        )
+        assert field.badge == "premium"
+
+    def test_inactive_but_unlocked_is_its_own_badge(self):
+        field = settings_view.Field(
+            "x", "X", "", "bool", "On", active=False, locked=False
+        )
+        assert field.badge == "inactive"
+
+    def test_an_available_field_has_no_badge(self):
+        assert settings_view.Field("x", "X", "", "bool", "On").badge is None
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (0x5865F2, "#5865f2"),
+            (0, "#000000"),
+            (0xFFFFFFFF, "#ffffff"),  # masked to 24 bits
+            (-1, "#ffffff"),
+            (None, None),
+            ("#ff0000; --x: url(evil)", None),
+        ],
+    )
+    def test_colours_can_only_ever_be_a_colour(self, value, expected):
+        """The result lands in an SVG fill attribute, so shape is the guard."""
+        assert settings_view._hex(value) == expected
+
+    def test_an_unknown_locale_renders_as_itself(self):
+        settings = make_settings(values={"instructions_locale": "xx-YY"})
+        groups = settings_view.build_groups(settings, DEFAULT_ROLES, DEFAULT_CHANNELS)
+        locale = next(
+            field
+            for group in groups
+            for field in group["fields"]
+            if field.name == "instructions_locale"
+        )
+        assert locale.display == "xx-YY"
+
+    def test_an_unread_panel_is_not_reported_as_absent(self):
+        """"Never posted" and "could not read" must not look the same.
+
+        load_instruction_panel returns None for both, so step 6 has to confirm
+        before it offers to post a duplicate.
+        """
+        assert settings_view.panel_summary(None) == {"known": False}
+        assert settings_view.panel_summary({"posted": False})["posted"] is False
 
 
 class TestReadOnlyPhase:

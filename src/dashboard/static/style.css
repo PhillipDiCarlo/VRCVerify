@@ -153,6 +153,98 @@ button.link {
 .server.absent .name { color: var(--muted); }
 .server.absent .state { color: var(--accent); }
 
+/* --- one server's settings --- */
+.crumb { margin: 0 0 1rem; font-size: 0.925rem; }
+.crumb a { color: var(--muted); text-decoration: none; }
+
+.guild-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.guild-head .icon { margin: 0; flex: 0 0 auto; }
+.guild-head h1 { margin: 0; }
+.guild-head p { margin: 0.15rem 0 0; }
+
+.notice.read-only { background: none; color: var(--muted); border: 1px dashed var(--line); }
+
+.group { margin-top: 2rem; }
+.group h2 { font-size: 1.05rem; margin: 0; }
+.blurb { margin: 0.1rem 0 0.85rem; }
+
+.settings { margin: 0; }
+
+.setting {
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.setting dt {
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.setting dd { margin: 0.3rem 0 0; }
+
+.value {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  overflow-wrap: anywhere;
+  /* The custom DM is free text an admin wrote; preserve their line breaks
+     rather than reflowing it into something they did not write. */
+  white-space: pre-wrap;
+}
+
+.value.empty { color: var(--muted); font-style: italic; }
+
+.swatch { flex: 0 0 auto; vertical-align: middle; }
+
+.desc, .plan { margin: 0.2rem 0 0; font-size: 0.875rem; }
+.plan { font-style: italic; }
+
+/* Locked means the bot refuses the save, so the row is visibly inert. Fields
+ * that merely aren't acted on are NOT dimmed -- they are editable in Discord
+ * today, and dimming them would tell an admin something untrue. */
+.setting.locked .value { color: var(--muted); }
+
+.badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+
+.badge.premium { color: var(--accent); }
+.badge.inactive { color: var(--muted); }
+
+.warn {
+  margin: 0.45rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  background: var(--notice-bg);
+  color: var(--notice);
+  font-size: 0.875rem;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: var(--bg);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+}
+
 footer {
   max-width: 60rem;
   margin: 0 auto;

@@ -23,16 +23,17 @@
       {% for server in servers %}
         <li class="server {% if not server.installed %}absent{% endif %}">
           {% if server.installed %}
-            {# Settings pages land in step 4; the tile is not a link yet. #}
-            <span class="icon" aria-hidden="true">
-              {% if server.icon_url %}
-                <img src="{{ server.icon_url }}" alt="" width="64" height="64" loading="lazy">
-              {% else %}
-                <span class="initial">{{ server.name[:1] | upper }}</span>
-              {% endif %}
-            </span>
-            <span class="name">{{ server.name }}</span>
-            <span class="state">Installed</span>
+            <a href="{{ url_for('guild_settings', guild_id=server.id) }}">
+              <span class="icon" aria-hidden="true">
+                {% if server.icon_url %}
+                  <img src="{{ server.icon_url }}" alt="" width="64" height="64" loading="lazy">
+                {% else %}
+                  <span class="initial">{{ server.name[:1] | upper }}</span>
+                {% endif %}
+              </span>
+              <span class="name">{{ server.name }}</span>
+              <span class="state">Settings</span>
+            </a>
           {% else %}
             <a href="{{ server.invite_url }}" rel="noopener">
               <span class="icon" aria-hidden="true">
