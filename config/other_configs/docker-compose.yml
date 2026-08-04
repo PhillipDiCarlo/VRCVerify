@@ -58,6 +58,22 @@ services:
       - vrchat-session:/data
     restart: unless-stopped
 
+  # BUILD TARGET ONLY -- do not `up` this here.
+  #
+  # The dashboard runs on the public VPS, not the homelab, and it needs
+  # DISCORD_CLIENT_SECRET, the mTLS client certificate and a session volume
+  # that only exist there. It lives in this file so `docker compose build`
+  # produces the image alongside the other two and the version tags stay in
+  # step; run it from docker-compose.dashboard.yml on the VPS.
+  #
+  # Started here by accident it would simply refuse to boot -- DashboardConfig
+  # fails closed on the first missing setting -- which is the intended failure.
+  dashboard:
+    build:
+      context: ../../
+      dockerfile: docker/Dockerfile-dashboard
+    image: dashboard
+
 volumes:
   # Persists the VRChat auth cookie so restarts skip re-authentication.
   vrchat-session:

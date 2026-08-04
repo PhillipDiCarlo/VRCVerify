@@ -12,13 +12,14 @@ function GetVersion {
 $menu = @"
 1. Bot
 2. VRC Online Checker
-3. All
+3. Dashboard (runs on the VPS, not the homelab)
+4. All
 0. Exit
 "@
 
 Write-Host "Select an option to tag and upload:"
 Write-Host $menu
-$choice = Read-Host "Enter your choice (0-3)"
+$choice = Read-Host "Enter your choice (0-4)"
 
 function TagAndPush($imageName, $version) {
 
@@ -68,8 +69,12 @@ switch ($choice) {
         TagAndPush "vrc-online-checker" $version
     }
     3 {
+        TagAndPush "dashboard" $version
+    }
+    4 {
         TagAndPush "discord-bot" $version
         TagAndPush "vrc-online-checker" $version
+        TagAndPush "dashboard" $version
     }
     0 {
         Write-Host "Exiting script."
