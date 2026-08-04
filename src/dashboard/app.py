@@ -365,6 +365,51 @@ def _register_routes(app: Flask) -> None:
 
         return _save(guild_id, session, changes)
 
+    @app.post("/guild/<int:guild_id>/member")
+    def save_member_settings(guild_id: int):
+        """Nickname sync and the custom verification DM.
+
+        The message is submitted exactly as typed. Every rule about it -- the
+        length cap, the zero-width stripping, the @everyone defusal, the
+        discord.com/vrchat.com link allowlist -- belongs to the bot, which runs
+        the same sanitiser its own slash command does. Trimming or cleaning it
+        here would create a second opinion about what an admin is allowed to
+        say through the bot.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        changes = {}
+        _read_checkbox(changes, "auto_nickname_change")
+        if "custom_verification_requested_message" in request.form:
+            changes["custom_verification_requested_message"] = request.form.get(
+                "custom_verification_requested_message"
+            )
+
+        return _save(guild_id, session, changes)
+
+    @app.post("/guild/<int:guild_id>/logging")
+    def save_logging_settings(guild_id: int):
+        """Where verification activity is logged, or nowhere."""
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        changes = {}
+        if "verification_log_channel_id" in request.form:
+            # A select always submits, so blank is the real choice "off" --
+            # which is how /vrcverify_logchannel turns it off too.
+            changes["verification_log_channel_id"] = (
+                request.form.get("verification_log_channel_id") or None
+            )
+
+        return _save(guild_id, session, changes)
+
     @app.post("/guild/<int:guild_id>/panel")
     def save_panel_settings(guild_id: int):
         """Save the instructions panel group. The only write in the app.
@@ -448,6 +493,37 @@ SAVE_ERRORS = {
     "unavailable": (
         "The bot couldn't complete the save, so nothing was changed. Try again "
         "shortly."
+    ),
+    "role_not_in_guild": (
+        "That role isn't in this server any more. Reload the page and pick "
+        "again."
+    ),
+    "role_required": "Pick a verified role -- verification can't run without one.",
+    # The offending links are deliberately not echoed back. The rule is short
+    # enough to state, the admin is looking at their own message, and the page
+    # stays free of text that came from a request.
+    "message_links_not_allowed": (
+        "Links in the custom message may only point to discord.com or "
+        "vrchat.com. Nothing was changed."
+    ),
+    "message_too_long": (
+        "That custom message is too long. The limit is 1000 characters."
+    ),
+    "channel_is_announcement": (
+        "Verification logs can't go in an announcement channel -- other servers "
+        "can follow one, which would republish your members' age status."
+    ),
+    "channel_not_in_guild": (
+        "That channel isn't in this server any more. Reload the page and pick "
+        "again."
+    ),
+    "channel_not_writable": (
+        "VRCVerify can't post in that channel, so it can't log there. Check the "
+        "channel's permissions and try again."
+    ),
+    "column_missing": (
+        "This bot's database is missing the column for that setting. Contact "
+        "the bot operator."
     ),
 }
 GENERIC_SAVE_ERROR = "That change couldn't be saved, so nothing was changed."

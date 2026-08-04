@@ -283,3 +283,15 @@ footer {
   color: var(--muted);
   font-size: 0.85rem;
 }
+
+textarea {
+  display: block;
+  width: 100%;
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.45rem 0.55rem;
+  resize: vertical;
+}

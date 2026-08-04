@@ -328,21 +328,36 @@ lists the servers they administer, and shows one server's settings. It holds no
 database credential and no bot token: everything it knows it asks the bot for
 over mTLS, and the bot decides what it is allowed to know.
 
-It can now save two groups — the **instructions panel** (language, colour,
-server icon) and **verification** (verified role, unverified role, auto-verify
-on join). That boundary is enforced in the bot by `DASHBOARD_WRITABLE_FIELDS`,
+It can now save **every setting the slash commands can**, one form per group.
+That boundary is still enforced in the bot by `DASHBOARD_WRITABLE_FIELDS`,
 not by which controls the website chose to draw, and the payload tells the
 dashboard which fields are open so the two cannot drift. The website renders a
 control only where the bot has said it would accept the value — and, for a
 picker, only when it actually has something to pick from, because an empty
 `<select>` invites a save that would clear the verified role.
 
-On roles the bot checks that the id names a real role in *that* guild — the
-guarantee Discord's role picker gives `/vrcverify_setup` for free, which a form
-submitting a raw id has to provide for itself. It does **not** refuse a role it
-cannot assign: `/vrcverify_setup` doesn't either, so refusing would make the
-website stricter than the slash command and would block an admin who means to
-set the role first and fix the hierarchy after. The page warns instead.
+Each value is checked the way its own slash command checks it, and the
+differences between them are deliberate:
+
+- **Roles** must name a real role in *that* guild — the guarantee Discord's
+  picker gives `/vrcverify_setup` for free, which a form submitting a raw id
+  has to provide for itself. A role the bot cannot *assign* is still accepted,
+  because `/vrcverify_setup` accepts it too; refusing would block an admin who
+  means to set the role first and fix the hierarchy after. The page warns.
+- **The log channel** must not be an announcement channel, because
+  `/vrcverify_logchannel` refuses those outright — other servers can follow
+  one, which would republish an age disclosure about a named member. Those
+  channels are left out of the picker entirely: here, omitting is matching the
+  bot rather than being stricter than it.
+- **The custom DM** goes through `sanitize_custom_message()` — the same
+  function the slash command uses, not a second implementation. It strips
+  zero-width characters, defuses `@everyone`, and allows links only to
+  discord.com and vrchat.com. The *sanitised* text is what gets stored.
+
+A picker is only rendered when it has something to pick from. When the roles or
+channels read fails, the field falls back to read-only — an empty `<select>`
+invites a save that would clear the verified role and stop verification for the
+whole server.
 
 The write path adds one route on each side, and both are pinned by tests:
 

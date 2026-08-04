@@ -39,8 +39,12 @@ from typing import Optional
 # what "no colour" means is the bot's business, and it stores NULL either way.
 DEFAULT_PANEL_SWATCH = "#5865f2"
 
+# The bot's own cap, mirrored so the textarea stops at the same place the save
+# does. The browser attribute is a courtesy; the bot enforces it.
+CUSTOM_MESSAGE_MAX_LEN = 1000
+
 # Field kinds rendered as a <select>, which is only usable with options.
-CHOICE_KINDS = frozenset({"role", "role_optional", "locale"})
+CHOICE_KINDS = frozenset({"role", "role_optional", "locale", "channel"})
 
 LOCALE_NAMES = {
     "en-US": "English",
@@ -78,6 +82,7 @@ class Field:
         writable: bool = False,
         choices: Optional[list] = None,
         value=None,
+        maxlength: Optional[int] = None,
     ):
         self.name = name
         self.label = label
@@ -95,6 +100,7 @@ class Field:
         # The raw value a form control needs, as distinct from `display`, which
         # is prose for a human.
         self.value = value
+        self.maxlength = maxlength
 
     @property
     def editable(self) -> bool:
@@ -325,6 +331,7 @@ def build_groups(
             "title": "After verifying",
             "blurb": "What happens once a member is confirmed.",
             "fields": [nickname, custom_dm],
+            "save_endpoint": "save_member_settings",
         },
         {
             "title": "Instructions panel",
@@ -341,6 +348,7 @@ def build_groups(
             "title": "Logging",
             "blurb": "A record of verification activity for your moderators.",
             "fields": [log_channel],
+            "save_endpoint": "save_logging_settings",
         },
     ]
 
@@ -355,10 +363,14 @@ def _custom_dm_field(settings: dict) -> Field:
     return Field(
         "custom_verification_requested_message",
         "Custom verification message",
-        "Replaces the default DM a member gets when they start verifying.",
+        "Replaces the default DM a member gets when they start verifying. "
+        "Links may only point to discord.com or vrchat.com. Leave it empty to "
+        "go back to the default.",
         "text",
         display,
         empty=empty,
+        value="" if raw is None else str(raw),
+        maxlength=CUSTOM_MESSAGE_MAX_LEN,
         **_plan(state),
     )
 
@@ -444,6 +456,16 @@ def _log_channel_field(settings: dict, channels: Optional[list]) -> Field:
             if channel.get("can_send") is False:
                 warnings.append("VRCVerify cannot post in this channel.")
 
+    # Announcement channels are left out of the picker rather than offered and
+    # refused. Unlike an unassignable role -- which /vrcverify_setup accepts and
+    # this page only warns about -- /vrcverify_logchannel refuses these
+    # outright, so omitting them is matching the bot, not being stricter.
+    choices = [
+        (str(channel.get("id")), f"#{channel.get('name') or channel.get('id')}")
+        for channel in (channels or [])
+        if not channel.get("is_news")
+    ]
+
     return Field(
         "verification_log_channel_id",
         "Verification log channel",
@@ -452,6 +474,8 @@ def _log_channel_field(settings: dict, channels: Optional[list]) -> Field:
         display,
         empty=empty,
         warnings=warnings,
+        choices=choices,
+        value="" if raw is None else str(raw),
         **_plan(state),
     )
 

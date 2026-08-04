@@ -770,8 +770,20 @@ DASHBOARD_WRITABLE_FIELDS = frozenset(
         "role_id",
         "unverified_role_id",
         "auto_verify_new_members",
+        "auto_nickname_change",
+        "custom_verification_requested_message",
+        "verification_log_channel_id",
     }
 )
+
+# The modal's own cap, so the website cannot store a message the slash command
+# could not have produced.
+CUSTOM_MESSAGE_MAX_LEN = 1000
+
+# What /vrcverify_setrequestmessage treats as "clear this". Reused rather than
+# reimplemented: if the dashboard stored a literal "none", it would be holding
+# a value the slash command has no way to set.
+CUSTOM_MESSAGE_CLEARING = frozenset({"clear", "reset", "none", "default"})
 
 
 # Raised by the writer below, mapped to a status by bot_api. It lives over
@@ -830,10 +842,45 @@ def _role_coercer(field_name: str, *, required: bool):
     return coerce
 
 
-def _coerce_auto_verify(value):
-    if not isinstance(value, bool):
-        raise SettingRejected("auto_verify_new_members", "not_a_boolean")
-    return value
+def _bool_coercer(field_name: str):
+    def coerce(value):
+        if not isinstance(value, bool):
+            raise SettingRejected(field_name, "not_a_boolean")
+        return value
+
+    return coerce
+
+
+def _coerce_custom_message(value):
+    """The custom DM, through the same sanitiser the slash command uses.
+
+    Not a reimplementation: sanitize_custom_message strips zero-width
+    characters, defuses @everyone/@here, and allows links only to discord.com
+    and vrchat.com. This text is delivered to members by DM, so a second
+    implementation that drifted from the first would be a way to say things
+    through the bot that the bot's own command refuses to say.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise SettingRejected("custom_verification_requested_message", "not_text")
+
+    raw = value.strip()
+    if raw == "" or raw.lower() in CUSTOM_MESSAGE_CLEARING:
+        return None
+    if len(raw) > CUSTOM_MESSAGE_MAX_LEN:
+        raise SettingRejected(
+            "custom_verification_requested_message", "message_too_long"
+        )
+
+    cleaned, invalid = sanitize_custom_message(raw)
+    if invalid:
+        raise SettingRejected(
+            "custom_verification_requested_message", "message_links_not_allowed"
+        )
+    # The sanitised text, never the submitted text -- the @everyone defusal has
+    # to survive into the database, not just past the check.
+    return cleaned
 
 
 SETTING_COERCERS = {
@@ -842,7 +889,14 @@ SETTING_COERCERS = {
     "panel_show_icon": _coerce_show_icon,
     "role_id": _role_coercer("role_id", required=True),
     "unverified_role_id": _role_coercer("unverified_role_id", required=False),
-    "auto_verify_new_members": _coerce_auto_verify,
+    "auto_verify_new_members": _bool_coercer("auto_verify_new_members"),
+    "auto_nickname_change": _bool_coercer("auto_nickname_change"),
+    "custom_verification_requested_message": _coerce_custom_message,
+    # Same shape as a role id, and clearable the same way /vrcverify_logchannel
+    # clears it: by leaving the channel argument off.
+    "verification_log_channel_id": _role_coercer(
+        "verification_log_channel_id", required=False
+    ),
 }
 
 # Fields whose value has to name a real role in *this* guild.
@@ -858,6 +912,19 @@ SETTING_COERCERS = {
 # free and the dashboard has to provide for itself, because it submits a raw
 # id rather than a choice from a list the platform vouched for.
 ROLE_FIELDS = frozenset({"role_id", "unverified_role_id"})
+
+# The log channel, which unlike a role has rules beyond existing.
+#
+# /vrcverify_logchannel refuses an announcement channel outright: other servers
+# can *follow* one, and every entry in this log pairs a Discord user with their
+# 18+ status, so a followed channel would republish an age disclosure about a
+# named member into servers they have no relationship with.
+#
+# It also confirms by posting into the channel, which doubles as a permission
+# check. The dashboard refuses on `can_send` instead of posting: a settings
+# save should not put a message in a channel as a side effect, and the bot
+# already computes the same answer for the settings page.
+CHANNEL_FIELDS = frozenset({"verification_log_channel_id"})
 
 
 # The grandfather line is drawn on the servers table's autoincrementing primary
@@ -4938,6 +5005,25 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
                 # it means nothing and read_dashboard_roles never offers it.
                 raise SettingRejected(name, "role_not_in_guild")
 
+    # --- The log channel has to be somewhere the bot may actually log ---
+    for name in CHANNEL_FIELDS & set(coerced):
+        wanted = coerced[name]
+        if wanted is None:
+            continue
+        guild = bot.get_guild(int(guild_id))
+        if guild is None or guild.me is None:
+            return None
+        channel = next(
+            (c for c in guild.text_channels if str(c.id) == wanted), None
+        )
+        if channel is None:
+            raise SettingRejected(name, "channel_not_in_guild")
+        if channel.is_news():
+            raise SettingRejected(name, "channel_is_announcement")
+        perms = channel.permissions_for(guild.me)
+        if not (perms.view_channel and perms.send_messages):
+            raise SettingRejected(name, "channel_not_writable")
+
     # --- A column an older deployment is missing cannot be written ---
     if "auto_verify_new_members" in coerced and not server_has_column(
         "auto_verify_new_members"
@@ -4964,12 +5050,24 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
                 changed.append(("panel_show_icon", old_icon, new_icon))
             save_panel_branding(guild_id, new_color, bool(new_icon))
 
+        # --- The log channel has its own table, so its own write ---
+        if "verification_log_channel_id" in coerced:
+            new_channel = coerced["verification_log_channel_id"]
+            old_channel = load_log_channel_id(guild_id)
+            if (old_channel or None) != (new_channel or None):
+                changed.append(
+                    ("verification_log_channel_id", old_channel, new_channel)
+                )
+                set_log_channel(guild_id, new_channel)
+
         # --- Everything else lives on the servers row ---
         row_fields = {
             "instructions_locale": "en-US",
             "role_id": None,
             "unverified_role_id": None,
             "auto_verify_new_members": True,
+            "auto_nickname_change": False,
+            "custom_verification_requested_message": None,
         }
         wanted_on_row = {name: coerced[name] for name in row_fields if name in coerced}
         if wanted_on_row:

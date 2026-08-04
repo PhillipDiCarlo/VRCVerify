@@ -106,14 +106,7 @@ DEFAULT_VALUES = {
 # What the bot currently lets the website write. Mirrors
 # bot.DASHBOARD_WRITABLE_FIELDS -- the payload carries it so the dashboard
 # never has to know.
-WRITABLE = {
-    "instructions_locale",
-    "panel_embed_color",
-    "panel_show_icon",
-    "role_id",
-    "unverified_role_id",
-    "auto_verify_new_members",
-}
+WRITABLE = set(FREE_PLAN)  # step 5 is complete: every declared setting is open
 
 LOCALES = ["en-US", "es-ES", "ja", "de"]
 
@@ -1116,7 +1109,131 @@ class TestSavingTheVerificationGroup:
         )
         response = self.post(test_client, session, role_id="123")
         page = test_client.get(response.headers["Location"]).data.decode()
-        assert "no longer exists" in page or "couldn&#39;t be saved" in page
+        assert "isn&#39;t in this server any more" in page
+
+
+class TestSavingTheRemainingGroups:
+    def logged_in(self, config, store, **kwargs):
+        api = FakeBotAPI(**kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        return test_client, api, login_as(test_client, store)
+
+    def post(self, test_client, session, group, **form):
+        form.setdefault("csrf_token", session.csrf_token)
+        return test_client.post(f"/guild/{GUILD_IN}/{group}", data=form)
+
+    # ----- after verifying -----
+    def test_the_custom_message_is_sent_exactly_as_typed(self, config, store):
+        """Sanitising here would be a second opinion about what is allowed."""
+        test_client, api, session = self.logged_in(config, store)
+        raw = "  Welcome @everyone!  \nhttps://vrchat.com/home  "
+        self.post(
+            test_client,
+            session,
+            "member",
+            custom_verification_requested_message=raw,
+        )
+        assert api.saves[-1][2]["custom_verification_requested_message"] == raw
+
+    def test_an_empty_message_is_sent_through_to_be_cleared(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client, session, "member", custom_verification_requested_message=""
+        )
+        assert api.saves[-1][2]["custom_verification_requested_message"] == ""
+
+    def test_nickname_sync_uses_the_presence_marker(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client,
+            session,
+            "member",
+            present_auto_nickname_change="1",
+        )
+        assert api.saves[-1][2]["auto_nickname_change"] is False
+
+    def test_a_form_without_the_nickname_control_leaves_it_alone(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client, session, "member", custom_verification_requested_message="hi"
+        )
+        assert "auto_nickname_change" not in api.saves[-1][2]
+
+    @pytest.mark.parametrize(
+        "reason, expected",
+        [
+            ("message_links_not_allowed", "discord.com or vrchat.com"),
+            ("message_too_long", "1000 characters"),
+        ],
+    )
+    def test_a_message_refusal_is_explained(self, config, store, reason, expected):
+        test_client, _api, session = self.logged_in(
+            config, store, errors={"update_settings": BotAPIError(reason, 400)}
+        )
+        response = self.post(
+            test_client, session, "member", custom_verification_requested_message="x"
+        )
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert expected in page
+
+    def test_the_offending_links_are_never_echoed_back(self, config, store):
+        test_client, _api, session = self.logged_in(
+            config,
+            store,
+            errors={"update_settings": BotAPIError("message_links_not_allowed", 400)},
+        )
+        response = self.post(
+            test_client,
+            session,
+            "member",
+            custom_verification_requested_message="go to https://evil.example.com",
+        )
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "evil.example.com" not in page
+
+    # ----- logging -----
+    def test_a_log_channel_is_sent(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client, session, "logging", verification_log_channel_id=LOG_CHANNEL
+        )
+        assert api.saves[-1][2] == {"verification_log_channel_id": LOG_CHANNEL}
+
+    def test_an_empty_channel_selection_turns_logging_off(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(test_client, session, "logging", verification_log_channel_id="")
+        assert api.saves[-1][2]["verification_log_channel_id"] is None
+
+    def test_the_announcement_refusal_explains_why(self, config, store):
+        test_client, _api, session = self.logged_in(
+            config,
+            store,
+            errors={"update_settings": BotAPIError("channel_is_announcement", 400)},
+        )
+        response = self.post(
+            test_client, session, "logging", verification_log_channel_id=NEWS_CHANNEL
+        )
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "republish your members" in page
+
+    # ----- guards, on both -----
+    @pytest.mark.parametrize("group", ["member", "logging"])
+    def test_they_need_the_csrf_token(self, config, store, group):
+        test_client, api, _session = self.logged_in(config, store)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/{group}",
+            data={"csrf_token": "wrong", "verification_log_channel_id": LOG_CHANNEL},
+        )
+        assert response.status_code == 400
+        assert api.saves == []
+
+    @pytest.mark.parametrize("group", ["member", "logging"])
+    def test_a_signed_out_visitor_cannot_save(self, client, bot_api, group):
+        response = client.post(f"/guild/{GUILD_IN}/{group}", data={})
+        assert response.status_code == 302
+        assert not getattr(bot_api, "saves", [])
 
 
 class TestTheFormMatchesWhatTheBotAccepts:
@@ -1161,6 +1278,37 @@ class TestTheFormMatchesWhatTheBotAccepts:
             assert f'value="{code}"' in page
         # Present in LOCALE_NAMES, absent from what the bot offered.
         assert 'value="pa-IN"' not in page
+
+    def test_announcement_channels_are_not_offered_at_all(self, config, store):
+        """Unlike an unassignable role, the bot refuses these outright.
+
+        So leaving them out of the picker is matching the bot rather than being
+        stricter than it -- the opposite call from the role list, for the
+        opposite reason.
+        """
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(premium=True)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert f'value="{LOG_CHANNEL}"' in page
+        assert f'value="{NEWS_CHANNEL}"' not in page
+
+    def test_a_channel_picker_with_nothing_to_pick_is_not_offered(self, config, store):
+        test_client, _api = settings_client(
+            config,
+            store,
+            settings=make_settings(premium=True),
+            errors={"channels": BotAPIError("unavailable", 503)},
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert 'name="verification_log_channel_id"' not in page
+
+    def test_the_custom_message_textarea_carries_the_bot_s_cap(self, config, store):
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(premium=True)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert 'maxlength="1000"' in page
 
     def test_every_form_carries_a_csrf_token(self, config, store):
         test_client, _api = settings_client(
@@ -1329,7 +1477,7 @@ class TestSettingsViewModel:
 class TestWriteSurface:
     """Step 5 opens exactly one save path. Widening it means editing this."""
 
-    def test_the_post_routes_are_logout_and_the_two_group_saves(self, app):
+    def test_the_post_routes_are_logout_and_one_save_per_group(self, app):
         posts = {
             rule.rule
             for rule in app.url_map.iter_rules()
@@ -1337,9 +1485,19 @@ class TestWriteSurface:
         }
         assert posts == {
             "/logout",
-            "/guild/<int:guild_id>/panel",
             "/guild/<int:guild_id>/verification",
+            "/guild/<int:guild_id>/member",
+            "/guild/<int:guild_id>/panel",
+            "/guild/<int:guild_id>/logging",
         }, f"an unexpected write route appeared: {posts}"
+
+    def test_every_group_that_saves_names_a_route_that_exists(self, app, config):
+        """A typo in `save_endpoint` would be a 500 on page load, not a test."""
+        groups = settings_view.build_groups(make_settings(premium=True), DEFAULT_ROLES, DEFAULT_CHANNELS)
+        endpoints = {rule.endpoint for rule in app.url_map.iter_rules()}
+        for group in groups:
+            if group.get("save_endpoint"):
+                assert group["save_endpoint"] in endpoints
 
     def test_the_dashboard_holds_no_database_credential(self):
         """A compromise of the public host must not reach the users table."""
