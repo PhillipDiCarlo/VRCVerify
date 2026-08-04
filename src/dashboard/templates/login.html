@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Sign in — VRCVerify{% endblock %}
+
+{% block content %}
+<section class="panel centered">
+  <h1>Server settings</h1>
+  <p>
+    Sign in with Discord to configure VRCVerify on the servers you administer.
+  </p>
+  <p class="muted">
+    You'll be asked for your identity and your server list, and nothing else.
+    We don't keep your Discord token after you sign in, and this site can't
+    see who has verified — only your server's settings.
+  </p>
+  <p>
+    <a class="button" href="{{ url_for('login') }}">Sign in with Discord</a>
+  </p>
+  <p class="muted">
+    You can configure everything here from inside Discord instead, with
+    <code>/vrcverify_settings</code>. This site is an alternative, not a
+    replacement.
+  </p>
+</section>
+{% endblock %}

@@ -1,0 +1,12 @@
+# Web dashboard (issue #65). Runs on the public VPS.
+#
+# Deliberately short. This service is the internet-facing one, so every
+# dependency here is something an attacker gets to probe — the page is plain
+# server-rendered HTML precisely so the list can stay this size.
+#
+# Note what is ABSENT and must stay absent: no database driver and no
+# discord.py. The dashboard holds no database credential and no bot token; it
+# asks the bot for everything over mTLS. Adding either would undo that.
+Flask==3.1.3
+requests==2.34.2
+gunicorn==23.0.0

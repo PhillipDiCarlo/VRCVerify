@@ -1,0 +1,340 @@
+"""The dashboard web app — step 3 of issue #65: login, session, picker.
+
+Read-only. There is no route here that changes anything about a server; the
+bot API it talks to has no write endpoint to call even if there were. Saving
+settings is step 5, and it arrives with the audit trail.
+
+Design notes worth keeping in view while reading:
+
+* **Cloudflare Access sits in front of this in development and comes off at
+  launch.** Nothing here may ever read `Cf-Access-*` headers, because code that
+  authorised on them would silently become a complete bypass the day the wall
+  is removed. Authority is the Discord session plus the bot's own answer.
+* **The reverse proxy is trusted for exactly one thing**: the scheme, via
+  `X-Forwarded-Proto`. Without it Flask builds `http://` callback URLs and
+  Discord rejects them.
+* **No client-side framework, no CDN, no inline script.** The CSP below is
+  strict enough to be worth having only because the pages are plain enough not
+  to need anything else.
+"""
+
+from __future__ import annotations
+
+import logging
+import secrets
+from typing import Optional
+
+from flask import (
+    Flask,
+    abort,
+    g,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+from dashboard import oauth
+from dashboard.botapi import BotAPIClient, BotAPIError
+from dashboard.config import DashboardConfig
+from dashboard.sessions import SessionStore
+
+logger = logging.getLogger(__name__)
+
+SESSION_COOKIE = "vrcverify_session"
+
+# Everything is same-origin and self-hosted, so the policy can be close to
+# nothing. The one external origin is Discord's icon CDN: guild icons are
+# served from there and proxying them would mean the dashboard fetching
+# arbitrary URLs on a user's behalf, which is a worse trade than allowing one
+# well-known image host. Note it is img-src only -- no script or style may come
+# from anywhere but here.
+CSP = (
+    "default-src 'none'; "
+    "script-src 'self'; "
+    "style-src 'self'; "
+    "img-src 'self' https://cdn.discordapp.com; "
+    "form-action 'self'; "
+    "base-uri 'none'; "
+    "frame-ancestors 'none'"
+)
+
+
+def create_app(
+    config: Optional[DashboardConfig] = None,
+    *,
+    store: Optional[SessionStore] = None,
+    client: Optional[BotAPIClient] = None,
+) -> Flask:
+    config = config or DashboardConfig.from_env()
+    app = Flask(__name__)
+    app.config["DASHBOARD"] = config
+    app.secret_key = config.secret_key
+
+    # Trust exactly one hop, for exactly the scheme and host. cloudflared is
+    # the only thing that can reach this app -- it has no published port -- so
+    # one hop is the whole chain.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)
+
+    app.config["STORE"] = store or SessionStore(
+        config.session_db_path, config.session_max_age
+    )
+    app.config["BOT_API"] = client or BotAPIClient(
+        config.bot_api_url,
+        client_cert=config.bot_api_client_cert,
+        client_key=config.bot_api_client_key,
+        ca_bundle=config.bot_api_ca,
+        signing_key=config.bot_api_signing_key,
+        timeout=config.request_timeout,
+    )
+
+    _register_routes(app)
+    _register_hooks(app)
+    return app
+
+
+# -------------------------------------------------------------------
+# Request plumbing
+# -------------------------------------------------------------------
+def _store() -> SessionStore:
+    from flask import current_app
+
+    return current_app.config["STORE"]
+
+
+def _config() -> DashboardConfig:
+    from flask import current_app
+
+    return current_app.config["DASHBOARD"]
+
+
+def _bot_api() -> BotAPIClient:
+    from flask import current_app
+
+    return current_app.config["BOT_API"]
+
+
+def _register_hooks(app: Flask) -> None:
+    @app.before_request
+    def load_session():
+        g.session = _store().load(request.cookies.get(SESSION_COOKIE))
+
+    @app.after_request
+    def harden(response):
+        response.headers["Content-Security-Policy"] = CSP
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        # The dashboard URL identifies a server admin. Sending it to Discord's
+        # CDN with every icon request would leak which guild is being looked at.
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        # Authenticated pages must not sit in a shared cache, and there is
+        # nothing here worth caching anyway.
+        response.headers["Cache-Control"] = "no-store"
+        # Cloudflare terminates TLS, but HSTS is the origin's statement, and a
+        # future non-tunnel deployment should still carry it.
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+        return response
+
+
+def _set_session_cookie(response, sid: str, max_age: int):
+    response.set_cookie(
+        SESSION_COOKIE,
+        sid,
+        max_age=max_age,
+        # Not readable from JavaScript, only sent over TLS, and not attached to
+        # cross-site requests -- which is also what makes the logout form's
+        # CSRF token a second line rather than the only one.
+        httponly=True,
+        secure=True,
+        samesite="Lax",
+        path="/",
+    )
+    return response
+
+
+def _require_login():
+    session = getattr(g, "session", None)
+    if session is None or not session.authenticated:
+        return None
+    return session
+
+
+# -------------------------------------------------------------------
+# Routes
+# -------------------------------------------------------------------
+def _register_routes(app: Flask) -> None:
+    @app.get("/healthz")
+    def healthz():
+        """Liveness only. Says nothing about sessions, guilds or the bot."""
+        return {"ok": True}
+
+    @app.get("/")
+    def index():
+        session = _require_login()
+        if session is None:
+            return render_template("login.html")
+
+        config = _config()
+        # Display filter only. `admin_hint` came from Discord at authorisation
+        # time and is already stale; it decides which tiles to draw, never what
+        # anyone may do.
+        candidates = [g_ for g_ in (session.guilds or []) if g_.get("admin_hint")]
+
+        try:
+            installed = _bot_api().admin_guild_ids(
+                int(session.discord_id), [g_["id"] for g_ in candidates]
+            )
+            reachable = True
+        except BotAPIError as error:
+            # The picker still renders, with everything shown as un-installed
+            # and a banner explaining why. Better than a blank page that looks
+            # like the user has no servers.
+            logger.warning("bot API unreachable while rendering the picker: %s", error)
+            installed = set()
+            reachable = False
+
+        servers = [
+            {
+                "id": g_["id"],
+                "name": g_["name"],
+                "icon_url": oauth.icon_url(g_),
+                "installed": g_["id"] in installed,
+                "invite_url": _invite_url(config.discord_client_id, g_["id"]),
+            }
+            for g_ in candidates
+        ]
+        # Installed first, then alphabetical -- the ones you can actually
+        # configure are the reason you came.
+        servers.sort(key=lambda s: (not s["installed"], s["name"].lower()))
+
+        return render_template(
+            "picker.html",
+            servers=servers,
+            reachable=reachable,
+            csrf_token=session.csrf_token,
+        )
+
+    @app.get("/login")
+    def login():
+        state = oauth.new_state()
+        session = _store().begin_login(state)
+        config = _config()
+        response = redirect(
+            oauth.authorize_url(
+                config.discord_client_id, config.oauth_redirect_uri, state
+            )
+        )
+        # 600s: the pre-auth row's own lifetime. An abandoned login should not
+        # leave a cookie behind for hours.
+        return _set_session_cookie(response, session.sid, 600)
+
+    @app.get("/callback")
+    def callback():
+        config = _config()
+        store = _store()
+        pending = store.load(request.cookies.get(SESSION_COOKIE))
+
+        error = request.args.get("error")
+        if error:
+            # User clicked Cancel, or Discord refused. Not an error condition
+            # worth a stack trace.
+            return render_template("error.html", message="Authorisation was declined."), 400
+
+        code = request.args.get("code")
+        state = request.args.get("state")
+        if pending is None or not pending.oauth_state or not code or not state:
+            return render_template("error.html", message="That login link has expired. Please try again."), 400
+
+        # The check that makes CSRF against the login flow impossible: the
+        # state came from us, in this browser, for this attempt.
+        if not secrets.compare_digest(pending.oauth_state, state):
+            logger.warning("OAuth state mismatch; refusing the callback.")
+            store.destroy(pending.sid)
+            return render_template("error.html", message="That login could not be verified. Please try again."), 400
+
+        try:
+            discord_id, guilds = oauth.login(
+                code,
+                client_id=config.discord_client_id,
+                client_secret=config.discord_client_secret,
+                redirect_uri=config.oauth_redirect_uri,
+                timeout=config.request_timeout,
+            )
+        except oauth.OAuthError as failure:
+            logger.warning("OAuth login failed: %s", failure)
+            store.destroy(pending.sid)
+            return render_template("error.html", message="Discord could not complete the login. Please try again."), 502
+
+        # New session id at the moment privilege is granted; the pre-auth row
+        # is deleted. See SessionStore.complete_login.
+        session = store.complete_login(pending.sid, discord_id, guilds)
+        logger.info("dashboard login actor=%s guilds=%d", discord_id, len(guilds))
+        return _set_session_cookie(
+            redirect(url_for("index")), session.sid, config.session_max_age
+        )
+
+    @app.post("/logout")
+    def logout():
+        session = _require_login()
+        if session is not None:
+            submitted = request.form.get("csrf_token", "")
+            if not secrets.compare_digest(session.csrf_token, submitted):
+                abort(400)
+            _store().destroy(session.sid)
+        response = redirect(url_for("index"))
+        response.delete_cookie(SESSION_COOKIE, path="/")
+        return response
+
+    @app.errorhandler(404)
+    def not_found(_error):
+        return render_template("error.html", message="Page not found."), 404
+
+    @app.errorhandler(500)
+    def server_error(_error):  # pragma: no cover - defensive
+        return render_template("error.html", message="Something went wrong."), 500
+
+
+def _invite_url(client_id: str, guild_id: str) -> str:
+    """Deep-link the bot's install flow at one specific server.
+
+    `disable_guild_select` plus `guild_id` means the admin lands on the right
+    server rather than a dropdown, which is the whole reason a greyed-out tile
+    is worth clicking.
+
+    The permissions integer is what the bot actually needs: Manage Roles (to
+    assign the verified role), and Send Messages / Embed Links / Read History
+    (to post and maintain the instructions panel). Asking for more would be a
+    worse pitch and a bigger blast radius.
+    """
+    permissions = (
+        0x10000000  # Manage Roles
+        | 0x800  # Send Messages
+        | 0x4000  # Embed Links
+        | 0x10000  # Read Message History
+        | 0x400  # View Channel
+    )
+    return (
+        "https://discord.com/oauth2/authorize"
+        f"?client_id={client_id}"
+        f"&scope=bot+applications.commands"
+        f"&permissions={permissions}"
+        f"&guild_id={guild_id}"
+        "&disable_guild_select=true"
+    )
+
+
+def main():  # pragma: no cover - container entrypoint
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+    return create_app()
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main().run(host="127.0.0.1", port=8000)
