@@ -1286,20 +1286,16 @@ class TestSettingsWriter:
         assert caught.value.locked is False
         assert audit_rows() == []
 
-    @pytest.mark.parametrize(
-        "changes",
-        [
-            {"custom_verification_requested_message": "hi"},  # opens later
-            {"verification_log_channel_id": "5"},
-            {"auto_nickname_change": True},
-        ],
-    )
-    def test_a_field_not_yet_open_is_refused(self, changes, subscribed):
-        make_server()
-        with pytest.raises(bot.SettingRejected) as caught:
-            write(changes)
-        assert caught.value.reason == "not_writable_yet"
-        assert audit_rows() == []
+    def test_every_declared_setting_is_now_writable(self):
+        """Step 5 is finished: the whole allowlist is open.
+
+        Kept as an equality rather than deleted, so adding a SettingsField
+        forces a decision about whether the website may set it. Failing here
+        means someone has to choose, which is the point.
+        """
+        assert bot.DASHBOARD_WRITABLE_FIELDS == {
+            field.name for field in bot.SETTINGS_FIELDS
+        }
 
     def test_an_unknown_field_is_refused(self, subscribed):
         make_server()
@@ -1461,6 +1457,132 @@ class TestSettingsWriter:
         assert write({"role_id": "3"}) is None
         assert audit_rows() == []
 
+    # ----- the custom DM -----
+    def test_a_custom_message_is_stored_sanitised(self, subscribed):
+        """The stored text, not the submitted text.
+
+        The @everyone defusal has to survive into the database -- passing the
+        check and then saving the original would be worse than no check.
+        """
+        make_server()
+        write({"custom_verification_requested_message": "Welcome @everyone!"})
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert "@everyone" not in srv.custom_verification_requested_message
+            assert "@ everyone" in srv.custom_verification_requested_message
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Join us at https://evil.example.com",
+            "See http://discord.com.attacker.test/x",
+        ],
+    )
+    def test_a_message_linking_off_the_allowlist_is_refused(self, text, subscribed):
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"custom_verification_requested_message": text})
+        assert caught.value.reason == "message_links_not_allowed"
+        assert audit_rows() == []
+
+    def test_an_allowed_link_is_accepted(self, subscribed):
+        make_server()
+        write(
+            {"custom_verification_requested_message": "Guide: https://vrchat.com/home"}
+        )
+        assert audit_rows()[0][0] == "custom_verification_requested_message"
+
+    def test_a_message_over_the_modal_cap_is_refused(self, subscribed):
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            write(
+                {
+                    "custom_verification_requested_message": "x"
+                    * (bot.CUSTOM_MESSAGE_MAX_LEN + 1)
+                }
+            )
+        assert caught.value.reason == "message_too_long"
+
+    @pytest.mark.parametrize("text", ["", "   ", "clear", "None", "DEFAULT"])
+    def test_the_words_the_slash_command_clears_on_also_clear_here(
+        self, text, subscribed
+    ):
+        """Otherwise the website could store a value the command cannot set."""
+        make_server(custom_verification_requested_message="old")
+        write({"custom_verification_requested_message": text})
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.custom_verification_requested_message is None
+
+    # ----- the log channel -----
+    def guild_with_channels(self, monkeypatch, sendable=True):
+        guild = FakeGuild(
+            channels=[
+                FakeChannel(70, "verify-log", position=0, sendable=sendable),
+                FakeChannel(71, "announcements", position=1, news=True),
+            ]
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        return guild
+
+    def test_a_log_channel_is_stored_and_audited(self, monkeypatch, subscribed):
+        self.guild_with_channels(monkeypatch)
+        make_server()
+        write({"verification_log_channel_id": "70"})
+        assert bot.load_log_channel_id(GUILD_ID) == "70"
+        assert audit_rows()[0][:3] == ("verification_log_channel_id", None, "70")
+
+    def test_a_log_channel_can_be_cleared(self, monkeypatch, subscribed):
+        self.guild_with_channels(monkeypatch)
+        make_server()
+        bot.set_log_channel(GUILD_ID, "70")
+        write({"verification_log_channel_id": None})
+        assert bot.load_log_channel_id(GUILD_ID) is None
+
+    def test_an_announcement_channel_is_refused(self, monkeypatch, subscribed):
+        """Other servers can follow one, republishing an age disclosure."""
+        self.guild_with_channels(monkeypatch)
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"verification_log_channel_id": "71"})
+        assert caught.value.reason == "channel_is_announcement"
+        assert bot.load_log_channel_id(GUILD_ID) is None
+
+    def test_a_channel_from_another_guild_is_refused(self, monkeypatch, subscribed):
+        self.guild_with_channels(monkeypatch)
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"verification_log_channel_id": "9999"})
+        assert caught.value.reason == "channel_not_in_guild"
+
+    def test_a_channel_the_bot_cannot_post_in_is_refused(self, monkeypatch, subscribed):
+        """/vrcverify_logchannel finds this out by posting; we ask instead."""
+        self.guild_with_channels(monkeypatch, sendable=False)
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"verification_log_channel_id": "70"})
+        assert caught.value.reason == "channel_not_writable"
+
+    def test_a_free_server_cannot_set_a_log_channel(self, monkeypatch, free):
+        self.guild_with_channels(monkeypatch)
+        make_server(row_id=500)
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"verification_log_channel_id": "70"})
+        assert caught.value.reason == "requires_premium"
+        assert bot.load_log_channel_id(GUILD_ID) is None
+
+    # ----- nickname sync -----
+    def test_nickname_sync_is_premium_only(self, free):
+        make_server(row_id=500)
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"auto_nickname_change": True})
+        assert caught.value.locked is True
+
+    def test_nickname_sync_is_stored_for_a_premium_server(self, subscribed):
+        make_server()
+        write({"auto_nickname_change": True})
+        assert audit_rows()[0][:3] == ("auto_nickname_change", "False", "True")
+
     def test_the_writer_reports_the_stored_state_not_the_request(self, subscribed):
         """What the admin sees next is what is saved, not what they submitted."""
         make_server()
@@ -1539,9 +1661,9 @@ class TestBothHalvesTogether:
             lambda client: client.settings(ADMIN_ID, GUILD_ID)
         )
         assert payload["choices"]["instructions_locale"]
-        assert payload["fields"]["instructions_locale"]["writable"] is True
-        # Still closed, so the page renders it without a control.
-        assert payload["fields"]["verification_log_channel_id"]["writable"] is False
+        assert all(
+            field["writable"] is True for field in payload["fields"].values()
+        )
 
     def test_a_refusal_arrives_as_its_reason(self, free):
         """The dashboard maps these to copy, so the string has to survive."""
