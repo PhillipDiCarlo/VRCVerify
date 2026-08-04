@@ -39,6 +39,9 @@ from typing import Optional
 # what "no colour" means is the bot's business, and it stores NULL either way.
 DEFAULT_PANEL_SWATCH = "#5865f2"
 
+# Field kinds rendered as a <select>, which is only usable with options.
+CHOICE_KINDS = frozenset({"role", "role_optional", "locale"})
+
 LOCALE_NAMES = {
     "en-US": "English",
     "es-ES": "Spanish",
@@ -97,12 +100,21 @@ class Field:
     def editable(self) -> bool:
         """Render a control, rather than just the value.
 
-        Both halves come from the bot: `writable` is which fields the save path
-        accepts in this phase, `locked` is whether the plan allows it. The
-        website never decides either, and it renders a control only when the
-        bot would actually accept the value it produces.
+        The first two halves come from the bot: `writable` is which fields the
+        save path accepts in this phase, `locked` is whether the plan allows
+        it. The website never decides either, and it renders a control only
+        when the bot would actually accept the value it produces.
+
+        The third is local, and it matters: a picker needs something to pick
+        from. When the roles or channels read failed we have no options, and an
+        empty <select> is worse than the read-only view -- it invites a save
+        that would clear the verified role and stop verification for everyone.
         """
-        return self.writable and not self.locked
+        if not self.writable or self.locked:
+            return False
+        if self.kind in CHOICE_KINDS and not self.choices:
+            return False
+        return True
 
     @property
     def badge(self) -> Optional[str]:
@@ -143,11 +155,18 @@ def _role_field(
     *,
     unassignable_hint: str,
     empty_warning: Optional[str] = None,
+    required: bool = False,
 ) -> Field:
     state = _state(settings, name)
     raw = state.get("value")
     warnings = []
     swatch = None
+    # Options for the picker. A role the bot cannot manage is still offered,
+    # because /vrcverify_setup offers it too -- the warning is the honest
+    # treatment, not removal from the list.
+    choices = [
+        (str(role.get("id")), _role_option_label(role)) for role in (roles or [])
+    ]
 
     if raw is None or str(raw) == "":
         display, empty = "Not set", True
@@ -182,13 +201,30 @@ def _role_field(
         name,
         label,
         description,
-        "role",
+        "role" if required else "role_optional",
         display,
         empty=empty,
         swatch=swatch,
         warnings=warnings,
+        choices=choices,
+        value="" if raw is None else str(raw),
         **_plan(state),
     )
+
+
+def _role_option_label(role: dict) -> str:
+    """The role's name, saying so when the bot could not manage it.
+
+    In the option text rather than a disabled option: the value is selectable
+    on purpose, and a picker that silently omitted the role an admin was
+    looking for would be the more confusing failure.
+    """
+    name = role.get("name") or f"Role {role.get('id')}"
+    if role.get("managed"):
+        return f"{name} (managed by an integration)"
+    if role.get("assignable") is False:
+        return f"{name} (above VRCVerify)"
+    return name
 
 
 def _lookup(entries: Optional[list], wanted) -> Optional[dict]:
@@ -252,6 +288,7 @@ def build_groups(
             "No verified role is set, so verification cannot complete. Members "
             "are told to contact an admin."
         ),
+        required=True,
     )
 
     unverified = _role_field(
@@ -295,6 +332,7 @@ def build_groups(
             "title": "Verification",
             "blurb": "The core of the bot. These are free for every server.",
             "fields": [verified, unverified, auto_verify],
+            "save_endpoint": "save_verification_settings",
         },
         {
             "title": "After verifying",

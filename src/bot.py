@@ -763,7 +763,14 @@ SETTINGS_FIELDS_BY_NAME = {field.name: field for field in SETTINGS_FIELDS}
 # This list is the enforcement point, not the dashboard's form. The website is
 # untrusted: it renders whatever it likes, and the bot decides.
 DASHBOARD_WRITABLE_FIELDS = frozenset(
-    {"instructions_locale", "panel_embed_color", "panel_show_icon"}
+    {
+        "instructions_locale",
+        "panel_embed_color",
+        "panel_show_icon",
+        "role_id",
+        "unverified_role_id",
+        "auto_verify_new_members",
+    }
 )
 
 
@@ -797,11 +804,60 @@ def _coerce_show_icon(value):
     return value
 
 
+def _role_coercer(field_name: str, *, required: bool):
+    """A Discord snowflake, as the string the servers table stores.
+
+    Accepts an int as well as a digit string because JSON has a number type and
+    an id that arrived as one is not wrong -- only ambiguous, and normalising
+    here is cheaper than a mismatch nobody notices until a role stops matching.
+    """
+
+    def coerce(value):
+        if value is None or value == "":
+            if required:
+                # Mirrors /vrcverify_setup, whose verified_role argument is not
+                # optional. Verification cannot run without one.
+                raise SettingRejected(field_name, "role_required")
+            return None
+        if isinstance(value, bool):
+            raise SettingRejected(field_name, "not_a_role")
+        if isinstance(value, int):
+            value = str(value)
+        if not isinstance(value, str) or not value.isdigit():
+            raise SettingRejected(field_name, "not_a_role")
+        return value
+
+    return coerce
+
+
+def _coerce_auto_verify(value):
+    if not isinstance(value, bool):
+        raise SettingRejected("auto_verify_new_members", "not_a_boolean")
+    return value
+
+
 SETTING_COERCERS = {
     "instructions_locale": _coerce_locale,
     "panel_embed_color": _coerce_embed_color,
     "panel_show_icon": _coerce_show_icon,
+    "role_id": _role_coercer("role_id", required=True),
+    "unverified_role_id": _role_coercer("unverified_role_id", required=False),
+    "auto_verify_new_members": _coerce_auto_verify,
 }
+
+# Fields whose value has to name a real role in *this* guild.
+#
+# Only existence is enforced, not assignability. /vrcverify_setup performs no
+# hierarchy check at all -- Discord's role picker will accept a role above the
+# bot quite happily -- so refusing one here would make the website stricter
+# than the slash command, and would stop an admin who means to set the role
+# first and fix the hierarchy afterwards. The settings page warns about it
+# instead, which is the whole reason `assignable` is surfaced.
+#
+# Existence is different: it is the guarantee Discord's picker provides for
+# free and the dashboard has to provide for itself, because it submits a raw
+# id rather than a choice from a list the platform vouched for.
+ROLE_FIELDS = frozenset({"role_id", "unverified_role_id"})
 
 
 # The grandfather line is drawn on the servers table's autoincrementing primary
@@ -4864,6 +4920,30 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
         if state["locked"]:
             raise SettingRejected(name, "requires_premium", locked=True)
 
+    # --- Roles have to name something that exists in THIS guild ---
+    role_names = ROLE_FIELDS & set(coerced)
+    if role_names:
+        guild = bot.get_guild(int(guild_id))
+        if guild is None or guild.me is None:
+            # The guild was present when _authorize checked; if it is not
+            # visible now, this is the bot failing rather than the caller
+            # asking for something wrong.
+            return None
+        known = {str(role.id) for role in guild.roles if not role.is_default()}
+        for name in role_names:
+            wanted = coerced[name]
+            if wanted is not None and wanted not in known:
+                # Covers a deleted role, a role from another guild, and
+                # @everyone -- which is excluded from `known` because assigning
+                # it means nothing and read_dashboard_roles never offers it.
+                raise SettingRejected(name, "role_not_in_guild")
+
+    # --- A column an older deployment is missing cannot be written ---
+    if "auto_verify_new_members" in coerced and not server_has_column(
+        "auto_verify_new_members"
+    ):
+        raise SettingRejected("auto_verify_new_members", "column_missing")
+
     try:
         changed = []
 
@@ -4884,8 +4964,15 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
                 changed.append(("panel_show_icon", old_icon, new_icon))
             save_panel_branding(guild_id, new_color, bool(new_icon))
 
-        # --- The locale lives on the servers row ---
-        if "instructions_locale" in coerced:
+        # --- Everything else lives on the servers row ---
+        row_fields = {
+            "instructions_locale": "en-US",
+            "role_id": None,
+            "unverified_role_id": None,
+            "auto_verify_new_members": True,
+        }
+        wanted_on_row = {name: coerced[name] for name in row_fields if name in coerced}
+        if wanted_on_row:
             with session_scope() as session:
                 srv = (
                     session.query(Server)
@@ -4897,14 +4984,19 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
                     # for it -- the acting admin is not necessarily the owner.
                     # Inserting a row here would also mint a fresh servers.id,
                     # placing the guild above the grandfather line as a side
-                    # effect of changing its language.
-                    raise SettingRejected("instructions_locale", "server_not_set_up")
-                old_locale = srv.instructions_locale or "en-US"
-                if old_locale != coerced["instructions_locale"]:
-                    changed.append(
-                        ("instructions_locale", old_locale, coerced["instructions_locale"])
+                    # effect of changing a setting.
+                    raise SettingRejected(
+                        sorted(wanted_on_row)[0], "server_not_set_up"
                     )
-                    srv.instructions_locale = coerced["instructions_locale"]
+                for name, new in wanted_on_row.items():
+                    current = getattr(srv, name, None)
+                    if name == "instructions_locale":
+                        current = current or row_fields[name]
+                    elif name == "auto_verify_new_members":
+                        current = row_fields[name] if current is None else bool(current)
+                    if current != new:
+                        changed.append((name, current, new))
+                        setattr(srv, name, new)
 
         if changed:
             with session_scope() as session:

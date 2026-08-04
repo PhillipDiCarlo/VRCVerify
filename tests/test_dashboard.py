@@ -1,4 +1,4 @@
-"""Unit tests for the web dashboard (issue #65, steps 3 and 4).
+"""Unit tests for the web dashboard (issue #65, steps 3 to 5).
 
 This is the internet-facing half of the system, so the tests are mostly about
 the ways a login can be subverted rather than the happy path:
@@ -106,7 +106,14 @@ DEFAULT_VALUES = {
 # What the bot currently lets the website write. Mirrors
 # bot.DASHBOARD_WRITABLE_FIELDS -- the payload carries it so the dashboard
 # never has to know.
-WRITABLE = {"instructions_locale", "panel_embed_color", "panel_show_icon"}
+WRITABLE = {
+    "instructions_locale",
+    "panel_embed_color",
+    "panel_show_icon",
+    "role_id",
+    "unverified_role_id",
+    "auto_verify_new_members",
+}
 
 LOCALES = ["en-US", "es-ES", "ja", "de"]
 
@@ -625,10 +632,19 @@ class TestSettingsPage:
         assert response.headers["Location"].endswith("/")
 
     def test_values_are_shown_with_names_not_ids(self, config, store):
-        test_client, _api = settings_client(config, store)
+        """A read-only field shows the role's name and never its id."""
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(writable=set())
+        )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
         assert "Verified" in page
         assert VERIFIED_ROLE not in page
+
+    def test_an_editable_role_is_labelled_by_name(self, config, store):
+        """Editable, the id has to be in the option value -- the label doesn't."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert f'<option value="{VERIFIED_ROLE}" selected>Verified</option>' in page
 
     def test_every_read_is_scoped_to_the_session_owner_and_that_guild(
         self, config, store
@@ -841,6 +857,19 @@ class TestSecondaryReadsDegradeGracefully:
         assert f"Unknown role ({VERIFIED_ROLE})" in page
         assert "show an ID instead of a name" in page
 
+    def test_a_role_picker_with_nothing_to_pick_is_not_offered(self, config, store):
+        """An empty <select> invites a save that clears the verified role.
+
+        Better to fall back to the read-only view than to render a control
+        whose only options are "leave it" and "break verification".
+        """
+        test_client, _api = settings_client(
+            config, store, errors={"roles": BotAPIError("unavailable", 503)}
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert 'name="role_id"' not in page
+        assert 'name="unverified_role_id"' not in page
+
     def test_an_unresolved_id_is_not_reported_as_deleted(self, config, store):
         """"We could not check" and "it is gone" are different claims."""
         test_client, _api = settings_client(
@@ -880,8 +909,9 @@ class TestSavingThePanelGroup:
             test_client,
             session,
             instructions_locale="ja",
-            panel_fields_present="1",
+            present_panel_embed_color="1",
             panel_embed_color="#ff0000",
+            present_panel_show_icon="1",
             panel_show_icon="on",
         )
         assert response.status_code == 302
@@ -899,7 +929,7 @@ class TestSavingThePanelGroup:
         self.post(
             test_client,
             session,
-            panel_fields_present="1",
+            present_panel_embed_color="1",
             panel_embed_color="#0a0b0c",
         )
         assert api.saves[-1][2]["panel_embed_color"] == 0x0A0B0C
@@ -909,7 +939,7 @@ class TestSavingThePanelGroup:
         self.post(
             test_client,
             session,
-            panel_fields_present="1",
+            present_panel_embed_color="1",
             panel_color_default="on",
             panel_embed_color="#ff0000",
         )
@@ -921,7 +951,7 @@ class TestSavingThePanelGroup:
         """A checkbox that is off sends nothing, which is why the form declares
         that its branding controls were rendered at all."""
         test_client, api, session = self.logged_in(config, store)
-        self.post(test_client, session, panel_fields_present="1")
+        self.post(test_client, session, present_panel_show_icon="1")
         assert api.saves[-1][2]["panel_show_icon"] is False
 
     def test_branding_is_untouched_when_its_controls_were_not_rendered(
@@ -1010,6 +1040,83 @@ class TestSavingThePanelGroup:
         ).data.decode()
         assert "onerror" not in page
         assert "couldn&#39;t be saved" in page
+
+
+class TestSavingTheVerificationGroup:
+    def post(self, test_client, session, **form):
+        form.setdefault("csrf_token", session.csrf_token)
+        return test_client.post(f"/guild/{GUILD_IN}/verification", data=form)
+
+    def logged_in(self, config, store, **kwargs):
+        api = FakeBotAPI(**kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        return test_client, api, login_as(test_client, store)
+
+    def test_roles_and_auto_verify_are_sent(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client,
+            session,
+            role_id=VERIFIED_ROLE,
+            unverified_role_id=UNVERIFIED_ROLE,
+            present_auto_verify_new_members="1",
+            auto_verify_new_members="on",
+        )
+        assert api.saves[-1][2] == {
+            "role_id": VERIFIED_ROLE,
+            "unverified_role_id": UNVERIFIED_ROLE,
+            "auto_verify_new_members": True,
+        }
+
+    def test_an_empty_unverified_role_clears_it(self, config, store):
+        """A select always submits, so blank is a real choice, not an absence."""
+        test_client, api, session = self.logged_in(config, store)
+        self.post(test_client, session, role_id=VERIFIED_ROLE, unverified_role_id="")
+        assert api.saves[-1][2]["unverified_role_id"] is None
+
+    def test_auto_verify_off_is_sent_as_false(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client,
+            session,
+            role_id=VERIFIED_ROLE,
+            present_auto_verify_new_members="1",
+        )
+        assert api.saves[-1][2]["auto_verify_new_members"] is False
+
+    def test_a_form_without_the_auto_verify_control_leaves_it_alone(
+        self, config, store
+    ):
+        """The marker is what tells "unticked" from "never rendered"."""
+        test_client, api, session = self.logged_in(config, store)
+        self.post(test_client, session, role_id=VERIFIED_ROLE)
+        assert "auto_verify_new_members" not in api.saves[-1][2]
+
+    def test_it_needs_the_csrf_token(self, config, store):
+        test_client, api, _session = self.logged_in(config, store)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/verification",
+            data={"csrf_token": "wrong", "role_id": VERIFIED_ROLE},
+        )
+        assert response.status_code == 400
+        assert api.saves == []
+
+    def test_a_signed_out_visitor_cannot_save(self, client, bot_api):
+        response = client.post(
+            f"/guild/{GUILD_IN}/verification", data={"role_id": VERIFIED_ROLE}
+        )
+        assert response.status_code == 302
+        assert not getattr(bot_api, "saves", [])
+
+    def test_a_refused_role_is_explained(self, config, store):
+        test_client, _api, session = self.logged_in(
+            config, store, errors={"update_settings": BotAPIError("role_not_in_guild", 400)}
+        )
+        response = self.post(test_client, session, role_id="123")
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "no longer exists" in page or "couldn&#39;t be saved" in page
 
 
 class TestTheFormMatchesWhatTheBotAccepts:
@@ -1101,15 +1208,18 @@ class TestHardening:
         test_client, _api = settings_client(
             config,
             store,
-            settings=make_settings(premium=True, values={"panel_embed_color": 0xFF00FF}),
+            # Nothing writable, so every field takes the read-only path and the
+            # swatches are the presentation under test.
+            settings=make_settings(
+                premium=True, writable=set(), values={"panel_embed_color": 0xFF00FF}
+            ),
         )
         for path in ("/", f"/guild/{GUILD_IN}"):
             page = test_client.get(path).data
             assert b"style=" not in page, f"inline style on {path}"
-        # A swatch still rendered; it just isn't CSS. The verified role's is the
-        # stable one to look at -- role_id has no save path in this phase, so it
-        # is always the read-only presentation.
-        assert b'fill="#5865f2"' in test_client.get(f"/guild/{GUILD_IN}").data
+        page = test_client.get(f"/guild/{GUILD_IN}").data
+        assert b'fill="#ff00ff"' in page   # the panel colour
+        assert b'fill="#5865f2"' in page   # the verified role's colour
 
     def test_logout_requires_the_csrf_token(self, client, store):
         session = login_as(client, store)
@@ -1219,15 +1329,17 @@ class TestSettingsViewModel:
 class TestWriteSurface:
     """Step 5 opens exactly one save path. Widening it means editing this."""
 
-    def test_the_post_routes_are_logout_and_the_panel_save(self, app):
+    def test_the_post_routes_are_logout_and_the_two_group_saves(self, app):
         posts = {
             rule.rule
             for rule in app.url_map.iter_rules()
             if "POST" in (rule.methods or set())
         }
-        assert posts == {"/logout", "/guild/<int:guild_id>/panel"}, (
-            f"an unexpected write route appeared: {posts}"
-        )
+        assert posts == {
+            "/logout",
+            "/guild/<int:guild_id>/panel",
+            "/guild/<int:guild_id>/verification",
+        }, f"an unexpected write route appeared: {posts}"
 
     def test_the_dashboard_holds_no_database_credential(self):
         """A compromise of the public host must not reach the users table."""
