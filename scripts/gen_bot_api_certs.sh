@@ -79,21 +79,40 @@ cd "$OUT"
 
 umask 077  # keys are created unreadable to anyone else, from the start
 
+# A CA with no keyUsage is accepted by openssl, by curl, and by the bot's own
+# server context -- and rejected by the dashboard, because Python 3.13 turned on
+# ssl.VERIFY_X509_STRICT by default in create_default_context(). Under RFC 5280
+# strict checking a CA must say keyCertSign, so an extension-free CA fails with
+# "CA cert does not include key usage extension" on the client side only.
+CA_EXTS=(
+    -addext "basicConstraints=critical,CA:TRUE"
+    -addext "keyUsage=critical,keyCertSign,cRLSign"
+    -addext "subjectKeyIdentifier=hash"
+)
+
 echo "==> Certificate authority"
-if [ -f ca.key ]; then
-    echo "    ca.key exists; reusing it (rotating leaves only)."
-else
+if [ ! -f ca.key ]; then
     openssl genrsa -out ca.key 4096
     openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 \
-        -subj "/CN=VRCVerify Internal CA" -out ca.pem
+        -subj "/CN=VRCVerify Internal CA" "${CA_EXTS[@]}" -out ca.pem
+elif ! openssl x509 -in ca.pem -noout -ext keyUsage 2>/dev/null | grep -q "Certificate Sign"; then
+    # Re-signing with the SAME key and the SAME subject: the CA certificate only
+    # publishes a public key and a set of extensions, so every certificate the
+    # old one signed still verifies against the new one. Nothing needs reissuing
+    # and the two hosts can be updated in either order.
+    echo "    ca.pem predates the keyUsage fix; re-issuing it from the existing key."
+    openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 \
+        -subj "/CN=VRCVerify Internal CA" "${CA_EXTS[@]}" -out ca.pem
+else
+    echo "    ca.key exists; reusing it (rotating leaves only)."
 fi
 
 # Real files rather than <(...) process substitution: under Git Bash the latter
 # hands openssl.exe a /dev/fd/63 path a Windows binary cannot open.
 trap 'rm -f server.ext client.ext bot-api.csr dashboard.csr' EXIT
 
-printf 'subjectAltName=%s\nextendedKeyUsage=serverAuth\nbasicConstraints=CA:FALSE\n' "$SAN" > server.ext
-printf 'extendedKeyUsage=clientAuth\nbasicConstraints=CA:FALSE\n' > client.ext
+printf 'subjectAltName=%s\nextendedKeyUsage=serverAuth\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nsubjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid:always\n' "$SAN" > server.ext
+printf 'extendedKeyUsage=clientAuth\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\nsubjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid:always\n' > client.ext
 
 echo "==> Server certificate for the bot API ($SAN)"
 openssl genrsa -out bot-api.key 4096
@@ -108,6 +127,15 @@ openssl req -new -key dashboard.key -subj "/CN=vrcverify-dashboard" -out dashboa
 openssl x509 -req -in dashboard.csr -CA ca.pem -CAkey ca.key -CAcreateserial \
     -out dashboard.pem -days 825 -sha256 -extfile client.ext
 chmod 600 ./*.key
+
+# Run the strict check here rather than suggesting it, because the lenient one
+# is worse than no check at all: `openssl verify` passes on a chain the
+# dashboard will reject, so it reads as proof the certificates are good. The
+# failure it hides surfaces later as a TLS error at request time, on the box
+# where the CA key isn't, with no matching log line on the bot.
+echo
+echo "==> Verifying the chain the way Python will"
+openssl verify -x509_strict -CAfile ca.pem bot-api.pem dashboard.pem
 
 echo
 echo "Done. Files are in $(pwd)"
@@ -125,6 +153,3 @@ echo "  BOT_API_CLIENT_KEY=/certs/dashboard.key"
 echo
 echo "Keep ca.key here. It is the only thing that can mint a client the bot"
 echo "will trust, and neither host ever needs it."
-echo
-echo "Verify the pair before deploying:"
-echo "  openssl verify -CAfile ca.pem bot-api.pem dashboard.pem"
