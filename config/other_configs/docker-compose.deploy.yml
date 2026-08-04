@@ -38,6 +38,17 @@ services:
       BOT_API_CA: ${BOT_API_CA:-}
       BOT_API_CLIENT_CN: ${BOT_API_CLIENT_CN:-}
       BOT_API_TOKEN_SIGNING_KEY: ${BOT_API_TOKEN_SIGNING_KEY:-}
+      BOT_API_ADMIN_TTL: ${BOT_API_ADMIN_TTL:-15}
+    restart: unless-stopped
+    # Docker's json-file driver does not rotate by default, so container logs
+    # grow without bound until the disk does. Especially worth having here:
+    # the checker logs full VRChat bios at DEBUG (third-party PII), so an
+    # accidental LOG_LEVEL=DEBUG must not also mean "forever".
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     #
     # TURNING THE API ON ALSO NEEDS THE TWO LINES BELOW UNCOMMENTED.
     #
@@ -57,7 +68,6 @@ services:
     # network_mode: host
     # volumes:
     #   - ${BOT_API_CERT_DIR:-./certs}:/certs:ro
-    restart: unless-stopped
 
   vrc-online-checker:
     image: italiandogs/vrcverify-vrc-online-checker:${VRCVERIFY_VERSION:?Set VRCVERIFY_VERSION to a pushed version tag (never latest)}
@@ -84,6 +94,12 @@ services:
     volumes:
       - vrchat-session:/data
     restart: unless-stopped
+    # This is the service that logs bios at DEBUG. Rotation matters most here.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   # Persists the VRChat auth cookie so restarts skip re-authentication.
