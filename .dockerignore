@@ -22,6 +22,21 @@ venv/
 # Environment files
 .env
 
+# mTLS material for the bot API (scripts/gen_bot_api_certs.*). These must never
+# enter the build context at all -- not merely "never be COPYed". Anything in
+# the context is uploaded to the Docker daemon, ends up in the build cache, and
+# is one careless `COPY . .` away from being baked into a published image.
+# ca.key in particular can mint a client the bot will trust.
+certs/
+*.key
+*.pem
+*.csr
+*.srl
+
+# Local security documentation (gitignored too, but belt and braces)
+SECURITY_AUDIT.md
+VPS_RUNBOOK.md
+
 # Tests and local assets not needed in images
 tests/
 Logos/
