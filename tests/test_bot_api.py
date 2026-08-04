@@ -1289,10 +1289,9 @@ class TestSettingsWriter:
     @pytest.mark.parametrize(
         "changes",
         [
-            {"role_id": "1"},                     # writable later, not now
-            {"auto_verify_new_members": False},
-            {"custom_verification_requested_message": "hi"},
+            {"custom_verification_requested_message": "hi"},  # opens later
             {"verification_log_channel_id": "5"},
+            {"auto_nickname_change": True},
         ],
     )
     def test_a_field_not_yet_open_is_refused(self, changes, subscribed):
@@ -1358,6 +1357,109 @@ class TestSettingsWriter:
         for empty in ({}, None, "fields"):
             with pytest.raises(bot.SettingRejected):
                 write(empty)
+
+    # ----- the verification group -----
+    def guild_with_roles(self, monkeypatch):
+        guild = FakeGuild(
+            roles=[
+                FakeRole(1, "@everyone", 0, default=True),
+                FakeRole(2, "Verified", 10),
+                FakeRole(3, "Unverified", 9),
+                FakeRole(4, "Admins", 99),          # above the bot
+                FakeRole(5, "Booster", 5, managed=True),
+            ]
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        return guild
+
+    def test_a_verified_role_is_stored_and_audited(self, monkeypatch, subscribed):
+        self.guild_with_roles(monkeypatch)
+        make_server(role_id="2")
+        write({"role_id": "3"})
+        assert audit_rows() == [("role_id", "2", "3", str(ADMIN_ID))]
+
+    def test_an_unverified_role_can_be_cleared(self, monkeypatch, subscribed):
+        """/vrcverify_setup clears it by omitting the argument, so this must too."""
+        self.guild_with_roles(monkeypatch)
+        make_server(role_id="2", unverified_role_id="3")
+        write({"unverified_role_id": None})
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.unverified_role_id is None
+
+    def test_the_verified_role_cannot_be_cleared(self, monkeypatch, subscribed):
+        """verified_role is a required argument on the slash command."""
+        self.guild_with_roles(monkeypatch)
+        make_server(role_id="2")
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"role_id": None})
+        assert caught.value.reason == "role_required"
+
+    @pytest.mark.parametrize("wanted", ["1", "9999", "not-a-number", True])
+    def test_a_role_that_is_not_a_real_role_here_is_refused(
+        self, monkeypatch, subscribed, wanted
+    ):
+        """`1` is @everyone, `9999` is another guild's or a deleted one.
+
+        Discord's role picker gives the slash command this guarantee for free.
+        The dashboard submits a raw id, so it has to provide it for itself.
+        """
+        self.guild_with_roles(monkeypatch)
+        make_server(role_id="2")
+        with pytest.raises(bot.SettingRejected):
+            write({"role_id": wanted})
+        assert audit_rows() == []
+
+    @pytest.mark.parametrize("wanted", ["4", "5"])
+    def test_an_unassignable_role_is_allowed_and_only_warned_about(
+        self, monkeypatch, subscribed, wanted
+    ):
+        """Above the bot, or managed by an integration.
+
+        /vrcverify_setup performs no hierarchy check at all, so refusing here
+        would make the website stricter than the slash command -- and would
+        block an admin who means to set the role first and fix the ordering
+        after. The settings page shows the warning instead.
+        """
+        self.guild_with_roles(monkeypatch)
+        make_server(role_id="2")
+        write({"role_id": wanted})
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.role_id == wanted
+
+    def test_an_id_that_arrived_as_a_number_is_stored_as_a_string(
+        self, monkeypatch, subscribed
+    ):
+        self.guild_with_roles(monkeypatch)
+        make_server(role_id="2")
+        write({"role_id": 3})
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.role_id == "3"
+
+    def test_auto_verify_is_written_for_a_free_server(self, free):
+        """Never gated, for anyone, ever."""
+        make_server(row_id=500, auto_verify_new_members=True)
+        write({"auto_verify_new_members": False})
+        assert audit_rows()[0][:3] == ("auto_verify_new_members", "True", "False")
+
+    def test_auto_verify_is_refused_when_the_column_is_missing(
+        self, monkeypatch, subscribed
+    ):
+        make_server()
+        monkeypatch.setattr(bot, "server_has_column", lambda name: False)
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"auto_verify_new_members": False})
+        assert caught.value.reason == "column_missing"
+
+    def test_a_guild_the_bot_cannot_see_does_not_write_a_role(
+        self, monkeypatch, subscribed
+    ):
+        make_server(role_id="2")
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: None)
+        assert write({"role_id": "3"}) is None
+        assert audit_rows() == []
 
     def test_the_writer_reports_the_stored_state_not_the_request(self, subscribed):
         """What the admin sees next is what is saved, not what they submitted."""
@@ -1438,7 +1540,8 @@ class TestBothHalvesTogether:
         )
         assert payload["choices"]["instructions_locale"]
         assert payload["fields"]["instructions_locale"]["writable"] is True
-        assert payload["fields"]["role_id"]["writable"] is False
+        # Still closed, so the page renders it without a control.
+        assert payload["fields"]["verification_log_channel_id"]["writable"] is False
 
     def test_a_refusal_arrives_as_its_reason(self, free):
         """The dashboard maps these to copy, so the string has to survive."""

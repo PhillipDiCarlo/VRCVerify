@@ -338,6 +338,33 @@ def _register_routes(app: Flask) -> None:
             csrf_token=session.csrf_token,
         )
 
+    @app.post("/guild/<int:guild_id>/verification")
+    def save_verification_settings(guild_id: int):
+        """The verification group: which roles, and auto-verify on join.
+
+        Same shape as the panel save below, and the same division of labour --
+        the bot confirms each role actually exists in the guild, which is the
+        guarantee Discord's role picker gives `/vrcverify_setup` for free and
+        this form cannot give itself.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        changes = {}
+        if "role_id" in request.form:
+            changes["role_id"] = request.form.get("role_id")
+        if "unverified_role_id" in request.form:
+            # A select always submits, so an empty value here is a real choice
+            # -- "None". /vrcverify_setup clears it the same way, by leaving
+            # the argument off.
+            changes["unverified_role_id"] = request.form.get("unverified_role_id") or None
+        _read_checkbox(changes, "auto_verify_new_members")
+
+        return _save(guild_id, session, changes)
+
     @app.post("/guild/<int:guild_id>/panel")
     def save_panel_settings(guild_id: int):
         """Save the instructions panel group. The only write in the app.
@@ -359,9 +386,7 @@ def _register_routes(app: Flask) -> None:
         session = _require_login()
         if session is None:
             return redirect(url_for("index"))
-
-        submitted = request.form.get("csrf_token", "")
-        if not secrets.compare_digest(session.csrf_token, submitted):
+        if not _csrf_ok(session):
             abort(400)
 
         changes = {}
@@ -370,13 +395,8 @@ def _register_routes(app: Flask) -> None:
         if locale:
             changes["instructions_locale"] = locale
 
-        if request.form.get("panel_fields_present"):
-            # A checkbox that is off sends nothing at all, so the form declares
-            # that its branding controls were on the page. Without this, an
-            # unticked "show icon" would be indistinguishable from a free
-            # server whose controls were never rendered, and the save would
-            # quietly turn the icon off.
-            changes["panel_show_icon"] = bool(request.form.get("panel_show_icon"))
+        _read_checkbox(changes, "panel_show_icon")
+        if request.form.get("present_panel_embed_color"):
             if request.form.get("panel_color_default"):
                 changes["panel_embed_color"] = None
             else:
@@ -384,27 +404,7 @@ def _register_routes(app: Flask) -> None:
                     request.form.get("panel_embed_color")
                 )
 
-        if not changes:
-            return redirect(url_for("guild_settings", guild_id=guild_id))
-
-        try:
-            _bot_api().update_settings(int(session.discord_id), guild_id, changes)
-        except BotAPIError as error:
-            logger.warning("save refused for guild %s: %s", guild_id, error)
-            # A code, never the bot's text. What comes back is a fixed reason
-            # string today, but round-tripping it through a URL and into a page
-            # would make the bot's error strings part of this app's HTML, and
-            # the day one of them carries something a caller influenced is not
-            # the day to find that out.
-            return redirect(
-                url_for(
-                    "guild_settings",
-                    guild_id=guild_id,
-                    error=_save_error_code(error),
-                )
-            )
-
-        return redirect(url_for("guild_settings", guild_id=guild_id, saved=1))
+        return _save(guild_id, session, changes)
 
     @app.post("/logout")
     def logout():
@@ -451,6 +451,52 @@ SAVE_ERRORS = {
     ),
 }
 GENERIC_SAVE_ERROR = "That change couldn't be saved, so nothing was changed."
+
+
+def _read_checkbox(changes: dict, name: str) -> None:
+    """Record a checkbox only if its control was actually on the page.
+
+    An unticked box submits nothing, which is indistinguishable from a control
+    that was never rendered -- so the template emits a `present_<name>` marker
+    beside every checkbox. Without it, saving a free server's language would
+    look exactly like switching its branding off, and the bot would dutifully
+    be asked to do so.
+    """
+    if request.form.get(f"present_{name}"):
+        changes[name] = bool(request.form.get(name))
+
+
+def _csrf_ok(session) -> bool:
+    """The second line. `SameSite=Lax` on the cookie is the first."""
+    return secrets.compare_digest(
+        session.csrf_token, request.form.get("csrf_token", "")
+    )
+
+
+def _save(guild_id: int, session, changes: dict):
+    """Hand a group's changes to the bot and turn the answer into a redirect.
+
+    Shared by every group so there is exactly one place that talks to the write
+    endpoint, one place that decides what a refusal looks like, and one thing
+    to re-read if that ever needs to change.
+    """
+    if not changes:
+        return redirect(url_for("guild_settings", guild_id=guild_id))
+
+    try:
+        _bot_api().update_settings(int(session.discord_id), guild_id, changes)
+    except BotAPIError as error:
+        logger.warning("save refused for guild %s: %s", guild_id, error)
+        # A code, never the bot's text. What comes back is a fixed reason
+        # string today, but round-tripping it through a URL and into a page
+        # would make the bot's error strings part of this app's HTML, and the
+        # day one of them carries something a caller influenced is not the day
+        # to find that out.
+        return redirect(
+            url_for("guild_settings", guild_id=guild_id, error=_save_error_code(error))
+        )
+
+    return redirect(url_for("guild_settings", guild_id=guild_id, saved=1))
 
 
 def _save_error_code(error: BotAPIError) -> str:

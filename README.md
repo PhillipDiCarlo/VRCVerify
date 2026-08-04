@@ -328,19 +328,28 @@ lists the servers they administer, and shows one server's settings. It holds no
 database credential and no bot token: everything it knows it asks the bot for
 over mTLS, and the bot decides what it is allowed to know.
 
-It can now **save the instructions panel group** — language, colour, server
-icon — and nothing else. That boundary is enforced in the bot by
-`DASHBOARD_WRITABLE_FIELDS`, not by which controls the website chose to draw,
-and the payload tells the dashboard which fields are open so the two cannot
-drift. The website renders a control only where the bot has said it would
-accept the value.
+It can now save two groups — the **instructions panel** (language, colour,
+server icon) and **verification** (verified role, unverified role, auto-verify
+on join). That boundary is enforced in the bot by `DASHBOARD_WRITABLE_FIELDS`,
+not by which controls the website chose to draw, and the payload tells the
+dashboard which fields are open so the two cannot drift. The website renders a
+control only where the bot has said it would accept the value — and, for a
+picker, only when it actually has something to pick from, because an empty
+`<select>` invites a save that would clear the verified role.
+
+On roles the bot checks that the id names a real role in *that* guild — the
+guarantee Discord's role picker gives `/vrcverify_setup` for free, which a form
+submitting a raw id has to provide for itself. It does **not** refuse a role it
+cannot assign: `/vrcverify_setup` doesn't either, so refusing would make the
+website stricter than the slash command and would block an admin who means to
+set the role first and fix the hierarchy after. The page warns instead.
 
 The write path adds one route on each side, and both are pinned by tests:
 
 - `PATCH /api/v1/guilds/{id}/settings` on the bot, the only non-GET route.
   Because the signed operation includes the **method**, a token minted to read
   a guild's settings cannot be replayed to write them.
-- `POST /guild/<id>/panel` on the dashboard, behind a CSRF token and a
+- One `POST` per group on the dashboard, behind a CSRF token and a
   `SameSite=Lax` cookie — though the check that matters is the bot's, which
   re-runs Administrator, re-runs the plan gate, and validates every value
   against its own allowlist. Nothing the website sends is trusted by the thing
