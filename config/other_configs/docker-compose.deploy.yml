@@ -1,4 +1,4 @@
-# Deployment compose file — pulls published images from Docker Hub.
+# Deployment compose file -- pulls published images from Docker Hub.
 #
 # Security note: images are pulled by EXPLICIT version tag, never :latest.
 # A mutable :latest tag means a registry-account compromise becomes code

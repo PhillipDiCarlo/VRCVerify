@@ -1,4 +1,4 @@
-# Dockerfile-dashboard — the public-facing web dashboard (issue #65).
+# Dockerfile-dashboard -- the public-facing web dashboard (issue #65).
 #
 # This is the only image in the project that runs on an internet-reachable
 # host, so it deliberately carries less than the others: no database driver,
@@ -34,13 +34,13 @@ USER appuser
 ENV PYTHONPATH=/app/src
 
 # Bound to loopback inside the container. cloudflared reaches it over the
-# Docker network, and there is no published port — see the compose file.
+# Docker network, and there is no published port -- see the compose file.
 EXPOSE 8000
 
 # --forwarded-allow-ips="*" lets gunicorn honour X-Forwarded-Proto. It defaults
 # to trusting only 127.0.0.1, and cloudflared reaches us from a Docker network
 # address, so without this the scheme is ignored and every OAuth callback URL
-# comes out as http:// — which Discord rejects outright.
+# comes out as http:// -- which Discord rejects outright.
 #
 # Trusting "*" is safe here specifically because this container publishes no
 # port: cloudflared is the only thing that can connect to it at all. If that

@@ -1,5 +1,5 @@
 # Issues the certificates the bot API and the dashboard authenticate each other
-# with (issue #65). A direct port of gen_bot_api_certs.sh — read that one for
+# with (issue #65). A direct port of gen_bot_api_certs.sh -- read that one for
 # why a private CA exists at all, and for BOTH rotation procedures: the
 # certificates this script issues, and BOT_API_TOKEN_SIGNING_KEY, which it does
 # not issue but which is the other half of the same trust chain. Keep the two
@@ -26,7 +26,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Git for Windows' openssl.exe is an MSYS program, so it rewrites any argument
-# starting with "/" into a Windows path — "/CN=VRCVerify Internal CA" would
+# starting with "/" into a Windows path -- "/CN=VRCVerify Internal CA" would
 # arrive as "C:/Program Files/Git/CN=..." and be rejected as a malformed
 # subject. This disables that rewriting for the child processes below.
 $env:MSYS_NO_PATHCONV = "1"
@@ -145,7 +145,7 @@ try {
     Write-Host "Keep ca.key here. It is the only thing that can mint a client the"
     Write-Host "bot will trust, and neither host ever needs it."
     Write-Host ""
-    Write-Host "The .key files carry no ACL restriction on Windows — this machine is"
+    Write-Host "The .key files carry no ACL restriction on Windows -- this machine is"
     Write-Host "the CA host, not a deploy target. Move them over SSH, don't sync them."
 }
 finally {

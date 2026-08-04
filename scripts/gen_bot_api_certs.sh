@@ -7,7 +7,7 @@
 # ----------------------------------------
 # Because the tunnel is a segmentation control, not an authentication one. If
 # transport authentication came from Tailscale, then anything that ends up on
-# the tailnet — a second node, a compromised device, a misapplied ACL — can
+# the tailnet -- a second node, a compromised device, a misapplied ACL -- can
 # talk to the bot API. With mTLS the API answers exactly one certificate, and
 # reaching the port without it gets nothing. Two independent things have to go
 # wrong instead of one.
@@ -33,7 +33,7 @@
 # ROTATION
 #   Certificates below are valid for 825 days; the CA for 10 years.
 #
-#   To rotate a leaf (the normal case — a lost VPS, a suspected key leak, or
+#   To rotate a leaf (the normal case -- a lost VPS, a suspected key leak, or
 #   just the expiry coming up), re-run this script and redeploy the affected
 #   side. The CA is unchanged, so the two ends can be updated independently and
 #   there is no window where they disagree.
@@ -96,7 +96,7 @@
 set -euo pipefail
 
 # Under Git Bash / MSYS on Windows, an argument starting with "/" is rewritten
-# into a Windows path — so "/CN=VRCVerify Internal CA" reaches openssl as
+# into a Windows path -- so "/CN=VRCVerify Internal CA" reaches openssl as
 # "C:/Program Files/Git/CN=..." and it rejects the subject. Harmless anywhere
 # else, so it is set unconditionally rather than behind a platform test.
 export MSYS_NO_PATHCONV=1
