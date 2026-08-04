@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}VRCVerify{% endblock %}
+
+{% block content %}
+<section class="panel centered">
+  <h1>Sorry</h1>
+  <p>{{ message }}</p>
+  <p><a class="button" href="{{ url_for('index') }}">Back to your servers</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}VRCVerify{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {# No <script> anywhere in this app. The CSP forbids inline script, and
+     nothing here needs JavaScript to work. #}
+</head>
+<body>
+  <header class="bar">
+    <a class="brand" href="{{ url_for('index') }}">VRCVerify</a>
+    {% if csrf_token %}
+      <form method="post" action="{{ url_for('logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="link">Sign out</button>
+      </form>
+    {% endif %}
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    <p>Core 18+ verification is free, forever.</p>
+  </footer>
+</body>
+</html>

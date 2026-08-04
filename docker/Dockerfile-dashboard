@@ -1,0 +1,52 @@
+# Dockerfile-dashboard — the public-facing web dashboard (issue #65).
+#
+# This is the only image in the project that runs on an internet-reachable
+# host, so it deliberately carries less than the others: no database driver,
+# no discord.py, no bot token. Everything it knows, it asks the bot for over
+# mTLS, and the bot decides what it is allowed to know.
+
+FROM python:3.14.6-slim AS runtime
+
+ENV PIP_NO_CACHE_DIR=1 \
+	PIP_DISABLE_PIP_VERSION_CHECK=1 \
+	PYTHONDONTWRITEBYTECODE=1 \
+	PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY config/other_configs/requirements-dashboard.txt ./requirements.txt
+RUN pip install --no-compile -r requirements.txt
+
+RUN useradd --create-home --uid 10001 appuser
+
+# api_tokens.py is shared with the bot on purpose: both ends must sign and
+# verify with byte-identical code, and copying it here rather than
+# reimplementing is what guarantees that. It is stdlib-only, so it brings
+# nothing with it.
+COPY --chown=appuser:appuser src/api_tokens.py ./src/api_tokens.py
+COPY --chown=appuser:appuser src/dashboard/ ./src/dashboard/
+
+# Sessions live here. Mount a volume over it; the image itself keeps nothing.
+RUN mkdir -p /data && chown appuser:appuser /data
+VOLUME ["/data"]
+
+USER appuser
+ENV PYTHONPATH=/app/src
+
+# Bound to loopback inside the container. cloudflared reaches it over the
+# Docker network, and there is no published port — see the compose file.
+EXPOSE 8000
+
+# --forwarded-allow-ips="*" lets gunicorn honour X-Forwarded-Proto. It defaults
+# to trusting only 127.0.0.1, and cloudflared reaches us from a Docker network
+# address, so without this the scheme is ignored and every OAuth callback URL
+# comes out as http:// — which Discord rejects outright.
+#
+# Trusting "*" is safe here specifically because this container publishes no
+# port: cloudflared is the only thing that can connect to it at all. If that
+# ever changes, this must be narrowed at the same time.
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", \
+	"--workers", "2", "--threads", "4", \
+	"--access-logfile", "-", "--error-logfile", "-", \
+	"--forwarded-allow-ips", "*", \
+	"dashboard.app:main()"]

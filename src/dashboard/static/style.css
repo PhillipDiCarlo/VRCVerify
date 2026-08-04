@@ -1,0 +1,162 @@
+/* Plain on purpose.
+ *
+ * No framework, no webfont, no CDN. Partly because the CSP forbids external
+ * origins and this is what makes that policy cheap to keep, and partly because
+ * the whole page is a list of servers and a form -- anything more would be
+ * weight an admin pays for on every visit for no benefit.
+ *
+ * No animations and no spinners, per the original request. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --ink: #1c1e21;
+  --muted: #5c6570;
+  --line: #dfe3e8;
+  --accent: #5865f2;
+  --notice: #8a6d00;
+  --notice-bg: #fff6d6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171a;
+    --panel: #1e2126;
+    --ink: #e8eaed;
+    --muted: #99a1ab;
+    --line: #2e333a;
+    --accent: #7d88f7;
+    --notice: #ffd66b;
+    --notice-bg: #33290a;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand { font-weight: 650; color: var(--ink); text-decoration: none; }
+
+main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1.5rem;
+}
+
+.centered { max-width: 34rem; margin: 3rem auto; }
+
+h1 { margin: 0 0 0.75rem; font-size: 1.4rem; }
+
+.muted { color: var(--muted); font-size: 0.925rem; }
+
+.notice {
+  background: var(--notice-bg);
+  color: var(--notice);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0 0 1.25rem;
+}
+
+.button {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  padding: 0.6rem 1.15rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+button.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.925rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* --- server picker --- */
+.servers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 1.25rem;
+}
+
+.server { text-align: center; }
+
+.server a,
+.server > .icon {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.icon {
+  display: block;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 0.5rem;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.icon img { display: block; width: 64px; height: 64px; border-radius: 50%; }
+
+.initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 1.5rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.name {
+  display: block;
+  font-size: 0.925rem;
+  overflow-wrap: anywhere;
+}
+
+.state { display: block; font-size: 0.8rem; color: var(--muted); }
+
+/* Servers the bot isn't in. Greyscale reads as "available but not set up",
+ * which is why the whole tile is the install link. */
+.server.absent .icon img { filter: grayscale(1); opacity: 0.55; }
+.server.absent .name { color: var(--muted); }
+.server.absent .state { color: var(--accent); }
+
+footer {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 0 1.25rem 2rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}

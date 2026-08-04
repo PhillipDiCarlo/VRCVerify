@@ -1,0 +1,68 @@
+# The web dashboard, for the public VPS (issue #65). NOT the homelab pair —
+# that stays docker-compose.deploy.yml.
+#
+# Usage, on the VPS next to dashboard.env, cloudflared.env and certs/:
+#   VRCVERIFY_VERSION=2.3.0 docker compose -f docker-compose.dashboard.yml up -d
+#
+# Two properties this file exists to preserve, both easy to undo by accident:
+#
+# 1. NEITHER SERVICE PUBLISHES A PORT. cloudflared dials out to Cloudflare and
+#    reaches the dashboard over the Docker network by name. The host firewall
+#    is default-deny inbound and the IONOS panel allows only Tailscale — but
+#    neither of those would save you, because published Docker ports are DNAT'd
+#    in PREROUTING and never traverse the INPUT chain. The absence of `ports:`
+#    is the actual control.
+#
+# 2. THE DASHBOARD HOLDS NO DATABASE CREDENTIAL AND NO BOT TOKEN. It asks the
+#    bot for everything over mTLS. A full compromise of this box yields no
+#    route to the users table. Adding DATABASE_URL here would quietly discard
+#    the main reason the bot API exists.
+
+services:
+  dashboard:
+    image: italiandogs/vrcverify-dashboard:${VRCVERIFY_VERSION:?Set VRCVERIFY_VERSION to a pushed version tag (never latest)}
+    env_file:
+      - dashboard.env
+    volumes:
+      # The client certificate, its key, and the CA that signed the bot's.
+      - ./certs:/certs:ro
+      # Sessions. A named volume so `docker compose down` doesn't sign
+      # everyone out.
+      - dashboard-sessions:/data
+    restart: unless-stopped
+    # No new privileges, no capabilities, non-root user (from the Dockerfile).
+    # The filesystem stays writable only where it must: /data.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    env_file:
+      - cloudflared.env
+    depends_on:
+      - dashboard
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  dashboard-sessions:

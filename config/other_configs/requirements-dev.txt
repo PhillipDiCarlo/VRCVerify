@@ -2,3 +2,8 @@
 -r requirements.txt
 pytest==9.1.1
 pytest-cov==7.1.0
+# The dashboard's runtime deps, so tests/test_dashboard.py can run from a
+# fresh clone. That file skips itself if Flask is absent, which keeps the
+# suite green without them -- but a skipped security test is not a passed one,
+# so they belong here.
+-r requirements-dashboard.txt

@@ -33,37 +33,39 @@ binds and nothing listens.
 
 from __future__ import annotations
 
-import base64
-import binascii
-import hmac
 import ipaddress
-import json
 import logging
 import os
-import secrets
 import ssl
 import time
 from dataclasses import dataclass, fields
-from hashlib import sha256
 from typing import Any, Awaitable, Callable, Optional
 
 from aiohttp import web
+
+# The token format lives in its own stdlib-only module so the dashboard can
+# sign with the identical implementation this verifies with, without also
+# taking on aiohttp. Re-exported below, because this module is where the
+# enforcement lives and callers should not need to know the split exists.
+from api_tokens import (  # noqa: F401  (re-exported)
+    DEFAULT_CLOCK_SKEW,
+    DEFAULT_TOKEN_TTL,
+    MIN_SIGNING_KEY_BYTES,
+    OP_LIST_GUILDS,
+    TOKEN_VERSION,
+    TokenClaims,
+    TokenError,
+    _b64decode,
+    _b64encode,
+    _canonical,
+    mint_token,
+    verify_token,
+)
 
 logger = logging.getLogger(__name__)
 
 # Reusing the port the Dockerfile has always (uselessly) EXPOSEd.
 DEFAULT_PORT = 5002
-
-# Tokens are minted per request and used immediately. Thirty seconds is
-# generous for a call across a tunnel and short enough that a captured token is
-# worthless by the time anyone notices they have it.
-DEFAULT_TOKEN_TTL = 30
-# Allowance for clock drift between the VPS and the homelab. Small on purpose:
-# every second here widens the replay window at both ends.
-DEFAULT_CLOCK_SKEW = 5
-
-# An HMAC key shorter than its own digest is weaker than the primitive it feeds.
-MIN_SIGNING_KEY_BYTES = 32
 
 # Per-actor request budget. The dashboard renders a handful of calls per page,
 # so this is roughly two orders of magnitude above honest use.
@@ -81,10 +83,6 @@ MAX_REQUEST_BYTES = 16 * 1024
 # unbounded loop.
 MAX_GUILD_IDS = 200
 
-TOKEN_VERSION = "v1"
-# Scope used by the one endpoint that is about the actor rather than a guild.
-OP_LIST_GUILDS = "GET /api/v1/guilds"
-
 
 class BotAPIConfigError(RuntimeError):
     """The API was switched on but cannot be started safely."""
@@ -98,22 +96,6 @@ DEPS_KEY: "web.AppKey" = web.AppKey("deps")
 REPLAY_KEY: "web.AppKey" = web.AppKey("replay")
 RATE_KEY: "web.AppKey" = web.AppKey("rate_limiter")
 GLOBAL_RATE_KEY: "web.AppKey" = web.AppKey("global_rate_limiter")
-
-
-class TokenError(Exception):
-    """A token was absent, malformed, expired, or not for this request.
-
-    `actor` is set for every failure raised *after* the signature verified, so
-    the denial log can name who minted the token. That is the difference
-    between "someone sent us garbage" and "this specific signed-in user tried
-    to reach a guild they were not scoped for" — and the second is the one
-    worth alerting on.
-    """
-
-    def __init__(self, reason: str, actor: Optional[int] = None):
-        super().__init__(reason)
-        self.reason = reason
-        self.actor = actor
 
 
 # -------------------------------------------------------------------
@@ -282,133 +264,10 @@ def build_ssl_context(config: BotAPIConfig) -> ssl.SSLContext:
 # -------------------------------------------------------------------
 # Scoped request tokens
 # -------------------------------------------------------------------
-def _b64encode(raw: bytes) -> str:
-    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
-
-
-def _b64decode(raw: str) -> bytes:
-    padding = "=" * (-len(raw) % 4)
-    return base64.urlsafe_b64decode(raw + padding)
-
-
-def _canonical(payload: dict) -> bytes:
-    return json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-
-
-def mint_token(
-    signing_key: bytes,
-    *,
-    actor_id: int,
-    operation: str,
-    guild_id: Optional[int] = None,
-    ttl: int = DEFAULT_TOKEN_TTL,
-    now: Optional[float] = None,
-) -> str:
-    """Sign one token for one call.
-
-    Lives here rather than in the dashboard so both ends share exactly one
-    implementation of the format — a signer and a verifier that drift apart is
-    the classic way an auth scheme quietly stops meaning anything.
-    """
-    issued = int(now if now is not None else time.time())
-    payload = {
-        "act": int(actor_id),
-        "gid": None if guild_id is None else int(guild_id),
-        "op": operation,
-        "iat": issued,
-        "exp": issued + int(ttl),
-        "jti": _b64encode(secrets.token_bytes(12)),
-    }
-    encoded = _b64encode(_canonical(payload))
-    signature = hmac.new(signing_key, encoded.encode("ascii"), sha256).digest()
-    return f"{TOKEN_VERSION}.{encoded}.{_b64encode(signature)}"
-
-
-@dataclass(frozen=True)
-class TokenClaims:
-    actor_id: int
-    guild_id: Optional[int]
-    operation: str
-    expires_at: int
-    jti: str
-
-
-def verify_token(
-    token: str,
-    signing_key: bytes,
-    *,
-    expected_operation: str,
-    expected_guild_id: Optional[int],
-    max_ttl: int = DEFAULT_TOKEN_TTL,
-    clock_skew: int = DEFAULT_CLOCK_SKEW,
-    now: Optional[float] = None,
-) -> TokenClaims:
-    """Authenticate a token and confirm it was minted for *this* request.
-
-    The signature is checked before the payload is parsed, so no attacker-
-    supplied JSON is ever deserialised on an unauthenticated path.
-    """
-    current = now if now is not None else time.time()
-
-    parts = token.split(".")
-    if len(parts) != 3 or parts[0] != TOKEN_VERSION:
-        raise TokenError("malformed")
-    _, encoded, signature = parts
-
-    expected_sig = hmac.new(signing_key, encoded.encode("ascii"), sha256).digest()
-    try:
-        provided_sig = _b64decode(signature)
-    except (binascii.Error, ValueError):
-        raise TokenError("malformed")
-    if not hmac.compare_digest(expected_sig, provided_sig):
-        raise TokenError("bad_signature")
-
-    try:
-        payload = json.loads(_b64decode(encoded))
-    except (binascii.Error, ValueError, UnicodeDecodeError):
-        raise TokenError("malformed")
-    if not isinstance(payload, dict):
-        raise TokenError("malformed")
-
-    try:
-        actor_id = int(payload["act"])
-        operation = payload["op"]
-        issued_at = int(payload["iat"])
-        expires_at = int(payload["exp"])
-        jti = payload["jti"]
-        raw_guild = payload["gid"]
-        guild_id = None if raw_guild is None else int(raw_guild)
-    except (KeyError, TypeError, ValueError):
-        raise TokenError("malformed")
-    if not isinstance(operation, str) or not isinstance(jti, str) or not jti:
-        raise TokenError("malformed")
-
-    # Past this point the signature has verified, so every refusal below can
-    # name the actor it was minted for.
-    if expires_at <= current - clock_skew:
-        raise TokenError("expired", actor=actor_id)
-    if issued_at > current + clock_skew:
-        raise TokenError("not_yet_valid", actor=actor_id)
-    # A token whose own window is longer than we ever issue is either a bug in
-    # the dashboard or someone minting their own with a leaked key. Neither is
-    # a request worth serving.
-    if expires_at - issued_at > max_ttl:
-        raise TokenError("ttl_too_long", actor=actor_id)
-
-    # The two checks that make interception useless: a token is good for one
-    # operation against one guild, and nothing else.
-    if operation != expected_operation:
-        raise TokenError("wrong_operation", actor=actor_id)
-    if guild_id != expected_guild_id:
-        raise TokenError("wrong_guild", actor=actor_id)
-
-    return TokenClaims(
-        actor_id=actor_id,
-        guild_id=guild_id,
-        operation=operation,
-        expires_at=expires_at,
-        jti=jti,
-    )
+# The format itself lives in api_tokens.py so the dashboard can sign with the
+# identical implementation this verifies with, without also having to install
+# aiohttp. Re-exported here because this module is where the enforcement side
+# lives, and callers should not need to know the split exists.
 
 
 class ReplayGuard:
