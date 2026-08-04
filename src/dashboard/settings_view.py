@@ -161,11 +161,13 @@ def _role_field(
     raw = state.get("value")
     warnings = []
     swatch = None
-    # Options for the picker. A role the bot cannot manage is still offered,
-    # because /vrcverify_setup offers it too -- the warning is the honest
-    # treatment, not removal from the list.
+    # Options for the picker: the role's name, and nothing else. A role the bot
+    # cannot manage is still offered, because /vrcverify_setup offers it too --
+    # the warning below the field is the honest treatment, not an annotation
+    # inside the list or removal from it.
     choices = [
-        (str(role.get("id")), _role_option_label(role)) for role in (roles or [])
+        (str(role.get("id")), role.get("name") or f"Role {role.get('id')}")
+        for role in (roles or [])
     ]
 
     if raw is None or str(raw) == "":
@@ -210,21 +212,6 @@ def _role_field(
         value="" if raw is None else str(raw),
         **_plan(state),
     )
-
-
-def _role_option_label(role: dict) -> str:
-    """The role's name, saying so when the bot could not manage it.
-
-    In the option text rather than a disabled option: the value is selectable
-    on purpose, and a picker that silently omitted the role an admin was
-    looking for would be the more confusing failure.
-    """
-    name = role.get("name") or f"Role {role.get('id')}"
-    if role.get("managed"):
-        return f"{name} (managed by an integration)"
-    if role.get("assignable") is False:
-        return f"{name} (above VRCVerify)"
-    return name
 
 
 def _lookup(entries: Optional[list], wanted) -> Optional[dict]:
