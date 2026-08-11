@@ -566,7 +566,12 @@ def _panel_channels(channels: Optional[list], panel: Optional[dict]) -> list:
     return [
         (str(channel.get("id")), f"#{channel.get('name') or channel.get('id')}")
         for channel in (channels or [])
-        if channel.get("can_send") is not False or str(channel.get("id")) == here
+        # can_embed, not can_send: the panel is an embed, and a channel with
+        # Send Messages but no Embed Links accepts the log and refuses this.
+        # A bot that predates the flag reports it as None, which is "unknown"
+        # rather than "no" -- offering it and letting the bot refuse is better
+        # than hiding every channel from an older deployment.
+        if channel.get("can_embed") is not False or str(channel.get("id")) == here
     ]
 
 
@@ -593,10 +598,12 @@ def panel_summary(panel: Optional[dict]) -> dict:
         # Deliberately narrow. The panel itself is fine: buttons are
         # interactions, and refreshing it edits a message VRCVerify already
         # owns, neither of which needs Send Messages. Only replacing it does.
+        # Both permissions are named because the panel is an embed, so Embed
+        # Links alone being off produces this with no other symptom.
         warnings.append(
-            "VRCVerify cannot send new messages in that channel. The panel "
-            "still works and can still be refreshed; it just cannot be "
-            "replaced with a new one there."
+            "VRCVerify can't post a new message in that channel — it needs "
+            "both Send Messages and Embed Links there. The panel still works "
+            "and can still be refreshed; it just can't be replaced."
         )
 
     name = panel.get("channel_name")

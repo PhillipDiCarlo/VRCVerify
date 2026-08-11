@@ -1054,19 +1054,28 @@ class FakeRole:
 
 
 class FakeChannel:
-    def __init__(self, channel_id, name, position=0, news=False, sendable=True):
+    def __init__(self, channel_id, name, position=0, news=False, sendable=True,
+                 embeddable=None):
         self.id = channel_id
         self.name = name
         self.position = position
         self.category = None
         self._news = news
         self._sendable = sendable
+        # Defaults to following send_messages, because the interesting case is
+        # the channel that grants one and not the other -- which accepts the
+        # verification log and refuses the instructions panel.
+        self._embeddable = sendable if embeddable is None else embeddable
 
     def is_news(self):
         return self._news
 
     def permissions_for(self, _member):
-        return SimpleNamespace(view_channel=True, send_messages=self._sendable)
+        return SimpleNamespace(
+            view_channel=True,
+            send_messages=self._sendable,
+            embed_links=self._embeddable,
+        )
 
 
 class FakeGuild:
@@ -2156,6 +2165,31 @@ class TestChannelReader:
         monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
         assert run(bot.read_dashboard_channels(GUILD_ID))[0]["can_send"] is False
 
+    def test_send_without_embed_links_is_its_own_answer(self, monkeypatch):
+        """The permission pair that cost a long debugging session.
+
+        The verification log is plain text and only needs Send Messages; the
+        instructions panel is an embed and needs both. A channel granting one
+        and not the other reads as perfectly writable and then refuses the
+        panel, so the two questions get two flags.
+        """
+        guild = FakeGuild(
+            channels=[FakeChannel(1, "no-embeds", sendable=True, embeddable=False)]
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        channel = run(bot.read_dashboard_channels(GUILD_ID))[0]
+        assert channel["can_send"] is True
+        assert channel["can_embed"] is False
+
+    def test_a_channel_it_cannot_see_can_do_neither(self, monkeypatch):
+        guild = FakeGuild(
+            channels=[FakeChannel(1, "hidden", sendable=False, embeddable=True)]
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        channel = run(bot.read_dashboard_channels(GUILD_ID))[0]
+        assert channel["can_send"] is False
+        assert channel["can_embed"] is False
+
 
 class TestPanelReader:
     def test_no_panel_reads_as_not_posted(self, monkeypatch):
@@ -2178,6 +2212,16 @@ class TestPanelReader:
         panel = run(bot.read_dashboard_panel(GUILD_ID))
         assert panel["channel_exists"] is False
         assert panel["channel_postable"] is None
+
+    def test_a_channel_without_embed_links_is_not_postable(self, monkeypatch):
+        """Send Messages alone is not enough for a panel, and this is the only
+        place that says so before the post is attempted and refused."""
+        make_server(instructions_channel_id="1", instructions_message_id="55")
+        guild = FakeGuild(
+            channels=[FakeChannel(1, "verify", sendable=True, embeddable=False)]
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        assert run(bot.read_dashboard_panel(GUILD_ID))["channel_postable"] is False
 
     def test_a_locked_channel_reports_unpostable_not_broken(self, monkeypatch):
         """A panel in a channel the bot cannot send to is still a live panel.

@@ -169,6 +169,7 @@ DEFAULT_CHANNELS = [
         "position": 1,
         "is_news": False,
         "can_send": True,
+        "can_embed": True,
     },
     {
         "id": NEWS_CHANNEL,
@@ -177,6 +178,7 @@ DEFAULT_CHANNELS = [
         "position": 2,
         "is_news": True,
         "can_send": True,
+        "can_embed": True,
     },
 ]
 
@@ -869,12 +871,41 @@ class TestSettingsWarnings:
                     "position": 0,
                     "is_news": False,
                     "can_send": False,
+                    "can_embed": False,
                 },
             ],
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
-        assert "cannot send new messages in that channel" in page
+        # Both permissions named: the panel is an embed, so Embed Links alone
+        # being off produces this with no other symptom anywhere on the page.
+        assert "Send Messages and Embed Links" in page
         assert "still works and can still be refreshed" in page
+
+    def test_a_channel_without_embed_links_is_not_offered_for_the_panel(
+        self, config, store
+    ):
+        """It would accept the log and refuse the panel, so it is not a choice.
+
+        The log picker still offers it -- the verification log is plain text.
+        """
+        channels = [
+            {
+                "id": LOG_CHANNEL,
+                "name": "verify-log",
+                "position": 0,
+                "is_news": False,
+                "can_send": True,
+                "can_embed": False,
+            },
+        ]
+        # Premium, so the log channel's own picker actually renders and the
+        # comparison means something.
+        test_client, _api = settings_client(
+            config, store, channels=channels, settings=make_settings(premium=True)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        # Offered once, by the log channel's own select -- not by the panel's.
+        assert page.count(f'<option value="{LOG_CHANNEL}"') == 1
 
     def test_the_panels_own_channel_stays_in_the_picker_when_locked(
         self, config, store
@@ -895,6 +926,7 @@ class TestSettingsWarnings:
                     "position": 0,
                     "is_news": False,
                     "can_send": False,
+                    "can_embed": False,
                 },
                 {
                     "id": SHUT_CHANNEL,
@@ -902,6 +934,7 @@ class TestSettingsWarnings:
                     "position": 1,
                     "is_news": False,
                     "can_send": False,
+                    "can_embed": False,
                 },
             ],
         )

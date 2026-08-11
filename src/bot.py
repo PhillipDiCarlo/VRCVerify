@@ -4923,6 +4923,12 @@ async def read_dashboard_channels(guild_id) -> Optional[list]:
     for the verification log: other servers can *follow* it, which would
     republish an age disclosure about a named member into servers they have no
     relationship with.
+
+    `can_send` and `can_embed` are separate because the two things this bot
+    posts need different permissions. The verification log is plain text, so
+    Send Messages is the whole requirement. The instructions panel is an embed,
+    and a channel granting one permission but not the other looks perfectly
+    writable right up until the panel is refused.
     """
     try:
         guild = bot.get_guild(int(guild_id))
@@ -4934,9 +4940,11 @@ async def read_dashboard_channels(guild_id) -> Optional[list]:
         for channel in guild.text_channels:
             if me is None:
                 can_send = None
+                can_embed = None
             else:
                 perms = channel.permissions_for(me)
                 can_send = bool(perms.view_channel and perms.send_messages)
+                can_embed = bool(can_send and perms.embed_links)
             channels.append(
                 {
                     "id": str(channel.id),
@@ -4945,6 +4953,7 @@ async def read_dashboard_channels(guild_id) -> Optional[list]:
                     "position": channel.position,
                     "is_news": bool(channel.is_news()),
                     "can_send": can_send,
+                    "can_embed": can_embed,
                 }
             )
         channels.sort(key=lambda entry: entry["position"])
@@ -4971,6 +4980,10 @@ async def read_dashboard_panel(guild_id) -> Optional[dict]:
     requirement — editing the bot's own message needs no Send Messages, and
     button clicks are interactions rather than messages. A panel sitting in a
     locked channel is the normal case, not a broken one.
+
+    It includes Embed Links, because the panel IS an embed. A channel with Send
+    Messages and no Embed Links reads as writable everywhere else and then
+    refuses the panel, which is a confusing way to find that out.
     """
     try:
         entry = load_instruction_panel(guild_id)
@@ -4988,7 +5001,9 @@ async def read_dashboard_panel(guild_id) -> Optional[dict]:
         postable = None
         if guild is not None and guild.me is not None and channel is not None:
             perms = channel.permissions_for(guild.me)
-            postable = bool(perms.view_channel and perms.send_messages)
+            postable = bool(
+                perms.view_channel and perms.send_messages and perms.embed_links
+            )
 
         return {
             "posted": True,
