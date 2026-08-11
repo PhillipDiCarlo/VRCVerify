@@ -905,6 +905,7 @@ class TestTheUpgradeOffer:
             settings=make_settings(premium=True, enforced=False, sku_id=None),
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Verified role" in page  # the settings page really rendered
         assert "/vrcverify_subscription" not in page
         assert "application-directory" not in page
 
@@ -929,6 +930,7 @@ class TestTheUpgradeOffer:
             config, store, settings=make_settings(sku_id=None)
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Verified role" in page  # the settings page really rendered
         assert "application-directory" not in page
         assert "store/None" not in page
 
@@ -937,6 +939,7 @@ class TestTheUpgradeOffer:
         sent admins to the slash commands past a working Save button."""
         test_client, _api = settings_client(config, store)
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Verified role" in page  # the settings page really rendered
         assert "Only the instructions panel settings can be changed" not in page
 
 
