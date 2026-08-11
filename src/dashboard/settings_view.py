@@ -342,12 +342,10 @@ def build_groups(
             # filtered out, unlike the log channel's picker: the panel is public
             # instructions, and /vrcverify_instructions can be run in one, so
             # excluding them would be stricter than the bot. Channels the bot
-            # cannot post in are excluded, because that is not a choice.
-            "panel_channels": [
-                (str(channel.get("id")), f"#{channel.get('name') or channel.get('id')}")
-                for channel in (channels or [])
-                if channel.get("can_send") is not False
-            ],
+            # cannot post in are excluded, because that is not a choice --
+            # except the one the panel is already in, where the button refreshes
+            # rather than posts and so needs no Send Messages at all.
+            "panel_channels": _panel_channels(channels, panel),
             "panel_channel_id": (panel or {}).get("channel_id") or "",
             # The only group with a save path so far. The template renders a
             # form when a group names an endpoint AND the bot said at least one
@@ -556,6 +554,22 @@ def _audit_value(field, raw, roles, channels) -> str:
     return text if len(text) <= AUDIT_VALUE_MAX else text[: AUDIT_VALUE_MAX - 1] + "…"
 
 
+def _panel_channels(channels: Optional[list], panel: Optional[dict]) -> list:
+    """Channels the panel button may target.
+
+    Somewhere the bot cannot send is not a real choice, so it is left out --
+    unless the panel already lives there, because then the button refreshes an
+    existing message instead of sending a new one. Dropping that option would
+    make this page refuse a thing the bot does unprompted on every restart.
+    """
+    here = str((panel or {}).get("channel_id") or "") if (panel or {}).get("posted") else ""
+    return [
+        (str(channel.get("id")), f"#{channel.get('name') or channel.get('id')}")
+        for channel in (channels or [])
+        if channel.get("can_send") is not False or str(channel.get("id")) == here
+    ]
+
+
 def panel_summary(panel: Optional[dict]) -> dict:
     """The instructions panel's whereabouts, as a template-ready dict.
 
@@ -575,10 +589,14 @@ def panel_summary(panel: Optional[dict]) -> dict:
             "The channel this panel was posted in no longer exists, so members "
             "have no way to start verifying."
         )
-    elif panel.get("channel_reachable") is False:
+    elif panel.get("channel_postable") is False:
+        # Deliberately narrow. The panel itself is fine: buttons are
+        # interactions, and refreshing it edits a message VRCVerify already
+        # owns, neither of which needs Send Messages. Only replacing it does.
         warnings.append(
-            "VRCVerify can no longer post in that channel, so it cannot refresh "
-            "this panel."
+            "VRCVerify cannot send new messages in that channel. The panel "
+            "still works and can still be refreshed; it just cannot be "
+            "replaced with a new one there."
         )
 
     name = panel.get("channel_name")

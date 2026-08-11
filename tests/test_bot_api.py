@@ -1603,6 +1603,13 @@ class TestSettingsWriter:
         assert result == run(bot.read_dashboard_settings(GUILD_ID))
 
 
+def _always(outcome):
+    async def probe(entry, rebuild_embed):
+        return outcome
+
+    return probe
+
+
 class TestPanelAction:
     """Posting a panel is the one thing that shows up in somebody's server."""
 
@@ -1718,6 +1725,46 @@ class TestPanelAction:
         make_server()
         with pytest.raises(bot.SettingRejected) as caught:
             self.post()
+        assert caught.value.reason == "channel_not_writable"
+        assert sent == []
+
+    def test_a_locked_channel_can_still_have_its_own_panel_refreshed(
+        self, monkeypatch, subscribed
+    ):
+        """Send Messages is the wrong test for a refresh -- it edits.
+
+        The startup sweep edits this panel every restart with no permission
+        check at all, so refusing here would make the dashboard stricter than
+        the bot it configures.
+        """
+        sent = self.setup_guild(monkeypatch, sendable=False)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        monkeypatch.setattr(
+            bot, "probe_instruction_panel", _always("ok")
+        )
+        assert self.post()["action"] == "refreshed"
+        assert sent == []
+
+    def test_a_refresh_discord_actually_refuses_is_reported(
+        self, monkeypatch, subscribed
+    ):
+        """Attempting the edit is the honest test; Forbidden is its answer."""
+        self.setup_guild(monkeypatch)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        monkeypatch.setattr(bot, "probe_instruction_panel", _always("forbidden"))
+        with pytest.raises(bot.SettingRejected) as caught:
+            self.post()
+        assert caught.value.reason == "channel_not_writable"
+
+    def test_a_locked_channel_holding_no_panel_is_still_refused(
+        self, monkeypatch, subscribed
+    ):
+        """The relaxation is only for the channel the panel is already in."""
+        sent = self.setup_guild(monkeypatch, sendable=False)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        monkeypatch.setattr(bot, "probe_instruction_panel", _always("ok"))
+        with pytest.raises(bot.SettingRejected) as caught:
+            self.post("71")
         assert caught.value.reason == "channel_not_writable"
         assert sent == []
 
@@ -1955,14 +2002,28 @@ class TestPanelReader:
         panel = run(bot.read_dashboard_panel(GUILD_ID))
         assert panel["posted"] is True
         assert panel["channel_name"] == "verify"
-        assert panel["channel_reachable"] is True
+        assert panel["channel_postable"] is True
 
     def test_a_deleted_channel_is_reported(self, monkeypatch):
         make_server(instructions_channel_id="999", instructions_message_id="55")
         monkeypatch.setattr(bot.bot, "get_guild", lambda _id: FakeGuild())
         panel = run(bot.read_dashboard_panel(GUILD_ID))
         assert panel["channel_exists"] is False
-        assert panel["channel_reachable"] is None
+        assert panel["channel_postable"] is None
+
+    def test_a_locked_channel_reports_unpostable_not_broken(self, monkeypatch):
+        """A panel in a channel the bot cannot send to is still a live panel.
+
+        Buttons are interactions and a refresh edits a message the bot owns, so
+        neither needs Send Messages. This flag is only about posting a new one.
+        """
+        make_server(instructions_channel_id="1", instructions_message_id="55")
+        guild = FakeGuild(channels=[FakeChannel(1, "verify", sendable=False)])
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        panel = run(bot.read_dashboard_panel(GUILD_ID))
+        assert panel["posted"] is True
+        assert panel["channel_exists"] is True
+        assert panel["channel_postable"] is False
 
 
 def member(administrator=True):

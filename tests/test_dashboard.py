@@ -635,6 +635,23 @@ def settings_client(config, store, **kwargs):
     return test_client, api
 
 
+PANEL_CHANNEL = "800000000003"
+SHUT_CHANNEL = "800000000004"
+
+
+def _locked_panel():
+    """A live panel in a channel VRCVerify may no longer send new messages to."""
+    return {
+        "posted": True,
+        "channel_id": PANEL_CHANNEL,
+        "message_id": "456",
+        "channel_name": "verify",
+        "channel_exists": True,
+        "channel_postable": False,
+        "locale": "en-US",
+    }
+
+
 class TestSettingsPage:
     def test_signed_out_visitors_are_sent_to_the_login_page(self, client):
         response = client.get(f"/guild/{GUILD_IN}")
@@ -837,22 +854,60 @@ class TestSettingsWarnings:
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
         assert "republish age disclosures" in page
 
-    def test_an_unreachable_panel_channel_is_called_out(self, config, store):
+    def test_a_locked_panel_channel_is_called_out_without_crying_wolf(
+        self, config, store
+    ):
+        """The panel is not broken -- it just cannot be replaced in place."""
         test_client, _api = settings_client(
             config,
             store,
-            panel={
-                "posted": True,
-                "channel_id": "123",
-                "message_id": "456",
-                "channel_name": "verify",
-                "channel_exists": True,
-                "channel_reachable": False,
-                "locale": "en-US",
-            },
+            panel=_locked_panel(),
+            channels=[
+                {
+                    "id": PANEL_CHANNEL,
+                    "name": "verify",
+                    "position": 0,
+                    "is_news": False,
+                    "can_send": False,
+                },
+            ],
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
-        assert "can no longer post in that channel" in page
+        assert "cannot send new messages in that channel" in page
+        assert "still works and can still be refreshed" in page
+
+    def test_the_panels_own_channel_stays_in_the_picker_when_locked(
+        self, config, store
+    ):
+        """Choosing it refreshes, which needs no Send Messages.
+
+        The startup sweep refreshes this very panel unprompted; a page that
+        removed the option would be stricter than the bot it configures.
+        """
+        test_client, _api = settings_client(
+            config,
+            store,
+            panel=_locked_panel(),
+            channels=[
+                {
+                    "id": PANEL_CHANNEL,
+                    "name": "verify",
+                    "position": 0,
+                    "is_news": False,
+                    "can_send": False,
+                },
+                {
+                    "id": SHUT_CHANNEL,
+                    "name": "shut",
+                    "position": 1,
+                    "is_news": False,
+                    "can_send": False,
+                },
+            ],
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert f'<option value="{PANEL_CHANNEL}"' in page
+        assert f'<option value="{SHUT_CHANNEL}"' not in page
 
 
 class TestSecondaryReadsDegradeGracefully:

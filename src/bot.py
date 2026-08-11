@@ -4893,6 +4893,12 @@ async def read_dashboard_panel(guild_id) -> Optional[dict]:
     returns None both for "never posted" and for "the database could not be
     read", so `posted: false` is not proof no panel exists — whatever offers to
     repost a panel in step 6 has to confirm before it posts a duplicate.
+
+    `channel_postable` answers one narrow question: could a NEW message go here.
+    It is not "can this panel be kept alive", which is a different and weaker
+    requirement — editing the bot's own message needs no Send Messages, and
+    button clicks are interactions rather than messages. A panel sitting in a
+    locked channel is the normal case, not a broken one.
     """
     try:
         entry = load_instruction_panel(guild_id)
@@ -4907,10 +4913,10 @@ async def read_dashboard_panel(guild_id) -> Optional[dict]:
             except (TypeError, ValueError):
                 channel = None
 
-        reachable = None
+        postable = None
         if guild is not None and guild.me is not None and channel is not None:
             perms = channel.permissions_for(guild.me)
-            reachable = bool(perms.view_channel and perms.send_messages)
+            postable = bool(perms.view_channel and perms.send_messages)
 
         return {
             "posted": True,
@@ -4918,7 +4924,7 @@ async def read_dashboard_panel(guild_id) -> Optional[dict]:
             "message_id": str(entry["message_id"]),
             "channel_name": getattr(channel, "name", None),
             "channel_exists": channel is not None,
-            "channel_reachable": reachable,
+            "channel_postable": postable,
             "locale": entry.get("locale", "en-US"),
         }
     except Exception:
@@ -4980,9 +4986,6 @@ async def post_dashboard_panel(guild_id, actor_id, channel_id):
     )
     if channel is None:
         raise SettingRejected("panel_channel", "channel_not_in_guild")
-    perms = channel.permissions_for(guild.me)
-    if not (perms.view_channel and perms.send_messages and perms.embed_links):
-        raise SettingRejected("panel_channel", "channel_not_writable")
 
     try:
         existing = _stored_panel_location(guild_id)
@@ -4995,6 +4998,11 @@ async def post_dashboard_panel(guild_id, actor_id, channel_id):
         return None
 
     # --- Already there: refresh in place ---
+    # No permission precheck on this branch. Editing the bot's own message does
+    # not need Send Messages, so a panel parked in a locked channel refreshes
+    # fine -- the fleet sweep does exactly this on every restart without asking.
+    # probe_instruction_panel's Forbidden branch is the honest answer, the same
+    # reasoning its own docstring gives for /vrcverify_status.
     if existing and str(existing.get("channel_id")) == str(channel.id):
         outcome = await probe_instruction_panel(existing, rebuild_embed=True)
         if outcome == "ok":
@@ -5010,6 +5018,11 @@ async def post_dashboard_panel(guild_id, actor_id, channel_id):
             return None
 
     # --- Post a new one ---
+    # Now it really is a send, so the send permissions are now the right test.
+    perms = channel.permissions_for(guild.me)
+    if not (perms.view_channel and perms.send_messages and perms.embed_links):
+        raise SettingRejected("panel_channel", "channel_not_writable")
+
     style = await resolve_panel_style(guild_id, guild)
     color, icon = style if style else (DEFAULT_PANEL_COLOR, None)
     locale = get_server_locale_code(guild_id, guild)
