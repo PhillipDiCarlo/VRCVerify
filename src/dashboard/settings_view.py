@@ -347,10 +347,11 @@ def build_groups(
             # rather than posts and so needs no Send Messages at all.
             "panel_channels": _panel_channels(channels, panel),
             "panel_channel_id": (panel or {}).get("channel_id") or "",
-            # The only group with a save path so far. The template renders a
-            # form when a group names an endpoint AND the bot said at least one
-            # of its fields is writable, so opening the next group is a change
-            # here and in DASHBOARD_WRITABLE_FIELDS, not in the template.
+            # The template renders a form when a group names an endpoint AND the
+            # bot said at least one of its fields is writable, so what a group
+            # can save is decided here and in DASHBOARD_WRITABLE_FIELDS, never
+            # in the template. A bot that has not opened a field yet renders it
+            # read-only without this side needing to know why.
             "save_endpoint": "save_panel_settings",
         },
         {
@@ -487,6 +488,50 @@ def _log_channel_field(settings: dict, channels: Optional[list]) -> Field:
         value="" if raw is None else str(raw),
         **_plan(state),
     )
+
+
+# Discord's own deep link to a SKU's Store page. It takes an application and a
+# SKU and NOTHING ELSE -- there is no guild parameter, which is the answer to
+# the open question issue #65 raised before this was built. So a link from here
+# can show an admin what Premium costs and includes, but it cannot pre-select
+# the server they are looking at, and for a guild-scoped SKU picking the wrong
+# server means billing the wrong server.
+#
+# Hence the split below: /vrcverify_subscription is the primary path, because
+# running it inside a server produces Discord's native purchase button already
+# bound to that guild, and the store page is offered as reading material.
+STORE_URL = "https://discord.com/application-directory/{app_id}/store/{sku_id}"
+
+
+def build_upgrade(settings: dict, application_id: Optional[str]) -> Optional[dict]:
+    """How this server buys Premium, or None when there is nothing to sell.
+
+    Three cases end in None, and they are different: the tier is switched off
+    entirely (`enforced` false, so every gate answers "allowed" and an upgrade
+    button would be selling a thing that is already free), the server already
+    subscribes, or the bot reported no SKU. The last one matters most -- it is
+    what a misconfigured deployment looks like, and a link built around a
+    missing id would 404 into Discord rather than fail here.
+
+    Grandfathered servers DO get this. They keep three features permanently and
+    lose nothing by ignoring it, but the premium-only set -- log channel,
+    branded panel, shorter cooldown, queue priority -- is still closed to them,
+    so treating them as already-sold would be wrong. The copy differs instead.
+    """
+    premium = settings.get("premium") or {}
+    if not premium.get("enforced"):
+        return None
+    if premium.get("premium"):
+        return None
+
+    sku_id = premium.get("sku_id")
+    if not sku_id or not application_id:
+        return None
+
+    return {
+        "grandfathered": bool(premium.get("grandfathered")),
+        "store_url": STORE_URL.format(app_id=application_id, sku_id=sku_id),
+    }
 
 
 # Labels for the audit list. Deliberately the same words the settings above

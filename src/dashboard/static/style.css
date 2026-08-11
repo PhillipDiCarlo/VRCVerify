@@ -168,7 +168,21 @@ button.link {
 .guild-head h1 { margin: 0; }
 .guild-head p { margin: 0.15rem 0 0; }
 
-.notice.read-only { background: none; color: var(--muted); border: 1px dashed var(--line); }
+/* The upgrade offer. Bordered rather than filled: it sits above settings an
+ * admin came here to change, and a block loud enough to compete with them
+ * would be an advertisement on a page they already paid attention to. */
+.upgrade {
+  margin: 1.25rem 0 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+}
+
+.upgrade h2 { font-size: 1rem; margin: 0 0 0.4rem; }
+.upgrade p { margin: 0 0 0.5rem; font-size: 0.925rem; }
+.upgrade p:last-child { margin-bottom: 0; }
+.upgrade a { color: var(--accent); }
 
 .group { margin-top: 2rem; }
 .group h2 { font-size: 1.05rem; margin: 0; }

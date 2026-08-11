@@ -1242,6 +1242,23 @@ class TestSettingsReader:
         assert fields["verification_log_channel_id"]["active"] is False
         assert fields["verification_log_channel_id"]["locked"] is True
 
+    def test_the_sku_travels_with_the_plan(self, free):
+        """So the dashboard's upgrade link cannot name the wrong product.
+
+        The website has no copy of this id and no way to derive one; if the bot
+        stops sending it the link disappears rather than going somewhere else.
+        """
+        make_server(row_id=9000)
+        payload = run(bot.read_dashboard_settings(GUILD_ID))
+        assert payload["premium"]["sku_id"] == str(SKU_ID)
+
+    def test_no_sku_is_sent_while_the_tier_is_off(self):
+        """PREMIUM_SKU_ID unset is the kill switch, and nothing is for sale."""
+        make_server()
+        payload = run(bot.read_dashboard_settings(GUILD_ID))
+        assert payload["premium"]["enforced"] is False
+        assert payload["premium"]["sku_id"] is None
+
     def test_branding_is_reported_when_stored(self):
         make_server()
         bot.save_panel_branding(GUILD_ID, 0xFF0000, True)

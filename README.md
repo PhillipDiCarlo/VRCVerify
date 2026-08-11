@@ -437,6 +437,26 @@ It also surfaces things the bot could previously only discover mid-verification
 announcement channel other servers could follow — while an admin is looking at
 the setting rather than when a member is waiting.
 
+**Buying Premium stays inside Discord.** A server that isn't subscribed gets an
+upgrade block, and it points at `/vrcverify_subscription` rather than carrying a
+buy button of its own. Discord's Store deep link
+(`/application-directory/{app}/store/{sku}`) takes an application and a SKU and
+nothing else — there is no guild parameter — so a link from a page about *this*
+server cannot actually name it, and for a guild-scoped SKU choosing the wrong
+one at checkout means billing the wrong server. The slash command's button is
+already bound to the guild it was run in, so it leads; the store link is offered
+alongside as somewhere to read the price and perks, and says plainly that
+checkout is where the server gets picked. The SKU id travels in the settings
+payload rather than being configured on the dashboard, for the same reason the
+language list does: a second copy is a second thing to get wrong, and with
+`PREMIUM_SKU_ID` unset the bot sends none and the block never renders — there is
+nothing to sell when every gate already answers "allowed".
+
+Grandfathered servers see the block too, with different wording. They keep their
+three features permanently either way, but the premium-only set is still closed
+to them, so treating them as already-sold would leave a badge with no route past
+it.
+
 ---
 
 ## Tech Stack

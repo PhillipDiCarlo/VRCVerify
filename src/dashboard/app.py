@@ -343,6 +343,9 @@ def _register_routes(app: Flask) -> None:
             groups=settings_view.build_groups(settings, roles, channels, panel),
             audit=settings_view.build_audit(audit, roles, channels),
             premium=settings.get("premium") or {},
+            upgrade=settings_view.build_upgrade(
+                settings, _config().discord_client_id
+            ),
             names_resolved=roles is not None and channels is not None,
             auto_verify_column_present=settings.get("auto_verify_column_present", True),
             saved=notice == "saved",
