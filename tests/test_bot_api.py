@@ -1319,6 +1319,35 @@ class TestSettingsWriter:
         write({"instructions_locale": "en-US"})
         assert seen == []
 
+    def test_the_message_discord_receives_is_in_the_new_language(
+        self, monkeypatch, subscribed
+    ):
+        """The whole chain, faked only at the HTTP boundary.
+
+        Every step between the save and the edit is real -- the servers row,
+        load_instruction_panel, resolve_panel_style, build_instructions_embed --
+        because the halves each worked and the language still did not change.
+        """
+        edits = []
+
+        class FakeMessage:
+            async def edit(self, **payload):
+                edits.append(payload)
+
+        monkeypatch.setattr(
+            bot.bot,
+            "get_partial_messageable",
+            lambda _cid: SimpleNamespace(get_partial_message=lambda _mid: FakeMessage()),
+        )
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+
+        write({"instructions_locale": "ja"})
+
+        assert len(edits) == 1
+        german = bot.build_instructions_embed("ja")
+        assert edits[0]["embed"].title == german.title
+        assert edits[0]["embed"].title != bot.build_instructions_embed("en-US").title
+
     def test_half_a_branding_change_keeps_the_other_half(self, subscribed):
         make_server()
         write({"panel_embed_color": 0x00FF00, "panel_show_icon": True})
