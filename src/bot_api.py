@@ -6,11 +6,12 @@ SQLAlchemy. Everything it is allowed to touch arrives as a callable on
 
 That is not tidiness, it is the "least privilege on the API surface" control
 issue #65 asks for. There is no generic "write these columns" entry point here:
-`BotAPIDeps` carries exactly one writer, `write_settings`, and this module does
-not know which fields exist, which are premium, or what values are legal. It
-validates the envelope and hands the body to the bot, which decides. Adding a
-second writer means editing that dataclass and the test that pins it — a
-visible, reviewable diff rather than a new query string someone slipped past.
+`BotAPIDeps` carries exactly two mutating capabilities, `write_settings` and
+`post_panel`, and this module does not know which fields exist, which are
+premium, or what values are legal. It validates the envelope and hands the body
+to the bot, which decides. Adding a third means editing that dataclass and the
+test that pins it — a visible, reviewable diff rather than a new query string
+someone slipped past.
 
 Three things guard every request, in this order:
 
@@ -76,6 +77,22 @@ DEFAULT_RATE_WINDOW = 60
 # event loop even while staying inside its own per-actor budget.
 DEFAULT_GLOBAL_RATE_LIMIT = 600
 
+# Mutating requests get their own, much smaller budget on top of the two above.
+# The budgets before this were sized when every route was a GET answered from
+# the gateway cache, costing Discord nothing. That is no longer what a request
+# costs: posting a panel is up to three Discord REST calls (fetch, send, delete)
+# and saving a language or colour is up to two (fetch, edit). At the general
+# limits alone the API would authorise enough of those to make a dent in the
+# bot's account-wide REST budget -- which verification shares, and verification
+# is the product.
+#
+# Ten a minute is far more than a human configuring a server will ever need
+# (saving all four groups and posting a panel is five), so this bites long
+# before honest use does. Both are env-tunable because the right number depends
+# on how many admins are actually using the dashboard.
+DEFAULT_WRITE_RATE_LIMIT = 10
+DEFAULT_GLOBAL_WRITE_RATE_LIMIT = 60
+
 # Nothing here accepts a body yet; this only has to be big enough for headers.
 MAX_REQUEST_BYTES = 16 * 1024
 
@@ -121,6 +138,8 @@ DEPS_KEY: "web.AppKey" = web.AppKey("deps")
 REPLAY_KEY: "web.AppKey" = web.AppKey("replay")
 RATE_KEY: "web.AppKey" = web.AppKey("rate_limiter")
 GLOBAL_RATE_KEY: "web.AppKey" = web.AppKey("global_rate_limiter")
+WRITE_RATE_KEY: "web.AppKey" = web.AppKey("write_rate_limiter")
+GLOBAL_WRITE_RATE_KEY: "web.AppKey" = web.AppKey("global_write_rate_limiter")
 
 
 # -------------------------------------------------------------------
@@ -130,14 +149,16 @@ GLOBAL_RATE_KEY: "web.AppKey" = web.AppKey("global_rate_limiter")
 class BotAPIDeps:
     """The complete list of things the API can do to the bot.
 
-    All readers but one. `tests/test_bot_api.py` pins the exact field set, so a
-    second writer cannot be added by accident — adding one means editing that
-    test on purpose, which is a reviewable diff rather than a quiet widening.
+    Nine of the eleven only read or check. `tests/test_bot_api.py` pins the
+    exact field set, so a third mutating capability cannot be added by accident
+    — adding one means editing that test on purpose, which is a reviewable diff
+    rather than a quiet widening.
 
-    `write_settings` is the whole write surface. It is a single named callable
-    that validates against its own allowlist inside the bot, not a generic
-    column setter, so the worst a compromised dashboard can do is submit valid
-    values for the handful of fields the bot has decided are writable.
+    `write_settings` and `post_panel` are the whole mutating surface. Both are
+    named callables that validate against their own allowlist inside the bot,
+    not generic setters, so the worst a compromised dashboard can do is submit
+    valid values for the handful of fields the bot has decided are writable, and
+    ask for the one message it is allowed to post.
 
     Readers take and return plain data — ids, dicts, lists — never discord.py
     objects. Shaping a Guild into JSON is the bot's job, not this module's,
@@ -202,6 +223,8 @@ class BotAPIConfig:
     rate_limit: int = DEFAULT_RATE_LIMIT
     rate_window: int = DEFAULT_RATE_WINDOW
     global_rate_limit: int = DEFAULT_GLOBAL_RATE_LIMIT
+    write_rate_limit: int = DEFAULT_WRITE_RATE_LIMIT
+    global_write_rate_limit: int = DEFAULT_GLOBAL_WRITE_RATE_LIMIT
 
     @staticmethod
     def enabled() -> bool:
@@ -251,6 +274,12 @@ class BotAPIConfig:
             rate_window=_int_env("BOT_API_RATE_WINDOW", DEFAULT_RATE_WINDOW),
             global_rate_limit=_int_env(
                 "BOT_API_GLOBAL_RATE_LIMIT", DEFAULT_GLOBAL_RATE_LIMIT
+            ),
+            write_rate_limit=_int_env(
+                "BOT_API_WRITE_RATE_LIMIT", DEFAULT_WRITE_RATE_LIMIT
+            ),
+            global_write_rate_limit=_int_env(
+                "BOT_API_GLOBAL_WRITE_RATE_LIMIT", DEFAULT_GLOBAL_WRITE_RATE_LIMIT
             ),
         )
 
@@ -494,6 +523,19 @@ async def _authorize(request: web.Request, *, guild_scoped: bool) -> TokenClaims
     if not limiter.allow(str(claims.actor_id)) or not global_limiter.allow("*"):
         raise _Denied(_deny(request, 429, "rate_limited", actor=claims.actor_id))
 
+    # Mutating requests pay a second, much smaller budget on top. A GET is
+    # answered from the gateway cache and costs Discord nothing; a PATCH or a
+    # POST here turns into real REST calls against the same account-wide budget
+    # verification runs on. Charged after the general one so a caller cannot
+    # spend write slots by hammering reads.
+    if request.method != "GET":
+        write_limiter: RateLimiter = request.app[WRITE_RATE_KEY]
+        global_write_limiter: RateLimiter = request.app[GLOBAL_WRITE_RATE_KEY]
+        if not write_limiter.allow(str(claims.actor_id)) or not global_write_limiter.allow("*"):
+            raise _Denied(
+                _deny(request, 429, "rate_limited", actor=claims.actor_id)
+            )
+
     # --- The bot's own answer ---
     if not deps.is_ready():
         raise _Denied(_deny(request, 503, "not_ready", actor=claims.actor_id))
@@ -720,6 +762,10 @@ def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
     app[REPLAY_KEY] = ReplayGuard()
     app[RATE_KEY] = RateLimiter(config.rate_limit, config.rate_window)
     app[GLOBAL_RATE_KEY] = RateLimiter(config.global_rate_limit, config.rate_window)
+    app[WRITE_RATE_KEY] = RateLimiter(config.write_rate_limit, config.rate_window)
+    app[GLOBAL_WRITE_RATE_KEY] = RateLimiter(
+        config.global_write_rate_limit, config.rate_window
+    )
 
     app.router.add_get("/healthz", handle_health)
     app.router.add_get("/api/v1/guilds", handle_list_guilds)

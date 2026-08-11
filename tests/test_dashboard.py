@@ -197,6 +197,7 @@ class FakeBotAPI:
         audit=None,
         panel_result=None,
         errors=None,
+        saved=None,
     ):
         self.installed = {str(g) for g in installed}
         self.fail = fail
@@ -213,6 +214,9 @@ class FakeBotAPI:
             {"action": "posted", "channel_id": LOG_CHANNEL}
             if panel_result is None else panel_result
         )
+        # What the write endpoint answers with. The bot returns the re-read
+        # settings, plus `panel_stale` when the live panel did not follow.
+        self._saved = saved
         # {"settings": BotAPIError(...), ...} -- per-endpoint failures, so a
         # secondary read can be broken without breaking the page.
         self.errors = errors or {}
@@ -259,7 +263,11 @@ class FakeBotAPI:
         self.saves.append((str(actor_id), str(guild_id), dict(changes)))
         if "update_settings" in self.errors:
             raise self.errors["update_settings"]
-        return self._settings if self._settings is not None else make_settings()
+        answer = dict(
+            self._settings if self._settings is not None else make_settings()
+        )
+        answer.update(self._saved or {})
+        return answer
 
 
 @pytest.fixture
@@ -1025,7 +1033,10 @@ class TestSavingThePanelGroup:
             panel_show_icon="on",
         )
         assert response.status_code == 302
-        assert response.headers["Location"].endswith("saved=1")
+        # The notice is session state now, not a query parameter, so the
+        # redirect target is bare and "Saved." appears on the next render.
+        assert response.headers["Location"].endswith(f"/guild/{GUILD_IN}")
+        assert "Saved." in test_client.get(response.headers["Location"]).data.decode()
         actor, guild, changes = api.saves[-1]
         assert (actor, guild) == (ACTOR, GUILD_IN)
         assert changes == {
@@ -1136,20 +1147,28 @@ class TestSavingThePanelGroup:
             config, store, errors={"update_settings": BotAPIError(leak, 400)}
         )
         response = self.post(test_client, session, instructions_locale="ja")
-        assert "error=unknown" in response.headers["Location"]
+        assert leak not in response.headers["Location"]
         page = test_client.get(response.headers["Location"]).data.decode()
         assert leak not in page
         assert "couldn&#39;t be saved" in page
 
-    def test_an_arbitrary_error_code_in_the_url_is_not_reflected(
-        self, config, store
-    ):
+    def test_a_notice_cannot_be_conjured_from_the_url(self, config, store):
+        """Notices are session state, so a crafted link cannot show one.
+
+        They used to be query parameters, which meant anyone who could get an
+        admin to open a link could show them "Saved." for a save that never
+        happened -- most usefully to stop them noticing something was broken.
+        """
         test_client, _api, _session = self.logged_in(config, store)
         page = test_client.get(
-            f"/guild/{GUILD_IN}?error=%3Cimg+src%3Dx+onerror%3Dalert(1)%3E"
+            f"/guild/{GUILD_IN}?saved=1&panel=replaced&panel_stale=1"
+            "&error=%3Cimg+src%3Dx+onerror%3Dalert(1)%3E"
         ).data.decode()
         assert "onerror" not in page
-        assert "couldn&#39;t be saved" in page
+        assert "Saved." not in page
+        assert "replaced with a fresh one" not in page
+        assert "still shows the old" not in page
+        assert "couldn&#39;t be saved" not in page
 
 
 class TestSavingTheVerificationGroup:
@@ -1569,11 +1588,14 @@ class TestPostingThePanel:
         form.setdefault("csrf_token", session.csrf_token)
         return test_client.post(f"/guild/{GUILD_IN}/panel/post", data=form)
 
-    def settings_page_with(self, config, store, **params):
-        """The settings page as it renders after a redirect carrying `params`."""
-        test_client, _api, _session = self.logged_in(config, store)
-        query = "&".join(f"{k}={v}" for k, v in params.items())
-        return test_client.get(f"/guild/{GUILD_IN}?{query}").data.decode()
+    def page_after_saving(self, config, store, **api_kwargs):
+        """The settings page an admin lands on after a real save."""
+        test_client, _api, session = self.logged_in(config, store, **api_kwargs)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/panel",
+            data={"csrf_token": session.csrf_token, "instructions_locale": "ja"},
+        )
+        return test_client.get(response.headers["Location"]).data.decode()
 
     def test_the_chosen_channel_reaches_the_bot(self, config, store):
         test_client, api, session = self.logged_in(config, store)
@@ -1653,17 +1675,29 @@ class TestPostingThePanel:
         )
         response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
         assert "Set-Cookie" not in response.headers["Location"]
-        assert "panel=posted" in response.headers["Location"]
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "Panel posted." in page
 
     def test_a_stale_panel_after_a_save_is_reported(self, config, store):
         """Saved is true; "your panel shows it" is not, and only one is obvious."""
-        page = self.settings_page_with(config, store, panel_stale=1)
+        page = self.page_after_saving(config, store, saved={"panel_stale": "frozen"})
         assert "still shows the old" in page
 
     def test_a_clean_save_says_nothing_about_the_panel(self, config, store):
-        assert "still shows the old" not in self.settings_page_with(
-            config, store, saved=1
+        page = self.page_after_saving(config, store)
+        assert "Saved." in page
+        assert "still shows the old" not in page
+
+    def test_a_notice_is_shown_once_and_not_again_on_reload(self, config, store):
+        """Otherwise every later page load claims the last save just happened."""
+        test_client, _api, session = self.logged_in(config, store)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/panel",
+            data={"csrf_token": session.csrf_token, "instructions_locale": "ja"},
         )
+        target = response.headers["Location"]
+        assert "Saved." in test_client.get(target).data.decode()
+        assert "Saved." not in test_client.get(target).data.decode()
 
     def test_an_unrecognised_panel_refusal_never_reaches_the_page_as_text(
         self, config, store

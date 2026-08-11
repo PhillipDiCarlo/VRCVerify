@@ -528,6 +528,39 @@ class TestRequests:
         results = serve(scenario, config=make_config(rate_limit=2))
         assert [status for status, _ in results] == [200, 200, 429]
 
+    def test_writes_have_their_own_smaller_budget(self):
+        """A GET costs Discord nothing; a save costs it real REST calls.
+
+        The general budget was sized when every route was a cached read, so
+        writes are metered again on top of it rather than sharing that number.
+        """
+
+        async def scenario(client):
+            results = []
+            for _ in range(3):
+                results.append(
+                    await patch(client, SETTINGS_PATH, token_for(WRITE_OP),
+                                json={"fields": {"instructions_locale": "de"}})
+                )
+            return results
+
+        results = serve(scenario, config=make_config(write_rate_limit=2))
+        assert [status for status, _ in results] == [200, 200, 429]
+
+    def test_reads_do_not_spend_the_write_budget(self):
+        """Otherwise hammering the picker would lock an admin out of saving."""
+
+        async def scenario(client):
+            for _ in range(5):
+                await get(client, SETTINGS_PATH, token_for(SETTINGS_OP))
+            return await patch(
+                client, SETTINGS_PATH, token_for(WRITE_OP),
+                json={"fields": {"instructions_locale": "de"}},
+            )
+
+        status, _body = serve(scenario, config=make_config(write_rate_limit=2))
+        assert status == 200
+
     def test_health_is_metered_too(self):
         """The one tokenless endpoint still can't be an unmetered handler."""
 
@@ -2130,6 +2163,24 @@ class TestPanelAction:
 
         monkeypatch.setattr(bot, "restyle_instruction_panel", fine)
         assert "panel_stale" not in write({"instructions_locale": "de"})
+
+    def test_a_row_created_by_posting_names_the_real_owner(
+        self, monkeypatch, subscribed
+    ):
+        """owner_id feeds resolve_config_admin, which decides who gets DMs.
+
+        Filling it with whoever clicked quietly appoints that admin -- and on
+        the dashboard they need not be the owner at all.
+        """
+        self.setup_guild(monkeypatch)
+        with bot.session_scope() as session:
+            session.query(bot.Server).delete()
+
+        assert self.post()["action"] == "posted"
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.owner_id == str(OWNER_ID)
+            assert srv.owner_id != str(ADMIN_ID)
 
     def test_the_action_is_audited(self, monkeypatch, subscribed):
         self.setup_guild(monkeypatch)

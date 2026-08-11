@@ -415,6 +415,16 @@ class DashboardAudit(Base):
     member data, no VRChat identity, nothing about who is verified — this table
     is about administrators changing configuration, and it should stay boring
     enough that its own disclosure would not matter much.
+
+    **What this trail does not cover.** The actor comes from verified token
+    claims, which makes it trustworthy exactly as far as the signing key is. The
+    dashboard host holds that key, and the design elsewhere says to assume that
+    host is eventually compromised — so an attacker at VPS level can mint a
+    token naming any actor, including a guild's owner, and every row they cause
+    will name that person. This table detects a stolen *session*; against a
+    compromised dashboard it does not merely fail to detect, it actively
+    misattributes. Reading a row as proof a particular human did something is
+    only sound while the key is sound.
     """
 
     __tablename__ = "dashboard_audit"
@@ -3208,7 +3218,9 @@ async def vrcverify_instructions(interaction: discord.Interaction):
             # ids on the floor: the panel went up but nothing tracked it, so the
             # startup refresh never saw it and /vrcverify_status would call it
             # missing. Create the row like the settings view does instead.
-            server = Server(server_id=guild_id, owner_id=str(interaction.user.id))
+            server = Server(
+                server_id=guild_id, owner_id=panel_row_owner_id(interaction.guild, interaction.user.id)
+            )
             session.add(server)
         server.instructions_channel_id = channel_id
         server.instructions_message_id = str(message.id)
@@ -4158,6 +4170,23 @@ class RequestPacer:
         delay = slot - now
         if delay > 0:
             await asyncio.sleep(delay)
+
+
+def panel_row_owner_id(guild, actor_id) -> str:
+    """`owner_id` for a servers row created by posting a panel.
+
+    The guild's real owner when the bot can see one, not whoever clicked. That
+    column feeds resolve_config_admin, which decides who gets configuration DMs
+    — so filling it with the acting admin quietly appoints them, and on the
+    dashboard that admin need not be the owner at all. Both panel paths use
+    this, so the two cannot drift.
+
+    Falls back to the actor only when the guild is not in cache, which is the
+    same guess the code made unconditionally before, and still better than a
+    NOT NULL violation that would lose the panel's ids.
+    """
+    owner_id = getattr(guild, "owner_id", None) if guild is not None else None
+    return str(owner_id or actor_id)
 
 
 def panel_view_key(server_id) -> str:
@@ -5237,9 +5266,18 @@ async def _post_dashboard_panel(guild_id, actor_id, channel_id):
                 .first()
             )
             if server is None:
-                # Same reasoning as /vrcverify_instructions: the panel is up, so
-                # something has to track it or the startup refresh never sees it.
-                server = Server(server_id=str(guild_id), owner_id=str(actor_id))
+                # Same reasoning as /vrcverify_instructions, and deliberately
+                # the opposite of write_dashboard_settings, which refuses with
+                # server_not_set_up rather than insert. The difference is not an
+                # oversight: a settings save has nothing to record if it
+                # refuses, while by this point a message is already live in
+                # someone's server and something has to track it or the startup
+                # refresh never sees it again. Mirroring the slash command is
+                # also the rule -- /vrcverify_instructions inserts here too.
+                server = Server(
+                    server_id=str(guild_id),
+                    owner_id=panel_row_owner_id(guild, actor_id),
+                )
                 session.add(server)
             server.instructions_channel_id = str(channel.id)
             server.instructions_message_id = str(message.id)

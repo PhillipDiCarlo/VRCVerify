@@ -325,6 +325,8 @@ def _register_routes(app: Flask) -> None:
         channels = _optional_read(
             lambda: _bot_api().channels(actor, guild_id), "channels", guild_id
         )
+        # Read once and cleared, so a reload does not repeat it.
+        notice = _store().take_notice(session.sid)
         panel = _optional_read(
             lambda: _bot_api().panel(actor, guild_id), "panel", guild_id
         )
@@ -343,12 +345,12 @@ def _register_routes(app: Flask) -> None:
             premium=settings.get("premium") or {},
             names_resolved=roles is not None and channels is not None,
             auto_verify_column_present=settings.get("auto_verify_column_present", True),
-            saved=request.args.get("saved") == "1",
-            panel_result=PANEL_RESULTS.get(request.args.get("panel")),
-            panel_stale=bool(request.args.get("panel_stale")),
+            saved=notice == "saved",
+            panel_result=PANEL_RESULTS.get(_notice_arg(notice, "panel")),
+            panel_stale=notice == "stale",
             save_error=(
-                _save_error_message(request.args.get("error"))
-                or _panel_error_message(request.args.get("panel_error"))
+                _save_error_message(_notice_arg(notice, "error"))
+                or _panel_error_message(_notice_arg(notice, "panel_error"))
             ),
             csrf_token=session.csrf_token,
         )
@@ -407,26 +409,19 @@ def _register_routes(app: Flask) -> None:
             )
         except BotAPIError as error:
             logger.warning("panel post refused for guild %s: %s", guild_id, error)
-            return redirect(
-                url_for(
-                    "guild_settings",
-                    guild_id=guild_id,
-                    panel_error=_panel_error_code(error),
-                )
-            )
+            _store().set_notice(session.sid, f"panel_error:{_panel_error_code(error)}")
+            return redirect(url_for("guild_settings", guild_id=guild_id))
 
         # Clamped to a known key before it travels, like the two error codes
         # are. This is the bot's own string, but it is the one place a bot value
         # reached a URL unchecked, and the invariant this module claims is that
         # nothing from over the wire is echoed back without being looked up.
         action = result.get("action")
-        return redirect(
-            url_for(
-                "guild_settings",
-                guild_id=guild_id,
-                panel=action if action in PANEL_RESULTS else "posted",
-            )
+        _store().set_notice(
+            session.sid,
+            f"panel:{action if action in PANEL_RESULTS else 'posted'}",
         )
+        return redirect(url_for("guild_settings", guild_id=guild_id))
 
     @app.post("/guild/<int:guild_id>/member")
     def save_member_settings(guild_id: int):
@@ -683,11 +678,8 @@ def _save(guild_id: int, session, changes: dict):
         # shows the old thing" is a true success plus a caveat, and reporting it
         # as a failure would send an admin round the loop that produced it.
         if isinstance(saved, dict) and saved.get("panel_stale"):
-            return redirect(
-                url_for(
-                    "guild_settings", guild_id=guild_id, saved=1, panel_stale=1
-                )
-            )
+            _store().set_notice(session.sid, "stale")
+            return redirect(url_for("guild_settings", guild_id=guild_id))
     except BotAPIError as error:
         logger.warning("save refused for guild %s: %s", guild_id, error)
         # A code, never the bot's text. What comes back is a fixed reason
@@ -695,11 +687,19 @@ def _save(guild_id: int, session, changes: dict):
         # would make the bot's error strings part of this app's HTML, and the
         # day one of them carries something a caller influenced is not the day
         # to find that out.
-        return redirect(
-            url_for("guild_settings", guild_id=guild_id, error=_save_error_code(error))
-        )
+        _store().set_notice(session.sid, f"error:{_save_error_code(error)}")
+        return redirect(url_for("guild_settings", guild_id=guild_id))
 
-    return redirect(url_for("guild_settings", guild_id=guild_id, saved=1))
+    _store().set_notice(session.sid, "saved")
+    return redirect(url_for("guild_settings", guild_id=guild_id))
+
+
+def _notice_arg(notice: Optional[str], kind: str) -> Optional[str]:
+    """`panel:moved` -> `moved`, but only when asked for the right kind."""
+    if not notice or ":" not in notice:
+        return None
+    prefix, _, value = notice.partition(":")
+    return value if prefix == kind else None
 
 
 def _save_error_code(error: BotAPIError) -> str:
