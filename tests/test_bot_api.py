@@ -1316,10 +1316,21 @@ class TestSettingsWriter:
     def test_a_setting_the_panel_does_not_show_edits_no_panel(
         self, monkeypatch, subscribed
     ):
-        """A message edit per save would be a rate limit nobody asked for."""
+        """A message edit per save would be a rate limit nobody asked for.
+
+        The audit assertion is load-bearing, not decoration. A save that
+        silently did nothing would leave `seen` empty too, so without proof the
+        write landed this passes whether or not the field filter works -- which
+        is how it was written the first time, using a role id that never got
+        past the "role must be in this guild" check because no guild is mocked
+        in this class.
+        """
         seen = self.restyles(monkeypatch)
         make_server()
-        write({"role_id": "70"})
+        write({"custom_verification_requested_message": "Welcome aboard!"})
+        assert [row[0] for row in audit_rows()] == [
+            "custom_verification_requested_message"
+        ]
         assert seen == []
 
     def test_a_no_op_language_save_edits_no_panel(self, monkeypatch, subscribed):
@@ -1909,7 +1920,14 @@ class TestPanelAction:
     def test_nothing_is_replaced_when_the_message_cannot_be_read(
         self, monkeypatch, subscribed
     ):
-        """"Cannot tell" must not read as "safe to replace" -- that is a duplicate."""
+        """"Cannot tell" must not read as "safe to replace" -- that is a duplicate.
+
+        probe_instruction_panel is stubbed to succeed on purpose. Without it the
+        refresh branch would fail on its own against a disconnected bot and
+        return None too, so the assertion would hold whether or not the guard
+        existed -- it would pass for the wrong reason, which is worse than not
+        being written. Stubbed, "it wrongly carried on" shows up as "refreshed".
+        """
         sent = self.setup_guild(monkeypatch)
         make_server(instructions_channel_id="70", instructions_message_id="900")
 
@@ -1917,6 +1935,7 @@ class TestPanelAction:
             return None
 
         monkeypatch.setattr(bot, "_panel_is_webhook_owned", unreadable)
+        monkeypatch.setattr(bot, "probe_instruction_panel", _always("ok"))
         assert self.post() is None
         assert sent == []
 
