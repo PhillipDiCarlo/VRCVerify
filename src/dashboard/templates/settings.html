@@ -224,12 +224,18 @@
           <button type="submit" class="button">
             {%- if group.panel.posted %}Repost or move panel{% else %}Post panel{% endif -%}
           </button>
+          {# This is a separate form from the settings above -- it has to be,
+             it posts elsewhere -- so a language picked but not saved is not
+             part of it. Saying so beats letting an admin click here and
+             wonder why nothing changed. #}
           <span class="muted desc">
             {% if group.panel.posted %}
               Choosing the channel it's already in refreshes it rather than
-              posting a second one.
+              posting a second one. This button only moves the panel; saving
+              the settings above is what changes what it says.
             {% else %}
-              Members use this message to start verifying.
+              Members use this message to start verifying. It is posted with
+              the settings saved above.
             {% endif %}
           </span>
         </form>

@@ -560,7 +560,7 @@ class TestSaveOrdering:
     successful save into "This interaction failed" for the admin.
     """
 
-    def build_and_save(self, monkeypatch, premium_flag=True):
+    def build_and_save(self, monkeypatch, premium_flag=True, locale="en-US"):
         order = []
 
         async def fake_restyle(guild_id):
@@ -581,7 +581,7 @@ class TestSaveOrdering:
 
         view = bot.PagedSettingsView(
             True,
-            "en-US",
+            locale,
             True,
             auto_verify_available=True,
             page_index=bot.SETTINGS_LAST_PAGE,
@@ -601,9 +601,27 @@ class TestSaveOrdering:
         make_server(row_id=NEW_ID)
         assert self.build_and_save(monkeypatch) == ["reply", "panel_edit"]
 
-    def test_a_free_server_edits_no_panel(self, monkeypatch, enforced):
+    def test_a_free_server_changing_nothing_visible_edits_no_panel(
+        self, monkeypatch, enforced
+    ):
+        """Branding was not saved and the language is unchanged, so the panel
+        already shows what is stored. Editing it would be a wasted API call."""
         make_server(row_id=NEW_ID)
         assert self.build_and_save(monkeypatch, premium_flag=False) == ["reply"]
+
+    def test_a_free_server_changing_the_language_does_edit_the_panel(
+        self, monkeypatch, enforced
+    ):
+        """The panel is rendered in this language and the language is free.
+
+        Nothing else would apply it: the fleet sweep rebuilds the view but
+        passes rebuild_embed=False, so the embed would stay in the old language
+        until an operator forced a full refresh.
+        """
+        make_server(row_id=NEW_ID)
+        assert self.build_and_save(
+            monkeypatch, premium_flag=False, locale="ja"
+        ) == ["reply", "panel_edit"]
 
 
 # ---------------------------------------------------------------

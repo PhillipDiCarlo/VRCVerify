@@ -776,6 +776,15 @@ DASHBOARD_WRITABLE_FIELDS = frozenset(
     }
 )
 
+# Settings an already-posted panel RENDERS, as opposed to ones that only affect
+# what happens after somebody clicks it. Changing one of these leaves the live
+# message stale, because the fleet sweep refreshes the view but passes
+# rebuild_embed=False -- so a save that touches any of them has to re-edit the
+# panel itself or the change is invisible until an operator forces a refresh.
+PANEL_VISIBLE_FIELDS = frozenset(
+    {"instructions_locale", "panel_embed_color", "panel_show_icon"}
+)
+
 # The modal's own cap, so the website cannot store a message the slash command
 # could not have produced.
 CUSTOM_MESSAGE_MAX_LEN = 1000
@@ -2165,6 +2174,12 @@ class PagedSettingsView(View):
                     session.add(srv)
                 if nick_allowed:
                     srv.auto_nickname_change = bool(self.auto_nick)
+                # The panel renders in this language, so a change here needs the
+                # same re-edit a colour change gets. The language is free, which
+                # is why this is not folded into branding_allowed below.
+                locale_changed = (
+                    srv.instructions_locale or "en-US"
+                ) != str(self.instr_locale)
                 srv.instructions_locale = str(self.instr_locale)
                 if self.auto_verify_available:
                     setattr(srv, "auto_verify_new_members", bool(self.auto_verify))
@@ -2198,7 +2213,7 @@ class PagedSettingsView(View):
             # through a 429, which can push the reply past the three seconds
             # Discord allows. The admin would then be told the interaction
             # failed even though the save and the restyle both worked.
-            if branding_allowed:
+            if branding_allowed or locale_changed:
                 await restyle_instruction_panel(interaction.guild.id)
 
         back_btn.callback = on_back
@@ -5167,6 +5182,9 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
     Everything is validated before anything is applied. A batch with one bad
     field changes nothing at all, rather than saving the first two and failing
     on the third.
+
+    A save that changes something the panel displays also re-edits the panel,
+    for the reason PANEL_VISIBLE_FIELDS gives: nothing else would.
     """
     if not isinstance(changes, dict) or not changes:
         raise SettingRejected("", "no_changes")
@@ -5324,6 +5342,14 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
             "Could not save dashboard settings for guild %s.", guild_id, exc_info=True
         )
         return None
+
+    # The save is committed, so a panel still showing the old language or colour
+    # is now merely stale -- and would stay that way, since the fleet sweep
+    # rebuilds the view but not the embed. Only after the write, and never in a
+    # way that can fail the save: restyle_instruction_panel swallows its own
+    # errors and answers "no_panel" for the guilds that have none.
+    if any(name in PANEL_VISIBLE_FIELDS for name, _old, _new in changed):
+        await restyle_instruction_panel(guild_id)
 
     return await read_dashboard_settings(guild_id)
 

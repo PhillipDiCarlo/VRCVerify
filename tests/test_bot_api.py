@@ -1272,6 +1272,53 @@ class TestSettingsWriter:
         write({"instructions_locale": "en-US"})
         assert audit_rows() == []
 
+    def restyles(self, monkeypatch):
+        seen = []
+
+        async def fake_restyle(guild_id):
+            seen.append(str(guild_id))
+            return "ok"
+
+        monkeypatch.setattr(bot, "restyle_instruction_panel", fake_restyle)
+        return seen
+
+    def test_a_saved_language_is_applied_to_the_live_panel(
+        self, monkeypatch, subscribed
+    ):
+        """Saving the setting is not the whole job -- the panel renders it.
+
+        Nothing else would: the fleet sweep refreshes the view but passes
+        rebuild_embed=False, so the embed would keep the old language until an
+        operator forced a full refresh.
+        """
+        seen = self.restyles(monkeypatch)
+        make_server()
+        write({"instructions_locale": "de"})
+        assert seen == [str(GUILD_ID)]
+
+    def test_saved_branding_is_applied_to_the_live_panel(
+        self, monkeypatch, subscribed
+    ):
+        seen = self.restyles(monkeypatch)
+        make_server()
+        write({"panel_embed_color": 0xFF0000})
+        assert seen == [str(GUILD_ID)]
+
+    def test_a_setting_the_panel_does_not_show_edits_no_panel(
+        self, monkeypatch, subscribed
+    ):
+        """A message edit per save would be a rate limit nobody asked for."""
+        seen = self.restyles(monkeypatch)
+        make_server()
+        write({"role_id": "70"})
+        assert seen == []
+
+    def test_a_no_op_language_save_edits_no_panel(self, monkeypatch, subscribed):
+        seen = self.restyles(monkeypatch)
+        make_server(instructions_locale="en-US")
+        write({"instructions_locale": "en-US"})
+        assert seen == []
+
     def test_half_a_branding_change_keeps_the_other_half(self, subscribed):
         make_server()
         write({"panel_embed_color": 0x00FF00, "panel_show_icon": True})
