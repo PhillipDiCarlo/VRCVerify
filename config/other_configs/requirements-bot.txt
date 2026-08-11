@@ -7,4 +7,4 @@ pika==1.4.2
 # this also serves the internal API's TLS listener, and a security-relevant
 # version should not be decided by whatever discord.py's range happens to
 # resolve to on the next image build.
-aiohttp==3.14.1
+aiohttp==3.14.3
