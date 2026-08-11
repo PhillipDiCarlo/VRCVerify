@@ -797,22 +797,21 @@ class TestProbeOutcomes:
 # ---------------------------------------------------------------
 class TestInstructionsClearsNudge:
     def interaction(self):
-        async def send_message(embed=None, view=None):
-            pass
-
-        async def original_response():
+        async def channel_send(embed=None, view=None):
             return SimpleNamespace(id=111)
+
+        async def defer(ephemeral=False):
+            pass
 
         async def followup_send(msg, ephemeral=False):
             pass
 
         return SimpleNamespace(
             guild=SimpleNamespace(id=int(GUILD_ID)),
-            channel=SimpleNamespace(id=222),
+            channel=SimpleNamespace(id=222, send=channel_send),
             user=SimpleNamespace(id=int(OWNER_ID)),
             locale="en-US",
-            response=SimpleNamespace(send_message=send_message),
-            original_response=original_response,
+            response=SimpleNamespace(defer=defer),
             followup=SimpleNamespace(send=followup_send),
         )
 

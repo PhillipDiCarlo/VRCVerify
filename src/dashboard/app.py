@@ -585,6 +585,15 @@ PANEL_RESULTS = {
         "Panel posted in the new channel. The old one is still up in its "
         "previous channel -- delete it in Discord when you're ready."
     ),
+    # Panels posted by /vrcverify_instructions before it stopped replying with
+    # them belong to a webhook, and Discord quietly ignores embed edits on those
+    # -- so the language and colour could never be applied to one. The only
+    # repair is a new message, which is why this reads as an explanation rather
+    # than as a plain success.
+    "replaced": (
+        "That panel was posted in a way Discord won't let the bot edit, so it "
+        "was replaced with a fresh one. Your settings apply to it now."
+    ),
 }
 
 

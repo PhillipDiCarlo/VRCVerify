@@ -1689,8 +1689,10 @@ def _always(outcome):
 class TestPanelAction:
     """Posting a panel is the one thing that shows up in somebody's server."""
 
-    def setup_guild(self, monkeypatch, sendable=True, sent=None):
+    def setup_guild(self, monkeypatch, sendable=True, sent=None, webhook_owned=False,
+                    deleted=None):
         sent = [] if sent is None else sent
+        deleted = [] if deleted is None else deleted
 
         class Sendable(FakeChannel):
             async def send(self, **kwargs):
@@ -1701,6 +1703,20 @@ class TestPanelAction:
                 return SimpleNamespace(
                     view_channel=True, send_messages=sendable, embed_links=sendable
                 )
+
+            async def fetch_message(self, message_id):
+                # webhook_id set means the panel was posted as a slash-command
+                # reply, which Discord will not let the bot edit the embed of.
+                return SimpleNamespace(
+                    id=message_id,
+                    webhook_id=1335738139825799188 if webhook_owned else None,
+                )
+
+            def get_partial_message(self, message_id):
+                async def delete():
+                    deleted.append(message_id)
+
+                return SimpleNamespace(id=message_id, delete=delete)
 
         guild = FakeGuild(
             channels=[Sendable(70, "verify"), Sendable(71, "general", position=1)]
@@ -1843,6 +1859,82 @@ class TestPanelAction:
             self.post("71")
         assert caught.value.reason == "channel_not_writable"
         assert sent == []
+
+    def test_a_panel_discord_will_not_let_us_edit_is_replaced(
+        self, monkeypatch, subscribed
+    ):
+        """The bug this whole path exists to survive.
+
+        A panel posted as a slash-command reply belongs to a webhook. Discord
+        answers 200 to an embed edit on one and keeps the old embed, so a
+        language change came out as new buttons above the old text. Refreshing
+        it again would be the same silent no-op, so it is replaced.
+        """
+        deleted = []
+        sent = self.setup_guild(monkeypatch, webhook_owned=True, deleted=deleted)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        monkeypatch.setattr(bot, "probe_instruction_panel", _always("ok"))
+
+        result = self.post()
+
+        assert result["action"] == "replaced"
+        assert len(sent) == 1                    # a new message, not an edit
+        assert deleted == [900]                  # and the dead one is gone
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.instructions_message_id == "555070"
+
+    def test_an_ordinary_panel_is_still_refreshed_not_replaced(
+        self, monkeypatch, subscribed
+    ):
+        """Replacing an editable panel would throw away its pins and links."""
+        deleted = []
+        sent = self.setup_guild(monkeypatch, webhook_owned=False, deleted=deleted)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        monkeypatch.setattr(bot, "probe_instruction_panel", _always("ok"))
+
+        assert self.post()["action"] == "refreshed"
+        assert sent == []
+        assert deleted == []
+
+    def test_nothing_is_replaced_when_the_message_cannot_be_read(
+        self, monkeypatch, subscribed
+    ):
+        """"Cannot tell" must not read as "safe to replace" -- that is a duplicate."""
+        sent = self.setup_guild(monkeypatch)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+
+        async def unreadable(_channel, _message_id):
+            return None
+
+        monkeypatch.setattr(bot, "_panel_is_webhook_owned", unreadable)
+        assert self.post() is None
+        assert sent == []
+
+    def test_a_failed_delete_does_not_undo_the_replacement(
+        self, monkeypatch, subscribed
+    ):
+        """The new panel is up and recorded; the stale one is a cleanup problem."""
+        sent = self.setup_guild(monkeypatch, webhook_owned=True)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+
+        class Boom(FakeChannel):
+            pass
+
+        def exploding_partial(_self, _mid):
+            async def delete():
+                raise RuntimeError("no manage messages")
+
+            return SimpleNamespace(delete=delete)
+
+        guild = bot.bot.get_guild(GUILD_ID)
+        channel = next(c for c in guild.text_channels if c.id == 70)
+        monkeypatch.setattr(
+            type(channel), "get_partial_message", exploding_partial, raising=False
+        )
+
+        assert self.post()["action"] == "replaced"
+        assert len(sent) == 1
 
     def test_the_action_is_audited(self, monkeypatch, subscribed):
         self.setup_guild(monkeypatch)

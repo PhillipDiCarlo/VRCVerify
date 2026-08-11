@@ -3165,13 +3165,37 @@ async def vrcverify_instructions(interaction: discord.Interaction):
     embed = build_instructions_embed(instr_locale, panel_color, panel_icon)
 
     view = VRCVerifyInstructionView(locale=instr_locale)
-    # Send the initial response and then fetch the message
-    await interaction.response.send_message(embed=embed, view=view)
-    message = await interaction.original_response()
+    # An ordinary channel message, NOT this command's reply. A reply is owned by
+    # a webhook, and Discord answers 200 to an embed edit on a webhook-owned
+    # message and then keeps the old embed -- only the components change. Panels
+    # posted as the reply could therefore never be restyled or translated again:
+    # a language change came out as new button labels above the old text. The
+    # refresh path is the whole point of tracking the panel, so the panel has to
+    # be something the bot can actually edit.
+    await interaction.response.defer(ephemeral=True)
+    channel = interaction.channel
+    try:
+        message = await channel.send(embed=embed, view=view)
+    except discord.Forbidden:
+        await interaction.followup.send(
+            "I can't post in this channel. Give VRCVerify **Send Messages** and "
+            "**Embed Links** here, then run this again.",
+            ephemeral=True,
+        )
+        return
+    except Exception:
+        logger.exception(
+            "Failed to post the instructions panel for guild %s", interaction.guild.id
+        )
+        await interaction.followup.send(
+            "Something went wrong posting the panel. Please try again shortly.",
+            ephemeral=True,
+        )
+        return
 
     # Save the channel and message IDs to your database for reinitialization.
     guild_id = str(interaction.guild.id)
-    channel_id = str(interaction.channel.id)
+    channel_id = str(channel.id)
     with session_scope() as session:
         server = session.query(Server).filter_by(server_id=guild_id).first()
         if not server:
@@ -4990,6 +5014,37 @@ def _stored_panel_location(guild_id):
         }
 
 
+async def _panel_is_webhook_owned(channel, message_id) -> Optional[bool]:
+    """Whether this panel is a message the bot cannot fully edit.
+
+    A panel posted as a slash-command reply belongs to a webhook. Discord takes
+    an embed edit on one of those, answers 200, and keeps the old embed -- only
+    the components change. So such a panel can never be restyled or translated,
+    however many times it is refreshed, and the only repair is a replacement.
+
+    None means the question could not be answered, which must never be read as
+    "no": replacing a panel on a failed lookup is how a server ends up with two.
+    A message that is simply gone answers False, because the ordinary refresh
+    path already knows how to notice that and post afresh.
+    """
+    try:
+        message = await channel.fetch_message(int(message_id))
+    except discord.NotFound:
+        return False
+    except (TypeError, ValueError):
+        return False
+    except Exception:
+        logger.warning(
+            "Could not read panel message %s in guild's channel %s while "
+            "checking whether it can be edited.",
+            message_id,
+            getattr(channel, "id", None),
+            exc_info=True,
+        )
+        return None
+    return message.webhook_id is not None
+
+
 async def post_dashboard_panel(guild_id, actor_id, channel_id):
     """Put this guild's instructions panel where the admin asked for it.
 
@@ -5030,25 +5085,37 @@ async def post_dashboard_panel(guild_id, actor_id, channel_id):
         )
         return None
 
-    # --- Already there: refresh in place ---
+    # --- Already there: refresh in place, or replace it if editing cannot work ---
     # No permission precheck on this branch. Editing the bot's own message does
     # not need Send Messages, so a panel parked in a locked channel refreshes
     # fine -- the fleet sweep does exactly this on every restart without asking.
     # probe_instruction_panel's Forbidden branch is the honest answer, the same
     # reasoning its own docstring gives for /vrcverify_status.
+    replacing = None
     if existing and str(existing.get("channel_id")) == str(channel.id):
-        outcome = await probe_instruction_panel(existing, rebuild_embed=True)
-        if outcome == "ok":
-            _audit_panel(guild_id, actor_id, "refreshed", channel.id)
-            return {"action": "refreshed", "channel_id": str(channel.id)}
-        if outcome in {"gone", "missing_ids", "malformed"}:
-            # The record points at a message that is not there any more, so
-            # this is a first post rather than a duplicate.
-            existing = None
-        elif outcome == "forbidden":
-            raise SettingRejected("panel_channel", "channel_not_writable")
-        else:
+        stuck = await _panel_is_webhook_owned(channel, existing.get("message_id"))
+        if stuck is None:
             return None
+        if stuck:
+            # No edit will ever change this panel's text, so refreshing it would
+            # be the silent no-op that hid this for so long. Post a replacement
+            # and delete the original below. Cleared so the post path reads this
+            # as a fresh post rather than a move to a different channel.
+            replacing = existing
+            existing = None
+        else:
+            outcome = await probe_instruction_panel(existing, rebuild_embed=True)
+            if outcome == "ok":
+                _audit_panel(guild_id, actor_id, "refreshed", channel.id)
+                return {"action": "refreshed", "channel_id": str(channel.id)}
+            if outcome in {"gone", "missing_ids", "malformed"}:
+                # The record points at a message that is not there any more, so
+                # this is a first post rather than a duplicate.
+                existing = None
+            elif outcome == "forbidden":
+                raise SettingRejected("panel_channel", "channel_not_writable")
+            else:
+                return None
 
     # --- Post a new one ---
     # Now it really is a send, so the send permissions are now the right test.
@@ -5094,9 +5161,30 @@ async def post_dashboard_panel(guild_id, actor_id, channel_id):
 
     record_panel_view_version(guild_id)
     complete_guild_onboarding(guild_id)
-    _audit_panel(guild_id, actor_id, "moved" if previous else "posted", channel.id)
+
+    # The replaced panel is deleted rather than left up, unlike the one a move
+    # leaves behind. A move puts the new panel somewhere else, so the old one is
+    # still the only panel in its own channel and removing it is the admin's
+    # call; this one sits directly above its replacement in the same channel,
+    # with live buttons and text nothing can ever correct.
+    if replacing:
+        try:
+            await channel.get_partial_message(
+                int(replacing["message_id"])
+            ).delete()
+        except Exception:
+            logger.warning(
+                "Replaced the panel for guild %s but could not delete the old "
+                "message %s.",
+                guild_id,
+                replacing.get("message_id"),
+                exc_info=True,
+            )
+
+    action = "replaced" if replacing else ("moved" if previous else "posted")
+    _audit_panel(guild_id, actor_id, action, channel.id)
     return {
-        "action": "moved" if previous else "posted",
+        "action": action,
         "channel_id": str(channel.id),
         "previous_channel_id": previous,
     }
