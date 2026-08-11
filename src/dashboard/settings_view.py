@@ -501,6 +501,20 @@ AUDIT_LABELS = {
     "panel_embed_color": "Panel colour",
     "panel_show_icon": "Server icon on the panel",
     "verification_log_channel_id": "Verification log channel",
+    # Not a setting but an action, and the only row here whose pair is not
+    # (old value, new value) -- the bot stores (what it did, where). Without
+    # this entry the branch's own headline feature rendered its history as the
+    # raw column name and a bare channel id.
+    "instructions_panel": "Instructions panel",
+}
+
+# What the bot writes into old_value for an instructions_panel row, as a phrase
+# rather than a state it moved out of.
+PANEL_ACTIONS = {
+    "posted": "posted in",
+    "moved": "moved to",
+    "refreshed": "refreshed in",
+    "replaced": "replaced in",
 }
 
 # Long enough to recognise a message, short enough that one entry cannot push
@@ -522,28 +536,63 @@ def build_audit(
     """
     if entries is None:
         return None
-    return [
-        {
-            "label": AUDIT_LABELS.get(entry.get("field"), entry.get("field")),
-            "actor": entry.get("actor_name") or f"ID {entry.get('actor_id')}",
-            "old": _audit_value(entry.get("field"), entry.get("old_value"), roles, channels),
-            "new": _audit_value(entry.get("field"), entry.get("new_value"), roles, channels),
-            "when": entry.get("changed_at"),
-        }
-        for entry in entries
-    ]
+    rows = []
+    for entry in entries:
+        field = entry.get("field")
+        # An instructions_panel row is (what happened, where) rather than
+        # (before, after), so its halves resolve differently -- the second one
+        # is a channel id, not another action.
+        new_field = "instructions_panel_channel" if field == "instructions_panel" else field
+        rows.append(
+            {
+                "label": AUDIT_LABELS.get(field, field),
+                "actor": entry.get("actor_name") or f"ID {entry.get('actor_id')}",
+                "old": _audit_value(field, entry.get("old_value"), roles, channels),
+                "new": _audit_value(new_field, entry.get("new_value"), roles, channels),
+                "when": entry.get("changed_at"),
+                # Formatted here, not in the template. The template used to slice
+                # this string, which is the one place bot data was subscripted
+                # rather than printed -- a non-string would have 500'd the page.
+                "when_text": _audit_when(entry.get("changed_at")),
+            }
+        )
+    return rows
+
+
+def _audit_when(raw) -> str:
+    """`2026-08-11T07:11:36...` as `2026-08-11 07:11 UTC`, defensively."""
+    if not isinstance(raw, str) or len(raw) < 16:
+        return ""
+    return raw[:16].replace("T", " ") + " UTC"
 
 
 def _audit_value(field, raw, roles, channels) -> str:
-    """One stored value, as something an admin can read."""
+    """One stored value, as something an admin can read.
+
+    `roles`/`channels` are None when that read failed, which is "we could not
+    check" and NOT "it is gone" -- the same distinction _role_field draws above,
+    and the one this function used to lose. Telling an admin their verified role
+    was deleted when it was not is exactly the kind of false statement the rest
+    of this module is written to avoid.
+    """
     if raw is None or raw == "":
         return "not set"
+    if field == "instructions_panel":
+        return PANEL_ACTIONS.get(str(raw), str(raw))
     if field in {"role_id", "unverified_role_id"}:
+        if roles is None:
+            return f"role {raw}"
         role = _lookup(roles, raw)
-        return role.get("name") if role else f"a role that no longer exists ({raw})"
-    if field == "verification_log_channel_id":
+        if role is None:
+            return f"a role that no longer exists ({raw})"
+        return role.get("name") or f"Role {raw}"
+    if field in {"verification_log_channel_id", "instructions_panel_channel"}:
+        if channels is None:
+            return f"channel {raw}"
         channel = _lookup(channels, raw)
-        return f"#{channel['name']}" if channel else f"a channel that no longer exists ({raw})"
+        if channel is None:
+            return f"a channel that no longer exists ({raw})"
+        return f"#{channel.get('name') or raw}"
     if field == "panel_embed_color":
         return _hex(raw) or str(raw)
     if field == "instructions_locale":

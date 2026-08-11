@@ -39,6 +39,15 @@
   {% if saved %}
     <p class="notice ok">Saved.</p>
   {% endif %}
+  {# Saved, but the live panel did not take it. Almost always a panel posted by
+     an older /vrcverify_instructions, which Discord will not let the bot edit
+     -- so the only repair is the replace the panel button below performs. #}
+  {% if panel_stale %}
+    <p class="notice">
+      Your settings were saved, but the instructions panel still shows the old
+      ones. Use <strong>Repost or move panel</strong> below to replace it.
+    </p>
+  {% endif %}
   {% if panel_result %}
     <p class="notice ok">{{ panel_result }}</p>
   {% endif %}
@@ -260,8 +269,8 @@
           <li>
             <span class="audit-what">{{ entry.label }}</span>
             <span class="muted">{{ entry.old }} &rarr; {{ entry.new }}</span>
-            <span class="muted audit-who">{{ entry.actor }}{% if entry.when %} &middot;
-              <time datetime="{{ entry.when }}">{{ entry.when[:16] | replace("T", " ") }} UTC</time>
+            <span class="muted audit-who">{{ entry.actor }}{% if entry.when_text %} &middot;
+              <time datetime="{{ entry.when }}">{{ entry.when_text }}</time>
             {% endif %}</span>
           </li>
         {% endfor %}

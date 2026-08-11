@@ -55,7 +55,13 @@ from dashboard.sessions import SessionStore
 
 logger = logging.getLogger(__name__)
 
-SESSION_COOKIE = "vrcverify_session"
+# The `__Host-` prefix is enforced by the browser: it only accepts the cookie if
+# it is Secure, has no Domain, and is Path=/. That makes it impossible for a
+# sibling subdomain to shadow this cookie with a Domain-scoped one of the same
+# name -- which matters more now that a session can write settings, since being
+# tossed into someone else's session means editing their server believing it is
+# yours.
+SESSION_COOKIE = "__Host-vrcverify_session"
 
 # Everything is same-origin and self-hosted, so the policy can be close to
 # nothing. The one external origin is Discord's icon CDN: guild icons are
@@ -264,7 +270,7 @@ def _register_routes(app: Flask) -> None:
 
         # The check that makes CSRF against the login flow impossible: the
         # state came from us, in this browser, for this attempt.
-        if not secrets.compare_digest(pending.oauth_state, state):
+        if not _same_secret(pending.oauth_state, state):
             logger.warning("OAuth state mismatch; refusing the callback.")
             store.destroy(pending.sid)
             return render_template("error.html", message="That login could not be verified. Please try again."), 400
@@ -339,6 +345,7 @@ def _register_routes(app: Flask) -> None:
             auto_verify_column_present=settings.get("auto_verify_column_present", True),
             saved=request.args.get("saved") == "1",
             panel_result=PANEL_RESULTS.get(request.args.get("panel")),
+            panel_stale=bool(request.args.get("panel_stale")),
             save_error=(
                 _save_error_message(request.args.get("error"))
                 or _panel_error_message(request.args.get("panel_error"))
@@ -408,11 +415,16 @@ def _register_routes(app: Flask) -> None:
                 )
             )
 
+        # Clamped to a known key before it travels, like the two error codes
+        # are. This is the bot's own string, but it is the one place a bot value
+        # reached a URL unchecked, and the invariant this module claims is that
+        # nothing from over the wire is echoed back without being looked up.
+        action = result.get("action")
         return redirect(
             url_for(
                 "guild_settings",
                 guild_id=guild_id,
-                panel=result.get("action", "posted"),
+                panel=action if action in PANEL_RESULTS else "posted",
             )
         )
 
@@ -506,8 +518,7 @@ def _register_routes(app: Flask) -> None:
     def logout():
         session = _require_login()
         if session is not None:
-            submitted = request.form.get("csrf_token", "")
-            if not secrets.compare_digest(session.csrf_token, submitted):
+            if not _csrf_ok(session):
                 abort(400)
             _store().destroy(session.sid)
         response = redirect(url_for("index"))
@@ -584,9 +595,11 @@ GENERIC_SAVE_ERROR = "That change couldn't be saved, so nothing was changed."
 # nothing true about a panel, and a panel needs Embed Links as well as Send
 # Messages -- which the log channel does not, so SAVE_ERRORS cannot just say so.
 PANEL_ERRORS = {
+    # Plain text: this is rendered into a web page, not sent to Discord, so
+    # markdown asterisks would show up literally.
     "channel_not_writable": (
-        "VRCVerify can't post the panel in that channel. It needs both **Send "
-        "Messages** and **Embed Links** there -- Embed Links is the one that's "
+        "VRCVerify can't post the panel in that channel. It needs both Send "
+        "Messages and Embed Links there -- Embed Links is the one that's "
         "usually missing, because the panel is an embed."
     ),
     "channel_not_in_guild": (
@@ -634,11 +647,23 @@ def _read_checkbox(changes: dict, name: str) -> None:
         changes[name] = bool(request.form.get(name))
 
 
+def _same_secret(expected: str, submitted: str) -> bool:
+    """Constant-time compare that survives whatever the request carried.
+
+    `secrets.compare_digest` raises TypeError on a str containing non-ASCII, so
+    comparing a submitted value directly turns "wrong token" into an unhandled
+    500 -- including on `/callback`, which a stranger can reach. Comparing the
+    utf-8 bytes keeps the timing property and makes every wrong value simply
+    wrong.
+    """
+    return secrets.compare_digest(
+        str(expected or "").encode("utf-8"), str(submitted or "").encode("utf-8")
+    )
+
+
 def _csrf_ok(session) -> bool:
     """The second line. `SameSite=Lax` on the cookie is the first."""
-    return secrets.compare_digest(
-        session.csrf_token, request.form.get("csrf_token", "")
-    )
+    return _same_secret(session.csrf_token, request.form.get("csrf_token", ""))
 
 
 def _save(guild_id: int, session, changes: dict):
@@ -652,7 +677,17 @@ def _save(guild_id: int, session, changes: dict):
         return redirect(url_for("guild_settings", guild_id=guild_id))
 
     try:
-        _bot_api().update_settings(int(session.discord_id), guild_id, changes)
+        saved = _bot_api().update_settings(int(session.discord_id), guild_id, changes)
+        # The save worked; the panel may not have followed it. Carried as its
+        # own flag rather than an error, because "stored but the panel still
+        # shows the old thing" is a true success plus a caveat, and reporting it
+        # as a failure would send an admin round the loop that produced it.
+        if isinstance(saved, dict) and saved.get("panel_stale"):
+            return redirect(
+                url_for(
+                    "guild_settings", guild_id=guild_id, saved=1, panel_stale=1
+                )
+            )
     except BotAPIError as error:
         logger.warning("save refused for guild %s: %s", guild_id, error)
         # A code, never the bot's text. What comes back is a fixed reason

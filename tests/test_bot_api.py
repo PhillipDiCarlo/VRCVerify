@@ -1699,8 +1699,17 @@ class TestSettingsWriter:
         assert result == run(bot.read_dashboard_settings(GUILD_ID))
 
 
+async def _noop_delete():
+    return None
+
+
+async def _style_ok(_guild_id, _guild):
+    """A resolvable panel style, so probe reaches the edit."""
+    return (0x5865F2, None)
+
+
 def _always(outcome):
-    async def probe(entry, rebuild_embed):
+    async def probe(entry, rebuild_embed, already_checked=False):
         return outcome
 
     return probe
@@ -1717,7 +1726,12 @@ class TestPanelAction:
         class Sendable(FakeChannel):
             async def send(self, **kwargs):
                 sent.append((self.id, kwargs))
-                return SimpleNamespace(id=555000 + self.id)
+                new_id = 555000 + self.id
+
+                async def delete():
+                    deleted.append(new_id)
+
+                return SimpleNamespace(id=new_id, delete=delete)
 
             def permissions_for(self, _member):
                 return SimpleNamespace(
@@ -1772,7 +1786,10 @@ class TestPanelAction:
         make_server(instructions_channel_id="70", instructions_message_id="900")
         probed = []
 
-        async def fake_probe(entry, rebuild_embed):
+        async def fake_probe(entry, rebuild_embed, already_checked=False):
+            # The panel button has already asked whether the message is
+            # editable, so probe must not spend a second fetch on it.
+            assert already_checked is True
             probed.append(entry)
             return "ok"
 
@@ -1798,7 +1815,7 @@ class TestPanelAction:
         sent = self.setup_guild(monkeypatch)
         make_server(instructions_channel_id="70", instructions_message_id="900")
 
-        async def gone(entry, rebuild_embed):
+        async def gone(entry, rebuild_embed, already_checked=False):
             return "gone"
 
         monkeypatch.setattr(bot, "probe_instruction_panel", gone)
@@ -1963,6 +1980,156 @@ class TestPanelAction:
 
         assert self.post()["action"] == "replaced"
         assert len(sent) == 1
+
+    def test_two_overlapping_posts_do_not_produce_two_panels(
+        self, monkeypatch, subscribed
+    ):
+        """The docstring's central promise, against a send that actually yields.
+
+        The fixture's send returns without suspending, so the existing tests
+        could never catch this: the function reads the recorded location and
+        then awaits three times before writing a new one, so two requests in
+        flight together both saw "nothing here" and both posted.
+        """
+        sent = []
+
+        class Slow(FakeChannel):
+            async def send(self, **kwargs):
+                await asyncio.sleep(0)  # a real HTTP call suspends; so does this
+                sent.append(self.id)
+                return SimpleNamespace(id=555000 + self.id)
+
+            def permissions_for(self, _member):
+                return SimpleNamespace(
+                    view_channel=True, send_messages=True, embed_links=True
+                )
+
+            async def fetch_message(self, message_id):
+                await asyncio.sleep(0)
+                return SimpleNamespace(id=message_id, webhook_id=None)
+
+            def get_partial_message(self, message_id):
+                return SimpleNamespace(id=message_id, delete=_noop_delete)
+
+        guild = FakeGuild(channels=[Slow(70, "verify")])
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        monkeypatch.setattr(bot, "build_instructions_embed", lambda *a, **k: SimpleNamespace())
+        monkeypatch.setattr(bot, "VRCVerifyInstructionView", lambda **k: SimpleNamespace())
+        # So the loser's refresh reports cleanly instead of failing against a
+        # disconnected bot -- which would return None and hide whether the lock
+        # worked behind a generic failure.
+        monkeypatch.setattr(bot, "probe_instruction_panel", _always("ok"))
+        make_server()
+
+        async def both():
+            return await asyncio.gather(
+                bot.post_dashboard_panel(GUILD_ID, ADMIN_ID, "70"),
+                bot.post_dashboard_panel(GUILD_ID, ADMIN_ID, "70"),
+            )
+
+        results = asyncio.run(both())
+
+        assert len(sent) == 1, "a double click posted two live panels"
+        # The second request found the first one's panel and refreshed it.
+        assert {r["action"] for r in results} == {"posted", "refreshed"}
+
+    def test_a_panel_that_cannot_be_recorded_is_taken_back_down(
+        self, monkeypatch, subscribed
+    ):
+        """An unrecorded panel has live buttons and nothing that can find it.
+
+        The admin sees a failure and clicks again, so leaving it up costs one
+        orphan per retry.
+        """
+        deleted = []
+        sent = self.setup_guild(monkeypatch, deleted=deleted)
+        make_server()
+
+        class Boom(Exception):
+            pass
+
+        real_scope = bot.session_scope
+        calls = {"n": 0}
+
+        def failing_scope(*args, **kwargs):
+            # Let the reads through; break only the write that records the ids.
+            calls["n"] += 1
+            if calls["n"] >= 2:
+                raise Boom("db down")
+            return real_scope(*args, **kwargs)
+
+        monkeypatch.setattr(bot, "session_scope", failing_scope)
+
+        assert self.post() is None
+        assert len(sent) == 1
+        assert deleted == [555070], "the unrecorded panel was left live"
+
+    def test_probe_skips_the_ownership_fetch_when_told_it_was_done(
+        self, monkeypatch
+    ):
+        """One question, one fetch. The panel button has already asked.
+
+        Without this the POST costs three Discord calls (two fetches and an
+        edit) where the design assumes one edit.
+        """
+        asked = []
+
+        async def spy(_channel, message_id):
+            asked.append(message_id)
+            return False
+
+        monkeypatch.setattr(bot, "_panel_is_webhook_owned", spy)
+        monkeypatch.setattr(bot, "resolve_panel_style", _style_ok)
+        monkeypatch.setattr(bot, "build_instructions_embed", lambda *a, **k: SimpleNamespace())
+        monkeypatch.setattr(bot, "VRCVerifyInstructionView", lambda **k: SimpleNamespace())
+
+        edits = []
+
+        class Msg:
+            async def edit(self, **payload):
+                edits.append(payload)
+
+        monkeypatch.setattr(
+            bot.bot, "get_partial_messageable",
+            lambda _cid: SimpleNamespace(get_partial_message=lambda _mid: Msg()),
+        )
+        entry = {"server_id": str(GUILD_ID), "channel_id": "70",
+                 "message_id": "900", "locale": "en-US"}
+
+        run(bot.probe_instruction_panel(entry, rebuild_embed=True, already_checked=True))
+        assert asked == [], "asked Discord a question the caller had answered"
+        assert len(edits) == 1
+
+        run(bot.probe_instruction_panel(entry, rebuild_embed=True))
+        assert asked == ["900"], "the default must still check"
+
+    def test_a_frozen_panel_makes_the_save_report_it(self, monkeypatch, subscribed):
+        """Storing the value is not the same as the panel showing it.
+
+        This is the production symptom that started the investigation: the
+        setting saved, the page showed the new language, and the panel silently
+        stayed as it was.
+        """
+        make_server()
+
+        async def frozen(_guild_id):
+            return "frozen"
+
+        monkeypatch.setattr(bot, "restyle_instruction_panel", frozen)
+        result = write({"instructions_locale": "de"})
+        assert result["fields"]["instructions_locale"]["value"] == "de"
+        assert result["panel_stale"] == "frozen"
+
+    def test_a_clean_restyle_says_nothing_about_staleness(
+        self, monkeypatch, subscribed
+    ):
+        make_server()
+
+        async def fine(_guild_id):
+            return "ok"
+
+        monkeypatch.setattr(bot, "restyle_instruction_panel", fine)
+        assert "panel_stale" not in write({"instructions_locale": "de"})
 
     def test_the_action_is_audited(self, monkeypatch, subscribed):
         self.setup_guild(monkeypatch)

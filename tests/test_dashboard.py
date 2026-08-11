@@ -1569,6 +1569,12 @@ class TestPostingThePanel:
         form.setdefault("csrf_token", session.csrf_token)
         return test_client.post(f"/guild/{GUILD_IN}/panel/post", data=form)
 
+    def settings_page_with(self, config, store, **params):
+        """The settings page as it renders after a redirect carrying `params`."""
+        test_client, _api, _session = self.logged_in(config, store)
+        query = "&".join(f"{k}={v}" for k, v in params.items())
+        return test_client.get(f"/guild/{GUILD_IN}?{query}").data.decode()
+
     def test_the_chosen_channel_reaches_the_bot(self, config, store):
         test_client, api, session = self.logged_in(config, store)
         response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
@@ -1640,6 +1646,25 @@ class TestPostingThePanel:
         assert "Embed Links" in page
         assert "can&#39;t log there" not in page
 
+    def test_an_unrecognised_action_never_reaches_the_url(self, config, store):
+        """The one place a bot value used to travel without being looked up."""
+        test_client, _api, session = self.logged_in(
+            config, store, panel_result={"action": "\r\nSet-Cookie: x=1", "channel_id": "1"}
+        )
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        assert "Set-Cookie" not in response.headers["Location"]
+        assert "panel=posted" in response.headers["Location"]
+
+    def test_a_stale_panel_after_a_save_is_reported(self, config, store):
+        """Saved is true; "your panel shows it" is not, and only one is obvious."""
+        page = self.settings_page_with(config, store, panel_stale=1)
+        assert "still shows the old" in page
+
+    def test_a_clean_save_says_nothing_about_the_panel(self, config, store):
+        assert "still shows the old" not in self.settings_page_with(
+            config, store, saved=1
+        )
+
     def test_an_unrecognised_panel_refusal_never_reaches_the_page_as_text(
         self, config, store
     ):
@@ -1651,6 +1676,68 @@ class TestPostingThePanel:
         page = test_client.get(response.headers["Location"]).data.decode()
         assert leak not in page
         assert "couldn&#39;t be posted" in page
+
+
+class TestTheChangeHistoryOfPanelActions:
+    """The panel row is the one entry whose pair is not (before, after).
+
+    The bot stores (what it did, where), so both halves need resolving
+    differently -- without that it rendered as the raw column name and a bare
+    channel id, for the feature this branch exists to add.
+    """
+
+    def entry(self, action="posted", channel=LOG_CHANNEL):
+        return [
+            {
+                "field": "instructions_panel",
+                "old_value": action,
+                "new_value": channel,
+                "actor_id": ACTOR,
+                "actor_name": "Sasha",
+                "changed_at": "2026-08-11T07:11:36.118000+00:00",
+            }
+        ]
+
+    def test_it_reads_as_an_action_and_a_channel(self):
+        row = settings_view.build_audit(
+            self.entry(), DEFAULT_ROLES, DEFAULT_CHANNELS
+        )[0]
+        assert row["label"] == "Instructions panel"
+        assert row["old"] == "posted in"
+        assert row["new"] == "#verify-log"
+
+    def test_the_destructive_action_is_named_plainly(self):
+        row = settings_view.build_audit(
+            self.entry(action="replaced"), DEFAULT_ROLES, DEFAULT_CHANNELS
+        )[0]
+        assert row["old"] == "replaced in"
+
+    def test_a_failed_channel_read_does_not_claim_the_channel_is_gone(self):
+        """"We couldn't check" and "it was deleted" are different facts."""
+        row = settings_view.build_audit(self.entry(), DEFAULT_ROLES, None)[0]
+        assert "no longer exists" not in row["new"]
+        assert LOG_CHANNEL in row["new"]
+
+    def test_a_failed_role_read_does_not_claim_the_role_is_gone(self):
+        entries = [
+            {
+                "field": "role_id",
+                "old_value": None,
+                "new_value": VERIFIED_ROLE,
+                "actor_id": ACTOR,
+                "actor_name": "Sasha",
+                "changed_at": None,
+            }
+        ]
+        row = settings_view.build_audit(entries, None, DEFAULT_CHANNELS)[0]
+        assert "no longer exists" not in row["new"]
+
+    def test_a_timestamp_that_is_not_a_string_does_not_break_the_page(self):
+        entries = self.entry()
+        entries[0]["changed_at"] = 1234
+        assert settings_view.build_audit(entries, DEFAULT_ROLES, DEFAULT_CHANNELS)[0][
+            "when_text"
+        ] == ""
 
 
 class TestTheChangeHistory:
