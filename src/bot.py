@@ -4424,13 +4424,22 @@ async def probe_instruction_panel(entry, rebuild_embed: bool) -> str:
                 # handling above owns deciding what to do about the id itself.
                 guild = None
             style = await resolve_panel_style(entry["server_id"], guild)
-            # None means the branding table could not be read. Leave the embed
-            # off the payload so the panel keeps whatever it already has — the
-            # view still gets refreshed, which is what this pass is for.
-            if style is not None:
-                payload["embed"] = build_instructions_embed(
-                    entry["locale"], *style
+            # None means the branding table could not be read, so the embed
+            # cannot be rebuilt without restyling a paying server over a
+            # database hiccup. Editing anyway used to send the view on its own,
+            # which produced the worst of the three outcomes: buttons in the new
+            # language above an embed still in the old one, logged as a success.
+            # Leave the whole panel alone instead. It stays internally
+            # consistent, and the caller is told this is a retry rather than a
+            # refusal.
+            if style is None:
+                logger.warning(
+                    "⚠️ Could not resolve the panel style for guild %s; leaving "
+                    "the panel untouched rather than half-updating it.",
+                    entry["server_id"],
                 )
+                return "style_unreadable"
+            payload["embed"] = build_instructions_embed(entry["locale"], *style)
         await message.edit(**payload)
         if entry.get("view_version") != INSTRUCTIONS_VIEW_VERSION:
             record_panel_view_version(entry["server_id"])

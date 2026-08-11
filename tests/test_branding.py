@@ -399,8 +399,11 @@ class TestRestylePanel:
     ):
         """A database blip must not restyle a paying server back to default.
 
-        The view is still refreshed — that is what the pass is for — but no
-        embed goes in the payload, so the panel keeps the look it has.
+        It used to send the view alone, on the reasoning that the panel then
+        keeps the look it has. That is true of the look and false of everything
+        else the view carries: the button labels are localized, so a language
+        change came out as Japanese buttons above English text, reported as a
+        successful refresh. Nothing goes at all now.
         """
         make_server(row_id=NEW_ID)
         set_branding()
@@ -409,11 +412,21 @@ class TestRestylePanel:
             bot, "load_panel_branding", lambda gid: bot.BRANDING_UNREADABLE
         )
 
+        assert run(bot.restyle_instruction_panel(GUILD_ID)) == "style_unreadable"
+        assert rec.edits == []
+
+    def test_a_half_updated_panel_is_never_sent(self, monkeypatch, premium):
+        """The embed and the buttons must always agree about the language."""
+        make_server(row_id=NEW_ID, instructions_locale="ja")
+        set_branding()
+        rec = PanelRecorder().install(monkeypatch)
+
         run(bot.restyle_instruction_panel(GUILD_ID))
 
         assert len(rec.edits) == 1
-        assert "embed" not in rec.edits[0]
-        assert isinstance(rec.edits[0]["view"], bot.VRCVerifyInstructionView)
+        # Both halves, or neither. The old code could send only the second.
+        assert "embed" in rec.edits[0] and "view" in rec.edits[0]
+        assert rec.edits[0]["embed"].title == bot.build_instructions_embed("ja").title
 
     def test_a_guild_with_no_panel_is_a_no_op(self, monkeypatch, premium):
         make_server(row_id=NEW_ID, with_panel=False)
