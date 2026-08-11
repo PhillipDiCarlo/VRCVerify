@@ -288,7 +288,8 @@ socket and the bot behaves exactly as it did before this existed.
 
 When it *is* enabled, it runs inside the bot process (sharing the gateway
 cache, so it can answer questions about roles, channels and permissions without
-a second copy of anything) and serves read-only settings data to the dashboard.
+a second copy of anything), answers the dashboard's questions about a guild's
+settings, and accepts the two changes it is allowed to make to them.
 Three independent checks guard every request:
 
 1. **mTLS** against a private CA — see `scripts/gen_bot_api_certs.sh`. The
@@ -317,9 +318,17 @@ Deployment rules, all enforced or explained in `.env.example`:
 - A misconfiguration stops the API, never the bot. Verification keeps working
   through an expired dashboard certificate; the log says so at `ERROR`.
 
-This phase is **read-only by construction**: the API is handed a set of reader
-callables and nothing else, so it cannot express a write at all.
-`tests/test_bot_api.py` pins both that and the absence of any non-GET route.
+The API's authority is **a set of named capabilities, not a database handle**:
+`BotAPIDeps` holds eleven callables, nine of which only read or check, and
+exactly two that change anything — `write_settings` and `post_panel`. There is
+no generic column setter, so widening what the website
+can do to a server means adding a named capability here — a reviewable diff,
+not a query string nobody noticed. `tests/test_bot_api.py` pins the exact
+membership of that set and that no third mutating route exists.
+
+(Through step 4 this was read-only by construction, with no writers at all.
+Step 5 added the two above deliberately; the control was never "no writers
+ever", it was "a writer cannot appear by accident".)
 
 ### The dashboard itself
 
@@ -359,11 +368,36 @@ channels read fails, the field falls back to read-only — an empty `<select>`
 invites a save that would clear the verified role and stop verification for the
 whole server.
 
-The write path adds one route on each side, and both are pinned by tests:
+It can also **post the instructions panel** into a channel — the one thing the
+dashboard makes the bot *do* in a server rather than store. That makes doing it
+twice by accident the main hazard, so the bot decides what a request means:
 
-- `PATCH /api/v1/guilds/{id}/settings` on the bot, the only non-GET route.
-  Because the signed operation includes the **method**, a token minted to read
-  a guild's settings cannot be replayed to write them.
+- the panel is already in the chosen channel → **refresh** it, the same
+  one-call edit the fleet sweep uses. A double-click costs an edit, not a
+  second panel with live buttons that nothing tracks.
+- the panel is recorded elsewhere → **move**: post the new one, re-point the
+  ids, and tell the admin where the old one still is. Deleting it would be this
+  code destroying a message nobody pointed at.
+- the panel is there but Discord **won't let the bot edit it** → **replace**:
+  post a new one, then delete the old. A panel posted as a slash-command reply
+  belongs to a webhook, and Discord answers 200 to an embed edit on one of
+  those and keeps the old embed — so its text can never be corrected, and
+  refreshing it again is a silent no-op. This is the one case that deletes, and
+  it is the opposite of the move above for a reason: a move leaves the old
+  panel alone in a different channel, where it is still the only panel there,
+  while this one would sit directly above its replacement with live buttons and
+  text nothing can fix. The delete is bounded to the message id the bot itself
+  recorded, and only runs once the replacement is up and saved.
+- the recorded location **cannot be read** → post nothing. That is the case
+  where "no panel exists" and "the database blinked" look identical.
+
+The write path adds two routes on the bot, and both are pinned by tests —
+`TestWriteSurfaceIsExactlyTwoThings` asserts there are no others:
+
+- `PATCH /api/v1/guilds/{id}/settings` and `POST /api/v1/guilds/{id}/panel`,
+  the only non-GET routes. Because the signed operation includes the
+  **method and path**, a token minted to read a guild's settings cannot be
+  replayed to write them, or to post its panel.
 - One `POST` per group on the dashboard, behind a CSRF token and a
   `SameSite=Lax` cookie — though the check that matters is the bot's, which
   re-runs Administrator, re-runs the plan gate, and validates every value
@@ -376,6 +410,13 @@ token claims, never from the request body. Nothing in this codebase updates or
 deletes a row in that table: an audit trail exists to disagree with someone's
 account of events, which it cannot do if the code that made the change can
 rewrite the record of it.
+
+The settings page shows that history back — ids resolved to names, an actor
+who has since left the server shown by id rather than dropped. It covers
+changes made **from the website only**; slash commands are not recorded, and
+the page says so rather than implying the list is everything that ever
+happened. An unreadable trail renders as "couldn't load", never as "no changes
+have been made" — those are different facts and only one of them is reassuring.
 
 Two rules the settings page exists to honour:
 

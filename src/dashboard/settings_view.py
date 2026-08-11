@@ -338,6 +338,15 @@ def build_groups(
             "blurb": "The message members use to start verification.",
             "fields": [locale, color, icon],
             "panel": panel_summary(panel),
+            # Where the panel may be posted. Announcement channels are NOT
+            # filtered out, unlike the log channel's picker: the panel is public
+            # instructions, and /vrcverify_instructions can be run in one, so
+            # excluding them would be stricter than the bot. Channels the bot
+            # cannot post in are excluded, because that is not a choice --
+            # except the one the panel is already in, where the button refreshes
+            # rather than posts and so needs no Send Messages at all.
+            "panel_channels": _panel_channels(channels, panel),
+            "panel_channel_id": (panel or {}).get("channel_id") or "",
             # The only group with a save path so far. The template renders a
             # form when a group names an endpoint AND the bot said at least one
             # of its fields is writable, so opening the next group is a change
@@ -480,6 +489,141 @@ def _log_channel_field(settings: dict, channels: Optional[list]) -> Field:
     )
 
 
+# Labels for the audit list. Deliberately the same words the settings above
+# use, so a line of history is recognisably about a control on this page.
+AUDIT_LABELS = {
+    "role_id": "Verified role",
+    "unverified_role_id": "Unverified role",
+    "auto_verify_new_members": "Auto-verify on join",
+    "auto_nickname_change": "Nickname sync",
+    "custom_verification_requested_message": "Custom verification message",
+    "instructions_locale": "Language",
+    "panel_embed_color": "Panel colour",
+    "panel_show_icon": "Server icon on the panel",
+    "verification_log_channel_id": "Verification log channel",
+    # Not a setting but an action, and the only row here whose pair is not
+    # (old value, new value) -- the bot stores (what it did, where). Without
+    # this entry the branch's own headline feature rendered its history as the
+    # raw column name and a bare channel id.
+    "instructions_panel": "Instructions panel",
+}
+
+# What the bot writes into old_value for an instructions_panel row, as a phrase
+# rather than a state it moved out of.
+PANEL_ACTIONS = {
+    "posted": "posted in",
+    "moved": "moved to",
+    "refreshed": "refreshed in",
+    "replaced": "replaced in",
+}
+
+# Long enough to recognise a message, short enough that one entry cannot push
+# the rest of the history off the screen.
+AUDIT_VALUE_MAX = 80
+
+
+def build_audit(
+    entries: Optional[list],
+    roles: Optional[list],
+    channels: Optional[list],
+) -> Optional[list]:
+    """The change history, with ids resolved and values fit to read.
+
+    None means the bot could not answer, which the page says out loud -- an
+    empty history and an unavailable one are different facts, and a trail that
+    quietly renders as "nothing happened" is worse than one that admits it does
+    not know.
+    """
+    if entries is None:
+        return None
+    rows = []
+    for entry in entries:
+        field = entry.get("field")
+        # An instructions_panel row is (what happened, where) rather than
+        # (before, after), so its halves resolve differently -- the second one
+        # is a channel id, not another action.
+        new_field = "instructions_panel_channel" if field == "instructions_panel" else field
+        rows.append(
+            {
+                "label": AUDIT_LABELS.get(field, field),
+                "actor": entry.get("actor_name") or f"ID {entry.get('actor_id')}",
+                "old": _audit_value(field, entry.get("old_value"), roles, channels),
+                "new": _audit_value(new_field, entry.get("new_value"), roles, channels),
+                "when": entry.get("changed_at"),
+                # Formatted here, not in the template. The template used to slice
+                # this string, which is the one place bot data was subscripted
+                # rather than printed -- a non-string would have 500'd the page.
+                "when_text": _audit_when(entry.get("changed_at")),
+            }
+        )
+    return rows
+
+
+def _audit_when(raw) -> str:
+    """`2026-08-11T07:11:36...` as `2026-08-11 07:11 UTC`, defensively."""
+    if not isinstance(raw, str) or len(raw) < 16:
+        return ""
+    return raw[:16].replace("T", " ") + " UTC"
+
+
+def _audit_value(field, raw, roles, channels) -> str:
+    """One stored value, as something an admin can read.
+
+    `roles`/`channels` are None when that read failed, which is "we could not
+    check" and NOT "it is gone" -- the same distinction _role_field draws above,
+    and the one this function used to lose. Telling an admin their verified role
+    was deleted when it was not is exactly the kind of false statement the rest
+    of this module is written to avoid.
+    """
+    if raw is None or raw == "":
+        return "not set"
+    if field == "instructions_panel":
+        return PANEL_ACTIONS.get(str(raw), str(raw))
+    if field in {"role_id", "unverified_role_id"}:
+        if roles is None:
+            return f"role {raw}"
+        role = _lookup(roles, raw)
+        if role is None:
+            return f"a role that no longer exists ({raw})"
+        return role.get("name") or f"Role {raw}"
+    if field in {"verification_log_channel_id", "instructions_panel_channel"}:
+        if channels is None:
+            return f"channel {raw}"
+        channel = _lookup(channels, raw)
+        if channel is None:
+            return f"a channel that no longer exists ({raw})"
+        return f"#{channel.get('name') or raw}"
+    if field == "panel_embed_color":
+        return _hex(raw) or str(raw)
+    if field == "instructions_locale":
+        return locale_label(str(raw))
+    if raw in {"True", "False"}:
+        return "on" if raw == "True" else "off"
+    text = str(raw)
+    return text if len(text) <= AUDIT_VALUE_MAX else text[: AUDIT_VALUE_MAX - 1] + "…"
+
+
+def _panel_channels(channels: Optional[list], panel: Optional[dict]) -> list:
+    """Channels the panel button may target.
+
+    Somewhere the bot cannot send is not a real choice, so it is left out --
+    unless the panel already lives there, because then the button refreshes an
+    existing message instead of sending a new one. Dropping that option would
+    make this page refuse a thing the bot does unprompted on every restart.
+    """
+    here = str((panel or {}).get("channel_id") or "") if (panel or {}).get("posted") else ""
+    return [
+        (str(channel.get("id")), f"#{channel.get('name') or channel.get('id')}")
+        for channel in (channels or [])
+        # can_embed, not can_send: the panel is an embed, and a channel with
+        # Send Messages but no Embed Links accepts the log and refuses this.
+        # A bot that predates the flag reports it as None, which is "unknown"
+        # rather than "no" -- offering it and letting the bot refuse is better
+        # than hiding every channel from an older deployment.
+        if channel.get("can_embed") is not False or str(channel.get("id")) == here
+    ]
+
+
 def panel_summary(panel: Optional[dict]) -> dict:
     """The instructions panel's whereabouts, as a template-ready dict.
 
@@ -499,10 +643,16 @@ def panel_summary(panel: Optional[dict]) -> dict:
             "The channel this panel was posted in no longer exists, so members "
             "have no way to start verifying."
         )
-    elif panel.get("channel_reachable") is False:
+    elif panel.get("channel_postable") is False:
+        # Deliberately narrow. The panel itself is fine: buttons are
+        # interactions, and refreshing it edits a message VRCVerify already
+        # owns, neither of which needs Send Messages. Only replacing it does.
+        # Both permissions are named because the panel is an embed, so Embed
+        # Links alone being off produces this with no other symptom.
         warnings.append(
-            "VRCVerify can no longer post in that channel, so it cannot refresh "
-            "this panel."
+            "VRCVerify can't post a new message in that channel — it needs "
+            "both Send Messages and Embed Links there. The panel still works "
+            "and can still be refreshed; it just can't be replaced."
         )
 
     name = panel.get("channel_name")

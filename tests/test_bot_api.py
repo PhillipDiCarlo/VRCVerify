@@ -49,14 +49,15 @@ def run(coro):
 # -------------------------------------------------------------------
 # Fakes
 # -------------------------------------------------------------------
-def make_deps(written=None, **overrides) -> bot_api.BotAPIDeps:
+def make_deps(written=None, posted=None, **overrides) -> bot_api.BotAPIDeps:
     """A permissive set of capabilities, so each test breaks exactly one thing.
 
-    `written` collects what reached the writer, so a test can assert the
-    handler passed the body through unchanged -- and, more usefully, that a
-    refused request never reached it at all.
+    `written` and `posted` collect what reached the two mutating capabilities,
+    so a test can assert the handler passed the body through unchanged -- and,
+    more usefully, that a refused request never reached them at all.
     """
     written = [] if written is None else written
+    posted = [] if posted is None else posted
 
     async def is_admin(guild_id, user_id):
         return int(user_id) == ADMIN_ID
@@ -78,6 +79,13 @@ def make_deps(written=None, **overrides) -> bot_api.BotAPIDeps:
     async def read_panel(guild_id):
         return {"posted": False}
 
+    async def read_audit(guild_id):
+        return []
+
+    async def post_panel(guild_id, actor_id, channel_id):
+        posted.append((int(guild_id), int(actor_id), str(channel_id)))
+        return {"action": "posted", "channel_id": str(channel_id)}
+
     async def write_settings(guild_id, actor_id, changes):
         written.append((int(guild_id), int(actor_id), dict(changes)))
         return {"guild_id": str(guild_id), "fields": {}, "written": dict(changes)}
@@ -91,7 +99,9 @@ def make_deps(written=None, **overrides) -> bot_api.BotAPIDeps:
         read_roles=read_roles,
         read_channels=read_channels,
         read_panel=read_panel,
+        read_audit=read_audit,
         write_settings=write_settings,
+        post_panel=post_panel,
     )
     defaults.update(overrides)
     return bot_api.BotAPIDeps(**defaults)
@@ -517,6 +527,39 @@ class TestRequests:
 
         results = serve(scenario, config=make_config(rate_limit=2))
         assert [status for status, _ in results] == [200, 200, 429]
+
+    def test_writes_have_their_own_smaller_budget(self):
+        """A GET costs Discord nothing; a save costs it real REST calls.
+
+        The general budget was sized when every route was a cached read, so
+        writes are metered again on top of it rather than sharing that number.
+        """
+
+        async def scenario(client):
+            results = []
+            for _ in range(3):
+                results.append(
+                    await patch(client, SETTINGS_PATH, token_for(WRITE_OP),
+                                json={"fields": {"instructions_locale": "de"}})
+                )
+            return results
+
+        results = serve(scenario, config=make_config(write_rate_limit=2))
+        assert [status for status, _ in results] == [200, 200, 429]
+
+    def test_reads_do_not_spend_the_write_budget(self):
+        """Otherwise hammering the picker would lock an admin out of saving."""
+
+        async def scenario(client):
+            for _ in range(5):
+                await get(client, SETTINGS_PATH, token_for(SETTINGS_OP))
+            return await patch(
+                client, SETTINGS_PATH, token_for(WRITE_OP),
+                json={"fields": {"instructions_locale": "de"}},
+            )
+
+        status, _body = serve(scenario, config=make_config(write_rate_limit=2))
+        assert status == 200
 
     def test_health_is_metered_too(self):
         """The one tokenless endpoint still can't be an unmetered handler."""
@@ -958,26 +1001,27 @@ class TestTheWritePath:
         assert actor == ADMIN_ID
 
 
-class TestWriteSurfaceIsExactlyOneThing:
-    """Step 5 opens a write path. These pin how far it opens, and no further.
+class TestWriteSurfaceIsExactlyTwoThings:
+    """These pin how far the API can change things, and no further.
 
     Editing any of them is how you widen what the website can do to a server,
     which is the point: it cannot happen as a side effect of adding a route or
     a dependency.
     """
 
-    def test_the_only_write_route_is_the_settings_patch(self):
+    def test_the_only_mutating_routes_are_the_settings_patch_and_the_panel_post(self):
         app = bot_api.create_app(make_config(), make_deps())
         writes = {
             (route.method, route.resource.canonical)
             for route in app.router.routes()
             if route.method not in {"GET", "HEAD"}
         }
-        assert writes == {("PATCH", "/api/v1/guilds/{guild_id}/settings")}, (
-            f"an unexpected write route appeared: {writes}"
-        )
+        assert writes == {
+            ("PATCH", "/api/v1/guilds/{guild_id}/settings"),
+            ("POST", "/api/v1/guilds/{guild_id}/panel"),
+        }, f"an unexpected write route appeared: {writes}"
 
-    def test_the_api_holds_exactly_one_writer(self):
+    def test_the_api_holds_one_writer_and_one_action(self):
         assert bot_api.deps_field_names() == frozenset(
             {
                 "is_ready",
@@ -988,13 +1032,15 @@ class TestWriteSurfaceIsExactlyOneThing:
                 "read_roles",
                 "read_channels",
                 "read_panel",
+                "read_audit",
                 "write_settings",
+                "post_panel",
             }
         )
 
     def test_every_capability_is_named_for_what_it_does(self):
         for field in dataclass_fields(bot_api.BotAPIDeps):
-            assert field.name.startswith(("read_", "is_", "guild_", "write_"))
+            assert field.name.startswith(("read_", "is_", "guild_", "write_", "post_"))
 
     def test_the_module_decides_nothing_about_which_fields_are_writable(self):
         """The allowlist lives in the bot, not in the internet-facing path.
@@ -1041,19 +1087,28 @@ class FakeRole:
 
 
 class FakeChannel:
-    def __init__(self, channel_id, name, position=0, news=False, sendable=True):
+    def __init__(self, channel_id, name, position=0, news=False, sendable=True,
+                 embeddable=None):
         self.id = channel_id
         self.name = name
         self.position = position
         self.category = None
         self._news = news
         self._sendable = sendable
+        # Defaults to following send_messages, because the interesting case is
+        # the channel that grants one and not the other -- which accepts the
+        # verification log and refuses the instructions panel.
+        self._embeddable = sendable if embeddable is None else embeddable
 
     def is_news(self):
         return self._news
 
     def permissions_for(self, _member):
-        return SimpleNamespace(view_channel=True, send_messages=self._sendable)
+        return SimpleNamespace(
+            view_channel=True,
+            send_messages=self._sendable,
+            embed_links=self._embeddable,
+        )
 
 
 class FakeGuild:
@@ -1258,6 +1313,93 @@ class TestSettingsWriter:
         make_server(instructions_locale="en-US")
         write({"instructions_locale": "en-US"})
         assert audit_rows() == []
+
+    def restyles(self, monkeypatch):
+        seen = []
+
+        async def fake_restyle(guild_id):
+            seen.append(str(guild_id))
+            return "ok"
+
+        monkeypatch.setattr(bot, "restyle_instruction_panel", fake_restyle)
+        return seen
+
+    def test_a_saved_language_is_applied_to_the_live_panel(
+        self, monkeypatch, subscribed
+    ):
+        """Saving the setting is not the whole job -- the panel renders it.
+
+        Nothing else would: the fleet sweep refreshes the view but passes
+        rebuild_embed=False, so the embed would keep the old language until an
+        operator forced a full refresh.
+        """
+        seen = self.restyles(monkeypatch)
+        make_server()
+        write({"instructions_locale": "de"})
+        assert seen == [str(GUILD_ID)]
+
+    def test_saved_branding_is_applied_to_the_live_panel(
+        self, monkeypatch, subscribed
+    ):
+        seen = self.restyles(monkeypatch)
+        make_server()
+        write({"panel_embed_color": 0xFF0000})
+        assert seen == [str(GUILD_ID)]
+
+    def test_a_setting_the_panel_does_not_show_edits_no_panel(
+        self, monkeypatch, subscribed
+    ):
+        """A message edit per save would be a rate limit nobody asked for.
+
+        The audit assertion is load-bearing, not decoration. A save that
+        silently did nothing would leave `seen` empty too, so without proof the
+        write landed this passes whether or not the field filter works -- which
+        is how it was written the first time, using a role id that never got
+        past the "role must be in this guild" check because no guild is mocked
+        in this class.
+        """
+        seen = self.restyles(monkeypatch)
+        make_server()
+        write({"custom_verification_requested_message": "Welcome aboard!"})
+        assert [row[0] for row in audit_rows()] == [
+            "custom_verification_requested_message"
+        ]
+        assert seen == []
+
+    def test_a_no_op_language_save_edits_no_panel(self, monkeypatch, subscribed):
+        seen = self.restyles(monkeypatch)
+        make_server(instructions_locale="en-US")
+        write({"instructions_locale": "en-US"})
+        assert seen == []
+
+    def test_the_message_discord_receives_is_in_the_new_language(
+        self, monkeypatch, subscribed
+    ):
+        """The whole chain, faked only at the HTTP boundary.
+
+        Every step between the save and the edit is real -- the servers row,
+        load_instruction_panel, resolve_panel_style, build_instructions_embed --
+        because the halves each worked and the language still did not change.
+        """
+        edits = []
+
+        class FakeMessage:
+            async def edit(self, **payload):
+                edits.append(payload)
+
+        monkeypatch.setattr(
+            bot.bot,
+            "get_partial_messageable",
+            lambda _cid: SimpleNamespace(get_partial_message=lambda _mid: FakeMessage()),
+        )
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+
+        write({"instructions_locale": "ja"})
+
+        assert len(edits) == 1
+        german = bot.build_instructions_embed("ja")
+        assert edits[0]["embed"].title == german.title
+        assert edits[0]["embed"].title != bot.build_instructions_embed("en-US").title
 
     def test_half_a_branding_change_keeps_the_other_half(self, subscribed):
         make_server()
@@ -1590,6 +1732,514 @@ class TestSettingsWriter:
         assert result == run(bot.read_dashboard_settings(GUILD_ID))
 
 
+async def _noop_delete():
+    return None
+
+
+async def _style_ok(_guild_id, _guild):
+    """A resolvable panel style, so probe reaches the edit."""
+    return (0x5865F2, None)
+
+
+def _always(outcome):
+    async def probe(entry, rebuild_embed, already_checked=False):
+        return outcome
+
+    return probe
+
+
+class TestPanelAction:
+    """Posting a panel is the one thing that shows up in somebody's server."""
+
+    def setup_guild(self, monkeypatch, sendable=True, sent=None, webhook_owned=False,
+                    deleted=None):
+        sent = [] if sent is None else sent
+        deleted = [] if deleted is None else deleted
+
+        class Sendable(FakeChannel):
+            async def send(self, **kwargs):
+                sent.append((self.id, kwargs))
+                new_id = 555000 + self.id
+
+                async def delete():
+                    deleted.append(new_id)
+
+                return SimpleNamespace(id=new_id, delete=delete)
+
+            def permissions_for(self, _member):
+                return SimpleNamespace(
+                    view_channel=True, send_messages=sendable, embed_links=sendable
+                )
+
+            async def fetch_message(self, message_id):
+                # webhook_id set means the panel was posted as a slash-command
+                # reply, which Discord will not let the bot edit the embed of.
+                return SimpleNamespace(
+                    id=message_id,
+                    webhook_id=1335738139825799188 if webhook_owned else None,
+                )
+
+            def get_partial_message(self, message_id):
+                async def delete():
+                    deleted.append(message_id)
+
+                return SimpleNamespace(id=message_id, delete=delete)
+
+        guild = FakeGuild(
+            channels=[Sendable(70, "verify"), Sendable(71, "general", position=1)]
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        monkeypatch.setattr(
+            bot, "build_instructions_embed", lambda *a, **k: SimpleNamespace()
+        )
+        monkeypatch.setattr(
+            bot, "VRCVerifyInstructionView", lambda **k: SimpleNamespace()
+        )
+        return sent
+
+    def post(self, channel_id="70"):
+        return run(bot.post_dashboard_panel(GUILD_ID, ADMIN_ID, channel_id))
+
+    def test_a_first_post_records_where_it_went(self, monkeypatch, subscribed):
+        sent = self.setup_guild(monkeypatch)
+        make_server()
+        result = self.post()
+        assert result["action"] == "posted"
+        assert len(sent) == 1
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.instructions_channel_id == "70"
+            assert srv.instructions_message_id == "555070"
+
+    def test_posting_into_the_same_channel_refreshes_instead(
+        self, monkeypatch, subscribed
+    ):
+        """The double-click case. One edit, not a second live panel."""
+        sent = self.setup_guild(monkeypatch)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        probed = []
+
+        async def fake_probe(entry, rebuild_embed, already_checked=False):
+            # The panel button has already asked whether the message is
+            # editable, so probe must not spend a second fetch on it.
+            assert already_checked is True
+            probed.append(entry)
+            return "ok"
+
+        monkeypatch.setattr(bot, "probe_instruction_panel", fake_probe)
+
+        assert self.post()["action"] == "refreshed"
+        assert sent == []          # nothing new was posted
+        assert len(probed) == 1
+
+    def test_a_different_channel_is_a_move_and_says_where_the_old_one_is(
+        self, monkeypatch, subscribed
+    ):
+        sent = self.setup_guild(monkeypatch)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        result = self.post("71")
+        assert result["action"] == "moved"
+        assert result["previous_channel_id"] == "70"
+        assert len(sent) == 1
+
+    def test_a_record_pointing_at_a_deleted_message_posts_afresh(
+        self, monkeypatch, subscribed
+    ):
+        sent = self.setup_guild(monkeypatch)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+
+        async def gone(entry, rebuild_embed, already_checked=False):
+            return "gone"
+
+        monkeypatch.setattr(bot, "probe_instruction_panel", gone)
+        assert self.post()["action"] == "posted"
+        assert len(sent) == 1
+
+    def test_nothing_is_posted_when_the_record_cannot_be_read(
+        self, monkeypatch, subscribed
+    ):
+        """"No panel" and "the database blinked" look identical here.
+
+        Guessing wrong leaves a duplicate in somebody's server, so it refuses.
+        """
+        sent = self.setup_guild(monkeypatch)
+        make_server()
+
+        def boom(_guild_id):
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr(bot, "_stored_panel_location", boom)
+        assert self.post() is None
+        assert sent == []
+
+    def test_a_channel_outside_the_guild_is_refused(self, monkeypatch, subscribed):
+        sent = self.setup_guild(monkeypatch)
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            self.post("9999")
+        assert caught.value.reason == "channel_not_in_guild"
+        assert sent == []
+
+    def test_a_channel_the_bot_cannot_post_in_is_refused(
+        self, monkeypatch, subscribed
+    ):
+        sent = self.setup_guild(monkeypatch, sendable=False)
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            self.post()
+        assert caught.value.reason == "channel_not_writable"
+        assert sent == []
+
+    def test_a_locked_channel_can_still_have_its_own_panel_refreshed(
+        self, monkeypatch, subscribed
+    ):
+        """Send Messages is the wrong test for a refresh -- it edits.
+
+        The startup sweep edits this panel every restart with no permission
+        check at all, so refusing here would make the dashboard stricter than
+        the bot it configures.
+        """
+        sent = self.setup_guild(monkeypatch, sendable=False)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        monkeypatch.setattr(
+            bot, "probe_instruction_panel", _always("ok")
+        )
+        assert self.post()["action"] == "refreshed"
+        assert sent == []
+
+    def test_a_refresh_discord_actually_refuses_is_reported(
+        self, monkeypatch, subscribed
+    ):
+        """Attempting the edit is the honest test; Forbidden is its answer."""
+        self.setup_guild(monkeypatch)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        monkeypatch.setattr(bot, "probe_instruction_panel", _always("forbidden"))
+        with pytest.raises(bot.SettingRejected) as caught:
+            self.post()
+        assert caught.value.reason == "channel_not_writable"
+
+    def test_a_locked_channel_holding_no_panel_is_still_refused(
+        self, monkeypatch, subscribed
+    ):
+        """The relaxation is only for the channel the panel is already in."""
+        sent = self.setup_guild(monkeypatch, sendable=False)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        monkeypatch.setattr(bot, "probe_instruction_panel", _always("ok"))
+        with pytest.raises(bot.SettingRejected) as caught:
+            self.post("71")
+        assert caught.value.reason == "channel_not_writable"
+        assert sent == []
+
+    def test_a_panel_discord_will_not_let_us_edit_is_replaced(
+        self, monkeypatch, subscribed
+    ):
+        """The bug this whole path exists to survive.
+
+        A panel posted as a slash-command reply belongs to a webhook. Discord
+        answers 200 to an embed edit on one and keeps the old embed, so a
+        language change came out as new buttons above the old text. Refreshing
+        it again would be the same silent no-op, so it is replaced.
+        """
+        deleted = []
+        sent = self.setup_guild(monkeypatch, webhook_owned=True, deleted=deleted)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        monkeypatch.setattr(bot, "probe_instruction_panel", _always("ok"))
+
+        result = self.post()
+
+        assert result["action"] == "replaced"
+        assert len(sent) == 1                    # a new message, not an edit
+        assert deleted == [900]                  # and the dead one is gone
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.instructions_message_id == "555070"
+
+    def test_an_ordinary_panel_is_still_refreshed_not_replaced(
+        self, monkeypatch, subscribed
+    ):
+        """Replacing an editable panel would throw away its pins and links."""
+        deleted = []
+        sent = self.setup_guild(monkeypatch, webhook_owned=False, deleted=deleted)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        monkeypatch.setattr(bot, "probe_instruction_panel", _always("ok"))
+
+        assert self.post()["action"] == "refreshed"
+        assert sent == []
+        assert deleted == []
+
+    def test_nothing_is_replaced_when_the_message_cannot_be_read(
+        self, monkeypatch, subscribed
+    ):
+        """"Cannot tell" must not read as "safe to replace" -- that is a duplicate.
+
+        probe_instruction_panel is stubbed to succeed on purpose. Without it the
+        refresh branch would fail on its own against a disconnected bot and
+        return None too, so the assertion would hold whether or not the guard
+        existed -- it would pass for the wrong reason, which is worse than not
+        being written. Stubbed, "it wrongly carried on" shows up as "refreshed".
+        """
+        sent = self.setup_guild(monkeypatch)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+
+        async def unreadable(_channel, _message_id):
+            return None
+
+        monkeypatch.setattr(bot, "_panel_is_webhook_owned", unreadable)
+        monkeypatch.setattr(bot, "probe_instruction_panel", _always("ok"))
+        assert self.post() is None
+        assert sent == []
+
+    def test_a_failed_delete_does_not_undo_the_replacement(
+        self, monkeypatch, subscribed
+    ):
+        """The new panel is up and recorded; the stale one is a cleanup problem."""
+        sent = self.setup_guild(monkeypatch, webhook_owned=True)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+
+        class Boom(FakeChannel):
+            pass
+
+        def exploding_partial(_self, _mid):
+            async def delete():
+                raise RuntimeError("no manage messages")
+
+            return SimpleNamespace(delete=delete)
+
+        guild = bot.bot.get_guild(GUILD_ID)
+        channel = next(c for c in guild.text_channels if c.id == 70)
+        monkeypatch.setattr(
+            type(channel), "get_partial_message", exploding_partial, raising=False
+        )
+
+        assert self.post()["action"] == "replaced"
+        assert len(sent) == 1
+
+    def test_two_overlapping_posts_do_not_produce_two_panels(
+        self, monkeypatch, subscribed
+    ):
+        """The docstring's central promise, against a send that actually yields.
+
+        The fixture's send returns without suspending, so the existing tests
+        could never catch this: the function reads the recorded location and
+        then awaits three times before writing a new one, so two requests in
+        flight together both saw "nothing here" and both posted.
+        """
+        sent = []
+
+        class Slow(FakeChannel):
+            async def send(self, **kwargs):
+                await asyncio.sleep(0)  # a real HTTP call suspends; so does this
+                sent.append(self.id)
+                return SimpleNamespace(id=555000 + self.id)
+
+            def permissions_for(self, _member):
+                return SimpleNamespace(
+                    view_channel=True, send_messages=True, embed_links=True
+                )
+
+            async def fetch_message(self, message_id):
+                await asyncio.sleep(0)
+                return SimpleNamespace(id=message_id, webhook_id=None)
+
+            def get_partial_message(self, message_id):
+                return SimpleNamespace(id=message_id, delete=_noop_delete)
+
+        guild = FakeGuild(channels=[Slow(70, "verify")])
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        monkeypatch.setattr(bot, "build_instructions_embed", lambda *a, **k: SimpleNamespace())
+        monkeypatch.setattr(bot, "VRCVerifyInstructionView", lambda **k: SimpleNamespace())
+        # So the loser's refresh reports cleanly instead of failing against a
+        # disconnected bot -- which would return None and hide whether the lock
+        # worked behind a generic failure.
+        monkeypatch.setattr(bot, "probe_instruction_panel", _always("ok"))
+        make_server()
+
+        async def both():
+            return await asyncio.gather(
+                bot.post_dashboard_panel(GUILD_ID, ADMIN_ID, "70"),
+                bot.post_dashboard_panel(GUILD_ID, ADMIN_ID, "70"),
+            )
+
+        results = asyncio.run(both())
+
+        assert len(sent) == 1, "a double click posted two live panels"
+        # The second request found the first one's panel and refreshed it.
+        assert {r["action"] for r in results} == {"posted", "refreshed"}
+
+    def test_a_panel_that_cannot_be_recorded_is_taken_back_down(
+        self, monkeypatch, subscribed
+    ):
+        """An unrecorded panel has live buttons and nothing that can find it.
+
+        The admin sees a failure and clicks again, so leaving it up costs one
+        orphan per retry.
+        """
+        deleted = []
+        sent = self.setup_guild(monkeypatch, deleted=deleted)
+        make_server()
+
+        class Boom(Exception):
+            pass
+
+        real_scope = bot.session_scope
+        calls = {"n": 0}
+
+        def failing_scope(*args, **kwargs):
+            # Let the reads through; break only the write that records the ids.
+            calls["n"] += 1
+            if calls["n"] >= 2:
+                raise Boom("db down")
+            return real_scope(*args, **kwargs)
+
+        monkeypatch.setattr(bot, "session_scope", failing_scope)
+
+        assert self.post() is None
+        assert len(sent) == 1
+        assert deleted == [555070], "the unrecorded panel was left live"
+
+    def test_probe_skips_the_ownership_fetch_when_told_it_was_done(
+        self, monkeypatch
+    ):
+        """One question, one fetch. The panel button has already asked.
+
+        Without this the POST costs three Discord calls (two fetches and an
+        edit) where the design assumes one edit.
+        """
+        asked = []
+
+        async def spy(_channel, message_id):
+            asked.append(message_id)
+            return False
+
+        monkeypatch.setattr(bot, "_panel_is_webhook_owned", spy)
+        monkeypatch.setattr(bot, "resolve_panel_style", _style_ok)
+        monkeypatch.setattr(bot, "build_instructions_embed", lambda *a, **k: SimpleNamespace())
+        monkeypatch.setattr(bot, "VRCVerifyInstructionView", lambda **k: SimpleNamespace())
+
+        edits = []
+
+        class Msg:
+            async def edit(self, **payload):
+                edits.append(payload)
+
+        monkeypatch.setattr(
+            bot.bot, "get_partial_messageable",
+            lambda _cid: SimpleNamespace(get_partial_message=lambda _mid: Msg()),
+        )
+        entry = {"server_id": str(GUILD_ID), "channel_id": "70",
+                 "message_id": "900", "locale": "en-US"}
+
+        run(bot.probe_instruction_panel(entry, rebuild_embed=True, already_checked=True))
+        assert asked == [], "asked Discord a question the caller had answered"
+        assert len(edits) == 1
+
+        run(bot.probe_instruction_panel(entry, rebuild_embed=True))
+        assert asked == ["900"], "the default must still check"
+
+    def test_a_frozen_panel_makes_the_save_report_it(self, monkeypatch, subscribed):
+        """Storing the value is not the same as the panel showing it.
+
+        This is the production symptom that started the investigation: the
+        setting saved, the page showed the new language, and the panel silently
+        stayed as it was.
+        """
+        make_server()
+
+        async def frozen(_guild_id):
+            return "frozen"
+
+        monkeypatch.setattr(bot, "restyle_instruction_panel", frozen)
+        result = write({"instructions_locale": "de"})
+        assert result["fields"]["instructions_locale"]["value"] == "de"
+        assert result["panel_stale"] == "frozen"
+
+    def test_a_clean_restyle_says_nothing_about_staleness(
+        self, monkeypatch, subscribed
+    ):
+        make_server()
+
+        async def fine(_guild_id):
+            return "ok"
+
+        monkeypatch.setattr(bot, "restyle_instruction_panel", fine)
+        assert "panel_stale" not in write({"instructions_locale": "de"})
+
+    def test_a_row_created_by_posting_names_the_real_owner(
+        self, monkeypatch, subscribed
+    ):
+        """owner_id feeds resolve_config_admin, which decides who gets DMs.
+
+        Filling it with whoever clicked quietly appoints that admin -- and on
+        the dashboard they need not be the owner at all.
+        """
+        self.setup_guild(monkeypatch)
+        with bot.session_scope() as session:
+            session.query(bot.Server).delete()
+
+        assert self.post()["action"] == "posted"
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.owner_id == str(OWNER_ID)
+            assert srv.owner_id != str(ADMIN_ID)
+
+    def test_the_action_is_audited(self, monkeypatch, subscribed):
+        self.setup_guild(monkeypatch)
+        make_server()
+        self.post()
+        assert audit_rows()[0][:3] == ("instructions_panel", "posted", "70")
+
+    def test_a_guild_the_bot_cannot_see_posts_nothing(self, monkeypatch, subscribed):
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: None)
+        make_server()
+        assert self.post() is None
+
+
+class TestAuditReader:
+    def test_it_returns_this_guilds_changes_newest_first(self, subscribed):
+        make_server()
+        write({"instructions_locale": "de"})
+        write({"instructions_locale": "ja"})
+        entries = run(bot.read_dashboard_audit(GUILD_ID))
+        assert [e["new_value"] for e in entries] == ["ja", "de"]
+        assert all(e["actor_id"] == str(ADMIN_ID) for e in entries)
+
+    def test_it_never_returns_another_guilds_history(self, subscribed):
+        make_server()
+        write({"instructions_locale": "de"})
+        assert run(bot.read_dashboard_audit(OTHER_GUILD_ID)) == []
+
+    def test_an_actor_still_in_the_guild_is_named(self, monkeypatch, subscribed):
+        guild = FakeGuild()
+        guild._members[ADMIN_ID] = SimpleNamespace(display_name="Sasha")
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        make_server()
+        write({"instructions_locale": "de"})
+        assert run(bot.read_dashboard_audit(GUILD_ID))[0]["actor_name"] == "Sasha"
+
+    def test_an_actor_who_left_is_still_an_entry(self, monkeypatch, subscribed):
+        """The admin who left is exactly the row worth keeping."""
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: FakeGuild())
+        make_server()
+        write({"instructions_locale": "de"})
+        entry = run(bot.read_dashboard_audit(GUILD_ID))[0]
+        assert entry["actor_name"] is None
+        assert entry["actor_id"] == str(ADMIN_ID)
+
+    def test_the_row_count_is_bounded(self, subscribed):
+        make_server()
+        assert run(bot.read_dashboard_audit(GUILD_ID, limit=10_000)) is not None
+        # A hostile limit cannot turn one page load into a table scan.
+        assert bot.MAX_AUDIT_ROWS <= 50
+
+    def test_an_unreadable_trail_is_none_not_an_empty_history(self, monkeypatch):
+        """Empty and unavailable must not look the same to an admin."""
+        def boom():
+            raise RuntimeError("db down")
+
+        monkeypatch.setattr(bot, "session_scope", boom)
+        assert run(bot.read_dashboard_audit(GUILD_ID)) is None
+
+
 class TestBothHalvesTogether:
     """The dashboard's real client against the bot's real handler and writer.
 
@@ -1752,6 +2402,31 @@ class TestChannelReader:
         monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
         assert run(bot.read_dashboard_channels(GUILD_ID))[0]["can_send"] is False
 
+    def test_send_without_embed_links_is_its_own_answer(self, monkeypatch):
+        """The permission pair that cost a long debugging session.
+
+        The verification log is plain text and only needs Send Messages; the
+        instructions panel is an embed and needs both. A channel granting one
+        and not the other reads as perfectly writable and then refuses the
+        panel, so the two questions get two flags.
+        """
+        guild = FakeGuild(
+            channels=[FakeChannel(1, "no-embeds", sendable=True, embeddable=False)]
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        channel = run(bot.read_dashboard_channels(GUILD_ID))[0]
+        assert channel["can_send"] is True
+        assert channel["can_embed"] is False
+
+    def test_a_channel_it_cannot_see_can_do_neither(self, monkeypatch):
+        guild = FakeGuild(
+            channels=[FakeChannel(1, "hidden", sendable=False, embeddable=True)]
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        channel = run(bot.read_dashboard_channels(GUILD_ID))[0]
+        assert channel["can_send"] is False
+        assert channel["can_embed"] is False
+
 
 class TestPanelReader:
     def test_no_panel_reads_as_not_posted(self, monkeypatch):
@@ -1766,14 +2441,38 @@ class TestPanelReader:
         panel = run(bot.read_dashboard_panel(GUILD_ID))
         assert panel["posted"] is True
         assert panel["channel_name"] == "verify"
-        assert panel["channel_reachable"] is True
+        assert panel["channel_postable"] is True
 
     def test_a_deleted_channel_is_reported(self, monkeypatch):
         make_server(instructions_channel_id="999", instructions_message_id="55")
         monkeypatch.setattr(bot.bot, "get_guild", lambda _id: FakeGuild())
         panel = run(bot.read_dashboard_panel(GUILD_ID))
         assert panel["channel_exists"] is False
-        assert panel["channel_reachable"] is None
+        assert panel["channel_postable"] is None
+
+    def test_a_channel_without_embed_links_is_not_postable(self, monkeypatch):
+        """Send Messages alone is not enough for a panel, and this is the only
+        place that says so before the post is attempted and refused."""
+        make_server(instructions_channel_id="1", instructions_message_id="55")
+        guild = FakeGuild(
+            channels=[FakeChannel(1, "verify", sendable=True, embeddable=False)]
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        assert run(bot.read_dashboard_panel(GUILD_ID))["channel_postable"] is False
+
+    def test_a_locked_channel_reports_unpostable_not_broken(self, monkeypatch):
+        """A panel in a channel the bot cannot send to is still a live panel.
+
+        Buttons are interactions and a refresh edits a message the bot owns, so
+        neither needs Send Messages. This flag is only about posting a new one.
+        """
+        make_server(instructions_channel_id="1", instructions_message_id="55")
+        guild = FakeGuild(channels=[FakeChannel(1, "verify", sendable=False)])
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        panel = run(bot.read_dashboard_panel(GUILD_ID))
+        assert panel["posted"] is True
+        assert panel["channel_exists"] is True
+        assert panel["channel_postable"] is False
 
 
 def member(administrator=True):

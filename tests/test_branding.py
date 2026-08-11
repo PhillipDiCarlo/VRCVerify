@@ -399,8 +399,11 @@ class TestRestylePanel:
     ):
         """A database blip must not restyle a paying server back to default.
 
-        The view is still refreshed — that is what the pass is for — but no
-        embed goes in the payload, so the panel keeps the look it has.
+        It used to send the view alone, on the reasoning that the panel then
+        keeps the look it has. That is true of the look and false of everything
+        else the view carries: the button labels are localized, so a language
+        change came out as Japanese buttons above English text, reported as a
+        successful refresh. Nothing goes at all now.
         """
         make_server(row_id=NEW_ID)
         set_branding()
@@ -409,11 +412,59 @@ class TestRestylePanel:
             bot, "load_panel_branding", lambda gid: bot.BRANDING_UNREADABLE
         )
 
+        assert run(bot.restyle_instruction_panel(GUILD_ID)) == "style_unreadable"
+        assert rec.edits == []
+
+    def test_a_panel_discord_will_not_edit_is_not_edited_at_all(
+        self, monkeypatch, premium
+    ):
+        """The other way a panel ends up in two languages.
+
+        Discord keeps the old embed on a webhook-owned message and applies the
+        components anyway, so sending the edit would relabel the buttons and
+        leave the text. Nothing is sent; the panel needs replacing, and only
+        the dashboard's panel button can do that.
+        """
+        make_server(row_id=NEW_ID, instructions_locale="ja")
+        set_branding()
+        rec = PanelRecorder().install(monkeypatch)
+
+        async def frozen(_channel, _message_id):
+            return True
+
+        monkeypatch.setattr(bot, "_panel_is_webhook_owned", frozen)
+
+        assert run(bot.restyle_instruction_panel(GUILD_ID)) == "frozen"
+        assert rec.edits == []
+
+    def test_an_unreadable_ownership_check_still_refreshes(
+        self, monkeypatch, premium
+    ):
+        """A fetch hiccup must not start refusing ordinary refreshes."""
+        make_server(row_id=NEW_ID, instructions_locale="ja")
+        set_branding()
+        rec = PanelRecorder().install(monkeypatch)
+
+        async def cannot_tell(_channel, _message_id):
+            return None
+
+        monkeypatch.setattr(bot, "_panel_is_webhook_owned", cannot_tell)
+
+        assert run(bot.restyle_instruction_panel(GUILD_ID)) == "ok"
+        assert len(rec.edits) == 1
+
+    def test_a_half_updated_panel_is_never_sent(self, monkeypatch, premium):
+        """The embed and the buttons must always agree about the language."""
+        make_server(row_id=NEW_ID, instructions_locale="ja")
+        set_branding()
+        rec = PanelRecorder().install(monkeypatch)
+
         run(bot.restyle_instruction_panel(GUILD_ID))
 
         assert len(rec.edits) == 1
-        assert "embed" not in rec.edits[0]
-        assert isinstance(rec.edits[0]["view"], bot.VRCVerifyInstructionView)
+        # Both halves, or neither. The old code could send only the second.
+        assert "embed" in rec.edits[0] and "view" in rec.edits[0]
+        assert rec.edits[0]["embed"].title == bot.build_instructions_embed("ja").title
 
     def test_a_guild_with_no_panel_is_a_no_op(self, monkeypatch, premium):
         make_server(row_id=NEW_ID, with_panel=False)
@@ -560,7 +611,7 @@ class TestSaveOrdering:
     successful save into "This interaction failed" for the admin.
     """
 
-    def build_and_save(self, monkeypatch, premium_flag=True):
+    def build_and_save(self, monkeypatch, premium_flag=True, locale="en-US"):
         order = []
 
         async def fake_restyle(guild_id):
@@ -581,7 +632,7 @@ class TestSaveOrdering:
 
         view = bot.PagedSettingsView(
             True,
-            "en-US",
+            locale,
             True,
             auto_verify_available=True,
             page_index=bot.SETTINGS_LAST_PAGE,
@@ -601,9 +652,27 @@ class TestSaveOrdering:
         make_server(row_id=NEW_ID)
         assert self.build_and_save(monkeypatch) == ["reply", "panel_edit"]
 
-    def test_a_free_server_edits_no_panel(self, monkeypatch, enforced):
+    def test_a_free_server_changing_nothing_visible_edits_no_panel(
+        self, monkeypatch, enforced
+    ):
+        """Branding was not saved and the language is unchanged, so the panel
+        already shows what is stored. Editing it would be a wasted API call."""
         make_server(row_id=NEW_ID)
         assert self.build_and_save(monkeypatch, premium_flag=False) == ["reply"]
+
+    def test_a_free_server_changing_the_language_does_edit_the_panel(
+        self, monkeypatch, enforced
+    ):
+        """The panel is rendered in this language and the language is free.
+
+        Nothing else would apply it: the fleet sweep rebuilds the view but
+        passes rebuild_embed=False, so the embed would stay in the old language
+        until an operator forced a full refresh.
+        """
+        make_server(row_id=NEW_ID)
+        assert self.build_and_save(
+            monkeypatch, premium_flag=False, locale="ja"
+        ) == ["reply", "panel_edit"]
 
 
 # ---------------------------------------------------------------

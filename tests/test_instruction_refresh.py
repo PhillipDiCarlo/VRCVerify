@@ -833,3 +833,82 @@ class TestGuildRemoveCleanup:
 
         monkeypatch.setattr(bot, "forget_instruction_panel", boom)
         run(bot.on_guild_remove(SimpleNamespace(id=111, name="Gone")))  # must not raise
+
+
+# ---------------------------------------------------------------
+# The panel has to be a message the bot can actually edit
+# ---------------------------------------------------------------
+class TestPanelIsAnOrdinaryMessage:
+    """/vrcverify_instructions must not reply with the panel.
+
+    An interaction reply belongs to a webhook, and Discord answers 200 to an
+    embed edit on a webhook-owned message and then keeps the old embed -- only
+    the components change. Panels posted that way could never be restyled or
+    translated: a language change came out as new button labels above the old
+    text, and every refresh reported success. Everything else in this file is
+    about refreshing panels correctly, which is worth nothing if the panel is
+    not editable in the first place.
+    """
+
+    def interaction(self, sends, send=None):
+        async def channel_send(embed=None, view=None):
+            sends.append(SimpleNamespace(embed=embed, view=view))
+            return SimpleNamespace(id=111)
+
+        async def defer(ephemeral=False):
+            pass
+
+        async def refuse(*_a, **_k):
+            raise AssertionError("the panel must not be the command's reply")
+
+        return SimpleNamespace(
+            guild=SimpleNamespace(id=int(GUILD_ID)),
+            channel=SimpleNamespace(id=222, send=send or channel_send),
+            user=SimpleNamespace(id=1),
+            locale="en-US",
+            response=SimpleNamespace(defer=defer, send_message=refuse),
+            followup=SimpleNamespace(send=lambda *a, **k: _noop()),
+        )
+
+    def test_the_panel_goes_out_as_a_channel_message(self, clean_servers):
+        sends = []
+        run(bot.vrcverify_instructions.callback(self.interaction(sends)))
+        assert len(sends) == 1
+        assert sends[0].embed is not None
+
+    def test_the_recorded_id_is_the_channel_messages(self, clean_servers):
+        sends = []
+        run(bot.vrcverify_instructions.callback(self.interaction(sends)))
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=GUILD_ID).first()
+            assert srv.instructions_channel_id == "222"
+            assert srv.instructions_message_id == "111"
+
+    def test_a_channel_it_cannot_post_in_records_nothing(self, clean_servers):
+        """The reply always worked, so this failure mode is new. It must not
+        leave a Server row claiming a panel that was never posted."""
+        told = []
+
+        async def forbidden(embed=None, view=None):
+            raise discord.Forbidden(SimpleNamespace(status=403, reason="no"), "nope")
+
+        interaction = self.interaction([], send=forbidden)
+        interaction.followup = SimpleNamespace(
+            send=lambda msg, ephemeral=False: _record(told, msg)
+        )
+
+        run(bot.vrcverify_instructions.callback(interaction))
+
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=GUILD_ID).first()
+            assert srv is None or not srv.instructions_message_id
+        assert told and "Send Messages" in told[0]
+
+
+async def _noop():
+    return None
+
+
+def _record(bucket, msg):
+    bucket.append(msg)
+    return _noop()

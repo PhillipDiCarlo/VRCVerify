@@ -169,6 +169,7 @@ DEFAULT_CHANNELS = [
         "position": 1,
         "is_news": False,
         "can_send": True,
+        "can_embed": True,
     },
     {
         "id": NEWS_CHANNEL,
@@ -177,6 +178,7 @@ DEFAULT_CHANNELS = [
         "position": 2,
         "is_news": True,
         "can_send": True,
+        "can_embed": True,
     },
 ]
 
@@ -192,17 +194,29 @@ class FakeBotAPI:
         roles=None,
         channels=None,
         panel=None,
+        audit=None,
+        panel_result=None,
         errors=None,
+        saved=None,
     ):
         self.installed = {str(g) for g in installed}
         self.fail = fail
         self.calls = []
         self.reads = []
         self.saves = []
+        self.panel_posts = []
         self._settings = settings
         self._roles = DEFAULT_ROLES if roles is None else roles
         self._channels = DEFAULT_CHANNELS if channels is None else channels
         self._panel = {"posted": False} if panel is None else panel
+        self._audit = [] if audit is None else audit
+        self._panel_result = (
+            {"action": "posted", "channel_id": LOG_CHANNEL}
+            if panel_result is None else panel_result
+        )
+        # What the write endpoint answers with. The bot returns the re-read
+        # settings, plus `panel_stale` when the live panel did not follow.
+        self._saved = saved
         # {"settings": BotAPIError(...), ...} -- per-endpoint failures, so a
         # secondary read can be broken without breaking the page.
         self.errors = errors or {}
@@ -236,11 +250,24 @@ class FakeBotAPI:
     def panel(self, actor_id, guild_id):
         return self._answer("panel", actor_id, guild_id, self._panel)
 
+    def audit(self, actor_id, guild_id):
+        return self._answer("audit", actor_id, guild_id, self._audit)
+
+    def post_panel(self, actor_id, guild_id, channel_id):
+        self.panel_posts.append((str(actor_id), str(guild_id), str(channel_id)))
+        if "post_panel" in self.errors:
+            raise self.errors["post_panel"]
+        return self._panel_result
+
     def update_settings(self, actor_id, guild_id, changes):
         self.saves.append((str(actor_id), str(guild_id), dict(changes)))
         if "update_settings" in self.errors:
             raise self.errors["update_settings"]
-        return self._settings if self._settings is not None else make_settings()
+        answer = dict(
+            self._settings if self._settings is not None else make_settings()
+        )
+        answer.update(self._saved or {})
+        return answer
 
 
 @pytest.fixture
@@ -618,6 +645,23 @@ def settings_client(config, store, **kwargs):
     return test_client, api
 
 
+PANEL_CHANNEL = "800000000003"
+SHUT_CHANNEL = "800000000004"
+
+
+def _locked_panel():
+    """A live panel in a channel VRCVerify may no longer send new messages to."""
+    return {
+        "posted": True,
+        "channel_id": PANEL_CHANNEL,
+        "message_id": "456",
+        "channel_name": "verify",
+        "channel_exists": True,
+        "channel_postable": False,
+        "locale": "en-US",
+    }
+
+
 class TestSettingsPage:
     def test_signed_out_visitors_are_sent_to_the_login_page(self, client):
         response = client.get(f"/guild/{GUILD_IN}")
@@ -649,6 +693,7 @@ class TestSettingsPage:
             "roles",
             "channels",
             "panel",
+            "audit",
         }
         for _what, actor, guild in api.reads:
             assert actor == ACTOR
@@ -819,22 +864,91 @@ class TestSettingsWarnings:
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
         assert "republish age disclosures" in page
 
-    def test_an_unreachable_panel_channel_is_called_out(self, config, store):
+    def test_a_locked_panel_channel_is_called_out_without_crying_wolf(
+        self, config, store
+    ):
+        """The panel is not broken -- it just cannot be replaced in place."""
         test_client, _api = settings_client(
             config,
             store,
-            panel={
-                "posted": True,
-                "channel_id": "123",
-                "message_id": "456",
-                "channel_name": "verify",
-                "channel_exists": True,
-                "channel_reachable": False,
-                "locale": "en-US",
-            },
+            panel=_locked_panel(),
+            channels=[
+                {
+                    "id": PANEL_CHANNEL,
+                    "name": "verify",
+                    "position": 0,
+                    "is_news": False,
+                    "can_send": False,
+                    "can_embed": False,
+                },
+            ],
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
-        assert "can no longer post in that channel" in page
+        # Both permissions named: the panel is an embed, so Embed Links alone
+        # being off produces this with no other symptom anywhere on the page.
+        assert "Send Messages and Embed Links" in page
+        assert "still works and can still be refreshed" in page
+
+    def test_a_channel_without_embed_links_is_not_offered_for_the_panel(
+        self, config, store
+    ):
+        """It would accept the log and refuse the panel, so it is not a choice.
+
+        The log picker still offers it -- the verification log is plain text.
+        """
+        channels = [
+            {
+                "id": LOG_CHANNEL,
+                "name": "verify-log",
+                "position": 0,
+                "is_news": False,
+                "can_send": True,
+                "can_embed": False,
+            },
+        ]
+        # Premium, so the log channel's own picker actually renders and the
+        # comparison means something.
+        test_client, _api = settings_client(
+            config, store, channels=channels, settings=make_settings(premium=True)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        # Offered once, by the log channel's own select -- not by the panel's.
+        assert page.count(f'<option value="{LOG_CHANNEL}"') == 1
+
+    def test_the_panels_own_channel_stays_in_the_picker_when_locked(
+        self, config, store
+    ):
+        """Choosing it refreshes, which needs no Send Messages.
+
+        The startup sweep refreshes this very panel unprompted; a page that
+        removed the option would be stricter than the bot it configures.
+        """
+        test_client, _api = settings_client(
+            config,
+            store,
+            panel=_locked_panel(),
+            channels=[
+                {
+                    "id": PANEL_CHANNEL,
+                    "name": "verify",
+                    "position": 0,
+                    "is_news": False,
+                    "can_send": False,
+                    "can_embed": False,
+                },
+                {
+                    "id": SHUT_CHANNEL,
+                    "name": "shut",
+                    "position": 1,
+                    "is_news": False,
+                    "can_send": False,
+                    "can_embed": False,
+                },
+            ],
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert f'<option value="{PANEL_CHANNEL}"' in page
+        assert f'<option value="{SHUT_CHANNEL}"' not in page
 
 
 class TestSecondaryReadsDegradeGracefully:
@@ -870,6 +984,17 @@ class TestSecondaryReadsDegradeGracefully:
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
         assert "no longer exists" not in page
+
+    def test_the_page_renders_without_the_audit_read(self, config, store):
+        """An empty history and an unavailable one are different facts."""
+        test_client, _api = settings_client(
+            config, store, errors={"audit": BotAPIError("unavailable", 503)}
+        )
+        response = test_client.get(f"/guild/{GUILD_IN}")
+        assert response.status_code == 200
+        page = response.data.decode()
+        assert "Couldn't load the history" in page
+        assert "No changes have been made" not in page
 
     def test_the_page_renders_without_the_panel_read(self, config, store):
         test_client, _api = settings_client(
@@ -908,7 +1033,10 @@ class TestSavingThePanelGroup:
             panel_show_icon="on",
         )
         assert response.status_code == 302
-        assert response.headers["Location"].endswith("saved=1")
+        # The notice is session state now, not a query parameter, so the
+        # redirect target is bare and "Saved." appears on the next render.
+        assert response.headers["Location"].endswith(f"/guild/{GUILD_IN}")
+        assert "Saved." in test_client.get(response.headers["Location"]).data.decode()
         actor, guild, changes = api.saves[-1]
         assert (actor, guild) == (ACTOR, GUILD_IN)
         assert changes == {
@@ -1019,20 +1147,28 @@ class TestSavingThePanelGroup:
             config, store, errors={"update_settings": BotAPIError(leak, 400)}
         )
         response = self.post(test_client, session, instructions_locale="ja")
-        assert "error=unknown" in response.headers["Location"]
+        assert leak not in response.headers["Location"]
         page = test_client.get(response.headers["Location"]).data.decode()
         assert leak not in page
         assert "couldn&#39;t be saved" in page
 
-    def test_an_arbitrary_error_code_in_the_url_is_not_reflected(
-        self, config, store
-    ):
+    def test_a_notice_cannot_be_conjured_from_the_url(self, config, store):
+        """Notices are session state, so a crafted link cannot show one.
+
+        They used to be query parameters, which meant anyone who could get an
+        admin to open a link could show them "Saved." for a save that never
+        happened -- most usefully to stop them noticing something was broken.
+        """
         test_client, _api, _session = self.logged_in(config, store)
         page = test_client.get(
-            f"/guild/{GUILD_IN}?error=%3Cimg+src%3Dx+onerror%3Dalert(1)%3E"
+            f"/guild/{GUILD_IN}?saved=1&panel=replaced&panel_stale=1"
+            "&error=%3Cimg+src%3Dx+onerror%3Dalert(1)%3E"
         ).data.decode()
         assert "onerror" not in page
-        assert "couldn&#39;t be saved" in page
+        assert "Saved." not in page
+        assert "replaced with a fresh one" not in page
+        assert "still shows the old" not in page
+        assert "couldn&#39;t be saved" not in page
 
 
 class TestSavingTheVerificationGroup:
@@ -1263,7 +1399,8 @@ class TestTheFormMatchesWhatTheBotAccepts:
             config, store, settings=make_settings(premium=True, writable=set())
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
-        assert "<form" not in page.split("Instructions panel")[-1]
+        assert 'name="panel_embed_color"' not in page
+        assert 'name="instructions_locale"' not in page
         assert "Save changes" not in page
 
     def test_the_language_options_come_from_the_bot(self, config, store):
@@ -1290,8 +1427,23 @@ class TestTheFormMatchesWhatTheBotAccepts:
             config, store, settings=make_settings(premium=True)
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
-        assert f'value="{LOG_CHANNEL}"' in page
-        assert f'value="{NEWS_CHANNEL}"' not in page
+        logging_section = page.split("<h2>Logging</h2>")[1]
+        assert f'value="{LOG_CHANNEL}"' in logging_section
+        assert f'value="{NEWS_CHANNEL}"' not in logging_section
+
+    def test_the_panel_picker_does_offer_announcement_channels(self, config, store):
+        """The opposite call from the log channel, and deliberately so.
+
+        A panel is public instructions and /vrcverify_instructions can be run
+        in an announcement channel, so excluding them would be stricter than
+        the bot. The log channel is excluded because the bot refuses it.
+        """
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(premium=True)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        panel_form = page.split('class="panel-post"')[1]
+        assert f'value="{NEWS_CHANNEL}"' in panel_form
 
     def test_a_channel_picker_with_nothing_to_pick_is_not_offered(self, config, store):
         test_client, _api = settings_client(
@@ -1402,6 +1554,282 @@ class TestHardening:
         assert client.get("/healthz").get_json() == {"ok": True}
 
 
+AUDIT_ENTRIES = [
+    {
+        "actor_id": ACTOR,
+        "actor_name": "Sasha",
+        "field": "role_id",
+        "old_value": None,
+        "new_value": VERIFIED_ROLE,
+        "changed_at": "2026-08-04T09:15:00+00:00",
+    },
+    {
+        "actor_id": "555555555555",
+        "actor_name": None,
+        "field": "panel_embed_color",
+        "old_value": None,
+        "new_value": str(0xFF0000),
+        "changed_at": "2026-08-04T09:10:00+00:00",
+    },
+]
+
+
+class TestPostingThePanel:
+    """The one control that makes the bot act in a server."""
+
+    def logged_in(self, config, store, **kwargs):
+        api = FakeBotAPI(**kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        return test_client, api, login_as(test_client, store)
+
+    def post(self, test_client, session, **form):
+        form.setdefault("csrf_token", session.csrf_token)
+        return test_client.post(f"/guild/{GUILD_IN}/panel/post", data=form)
+
+    def page_after_saving(self, config, store, **api_kwargs):
+        """The settings page an admin lands on after a real save."""
+        test_client, _api, session = self.logged_in(config, store, **api_kwargs)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/panel",
+            data={"csrf_token": session.csrf_token, "instructions_locale": "ja"},
+        )
+        return test_client.get(response.headers["Location"]).data.decode()
+
+    def test_the_chosen_channel_reaches_the_bot(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        assert response.status_code == 302
+        assert api.panel_posts == [(ACTOR, GUILD_IN, LOG_CHANNEL)]
+
+    @pytest.mark.parametrize(
+        "action, expected",
+        [
+            ("posted", "Panel posted."),
+            ("refreshed", "refreshed rather than posted again"),
+            ("moved", "old one is still up"),
+        ],
+    )
+    def test_what_the_bot_did_is_reported_back(self, config, store, action, expected):
+        """The bot decides between post, refresh and move; the page explains it."""
+        test_client, _api, session = self.logged_in(
+            config, store, panel_result={"action": action, "channel_id": LOG_CHANNEL}
+        )
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert expected in page
+
+    def test_an_unknown_action_says_nothing_rather_than_echoing_it(
+        self, config, store
+    ):
+        test_client, _api, session = self.logged_in(
+            config, store, panel_result={"action": "<script>alert(1)</script>"}
+        )
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "alert(1)" not in page
+
+    def test_it_needs_the_csrf_token(self, config, store):
+        test_client, api, _session = self.logged_in(config, store)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/panel/post",
+            data={"csrf_token": "wrong", "panel_channel_id": LOG_CHANNEL},
+        )
+        assert response.status_code == 400
+        assert api.panel_posts == []
+
+    def test_a_signed_out_visitor_cannot_post_a_panel(self, client, bot_api):
+        response = client.post(
+            f"/guild/{GUILD_IN}/panel/post", data={"panel_channel_id": LOG_CHANNEL}
+        )
+        assert response.status_code == 302
+        assert not getattr(bot_api, "panel_posts", [])
+
+    def test_no_channel_means_no_call(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(test_client, session)
+        assert api.panel_posts == []
+
+    def test_a_refusal_is_explained(self, config, store):
+        """In the panel's own words, not the log channel's.
+
+        Both raise channel_not_writable, but a panel is an embed, so it needs
+        Embed Links as well -- and "it can't log there" is a sentence about a
+        setting this button has nothing to do with.
+        """
+        test_client, _api, session = self.logged_in(
+            config,
+            store,
+            errors={"post_panel": BotAPIError("channel_not_writable", 400)},
+        )
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "Embed Links" in page
+        assert "can&#39;t log there" not in page
+
+    def test_an_unrecognised_action_never_reaches_the_url(self, config, store):
+        """The one place a bot value used to travel without being looked up."""
+        test_client, _api, session = self.logged_in(
+            config, store, panel_result={"action": "\r\nSet-Cookie: x=1", "channel_id": "1"}
+        )
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        assert "Set-Cookie" not in response.headers["Location"]
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "Panel posted." in page
+
+    def test_a_stale_panel_after_a_save_is_reported(self, config, store):
+        """Saved is true; "your panel shows it" is not, and only one is obvious."""
+        page = self.page_after_saving(config, store, saved={"panel_stale": "frozen"})
+        assert "still shows the old" in page
+
+    def test_a_clean_save_says_nothing_about_the_panel(self, config, store):
+        page = self.page_after_saving(config, store)
+        assert "Saved." in page
+        assert "still shows the old" not in page
+
+    def test_a_notice_is_shown_once_and_not_again_on_reload(self, config, store):
+        """Otherwise every later page load claims the last save just happened."""
+        test_client, _api, session = self.logged_in(config, store)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/panel",
+            data={"csrf_token": session.csrf_token, "instructions_locale": "ja"},
+        )
+        target = response.headers["Location"]
+        assert "Saved." in test_client.get(target).data.decode()
+        assert "Saved." not in test_client.get(target).data.decode()
+
+    def test_an_unrecognised_panel_refusal_never_reaches_the_page_as_text(
+        self, config, store
+    ):
+        leak = "surprising-internal-detail"
+        test_client, _api, session = self.logged_in(
+            config, store, errors={"post_panel": BotAPIError(leak, 400)}
+        )
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert leak not in page
+        assert "couldn&#39;t be posted" in page
+
+
+class TestTheChangeHistoryOfPanelActions:
+    """The panel row is the one entry whose pair is not (before, after).
+
+    The bot stores (what it did, where), so both halves need resolving
+    differently -- without that it rendered as the raw column name and a bare
+    channel id, for the feature this branch exists to add.
+    """
+
+    def entry(self, action="posted", channel=LOG_CHANNEL):
+        return [
+            {
+                "field": "instructions_panel",
+                "old_value": action,
+                "new_value": channel,
+                "actor_id": ACTOR,
+                "actor_name": "Sasha",
+                "changed_at": "2026-08-11T07:11:36.118000+00:00",
+            }
+        ]
+
+    def test_it_reads_as_an_action_and_a_channel(self):
+        row = settings_view.build_audit(
+            self.entry(), DEFAULT_ROLES, DEFAULT_CHANNELS
+        )[0]
+        assert row["label"] == "Instructions panel"
+        assert row["old"] == "posted in"
+        assert row["new"] == "#verify-log"
+
+    def test_the_destructive_action_is_named_plainly(self):
+        row = settings_view.build_audit(
+            self.entry(action="replaced"), DEFAULT_ROLES, DEFAULT_CHANNELS
+        )[0]
+        assert row["old"] == "replaced in"
+
+    def test_a_failed_channel_read_does_not_claim_the_channel_is_gone(self):
+        """"We couldn't check" and "it was deleted" are different facts."""
+        row = settings_view.build_audit(self.entry(), DEFAULT_ROLES, None)[0]
+        assert "no longer exists" not in row["new"]
+        assert LOG_CHANNEL in row["new"]
+
+    def test_a_failed_role_read_does_not_claim_the_role_is_gone(self):
+        entries = [
+            {
+                "field": "role_id",
+                "old_value": None,
+                "new_value": VERIFIED_ROLE,
+                "actor_id": ACTOR,
+                "actor_name": "Sasha",
+                "changed_at": None,
+            }
+        ]
+        row = settings_view.build_audit(entries, None, DEFAULT_CHANNELS)[0]
+        assert "no longer exists" not in row["new"]
+
+    def test_a_timestamp_that_is_not_a_string_does_not_break_the_page(self):
+        entries = self.entry()
+        entries[0]["changed_at"] = 1234
+        assert settings_view.build_audit(entries, DEFAULT_ROLES, DEFAULT_CHANNELS)[0][
+            "when_text"
+        ] == ""
+
+
+class TestTheChangeHistory:
+    def test_it_names_the_setting_the_actor_and_both_values(self, config, store):
+        test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Verified role" in page
+        assert "Sasha" in page
+        # The id is resolved to the role's name, as on the settings above.
+        assert "not set &rarr; Verified" in page or "not set → Verified" in page
+
+    def test_an_actor_who_left_is_shown_by_id(self, config, store):
+        test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "ID 555555555555" in page
+
+    def test_a_colour_reads_as_a_colour(self, config, store):
+        test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
+        assert "#ff0000" in test_client.get(f"/guild/{GUILD_IN}").data.decode()
+
+    def test_an_empty_history_says_so(self, config, store):
+        test_client, _api = settings_client(config, store, audit=[])
+        assert b"No changes have been made" in test_client.get(
+            f"/guild/{GUILD_IN}"
+        ).data
+
+    def test_a_long_value_is_truncated(self):
+        entries = [
+            {
+                "actor_id": ACTOR,
+                "actor_name": "Sasha",
+                "field": "custom_verification_requested_message",
+                "old_value": None,
+                "new_value": "x" * 500,
+                "changed_at": None,
+            }
+        ]
+        rendered = settings_view.build_audit(entries, DEFAULT_ROLES, DEFAULT_CHANNELS)
+        assert len(rendered[0]["new"]) <= settings_view.AUDIT_VALUE_MAX
+
+    def test_a_deleted_role_is_named_as_gone_not_as_an_id(self):
+        entries = [
+            {
+                "actor_id": ACTOR,
+                "actor_name": None,
+                "field": "role_id",
+                "old_value": "404404404404",
+                "new_value": VERIFIED_ROLE,
+                "changed_at": None,
+            }
+        ]
+        rendered = settings_view.build_audit(entries, DEFAULT_ROLES, DEFAULT_CHANNELS)
+        assert "no longer exists" in rendered[0]["old"]
+
+    def test_an_unavailable_trail_is_none_not_empty(self):
+        assert settings_view.build_audit(None, DEFAULT_ROLES, DEFAULT_CHANNELS) is None
+
+
 class TestSettingsViewModel:
     """The rendering rules, without a request in the way."""
 
@@ -1489,6 +1917,8 @@ class TestWriteSurface:
             "/guild/<int:guild_id>/member",
             "/guild/<int:guild_id>/panel",
             "/guild/<int:guild_id>/logging",
+            # The one route that makes the bot act rather than store.
+            "/guild/<int:guild_id>/panel/post",
         }, f"an unexpected write route appeared: {posts}"
 
     def test_every_group_that_saves_names_a_route_that_exists(self, app, config):

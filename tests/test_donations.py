@@ -488,23 +488,25 @@ class TestInstructionsFollowupHint:
     def test_admin_gets_ephemeral_donate_followup(self, clean_servers):
         panel = []
         followups = []
-        message = SimpleNamespace(id=111)
 
-        async def send_message(embed=None, view=None):
+        # A real channel message, not the command's reply: Discord ignores
+        # embed edits on a reply, so a panel posted that way could never be
+        # restyled or translated afterwards.
+        async def channel_send(embed=None, view=None):
             panel.append(SimpleNamespace(embed=embed, view=view))
+            return SimpleNamespace(id=111)
 
-        async def original_response():
-            return message
+        async def defer(ephemeral=False):
+            pass
 
         async def followup_send(msg, ephemeral=False):
             followups.append(SimpleNamespace(msg=msg, ephemeral=ephemeral))
 
         interaction = SimpleNamespace(
             guild=SimpleNamespace(id=int(GUILD_ID)),
-            channel=SimpleNamespace(id=222),
+            channel=SimpleNamespace(id=222, send=channel_send),
             locale="en-US",
-            response=SimpleNamespace(send_message=send_message),
-            original_response=original_response,
+            response=SimpleNamespace(defer=defer),
             followup=SimpleNamespace(send=followup_send),
         )
 

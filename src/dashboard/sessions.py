@@ -43,7 +43,11 @@ CREATE TABLE IF NOT EXISTS sessions (
     guilds_json    TEXT,
     guilds_at      INTEGER,
     created_at     INTEGER NOT NULL,
-    expires_at     INTEGER NOT NULL
+    expires_at     INTEGER NOT NULL,
+    -- A one-shot notice for the next render: "saved", "panel:moved",
+    -- "error:requires_premium". Server-side so the page cannot be made to
+    -- claim something happened by anyone who can craft a link.
+    notice         TEXT
 );
 CREATE INDEX IF NOT EXISTS sessions_expires_at ON sessions (expires_at);
 """
@@ -86,7 +90,42 @@ class SessionStore:
         conn = sqlite3.connect(self.path, timeout=10)
         conn.row_factory = sqlite3.Row
         conn.executescript(_SCHEMA)
+        # `notice` arrived after the first sessions.sqlite files existed, and a
+        # session store is not worth a migration framework: an existing file
+        # would otherwise keep working right up until the first save, then fail
+        # on an unknown column.
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(sessions)")}
+        if "notice" not in columns:
+            conn.execute("ALTER TABLE sessions ADD COLUMN notice TEXT")
+            conn.commit()
         return conn
+
+    # ----- one-shot notices -----
+    def set_notice(self, sid: Optional[str], notice: Optional[str]) -> None:
+        """Park a notice for the next page this session renders.
+
+        Notices used to travel as query parameters, which meant anyone who could
+        get an admin to open a link could show them "Saved." for a save that
+        never happened -- most usefully to stop them noticing something was
+        broken. Here it is written by the request that actually did the thing.
+        """
+        if not sid:
+            return
+        with self._connect() as conn:
+            conn.execute("UPDATE sessions SET notice = ? WHERE sid = ?", (notice, sid))
+
+    def take_notice(self, sid: Optional[str]) -> Optional[str]:
+        """Read the pending notice and clear it, so a reload does not repeat it."""
+        if not sid:
+            return None
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT notice FROM sessions WHERE sid = ?", (sid,)
+            ).fetchone()
+            if row is None or row["notice"] is None:
+                return None
+            conn.execute("UPDATE sessions SET notice = NULL WHERE sid = ?", (sid,))
+            return row["notice"]
 
     # ----- lifecycle -----
     def begin_login(self, oauth_state: str, now: Optional[float] = None) -> Session:

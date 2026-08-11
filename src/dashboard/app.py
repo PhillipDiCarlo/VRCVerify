@@ -55,7 +55,13 @@ from dashboard.sessions import SessionStore
 
 logger = logging.getLogger(__name__)
 
-SESSION_COOKIE = "vrcverify_session"
+# The `__Host-` prefix is enforced by the browser: it only accepts the cookie if
+# it is Secure, has no Domain, and is Path=/. That makes it impossible for a
+# sibling subdomain to shadow this cookie with a Domain-scoped one of the same
+# name -- which matters more now that a session can write settings, since being
+# tossed into someone else's session means editing their server believing it is
+# yours.
+SESSION_COOKIE = "__Host-vrcverify_session"
 
 # Everything is same-origin and self-hosted, so the policy can be close to
 # nothing. The one external origin is Discord's icon CDN: guild icons are
@@ -264,7 +270,7 @@ def _register_routes(app: Flask) -> None:
 
         # The check that makes CSRF against the login flow impossible: the
         # state came from us, in this browser, for this attempt.
-        if not secrets.compare_digest(pending.oauth_state, state):
+        if not _same_secret(pending.oauth_state, state):
             logger.warning("OAuth state mismatch; refusing the callback.")
             store.destroy(pending.sid)
             return render_template("error.html", message="That login could not be verified. Please try again."), 400
@@ -319,8 +325,13 @@ def _register_routes(app: Flask) -> None:
         channels = _optional_read(
             lambda: _bot_api().channels(actor, guild_id), "channels", guild_id
         )
+        # Read once and cleared, so a reload does not repeat it.
+        notice = _store().take_notice(session.sid)
         panel = _optional_read(
             lambda: _bot_api().panel(actor, guild_id), "panel", guild_id
+        )
+        audit = _optional_read(
+            lambda: _bot_api().audit(actor, guild_id), "audit", guild_id
         )
 
         guild = _session_guild(session, guild_id)
@@ -330,11 +341,17 @@ def _register_routes(app: Flask) -> None:
             guild_icon=oauth.icon_url(guild) if guild else None,
             guild_id=str(guild_id),
             groups=settings_view.build_groups(settings, roles, channels, panel),
+            audit=settings_view.build_audit(audit, roles, channels),
             premium=settings.get("premium") or {},
             names_resolved=roles is not None and channels is not None,
             auto_verify_column_present=settings.get("auto_verify_column_present", True),
-            saved=request.args.get("saved") == "1",
-            save_error=_save_error_message(request.args.get("error")),
+            saved=notice == "saved",
+            panel_result=PANEL_RESULTS.get(_notice_arg(notice, "panel")),
+            panel_stale=notice == "stale",
+            save_error=(
+                _save_error_message(_notice_arg(notice, "error"))
+                or _panel_error_message(_notice_arg(notice, "panel_error"))
+            ),
             csrf_token=session.csrf_token,
         )
 
@@ -364,6 +381,47 @@ def _register_routes(app: Flask) -> None:
         _read_checkbox(changes, "auto_verify_new_members")
 
         return _save(guild_id, session, changes)
+
+    @app.post("/guild/<int:guild_id>/panel/post")
+    def post_panel(guild_id: int):
+        """Put the instructions panel in a channel.
+
+        The one control here that makes the bot act in a server rather than
+        store a value. What "put it there" means -- a fresh post, a refresh of
+        the one already there, or a move -- is decided by the bot, because it
+        is the only side that can see where the panel actually is. This route's
+        job is to carry the admin's choice of channel and report back what
+        happened.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        channel_id = (request.form.get("panel_channel_id") or "").strip()
+        if not channel_id:
+            return redirect(url_for("guild_settings", guild_id=guild_id))
+
+        try:
+            result = _bot_api().post_panel(
+                int(session.discord_id), guild_id, channel_id
+            )
+        except BotAPIError as error:
+            logger.warning("panel post refused for guild %s: %s", guild_id, error)
+            _store().set_notice(session.sid, f"panel_error:{_panel_error_code(error)}")
+            return redirect(url_for("guild_settings", guild_id=guild_id))
+
+        # Clamped to a known key before it travels, like the two error codes
+        # are. This is the bot's own string, but it is the one place a bot value
+        # reached a URL unchecked, and the invariant this module claims is that
+        # nothing from over the wire is echoed back without being looked up.
+        action = result.get("action")
+        _store().set_notice(
+            session.sid,
+            f"panel:{action if action in PANEL_RESULTS else 'posted'}",
+        )
+        return redirect(url_for("guild_settings", guild_id=guild_id))
 
     @app.post("/guild/<int:guild_id>/member")
     def save_member_settings(guild_id: int):
@@ -455,8 +513,7 @@ def _register_routes(app: Flask) -> None:
     def logout():
         session = _require_login()
         if session is not None:
-            submitted = request.form.get("csrf_token", "")
-            if not secrets.compare_digest(session.csrf_token, submitted):
+            if not _csrf_ok(session):
                 abort(400)
             _store().destroy(session.sid)
         response = redirect(url_for("index"))
@@ -528,6 +585,49 @@ SAVE_ERRORS = {
 }
 GENERIC_SAVE_ERROR = "That change couldn't be saved, so nothing was changed."
 
+# The panel button shares reason codes with the settings saves, but not their
+# wording. "so it can't log there" is the log channel's sentence and says
+# nothing true about a panel, and a panel needs Embed Links as well as Send
+# Messages -- which the log channel does not, so SAVE_ERRORS cannot just say so.
+PANEL_ERRORS = {
+    # Plain text: this is rendered into a web page, not sent to Discord, so
+    # markdown asterisks would show up literally.
+    "channel_not_writable": (
+        "VRCVerify can't post the panel in that channel. It needs both Send "
+        "Messages and Embed Links there -- Embed Links is the one that's "
+        "usually missing, because the panel is an embed."
+    ),
+    "channel_not_in_guild": (
+        "That channel isn't in this server any more. Reload the page and pick "
+        "again."
+    ),
+}
+GENERIC_PANEL_ERROR = (
+    "The panel couldn't be posted just now. Try again shortly."
+)
+
+# Same treatment as the refusals: a code chosen by the bot, copy chosen here.
+PANEL_RESULTS = {
+    "posted": "Panel posted.",
+    "refreshed": (
+        "That channel already had the panel, so it was refreshed rather than "
+        "posted again."
+    ),
+    "moved": (
+        "Panel posted in the new channel. The old one is still up in its "
+        "previous channel -- delete it in Discord when you're ready."
+    ),
+    # Panels posted by /vrcverify_instructions before it stopped replying with
+    # them belong to a webhook, and Discord quietly ignores embed edits on those
+    # -- so the language and colour could never be applied to one. The only
+    # repair is a new message, which is why this reads as an explanation rather
+    # than as a plain success.
+    "replaced": (
+        "That panel was posted in a way Discord won't let the bot edit, so it "
+        "was replaced with a fresh one. Your settings apply to it now."
+    ),
+}
+
 
 def _read_checkbox(changes: dict, name: str) -> None:
     """Record a checkbox only if its control was actually on the page.
@@ -542,11 +642,23 @@ def _read_checkbox(changes: dict, name: str) -> None:
         changes[name] = bool(request.form.get(name))
 
 
+def _same_secret(expected: str, submitted: str) -> bool:
+    """Constant-time compare that survives whatever the request carried.
+
+    `secrets.compare_digest` raises TypeError on a str containing non-ASCII, so
+    comparing a submitted value directly turns "wrong token" into an unhandled
+    500 -- including on `/callback`, which a stranger can reach. Comparing the
+    utf-8 bytes keeps the timing property and makes every wrong value simply
+    wrong.
+    """
+    return secrets.compare_digest(
+        str(expected or "").encode("utf-8"), str(submitted or "").encode("utf-8")
+    )
+
+
 def _csrf_ok(session) -> bool:
     """The second line. `SameSite=Lax` on the cookie is the first."""
-    return secrets.compare_digest(
-        session.csrf_token, request.form.get("csrf_token", "")
-    )
+    return _same_secret(session.csrf_token, request.form.get("csrf_token", ""))
 
 
 def _save(guild_id: int, session, changes: dict):
@@ -560,7 +672,14 @@ def _save(guild_id: int, session, changes: dict):
         return redirect(url_for("guild_settings", guild_id=guild_id))
 
     try:
-        _bot_api().update_settings(int(session.discord_id), guild_id, changes)
+        saved = _bot_api().update_settings(int(session.discord_id), guild_id, changes)
+        # The save worked; the panel may not have followed it. Carried as its
+        # own flag rather than an error, because "stored but the panel still
+        # shows the old thing" is a true success plus a caveat, and reporting it
+        # as a failure would send an admin round the loop that produced it.
+        if isinstance(saved, dict) and saved.get("panel_stale"):
+            _store().set_notice(session.sid, "stale")
+            return redirect(url_for("guild_settings", guild_id=guild_id))
     except BotAPIError as error:
         logger.warning("save refused for guild %s: %s", guild_id, error)
         # A code, never the bot's text. What comes back is a fixed reason
@@ -568,11 +687,19 @@ def _save(guild_id: int, session, changes: dict):
         # would make the bot's error strings part of this app's HTML, and the
         # day one of them carries something a caller influenced is not the day
         # to find that out.
-        return redirect(
-            url_for("guild_settings", guild_id=guild_id, error=_save_error_code(error))
-        )
+        _store().set_notice(session.sid, f"error:{_save_error_code(error)}")
+        return redirect(url_for("guild_settings", guild_id=guild_id))
 
-    return redirect(url_for("guild_settings", guild_id=guild_id, saved=1))
+    _store().set_notice(session.sid, "saved")
+    return redirect(url_for("guild_settings", guild_id=guild_id))
+
+
+def _notice_arg(notice: Optional[str], kind: str) -> Optional[str]:
+    """`panel:moved` -> `moved`, but only when asked for the right kind."""
+    if not notice or ":" not in notice:
+        return None
+    prefix, _, value = notice.partition(":")
+    return value if prefix == kind else None
 
 
 def _save_error_code(error: BotAPIError) -> str:
@@ -585,6 +712,17 @@ def _save_error_message(code: Optional[str]) -> Optional[str]:
     if not code:
         return None
     return SAVE_ERRORS.get(code, GENERIC_SAVE_ERROR)
+
+
+def _panel_error_code(error: BotAPIError) -> str:
+    reason = str(error)
+    return reason if reason in PANEL_ERRORS else "unknown"
+
+
+def _panel_error_message(code: Optional[str]) -> Optional[str]:
+    if not code:
+        return None
+    return PANEL_ERRORS.get(code, GENERIC_PANEL_ERROR)
 
 
 def _colour_to_int(raw: Optional[str]) -> Optional[int]:

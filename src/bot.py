@@ -415,6 +415,16 @@ class DashboardAudit(Base):
     member data, no VRChat identity, nothing about who is verified — this table
     is about administrators changing configuration, and it should stay boring
     enough that its own disclosure would not matter much.
+
+    **What this trail does not cover.** The actor comes from verified token
+    claims, which makes it trustworthy exactly as far as the signing key is. The
+    dashboard host holds that key, and the design elsewhere says to assume that
+    host is eventually compromised — so an attacker at VPS level can mint a
+    token naming any actor, including a guild's owner, and every row they cause
+    will name that person. This table detects a stolen *session*; against a
+    compromised dashboard it does not merely fail to detect, it actively
+    misattributes. Reading a row as proof a particular human did something is
+    only sound while the key is sound.
     """
 
     __tablename__ = "dashboard_audit"
@@ -776,6 +786,20 @@ DASHBOARD_WRITABLE_FIELDS = frozenset(
     }
 )
 
+# Settings an already-posted panel RENDERS, as opposed to ones that only affect
+# what happens after somebody clicks it. Changing one of these leaves the live
+# message stale, because the fleet sweep refreshes the view but passes
+# rebuild_embed=False -- so a save that touches any of them has to re-edit the
+# panel itself or the change is invisible until an operator forces a refresh.
+PANEL_VISIBLE_FIELDS = frozenset(
+    {"instructions_locale", "panel_embed_color", "panel_show_icon"}
+)
+
+# Outcomes of the post-save restyle that mean "stored, but the live panel does
+# not show it". The save is still a success; the admin just needs telling, or
+# they are looking at a panel that silently disagrees with their settings.
+PANEL_STALE_OUTCOMES = frozenset({"frozen", "style_unreadable", "forbidden", "error"})
+
 # The modal's own cap, so the website cannot store a message the slash command
 # could not have produced.
 CUSTOM_MESSAGE_MAX_LEN = 1000
@@ -784,6 +808,10 @@ CUSTOM_MESSAGE_MAX_LEN = 1000
 # reimplemented: if the dashboard stored a literal "none", it would be holding
 # a value the slash command has no way to set.
 CUSTOM_MESSAGE_CLEARING = frozenset({"clear", "reset", "none", "default"})
+
+# How much history one call may ask for. The page shows a recent slice, not an
+# export -- an admin wanting the whole thing has the database.
+MAX_AUDIT_ROWS = 50
 
 
 # Raised by the writer below, mapped to a status by bot_api. It lives over
@@ -2161,6 +2189,12 @@ class PagedSettingsView(View):
                     session.add(srv)
                 if nick_allowed:
                     srv.auto_nickname_change = bool(self.auto_nick)
+                # The panel renders in this language, so a change here needs the
+                # same re-edit a colour change gets. The language is free, which
+                # is why this is not folded into branding_allowed below.
+                locale_changed = (
+                    srv.instructions_locale or "en-US"
+                ) != str(self.instr_locale)
                 srv.instructions_locale = str(self.instr_locale)
                 if self.auto_verify_available:
                     setattr(srv, "auto_verify_new_members", bool(self.auto_verify))
@@ -2194,7 +2228,7 @@ class PagedSettingsView(View):
             # through a 429, which can push the reply past the three seconds
             # Discord allows. The admin would then be told the interaction
             # failed even though the save and the restyle both worked.
-            if branding_allowed:
+            if branding_allowed or locale_changed:
                 await restyle_instruction_panel(interaction.guild.id)
 
         back_btn.callback = on_back
@@ -3146,13 +3180,37 @@ async def vrcverify_instructions(interaction: discord.Interaction):
     embed = build_instructions_embed(instr_locale, panel_color, panel_icon)
 
     view = VRCVerifyInstructionView(locale=instr_locale)
-    # Send the initial response and then fetch the message
-    await interaction.response.send_message(embed=embed, view=view)
-    message = await interaction.original_response()
+    # An ordinary channel message, NOT this command's reply. A reply is owned by
+    # a webhook, and Discord answers 200 to an embed edit on a webhook-owned
+    # message and then keeps the old embed -- only the components change. Panels
+    # posted as the reply could therefore never be restyled or translated again:
+    # a language change came out as new button labels above the old text. The
+    # refresh path is the whole point of tracking the panel, so the panel has to
+    # be something the bot can actually edit.
+    await interaction.response.defer(ephemeral=True)
+    channel = interaction.channel
+    try:
+        message = await channel.send(embed=embed, view=view)
+    except discord.Forbidden:
+        await interaction.followup.send(
+            "I can't post in this channel. Give VRCVerify **Send Messages** and "
+            "**Embed Links** here, then run this again.",
+            ephemeral=True,
+        )
+        return
+    except Exception:
+        logger.exception(
+            "Failed to post the instructions panel for guild %s", interaction.guild.id
+        )
+        await interaction.followup.send(
+            "Something went wrong posting the panel. Please try again shortly.",
+            ephemeral=True,
+        )
+        return
 
     # Save the channel and message IDs to your database for reinitialization.
     guild_id = str(interaction.guild.id)
-    channel_id = str(interaction.channel.id)
+    channel_id = str(channel.id)
     with session_scope() as session:
         server = session.query(Server).filter_by(server_id=guild_id).first()
         if not server:
@@ -3160,7 +3218,9 @@ async def vrcverify_instructions(interaction: discord.Interaction):
             # ids on the floor: the panel went up but nothing tracked it, so the
             # startup refresh never saw it and /vrcverify_status would call it
             # missing. Create the row like the settings view does instead.
-            server = Server(server_id=guild_id, owner_id=str(interaction.user.id))
+            server = Server(
+                server_id=guild_id, owner_id=panel_row_owner_id(interaction.guild, interaction.user.id)
+            )
             session.add(server)
         server.instructions_channel_id = channel_id
         server.instructions_message_id = str(message.id)
@@ -4112,6 +4172,23 @@ class RequestPacer:
             await asyncio.sleep(delay)
 
 
+def panel_row_owner_id(guild, actor_id) -> str:
+    """`owner_id` for a servers row created by posting a panel.
+
+    The guild's real owner when the bot can see one, not whoever clicked. That
+    column feeds resolve_config_admin, which decides who gets configuration DMs
+    — so filling it with the acting admin quietly appoints them, and on the
+    dashboard that admin need not be the owner at all. Both panel paths use
+    this, so the two cannot drift.
+
+    Falls back to the actor only when the guild is not in cache, which is the
+    same guess the code made unconditionally before, and still better than a
+    NOT NULL violation that would lose the panel's ids.
+    """
+    owner_id = getattr(guild, "owner_id", None) if guild is not None else None
+    return str(owner_id or actor_id)
+
+
 def panel_view_key(server_id) -> str:
     """Normalise a guild id for the instruction_panel_views table.
 
@@ -4363,7 +4440,9 @@ def build_instructions_embed(
     return embed
 
 
-async def probe_instruction_panel(entry, rebuild_embed: bool) -> str:
+async def probe_instruction_panel(
+    entry, rebuild_embed: bool, already_checked: bool = False
+) -> str:
     """Re-attach a fresh view (and optionally a rebuilt embed) to one saved panel.
 
     Uses a partial message so this costs exactly one API call and needs nothing
@@ -4382,9 +4461,8 @@ async def probe_instruction_panel(entry, rebuild_embed: bool) -> str:
         return "missing_ids"
 
     try:
-        message = bot.get_partial_messageable(int(channel_id)).get_partial_message(
-            int(message_id)
-        )
+        messageable = bot.get_partial_messageable(int(channel_id))
+        message = messageable.get_partial_message(int(message_id))
     except (TypeError, ValueError):
         logger.warning(f"⚠️ Malformed channel/message id for guild {entry['server_id']}; skipping.")
         return "malformed"
@@ -4394,6 +4472,34 @@ async def probe_instruction_panel(entry, rebuild_embed: bool) -> str:
         # abort the whole fleet pass, it only costs this one guild.
         payload = {"view": VRCVerifyInstructionView(locale=entry["locale"])}
         if rebuild_embed:
+            # A panel posted as a slash-command reply belongs to a webhook, and
+            # Discord answers 200 to an embed edit on one while keeping the old
+            # embed. The view would still apply, so editing anyway is precisely
+            # the half-update that hid this bug -- new button labels above text
+            # nothing can change.
+            #
+            # It costs one fetch, on the paths that rebuild the embed. That is
+            # the startup sweep's exemption (it passes rebuild_embed=False) but
+            # NOT the manual whole-fleet refresh, which passes True and so pays
+            # it per panel -- worth knowing before raising
+            # INSTRUCTIONS_REFRESH_RATE, since the pacer reserves one slot per
+            # panel and each now issues two calls.
+            #
+            # `already_checked` is how the dashboard's panel button avoids
+            # asking twice; it has just asked in order to decide between
+            # refreshing and replacing. A read that fails answers None and falls
+            # through to the edit, because a fetch hiccup must not start
+            # refusing ordinary refreshes.
+            if not already_checked and await _panel_is_webhook_owned(
+                messageable, message_id
+            ):
+                logger.warning(
+                    "⚠️ The instructions panel for guild %s cannot be edited by "
+                    "Discord (it was posted as a command reply). It has to be "
+                    "replaced -- use the dashboard's panel button.",
+                    entry["server_id"],
+                )
+                return "frozen"
             # Resolving the style is what reverts a lapsed server to the default
             # look, so it happens here rather than being cached with the panel.
             # Guilds with no branding row skip the entitlement read entirely.
@@ -4405,17 +4511,35 @@ async def probe_instruction_panel(entry, rebuild_embed: bool) -> str:
                 # handling above owns deciding what to do about the id itself.
                 guild = None
             style = await resolve_panel_style(entry["server_id"], guild)
-            # None means the branding table could not be read. Leave the embed
-            # off the payload so the panel keeps whatever it already has — the
-            # view still gets refreshed, which is what this pass is for.
-            if style is not None:
-                payload["embed"] = build_instructions_embed(
-                    entry["locale"], *style
+            # None means the branding table could not be read, so the embed
+            # cannot be rebuilt without restyling a paying server over a
+            # database hiccup. Editing anyway used to send the view on its own,
+            # which produced the worst of the three outcomes: buttons in the new
+            # language above an embed still in the old one, logged as a success.
+            # Leave the whole panel alone instead. It stays internally
+            # consistent, and the caller is told this is a retry rather than a
+            # refusal.
+            if style is None:
+                logger.warning(
+                    "⚠️ Could not resolve the panel style for guild %s; leaving "
+                    "the panel untouched rather than half-updating it.",
+                    entry["server_id"],
                 )
+                return "style_unreadable"
+            payload["embed"] = build_instructions_embed(entry["locale"], *style)
         await message.edit(**payload)
         if entry.get("view_version") != INSTRUCTIONS_VIEW_VERSION:
             record_panel_view_version(entry["server_id"])
-        logger.debug(f"Refreshed instructions message for guild {entry['server_id']}")
+        # Says what went, not just that something did. A panel coming out in two
+        # languages was invisible in the logs for exactly as long as this line
+        # read "Refreshed" whether or not the embed was part of the edit.
+        logger.debug(
+            "Refreshed instructions message %s for guild %s (locale=%s, sent=%s)",
+            message_id,
+            entry["server_id"],
+            entry["locale"],
+            "+".join(sorted(payload)),
+        )
         return "ok"
     except discord.NotFound:
         # Either the channel or the message is gone; both cases make the saved
@@ -4847,6 +4971,12 @@ async def read_dashboard_channels(guild_id) -> Optional[list]:
     for the verification log: other servers can *follow* it, which would
     republish an age disclosure about a named member into servers they have no
     relationship with.
+
+    `can_send` and `can_embed` are separate because the two things this bot
+    posts need different permissions. The verification log is plain text, so
+    Send Messages is the whole requirement. The instructions panel is an embed,
+    and a channel granting one permission but not the other looks perfectly
+    writable right up until the panel is refused.
     """
     try:
         guild = bot.get_guild(int(guild_id))
@@ -4858,9 +4988,11 @@ async def read_dashboard_channels(guild_id) -> Optional[list]:
         for channel in guild.text_channels:
             if me is None:
                 can_send = None
+                can_embed = None
             else:
                 perms = channel.permissions_for(me)
                 can_send = bool(perms.view_channel and perms.send_messages)
+                can_embed = bool(can_send and perms.embed_links)
             channels.append(
                 {
                     "id": str(channel.id),
@@ -4869,6 +5001,7 @@ async def read_dashboard_channels(guild_id) -> Optional[list]:
                     "position": channel.position,
                     "is_news": bool(channel.is_news()),
                     "can_send": can_send,
+                    "can_embed": can_embed,
                 }
             )
         channels.sort(key=lambda entry: entry["position"])
@@ -4889,6 +5022,16 @@ async def read_dashboard_panel(guild_id) -> Optional[dict]:
     returns None both for "never posted" and for "the database could not be
     read", so `posted: false` is not proof no panel exists — whatever offers to
     repost a panel in step 6 has to confirm before it posts a duplicate.
+
+    `channel_postable` answers one narrow question: could a NEW message go here.
+    It is not "can this panel be kept alive", which is a different and weaker
+    requirement — editing the bot's own message needs no Send Messages, and
+    button clicks are interactions rather than messages. A panel sitting in a
+    locked channel is the normal case, not a broken one.
+
+    It includes Embed Links, because the panel IS an embed. A channel with Send
+    Messages and no Embed Links reads as writable everywhere else and then
+    refuses the panel, which is a confusing way to find that out.
     """
     try:
         entry = load_instruction_panel(guild_id)
@@ -4903,10 +5046,12 @@ async def read_dashboard_panel(guild_id) -> Optional[dict]:
             except (TypeError, ValueError):
                 channel = None
 
-        reachable = None
+        postable = None
         if guild is not None and guild.me is not None and channel is not None:
             perms = channel.permissions_for(guild.me)
-            reachable = bool(perms.view_channel and perms.send_messages)
+            postable = bool(
+                perms.view_channel and perms.send_messages and perms.embed_links
+            )
 
         return {
             "posted": True,
@@ -4914,11 +5059,340 @@ async def read_dashboard_panel(guild_id) -> Optional[dict]:
             "message_id": str(entry["message_id"]),
             "channel_name": getattr(channel, "name", None),
             "channel_exists": channel is not None,
-            "channel_reachable": reachable,
+            "channel_postable": postable,
             "locale": entry.get("locale", "en-US"),
         }
     except Exception:
         logger.warning("Could not read the panel for guild %s.", guild_id, exc_info=True)
+        return None
+
+
+def _stored_panel_location(guild_id):
+    """This guild's recorded panel ids, distinguishing "none" from "unknown".
+
+    load_instruction_panel returns None for both, which is fine for a refresh
+    sweep and dangerous here: "no panel recorded" is the one condition under
+    which posting a new one is safe, and a database hiccup must not be allowed
+    to look like it. Raises rather than returning a sentinel, so a caller
+    cannot forget to check.
+    """
+    with session_scope() as session:
+        server = (
+            session.query(Server)
+            .filter_by(server_id=panel_view_key(guild_id))
+            .first()
+        )
+        if server is None or not server.instructions_message_id:
+            return None
+        return {
+            "server_id": server.server_id,
+            "channel_id": server.instructions_channel_id,
+            "message_id": server.instructions_message_id,
+            "locale": server.instructions_locale or "en-US",
+        }
+
+
+async def _panel_is_webhook_owned(channel, message_id) -> Optional[bool]:
+    """Whether this panel is a message the bot cannot fully edit.
+
+    A panel posted as a slash-command reply belongs to a webhook. Discord takes
+    an embed edit on one of those, answers 200, and keeps the old embed -- only
+    the components change. So such a panel can never be restyled or translated,
+    however many times it is refreshed, and the only repair is a replacement.
+
+    None means the question could not be answered, which must never be read as
+    "no": replacing a panel on a failed lookup is how a server ends up with two.
+    A message that is simply gone answers False, because the ordinary refresh
+    path already knows how to notice that and post afresh.
+    """
+    try:
+        message = await channel.fetch_message(int(message_id))
+    except discord.NotFound:
+        return False
+    except (TypeError, ValueError):
+        return False
+    except Exception:
+        logger.warning(
+            "Could not read panel message %s in guild's channel %s while "
+            "checking whether it can be edited.",
+            message_id,
+            getattr(channel, "id", None),
+            exc_info=True,
+        )
+        return None
+    return message.webhook_id is not None
+
+
+# One lock per guild that has ever used the panel button. The duplicate guard
+# below reads the recorded location and then suspends three times before it
+# writes a new one, so two overlapping requests -- a double click is enough --
+# would both see "no panel here" and both post one. The whole promise of this
+# function is that clicking twice cannot do that.
+_panel_post_locks: dict[str, asyncio.Lock] = {}
+
+
+def _panel_post_lock(guild_id) -> asyncio.Lock:
+    key = panel_view_key(guild_id)
+    lock = _panel_post_locks.get(key)
+    if lock is None:
+        # setdefault, not assignment: two coroutines reaching here in the same
+        # tick must end up holding the same lock, or it guards nothing.
+        lock = _panel_post_locks.setdefault(key, asyncio.Lock())
+    return lock
+
+
+async def post_dashboard_panel(guild_id, actor_id, channel_id):
+    """Put this guild's instructions panel where the admin asked for it.
+
+    Serialised per guild -- see `_panel_post_lock`. Everything below reads a
+    recorded location and acts on it across several awaits, which is only safe
+    if one request per guild is doing it at a time.
+    """
+    async with _panel_post_lock(guild_id):
+        return await _post_dashboard_panel(guild_id, actor_id, channel_id)
+
+
+async def _post_dashboard_panel(guild_id, actor_id, channel_id):
+    """The body of the above, holding the guild's panel lock.
+
+    The only thing the dashboard can make the bot *do* in a server, as opposed
+    to store, so it is deliberately hard to do twice by accident:
+
+    * A panel already in the requested channel is REFRESHED -- the same
+      one-call edit the fleet sweep uses -- rather than posted again. A double
+      click therefore costs an edit, not a second panel with live buttons that
+      nothing tracks.
+    * A panel recorded elsewhere is a MOVE. The new one is posted and the ids
+      re-pointed, and the caller is told where the old one still is so an admin
+      can remove it. Deleting it here would be this code destroying a message
+      nobody pointed at.
+    * If the recorded location cannot be read at all, nothing is posted. That
+      is the case where "no panel exists" and "the database blinked" look
+      identical, and guessing wrong leaves a duplicate.
+
+    Returns a dict describing what happened, or None when it could not be done.
+    """
+    guild = bot.get_guild(int(guild_id))
+    if guild is None or guild.me is None:
+        return None
+
+    channel = next(
+        (c for c in guild.text_channels if str(c.id) == str(channel_id)), None
+    )
+    if channel is None:
+        raise SettingRejected("panel_channel", "channel_not_in_guild")
+
+    try:
+        existing = _stored_panel_location(guild_id)
+    except Exception:
+        logger.warning(
+            "Could not read the panel location for guild %s; not posting.",
+            guild_id,
+            exc_info=True,
+        )
+        return None
+
+    # --- Already there: refresh in place, or replace it if editing cannot work ---
+    # No permission precheck on this branch. Editing the bot's own message does
+    # not need Send Messages, so a panel parked in a locked channel refreshes
+    # fine -- the fleet sweep does exactly this on every restart without asking.
+    # probe_instruction_panel's Forbidden branch is the honest answer, the same
+    # reasoning its own docstring gives for /vrcverify_status.
+    replacing = None
+    if existing and str(existing.get("channel_id")) == str(channel.id):
+        stuck = await _panel_is_webhook_owned(channel, existing.get("message_id"))
+        if stuck is None:
+            return None
+        if stuck:
+            # No edit will ever change this panel's text, so refreshing it would
+            # be the silent no-op that hid this for so long. Post a replacement
+            # and delete the original below. Cleared so the post path reads this
+            # as a fresh post rather than a move to a different channel.
+            replacing = existing
+            existing = None
+        else:
+            # already_checked: `stuck` is False, so probe must not re-fetch the
+            # message just to reach the same answer.
+            outcome = await probe_instruction_panel(
+                existing, rebuild_embed=True, already_checked=True
+            )
+            if outcome == "ok":
+                _audit_panel(guild_id, actor_id, "refreshed", channel.id)
+                return {"action": "refreshed", "channel_id": str(channel.id)}
+            if outcome in {"gone", "missing_ids", "malformed"}:
+                # The record points at a message that is not there any more, so
+                # this is a first post rather than a duplicate.
+                existing = None
+            elif outcome == "forbidden":
+                raise SettingRejected("panel_channel", "channel_not_writable")
+            else:
+                return None
+
+    # --- Post a new one ---
+    # Now it really is a send, so the send permissions are now the right test.
+    perms = channel.permissions_for(guild.me)
+    if not (perms.view_channel and perms.send_messages and perms.embed_links):
+        raise SettingRejected("panel_channel", "channel_not_writable")
+
+    style = await resolve_panel_style(guild_id, guild)
+    color, icon = style if style else (DEFAULT_PANEL_COLOR, None)
+    # panel_view_key, like every other lookup in this function. This is the one
+    # helper here that queries server_id un-normalised, and the deployed column
+    # disagrees with its declared type -- see panel_view_key's docstring. A
+    # mismatch there is swallowed, so the panel would silently go up in the
+    # guild's Discord language and be rewritten to the configured one on the
+    # next refresh.
+    locale = get_server_locale_code(panel_view_key(guild_id), guild)
+    embed = build_instructions_embed(locale, color, icon)
+
+    try:
+        message = await channel.send(
+            embed=embed, view=VRCVerifyInstructionView(locale=locale)
+        )
+    except discord.Forbidden:
+        raise SettingRejected("panel_channel", "channel_not_writable")
+    except Exception:
+        logger.exception("Failed to post the instructions panel for %s", guild_id)
+        return None
+
+    # A row with a message id but no channel id would otherwise report the
+    # string "None" as the previous channel, and call this a move.
+    previous = str(existing["channel_id"]) if existing and existing.get("channel_id") else None
+    try:
+        with session_scope() as session:
+            server = (
+                session.query(Server)
+                .filter_by(server_id=panel_view_key(guild_id))
+                .first()
+            )
+            if server is None:
+                # Same reasoning as /vrcverify_instructions, and deliberately
+                # the opposite of write_dashboard_settings, which refuses with
+                # server_not_set_up rather than insert. The difference is not an
+                # oversight: a settings save has nothing to record if it
+                # refuses, while by this point a message is already live in
+                # someone's server and something has to track it or the startup
+                # refresh never sees it again. Mirroring the slash command is
+                # also the rule -- /vrcverify_instructions inserts here too.
+                server = Server(
+                    server_id=str(guild_id),
+                    owner_id=panel_row_owner_id(guild, actor_id),
+                )
+                session.add(server)
+            server.instructions_channel_id = str(channel.id)
+            server.instructions_message_id = str(message.id)
+    except Exception:
+        logger.exception("Posted a panel for %s but could not record it", guild_id)
+        # Take it back down. An unrecorded panel has live verification buttons
+        # and nothing that can ever refresh, restyle or find it again, and the
+        # admin is about to see a failure and click again -- which would add
+        # another. Deleting the bot's own just-sent message is the one cleanup
+        # here that cannot destroy anything an admin put there.
+        try:
+            await message.delete()
+        except Exception:
+            logger.warning(
+                "Could not remove the unrecorded panel %s in guild %s; it is "
+                "live and untracked and has to be deleted by hand.",
+                message.id,
+                guild_id,
+                exc_info=True,
+            )
+        return None
+
+    record_panel_view_version(guild_id)
+    complete_guild_onboarding(guild_id)
+
+    # The replaced panel is deleted rather than left up, unlike the one a move
+    # leaves behind. A move puts the new panel somewhere else, so the old one is
+    # still the only panel in its own channel and removing it is the admin's
+    # call; this one sits directly above its replacement in the same channel,
+    # with live buttons and text nothing can ever correct.
+    if replacing:
+        try:
+            await channel.get_partial_message(
+                int(replacing["message_id"])
+            ).delete()
+        except Exception:
+            logger.warning(
+                "Replaced the panel for guild %s but could not delete the old "
+                "message %s.",
+                guild_id,
+                replacing.get("message_id"),
+                exc_info=True,
+            )
+
+    action = "replaced" if replacing else ("moved" if previous else "posted")
+    _audit_panel(guild_id, actor_id, action, channel.id)
+    return {
+        "action": action,
+        "channel_id": str(channel.id),
+        "previous_channel_id": previous,
+    }
+
+
+def _audit_panel(guild_id, actor_id, action: str, channel_id) -> None:
+    try:
+        with session_scope() as session:
+            _record_dashboard_audit(
+                session,
+                guild_id,
+                actor_id,
+                [("instructions_panel", action, str(channel_id))],
+            )
+    except Exception:
+        logger.warning(
+            "Could not record the panel action for guild %s.", guild_id, exc_info=True
+        )
+
+
+async def read_dashboard_audit(guild_id, limit: int = 25) -> Optional[list]:
+    """This guild's recent settings changes, newest first.
+
+    Only ever this guild's, and only the fields SETTINGS_FIELDS names -- an
+    admin can see who changed their own server's configuration, which is what
+    an audit trail is for, and nothing about any other server.
+
+    Actor names are resolved from the gateway cache when the member is still
+    around, and left as an id when they are not. No REST call: an admin who
+    left is exactly the entry worth keeping, and paying a fetch per row to
+    prettify history would make this the most expensive read on the page.
+    """
+    try:
+        guild = bot.get_guild(int(guild_id))
+        with session_scope() as session:
+            rows = (
+                session.query(DashboardAudit)
+                .filter_by(server_id=panel_view_key(guild_id))
+                .order_by(DashboardAudit.id.desc())
+                .limit(max(1, min(int(limit), MAX_AUDIT_ROWS)))
+                .all()
+            )
+            entries = []
+            for row in rows:
+                member = None
+                if guild is not None:
+                    try:
+                        member = guild.get_member(int(row.actor_id))
+                    except (TypeError, ValueError):
+                        member = None
+                entries.append(
+                    {
+                        "actor_id": row.actor_id,
+                        "actor_name": getattr(member, "display_name", None),
+                        "field": row.field,
+                        "old_value": row.old_value,
+                        "new_value": row.new_value,
+                        "changed_at": (
+                            row.changed_at.isoformat() if row.changed_at else None
+                        ),
+                    }
+                )
+            return entries
+    except Exception:
+        logger.warning(
+            "Could not read the audit trail for guild %s.", guild_id, exc_info=True
+        )
         return None
 
 
@@ -4955,6 +5429,9 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
     Everything is validated before anything is applied. A batch with one bad
     field changes nothing at all, rather than saving the first two and failing
     on the third.
+
+    A save that changes something the panel displays also re-edits the panel,
+    for the reason PANEL_VISIBLE_FIELDS gives: nothing else would.
     """
     if not isinstance(changes, dict) or not changes:
         raise SettingRejected("", "no_changes")
@@ -5113,7 +5590,23 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
         )
         return None
 
-    return await read_dashboard_settings(guild_id)
+    # The save is committed, so a panel still showing the old language or colour
+    # is now merely stale -- and would stay that way, since the fleet sweep
+    # rebuilds the view but not the embed. Only after the write, and never in a
+    # way that can fail the save: restyle_instruction_panel swallows its own
+    # errors and answers "no_panel" for the guilds that have none.
+    panel_outcome = None
+    if any(name in PANEL_VISIBLE_FIELDS for name, _old, _new in changed):
+        panel_outcome = await restyle_instruction_panel(guild_id)
+
+    settings = await read_dashboard_settings(guild_id)
+    # The save succeeded either way -- this is about whether the admin gets to
+    # know the panel did not follow it. "frozen" is the case that cost a long
+    # debugging session in production: the setting stored, the page showed the
+    # new value, and the panel stayed as it was with nothing saying so.
+    if settings is not None and panel_outcome in PANEL_STALE_OUTCOMES:
+        settings["panel_stale"] = panel_outcome
+    return settings
 
 
 def build_bot_api_deps() -> bot_api.BotAPIDeps:
@@ -5133,7 +5626,9 @@ def build_bot_api_deps() -> bot_api.BotAPIDeps:
         read_roles=read_dashboard_roles,
         read_channels=read_dashboard_channels,
         read_panel=read_dashboard_panel,
+        read_audit=read_dashboard_audit,
         write_settings=write_dashboard_settings,
+        post_panel=post_dashboard_panel,
     )
 
 
