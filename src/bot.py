@@ -4425,9 +4425,8 @@ async def probe_instruction_panel(entry, rebuild_embed: bool) -> str:
         return "missing_ids"
 
     try:
-        message = bot.get_partial_messageable(int(channel_id)).get_partial_message(
-            int(message_id)
-        )
+        messageable = bot.get_partial_messageable(int(channel_id))
+        message = messageable.get_partial_message(int(message_id))
     except (TypeError, ValueError):
         logger.warning(f"⚠️ Malformed channel/message id for guild {entry['server_id']}; skipping.")
         return "malformed"
@@ -4437,6 +4436,22 @@ async def probe_instruction_panel(entry, rebuild_embed: bool) -> str:
         # abort the whole fleet pass, it only costs this one guild.
         payload = {"view": VRCVerifyInstructionView(locale=entry["locale"])}
         if rebuild_embed:
+            # A panel posted as a slash-command reply belongs to a webhook, and
+            # Discord answers 200 to an embed edit on one while keeping the old
+            # embed. The view would still apply, so editing anyway is precisely
+            # the half-update that hid this bug -- new button labels above text
+            # nothing can change. Costs one fetch, and only on the paths that
+            # rebuild the embed; the fleet sweep never gets here. A read that
+            # fails answers None and falls through to the edit, because a fetch
+            # hiccup must not start refusing ordinary refreshes.
+            if await _panel_is_webhook_owned(messageable, message_id):
+                logger.warning(
+                    "⚠️ The instructions panel for guild %s cannot be edited by "
+                    "Discord (it was posted as a command reply). It has to be "
+                    "replaced -- use the dashboard's panel button.",
+                    entry["server_id"],
+                )
+                return "frozen"
             # Resolving the style is what reverts a lapsed server to the default
             # look, so it happens here rather than being cached with the panel.
             # Guilds with no branding row skip the entitlement read entirely.

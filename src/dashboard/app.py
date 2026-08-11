@@ -339,7 +339,10 @@ def _register_routes(app: Flask) -> None:
             auto_verify_column_present=settings.get("auto_verify_column_present", True),
             saved=request.args.get("saved") == "1",
             panel_result=PANEL_RESULTS.get(request.args.get("panel")),
-            save_error=_save_error_message(request.args.get("error")),
+            save_error=(
+                _save_error_message(request.args.get("error"))
+                or _panel_error_message(request.args.get("panel_error"))
+            ),
             csrf_token=session.csrf_token,
         )
 
@@ -399,7 +402,9 @@ def _register_routes(app: Flask) -> None:
             logger.warning("panel post refused for guild %s: %s", guild_id, error)
             return redirect(
                 url_for(
-                    "guild_settings", guild_id=guild_id, error=_save_error_code(error)
+                    "guild_settings",
+                    guild_id=guild_id,
+                    panel_error=_panel_error_code(error),
                 )
             )
 
@@ -574,6 +579,25 @@ SAVE_ERRORS = {
 }
 GENERIC_SAVE_ERROR = "That change couldn't be saved, so nothing was changed."
 
+# The panel button shares reason codes with the settings saves, but not their
+# wording. "so it can't log there" is the log channel's sentence and says
+# nothing true about a panel, and a panel needs Embed Links as well as Send
+# Messages -- which the log channel does not, so SAVE_ERRORS cannot just say so.
+PANEL_ERRORS = {
+    "channel_not_writable": (
+        "VRCVerify can't post the panel in that channel. It needs both **Send "
+        "Messages** and **Embed Links** there -- Embed Links is the one that's "
+        "usually missing, because the panel is an embed."
+    ),
+    "channel_not_in_guild": (
+        "That channel isn't in this server any more. Reload the page and pick "
+        "again."
+    ),
+}
+GENERIC_PANEL_ERROR = (
+    "The panel couldn't be posted just now. Try again shortly."
+)
+
 # Same treatment as the refusals: a code chosen by the bot, copy chosen here.
 PANEL_RESULTS = {
     "posted": "Panel posted.",
@@ -653,6 +677,17 @@ def _save_error_message(code: Optional[str]) -> Optional[str]:
     if not code:
         return None
     return SAVE_ERRORS.get(code, GENERIC_SAVE_ERROR)
+
+
+def _panel_error_code(error: BotAPIError) -> str:
+    reason = str(error)
+    return reason if reason in PANEL_ERRORS else "unknown"
+
+
+def _panel_error_message(code: Optional[str]) -> Optional[str]:
+    if not code:
+        return None
+    return PANEL_ERRORS.get(code, GENERIC_PANEL_ERROR)
 
 
 def _colour_to_int(raw: Optional[str]) -> Optional[int]:

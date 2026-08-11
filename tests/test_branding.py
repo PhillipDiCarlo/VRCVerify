@@ -415,6 +415,44 @@ class TestRestylePanel:
         assert run(bot.restyle_instruction_panel(GUILD_ID)) == "style_unreadable"
         assert rec.edits == []
 
+    def test_a_panel_discord_will_not_edit_is_not_edited_at_all(
+        self, monkeypatch, premium
+    ):
+        """The other way a panel ends up in two languages.
+
+        Discord keeps the old embed on a webhook-owned message and applies the
+        components anyway, so sending the edit would relabel the buttons and
+        leave the text. Nothing is sent; the panel needs replacing, and only
+        the dashboard's panel button can do that.
+        """
+        make_server(row_id=NEW_ID, instructions_locale="ja")
+        set_branding()
+        rec = PanelRecorder().install(monkeypatch)
+
+        async def frozen(_channel, _message_id):
+            return True
+
+        monkeypatch.setattr(bot, "_panel_is_webhook_owned", frozen)
+
+        assert run(bot.restyle_instruction_panel(GUILD_ID)) == "frozen"
+        assert rec.edits == []
+
+    def test_an_unreadable_ownership_check_still_refreshes(
+        self, monkeypatch, premium
+    ):
+        """A fetch hiccup must not start refusing ordinary refreshes."""
+        make_server(row_id=NEW_ID, instructions_locale="ja")
+        set_branding()
+        rec = PanelRecorder().install(monkeypatch)
+
+        async def cannot_tell(_channel, _message_id):
+            return None
+
+        monkeypatch.setattr(bot, "_panel_is_webhook_owned", cannot_tell)
+
+        assert run(bot.restyle_instruction_panel(GUILD_ID)) == "ok"
+        assert len(rec.edits) == 1
+
     def test_a_half_updated_panel_is_never_sent(self, monkeypatch, premium):
         """The embed and the buttons must always agree about the language."""
         make_server(row_id=NEW_ID, instructions_locale="ja")

@@ -1591,6 +1591,12 @@ class TestPostingThePanel:
         assert api.panel_posts == []
 
     def test_a_refusal_is_explained(self, config, store):
+        """In the panel's own words, not the log channel's.
+
+        Both raise channel_not_writable, but a panel is an embed, so it needs
+        Embed Links as well -- and "it can't log there" is a sentence about a
+        setting this button has nothing to do with.
+        """
         test_client, _api, session = self.logged_in(
             config,
             store,
@@ -1598,7 +1604,20 @@ class TestPostingThePanel:
         )
         response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
         page = test_client.get(response.headers["Location"]).data.decode()
-        assert "can&#39;t post in that channel" in page
+        assert "Embed Links" in page
+        assert "can&#39;t log there" not in page
+
+    def test_an_unrecognised_panel_refusal_never_reaches_the_page_as_text(
+        self, config, store
+    ):
+        leak = "surprising-internal-detail"
+        test_client, _api, session = self.logged_in(
+            config, store, errors={"post_panel": BotAPIError(leak, 400)}
+        )
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert leak not in page
+        assert "couldn&#39;t be posted" in page
 
 
 class TestTheChangeHistory:
