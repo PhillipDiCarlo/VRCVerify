@@ -763,12 +763,14 @@ SETTINGS_FIELDS_BY_NAME = {field.name: field for field in SETTINGS_FIELDS}
 # Which of those the dashboard may WRITE today. Everything else is readable and
 # refused on save, including fields that will open later.
 #
-# Step 5 of issue #65 opens the instructions panel group and nothing else. The
-# order is deliberate: every value here is a constrained type — one of a fixed
-# set of language codes, a 24-bit integer, a boolean — so the first write path
-# this project has ever had can be about the plumbing (authorisation, the audit
-# record, refusing a locked field) rather than about validating free text or
-# reasoning about role hierarchies at the same time.
+# Step 5 of issue #65 opened the instructions panel group first and nothing
+# else, and the order was deliberate: every one of those values is a constrained
+# type — one of a fixed set of language codes, a 24-bit integer, a boolean — so
+# the first write path this project ever had could be about the plumbing
+# (authorisation, the audit record, refusing a locked field) rather than about
+# validating free text or reasoning about role hierarchies at the same time.
+# The remaining groups followed once that plumbing was proven, so this is now
+# every setting the dashboard offers.
 #
 # This list is the enforcement point, not the dashboard's form. The website is
 # untrusted: it renders whatever it likes, and the bot decides.
@@ -4889,6 +4891,14 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
                 "enforced": PREMIUM_ENFORCED,
                 "premium": flags.premium,
                 "grandfathered": flags.grandfathered,
+                # What the website may link to for an upgrade. Sent rather than
+                # configured over there for the same reason the locale list is:
+                # a second copy of the SKU id is a second thing to change, and
+                # the failure mode is a purchase link pointing at the wrong
+                # product. With the kill switch off this is None and the
+                # dashboard offers no upgrade at all, which is correct -- there
+                # is nothing to sell when every gate answers "allowed".
+                "sku_id": str(PREMIUM_SKU_ID) if PREMIUM_SKU_ID is not None else None,
             },
             # A column the deployed database is missing is reported as such
             # rather than silently rendered as a working toggle.

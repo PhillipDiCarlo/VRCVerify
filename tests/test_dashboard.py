@@ -111,7 +111,18 @@ WRITABLE = set(FREE_PLAN)  # step 5 is complete: every declared setting is open
 LOCALES = ["en-US", "es-ES", "ja", "de"]
 
 
-def make_settings(premium=False, values=None, auto_verify_column=True, writable=None):
+SKU_ID = "1533325058573865051"
+
+
+def make_settings(
+    premium=False,
+    values=None,
+    auto_verify_column=True,
+    writable=None,
+    grandfathered=False,
+    enforced=True,
+    sku_id=SKU_ID,
+):
     """A settings payload shaped exactly like read_dashboard_settings returns."""
     merged = dict(DEFAULT_VALUES)
     merged.update(values or {})
@@ -127,7 +138,12 @@ def make_settings(premium=False, values=None, auto_verify_column=True, writable=
         }
     return {
         "guild_id": GUILD_IN,
-        "premium": {"enforced": True, "premium": premium, "grandfathered": False},
+        "premium": {
+            "enforced": enforced,
+            "premium": premium,
+            "grandfathered": grandfathered,
+            "sku_id": sku_id,
+        },
         "auto_verify_column_present": auto_verify_column,
         "choices": {"instructions_locale": list(LOCALES)},
         "fields": fields,
@@ -825,6 +841,106 @@ class TestPlanBadgesMirrorTheBot:
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
         assert "missing the auto-verify column" in page
+
+
+class TestTheUpgradeOffer:
+    """Buying is Discord's flow, and the page has to say so accurately.
+
+    The store URL takes an application and a SKU only, so it cannot name the
+    server being configured. For a guild-scoped SKU that is the difference
+    between subscribing this server and subscribing another one the admin also
+    runs, which is why /vrcverify_subscription leads and the link explains
+    itself rather than being presented as the buy button.
+    """
+
+    def test_a_free_server_is_told_how_to_subscribe(self, config, store):
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Upgrade to VRCVerify Premium" in page
+        assert "/vrcverify_subscription" in page
+        assert (
+            f"https://discord.com/application-directory/"
+            f"{config.discord_client_id}/store/{SKU_ID}" in page
+        )
+
+    def test_the_store_link_admits_it_cannot_pick_the_server(self, config, store):
+        """The whole reason the slash command is the primary path."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "you choose the server during checkout" in page
+
+    def test_a_subscribed_server_is_not_sold_to(self, config, store):
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(premium=True)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "VRCVerify Premium is active" in page
+        assert "/vrcverify_subscription" not in page
+        assert "application-directory" not in page
+
+    def test_a_grandfathered_server_is_offered_the_rest(self, config, store):
+        """It keeps three features free forever, but not the premium-only set.
+
+        Treating it as already-sold would hide the log channel and branded
+        panel behind a badge with no way to reach them.
+        """
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(grandfathered=True)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Add VRCVerify Premium" in page
+        assert "grandfathered extras stay free" in page
+        assert "/vrcverify_subscription" in page
+
+    def test_no_offer_when_the_tier_is_switched_off(self, config, store):
+        """PREMIUM_SKU_ID unset: every gate answers "allowed", so there is
+        nothing to sell and an upgrade block would be charging for what is
+        free. This is the payload the bot really sends in that state -- both
+        `premium` and `sku_id` say so, so it does not pin any one guard. The
+        `enforced` guard itself is pinned directly below.
+        """
+        test_client, _api = settings_client(
+            config,
+            store,
+            settings=make_settings(premium=True, enforced=False, sku_id=None),
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Verified role" in page  # the settings page really rendered
+        assert "/vrcverify_subscription" not in page
+        assert "application-directory" not in page
+
+    def test_enforced_alone_is_enough_to_withhold_the_offer(self):
+        """Defence in depth, tested on the pure function.
+
+        A payload saying "not subscribed, here is the SKU" while the tier is
+        switched off is not one the bot emits today. It is exactly what a
+        half-applied config change would look like, though, and selling a
+        subscription for features that are currently free to everyone is the
+        one outcome worth being redundant about.
+        """
+        settings = make_settings(premium=False, enforced=False, sku_id=SKU_ID)
+        assert settings_view.build_upgrade(settings, "123") is None
+
+    def test_a_missing_sku_produces_no_link_rather_than_a_broken_one(
+        self, config, store
+    ):
+        """What a half-configured deployment looks like. A link built around a
+        missing id would 404 inside Discord instead of failing here."""
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(sku_id=None)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Verified role" in page  # the settings page really rendered
+        assert "application-directory" not in page
+        assert "store/None" not in page
+
+    def test_the_stale_read_only_notice_is_gone(self, config, store):
+        """Every group saves now. The page said otherwise for a while, which
+        sent admins to the slash commands past a working Save button."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Verified role" in page  # the settings page really rendered
+        assert "Only the instructions panel settings can be changed" not in page
 
 
 class TestSettingsWarnings:
