@@ -4443,7 +4443,16 @@ async def probe_instruction_panel(entry, rebuild_embed: bool) -> str:
         await message.edit(**payload)
         if entry.get("view_version") != INSTRUCTIONS_VIEW_VERSION:
             record_panel_view_version(entry["server_id"])
-        logger.debug(f"Refreshed instructions message for guild {entry['server_id']}")
+        # Says what went, not just that something did. A panel coming out in two
+        # languages was invisible in the logs for exactly as long as this line
+        # read "Refreshed" whether or not the embed was part of the edit.
+        logger.debug(
+            "Refreshed instructions message %s for guild %s (locale=%s, sent=%s)",
+            message_id,
+            entry["server_id"],
+            entry["locale"],
+            "+".join(sorted(payload)),
+        )
         return "ok"
     except discord.NotFound:
         # Either the channel or the message is gone; both cases make the saved
