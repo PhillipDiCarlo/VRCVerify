@@ -9,11 +9,23 @@ updates:
       python-deps:
         patterns: ["*"]
 
-  # Base images in both Dockerfiles
+  # Base images in all three Dockerfiles
   - package-ecosystem: "docker"
     directory: "/docker"
     schedule:
       interval: "weekly"
+    ignore:
+      # Never offer a Python pre-release as a base image. #79 raised
+      # 3.14.6-slim -> 3.15.0rc1-slim, which merged looking like an ordinary
+      # patch bump and broke the bot and checker builds: psycopg2-binary
+      # publishes no wheel for a cp315 that does not exist yet, so pip fell
+      # back to building from source and died on a missing pg_config. The
+      # dashboard kept building, because it deliberately carries no database
+      # driver -- so the failure was partial, and a build script that builds
+      # every service at once then tagged and pushed a stale image without
+      # complaining. Released versions only.
+      - dependency-name: "python"
+        versions: ["*rc*", "*a*", "*b*"]
 
   # GitHub Actions used by CI (CodeQL workflow)
   - package-ecosystem: "github-actions"
