@@ -184,9 +184,24 @@ button.link {
 .upgrade p:last-child { margin-bottom: 0; }
 .upgrade a { color: var(--accent); }
 
-.group { margin-top: 2rem; }
-.group h2 { font-size: 1.05rem; margin: 0; }
-.blurb { margin: 0.1rem 0 0.85rem; }
+/* Each settings group is its own card. Whitespace alone did not separate them:
+ * the settings *inside* a group are divided by a hairline, so a group boundary
+ * made of margin carried no more weight than the rows it was supposed to be
+ * containing. A card puts page background between sections, which is the one
+ * separator nothing inside a section can imitate. */
+.panel + .panel { margin-top: 1.25rem; }
+
+/* The heading gets its own rule and a little more size, so the top of a card
+ * announces itself even when the card above it has scrolled off. */
+.group h2 {
+  font-size: 1.15rem;
+  font-weight: 650;
+  margin: 0;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid var(--line);
+}
+
+.blurb { margin: 0.7rem 0 0.4rem; }
 
 .settings { margin: 0; }
 

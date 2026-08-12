@@ -1637,6 +1637,49 @@ class TestHardening:
         assert b'fill="#ff00ff"' in page   # the panel colour
         assert b'fill="#5865f2"' in page   # the verified role's colour
 
+    def test_the_settings_page_closes_every_container_it_opens(
+        self, config, store
+    ):
+        """Each settings group is its own `<section class="panel">`, which put
+        the open and close tags on opposite sides of a `{% for %}`.
+
+        A stray `</section>` renders fine in a browser -- it just silently
+        reparents everything after it -- so nothing else here would notice.
+        The groups are built in a loop, so getting it wrong once gets it wrong
+        for every server.
+        """
+        import html.parser
+
+        class Balance(html.parser.HTMLParser):
+            watched = {"section", "form", "dl", "div", "ul"}
+
+            def __init__(self):
+                super().__init__()
+                self.stack = []
+                self.errors = []
+
+            def handle_starttag(self, tag, _attrs):
+                if tag in self.watched:
+                    self.stack.append(tag)
+
+            def handle_endtag(self, tag):
+                if tag not in self.watched:
+                    return
+                if not self.stack:
+                    self.errors.append(f"</{tag}> with nothing open")
+                elif self.stack[-1] != tag:
+                    self.errors.append(f"</{tag}> closed a <{self.stack[-1]}>")
+                    self.stack.pop()
+                else:
+                    self.stack.pop()
+
+        test_client, _api = settings_client(config, store)
+        parser = Balance()
+        parser.feed(test_client.get(f"/guild/{GUILD_IN}").data.decode())
+
+        assert not parser.errors, parser.errors
+        assert not parser.stack, f"never closed: {parser.stack}"
+
     def test_logout_requires_the_csrf_token(self, client, store):
         session = login_as(client, store)
         assert client.post("/logout", data={"csrf_token": "wrong"}).status_code == 400
