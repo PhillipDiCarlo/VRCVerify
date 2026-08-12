@@ -523,6 +523,31 @@ def _register_routes(app: Flask) -> None:
         response.delete_cookie(SESSION_COOKIE, path="/")
         return response
 
+    @app.post("/logout/everywhere")
+    def logout_everywhere():
+        """End every session this Discord user has, not just this browser's.
+
+        A separate route rather than a field on /logout, because the two are
+        different promises and a mis-parsed form field must not silently
+        downgrade this one into an ordinary sign-out. The count is logged: a
+        user revoking four sessions when they only remember opening one is
+        exactly the event this control exists for, and it is invisible unless
+        somebody writes it down.
+        """
+        session = _require_login()
+        if session is not None:
+            if not _csrf_ok(session):
+                abort(400)
+            ended = _store().destroy_all_for(session.discord_id)
+            logger.info(
+                "actor=%s signed out of %s session(s) everywhere",
+                session.discord_id,
+                ended,
+            )
+        response = redirect(url_for("index"))
+        response.delete_cookie(SESSION_COOKIE, path="/")
+        return response
+
     @app.errorhandler(404)
     def not_found(_error):
         return render_template("error.html", message="Page not found."), 404

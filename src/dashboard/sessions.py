@@ -23,11 +23,16 @@ logs in again.
 from __future__ import annotations
 
 import json
+import logging
+import os
 import secrets
 import sqlite3
+import stat
 import time
 from dataclasses import dataclass
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 # 32 bytes of urandom, url-safe. The session id is the only thing standing
 # between a cookie and an account, so it is generated the same way the API
@@ -85,6 +90,34 @@ class SessionStore:
         self.path = path
         self.max_age = max_age
         self._connect().close()
+        self._restrict_permissions()
+
+    def _restrict_permissions(self) -> None:
+        """Owner-only on the file holding every live session id.
+
+        These ids are bearer credentials: anything that can read this file can
+        act as any admin signed in right now, without a password, a cookie, or
+        Discord. It sits on the public host, which section 2 of the audit tells
+        you to assume is compromised eventually -- so the point is not to stop
+        an attacker who is already root, it is to keep the file out of reach of
+        a second process, a stray backup, or another container user.
+
+        A failure is logged, never fatal. Refusing to serve because a chmod
+        returned EPERM would take the dashboard down over a hardening measure,
+        and on Windows -- where developers run this -- the call is close to a
+        no-op anyway. The log line is what turns it into something an operator
+        can notice.
+        """
+        try:
+            os.chmod(self.path, stat.S_IRUSR | stat.S_IWUSR)
+        except OSError as error:
+            logger.warning(
+                "Could not restrict permissions on the session database at %s "
+                "(%s). Every live session id is readable by anything that can "
+                "open it; check the file mode by hand.",
+                self.path,
+                error,
+            )
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=10)
@@ -129,8 +162,23 @@ class SessionStore:
 
     # ----- lifecycle -----
     def begin_login(self, oauth_state: str, now: Optional[float] = None) -> Session:
-        """Create the pre-auth row that carries OAuth state across the redirect."""
+        """Create the pre-auth row that carries OAuth state across the redirect.
+
+        Sweeps expired rows on the way in, and that placement is the point.
+        Starting a login is the only unauthenticated way to add a row to this
+        file, so the request that grows the table is the request that prunes
+        it. Nothing schedules this and nothing needs to: with the Cloudflare
+        Access policy removed (A-14) `/login` faces the open internet, and
+        anybody hammering it to pile up abandoned pre-auth rows is also
+        clearing the ones they made ten minutes ago.
+
+        `load()` already drops an expired row it is handed, but only that one,
+        and only when someone presents its id -- which is exactly what an
+        abandoned row never gets. Lazy deletion alone leaves the file growing
+        forever.
+        """
         current = int(now if now is not None else time.time())
+        self.purge_expired(current)
         session = Session(
             sid=secrets.token_urlsafe(SESSION_ID_BYTES),
             discord_id=None,
@@ -230,6 +278,32 @@ class SessionStore:
             return
         with self._connect() as conn:
             conn.execute("DELETE FROM sessions WHERE sid = ?", (sid,))
+
+    def destroy_all_for(self, discord_id: Optional[str]) -> int:
+        """Every session belonging to one Discord user. Returns how many.
+
+        The answer to "my laptop was stolen" and to "I think someone has my
+        cookie". Signing out normally ends the session in front of you, which
+        is precisely the one an attacker is not using -- theirs stays good
+        until `max_age`, and nothing else in this codebase would ever cut it
+        off.
+
+        Scoped per USER and never per guild, even though a guild is what an
+        admin would think to secure. A session is one person's, and it spans
+        every server they administer; "revoke everyone's access to this
+        server" would either destroy sessions belonging to people who did
+        nothing, or destroy nothing at all. Neither is what the words promise.
+
+        Pre-auth rows are untouched: they carry no identity to match on, hold
+        no authority, and expire in ten minutes.
+        """
+        if not discord_id:
+            return 0
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "DELETE FROM sessions WHERE discord_id = ?", (str(discord_id),)
+            )
+            return cursor.rowcount
 
     def purge_expired(self, now: Optional[float] = None) -> int:
         current = int(now if now is not None else time.time())

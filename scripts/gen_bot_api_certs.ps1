@@ -1,7 +1,9 @@
 # Issues the certificates the bot API and the dashboard authenticate each other
 # with (issue #65). A direct port of gen_bot_api_certs.sh — read that one for
-# why a private CA exists at all, and for the rotation procedure. Keep the two
-# in step if you change either.
+# why a private CA exists at all, and for BOTH rotation procedures: the
+# certificates this script issues, and BOT_API_TOKEN_SIGNING_KEY, which it does
+# not issue but which is the other half of the same trust chain. Keep the two
+# scripts in step if you change either.
 #
 # Needs openssl on PATH. Git for Windows ships one; if `openssl` is not found,
 # add C:\Program Files\Git\usr\bin to PATH for this session.

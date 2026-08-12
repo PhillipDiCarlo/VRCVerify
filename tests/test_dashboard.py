@@ -20,7 +20,10 @@ must say exactly what the bot would:
 """
 
 import json
+import logging
+import os
 import sqlite3
+import stat
 import time
 from types import SimpleNamespace
 
@@ -32,6 +35,7 @@ from dashboard import oauth, settings_view  # noqa: E402
 from dashboard.app import CSP, SESSION_COOKIE, create_app  # noqa: E402
 from dashboard.botapi import BotAPIError  # noqa: E402
 from dashboard.config import DashboardConfig, DashboardConfigError  # noqa: E402
+from dashboard import sessions as sessions_module  # noqa: E402
 from dashboard.sessions import SessionStore  # noqa: E402
 
 ACTOR = "424242424242"
@@ -468,6 +472,138 @@ class TestSessions:
         assert store.purge_expired(now=time.time() + 601) == 1
         assert store.load(live.sid) is not None
         assert store.load(stale.sid) is None
+
+    def test_starting_a_login_sweeps_abandoned_ones(self, store):
+        """Nothing schedules a purge, so the growth path has to be the one
+        that prunes. Abandoned pre-auth rows are never presented again, so
+        `load()`'s lazy deletion never sees them and the file grows forever.
+
+        This matters specifically once the Cloudflare Access policy comes off
+        (A-14) and /login faces the open internet.
+        """
+        abandoned = [store.begin_login(f"s{n}").sid for n in range(3)]
+        signed_in = store.complete_login(store.begin_login("live").sid, ACTOR, GUILDS)
+
+        store.begin_login("much-later", now=time.time() + 601)
+
+        for sid in abandoned:
+            assert store.load(sid) is None
+        # The sweep is by expiry, not by age or by kind.
+        assert store.load(signed_in.sid) is not None
+
+    def test_the_sweep_uses_the_time_it_was_given(self, store):
+        """Otherwise the test above would pass on wall-clock luck alone."""
+        abandoned = store.begin_login("s").sid
+        store.begin_login("immediately-after")
+        assert store.load(abandoned) is not None
+
+
+class TestRevokingEverySessionAUserHas:
+    """A-20: signing out normally leaves the stolen session alone.
+
+    It ends the one in front of you, which is the one an attacker is not
+    using. Theirs stays valid until max_age, and nothing else in this codebase
+    would ever cut it off.
+    """
+
+    def test_it_ends_the_other_sessions_too(self, store):
+        first = store.complete_login(store.begin_login("a").sid, ACTOR, GUILDS)
+        second = store.complete_login(store.begin_login("b").sid, ACTOR, GUILDS)
+        third = store.complete_login(store.begin_login("c").sid, ACTOR, GUILDS)
+
+        assert store.destroy_all_for(ACTOR) == 3
+        for session in (first, second, third):
+            assert store.load(session.sid) is None
+
+    def test_it_ends_nobody_else_s(self, store):
+        mine = store.complete_login(store.begin_login("a").sid, ACTOR, GUILDS)
+        theirs = store.complete_login(store.begin_login("b").sid, "77777777", GUILDS)
+
+        assert store.destroy_all_for(ACTOR) == 1
+        assert store.load(mine.sid) is None
+        assert store.load(theirs.sid) is not None
+
+    def test_a_login_in_progress_is_left_alone(self, store):
+        """Pre-auth rows carry no identity to match on and no authority.
+
+        Matching them would mean matching on NULL, which in SQL is not equality
+        -- so this pins the behaviour rather than the accident.
+        """
+        pending = store.begin_login("mid-flight")
+        store.complete_login(store.begin_login("b").sid, ACTOR, GUILDS)
+
+        assert store.destroy_all_for(ACTOR) == 1
+        assert store.load(pending.sid) is not None
+
+    def test_an_empty_id_revokes_nothing(self, store):
+        """The hazard is a NULL match, not a falsy one.
+
+        Written as `WHERE discord_id IS ?` this would be SQL's `IS NULL` and
+        would delete every login in flight across the whole site -- signing
+        one person out would break everybody's. The early return in
+        `destroy_all_for` is belt over braces: `= ?` already matches neither
+        NULL nor a real id. What is pinned here is the outcome, which is what
+        survives someone rewriting the query.
+        """
+        session = store.complete_login(store.begin_login("a").sid, ACTOR, GUILDS)
+        pending = store.begin_login("mid-flight")
+
+        assert store.destroy_all_for(None) == 0
+        assert store.destroy_all_for("") == 0
+        assert store.load(session.sid) is not None
+        assert store.load(pending.sid) is not None
+
+
+class TestTheSessionFileIsOwnerOnly:
+    """A-21: every live session id sits in this file, in cleartext.
+
+    They are bearer credentials -- anything that can read the file can act as
+    any signed-in admin without a password, a cookie, or Discord.
+    """
+
+    def test_owner_only_is_asked_for_on_every_platform(self, tmp_path, monkeypatch):
+        """The portable half, and the one that actually runs.
+
+        The real mode check below is POSIX-only, and this project runs its
+        suite on Windows with no CI executing pytest at all -- so a test
+        skipped on Windows is a test that runs nowhere. This one pins the
+        request itself, which is platform-independent, and would catch the
+        mode being widened or the call being dropped.
+        """
+        asked = []
+        real_chmod = sessions_module.os.chmod
+        monkeypatch.setattr(
+            sessions_module.os,
+            "chmod",
+            lambda path, mode: (asked.append(mode), real_chmod(path, mode))[0],
+        )
+        SessionStore(str(tmp_path / "sessions.sqlite"), 3600)
+        assert asked == [0o600]
+
+    @pytest.mark.skipif(
+        os.name == "nt", reason="POSIX mode bits are not meaningful on Windows"
+    )
+    def test_the_database_is_not_readable_by_anyone_else(self, tmp_path):
+        """The real thing, on the platform this actually deploys to."""
+        path = tmp_path / "sessions.sqlite"
+        SessionStore(str(path), 3600)
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+    def test_a_refused_chmod_warns_instead_of_failing(self, tmp_path, monkeypatch, caplog):
+        """Taking the dashboard down over a hardening measure would be worse.
+
+        The warning is the whole mitigation in that case, so it is pinned.
+        """
+        def refuse(*_args, **_kwargs):
+            raise PermissionError("nope")
+
+        monkeypatch.setattr(sessions_module.os, "chmod", refuse)
+        with caplog.at_level(logging.WARNING):
+            store = SessionStore(str(tmp_path / "sessions.sqlite"), 3600)
+
+        # Still usable -- the store came up.
+        assert store.load(store.begin_login("s").sid) is not None
+        assert "Could not restrict permissions" in caplog.text
 
 
 class TestTokenIsNeverStored:
@@ -1649,6 +1785,47 @@ class TestHardening:
         assert response.status_code == 302
         assert store.load(session.sid) is None
 
+    def test_signing_out_everywhere_requires_the_csrf_token(self, client, store):
+        """Otherwise it is a one-click denial of service on any admin who can
+        be made to load an attacker's page."""
+        session = login_as(client, store)
+        other = store.complete_login(store.begin_login("b").sid, ACTOR, GUILDS)
+        assert (
+            client.post("/logout/everywhere", data={"csrf_token": "wrong"}).status_code
+            == 400
+        )
+        assert store.load(session.sid) is not None
+        assert store.load(other.sid) is not None
+
+    def test_signing_out_everywhere_ends_the_session_it_cannot_see(
+        self, client, store
+    ):
+        """The whole point: /logout leaves this one alive, and this does not."""
+        session = login_as(client, store)
+        elsewhere = store.complete_login(store.begin_login("b").sid, ACTOR, GUILDS)
+
+        response = client.post(
+            "/logout/everywhere", data={"csrf_token": session.csrf_token}
+        )
+        assert response.status_code == 302
+        assert store.load(session.sid) is None
+        assert store.load(elsewhere.sid) is None
+
+    def test_an_ordinary_sign_out_still_leaves_the_others_alone(self, client, store):
+        """Pins the difference, so the two routes cannot quietly converge."""
+        session = login_as(client, store)
+        elsewhere = store.complete_login(store.begin_login("b").sid, ACTOR, GUILDS)
+
+        client.post("/logout", data={"csrf_token": session.csrf_token})
+        assert store.load(elsewhere.sid) is not None
+
+    def test_both_sign_out_controls_are_on_the_page(self, client, store):
+        """A revocation control nobody can find revokes nothing."""
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        assert 'action="/logout"' in page
+        assert 'action="/logout/everywhere"' in page
+
     def test_cf_access_headers_grant_nothing(self, client, store):
         """The Access policy comes off at launch (A-14).
 
@@ -2019,7 +2196,7 @@ class TestSettingsViewModel:
 
 
 class TestWriteSurface:
-    """Step 5 opens exactly one save path. Widening it means editing this."""
+    """One save path per group and nothing else. Widening it means editing this."""
 
     def test_the_post_routes_are_logout_and_one_save_per_group(self, app):
         posts = {
@@ -2029,6 +2206,7 @@ class TestWriteSurface:
         }
         assert posts == {
             "/logout",
+            "/logout/everywhere",
             "/guild/<int:guild_id>/verification",
             "/guild/<int:guild_id>/member",
             "/guild/<int:guild_id>/panel",
