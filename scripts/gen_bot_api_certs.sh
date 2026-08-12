@@ -48,6 +48,51 @@
 #   doesn't say faster, and BOT_API_CLIENT_CN already pins which certificate is
 #   acceptable even if a second one exists.
 #
+# ROTATING BOT_API_TOKEN_SIGNING_KEY (audit item A-6)
+# ---------------------------------------------------
+#   This script does not generate that key, but it is the second half of the
+#   same trust chain and rotating it is documented here so the two procedures
+#   sit together rather than one being remembered and the other not.
+#
+#   WHAT IT IS. A shared secret, identical on both hosts, that signs the
+#   per-request token naming the acting Discord user, the target guild and the
+#   exact method-and-path. mTLS proves which MACHINE is calling; this proves
+#   WHICH REQUEST it is making on whose behalf. A leak of it is serious in a
+#   way a leaked cert is not: anyone holding it can mint a token naming any
+#   actor, including a guild's owner, and the audit trail will record that
+#   name (see A-22).
+#
+#   GENERATE:  python -c "import secrets; print(secrets.token_urlsafe(48))"
+#   The bot refuses to start on anything under 32 bytes (MIN_SIGNING_KEY_BYTES
+#   in src/api_tokens.py), which is a floor and not a target.
+#
+#   ROTATE. There is deliberately no second-key overlap: the bot accepts one
+#   key, so the two ends disagree for as long as it takes to restart both.
+#
+#     1. Generate the new key.
+#     2. Write it to BOTH .env files -- homelab and VPS -- before restarting
+#        either. Keep the files CRLF-free; a trailing \r becomes part of the
+#        secret on one side and not the other, and the failure looks exactly
+#        like a wrong key.
+#     3. Restart the dashboard, then the bot. Order barely matters because the
+#        gap is the outage either way, but restarting the public side first
+#        means the broken window is one nobody is mid-request in.
+#     4. Load a settings page. A mismatch is a 401 from the bot and an error
+#        page on the site -- it fails closed and loudly, never open.
+#
+#   No token outlives the swap: they are valid for 30 seconds (DEFAULT_TOKEN_TTL)
+#   with 5 seconds of clock skew, so there is nothing minted under the old key
+#   still circulating half a minute later. That is the whole reason this needs
+#   no grace period.
+#
+#   WHAT KEEPS WORKING THROUGHOUT: verification. The bot API is only the
+#   dashboard's door -- members verifying through Discord never touch it, so a
+#   botched rotation costs the website and not the product.
+#
+#   NEVER put this key on a command line (A-19). Edit the .env file and let the
+#   process read it; a shell that echoes a failing request can put the secret
+#   into a terminal, a log, or a transcript.
+#
 set -euo pipefail
 
 # Under Git Bash / MSYS on Windows, an argument starting with "/" is rewritten

@@ -418,6 +418,19 @@ the page says so rather than implying the list is everything that ever
 happened. An unreadable trail renders as "couldn't load", never as "no changes
 have been made" — those are different facts and only one of them is reassuring.
 
+**Sessions can be revoked, not just expired.** Signing out ends the session in
+front of you — which is the one an attacker is *not* using. "Sign out
+everywhere" ends every session signed in as you, on every device, and it sits
+in the header bar on every page rather than on an account screen, because the
+moment you want it is the moment you should not have to go looking for it. It
+is scoped per user and never per guild: a session spans every server someone
+administers, so "revoke access to this server" would either cut off people who
+did nothing or cut off nothing at all.
+
+The session file is created owner-only, and the table prunes itself whenever a
+login starts — the only unauthenticated way to add a row to it is therefore
+also the thing that clears the abandoned ones, with no scheduler involved.
+
 Two rules the settings page exists to honour:
 
 - **It mirrors the bot field for field, including the inconsistencies.** Some

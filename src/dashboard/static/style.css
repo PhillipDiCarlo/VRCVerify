@@ -53,6 +53,11 @@ body {
 
 .brand { font-weight: 650; color: var(--ink); text-decoration: none; }
 
+/* Two sign-out forms side by side. They wrap rather than shrink on a narrow
+ * screen: "Sign out everywhere" truncated to "Sign out" would be the one
+ * misreading in this bar that actually costs something. */
+.account { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+
 main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 .panel {
