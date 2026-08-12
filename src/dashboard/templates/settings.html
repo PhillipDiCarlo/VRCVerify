@@ -12,6 +12,11 @@
 {% block content %}
 <p class="crumb"><a href="{{ url_for('index') }}">&larr; All servers</a></p>
 
+{# Each group below is its own card rather than a heading inside one long
+   panel. Settings within a group are separated by a hairline, so when the
+   groups were only separated by whitespace the two boundaries carried the
+   same visual weight and "which section am I in" had to be read rather than
+   seen. #}
 <section class="panel">
   <header class="guild-head">
     <span class="icon" aria-hidden="true">
@@ -105,10 +110,11 @@
       isn't in effect regardless of what it shows. Contact the bot operator.
     </p>
   {% endif %}
+</section>
 
-  {% for group in groups %}
-    {% set editable = group.fields | selectattr('editable') | list %}
-    <section class="group">
+{% for group in groups %}
+  {% set editable = group.fields | selectattr('editable') | list %}
+  <section class="panel group">
       <h2>{{ group.title }}</h2>
       <p class="muted blurb">{{ group.blurb }}</p>
 
@@ -281,10 +287,10 @@
           </span>
         </form>
       {% endif %}
-    </section>
-  {% endfor %}
+  </section>
+{% endfor %}
 
-  <section class="group">
+<section class="panel group">
     <h2>Recent changes</h2>
     <p class="muted blurb">
       Settings changed from this website. Changes made with slash commands in
@@ -308,6 +314,5 @@
         {% endfor %}
       </ul>
     {% endif %}
-  </section>
 </section>
 {% endblock %}
