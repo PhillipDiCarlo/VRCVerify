@@ -669,51 +669,82 @@ class TestAutoVerifyOnJoinIsFree:
 
 
 # ---------------------------------------------------------------
-# Settings view
+# The plan gate, as a table
 # ---------------------------------------------------------------
-class TestSettingsViewLocking:
-    def build(self, premium, grandfathered, page):
-        return bot.PagedSettingsView(
-            True,
-            "en-US",
-            True,
-            auto_verify_available=True,
-            page_index=page,
-            premium=bot.PremiumFlags(premium=premium, grandfathered=grandfathered),
-        )
+class TestEveryFieldDeclaresItsGate:
+    """SETTINGS_FIELDS is the only place the gating rules are written down.
 
-    def test_free_server_locks_the_nickname_page(self, enforced):
-        view = self.build(False, False, 0)
-        assert view._page_locked() is True
-        select = next(i for i in view.children if isinstance(i, discord.ui.Select))
-        assert select.disabled is True
-        assert any(getattr(i, "sku_id", None) == SKU_ID for i in view.children)
+    It used to be two places: the paged slash-command editor carried its own
+    copy, and the pair had to be kept in step by hand. The editor went when
+    configuring moved to the dashboard, so this table now feeds the API
+    payload, the write path, and the read-only summary the retired commands
+    show -- which makes an unnoticed edit to it a change to all three at once.
 
-    def test_free_pages_are_never_locked(self, enforced):
-        # Page 1 is auto-verify and page 2 is language; both are free for
-        # everyone, so neither may ever render locked.
-        for page in (1, 2):
-            view = self.build(False, False, page)
-            assert view._page_locked() is False, page
-            select = next(i for i in view.children if isinstance(i, discord.ui.Select))
-            assert select.disabled is False, page
-            assert not any(getattr(i, "sku_id", None) for i in view.children), page
+    Pinned as a whole table rather than per field: a new setting arriving with
+    the wrong gate is the failure worth catching, and that only shows up if the
+    test knows what the complete set is meant to be.
+    """
 
-    def test_auto_verify_page_reports_the_saved_value(self, enforced):
-        content = self.build(False, False, 1).render_content()
-        assert "Current: Yes" in content
+    EXPECTED = {
+        # name: (feature, write_locked)
+        "role_id": (None, False),
+        "unverified_role_id": (bot.FEATURE_UNVERIFIED_ROLE_REMOVAL, False),
+        "auto_verify_new_members": (None, False),
+        "auto_nickname_change": (bot.FEATURE_NICKNAME_SYNC, True),
+        "custom_verification_requested_message": (bot.FEATURE_CUSTOM_DM, False),
+        "instructions_locale": (None, False),
+        "panel_embed_color": (bot.FEATURE_BRANDED_PANEL, True),
+        "panel_show_icon": (bot.FEATURE_BRANDED_PANEL, True),
+        "verification_log_channel_id": (bot.FEATURE_ACTIVITY_LOG, True),
+    }
 
-    def test_grandfathered_keeps_the_nickname_page_open(self, enforced):
-        assert self.build(False, True, 0)._page_locked() is False
+    def test_the_table_is_exactly_this(self):
+        actual = {
+            field.name: (field.feature, field.write_locked)
+            for field in bot.SETTINGS_FIELDS
+        }
+        assert actual == self.EXPECTED
 
-    def test_premium_server_locks_nothing(self, enforced):
-        for page in (0, 1, 2):
-            assert self.build(True, False, page)._page_locked() is False
+    def test_auto_verify_is_ungated_forever(self):
+        """The one that a member rather than an admin would notice, and the
+        reason it is free is a reputational one -- see TestAutoVerifyOnJoinIsFree."""
+        field = bot.SETTINGS_FIELDS_BY_NAME["auto_verify_new_members"]
+        assert field.feature is None
+        for premium in (True, False):
+            for grandfathered in (True, False):
+                state = field.state(
+                    bot.PremiumFlags(premium=premium, grandfathered=grandfathered)
+                )
+                assert state["locked"] is False
+                assert state["active"] is True
 
-    def test_paging_carries_the_flags(self, enforced):
-        view = self.build(False, False, 1)
-        assert view._rebuilt(0).premium.premium is False
-        assert view._rebuilt(0)._page_locked() is True
+    def test_a_free_server_is_refused_only_the_write_locked_ones(self, enforced):
+        flags = bot.PremiumFlags(premium=False, grandfathered=False)
+        refused = {
+            name
+            for name, field in bot.SETTINGS_FIELDS_BY_NAME.items()
+            if field.state(flags)["locked"]
+        }
+        assert refused == {
+            "auto_nickname_change",
+            "panel_embed_color",
+            "panel_show_icon",
+            "verification_log_channel_id",
+        }
+
+    def test_a_grandfathered_server_keeps_exactly_three(self, enforced):
+        """Not "several" -- these three, and nothing that shipped later."""
+        flags = bot.PremiumFlags(premium=False, grandfathered=True)
+        kept = {
+            name
+            for name, field in bot.SETTINGS_FIELDS_BY_NAME.items()
+            if field.feature is not None and field.state(flags)["active"]
+        }
+        assert kept == {
+            "unverified_role_id",
+            "auto_nickname_change",
+            "custom_verification_requested_message",
+        }
 
 
 # ---------------------------------------------------------------

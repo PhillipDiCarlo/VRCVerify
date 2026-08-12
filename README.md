@@ -24,10 +24,12 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
 ## Recent updates
 
 - Localization support with per-server locale setting (supports multiple language codes; see Localization section).
-- Admin settings UI (/vrcverify_settings) with paged controls for:
-  - Auto nickname change to VRChat display name on successful verification.
-  - Instructions language (per-server locale) used for embeds and button flows.
-  - Auto-verify new members when they join (opt-in).
+- Configuring moved to the web dashboard. The admin commands that used to edit
+  settings now show them read-only and link there; `/vrcverify_setup` and
+  `/vrcverify_status` are unchanged, because one is how a server is configured
+  before anyone has heard of the website and the other is what you reach for
+  when something is broken — which is exactly when the website may be the
+  broken thing.
   - Optional removal of an "unverified" role once a user becomes verified.
   - Instructions panel colour and server-icon thumbnail (premium).
 - Instructions posting command (/vrcverify_instructions) that publishes a localized, interactive instruction embed with buttons.
@@ -80,13 +82,12 @@ See the sections below for details and configuration.
 - `/vrcverify` – User entry point. Guides through entering a VRChat user ID/profile URL and verifying by adding a one-time code to the VRChat bio. Re-check flow is supported without a new code when applicable.
 - `/vrcverify_setup` – Admin-only. Sets the role assigned to verified users and an optional role to remove once verification succeeds.
 - `/vrcverify_instructions` – Admin-only. Posts a localized instruction embed with interactive buttons to begin verification and (optionally) update nickname.
-- `/vrcverify_settings` – Admin-only. Opens a paged settings UI with:
-  - Auto nickname change (on successful verification, set Discord nickname to VRChat display name).
-  - Instructions language (server-wide locale).
-  - Auto-verify new members (attempt verification or initiate the flow when a member joins).
-  - Instructions panel appearance — premium. Embed colour and whether to show the server icon as the thumbnail. The instruction text is never customisable.
-- `/vrcverify_setrequestmessage` – Admin-only. Opens a modal to set or clear the custom DM shown after a successful verification role assignment.
-- `/vrcverify_logchannel` – Admin-only, premium. Chooses where verification activity is logged; run with no channel to turn it off.
+- `/vrcverify_settings`, `/vrcverify_setrequestmessage`, `/vrcverify_logchannel`
+  – Admin-only. These **no longer edit anything**. Each shows the server's
+  current settings read-only and links to the dashboard, which is where
+  configuring happens now. They kept their names rather than being deleted: a
+  slash command that vanishes leaves an admin typing something Discord no
+  longer offers and getting nothing back, with no clue where it went.
 - `/vrcverify_support` – Anyone. Sends help/support information.
 - `/vrcverify_subscription` – Admin-only. Shows this server's premium status and, if it isn't subscribed, Discord's purchase button.
 
@@ -221,7 +222,7 @@ two services agree and that each actually passes the arguments.
 
 ### Branded instructions panel
 
-Page 4 of `/vrcverify_settings` lets a premium server set its own embed colour
+The dashboard's Instructions panel group lets a premium server set its own embed colour
 and show its server icon as the panel thumbnail. Colour is entered as a hex
 value (`#5865F2`, or `#58F` shorthand); Discord has no colour-picker component
 of any kind, so a text field is the only way to express an exact brand colour.
@@ -249,7 +250,7 @@ is next refreshed — the URL is baked into the message.
 
 ### Verification activity log
 
-`/vrcverify_logchannel #channel` posts each verification outcome to a channel —
+A log channel set on the dashboard posts each verification outcome to a channel —
 granted, refused, and (most usefully) *granted but the role could not be
 assigned*, which is otherwise a silent failure only the member ever hears about.
 Run it with no channel to turn logging off.
@@ -354,7 +355,7 @@ differences between them are deliberate:
   because `/vrcverify_setup` accepts it too; refusing would block an admin who
   means to set the role first and fix the hierarchy after. The page warns.
 - **The log channel** must not be an announcement channel, because
-  `/vrcverify_logchannel` refuses those outright — other servers can follow
+  the bot refuses those outright — other servers can follow
   one, which would republish an age disclosure about a named member. Those
   channels are left out of the picker entirely: here, omitting is matching the
   bot rather than being stricter than it.
@@ -636,7 +637,7 @@ Each component connects to RabbitMQ to exchange verification requests and result
 
   ## Localization
 
-  The bot supports multiple locales for user-facing content. A server admin can choose the preferred language via `/vrcverify_settings` (Instructions language). If a user’s Discord locale is supported, it will be used; otherwise, English (en-US) is the fallback.
+  The bot supports multiple locales for user-facing content. A server admin can choose the preferred language on the dashboard (Instructions language). If a user’s Discord locale is supported, it will be used; otherwise, English (en-US) is the fallback.
 
   Add or adjust localized strings in `src/locales.py`. The list of supported language codes is defined in `LANGUAGE_CODES`.
 
@@ -701,8 +702,10 @@ Each component connects to RabbitMQ to exchange verification requests and result
   - `/vrcverify_subscription` – See this server's premium status, and subscribe if it isn't.
   - `/vrcverify_support` – Receive help and support information.
   - `/vrcverify_instructions` – Post instructions in an embed for server members.
-  - `/vrcverify_settings` – Configure auto nickname change, instructions language, auto-verify-on-join, and instructions panel appearance. The auto-nickname and appearance pages are shown locked with a purchase button (rather than hidden) on servers without premium.
-  - `/vrcverify_setrequestmessage` – Configure the optional custom success DM sent after successful verification.
+  - `/vrcverify_settings` – Show this server's settings and link to the
+    dashboard. Read-only; editing lives on the website.
+  - `/vrcverify_setrequestmessage`, `/vrcverify_logchannel` – The same summary.
+    Kept so the old names still answer.
 
 ---
 

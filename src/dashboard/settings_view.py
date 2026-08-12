@@ -10,9 +10,9 @@ TWO KINDS OF "not on your plan", AND THE DIFFERENCE MATTERS
 The bot gates in two different places, and `SettingsField` in bot.py records
 which is which. This module must render both honestly:
 
-* `locked` -- the bot refuses the *save*. PagedSettingsView disables the
-  control and leaves the stored value alone, so a later subscriber gets their
-  original choice back. Shown as "Premium only".
+* `locked` -- the bot refuses the *save*. `write_dashboard_settings` rejects it
+  and leaves the stored value alone, so a later subscriber gets their original
+  choice back. Shown as "Premium only".
 * `active: false` but not locked -- the value saves fine for anyone, and the
   bot simply doesn't act on it. /vrcverify_setup stores an unverified role for
   a free server quite happily. Shown as "saved, not applied".

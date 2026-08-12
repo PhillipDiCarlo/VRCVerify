@@ -654,6 +654,29 @@ def _optional_int_env(name: str) -> int | None:
         return None
 
 
+# Where the web dashboard lives, e.g. https://dashboard.vrcverify.com — the
+# base only, no path. Configuring settings moved there; the slash commands that
+# used to edit them now show what is stored and link here instead.
+#
+# Unset is handled everywhere rather than assumed away. A self-hoster running
+# this bot without a dashboard still gets a usable read-only summary from those
+# commands, just with no link on the end, and the reply says where to configure
+# instead of dangling a button that goes nowhere.
+DASHBOARD_URL = (os.getenv("DASHBOARD_URL") or "").strip().rstrip("/") or None
+
+
+def dashboard_guild_url(guild_id) -> Optional[str]:
+    """Deep link straight to one server's settings page.
+
+    Landing an admin on the picker and making them find the server they were
+    already looking at is the kind of small friction that turns "use the
+    website" into "the website is annoying".
+    """
+    if not DASHBOARD_URL:
+        return None
+    return f"{DASHBOARD_URL}/guild/{guild_id}"
+
+
 # The kill switch. With no SKU configured every gate answers "allowed", so this
 # code can ship and run in production before the SKU is even published, with
 # behaviour identical to the free bot. Turning the tier on is one env var, not
@@ -707,17 +730,19 @@ class SettingsField:
     an accident:
 
     * `auto_nickname_change` and the panel branding are refused at *save* time —
-      PagedSettingsView disables the control and deliberately leaves the stored
-      value untouched, so an admin who subscribes later gets their original
-      choice back.
+      write_dashboard_settings rejects them outright and leaves the stored value
+      untouched, so an admin who subscribes later gets their original choice
+      back rather than whatever a form happened to hold.
     * `unverified_role_id` and the custom DM are saved by anyone. /vrcverify_setup
       stores an unverified role for a free server quite happily; the gate is in
       assign_role, which simply doesn't act on it.
 
-    A dashboard that guessed would end up stricter than the bot on two settings
-    and admins would find the website refusing to show them something they can
-    plainly set with a slash command. So the difference is written down here,
-    once, and both the API and (later) the write path read it from here.
+    This table is now the ONLY place that distinction is written down. It used
+    to be duplicated in the paged slash-command editor, which is exactly why it
+    is worth a docstring: when configuring moved to the website, the editor and
+    its second copy of the rules were deleted, and everything that gates a
+    setting — the API payload, the write path, and the read-only summary the
+    old commands now show — reads it from here.
 
     `write_locked` says whether an unavailable feature blocks the save.
     `active` — feature allowed right now — is what the "not active on your plan"
@@ -1878,373 +1903,135 @@ class VRCVerifyInstructionView(View):
 
 
 # -------------------------------------------------------------------
-# Show Settings View (Paged)
+# Settings summary (read-only -- editing lives on the dashboard)
 # -------------------------------------------------------------------
-# Which premium feature each settings page controls. Pages 1 (auto-verify) and
-# 2 (language) are free, so they are absent.
-SETTINGS_PAGE_FEATURE = {
-    0: FEATURE_NICKNAME_SYNC,
-    3: FEATURE_BRANDED_PANEL,
-}
+# The paged settings editor used to live here: four pages of selects, a colour
+# modal, and its own copy of the premium gating. It was removed when the web
+# dashboard took over configuration. What is left reads the SAME payload the
+# website renders -- read_dashboard_settings -- so the two can report different
+# values only if the bot disagrees with itself.
+#
+# /vrcverify_setup and /vrcverify_status deliberately survived the cut. One is
+# how a server gets configured at all before anyone has heard of the website,
+# and the other is what you reach for when something is broken, which is
+# exactly when the website may be the broken thing.
 
-# The last page index. Derived so adding a page means touching one constant
-# instead of hunting for the Next button's disabled check.
-SETTINGS_LAST_PAGE = 3
+# How each setting is titled in the summary. English, like the editor that
+# preceded it and like the dashboard itself; the member-facing instructions
+# panel is the localised surface and stays that way.
+SETTINGS_SUMMARY_LABELS = (
+    ("role_id", "Verified role"),
+    ("unverified_role_id", "Unverified role"),
+    ("auto_verify_new_members", "Auto-verify on join"),
+    ("auto_nickname_change", "Nickname sync"),
+    ("custom_verification_requested_message", "Custom message"),
+    ("instructions_locale", "Instructions language"),
+    ("panel_embed_color", "Panel colour"),
+    ("panel_show_icon", "Panel icon"),
+    ("verification_log_channel_id", "Activity log"),
+)
+
+ROLE_SUMMARY_FIELDS = frozenset({"role_id", "unverified_role_id"})
+CHANNEL_SUMMARY_FIELDS = frozenset({"verification_log_channel_id"})
 
 
-class PanelColorModal(discord.ui.Modal, title="Instructions panel colour"):
-    """Collect a hex colour for the instructions panel.
+class DashboardLinkView(View):
+    """A single link button. Nothing to time out, so no timeout."""
 
-    A modal because Discord has no colour-picker component — the full component
-    set is buttons, selects, text inputs and layout containers, none of which
-    can express a wheel or a gradient. A Select could only offer a fixed
-    palette, which is no use to a server with an actual brand colour.
+    def __init__(self, url: str):
+        super().__init__(timeout=None)
+        self.add_item(
+            Button(label="Open dashboard", style=discord.ButtonStyle.link, url=url)
+        )
+
+
+def _summary_value(name: str, value, guild: discord.Guild) -> str:
+    """One stored value, as something an admin can read at a glance.
+
+    Ids resolve through the guild rather than printing raw: an admin who has to
+    paste a snowflake somewhere to find out what it is has not been told
+    anything.
     """
+    if value is None or value == "":
+        return "Not set"
+    if name in ROLE_SUMMARY_FIELDS:
+        role = guild.get_role(int(value)) if str(value).isdigit() else None
+        return role.mention if role else f"Deleted role ({value})"
+    if name in CHANNEL_SUMMARY_FIELDS:
+        channel = guild.get_channel(int(value)) if str(value).isdigit() else None
+        return channel.mention if channel else f"Deleted channel ({value})"
+    if name == "panel_embed_color":
+        return f"#{int(value):06X}"
+    if isinstance(value, bool):
+        return "On" if value else "Off"
+    if name == "custom_verification_requested_message":
+        text = str(value)
+        # The stored message can be a thousand characters. This is a summary,
+        # and the dashboard is one click away for anyone who wants all of it.
+        return (text[:97] + "...") if len(text) > 100 else text
+    return str(value)
 
-    hex_value = discord.ui.TextInput(
-        label="Hex colour",
-        placeholder="#5865F2",
-        required=True,
-        min_length=3,
-        max_length=9,
+
+async def build_settings_summary(guild: discord.Guild) -> Optional[discord.Embed]:
+    """Everything /vrcverify_settings used to let an admin change, as a read.
+
+    None means the settings could not be read, and the caller must say so
+    rather than rendering the defaults. A page of "Not set" for a database
+    blip would invite an admin to reconfigure a server that was fine.
+    """
+    payload = await read_dashboard_settings(guild.id)
+    if payload is None:
+        return None
+
+    fields = payload.get("fields") or {}
+    premium = payload.get("premium") or {}
+
+    embed = discord.Embed(
+        title="VRChat Verify settings",
+        description=(
+            "These are read-only here. Change them on the dashboard."
+            if dashboard_guild_url(guild.id)
+            else "These are read-only here."
+        ),
+        color=discord.Color.blurple(),
     )
 
-    def __init__(self, view: "PagedSettingsView"):
-        super().__init__()
-        self.settings_view = view
-        if view.embed_color is not None:
-            self.hex_value.default = f"#{view.embed_color:06X}"
+    for name, label in SETTINGS_SUMMARY_LABELS:
+        state = fields.get(name) or {}
+        text = _summary_value(name, state.get("value"), guild)
+        # The same two-kinds-of-gated distinction the website draws, for the
+        # same reason: "locked" means the bot refuses to store it, "not
+        # applied" means it is stored and simply not acted on. Collapsing them
+        # would tell an admin they cannot set something they plainly can.
+        if state.get("locked"):
+            label = f"{label} 🔒"
+        elif state.get("active") is False:
+            label = f"{label} (not applied)"
+        embed.add_field(name=label, value=text, inline=True)
 
-    async def on_submit(self, interaction: discord.Interaction):
-        parsed = parse_hex_color(str(self.hex_value.value))
-        if parsed is None:
-            await interaction.response.send_message(
-                get_message("panel_color_invalid", interaction), ephemeral=True
-            )
-            return
-        self.settings_view.embed_color = parsed
-        # Edits the settings message the modal was launched from, so the new
-        # value is visible immediately instead of only after a page flip.
-        refreshed = self.settings_view._rebuilt(self.settings_view.page)
-        await interaction.response.edit_message(
-            content=refreshed.render_content(), view=refreshed
+    if premium.get("premium"):
+        plan = "Premium is active on this server."
+    elif premium.get("grandfathered"):
+        plan = "Set up before Premium launched, so several extras stay free."
+    else:
+        plan = "Free plan. 18+ verification is free forever."
+    embed.set_footer(text=plan)
+    return embed
+
+
+async def send_settings_summary(interaction: discord.Interaction) -> None:
+    """Shared reply for the commands that used to edit these settings."""
+    await interaction.response.defer(ephemeral=True, thinking=True)
+    embed = await build_settings_summary(interaction.guild)
+    if embed is None:
+        await interaction.followup.send(
+            get_message("settings_unreadable", interaction), ephemeral=True
         )
+        return
 
-
-class PagedSettingsView(View):
-    def __init__(
-        self,
-        auto_nick: bool,
-        instr_locale: str,
-        auto_verify: bool,
-        auto_verify_available: bool = True,
-        page_index: int = 0,
-        premium: Optional["PremiumFlags"] = None,
-        embed_color: Optional[int] = None,
-        show_icon: bool = False,
-    ):
-        super().__init__(timeout=None)
-        # Current values (mutated by selects)
-        self.auto_nick: bool = auto_nick
-        self.instr_locale: str = instr_locale
-        self.auto_verify: bool = auto_verify
-        self.auto_verify_available: bool = auto_verify_available
-        # Panel branding. None colour means "the default blue", which is a
-        # different thing from any particular stored colour.
-        self.embed_color: Optional[int] = embed_color
-        self.show_icon: bool = show_icon
-        self.page: int = page_index  # 0: nick, 1: auto-verify, 2: locale, 3: branding
-        # Resolved once by the command and threaded through every Back/Next
-        # rebuild, so paging around can't re-ask Discord on each click.
-        self.premium: PremiumFlags = premium or PremiumFlags(
-            premium=True, grandfathered=True
-        )
-
-        # Build the initial controls for the current page
-        self._add_controls_for_page()
-
-    # ----- Rendering helpers -----
-    def _page_locked(self) -> bool:
-        """Is the current page's feature unavailable on this server's plan?"""
-        feature = SETTINGS_PAGE_FEATURE.get(self.page)
-        return feature is not None and not self.premium.allows(feature)
-
-    def _rebuilt(self, page_index: int) -> "PagedSettingsView":
-        """A copy of this view on another page, carrying every current value."""
-        return PagedSettingsView(
-            self.auto_nick,
-            self.instr_locale,
-            self.auto_verify,
-            self.auto_verify_available,
-            page_index=page_index,
-            premium=self.premium,
-            embed_color=self.embed_color,
-            show_icon=self.show_icon,
-        )
-
-    def _page_title_and_desc(self) -> tuple[str, str, str]:
-        """Return (title, description, current_str) for the active page."""
-        locked = self._page_locked()
-        if self.page == 0:
-            title = "1.) Enable auto nickname change"
-            desc = "Automatically update users’ Discord nicknames to match their VRChat display names."
-            current = f"Current: {'Yes' if self.auto_nick else 'No'}"
-        elif self.page == 1:
-            title = "2.) Auto verify new members on join"
-            desc = "If enabled, members already verified will automatically receive the role when they join."
-            if not self.auto_verify_available:
-                current = "Current: Yes (unavailable - DB column missing)"
-            else:
-                current = f"Current: {'Yes' if self.auto_verify else 'No'}"
-        elif self.page == 2:
-            title = "3.) Instructions message language"
-            desc = "Choose the language used for the instructions message/buttons."
-            current = f"Current: {self.instr_locale}"
-        else:
-            title = "4.) Instructions panel appearance"
-            desc = (
-                "Put your server's own colour and icon on the instructions panel. "
-                "The instruction text itself never changes."
-            )
-            color_text = (
-                f"#{self.embed_color:06X}" if self.embed_color is not None else "Default blue"
-            )
-            current = (
-                f"Current colour: {color_text}\n"
-                f"Show server icon: {'Yes' if self.show_icon else 'No'}"
-            )
-
-        if locked:
-            current += "\n(Premium feature — not active on this server.)"
-            desc += "\n\n🔒 Core 18+ verification stays free. This particular automation is part of VRCVerify Premium — use the button below to unlock it for this server."
-        return title, desc, current
-
-    def render_content(self) -> str:
-        title, desc, current = self._page_title_and_desc()
-        return (
-            "⚙️ VRChat Verify Settings\n\n"
-            f"{title}\n"
-            f"{desc}\n"
-            f"{current}"
-        )
-
-    def _add_controls_for_page(self):
-        # Add the appropriate select for the current page, then nav + save
-        if self.page == 0:
-            nick_options = [
-                discord.SelectOption(label="Yes", value="yes", default=self.auto_nick),
-                discord.SelectOption(label="No",  value="no",  default=not self.auto_nick),
-            ]
-            nick_locked = self._page_locked()
-            nick_dropdown = Select(
-                placeholder=(
-                    "Premium feature — unlock below"
-                    if nick_locked
-                    else "Choose Yes or No"
-                ),
-                min_values=1,
-                max_values=1,
-                options=nick_options,
-                disabled=nick_locked,
-            )
-
-            async def on_nick_select(interaction: discord.Interaction):
-                if not nick_locked:
-                    self.auto_nick = (interaction.data["values"][0] == "yes")
-                await interaction.response.defer(ephemeral=True)
-
-            nick_dropdown.callback = on_nick_select
-            self.add_item(nick_dropdown)
-
-        elif self.page == 1:
-            av_options = [
-                discord.SelectOption(label="Yes", value="yes", default=self.auto_verify),
-                discord.SelectOption(label="No",  value="no",  default=not self.auto_verify),
-            ]
-            av_dropdown = Select(
-                placeholder=(
-                    "Choose Yes or No"
-                    if self.auto_verify_available
-                    else "DB column missing; cannot change"
-                ),
-                min_values=1,
-                max_values=1,
-                options=av_options,
-                disabled=not self.auto_verify_available,
-            )
-
-            async def on_auto_verify_select(interaction: discord.Interaction):
-                # Only mutate if available
-                if self.auto_verify_available:
-                    self.auto_verify = (interaction.data["values"][0] == "yes")
-                await interaction.response.defer(ephemeral=True)
-
-            av_dropdown.callback = on_auto_verify_select
-            self.add_item(av_dropdown)
-
-        elif self.page == SETTINGS_LAST_PAGE:
-            icon_locked = self._page_locked()
-            icon_options = [
-                discord.SelectOption(label="Yes", value="yes", default=self.show_icon),
-                discord.SelectOption(label="No", value="no", default=not self.show_icon),
-            ]
-            icon_dropdown = Select(
-                placeholder="Show your server icon on the panel?",
-                min_values=1,
-                max_values=1,
-                options=icon_options,
-                disabled=icon_locked,
-            )
-
-            async def on_icon_select(interaction: discord.Interaction):
-                if not icon_locked:
-                    self.show_icon = interaction.data["values"][0] == "yes"
-                await interaction.response.defer(ephemeral=True)
-
-            icon_dropdown.callback = on_icon_select
-            self.add_item(icon_dropdown)
-
-            # A modal rather than a Select: Discord has no colour picker
-            # component of any kind, and a dropdown could only ever offer a
-            # fixed palette rather than a server's actual brand colour.
-            color_btn = Button(
-                label="Set colour",
-                style=discord.ButtonStyle.secondary,
-                disabled=icon_locked,
-            )
-
-            async def on_color_button(interaction: discord.Interaction):
-                await interaction.response.send_modal(PanelColorModal(self))
-
-            color_btn.callback = on_color_button
-            self.add_item(color_btn)
-
-            if self.embed_color is not None and not icon_locked:
-                clear_btn = Button(
-                    label="Use default colour", style=discord.ButtonStyle.secondary
-                )
-
-                async def on_clear_color(interaction: discord.Interaction):
-                    self.embed_color = None
-                    refreshed = self._rebuilt(self.page)
-                    await interaction.response.edit_message(
-                        content=refreshed.render_content(), view=refreshed
-                    )
-
-                clear_btn.callback = on_clear_color
-                self.add_item(clear_btn)
-
-        else:
-            locale_options = [
-                discord.SelectOption(label=code, value=code, default=(code == self.instr_locale))
-                for code in LANGUAGE_CODES
-            ]
-            locale_dropdown = Select(
-                placeholder="Choose a language",
-                min_values=1,
-                max_values=1,
-                options=locale_options
-            )
-
-            async def on_locale_select(interaction: discord.Interaction):
-                self.instr_locale = interaction.data["values"][0]
-                await interaction.response.defer(ephemeral=True)
-
-            locale_dropdown.callback = on_locale_select
-            self.add_item(locale_dropdown)
-
-        # Nav buttons
-        back_btn = Button(label="Back", style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
-        next_btn = Button(
-            label="Next",
-            style=discord.ButtonStyle.secondary,
-            disabled=(self.page == SETTINGS_LAST_PAGE),
-        )
-        save_btn = Button(label="Save", style=discord.ButtonStyle.primary)
-
-        async def on_back(interaction: discord.Interaction):
-            new_view = self._rebuilt(self.page - 1)
-            await interaction.response.edit_message(
-                content=new_view.render_content(), view=new_view
-            )
-
-        async def on_next(interaction: discord.Interaction):
-            new_view = self._rebuilt(self.page + 1)
-            await interaction.response.edit_message(
-                content=new_view.render_content(), view=new_view
-            )
-
-        async def on_save(interaction: discord.Interaction):
-            # A locked page's control is disabled, so its value can't have been
-            # changed here — but it must not be written back either. Leaving the
-            # stored preference untouched means an admin who subscribes later
-            # gets their original choice back instead of whatever this view
-            # happened to be holding.
-            nick_allowed = self.premium.allows(FEATURE_NICKNAME_SYNC)
-            branding_allowed = self.premium.allows(FEATURE_BRANDED_PANEL)
-
-            # persist into your servers table
-            with session_scope() as session:
-                srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
-                if not srv:
-                    srv = Server(server_id=str(interaction.guild.id), owner_id=str(interaction.user.id))
-                    session.add(srv)
-                if nick_allowed:
-                    srv.auto_nickname_change = bool(self.auto_nick)
-                # The panel renders in this language, so a change here needs the
-                # same re-edit a colour change gets. The language is free, which
-                # is why this is not folded into branding_allowed below.
-                locale_changed = (
-                    srv.instructions_locale or "en-US"
-                ) != str(self.instr_locale)
-                srv.instructions_locale = str(self.instr_locale)
-                if self.auto_verify_available:
-                    setattr(srv, "auto_verify_new_members", bool(self.auto_verify))
-
-            if branding_allowed:
-                save_panel_branding(
-                    interaction.guild.id, self.embed_color, self.show_icon
-                )
-
-            notes = ""
-            if not self.auto_verify_available:
-                notes += "\n(Note: 'Auto verify new members' not saved; DB column missing.)"
-            if not nick_allowed:
-                notes += "\n(Note: 'Auto nickname change' is a premium feature and was not changed.)"
-            if not branding_allowed:
-                notes += "\n(Note: 'Instructions panel appearance' is a premium feature and was not changed.)"
-
-            msg = (
-                get_message(
-                    "settings_saved",
-                    interaction,
-                    nickname="Yes" if self.auto_nick else "No",
-                    locale=self.instr_locale,
-                )
-                + notes
-            )
-            await interaction.response.edit_message(content=msg, view=None)
-
-            # Only after replying. Editing the panel is a real HTTP call, and
-            # message edits are rate limited per channel — discord.py sleeps
-            # through a 429, which can push the reply past the three seconds
-            # Discord allows. The admin would then be told the interaction
-            # failed even though the save and the restyle both worked.
-            if branding_allowed or locale_changed:
-                await restyle_instruction_panel(interaction.guild.id)
-
-        back_btn.callback = on_back
-        next_btn.callback = on_next
-        save_btn.callback = on_save
-
-        self.add_item(back_btn)
-        self.add_item(next_btn)
-        self.add_item(save_btn)
-
-        # Discord renders the label and price on a premium button itself, so it
-        # always shows the live price rather than one hardcoded here.
-        if self._page_locked() and PREMIUM_SKU_ID is not None:
-            self.add_item(Button(sku_id=PREMIUM_SKU_ID))
+    url = dashboard_guild_url(interaction.guild.id)
+    extra = {"view": DashboardLinkView(url)} if url else {}
+    await interaction.followup.send(embed=embed, ephemeral=True, **extra)
 
 
 # -------------------------------------------------------------------
@@ -3064,9 +2851,17 @@ async def vrcverify_setup(
         extra_local = get_message("setup_unverified_missing", interaction)
     panel_nudge = "" if has_panel else get_message("setup_panel_nudge", interaction)
     donate_hint = get_message("setup_donate_hint", interaction, kofi_link=KOFI_URL)
+    # This command survived the move to the dashboard because it is how a
+    # server gets configured before anyone has heard of the website. Pointing
+    # at the dashboard here is the introduction -- a link on the one reply
+    # every new admin definitely reads, rather than an announcement nobody
+    # sees. A link button rather than a URL in the text so it is the obvious
+    # next thing on the screen.
+    url = dashboard_guild_url(interaction.guild.id)
+    extra = {"view": DashboardLinkView(url)} if url else {}
     # Donate hint stays last so it reads as a footer under everything else.
     await interaction.response.send_message(
-        base + extra_local + panel_nudge + donate_hint, ephemeral=True
+        base + extra_local + panel_nudge + donate_hint, ephemeral=True, **extra
     )
 
 
@@ -3243,45 +3038,20 @@ async def vrcverify_instructions(interaction: discord.Interaction):
 # Slash Command: /vrcverify_settings
 # -------------------------------------------------------------------
 @bot.tree.command(
-    name="vrcverify_settings", description="Admin: Configure VRChat-Verify settings"
+    name="vrcverify_settings",
+    description="Admin: See this server's settings and open the dashboard.",
 )
+@app_commands.guild_only()
 @app_commands.checks.has_permissions(administrator=True)
 async def vrcverify_settings(interaction: discord.Interaction):
-    """Show a paged settings view with one control per page and a title above it."""
-    has_av_col = server_has_column("auto_verify_new_members")
-    with session_scope() as session:
-        srv = session.query(Server).filter_by(server_id=str(interaction.guild.id)).first()
-        if srv:
-            current_nick = bool(srv.auto_nickname_change)
-            raw_locale = getattr(srv, "instructions_locale", None)
-            current_locale = raw_locale or "en-US"
-            raw_av = getattr(srv, "auto_verify_new_members", None)
-            current_auto_verify = True if raw_av is None else bool(raw_av)
-        else:
-            current_nick = False
-            current_locale = "en-US"
-            current_auto_verify = True
+    """Show what is stored, and where to change it.
 
-    # (None, False) when nothing has been configured, which is the same thing
-    # the branding page shows for "default blue, no icon". An unreadable table
-    # lands here too: the Server read above shares the same session, so a real
-    # outage fails this command long before this line.
-    stored = load_panel_branding(interaction.guild.id)
-    stored_color, stored_icon = stored if isinstance(stored, tuple) else (None, False)
-
-    view = PagedSettingsView(
-        current_nick,
-        current_locale,
-        current_auto_verify,
-        auto_verify_available=has_av_col,
-        page_index=0,
-        premium=resolve_premium_flags_from_interaction(interaction),
-        embed_color=stored_color,
-        show_icon=stored_icon,
-    )
-    await interaction.response.send_message(
-        content=view.render_content(), view=view, ephemeral=True
-    )
+    This used to be the editor. Editing moved to the dashboard, but the command
+    stayed a read rather than becoming a bare link: an admin who only wanted to
+    check which role is set should not have to open a browser and sign in to
+    find out.
+    """
+    await send_settings_summary(interaction)
 
 
 # -------------------------------------------------------------------
@@ -3396,158 +3166,58 @@ async def vrcverify_status(interaction: discord.Interaction):
     if not panel_healthy:
         lines.append(get_message("status_tips", interaction))
 
-    await interaction.followup.send("\n".join(lines), ephemeral=True)
-
-
-class SetRequestMessageModal(discord.ui.Modal, title="Set Custom Verification Message"):
-    custom_message: discord.ui.TextInput = discord.ui.TextInput(
-        label="Custom message (leave blank to clear)",
-        style=discord.TextStyle.paragraph,
-        required=False,
-        max_length=1000,
-        placeholder="Enter message shown after successful verification. Only discord.com / vrchat.com links allowed."
-    )
-
-    def __init__(self, interaction: discord.Interaction):
-        super().__init__()
-        self._orig_interaction = interaction
-
-    async def on_submit(self, interaction: discord.Interaction):
-        raw = (self.custom_message.value or "").strip()
-        clearing = raw == "" or raw.lower() in {"clear", "reset", "none", "default"}
-
-        # Sanitize & validate only if not clearing
-        if not clearing:
-            raw, invalid = sanitize_custom_message(raw)
-            if invalid:
-                pretty_invalid = "\n".join(f"- {u}" for u in invalid[:10])
-                return await interaction.response.send_message(
-                    get_message("custom_msg_invalid_links", interaction, invalid_list=pretty_invalid),
-                    ephemeral=True,
-                )
-
-        guild_id = str(interaction.guild.id)
-        with session_scope() as session:
-            server = session.query(Server).filter_by(server_id=guild_id).first()
-            if not server:
-                server = Server(server_id=guild_id, owner_id=str(interaction.user.id))
-                session.add(server)
-
-            if clearing:
-                server.custom_verification_requested_message = None
-                result = get_message("custom_msg_cleared", interaction)
-            else:
-                server.custom_verification_requested_message = raw
-                result = get_message("custom_msg_saved", interaction)
-
-        await interaction.response.send_message(result, ephemeral=True)
+    # No link when the panel is unhealthy and no link when it is: this command
+    # is the break-glass diagnostic, and it must stay useful on the day the
+    # dashboard is the thing that is down. A button offering the website as the
+    # fix would be exactly wrong then. The summary commands carry the link.
+    url = dashboard_guild_url(interaction.guild.id)
+    extra = {"view": DashboardLinkView(url)} if url and panel_healthy else {}
+    await interaction.followup.send("\n".join(lines), ephemeral=True, **extra)
 
 
 # -------------------------------------------------------------------
-# Slash Command: /vrcverify_setrequestmessage (modal-based)
+# The commands that used to edit settings
 # -------------------------------------------------------------------
-@app_commands.guild_only()
-@app_commands.checks.has_permissions(administrator=True)
+# All three now show the same read-only summary and link to the dashboard.
+# They were kept rather than deleted outright: removing a slash command leaves
+# admins typing a name Discord no longer offers and getting nothing back, with
+# no clue where it went. A command that answers is the migration notice.
 @bot.tree.command(
     name="vrcverify_logchannel",
-    description="Admin: Choose where verification activity is logged (premium).",
+    description="Admin: See this server's settings and open the dashboard.",
 )
-@app_commands.describe(
-    channel="Channel to post verification activity in. Leave empty to turn logging off."
-)
-async def vrcverify_logchannel(
-    interaction: discord.Interaction,
-    channel: Optional[discord.TextChannel] = None,
-):
-    """Set or clear this server's verification log channel."""
-    guild_id = str(interaction.guild.id)
-
-    if channel is None:
-        set_log_channel(guild_id, None)
-        await interaction.response.send_message(
-            get_message("log_channel_cleared", interaction), ephemeral=True
-        )
-        return
-
-    # Announcement channels can be *followed* by other servers, which mirrors
-    # published messages into them via webhook. Every entry here pairs a
-    # Discord user with their 18+ status, so allowing that would let an age
-    # disclosure about a named member be republished into servers they have no
-    # relationship with. There is no good reason to want a verification log in
-    # an announcement channel, and one genuinely bad outcome, so it is refused.
-    if channel.is_news():
-        await interaction.response.send_message(
-            get_message(
-                "log_channel_announcement", interaction, channel=channel.mention
-            ),
-            ephemeral=True,
-        )
-        return
-
-    flags = resolve_premium_flags_from_interaction(interaction)
-    if not flags.allows(FEATURE_ACTIVITY_LOG):
-        # send_message calls view.is_finished(), so an absent view has to be
-        # omitted entirely rather than passed as None.
-        extra = {"view": PremiumUpgradeView()} if PREMIUM_SKU_ID is not None else {}
-        await interaction.response.send_message(
-            get_message("log_channel_premium_only", interaction),
-            ephemeral=True,
-            **extra,
-        )
-        return
-
-    # Post the confirmation into the target channel rather than only replying
-    # ephemerally. It doubles as a permissions check: if the bot cannot post
-    # there, the admin finds out now instead of discovering an empty log later.
-    try:
-        await channel.send(
-            get_message(
-                "log_channel_ready",
-                SimpleNamespace(
-                    locale=get_server_locale_code(guild_id, interaction.guild)
-                ),
-            ),
-            allowed_mentions=discord.AllowedMentions.none(),
-        )
-    except discord.Forbidden:
-        await interaction.response.send_message(
-            get_message(
-                "log_channel_no_permission", interaction, channel=channel.mention
-            ),
-            ephemeral=True,
-        )
-        return
-    except discord.HTTPException:
-        logger.warning(
-            "Could not post the log channel confirmation for guild %s.",
-            guild_id,
-            exc_info=True,
-        )
-        await interaction.response.send_message(
-            get_message(
-                "log_channel_no_permission", interaction, channel=channel.mention
-            ),
-            ephemeral=True,
-        )
-        return
-
-    set_log_channel(guild_id, str(channel.id))
-    await interaction.response.send_message(
-        get_message("log_channel_set", interaction, channel=channel.mention),
-        ephemeral=True,
-    )
-
-
-# -------------------------------------------------------------------
-# Slash Command: /vrcverify_setrequestmessage (modal-based)
-# -------------------------------------------------------------------
+@app_commands.guild_only()
 @app_commands.checks.has_permissions(administrator=True)
+async def vrcverify_logchannel(interaction: discord.Interaction):
+    """Formerly set the activity log channel; now shows it.
+
+    The `channel` parameter is gone rather than kept-and-refused. A command
+    that still accepts a channel and then declines to store it is worse than
+    one that cannot accept it: Discord would offer the picker, the admin would
+    choose, and only the reply would reveal nothing happened.
+
+    Every check this used to perform -- announcement channels refused, the
+    premium gate, the bot can actually post there -- moved with the write to
+    write_dashboard_settings, which the website calls. None of them was lost.
+    """
+    await send_settings_summary(interaction)
+
+
 @bot.tree.command(
     name="vrcverify_setrequestmessage",
-    description="Admin: Open a modal to set/clear the post-Verify success message."
+    description="Admin: See this server's settings and open the dashboard.",
 )
+@app_commands.guild_only()
+@app_commands.checks.has_permissions(administrator=True)
 async def vrcverify_setrequestmessage(interaction: discord.Interaction):
-    await interaction.response.send_modal(SetRequestMessageModal(interaction))
+    """Formerly a modal for the custom post-verification DM; now shows it.
+
+    sanitize_custom_message did not go anywhere -- the dashboard write path
+    calls it, so the zero-width stripping, the @everyone defusing and the
+    https-only discord.com/vrchat.com allowlist still stand between an admin
+    and what the bot will send on their behalf.
+    """
+    await send_settings_summary(interaction)
 
 
 # -------------------------------------------------------------------

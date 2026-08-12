@@ -2653,3 +2653,168 @@ class TestAdminGuildList:
 
         monkeypatch.setattr(bot.bot, "get_guild", boom)
         assert run(bot.dashboard_admin_guilds(ADMIN_ID, [1])) is None
+
+
+# ---------------------------------------------------------------
+# Configuring moved to the dashboard
+# ---------------------------------------------------------------
+class FakeInteractionResponse:
+    def __init__(self):
+        self.deferred = None
+
+    async def defer(self, **kwargs):
+        self.deferred = kwargs
+
+
+class FakeFollowup:
+    def __init__(self):
+        self.sent = []
+
+    async def send(self, content=None, **kwargs):
+        self.sent.append({"content": content, **kwargs})
+
+
+def fake_interaction(guild):
+    return SimpleNamespace(
+        guild=guild,
+        guild_id=guild.id,
+        user=SimpleNamespace(id=OWNER_ID),
+        locale="en-US",
+        response=FakeInteractionResponse(),
+        followup=FakeFollowup(),
+    )
+
+
+class SummaryGuild(FakeGuild):
+    """A guild whose roles and channels resolve, so ids render as names."""
+
+    def get_role(self, role_id):
+        return next((r for r in self.roles if r.id == role_id), None)
+
+    def get_channel(self, channel_id):
+        return next((c for c in self.text_channels if c.id == channel_id), None)
+
+
+class TestTheRetiredCommandsStillAnswer:
+    """/vrcverify_settings, _logchannel and _setrequestmessage no longer edit.
+
+    They were kept rather than deleted because a slash command that vanishes
+    leaves an admin typing a name Discord no longer offers and getting nothing
+    back, with no clue where it went. So each shows what is stored and links
+    to the dashboard.
+    """
+
+    def test_the_summary_reads_the_same_payload_the_website_does(self, free):
+        make_server(row_id=9000, role_id="900000000001")
+        guild = SummaryGuild()
+        embed = run(bot.build_settings_summary(guild))
+
+        names = [f.name for f in embed.fields]
+        # Every field the API reports, in the summary. A setting that exists
+        # but is not shown is one an admin cannot discover from Discord.
+        assert len(names) == len(bot.SETTINGS_FIELDS)
+        assert any(n.startswith("Verified role") for n in names)
+
+    def test_a_locked_field_and_a_badge_only_field_read_differently(self, free):
+        """The distinction the dashboard draws, drawn the same way here.
+
+        Collapsing them would tell an admin they cannot set something they can
+        plainly set -- the exact failure SettingsField exists to prevent.
+        """
+        make_server(row_id=9000)
+        embed = run(bot.build_settings_summary(SummaryGuild()))
+        labels = {f.name for f in embed.fields}
+
+        assert any("Nickname sync" in n and "\N{LOCK}" in n for n in labels)
+        assert any("Unverified role" in n and "not applied" in n for n in labels)
+        # ...and never both markers on one field.
+        assert not any("\N{LOCK}" in n and "not applied" in n for n in labels)
+
+    def test_an_unreadable_settings_read_says_so_rather_than_showing_defaults(
+        self, monkeypatch
+    ):
+        """A page of "Not set" for a database blip would invite an admin to
+        reconfigure a server that was fine."""
+
+        async def unreadable(_guild_id):
+            return None
+
+        monkeypatch.setattr(bot, "read_dashboard_settings", unreadable)
+        interaction = fake_interaction(SummaryGuild())
+        run(bot.send_settings_summary(interaction))
+
+        (reply,) = interaction.followup.sent
+        assert reply["content"] == bot.localizations["en-US"]["settings_unreadable"]
+        assert "embed" not in reply
+
+    def test_the_reply_carries_a_deep_link_to_this_guild(self, monkeypatch, free):
+        make_server(row_id=9000)
+        monkeypatch.setattr(bot, "DASHBOARD_URL", "https://dashboard.vrcverify.com")
+        interaction = fake_interaction(SummaryGuild())
+        run(bot.send_settings_summary(interaction))
+
+        (reply,) = interaction.followup.sent
+        (button,) = reply["view"].children
+        # The guild, not the picker. Making an admin find the server they were
+        # already looking at is how "use the website" becomes "the website is
+        # annoying".
+        assert button.url == f"https://dashboard.vrcverify.com/guild/{GUILD_ID}"
+
+    def test_no_dashboard_configured_still_gives_a_usable_answer(
+        self, monkeypatch, free
+    ):
+        """A self-hoster with no dashboard gets the summary and no dead button."""
+        make_server(row_id=9000)
+        monkeypatch.setattr(bot, "DASHBOARD_URL", None)
+        interaction = fake_interaction(SummaryGuild())
+        run(bot.send_settings_summary(interaction))
+
+        (reply,) = interaction.followup.sent
+        assert reply["embed"] is not None
+        assert "view" not in reply
+
+    def test_the_summary_is_always_ephemeral(self, monkeypatch, free):
+        """It names roles and channels and the server's plan. Not for the channel."""
+        make_server(row_id=9000)
+        monkeypatch.setattr(bot, "DASHBOARD_URL", "https://dashboard.vrcverify.com")
+        interaction = fake_interaction(SummaryGuild())
+        run(bot.send_settings_summary(interaction))
+
+        assert interaction.response.deferred["ephemeral"] is True
+        assert interaction.followup.sent[0]["ephemeral"] is True
+
+
+class TestNothingEditsSettingsFromDiscordAnyMore:
+    def test_the_retired_commands_take_no_arguments(self):
+        """/vrcverify_logchannel used to take a channel.
+
+        Keeping the parameter and refusing it would be worse than removing it:
+        Discord would still offer the picker, an admin would choose a channel,
+        and only the reply would reveal that nothing happened.
+        """
+        for name in (
+            "vrcverify_settings",
+            "vrcverify_logchannel",
+            "vrcverify_setrequestmessage",
+        ):
+            command = bot.bot.tree.get_command(name)
+            assert command is not None, f"{name} disappeared entirely"
+            assert command.parameters == [], f"{name} still accepts input"
+
+    def test_the_paged_editor_is_gone(self):
+        """Its rules lived in a second place; TestEveryFieldDeclaresItsGate in
+        test_premium.py now pins the one that is left."""
+        for gone in (
+            "PagedSettingsView",
+            "PanelColorModal",
+            "SetRequestMessageModal",
+            "SETTINGS_PAGE_FEATURE",
+        ):
+            assert not hasattr(bot, gone), f"{gone} came back"
+
+    def test_the_sanitiser_did_not_leave_with_the_modal(self):
+        """The modal called it; the dashboard write path still does. Losing it
+        would drop the @everyone defusing and the link allowlist."""
+        assert callable(bot.sanitize_custom_message)
+        cleaned, invalid = bot.sanitize_custom_message("hi @everyone")
+        assert "@everyone" not in cleaned
