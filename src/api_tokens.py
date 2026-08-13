@@ -46,6 +46,32 @@ OP_GUILD_OVERVIEW = "GET /api/v1/guilds/{guild_id}/overview"
 OP_UPDATE_SETTINGS = "PATCH /api/v1/guilds/{guild_id}/settings"
 # An action, not a setting: it makes the bot post in a server.
 OP_POST_PANEL = "POST /api/v1/guilds/{guild_id}/panel"
+# The only operation with no human behind it: a Stripe webhook, verified on the
+# dashboard and forwarded here. See SYSTEM_ACTOR_ID.
+OP_PUT_STRIPE_SUBSCRIPTION = "PUT /api/v1/guilds/{guild_id}/stripe-subscription"
+
+# The actor named by a token that no person asked for.
+#
+# Every other token in this scheme names a signed-in Discord user, and the bot
+# then checks that person is an Administrator of the guild. A subscription
+# renewal a year from now has no such person: the admin who checked out may
+# have left the server, and taking the actor from the webhook body would mean
+# authority coming from a request body, which is the one thing this design
+# forbids everywhere else.
+#
+# So system operations name this instead. Zero is not a valid Discord snowflake
+# (they are timestamp-derived and start well above it), so it cannot collide
+# with a real user, and it is not a value the dashboard can be talked into
+# producing for a human -- the operation is what selects it, not the caller.
+#
+# The bot skips its Administrator check for exactly the operations it has
+# decided are system operations, and for no others. See `bot_api._authorize`.
+SYSTEM_ACTOR_ID = 0
+# Which operations are allowed to arrive with SYSTEM_ACTOR_ID. An allowlist
+# rather than a flag on the token, so a token cannot claim to be a system one:
+# both ends derive it from the operation, which is bound to the method and path
+# the router actually matched.
+SYSTEM_OPERATIONS = frozenset({OP_PUT_STRIPE_SUBSCRIPTION})
 
 # Tokens are minted per request and used immediately. Thirty seconds is
 # generous for a call across a tunnel and short enough that a captured token is

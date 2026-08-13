@@ -6,12 +6,21 @@ SQLAlchemy. Everything it is allowed to touch arrives as a callable on
 
 That is not tidiness, it is the "least privilege on the API surface" control
 issue #65 asks for. There is no generic "write these columns" entry point here:
-`BotAPIDeps` carries exactly two mutating capabilities, `write_settings` and
-`post_panel`, and this module does not know which fields exist, which are
-premium, or what values are legal. It validates the envelope and hands the body
-to the bot, which decides. Adding a third means editing that dataclass and the
-test that pins it — a visible, reviewable diff rather than a new query string
-someone slipped past.
+`BotAPIDeps` carries exactly three mutating capabilities — `write_settings`,
+`write_stripe_subscription` and `post_panel` — each named for the one thing it
+changes, and this module does not know which fields exist, which are premium,
+or what values are legal. It validates the envelope and hands the body to the
+bot, which decides. Adding a fourth means editing that dataclass and the test
+that pins it — a visible, reviewable diff rather than a new query string someone
+slipped past.
+
+One of the three is unlike the others: `write_stripe_subscription` is reached by
+a route with **no human actor**, because a subscription renewal is not something
+a person asks for. It is authenticated identically in every other respect — mTLS,
+a signed token bound to this method, this path and this guild, the replay guard,
+the write budget — and it is the *only* operation for which the Administrator
+check is skipped, from an allowlist in `api_tokens.SYSTEM_OPERATIONS` that a
+token cannot talk its way into.
 
 Three things guard every request, in this order:
 
@@ -54,6 +63,9 @@ from api_tokens import (  # noqa: F401  (re-exported)
     DEFAULT_TOKEN_TTL,
     MIN_SIGNING_KEY_BYTES,
     OP_LIST_GUILDS,
+    OP_PUT_STRIPE_SUBSCRIPTION,
+    SYSTEM_ACTOR_ID,
+    SYSTEM_OPERATIONS,
     TOKEN_VERSION,
     TokenClaims,
     TokenError,
@@ -93,7 +105,10 @@ DEFAULT_GLOBAL_RATE_LIMIT = 600
 DEFAULT_WRITE_RATE_LIMIT = 10
 DEFAULT_GLOBAL_WRITE_RATE_LIMIT = 60
 
-# Nothing here accepts a body yet; this only has to be big enough for headers.
+# The ceiling aiohttp enforces before a handler sees anything. Comfortably
+# above the largest honest body — a settings patch of a few fields, or a
+# normalised Stripe subscription of eight short values — and far below anything
+# worth spending memory on.
 MAX_REQUEST_BYTES = 16 * 1024
 
 # The picker asks about the guilds the signed-in user is already a member of.
@@ -149,16 +164,17 @@ GLOBAL_WRITE_RATE_KEY: "web.AppKey" = web.AppKey("global_write_rate_limiter")
 class BotAPIDeps:
     """The complete list of things the API can do to the bot.
 
-    Ten of the twelve only read or check. `tests/test_bot_api.py` pins the
-    exact field set, so a third mutating capability cannot be added by accident
+    Ten of the thirteen only read or check. `tests/test_bot_api.py` pins the
+    exact field set, so a fourth mutating capability cannot be added by accident
     — adding one means editing that test on purpose, which is a reviewable diff
     rather than a quiet widening.
 
-    `write_settings` and `post_panel` are the whole mutating surface. Both are
-    named callables that validate against their own allowlist inside the bot,
-    not generic setters, so the worst a compromised dashboard can do is submit
-    valid values for the handful of fields the bot has decided are writable, and
-    ask for the one message it is allowed to post.
+    `write_settings`, `write_stripe_subscription` and `post_panel` are the whole
+    mutating surface. All three are named callables that validate against their
+    own rules inside the bot, not generic setters, so the worst a compromised
+    dashboard can do is submit valid values for the handful of fields the bot
+    has decided are writable, mirror a subscription into one table, and ask for
+    the one message it is allowed to post.
 
     Readers take and return plain data — ids, dicts, lists — never discord.py
     objects. Shaping a Guild into JSON is the bot's job, not this module's,
@@ -190,6 +206,15 @@ class BotAPIDeps:
     # the re-read settings, returns None because it could not complete, or
     # raises the bot's SettingRejected for anything the caller got wrong.
     write_settings: Callable[[int, int, dict], Awaitable[Optional[dict]]]
+    # Mirror one Stripe subscription event into the bot's own table. Takes
+    # (guild_id, payload) and returns whether it was applied, or None because
+    # it could not complete — which becomes a 503, which makes Stripe retry.
+    #
+    # No actor argument, unlike write_settings: there is no human behind a
+    # renewal, and the bot records a fixed system actor rather than anything
+    # this side could name. The payload is already normalised by the dashboard;
+    # nothing raw from Stripe crosses the wire.
+    write_stripe_subscription: Callable[[int, dict], Awaitable[Optional[dict]]]
     # The one action. Everything else here stores a value; this makes the bot
     # post a message in somebody's server, so it is named separately rather
     # than folded into write_settings.
@@ -228,6 +253,11 @@ class BotAPIConfig:
     global_rate_limit: int = DEFAULT_GLOBAL_RATE_LIMIT
     write_rate_limit: int = DEFAULT_WRITE_RATE_LIMIT
     global_write_rate_limit: int = DEFAULT_GLOBAL_WRITE_RATE_LIMIT
+    # With this off the Stripe route is never registered at all -- a 404, not a
+    # disabled handler that has to be trusted to refuse. Same discipline as
+    # BOT_API_ENABLED itself: the safest form of "switched off" is code that
+    # was never wired up.
+    stripe_enabled: bool = False
 
     @staticmethod
     def enabled() -> bool:
@@ -284,6 +314,7 @@ class BotAPIConfig:
             global_write_rate_limit=_int_env(
                 "BOT_API_GLOBAL_WRITE_RATE_LIMIT", DEFAULT_GLOBAL_WRITE_RATE_LIMIT
             ),
+            stripe_enabled=_truthy(os.getenv("STRIPE_ENABLED")),
         )
 
 
@@ -472,8 +503,28 @@ class _Denied(Exception):
         self.response = response
 
 
-async def _authorize(request: web.Request, *, guild_scoped: bool) -> TokenClaims:
-    """Run all three gates. Returns the claims, or raises _Denied."""
+async def _authorize(
+    request: web.Request, *, guild_scoped: bool, system: bool = False
+) -> TokenClaims:
+    """Run all three gates. Returns the claims, or raises _Denied.
+
+    `system=True` is for the one operation with no person behind it — a Stripe
+    webhook, verified on the dashboard and forwarded here. It changes exactly
+    two things and nothing else:
+
+    * the actor must be SYSTEM_ACTOR_ID, and the operation must be on the
+      `SYSTEM_OPERATIONS` allowlist. Both are checked, in both directions: a
+      system token cannot be used on a human route, and a human token cannot be
+      used on a system one. Since the operation is derived from the route the
+      router matched, neither is something a caller can assert.
+    * the Administrator check is skipped, because there is nobody to check. So
+      is `guild_present` — a renewal must still be recorded for a guild the bot
+      has been kicked from, or a server that re-adds the bot would find itself
+      unsubscribed despite still being billed.
+
+    Everything else is identical: mTLS, the signature, the guild binding, the
+    method binding, the replay guard and the write budget all still apply.
+    """
     config: BotAPIConfig = request.app[CONFIG_KEY]
     deps: BotAPIDeps = request.app[DEPS_KEY]
     operation = _operation_for(request)
@@ -520,6 +571,24 @@ async def _authorize(request: web.Request, *, guild_scoped: bool) -> TokenClaims
             )
         )
 
+    # --- Human or machine, and never the wrong one for this route ---
+    # Checked before the budgets so a mismatched token is refused rather than
+    # charged, and immediately after the signature so both sides of the test
+    # are on verified claims.
+    is_system_operation = operation in SYSTEM_OPERATIONS
+    if is_system_operation != system:
+        # Only reachable if a route was registered with the wrong flag; the
+        # allowlist and the handler would then disagree about what this is.
+        raise _Denied(
+            _deny(request, 403, "operation_not_permitted", actor=claims.actor_id)
+        )
+    if system and claims.actor_id != SYSTEM_ACTOR_ID:
+        raise _Denied(_deny(request, 403, "not_system_actor", actor=claims.actor_id))
+    if not system and claims.actor_id == SYSTEM_ACTOR_ID:
+        # The system actor has no Administrator to check, so it must never be
+        # able to reach a route whose only authority check is that one.
+        raise _Denied(_deny(request, 403, "system_actor_not_permitted", actor=claims.actor_id))
+
     # --- Budgets, charged to the authenticated actor ---
     limiter: RateLimiter = request.app[RATE_KEY]
     global_limiter: RateLimiter = request.app[GLOBAL_RATE_KEY]
@@ -543,7 +612,7 @@ async def _authorize(request: web.Request, *, guild_scoped: bool) -> TokenClaims
     if not deps.is_ready():
         raise _Denied(_deny(request, 503, "not_ready", actor=claims.actor_id))
 
-    if guild_scoped:
+    if guild_scoped and not system:
         if not deps.guild_present(guild_id):
             raise _Denied(_deny(request, 404, "guild_not_found", actor=claims.actor_id))
         # Re-checked here on every request, never cached against the session:
@@ -757,8 +826,95 @@ async def handle_post_panel(request: web.Request) -> web.Response:
     return _json(result)
 
 
+# The normalised subscription payload's complete field set. Listed here so the
+# envelope check is exhaustive rather than "the ones we happened to read": an
+# extra key means the two ends disagree about the contract, and the interesting
+# case is the one where the dashboard has been talked into sending more than it
+# should.
+STRIPE_PAYLOAD_FIELDS = frozenset(
+    {
+        "event_id",
+        "event_created",
+        "customer_id",
+        "subscription_id",
+        "price_id",
+        "status",
+        "current_period_end",
+        "cancel_at_period_end",
+    }
+)
+
+# No field in that payload is a free-text one. Stripe ids are short, statuses
+# are a closed set of words, timestamps are ISO-8601 — so anything long is
+# either a bug or someone probing what this will store.
+MAX_STRIPE_FIELD_LEN = 255
+
+
+async def handle_put_stripe_subscription(request: web.Request) -> web.Response:
+    """Record a card subscription's current state. The one route with no human.
+
+    Registered only when `STRIPE_ENABLED` is set on the bot; with it unset this
+    handler is not wired up at all and the path is a plain 404. That is the same
+    kill-switch discipline as `BOT_API_ENABLED` and for the same reason — the
+    most reliable way to be sure a handler cannot run is for it never to have
+    been added to the router.
+
+    The signature that makes this trustworthy is Stripe's, and it was checked on
+    the dashboard, which is where the public ingress is. What crosses this wire
+    is the dashboard's normalised summary of an event it already verified, and
+    it arrives with the same token, mTLS and replay protection as every other
+    call. This handler validates the envelope only; what any of it *means* — a
+    replay, an out-of-order event, a status that grants premium — is decided
+    inside the bot.
+    """
+    try:
+        claims = await _authorize(request, guild_scoped=True, system=True)
+    except _Denied as denied:
+        return denied.response
+
+    deps: BotAPIDeps = request.app[DEPS_KEY]
+    guild_id = int(request.match_info["guild_id"])
+
+    try:
+        body = await request.json()
+    except (ValueError, UnicodeDecodeError):
+        return _deny(request, 400, "bad_json", actor=claims.actor_id)
+    if not isinstance(body, dict):
+        return _deny(request, 400, "bad_json", actor=claims.actor_id)
+
+    subscription = body.get("subscription")
+    if not isinstance(subscription, dict) or not subscription:
+        return _deny(request, 400, "bad_subscription", actor=claims.actor_id)
+    if set(subscription) - STRIPE_PAYLOAD_FIELDS:
+        return _deny(request, 400, "unknown_field", actor=claims.actor_id)
+    for value in subscription.values():
+        if isinstance(value, str) and len(value) > MAX_STRIPE_FIELD_LEN:
+            return _deny(request, 400, "field_too_long", actor=claims.actor_id)
+    # The one non-string field, checked for its actual type rather than left to
+    # be coerced. `bool("false")` is True, so a normalisation slip on the other
+    # side of the wire would silently turn "renews on the 3rd" into "ends on
+    # the 3rd" -- a wrong statement about somebody's money, arriving through
+    # the one field where a string and a boolean look equally plausible.
+    if "cancel_at_period_end" in subscription and not isinstance(
+        subscription["cancel_at_period_end"], bool
+    ):
+        return _deny(request, 400, "bad_cancel_at_period_end", actor=claims.actor_id)
+
+    try:
+        result = await deps.write_stripe_subscription(guild_id, subscription)
+    except SettingRejected as rejected:
+        return _deny(request, 400, rejected.reason, actor=claims.actor_id)
+
+    if result is None:
+        # 503 rather than 200: the dashboard turns this into a non-2xx for
+        # Stripe, which retries for up to three days. A bot restart or a
+        # tunnel blip must never cost a subscription event.
+        return _deny(request, 503, "unavailable", actor=claims.actor_id)
+    return _json(result)
+
+
 def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
-    """Wire the routes. One PATCH, one POST, everything else a GET."""
+    """Wire the routes. One PATCH, one POST, one conditional PUT, rest GET."""
     app = web.Application(client_max_size=MAX_REQUEST_BYTES)
     app[CONFIG_KEY] = config
     app[DEPS_KEY] = deps
@@ -788,6 +944,11 @@ def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
         "/api/v1/guilds/{guild_id}/settings", handle_update_settings
     )
     app.router.add_post("/api/v1/guilds/{guild_id}/panel", handle_post_panel)
+    if config.stripe_enabled:
+        app.router.add_put(
+            "/api/v1/guilds/{guild_id}/stripe-subscription",
+            handle_put_stripe_subscription,
+        )
 
     app.on_response_prepare.append(_harden_response)
     return app

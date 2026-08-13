@@ -479,6 +479,93 @@ class VerificationDaily(Base):
     count = Column(Integer, nullable=False, default=0)
 
 
+class StripeSubscription(Base):
+    """One Stripe subscription, mirrored (issue #88). A guild may have several.
+
+    Stripe is the source of truth. This is a local copy so the premium gate
+    stays a database read rather than an API call on every verification — and
+    so the bot never needs a Stripe credential to answer "is this server paid
+    up", which is the property that keeps every Stripe secret on the VPS.
+
+    A separate table for the same reason as the five above: create_all() adds
+    missing tables but never columns. The dead `subscription_status` / `email`
+    / `last_renewal_date` columns on `servers` stay dead — they could not hold
+    a customer id, a subscription id or a price id even if they were wanted.
+
+    **Keyed by the Stripe subscription, not by the guild**, which is the one
+    place this departs from the issue's schema. A guild really can hold two
+    live subscriptions at once — the issue's own Double billing section says to
+    expect it and warn about it — and a table that cannot represent that does
+    not merely lose a warning, it loses money in the customer's disfavour: with
+    one row per guild, an ordinary renewal of the older subscription overwrites
+    the newer one, and the older one's eventual cancellation then switches off
+    a server that is still being billed for the other. That was found by
+    probing this code rather than reasoning about it, and no guard on a
+    one-row-per-guild table closes it, because the state it needs to hold has
+    two subscriptions in it.
+
+    So: the gate asks whether *any* row for the guild is paid, and the
+    double-billing warning is a row count rather than a special case.
+
+    Rows survive a lapsed subscription, like VerificationLogChannel and
+    InstructionPanelBranding do. Resubscribing is then a status change rather
+    than a re-onboarding, and the website can say "your subscription ended on
+    the 3rd" instead of pretending the server was never a customer.
+    """
+
+    __tablename__ = "stripe_subscription"
+    stripe_subscription_id = Column(String, primary_key=True)
+    # Indexed rather than unique: every read starts from a guild, and a guild
+    # may legitimately have more than one row.
+    server_id = Column(String, index=True, nullable=False)
+    stripe_customer_id = Column(String, nullable=False)
+    # Which of the three plans. Stored rather than derived, because the price
+    # id is the only thing the webhook reports and the labels live in the
+    # dashboard's config.
+    price_id = Column(String, nullable=False)
+    # Stripe's own status string, verbatim and unmapped. A boolean here would
+    # throw away the difference between "cancelled" and "we could not charge
+    # the card yesterday", which is exactly the difference support questions
+    # are about.
+    status = Column(String, nullable=False)
+    current_period_end = Column(DateTime(timezone=True), nullable=False)
+    cancel_at_period_end = Column(Boolean, nullable=False, default=False)
+    # Ordering guard, per subscription — which is the scope Stripe's ordering
+    # actually concerns. It does not promise events arrive in order, and a
+    # delayed `subscription.updated` overwriting a newer `subscription.deleted`
+    # would silently restore premium to a server that cancelled.
+    last_event_created = Column(DateTime(timezone=True), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class StripeEvent(Base):
+    """Every webhook event id this bot has already acted on.
+
+    Insert first and let the primary key settle it: an IntegrityError means
+    the event is a replay, which is the same pattern capture_grandfather_line()
+    uses to settle its race. Stripe retries a webhook for up to three days, so
+    duplicates are expected traffic rather than an anomaly.
+
+    Pruned by the same function that inserts, deliberately rather than by a
+    scheduled job — the A-24 pattern, where the only thing that can add a row
+    is also the thing that removes them, so nothing here needs a scheduler to
+    stay correct. Anything older than STRIPE_EVENT_RETENTION_DAYS is far
+    outside Stripe's three-day retry window and can no longer be replayed at
+    us, so keeping it buys nothing and grows forever.
+    """
+
+    __tablename__ = "stripe_event"
+    event_id = Column(String, primary_key=True)
+    # Indexed because the sweep filters on it on every insert.
+    received_at = Column(
+        DateTime(timezone=True),
+        index=True,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+
 # Creates any missing tables. Note this does NOT add columns to tables that
 # already exist — those still need a manual ALTER.
 Base.metadata.create_all(engine)
@@ -673,12 +760,20 @@ async def on_app_command_error(
 
 
 # -------------------------------------------------------------------
-# Premium (Discord App Subscriptions)
+# Premium (Discord App Subscriptions, or a card via Stripe)
 # -------------------------------------------------------------------
-# A guild-scoped subscription SKU: one purchase by a server owner entitles the
-# whole guild. Gating reads Discord entitlements and nothing else — the
-# subscription_status / email / last_renewal_date columns on `servers` are dead
-# Stripe leftovers and are deliberately never consulted.
+# Guild-scoped either way: one purchase entitles the whole server. There are
+# two ways to buy the identical bundle, and premium is granted if *either* is
+# live — a Discord entitlement, or an active row in `stripe_subscription`.
+# Never "one overrides the other"; the gate is an OR.
+#
+# The `subscription_status` / `email` / `last_renewal_date` columns on `servers`
+# remain dead leftovers of a Stripe integration removed years before this one,
+# and issue #88 deliberately did NOT resurrect them: they cannot hold a customer
+# id, a subscription id or a price id, and create_all() cannot add columns to an
+# existing table anyway. Card subscriptions live in `stripe_subscription`. If
+# you are reading this because you found Stripe code and then found those
+# columns, they are still never consulted.
 
 
 def _optional_int_env(name: str) -> int | None:
@@ -753,6 +848,61 @@ PREMIUM_STATUS_TTL = _int_env("PREMIUM_STATUS_TTL", 900)
 # precisely when Discord is already struggling, and discord.py's 429 backoff
 # would then throttle the whole bot, verification DMs included.
 PREMIUM_FAILURE_TTL = _int_env("PREMIUM_FAILURE_TTL", 60)
+
+# The second kill switch, for the second way to pay. Unset, the bot never reads
+# `stripe_subscription`, never registers the API route that writes it, and tells
+# the dashboard `stripe.enabled: false` — so this whole feature ships dormant
+# and switches on separately, exactly like PREMIUM_SKU_ID and BOT_API_ENABLED.
+#
+# Note this is the *bot's* copy of the switch. The dashboard has its own, which
+# gates the Stripe secrets and the checkout buttons. They are not redundant:
+# the bot's answer is the one that travels in the settings payload, so the
+# website can never offer a Buy button for a purchase the bot would refuse to
+# record. Turning the dashboard's on without this one means Stripe retries a
+# 404 for three days and then gives up — see VPS_RUNBOOK.md before flipping
+# either.
+#
+# The bot holds no Stripe credential of any kind, switched on or off. It reads
+# a table the dashboard fills in over mTLS, and that is the entire integration.
+STRIPE_ENABLED = (os.getenv("STRIPE_ENABLED") or "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
+# How long a resolved card subscription is trusted before we re-read the table.
+# Purchases don't wait for this either: the webhook write invalidates the guild
+# in the same process, so the TTL only bounds how stale a *missed* webhook can
+# get. Longer than the Discord one would be safe — this is a local table, not a
+# third party — but matching it keeps one number to reason about.
+STRIPE_STATUS_TTL = _int_env("STRIPE_STATUS_TTL", 900)
+
+# Stripe's statuses that mean "this server has paid for what it is using".
+#
+# `past_due` is deliberately in this set. Stripe is still retrying the card;
+# the subscription is not cancelled, a charge is merely late. Cutting a paying
+# customer off on the first failed retry is the same mistake the entitlement
+# lookup's fail-open exists to avoid. `unpaid` is Stripe having given up, and
+# is not in the set.
+#
+# `canceled` is not here either, but see stripe_active(): a cancelled
+# subscription keeps premium until its paid period actually runs out, which is
+# how the Discord side already behaves. The two payment paths must not disagree
+# about what cancelling means.
+STRIPE_PAID_STATUSES = frozenset({"active", "trialing", "past_due"})
+
+# How long a processed webhook event id is kept before the ledger forgets it.
+#
+# Its only job is to recognise a redelivery, and Stripe stops retrying after
+# three days — so anything older than that can no longer be replayed at us and
+# keeping it buys nothing. Thirty days is an order of magnitude of headroom on
+# a number that is not ours to change.
+#
+# This exists because the alternative is a table that grows one row per webhook
+# forever, which is A-24 exactly: `SessionStore.purge_expired` was written and
+# never called, and the table grew unbounded on the VPS until somebody noticed.
+STRIPE_EVENT_RETENTION_DAYS = _int_env("STRIPE_EVENT_RETENTION_DAYS", 30)
 
 # Premium guilds get a shorter throttle on actions that hit the shared VRChat
 # account. 0 disables the wait entirely.
@@ -1149,6 +1299,201 @@ class PremiumStatusCache:
 
 premium_status_cache = PremiumStatusCache(PREMIUM_STATUS_TTL)
 
+# The card half of the gate gets its own instance of the same class, never a
+# shared one. Two sources of truth sharing a cache means either can corrupt the
+# other's fallback — and their fallbacks point in opposite directions on
+# purpose (see stripe_active), so a collision would silently invert one of them.
+stripe_status_cache = PremiumStatusCache(STRIPE_STATUS_TTL)
+
+
+def stripe_active(guild_id) -> bool:
+    """Does this guild have a live card subscription?
+
+    Reads the mirrored `stripe_subscription` row through a TTL cache, so the
+    common answer costs nothing and a miss costs one indexed primary-key
+    lookup. The webhook write invalidates the guild directly, in this same
+    process, so a purchase takes effect immediately rather than waiting out the
+    TTL — the same reason on_entitlement_create invalidates the Discord cache.
+
+    **The failure rule here is the opposite of the Discord one, deliberately.**
+    guild_has_premium fails *open* to True, because a Discord API outage must
+    not switch off a paying customer. This one falls back to last-known, and to
+    **False** when there has never been one. That is not an inconsistency to be
+    tidied up: a server that has never had a card subscription cannot acquire
+    one during a database blip, so failing open here would hand premium to
+    every server in the bot the moment Postgres hiccups. Servers that *do* pay
+    by card are still covered, by exactly the same last-known layer the Discord
+    path uses. Do not "fix" this to fail open.
+    """
+    if not STRIPE_ENABLED:
+        # Nothing has been sold this way yet. Not merely False — no query at
+        # all, which is what keeps resolve_premium_flags_from_interaction free
+        # of I/O while the feature is dormant.
+        return False
+    if guild_id is None:
+        return False
+
+    key = panel_view_key(guild_id)
+    cached = stripe_status_cache.get_fresh(key)
+    if cached is not None:
+        return cached
+
+    try:
+        now = datetime.now(timezone.utc)
+        with session_scope() as session:
+            # Any paid row wins. A guild can hold more than one subscription
+            # (see the model docstring), and being double-billed must not be
+            # able to switch premium off — the warning about it is the
+            # website's job, and the gate's only job is to keep saying yes.
+            rows = (
+                session.query(
+                    StripeSubscription.status,
+                    StripeSubscription.current_period_end,
+                )
+                .filter_by(server_id=key)
+                .all()
+            )
+            active = any(
+                _stripe_row_is_paid(row.status, row.current_period_end, now)
+                for row in rows
+            )
+        stripe_status_cache.set(key, active)
+        return active
+    except Exception:
+        last_known = stripe_status_cache.get_last_known(key)
+        answer = False if last_known is None else last_known
+        # Provisional, so a guess can never become the fallback it was derived
+        # from — and so a sustained outage doesn't turn every verification into
+        # another failing query.
+        stripe_status_cache.set_provisional(key, answer, PREMIUM_FAILURE_TTL)
+        logger.warning(
+            "Stripe subscription lookup failed for guild %s; falling back to %s "
+            "for %ss.",
+            key,
+            "last known value" if last_known is not None else "no subscription",
+            PREMIUM_FAILURE_TTL,
+            exc_info=True,
+        )
+        return answer
+
+
+# Same sentinel discipline as BRANDING_UNREADABLE: "we could not read this" is
+# a third answer, distinct from "there is no subscription". Collapsing the two
+# would put "not subscribed" next to a Buy button on the website during a
+# database blip, which is how you sell somebody a second subscription.
+STRIPE_UNREADABLE = object()
+
+
+def load_stripe_subscription(guild_id):
+    """One guild's mirrored subscription, for the website to describe.
+
+    Returns a plain dict, None when there has never been a card subscription,
+    or STRIPE_UNREADABLE when the table could not be read.
+
+    Deliberately reads the table directly rather than going through
+    stripe_active's cache: this is a page render, not the verification gate,
+    and it needs the fields behind the answer rather than the boolean. The
+    cache exists to keep the *gate* cheap, and borrowing it here would mean
+    either caching five more values or answering with a stale renewal date.
+
+    No customer id and no email leave this function. The page has nothing to do
+    with either — billing details are managed on Stripe's own domain, in the
+    portal — and shipping an id the website does not need across the wire is
+    how it ends up in a log on the internet-facing box.
+    """
+    if not STRIPE_ENABLED:
+        return None
+    try:
+        now = datetime.now(timezone.utc)
+        with session_scope() as session:
+            rows = (
+                session.query(
+                    StripeSubscription.status,
+                    StripeSubscription.price_id,
+                    StripeSubscription.current_period_end,
+                    StripeSubscription.cancel_at_period_end,
+                )
+                .filter_by(server_id=panel_view_key(guild_id))
+                .all()
+            )
+            if not rows:
+                return None
+
+            normalised = []
+            for row in rows:
+                period_end = row.current_period_end
+                if period_end is not None and period_end.tzinfo is None:
+                    period_end = period_end.replace(tzinfo=timezone.utc)
+                normalised.append(
+                    (row, period_end, _stripe_row_is_paid(row.status, period_end, now))
+                )
+
+            # Which one the page describes: the paid subscription running
+            # longest, or — if none is paid — the one that ended most recently,
+            # so "your subscription ended on the 3rd" names the right date
+            # rather than an older lapsed one.
+            paid = [entry for entry in normalised if entry[2]]
+            row, period_end, _active = max(
+                paid or normalised,
+                key=lambda entry: entry[1] or datetime.min.replace(tzinfo=timezone.utc),
+            )
+            return {
+                "status": row.status,
+                # The price id, not a plan name. Turning it into the words
+                # "6 months" needs the slug table, which is dashboard config
+                # precisely because test and live mode have different ids --
+                # and a second copy of that mapping over here would be a second
+                # thing to get wrong on a page about money.
+                "price_id": row.price_id,
+                "current_period_end": (
+                    None if period_end is None else period_end.isoformat()
+                ),
+                "cancel_at_period_end": bool(row.cancel_at_period_end),
+                "active": bool(paid),
+                # How many subscriptions this guild is currently paying for.
+                # More than one *is* the double-billing case, and the whole
+                # reason it can be detected at all is that the table keys by
+                # subscription rather than by guild. The website warns; nothing
+                # here ever cancels or refunds anything.
+                "active_count": len(paid),
+            }
+    except Exception:
+        logger.warning(
+            "Could not read the Stripe subscription for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        return STRIPE_UNREADABLE
+
+
+def _stripe_row_is_paid(status, current_period_end, now: datetime) -> bool:
+    """Does this mirrored row mean the server has paid for what it is using?
+
+    Two independent conditions, both required:
+
+    * the status is one Stripe considers paid (STRIPE_PAID_STATUSES), **or**
+      the subscription is cancelled but its paid period has not run out yet;
+    * the paid period has not run out.
+
+    That second clause is what makes a `canceled` subscription keep working
+    until the date the customer paid through, matching the Discord side's
+    "a cancellation leaves it live until the paid period actually runs out".
+    """
+    if current_period_end is None:
+        return False
+    # SQLite hands back naive datetimes for a timezone-aware column, so a row
+    # written on Postgres and one written in a test compare differently unless
+    # this is normalised. Storing UTC is a project-wide invariant, so assuming
+    # it here is safe.
+    if current_period_end.tzinfo is None:
+        current_period_end = current_period_end.replace(tzinfo=timezone.utc)
+    if current_period_end <= now:
+        return False
+    # Past this point the period is still running. `canceled` reaches here and
+    # is granted on purpose; `unpaid`, `incomplete` and `incomplete_expired`
+    # are refused because no money ever arrived or Stripe has stopped trying.
+    return status in STRIPE_PAID_STATUSES or status == "canceled"
+
 
 def entitlements_grant_premium(entitlements) -> bool:
     """Does this collection of entitlements include a live one for our SKU?"""
@@ -1368,10 +1713,18 @@ class PremiumFlags:
 
 
 async def resolve_premium_flags(guild_id) -> PremiumFlags:
-    """Resolve every gate for a guild in one pass (no interaction available)."""
+    """Resolve every gate for a guild in one pass (no interaction available).
+
+    Premium is an OR over the two ways to buy it. The two sources are resolved
+    by separate functions with separate caches and deliberately opposite
+    failure rules, and neither is allowed to see the other's answer — see
+    stripe_active for why that matters.
+    """
     if not PREMIUM_ENFORCED:
         return PremiumFlags(premium=True, grandfathered=True)
-    premium = await guild_has_premium(guild_id)
+    # Short-circuit on the Discord answer: a server already entitled through
+    # Discord never needs the table read.
+    premium = await guild_has_premium(guild_id) or stripe_active(guild_id)
     # Only worth a DB hit when the answer could still change the outcome.
     grandfathered = False if premium else is_grandfathered(guild_id)
     return PremiumFlags(premium=premium, grandfathered=grandfathered)
@@ -1380,10 +1733,23 @@ async def resolve_premium_flags(guild_id) -> PremiumFlags:
 def resolve_premium_flags_from_interaction(
     interaction: discord.Interaction,
 ) -> PremiumFlags:
-    """Same, for a command or button where the payload already has the answer."""
+    """Same, for a command or button where the payload already has the answer.
+
+    `premium_from_interaction` is free — Discord ships the entitlements with
+    every interaction — and this function must stay nearly so, because it runs
+    on every slash command. The `or` below is what protects that: an entitled
+    server never reaches stripe_active at all, and an unentitled one pays one
+    cached lookup whose entry is invalidated on purchase rather than expiring
+    hot. With STRIPE_ENABLED unset, stripe_active does not query at all.
+
+    There is a test asserting the short-circuit, because losing it would put a
+    database query behind every interaction and nothing else would notice.
+    """
     if not PREMIUM_ENFORCED:
         return PremiumFlags(premium=True, grandfathered=True)
-    premium = premium_from_interaction(interaction)
+    premium = premium_from_interaction(interaction) or stripe_active(
+        interaction.guild_id
+    )
     grandfathered = False if premium else is_grandfathered(interaction.guild_id)
     return PremiumFlags(premium=premium, grandfathered=grandfathered)
 
@@ -4699,6 +5065,14 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
         values["panel_show_icon"] = bool(show_icon)
         values["verification_log_channel_id"] = load_log_channel_id(guild_id)
 
+        subscription = load_stripe_subscription(guild_id)
+        if subscription is STRIPE_UNREADABLE:
+            # Same refusal as unreadable branding, and for a sharper reason:
+            # the Subscriptions page renders buy buttons from this block, and
+            # "we could not read it" rendered as "not subscribed" is a page
+            # inviting a paying customer to pay again.
+            return None
+
         return {
             "guild_id": str(guild_id),
             "premium": {
@@ -4713,6 +5087,30 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
                 # dashboard offers no upgrade at all, which is correct -- there
                 # is nothing to sell when every gate answers "allowed".
                 "sku_id": str(PREMIUM_SKU_ID) if PREMIUM_SKU_ID is not None else None,
+            },
+            # Why the answer above is what it is, for the half of it Discord
+            # cannot explain. `premium.premium` stays the single answer to "is
+            # this server premium" -- this block never becomes a second thing
+            # the website ORs together itself, or there would be two gates to
+            # keep in step.
+            #
+            # `enabled` is the bot's own kill switch, sent for the same reason
+            # sku_id is: the website must never offer a Buy button for a
+            # purchase this process would refuse to record. With it false the
+            # page shows the Discord path only.
+            "stripe": {
+                "enabled": STRIPE_ENABLED,
+                "active": bool(subscription and subscription["active"]),
+                "status": (subscription or {}).get("status"),
+                "price_id": (subscription or {}).get("price_id"),
+                "current_period_end": (subscription or {}).get("current_period_end"),
+                "cancel_at_period_end": bool(
+                    (subscription or {}).get("cancel_at_period_end")
+                ),
+                # More than one means the server is paying twice. The page
+                # warns and links to the portal; nothing anywhere cancels or
+                # refunds on anyone's behalf.
+                "active_count": (subscription or {}).get("active_count", 0),
             },
             # A column the deployed database is missing is reported as such
             # rather than silently rendered as a working toggle.
@@ -5629,13 +6027,340 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
     return settings
 
 
+# The actor recorded against every Stripe-driven change. A fixed, non-human,
+# obviously-not-a-snowflake string, so the audit trail can never attribute a
+# webhook to a person — and so a reader scanning the table can tell machine
+# writes from admin writes at a glance.
+STRIPE_AUDIT_ACTOR = "system:stripe"
+
+
+def _parse_stripe_timestamp(raw) -> Optional[datetime]:
+    """One ISO-8601 instant from the normalised payload, as aware UTC.
+
+    Returns None for anything unparseable rather than raising, so the caller
+    decides what a missing timestamp means — which differs between the two
+    fields that use this.
+    """
+    if isinstance(raw, datetime):
+        parsed = raw
+    elif isinstance(raw, str) and raw.strip():
+        try:
+            # Python's parser rejects the trailing "Z" Stripe and JSON both use.
+            parsed = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _prune_stripe_events(session, now: datetime) -> None:
+    """Forget event ids too old to be replayed at us.
+
+    Called by the one function that inserts them, on the same transaction —
+    the A-24 pattern. The only way to add a row here is also the thing that
+    removes them, so this cannot become another `purge_expired` that exists and
+    is never called, and nothing needs a scheduler to stay correct.
+
+    Deliberately not allowed to fail the write it rides along with: losing a
+    subscription event because a housekeeping DELETE went wrong would be a far
+    worse trade than a table that stays large for another day.
+    """
+    try:
+        cutoff = now - timedelta(days=STRIPE_EVENT_RETENTION_DAYS)
+        session.query(StripeEvent).filter(StripeEvent.received_at < cutoff).delete(
+            synchronize_session=False
+        )
+    except Exception:
+        logger.warning("Could not prune the Stripe event ledger.", exc_info=True)
+
+
+def _stripe_event_recorded(event_id: str) -> bool:
+    """Has this event id already been written? Used only to read an IntegrityError.
+
+    False on a failed read, which sends the caller down the "retry" path rather
+    than the "already done" one. Being wrong in that direction costs a
+    redelivery; being wrong the other way loses a subscription event.
+    """
+    try:
+        with session_scope() as session:
+            return (
+                session.query(StripeEvent.event_id)
+                .filter_by(event_id=event_id)
+                .first()
+                is not None
+            )
+    except Exception:
+        logger.warning(
+            "Could not check whether Stripe event %s was already recorded.",
+            event_id,
+            exc_info=True,
+        )
+        return False
+
+
+def _stripe_audit_value(row) -> str:
+    """One subscription's meaningful state, as the audit trail records it."""
+    period_end = row.current_period_end
+    if isinstance(period_end, datetime) and period_end.tzinfo is None:
+        period_end = period_end.replace(tzinfo=timezone.utc)
+    return (
+        f"{row.status} {row.stripe_subscription_id} {row.price_id} "
+        f"ends={period_end.isoformat() if period_end else 'unknown'} "
+        f"cancel_at_period_end={bool(row.cancel_at_period_end)}"
+    )
+
+
+async def write_dashboard_stripe_subscription(guild_id, payload: dict):
+    """Mirror one Stripe subscription event into the database.
+
+    The only caller is the bot API's system route, which the dashboard reaches
+    after verifying a webhook's signature. Nothing here talks to Stripe: this
+    process holds no Stripe credential and never will, so everything it knows
+    arrives in `payload`, already normalised on the other side of the wire.
+
+    Three guards, in this order, and all three matter:
+
+    1. **Idempotency.** The event id is inserted first, in the same transaction
+       as the change. Stripe retries for up to three days, so duplicates are
+       expected traffic — and putting the insert in the same transaction means
+       a failure part-way through rolls back the ledger entry too, rather than
+       marking an event processed that never was.
+    2. **Ordering, per subscription.** Stripe does not promise events arrive in
+       order. An event no newer than the one already applied to *that
+       subscription* is recorded and dropped, because a delayed
+       `subscription.updated` overwriting a newer `subscription.deleted` would
+       silently restore premium to a server that cancelled.
+
+       **A constraint on whoever builds the forwarding half (#88 step 3):**
+       Stripe's `event.created` has one-second resolution, so two events for
+       the same subscription in the same second are indistinguishable in age
+       and the second one is dropped here — silently, because we answer 200 and
+       Stripe never retries. A purchase is safe (no row exists yet, so no
+       ordering check runs); it is follow-up events that can be lost. The fix
+       is on that side, and it is what Stripe recommends anyway: on any
+       subscription event, fetch the current subscription object and forward
+       *that*, rather than forwarding the event's own snapshot. Then every
+       delivery carries current truth and ordering stops mattering much.
+    3. **Ownership.** One Stripe subscription belongs to one guild. An event
+       naming a different one is an anomaly that needs a human, not a retry.
+
+    Returns a small dict saying whether the change was applied, or None if the
+    write could not be completed — which the API turns into a 503, which the
+    dashboard turns into a non-2xx, which makes Stripe retry. Losing an event
+    quietly is the one outcome this must never produce.
+
+    **It never touches the `servers` table.** A webhook can arrive for a guild
+    that has no row there, and inserting one would mint a fresh `servers.id`
+    above the captured grandfather line — silently costing that server the
+    features it was promised for free, forever, as a side effect of paying us.
+    There is a test for exactly this.
+    """
+    key = panel_view_key(guild_id)
+    event_id = payload.get("event_id")
+    subscription_id = payload.get("subscription_id")
+    customer_id = payload.get("customer_id")
+    price_id = payload.get("price_id")
+    status = payload.get("status")
+    cancel_at_period_end = payload.get("cancel_at_period_end", False)
+    period_end = _parse_stripe_timestamp(payload.get("current_period_end"))
+    event_created = _parse_stripe_timestamp(payload.get("event_created"))
+
+    for name, value in (
+        ("event_id", event_id),
+        ("subscription_id", subscription_id),
+        ("customer_id", customer_id),
+        ("price_id", price_id),
+        ("status", status),
+    ):
+        if not isinstance(value, str) or not value.strip():
+            raise SettingRejected(name, f"bad_{name}")
+    if period_end is None:
+        raise SettingRejected("current_period_end", "bad_current_period_end")
+    if event_created is None:
+        raise SettingRejected("event_created", "bad_event_created")
+    # Checked here as well as at the envelope, because bool("false") is True
+    # and this is the field that decides whether the page says "renews" or
+    # "ends". Coercing it would make a wrong statement about someone's money
+    # out of a normalisation slip.
+    if not isinstance(cancel_at_period_end, bool):
+        raise SettingRejected("cancel_at_period_end", "bad_cancel_at_period_end")
+
+    now = datetime.now(timezone.utc)
+    grants_premium = _stripe_row_is_paid(status, period_end, now)
+
+    try:
+        with session_scope() as session:
+            # Read-then-insert rather than insert-and-catch, because catching
+            # here would mean a SAVEPOINT, and SAVEPOINT under pysqlite does not
+            # behave the way it does under Postgres. A guard that is only
+            # correct on the production database is a guard nothing can test.
+            #
+            # The genuine race — two concurrent deliveries of the same event —
+            # is still caught, by the primary key, at commit. See the
+            # IntegrityError branch below, which tells that apart from the
+            # other constraint in this table.
+            already_seen = (
+                session.query(StripeEvent.event_id)
+                .filter_by(event_id=event_id)
+                .first()
+            )
+            if already_seen is not None:
+                logger.info(
+                    "Stripe event %s for guild %s already processed; ignoring the "
+                    "retry.",
+                    event_id,
+                    key,
+                )
+                return {"applied": False, "reason": "duplicate_event"}
+            # In the same transaction as the change it authorises: a failure
+            # part-way through must roll back the ledger entry too, or the
+            # event would be marked processed without ever having been applied
+            # and Stripe's retry would be answered "already done".
+            session.add(StripeEvent(event_id=event_id))
+            _prune_stripe_events(session, now)
+
+            # Keyed by subscription, so an event only ever touches the
+            # subscription it is about. This is what removes the whole class of
+            # bug where a renewal of an older subscription overwrote a newer
+            # one and its later cancellation then switched off a server still
+            # being billed for the other.
+            row = (
+                session.query(StripeSubscription)
+                .filter_by(stripe_subscription_id=subscription_id)
+                .first()
+            )
+
+            if row is not None:
+                if row.server_id != key:
+                    # One Stripe subscription cannot belong to two guilds. This
+                    # is an anomaly needing a human, not a transient failure —
+                    # so it is loud, and it is not applied.
+                    logger.error(
+                        "Stripe subscription %s is recorded against guild %s but "
+                        "this event names %s; refusing to move it. This needs "
+                        "looking at in Stripe.",
+                        subscription_id,
+                        row.server_id,
+                        key,
+                    )
+                    return {"applied": False, "reason": "guild_mismatch"}
+                stored_created = row.last_event_created
+                if stored_created is not None and stored_created.tzinfo is None:
+                    stored_created = stored_created.replace(tzinfo=timezone.utc)
+                if stored_created is not None and event_created <= stored_created:
+                    logger.info(
+                        "Stripe event %s for subscription %s is older than the "
+                        "state on file; recorded but not applied.",
+                        event_id,
+                        subscription_id,
+                    )
+                    return {"applied": False, "reason": "out_of_order"}
+
+            # Everything an admin might later need to account for, in one
+            # string. The renewal date and the cancel flag are in here on
+            # purpose: "when did this server cancel" and "when did it last
+            # renew" are the two questions this trail exists to answer, and a
+            # descriptor of only the status would answer neither.
+            before = None if row is None else _stripe_audit_value(row)
+            after = _stripe_audit_value(
+                SimpleNamespace(
+                    status=status,
+                    stripe_subscription_id=subscription_id,
+                    price_id=price_id,
+                    current_period_end=period_end,
+                    cancel_at_period_end=cancel_at_period_end,
+                )
+            )
+
+            if row is None:
+                session.add(
+                    StripeSubscription(
+                        server_id=key,
+                        stripe_customer_id=customer_id,
+                        stripe_subscription_id=subscription_id,
+                        price_id=price_id,
+                        status=status,
+                        current_period_end=period_end,
+                        cancel_at_period_end=cancel_at_period_end,
+                        last_event_created=event_created,
+                        updated_at=now,
+                    )
+                )
+            else:
+                row.stripe_customer_id = customer_id
+                row.stripe_subscription_id = subscription_id
+                row.price_id = price_id
+                row.status = status
+                row.current_period_end = period_end
+                row.cancel_at_period_end = cancel_at_period_end
+                row.last_event_created = event_created
+                row.updated_at = now
+
+            if before != after:
+                _record_dashboard_audit(
+                    session,
+                    guild_id,
+                    STRIPE_AUDIT_ACTOR,
+                    [("stripe_subscription", before, after)],
+                )
+    except SettingRejected:
+        raise
+    except IntegrityError:
+        # A concurrent delivery of this same event won the race to the ledger's
+        # primary key. Theirs is as good as ours — the same reasoning
+        # capture_grandfather_line uses when another writer gets there first.
+        if _stripe_event_recorded(event_id):
+            logger.info(
+                "Stripe event %s for guild %s was recorded concurrently; "
+                "treating this delivery as the duplicate it is.",
+                event_id,
+                key,
+            )
+            return {"applied": False, "reason": "duplicate_event"}
+        # Anything else is unexplained. Let Stripe retry rather than pretending
+        # it landed.
+        logger.error(
+            "Unexpected integrity error recording Stripe event %s for guild %s.",
+            event_id,
+            key,
+            exc_info=True,
+        )
+        return None
+    except Exception:
+        logger.warning(
+            "Could not record the Stripe subscription for guild %s; the webhook "
+            "will be retried.",
+            key,
+            exc_info=True,
+        )
+        return None
+
+    # In-process, so a purchase takes effect on the very next verification
+    # rather than waiting out the TTL. This is the whole reason the write lands
+    # in the bot rather than being made by the dashboard against the database.
+    stripe_status_cache.invalidate(key)
+    logger.info(
+        "stripe WRITE guild=%s subscription=%s status=%s premium=%s event=%s",
+        key,
+        subscription_id,
+        status,
+        grants_premium,
+        event_id,
+    )
+    return {"applied": True, "status": status, "premium": grants_premium}
+
+
 def build_bot_api_deps() -> bot_api.BotAPIDeps:
     """Hand the API its complete set of capabilities.
 
-    One writer, named. `write_settings` is the only way the API can change a
-    row, and it can only change the fields DASHBOARD_WRITABLE_FIELDS names --
-    so widening what the website may touch is an edit to this file, reviewable
-    on its own, rather than a query string nobody noticed.
+    Every writer here is named for exactly what it writes. `write_settings` can
+    only change the fields DASHBOARD_WRITABLE_FIELDS names, and
+    `write_stripe_subscription` can only touch the `stripe_subscription` table
+    -- so widening what the website may touch is an edit to this file,
+    reviewable on its own, rather than a query string nobody noticed.
     """
     return bot_api.BotAPIDeps(
         is_ready=bot.is_ready,
@@ -5649,6 +6374,7 @@ def build_bot_api_deps() -> bot_api.BotAPIDeps:
         read_audit=read_dashboard_audit,
         read_overview=read_dashboard_overview,
         write_settings=write_dashboard_settings,
+        write_stripe_subscription=write_dashboard_stripe_subscription,
         post_panel=post_dashboard_panel,
     )
 
