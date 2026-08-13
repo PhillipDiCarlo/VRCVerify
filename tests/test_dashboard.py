@@ -1101,30 +1101,33 @@ class TestPlanBadgesMirrorTheBot:
 
 
 class TestTheUpgradeOffer:
-    """Buying is Discord's flow, and the page has to say so accurately.
+    """Settings points at Subscriptions; it does not sell anything itself.
 
-    The store URL takes an application and a SKU only, so it cannot name the
-    server being configured. For a guild-scoped SKU that is the difference
-    between subscribing this server and subscribing another one the admin also
-    runs, which is why /vrcverify_subscription leads and the link explains
-    itself rather than being presented as the buy button.
+    This block used to carry the whole pitch and the Discord store link, which
+    was right while Subscriptions was a placeholder and there was one way to
+    buy. There are two now, and the 6- and 12-month plans are card-only -- so a
+    copy of the pitch here could never be more than partly true, and two places
+    to buy with two different option sets is how copy drifts apart.
     """
 
-    def test_a_free_server_is_told_how_to_subscribe(self, config, store):
+    def test_a_free_server_is_pointed_at_the_subscriptions_page(self, config, store):
         test_client, _api = settings_client(config, store)
         page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "Upgrade to VRCVerify Premium" in page
-        assert "/vrcverify_subscription" in page
-        assert (
-            f"https://discord.com/application-directory/"
-            f"{config.discord_client_id}/store/{SKU_ID}" in page
-        )
+        assert f"/guild/{GUILD_IN}/subscription" in page
 
-    def test_the_store_link_admits_it_cannot_pick_the_server(self, config, store):
-        """The whole reason the slash command is the primary path."""
+    def test_settings_no_longer_sells_anything_itself(self, config, store):
+        """The pitch lives in exactly one place now.
+
+        Both halves matter: no purchase instructions here, and no store link
+        either -- otherwise the page that cannot mention the longer plans is
+        still the one an admin reads about buying.
+        """
         test_client, _api = settings_client(config, store)
         page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
-        assert "you choose the server during checkout" in page
+        assert "/vrcverify_subscription" not in page
+        assert "application-directory" not in page
+        assert "you choose the server during checkout" not in page
 
     def test_a_subscribed_server_is_not_sold_to(self, config, store):
         test_client, _api = settings_client(
@@ -1147,7 +1150,7 @@ class TestTheUpgradeOffer:
         page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "Add VRCVerify Premium" in page
         assert "grandfathered extras stay free" in page
-        assert "/vrcverify_subscription" in page
+        assert f"/guild/{GUILD_IN}/subscription" in page
 
     def test_no_offer_when_the_tier_is_switched_off(self, config, store):
         """PREMIUM_SKU_ID unset: every gate answers "allowed", so there is
@@ -2791,19 +2794,35 @@ class TestEverySectionFailsTheSameWay:
         assert test_client.get(f"/guild/{GUILD_IN}{suffix}").status_code == 503
 
 
-class TestTheSubscriptionPlaceholder:
+class TestTheSubscriptionPage:
+    """Reachability only. Every page STATE is pinned in test_subscription_page.
+
+    These two stay here because they are about the route existing and about the
+    sidebar not leading to a dead end, which is this file's concern.
+    """
+
     def test_it_renders(self, config, store):
         test_client, _api = settings_client(config, store)
         response = test_client.get(f"/guild/{GUILD_IN}/subscription")
         assert response.status_code == 200
         assert b"Subscriptions" in response.data
 
-    def test_it_offers_no_way_to_buy_anything(self, config, store):
-        """Purchases happen in Discord. This page must not grow a store link
-        before the follow-up issue decides what belongs here."""
+    def test_the_discord_path_is_offered_when_stripe_is_switched_off(
+        self, config, store
+    ):
+        """With no Stripe configured this page IS the old placeholder's job,
+        done properly: the Discord route, and no card anywhere.
+
+        Note the store link now belongs here rather than on Settings -- this is
+        the page about buying, and it is the only one that can describe both
+        ways to do it.
+        """
         test_client, _api = settings_client(config, store)
         page = test_client.get(f"/guild/{GUILD_IN}/subscription").data.decode()
-        assert "application-directory" not in page
+        assert "/vrcverify_subscription" in page
+        assert "application-directory" in page
+        assert "Pay by card" not in page
+        assert "/subscription/checkout" not in page
 
 
 class TestTheSidebar:
@@ -3125,7 +3144,27 @@ class TestWriteSurface:
             # test_the_nav_preference_never_reaches_the_bot pins that it does
             # not.
             "/prefs/nav",
+            # The two that spend money, or end a subscription. Neither writes
+            # anything here: each creates a session on Stripe and hands the
+            # browser over, so the whole of what they can do is bounded by what
+            # Stripe's hosted pages allow.
+            "/guild/<int:guild_id>/subscription/checkout",
+            "/guild/<int:guild_id>/subscription/portal",
         }, f"an unexpected write route appeared: {posts}"
+
+    def test_the_stripe_webhook_is_not_in_that_list_unless_switched_on(self, app):
+        """The public route is registered by config, so the pin above only
+        describes a dashboard with Stripe off -- which is what `app` is.
+
+        Worth its own assertion: if the webhook ever appeared in a default app,
+        the kill switch would have stopped meaning anything.
+        """
+        posts = {
+            rule.rule
+            for rule in app.url_map.iter_rules()
+            if "POST" in (rule.methods or set())
+        }
+        assert "/stripe/webhook" not in posts
 
     def test_every_group_that_saves_names_a_route_that_exists(self, app, config):
         """A typo in `save_endpoint` would be a 500 on page load, not a test."""
