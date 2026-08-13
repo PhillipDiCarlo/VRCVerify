@@ -1,10 +1,17 @@
-"""The dashboard web app — steps 3 to 5 of issue #65: login, picker, settings.
+"""The dashboard web app: login, picker, and one server's three sections.
 
-One write path, opened in step 5: the instructions panel group, and nothing
-else. Which fields that covers is the bot's decision, reported per field in the
-settings payload, so this app renders a control only where the bot has already
-said it would accept the value. It does not hold a copy of that list, because
-a second copy is a thing that can disagree with the enforcing one.
+Picking a server lands on Overview and the sidebar leads to Settings and
+Subscriptions. All three authorise identically -- a session to prove who is
+asking, then the bot to decide what they may see -- and all three fail
+identically, through `_guild_page_unavailable`. That second half matters as
+much as the first: an oracle for "which servers run 18+ gating" only has to
+exist on one of the three routes to be worth using, so none of them gets to
+invent its own refusal page.
+
+Which fields the write path covers is the bot's decision, reported per field in
+the settings payload, so this app renders a control only where the bot has
+already said it would accept the value. It does not hold a copy of that list,
+because a second copy is a thing that can disagree with the enforcing one.
 
 Nothing here validates a value it sends. The bot re-checks Administrator,
 re-checks the plan, validates against its own allowlist, and records the change
@@ -27,7 +34,12 @@ Design notes worth keeping in view while reading:
   Discord rejects them.
 * **No client-side framework, no CDN, no inline script.** The CSP below is
   strict enough to be worth having only because the pages are plain enough not
-  to need anything else.
+  to need anything else. The collapsing sidebar is a form for that reason --
+  `/prefs/nav` writes a cookie and redirects back, and it is the one POST here
+  that never reaches the bot. A hidden checkbox with a sibling selector would
+  collapse it with no request at all, and was rejected because the collapsed
+  state has to survive navigation: the cookie would then be a second copy of
+  the same fact, free to disagree with what the browser was showing.
 """
 
 from __future__ import annotations
@@ -48,12 +60,31 @@ from flask import (
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from dashboard import oauth, settings_view
+from dashboard import oauth, overview_view, settings_view
 from dashboard.botapi import BotAPIClient, BotAPIError
 from dashboard.config import DashboardConfig
 from dashboard.sessions import SessionStore
 
 logger = logging.getLogger(__name__)
+
+# The sidebar's collapsed state. A UI preference and nothing else: it is not
+# read by any authorisation decision, it names no guild, and forging it gets an
+# attacker a narrower sidebar. Deliberately NOT `__Host-` prefixed -- that
+# prefix belongs to the session cookie, and a second cookie wearing it would
+# make the one that matters harder to pick out of a jar.
+NAV_COOKIE = "vrcverify_nav"
+# A year. The preference is trivial to re-set and there is nothing to expire.
+NAV_COOKIE_MAX_AGE = 31536000
+
+# Where the hamburger may send you back to. An endpoint name, never a URL from
+# the request -- a form field carrying a path is an open redirect waiting for
+# someone to notice, and this form exists to toggle a cookie.
+NAV_RETURN_ENDPOINTS = {
+    "index": (),
+    "guild_overview": ("guild_id",),
+    "guild_settings": ("guild_id",),
+    "guild_subscription": ("guild_id",),
+}
 
 # The `__Host-` prefix is enforced by the browser: it only accepts the cookie if
 # it is Secure, has no Domain, and is Path=/. That makes it impossible for a
@@ -297,6 +328,57 @@ def _register_routes(app: Flask) -> None:
         )
 
     @app.get("/guild/<int:guild_id>")
+    def guild_overview(guild_id: int):
+        """Where you land after picking a server: how it's doing, in numbers.
+
+        Authorised exactly like the settings page, and for the same reason --
+        the bot re-checks Administrator before answering. This page reports
+        aggregates only; there is no per-member data behind it to leak, because
+        none is stored.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+
+        actor = int(session.discord_id)
+        try:
+            overview = _bot_api().overview(actor, guild_id)
+        except BotAPIError as error:
+            return _guild_page_unavailable(error, guild_id, session, "overview")
+
+        return render_template(
+            "overview.html",
+            tiles=overview_view.build_tiles(overview),
+            next_step=overview_view.build_next_step(overview),
+            setup=overview_view.build_setup(overview),
+            premium=(overview.get("premium") or {}),
+            **_guild_chrome(session, guild_id, "overview"),
+        )
+
+    @app.get("/guild/<int:guild_id>/subscription")
+    def guild_subscription(guild_id: int):
+        """Placeholder for the subscriptions section.
+
+        It calls the bot before rendering, which looks like a wasted round trip
+        for a page with nothing on it -- and is the point. An unauthorised
+        visitor must get the same answer here as they would from the other two
+        sections, or this becomes the one route that tells them whether a guild
+        exists. It costs one call on a page nobody reloads.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+
+        try:
+            _bot_api().settings(int(session.discord_id), guild_id)
+        except BotAPIError as error:
+            return _guild_page_unavailable(error, guild_id, session, "subscription")
+
+        return render_template(
+            "subscription.html", **_guild_chrome(session, guild_id, "subscription")
+        )
+
+    @app.get("/guild/<int:guild_id>/settings")
     def guild_settings(guild_id: int):
         """One server's settings, read-only.
 
@@ -314,7 +396,7 @@ def _register_routes(app: Flask) -> None:
         try:
             settings = _bot_api().settings(actor, guild_id)
         except BotAPIError as error:
-            return _settings_unavailable(error, guild_id, session)
+            return _guild_page_unavailable(error, guild_id, session, "settings")
 
         # Names for ids, and the panel's whereabouts. Best-effort on purpose:
         # an unresolved id renders as an id, which is less useful but still
@@ -334,12 +416,8 @@ def _register_routes(app: Flask) -> None:
             lambda: _bot_api().audit(actor, guild_id), "audit", guild_id
         )
 
-        guild = _session_guild(session, guild_id)
         return render_template(
             "settings.html",
-            guild_name=(guild or {}).get("name") or f"Server {guild_id}",
-            guild_icon=oauth.icon_url(guild) if guild else None,
-            guild_id=str(guild_id),
             groups=settings_view.build_groups(settings, roles, channels, panel),
             audit=settings_view.build_audit(audit, roles, channels),
             premium=settings.get("premium") or {},
@@ -355,8 +433,51 @@ def _register_routes(app: Flask) -> None:
                 _save_error_message(_notice_arg(notice, "error"))
                 or _panel_error_message(_notice_arg(notice, "panel_error"))
             ),
-            csrf_token=session.csrf_token,
+            **_guild_chrome(session, guild_id, "settings"),
         )
+
+    @app.post("/prefs/nav")
+    def set_nav_preference():
+        """Collapse or expand the sidebar. Writes one cookie and nothing else.
+
+        A form post rather than a script because this app has none -- the
+        checkbox in the template does the collapsing on its own, and this is
+        only what makes the choice survive the next page load.
+
+        Three things keep a preference toggle from becoming a hole:
+
+        1. It requires a session and a CSRF token, like every other POST here.
+           Not because a forged one is dangerous, but because "this endpoint is
+           harmless" is an assumption that ages badly.
+        2. It never touches the bot API, so it cannot be used to probe for
+           guilds or to spend the bot's rate limit.
+        3. The return trip is an endpoint *name* looked up in a fixed table,
+           never a path from the form. A hidden field carrying a URL is how a
+           settings toggle turns into an open redirect.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        collapsed = bool(request.form.get("collapsed"))
+        response = redirect(_nav_return_url())
+        if collapsed:
+            response.set_cookie(
+                NAV_COOKIE,
+                "1",
+                max_age=NAV_COOKIE_MAX_AGE,
+                secure=True,
+                httponly=True,
+                samesite="Lax",
+                path="/",
+            )
+        else:
+            # Expanded is the default, so the preference is the absence of the
+            # cookie rather than a second value to interpret.
+            response.delete_cookie(NAV_COOKIE, path="/")
+        return response
 
     @app.post("/guild/<int:guild_id>/verification")
     def save_verification_settings(guild_id: int):
@@ -783,7 +904,72 @@ def _session_guild(session, guild_id: int) -> Optional[dict]:
     return None
 
 
-def _settings_unavailable(error: BotAPIError, guild_id: int, session):
+# The sidebar, in order. Kept here rather than in the template so the section
+# list is one thing in one place -- a nav that disagrees with the routes is a
+# link to a 404, and a route with no nav entry is a page nobody can reach.
+SECTIONS = (
+    ("overview", "Overview", "guild_overview"),
+    ("settings", "Settings", "guild_settings"),
+    ("subscription", "Subscriptions", "guild_subscription"),
+)
+
+SECTION_ENDPOINTS = {key: endpoint for key, _label, endpoint in SECTIONS}
+
+
+def _guild_chrome(session, guild_id: int, section: str) -> dict:
+    """Everything every guild page needs regardless of which section it is.
+
+    The name and icon come from the session's OAuth copy, which is display data
+    and stale by design -- the bot has already decided whether this page may be
+    rendered at all, and a guild missing from a stale list still renders rather
+    than pretending an admin promoted since login has no server.
+    """
+    guild = _session_guild(session, guild_id)
+    return {
+        "guild_name": (guild or {}).get("name") or f"Server {guild_id}",
+        "guild_icon": oauth.icon_url(guild) if guild else None,
+        "guild_id": str(guild_id),
+        "section": section,
+        "sections": SECTIONS,
+        "nav_collapsed": _nav_collapsed(),
+        # Which page the hamburger should return to. A key from our own table,
+        # so the form carries a name we recognise rather than a path it chose.
+        "nav_return_to": SECTION_ENDPOINTS.get(section, "index"),
+        "csrf_token": session.csrf_token,
+    }
+
+
+def _nav_collapsed() -> bool:
+    """Whether this browser last asked for the narrow sidebar."""
+    return request.cookies.get(NAV_COOKIE) == "1"
+
+
+def _nav_return_url() -> str:
+    """Where the hamburger sends you back to, from a name we chose.
+
+    The form submits an endpoint name and, for a guild page, an id. Both are
+    checked here: an unknown name falls back to the picker, and a guild id that
+    is not a number is dropped. Nothing from the request is ever interpolated
+    into a redirect target, so the worst a crafted form achieves is landing the
+    user on their own server list.
+    """
+    endpoint = request.form.get("return_to") or ""
+    if endpoint not in NAV_RETURN_ENDPOINTS:
+        return url_for("index")
+
+    values = {}
+    for name in NAV_RETURN_ENDPOINTS[endpoint]:
+        raw = request.form.get(name)
+        try:
+            values[name] = int(raw)
+        except (TypeError, ValueError):
+            return url_for("index")
+    return url_for(endpoint, **values)
+
+
+def _guild_page_unavailable(
+    error: BotAPIError, guild_id: int, session, section: str = "settings"
+):
     """Turn a refusal into a page, without saying which refusal it was.
 
     The bot distinguishes 404 "not in that guild" from 403 "you do not
@@ -794,13 +980,21 @@ def _settings_unavailable(error: BotAPIError, guild_id: int, session):
     same oracle handle_list_guilds was hardened against, arriving by a
     different door.
 
+    Shared by all three sections, and that sharing is the control. Three
+    sections that each decided how to fail would be three chances for one of
+    them to be more forthcoming than the others -- and an oracle only has to
+    exist on one route to be worth using. `section` reaches the log line and
+    nothing else; the page an outsider sees is identical whichever door they
+    tried.
+
     503 is kept separate: it says the bot cannot answer right now, which
     discloses nothing about any particular guild, and telling an admin to try
     again is far better than telling them the server does not exist.
     """
     if error.status in (403, 404):
         logger.info(
-            "settings page refused for actor=%s guild=%s (status %s)",
+            "%s page refused for actor=%s guild=%s (status %s)",
+            section,
             session.discord_id,
             guild_id,
             error.status,
@@ -817,13 +1011,20 @@ def _settings_unavailable(error: BotAPIError, guild_id: int, session):
             404,
         )
 
-    logger.warning("settings read failed for guild %s: %s", guild_id, error)
+    logger.warning(
+        "%s read failed for guild %s: %s", section, guild_id, error
+    )
     return (
         render_template(
             "error.html",
             message=(
-                "Can't reach the bot right now, so this server's settings can't "
-                "be shown. Nothing has changed. Try again shortly."
+                # Section-neutral, because all three land here. It used to name
+                # settings, which on the Overview would have been telling an
+                # admin the wrong thing was unavailable. "Nothing has changed"
+                # stays: it is the sentence that matters after a failed save,
+                # and it is true on a page with no save in it.
+                "Can't reach the bot right now, so this page can't be shown. "
+                "Nothing has changed. Try again shortly."
             ),
             csrf_token=session.csrf_token,
         ),

@@ -31,7 +31,7 @@ import pytest
 
 pytest.importorskip("flask")
 
-from dashboard import oauth, settings_view  # noqa: E402
+from dashboard import oauth, overview_view, settings_view  # noqa: E402
 from dashboard.app import CSP, SESSION_COOKIE, create_app  # noqa: E402
 from dashboard.botapi import BotAPIError  # noqa: E402
 from dashboard.config import DashboardConfig, DashboardConfigError  # noqa: E402
@@ -154,6 +154,56 @@ def make_settings(
     }
 
 
+def make_overview(
+    member_count=1284,
+    total=417,
+    today=3,
+    last_7_days=12,
+    last_30_days=63,
+    collecting_since="2026-06-01",
+    known=True,
+    panel=None,
+    configured=None,
+    premium=False,
+    grandfathered=False,
+):
+    """A payload shaped exactly like read_dashboard_overview returns.
+
+    Windows are passed through as given, including None -- which is the state
+    that means "not collecting that far back", and is the one worth being able
+    to construct explicitly in a test.
+    """
+    return {
+        "guild_id": GUILD_IN,
+        "member_count": member_count,
+        "premium": {
+            "enforced": True,
+            "premium": premium,
+            "grandfathered": grandfathered,
+            "sku_id": SKU_ID,
+        },
+        "verifications": {
+            "total": total,
+            "today": today,
+            "last_7_days": last_7_days,
+            "last_30_days": last_30_days,
+            "collecting_since": collecting_since,
+            "known": known,
+        },
+        "panel": {"posted": True, "channel_id": LOG_CHANNEL} if panel is None else panel,
+        "configured": (
+            {
+                "verified_role": True,
+                "unverified_role": False,
+                "log_channel": False,
+                "auto_verify": True,
+            }
+            if configured is None
+            else configured
+        ),
+    }
+
+
 DEFAULT_ROLES = [
     {
         "id": VERIFIED_ROLE,
@@ -218,6 +268,7 @@ class FakeBotAPI:
         panel_result=None,
         errors=None,
         saved=None,
+        overview=None,
     ):
         self.installed = {str(g) for g in installed}
         self.fail = fail
@@ -230,6 +281,7 @@ class FakeBotAPI:
         self._channels = DEFAULT_CHANNELS if channels is None else channels
         self._panel = {"posted": False} if panel is None else panel
         self._audit = [] if audit is None else audit
+        self._overview = overview
         self._panel_result = (
             {"action": "posted", "channel_id": LOG_CHANNEL}
             if panel_result is None else panel_result
@@ -272,6 +324,14 @@ class FakeBotAPI:
 
     def audit(self, actor_id, guild_id):
         return self._answer("audit", actor_id, guild_id, self._audit)
+
+    def overview(self, actor_id, guild_id):
+        return self._answer(
+            "overview",
+            actor_id,
+            guild_id,
+            self._overview if self._overview is not None else make_overview(),
+        )
 
     def post_panel(self, actor_id, guild_id, channel_id):
         self.panel_posts.append((str(actor_id), str(guild_id), str(channel_id)))
@@ -816,7 +876,7 @@ def _locked_panel():
 
 class TestSettingsPage:
     def test_signed_out_visitors_are_sent_to_the_login_page(self, client):
-        response = client.get(f"/guild/{GUILD_IN}")
+        response = client.get(f"/guild/{GUILD_IN}/settings")
         assert response.status_code == 302
         assert response.headers["Location"].endswith("/")
 
@@ -825,21 +885,21 @@ class TestSettingsPage:
         test_client, _api = settings_client(
             config, store, settings=make_settings(writable=set())
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "Verified" in page
         assert VERIFIED_ROLE not in page
 
     def test_an_editable_role_is_labelled_by_name(self, config, store):
         """Editable, the id has to be in the option value -- the label doesn't."""
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert f'<option value="{VERIFIED_ROLE}" selected>Verified</option>' in page
 
     def test_every_read_is_scoped_to_the_session_owner_and_that_guild(
         self, config, store
     ):
         test_client, api = settings_client(config, store)
-        test_client.get(f"/guild/{GUILD_IN}")
+        test_client.get(f"/guild/{GUILD_IN}/settings")
         assert {what for what, _, _ in api.reads} == {
             "settings",
             "roles",
@@ -853,7 +913,7 @@ class TestSettingsPage:
 
     def test_the_guild_name_comes_from_the_session_not_the_bot(self, config, store):
         test_client, _api = settings_client(config, store)
-        assert b"Alpha Club" in test_client.get(f"/guild/{GUILD_IN}").data
+        assert b"Alpha Club" in test_client.get(f"/guild/{GUILD_IN}/settings").data
 
     def test_a_guild_missing_from_a_stale_oauth_list_still_renders(
         self, config, store
@@ -869,7 +929,7 @@ class TestSettingsPage:
         test_client = app.test_client()
         login_as(test_client, store, guilds=[])
 
-        response = test_client.get(f"/guild/{GUILD_IN}")
+        response = test_client.get(f"/guild/{GUILD_IN}/settings")
         assert response.status_code == 200
         assert b"Verified" in response.data
 
@@ -887,7 +947,7 @@ class TestSettingsDoesNotLeakWhichServersRunTheBot:
         test_client, _api = settings_client(
             config, store, errors={"settings": BotAPIError("nope", status)}
         )
-        return test_client.get(f"/guild/{GUILD_IN}")
+        return test_client.get(f"/guild/{GUILD_IN}/settings")
 
     def test_403_and_404_are_byte_identical(self, config, store):
         # One client, so the comparison isn't confounded by the per-session
@@ -895,10 +955,10 @@ class TestSettingsDoesNotLeakWhichServersRunTheBot:
         test_client, api = settings_client(
             config, store, errors={"settings": BotAPIError("nope", 403)}
         )
-        forbidden = test_client.get(f"/guild/{GUILD_IN}")
+        forbidden = test_client.get(f"/guild/{GUILD_IN}/settings")
 
         api.errors = {"settings": BotAPIError("nope", 404)}
-        missing = test_client.get(f"/guild/{GUILD_IN}")
+        missing = test_client.get(f"/guild/{GUILD_IN}/settings")
 
         assert forbidden.status_code == missing.status_code == 404
         assert forbidden.data == missing.data
@@ -928,7 +988,7 @@ class TestPlanBadgesMirrorTheBot:
 
     def test_write_locked_fields_are_marked_premium(self, config, store):
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "Nickname sync" in page
         assert "Premium</span>" in page
 
@@ -948,7 +1008,7 @@ class TestPlanBadgesMirrorTheBot:
                 }
             ),
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         # The values are shown, not hidden or replaced with an upsell.
         assert "Unverified" in page
         assert "Welcome aboard!" in page
@@ -959,7 +1019,7 @@ class TestPlanBadgesMirrorTheBot:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "Premium</span>" not in page
         assert "Not applied</span>" not in page
         assert "VRCVerify Premium is active" in page
@@ -967,7 +1027,7 @@ class TestPlanBadgesMirrorTheBot:
     def test_auto_verify_is_never_gated(self, config, store):
         """Free for everyone, forever -- mirrors TestAutoVerifyOnJoinIsFree."""
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         section = page.split("Auto-verify on join")[1].split("</div>")[0]
         assert "badge" not in section
 
@@ -975,7 +1035,7 @@ class TestPlanBadgesMirrorTheBot:
         test_client, _api = settings_client(
             config, store, settings=make_settings(auto_verify_column=False)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "missing the auto-verify column" in page
 
 
@@ -991,7 +1051,7 @@ class TestTheUpgradeOffer:
 
     def test_a_free_server_is_told_how_to_subscribe(self, config, store):
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "Upgrade to VRCVerify Premium" in page
         assert "/vrcverify_subscription" in page
         assert (
@@ -1002,14 +1062,14 @@ class TestTheUpgradeOffer:
     def test_the_store_link_admits_it_cannot_pick_the_server(self, config, store):
         """The whole reason the slash command is the primary path."""
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "you choose the server during checkout" in page
 
     def test_a_subscribed_server_is_not_sold_to(self, config, store):
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "VRCVerify Premium is active" in page
         assert "/vrcverify_subscription" not in page
         assert "application-directory" not in page
@@ -1023,7 +1083,7 @@ class TestTheUpgradeOffer:
         test_client, _api = settings_client(
             config, store, settings=make_settings(grandfathered=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "Add VRCVerify Premium" in page
         assert "grandfathered extras stay free" in page
         assert "/vrcverify_subscription" in page
@@ -1040,7 +1100,7 @@ class TestTheUpgradeOffer:
             store,
             settings=make_settings(premium=True, enforced=False, sku_id=None),
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "Verified role" in page  # the settings page really rendered
         assert "/vrcverify_subscription" not in page
         assert "application-directory" not in page
@@ -1065,7 +1125,7 @@ class TestTheUpgradeOffer:
         test_client, _api = settings_client(
             config, store, settings=make_settings(sku_id=None)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "Verified role" in page  # the settings page really rendered
         assert "application-directory" not in page
         assert "store/None" not in page
@@ -1074,7 +1134,7 @@ class TestTheUpgradeOffer:
         """Every group saves now. The page said otherwise for a while, which
         sent admins to the slash commands past a working Save button."""
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "Verified role" in page  # the settings page really rendered
         assert "Only the instructions panel settings can be changed" not in page
 
@@ -1086,7 +1146,7 @@ class TestSettingsWarnings:
         test_client, _api = settings_client(
             config, store, settings=make_settings(values={"role_id": UNASSIGNABLE_ROLE})
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "cannot grant this role" in page
         assert "Server Settings -&gt; Roles" in page
 
@@ -1094,14 +1154,14 @@ class TestSettingsWarnings:
         test_client, _api = settings_client(
             config, store, settings=make_settings(values={"role_id": "404404404404"})
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "no longer exists" in page
 
     def test_no_verified_role_is_called_out(self, config, store):
         test_client, _api = settings_client(
             config, store, settings=make_settings(values={"role_id": None})
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "verification cannot complete" in page
 
     def test_an_announcement_log_channel_is_called_out(self, config, store):
@@ -1113,7 +1173,7 @@ class TestSettingsWarnings:
                 premium=True, values={"verification_log_channel_id": NEWS_CHANNEL}
             ),
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "republish age disclosures" in page
 
     def test_a_locked_panel_channel_is_called_out_without_crying_wolf(
@@ -1135,7 +1195,7 @@ class TestSettingsWarnings:
                 },
             ],
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         # Both permissions named: the panel is an embed, so Embed Links alone
         # being off produces this with no other symptom anywhere on the page.
         assert "Send Messages and Embed Links" in page
@@ -1163,7 +1223,7 @@ class TestSettingsWarnings:
         test_client, _api = settings_client(
             config, store, channels=channels, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         # Offered once, by the log channel's own select -- not by the panel's.
         assert page.count(f'<option value="{LOG_CHANNEL}"') == 1
 
@@ -1198,7 +1258,7 @@ class TestSettingsWarnings:
                 },
             ],
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert f'<option value="{PANEL_CHANNEL}"' in page
         assert f'<option value="{SHUT_CHANNEL}"' not in page
 
@@ -1210,7 +1270,7 @@ class TestSecondaryReadsDegradeGracefully:
         test_client, _api = settings_client(
             config, store, errors={"roles": BotAPIError("unavailable", 503)}
         )
-        response = test_client.get(f"/guild/{GUILD_IN}")
+        response = test_client.get(f"/guild/{GUILD_IN}/settings")
         assert response.status_code == 200
         page = response.data.decode()
         assert f"Unknown role ({VERIFIED_ROLE})" in page
@@ -1225,7 +1285,7 @@ class TestSecondaryReadsDegradeGracefully:
         test_client, _api = settings_client(
             config, store, errors={"roles": BotAPIError("unavailable", 503)}
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert 'name="role_id"' not in page
         assert 'name="unverified_role_id"' not in page
 
@@ -1234,7 +1294,7 @@ class TestSecondaryReadsDegradeGracefully:
         test_client, _api = settings_client(
             config, store, errors={"roles": BotAPIError("unavailable", 503)}
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "no longer exists" not in page
 
     def test_the_page_renders_without_the_audit_read(self, config, store):
@@ -1242,7 +1302,7 @@ class TestSecondaryReadsDegradeGracefully:
         test_client, _api = settings_client(
             config, store, errors={"audit": BotAPIError("unavailable", 503)}
         )
-        response = test_client.get(f"/guild/{GUILD_IN}")
+        response = test_client.get(f"/guild/{GUILD_IN}/settings")
         assert response.status_code == 200
         page = response.data.decode()
         assert "Couldn't load the history" in page
@@ -1252,7 +1312,7 @@ class TestSecondaryReadsDegradeGracefully:
         test_client, _api = settings_client(
             config, store, errors={"panel": BotAPIError("unavailable", 503)}
         )
-        response = test_client.get(f"/guild/{GUILD_IN}")
+        response = test_client.get(f"/guild/{GUILD_IN}/settings")
         assert response.status_code == 200
         # Literal template text, so the apostrophe is not entity-escaped here.
         assert b"Couldn't check" in response.data
@@ -1287,7 +1347,7 @@ class TestSavingThePanelGroup:
         assert response.status_code == 302
         # The notice is session state now, not a query parameter, so the
         # redirect target is bare and "Saved." appears on the next render.
-        assert response.headers["Location"].endswith(f"/guild/{GUILD_IN}")
+        assert response.headers["Location"].endswith(f"/guild/{GUILD_IN}/settings")
         assert "Saved." in test_client.get(response.headers["Location"]).data.decode()
         actor, guild, changes = api.saves[-1]
         assert (actor, guild) == (ACTOR, GUILD_IN)
@@ -1413,7 +1473,7 @@ class TestSavingThePanelGroup:
         """
         test_client, _api, _session = self.logged_in(config, store)
         page = test_client.get(
-            f"/guild/{GUILD_IN}?saved=1&panel=replaced&panel_stale=1"
+            f"/guild/{GUILD_IN}/settings?saved=1&panel=replaced&panel_stale=1"
             "&error=%3Cimg+src%3Dx+onerror%3Dalert(1)%3E"
         ).data.decode()
         assert "onerror" not in page
@@ -1631,7 +1691,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert 'name="instructions_locale"' in page
         assert 'name="panel_embed_color"' in page
         assert 'name="panel_show_icon"' in page
@@ -1641,7 +1701,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
         """Branding is write-locked, so no control -- but the language is free
         and must stay editable."""
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert 'name="instructions_locale"' in page
         assert 'type="color"' not in page
         assert 'name="panel_show_icon"' not in page
@@ -1650,7 +1710,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True, writable=set())
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert 'name="panel_embed_color"' not in page
         assert 'name="instructions_locale"' not in page
         assert "Save changes" not in page
@@ -1662,7 +1722,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
             store,
             settings=make_settings(premium=True),
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         for code in LOCALES:
             assert f'value="{code}"' in page
         # Present in LOCALE_NAMES, absent from what the bot offered.
@@ -1678,7 +1738,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         logging_section = page.split("<h2>Logging</h2>")[1]
         assert f'value="{LOG_CHANNEL}"' in logging_section
         assert f'value="{NEWS_CHANNEL}"' not in logging_section
@@ -1693,7 +1753,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         panel_form = page.split('class="panel-post"')[1]
         assert f'value="{NEWS_CHANNEL}"' in panel_form
 
@@ -1704,21 +1764,21 @@ class TestTheFormMatchesWhatTheBotAccepts:
             settings=make_settings(premium=True),
             errors={"channels": BotAPIError("unavailable", 503)},
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert 'name="verification_log_channel_id"' not in page
 
     def test_the_custom_message_textarea_carries_the_bot_s_cap(self, config, store):
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert 'maxlength="1000"' in page
 
     def test_every_form_carries_a_csrf_token(self, config, store):
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert page.count('name="csrf_token"') >= page.count("<form")
 
 
@@ -1766,10 +1826,10 @@ class TestHardening:
                 premium=True, writable=set(), values={"panel_embed_color": 0xFF00FF}
             ),
         )
-        for path in ("/", f"/guild/{GUILD_IN}"):
+        for path in ("/", f"/guild/{GUILD_IN}/settings"):
             page = test_client.get(path).data
             assert b"style=" not in page, f"inline style on {path}"
-        page = test_client.get(f"/guild/{GUILD_IN}").data
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data
         assert b'fill="#ff00ff"' in page   # the panel colour
         assert b'fill="#5865f2"' in page   # the verified role's colour
 
@@ -1811,7 +1871,7 @@ class TestHardening:
 
         test_client, _api = settings_client(config, store)
         parser = Balance()
-        parser.feed(test_client.get(f"/guild/{GUILD_IN}").data.decode())
+        parser.feed(test_client.get(f"/guild/{GUILD_IN}/settings").data.decode())
 
         assert not parser.errors, parser.errors
         assert not parser.stack, f"never closed: {parser.stack}"
@@ -2113,7 +2173,7 @@ class TestTheChangeHistoryOfPanelActions:
 class TestTheChangeHistory:
     def test_it_names_the_setting_the_actor_and_both_values(self, config, store):
         test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "Verified role" in page
         assert "Sasha" in page
         # The id is resolved to the role's name, as on the settings above.
@@ -2121,17 +2181,17 @@ class TestTheChangeHistory:
 
     def test_an_actor_who_left_is_shown_by_id(self, config, store):
         test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
-        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert "ID 555555555555" in page
 
     def test_a_colour_reads_as_a_colour(self, config, store):
         test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
-        assert "#ff0000" in test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "#ff0000" in test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
 
     def test_an_empty_history_says_so(self, config, store):
         test_client, _api = settings_client(config, store, audit=[])
         assert b"No changes have been made" in test_client.get(
-            f"/guild/{GUILD_IN}"
+            f"/guild/{GUILD_IN}/settings"
         ).data
 
     def test_a_long_value_is_truncated(self):
@@ -2238,6 +2298,485 @@ class TestSettingsViewModel:
         assert settings_view.panel_summary({"posted": False})["posted"] is False
 
 
+class TestTheOverviewPage:
+    """The landing page after picking a server."""
+
+    def test_signed_out_visitors_are_sent_to_the_login_page(self, client):
+        response = client.get(f"/guild/{GUILD_IN}")
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/")
+
+    def test_the_picker_links_here_not_to_settings(self, config, store):
+        test_client, _api = settings_client(config, store)
+        page = test_client.get("/").data.decode()
+        assert f'href="/guild/{GUILD_IN}"' in page
+        assert f'href="/guild/{GUILD_IN}/settings"' not in page
+
+    def test_it_shows_the_counts(self, config, store):
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "1,284" in page  # members, with a thousands separator
+        assert "Today (UTC)" in page
+        assert "Last 7 days" in page
+        assert "Last 30 days" in page
+
+    def test_it_reads_the_overview_and_nothing_else(self, config, store):
+        """One call, so one Administrator check and one round trip."""
+        test_client, api = settings_client(config, store)
+        test_client.get(f"/guild/{GUILD_IN}")
+        assert {what for what, _, _ in api.reads} == {"overview"}
+        for _what, actor, guild in api.reads:
+            assert actor == ACTOR
+            assert guild == GUILD_IN
+
+
+class TestZeroAndBlankAreDifferentAnswers:
+    """The distinction the whole page rests on.
+
+    A window that is covered and empty is `0` -- a panel is up and nobody is
+    using it, which is the problem an admin came here to find. A window with
+    nothing behind it is blank, because no number would be true. Rendering
+    either as the other tells them something false.
+    """
+
+    def _page(self, config, store, **overview):
+        test_client, _api = settings_client(
+            config, store, overview=make_overview(**overview)
+        )
+        return test_client.get(f"/guild/{GUILD_IN}").data.decode()
+
+    # The em dash also appears in the page title, so these look at the tile
+    # markup rather than at the character anywhere on the page.
+    ZERO = '<span class="tile-value">0</span>'
+    BLANK = '<span class="tile-value">—</span>'
+
+    def test_a_real_zero_is_printed_as_zero(self, config, store):
+        page = self._page(config, store, today=0, last_7_days=0, last_30_days=0)
+        assert page.count(self.ZERO) == 3
+        assert self.BLANK not in page
+
+    def test_a_window_with_no_data_is_blank_not_zero(self, config, store):
+        page = self._page(config, store, last_30_days=None)
+        assert self.BLANK in page
+        assert "Only counting since 2026-06-01" in page
+
+    def test_the_windows_are_always_labelled_even_when_blank(self, config, store):
+        """The tiles stay in place. A missing tile looks like a broken page."""
+        page = self._page(
+            config, store, today=None, last_7_days=None, last_30_days=None
+        )
+        for label in ("Today (UTC)", "Last 7 days", "Last 30 days"):
+            assert label in page
+
+    def test_an_unreadable_rollup_says_so(self, config, store):
+        """Not blank, and certainly not zero -- this is the page failing."""
+        page = self._page(config, store, known=False)
+        assert "Couldn&#39;t check" in page
+        assert self.ZERO not in page
+        assert self.BLANK not in page
+
+    def test_a_missing_total_omits_the_tile_rather_than_showing_zero(
+        self, config, store
+    ):
+        page = self._page(config, store, total=None)
+        assert "Verified, all time" not in page
+
+    def test_an_unknown_member_count_is_not_zero(self, config, store):
+        page = self._page(config, store, member_count=None)
+        assert "Couldn&#39;t check" in page
+
+
+class TestTheOverviewSuggestsOneNextStep:
+    def _page(self, config, store, **overview):
+        test_client, _api = settings_client(
+            config, store, overview=make_overview(**overview)
+        )
+        return test_client.get(f"/guild/{GUILD_IN}").data.decode()
+
+    def test_a_configured_server_is_not_nagged(self, config, store):
+        page = self._page(config, store)
+        assert "No verified role" not in page
+        assert "No instructions panel" not in page
+
+    def test_no_verified_role_comes_first(self, config, store):
+        """It blocks everything after it, including the panel being useful."""
+        page = self._page(
+            config,
+            store,
+            configured={
+                "verified_role": False,
+                "unverified_role": False,
+                "log_channel": False,
+                "auto_verify": True,
+            },
+            panel={"posted": False},
+        )
+        assert "No verified role is set" in page
+        assert "No instructions panel is posted" not in page
+
+    def test_a_missing_panel_is_reported_when_the_role_is_fine(self, config, store):
+        page = self._page(config, store, panel={"posted": False})
+        assert "No instructions panel is posted" in page
+
+
+class TestEverySectionFailsTheSameWay:
+    """The oracle only has to exist on one route to be worth using.
+
+    Three sections that each decided how to refuse would be three chances for
+    one of them to be more forthcoming. They share `_guild_page_unavailable`,
+    and these tests are what stops a fourth section quietly not doing so.
+    """
+
+    SECTIONS = ("", "/settings", "/subscription")
+
+    @pytest.mark.parametrize("suffix", SECTIONS)
+    def test_403_and_404_are_byte_identical(self, config, store, suffix):
+        test_client, api = settings_client(
+            config,
+            store,
+            errors={
+                "settings": BotAPIError("nope", 403),
+                "overview": BotAPIError("nope", 403),
+            },
+        )
+        forbidden = test_client.get(f"/guild/{GUILD_IN}{suffix}")
+
+        api.errors = {
+            "settings": BotAPIError("nope", 404),
+            "overview": BotAPIError("nope", 404),
+        }
+        missing = test_client.get(f"/guild/{GUILD_IN}{suffix}")
+
+        assert forbidden.status_code == missing.status_code == 404
+        assert forbidden.data == missing.data
+
+    @pytest.mark.parametrize("suffix", SECTIONS)
+    def test_every_section_refuses_with_the_same_page(self, config, store, suffix):
+        """Including the placeholder, which has nothing on it to protect.
+
+        Subscriptions calls the bot before rendering an empty page purely so
+        that it cannot become the one route that answers differently.
+        """
+        test_client, _api = settings_client(
+            config,
+            store,
+            errors={
+                "settings": BotAPIError("nope", 403),
+                "overview": BotAPIError("nope", 403),
+            },
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}{suffix}").data.decode().lower()
+        assert "administrator permission there" in page
+        assert "403" not in page
+
+    @pytest.mark.parametrize("suffix", SECTIONS)
+    def test_an_unavailable_bot_is_a_503_everywhere(self, config, store, suffix):
+        test_client, _api = settings_client(
+            config,
+            store,
+            errors={
+                "settings": BotAPIError("down", 503),
+                "overview": BotAPIError("down", 503),
+            },
+        )
+        assert test_client.get(f"/guild/{GUILD_IN}{suffix}").status_code == 503
+
+
+class TestTheSubscriptionPlaceholder:
+    def test_it_renders(self, config, store):
+        test_client, _api = settings_client(config, store)
+        response = test_client.get(f"/guild/{GUILD_IN}/subscription")
+        assert response.status_code == 200
+        assert b"Subscriptions" in response.data
+
+    def test_it_offers_no_way_to_buy_anything(self, config, store):
+        """Purchases happen in Discord. This page must not grow a store link
+        before the follow-up issue decides what belongs here."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/subscription").data.decode()
+        assert "application-directory" not in page
+
+
+class TestTheSidebar:
+    def test_it_lists_every_section_on_a_guild_page(self, config, store):
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert f'href="/guild/{GUILD_IN}"' in page
+        assert f'href="/guild/{GUILD_IN}/settings"' in page
+        assert f'href="/guild/{GUILD_IN}/subscription"' in page
+
+    def test_it_marks_the_current_section(self, config, store):
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        # The accessible half of the highlight, not just a class.
+        assert 'aria-current="page"' in page
+
+    def test_it_offers_the_way_back_to_the_server_list(self, config, store):
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        assert "All servers" in page
+
+    def test_the_picker_has_no_sidebar(self, config, store):
+        """It has nothing to navigate. The chrome would be empty."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get("/").data.decode()
+        assert 'class="sidebar"' not in page
+        assert "hamburger" not in page
+
+    def test_the_login_page_has_no_sidebar(self, client):
+        page = client.get("/").data.decode()
+        assert 'class="sidebar"' not in page
+
+
+class TestTheSidebarPreference:
+    """`/prefs/nav`. A cookie, and nothing else."""
+
+    def test_collapsing_sets_the_cookie_and_returns_to_the_page(
+        self, config, store
+    ):
+        test_client, _api = settings_client(config, store)
+        session = store.load(
+            test_client.get_cookie(SESSION_COOKIE).value
+        )
+        response = test_client.post(
+            "/prefs/nav",
+            data={
+                "csrf_token": session.csrf_token,
+                "collapsed": "1",
+                "return_to": "guild_settings",
+                "guild_id": GUILD_IN,
+            },
+        )
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith(f"/guild/{GUILD_IN}/settings")
+        assert test_client.get_cookie("vrcverify_nav").value == "1"
+
+    def test_the_collapsed_state_survives_the_next_page(self, config, store):
+        test_client, _api = settings_client(config, store)
+
+        expanded = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        assert 'class="layout collapsed"' not in expanded
+
+        test_client.set_cookie("vrcverify_nav", "1", domain="localhost")
+        collapsed = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        assert 'class="layout collapsed"' in collapsed
+
+    def test_a_collapsed_sidebar_keeps_every_link(self, config, store):
+        """A rail, not a removal.
+
+        Hiding the labels is the whole effect. If the links themselves went,
+        the sidebar would be unusable by keyboard and there would be no way
+        back to the server list.
+        """
+        test_client, _api = settings_client(config, store)
+        test_client.set_cookie("vrcverify_nav", "1", domain="localhost")
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+
+        assert f'href="/guild/{GUILD_IN}"' in page
+        assert f'href="/guild/{GUILD_IN}/subscription"' in page
+        assert "All servers" in page
+
+    def test_expanding_clears_the_cookie(self, config, store):
+        test_client, _api = settings_client(config, store)
+        test_client.set_cookie("vrcverify_nav", "1", domain="localhost")
+        session = store.load(test_client.get_cookie(SESSION_COOKIE).value)
+
+        test_client.post(
+            "/prefs/nav",
+            data={
+                "csrf_token": session.csrf_token,
+                "return_to": "guild_settings",
+                "guild_id": GUILD_IN,
+            },
+        )
+        # Expanded is the absence of the cookie rather than a second value.
+        remaining = test_client.get_cookie("vrcverify_nav")
+        assert remaining is None or remaining.value == ""
+
+    def test_it_needs_a_csrf_token(self, config, store):
+        test_client, _api = settings_client(config, store)
+        response = test_client.post("/prefs/nav", data={"collapsed": "1"})
+        assert response.status_code == 400
+        assert test_client.get_cookie("vrcverify_nav") is None
+
+    def test_it_needs_a_session(self, client):
+        response = client.post("/prefs/nav", data={"collapsed": "1"})
+        assert response.status_code == 302
+        assert client.get_cookie("vrcverify_nav") is None
+
+    def test_the_nav_preference_never_reaches_the_bot(self, config, store):
+        """A UI toggle must not be a way to spend the bot's rate limit."""
+        test_client, api = settings_client(config, store)
+        session = store.load(test_client.get_cookie(SESSION_COOKIE).value)
+        test_client.post(
+            "/prefs/nav",
+            data={
+                "csrf_token": session.csrf_token,
+                "collapsed": "1",
+                "return_to": "guild_settings",
+                "guild_id": GUILD_IN,
+            },
+        )
+        assert api.reads == []
+        assert api.calls == []
+        assert api.saves == []
+
+    @pytest.mark.parametrize(
+        "return_to",
+        [
+            "https://evil.example/steal",
+            "//evil.example",
+            "/guild/1/settings",
+            "static",
+            "login",
+        ],
+    )
+    def test_it_only_returns_to_endpoints_we_named(self, config, store, return_to):
+        """The form carries an endpoint name, never a path.
+
+        A hidden field holding a URL is how a preference toggle becomes an open
+        redirect. Anything unrecognised lands on the picker.
+        """
+        test_client, _api = settings_client(config, store)
+        session = store.load(test_client.get_cookie(SESSION_COOKIE).value)
+        response = test_client.post(
+            "/prefs/nav",
+            data={
+                "csrf_token": session.csrf_token,
+                "collapsed": "1",
+                "return_to": return_to,
+                "guild_id": GUILD_IN,
+            },
+        )
+        assert response.headers["Location"].endswith("/")
+
+    def test_a_non_numeric_guild_id_falls_back_to_the_picker(self, config, store):
+        test_client, _api = settings_client(config, store)
+        session = store.load(test_client.get_cookie(SESSION_COOKIE).value)
+        response = test_client.post(
+            "/prefs/nav",
+            data={
+                "csrf_token": session.csrf_token,
+                "return_to": "guild_settings",
+                "guild_id": "../../etc/passwd",
+            },
+        )
+        assert response.headers["Location"].endswith("/")
+
+
+class TestOverviewViewModel:
+    """The three tile states, tested without a request."""
+
+    def test_zero_prints_as_zero(self):
+        """`value or "-"` is the bug this exists to prevent."""
+        tile = overview_view.Tile("Today (UTC)", 0)
+        assert tile.display == "0"
+
+    def test_a_count_gets_a_thousands_separator(self):
+        assert overview_view.Tile("Members", 1284).display == "1,284"
+
+    def test_a_blank_window_prints_a_dash(self):
+        tile = overview_view.Tile("Last 30 days", state="blank")
+        assert tile.display == "—"
+
+    def test_an_unknown_tile_says_so(self):
+        tile = overview_view.Tile("Members", state="unknown")
+        assert tile.display == "Couldn't check"
+
+    def test_a_blank_window_names_the_collection_start_when_known(self):
+        tiles = overview_view.build_tiles(
+            {
+                "member_count": 5,
+                "verifications": {
+                    "total": None,
+                    "today": 1,
+                    "last_7_days": None,
+                    "last_30_days": None,
+                    "collecting_since": "2026-08-14",
+                    "known": True,
+                },
+            }
+        )
+        blanks = [tile for tile in tiles if tile.state == "blank"]
+        assert len(blanks) == 2
+        assert all("2026-08-14" in tile.note for tile in blanks)
+
+    def test_an_unknown_rollup_marks_every_window_unknown_not_blank(self):
+        tiles = overview_view.build_tiles(
+            {
+                "member_count": 5,
+                "verifications": {
+                    "total": None,
+                    "today": None,
+                    "last_7_days": None,
+                    "last_30_days": None,
+                    "collecting_since": None,
+                    "known": False,
+                },
+            }
+        )
+        windows = [tile for tile in tiles if tile.label != "Members"]
+        assert {tile.state for tile in windows} == {"unknown"}
+
+    def test_no_payload_means_no_tiles(self):
+        """The page shows an apology rather than a row of dashes."""
+        assert overview_view.build_tiles(None) == []
+
+    def test_the_next_step_is_at_most_one_thing(self):
+        step = overview_view.build_next_step(
+            {
+                "configured": {"verified_role": False},
+                "panel": {"posted": False},
+            }
+        )
+        assert "verified role" in step["title"]
+
+    def test_setup_reports_each_piece_as_a_yes_or_no(self):
+        rows = overview_view.build_setup(
+            {
+                "configured": {
+                    "verified_role": True,
+                    "unverified_role": False,
+                    "log_channel": False,
+                    "auto_verify": True,
+                }
+            }
+        )
+        assert {row["label"]: row["on"] for row in rows} == {
+            "Verified role": True,
+            "Auto-verify on join": True,
+            "Unverified role": False,
+            "Verification log": False,
+        }
+
+    def test_only_the_verified_role_counts_as_missing(self):
+        """The other three are choices, not faults.
+
+        Marking a deliberately-unset optional feature as a problem would report
+        a working server as broken.
+        """
+        rows = overview_view.build_setup(
+            {"configured": {"verified_role": False, "log_channel": False}}
+        )
+        flagged = [row["label"] for row in rows if row["required"] and not row["on"]]
+        assert flagged == ["Verified role"]
+
+    def test_a_failed_settings_read_shows_no_setup_rows(self):
+        """Better silent than reporting four features as switched off."""
+        assert overview_view.build_setup({"configured": None}) == []
+
+    def test_no_next_step_for_a_configured_server(self):
+        assert (
+            overview_view.build_next_step(
+                {
+                    "configured": {"verified_role": True},
+                    "panel": {"posted": True},
+                }
+            )
+            is None
+        )
+
+
 class TestWriteSurface:
     """One save path per group and nothing else. Widening it means editing this."""
 
@@ -2256,6 +2795,11 @@ class TestWriteSurface:
             "/guild/<int:guild_id>/logging",
             # The one route that makes the bot act rather than store.
             "/guild/<int:guild_id>/panel/post",
+            # Writes a cookie and nothing else. It is in this list because the
+            # list is meant to be complete, not because it reaches the bot --
+            # test_the_nav_preference_never_reaches_the_bot pins that it does
+            # not.
+            "/prefs/nav",
         }, f"an unexpected write route appeared: {posts}"
 
     def test_every_group_that_saves_names_a_route_that_exists(self, app, config):

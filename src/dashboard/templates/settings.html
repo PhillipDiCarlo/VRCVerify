@@ -10,7 +10,8 @@
 {%- endmacro %}
 
 {% block content %}
-<p class="crumb"><a href="{{ url_for('index') }}">&larr; All servers</a></p>
+{# No breadcrumb: the sidebar carries both the way back to the server list and
+   the name of the server you are in. #}
 
 {# Each group below is its own card rather than a heading inside one long
    panel. Settings within a group are separated by a hairline, so when the

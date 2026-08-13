@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Subscriptions — {{ guild_name }} — VRCVerify{% endblock %}
+
+{% block content %}
+{# Deliberately empty. This section exists so the sidebar has no dead ends and
+   so the follow-up issue is a matter of filling a page rather than building a
+   route. Nothing about buying belongs here yet: purchases happen inside
+   Discord, and the Settings page already explains why (the store link cannot
+   name a server, so the slash command has to lead). #}
+<section class="panel group">
+  <h2>Subscriptions</h2>
+  <p class="muted blurb">
+    Managing VRCVerify Premium from the website is still being built. For now,
+    run <code>/vrcverify_subscription</code> in {{ guild_name }} — Discord
+    handles the payment, and the command's button is already pointed at the
+    right server.
+  </p>
+  <p class="muted">
+    Your current plan is shown at the top of
+    <a href="{{ url_for('guild_overview', guild_id=guild_id) }}">Overview</a>,
+    and the settings Premium unlocks are marked on
+    <a href="{{ url_for('guild_settings', guild_id=guild_id) }}">Settings</a>.
+  </p>
+</section>
+{% endblock %}

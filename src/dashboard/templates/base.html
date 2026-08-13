@@ -6,10 +6,39 @@
   <title>{% block title %}VRCVerify{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   {# No <script> anywhere in this app. The CSP forbids inline script, and
-     nothing here needs JavaScript to work. #}
+     nothing here needs JavaScript to work -- including the sidebar. #}
 </head>
 <body>
   <header class="bar">
+    {# The hamburger is a submit button, not a checkbox.
+       A hidden checkbox with a sibling selector would collapse the sidebar
+       with no request at all, which is tempting and wrong here: the collapsed
+       state has to survive navigating between sections, so it lives in a
+       cookie, and a checkbox the browser toggles locally would immediately
+       disagree with the cookie the server is still rendering from. One
+       control, one source of truth, one round trip -- on a server-rendered
+       app where every other control already posts. #}
+    {% if section %}
+      <form method="post" action="{{ url_for('set_nav_preference') }}" class="nav-toggle">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="return_to" value="{{ nav_return_to }}">
+        <input type="hidden" name="guild_id" value="{{ guild_id }}">
+        {# Sends the state it moves you TO. Absent means expanded, which is why
+           the expand button carries no value at all. #}
+        {% if nav_collapsed %}
+          <button type="submit" class="hamburger" aria-label="Show the sidebar"
+                  title="Show the sidebar">
+            <span class="bars" aria-hidden="true"></span>
+          </button>
+        {% else %}
+          <button type="submit" name="collapsed" value="1" class="hamburger"
+                  aria-label="Hide the sidebar" title="Hide the sidebar">
+            <span class="bars" aria-hidden="true"></span>
+          </button>
+        {% endif %}
+      </form>
+    {% endif %}
+
     <a class="brand" href="{{ url_for('index') }}">VRCVerify</a>
     {# Both live in the bar rather than on an account page, because the second
        one is what you want when you have just realised somebody else has your
@@ -30,9 +59,55 @@
     {% endif %}
   </header>
 
-  <main>
-    {% block content %}{% endblock %}
-  </main>
+  {# One <main>, wrapped either way -- a Jinja block can only be defined once,
+     and duplicating the content block for the two layouts is not a thing. #}
+  <div class="layout{% if not section %} plain{% endif %}{% if nav_collapsed %} collapsed{% endif %}">
+    {% if section %}
+      {# aria-label rather than a visible heading: the sidebar's identity is
+         obvious to anyone who can see it, and a screen reader needs the name
+         more than the page needs the pixels. #}
+      <nav class="sidebar" aria-label="Sections">
+        <p class="side-guild">
+          <span class="icon" aria-hidden="true">
+            {% if guild_icon %}
+              <img src="{{ guild_icon }}" alt="" width="32" height="32">
+            {% else %}
+              <span class="initial">{{ guild_name[:1] | upper }}</span>
+            {% endif %}
+          </span>
+          <span class="side-text side-guild-name">{{ guild_name }}</span>
+        </p>
+
+        <ul class="side-nav">
+          {% for key, label, endpoint in sections %}
+            <li>
+              {# aria-current is the accessible half of the highlight. The
+                 class alone says "this one looks different"; this says which
+                 one you are on. #}
+              <a href="{{ url_for(endpoint, guild_id=guild_id) }}"
+                 class="side-link{% if key == section %} current{% endif %}"
+                 {% if key == section %}aria-current="page"{% endif %}
+                 title="{{ label }}">
+                <span class="side-mark" aria-hidden="true">{{ label[:1] }}</span>
+                <span class="side-text">{{ label }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+
+        <p class="side-back">
+          <a href="{{ url_for('index') }}" title="All servers">
+            <span class="side-mark" aria-hidden="true">&larr;</span>
+            <span class="side-text">All servers</span>
+          </a>
+        </p>
+      </nav>
+    {% endif %}
+
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
 
   <footer>
     <p>Core 18+ verification is free, forever.</p>

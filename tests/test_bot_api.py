@@ -82,6 +82,20 @@ def make_deps(written=None, posted=None, **overrides) -> bot_api.BotAPIDeps:
     async def read_audit(guild_id):
         return []
 
+    async def read_overview(guild_id):
+        return {
+            "guild_id": str(guild_id),
+            "member_count": 12,
+            "verifications": {
+                "total": 4,
+                "today": 1,
+                "last_7_days": 2,
+                "last_30_days": 4,
+                "collecting_since": "2026-06-01",
+                "known": True,
+            },
+        }
+
     async def post_panel(guild_id, actor_id, channel_id):
         posted.append((int(guild_id), int(actor_id), str(channel_id)))
         return {"action": "posted", "channel_id": str(channel_id)}
@@ -100,6 +114,7 @@ def make_deps(written=None, posted=None, **overrides) -> bot_api.BotAPIDeps:
         read_channels=read_channels,
         read_panel=read_panel,
         read_audit=read_audit,
+        read_overview=read_overview,
         write_settings=write_settings,
         post_panel=post_panel,
     )
@@ -1033,6 +1048,7 @@ class TestWriteSurfaceIsExactlyTwoThings:
                 "read_channels",
                 "read_panel",
                 "read_audit",
+                "read_overview",
                 "write_settings",
                 "post_panel",
             }
@@ -2758,7 +2774,14 @@ class TestTheRetiredCommandsStillAnswer:
         # The guild, not the picker. Making an admin find the server they were
         # already looking at is how "use the website" becomes "the website is
         # annoying".
-        assert button.url == f"https://dashboard.vrcverify.com/guild/{GUILD_ID}"
+        #
+        # And the settings section specifically, not the guild root -- the root
+        # is the Overview, and this button sits under "change them on the
+        # dashboard".
+        assert (
+            button.url
+            == f"https://dashboard.vrcverify.com/guild/{GUILD_ID}/settings"
+        )
 
     def test_no_dashboard_configured_still_gives_a_usable_answer(
         self, monkeypatch, free

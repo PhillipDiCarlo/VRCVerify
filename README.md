@@ -320,7 +320,7 @@ Deployment rules, all enforced or explained in `.env.example`:
   through an expired dashboard certificate; the log says so at `ERROR`.
 
 The API's authority is **a set of named capabilities, not a database handle**:
-`BotAPIDeps` holds eleven callables, nine of which only read or check, and
+`BotAPIDeps` holds twelve callables, ten of which only read or check, and
 exactly two that change anything — `write_settings` and `post_panel`. There is
 no generic column setter, so widening what the website
 can do to a server means adding a named capability here — a reviewable diff,
@@ -334,9 +334,47 @@ ever", it was "a writer cannot appear by accident".)
 ### The dashboard itself
 
 `src/dashboard/` is a small Flask app that signs an admin in with Discord OAuth,
-lists the servers they administer, and shows one server's settings. It holds no
-database credential and no bot token: everything it knows it asks the bot for
-over mTLS, and the bot decides what it is allowed to know.
+lists the servers they administer, and opens one server in a sidebar with three
+sections. It holds no database credential and no bot token: everything it knows
+it asks the bot for over mTLS, and the bot decides what it is allowed to know.
+
+| Section | URL | What it is |
+| --- | --- | --- |
+| Overview | `/guild/<id>` | Where picking a server lands. Member count, verifications today / 7d / 30d, and the one thing worth fixing next. |
+| Settings | `/guild/<id>/settings` | Every setting the slash commands can change. |
+| Subscriptions | `/guild/<id>/subscription` | Placeholder. Buying still happens in Discord. |
+
+All three authorise identically — a session to prove who is asking, then the
+bot to decide what they may see — and, just as importantly, **all three fail
+identically**, through one `_guild_page_unavailable`. A 403 and a 404 from the
+bot render as the same page with the same status, because rendered differently
+they would let any signed-in user walk guild ids and enumerate the servers
+running 18+ gating. An oracle only has to exist on one of the three routes to be
+worth using, which is why the Subscriptions placeholder calls the bot before
+rendering a page that has nothing on it.
+
+The sidebar collapses to an icon rail from the hamburger in the top left, and
+the choice is remembered in a cookie by `POST /prefs/nav` — the one write route
+here that never reaches the bot. There is still **no JavaScript anywhere in this
+app**; the toggle is a form, which is why the collapsed state and the cookie can
+never disagree.
+
+**The Overview's three ways of not showing a number are three different
+statements**, and `src/dashboard/overview_view.py` exists to keep them apart:
+`0` means the window is covered and nothing happened in it — a panel is up and
+nobody is using it, which is usually the thing the admin came to find out; a
+blank means the window reaches back before `verification_daily` started
+collecting, so no figure would be true; "Couldn't check" means the bot did not
+answer. Showing a blank as `0` invents a quiet week, and showing a `0` as blank
+hides a broken server.
+
+Counts only. The Overview reports no per-member information because none is
+stored — see the `verification_daily` note under Database Setup. It also does
+not report how many members hold the verified role: the bot runs with
+`MemberCacheFlags.none()` and no startup chunking, so answering that honestly
+would mean chunking the guild, and the cost scales with exactly the servers
+where the number would be most interesting. A tile that is sometimes wrong is
+worse than no tile.
 
 It can now save **every setting the slash commands can**, one form per group.
 That boundary is still enforced in the bot by `DASHBOARD_WRITABLE_FIELDS`,
@@ -614,6 +652,28 @@ it.
 4. **Database Setup:**
 
    The bot automatically creates the necessary tables using SQLAlchemy when it runs. Make sure your database is reachable via the `DATABASE_URL`.
+
+   **Verification history (`verification_daily`).** The dashboard's Overview
+   page reports how many verifications a server completed today, in the last 7
+   days and in the last 30. None of that can be derived from
+   `servers.verification_count`, which is a running total with no history behind
+   it, so the counts come from their own table: one row per guild per UTC day,
+   holding a guild id, a date and a count. It is created automatically, no
+   manual migration needed.
+
+   The table deliberately stores **no member identifiers and no per-person
+   timestamps**. A count cannot be turned back into a person, which is the
+   property that makes it safe to keep for a product whose job is to answer "is
+   this person over 18" and then forget. Adding a column here would change that,
+   and `tests/test_overview.py` asserts the column list so it cannot happen
+   quietly.
+
+   History starts when the table does. Windows that reach back before the first
+   row are shown blank on the Overview rather than as zero — see
+   `src/dashboard/overview_view.py` for why those two must not look the same.
+   Nothing prunes the table today; at one small row per active guild per day it
+   is not a growth concern, but a deployment keeping years of it may want a
+   periodic delete of rows older than ~400 days.
 
 ---
 

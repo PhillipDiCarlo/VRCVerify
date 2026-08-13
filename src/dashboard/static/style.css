@@ -53,6 +53,182 @@ body {
 
 .brand { font-weight: 650; color: var(--ink); text-decoration: none; }
 
+/* The bar is a three-part row once there is a hamburger in it: toggle, brand,
+ * account. The brand takes the slack so the account controls stay right. */
+.brand { margin-right: auto; }
+
+/* --- sidebar --- */
+.nav-toggle { display: flex; }
+
+.hamburger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* Three lines drawn with borders rather than an image or an inline SVG: the
+ * CSP is img-src 'self' plus Discord's CDN, and a data: URI would need
+ * widening it for an icon that CSS can draw. */
+.bars,
+.bars::before,
+.bars::after {
+  display: block;
+  width: 1rem;
+  height: 0;
+  border-top: 2px solid currentColor;
+}
+
+.bars { position: relative; }
+
+.bars::before,
+.bars::after {
+  content: "";
+  position: absolute;
+  left: 0;
+}
+
+.bars::before { top: -5px; }
+.bars::after { top: 3px; }
+
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* Login and the picker have no sidebar, so the wrapper gets out of the way
+ * entirely and `main` keeps the width it always had. */
+.layout.plain { display: block; max-width: none; padding: 0; }
+
+/* `main` already carries the page's horizontal padding for the sidebar-less
+ * pages. Inside the layout that padding is the wrapper's job, or the content
+ * sits inset from a sidebar that is not. */
+.layout:not(.plain) main {
+  flex: 1 1 auto;
+  /* Without this a wide child -- the settings textarea, a long channel name --
+     makes the flex item refuse to shrink and the whole page scrolls sideways. */
+  min-width: 0;
+  max-width: 60rem;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sidebar {
+  flex: 0 0 14rem;
+  position: sticky;
+  top: 1.5rem;
+  margin-top: 1.5rem;
+  padding: 0.85rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+
+.layout.collapsed .sidebar { flex-basis: 3.75rem; }
+
+/* The rail. Every label goes, every target stays: the links keep their full
+ * height and remain tabbable, which is the difference between a collapsed
+ * sidebar and a broken one. */
+.layout.collapsed .side-text { display: none; }
+.layout.collapsed .sidebar { text-align: center; }
+.layout.collapsed .side-guild { justify-content: center; }
+.layout.collapsed .side-link,
+.layout.collapsed .side-back a { justify-content: center; }
+
+.side-guild {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.925rem;
+  font-weight: 600;
+}
+
+.side-guild .icon {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.side-guild .icon img { width: 32px; height: 32px; }
+.side-guild .initial { font-size: 0.875rem; }
+
+.side-nav { list-style: none; margin: 0; padding: 0; }
+
+.side-link,
+.side-back a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 7px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.side-link:hover,
+.side-back a:hover { background: var(--bg); }
+
+/* The current section. A left bar as well as a fill, because the fill alone is
+ * a very quiet difference against --panel in the dark palette. */
+.side-link.current {
+  background: var(--bg);
+  box-shadow: inset 3px 0 0 var(--accent);
+  font-weight: 650;
+}
+
+/* The letter shown in place of a label on the rail. Fixed width so the icons
+ * line up in both states rather than shifting when the labels go. */
+.side-mark {
+  flex: 0 0 1.25rem;
+  text-align: center;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.side-link.current .side-mark { color: var(--accent); }
+
+.side-back {
+  margin: 0.75rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.925rem;
+}
+
+.side-back a { color: var(--muted); }
+
+/* Below this the sidebar would take a third of the screen from the content it
+ * is there to navigate, so it becomes a full-width strip above it instead. */
+@media (max-width: 46rem) {
+  .layout { flex-direction: column; gap: 0; }
+  .sidebar {
+    flex-basis: auto;
+    width: 100%;
+    position: static;
+    margin-bottom: 0;
+  }
+  .layout.collapsed .sidebar { flex-basis: auto; }
+  .side-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .side-back { display: inline-block; border-top: 0; padding-top: 0; }
+}
+
 /* Two sign-out forms side by side. They wrap rather than shrink on a narrow
  * screen: "Sign out everywhere" truncated to "Sign out" would be the one
  * misreading in this bar that actually costs something. */
@@ -328,6 +504,103 @@ textarea {
   border-radius: 6px;
   padding: 0.45rem 0.55rem;
   resize: vertical;
+}
+
+/* --- overview --- */
+.tiles {
+  list-style: none;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.75rem;
+}
+
+.tile {
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tile-value {
+  display: block;
+  font-size: 1.7rem;
+  font-weight: 650;
+  line-height: 1.15;
+  /* Tabular figures so a column of counts lines up on the digits rather than
+   * wandering with the glyph widths. */
+  font-variant-numeric: tabular-nums;
+}
+
+.tile-label {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.tile-note {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+}
+
+/* A window with nothing behind it, and a read that failed. Both are muted, and
+ * they say different things -- see overview_view for why they must not become
+ * the same tile. Neither is dimmed as far as a real zero would look wrong: a
+ * count of 0 is a true answer and keeps full contrast. */
+.tile-blank .tile-value { color: var(--muted); }
+
+.tile-unknown .tile-value {
+  color: var(--muted);
+  /* The words "Couldn't check" in the size meant for two digits. */
+  font-size: 1rem;
+  font-weight: 600;
+  font-style: italic;
+}
+
+/* The one suggested action. Accented like the upgrade box, because it is the
+ * same kind of thing: a prompt on a page you came to read. */
+.next-step { border-left: 3px solid var(--accent); }
+
+.setup { list-style: none; margin: 0; padding: 0; }
+
+.setup-row {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(8rem, auto) 1fr;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.925rem;
+}
+
+.setup-state { color: var(--muted); font-weight: 700; text-align: center; }
+.setup-label { font-weight: 600; }
+.setup-note { font-size: 0.85rem; }
+
+/* Only a *required* piece that is missing. The tick and cross alone would
+ * otherwise read as four pass/fail results, and three of these are ordinary
+ * choices rather than faults. */
+.setup-row.missing .setup-state { color: var(--notice); }
+
+/* Available to a screen reader, absent from the page. Used for the tick and
+ * cross, which are decorative marks carrying real meaning. */
+.offscreen {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 34rem) {
+  /* The note drops below rather than squeezing the label to two characters. */
+  .setup-row { grid-template-columns: 1.5rem 1fr; }
+  .setup-note { grid-column: 2; }
 }
 
 /* --- change history --- */

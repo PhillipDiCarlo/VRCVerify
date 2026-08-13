@@ -26,6 +26,7 @@ import requests
 
 from api_tokens import (
     OP_GUILD_CHANNELS,
+    OP_GUILD_OVERVIEW,
     OP_GUILD_PANEL,
     OP_GUILD_ROLES,
     OP_GUILD_SETTINGS,
@@ -254,4 +255,13 @@ class BotAPIClient:
     def panel(self, actor_id: int, guild_id) -> dict:
         return self._get(
             f"/api/v1/guilds/{int(guild_id)}/panel", OP_GUILD_PANEL, actor_id, guild_id
+        )
+
+    def overview(self, actor_id: int, guild_id) -> dict:
+        """The Overview page's counts. One call, so one Administrator check."""
+        return self._get(
+            f"/api/v1/guilds/{int(guild_id)}/overview",
+            OP_GUILD_OVERVIEW,
+            actor_id,
+            guild_id,
         )
