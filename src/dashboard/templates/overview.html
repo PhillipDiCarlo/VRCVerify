@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ guild_name }} — VRCVerify{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <header class="guild-head">
+    <span class="icon" aria-hidden="true">
+      {% if guild_icon %}
+        <img src="{{ guild_icon }}" alt="" width="64" height="64">
+      {% else %}
+        <span class="initial">{{ guild_name[:1] | upper }}</span>
+      {% endif %}
+    </span>
+    <div>
+      <h1>{{ guild_name }}</h1>
+      <p class="muted">
+        {% if premium.premium %}
+          VRCVerify Premium is active on this server.
+        {% elif premium.grandfathered %}
+          This server was set up before Premium launched, so it keeps several
+          extras free, permanently.
+        {% else %}
+          18+ verification is free on this server, and always will be.
+        {% endif %}
+      </p>
+    </div>
+  </header>
+</section>
+
+{# The one thing worth doing next, if there is one. Above the numbers on
+   purpose: a server with no verified role has nothing to count, and burying
+   the reason under four zeroes is how an admin concludes the bot is broken. #}
+{% if next_step %}
+  <section class="panel group next-step">
+    <h2>{{ next_step.title }}</h2>
+    <p class="muted blurb">{{ next_step.body }}</p>
+    <p class="actions">
+      <a class="button" href="{{ url_for('guild_settings', guild_id=guild_id) }}">
+        Go to Settings</a>
+    </p>
+  </section>
+{% endif %}
+
+<section class="panel group">
+  <h2>Verifications</h2>
+  <p class="muted blurb">
+    How many members completed 18+ verification in this server. Counts only —
+    VRCVerify doesn't keep a record of who verified when.
+  </p>
+
+  {% if not tiles %}
+    <p class="muted">Couldn't load this server's numbers just now. Try again shortly.</p>
+  {% else %}
+    <ul class="tiles">
+      {% for tile in tiles %}
+        {# Three states, and the template must not decide between them --
+           `display` does, because `value or "-"` is exactly the falsy-zero bug
+           that would hide a server where nobody is verifying. #}
+        <li class="tile{% if tile.state != 'value' %} tile-{{ tile.state }}{% endif %}">
+          <span class="tile-value">{{ tile.display }}</span>
+          <span class="tile-label">{{ tile.label }}</span>
+          {% if tile.note %}
+            <span class="muted tile-note">{{ tile.note }}</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>
+
+{% if setup %}
+  <section class="panel group">
+    <h2>Setup</h2>
+    <p class="muted blurb">
+      What's switched on in this server. Change any of it on
+      <a href="{{ url_for('guild_settings', guild_id=guild_id) }}">Settings</a>.
+    </p>
+
+    <ul class="setup">
+      {% for row in setup %}
+        {# Only a missing *required* piece is marked as a problem. Flagging an
+           optional setting an admin deliberately left off would report a
+           working server as broken. #}
+        <li class="setup-row{% if not row.on %} off{% endif %}
+                   {%- if row.required and not row.on %} missing{% endif %}">
+          {# Inline SVG rather than &check; / &times;. The vendored Inter subset
+             has no U+2713, so a tick would silently fall back to another
+             family and land at a different weight and baseline -- which reads
+             as a rendering fault rather than a design choice. #}
+          <span class="setup-state" aria-hidden="true">
+            {%- if row.on -%}
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
+                   stroke="currentColor" stroke-width="2.2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 8.5l3.5 3.5L13 4.5"></path>
+              </svg>
+            {%- else -%}
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
+                   stroke="currentColor" stroke-width="2.2"
+                   stroke-linecap="round">
+                <path d="M4 4l8 8M12 4l-8 8"></path>
+              </svg>
+            {%- endif -%}
+          </span>
+          <span class="setup-label">
+            {{ row.label }}
+            <span class="offscreen">
+              {%- if row.on %}: set{% else %}: not set{% endif -%}
+            </span>
+          </span>
+          <span class="muted setup-note">{{ row.note }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+{% endblock %}

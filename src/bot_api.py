@@ -149,7 +149,7 @@ GLOBAL_WRITE_RATE_KEY: "web.AppKey" = web.AppKey("global_write_rate_limiter")
 class BotAPIDeps:
     """The complete list of things the API can do to the bot.
 
-    Nine of the eleven only read or check. `tests/test_bot_api.py` pins the
+    Ten of the twelve only read or check. `tests/test_bot_api.py` pins the
     exact field set, so a third mutating capability cannot be added by accident
     — adding one means editing that test on purpose, which is a reviewable diff
     rather than a quiet widening.
@@ -183,6 +183,9 @@ class BotAPIDeps:
     read_channels: Callable[[int], Awaitable[Optional[list]]]
     read_panel: Callable[[int], Awaitable[Optional[dict]]]
     read_audit: Callable[[int], Awaitable[Optional[list]]]
+    # The Overview page's counts. Aggregates only — no member ids reach this
+    # side of the wire, because none are stored to begin with.
+    read_overview: Callable[[int], Awaitable[Optional[dict]]]
     # The only writer. Takes (guild_id, actor_id, changes) and either returns
     # the re-read settings, returns None because it could not complete, or
     # raises the bot's SettingRejected for anything the caller got wrong.
@@ -778,6 +781,9 @@ def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
     )
     app.router.add_get("/api/v1/guilds/{guild_id}/panel", _guild_reader("read_panel"))
     app.router.add_get("/api/v1/guilds/{guild_id}/audit", _guild_reader("read_audit"))
+    app.router.add_get(
+        "/api/v1/guilds/{guild_id}/overview", _guild_reader("read_overview")
+    )
     app.router.add_patch(
         "/api/v1/guilds/{guild_id}/settings", handle_update_settings
     )

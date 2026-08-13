@@ -82,6 +82,20 @@ def make_deps(written=None, posted=None, **overrides) -> bot_api.BotAPIDeps:
     async def read_audit(guild_id):
         return []
 
+    async def read_overview(guild_id):
+        return {
+            "guild_id": str(guild_id),
+            "member_count": 12,
+            "verifications": {
+                "total": 4,
+                "today": 1,
+                "last_7_days": 2,
+                "last_30_days": 4,
+                "collecting_since": "2026-06-01",
+                "known": True,
+            },
+        }
+
     async def post_panel(guild_id, actor_id, channel_id):
         posted.append((int(guild_id), int(actor_id), str(channel_id)))
         return {"action": "posted", "channel_id": str(channel_id)}
@@ -100,6 +114,7 @@ def make_deps(written=None, posted=None, **overrides) -> bot_api.BotAPIDeps:
         read_channels=read_channels,
         read_panel=read_panel,
         read_audit=read_audit,
+        read_overview=read_overview,
         write_settings=write_settings,
         post_panel=post_panel,
     )
@@ -1033,6 +1048,7 @@ class TestWriteSurfaceIsExactlyTwoThings:
                 "read_channels",
                 "read_panel",
                 "read_audit",
+                "read_overview",
                 "write_settings",
                 "post_panel",
             }
@@ -2730,6 +2746,36 @@ class TestTheRetiredCommandsStillAnswer:
         # ...and never both markers on one field.
         assert not any("\N{LOCK}" in n and "not applied" in n for n in labels)
 
+    def test_a_missing_auto_verify_column_is_reported_not_rendered_as_on(
+        self, monkeypatch, free
+    ):
+        """The one default that would be believed, and acted on.
+
+        With no `auto_verify_new_members` column the payload reports the field
+        as True, because that is the documented default -- but the bot is not
+        checking joiners either way. A bare "On" tells an admin that new
+        members are being verified when nothing is verifying them, which is
+        exactly the wrong direction to be wrong in for a gate.
+        """
+        make_server(row_id=9000, role_id="900000000001")
+        monkeypatch.setattr(
+            bot, "server_has_column", lambda name: name != "auto_verify_new_members"
+        )
+
+        embed = run(bot.build_settings_summary(SummaryGuild()))
+        auto = next(f for f in embed.fields if "Auto-verify" in f.name)
+        assert "Unavailable" in auto.value
+        assert "On" != auto.value
+        assert "\N{WARNING SIGN}" in auto.name
+
+    def test_a_present_column_reports_the_value_plainly(self, free):
+        """The caveat above must not appear on a healthy deployment."""
+        make_server(row_id=9000, role_id="900000000001")
+        embed = run(bot.build_settings_summary(SummaryGuild()))
+        auto = next(f for f in embed.fields if "Auto-verify" in f.name)
+        assert "Unavailable" not in auto.value
+        assert "\N{WARNING SIGN}" not in auto.name
+
     def test_an_unreadable_settings_read_says_so_rather_than_showing_defaults(
         self, monkeypatch
     ):
@@ -2758,7 +2804,35 @@ class TestTheRetiredCommandsStillAnswer:
         # The guild, not the picker. Making an admin find the server they were
         # already looking at is how "use the website" becomes "the website is
         # annoying".
-        assert button.url == f"https://dashboard.vrcverify.com/guild/{GUILD_ID}"
+        #
+        # And the settings section specifically, not the guild root -- the root
+        # is the Overview, and this button sits under "change them on the
+        # dashboard".
+        assert (
+            button.url
+            == f"https://dashboard.vrcverify.com/guild/{GUILD_ID}/settings"
+        )
+
+    @pytest.mark.parametrize(
+        "configured", ["dashboard.vrcverify.com", "  ", "vrcverify.com/dash"]
+    )
+    def test_a_url_without_a_scheme_costs_the_button_not_the_command(
+        self, monkeypatch, free, configured
+    ):
+        """Discord 400s a link button with no scheme, failing the interaction.
+
+        So a typo in one env var would break /vrcverify_setup and every summary
+        command outright. Degrading to the no-button path -- which these
+        callers already handle -- turns that into a missing link and a log line.
+        """
+        make_server(row_id=9000)
+        monkeypatch.setattr(bot, "DASHBOARD_URL", configured)
+        interaction = fake_interaction(SummaryGuild())
+        run(bot.send_settings_summary(interaction))
+
+        (reply,) = interaction.followup.sent
+        assert "view" not in reply
+        assert reply["embed"] is not None
 
     def test_no_dashboard_configured_still_gives_a_usable_answer(
         self, monkeypatch, free

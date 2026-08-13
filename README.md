@@ -320,7 +320,7 @@ Deployment rules, all enforced or explained in `.env.example`:
   through an expired dashboard certificate; the log says so at `ERROR`.
 
 The API's authority is **a set of named capabilities, not a database handle**:
-`BotAPIDeps` holds eleven callables, nine of which only read or check, and
+`BotAPIDeps` holds twelve callables, ten of which only read or check, and
 exactly two that change anything — `write_settings` and `post_panel`. There is
 no generic column setter, so widening what the website
 can do to a server means adding a named capability here — a reviewable diff,
@@ -334,9 +334,101 @@ ever", it was "a writer cannot appear by accident".)
 ### The dashboard itself
 
 `src/dashboard/` is a small Flask app that signs an admin in with Discord OAuth,
-lists the servers they administer, and shows one server's settings. It holds no
-database credential and no bot token: everything it knows it asks the bot for
-over mTLS, and the bot decides what it is allowed to know.
+lists the servers they administer, and opens one server in a sidebar with three
+sections. It holds no database credential and no bot token: everything it knows
+it asks the bot for over mTLS, and the bot decides what it is allowed to know.
+
+| Section | URL | What it is |
+| --- | --- | --- |
+| Overview | `/guild/<id>` | Where picking a server lands. Member count, verifications today / 7d / 30d, and the one thing worth fixing next. |
+| Settings | `/guild/<id>/settings` | Every setting the slash commands can change. |
+| Subscriptions | `/guild/<id>/subscription` | Placeholder. Buying still happens in Discord. |
+
+All three authorise identically — a session to prove who is asking, then the
+bot to decide what they may see — and, just as importantly, **all three fail
+identically**, through one `_guild_page_unavailable`. A 403 and a 404 from the
+bot render as the same page with the same status, because rendered differently
+they would let any signed-in user walk guild ids and enumerate the servers
+running 18+ gating. An oracle only has to exist on one of the three routes to be
+worth using, which is why the Subscriptions placeholder calls the bot before
+rendering a page that has nothing on it.
+
+The sidebar collapses to an icon rail from the hamburger in the top left, and
+the choice is remembered in a cookie by `POST /prefs/nav` — the one write route
+here that never reaches the bot. The toggle is a form rather than a script,
+which is why the collapsed state and the cookie can never disagree.
+
+### How it looks, and what that costs
+
+The dashboard borrows **Discord's own surface layering** — a dark shell, a
+lighter sidebar on it, lighter cards again on top — so an admin arriving from a
+slash command feels like they changed rooms rather than applications. What is
+deliberately *not* borrowed is blurple as decoration: here the brand colour
+means exactly two things, "this is the page you are on" and "this button does
+the thing", so it never appears on a border or a heading. Everything else is
+carried by the surface ramp and type weight.
+
+Four constraints shape the implementation, and three of them are CSP:
+
+- **`style-src 'self'`, no `'unsafe-inline'`** — no `style=""` attributes
+  anywhere. Any value that varies per element has to be a class or a
+  presentation attribute, which is why the colour swatches are SVG `fill`. If a
+  genuinely dynamic value is ever needed, the answer is a per-response nonce on
+  one `<style>` block that sets custom properties — not `'unsafe-inline'`.
+- **`font-src 'self'`** — Inter is vendored into `static/fonts` (48KB latin
+  subset, variable weight, OFL, licence alongside it). No font CDN: a third
+  party would otherwise see who opens the dashboard and could break it by going
+  down. The subset has no U+2713 or U+2190, which is why the ticks and the back
+  arrow are inline SVG — a glyph the font lacks falls back to another family at
+  a different weight, and that reads as a rendering fault.
+- **`img-src 'self' https://cdn.discordapp.com`** — icons are inline SVG, so
+  they need no origin at all and inherit `currentColor` for free.
+- **No `connect-src`** — so `fetch` and `XHR` are blocked by `default-src
+  'none'`. Deliberate: adding one is a decision to take on purpose.
+
+**Static assets are the one place `no-store` is relaxed.** Pages carry guild
+names, plan state and a CSRF token, so they must never sit in a shared cache.
+Static files are the same bytes for a signed-out stranger, and `asset()` stamps
+a content digest into each URL — so they are cached for a year, and a deploy
+changes the URL rather than leaving anyone on a stale stylesheet.
+
+**There is exactly one script**, `static/app.js`, and it is a warning rather
+than a mechanism: the settings page has five independent forms, and editing one
+group then saving another silently discards the first group's edits. It is
+external (never inline), touches no network, writes no markup, and holds no
+authority — with JavaScript off, every page renders, navigates and saves
+exactly as before. `tests/test_dashboard.py` pins all of that.
+
+**Motion is narrow by intent**: 120ms colour fades on hover and focus, and
+nothing else. A cross-document view transition between pages was tried and
+removed — it cross-faded the whole page on every navigation, which put a delay
+between clicking a section and being able to read it, and moving between
+Overview and Settings is something an admin does repeatedly. Nothing loops,
+spins or slides, and the fades are off under `prefers-reduced-motion`.
+
+**Mobile and old hardware** are first-class: 44px touch targets on coarse
+pointers, 16px form controls so iOS does not zoom on focus, guild icons
+requested at `?size=64`, and no `backdrop-filter` or large blurred shadows —
+the expensive things to paint. Modern CSS (`:has()`, container queries,
+`color-mix()`) is used only as progressive enhancement, because the practical
+floor is Safari 15.0–15.3 on a phone that stopped getting updates.
+
+**The Overview's three ways of not showing a number are three different
+statements**, and `src/dashboard/overview_view.py` exists to keep them apart:
+`0` means the window is covered and nothing happened in it — a panel is up and
+nobody is using it, which is usually the thing the admin came to find out; a
+blank means the window reaches back before `verification_daily` started
+collecting, so no figure would be true; "Couldn't check" means the bot did not
+answer. Showing a blank as `0` invents a quiet week, and showing a `0` as blank
+hides a broken server.
+
+Counts only. The Overview reports no per-member information because none is
+stored — see the `verification_daily` note under Database Setup. It also does
+not report how many members hold the verified role: the bot runs with
+`MemberCacheFlags.none()` and no startup chunking, so answering that honestly
+would mean chunking the guild, and the cost scales with exactly the servers
+where the number would be most interesting. A tile that is sometimes wrong is
+worse than no tile.
 
 It can now save **every setting the slash commands can**, one form per group.
 That boundary is still enforced in the bot by `DASHBOARD_WRITABLE_FIELDS`,
@@ -614,6 +706,28 @@ it.
 4. **Database Setup:**
 
    The bot automatically creates the necessary tables using SQLAlchemy when it runs. Make sure your database is reachable via the `DATABASE_URL`.
+
+   **Verification history (`verification_daily`).** The dashboard's Overview
+   page reports how many verifications a server completed today, in the last 7
+   days and in the last 30. None of that can be derived from
+   `servers.verification_count`, which is a running total with no history behind
+   it, so the counts come from their own table: one row per guild per UTC day,
+   holding a guild id, a date and a count. It is created automatically, no
+   manual migration needed.
+
+   The table deliberately stores **no member identifiers and no per-person
+   timestamps**. A count cannot be turned back into a person, which is the
+   property that makes it safe to keep for a product whose job is to answer "is
+   this person over 18" and then forget. Adding a column here would change that,
+   and `tests/test_overview.py` asserts the column list so it cannot happen
+   quietly.
+
+   History starts when the table does. Windows that reach back before the first
+   row are shown blank on the Overview rather than as zero — see
+   `src/dashboard/overview_view.py` for why those two must not look the same.
+   Nothing prunes the table today; at one small row per active guild per day it
+   is not a growth concern, but a deployment keeping years of it may want a
+   periodic delete of rows older than ~400 days.
 
 ---
 

@@ -1,15 +1,97 @@
+{# The rail's icons. Only ever visible when the sidebar is collapsed -- expanded,
+   the labels speak for themselves and a glyph beside each one is noise.
+
+   Drawn inline rather than loaded, because the CSP is img-src 'self' plus
+   Discord's CDN and a data: URI would mean widening it for three small shapes.
+   Every attribute below is a presentation attribute, not CSS: style-src 'self'
+   blocks inline style="" as well, which is why `stroke` is written this way.
+
+   They replaced the section's first letter, which was doing no work -- Settings
+   and Subscriptions both reduce to "S", so the rail offered two identical marks
+   for two different pages. #}
+{# Evenly spaced by construction: three lines at y=4, 8 and 12 in a 16-unit
+   box. The previous version drew them with a border and two pseudo-elements,
+   whose offsets resolved against the padding box and came out 1px apart above
+   the middle bar and 3px below it. #}
+{% macro hamburger() -%}
+  <svg class="bars" viewBox="0 0 16 16" width="16" height="16"
+       aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="1.8" stroke-linecap="round">
+    <path d="M2.5 4h11M2.5 8h11M2.5 12h11"></path>
+  </svg>
+{%- endmacro %}
+
+{% macro side_icon(key) -%}
+  <svg class="side-mark" viewBox="0 0 16 16" width="16" height="16"
+       aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="1.7" stroke-linecap="round">
+    {%- if key == 'overview' -%}
+      {# Bars: the page is counts. #}
+      <path d="M3.5 13V9.5M8 13V3.5M12.5 13V6.5"></path>
+    {%- elif key == 'settings' -%}
+      {# Sliders rather than a gear -- fewer strokes survive at 16px. #}
+      <path d="M2 5h12M2 11h12"></path>
+      <circle cx="10.5" cy="5" r="1.9" fill="var(--panel)"></circle>
+      <circle cx="5.5" cy="11" r="1.9" fill="var(--panel)"></circle>
+    {%- else -%}
+      {# A card. #}
+      <rect x="2" y="4" width="12" height="8.5" rx="1.5"></rect>
+      <path d="M2 7.25h12"></path>
+    {%- endif -%}
+  </svg>
+{%- endmacro %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}VRCVerify{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  {# No <script> anywhere in this app. The CSP forbids inline script, and
-     nothing here needs JavaScript to work. #}
+  {# `asset()` rather than `url_for`: it appends a digest of the file's
+     contents, which is what lets these be cached for a year without a deploy
+     leaving anyone on a stale stylesheet. See _register_assets in app.py. #}
+  <link rel="stylesheet" href="{{ asset('style.css') }}">
+  {# The font is `font-display: swap`, so text paints in the system face and
+     reflows when this lands. Preloading shortens the window in which that
+     reflow can be noticed, because otherwise the browser cannot even start
+     this download until it has parsed the stylesheet that references it.
+     `crossorigin` is required even same-origin -- font fetches are CORS-mode,
+     and without it the browser downloads the file twice. #}
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="{{ asset('fonts/inter-latin-var.woff2') }}">
+  {# The only script in the app, and it is a warning rather than a mechanism:
+     it notices you edited one settings group and saved a different one. Every
+     page works identically without it -- see static/app.js. `defer` so it
+     never delays rendering. #}
+  <script src="{{ asset('app.js') }}" defer></script>
 </head>
 <body>
   <header class="bar">
+    {# The hamburger is a submit button, not a checkbox.
+       A hidden checkbox with a sibling selector would collapse the sidebar
+       with no request at all, which is tempting and wrong here: the collapsed
+       state has to survive navigating between sections, so it lives in a
+       cookie, and a checkbox the browser toggles locally would immediately
+       disagree with the cookie the server is still rendering from. One
+       control, one source of truth, one round trip -- on a server-rendered
+       app where every other control already posts. #}
+    {% if section %}
+      <form method="post" action="{{ url_for('set_nav_preference') }}" class="nav-toggle">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="return_to" value="{{ nav_return_to }}">
+        <input type="hidden" name="guild_id" value="{{ guild_id }}">
+        {# Sends the state it moves you TO. Absent means expanded, which is why
+           the expand button carries no value at all. #}
+        {% if nav_collapsed %}
+          <button type="submit" class="hamburger" aria-label="Show the sidebar"
+                  title="Show the sidebar">{{ hamburger() }}</button>
+        {% else %}
+          <button type="submit" name="collapsed" value="1" class="hamburger"
+                  aria-label="Hide the sidebar" title="Hide the sidebar">
+            {{ hamburger() }}</button>
+        {% endif %}
+      </form>
+    {% endif %}
+
     <a class="brand" href="{{ url_for('index') }}">VRCVerify</a>
     {# Both live in the bar rather than on an account page, because the second
        one is what you want when you have just realised somebody else has your
@@ -30,9 +112,67 @@
     {% endif %}
   </header>
 
-  <main>
-    {% block content %}{% endblock %}
-  </main>
+  {# One <main>, wrapped either way -- a Jinja block can only be defined once,
+     and duplicating the content block for the two layouts is not a thing. #}
+  <div class="layout{% if not section %} plain{% endif %}{% if nav_collapsed %} collapsed{% endif %}">
+    {% if section %}
+      {# aria-label rather than a visible heading: the sidebar's identity is
+         obvious to anyone who can see it, and a screen reader needs the name
+         more than the page needs the pixels. #}
+      <nav class="sidebar" aria-label="Sections">
+        <p class="side-guild">
+          <span class="icon" aria-hidden="true">
+            {% if guild_icon %}
+              <img src="{{ guild_icon }}" alt="" width="32" height="32">
+            {% else %}
+              <span class="initial">{{ guild_name[:1] | upper }}</span>
+            {% endif %}
+          </span>
+          <span class="side-text side-guild-name">{{ guild_name }}</span>
+        </p>
+
+        <ul class="side-nav">
+          {% for key, label, endpoint in sections %}
+            <li>
+              {# aria-current is the accessible half of the highlight. The
+                 class alone says "this one looks different"; this says which
+                 one you are on. #}
+              <a href="{{ url_for(endpoint, guild_id=guild_id) }}"
+                 class="side-link{% if key == section %} current{% endif %}"
+                 {% if key == section %}aria-current="page"{% endif %}
+                 title="{{ label }}">
+                {{ side_icon(key) }}
+                <span class="side-text">{{ label }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+
+        <p class="side-back">
+          {# Its own class, not `side-mark`: the section icons appear only on
+             the rail, but a back arrow is an affordance rather than a label
+             substitute and belongs there in both states. #}
+          {# Inline SVG for the same reason the ticks are: U+2190 is not in the
+             vendored Inter subset, so an arrow character would fall back to
+             another family mid-line. #}
+          <a href="{{ url_for('index') }}" title="All servers">
+            <span class="back-mark" aria-hidden="true">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
+                   stroke="currentColor" stroke-width="1.8"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 8H3M6.5 4.5L3 8l3.5 3.5"></path>
+              </svg>
+            </span>
+            <span class="side-text">All servers</span>
+          </a>
+        </p>
+      </nav>
+    {% endif %}
+
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
 
   <footer>
     <p>Core 18+ verification is free, forever.</p>

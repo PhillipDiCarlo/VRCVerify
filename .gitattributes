@@ -5,3 +5,9 @@
 
 # PowerShell scripts are the Windows-side counterparts.
 *.ps1 text eol=crlf
+
+# The vendored webfont. Marked binary so no clone's core.autocrlf setting can
+# "fix" line endings inside it -- a WOFF2 with a handful of 0x0D bytes rewritten
+# is a corrupt font that fails to decode, and the failure looks like a styling
+# bug rather than a mangled file.
+*.woff2 binary

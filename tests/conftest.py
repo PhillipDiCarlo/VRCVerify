@@ -37,4 +37,11 @@ os.environ.update(TEST_ENV)
 # an empty one it leaves alone and _optional_int_env reads as "not set".
 os.environ["PREMIUM_GRANDFATHER_MAX_ID"] = ""
 
+# Same problem, same fix. With DASHBOARD_URL set, several command replies
+# attach a link button, and a developer whose .env points at the real dashboard
+# would see a dozen tests fail that pass in CI -- on the contents of an
+# untracked file. Tests that care about the button set bot.DASHBOARD_URL
+# directly, which is the honest way to ask for one.
+os.environ["DASHBOARD_URL"] = ""
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))

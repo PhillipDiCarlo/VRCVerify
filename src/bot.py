@@ -24,6 +24,7 @@ from sqlalchemy import (
     Integer,
     String,
     Boolean,
+    Date,
     DateTime,
     text,
     inspect,
@@ -32,7 +33,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import IntegrityError
 from contextlib import contextmanager
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from dotenv import load_dotenv
 from locales import localizations, LANGUAGE_CODES
 import bot_api
@@ -441,6 +442,43 @@ class DashboardAudit(Base):
     )
 
 
+class VerificationDaily(Base):
+    """How many verifications a guild completed on each UTC day.
+
+    The dashboard's Overview needs "how many this week", and
+    `Server.verification_count` cannot answer it — that is a running total with
+    no history behind it, so subtracting anything from it tells you nothing
+    about when. This is the smallest table that can.
+
+    **One row per guild per day, and nothing else.** No discord id, no VRChat
+    id, no per-person timestamp. That is a deliberate ceiling rather than a
+    first version: this product exists to tell a server that somebody is over
+    18, and a durable record of *which* member verified *when* would be a more
+    sensitive dataset than anything else the bot keeps, held for the sake of a
+    number on a page. A count cannot be turned back into a person, so the
+    honest way to build the feature is to never write the row that could.
+
+    Because it is only a count, an admin reading the Overview learns the shape
+    of their own server's activity and nothing about any individual in it —
+    which is also what makes it safe to show without a permission model of its
+    own beyond the Administrator check every dashboard read already passes.
+
+    A day with no verifications has no row. Absent and zero therefore look the
+    same *in the table*, and the reader is what tells them apart: see
+    `read_dashboard_overview`, which uses the earliest row to decide whether a
+    window is backed by data at all. Writing zero-rows nightly would remove
+    that distinction and buy nothing.
+    """
+
+    __tablename__ = "verification_daily"
+    server_id = Column(String, primary_key=True)
+    # UTC. The bot runs in one place and the dashboard renders what it is told,
+    # so there is exactly one clock in this feature and no timezone to argue
+    # about.
+    day = Column(Date, primary_key=True)
+    count = Column(Integer, nullable=False, default=0)
+
+
 # Creates any missing tables. Note this does NOT add columns to tables that
 # already exist — those still need a manual ALTER.
 Base.metadata.create_all(engine)
@@ -671,10 +709,30 @@ def dashboard_guild_url(guild_id) -> Optional[str]:
     Landing an admin on the picker and making them find the server they were
     already looking at is the kind of small friction that turns "use the
     website" into "the website is annoying".
+
+    Explicitly `/settings`, not the guild root. The root is the Overview now,
+    and every caller of this reached it from a command about *changing*
+    something -- the read-only summaries say "change them on the dashboard",
+    and `/vrcverify_setup` offers it as the place to finish configuring. A
+    button under that text landing on a page of counts would be a worse
+    introduction than no button.
     """
     if not DASHBOARD_URL:
         return None
-    return f"{DASHBOARD_URL}/guild/{guild_id}"
+    # Discord rejects a link button whose URL has no scheme, with a 400 that
+    # fails the whole interaction -- so a DASHBOARD_URL of
+    # "dashboard.vrcverify.com" would not merely omit the button, it would
+    # break /vrcverify_setup and every summary command outright. Falling back
+    # to no button is a path these callers already handle, so a malformed value
+    # costs a link rather than a command.
+    if not DASHBOARD_URL.startswith(("https://", "http://")):
+        logger.warning(
+            "DASHBOARD_URL is missing its scheme (%r); no dashboard link will "
+            "be offered. It must start with https://",
+            DASHBOARD_URL,
+        )
+        return None
+    return f"{DASHBOARD_URL}/guild/{guild_id}/settings"
 
 
 # The kill switch. With no SKU configured every gate answers "allowed", so this
@@ -1996,6 +2054,14 @@ async def build_settings_summary(guild: discord.Guild) -> Optional[discord.Embed
         color=discord.Color.blurple(),
     )
 
+    # A deployment that never ran the ALTER has no auto_verify_new_members
+    # column, so the value below is a default nobody chose and the bot is not
+    # acting on it either way. Reporting a bare "On" would be untrue in the one
+    # direction that matters -- an admin would believe joiners are being
+    # checked when nothing is checking them. The dashboard already says so; the
+    # command stopped when it became a summary, and this puts it back.
+    auto_verify_present = payload.get("auto_verify_column_present", True)
+
     for name, label in SETTINGS_SUMMARY_LABELS:
         state = fields.get(name) or {}
         text = _summary_value(name, state.get("value"), guild)
@@ -2007,6 +2073,9 @@ async def build_settings_summary(guild: discord.Guild) -> Optional[discord.Embed
             label = f"{label} 🔒"
         elif state.get("active") is False:
             label = f"{label} (not applied)"
+        if name == "auto_verify_new_members" and not auto_verify_present:
+            label = f"{label} ⚠️"
+            text = "Unavailable — this bot's database is missing the column."
         embed.add_field(name=label, value=text, inline=True)
 
     if premium.get("premium"):
@@ -2094,6 +2163,67 @@ async def resolve_config_admin(guild: discord.Guild, owner_id) -> Optional[disco
     return member
 
 
+def _record_verification_day(guild_id: str) -> None:
+    """Add one to this guild's count for today (UTC).
+
+    Its own function, and called before the milestone bookkeeping below, so the
+    two do not share a failure. `record_guild_verification` gives up entirely
+    when `servers` is missing the columns that feature needs — a deployment
+    that never ran that ALTER would otherwise silently never collect a day of
+    history either, and the Overview would show empty windows forever with
+    nothing to indicate why.
+
+    UPDATE-then-INSERT rather than a dialect-specific upsert: this runs on
+    Postgres in production and SQLite in the tests, and the ON CONFLICT syntax
+    is not the same in both. The IntegrityError branch is the race where two
+    verifications complete on the same day for the same guild at the same
+    moment — the loser retries the UPDATE, which now finds the row.
+    """
+    if not guild_id:
+        return
+    key = panel_view_key(guild_id)
+    today = datetime.now(timezone.utc).date()
+    try:
+        for attempt in (1, 2):
+            with session_scope() as session:
+                updated = (
+                    session.query(VerificationDaily)
+                    .filter_by(server_id=key, day=today)
+                    .update(
+                        {VerificationDaily.count: VerificationDaily.count + 1},
+                        synchronize_session=False,
+                    )
+                )
+                if updated:
+                    return
+                if attempt == 2:
+                    # The insert below already failed once and the row still is
+                    # not there. Something is wrong that retrying will not fix.
+                    logger.warning(
+                        "Could not record a verification day for guild %s.", guild_id
+                    )
+                    return
+                try:
+                    session.add(
+                        VerificationDaily(server_id=key, day=today, count=1)
+                    )
+                    session.flush()
+                    return
+                except IntegrityError:
+                    # Someone else inserted the row between our UPDATE and our
+                    # INSERT. session_scope rolls back; the retry increments it.
+                    session.rollback()
+    except Exception:
+        # Never let analytics bookkeeping break a verification. The member has
+        # already been verified by the time this runs, and a lost count is a
+        # gap in a chart, not a failure anyone is waiting on.
+        logger.warning(
+            "Could not record the verification rollup for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+
+
 async def record_guild_verification(guild_id: str, guild: Optional[discord.Guild]):
     """
     Count a completed 18+ verification for a guild. When the guild crosses
@@ -2102,6 +2232,12 @@ async def record_guild_verification(guild_id: str, guild: Optional[discord.Guild
     """
     if not guild_id:
         return
+
+    # First, and unconditionally: the daily rollup the dashboard's Overview
+    # reads. It shares nothing with the milestone counter below, including that
+    # counter's migration guard.
+    _record_verification_day(guild_id)
+
     # Columns may not exist yet if the manual migration hasn't been applied.
     if not (server_has_column("verification_count") and server_has_column("milestone_dm_sent")):
         return
@@ -3166,12 +3302,20 @@ async def vrcverify_status(interaction: discord.Interaction):
     if not panel_healthy:
         lines.append(get_message("status_tips", interaction))
 
-    # No link when the panel is unhealthy and no link when it is: this command
-    # is the break-glass diagnostic, and it must stay useful on the day the
-    # dashboard is the thing that is down. A button offering the website as the
-    # fix would be exactly wrong then. The summary commands carry the link.
+    # The link belongs on the answer that gives an admin something to do. A
+    # healthy server needs no next step, so it gets no button; an unhealthy one
+    # needs the panel reposted or a role re-picked, and both of those live on
+    # the dashboard.
+    #
+    # This used to be the other way round -- `panel_healthy` rather than `not`
+    # -- which withheld the button precisely when it was worth offering. The
+    # comment here argued the command must stay useful on a day the dashboard
+    # itself is down, and it must: that is why the diagnosis is text and always
+    # present. The button is additive. One that leads somewhere unreachable
+    # costs an admin a click; withholding it while they work out where to go
+    # costs considerably more.
     url = dashboard_guild_url(interaction.guild.id)
-    extra = {"view": DashboardLinkView(url)} if url and panel_healthy else {}
+    extra = {"view": DashboardLinkView(url)} if url and not panel_healthy else {}
     await interaction.followup.send("\n".join(lines), ephemeral=True, **extra)
 
 
@@ -5076,6 +5220,202 @@ async def read_dashboard_audit(guild_id, limit: int = 25) -> Optional[list]:
         return None
 
 
+# The earliest day the rollup ever recorded, for anybody. Memoised because it
+# is a scan of the whole table and it does not move: once a first row exists,
+# the earliest day is fixed. Cached as None while the table is empty, which
+# re-queries — an empty MIN() is instant, and the value must not stay None
+# after the first verification lands.
+_collecting_since: Optional[date] = None
+
+
+def _collection_started() -> Optional[date]:
+    """The earliest day any guild was counted on — a floor for what is knowable.
+
+    Global, not per guild. Per guild would be the wrong question: `MIN(day)`
+    for one server is the day it *first verified somebody*, so a guild whose
+    first verification was yesterday would have its 30-day window reported as
+    "no data", when the truthful answer is that the window is fully covered and
+    the count is low. The table starting to exist is what bounds what can be
+    known, and that happened once, for everyone.
+
+    Note this is the first day anybody was counted, which is not quite the day
+    collection *began* — a bot deployed on Monday whose first verification
+    anywhere lands on Wednesday reports Wednesday, and windows reaching back to
+    Monday or Tuesday are shown blank despite being fully covered (with zero in
+    them). That is the safe direction to be wrong in: it under-claims, showing
+    a blank where a truthful `0` was available, rather than presenting a number
+    as measured when it was not. Recording a real start marker would fix it and
+    costs another row to keep correct; the gap it closes is the handful of days
+    between a deploy and the fleet's next verification.
+    """
+    global _collecting_since
+    if _collecting_since is not None:
+        return _collecting_since
+    with session_scope() as session:
+        _collecting_since = session.query(func.min(VerificationDaily.day)).scalar()
+    return _collecting_since
+
+
+def _verification_windows(guild_id) -> Optional[dict]:
+    """Counts for today, 7 days and 30 days — or None if they can't be read.
+
+    Each window is either an integer or None, and the difference is the whole
+    point of this function. None means the window reaches back further than the
+    rollup has been collecting, so no number would be true; the dashboard
+    renders it blank. Zero means the window is fully covered and nothing
+    happened in it, which is a real and useful answer and must never be
+    flattened into the other one.
+
+    "Today" rather than a rolling 24 hours, because a table of days cannot
+    answer a rolling question — summing today and yesterday would double-count
+    up to twice the real figure. The Overview labels it "Today (UTC)" so the
+    number and its name agree.
+    """
+    key = panel_view_key(guild_id)
+    today = datetime.now(timezone.utc).date()
+    started = _collection_started()
+
+    windows = {"today": 1, "last_7_days": 7, "last_30_days": 30}
+    if started is None:
+        # Nothing has ever been counted, so nothing can be claimed about any
+        # window -- including today's.
+        return {name: None for name in windows}
+
+    counts = {}
+    with session_scope() as session:
+        for name, days in windows.items():
+            first_day = today - timedelta(days=days - 1)
+            if first_day < started:
+                counts[name] = None
+                continue
+            total = (
+                session.query(func.coalesce(func.sum(VerificationDaily.count), 0))
+                .filter(
+                    VerificationDaily.server_id == key,
+                    VerificationDaily.day >= first_day,
+                    VerificationDaily.day <= today,
+                )
+                .scalar()
+            )
+            counts[name] = int(total or 0)
+    return counts
+
+
+async def read_dashboard_overview(guild_id) -> Optional[dict]:
+    """The Overview page: counts and configuration state for one guild.
+
+    Counts only. Nothing here identifies a member, and nothing here is derived
+    from a table that could — see `VerificationDaily` for why that ceiling is
+    deliberate rather than provisional.
+
+    Deliberately not answered here: how many members hold the verified role.
+    The bot runs `MemberCacheFlags.none()` with `chunk_guilds_at_startup=False`,
+    so `role.members` is empty and the only honest way to count it is to chunk
+    the guild — a cost that scales with exactly the servers where the number
+    would be most interesting. A tile that is sometimes wrong is worse than no
+    tile, so there is no tile.
+
+    Each part degrades on its own. A failed rollup read reports the counts as
+    unknown while the rest of the page still renders, because "we could not
+    check" and "nothing happened" must not look the same to an admin trying to
+    work out whether verification is working.
+    """
+    try:
+        guild = bot.get_guild(int(guild_id))
+    except (TypeError, ValueError):
+        guild = None
+    if guild is None:
+        # The API only routes here for a guild the bot is in, so this is the
+        # gateway not being ready rather than a guild that does not exist.
+        return None
+
+    # `member_count` comes from GUILD_CREATE and stays current through the
+    # gateway's member events. It needs no chunking and no REST call, which is
+    # why it is the one population figure this page offers.
+    member_count = guild.member_count
+
+    total = None
+    if server_has_column("verification_count"):
+        try:
+            with session_scope() as session:
+                srv = (
+                    session.query(Server)
+                    .filter_by(server_id=panel_view_key(guild_id))
+                    .first()
+                )
+                total = int(srv.verification_count or 0) if srv is not None else None
+        except Exception:
+            logger.warning(
+                "Could not read the verification total for guild %s.",
+                guild_id,
+                exc_info=True,
+            )
+
+    try:
+        windows = _verification_windows(guild_id)
+        started = _collection_started()
+        windows_known = True
+    except Exception:
+        logger.warning(
+            "Could not read the verification rollup for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        windows = {"today": None, "last_7_days": None, "last_30_days": None}
+        started = None
+        windows_known = False
+
+    settings = await read_dashboard_settings(guild_id)
+    panel = await read_dashboard_panel(guild_id)
+
+    return {
+        "guild_id": str(guild_id),
+        "member_count": member_count,
+        # Straight from the settings read rather than resolved again here, so
+        # the two pages can never disagree about whether a server has Premium.
+        "premium": (settings or {}).get("premium") or {},
+        "verifications": {
+            # None when the deployment never ran the ALTER that added the
+            # column. The page omits the tile rather than showing a zero it
+            # cannot stand behind.
+            "total": total,
+            **windows,
+            "collecting_since": started.isoformat() if started else None,
+            # False only when the rollup itself could not be read. Distinct
+            # from a window being None, which is a successful read of a
+            # question the data cannot answer yet.
+            "known": windows_known,
+        },
+        "panel": panel,
+        # Enough to tell an admin why nothing is happening, which is the most
+        # common reason to open this page at all.
+        "configured": _overview_configuration(settings),
+    }
+
+
+def _overview_configuration(settings: Optional[dict]) -> Optional[dict]:
+    """The handful of settings the Overview reports as set or not set.
+
+    Booleans only, never the ids themselves. The Overview's job is to say
+    whether verification is wired up; the Settings page is where the actual
+    values live, and duplicating them here would be a second place for them to
+    be wrong.
+    """
+    if not settings:
+        return None
+    fields = settings.get("fields") or {}
+
+    def value(name):
+        return (fields.get(name) or {}).get("value")
+
+    return {
+        "verified_role": bool(value("role_id")),
+        "unverified_role": bool(value("unverified_role_id")),
+        "log_channel": bool(value("verification_log_channel_id")),
+        "auto_verify": bool(value("auto_verify_new_members")),
+    }
+
+
 def _record_dashboard_audit(session, guild_id, actor_id, changed: list) -> None:
     """Append one row per field that actually moved.
 
@@ -5307,6 +5647,7 @@ def build_bot_api_deps() -> bot_api.BotAPIDeps:
         read_channels=read_dashboard_channels,
         read_panel=read_dashboard_panel,
         read_audit=read_dashboard_audit,
+        read_overview=read_dashboard_overview,
         write_settings=write_dashboard_settings,
         post_panel=post_dashboard_panel,
     )
