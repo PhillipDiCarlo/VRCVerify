@@ -26,6 +26,7 @@ import re
 import sqlite3
 import stat
 import time
+from html.parser import HTMLParser
 from types import SimpleNamespace
 
 import pytest
@@ -378,6 +379,48 @@ GUILDS = [
     {"id": GUILD_OUT, "name": "Beta Lounge", "icon": None, "admin_hint": True},
     {"id": GUILD_NOT_ADMIN, "name": "Gamma Hall", "icon": None, "admin_hint": False},
 ]
+
+
+class _Markup(HTMLParser):
+    """Every script and every attribute on a page, found by parsing it.
+
+    These checks were regexes until CodeQL pointed out the obvious: a pattern
+    matching `<script` does not match `<SCRIPT`, so a test asserting "no inline
+    script reaches the page" would have waved one through. The alert was on
+    test code, but the guarantee it weakened is a real one.
+
+    A parser removes the whole class of problem rather than the one instance:
+    `HTMLParser` lowercases tag and attribute names for us, and it is not
+    fooled by a `>` inside a quoted attribute value, which the regex also was.
+    """
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.scripts = []
+        self.attributes = []
+        self._depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        for name, value in attrs:
+            self.attributes.append((tag, name, value or ""))
+        if tag == "script":
+            self.scripts.append({"attrs": dict(attrs), "body": ""})
+            self._depth += 1
+
+    def handle_endtag(self, tag):
+        if tag == "script" and self._depth:
+            self._depth -= 1
+
+    def handle_data(self, data):
+        if self._depth and self.scripts:
+            self.scripts[-1]["body"] += data
+
+
+def markup(data) -> _Markup:
+    parser = _Markup()
+    parser.feed(data.decode() if isinstance(data, bytes) else data)
+    parser.close()
+    return parser
 
 
 def page_text(data) -> str:
@@ -2032,18 +2075,28 @@ class TestHardening:
         """
         test_client, _api = settings_client(config, store)
         for path in ("/", f"/guild/{GUILD_IN}", f"/guild/{GUILD_IN}/settings"):
-            page = test_client.get(path).data.decode()
-            for tag in re.findall(r"<script\b[^>]*>(.*?)</script>", page, re.S):
-                assert tag.strip() == "", f"inline script body on {path}"
-            for opening in re.findall(r"<script\b[^>]*>", page):
-                assert 'src="/static/' in opening, f"non-local script on {path}"
+            for script in markup(test_client.get(path).data).scripts:
+                assert script["body"].strip() == "", f"inline script on {path}"
+                src = script["attrs"].get("src") or ""
+                assert src.startswith("/static/"), f"non-local script on {path}"
+
+    def test_an_uppercase_script_tag_would_still_be_caught(self):
+        """The bug CodeQL found, pinned so it cannot come back.
+
+        `<SCRIPT>` is as valid as `<script>` and runs identically. A check that
+        misses it is a check that would pass on the page it exists to reject.
+        """
+        found = markup('<SCRIPT SRC="https://evil.example/x.js">bad()</SCRIPT>')
+        assert len(found.scripts) == 1
+        assert found.scripts[0]["body"] == "bad()"
+        assert found.scripts[0]["attrs"]["src"] == "https://evil.example/x.js"
 
     def test_the_only_script_is_the_one_we_meant_to_add(self, config, store):
         """A second script arriving without a decision should fail here."""
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
-        assert page.count("<script") == 1
-        assert "app.js" in page
+        scripts = markup(test_client.get(f"/guild/{GUILD_IN}/settings").data).scripts
+        assert len(scripts) == 1
+        assert "app.js" in scripts[0]["attrs"].get("src", "")
 
     def test_the_page_still_works_without_the_script(self, config, store):
         """Progressive enhancement, pinned.
@@ -2053,12 +2106,18 @@ class TestHardening:
         element that only becomes usable once JavaScript has run.
         """
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        response = test_client.get(f"/guild/{GUILD_IN}/settings")
+        page = response.data.decode()
         # Real actions, present in the markup rather than wired up later.
         assert 'action="/guild/' in page
         assert 'type="submit"' in page
-        assert "onclick" not in page
-        assert "onsubmit" not in page
+
+        # No inline handler of any kind, found by attribute name rather than by
+        # searching for the two spellings that came to mind -- this catches
+        # onload, onerror and ONCLICK as well, and they are all blocked by
+        # `script-src 'self'` anyway, which means one would fail silently.
+        for tag, name, _value in markup(response.data).attributes:
+            assert not name.startswith("on"), f"inline handler {name} on <{tag}>"
 
     def test_no_page_carries_an_inline_style_attribute(self, config, store):
         """style-src 'self' blocks these, and it blocks them *silently*.
