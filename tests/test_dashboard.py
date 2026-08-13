@@ -380,6 +380,23 @@ GUILDS = [
 ]
 
 
+def page_text(data) -> str:
+    """A page with the asset cache-busters stripped out.
+
+    Static URLs carry a digest of the file's contents (`style.css?v=73779eb24032`),
+    which is a hex string that can contain anything -- including the digits of
+    an HTTP status a refusal page is asserted *not* to name. That is exactly
+    what happened: editing a CSS comment changed the digest, the new one
+    contained "403", and three tests about information disclosure started
+    failing over the contents of a stylesheet.
+
+    Any assertion about what a page says should go through here, so a test
+    describes the page rather than the build.
+    """
+    text = data.decode() if isinstance(data, bytes) else data
+    return re.sub(r"\?v=[0-9a-f]+", "", text)
+
+
 def login_as(client, store, guilds=None):
     """Put an authenticated session in place without walking the OAuth flow."""
     pending = store.begin_login("unused-state")
@@ -965,7 +982,7 @@ class TestSettingsDoesNotLeakWhichServersRunTheBot:
         assert forbidden.data == missing.data
 
     def test_neither_names_the_reason(self, config, store):
-        page = self._response(config, store, 403).data.decode().lower()
+        page = page_text(self._response(config, store, 403).data).lower()
         # Both possibilities are offered and neither is confirmed.
         assert "administrator permission there" in page
         assert "vrcverify isn" in page
@@ -1925,6 +1942,36 @@ class TestHardening:
             second = second_app.jinja_env.globals["asset"]("style.css")
         assert first == second
 
+    def test_a_refusal_page_says_nothing_regardless_of_the_digest(
+        self, config, store, monkeypatch
+    ):
+        """The disclosure guarantee must not depend on a hash.
+
+        A content digest is a hex string, so it can contain the digits of the
+        status the page is not allowed to name -- and one did, which quietly
+        turned three information-disclosure tests into tests of the
+        stylesheet's contents. This forces the worst case and checks the page
+        still gives nothing away.
+        """
+        app = create_app(config, store=store, client=FakeBotAPI(
+            errors={"settings": BotAPIError("nope", 403)}
+        ))
+        app.config.update(TESTING=True)
+        # A digest that contains every status this page must not confirm.
+        monkeypatch.setitem(
+            app.jinja_env.globals,
+            "asset",
+            lambda filename: f"/static/{filename}?v=403404503dead",
+        )
+        test_client = app.test_client()
+        login_as(test_client, store)
+
+        response = test_client.get(f"/guild/{GUILD_IN}/settings")
+        page = page_text(response.data).lower()
+        assert response.status_code == 404
+        for status in ("403", "404", "503"):
+            assert status not in page
+
     def test_a_missing_asset_still_renders_a_usable_url(self, config, store):
         """A broken page either way, but a legible 404 beats a crash."""
         app = create_app(config, store=store, client=FakeBotAPI())
@@ -2668,7 +2715,7 @@ class TestEverySectionFailsTheSameWay:
                 "overview": BotAPIError("nope", 403),
             },
         )
-        page = test_client.get(f"/guild/{GUILD_IN}{suffix}").data.decode().lower()
+        page = page_text(test_client.get(f"/guild/{GUILD_IN}{suffix}").data).lower()
         assert "administrator permission there" in page
         assert "403" not in page
 

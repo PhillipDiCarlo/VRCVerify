@@ -399,10 +399,12 @@ external (never inline), touches no network, writes no markup, and holds no
 authority — with JavaScript off, every page renders, navigates and saves
 exactly as before. `tests/test_dashboard.py` pins all of that.
 
-**Motion is narrow by intent**: 120ms colour fades on hover and focus, and a
-cross-document view transition between pages — no JavaScript involved, and
-browsers without it simply navigate. Nothing loops, spins or slides, and all of
-it is off under `prefers-reduced-motion`.
+**Motion is narrow by intent**: 120ms colour fades on hover and focus, and
+nothing else. A cross-document view transition between pages was tried and
+removed — it cross-faded the whole page on every navigation, which put a delay
+between clicking a section and being able to read it, and moving between
+Overview and Settings is something an admin does repeatedly. Nothing loops,
+spins or slides, and the fades are off under `prefers-reduced-motion`.
 
 **Mobile and old hardware** are first-class: 44px touch targets on coarse
 pointers, 16px form controls so iOS does not zoom on focus, guild icons

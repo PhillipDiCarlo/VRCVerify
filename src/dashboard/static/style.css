@@ -20,9 +20,9 @@
  * No framework, no CDN. One vendored font (see @font-face) and one stylesheet,
  * which is what keeps the CSP as tight as it is.
  *
- * MOTION: hover and focus fade over 120ms, and page navigations cross-fade
- * where the browser supports it. Nothing loops, nothing spins, nothing slides,
- * and all of it is off under prefers-reduced-motion.
+ * MOTION: hover and focus fade over 120ms. That is the whole of it. Page
+ * navigation is instant, nothing loops, nothing spins, nothing slides, and the
+ * fades are off under prefers-reduced-motion.
  */
 
 /* Inter, vendored into static/fonts rather than loaded from a font CDN: a
@@ -778,9 +778,12 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
     transition: background-color 120ms ease, color 120ms ease,
                 border-color 120ms ease;
   }
-
-  /* Cross-document view transitions: the browser cross-fades between page
-   * loads with no JavaScript at all. Unsupported browsers ignore the rule and
-   * navigate as they always did, so there is nothing to fall back to. */
-  @view-transition { navigation: auto; }
 }
+
+/* No @view-transition here, deliberately.
+ *
+ * Cross-document view transitions were tried and removed: they cross-faded the
+ * whole page on every navigation, which put a delay between clicking a section
+ * and being able to read it. Moving between Overview and Settings is something
+ * an admin does repeatedly and impatiently, and a transition that is pleasant
+ * once is friction the tenth time. Navigation is instant. */
