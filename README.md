@@ -793,7 +793,7 @@ Each component connects to RabbitMQ to exchange verification requests and result
   docker compose -f config/other_configs/docker-compose.yml up -d
 
   # Deployment: pin to the version you just pushed
-  VRCVERIFY_VERSION=2.3.2 docker compose -f config/other_configs/docker-compose.deploy.yml up -d
+  VRCVERIFY_VERSION=2.6.0 docker compose -f config/other_configs/docker-compose.deploy.yml up -d
   ```
 
   To tag and push images, optional helper scripts are provided:

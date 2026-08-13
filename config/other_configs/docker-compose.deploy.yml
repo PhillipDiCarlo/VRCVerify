@@ -6,8 +6,8 @@
 # required; compose refuses to start without it.
 #
 # Usage (on the deploy host, next to your .env):
-#   VRCVERIFY_VERSION=2.3.2 docker compose -f docker-compose.deploy.yml up -d
-# or add VRCVERIFY_VERSION=2.3.2 to the .env file.
+#   VRCVERIFY_VERSION=2.6.0 docker compose -f docker-compose.deploy.yml up -d
+# or add VRCVERIFY_VERSION=2.6.0 to the .env file.
 #
 # This is a TEMPLATE, and the deployed copy on the homelab host differs from it
 # deliberately: there the dashboard API blocks at the bottom are uncommented,
