@@ -2,9 +2,17 @@
 # that stays docker-compose.deploy.yml.
 #
 # Usage, on the VPS next to dashboard.env, cloudflared.env and certs/:
-#   VRCVERIFY_VERSION=2.3.0 docker compose -f docker-compose.dashboard.yml up -d
+#   VRCVERIFY_VERSION=2.6.0 docker compose -f docker-compose.dashboard.yml up -d
 #
-# Two properties this file exists to preserve, both easy to undo by accident:
+# This is a TEMPLATE. The deployed copy on the VPS is named docker-compose.yml,
+# so it drops the `-f` above, and it carries a header saying it is a copy of
+# this file. Those two lines are the only differences, and they should stay the
+# only two. Keep both in step -- the last drift between a template here and a
+# deployed copy on a box left a comment explaining a control that had been
+# wrong for months, because the edit was made on the server and nothing
+# reviewed it.
+#
+# Three properties this file exists to preserve, all easy to undo by accident:
 #
 # 1. NEITHER SERVICE PUBLISHES A PORT. cloudflared dials out to Cloudflare and
 #    reaches the dashboard over the Docker network by name. The host firewall
@@ -17,10 +25,36 @@
 #    bot for everything over mTLS. A full compromise of this box yields no
 #    route to the users table. Adding DATABASE_URL here would quietly discard
 #    the main reason the bot API exists.
+#
+#    It DOES hold Stripe's secret key and webhook signing secret, in
+#    dashboard.env (issue #88). That is the intended split and not a weakening
+#    of the point above: the worst those keys yield is Stripe's own dashboard
+#    for this account, which is money and not identities. The bot holds no
+#    Stripe credential at all, in either direction.
+#
+# 3. THE DASHBOARD NOW ANSWERS ONE PUBLIC, UNAUTHENTICATED ROUTE:
+#    POST /stripe/webhook, authenticated by Stripe's signature rather than by a
+#    session. It arrives through the same tunnel as everything else, so
+#    property 1 is unchanged — but the hostname's Cloudflare managed challenge
+#    has to be skipped for that one path, or Stripe is challenged, sees a 403,
+#    and retries for three days while NOTHING reaches this origin and nothing
+#    appears in these logs. That skip rule is SECURITY_AUDIT.md A-25, it is
+#    path-scoped and must never be hostname-wide, and it has to exist and be
+#    verified by a real test-mode event BEFORE STRIPE_ENABLED is set here.
+#
+#    With STRIPE_ENABLED unset the route is not registered at all — a plain
+#    404 — so this file is safe to deploy ahead of any of that.
 
 services:
   dashboard:
     image: italiandogs/vrcverify-dashboard:${VRCVERIFY_VERSION:?Set VRCVERIFY_VERSION to a pushed version tag (never latest)}
+    # Everything comes from dashboard.env, with no `environment:` block to keep
+    # in step with it. That includes the six Stripe variables (STRIPE_ENABLED,
+    # STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET and the three STRIPE_PRICE_*) --
+    # see .env.example. With STRIPE_ENABLED set the dashboard REFUSES TO BOOT
+    # if any of the other five is missing, which is deliberate: a webhook
+    # secret that is absent rejects every event Stripe sends while the service
+    # looks perfectly healthy doing it.
     env_file:
       - dashboard.env
     volumes:

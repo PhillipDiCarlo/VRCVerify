@@ -44,4 +44,20 @@ os.environ["PREMIUM_GRANDFATHER_MAX_ID"] = ""
 # directly, which is the honest way to ask for one.
 os.environ["DASHBOARD_URL"] = ""
 
+# Third time, same problem, same fix -- and this one was found the hard way.
+# STRIPE_ENABLED went in with #88 step 1 and was not pinned here, so the moment
+# a developer switched it on in their own .env, load_dotenv() carried it into
+# bot.py at import and every kill-switch test in test_stripe.py went red on a
+# file git has never seen. CI would have stayed green, which is the worse half:
+# the suite would disagree with itself depending on whose machine ran it.
+#
+# Note this covers the dashboard's copy of the switch too. Nothing under
+# src/dashboard/ calls load_dotenv, but bot.py does, and importing bot puts
+# whatever .env says into os.environ for everything that runs afterwards.
+#
+# Tests that want Stripe on set bot.STRIPE_ENABLED directly (see the stripe_on
+# fixture), which is the honest way to ask for it.
+os.environ["STRIPE_ENABLED"] = ""
+os.environ["STRIPE_STATUS_TTL"] = ""
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
