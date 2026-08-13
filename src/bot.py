@@ -2054,6 +2054,14 @@ async def build_settings_summary(guild: discord.Guild) -> Optional[discord.Embed
         color=discord.Color.blurple(),
     )
 
+    # A deployment that never ran the ALTER has no auto_verify_new_members
+    # column, so the value below is a default nobody chose and the bot is not
+    # acting on it either way. Reporting a bare "On" would be untrue in the one
+    # direction that matters -- an admin would believe joiners are being
+    # checked when nothing is checking them. The dashboard already says so; the
+    # command stopped when it became a summary, and this puts it back.
+    auto_verify_present = payload.get("auto_verify_column_present", True)
+
     for name, label in SETTINGS_SUMMARY_LABELS:
         state = fields.get(name) or {}
         text = _summary_value(name, state.get("value"), guild)
@@ -2065,6 +2073,9 @@ async def build_settings_summary(guild: discord.Guild) -> Optional[discord.Embed
             label = f"{label} 🔒"
         elif state.get("active") is False:
             label = f"{label} (not applied)"
+        if name == "auto_verify_new_members" and not auto_verify_present:
+            label = f"{label} ⚠️"
+            text = "Unavailable — this bot's database is missing the column."
         embed.add_field(name=label, value=text, inline=True)
 
     if premium.get("premium"):
@@ -3291,12 +3302,20 @@ async def vrcverify_status(interaction: discord.Interaction):
     if not panel_healthy:
         lines.append(get_message("status_tips", interaction))
 
-    # No link when the panel is unhealthy and no link when it is: this command
-    # is the break-glass diagnostic, and it must stay useful on the day the
-    # dashboard is the thing that is down. A button offering the website as the
-    # fix would be exactly wrong then. The summary commands carry the link.
+    # The link belongs on the answer that gives an admin something to do. A
+    # healthy server needs no next step, so it gets no button; an unhealthy one
+    # needs the panel reposted or a role re-picked, and both of those live on
+    # the dashboard.
+    #
+    # This used to be the other way round -- `panel_healthy` rather than `not`
+    # -- which withheld the button precisely when it was worth offering. The
+    # comment here argued the command must stay useful on a day the dashboard
+    # itself is down, and it must: that is why the diagnosis is text and always
+    # present. The button is additive. One that leads somewhere unreachable
+    # costs an admin a click; withholding it while they work out where to go
+    # costs considerably more.
     url = dashboard_guild_url(interaction.guild.id)
-    extra = {"view": DashboardLinkView(url)} if url and panel_healthy else {}
+    extra = {"view": DashboardLinkView(url)} if url and not panel_healthy else {}
     await interaction.followup.send("\n".join(lines), ephemeral=True, **extra)
 
 

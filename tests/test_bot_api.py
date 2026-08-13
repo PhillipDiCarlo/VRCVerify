@@ -2746,6 +2746,36 @@ class TestTheRetiredCommandsStillAnswer:
         # ...and never both markers on one field.
         assert not any("\N{LOCK}" in n and "not applied" in n for n in labels)
 
+    def test_a_missing_auto_verify_column_is_reported_not_rendered_as_on(
+        self, monkeypatch, free
+    ):
+        """The one default that would be believed, and acted on.
+
+        With no `auto_verify_new_members` column the payload reports the field
+        as True, because that is the documented default -- but the bot is not
+        checking joiners either way. A bare "On" tells an admin that new
+        members are being verified when nothing is verifying them, which is
+        exactly the wrong direction to be wrong in for a gate.
+        """
+        make_server(row_id=9000, role_id="900000000001")
+        monkeypatch.setattr(
+            bot, "server_has_column", lambda name: name != "auto_verify_new_members"
+        )
+
+        embed = run(bot.build_settings_summary(SummaryGuild()))
+        auto = next(f for f in embed.fields if "Auto-verify" in f.name)
+        assert "Unavailable" in auto.value
+        assert "On" != auto.value
+        assert "\N{WARNING SIGN}" in auto.name
+
+    def test_a_present_column_reports_the_value_plainly(self, free):
+        """The caveat above must not appear on a healthy deployment."""
+        make_server(row_id=9000, role_id="900000000001")
+        embed = run(bot.build_settings_summary(SummaryGuild()))
+        auto = next(f for f in embed.fields if "Auto-verify" in f.name)
+        assert "Unavailable" not in auto.value
+        assert "\N{WARNING SIGN}" not in auto.name
+
     def test_an_unreadable_settings_read_says_so_rather_than_showing_defaults(
         self, monkeypatch
     ):

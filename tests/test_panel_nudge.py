@@ -583,11 +583,18 @@ class TestStatusCommand:
         async def defer(ephemeral=False):
             sent.append(SimpleNamespace(kind="defer", ephemeral=ephemeral))
 
-        async def send_message(msg, ephemeral=False):
-            sent.append(SimpleNamespace(kind="send", msg=msg, ephemeral=ephemeral))
+        async def send_message(msg, ephemeral=False, view=None):
+            sent.append(
+                SimpleNamespace(kind="send", msg=msg, ephemeral=ephemeral, view=view)
+            )
 
-        async def followup_send(msg, ephemeral=False):
-            sent.append(SimpleNamespace(kind="send", msg=msg, ephemeral=ephemeral))
+        # `view` is captured rather than ignored: whether this command offers a
+        # dashboard button is behaviour worth asserting, and a fake that
+        # rejected the kwarg would only ever prove the command never passes it.
+        async def followup_send(msg, ephemeral=False, view=None):
+            sent.append(
+                SimpleNamespace(kind="send", msg=msg, ephemeral=ephemeral, view=view)
+            )
 
         interaction = SimpleNamespace(
             guild=SimpleNamespace(
@@ -632,6 +639,58 @@ class TestStatusCommand:
 
         monkeypatch.setattr(bot, "probe_instruction_panel", fake_probe)
         return seen
+
+    def view(self, sent):
+        return next(s.view for s in sent if s.kind == "send")
+
+    def test_a_broken_panel_is_offered_the_dashboard(self, monkeypatch):
+        """The link belongs on the answer that gives an admin something to do.
+
+        This was inverted: the button appeared on a healthy server, which needs
+        no next step, and was withheld from a broken one, which does. Fixing
+        the panel means reposting or moving it, and that lives on the website.
+        """
+        make_server(instructions_channel_id="222", instructions_message_id="111")
+        self.stub_probe(monkeypatch, "forbidden")
+        monkeypatch.setattr(bot, "DASHBOARD_URL", "https://dash.example")
+
+        interaction, sent = self.interaction()
+        run(bot.vrcverify_status.callback(interaction))
+
+        view = self.view(sent)
+        assert view is not None
+        (button,) = view.children
+        assert button.url == f"https://dash.example/guild/{GUILD_ID}/settings"
+
+    def test_a_healthy_server_gets_no_button(self, monkeypatch):
+        """Nothing to fix, so nothing to click."""
+        make_server(instructions_channel_id="222", instructions_message_id="111")
+        self.stub_probe(monkeypatch, "ok")
+        monkeypatch.setattr(bot, "DASHBOARD_URL", "https://dash.example")
+
+        interaction, sent = self.interaction()
+        run(bot.vrcverify_status.callback(interaction))
+        assert self.view(sent) is None
+
+    def test_the_diagnosis_is_text_so_it_survives_a_dead_dashboard(
+        self, monkeypatch
+    ):
+        """The button is additive; the answer never depends on it.
+
+        This command is the break-glass diagnostic, so what it *says* has to be
+        complete on a day the website is the thing that is down.
+        """
+        make_server(instructions_channel_id="222", instructions_message_id="111")
+        self.stub_probe(monkeypatch, "forbidden")
+        monkeypatch.setattr(bot, "DASHBOARD_URL", "")
+
+        interaction, sent = self.interaction()
+        run(bot.vrcverify_status.callback(interaction))
+
+        msg = self.reply(sent)
+        en = localizations["en-US"]
+        assert en["status_tips"] in msg
+        assert self.view(sent) is None
 
     def test_unconfigured_server_reports_both_gaps(self):
         interaction, sent = self.interaction()
