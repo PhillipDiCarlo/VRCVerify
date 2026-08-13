@@ -119,8 +119,12 @@
       <h2>{{ group.title }}</h2>
       <p class="muted blurb">{{ group.blurb }}</p>
 
+      {# data-guard opts this form into the unsaved-changes warning. Only the
+         groups that hold edits carry it: the panel-post form below is an
+         action rather than a set of values, and warning about it would fire on
+         a button that loses nothing. #}
       {% if group.save_endpoint and editable %}
-        <form method="post"
+        <form method="post" data-guard
               action="{{ url_for(group.save_endpoint, guild_id=guild_id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       {% endif %}

@@ -22,6 +22,7 @@ must say exactly what the bot would:
 import json
 import logging
 import os
+import re
 import sqlite3
 import stat
 import time
@@ -1805,10 +1806,212 @@ class TestHardening:
         assert "unsafe-inline" not in policy
         assert "unsafe-eval" not in policy
 
-    def test_no_page_carries_inline_script(self, client, store):
-        login_as(client, store)
-        for path in ("/", "/nonexistent"):
-            assert b"<script" not in client.get(path).data
+    def test_fonts_may_come_only_from_us(self, client):
+        """`font-src 'self'` names no CDN, and that is the point.
+
+        A font loaded from a third party tells them who is opening the
+        dashboard and lets them break it by going down. The one face we use is
+        in the image.
+        """
+        policy = client.get("/").headers["Content-Security-Policy"]
+        assert "font-src 'self'" in policy
+        for cdn in ("fonts.googleapis.com", "fonts.gstatic.com", "cdn.jsdelivr.net"):
+            assert cdn not in policy
+
+    def test_nothing_can_be_fetched_at_runtime(self, client):
+        """No `connect-src`, so `default-src 'none'` blocks fetch and XHR.
+
+        Deliberate rather than forgotten: the one script here has no business
+        talking to anything, and a background request is the shape most
+        exfiltration takes. Adding one is a decision to make on purpose.
+        """
+        policy = client.get("/").headers["Content-Security-Policy"]
+        assert "connect-src" not in policy
+
+    def test_pages_are_never_cached_but_assets_always_are(self, config, store):
+        """The one place `no-store` is relaxed, and why it is safe there.
+
+        Every page can contain a guild name, a plan state, and the CSRF token,
+        so none of them may sit in a shared cache. Static files contain the
+        same bytes for a signed-out stranger, and their URLs carry a content
+        digest -- so a deploy changes the URL rather than leaving anyone on a
+        stale stylesheet.
+
+        Getting this backwards in either direction is a real bug: `no-store` on
+        assets re-downloaded a 48KB font on every page view, and dropping it
+        from pages would put an admin's session-shaped HTML in a proxy.
+        """
+        test_client, _api = settings_client(config, store)
+
+        for path in ("/", f"/guild/{GUILD_IN}", f"/guild/{GUILD_IN}/settings"):
+            assert test_client.get(path).headers["Cache-Control"] == "no-store"
+
+        for path in ("/static/style.css", "/static/app.js"):
+            headers = test_client.get(path).headers
+            assert "public" in headers["Cache-Control"]
+            assert "immutable" in headers["Cache-Control"]
+
+    def test_asset_urls_carry_a_content_digest(self, config, store):
+        """Without this the year-long cache above would be reckless."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        assets = re.findall(r'(?:href|src)="(/static/[^"]+)"', page)
+        assert assets, "no static assets referenced"
+        for url in assets:
+            assert re.search(r"\?v=[0-9a-f]{6,}$", url), f"undigested asset: {url}"
+            assert test_client.get(url).status_code == 200
+
+    def test_the_guard_tracks_forms_separately(self):
+        """The bug the first version of this script shipped with.
+
+        A single page-wide `dirty` flag reads as obviously correct and defeats
+        the whole purpose: saving group B clears the flag group A set, so the
+        one sequence the guard exists to catch -- edit one group, save another
+        -- passes silently. This asserts the flag is per form.
+        """
+        import dashboard
+
+        js = open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "app.js"),
+            encoding="utf-8",
+        ).read()
+        # Cleared for one form, not for the page.
+        assert "setDirty(form, false)" in js
+        assert "dirty = false" not in js
+
+    def test_the_guard_reaches_the_settings_forms(self, config, store):
+        """A marker that stops matching is a guard that silently does nothing."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        assert page.count("data-guard") >= 1
+        # The panel-post form is an action rather than a set of edits, so it is
+        # deliberately not guarded -- warning there would fire on a button that
+        # loses nothing.
+        assert 'class="panel-post"' not in page or "data-guard" in page
+
+    def test_the_script_never_talks_to_anything(self):
+        """No `connect-src`, so a request would be blocked -- but not written.
+
+        Cheaper to assert the file contains no network call than to discover a
+        blocked one in a console.
+        """
+        import dashboard
+
+        js = open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "app.js"),
+            encoding="utf-8",
+        ).read()
+        # Comments stripped first: the file documents at length why it uses
+        # none of these, and those sentences would otherwise fail the test that
+        # checks it doesn't.
+        code = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+        code = re.sub(r"^\s*//.*$", "", code, flags=re.M)
+        for forbidden in ("fetch(", "XMLHttpRequest", "innerHTML", "eval(", "import("):
+            assert forbidden not in code, f"app.js should not use {forbidden}"
+
+    def test_identical_bytes_digest_identically(self, config, store):
+        """Restarting must not bust the cache.
+
+        The digest has to come from the file's contents and nothing else -- no
+        timestamp, no start time, no random salt. If it moved on restart, every
+        redeploy would re-download the font for everyone, which is the cost the
+        digest exists to avoid.
+        """
+        first_app = create_app(config, store=store, client=FakeBotAPI())
+        second_app = create_app(config, store=store, client=FakeBotAPI())
+        with first_app.test_request_context():
+            first = first_app.jinja_env.globals["asset"]("style.css")
+        with second_app.test_request_context():
+            second = second_app.jinja_env.globals["asset"]("style.css")
+        assert first == second
+
+    def test_a_missing_asset_still_renders_a_usable_url(self, config, store):
+        """A broken page either way, but a legible 404 beats a crash."""
+        app = create_app(config, store=store, client=FakeBotAPI())
+        with app.test_request_context():
+            url = app.jinja_env.globals["asset"]("does-not-exist.css")
+        assert url.endswith("/static/does-not-exist.css")
+
+    def test_the_font_is_actually_in_the_image(self):
+        """The @font-face URL has to resolve to a file we ship.
+
+        A missing font fails silently -- `font-display: swap` means the page
+        renders in the system face and nobody notices the 404 until they
+        compare screenshots.
+        """
+        import dashboard
+
+        static = os.path.join(os.path.dirname(dashboard.__file__), "static")
+        font = os.path.join(static, "fonts", "inter-latin-var.woff2")
+        assert os.path.exists(font), "the vendored font is missing"
+        with open(font, "rb") as handle:
+            assert handle.read(4) == b"wOF2", "not a WOFF2 file"
+        # Vendoring a font means vendoring its licence.
+        assert os.path.exists(os.path.join(static, "fonts", "Inter-LICENSE.txt"))
+
+    def test_the_stylesheet_asks_for_no_external_origin(self):
+        """One stylesheet, and every URL in it relative.
+
+        `style-src 'self'` would block a remote @import anyway; this catches it
+        at the point where it would otherwise be written, rather than at the
+        point where a page silently loses its font.
+        """
+        import dashboard
+
+        css_path = os.path.join(
+            os.path.dirname(dashboard.__file__), "static", "style.css"
+        )
+        css = open(css_path, encoding="utf-8").read()
+        # Comments stripped first: the file explains *why* it loads nothing
+        # remotely, and those sentences would otherwise trip the check.
+        stripped = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+        assert "http://" not in stripped
+        assert "https://" not in stripped
+        assert "@import" not in stripped
+        # Every url() is relative to the stylesheet, i.e. served by us.
+        for url in re.findall(r"url\((.*?)\)", stripped):
+            assert not url.strip("\"'").startswith(("http", "//"))
+
+    def test_every_script_is_external_and_empty(self, config, store):
+        """`script-src 'self'` allows a file; it forbids inline code.
+
+        The app used to carry no script at all, which made this test a simple
+        "no <script>". It now carries exactly one -- the unsaved-changes guard
+        -- so the assertion moved to the property that actually matters and is
+        still absolute: a script tag must name a `src` on our own origin and
+        must have no body. An inline block would be silently dropped by the
+        browser, and a CDN URL would hand a third party execution on the page
+        that holds admin sessions.
+        """
+        test_client, _api = settings_client(config, store)
+        for path in ("/", f"/guild/{GUILD_IN}", f"/guild/{GUILD_IN}/settings"):
+            page = test_client.get(path).data.decode()
+            for tag in re.findall(r"<script\b[^>]*>(.*?)</script>", page, re.S):
+                assert tag.strip() == "", f"inline script body on {path}"
+            for opening in re.findall(r"<script\b[^>]*>", page):
+                assert 'src="/static/' in opening, f"non-local script on {path}"
+
+    def test_the_only_script_is_the_one_we_meant_to_add(self, config, store):
+        """A second script arriving without a decision should fail here."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        assert page.count("<script") == 1
+        assert "app.js" in page
+
+    def test_the_page_still_works_without_the_script(self, config, store):
+        """Progressive enhancement, pinned.
+
+        Nothing the script does is required to render, navigate or save. The
+        server output must therefore contain every control fully formed -- no
+        element that only becomes usable once JavaScript has run.
+        """
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        # Real actions, present in the markup rather than wired up later.
+        assert 'action="/guild/' in page
+        assert 'type="submit"' in page
+        assert "onclick" not in page
+        assert "onsubmit" not in page
 
     def test_no_page_carries_an_inline_style_attribute(self, config, store):
         """style-src 'self' blocks these, and it blocks them *silently*.

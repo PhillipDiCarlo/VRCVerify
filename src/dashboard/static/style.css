@@ -1,34 +1,125 @@
-/* Plain on purpose.
+/* VRCVerify dashboard — Discord-native.
  *
- * No framework, no webfont, no CDN. Partly because the CSP forbids external
- * origins and this is what makes that policy cheap to keep, and partly because
- * the whole page is a list of servers and a form -- anything more would be
- * weight an admin pays for on every visit for no benefit.
+ * The people using this page have Discord open on the other monitor. So the
+ * dashboard borrows Discord's own surface layering rather than inventing a
+ * look: a dark shell, a lighter sidebar sitting on it, and lighter cards again
+ * on top. An admin arriving from a slash command should feel like they moved
+ * rooms, not applications.
  *
- * No animations and no spinners, per the original request. */
+ * WHAT THAT DOES AND DOESN'T MEAN
+ * -------------------------------
+ * Borrowed: the three-step surface ramp, the pill-shaped nav selection, the
+ * radii, the weight of the type.
+ *
+ * Not borrowed: blurple as decoration. Discord can afford to paint furniture
+ * in its brand colour because it has no other blue to confuse it with. Here
+ * blurple means exactly two things -- "this is the page you are on" and "this
+ * is the button that does the thing" -- so it is never spent on a border or a
+ * heading. Everything else is carried by the surface ramp and type weight.
+ *
+ * No framework, no CDN. One vendored font (see @font-face) and one stylesheet,
+ * which is what keeps the CSP as tight as it is.
+ *
+ * MOTION: hover and focus fade over 120ms, and page navigations cross-fade
+ * where the browser supports it. Nothing loops, nothing spins, nothing slides,
+ * and all of it is off under prefers-reduced-motion.
+ */
+
+/* Inter, vendored into static/fonts rather than loaded from a font CDN: a
+ * third party would otherwise see who opens the dashboard, and could take it
+ * down by going down themselves. `font-src 'self'` in the CSP exists for this
+ * one file.
+ *
+ * The latin subset is 48KB and deliberately does NOT include U+2713 or U+2190,
+ * which is why the tick and the back arrow are inline SVG -- a glyph the font
+ * lacks falls back to another family and lands at a different weight and
+ * baseline, which reads as a rendering bug.
+ *
+ * `swap` so text paints immediately in the system face and reflows when Inter
+ * arrives. On a slow connection the page is readable the whole time, which
+ * matters more than avoiding one reflow. */
+@font-face {
+  font-family: "Inter var";
+  src: url("fonts/inter-latin-var.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
   color-scheme: light dark;
-  --bg: #f5f6f8;
-  --panel: #ffffff;
-  --ink: #1c1e21;
-  --muted: #5c6570;
-  --line: #dfe3e8;
+
+  /* Discord's light palette. The ground is genuinely grey rather than white --
+   * white is reserved for the cards, and without that the ramp has nowhere to
+   * go. */
+  --bg: #e3e5e8;          /* page ground, the layer everything sits on */
+  --chrome: #f2f3f5;      /* header bar and sidebar */
+  --panel: #ffffff;       /* cards */
+  --inset: #ebedef;       /* inputs: pressed into the card, not raised */
+  --hover: #e3e5e8;
+  --selected: #d4d7dc;
+
+  --ink: #313338;         /* body text */
+  --ink-strong: #060607;  /* headings, values, anything you scan for */
+  --muted: #5c5e66;       /* descriptions. 5.4:1 on white, not decorative grey */
+  --faint: #80848e;       /* the least important thing on the page */
+
+  --line: #dfe0e3;
+  --line-soft: #ebedef;
+
   --accent: #5865f2;
-  --notice: #8a6d00;
-  --notice-bg: #fff6d6;
+  --accent-hover: #4752c4;
+  --accent-ink: #ffffff;
+
+  /* Semantic, and separate from the accent on purpose -- "this succeeded" and
+   * "this is the current page" must never be the same colour. */
+  --ok: #1a8245;
+  --danger: #d83c3e;
+  --notice: #8a5300;
+  --notice-bg: #fdf3e0;
+  --notice-line: #f0c98a;
+
+  --radius-card: 8px;
+  --radius-control: 4px;
+
+  /* The system stack is the fallback rather than an afterthought: it is what
+   * renders for the ~200ms before Inter arrives, and permanently for anyone
+   * whose browser refuses the font. */
+  --font: "Inter var", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Checkboxes and colour inputs render in the OS blue otherwise. One property,
+   * and it is a real CSS property rather than an inline style, which is the
+   * only reason it is available to us. */
+  accent-color: var(--accent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #15171a;
-    --panel: #1e2126;
-    --ink: #e8eaed;
-    --muted: #99a1ab;
-    --line: #2e333a;
-    --accent: #7d88f7;
-    --notice: #ffd66b;
-    --notice-bg: #33290a;
+    --bg: #1e1f22;
+    --chrome: #2b2d31;
+    --panel: #313338;
+    --inset: #1e1f22;
+    --hover: #35373c;
+    --selected: #404249;
+
+    --ink: #dbdee1;
+    --ink-strong: #f2f3f5;
+    --muted: #b5bac1;
+    --faint: #949ba4;
+
+    --line: #3f4147;
+    --line-soft: #35373c;
+
+    --accent: #5865f2;
+    --accent-hover: #4752c4;
+    --accent-ink: #ffffff;
+
+    --ok: #23a55a;
+    --danger: #f23f43;
+    --notice: #f0b232;
+    --notice-bg: #3a2f13;
+    --notice-line: #5c4a1c;
   }
 }
 
@@ -38,198 +129,38 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font);
+  /* 16px is also the floor that stops iOS zooming the whole page when a select
+   * or textarea takes focus -- the controls inherit from here. */
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* Type. Discord runs heavier than a document would: 500 for ordinary UI text,
+ * 600-700 for anything that names a thing. */
+h1, h2, h3 { color: var(--ink-strong); text-wrap: balance; }
+h1 { margin: 0 0 0.75rem; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.01em; }
+p { text-wrap: pretty; }
+
+/* --- header bar --- */
 .bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
-  padding: 0.85rem 1.25rem;
-  background: var(--panel);
+  padding: 0.7rem 1.25rem;
+  background: var(--chrome);
   border-bottom: 1px solid var(--line);
 }
 
-.brand { font-weight: 650; color: var(--ink); text-decoration: none; }
-
-/* The bar is a three-part row once there is a hamburger in it: toggle, brand,
- * account. The brand takes the slack so the account controls stay right. */
-.brand { margin-right: auto; }
-
-/* --- sidebar --- */
-.nav-toggle { display: flex; }
-
-.hamburger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: none;
-  color: var(--ink);
-  cursor: pointer;
-}
-
-/* Three lines drawn with borders rather than an image or an inline SVG: the
- * CSP is img-src 'self' plus Discord's CDN, and a data: URI would need
- * widening it for an icon that CSS can draw. */
-.bars,
-.bars::before,
-.bars::after {
-  display: block;
-  width: 1rem;
-  height: 0;
-  border-top: 2px solid currentColor;
-}
-
-.bars { position: relative; }
-
-.bars::before,
-.bars::after {
-  content: "";
-  position: absolute;
-  left: 0;
-}
-
-.bars::before { top: -5px; }
-.bars::after { top: 3px; }
-
-.layout {
-  display: flex;
-  align-items: flex-start;
-  gap: 1.5rem;
-  max-width: 76rem;
-  margin: 0 auto;
-  padding: 0 1.25rem;
-}
-
-/* Login and the picker have no sidebar, so the wrapper gets out of the way
- * entirely and `main` keeps the width it always had. */
-.layout.plain { display: block; max-width: none; padding: 0; }
-
-/* `main` already carries the page's horizontal padding for the sidebar-less
- * pages. Inside the layout that padding is the wrapper's job, or the content
- * sits inset from a sidebar that is not. */
-.layout:not(.plain) main {
-  flex: 1 1 auto;
-  /* Without this a wide child -- the settings textarea, a long channel name --
-     makes the flex item refuse to shrink and the whole page scrolls sideways. */
-  min-width: 0;
-  max-width: 60rem;
-  margin: 0;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-.sidebar {
-  flex: 0 0 14rem;
-  position: sticky;
-  top: 1.5rem;
-  margin-top: 1.5rem;
-  padding: 0.85rem;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow-wrap: anywhere;
-}
-
-.layout.collapsed .sidebar { flex-basis: 3.75rem; }
-
-/* The rail. Every label goes, every target stays: the links keep their full
- * height and remain tabbable, which is the difference between a collapsed
- * sidebar and a broken one. */
-.layout.collapsed .side-text { display: none; }
-.layout.collapsed .sidebar { text-align: center; }
-.layout.collapsed .side-guild { justify-content: center; }
-.layout.collapsed .side-link,
-.layout.collapsed .side-back a { justify-content: center; }
-
-.side-guild {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0 0 0.75rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--line);
-  font-size: 0.925rem;
-  font-weight: 600;
-}
-
-.side-guild .icon {
-  width: 32px;
-  height: 32px;
-  margin: 0;
-  flex: 0 0 auto;
-}
-
-.side-guild .icon img { width: 32px; height: 32px; }
-.side-guild .initial { font-size: 0.875rem; }
-
-.side-nav { list-style: none; margin: 0; padding: 0; }
-
-.side-link,
-.side-back a {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.6rem;
-  border-radius: 7px;
-  color: var(--ink);
+.brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ink-strong);
   text-decoration: none;
-  font-size: 0.95rem;
-}
-
-.side-link:hover,
-.side-back a:hover { background: var(--bg); }
-
-/* The current section. A left bar as well as a fill, because the fill alone is
- * a very quiet difference against --panel in the dark palette. */
-.side-link.current {
-  background: var(--bg);
-  box-shadow: inset 3px 0 0 var(--accent);
-  font-weight: 650;
-}
-
-/* Section icons stand in for the labels on the rail, and only there. Expanded,
- * the label already says what the link is and a glyph beside it is decoration
- * competing with the one thing that matters. */
-.side-mark { display: none; color: var(--muted); }
-.layout.collapsed .side-mark { display: block; }
-.layout.collapsed .side-link.current .side-mark { color: var(--accent); }
-
-/* The back arrow is not a label substitute, so it stays in both states. */
-.back-mark {
-  flex: 0 0 1.25rem;
-  text-align: center;
-  color: var(--muted);
-}
-
-.side-back {
-  margin: 0.75rem 0 0;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--line);
-  font-size: 0.925rem;
-}
-
-.side-back a { color: var(--muted); }
-
-/* Below this the sidebar would take a third of the screen from the content it
- * is there to navigate, so it becomes a full-width strip above it instead. */
-@media (max-width: 46rem) {
-  .layout { flex-direction: column; gap: 0; }
-  .sidebar {
-    flex-basis: auto;
-    width: 100%;
-    position: static;
-    margin-bottom: 0;
-  }
-  .layout.collapsed .sidebar { flex-basis: auto; }
-  .side-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; }
-  .side-back { display: inline-block; border-top: 0; padding-top: 0; }
+  letter-spacing: -0.01em;
+  margin-right: auto;
 }
 
 /* Two sign-out forms side by side. They wrap rather than shrink on a narrow
@@ -241,34 +172,49 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 .panel {
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 1.5rem;
+  border-radius: var(--radius-card);
+  padding: 1.25rem 1.5rem;
 }
 
 .centered { max-width: 34rem; margin: 3rem auto; }
 
-h1 { margin: 0 0 0.75rem; font-size: 1.4rem; }
-
-.muted { color: var(--muted); font-size: 0.925rem; }
+.muted { color: var(--muted); font-size: 0.9375rem; }
 
 .notice {
   background: var(--notice-bg);
   color: var(--notice);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
+  border: 1px solid var(--notice-line);
+  border-radius: var(--radius-control);
+  padding: 0.7rem 0.9rem;
   margin: 0 0 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.notice.ok {
+  background: none;
+  border-color: var(--ok);
+  color: var(--ok);
 }
 
 .button {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
   background: var(--accent);
-  color: #fff;
-  padding: 0.6rem 1.15rem;
-  border-radius: 8px;
+  color: var(--accent-ink);
+  padding: 0.45rem 1.1rem;
+  border: 0;
+  border-radius: var(--radius-control);
   text-decoration: none;
-  font-weight: 600;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
 }
+
+.button:hover { background: var(--accent-hover); }
 
 button.link {
   background: none;
@@ -276,10 +222,158 @@ button.link {
   padding: 0;
   color: var(--muted);
   font: inherit;
-  font-size: 0.925rem;
+  font-size: 0.9375rem;
   cursor: pointer;
   text-decoration: underline;
 }
+
+button.link:hover { color: var(--ink-strong); }
+
+/* --- sidebar --- */
+.nav-toggle { display: flex; }
+
+.hamburger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.hamburger:hover { background: var(--hover); color: var(--ink-strong); }
+
+/* Three lines drawn with borders rather than an image: img-src allows only our
+ * own origin and Discord's CDN, and a data: URI would mean widening it to
+ * paint something CSS already can. */
+.bars,
+.bars::before,
+.bars::after {
+  display: block;
+  width: 1rem;
+  height: 0;
+  border-top: 2px solid currentColor;
+  border-radius: 2px;
+}
+
+.bars { position: relative; }
+.bars::before,
+.bars::after { content: ""; position: absolute; left: 0; }
+.bars::before { top: -5px; }
+.bars::after { top: 3px; }
+
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* Login and the picker have no sidebar, so the wrapper gets out of the way
+ * entirely and `main` keeps the width it always had. */
+.layout.plain { display: block; max-width: none; padding: 0; }
+
+.layout:not(.plain) main {
+  flex: 1 1 auto;
+  /* Without this a wide child -- the settings textarea, a long channel name --
+     stops the flex item shrinking and the whole page scrolls sideways. */
+  min-width: 0;
+  max-width: 60rem;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* 15rem expanded, 4rem collapsed: the settled convention, and wide enough that
+ * a long server name has somewhere to go before it wraps. */
+.sidebar {
+  flex: 0 0 15rem;
+  position: sticky;
+  top: 1.25rem;
+  margin-top: 1.5rem;
+  padding: 0.6rem;
+  background: var(--chrome);
+  border-radius: var(--radius-card);
+  overflow-wrap: anywhere;
+}
+
+.layout.collapsed .sidebar { flex-basis: 4rem; text-align: center; }
+
+/* The rail. Every label goes, every target stays: the links keep their height
+ * and remain tabbable, which is the difference between a collapsed sidebar and
+ * a broken one. */
+.layout.collapsed .side-text { display: none; }
+.layout.collapsed .side-guild { justify-content: center; }
+.layout.collapsed .side-link,
+.layout.collapsed .side-back a { justify-content: center; }
+
+.side-guild {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.5rem;
+  padding: 0.35rem 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+
+.side-guild .icon { width: 32px; height: 32px; margin: 0; flex: 0 0 auto; }
+.side-guild .icon img { width: 32px; height: 32px; }
+.side-guild .initial { font-size: 0.875rem; }
+
+.side-nav { list-style: none; margin: 0; padding: 0; }
+
+.side-link,
+.side-back a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.125rem;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.side-link:hover,
+.side-back a:hover { background: var(--hover); color: var(--ink-strong); }
+
+/* The current section. Discord marks selection with a filled pill rather than
+ * a coloured label, which leaves the brand colour free to mean "act on this"
+ * everywhere else on the page. */
+.side-link.current,
+.side-link.current:hover {
+  background: var(--selected);
+  color: var(--ink-strong);
+  font-weight: 600;
+}
+
+/* Section icons stand in for the labels on the rail, and only there. Expanded,
+ * the label already says what the link is and a glyph beside it is decoration
+ * competing with the one thing that matters. */
+.side-mark { display: none; flex: 0 0 auto; }
+.layout.collapsed .side-mark { display: block; }
+
+.side-back {
+  margin: 0.5rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.9375rem;
+}
+
+/* The back arrow is not a label substitute, so it stays in both states. */
+.back-mark { flex: 0 0 auto; display: flex; }
 
 /* --- server picker --- */
 .servers {
@@ -298,7 +392,11 @@ button.link {
   display: block;
   color: inherit;
   text-decoration: none;
+  border-radius: var(--radius-control);
+  padding: 0.5rem 0.25rem;
 }
+
+.server a:hover { background: var(--hover); }
 
 .icon {
   display: block;
@@ -307,7 +405,7 @@ button.link {
   margin: 0 auto 0.5rem;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--line);
+  background: var(--inset);
 }
 
 .icon img { display: block; width: 64px; height: 64px; border-radius: 50%; }
@@ -319,17 +417,18 @@ button.link {
   width: 100%;
   height: 100%;
   font-size: 1.5rem;
-  font-weight: 650;
-  color: var(--muted);
+  font-weight: 700;
+  color: var(--faint);
 }
 
 .name {
   display: block;
-  font-size: 0.925rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
-.state { display: block; font-size: 0.8rem; color: var(--muted); }
+.state { display: block; font-size: 0.8rem; color: var(--faint); }
 
 /* Servers the bot isn't in. Greyscale reads as "available but not set up",
  * which is why the whole tile is the install link. */
@@ -337,15 +436,12 @@ button.link {
 .server.absent .name { color: var(--muted); }
 .server.absent .state { color: var(--accent); }
 
-/* --- one server's settings --- */
-.crumb { margin: 0 0 1rem; font-size: 0.925rem; }
-.crumb a { color: var(--muted); text-decoration: none; }
-
+/* --- one server's pages --- */
 .guild-head {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .guild-head .icon { margin: 0; flex: 0 0 auto; }
@@ -358,45 +454,41 @@ button.link {
 .upgrade {
   margin: 1.25rem 0 0;
   padding: 0.9rem 1rem;
-  border: 1px solid var(--line);
+  background: var(--inset);
   border-left: 3px solid var(--accent);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .upgrade h2 { font-size: 1rem; margin: 0 0 0.4rem; }
-.upgrade p { margin: 0 0 0.5rem; font-size: 0.925rem; }
+.upgrade p { margin: 0 0 0.5rem; font-size: 0.9375rem; }
 .upgrade p:last-child { margin-bottom: 0; }
 .upgrade a { color: var(--accent); }
 
 /* Each settings group is its own card. Whitespace alone did not separate them:
  * the settings *inside* a group are divided by a hairline, so a group boundary
- * made of margin carried no more weight than the rows it was supposed to be
- * containing. A card puts page background between sections, which is the one
- * separator nothing inside a section can imitate. */
-.panel + .panel { margin-top: 1.25rem; }
+ * made of margin carried no more weight than the rows it was containing. A
+ * card puts page ground between sections, which is the one separator nothing
+ * inside a section can imitate. */
+.panel + .panel { margin-top: 1rem; }
 
-/* The heading gets its own rule and a little more size, so the top of a card
- * announces itself even when the card above it has scrolled off. */
 .group h2 {
-  font-size: 1.15rem;
-  font-weight: 650;
+  font-size: 1.05rem;
+  font-weight: 700;
   margin: 0;
   padding-bottom: 0.6rem;
-  border-bottom: 2px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
 .blurb { margin: 0.7rem 0 0.4rem; }
 
 .settings { margin: 0; }
 
-.setting {
-  padding: 0.9rem 0;
-  border-top: 1px solid var(--line);
-}
+.setting { padding: 0.9rem 0; border-top: 1px solid var(--line-soft); }
 
 .setting dt {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9375rem;
+  color: var(--ink-strong);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -416,97 +508,88 @@ button.link {
   white-space: pre-wrap;
 }
 
-.value.empty { color: var(--muted); font-style: italic; }
+.value.empty { color: var(--faint); font-style: italic; }
 
 .swatch { flex: 0 0 auto; vertical-align: middle; }
 
-.desc, .plan { margin: 0.2rem 0 0; font-size: 0.875rem; }
+.desc, .plan { margin: 0.2rem 0 0; font-size: 0.875rem; color: var(--muted); }
 .plan { font-style: italic; }
 
 /* Locked means the bot refuses the save, so the row is visibly inert. Fields
  * that merely aren't acted on are NOT dimmed -- they are editable in Discord
  * today, and dimming them would tell an admin something untrue. */
-.setting.locked .value { color: var(--muted); }
-
-.notice.ok {
-  background: none;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-}
+.setting.locked .value { color: var(--faint); }
 
 .check {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  font-size: 0.95rem;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
   margin-bottom: 0.35rem;
 }
 
 select,
+textarea,
 input[type="color"] {
   font: inherit;
   color: var(--ink);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 0.3rem 0.4rem;
+  background: var(--inset);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  padding: 0.4rem 0.5rem;
   max-width: 100%;
 }
 
-input[type="color"] { padding: 0.15rem; width: 3.5rem; height: 2rem; }
+select:hover, textarea:hover { border-color: var(--line); }
+select:focus, textarea:focus { border-color: var(--accent); outline: none; }
+
+input[type="color"] { padding: 0.15rem; width: 3.5rem; height: 2.25rem; }
+
+textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  line-height: 1.5;
+}
 
 .actions { margin: 1.1rem 0 0; }
 
-button.button { border: 0; cursor: pointer; font: inherit; font-weight: 600; }
-
 .badge {
-  font-size: 0.7rem;
+  font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  border: 1px solid currentColor;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-control);
 }
 
-.badge.premium { color: var(--accent); }
-.badge.inactive { color: var(--muted); }
+.badge.premium { background: var(--accent); color: var(--accent-ink); }
+.badge.inactive { background: var(--inset); color: var(--muted); }
 
 .warn {
   margin: 0.45rem 0 0;
   padding: 0.5rem 0.7rem;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--notice-bg);
+  border: 1px solid var(--notice-line);
   color: var(--notice);
   font-size: 0.875rem;
 }
 
 code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.9em;
-  background: var(--bg);
-  padding: 0.05rem 0.3rem;
-  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 0.875em;
+  background: var(--inset);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
 }
 
 footer {
-  max-width: 60rem;
+  max-width: 78rem;
   margin: 0 auto;
   padding: 0 1.25rem 2rem;
-  color: var(--muted);
+  color: var(--faint);
   font-size: 0.85rem;
-}
-
-textarea {
-  display: block;
-  width: 100%;
-  font: inherit;
-  color: var(--ink);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 0.45rem 0.55rem;
-  resize: vertical;
 }
 
 /* --- overview --- */
@@ -516,50 +599,50 @@ textarea {
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-  gap: 0.75rem;
+  gap: 0.6rem;
 }
 
 .tile {
   padding: 0.85rem 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  background: var(--inset);
+  border-radius: var(--radius-control);
 }
 
 .tile-value {
   display: block;
-  font-size: 1.7rem;
-  font-weight: 650;
+  color: var(--ink-strong);
+  font-size: 1.75rem;
+  font-weight: 700;
   line-height: 1.15;
-  /* Tabular figures so a column of counts lines up on the digits rather than
+  letter-spacing: -0.02em;
+  /* Tabular figures so a row of counts lines up on the digits rather than
    * wandering with the glyph widths. */
   font-variant-numeric: tabular-nums;
 }
 
 .tile-label {
   display: block;
-  margin-top: 0.15rem;
-  font-size: 0.875rem;
+  margin-top: 0.1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
   color: var(--muted);
 }
 
-.tile-note {
-  display: block;
-  margin-top: 0.3rem;
-  font-size: 0.8rem;
-}
+.tile-note { display: block; margin-top: 0.3rem; font-size: 0.78rem; }
 
 /* A window with nothing behind it, and a read that failed. Both are muted, and
- * they say different things -- see overview_view for why they must not become
- * the same tile. Neither is dimmed as far as a real zero would look wrong: a
- * count of 0 is a true answer and keeps full contrast. */
-.tile-blank .tile-value { color: var(--muted); }
+ * they say different things -- see overview_view.py for why they must not
+ * become the same tile. Neither is dimmed as far as a real zero would look
+ * wrong: a count of 0 is a true answer and keeps full contrast. */
+.tile-blank .tile-value { color: var(--faint); }
 
 .tile-unknown .tile-value {
-  color: var(--muted);
+  color: var(--faint);
   /* The words "Couldn't check" in the size meant for two digits. */
   font-size: 1rem;
   font-weight: 600;
   font-style: italic;
+  letter-spacing: 0;
 }
 
 /* The one suggested action. Accented like the upgrade box, because it is the
@@ -570,22 +653,49 @@ textarea {
 
 .setup-row {
   display: grid;
-  grid-template-columns: 1.5rem minmax(8rem, auto) 1fr;
+  grid-template-columns: 1.25rem minmax(8rem, auto) 1fr;
   align-items: baseline;
-  gap: 0.5rem;
-  padding: 0.55rem 0;
-  border-top: 1px solid var(--line);
-  font-size: 0.925rem;
+  gap: 0.6rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--line-soft);
+  font-size: 0.9375rem;
 }
 
-.setup-state { color: var(--muted); font-weight: 700; text-align: center; }
-.setup-label { font-weight: 600; }
+.setup-state { color: var(--ok); display: flex; align-items: center; }
+.setup-row.off .setup-state { color: var(--faint); }
+.setup-label { font-weight: 600; color: var(--ink-strong); }
 .setup-note { font-size: 0.85rem; }
 
 /* Only a *required* piece that is missing. The tick and cross alone would
  * otherwise read as four pass/fail results, and three of these are ordinary
  * choices rather than faults. */
 .setup-row.missing .setup-state { color: var(--notice); }
+
+/* --- change history --- */
+.audit { list-style: none; margin: 0; padding: 0; }
+
+.audit li {
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line-soft);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.audit-what { font-weight: 600; color: var(--ink-strong); margin-right: 0.4rem; }
+.audit-who { display: block; font-size: 0.825rem; color: var(--faint); }
+
+.panel-post {
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.panel-post label { font-size: 0.9375rem; font-weight: 500; }
+.panel-post .desc { flex-basis: 100%; margin: 0; }
 
 /* Available to a screen reader, absent from the page. Used for the tick and
  * cross, which are decorative marks carrying real meaning. */
@@ -600,34 +710,77 @@ textarea {
   white-space: nowrap;
 }
 
-@media (max-width: 34rem) {
-  /* The note drops below rather than squeezing the label to two characters. */
-  .setup-row { grid-template-columns: 1.5rem 1fr; }
+/* --- accessibility and input --- */
+
+/* The browser default focus ring disappears against several of the surfaces
+ * above. This is the one style on the page that must never be subtle. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+select:focus-visible, textarea:focus-visible { outline-offset: 0; }
+
+/* Touch. 44px is the smallest target a finger hits reliably, and it applies
+ * only to coarse pointers so a mouse still gets the tighter rhythm. */
+@media (pointer: coarse) {
+  .side-link,
+  .side-back a { min-height: 44px; }
+  .hamburger { width: 44px; height: 44px; }
+  button.link { padding: 0.5rem 0; }
+  .button { min-height: 44px; }
+}
+
+/* --- narrow screens --- */
+/* Below this the sidebar would take a third of the screen from the content it
+ * exists to navigate, so it becomes a full-width strip above it instead. */
+@media (max-width: 48rem) {
+  .layout { flex-direction: column; gap: 0; padding: 0 0.75rem; }
+  .sidebar {
+    flex-basis: auto;
+    width: 100%;
+    position: static;
+    margin-top: 1rem;
+    text-align: left;
+  }
+  .layout.collapsed .sidebar { flex-basis: auto; text-align: left; }
+  /* The rail makes no sense as a horizontal strip -- labels come back. */
+  .layout.collapsed .side-text { display: inline; }
+  .layout.collapsed .side-mark { display: none; }
+  .side-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .side-nav li { flex: 1 1 auto; }
+  .side-link { justify-content: center; }
+  .layout.collapsed .side-link { justify-content: center; }
+  .side-back { display: block; }
+  main { padding: 1rem 0 2rem; }
+  .panel { padding: 1rem 1.1rem; }
+  .setup-row { grid-template-columns: 1.25rem 1fr; }
   .setup-note { grid-column: 2; }
 }
 
-/* --- change history --- */
-.audit { list-style: none; margin: 0; padding: 0; }
+/* --- motion ---
+ *
+ * Narrow by intent: colour fades on the things you point at, and a cross-fade
+ * between pages. Nothing loops, nothing spins, nothing moves in space, and
+ * none of it runs for a reader who has asked for less. A dashboard that
+ * animates while you are trying to read a number is a dashboard arguing with
+ * its own purpose. */
+@media (prefers-reduced-motion: no-preference) {
+  a,
+  .button,
+  button.link,
+  .side-link,
+  .hamburger,
+  .server a,
+  select,
+  textarea {
+    transition: background-color 120ms ease, color 120ms ease,
+                border-color 120ms ease;
+  }
 
-.audit li {
-  padding: 0.55rem 0;
-  border-top: 1px solid var(--line);
-  font-size: 0.9rem;
-  overflow-wrap: anywhere;
+  /* Cross-document view transitions: the browser cross-fades between page
+   * loads with no JavaScript at all. Unsupported browsers ignore the rule and
+   * navigate as they always did, so there is nothing to fall back to. */
+  @view-transition { navigation: auto; }
 }
-
-.audit-what { font-weight: 600; margin-right: 0.4rem; }
-.audit-who { display: block; font-size: 0.825rem; }
-
-.panel-post {
-  margin-top: 1.1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.panel-post label { font-size: 0.95rem; }
-.panel-post .desc { flex-basis: 100%; margin: 0; }

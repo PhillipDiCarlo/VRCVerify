@@ -44,7 +44,10 @@ Design notes worth keeping in view while reading:
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import mimetypes
+import os
 import secrets
 from typing import Optional
 
@@ -104,6 +107,13 @@ CSP = (
     "default-src 'none'; "
     "script-src 'self'; "
     "style-src 'self'; "
+    # Our own origin only, for the one vendored WOFF2 in static/fonts. This
+    # directive is here because without it `default-src 'none'` blocks every
+    # font -- including a self-hosted one, which is a surprising way to spend
+    # an afternoon. It deliberately does not name a font CDN: the file is in
+    # the image, so a third party can neither see who is loading the dashboard
+    # nor break it by going down.
+    "font-src 'self'; "
     "img-src 'self' https://cdn.discordapp.com; "
     "form-action 'self'; "
     "base-uri 'none'; "
@@ -139,9 +149,56 @@ def create_app(
         timeout=config.request_timeout,
     )
 
+    # Python's mimetypes table does not know WOFF2 on every platform, and Flask
+    # asks it. Served as application/octet-stream the font still works in
+    # current browsers, but it is wrong, and "wrong but tolerated" is the kind
+    # of thing a future proxy stops tolerating.
+    mimetypes.add_type("font/woff2", ".woff2")
+
+    _register_assets(app)
     _register_routes(app)
     _register_hooks(app)
     return app
+
+
+def _register_assets(app: Flask) -> None:
+    """Give every static URL a content digest, so it can be cached forever.
+
+    The pair of decisions here only works together. `harden` marks static
+    responses `immutable` for a year, which would be reckless on a bare
+    `/static/style.css` -- a deploy would change the file and every admin would
+    keep the old one until they cleared their cache. Digesting the content into
+    the query string means a changed file is a changed URL, so the stale copy
+    is not stale, it is simply never asked for again.
+
+    Digests are computed once at startup rather than per request: the files
+    cannot change under a running container, and hashing a 48KB font on every
+    page render to discover it is the same font would be a strange way to spend
+    the saving.
+    """
+    digests: dict = {}
+
+    def digest(filename: str) -> str:
+        if filename not in digests:
+            path = os.path.join(app.static_folder or "", filename)
+            try:
+                with open(path, "rb") as handle:
+                    digests[filename] = hashlib.blake2b(
+                        handle.read(), digest_size=6
+                    ).hexdigest()
+            except OSError:
+                # A missing asset is a broken page either way; returning no
+                # version at least keeps the URL usable and the 404 legible.
+                logger.warning("static asset %s could not be read", filename)
+                digests[filename] = ""
+        return digests[filename]
+
+    @app.template_global()
+    def asset(filename: str) -> str:
+        """`asset('style.css')` -> `/static/style.css?v=<digest>`."""
+        url = url_for("static", filename=filename)
+        version = digest(filename)
+        return f"{url}?v={version}" if version else url
 
 
 # -------------------------------------------------------------------
@@ -179,9 +236,17 @@ def _register_hooks(app: Flask) -> None:
         # CDN with every icon request would leak which guild is being looked at.
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-        # Authenticated pages must not sit in a shared cache, and there is
-        # nothing here worth caching anyway.
-        response.headers["Cache-Control"] = "no-store"
+        # Authenticated pages must not sit in a shared cache. Static files are
+        # the exception, and it is a real one: `no-store` on everything meant
+        # the 48KB font and the stylesheet were re-fetched on every single page
+        # view, by every admin, forever. They carry nothing about a session --
+        # they are the same bytes for a signed-out stranger -- and their URLs
+        # carry a content digest, so a deploy changes the URL and a stale copy
+        # is unreachable rather than merely unwanted.
+        if request.endpoint == "static":
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            response.headers["Cache-Control"] = "no-store"
         # Cloudflare terminates TLS, but HSTS is the origin's statement, and a
         # future non-tunnel deployment should still carry it.
         response.headers["Strict-Transport-Security"] = (

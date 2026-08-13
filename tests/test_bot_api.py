@@ -2783,6 +2783,27 @@ class TestTheRetiredCommandsStillAnswer:
             == f"https://dashboard.vrcverify.com/guild/{GUILD_ID}/settings"
         )
 
+    @pytest.mark.parametrize(
+        "configured", ["dashboard.vrcverify.com", "  ", "vrcverify.com/dash"]
+    )
+    def test_a_url_without_a_scheme_costs_the_button_not_the_command(
+        self, monkeypatch, free, configured
+    ):
+        """Discord 400s a link button with no scheme, failing the interaction.
+
+        So a typo in one env var would break /vrcverify_setup and every summary
+        command outright. Degrading to the no-button path -- which these
+        callers already handle -- turns that into a missing link and a log line.
+        """
+        make_server(row_id=9000)
+        monkeypatch.setattr(bot, "DASHBOARD_URL", configured)
+        interaction = fake_interaction(SummaryGuild())
+        run(bot.send_settings_summary(interaction))
+
+        (reply,) = interaction.followup.sent
+        assert "view" not in reply
+        assert reply["embed"] is not None
+
     def test_no_dashboard_configured_still_gives_a_usable_answer(
         self, monkeypatch, free
     ):

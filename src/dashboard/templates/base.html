@@ -34,9 +34,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}VRCVerify{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  {# No <script> anywhere in this app. The CSP forbids inline script, and
-     nothing here needs JavaScript to work -- including the sidebar. #}
+  {# `asset()` rather than `url_for`: it appends a digest of the file's
+     contents, which is what lets these be cached for a year without a deploy
+     leaving anyone on a stale stylesheet. See _register_assets in app.py. #}
+  <link rel="stylesheet" href="{{ asset('style.css') }}">
+  {# The font is `font-display: swap`, so text paints in the system face and
+     reflows when this lands. Preloading shortens the window in which that
+     reflow can be noticed, because otherwise the browser cannot even start
+     this download until it has parsed the stylesheet that references it.
+     `crossorigin` is required even same-origin -- font fetches are CORS-mode,
+     and without it the browser downloads the file twice. #}
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="{{ asset('fonts/inter-latin-var.woff2') }}">
+  {# The only script in the app, and it is a warning rather than a mechanism:
+     it notices you edited one settings group and saved a different one. Every
+     page works identically without it -- see static/app.js. `defer` so it
+     never delays rendering. #}
+  <script src="{{ asset('app.js') }}" defer></script>
 </head>
 <body>
   <header class="bar">
@@ -129,8 +143,17 @@
           {# Its own class, not `side-mark`: the section icons appear only on
              the rail, but a back arrow is an affordance rather than a label
              substitute and belongs there in both states. #}
+          {# Inline SVG for the same reason the ticks are: U+2190 is not in the
+             vendored Inter subset, so an arrow character would fall back to
+             another family mid-line. #}
           <a href="{{ url_for('index') }}" title="All servers">
-            <span class="back-mark" aria-hidden="true">&larr;</span>
+            <span class="back-mark" aria-hidden="true">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
+                   stroke="currentColor" stroke-width="1.8"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 8H3M6.5 4.5L3 8l3.5 3.5"></path>
+              </svg>
+            </span>
             <span class="side-text">All servers</span>
           </a>
         </p>

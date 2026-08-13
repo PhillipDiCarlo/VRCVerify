@@ -355,9 +355,61 @@ rendering a page that has nothing on it.
 
 The sidebar collapses to an icon rail from the hamburger in the top left, and
 the choice is remembered in a cookie by `POST /prefs/nav` — the one write route
-here that never reaches the bot. There is still **no JavaScript anywhere in this
-app**; the toggle is a form, which is why the collapsed state and the cookie can
-never disagree.
+here that never reaches the bot. The toggle is a form rather than a script,
+which is why the collapsed state and the cookie can never disagree.
+
+### How it looks, and what that costs
+
+The dashboard borrows **Discord's own surface layering** — a dark shell, a
+lighter sidebar on it, lighter cards again on top — so an admin arriving from a
+slash command feels like they changed rooms rather than applications. What is
+deliberately *not* borrowed is blurple as decoration: here the brand colour
+means exactly two things, "this is the page you are on" and "this button does
+the thing", so it never appears on a border or a heading. Everything else is
+carried by the surface ramp and type weight.
+
+Four constraints shape the implementation, and three of them are CSP:
+
+- **`style-src 'self'`, no `'unsafe-inline'`** — no `style=""` attributes
+  anywhere. Any value that varies per element has to be a class or a
+  presentation attribute, which is why the colour swatches are SVG `fill`. If a
+  genuinely dynamic value is ever needed, the answer is a per-response nonce on
+  one `<style>` block that sets custom properties — not `'unsafe-inline'`.
+- **`font-src 'self'`** — Inter is vendored into `static/fonts` (48KB latin
+  subset, variable weight, OFL, licence alongside it). No font CDN: a third
+  party would otherwise see who opens the dashboard and could break it by going
+  down. The subset has no U+2713 or U+2190, which is why the ticks and the back
+  arrow are inline SVG — a glyph the font lacks falls back to another family at
+  a different weight, and that reads as a rendering fault.
+- **`img-src 'self' https://cdn.discordapp.com`** — icons are inline SVG, so
+  they need no origin at all and inherit `currentColor` for free.
+- **No `connect-src`** — so `fetch` and `XHR` are blocked by `default-src
+  'none'`. Deliberate: adding one is a decision to take on purpose.
+
+**Static assets are the one place `no-store` is relaxed.** Pages carry guild
+names, plan state and a CSRF token, so they must never sit in a shared cache.
+Static files are the same bytes for a signed-out stranger, and `asset()` stamps
+a content digest into each URL — so they are cached for a year, and a deploy
+changes the URL rather than leaving anyone on a stale stylesheet.
+
+**There is exactly one script**, `static/app.js`, and it is a warning rather
+than a mechanism: the settings page has five independent forms, and editing one
+group then saving another silently discards the first group's edits. It is
+external (never inline), touches no network, writes no markup, and holds no
+authority — with JavaScript off, every page renders, navigates and saves
+exactly as before. `tests/test_dashboard.py` pins all of that.
+
+**Motion is narrow by intent**: 120ms colour fades on hover and focus, and a
+cross-document view transition between pages — no JavaScript involved, and
+browsers without it simply navigate. Nothing loops, spins or slides, and all of
+it is off under `prefers-reduced-motion`.
+
+**Mobile and old hardware** are first-class: 44px touch targets on coarse
+pointers, 16px form controls so iOS does not zoom on focus, guild icons
+requested at `?size=64`, and no `backdrop-filter` or large blurred shadows —
+the expensive things to paint. Modern CSS (`:has()`, container queries,
+`color-mix()`) is used only as progressive enhancement, because the practical
+floor is Safari 15.0–15.3 on a phone that stopped getting updates.
 
 **The Overview's three ways of not showing a number are three different
 statements**, and `src/dashboard/overview_view.py` exists to keep them apart:

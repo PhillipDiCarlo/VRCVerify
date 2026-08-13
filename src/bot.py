@@ -719,6 +719,19 @@ def dashboard_guild_url(guild_id) -> Optional[str]:
     """
     if not DASHBOARD_URL:
         return None
+    # Discord rejects a link button whose URL has no scheme, with a 400 that
+    # fails the whole interaction -- so a DASHBOARD_URL of
+    # "dashboard.vrcverify.com" would not merely omit the button, it would
+    # break /vrcverify_setup and every summary command outright. Falling back
+    # to no button is a path these callers already handle, so a malformed value
+    # costs a link rather than a command.
+    if not DASHBOARD_URL.startswith(("https://", "http://")):
+        logger.warning(
+            "DASHBOARD_URL is missing its scheme (%r); no dashboard link will "
+            "be offered. It must start with https://",
+            DASHBOARD_URL,
+        )
+        return None
     return f"{DASHBOARD_URL}/guild/{guild_id}/settings"
 
 
