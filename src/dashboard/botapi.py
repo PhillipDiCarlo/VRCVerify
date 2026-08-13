@@ -33,7 +33,9 @@ from api_tokens import (
     OP_GUILD_AUDIT,
     OP_POST_PANEL,
     OP_LIST_GUILDS,
+    OP_PUT_STRIPE_SUBSCRIPTION,
     OP_UPDATE_SETTINGS,
+    SYSTEM_ACTOR_ID,
     mint_token,
 )
 
@@ -246,6 +248,60 @@ class BotAPIClient:
             actor_id, guild_id, response.status_code, reason,
         )
         raise BotAPIError(reason or "bot API refused the panel post", response.status_code)
+
+    def put_stripe_subscription(self, guild_id, subscription: dict) -> dict:
+        """Forward one verified Stripe event to the bot, as the system actor.
+
+        The only call in this client with no signed-in user behind it. A
+        renewal a year from now is asked for by Stripe, not by a person, and
+        the admin who originally checked out may have left the server — so it
+        names SYSTEM_ACTOR_ID rather than borrowing somebody's identity, and
+        the bot records the change against a fixed non-human actor.
+
+        The authority here is Stripe's signature, checked before this is
+        reached. Everything this call adds is the same as every other: mTLS,
+        a token bound to this method, this path and this guild, single use.
+
+        A refusal is not swallowed. It becomes a non-2xx to Stripe, which
+        retries for up to three days — long enough to cover a bot restart, a
+        Tailscale blip or a homelab power cut. Answering 200 on a failed
+        forward is the one outcome that loses a subscription permanently.
+        """
+        token = mint_token(
+            self.signing_key,
+            actor_id=SYSTEM_ACTOR_ID,
+            operation=OP_PUT_STRIPE_SUBSCRIPTION,
+            guild_id=int(guild_id),
+        )
+        try:
+            response = self._session.put(
+                f"{self.base_url}/api/v1/guilds/{int(guild_id)}/stripe-subscription",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"subscription": subscription},
+                timeout=self.timeout,
+            )
+        except requests.exceptions.SSLError as error:
+            raise BotAPIError(f"TLS failure talking to the bot API: {error}") from error
+        except requests.RequestException as error:
+            raise BotAPIError(f"could not reach the bot API: {error}") from error
+
+        if response.status_code == 200:
+            return response.json()
+
+        reason = ""
+        try:
+            reason = response.json().get("error", "")
+        except ValueError:
+            pass
+        logger.warning(
+            "bot API refused a Stripe subscription write for guild %s: %s %s",
+            guild_id,
+            response.status_code,
+            reason,
+        )
+        raise BotAPIError(
+            reason or "bot API refused the subscription write", response.status_code
+        )
 
     def audit(self, actor_id: int, guild_id) -> list:
         return self._get(
