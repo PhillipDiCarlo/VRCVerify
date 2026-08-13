@@ -781,3 +781,58 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
  * and being able to read it. Moving between Overview and Settings is something
  * an admin does repeatedly and impatiently, and a transition that is pleasant
  * once is friction the tenth time. Navigation is instant. */
+
+/* --- Subscriptions ------------------------------------------------------ *
+ * Three plan cards side by side, stacking on narrow screens. No colour is
+ * written inline anywhere on this page: `style-src 'self'` drops inline styles
+ * SILENTLY, so a swatch written as style="" would simply not apply and nothing
+ * would say so. */
+.plans {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+}
+
+/* Each card is a form of its own, so the button posts one plan and the plan
+ * cannot be swapped between clicking and submitting. */
+.plan {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.plan h3 { font-size: 1rem; font-weight: 700; margin: 0; }
+
+/* Stated as a claim about the plan, never as arithmetic -- no amount appears
+ * anywhere in this repo. Stripe knows what it charges, and a second copy of a
+ * price on a page about money is a second thing to be wrong. */
+.plan-saving {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ok);
+  font-weight: 500;
+}
+
+/* Keeps the three buttons on one baseline when only two plans have a saving. */
+.plan-saving-none { visibility: hidden; }
+
+.plan .button { margin-top: auto; align-self: stretch; }
+
+.plan-notes {
+  margin: 1rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.plan-notes li { margin: 0.3rem 0; }
+
+@media (max-width: 40rem) {
+  .plans { grid-template-columns: 1fr; }
+}

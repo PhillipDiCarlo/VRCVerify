@@ -100,3 +100,102 @@ class StripeClient:
             "Stripe refused a subscription read: %s", response.status_code
         )
         raise StripeAPIError("Stripe refused the request", response.status_code)
+
+    def _post(self, path: str, form: list) -> dict:
+        """One form-encoded POST. Stripe's API is form-encoded, not JSON."""
+        try:
+            response = self._session.post(
+                f"{STRIPE_API_BASE}{path}",
+                headers=self._headers(),
+                data=form,
+                timeout=self.timeout,
+            )
+        except requests.RequestException as error:
+            raise StripeAPIError(f"could not reach Stripe: {error}") from error
+
+        if response.status_code in (200, 201):
+            try:
+                payload = response.json()
+            except ValueError as error:
+                raise StripeAPIError("Stripe returned an unreadable body") from error
+            if not isinstance(payload, dict):
+                raise StripeAPIError("Stripe returned an unexpected body")
+            return payload
+
+        logger.warning("Stripe refused %s: %s", path, response.status_code)
+        raise StripeAPIError("Stripe refused the request", response.status_code)
+
+    def create_checkout_session(
+        self,
+        *,
+        price_id: str,
+        guild_id: str,
+        actor_discord_id: str,
+        success_url: str,
+        cancel_url: str,
+    ) -> str:
+        """Start a hosted Checkout, and return the URL to send the browser to.
+
+        Hosted Checkout by redirect, never embedded Stripe.js. The dashboard's
+        CSP is `default-src 'none'` with `script-src 'self'`, and embedding
+        would mean permanently allowing js.stripe.com plus a frame-src -- a
+        relaxation of the tightest directive set in the app, on the one page
+        that handles money. A 303 needs no CSP change at all, because the
+        browser simply leaves. It also keeps card data off this infrastructure
+        entirely, which is what makes PCI scope SAQ-A.
+
+        `price_id` is looked up by the caller from a plan slug and is never
+        taken from the form. See the route.
+
+        The guild id goes into `subscription_data[metadata]`, not only
+        `client_reference_id`, and the difference matters more than it looks:
+        the reference id exists on the session and is gone by the first
+        renewal, while subscription metadata rides along with every
+        `customer.subscription.*` event for the life of the subscription. The
+        binding has to survive to a renewal a year from now.
+        """
+        form = [
+            ("mode", "subscription"),
+            ("line_items[0][price]", price_id),
+            ("line_items[0][quantity]", "1"),
+            ("client_reference_id", str(guild_id)),
+            ("subscription_data[metadata][guild_id]", str(guild_id)),
+            ("subscription_data[metadata][actor_discord_id]", str(actor_discord_id)),
+            ("success_url", success_url),
+            ("cancel_url", cancel_url),
+            # Tax is collected where it is due and is NOT included in the
+            # advertised price -- the prices are created tax-exclusive, and the
+            # plan cards say "+ tax" for that reason. Automatic tax refuses a
+            # price whose tax_behavior is unspecified, so a plan card that
+            # 500s here means a price was created wrong rather than a bug.
+            ("automatic_tax[enabled]", "true"),
+            # Required once automatic tax is on: without an address Stripe
+            # cannot decide a rate, and the session errors rather than guessing.
+            ("billing_address_collection", "required"),
+            ("customer_update[address]", "auto"),
+        ]
+        session = self._post("/checkout/sessions", form)
+        url = session.get("url")
+        if not isinstance(url, str) or not url.startswith("https://"):
+            raise StripeAPIError("Stripe returned no checkout URL")
+        return url
+
+    def create_portal_session(self, *, customer_id: str, return_url: str) -> str:
+        """Open Stripe's own billing portal for this customer.
+
+        Cancelling, switching plan and updating a card all happen on Stripe's
+        domain. That is deliberate and not laziness: every one of those is an
+        action on somebody's money, and the alternative is reimplementing them
+        against an API on the box this project assumes will eventually be
+        compromised.
+        """
+        if not stripe_events.valid_object_id(customer_id):
+            raise StripeAPIError("refusing to request a malformed customer id")
+        session = self._post(
+            "/billing_portal/sessions",
+            [("customer", customer_id), ("return_url", return_url)],
+        )
+        url = session.get("url")
+        if not isinstance(url, str) or not url.startswith("https://"):
+            raise StripeAPIError("Stripe returned no portal URL")
+        return url

@@ -64,7 +64,13 @@ from flask import (
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from dashboard import oauth, overview_view, settings_view, stripe_events
+from dashboard import (
+    oauth,
+    overview_view,
+    settings_view,
+    stripe_events,
+    subscription_view,
+)
 from dashboard.botapi import BotAPIClient, BotAPIError
 from dashboard.config import DashboardConfig
 from dashboard.sessions import SessionStore
@@ -295,6 +301,13 @@ def _bot_api() -> BotAPIClient:
     return current_app.config["BOT_API"]
 
 
+def _stripe() -> StripeClient:
+    """Only ever reached from routes that already checked stripe_enabled."""
+    from flask import current_app
+
+    return current_app.config["STRIPE"]
+
+
 def _register_hooks(app: Flask) -> None:
     @app.before_request
     def load_session():
@@ -498,26 +511,176 @@ def _register_routes(app: Flask) -> None:
 
     @app.get("/guild/<int:guild_id>/subscription")
     def guild_subscription(guild_id: int):
-        """Placeholder for the subscriptions section.
+        """One server's plan, and the two ways to buy it.
 
-        It calls the bot before rendering, which looks like a wasted round trip
-        for a page with nothing on it -- and is the point. An unauthorised
-        visitor must get the same answer here as they would from the other two
-        sections, or this becomes the one route that tells them whether a guild
-        exists. It costs one call on a page nobody reloads.
+        The bot decides everything this page states. It reports whether the
+        tier is enforced, whether the server is premium, whether that came from
+        Discord, and what the mirrored card subscription says -- and this route
+        renders that. It never works out for itself whether a server has paid,
+        because a second opinion about the premium gate is a second thing that
+        can disagree with the one doing the enforcing.
+
+        A failed read is an apology, never "not subscribed". That rule exists
+        everywhere on this site and bites hardest here: "not subscribed" beside
+        a Buy button is how a paying customer buys a second subscription.
         """
         session = _require_login()
         if session is None:
             return redirect(url_for("index"))
 
+        config = _config()
         try:
-            _bot_api().settings(int(session.discord_id), guild_id)
+            settings = _bot_api().settings(int(session.discord_id), guild_id)
         except BotAPIError as error:
             return _guild_page_unavailable(error, guild_id, session, "subscription")
 
-        return render_template(
-            "subscription.html", **_guild_chrome(session, guild_id, "subscription")
+        # Stripe bounces the browser back here after a completed checkout.
+        # A hint, never evidence of payment -- the webhook is what makes a
+        # subscription real and may not have landed yet -- but the page must
+        # not offer to sell again while that is outstanding.
+        just_bought = bool(request.args.get("bought"))
+        page = subscription_view.build(
+            settings,
+            application_id=config.discord_client_id,
+            plan_slug=config.plan_for(
+                ((settings.get("stripe") or {}).get("price_id")) or ""
+            ),
+            stripe_configured=config.stripe_enabled,
+            just_bought=just_bought,
         )
+        notice, notice_kind = _subscription_notice(session)
+        if notice is None and just_bought and page.state == "pending":
+            notice, notice_kind = SUBSCRIPTION_NOTICES["bought"]
+        # csrf_token comes from _guild_chrome, like every other page here.
+        return render_template(
+            "subscription.html",
+            page=page,
+            notice=notice,
+            notice_kind=notice_kind,
+            **_guild_chrome(session, guild_id, "subscription"),
+        )
+
+    @app.post("/guild/<int:guild_id>/subscription/checkout")
+    def subscription_checkout(guild_id: int):
+        """Start a hosted Checkout and hand the browser to Stripe.
+
+        THE PRICE ID IS NEVER TAKEN FROM THE FORM. The browser may name a plan
+        slug and nothing else; the id is looked up server-side. A form-supplied
+        price would let anyone check out against any price on the account,
+        including a $0 one created while testing, and it is the single most
+        likely way to get this endpoint wrong.
+
+        Administrator is re-checked by the bot on the settings read below --
+        the session proves who is asking, never what they may do -- and the
+        same read is what tells us whether this server should be offered a card
+        at all. Buying twice is prevented here as well as in the page: a POST
+        crafted by hand must not be able to reach checkout for a server that
+        already subscribes.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        config = _config()
+        if not config.stripe_enabled:
+            abort(404)
+
+        slug = (request.form.get("plan") or "").strip()
+        price_id = config.stripe_prices.get(slug)
+        if not price_id:
+            logger.warning("checkout refused: unknown plan %r", slug)
+            return _subscription_redirect(session, guild_id, "error:plan")
+
+        try:
+            settings = _bot_api().settings(int(session.discord_id), guild_id)
+        except BotAPIError as error:
+            return _guild_page_unavailable(error, guild_id, session, "subscription")
+
+        page = subscription_view.build(
+            settings,
+            application_id=config.discord_client_id,
+            stripe_configured=True,
+        )
+        if not page.offers_card:
+            # The page would not have shown a Buy button in this state, so a
+            # request that reached here was not made by clicking one.
+            logger.warning(
+                "checkout refused for guild %s: page state is %s", guild_id, page.state
+            )
+            return _subscription_redirect(session, guild_id, "error:already")
+
+        base = url_for("guild_subscription", guild_id=guild_id, _external=True)
+        try:
+            checkout_url = _stripe().create_checkout_session(
+                price_id=price_id,
+                guild_id=str(guild_id),
+                actor_discord_id=str(session.discord_id),
+                success_url=f"{base}?bought=1",
+                cancel_url=base,
+            )
+        except StripeAPIError as error:
+            # The page apologises and offers the Discord path. It does not
+            # pretend to have created a session.
+            logger.warning("could not create a checkout session: %s", error)
+            return _subscription_redirect(session, guild_id, "error:stripe")
+
+        # 303 so the browser re-issues as GET. The CSP is untouched: the
+        # browser leaves rather than loading anything from Stripe here.
+        return redirect(checkout_url, code=303)
+
+    @app.post("/guild/<int:guild_id>/subscription/portal")
+    def subscription_portal(guild_id: int):
+        """Hand the admin to Stripe's billing portal.
+
+        Cancelling, switching plan and updating a card all happen on Stripe's
+        domain, and none of them is reimplemented here. That is not
+        convenience: every one is an action on somebody's money, and this is
+        the process the threat model assumes will be compromised.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        config = _config()
+        if not config.stripe_enabled:
+            abort(404)
+
+        try:
+            settings = _bot_api().settings(int(session.discord_id), guild_id)
+        except BotAPIError as error:
+            return _guild_page_unavailable(error, guild_id, session, "subscription")
+
+        # The customer id comes from the bot's mirrored row, never from the
+        # form. A portal session names a customer, and a customer id a browser
+        # could choose would be a portal into somebody else's billing.
+        customer_id = (settings.get("stripe") or {}).get("customer_id")
+        if not customer_id:
+            return _subscription_redirect(session, guild_id, "error:portal")
+        # Checked here as well as where the URL is built. It arrives over mTLS
+        # from the bot, so this should never fire -- which is the argument for
+        # why it is cheap, not for leaving one of the two checks out.
+        if not stripe_events.valid_object_id(str(customer_id)):
+            logger.error(
+                "guild %s has a malformed Stripe customer id on file", guild_id
+            )
+            return _subscription_redirect(session, guild_id, "error:portal")
+
+        try:
+            portal_url = _stripe().create_portal_session(
+                customer_id=str(customer_id),
+                return_url=url_for(
+                    "guild_subscription", guild_id=guild_id, _external=True
+                ),
+            )
+        except StripeAPIError as error:
+            logger.warning("could not create a portal session: %s", error)
+            return _subscription_redirect(session, guild_id, "error:stripe")
+
+        return redirect(portal_url, code=303)
 
     @app.get("/guild/<int:guild_id>/settings")
     def guild_settings(guild_id: int):
@@ -1147,6 +1310,51 @@ def _save(guild_id: int, session, changes: dict):
 
     _store().set_notice(session.sid, "saved")
     return redirect(url_for("guild_settings", guild_id=guild_id))
+
+
+# What the Subscriptions page may say back to an admin after a POST, keyed so
+# nothing from a form or from Stripe reaches the page as text. Same discipline
+# as the panel results: a message is chosen from this table or not shown.
+SUBSCRIPTION_NOTICES = {
+    "bought": (
+        "Thanks — your subscription is being set up. Premium switches on as "
+        "soon as Stripe confirms the payment, usually within a few seconds.",
+        "ok",
+    ),
+    "plan": ("That plan isn't one we offer. Nothing has been charged.", "error"),
+    "already": (
+        "This server already has Premium, so there was nothing to buy. "
+        "Nothing has been charged.",
+        "error",
+    ),
+    "stripe": (
+        "We couldn't reach Stripe just now, so nothing has been charged. "
+        "Try again in a moment, or subscribe inside Discord instead.",
+        "error",
+    ),
+    "portal": (
+        "There's no card subscription on this server to manage.",
+        "error",
+    ),
+}
+
+
+def _subscription_redirect(session, guild_id: int, notice: str):
+    """Send the admin back to the page with one of the notices above."""
+    _store().set_notice(session.sid, f"subscription:{notice}")
+    return redirect(url_for("guild_subscription", guild_id=guild_id))
+
+
+def _subscription_notice(session):
+    """The pending notice for this page, as (message, kind)."""
+    raw = _store().take_notice(session.sid) or ""
+    if not raw.startswith("subscription:"):
+        return None, None
+    key = raw.partition(":")[2]
+    # `error:stripe` arrives as `error:stripe`; take the last segment.
+    key = key.rpartition(":")[2] or key
+    message = SUBSCRIPTION_NOTICES.get(key)
+    return message if message else (None, None)
 
 
 def _notice_arg(notice: Optional[str], kind: str) -> Optional[str]:

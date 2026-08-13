@@ -61,9 +61,15 @@
     <p class="notice">{{ save_error }}</p>
   {% endif %}
 
-  {# Buying happens inside Discord, never here. The store link cannot name a
-     server -- see settings_view.STORE_URL -- so the slash command leads, and
-     the link is offered as somewhere to read the details. #}
+  {# A pointer, not an offer. This block used to carry the whole upgrade pitch
+     and the Discord store link, which was right while Subscriptions was an
+     empty placeholder and there was one way to buy.
+
+     There are two ways now, and only one page can list both -- the 6- and
+     12-month plans are card-only, so a second copy of this pitch here could
+     never be more than partly true. Two places to buy, with two different sets
+     of options, is how the copy drifts apart; so buying lives on Subscriptions
+     and this says where that is. #}
   {% if upgrade %}
     <section class="upgrade">
       <h2>
@@ -75,25 +81,15 @@
       </h2>
       <p>
         {% if upgrade.grandfathered %}
-          Your grandfathered extras stay free whatever you decide. Premium adds
-          the settings marked below, a shorter wait between verifications, and
-          priority in the verification queue.
+          Your grandfathered extras stay free whatever you decide. Premium
+          unlocks the settings marked below.
         {% else %}
-          Unlocks the settings marked below, shortens the wait between
-          verifications, and moves this server up the verification queue. 18+
-          verification itself stays free.
+          Unlocks the settings marked below. 18+ verification itself stays free.
         {% endif %}
       </p>
       <p>
-        Run <code>/vrcverify_subscription</code> in this server to subscribe.
-        Discord handles the payment, and the command's button is already
-        pointed at this server.
-      </p>
-      <p class="muted">
-        <a href="{{ upgrade.store_url }}" rel="noopener noreferrer" target="_blank">
-          See what's included on Discord's store page</a> — it lists the price
-        and perks, but you choose the server during checkout, so use the command
-        above if you administer more than one.
+        <a href="{{ url_for('guild_subscription', guild_id=guild_id) }}">
+          See plans and subscribe</a>
       </p>
     </section>
   {% endif %}

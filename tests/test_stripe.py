@@ -934,13 +934,35 @@ class TestTheSettingsPayload:
         assert payload["stripe"]["status"] == "canceled"
         assert payload["stripe"]["active"] is False
 
-    def test_no_customer_id_ever_crosses_the_wire(self, enforced, stripe_on):
-        """The website has no use for it, and shipping it is how it ends up in
-        a log on the internet-facing box."""
+    def test_the_customer_id_is_shipped_because_the_portal_needs_it(
+        self, enforced, stripe_on
+    ):
+        """An earlier version of this test asserted the opposite, and was wrong.
+
+        Opening Stripe's billing portal requires a customer id, so the website
+        genuinely needs it to offer the one action a subscriber wants -- and
+        withholding it bought nothing anyway, since the dashboard holds a
+        Stripe secret key and can enumerate customers with or without our help.
+        """
         make_server()
         store_subscription()
         payload = run(bot.read_dashboard_settings(GUILD_ID))
-        assert CUSTOMER not in repr(payload)
+        assert payload["stripe"]["customer_id"] == CUSTOMER
+
+    def test_no_email_ever_crosses_the_wire(self, enforced, stripe_on):
+        """This is the part that did not change.
+
+        Checkout collects an email and Stripe keeps it. Mirroring it would put
+        customer PII in the one database linking Discord accounts to VRChat
+        identities, to power a page whose answer is "manage billing in the
+        portal".
+        """
+        make_server()
+        store_subscription()
+        payload = run(bot.read_dashboard_settings(GUILD_ID))
+        rendered = repr(payload).lower()
+        assert "email" not in rendered
+        assert "@" not in rendered
 
     def test_an_unreadable_table_refuses_the_whole_read(
         self, enforced, stripe_on, monkeypatch

@@ -1,25 +1,228 @@
 {% extends "base.html" %}
 {% block title %}Subscriptions — {{ guild_name }} — VRCVerify{% endblock %}
 
+{# Every branch below switches on `page.state`, which subscription_view builds.
+   Adding a state is a change there and then here, rather than a condition
+   grown into an existing branch -- this is the page that takes money, and the
+   difference between two of its states is the difference between showing a
+   paying customer a Buy button and not.
+
+   No inline styles anywhere. `style-src 'self'` drops them SILENTLY, so a
+   colour written as style="" would simply not apply and nothing would say so.
+   Everything visual is a class in style.css. #}
+
 {% block content %}
-{# Deliberately empty. This section exists so the sidebar has no dead ends and
-   so the follow-up issue is a matter of filling a page rather than building a
-   route. Nothing about buying belongs here yet: purchases happen inside
-   Discord, and the Settings page already explains why (the store link cannot
-   name a server, so the slash command has to lead). #}
+{% if notice %}
+  <p class="notice{% if notice_kind == 'ok' %} ok{% endif %}">{{ notice }}</p>
+{% endif %}
+
 <section class="panel group">
   <h2>Subscriptions</h2>
-  <p class="muted blurb">
-    Managing VRCVerify Premium from the website is still being built. For now,
-    run <code>/vrcverify_subscription</code> in {{ guild_name }} — Discord
-    handles the payment, and the command's button is already pointed at the
-    right server.
-  </p>
-  <p class="muted">
-    Your current plan is shown at the top of
-    <a href="{{ url_for('guild_overview', guild_id=guild_id) }}">Overview</a>,
-    and the settings Premium unlocks are marked on
-    <a href="{{ url_for('guild_settings', guild_id=guild_id) }}">Settings</a>.
-  </p>
+
+  {% if page.state == 'unavailable' %}
+    {# Never "not subscribed". A failed read rendered as "you have no plan",
+       next to a Buy button, is how a paying customer buys a second one. #}
+    <p class="blurb">
+      We couldn't check this server's plan just now. Nothing here is missing —
+      the page simply can't say what's true yet. Try again in a moment.
+    </p>
+
+  {% elif page.state == 'off' %}
+    <p class="blurb">
+      Every VRCVerify feature is currently available to this server at no
+      charge. There's nothing to subscribe to.
+    </p>
+
+  {% elif page.state == 'pending' %}
+    {# Says nothing certain about payment. The checkout redirect is a hint and
+       only the webhook is evidence -- so this promises a wait, and offers no
+       way to buy again while we cannot tell. Without this branch the page
+       rendered three Buy buttons directly under the thank-you message, at the
+       one moment somebody has demonstrably just paid. #}
+    <p class="blurb">
+      Waiting for Stripe to confirm. Premium switches on by itself, usually
+      within a few seconds — reload this page in a moment.
+    </p>
+    <p class="muted">
+      If it hasn't switched on after a minute or two, nothing is lost: Stripe
+      keeps trying to reach us for up to three days, and the subscription takes
+      effect as soon as it gets through. Get in touch if it stays this way.
+    </p>
+
+  {% elif page.state == 'both' %}
+    {# Detected and warned, never auto-cancelled. Code that cancels a
+       subscription and issues a refund without a human deciding is a category
+       of bug that costs real money in the wrong direction. #}
+    <p class="notice">
+      This server looks like it's paying for Premium
+      {% if page.card_count > 1 %}
+        on {{ page.card_count }} separate card subscriptions.
+      {% else %}
+        twice — once by card and once through Discord.
+      {% endif %}
+      Premium is on and stays on; you're just being charged more than once.
+    </p>
+    <p class="blurb">
+      We won't cancel either one for you — that's your call, and getting it
+      wrong with someone else's money isn't a risk worth automating.
+    </p>
+    <ul class="plan-notes">
+      <li>
+        To cancel the card subscription, use <strong>Manage billing</strong>
+        below.
+      </li>
+      {% if page.on_discord %}
+        <li>
+          To cancel the Discord one, open <strong>User Settings →
+          Subscriptions</strong> in Discord, or run
+          <code>/vrcverify_subscription</code> in {{ guild_name }}.
+        </li>
+      {% endif %}
+    </ul>
+    {% if page.plan_label %}
+      <p class="muted">
+        Card plan: {{ page.plan_label }}{% if page.renews_on %}, renews on
+        {{ page.renews_on }}{% elif page.ends_on %}, ends on
+        {{ page.ends_on }}{% endif %}.
+      </p>
+    {% endif %}
+
+  {% elif page.state == 'past_due' %}
+    {# An honest banner. Not an error, and not silence. #}
+    <p class="notice">
+      Your last payment didn't go through. Premium is still on while Stripe
+      retries the card — update your card details under
+      <strong>Manage billing</strong> below.
+    </p>
+    <p class="blurb">
+      Current plan: <strong>{{ page.plan_label }}</strong>{% if page.renews_on %},
+      due to renew on {{ page.renews_on }}{% endif %}.
+    </p>
+
+  {% elif page.state == 'stripe' %}
+    <p class="blurb">
+      This server has <strong>VRCVerify Premium</strong> on the
+      <strong>{{ page.plan_label }}</strong> plan, paid by card.
+    </p>
+    {% if page.ends_on %}
+      <p class="muted">
+        Cancelled — Premium stays on until <strong>{{ page.ends_on }}</strong>,
+        the end of the period you've already paid for.
+      </p>
+    {% elif page.renews_on %}
+      <p class="muted">Renews on <strong>{{ page.renews_on }}</strong>.</p>
+    {% endif %}
+
+  {% elif page.state == 'discord' %}
+    <p class="blurb">
+      This server has <strong>VRCVerify Premium</strong>, bought through
+      Discord.
+    </p>
+    <p class="muted">
+      Discord handles the billing, so cancelling or changing the payment method
+      happens there — <strong>User Settings → Subscriptions</strong>. We can't
+      manage a Discord subscription from here.
+    </p>
+    {# Deliberately no card buttons. Offering one to a server that already pays
+       is precisely how it ends up paying twice. #}
+
+  {% else %}
+    <p class="blurb">
+      18+ verification is free and always will be. Premium unlocks the settings
+      marked on <a href="{{ url_for('guild_settings', guild_id=guild_id) }}">Settings</a>,
+      shortens the wait between verifications, and moves this server up the
+      verification queue.
+    </p>
+    {% if page.grandfathered %}
+      <p class="muted">
+        Your grandfathered extras — unverified-role removal, nickname sync and
+        the custom verification message — stay free whatever you decide here.
+      </p>
+    {% endif %}
+    {% if page.ended_on %}
+      <p class="muted">
+        Your previous {{ page.last_plan_label }} subscription ended on
+        {{ page.ended_on }}. Subscribing again picks up where it left off.
+      </p>
+    {% endif %}
+  {% endif %}
 </section>
+
+{% if page.offers_card %}
+  <section class="panel group">
+    <h2>Pay by card</h2>
+    <p class="blurb muted">
+      Prices are in US dollars and <strong>exclude tax</strong>; any tax due
+      where you are is added at checkout. Payment is handled by Stripe — card
+      details never reach VRCVerify.
+    </p>
+    <div class="plans">
+      {% for plan in page.plans %}
+        <form class="plan" method="post"
+              action="{{ url_for('subscription_checkout', guild_id=guild_id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          {# The browser names a PLAN, never a price. The price id is looked up
+             server-side; a form-supplied one would let anyone check out
+             against any price on the account. #}
+          <input type="hidden" name="plan" value="{{ plan.slug }}">
+          <h3>{{ plan.label }}</h3>
+          {% if plan.saving %}
+            <p class="plan-saving">{{ plan.saving }}</p>
+          {% else %}
+            <p class="plan-saving plan-saving-none">&nbsp;</p>
+          {% endif %}
+          <button class="button" type="submit">Subscribe</button>
+        </form>
+      {% endfor %}
+    </div>
+    <ul class="plan-notes">
+      <li>All plans renew automatically. Cancel any time from this page.</li>
+      <li>
+        <strong>The 6- and 12-month plans are card-only.</strong> Discord
+        subscriptions bill monthly, so those terms can't be offered there.
+      </li>
+    </ul>
+  </section>
+{% endif %}
+
+{% if page.offers_portal %}
+  <section class="panel group">
+    <h2>Manage billing</h2>
+    <p class="blurb muted">
+      Change plan, update your card or cancel — on Stripe's own billing portal.
+      You'll come straight back here afterwards.
+    </p>
+    <form method="post"
+          action="{{ url_for('subscription_portal', guild_id=guild_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="button" type="submit">Manage billing</button>
+    </form>
+  </section>
+{% endif %}
+
+{% if page.discord_command %}
+  <section class="panel group">
+    <h2>Buy inside Discord</h2>
+    {% if page.state == 'none' %}
+      <p class="blurb">
+        Run <code>/vrcverify_subscription</code> in {{ guild_name }}. Discord
+        handles the payment, and the command's button is already pointed at
+        this server. Monthly only, at the same price as the monthly plan above.
+      </p>
+    {% else %}
+      <p class="blurb">
+        Run <code>/vrcverify_subscription</code> in {{ guild_name }} to see this
+        server's Discord subscription.
+      </p>
+    {% endif %}
+    {% if page.store_url %}
+      <p class="muted">
+        <a href="{{ page.store_url }}" rel="noopener noreferrer" target="_blank">
+          See what's included on Discord's store page</a> — it lists the price
+        and perks, but you choose the server during checkout, so use the command
+        above if you administer more than one.
+      </p>
+    {% endif %}
+  </section>
+{% endif %}
 {% endblock %}

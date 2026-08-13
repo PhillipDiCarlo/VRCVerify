@@ -1396,10 +1396,17 @@ def load_stripe_subscription(guild_id):
     cache exists to keep the *gate* cheap, and borrowing it here would mean
     either caching five more values or answering with a stale renewal date.
 
-    No customer id and no email leave this function. The page has nothing to do
-    with either — billing details are managed on Stripe's own domain, in the
-    portal — and shipping an id the website does not need across the wire is
-    how it ends up in a log on the internet-facing box.
+    The customer id DOES leave here, and an earlier version of this docstring
+    argued it should not. That was wrong, for two reasons found while building
+    the page: opening Stripe's billing portal requires a customer id, so the
+    website genuinely needs it to offer the one action a subscriber wants; and
+    withholding it buys nothing anyway, because the dashboard holds a Stripe
+    secret key and can enumerate customers with or without our help.
+
+    No **email** leaves here, and that still holds. Checkout collects one and
+    Stripe keeps it; mirroring it would put customer PII in the one database
+    that links Discord accounts to VRChat identities, to power a page whose
+    answer is "manage billing in the portal".
     """
     if not STRIPE_ENABLED:
         return None
@@ -1412,6 +1419,7 @@ def load_stripe_subscription(guild_id):
                     StripeSubscription.price_id,
                     StripeSubscription.current_period_end,
                     StripeSubscription.cancel_at_period_end,
+                    StripeSubscription.stripe_customer_id,
                 )
                 .filter_by(server_id=panel_view_key(guild_id))
                 .all()
@@ -1439,6 +1447,8 @@ def load_stripe_subscription(guild_id):
             )
             return {
                 "status": row.status,
+                # Needed to open Stripe's billing portal, and nothing else.
+                "customer_id": row.stripe_customer_id,
                 # The price id, not a plan name. Turning it into the words
                 # "6 months" needs the slug table, which is dashboard config
                 # precisely because test and live mode have different ids --
@@ -5020,6 +5030,20 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
     try:
         flags = await resolve_premium_flags(guild_id)
 
+        # Which of the two sources is live, resolved separately for this
+        # payload only. The gate itself short-circuits on the Discord answer
+        # and is right to -- it does not care *why* a server is premium. The
+        # Subscriptions page does: without this it cannot tell "paying by card"
+        # from "paying by card AND through Discord", and the double-billing
+        # warning the whole feature promises would be unbuildable.
+        #
+        # Both reads are cache hits here, because resolve_premium_flags above
+        # has just taken them, so this costs nothing on the hot path -- and
+        # nothing at all when the tier is off.
+        discord_premium = (
+            await guild_has_premium(guild_id) if PREMIUM_ENFORCED else True
+        )
+
         # Same guard /vrcverify_settings uses: the column post-dates some
         # deployments and a missing one must not break the whole read.
         has_auto_verify = server_has_column("auto_verify_new_members")
@@ -5087,6 +5111,13 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
                 # dashboard offers no upgrade at all, which is correct -- there
                 # is nothing to sell when every gate answers "allowed".
                 "sku_id": str(PREMIUM_SKU_ID) if PREMIUM_SKU_ID is not None else None,
+                # Whether the DISCORD half alone grants premium. Not a second
+                # gate for the website to OR -- `premium` above stays the one
+                # answer to "is this server premium". This exists so the
+                # Subscriptions page can tell a card subscriber from someone
+                # paying on both platforms, which is the difference between a
+                # normal page and a "you are being billed twice" warning.
+                "discord": discord_premium,
             },
             # Why the answer above is what it is, for the half of it Discord
             # cannot explain. `premium.premium` stays the single answer to "is
@@ -5107,6 +5138,7 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
                 "cancel_at_period_end": bool(
                     (subscription or {}).get("cancel_at_period_end")
                 ),
+                "customer_id": (subscription or {}).get("customer_id"),
                 # More than one means the server is paying twice. The page
                 # warns and links to the portal; nothing anywhere cancels or
                 # refunds on anyone's behalf.
