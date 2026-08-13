@@ -51,13 +51,15 @@ See the sections below for details and configuration.
 
 - **Database:**  
   Utilizes SQLAlchemy to manage these models:
-  - **Server:** Holds configuration for each Discord server (guild), including role assignments. (Its `subscription_status` / `email` / `last_renewal_date` columns are dormant leftovers from a removed Stripe integration and are not used by anything — premium keys off Discord entitlements instead.)
+  - **Server:** Holds configuration for each Discord server (guild), including role assignments. (Its `subscription_status` / `email` / `last_renewal_date` columns are dormant leftovers from a Stripe integration removed years ago, and are still not used by anything. The current Stripe support deliberately did not resurrect them — see **StripeSubscription** below.)
   - **User:** Stores individual user verification statuses and VRChat IDs.
   - **PendingVerification:** Temporarily holds verification requests until they are processed.
   - **PremiumCutoverNotice:** Which guilds have already had the one-time premium announcement DM.
   - **PremiumGrandfatherLine:** Single row holding `MAX(servers.id)` as of the moment the premium tier was switched on. Servers at or below it keep the grandfathered features free, permanently. Captured once, never moved.
   - **InstructionPanelBranding:** A premium server's chosen embed colour and whether to show its server icon on the instructions panel. Both default to off, so the row existing does not by itself restyle anything.
   - **VerificationLogChannel:** Where a guild posts its verification activity log.
+  - **StripeSubscription:** A guild's card subscription, mirrored from Stripe so the premium gate stays a database read rather than an API call. Stripe remains the source of truth; the bot holds no Stripe credential and never talks to Stripe — the dashboard verifies each webhook signature and forwards a normalised summary over the existing mTLS channel. Premium is granted if **either** this or a Discord entitlement is live.
+  - **StripeEvent:** Every webhook event id already acted on. Stripe retries a delivery for up to three days, so duplicates are expected traffic; this is what makes applying one idempotent.
 
 - **Messaging with RabbitMQ:**  
   Uses the pika library to handle two queues:

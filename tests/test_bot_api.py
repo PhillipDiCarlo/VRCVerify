@@ -49,15 +49,17 @@ def run(coro):
 # -------------------------------------------------------------------
 # Fakes
 # -------------------------------------------------------------------
-def make_deps(written=None, posted=None, **overrides) -> bot_api.BotAPIDeps:
+def make_deps(written=None, posted=None, mirrored=None, **overrides) -> bot_api.BotAPIDeps:
     """A permissive set of capabilities, so each test breaks exactly one thing.
 
-    `written` and `posted` collect what reached the two mutating capabilities,
-    so a test can assert the handler passed the body through unchanged -- and,
-    more usefully, that a refused request never reached them at all.
+    `written`, `posted` and `mirrored` collect what reached the three mutating
+    capabilities, so a test can assert the handler passed the body through
+    unchanged -- and, more usefully, that a refused request never reached them
+    at all.
     """
     written = [] if written is None else written
     posted = [] if posted is None else posted
+    mirrored = [] if mirrored is None else mirrored
 
     async def is_admin(guild_id, user_id):
         return int(user_id) == ADMIN_ID
@@ -104,6 +106,10 @@ def make_deps(written=None, posted=None, **overrides) -> bot_api.BotAPIDeps:
         written.append((int(guild_id), int(actor_id), dict(changes)))
         return {"guild_id": str(guild_id), "fields": {}, "written": dict(changes)}
 
+    async def write_stripe_subscription(guild_id, payload):
+        mirrored.append((int(guild_id), dict(payload)))
+        return {"applied": True, "status": payload.get("status"), "premium": True}
+
     defaults = dict(
         is_ready=lambda: True,
         guild_present=lambda guild_id: int(guild_id) == GUILD_ID,
@@ -116,6 +122,7 @@ def make_deps(written=None, posted=None, **overrides) -> bot_api.BotAPIDeps:
         read_audit=read_audit,
         read_overview=read_overview,
         write_settings=write_settings,
+        write_stripe_subscription=write_stripe_subscription,
         post_panel=post_panel,
     )
     defaults.update(overrides)
@@ -162,6 +169,12 @@ async def patch(client, path, token=None, json=None, data=None):
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     kwargs = {"data": data} if data is not None else {"json": json}
     response = await client.patch(path, headers=headers, **kwargs)
+    return response.status, await response.json()
+
+
+async def put(client, path, token=None, json=None):
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    response = await client.put(path, headers=headers, json=json)
     return response.status, await response.json()
 
 
@@ -1016,7 +1029,337 @@ class TestTheWritePath:
         assert actor == ADMIN_ID
 
 
-class TestWriteSurfaceIsExactlyTwoThings:
+class TestTheSystemRoute:
+    """The one route with no human behind it (issue #88).
+
+    Everything about this endpoint is the same as the others except who is
+    asking: mTLS, a signed token bound to this method, this path and this
+    guild, the replay guard and the write budget all still apply. Only the
+    Administrator check is skipped, because there is nobody to check — a
+    renewal a year from now is asked for by Stripe, not by a person.
+
+    Which makes the interesting tests the ones about the *seam* between human
+    and machine tokens, since that seam is the only thing standing between "no
+    Administrator check needed here" and "no Administrator check needed".
+    """
+
+    OP = "PUT /api/v1/guilds/{guild_id}/stripe-subscription"
+
+    def path(self, guild_id=GUILD_ID):
+        return f"/api/v1/guilds/{guild_id}/stripe-subscription"
+
+    def config(self, **overrides):
+        return make_config(stripe_enabled=True, **overrides)
+
+    def body(self, **overrides):
+        payload = {
+            "event_id": "evt_1",
+            "event_created": "2026-08-13T00:00:00Z",
+            "customer_id": "cus_1",
+            "subscription_id": "sub_1",
+            "price_id": "price_1",
+            "status": "active",
+            "current_period_end": "2026-09-13T00:00:00Z",
+            "cancel_at_period_end": False,
+        }
+        payload.update(overrides)
+        return {"subscription": payload}
+
+    def system_token(self, guild_id=GUILD_ID):
+        return token_for(
+            self.OP, guild_id=guild_id, actor_id=bot_api.SYSTEM_ACTOR_ID
+        )
+
+    def test_the_route_does_not_exist_with_stripe_switched_off(self):
+        """The kill switch is a 404, not a handler that declines.
+
+        Nothing has to be trusted to refuse, because nothing was wired up.
+        """
+        mirrored = []
+
+        async def scenario(client):
+            response = await client.put(
+                self.path(),
+                headers={"Authorization": f"Bearer {self.system_token()}"},
+                json=self.body(),
+            )
+            return response.status, None
+
+        status, _ = serve(scenario, deps=make_deps(mirrored=mirrored))
+        assert status == 404
+        assert mirrored == []
+
+    def test_the_system_actor_can_write(self):
+        mirrored = []
+
+        async def scenario(client):
+            return await put(client, self.path(), self.system_token(), self.body())
+
+        status, body = serve(
+            scenario, config=self.config(), deps=make_deps(mirrored=mirrored)
+        )
+        assert status == 200
+        assert body["applied"] is True
+        assert len(mirrored) == 1
+        guild_id, payload = mirrored[0]
+        assert guild_id == GUILD_ID
+        assert payload["subscription_id"] == "sub_1"
+
+    def test_no_administrator_check_is_made(self):
+        """There is no human to check, so is_admin must never be consulted.
+
+        Calling it would not merely be pointless -- it would mean the route's
+        behaviour depended on whether SYSTEM_ACTOR_ID happened to administer
+        the guild, which is a question with no meaning.
+        """
+        asked = []
+
+        async def is_admin(guild_id, user_id):
+            asked.append((guild_id, user_id))
+            return False
+
+        async def scenario(client):
+            return await put(client, self.path(), self.system_token(), self.body())
+
+        status, _body = serve(
+            scenario, config=self.config(), deps=make_deps(is_admin=is_admin)
+        )
+        assert status == 200
+        assert asked == []
+
+    def test_a_guild_the_bot_has_left_is_still_recorded(self):
+        """A renewal must land even if the bot was kicked.
+
+        Otherwise a server that re-adds the bot finds itself unsubscribed while
+        still being billed, and the only evidence is in Stripe.
+        """
+        mirrored = []
+
+        async def scenario(client):
+            return await put(
+                client,
+                self.path(OTHER_GUILD_ID),
+                self.system_token(OTHER_GUILD_ID),
+                self.body(),
+            )
+
+        status, _body = serve(
+            scenario, config=self.config(), deps=make_deps(mirrored=mirrored)
+        )
+        assert status == 200
+        assert mirrored[0][0] == OTHER_GUILD_ID
+
+    def test_a_human_token_cannot_reach_it(self):
+        """An administrator is not allowed to write subscription state by hand.
+
+        This is the same rule as "no manual verify override", applied to money:
+        the only thing that may say a server has paid is Stripe.
+        """
+        mirrored = []
+
+        async def scenario(client):
+            return await put(
+                client,
+                self.path(),
+                token_for(self.OP, actor_id=ADMIN_ID),
+                self.body(),
+            )
+
+        status, body = serve(
+            scenario, config=self.config(), deps=make_deps(mirrored=mirrored)
+        )
+        assert status == 403
+        assert body["error"] == "not_system_actor"
+        assert mirrored == []
+
+    def test_a_system_token_cannot_reach_a_human_route(self):
+        """The other half of the seam, and the one that would actually hurt.
+
+        SYSTEM_ACTOR_ID has no Administrator to check, so if it could reach the
+        settings PATCH, that route would have no authority check left at all.
+        """
+        written = []
+
+        async def scenario(client):
+            return await patch(
+                client,
+                f"/api/v1/guilds/{GUILD_ID}/settings",
+                token_for(WRITE_OP, actor_id=bot_api.SYSTEM_ACTOR_ID),
+                json={"fields": {"instructions_locale": "de"}},
+            )
+
+        status, body = serve(
+            scenario, config=self.config(), deps=make_deps(written=written)
+        )
+        assert status == 403
+        assert body["error"] == "system_actor_not_permitted"
+        assert written == []
+
+    def test_the_system_actor_is_not_a_possible_discord_id(self):
+        """Zero cannot collide with a real user, and snowflakes never reach it."""
+        assert bot_api.SYSTEM_ACTOR_ID == 0
+        assert bot_api.SYSTEM_OPERATIONS == frozenset({self.OP})
+
+    def test_a_token_for_another_guild_does_not_work(self):
+        mirrored = []
+
+        async def scenario(client):
+            return await put(
+                client,
+                self.path(),
+                self.system_token(OTHER_GUILD_ID),
+                self.body(),
+            )
+
+        status, body = serve(
+            scenario, config=self.config(), deps=make_deps(mirrored=mirrored)
+        )
+        assert status == 403
+        assert body["error"] == "wrong_guild"
+        assert mirrored == []
+
+    def test_a_token_cannot_be_used_twice(self):
+        mirrored = []
+        token = self.system_token()
+
+        async def scenario(client):
+            first = await put(client, self.path(), token, self.body())
+            second = await put(client, self.path(), token, self.body())
+            return first, second
+
+        (first_status, _), (second_status, second_body) = serve(
+            scenario, config=self.config(), deps=make_deps(mirrored=mirrored)
+        )
+        assert first_status == 200
+        assert second_status == 401
+        assert second_body["error"] == "replayed"
+        assert len(mirrored) == 1
+
+    def test_no_token_is_a_401_and_writes_nothing(self):
+        mirrored = []
+
+        async def scenario(client):
+            return await put(client, self.path(), None, self.body())
+
+        status, body = serve(
+            scenario, config=self.config(), deps=make_deps(mirrored=mirrored)
+        )
+        assert status == 401
+        assert mirrored == []
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {},
+            {"subscription": None},
+            {"subscription": {}},
+            {"subscription": "sub_1"},
+            [1, 2, 3],
+        ],
+    )
+    def test_a_malformed_body_is_refused(self, body):
+        mirrored = []
+
+        async def scenario(client):
+            return await put(client, self.path(), self.system_token(), body)
+
+        status, _body = serve(
+            scenario, config=self.config(), deps=make_deps(mirrored=mirrored)
+        )
+        assert status == 400
+        assert mirrored == []
+
+    def test_an_unknown_field_is_refused_before_the_bot_is_asked(self):
+        """An extra key means the two ends disagree about the contract.
+
+        The interesting case is the one where the dashboard has been talked
+        into sending more than it should, so this refuses rather than ignores.
+        """
+        mirrored = []
+
+        async def scenario(client):
+            return await put(
+                client,
+                self.path(),
+                self.system_token(),
+                self.body(email="someone@example.com"),
+            )
+
+        status, body = serve(
+            scenario, config=self.config(), deps=make_deps(mirrored=mirrored)
+        )
+        assert status == 400
+        assert body["error"] == "unknown_field"
+        assert mirrored == []
+
+    def test_an_absurdly_long_value_is_refused(self):
+        mirrored = []
+
+        async def scenario(client):
+            return await put(
+                client,
+                self.path(),
+                self.system_token(),
+                self.body(status="x" * 5000),
+            )
+
+        status, body = serve(
+            scenario, config=self.config(), deps=make_deps(mirrored=mirrored)
+        )
+        assert status == 400
+        assert body["error"] == "field_too_long"
+        assert mirrored == []
+
+    def test_a_writer_that_cannot_complete_is_a_503_so_stripe_retries(self):
+        """Never 200-and-drop: Stripe retries a non-2xx for up to three days,
+        which comfortably covers a bot restart or a tunnel blip."""
+
+        async def write_stripe_subscription(guild_id, payload):
+            return None
+
+        async def scenario(client):
+            return await put(client, self.path(), self.system_token(), self.body())
+
+        status, body = serve(
+            scenario,
+            config=self.config(),
+            deps=make_deps(write_stripe_subscription=write_stripe_subscription),
+        )
+        assert status == 503
+        assert body["error"] == "unavailable"
+
+    def test_a_rejected_payload_becomes_a_400(self):
+        async def write_stripe_subscription(guild_id, payload):
+            raise bot_api.SettingRejected("status", "bad_status")
+
+        async def scenario(client):
+            return await put(client, self.path(), self.system_token(), self.body())
+
+        status, body = serve(
+            scenario,
+            config=self.config(),
+            deps=make_deps(write_stripe_subscription=write_stripe_subscription),
+        )
+        assert status == 400
+        assert body["error"] == "bad_status"
+
+    def test_the_guild_comes_from_the_path_not_the_body(self):
+        """The token binds the path's guild. A body naming another is ignored."""
+        mirrored = []
+
+        async def scenario(client):
+            return await put(
+                client,
+                self.path(),
+                self.system_token(),
+                self.body(),
+            )
+
+        serve(scenario, config=self.config(), deps=make_deps(mirrored=mirrored))
+        assert mirrored[0][0] == GUILD_ID
+
+
+class TestWriteSurfaceIsExactlyThreeThings:
     """These pin how far the API can change things, and no further.
 
     Editing any of them is how you widen what the website can do to a server,
@@ -1036,7 +1379,26 @@ class TestWriteSurfaceIsExactlyTwoThings:
             ("POST", "/api/v1/guilds/{guild_id}/panel"),
         }, f"an unexpected write route appeared: {writes}"
 
-    def test_the_api_holds_one_writer_and_one_action(self):
+    def test_the_stripe_route_appears_only_when_stripe_is_switched_on(self):
+        """The kill switch is the absence of a route, not a handler that says no.
+
+        Both halves are pinned: with STRIPE_ENABLED unset the path does not
+        exist at all, and with it set exactly one route appears -- so switching
+        Stripe on cannot quietly bring anything else with it.
+        """
+        app = bot_api.create_app(make_config(stripe_enabled=True), make_deps())
+        writes = {
+            (route.method, route.resource.canonical)
+            for route in app.router.routes()
+            if route.method not in {"GET", "HEAD"}
+        }
+        assert writes == {
+            ("PATCH", "/api/v1/guilds/{guild_id}/settings"),
+            ("POST", "/api/v1/guilds/{guild_id}/panel"),
+            ("PUT", "/api/v1/guilds/{guild_id}/stripe-subscription"),
+        }, f"an unexpected write route appeared: {writes}"
+
+    def test_the_api_holds_two_writers_and_one_action(self):
         assert bot_api.deps_field_names() == frozenset(
             {
                 "is_ready",
@@ -1050,6 +1412,7 @@ class TestWriteSurfaceIsExactlyTwoThings:
                 "read_audit",
                 "read_overview",
                 "write_settings",
+                "write_stripe_subscription",
                 "post_panel",
             }
         )
