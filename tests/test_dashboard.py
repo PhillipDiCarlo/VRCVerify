@@ -2505,6 +2505,22 @@ class TestTheSidebar:
         assert f'href="/guild/{GUILD_IN}/settings"' in page
         assert f'href="/guild/{GUILD_IN}/subscription"' in page
 
+    def test_a_section_name_stands_alone(self, config, store):
+        """No glyph beside the label when the sidebar is open.
+
+        The links used to carry the section's first letter, which was both
+        noise next to a label that already says the same thing and ambiguous:
+        Settings and Subscriptions share an initial, so the rail showed two
+        identical marks for two different pages. Icons replaced them, and they
+        are shown only when the labels are gone.
+        """
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+
+        for label in ("Overview", "Settings", "Subscriptions"):
+            assert f'>{label[:1]}</span>' not in page
+            assert f'<span class="side-text">{label}</span>' in page
+
     def test_it_marks_the_current_section(self, config, store):
         test_client, _api = settings_client(config, store)
         page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()

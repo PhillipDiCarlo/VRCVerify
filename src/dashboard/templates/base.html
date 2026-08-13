@@ -1,3 +1,33 @@
+{# The rail's icons. Only ever visible when the sidebar is collapsed -- expanded,
+   the labels speak for themselves and a glyph beside each one is noise.
+
+   Drawn inline rather than loaded, because the CSP is img-src 'self' plus
+   Discord's CDN and a data: URI would mean widening it for three small shapes.
+   Every attribute below is a presentation attribute, not CSS: style-src 'self'
+   blocks inline style="" as well, which is why `stroke` is written this way.
+
+   They replaced the section's first letter, which was doing no work -- Settings
+   and Subscriptions both reduce to "S", so the rail offered two identical marks
+   for two different pages. #}
+{% macro side_icon(key) -%}
+  <svg class="side-mark" viewBox="0 0 16 16" width="16" height="16"
+       aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="1.7" stroke-linecap="round">
+    {%- if key == 'overview' -%}
+      {# Bars: the page is counts. #}
+      <path d="M3.5 13V9.5M8 13V3.5M12.5 13V6.5"></path>
+    {%- elif key == 'settings' -%}
+      {# Sliders rather than a gear -- fewer strokes survive at 16px. #}
+      <path d="M2 5h12M2 11h12"></path>
+      <circle cx="10.5" cy="5" r="1.9" fill="var(--panel)"></circle>
+      <circle cx="5.5" cy="11" r="1.9" fill="var(--panel)"></circle>
+    {%- else -%}
+      {# A card. #}
+      <rect x="2" y="4" width="12" height="8.5" rx="1.5"></rect>
+      <path d="M2 7.25h12"></path>
+    {%- endif -%}
+  </svg>
+{%- endmacro %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -88,7 +118,7 @@
                  class="side-link{% if key == section %} current{% endif %}"
                  {% if key == section %}aria-current="page"{% endif %}
                  title="{{ label }}">
-                <span class="side-mark" aria-hidden="true">{{ label[:1] }}</span>
+                {{ side_icon(key) }}
                 <span class="side-text">{{ label }}</span>
               </a>
             </li>
@@ -96,8 +126,11 @@
         </ul>
 
         <p class="side-back">
+          {# Its own class, not `side-mark`: the section icons appear only on
+             the rail, but a back arrow is an affordance rather than a label
+             substitute and belongs there in both states. #}
           <a href="{{ url_for('index') }}" title="All servers">
-            <span class="side-mark" aria-hidden="true">&larr;</span>
+            <span class="back-mark" aria-hidden="true">&larr;</span>
             <span class="side-text">All servers</span>
           </a>
         </p>

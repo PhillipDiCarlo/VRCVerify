@@ -194,16 +194,19 @@ body {
   font-weight: 650;
 }
 
-/* The letter shown in place of a label on the rail. Fixed width so the icons
- * line up in both states rather than shifting when the labels go. */
-.side-mark {
+/* Section icons stand in for the labels on the rail, and only there. Expanded,
+ * the label already says what the link is and a glyph beside it is decoration
+ * competing with the one thing that matters. */
+.side-mark { display: none; color: var(--muted); }
+.layout.collapsed .side-mark { display: block; }
+.layout.collapsed .side-link.current .side-mark { color: var(--accent); }
+
+/* The back arrow is not a label substitute, so it stays in both states. */
+.back-mark {
   flex: 0 0 1.25rem;
   text-align: center;
-  font-weight: 650;
   color: var(--muted);
 }
-
-.side-link.current .side-mark { color: var(--accent); }
 
 .side-back {
   margin: 0.75rem 0 0;
