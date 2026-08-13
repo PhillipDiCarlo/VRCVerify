@@ -6,8 +6,15 @@
 # required; compose refuses to start without it.
 #
 # Usage (on the deploy host, next to your .env):
-#   VRCVERIFY_VERSION=1.4.0 docker compose -f docker-compose.deploy.yml up -d
-# or add VRCVERIFY_VERSION=1.4.0 to the .env file.
+#   VRCVERIFY_VERSION=2.3.2 docker compose -f docker-compose.deploy.yml up -d
+# or add VRCVERIFY_VERSION=2.3.2 to the .env file.
+#
+# This is a TEMPLATE, and the deployed copy on the homelab host differs from it
+# deliberately: there the dashboard API blocks at the bottom are uncommented,
+# because that host runs the API. Keep the two in step when either changes --
+# the last drift between them left a comment on the server telling the reader
+# to leave the API switched off, months after it went live, and nothing caught
+# it because the edit was made on the box rather than here.
 
 services:
   discord-bot:
@@ -39,6 +46,20 @@ services:
       BOT_API_CLIENT_CN: ${BOT_API_CLIENT_CN:-}
       BOT_API_TOKEN_SIGNING_KEY: ${BOT_API_TOKEN_SIGNING_KEY:-}
       BOT_API_ADMIN_TTL: ${BOT_API_ADMIN_TTL:-15}
+      # Card subscriptions (issue #88). Unset by default, so the bot never
+      # reads the stripe_subscription table and never registers the API route
+      # that writes it -- premium keeps coming from Discord entitlements alone.
+      #
+      # NOTE: no Stripe credential appears here and none ever should.
+      # STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET belong to the dashboard on
+      # the VPS. This host reads a table that the dashboard fills in over
+      # mTLS, which is the whole of Stripe's presence on the homelab.
+      #
+      # Turn this on BEFORE the dashboard's own STRIPE_ENABLED. The other
+      # order means a customer completes checkout, is charged, and the forward
+      # is answered 404 until Stripe gives up three days later.
+      STRIPE_ENABLED: ${STRIPE_ENABLED:-}
+      STRIPE_STATUS_TTL: ${STRIPE_STATUS_TTL:-900}
     restart: unless-stopped
     # Docker's json-file driver does not rotate by default, so container logs
     # grow without bound until the disk does. Especially worth having here:
@@ -51,6 +72,11 @@ services:
         max-file: "3"
     #
     # TURNING THE API ON ALSO NEEDS THE TWO LINES BELOW UNCOMMENTED.
+    # The production homelab host runs with them uncommented, and has since
+    # 2026-08-13. They are commented HERE because this is the template: a
+    # self-hoster with no dashboard needs neither, and host networking would
+    # actively break them if DATABASE_URL or RABBITMQ_HOST names a container
+    # rather than a host address.
     #
     # There is deliberately no `ports:` mapping, and there should never be one.
     # A bridged container cannot bind the host's tailnet address, so the usual

@@ -1,4 +1,8 @@
-version: "3.9"
+# Local build compose. Produces all three images; only two are meant to run
+# here (see the dashboard service at the bottom).
+#
+# No `version:` key: Compose v2 ignores it and warns that it is obsolete on
+# every single invocation. The other two files in this directory never had one.
 
 services:
   discord-bot:
