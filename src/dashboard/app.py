@@ -49,6 +49,7 @@ import logging
 import mimetypes
 import os
 import secrets
+import time
 from typing import Optional
 
 from flask import (
@@ -63,12 +64,54 @@ from flask import (
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from dashboard import oauth, overview_view, settings_view
+from dashboard import oauth, overview_view, settings_view, stripe_events
 from dashboard.botapi import BotAPIClient, BotAPIError
 from dashboard.config import DashboardConfig
 from dashboard.sessions import SessionStore
+from dashboard.stripe_api import StripeAPIError, StripeClient
 
 logger = logging.getLogger(__name__)
+
+# The webhook's own budget. Sized well above Stripe's honest traffic -- a
+# renewal storm across every subscribed guild is still a handful a second -- and
+# far below what it would take to make this endpoint interesting to point a
+# botnet at. Exceeding it returns 429, which Stripe treats as a retry rather
+# than a failure, so the cost of a burst is delay and never loss.
+STRIPE_WEBHOOK_RATE_LIMIT = 120
+STRIPE_WEBHOOK_RATE_WINDOW = 60
+
+# The hard ceiling on any request body reaching this app, applied globally in
+# create_app. Generous next to the largest honest body here and small enough
+# that buffering one costs nothing.
+MAX_REQUEST_BYTES = 256 * 1024
+
+
+class _RateLimiter:
+    """A fixed-window counter, per key.
+
+    Deliberately in-process and deliberately tiny. Cloudflare rate limiting
+    sits in front of this, but the webhook path is precisely the one that has
+    to be excepted from the managed challenge (A-25), so the edge protection on
+    it is weaker than on everything else here — which is exactly why the origin
+    keeps a budget of its own rather than trusting the one in front.
+    """
+
+    def __init__(self, limit: int, window: int):
+        self.limit = limit
+        self.window = window
+        self._buckets: dict = {}
+
+    def allow(self, key: str, *, now: float) -> bool:
+        window = int(now // self.window)
+        current, count = self._buckets.get(key, (window, 0))
+        if current != window:
+            current, count = window, 0
+        if count >= self.limit:
+            self._buckets[key] = (current, count)
+            return False
+        self._buckets[key] = (current, count + 1)
+        # Bounded by the number of distinct keys, and there is exactly one.
+        return True
 
 # The sidebar's collapsed state. A UI preference and nothing else: it is not
 # read by any authorisation decision, it names no guild, and forging it gets an
@@ -126,6 +169,7 @@ def create_app(
     *,
     store: Optional[SessionStore] = None,
     client: Optional[BotAPIClient] = None,
+    stripe: Optional[StripeClient] = None,
 ) -> Flask:
     config = config or DashboardConfig.from_env()
     app = Flask(__name__)
@@ -137,6 +181,18 @@ def create_app(
     # one hop is the whole chain.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)
 
+    # A ceiling on every request body, enforced by Werkzeug before a handler
+    # sees anything. This is not belt-and-braces on top of the webhook's own
+    # size check -- it is the half that actually holds: a request with
+    # `Transfer-Encoding: chunked` carries no Content-Length, so a handler
+    # checking `request.content_length` first sees None and then reads the
+    # whole thing into memory to measure it. Without this the one public,
+    # unauthenticated route on this host will buffer whatever it is sent.
+    #
+    # Nothing here uploads anything. The largest honest body is a settings form
+    # or a subscription event of a few KB.
+    app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
+
     app.config["STORE"] = store or SessionStore(
         config.session_db_path, config.session_max_age
     )
@@ -147,6 +203,23 @@ def create_app(
         ca_bundle=config.bot_api_ca,
         signing_key=config.bot_api_signing_key,
         timeout=config.request_timeout,
+    )
+
+    # Only built when Stripe is switched on, so a dashboard with the kill
+    # switch off holds no Stripe client and no secret key -- not even an
+    # unused one.
+    app.config["STRIPE"] = stripe or (
+        StripeClient(config.stripe_secret_key, timeout=config.request_timeout)
+        if config.stripe_enabled
+        else None
+    )
+    # Its own budget, deliberately not shared with anything else here. The
+    # webhook is the one route a third party is meant to reach, and it is the
+    # one route that must keep working when the session-authenticated ones are
+    # under load -- a subscription must not be lost because somebody is
+    # hammering /login.
+    app.config["STRIPE_RATE"] = _RateLimiter(
+        STRIPE_WEBHOOK_RATE_LIMIT, STRIPE_WEBHOOK_RATE_WINDOW
     )
 
     # Python's mimetypes table does not know WOFF2 on every platform, and Flask
@@ -286,6 +359,9 @@ def _register_routes(app: Flask) -> None:
     def healthz():
         """Liveness only. Says nothing about sessions, guilds or the bot."""
         return {"ok": True}
+
+    if app.config["DASHBOARD"].stripe_enabled:
+        _register_stripe_webhook(app)
 
     @app.get("/")
     def index():
@@ -841,6 +917,171 @@ PANEL_RESULTS = {
         "was replaced with a fresh one. Your settings apply to it now."
     ),
 }
+
+
+def _register_stripe_webhook(app: Flask) -> None:
+    """The one public, unauthenticated inbound route this project has.
+
+    Registered only when STRIPE_ENABLED is set, so with the switch off the path
+    is a plain 404 rather than a handler trusted to decline. Everything else on
+    this host is reached by a browser holding a session; this is reached by
+    Stripe's infrastructure holding a signature, and it is deliberately NOT
+    under `/guild/` so that no reviewer skimming the routes mistakes it for a
+    session-authenticated one.
+
+    Read the order of operations here as the security design, because it is:
+
+    1. Budget, before anything is read.
+    2. Size cap, before the body is taken into memory.
+    3. **Signature, before the body is parsed.** Until this passes, the bytes
+       are an unknown party's, and nothing has looked at them.
+    4. Only then: parse, decide whether it is an event we act on, fetch current
+       state, forward.
+
+    And read the response codes as the retry contract. Stripe retries a non-2xx
+    for up to three days, which comfortably covers a bot restart, a Tailscale
+    blip or a homelab power cut. So anything we could not complete must be a
+    non-2xx, and anything genuinely finished — including "this is not an event
+    we care about" — must be a 200, or Stripe spends three days redelivering
+    something that will never be actionable.
+    """
+
+    @app.post("/stripe/webhook")
+    def stripe_webhook():
+        config = _config()
+        now = time.time()
+
+        if not app.config["STRIPE_RATE"].allow("stripe", now=now):
+            logger.warning("stripe webhook rate limited")
+            return {"error": "rate_limited"}, 429
+
+        # Checked before reading, so an oversized body is refused rather than
+        # buffered. 413 is a client error and Stripe will not usefully retry
+        # it, which is correct: nothing legitimate is this large.
+        length = request.content_length
+        if length is not None and length > stripe_events.MAX_BODY_BYTES:
+            logger.warning("stripe webhook body too large: %s bytes", length)
+            return {"error": "too_large"}, 413
+
+        # get_data(), never get_json(): the HMAC covers the exact bytes, and
+        # letting Flask parse first would both defeat the signature and run the
+        # parser on unverified input.
+        payload = request.get_data(cache=False)
+        if len(payload) > stripe_events.MAX_BODY_BYTES:
+            return {"error": "too_large"}, 413
+
+        try:
+            stripe_events.verify_signature(
+                payload,
+                request.headers.get("Stripe-Signature"),
+                config.stripe_webhook_secret,
+                now=now,
+            )
+        except stripe_events.SignatureError as error:
+            # Logged like every other auth decision -- a run of these is the
+            # thing worth alerting on. The response says nothing useful: an
+            # endpoint that explains why a signature failed helps someone
+            # construct one that doesn't.
+            logger.warning("stripe webhook rejected: %s", error.reason)
+            return {"error": "invalid_signature"}, 400
+
+        try:
+            event = stripe_events.parse_event(payload)
+        except stripe_events.SignatureError as error:
+            logger.warning("stripe webhook unreadable: %s", error.reason)
+            return {"error": "invalid_payload"}, 400
+
+        event_id = event.get("id")
+        if not isinstance(event_id, str) or not event_id:
+            logger.warning("stripe webhook has no event id; ignoring")
+            return {"ok": True, "ignored": "no_event_id"}
+
+        subscription = stripe_events.subscription_from(event)
+        if subscription is None:
+            # Acknowledged and dropped. Somebody enabling an extra event type
+            # in the Stripe dashboard must not start a three-day retry storm.
+            return {"ok": True, "ignored": "event_type"}
+
+        guild_id = stripe_events.guild_id_from(subscription)
+        if guild_id is None:
+            # Nothing to route it to, and guessing is not an option. 200,
+            # because retrying will not add metadata that was never set --
+            # this is a checkout built wrong, and the log is where it gets
+            # noticed.
+            logger.error(
+                "Stripe subscription %s has no guild_id in its metadata; "
+                "nothing to record. Check how the Checkout Session is built.",
+                subscription.get("id"),
+            )
+            return {"ok": True, "ignored": "no_guild"}
+
+        # Current state rather than the event's snapshot -- see
+        # StripeClient.get_subscription for why ordering makes this the right
+        # read. A failure here is a non-2xx, so Stripe retries.
+        try:
+            current = app.config["STRIPE"].get_subscription(subscription["id"])
+        except StripeAPIError as error:
+            logger.warning("could not read subscription from Stripe: %s", error)
+            return {"error": "stripe_unavailable"}, 503
+
+        # We asked about one subscription; anything else coming back means the
+        # request did not go where this code believes it went. It should be
+        # impossible, which is exactly why it is checked rather than assumed:
+        # without this, a read that landed on a different object would be
+        # written to whichever guild *that* object names.
+        if current.get("id") != subscription["id"]:
+            logger.error(
+                "Asked Stripe for subscription %s and got %r back; refusing to "
+                "record it. Event %s.",
+                subscription["id"],
+                current.get("id"),
+                event_id,
+            )
+            return {"error": "subscription_mismatch"}, 503
+
+        # The guild binding prefers what Stripe just told us, because the
+        # fetched object is the authority on every other field and taking one
+        # field from the older copy is how the two quietly disagree. It falls
+        # back to the event's copy only when the fetched object carries no
+        # guild at all -- metadata being cleared should not unsubscribe a
+        # server that is still paying.
+        current_guild = stripe_events.guild_id_from(current)
+        if current_guild is not None:
+            guild_id = current_guild
+
+        normalised = stripe_events.normalise(
+            current, event_id=event_id, event_created=event.get("created")
+        )
+        if normalised is None:
+            logger.error(
+                "Stripe subscription %s is missing fields this cannot record; "
+                "ignoring. Event %s.",
+                subscription.get("id"),
+                event_id,
+            )
+            return {"ok": True, "ignored": "incomplete"}
+
+        try:
+            result = _bot_api().put_stripe_subscription(guild_id, normalised)
+        except BotAPIError as error:
+            # Never 200-and-drop. This is the failure the three-day retry
+            # window exists for, and answering 200 here is the one thing that
+            # loses a paid subscription permanently.
+            logger.warning(
+                "could not forward Stripe event %s for guild %s: %s",
+                event_id,
+                guild_id,
+                error,
+            )
+            return {"error": "bot_unavailable"}, 503
+
+        logger.info(
+            "stripe webhook applied=%s guild=%s event=%s",
+            result.get("applied"),
+            guild_id,
+            event_id,
+        )
+        return {"ok": True, "applied": bool(result.get("applied"))}
 
 
 def _read_checkbox(changes: dict, name: str) -> None:

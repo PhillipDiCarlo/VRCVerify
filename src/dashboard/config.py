@@ -12,11 +12,15 @@ be dangerous to guess.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Mapping, Optional
 from urllib.parse import urlparse
 
 from api_tokens import MIN_SIGNING_KEY_BYTES
+
+# The three plans, as slugs. The browser may name one of these and nothing
+# else; every price id is looked up server-side from the table below.
+STRIPE_PLAN_SLUGS = ("monthly", "six_months", "yearly")
 
 # Flask signs the session cookie with this. The cookie carries only an opaque
 # session id, but forging one is still forging a session, so it gets the same
@@ -53,6 +57,28 @@ class DashboardConfig:
     session_max_age: int = DEFAULT_SESSION_MAX_AGE
     guild_cache_ttl: int = DEFAULT_GUILD_CACHE_TTL
     request_timeout: int = 10
+    # --- Stripe (#88). All absent unless STRIPE_ENABLED is set. ---
+    stripe_enabled: bool = False
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    # Slug -> price id. The browser can only ever supply the slug; the price is
+    # looked up here. A form-supplied price id would let anyone check out
+    # against any price on the account, including a $0 one made while testing.
+    stripe_prices: Mapping[str, str] = field(default_factory=dict)
+
+    def plan_for(self, price_id: str) -> Optional[str]:
+        """The plan slug for a price id, or None if it is not one of ours.
+
+        None is not an error and must never be treated as "not subscribed" —
+        see the callers. A price can be absent from this table for entirely
+        ordinary reasons: a plan switched in the billing portal, a price
+        replaced during a pricing change, an id rotated between test and live.
+        The subscription is real and paid for; only the label is unknown.
+        """
+        for slug, configured in self.stripe_prices.items():
+            if configured == price_id:
+                return slug
+        return None
 
     @classmethod
     def from_env(cls) -> "DashboardConfig":
@@ -89,6 +115,42 @@ class DashboardConfig:
                 "authentication, and plain http would discard it."
             )
 
+        stripe_enabled = _truthy(os.getenv("STRIPE_ENABLED"))
+        stripe_secret_key = ""
+        stripe_webhook_secret = ""
+        stripe_prices: dict = {}
+        if stripe_enabled:
+            # Refuse to boot rather than come up half-configured. A dashboard
+            # missing its webhook secret rejects every event Stripe sends and
+            # looks healthy doing it; one missing a price id renders a plan card
+            # that 500s when somebody clicks Buy. Both are worse than not
+            # starting, and both are one typo away.
+            stripe_secret_key = _require("STRIPE_SECRET_KEY")
+            stripe_webhook_secret = _require("STRIPE_WEBHOOK_SECRET")
+            if not stripe_secret_key.startswith(("sk_", "rk_")):
+                raise DashboardConfigError(
+                    "STRIPE_SECRET_KEY does not look like a Stripe secret key. "
+                    "A publishable key (pk_) here would fail every call."
+                )
+            if not stripe_webhook_secret.startswith("whsec_"):
+                raise DashboardConfigError(
+                    "STRIPE_WEBHOOK_SECRET must be the signing secret from the "
+                    "webhook endpoint (whsec_...), not an API key."
+                )
+            stripe_prices = {
+                slug: _require(f"STRIPE_PRICE_{slug.upper()}")
+                for slug in STRIPE_PLAN_SLUGS
+            }
+            duplicates = len(stripe_prices) - len(set(stripe_prices.values()))
+            if duplicates:
+                # Two plans on one price means someone pays for six months and
+                # is billed monthly, or the reverse. Cheap to check, expensive
+                # to discover from a customer.
+                raise DashboardConfigError(
+                    "STRIPE_PRICE_* must name three different prices; "
+                    f"{duplicates + 1} of them are the same id."
+                )
+
         return cls(
             discord_client_id=client_id,
             discord_client_secret=client_secret,
@@ -103,7 +165,15 @@ class DashboardConfig:
             session_max_age=_int_env("DASHBOARD_SESSION_MAX_AGE", DEFAULT_SESSION_MAX_AGE),
             guild_cache_ttl=_int_env("DASHBOARD_GUILD_CACHE_TTL", DEFAULT_GUILD_CACHE_TTL),
             request_timeout=_int_env("DASHBOARD_REQUEST_TIMEOUT", 10),
+            stripe_enabled=stripe_enabled,
+            stripe_secret_key=stripe_secret_key,
+            stripe_webhook_secret=stripe_webhook_secret,
+            stripe_prices=stripe_prices,
         )
+
+
+def _truthy(raw: Optional[str]) -> bool:
+    return (raw or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _require(name: str) -> str:
