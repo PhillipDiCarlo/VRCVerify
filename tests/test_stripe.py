@@ -491,6 +491,26 @@ class TestTheWriter:
         with pytest.raises(bot.SettingRejected):
             run(bot.write_dashboard_stripe_subscription(GUILD_ID, payload))
 
+    @pytest.mark.parametrize("value", ["false", "true", 0, 1, None])
+    def test_cancel_at_period_end_is_not_coerced(self, stripe_on, value):
+        """bool("false") is True.
+
+        This is the field that decides whether the page says "renews on the
+        3rd" or "ends on the 3rd", so a normalisation slip on the other side of
+        the wire would make a wrong statement about somebody's money. Refuse it
+        rather than guess.
+        """
+        payload = make_event()
+        payload["cancel_at_period_end"] = value
+        with pytest.raises(bot.SettingRejected):
+            run(bot.write_dashboard_stripe_subscription(GUILD_ID, payload))
+
+    def test_a_real_boolean_is_accepted(self, stripe_on):
+        payload = make_event(cancel_at_period_end=True)
+        assert run(bot.write_dashboard_stripe_subscription(GUILD_ID, payload))[
+            "applied"
+        ] is True
+
     def test_a_failed_write_reports_none_so_stripe_retries(self, stripe_on, monkeypatch):
         """Never 200-and-drop. A bot restart must not cost a subscription event."""
 
@@ -608,12 +628,45 @@ class TestOrdering:
         )
         assert result["applied"] is False
 
-    def test_a_cancellation_of_a_superseded_subscription_is_ignored(self, stripe_on):
-        """The ordering guard alone would wave this through, and it is newer.
+    def test_the_ordering_guard_is_per_subscription(self, stripe_on):
+        """A stale event for one subscription must not stall another.
 
-        A server that bought a second subscription and then cancelled the first
-        would otherwise lose the one it is still paying for.
+        Scoping the guard per guild would mean the newest event from *any*
+        subscription set the bar for all of them, so a guild with two would
+        start dropping legitimate events for whichever renewed second.
         """
+        run(
+            bot.write_dashboard_stripe_subscription(
+                GUILD_ID, make_event(event_created=in_days(5))
+            )
+        )
+        result = run(
+            bot.write_dashboard_stripe_subscription(
+                GUILD_ID,
+                make_event(
+                    event_id="evt_other",
+                    subscription_id="sub_SECOND",
+                    event_created=in_days(1),
+                ),
+            )
+        )
+        assert result["applied"] is True
+
+
+class TestTwoLiveSubscriptions:
+    """A guild really can be paying twice, and the table has to hold it.
+
+    Found by probing rather than by reasoning: with one row per guild, an
+    ordinary renewal of the older subscription overwrote the newer one, and the
+    older one's later cancellation then switched premium off for a server still
+    being billed for the other. No guard on a one-row table closes that, because
+    the state it needs to hold has two subscriptions in it.
+
+    Note this is exactly the case the issue's Double billing section says to
+    expect — so the bug fired precisely where it was most likely to be hit.
+    """
+
+    def both(self):
         run(bot.write_dashboard_stripe_subscription(GUILD_ID, make_event()))
         run(
             bot.write_dashboard_stripe_subscription(
@@ -626,7 +679,40 @@ class TestOrdering:
                 ),
             )
         )
-        result = run(
+
+    def test_both_are_stored(self, stripe_on):
+        self.both()
+        with bot.session_scope() as session:
+            ids = {
+                row.stripe_subscription_id
+                for row in session.query(bot.StripeSubscription).all()
+            }
+        assert ids == {SUBSCRIPTION, "sub_SECOND"}
+
+    def test_a_renewal_of_the_older_one_does_not_overwrite_the_newer(self, stripe_on):
+        self.both()
+        run(
+            bot.write_dashboard_stripe_subscription(
+                GUILD_ID,
+                make_event(event_id="evt_renew_first", event_created=in_days(2)),
+            )
+        )
+        with bot.session_scope() as session:
+            row = (
+                session.query(bot.StripeSubscription)
+                .filter_by(stripe_subscription_id="sub_SECOND")
+                .one()
+            )
+            assert row.price_id == PRICE_YEARLY
+
+    def test_cancelling_one_leaves_premium_on_for_the_other(self, stripe_on):
+        """The bug, stated as the behaviour it should have had.
+
+        Cancel the first subscription; the second is still being billed, so
+        premium stays on.
+        """
+        self.both()
+        run(
             bot.write_dashboard_stripe_subscription(
                 GUILD_ID,
                 make_event(
@@ -634,32 +720,133 @@ class TestOrdering:
                     subscription_id=SUBSCRIPTION,
                     status="canceled",
                     current_period_end=in_days(-1),
-                    event_created=in_days(2),
+                    event_created=in_days(3),
                 ),
             )
         )
-        assert result["applied"] is False
-        assert result["reason"] == "superseded_subscription"
+        bot.stripe_status_cache.clear()
         assert bot.stripe_active(GUILD_ID) is True
 
-    def test_a_new_paid_subscription_does_take_over(self, stripe_on):
+    def test_cancelling_both_does_end_premium(self, stripe_on):
+        self.both()
+        for event_id, subscription_id in (
+            ("evt_c1", SUBSCRIPTION),
+            ("evt_c2", "sub_SECOND"),
+        ):
+            run(
+                bot.write_dashboard_stripe_subscription(
+                    GUILD_ID,
+                    make_event(
+                        event_id=event_id,
+                        subscription_id=subscription_id,
+                        status="canceled",
+                        current_period_end=in_days(-1),
+                        event_created=in_days(3),
+                    ),
+                )
+            )
+        bot.stripe_status_cache.clear()
+        assert bot.stripe_active(GUILD_ID) is False
+
+    def test_double_billing_is_visible_to_the_website(self, enforced, stripe_on):
+        """A row count, not a special case -- which is only possible because
+        the table keys by subscription rather than by guild."""
+        make_server()
+        self.both()
+        payload = run(bot.read_dashboard_settings(GUILD_ID))
+        assert payload["stripe"]["active_count"] == 2
+        assert payload["stripe"]["active"] is True
+
+    def test_one_subscription_is_not_double_billing(self, enforced, stripe_on):
+        make_server()
         run(bot.write_dashboard_stripe_subscription(GUILD_ID, make_event()))
-        result = run(
+        payload = run(bot.read_dashboard_settings(GUILD_ID))
+        assert payload["stripe"]["active_count"] == 1
+
+    def test_the_page_describes_the_longest_running_paid_subscription(
+        self, enforced, stripe_on
+    ):
+        make_server()
+        run(bot.write_dashboard_stripe_subscription(GUILD_ID, make_event()))
+        run(
             bot.write_dashboard_stripe_subscription(
                 GUILD_ID,
                 make_event(
                     event_id="evt_second",
                     subscription_id="sub_SECOND",
                     price_id=PRICE_YEARLY,
-                    event_created=in_days(1),
+                    current_period_end=in_days(300),
                 ),
             )
         )
-        assert result["applied"] is True
+        payload = run(bot.read_dashboard_settings(GUILD_ID))
+        assert payload["stripe"]["price_id"] == PRICE_YEARLY
+
+    def test_a_subscription_cannot_be_moved_between_guilds(self, stripe_on):
+        """One Stripe subscription belongs to one guild. Anything else is an
+        anomaly needing a human, and is refused rather than applied."""
+        run(bot.write_dashboard_stripe_subscription(GUILD_ID, make_event()))
+        result = run(
+            bot.write_dashboard_stripe_subscription(
+                OTHER_GUILD_ID,
+                make_event(event_id="evt_steal", event_created=in_days(1)),
+            )
+        )
+        assert result["applied"] is False
+        assert result["reason"] == "guild_mismatch"
+        assert bot.stripe_active(OTHER_GUILD_ID) is False
+
+
+class TestTheEventLedgerIsPruned:
+    """A-24 again: a table that only ever grows is a table nobody pruned.
+
+    The sweep rides on the insert, so the only thing that can add a row is also
+    the thing that removes them. There is no scheduler to forget to run.
+    """
+
+    def test_events_past_the_retention_window_are_forgotten(self, stripe_on):
         with bot.session_scope() as session:
-            row = session.query(bot.StripeSubscription).one()
-            assert row.stripe_subscription_id == "sub_SECOND"
-            assert row.price_id == PRICE_YEARLY
+            session.add(
+                bot.StripeEvent(
+                    event_id="evt_ancient",
+                    received_at=datetime.now(timezone.utc) - timedelta(days=400),
+                )
+            )
+        run(bot.write_dashboard_stripe_subscription(GUILD_ID, make_event()))
+        with bot.session_scope() as session:
+            remaining = {row.event_id for row in session.query(bot.StripeEvent).all()}
+        assert remaining == {"evt_1"}
+
+    def test_events_inside_the_retry_window_are_kept(self, stripe_on):
+        """Stripe retries for three days. Forgetting an id inside that window
+        would make a redelivery look like a new event and apply it twice."""
+        with bot.session_scope() as session:
+            session.add(
+                bot.StripeEvent(
+                    event_id="evt_yesterday",
+                    received_at=datetime.now(timezone.utc) - timedelta(days=1),
+                )
+            )
+        run(bot.write_dashboard_stripe_subscription(GUILD_ID, make_event()))
+        with bot.session_scope() as session:
+            remaining = {row.event_id for row in session.query(bot.StripeEvent).all()}
+        assert remaining == {"evt_yesterday", "evt_1"}
+
+    def test_a_failed_prune_swallows_its_own_error(self):
+        """Losing a subscription event because a housekeeping DELETE went wrong
+        would be a far worse trade than a table that stays large for a day.
+
+        Exercises the real failure — the DELETE itself raising — rather than
+        the whole function being replaced, which would step over the guard
+        being tested.
+        """
+
+        class SabotagedSession:
+            def query(self, *args, **kwargs):
+                raise RuntimeError("delete failed")
+
+        # Must not raise.
+        bot._prune_stripe_events(SabotagedSession(), datetime.now(timezone.utc))
 
 
 class TestTheUnknownGuildTrap:

@@ -890,6 +890,15 @@ async def handle_put_stripe_subscription(request: web.Request) -> web.Response:
     for value in subscription.values():
         if isinstance(value, str) and len(value) > MAX_STRIPE_FIELD_LEN:
             return _deny(request, 400, "field_too_long", actor=claims.actor_id)
+    # The one non-string field, checked for its actual type rather than left to
+    # be coerced. `bool("false")` is True, so a normalisation slip on the other
+    # side of the wire would silently turn "renews on the 3rd" into "ends on
+    # the 3rd" -- a wrong statement about somebody's money, arriving through
+    # the one field where a string and a boolean look equally plausible.
+    if "cancel_at_period_end" in subscription and not isinstance(
+        subscription["cancel_at_period_end"], bool
+    ):
+        return _deny(request, 400, "bad_cancel_at_period_end", actor=claims.actor_id)
 
     try:
         result = await deps.write_stripe_subscription(guild_id, subscription)
