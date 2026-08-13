@@ -248,24 +248,18 @@ button.link:hover { color: var(--ink-strong); }
 
 .hamburger:hover { background: var(--hover); color: var(--ink-strong); }
 
-/* Three lines drawn with borders rather than an image: img-src allows only our
- * own origin and Discord's CDN, and a data: URI would mean widening it to
- * paint something CSS already can. */
-.bars,
-.bars::before,
-.bars::after {
-  display: block;
-  width: 1rem;
-  height: 0;
-  border-top: 2px solid currentColor;
-  border-radius: 2px;
-}
-
-.bars { position: relative; }
-.bars::before,
-.bars::after { content: ""; position: absolute; left: 0; }
-.bars::before { top: -5px; }
-.bars::after { top: 3px; }
+/* The three lines are an inline SVG, like every other icon here.
+ *
+ * They were borders on a span and two pseudo-elements, and the spacing came
+ * out visibly wrong: `.bars` has `height: 0` with a 2px `border-top`, so an
+ * absolutely-positioned child's `top` resolves against the *padding* box,
+ * which begins below that border. The offsets that read as symmetrical in the
+ * source (-5px and 3px) therefore produced a 1px gap above the middle bar and
+ * a 3px gap below it.
+ *
+ * Three <path> lines at y=4, 8 and 12 cannot drift, need no arithmetic to
+ * check, and cost nothing extra -- an inline SVG is markup, so `img-src` never
+ * enters into it. */
 
 .layout {
   display: flex;

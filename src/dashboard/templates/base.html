@@ -9,6 +9,18 @@
    They replaced the section's first letter, which was doing no work -- Settings
    and Subscriptions both reduce to "S", so the rail offered two identical marks
    for two different pages. #}
+{# Evenly spaced by construction: three lines at y=4, 8 and 12 in a 16-unit
+   box. The previous version drew them with a border and two pseudo-elements,
+   whose offsets resolved against the padding box and came out 1px apart above
+   the middle bar and 3px below it. #}
+{% macro hamburger() -%}
+  <svg class="bars" viewBox="0 0 16 16" width="16" height="16"
+       aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="1.8" stroke-linecap="round">
+    <path d="M2.5 4h11M2.5 8h11M2.5 12h11"></path>
+  </svg>
+{%- endmacro %}
+
 {% macro side_icon(key) -%}
   <svg class="side-mark" viewBox="0 0 16 16" width="16" height="16"
        aria-hidden="true" fill="none" stroke="currentColor"
@@ -71,14 +83,11 @@
            the expand button carries no value at all. #}
         {% if nav_collapsed %}
           <button type="submit" class="hamburger" aria-label="Show the sidebar"
-                  title="Show the sidebar">
-            <span class="bars" aria-hidden="true"></span>
-          </button>
+                  title="Show the sidebar">{{ hamburger() }}</button>
         {% else %}
           <button type="submit" name="collapsed" value="1" class="hamburger"
                   aria-label="Hide the sidebar" title="Hide the sidebar">
-            <span class="bars" aria-hidden="true"></span>
-          </button>
+            {{ hamburger() }}</button>
         {% endif %}
       </form>
     {% endif %}
