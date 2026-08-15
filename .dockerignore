@@ -19,8 +19,20 @@ __pycache__/
 .venv/
 venv/
 
-# Environment files
-.env
+# Environment files.
+#
+# These need `**/` and it is not decoration. Docker does NOT use gitignore
+# semantics: a pattern without a slash is matched against the WHOLE path
+# relative to the context root, not against the basename at any depth. So
+# plain `.env` excludes only the root file, and `dashboard.env` or `*.env`
+# would NOT have excluded config/other_configs/dashboard.env -- verified by
+# building a context both ways. Do not "simplify" these back.
+#
+# dashboard.env holds the Discord client secret, the bot API signing key and
+# the Stripe secret key. By the same reasoning as certs/ below, it must never
+# enter the build context at all, not merely never be COPYed.
+**/*.env
+!**/*.env.example
 
 # mTLS material for the bot API (scripts/gen_bot_api_certs.*). These must never
 # enter the build context at all -- not merely "never be COPYed". Anything in

@@ -787,11 +787,16 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
  * written inline anywhere on this page: `style-src 'self'` drops inline styles
  * SILENTLY, so a swatch written as style="" would simply not apply and nothing
  * would say so. */
+/* auto-fit, NOT repeat(3, ...). The plans are whatever active prices Stripe
+ * returns, so a hardcoded three broke the layout the moment a fourth plan was
+ * created -- which is the one thing the Stripe-driven plan list exists to make
+ * easy. minmax lets them wrap on a phone instead of squeezing to nothing. */
 .plans {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 0.75rem;
   margin: 1rem 0 0;
+  align-items: stretch;
 }
 
 /* Each card is a form of its own, so the button posts one plan and the plan
@@ -800,14 +805,61 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.35rem;
-  padding: 0.9rem 1rem;
+  gap: 0.3rem;
+  padding: 1.15rem 1.15rem 1rem;
   background: var(--inset);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
+  position: relative;
 }
 
-.plan h3 { font-size: 1rem; font-weight: 700; margin: 0; }
+/* `highlight` in a price's metadata. Presentational only -- it changes no
+ * price and nothing the server will accept. */
+.plan-featured {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.plan-badge {
+  position: absolute;
+  top: -0.6rem;
+  left: 1.15rem;
+  margin: 0;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.plan h3 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--muted);
+}
+
+/* The figure, read from Stripe on the render that shows it. Baseline-aligned
+ * with its period so the cards line up across differing amount widths. */
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.15rem 0 0;
+}
+
+.plan-amount {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.plan-period { font-size: 0.8125rem; color: var(--faint); }
 
 /* Stated as a claim about the plan, never as arithmetic -- no amount appears
  * anywhere in this repo. Stripe knows what it charges, and a second copy of a
@@ -819,8 +871,18 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   font-weight: 500;
 }
 
-/* Keeps the three buttons on one baseline when only two plans have a saving. */
+/* Keeps the buttons on one baseline when only some plans have a saving. */
 .plan-saving-none { visibility: hidden; }
+
+/* The trial, when a price's metadata names one. Distinct from the saving --
+ * one is a discount on what you pay, the other is a period where you do not --
+ * so it does not reuse --ok, which reads as "money off". */
+.plan-trial {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--accent);
+}
 
 .plan .button { margin-top: auto; align-self: stretch; }
 

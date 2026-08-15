@@ -148,6 +148,21 @@
   {% endif %}
 </section>
 
+{% if page.plans_unavailable %}
+  {# The plan list could not be read from Stripe. Deliberately says nothing
+     about this server's subscription -- that came from the bot and is still
+     true above -- and offers no way to buy, because we cannot currently tell
+     what is for sale or at what price. #}
+  <section class="panel group">
+    <h2>Pay by card</h2>
+    <p class="blurb">
+      We can't load the plans right now. <strong>Nothing has changed about
+      your subscription.</strong> Try again in a moment, or subscribe inside
+      Discord below.
+    </p>
+  </section>
+{% endif %}
+
 {% if page.offers_card %}
   <section class="panel group">
     <h2>Pay by card</h2>
@@ -158,18 +173,35 @@
     </p>
     <div class="plans">
       {% for plan in page.plans %}
-        <form class="plan" method="post"
+        <form class="plan{% if plan.highlight %} plan-featured{% endif %}"
+              method="post"
               action="{{ url_for('subscription_checkout', guild_id=guild_id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          {# The browser names a PLAN, never a price. The price id is looked up
-             server-side; a form-supplied one would let anyone check out
-             against any price on the account. #}
-          <input type="hidden" name="plan" value="{{ plan.slug }}">
+          {# The browser names a price, and the server accepts it only after
+             finding it among this product's ACTIVE prices, fetched from Stripe
+             on this request. A submitted id is a suggestion, never an
+             instruction -- see the checkout route. #}
+          <input type="hidden" name="price_id" value="{{ plan.price_id }}">
+          {% if plan.highlight %}
+            <p class="plan-badge">Most popular</p>
+          {% endif %}
           <h3>{{ plan.label }}</h3>
+          {# The figure and the charge come from the same Stripe read, so this
+             is not a second copy of a price. Omitted entirely when it could
+             not be read -- never guessed, never zero. #}
+          {% if plan.amount %}
+            <p class="plan-price">
+              <span class="plan-amount">{{ plan.amount }}</span>
+              {% if plan.period %}<span class="plan-period">{{ plan.period }}</span>{% endif %}
+            </p>
+          {% endif %}
           {% if plan.saving %}
             <p class="plan-saving">{{ plan.saving }}</p>
           {% else %}
             <p class="plan-saving plan-saving-none">&nbsp;</p>
+          {% endif %}
+          {% if plan.trial_note %}
+            <p class="plan-trial">{{ plan.trial_note }}</p>
           {% endif %}
           <button class="button" type="submit">Subscribe</button>
         </form>

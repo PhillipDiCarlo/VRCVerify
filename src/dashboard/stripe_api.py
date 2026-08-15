@@ -29,6 +29,11 @@ STRIPE_API_BASE = "https://api.stripe.com/v1"
 # shape of what `stripe_events.normalise` reads.
 STRIPE_API_VERSION = "2024-06-20"
 
+# How many prices one product may offer. Stripe's own maximum for a single
+# page, chosen so the common case is one request and the pathological case is
+# still one request. See list_prices for why this does not paginate.
+PRICE_PAGE_LIMIT = 100
+
 
 class StripeAPIError(Exception):
     """Stripe could not be reached, or refused the call."""
@@ -49,6 +54,78 @@ class StripeClient:
             "Authorization": f"Bearer {self._secret_key}",
             "Stripe-Version": STRIPE_API_VERSION,
         }
+
+    def list_prices(self, product_id: str) -> list:
+        """Every active recurring price on one product.
+
+        This is what makes the plan cards come from Stripe rather than from
+        three environment variables. Adding a plan becomes creating a price in
+        the Stripe dashboard, and nothing here is redeployed.
+
+        Only `active` and `recurring` prices are asked for, and both filters
+        matter. Archiving a price in Stripe is how you retire a plan, so an
+        inactive one must stop being offered without anybody editing config;
+        and a one-off price rendered on a page whose checkout runs in
+        `mode=subscription` is a 400 at the moment somebody clicks Buy.
+
+        Returns the raw price dicts. Turning them into plan cards -- label,
+        order, saving, trial -- is `subscription_view`'s job, because that
+        module is pure and this one is the only thing here that touches the
+        network.
+
+        Deliberately unpaginated. A hundred prices on one product is not a
+        pricing change, it is a mistake, and quietly following `has_more` would
+        turn a page render into an unbounded number of API calls on the public
+        host. The overflow is logged and the first page is used.
+        """
+        if not stripe_events.valid_object_id(product_id):
+            # Not a path segment here -- `params` encodes it -- but the same
+            # check as everywhere else, because "it is only a query parameter"
+            # is exactly the reasoning that stops being true after a refactor.
+            raise StripeAPIError("refusing to request a malformed product id")
+
+        try:
+            response = self._session.get(
+                f"{STRIPE_API_BASE}/prices",
+                headers=self._headers(),
+                params={
+                    "product": product_id,
+                    "active": "true",
+                    "type": "recurring",
+                    "limit": PRICE_PAGE_LIMIT,
+                },
+                timeout=self.timeout,
+            )
+        except requests.RequestException as error:
+            raise StripeAPIError(f"could not reach Stripe: {error}") from error
+
+        if response.status_code != 200:
+            # Same reasoning as the subscription read: the body is not logged,
+            # because Stripe's error payloads echo request parameters and this
+            # runs on the public host.
+            logger.warning("Stripe refused a price list: %s", response.status_code)
+            raise StripeAPIError("Stripe refused the request", response.status_code)
+
+        try:
+            payload = response.json()
+        except ValueError as error:
+            raise StripeAPIError("Stripe returned an unreadable body") from error
+        if not isinstance(payload, dict):
+            raise StripeAPIError("Stripe returned an unexpected body")
+
+        data = payload.get("data")
+        if not isinstance(data, list):
+            raise StripeAPIError("Stripe returned a price list with no data")
+
+        if payload.get("has_more"):
+            logger.warning(
+                "product %s has more than %s active recurring prices; only the "
+                "first page is offered. Archive the ones you do not sell.",
+                product_id,
+                PRICE_PAGE_LIMIT,
+            )
+
+        return [price for price in data if isinstance(price, dict)]
 
     def get_subscription(self, subscription_id: str) -> dict:
         """Read a subscription's *current* state.
@@ -133,6 +210,7 @@ class StripeClient:
         actor_discord_id: str,
         success_url: str,
         cancel_url: str,
+        trial_days: Optional[int] = None,
     ) -> str:
         """Start a hosted Checkout, and return the URL to send the browser to.
 
@@ -140,9 +218,14 @@ class StripeClient:
         CSP is `default-src 'none'` with `script-src 'self'`, and embedding
         would mean permanently allowing js.stripe.com plus a frame-src -- a
         relaxation of the tightest directive set in the app, on the one page
-        that handles money. A 303 needs no CSP change at all, because the
-        browser simply leaves. It also keeps card data off this infrastructure
+        that handles money. It also keeps card data off this infrastructure
         entirely, which is what makes PCI scope SAQ-A.
+
+        The 303 does need ONE CSP allowance, contrary to what this said until
+        2026-08-15: `form-action` covers where a submission lands after a
+        redirect, so checkout.stripe.com has to be named there or the browser
+        refuses the hop and the button appears to do nothing. That is still far
+        narrower than embedding -- a navigation target, not a script origin.
 
         `price_id` is looked up by the caller from a plan slug and is never
         taken from the form. See the route.
@@ -172,8 +255,27 @@ class StripeClient:
             # Required once automatic tax is on: without an address Stripe
             # cannot decide a rate, and the session errors rather than guessing.
             ("billing_address_collection", "required"),
-            ("customer_update[address]", "auto"),
+            # DO NOT ADD `customer_update[address]` HERE. Stripe rejects it with
+            # a 400 -- "customer_update can only be used with customer" -- and
+            # this session deliberately passes no `customer`: in subscription
+            # mode Stripe creates one and saves the collected billing address to
+            # it by itself, so there is nothing for customer_update to do. It
+            # was present until 2026-08-15 and broke every live checkout with a
+            # 400 while looking entirely reasonable in review. Nothing caught it
+            # because the tests stub create_checkout_session rather than
+            # asserting the form, which is why test_checkout_form_shape now
+            # pins these fields.
         ]
+        if trial_days:
+            # Comes from the price's own metadata, so the length of a trial is
+            # a Stripe dashboard change rather than a deploy. Appended only
+            # when set: Stripe rejects trial_period_days=0 rather than reading
+            # it as "no trial", so an unset trial must be an absent field.
+            #
+            # The bot already counts `trialing` as paid (STRIPE_PAID_STATUSES),
+            # so premium switches on the moment the trial starts and off again
+            # if it ends unpaid. Nothing else has to know a trial happened.
+            form.append(("subscription_data[trial_period_days]", str(trial_days)))
         session = self._post("/checkout/sessions", form)
         url = session.get("url")
         if not isinstance(url, str) or not url.startswith("https://"):

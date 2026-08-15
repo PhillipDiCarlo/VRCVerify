@@ -28,6 +28,7 @@ from hashlib import sha256
 from types import SimpleNamespace
 
 import pytest
+import requests
 
 pytest.importorskip("flask")
 
@@ -49,6 +50,7 @@ CUSTOMER_ID = "cus_TEST"
 PRICE_MONTHLY = "price_monthly"
 PRICE_SIX = "price_six_months"
 PRICE_YEARLY = "price_yearly"
+PRODUCT_ID = "prod_VRCVERIFYPREMIUM"
 
 WEBHOOK_PATH = "/stripe/webhook"
 
@@ -78,11 +80,7 @@ def make_config(tmp_path, certs, **overrides):
         stripe_enabled=True,
         stripe_secret_key=STRIPE_KEY,
         stripe_webhook_secret=WEBHOOK_SECRET,
-        stripe_prices={
-            "monthly": PRICE_MONTHLY,
-            "six_months": PRICE_SIX,
-            "yearly": PRICE_YEARLY,
-        },
+        stripe_product_id=PRODUCT_ID,
     )
     base.update(overrides)
     return DashboardConfig(**base)
@@ -224,7 +222,7 @@ class TestKillSwitch:
             stripe_enabled=False,
             stripe_secret_key="",
             stripe_webhook_secret="",
-            stripe_prices={},
+            stripe_product_id="",
         )
         application = create_app(
             config,
@@ -245,7 +243,7 @@ class TestKillSwitch:
             stripe_enabled=False,
             stripe_secret_key="",
             stripe_webhook_secret="",
-            stripe_prices={},
+            stripe_product_id="",
         )
         application = create_app(
             config,
@@ -733,9 +731,7 @@ class TestConfiguration:
             "STRIPE_ENABLED": "1",
             "STRIPE_SECRET_KEY": STRIPE_KEY,
             "STRIPE_WEBHOOK_SECRET": WEBHOOK_SECRET,
-            "STRIPE_PRICE_MONTHLY": PRICE_MONTHLY,
-            "STRIPE_PRICE_SIX_MONTHS": PRICE_SIX,
-            "STRIPE_PRICE_YEARLY": PRICE_YEARLY,
+            "STRIPE_PRODUCT_ID": PRODUCT_ID,
         }
 
     def build(self, monkeypatch, tmp_path, certs, **overrides):
@@ -745,9 +741,7 @@ class TestConfiguration:
             "STRIPE_ENABLED",
             "STRIPE_SECRET_KEY",
             "STRIPE_WEBHOOK_SECRET",
-            "STRIPE_PRICE_MONTHLY",
-            "STRIPE_PRICE_SIX_MONTHS",
-            "STRIPE_PRICE_YEARLY",
+            "STRIPE_PRODUCT_ID",
         ):
             monkeypatch.delenv(key, raising=False)
         for key, value in env.items():
@@ -763,16 +757,14 @@ class TestConfiguration:
     def test_stripe_on_needs_everything(self, monkeypatch, tmp_path, certs):
         config = self.build(monkeypatch, tmp_path, certs, **self.stripe_env())
         assert config.stripe_enabled is True
-        assert config.stripe_prices["six_months"] == PRICE_SIX
+        assert config.stripe_product_id == PRODUCT_ID
 
     @pytest.mark.parametrize(
         "missing",
         [
             "STRIPE_SECRET_KEY",
             "STRIPE_WEBHOOK_SECRET",
-            "STRIPE_PRICE_MONTHLY",
-            "STRIPE_PRICE_SIX_MONTHS",
-            "STRIPE_PRICE_YEARLY",
+            "STRIPE_PRODUCT_ID",
         ],
     )
     def test_a_missing_value_refuses_to_boot(
@@ -800,26 +792,21 @@ class TestConfiguration:
         with pytest.raises(DashboardConfigError):
             self.build(monkeypatch, tmp_path, certs, **env)
 
-    def test_two_plans_on_one_price_is_refused(self, monkeypatch, tmp_path, certs):
-        """Someone pays for six months and is billed monthly, or the reverse.
-        Cheap to check, expensive to discover from a customer."""
-        env = self.stripe_env()
-        env["STRIPE_PRICE_YEARLY"] = PRICE_MONTHLY
-        with pytest.raises(DashboardConfigError):
-            self.build(monkeypatch, tmp_path, certs, **env)
-
-    def test_an_unknown_price_has_no_plan_but_is_not_an_error(
+    def test_a_price_id_in_place_of_the_product_is_refused(
         self, monkeypatch, tmp_path, certs
     ):
-        """None means "we cannot label this", never "not subscribed".
+        """The plausible mistake, now that there is only one id to get wrong.
 
-        A price can be missing from the table for ordinary reasons -- a plan
-        switched in the portal, an id rotated between test and live -- and the
-        subscription is real either way.
+        Product and price ids sit next to each other in the Stripe dashboard
+        and both are "the thing I copied for the plan". A price id here matches
+        no prices, so the page would apologise forever with nothing in the log
+        saying why -- the failure is silent, which is what makes a boot-time
+        check worth its line.
         """
-        config = self.build(monkeypatch, tmp_path, certs, **self.stripe_env())
-        assert config.plan_for(PRICE_SIX) == "six_months"
-        assert config.plan_for("price_who_knows") is None
+        env = self.stripe_env()
+        env["STRIPE_PRODUCT_ID"] = PRICE_MONTHLY
+        with pytest.raises(DashboardConfigError):
+            self.build(monkeypatch, tmp_path, certs, **env)
 
 
 # -------------------------------------------------------------------
@@ -863,3 +850,104 @@ class TestPureHelpers:
             subscription, event_id="evt_1", event_created=int(time.time())
         )
         assert payload["customer_id"] == "cus_EXPANDED"
+
+
+class TestListPrices:
+    """The one outbound call that decides what the site sells.
+
+    Wrong here is not a broken page: it is the wrong plans, at the wrong
+    prices, or a plan that was retired still being purchasable.
+    """
+
+    def client(self, *, status=200, body=None, boom=None):
+        from dashboard.stripe_api import StripeClient
+
+        captured = {}
+
+        class FakeResponse:
+            status_code = status
+
+            @staticmethod
+            def json():
+                if body is None:
+                    raise ValueError("no body")
+                return body
+
+        def fake_get(url, headers=None, params=None, timeout=None):
+            captured["url"] = url
+            captured["params"] = params
+            if boom is not None:
+                raise boom
+            return FakeResponse()
+
+        client = StripeClient("sk_test_x")
+        client._session.get = fake_get
+        return client, captured
+
+    def test_it_asks_only_for_active_recurring_prices(self):
+        """Both filters are load-bearing.
+
+        Archiving a price is how a plan is retired, so an inactive one must
+        stop being offered with no deploy; and a one-off price rendered on a
+        page whose checkout runs in mode=subscription is a 400 at the moment
+        somebody clicks Buy.
+        """
+        client, captured = self.client(body={"data": []})
+        client.list_prices("prod_x")
+        assert captured["url"].endswith("/prices")
+        assert captured["params"]["product"] == "prod_x"
+        assert captured["params"]["active"] == "true"
+        assert captured["params"]["type"] == "recurring"
+
+    def test_it_returns_the_price_objects(self):
+        client, _ = self.client(body={"data": [{"id": "price_a"}, {"id": "price_b"}]})
+        assert [p["id"] for p in client.list_prices("prod_x")] == ["price_a", "price_b"]
+
+    def test_junk_entries_are_dropped_not_returned(self):
+        client, _ = self.client(body={"data": [{"id": "price_a"}, None, "x", 7]})
+        assert client.list_prices("prod_x") == [{"id": "price_a"}]
+
+    @pytest.mark.parametrize(
+        "product_id",
+        ["prod_x/../../v1/customers", "prod_x?expand[]=data", "prod_x#f", "../v1/account"],
+    )
+    def test_a_malformed_product_id_never_reaches_the_api(self, product_id):
+        """A query parameter today; the same check as everywhere else, because
+        "it is only a query parameter" stops being true after a refactor."""
+        client, captured = self.client(body={"data": []})
+        with pytest.raises(StripeAPIError):
+            client.list_prices(product_id)
+        assert captured == {}
+
+    def test_a_refusal_is_an_error_not_an_empty_list(self):
+        """An empty list would read as "this product sells nothing", which is a
+        statement, and we do not have one to make."""
+        client, _ = self.client(status=403, body={"error": {}})
+        with pytest.raises(StripeAPIError) as caught:
+            client.list_prices("prod_x")
+        assert caught.value.status == 403
+
+    def test_an_unreachable_stripe_is_an_error(self):
+        client, _ = self.client(boom=requests.RequestException("dns"))
+        with pytest.raises(StripeAPIError):
+            client.list_prices("prod_x")
+
+    def test_an_unreadable_body_is_an_error(self):
+        client, _ = self.client(body=None)
+        with pytest.raises(StripeAPIError):
+            client.list_prices("prod_x")
+
+    @pytest.mark.parametrize("payload", [{}, {"data": "prices"}, {"data": None}])
+    def test_a_body_with_no_price_list_is_an_error(self, payload):
+        client, _ = self.client(body=payload)
+        with pytest.raises(StripeAPIError):
+            client.list_prices("prod_x")
+
+    def test_it_does_not_follow_has_more(self):
+        """One page, deliberately. Following it would turn a page render into
+        an unbounded number of API calls on the public host."""
+        client, captured = self.client(
+            body={"data": [{"id": "price_a"}], "has_more": True}
+        )
+        assert client.list_prices("prod_x") == [{"id": "price_a"}]
+        assert captured["params"]["limit"] == 100

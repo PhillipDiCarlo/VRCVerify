@@ -49,16 +49,101 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-# The three plans, in the order they are offered. Slug, label, and the sentence
-# that justifies the longer terms existing at all.
+# Plans come from Stripe now, not from here.
 #
-# No amounts. The saving is stated as a claim about the plan rather than as
-# arithmetic this file could get out of step with Stripe.
-PLANS = (
-    ("monthly", "Monthly", None),
-    ("six_months", "6 months", "Save about 10%"),
-    ("yearly", "12 months", "Save about 20%"),
+# They used to be this module's business: three slugs, three labels, three
+# hardcoded savings claims, paired with three STRIPE_PRICE_* variables. Adding
+# a plan meant editing code, editing the environment, and redeploying -- three
+# steps to do something that should be a Stripe dashboard change, and three
+# chances for the page and the account to disagree about what is for sale.
+#
+# `plans_from_prices` builds them from Stripe's own price objects instead, so
+# creating a price *is* publishing a plan and archiving one *is* retiring it.
+# What each price says about itself lives in its metadata; see PLAN_METADATA.
+
+# The metadata keys read off a Stripe price, all optional.
+#
+# Optional matters: a price with no metadata still renders, labelled from its
+# own billing interval. That is what stops a plan created in a hurry from
+# rendering as a blank card, and it means the metadata is presentation rather
+# than configuration the page cannot work without.
+PLAN_METADATA = ("label", "order", "saving", "trial_days")
+
+# Labels for the intervals worth naming specially. Anything else is described
+# generically from its own interval, which is correct if unlovely -- and being
+# unlovely in the Stripe dashboard is a much cheaper problem than a plan that
+# cannot be sold until someone deploys.
+_INTERVAL_LABELS = {
+    ("month", 1): "Monthly",
+    ("month", 3): "3 months",
+    ("month", 6): "6 months",
+    ("month", 12): "12 months",
+    ("year", 1): "12 months",
+}
+
+# Where a price with no `order` metadata sorts. Longer terms last, which is the
+# order the cards were always offered in, derived rather than declared.
+_INTERVAL_MONTHS = {"day": 0, "week": 0, "month": 1, "year": 12}
+
+# Amounts ARE shown now, and the reason that changed is worth recording.
+#
+# They were deliberately absent while the plans were three environment
+# variables: the page had no way to know what Stripe charged, so any figure on
+# it was a second copy of a price, maintained by hand, on a page about money.
+# The rule was "state a claim about the plan, never arithmetic".
+#
+# The prices are now read from Stripe on the render that displays them, so the
+# figure and the charge have one source. Showing it is no longer a second copy;
+# omitting it would just be a pricing page that will not say the price.
+#
+# Currencies whose smallest unit IS the unit -- ¥500 is 500, not 5.00.
+_ZERO_DECIMAL = frozenset(
+    {"bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg",
+     "rwf", "ugx", "vnd", "vuv", "xaf", "xof", "xpf"}
 )
+
+_CURRENCY_SYMBOLS = {
+    "usd": "$", "eur": "€", "gbp": "£", "jpy": "¥",
+    "cad": "CA$", "aud": "A$", "nzd": "NZ$",
+}
+
+
+def _format_amount(unit_amount, currency) -> Optional[str]:
+    """A Stripe amount as text, or None if it cannot be rendered honestly.
+
+    None rather than a guess, and never "0" or "—": a plan card whose price is
+    wrong is worse than one that shows no price and makes the reader click
+    through to Stripe, where the real figure is.
+    """
+    if isinstance(unit_amount, bool) or not isinstance(unit_amount, int):
+        return None
+    if unit_amount < 0 or not isinstance(currency, str) or not currency.strip():
+        return None
+    code = currency.strip().lower()
+    if code in _ZERO_DECIMAL:
+        figure = str(unit_amount)
+    else:
+        figure = f"{unit_amount / 100:.2f}"
+    symbol = _CURRENCY_SYMBOLS.get(code)
+    if symbol:
+        return f"{symbol}{figure}"
+    return f"{figure} {code.upper()}"
+
+
+def _billing_period(price: dict) -> Optional[str]:
+    """"per month", "per 6 months" -- the denominator under the amount."""
+    recurring = price.get("recurring")
+    if not isinstance(recurring, dict):
+        return None
+    interval = recurring.get("interval")
+    if not isinstance(interval, str) or not interval:
+        return None
+    count = recurring.get("interval_count") or 1
+    if not isinstance(count, int) or count < 1:
+        count = 1
+    if count == 1:
+        return f"per {interval}"
+    return f"per {count} {interval}s"
 
 # What an unrecognised price id renders as.
 #
@@ -73,12 +158,47 @@ STORE_URL = "https://discord.com/application-directory/{app_id}/store/{sku_id}"
 
 
 class Plan:
-    """One purchasable plan. Attributes, because Jinja reads them cleanly."""
+    """One purchasable plan. Attributes, because Jinja reads them cleanly.
 
-    def __init__(self, slug: str, label: str, saving: Optional[str]):
-        self.slug = slug
+    `price_id` is Stripe's, and it is what the form submits -- but see the
+    checkout route: the submitted id is only ever accepted after being found
+    in a freshly fetched list of this product's active prices. The browser
+    naming a price is safe precisely because the server never trusts the name.
+    """
+
+    def __init__(
+        self,
+        price_id: str,
+        label: str,
+        saving: Optional[str] = None,
+        trial_days: Optional[int] = None,
+        order: int = 0,
+        amount: Optional[str] = None,
+        period: Optional[str] = None,
+        highlight: bool = False,
+    ):
+        self.price_id = price_id
         self.label = label
         self.saving = saving
+        self.trial_days = trial_days
+        self.order = order
+        # Both from Stripe's own price object, on the render that shows them.
+        # `amount` is None when it could not be read; the card then omits the
+        # figure rather than inventing one.
+        self.amount = amount
+        self.period = period
+        # `highlight: 1` in a price's metadata. Presentational only -- it
+        # changes no price, no order and nothing the server will accept.
+        self.highlight = highlight
+
+    @property
+    def trial_note(self) -> Optional[str]:
+        """The trial, in words, or None. Rendered under the label."""
+        if not self.trial_days:
+            return None
+        # "7-day free trial", not "7-days" -- a hyphenated compound adjective
+        # takes the singular however many days it names.
+        return f"{self.trial_days}-day free trial"
 
 
 class SubscriptionPage:
@@ -98,6 +218,7 @@ class SubscriptionPage:
         card_count: int = 0,
         ended_on: Optional[str] = None,
         last_plan_label: Optional[str] = None,
+        plans_unavailable: bool = False,
     ):
         self.state = state
         self.grandfathered = grandfathered
@@ -118,6 +239,9 @@ class SubscriptionPage:
         # A subscription that has lapsed: when it ended and what it was.
         self.ended_on = ended_on
         self.last_plan_label = last_plan_label
+        # The plan list could not be read from Stripe. Distinct from an empty
+        # `plans`; see build().
+        self.plans_unavailable = plans_unavailable
 
     @property
     def offers_card(self) -> bool:
@@ -159,16 +283,129 @@ def _format_date(raw: Optional[str]) -> Optional[str]:
     return f"{parsed.day} {parsed.strftime('%B %Y')}"
 
 
-def plan_label_for(price_id: Optional[str], plan_slug: Optional[str]) -> str:
+def _positive_int(raw) -> Optional[int]:
+    """A metadata value as a positive int, or None for anything else.
+
+    Metadata is free text typed into a web form, so every value here is
+    attacker-adjacent in the mildest possible sense and typo-adjacent in a very
+    real one. Nothing raises: a price whose `trial_days` says "seven" renders
+    without a trial rather than 500ing the page for every server.
+    """
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, int):
+        return raw if raw > 0 else None
+    if not isinstance(raw, str) or not raw.strip().isdigit():
+        return None
+    value = int(raw.strip())
+    return value if value > 0 else None
+
+
+def _interval_label(price: dict) -> str:
+    """What to call a price that did not name itself."""
+    recurring = price.get("recurring")
+    if not isinstance(recurring, dict):
+        return UNKNOWN_PLAN_LABEL
+    interval = recurring.get("interval")
+    count = recurring.get("interval_count") or 1
+    if not isinstance(count, int) or count < 1:
+        count = 1
+    named = _INTERVAL_LABELS.get((interval, count))
+    if named:
+        return named
+    if not isinstance(interval, str) or not interval:
+        return UNKNOWN_PLAN_LABEL
+    if count == 1:
+        return f"Every {interval}"
+    return f"Every {count} {interval}s"
+
+
+def _interval_rank(price: dict) -> int:
+    """Roughly how long a price's term is, in months, for default ordering."""
+    recurring = price.get("recurring")
+    if not isinstance(recurring, dict):
+        return 0
+    count = recurring.get("interval_count") or 1
+    if not isinstance(count, int) or count < 1:
+        count = 1
+    return _INTERVAL_MONTHS.get(recurring.get("interval"), 0) * count
+
+
+def plan_from_price(price: dict) -> Optional[Plan]:
+    """One Stripe price as a plan card, or None if it cannot be sold.
+
+    None for a price with no id: everything else about a price degrades to a
+    default, but an id is what the form submits and what checkout looks up, so
+    a price without one is not a plan with a cosmetic problem.
+    """
+    price_id = price.get("id")
+    if not isinstance(price_id, str) or not price_id:
+        return None
+    metadata = price.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+
+    label = metadata.get("label")
+    if not isinstance(label, str) or not label.strip():
+        label = _interval_label(price)
+
+    saving = metadata.get("saving")
+    if not isinstance(saving, str) or not saving.strip():
+        saving = None
+    else:
+        saving = saving.strip()
+
+    order = _positive_int(metadata.get("order"))
+    highlight = str(metadata.get("highlight") or "").strip().lower()
+    return Plan(
+        price_id=price_id,
+        label=label.strip(),
+        saving=saving,
+        trial_days=_positive_int(metadata.get("trial_days")),
+        order=order if order is not None else _interval_rank(price),
+        amount=_format_amount(price.get("unit_amount"), price.get("currency")),
+        period=_billing_period(price),
+        highlight=highlight in {"1", "true", "yes"},
+    )
+
+
+def plans_from_prices(prices) -> tuple:
+    """The plan cards for a product's active prices, in the order to show them.
+
+    Sorted by `order` metadata where set and by term length otherwise, with the
+    price id as the final tiebreak so the page does not reshuffle itself
+    between renders when two plans sort equal. A stable order matters more than
+    it sounds on a page of buttons that charge money: cards that move between
+    two loads are cards somebody clicks by muscle memory and gets wrong.
+    """
+    if not isinstance(prices, (list, tuple)):
+        return ()
+    plans = []
+    for price in prices:
+        if not isinstance(price, dict):
+            continue
+        plan = plan_from_price(price)
+        if plan is not None:
+            plans.append(plan)
+    plans.sort(key=lambda plan: (plan.order, plan.price_id))
+    return tuple(plans)
+
+
+def plan_label_for(price_id: Optional[str], plans=()) -> str:
     """The words for a price id, degrading to a generic label.
 
-    `plan_slug` is what the dashboard's own price table made of the id, or None
-    when it recognised nothing. None is not an error — see UNKNOWN_PLAN_LABEL.
+    Looked up against the plans currently on offer. A miss is ordinary rather
+    than exceptional and must never read as "not subscribed" -- see
+    UNKNOWN_PLAN_LABEL. It is in fact *more* ordinary now than it was with a
+    static table: retiring a plan means archiving its price, and `list_prices`
+    asks only for active ones, so everyone still paying for a retired plan
+    lands here. Their subscription is real; only the label is unknown.
     """
-    if plan_slug:
-        for slug, label, _saving in PLANS:
-            if slug == plan_slug:
-                return label
+    if not price_id:
+        return UNKNOWN_PLAN_LABEL
+    for plan in plans:
+        if plan.price_id == price_id:
+            return plan.label
     return UNKNOWN_PLAN_LABEL
 
 
@@ -176,7 +413,8 @@ def build(
     settings: Optional[dict],
     *,
     application_id: Optional[str],
-    plan_slug: Optional[str] = None,
+    plans=(),
+    plans_unavailable: bool = False,
     stripe_configured: bool = True,
     just_bought: bool = False,
     now: Optional[datetime] = None,
@@ -197,11 +435,23 @@ def build(
     demonstrably just paid. Found by probing the page rather than by reading
     it.
 
-    `plan_slug` is the caller's lookup of the stored price id against its own
-    price table, passed in rather than looked up here so this module needs no
-    configuration. `stripe_configured` is the dashboard's own kill switch; the
-    bot's is read from the payload. Both must be on before a card is offered,
-    and they are separate switches on separate hosts on purpose.
+    `plans` is what Stripe currently sells, already converted by
+    `plans_from_prices`. It is passed in rather than fetched here so this
+    module stays pure -- no network, no clock, no configuration -- which is
+    what lets every state below be built in a test without any of them.
+
+    `plans_unavailable` says the fetch FAILED, which is a different thing from
+    it returning nothing, and the difference is the whole reason for the flag.
+    Empty means "there is nothing to sell"; unavailable means "we cannot tell
+    what there is to sell". Collapsing the second into the first renders a page
+    that quietly states Stripe is not an option during a blip, and the admin
+    goes and buys through Discord instead -- which is not a wrong statement
+    about their subscription, but is a wrong statement about their choices.
+    Buttons are withheld either way; only the sentence differs.
+
+    `stripe_configured` is the dashboard's own kill switch; the bot's is read
+    from the payload. Both must be on before a card is offered, and they are
+    separate switches on separate hosts on purpose.
     """
     if settings is None:
         return SubscriptionPage("unavailable")
@@ -249,7 +499,7 @@ def build(
 
     period_end = _format_date(stripe_block.get("current_period_end"))
     cancelling = bool(stripe_block.get("cancel_at_period_end"))
-    label = plan_label_for(stripe_block.get("price_id"), plan_slug)
+    label = plan_label_for(stripe_block.get("price_id"), plans)
 
     # Exactly one of these is ever set, and they are different promises.
     renews_on = None if cancelling else period_end
@@ -311,7 +561,12 @@ def build(
     return SubscriptionPage(
         "none",
         grandfathered=grandfathered,
-        plans=tuple(Plan(*plan) for plan in PLANS) if stripe_on else (),
+        plans=tuple(plans) if stripe_on else (),
+        # Only worth saying while Stripe is otherwise on: with either kill
+        # switch off there are no card plans to be unable to load, and
+        # apologising for the absence of something deliberately switched off
+        # would be the page inventing a fault.
+        plans_unavailable=plans_unavailable and stripe_on,
         store_url=store_url,
         discord_command=True,
         # A lapsed subscription leaves its row behind on purpose, so the page

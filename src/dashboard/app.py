@@ -91,6 +91,46 @@ STRIPE_WEBHOOK_RATE_WINDOW = 60
 # that buffering one costs nothing.
 MAX_REQUEST_BYTES = 256 * 1024
 
+# How long the plan list from Stripe is reused, in seconds.
+#
+# Short, because it is the lag between changing a price in Stripe and seeing it
+# on the page, and the whole point of fetching them was to make that a Stripe
+# change rather than a deploy. Not zero, because otherwise every render of this
+# page -- and every checkout, which re-fetches to validate -- is a synchronous
+# call to a third party on the request path.
+STRIPE_PRICE_CACHE_TTL = 300
+
+
+class _PriceCache:
+    """The product's active prices, remembered briefly.
+
+    Deliberately in-process, like _RateLimiter, and for the same reason: there
+    is one container and a shared cache would be a new dependency to hold a
+    copy of something Stripe already stores.
+
+    Failure is NOT cached. A Stripe blip must not switch the plans off for the
+    next five minutes -- the next request should try again, because the page it
+    renders in the meantime is one that cannot sell anything.
+    """
+
+    def __init__(self, ttl: int):
+        self.ttl = ttl
+        self._value: tuple = ()
+        self._fetched_at: float = 0.0
+
+    def get(self, fetch, *, now: float):
+        """Cached prices, or a fresh fetch. Propagates StripeAPIError."""
+        if self._fetched_at and now - self._fetched_at < self.ttl:
+            return self._value
+        value = tuple(fetch())
+        self._value = value
+        self._fetched_at = now
+        return value
+
+    def clear(self) -> None:
+        self._value = ()
+        self._fetched_at = 0.0
+
 
 class _RateLimiter:
     """A fixed-window counter, per key.
@@ -164,7 +204,20 @@ CSP = (
     # nor break it by going down.
     "font-src 'self'; "
     "img-src 'self' https://cdn.discordapp.com; "
-    "form-action 'self'; "
+    # Stripe's two hosted pages are named here because `form-action` governs
+    # where a form submission may end up INCLUDING AFTER A REDIRECT -- it is
+    # not only about the action attribute. The checkout and portal routes both
+    # answer a POST with a 303 to Stripe, so with `'self'` alone the browser
+    # sends the request, gets the redirect, and silently refuses to follow it.
+    # No navigation, no error page, nothing in the server log that looks wrong:
+    # the button simply does nothing, and the only evidence is a CSP violation
+    # in the console. That was the "Subscribe does nothing" bug of 2026-08-15.
+    #
+    # This is a much narrower relaxation than it looks. It permits navigation
+    # to those two origins as the result of submitting a form, and nothing
+    # else: no script, no frame, no style, no image may come from Stripe, so
+    # card data still never touches this infrastructure.
+    "form-action 'self' https://checkout.stripe.com https://billing.stripe.com; "
     "base-uri 'none'; "
     "frame-ancestors 'none'"
 )
@@ -227,6 +280,7 @@ def create_app(
     app.config["STRIPE_RATE"] = _RateLimiter(
         STRIPE_WEBHOOK_RATE_LIMIT, STRIPE_WEBHOOK_RATE_WINDOW
     )
+    app.config["STRIPE_PRICES"] = _PriceCache(STRIPE_PRICE_CACHE_TTL)
 
     # Python's mimetypes table does not know WOFF2 on every platform, and Flask
     # asks it. Served as application/octet-stream the font still works in
@@ -299,6 +353,38 @@ def _bot_api() -> BotAPIClient:
     from flask import current_app
 
     return current_app.config["BOT_API"]
+
+
+def _offered_plans():
+    """The plans currently for sale, and whether we could find out.
+
+    Returns `(plans, unavailable)`. The two are not redundant: an empty tuple
+    with `unavailable` false means Stripe answered and this product sells
+    nothing, which is a true statement the page may render. Empty with
+    `unavailable` true means Stripe did not answer, and the page must say so
+    rather than imply there is nothing to buy.
+
+    Never raises. A subscription page that 500s because a third party is slow
+    is worse than one that cannot currently take a card -- the rest of it
+    (whether the server is premium, when it renews, the Discord route) comes
+    from the bot and is still perfectly true.
+    """
+    from flask import current_app
+
+    config = _config()
+    if not config.stripe_enabled:
+        # Nothing to fetch and nothing to apologise for: the kill switch being
+        # off is not an outage.
+        return (), False
+    try:
+        prices = current_app.config["STRIPE_PRICES"].get(
+            lambda: _stripe().list_prices(config.stripe_product_id),
+            now=time.time(),
+        )
+    except StripeAPIError as error:
+        logger.warning("could not list plans: %s", error)
+        return (), True
+    return subscription_view.plans_from_prices(prices), False
 
 
 def _stripe() -> StripeClient:
@@ -539,12 +625,12 @@ def _register_routes(app: Flask) -> None:
         # subscription real and may not have landed yet -- but the page must
         # not offer to sell again while that is outstanding.
         just_bought = bool(request.args.get("bought"))
+        plans, plans_unavailable = _offered_plans()
         page = subscription_view.build(
             settings,
             application_id=config.discord_client_id,
-            plan_slug=config.plan_for(
-                ((settings.get("stripe") or {}).get("price_id")) or ""
-            ),
+            plans=plans,
+            plans_unavailable=plans_unavailable,
             stripe_configured=config.stripe_enabled,
             just_bought=just_bought,
         )
@@ -587,11 +673,25 @@ def _register_routes(app: Flask) -> None:
         if not config.stripe_enabled:
             abort(404)
 
-        slug = (request.form.get("plan") or "").strip()
-        price_id = config.stripe_prices.get(slug)
-        if not price_id:
-            logger.warning("checkout refused: unknown plan %r", slug)
+        # The submitted price is matched against Stripe's own list of this
+        # product's ACTIVE prices, never trusted as given. The guarantee is the
+        # one the static table used to provide -- no price the server has not
+        # authorised, so no checking out against a $0 price made while testing
+        # -- but enforced against Stripe's live answer, which also means a
+        # price archived a minute ago stops being sellable without a deploy.
+        #
+        # A failed fetch refuses the purchase rather than falling back to the
+        # submitted id. "We could not check" must never resolve to "allow".
+        submitted = (request.form.get("price_id") or "").strip()
+        plans, plans_unavailable = _offered_plans()
+        if plans_unavailable:
+            logger.warning("checkout refused: could not read plans from Stripe")
+            return _subscription_redirect(session, guild_id, "error:stripe")
+        plan = next((p for p in plans if p.price_id == submitted), None)
+        if plan is None:
+            logger.warning("checkout refused: unknown price %r", submitted)
             return _subscription_redirect(session, guild_id, "error:plan")
+        price_id = plan.price_id
 
         try:
             settings = _bot_api().settings(int(session.discord_id), guild_id)
@@ -601,6 +701,7 @@ def _register_routes(app: Flask) -> None:
         page = subscription_view.build(
             settings,
             application_id=config.discord_client_id,
+            plans=plans,
             stripe_configured=True,
         )
         if not page.offers_card:
@@ -619,6 +720,11 @@ def _register_routes(app: Flask) -> None:
                 actor_discord_id=str(session.discord_id),
                 success_url=f"{base}?bought=1",
                 cancel_url=base,
+                # From the price's own metadata, so the trial the buyer was
+                # shown on the card is the trial they get. Taking it from
+                # anywhere else is how a page advertises 14 days and Stripe
+                # grants 7.
+                trial_days=plan.trial_days,
             )
         except StripeAPIError as error:
             # The page apologises and offers the Discord path. It does not

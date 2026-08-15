@@ -7,8 +7,10 @@ something untrue about somebody's subscription:
   subscribed" beside a Buy button is how a paying customer buys a second one
 - a server that already pays must be shown no way to pay again, in the page AND
   in the route, because a hand-crafted POST is not a click
-- the price id is never taken from the form; the browser may name a plan slug
-  and nothing else
+- the price is never taken from the form on trust: the browser names a price
+  id, and the route accepts it only after finding it among the product's
+  ACTIVE prices, fetched from Stripe on that request. "We could not check"
+  refuses rather than allowing
 - "renews on" and "ends on" are different promises and the page must not
   confuse them
 - an unrecognised price is a labelling problem, never a payment problem
@@ -41,6 +43,38 @@ SECRET_KEY = "k" * 48
 PRICE_MONTHLY = "price_monthly"
 PRICE_SIX = "price_six"
 PRICE_YEARLY = "price_yearly"
+PRODUCT_ID = "prod_PREMIUM"
+
+# Stripe price objects as `list_prices` returns them, and the plans they become.
+# Metadata drives label, order and saving; the yearly one deliberately carries a
+# trial so the trial path is exercised by the default fixture rather than only
+# by the test that is about trials.
+PRICES = [
+    {
+        "id": PRICE_YEARLY,
+        "unit_amount": 4799,
+        "currency": "usd",
+        "recurring": {"interval": "year", "interval_count": 1},
+        "metadata": {"label": "12 months", "order": "3", "saving": "Save about 20%",
+                     "trial_days": "14"},
+    },
+    {
+        "id": PRICE_MONTHLY,
+        "unit_amount": 499,
+        "currency": "usd",
+        "recurring": {"interval": "month", "interval_count": 1},
+        "metadata": {"label": "Monthly", "order": "1"},
+    },
+    {
+        "id": PRICE_SIX,
+        "unit_amount": 2699,
+        "currency": "usd",
+        "recurring": {"interval": "month", "interval_count": 6},
+        "metadata": {"label": "6 months", "order": "2", "saving": "Save about 10%",
+                     "highlight": "1"},
+    },
+]
+PLANS = subscription_view.plans_from_prices(PRICES)
 CUSTOMER = "cus_TEST"
 
 FUTURE = "2026-11-03T00:00:00+00:00"
@@ -90,6 +124,7 @@ def payload(
 
 def build(settings, **kwargs):
     kwargs.setdefault("application_id", APP_ID)
+    kwargs.setdefault("plans", PLANS)
     return subscription_view.build(settings, **kwargs)
 
 
@@ -119,10 +154,10 @@ class TestTheStates:
         page = build(payload())
         assert page.state == "none"
         assert page.offers_card is True
-        assert [plan.slug for plan in page.plans] == [
-            "monthly",
-            "six_months",
-            "yearly",
+        assert [plan.label for plan in page.plans] == [
+            "Monthly",
+            "6 months",
+            "12 months",
         ]
         assert page.discord_command is True
         assert page.store_url.endswith(f"/{APP_ID}/store/{SKU_ID}")
@@ -130,7 +165,6 @@ class TestTheStates:
     def test_subscribed_by_card(self):
         page = build(
             payload(premium=True, active=True, status="active", price_id=PRICE_SIX),
-            plan_slug="six_months",
         )
         assert page.state == "stripe"
         assert page.plan_label == "6 months"
@@ -156,7 +190,6 @@ class TestTheStates:
         """
         page = build(
             payload(premium=True, active=True, status="past_due"),
-            plan_slug="monthly",
         )
         assert page.state == "past_due"
         assert page.premium is True
@@ -167,7 +200,6 @@ class TestTheStates:
         page = build(
             payload(premium=True, discord=True, active=True, status="active",
                     active_count=1),
-            plan_slug="monthly",
         )
         assert page.state == "both"
         assert page.premium is True
@@ -182,7 +214,6 @@ class TestTheStates:
         subscription rather than by guild."""
         page = build(
             payload(premium=True, active=True, status="active", active_count=2),
-            plan_slug="monthly",
         )
         assert page.state == "both"
         assert page.card_count == 2
@@ -229,7 +260,6 @@ class TestFoundByProbing:
         """Once the webhook HAS landed, the real state wins."""
         page = build(
             payload(premium=True, active=True, status="active"),
-            plan_slug="monthly",
             just_bought=True,
         )
         assert page.state == "stripe"
@@ -286,7 +316,6 @@ class TestDatesAndLabels:
         """Different promises. Saying the wrong one is lying about money."""
         page = build(
             payload(premium=True, active=True, status="active", cancel=True),
-            plan_slug="monthly",
         )
         assert page.ends_on == "3 November 2026"
         assert page.renews_on is None
@@ -296,7 +325,6 @@ class TestDatesAndLabels:
         pretend the server was never a customer."""
         page = build(
             payload(status="canceled", period_end=PAST, price_id=PRICE_YEARLY),
-            plan_slug="yearly",
         )
         assert page.state == "none"
         assert page.ended_on == "3 February 2026"
@@ -309,7 +337,6 @@ class TestDatesAndLabels:
         page = build(
             payload(premium=True, active=True, status="active",
                     price_id="price_WHO_KNOWS"),
-            plan_slug=None,
         )
         assert page.state == "stripe"
         assert page.plan_label == subscription_view.UNKNOWN_PLAN_LABEL
@@ -319,21 +346,36 @@ class TestDatesAndLabels:
     def test_an_unreadable_date_is_omitted_not_guessed(self, raw):
         page = build(
             payload(premium=True, active=True, status="active", period_end=raw),
-            plan_slug="monthly",
         )
         assert page.renews_on is None
         assert page.ends_on is None
 
-    def test_no_amount_appears_anywhere_in_the_module(self):
-        """Stripe knows what it charges.
+    def test_no_amount_is_hardcoded_in_the_module(self):
+        """Stripe knows what it charges, and it is the only thing that does.
 
-        A second copy of a price on a page about money is a second thing to be
-        wrong, and it would be wrong silently -- the page would keep rendering
-        the old number long after Stripe charged a new one.
+        This test used to forbid the "$" character too, back when the plans
+        were three environment variables and the page had no way to learn a
+        price -- so any figure on it was a second copy, maintained by hand, and
+        would have gone on rendering the old number long after Stripe charged a
+        new one.
+
+        Amounts are now read from Stripe on the render that displays them, so a
+        currency symbol is formatting rather than a claim. What must still
+        never appear is a FIGURE: that would be the second copy again, and the
+        original reasoning would apply to it unchanged.
         """
         source = open(subscription_view.__file__, encoding="utf-8").read()
-        for amount in ("4.99", "26.99", "47.99", "$"):
+        for amount in ("4.99", "26.99", "47.99", "499", "2699", "4799"):
             assert amount not in source
+
+    def test_the_rendered_figure_follows_stripe(self, config):
+        """The other half, and the one that actually proves there is no second
+        copy: change what Stripe returns and the page changes with it."""
+        client, _bot, stripe, _session = make_client(config)
+        stripe.prices = [dict(PRICES[1], unit_amount=1234)]
+        body = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert "$12.34" in body
+        assert "$4.99" not in body
 
 
 # -------------------------------------------------------------------
@@ -362,11 +404,7 @@ def config(tmp_path, certs):
         stripe_enabled=True,
         stripe_secret_key="sk_test_x",
         stripe_webhook_secret="whsec_" + "w" * 32,
-        stripe_prices={
-            "monthly": PRICE_MONTHLY,
-            "six_months": PRICE_SIX,
-            "yearly": PRICE_YEARLY,
-        },
+        stripe_product_id=PRODUCT_ID,
     )
 
 
@@ -389,6 +427,19 @@ class FakeStripe:
         self.checkouts = []
         self.portals = []
         self.error = None
+        # What `list_prices` hands back, and how many times it was asked. The
+        # count is asserted on: the plan list is fetched on a page render AND
+        # again on checkout to validate the submitted id, and a cache exists
+        # precisely so that is not two calls to Stripe per purchase.
+        self.prices = list(PRICES)
+        self.price_calls = 0
+        self.price_error = None
+
+    def list_prices(self, product_id):
+        self.price_calls += 1
+        if self.price_error is not None:
+            raise self.price_error
+        return list(self.prices)
 
     def create_checkout_session(self, **kwargs):
         self.checkouts.append(kwargs)
@@ -422,36 +473,100 @@ def make_client(config, settings=None):
 
 
 class TestCheckout:
-    def test_a_plan_slug_becomes_a_price_server_side(self, config):
+    def test_a_submitted_price_is_checked_against_stripe(self, config):
         """THE most likely way to get this endpoint wrong.
 
-        A form-supplied price id would let anyone check out against any price
-        on the account, including a $0 one created while testing.
+        The browser names a price, so the guarantee cannot come from the form
+        naming a slug any more -- it comes from the id being found among the
+        product's ACTIVE prices, fetched from Stripe on this request.
         """
         client, _bot, stripe, session = make_client(config)
         response = client.post(
             f"/guild/{GUILD}/subscription/checkout",
-            data={"plan": "six_months", "csrf_token": session.csrf_token},
+            data={"price_id": PRICE_SIX, "csrf_token": session.csrf_token},
         )
         assert response.status_code == 303
         assert response.headers["Location"].startswith("https://checkout.stripe.com/")
         assert stripe.checkouts[0]["price_id"] == PRICE_SIX
 
-    def test_a_raw_price_id_in_the_form_is_refused(self, config):
+    def test_a_price_stripe_does_not_offer_is_refused(self, config):
+        """The $0 price made while testing, named directly in a crafted POST.
+
+        It exists on the account; it is not on this product's active list, and
+        that list is the only thing the route will accept from.
+        """
         client, _bot, stripe, session = make_client(config)
         response = client.post(
             f"/guild/{GUILD}/subscription/checkout",
-            data={"plan": PRICE_MONTHLY, "csrf_token": session.csrf_token},
+            data={"price_id": "price_FREE_TEST", "csrf_token": session.csrf_token},
         )
         assert response.status_code == 302
         assert stripe.checkouts == []
 
-    @pytest.mark.parametrize("plan", ["", "free", "MONTHLY", "../monthly", None])
-    def test_an_unknown_plan_buys_nothing(self, config, plan):
+    def test_an_archived_price_stops_being_sellable(self, config):
+        """Retiring a plan is archiving its price, with no deploy.
+
+        `list_prices` asks only for active prices, so a plan pulled in Stripe
+        must stop being purchasable immediately -- including by someone whose
+        page was rendered before it was pulled.
+        """
+        client, _bot, stripe, session = make_client(config)
+        stripe.prices = [p for p in PRICES if p["id"] != PRICE_SIX]
+        response = client.post(
+            f"/guild/{GUILD}/subscription/checkout",
+            data={"price_id": PRICE_SIX, "csrf_token": session.csrf_token},
+        )
+        assert response.status_code == 302
+        assert stripe.checkouts == []
+
+    def test_a_failed_price_read_refuses_rather_than_trusting_the_form(self, config):
+        """"We could not check" must never resolve to "allow".
+
+        Falling back to the submitted id when Stripe is unreachable would turn
+        a third-party outage into the exact hole the check exists to close.
+        """
+        client, _bot, stripe, session = make_client(config)
+        stripe.price_error = StripeAPIError("boom")
+        response = client.post(
+            f"/guild/{GUILD}/subscription/checkout",
+            data={"price_id": PRICE_SIX, "csrf_token": session.csrf_token},
+        )
+        assert response.status_code == 302
+        assert stripe.checkouts == []
+
+    def test_the_trial_comes_from_the_price_not_the_form(self, config):
+        """The buyer gets the trial the card advertised.
+
+        A form-supplied trial length would let anyone grant themselves one.
+        """
+        client, _bot, stripe, session = make_client(config)
+        response = client.post(
+            f"/guild/{GUILD}/subscription/checkout",
+            data={
+                "price_id": PRICE_YEARLY,
+                "trial_days": "9999",
+                "csrf_token": session.csrf_token,
+            },
+        )
+        assert response.status_code == 303
+        assert stripe.checkouts[0]["trial_days"] == 14
+
+    def test_a_price_with_no_trial_metadata_sends_none(self, config):
+        client, _bot, stripe, session = make_client(config)
+        client.post(
+            f"/guild/{GUILD}/subscription/checkout",
+            data={"price_id": PRICE_MONTHLY, "csrf_token": session.csrf_token},
+        )
+        assert stripe.checkouts[0]["trial_days"] is None
+
+    @pytest.mark.parametrize(
+        "price", ["", "free", "PRICE_MONTHLY", "../price_monthly", None]
+    )
+    def test_an_unknown_price_buys_nothing(self, config, price):
         client, _bot, stripe, session = make_client(config)
         data = {"csrf_token": session.csrf_token}
-        if plan is not None:
-            data["plan"] = plan
+        if price is not None:
+            data["price_id"] = price
         response = client.post(f"/guild/{GUILD}/subscription/checkout", data=data)
         assert response.status_code == 302
         assert stripe.checkouts == []
@@ -459,7 +574,7 @@ class TestCheckout:
     def test_no_csrf_token_buys_nothing(self, config):
         client, _bot, stripe, _session = make_client(config)
         response = client.post(
-            f"/guild/{GUILD}/subscription/checkout", data={"plan": "monthly"}
+            f"/guild/{GUILD}/subscription/checkout", data={"price_id": PRICE_MONTHLY}
         )
         assert response.status_code == 400
         assert stripe.checkouts == []
@@ -475,7 +590,7 @@ class TestCheckout:
         )
         response = client.post(
             f"/guild/{GUILD}/subscription/checkout",
-            data={"plan": "monthly", "csrf_token": session.csrf_token},
+            data={"price_id": PRICE_MONTHLY, "csrf_token": session.csrf_token},
         )
         assert response.status_code == 302
         assert stripe.checkouts == []
@@ -486,7 +601,7 @@ class TestCheckout:
         )
         client.post(
             f"/guild/{GUILD}/subscription/checkout",
-            data={"plan": "monthly", "csrf_token": session.csrf_token},
+            data={"price_id": PRICE_MONTHLY, "csrf_token": session.csrf_token},
         )
         assert stripe.checkouts == []
 
@@ -496,7 +611,7 @@ class TestCheckout:
         client, _bot, stripe, session = make_client(config)
         client.post(
             f"/guild/{GUILD}/subscription/checkout",
-            data={"plan": "monthly", "csrf_token": session.csrf_token},
+            data={"price_id": PRICE_MONTHLY, "csrf_token": session.csrf_token},
         )
         assert stripe.checkouts[0]["guild_id"] == GUILD
         assert stripe.checkouts[0]["actor_discord_id"] == ACTOR
@@ -506,7 +621,7 @@ class TestCheckout:
         stripe.error = StripeAPIError("boom")
         response = client.post(
             f"/guild/{GUILD}/subscription/checkout",
-            data={"plan": "monthly", "csrf_token": session.csrf_token},
+            data={"price_id": PRICE_MONTHLY, "csrf_token": session.csrf_token},
         )
         assert response.status_code == 302
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
@@ -531,7 +646,7 @@ class TestCheckout:
         client, _bot, stripe, session = make_client(off)
         response = client.post(
             f"/guild/{GUILD}/subscription/checkout",
-            data={"plan": "monthly", "csrf_token": session.csrf_token},
+            data={"price_id": PRICE_MONTHLY, "csrf_token": session.csrf_token},
         )
         assert response.status_code == 404
         assert stripe.checkouts == []
@@ -633,3 +748,440 @@ class TestThePageRenders:
         client, _bot, _stripe, _session = make_client(config)
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
         assert "ko-fi" not in page.lower()
+
+
+class TestCheckoutFormShape:
+    """What `StripeClient` actually puts on the wire.
+
+    Every other test in this file uses `FakeStripe`, which accepts any kwargs
+    and hands back a URL. That is the right shape for testing the route's
+    decisions -- who may check out, which slug maps to which price -- and it is
+    completely blind to whether the request Stripe receives is one Stripe will
+    accept.
+
+    It was blind to exactly that on 2026-08-15. The form carried
+    `customer_update[address]=auto` without a `customer`, which Stripe rejects
+    outright:
+
+        400 invalid_request_error -- `customer_update` can only be used with
+        `customer`.
+
+    So every live checkout failed, the page said "We couldn't reach Stripe just
+    now", and the suite stayed green because nothing had ever looked at the
+    form. These tests look at the form.
+    """
+
+    def _post_form(self):
+        """Capture the form for one checkout, without a network."""
+        from dashboard.stripe_api import StripeClient
+
+        captured = {}
+
+        class FakeResponse:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {"url": "https://checkout.stripe.com/c/pay/cs_test_X"}
+
+        def fake_post(url, headers=None, data=None, timeout=None):
+            captured["url"] = url
+            captured["form"] = list(data)
+            return FakeResponse()
+
+        client = StripeClient("sk_test_x")
+        client._session.post = fake_post
+        returned = client.create_checkout_session(
+            price_id="price_TEST",
+            guild_id="987654321",
+            actor_discord_id="77",
+            success_url="https://dash.example/guild/987654321/subscription?bought=1",
+            cancel_url="https://dash.example/guild/987654321/subscription",
+        )
+        captured["returned"] = returned
+        return captured
+
+    def test_customer_update_is_never_sent(self):
+        """The regression. Stripe 400s on `customer_update` without `customer`.
+
+        This session deliberately passes no `customer`: in subscription mode
+        Stripe creates one and saves the collected billing address to it by
+        itself, so there is nothing for `customer_update` to do. Re-adding it
+        breaks every checkout while reading perfectly sensibly in review.
+        """
+        form = self._post_form()["form"]
+        keys = [key for key, _ in form]
+        assert not any(key.startswith("customer_update") for key in keys), (
+            "customer_update without customer is a 400 from Stripe -- "
+            f"got {[k for k in keys if k.startswith('customer_update')]}"
+        )
+
+    def test_no_customer_is_sent_either(self):
+        """The other half of the pair, pinned so the two stay consistent.
+
+        If a `customer` is ever added here, `customer_update` becomes legal --
+        and the test above becomes the wrong assertion rather than a broken
+        one. Failing here is the signal to revisit it deliberately.
+        """
+        keys = [key for key, _ in self._post_form()["form"]]
+        assert "customer" not in keys
+
+    def test_the_fields_automatic_tax_depends_on_are_present(self):
+        """`automatic_tax` without an address is a different 400.
+
+        Stripe cannot decide a rate without one, so dropping
+        `billing_address_collection` trades this bug for its twin.
+        """
+        form = dict(self._post_form()["form"])
+        assert form["automatic_tax[enabled]"] == "true"
+        assert form["billing_address_collection"] == "required"
+
+    def test_the_guild_rides_on_subscription_metadata(self):
+        """`client_reference_id` is gone by the first renewal; the metadata is
+        not. The binding has to survive to a renewal a year from now."""
+        form = dict(self._post_form()["form"])
+        assert form["subscription_data[metadata][guild_id]"] == "987654321"
+        assert form["subscription_data[metadata][actor_discord_id]"] == "77"
+        assert form["client_reference_id"] == "987654321"
+
+    def test_it_is_a_subscription_for_the_price_it_was_given(self):
+        form = dict(self._post_form()["form"])
+        assert form["mode"] == "subscription"
+        assert form["line_items[0][price]"] == "price_TEST"
+        assert form["line_items[0][quantity]"] == "1"
+
+    def test_it_posts_to_checkout_sessions_and_returns_the_url(self):
+        captured = self._post_form()
+        assert captured["url"].endswith("/checkout/sessions")
+        assert captured["returned"] == "https://checkout.stripe.com/c/pay/cs_test_X"
+
+
+class TestPlansFromPrices:
+    """Stripe's price objects becoming plan cards.
+
+    Pure, so none of this needs Flask or a network. Every case here is a price
+    somebody can create in the Stripe dashboard in about four seconds, which is
+    the point: the plan list is now user input from a web form, and the page
+    that renders it takes money.
+    """
+
+    def one(self, **price):
+        plans = subscription_view.plans_from_prices([price])
+        return plans[0] if plans else None
+
+    def test_metadata_drives_the_card(self):
+        plan = self.one(
+            id="price_x",
+            recurring={"interval": "month", "interval_count": 1},
+            metadata={"label": "Founder", "saving": "Half price", "trial_days": "7",
+                      "order": "1"},
+        )
+        assert (plan.label, plan.saving, plan.trial_days) == ("Founder", "Half price", 7)
+        assert plan.trial_note == "7-day free trial"
+
+    def test_a_price_with_no_metadata_still_renders(self):
+        """A plan created in a hurry must be sellable, not a blank card.
+
+        This is what keeps the metadata presentational rather than
+        configuration the page cannot work without.
+        """
+        plan = self.one(id="price_x", recurring={"interval": "month", "interval_count": 6})
+        assert plan.label == "6 months"
+        assert plan.saving is None
+        assert plan.trial_days is None
+        assert plan.trial_note is None
+
+    @pytest.mark.parametrize(
+        "interval,count,expected",
+        [
+            ("month", 1, "Monthly"),
+            ("month", 3, "3 months"),
+            ("year", 1, "12 months"),
+            ("week", 2, "Every 2 weeks"),
+            ("day", 1, "Every day"),
+        ],
+    )
+    def test_labels_derive_from_the_interval(self, interval, count, expected):
+        plan = self.one(
+            id="price_x", recurring={"interval": interval, "interval_count": count}
+        )
+        assert plan.label == expected
+
+    @pytest.mark.parametrize("raw", ["seven", "", "-3", "0", "3.5", None, True, {}])
+    def test_a_junk_trial_renders_without_one(self, raw):
+        """Metadata is free text typed into a web form.
+
+        A typo must cost the trial, never the page -- 500ing here would take
+        the subscription page down for every server over one bad character on
+        one price.
+        """
+        plan = self.one(
+            id="price_x",
+            recurring={"interval": "month", "interval_count": 1},
+            metadata={"trial_days": raw},
+        )
+        assert plan.trial_days is None
+
+    def test_a_price_with_no_id_is_not_a_plan(self):
+        """Everything else degrades to a default; an id cannot, because it is
+        what the form submits and what checkout looks up."""
+        assert subscription_view.plans_from_prices([{"recurring": {}}]) == ()
+
+    def test_order_metadata_wins_over_the_interval(self):
+        plans = subscription_view.plans_from_prices([
+            {"id": "price_a", "recurring": {"interval": "year", "interval_count": 1},
+             "metadata": {"order": "1"}},
+            {"id": "price_b", "recurring": {"interval": "month", "interval_count": 1},
+             "metadata": {"order": "2"}},
+        ])
+        assert [p.price_id for p in plans] == ["price_a", "price_b"]
+
+    def test_without_order_the_shorter_term_comes_first(self):
+        plans = subscription_view.plans_from_prices([
+            {"id": "price_year", "recurring": {"interval": "year", "interval_count": 1}},
+            {"id": "price_month", "recurring": {"interval": "month", "interval_count": 1}},
+            {"id": "price_six", "recurring": {"interval": "month", "interval_count": 6}},
+        ])
+        assert [p.price_id for p in plans] == ["price_month", "price_six", "price_year"]
+
+    def test_equal_plans_keep_a_stable_order(self):
+        """Cards that move between two renders are cards somebody clicks by
+        muscle memory and gets wrong."""
+        prices = [
+            {"id": "price_b", "recurring": {"interval": "month", "interval_count": 1}},
+            {"id": "price_a", "recurring": {"interval": "month", "interval_count": 1}},
+        ]
+        first = [p.price_id for p in subscription_view.plans_from_prices(prices)]
+        second = [p.price_id for p in subscription_view.plans_from_prices(prices[::-1])]
+        assert first == second == ["price_a", "price_b"]
+
+    @pytest.mark.parametrize("junk", [None, "prices", 42, [None, 7, "x"]])
+    def test_junk_in_place_of_prices_is_no_plans_not_a_crash(self, junk):
+        assert subscription_view.plans_from_prices(junk) == ()
+
+    def test_an_archived_price_loses_only_its_label(self):
+        """Retiring a plan must not unsubscribe the people still on it.
+
+        `list_prices` asks for active prices only, so everyone paying for a
+        retired plan lands on the generic label -- and that is all that may
+        happen to them.
+        """
+        page = build(
+            payload(premium=True, active=True, status="active",
+                    price_id="price_RETIRED"),
+        )
+        assert page.state == "stripe"
+        assert page.premium is True
+        assert page.plan_label == subscription_view.UNKNOWN_PLAN_LABEL
+
+
+class TestPlansUnavailable:
+    """Stripe not answering is not the same as Stripe selling nothing."""
+
+    def test_the_page_says_so_rather_than_implying_nothing_is_for_sale(self, config):
+        client, _bot, stripe, _session = make_client(config)
+        stripe.price_error = StripeAPIError("boom")
+        body = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert "can't load the plans" in body
+        assert "Subscribe" not in body
+
+    def test_the_rest_of_the_page_is_unaffected(self, config):
+        """The subscription facts come from the bot and are still true.
+
+        A Stripe outage may cost the Buy buttons and nothing else.
+        """
+        client, _bot, stripe, _session = make_client(
+            config, settings=payload(premium=True, active=True, status="active")
+        )
+        stripe.price_error = StripeAPIError("boom")
+        response = client.get(f"/guild/{GUILD}/subscription")
+        assert response.status_code == 200
+        assert "Manage billing" in response.data.decode()
+
+    def test_an_empty_price_list_is_not_an_apology(self, config):
+        """Stripe answering "nothing" is a true answer the page may render."""
+        client, _bot, stripe, _session = make_client(config)
+        stripe.prices = []
+        body = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert "can't load the plans" not in body
+
+    def test_a_failed_fetch_is_not_cached(self, config):
+        """A blip must not switch the plans off for the whole TTL."""
+        client, _bot, stripe, _session = make_client(config)
+        stripe.price_error = StripeAPIError("boom")
+        client.get(f"/guild/{GUILD}/subscription")
+        stripe.price_error = None
+        body = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert "can't load the plans" not in body
+        assert "Subscribe" in body
+
+    def test_the_list_is_cached_across_renders(self, config):
+        """The cache is why rendering and checking out is not two calls to a
+        third party on every purchase."""
+        client, _bot, stripe, _session = make_client(config)
+        for _ in range(3):
+            client.get(f"/guild/{GUILD}/subscription")
+        assert stripe.price_calls == 1
+
+
+class TestCheckoutIsReachableFromTheBrowser:
+    """The CSP must permit the hop the checkout route actually performs.
+
+    The route answers a POST with a 303 to Stripe. `form-action` governs where
+    a form submission may end up INCLUDING AFTER A REDIRECT, so if Stripe's
+    hosted pages are not named there the browser sends the request, receives
+    the redirect, and silently declines to follow it.
+
+    That failure has no server-side symptom at all: the route returns 303, the
+    log records a successful checkout session, and Stripe shows a session that
+    nobody ever arrived at. The only evidence is a console violation in one
+    person's browser. It shipped, and it presented as "the Subscribe button
+    does nothing".
+    """
+
+    def form_action(self):
+        from dashboard.app import CSP
+
+        for directive in CSP.split(";"):
+            if directive.strip().startswith("form-action"):
+                return directive.split()
+        raise AssertionError(f"no form-action directive in CSP: {CSP!r}")
+
+    def test_checkout_is_a_permitted_form_target(self):
+        assert "https://checkout.stripe.com" in self.form_action()
+
+    def test_the_billing_portal_is_too(self):
+        """The Manage billing button is the same 303-to-Stripe shape, so it
+        fails the same silent way."""
+        assert "https://billing.stripe.com" in self.form_action()
+
+    def test_the_redirect_target_is_actually_allowed_by_form_action(self, config):
+        """Ties the two halves together.
+
+        Asserting the CSP names an origin proves nothing on its own if the
+        route later redirects somewhere else; this checks the URL the route
+        really issues against the directive that really ships.
+        """
+        client, _bot, _stripe, session = make_client(config)
+        response = client.post(
+            f"/guild/{GUILD}/subscription/checkout",
+            data={"price_id": PRICE_SIX, "csrf_token": session.csrf_token},
+        )
+        assert response.status_code == 303
+        target = response.headers["Location"]
+        origin = "/".join(target.split("/")[:3])
+        assert origin in self.form_action(), (
+            f"the route redirects to {origin}, which form-action forbids -- "
+            "the browser will refuse the hop and the button will do nothing"
+        )
+
+    def test_nothing_else_was_loosened(self):
+        """The allowance is a navigation target, not a script origin.
+
+        Stripe must not become able to run script, be framed, or style this
+        page: that is the difference between a redirect and an embed, and it is
+        what keeps card data off this infrastructure.
+        """
+        from dashboard.app import CSP
+
+        assert "script-src 'self';" in CSP
+        assert "default-src 'none';" in CSP
+        assert "frame-src" not in CSP
+        assert "stripe.com" not in CSP.split("form-action")[0]
+
+
+class TestAmounts:
+    """The figures on the cards, and the ways a price can fail to state one.
+
+    Amounts are read from Stripe on the render that shows them, so there is no
+    second copy to drift -- but there is now a formatting layer between a
+    Stripe integer and a price on a page about money, and it is worth pinning.
+    """
+
+    def amount_for(self, **price):
+        price.setdefault("id", "price_x")
+        price.setdefault("recurring", {"interval": "month", "interval_count": 1})
+        return subscription_view.plans_from_prices([price])[0].amount
+
+    def test_minor_units_become_a_decimal(self):
+        assert self.amount_for(unit_amount=499, currency="usd") == "$4.99"
+
+    def test_a_round_amount_keeps_its_cents(self):
+        """"$5" for a $5.00 plan reads as an approximation on a page that is
+        about to charge an exact number."""
+        assert self.amount_for(unit_amount=500, currency="usd") == "$5.00"
+
+    @pytest.mark.parametrize(
+        "currency,expected",
+        [("usd", "$4.99"), ("eur", "€4.99"), ("gbp", "£4.99"), ("cad", "CA$4.99")],
+    )
+    def test_known_currencies_get_their_symbol(self, currency, expected):
+        assert self.amount_for(unit_amount=499, currency=currency) == expected
+
+    def test_an_unknown_currency_falls_back_to_its_code(self):
+        """Wrong symbol is worse than no symbol on a page about money."""
+        assert self.amount_for(unit_amount=499, currency="sek") == "4.99 SEK"
+
+    def test_a_zero_decimal_currency_is_not_divided(self):
+        """JPY 500 is five hundred yen, not five. Dividing it by a hundred
+        would advertise a plan at one percent of its price."""
+        assert self.amount_for(unit_amount=500, currency="jpy") == "¥500"
+
+    @pytest.mark.parametrize(
+        "price",
+        [
+            {"currency": "usd"},                       # no amount at all
+            {"unit_amount": None, "currency": "usd"},
+            {"unit_amount": "499", "currency": "usd"},  # a string, not an int
+            {"unit_amount": True, "currency": "usd"},   # bool is an int subclass
+            {"unit_amount": -100, "currency": "usd"},
+            {"unit_amount": 499},                       # no currency
+            {"unit_amount": 499, "currency": ""},
+        ],
+    )
+    def test_an_unreadable_amount_is_omitted_never_guessed(self, price):
+        """None, so the card shows no figure and the reader clicks through to
+        Stripe -- where the real one is. A wrong price is worse than none."""
+        assert self.amount_for(**price) is None
+
+    def test_a_priced_plan_still_renders_without_its_amount(self, config):
+        """A tiered or metered price has no flat unit_amount. It must still be
+        purchasable, because Checkout knows what to charge even when this page
+        cannot summarise it in one number."""
+        client, _bot, stripe, session = make_client(config)
+        stripe.prices = [{"id": PRICE_MONTHLY,
+                          "recurring": {"interval": "month", "interval_count": 1},
+                          "metadata": {"label": "Monthly"}}]
+        body = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert "Subscribe" in body
+        response = client.post(
+            f"/guild/{GUILD}/subscription/checkout",
+            data={"price_id": PRICE_MONTHLY, "csrf_token": session.csrf_token},
+        )
+        assert response.status_code == 303
+
+    @pytest.mark.parametrize(
+        "interval,count,expected",
+        [("month", 1, "per month"), ("month", 6, "per 6 months"),
+         ("year", 1, "per year")],
+    )
+    def test_the_period_names_the_real_billing_interval(self, interval, count, expected):
+        plans = subscription_view.plans_from_prices([
+            {"id": "price_x", "unit_amount": 499, "currency": "usd",
+             "recurring": {"interval": interval, "interval_count": count}}
+        ])
+        assert plans[0].period == expected
+
+    def test_highlight_metadata_features_one_card(self, config):
+        client, _bot, _stripe, _session = make_client(config)
+        body = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert body.count("plan-featured") == 1
+        assert "Most popular" in body
+
+    @pytest.mark.parametrize("raw", ["0", "no", "", "maybe", None])
+    def test_anything_but_a_yes_is_not_highlighted(self, raw):
+        plans = subscription_view.plans_from_prices([
+            {"id": "price_x", "recurring": {"interval": "month", "interval_count": 1},
+             "metadata": {"highlight": raw}}
+        ])
+        assert plans[0].highlight is False

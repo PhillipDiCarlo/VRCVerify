@@ -12,15 +12,11 @@ be dangerous to guess.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
-from typing import Mapping, Optional
+from dataclasses import dataclass
+from typing import Optional
 from urllib.parse import urlparse
 
 from api_tokens import MIN_SIGNING_KEY_BYTES
-
-# The three plans, as slugs. The browser may name one of these and nothing
-# else; every price id is looked up server-side from the table below.
-STRIPE_PLAN_SLUGS = ("monthly", "six_months", "yearly")
 
 # Flask signs the session cookie with this. The cookie carries only an opaque
 # session id, but forging one is still forging a session, so it gets the same
@@ -61,24 +57,22 @@ class DashboardConfig:
     stripe_enabled: bool = False
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
-    # Slug -> price id. The browser can only ever supply the slug; the price is
-    # looked up here. A form-supplied price id would let anyone check out
-    # against any price on the account, including a $0 one made while testing.
-    stripe_prices: Mapping[str, str] = field(default_factory=dict)
-
-    def plan_for(self, price_id: str) -> Optional[str]:
-        """The plan slug for a price id, or None if it is not one of ours.
-
-        None is not an error and must never be treated as "not subscribed" —
-        see the callers. A price can be absent from this table for entirely
-        ordinary reasons: a plan switched in the billing portal, a price
-        replaced during a pricing change, an id rotated between test and live.
-        The subscription is real and paid for; only the label is unknown.
-        """
-        for slug, configured in self.stripe_prices.items():
-            if configured == price_id:
-                return slug
-        return None
+    # The product whose active prices are the plans on offer. One id, and the
+    # plans themselves live in Stripe: creating a price publishes a plan and
+    # archiving one retires it, with nothing here to keep in step.
+    #
+    # This replaced three STRIPE_PRICE_* variables. Those had to be edited,
+    # deployed and kept matching an account they could not see, and the failure
+    # they invited was silent -- a price rotated in Stripe left the page
+    # offering an id that no longer existed, and the error arrived at the
+    # moment somebody clicked Buy.
+    #
+    # It does NOT mean the browser may name a price. The form submits a price
+    # id, and the checkout route accepts it only after finding it in a freshly
+    # fetched list of this product's active prices. The guarantee is the same
+    # one as before -- no price the server has not authorised -- enforced
+    # against Stripe's live answer instead of a static table.
+    stripe_product_id: str = ""
 
     @classmethod
     def from_env(cls) -> "DashboardConfig":
@@ -118,13 +112,12 @@ class DashboardConfig:
         stripe_enabled = _truthy(os.getenv("STRIPE_ENABLED"))
         stripe_secret_key = ""
         stripe_webhook_secret = ""
-        stripe_prices: dict = {}
+        stripe_product_id = ""
         if stripe_enabled:
             # Refuse to boot rather than come up half-configured. A dashboard
             # missing its webhook secret rejects every event Stripe sends and
-            # looks healthy doing it; one missing a price id renders a plan card
-            # that 500s when somebody clicks Buy. Both are worse than not
-            # starting, and both are one typo away.
+            # looks healthy doing it. Worse than not starting, and one typo
+            # away.
             stripe_secret_key = _require("STRIPE_SECRET_KEY")
             stripe_webhook_secret = _require("STRIPE_WEBHOOK_SECRET")
             if not stripe_secret_key.startswith(("sk_", "rk_")):
@@ -137,18 +130,18 @@ class DashboardConfig:
                     "STRIPE_WEBHOOK_SECRET must be the signing secret from the "
                     "webhook endpoint (whsec_...), not an API key."
                 )
-            stripe_prices = {
-                slug: _require(f"STRIPE_PRICE_{slug.upper()}")
-                for slug in STRIPE_PLAN_SLUGS
-            }
-            duplicates = len(stripe_prices) - len(set(stripe_prices.values()))
-            if duplicates:
-                # Two plans on one price means someone pays for six months and
-                # is billed monthly, or the reverse. Cheap to check, expensive
-                # to discover from a customer.
+            stripe_product_id = _require("STRIPE_PRODUCT_ID")
+            if not stripe_product_id.startswith("prod_"):
+                # A price id here is the plausible mistake -- they sit next to
+                # each other in the Stripe dashboard and both are "the thing I
+                # copied for the plan". It would list no prices at all, so the
+                # page would apologise forever with nothing in the logs saying
+                # why, which is exactly the failure this check is cheap enough
+                # to be worth preventing.
                 raise DashboardConfigError(
-                    "STRIPE_PRICE_* must name three different prices; "
-                    f"{duplicates + 1} of them are the same id."
+                    "STRIPE_PRODUCT_ID must be a Stripe product id (prod_...); "
+                    f"got {stripe_product_id!r}. A price id (price_...) here "
+                    "would match no prices and offer no plans."
                 )
 
         return cls(
@@ -168,7 +161,7 @@ class DashboardConfig:
             stripe_enabled=stripe_enabled,
             stripe_secret_key=stripe_secret_key,
             stripe_webhook_secret=stripe_webhook_secret,
-            stripe_prices=stripe_prices,
+            stripe_product_id=stripe_product_id,
         )
 
 

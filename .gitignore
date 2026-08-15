@@ -129,6 +129,14 @@ celerybeat.pid
 
 # Environments
 .env
+# The VPS's own env files (issues #65, #88). `.env` above does NOT match these
+# -- a gitignore pattern with no slash matches the whole filename, so
+# `dashboard.env` and `cloudflared.env` would otherwise be committed. They hold
+# the Discord client secret, the bot API signing key, and the Stripe secret and
+# webhook secret. The `.example` templates beside them are meant to be tracked
+# and are not matched by these lines.
+dashboard.env
+cloudflared.env
 .venv
 env/
 venv/
