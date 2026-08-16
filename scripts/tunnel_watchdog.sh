@@ -31,6 +31,22 @@ TAG="vrcverify-watchdog"
 
 log() { logger -t "${TAG}" -- "$*"; echo "${TAG}: $*"; }
 
+# Prove the daemon is reachable BEFORE interpreting anything it says. Without
+# this, "I cannot talk to docker" is indistinguishable from "the container is
+# gone" -- a far more alarming claim, and a false one. This watchdog spent its
+# first five minutes installed making exactly that mistake: run as root under a
+# system unit, it queried the rootful daemon at /var/run/docker.sock while the
+# stack ran on the ROOTLESS daemon at /run/user/1000/docker.sock, and alerted
+# every two minutes about a container that was up the whole time.
+#
+# A watchdog that cannot see the thing it guards must say so in those words.
+# Reporting it as a missing container sends the next person hunting a deploy
+# problem that does not exist.
+if ! docker version --format '{{.Server.Version}}' >/dev/null 2>&1; then
+	log "ERROR cannot reach the docker daemon (DOCKER_HOST=${DOCKER_HOST:-unset}, context=$(docker context show 2>/dev/null || echo unknown)) -- NOT protecting anything"
+	exit 1
+fi
+
 state="$(docker inspect -f '{{.State.Status}}' "${CONTAINER}" 2>/dev/null)" || state="missing"
 
 case "${state}" in

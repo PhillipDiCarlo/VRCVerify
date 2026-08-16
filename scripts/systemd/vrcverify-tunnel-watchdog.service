@@ -1,18 +1,31 @@
 [Unit]
+# THIS IS A USER UNIT. Install it under ~/.config/systemd/user/ and drive it
+# with `systemctl --user`, not into /etc/systemd/system.
+#
+# The VPS runs ROOTLESS Docker: the daemon holding the dashboard and the tunnel
+# belongs to pdicarlo and listens on /run/user/1000/docker.sock. A system unit
+# running as root talks to /var/run/docker.sock instead -- a second, empty
+# daemon that is also running on this box -- where it finds no containers at
+# all and reports the tunnel missing while it is up and serving. That is not
+# hypothetical; it is how this file was first written, and it produced a false
+# alert every two minutes against a perfectly healthy site.
+#
+# `docker.service` below therefore resolves to the USER-level rootless docker
+# service, not the system one. Deliberately After= without Requires=: if docker
+# is not up, the script's own daemon probe reports that clearly, which beats a
+# dependency failure that never reaches the journal with an explanation.
 Description=Restart the VRCVerify Cloudflare tunnel if it has been stopped
 Documentation=https://github.com/PhillipDiCarlo/VRCVerify
 After=docker.service
-Requires=docker.service
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/vrcverify-tunnel-watchdog.sh
 
-# A watchdog must never be the thing that breaks. It only ever runs
-# `docker start`, so a failed tick is worth a journal line and nothing more --
-# the next tick two minutes later tries again.
+# A watchdog must never be the thing that breaks. Exit 1 means it found and
+# reported a problem, which is the job working, not the unit failing -- so it
+# is a success status here and the next tick two minutes later tries again.
 SuccessExitStatus=0 1
 
-# Needs the docker socket, so it runs as root. It reads container state and
-# starts one named container; it deploys nothing and chooses no image version.
-User=root
+# No User= line. As a user unit it already runs as the account that owns the
+# rootless daemon, which is the entire point. Adding User= here would break it.
