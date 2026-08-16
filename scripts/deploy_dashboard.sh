@@ -16,8 +16,16 @@
 # through Cloudflare and the tunnel. That request is the deploy's exit code.
 #
 # Usage, from the compose directory on the VPS (~/vrcverify-dashboard):
-#   ./deploy_dashboard.sh 2.6.0
-#   VRCVERIFY_VERSION=2.6.0 ./deploy_dashboard.sh
+#   ./deploy_dashboard.sh              # takes the version from ./.env
+#   ./deploy_dashboard.sh 2.7.1        # or name one explicitly
+#   VRCVERIFY_VERSION=2.7.1 ./deploy_dashboard.sh
+#
+# `latest` is accepted. What it costs is identifiability: the tag means
+# something different every time it is pushed, so "we are on latest" answers
+# nothing during an incident and there is no known-good tag to fall back to.
+# The script closes as much of that gap as it can by printing the resolved
+# image digest on success -- keep that line, and a deploy stays traceable even
+# on a moving tag.
 #
 set -euo pipefail
 
@@ -25,21 +33,26 @@ DASHBOARD_HOST="${DASHBOARD_HOST:-dashboard.vrcverify.com}"
 HEALTH_URL="https://${DASHBOARD_HOST}/healthz"
 DEADLINE_SECS="${DEADLINE_SECS:-90}"
 
+# Precedence: explicit argument, then an exported variable, then .env beside
+# the compose file. That last step matters -- `.env` is a docker compose
+# feature and not a bash one, so without it this script would refuse to run in
+# a directory where plain `docker compose up -d` succeeds perfectly well.
+#
+# Parsed, not sourced. .env is data; sourcing it would execute whatever ends up
+# in there, and it sits next to files holding Stripe keys.
 VERSION="${1:-${VRCVERIFY_VERSION:-}}"
-
-# Fail here, before touching a running stack. The compose file's
-# `${VRCVERIFY_VERSION:?}` guard would also catch this, but it fires DURING
-# `up`, which on a `down`-then-`up` sequence means everything is already
-# stopped and nothing gets started -- the exact shape of an accidental outage.
-if [[ -z "${VERSION}" ]]; then
-	echo "error: no version given." >&2
-	echo "usage: $0 <version>   (e.g. $0 2.6.0)" >&2
-	echo "Must be a tag actually pushed to the registry. Never 'latest'." >&2
-	exit 2
+if [[ -z "${VERSION}" && -f .env ]]; then
+	VERSION="$(sed -n 's/^[[:space:]]*VRCVERIFY_VERSION[[:space:]]*=[[:space:]]*//p' .env \
+		| tail -1 | tr -d "\"' " | tr -d '\r')"
 fi
 
-if [[ "${VERSION}" == "latest" ]]; then
-	echo "error: refusing to deploy 'latest'. Name a real version tag." >&2
+# Fail before touching a running stack. The compose file's
+# `${VRCVERIFY_VERSION:?}` guard catches an empty value too, but it fires
+# DURING `up`, which on a `down`-then-`up` sequence means everything is already
+# stopped and nothing gets started -- the exact shape of an accidental outage.
+if [[ -z "${VERSION}" ]]; then
+	echo "error: no version given, and no VRCVERIFY_VERSION in ./.env" >&2
+	echo "usage: $0 [version]   (e.g. $0 2.7.1, or put it in .env)" >&2
 	exit 2
 fi
 
@@ -86,6 +99,16 @@ while ((SECONDS < deadline)); do
 	code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${HEALTH_URL}" || echo 000)"
 	if [[ "${code}" == "200" ]]; then
 		echo "==> OK: ${HEALTH_URL} returned 200. Site is serving."
+		# Say what is actually running. On a moving tag this is the only thing
+		# that identifies the deploy afterwards, so it is worth the two calls:
+		# the digest still resolves to a specific build months later, when the
+		# tag no longer does.
+		ref="$(docker inspect "$(docker compose ps -q dashboard)" \
+			--format '{{.Config.Image}}' 2>/dev/null)"
+		dig="$(docker image inspect "${ref}" --format \
+			'{{if .RepoDigests}}{{index .RepoDigests 0}}{{else}}{{.Id}}{{end}}' 2>/dev/null)"
+		echo "==> deployed: ${ref:-unknown}"
+		[[ -n "${dig}" ]] && echo "==> digest:   ${dig}"
 		exit 0
 	fi
 	printf '    still %s ...\n' "${code}"
