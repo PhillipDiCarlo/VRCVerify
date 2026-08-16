@@ -1,0 +1,16 @@
+[Unit]
+Description=Check the VRCVerify Cloudflare tunnel every 2 minutes
+Documentation=https://github.com/PhillipDiCarlo/VRCVerify
+
+[Timer]
+# Two minutes is the ceiling on how long the site can be dark from the known
+# failure. Compare the outages this exists to prevent: 17h43m and 11h00m.
+OnBootSec=90s
+OnUnitActiveSec=2min
+
+# No randomised delay. This is a recovery check, not a load-spreading job --
+# jitter here would only widen the outage window for no benefit.
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

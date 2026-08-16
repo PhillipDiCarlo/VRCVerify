@@ -63,7 +63,13 @@ services:
       # Sessions. A named volume so `docker compose down` doesn't sign
       # everyone out.
       - dashboard-sessions:/data
-    restart: unless-stopped
+    # `always`, matching cloudflared below. Same reasoning: on 2026-08-16 a
+    # compose command stopped BOTH containers 291ms apart and neither came
+    # back for 11 hours. Leaving the two services on different policies also
+    # means a reboot could bring the tunnel up in front of a dead dashboard,
+    # which serves 502s instead of an obvious outage -- worse to diagnose than
+    # either being down.
+    restart: always
     # No new privileges, no capabilities, non-root user (from the Dockerfile).
     # The filesystem stays writable only where it must: /data.
     security_opt:

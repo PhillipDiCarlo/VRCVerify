@@ -6,6 +6,13 @@
 # PowerShell scripts are the Windows-side counterparts.
 *.ps1 text eol=crlf
 
+# systemd units are installed on the Linux VPS. With CRLF, systemd reads the
+# trailing carriage return as part of the value, so ExecStart resolves to a
+# path with an invisible ^M on the end and the unit dies with "No such file or
+# directory" pointing at a path that is plainly right there.
+*.service text eol=lf
+*.timer   text eol=lf
+
 # The vendored webfont. Marked binary so no clone's core.autocrlf setting can
 # "fix" line endings inside it -- a WOFF2 with a handful of 0x0D bytes rewritten
 # is a corrupt font that fails to decode, and the failure looks like a styling
