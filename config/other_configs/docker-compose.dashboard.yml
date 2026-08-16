@@ -80,13 +80,30 @@ services:
         max-file: "3"
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    # Pinned, for the same reason the dashboard image is: `latest` moves under
+    # you on any pull, and this container is the only thing standing between
+    # the hostname and Cloudflare error 1033. Bump it deliberately and watch
+    # the log once after -- an unattended connector version change is not a
+    # thing you want to discover from a user.
+    image: cloudflare/cloudflared:2026.8.2
     command: tunnel --no-autoupdate run
     env_file:
       - cloudflared.env
     depends_on:
       - dashboard
-    restart: unless-stopped
+    # `always`, NOT `unless-stopped`. On 2026-08-15 this container took a
+    # SIGTERM at 10:10:57Z, exited 0, and stayed down for 17h43m: the site
+    # served error 1033 the whole time while the VPS, the tailnet and the
+    # dashboard container all looked perfectly healthy. `unless-stopped` is
+    # what kept it down -- Docker records a clean stop as operator intent and
+    # will not restart it, not even across a reboot.
+    #
+    # Be honest about what this line does and does not buy: NEITHER policy
+    # restarts a container you stopped by hand while the daemon keeps running.
+    # `always` only closes the reboot half of that hole. The other half is
+    # closed by deploying through scripts/deploy_dashboard.sh, which ends in a
+    # real request to the public hostname instead of assuming.
+    restart: always
     security_opt:
       - no-new-privileges:true
     cap_drop:
