@@ -1,0 +1,18 @@
+[Unit]
+Description=Restart the VRCVerify Cloudflare tunnel if it has been stopped
+Documentation=https://github.com/PhillipDiCarlo/VRCVerify
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/vrcverify-tunnel-watchdog.sh
+
+# A watchdog must never be the thing that breaks. It only ever runs
+# `docker start`, so a failed tick is worth a journal line and nothing more --
+# the next tick two minutes later tries again.
+SuccessExitStatus=0 1
+
+# Needs the docker socket, so it runs as root. It reads container state and
+# starts one named container; it deploys nothing and chooses no image version.
+User=root
