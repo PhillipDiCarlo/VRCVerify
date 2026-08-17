@@ -566,6 +566,43 @@ class StripeEvent(Base):
     )
 
 
+class PremiumEntitlementSeen(Base):
+    """Every guild observed holding a Discord entitlement, ever (issue #88).
+
+    The free trial is offered to servers that have **never had a paid plan by
+    either route**, and that question is harder than it sounds in exactly one
+    direction. A live card subscription is a `stripe_subscription` row, and
+    those rows deliberately survive the subscription ending — so the card half
+    of "has this server ever paid" is already answered by a table that exists.
+
+    The Discord half was answered by nothing at all. `on_entitlement_delete`
+    invalidates a cache and returns; `premium_from_interaction` reads a payload
+    and keeps no record. An entitlement that ended left this process with no
+    memory of it having existed, so a server could subscribe through Discord,
+    cancel, and come back to a free month — repeatably, and once per cancel.
+
+    So this is the ledger, and three things about it are deliberate:
+
+    * **Rows are never deleted.** A lapsed subscription is precisely the case
+      this exists to remember; pruning would reopen the hole it closes.
+    * **It is written from gateway events and a startup sweep, never from
+      `premium_from_interaction`.** That function is I/O-free by design and a
+      test pins it, because a write there would put a database round trip
+      behind every slash command in the bot.
+    * **`source` records how the guild was first seen paying**, for support
+      rather than for the gate — the predicate only asks whether a row exists.
+      A guild that later pays the other way keeps its original value, which is
+      why this is not called `current_source`.
+    """
+
+    __tablename__ = "premium_entitlement_seen"
+    server_id = Column(String, primary_key=True)
+    source = Column(String, nullable=False, default="discord")
+    first_seen = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
 # Creates any missing tables. Note this does NOT add columns to tables that
 # already exist — those still need a manual ALTER.
 Base.metadata.create_all(engine)
@@ -1401,6 +1438,114 @@ def stripe_active(guild_id) -> bool:
         return answer
 
 
+def record_entitlement_seen(guild_id, source: str = "discord") -> bool:
+    """Remember that this guild has held a paid plan. Idempotent.
+
+    Returns True when a row was added, False when one already existed or the
+    write failed. Callers use that only for logging: nothing decides anything
+    on the difference, because "already recorded" and "recorded just now" mean
+    the same thing to the trial gate.
+
+    Never raises. This is bookkeeping hung off gateway events and a startup
+    sweep; a failure here must not take down an event handler, and the sweep
+    runs again next boot.
+    """
+    if guild_id is None:
+        return False
+    key = str(guild_id)
+    try:
+        with session_scope() as session:
+            existing = (
+                session.query(PremiumEntitlementSeen.server_id)
+                .filter_by(server_id=key)
+                .first()
+            )
+            if existing is not None:
+                return False
+            session.add(PremiumEntitlementSeen(server_id=key, source=source))
+    except IntegrityError:
+        # Another writer got there first -- the sweep and a gateway event can
+        # land together on a boot. Theirs is as good as ours.
+        return False
+    except Exception:
+        logger.warning(
+            "Could not record that guild %s has held a paid plan; the startup "
+            "sweep will try again.",
+            key,
+            exc_info=True,
+        )
+        return False
+    logger.info("Recorded guild %s as having held a paid plan (%s).", key, source)
+    return True
+
+
+def has_ever_paid(guild_id) -> bool:
+    """Has this guild held a paid plan at any point, by either route?
+
+    Raises on a database failure rather than answering. The only caller is
+    `trial_eligible`, which decides what to do about that, and it is the
+    caller that knows which direction is safe -- see there.
+    """
+    key = str(guild_id)
+    with session_scope() as session:
+        seen = (
+            session.query(PremiumEntitlementSeen.server_id)
+            .filter_by(server_id=key)
+            .first()
+        )
+        if seen is not None:
+            return True
+        # Card subscriptions need no separate ledger: stripe_subscription rows
+        # outlive the subscription by design, so the presence of ANY row --
+        # active, cancelled, unpaid, years old -- is the record that this guild
+        # once paid by card.
+        row = (
+            session.query(StripeSubscription.stripe_subscription_id)
+            .filter_by(server_id=key)
+            .first()
+        )
+        return row is not None
+
+
+def trial_eligible(guild_id) -> bool:
+    """May this guild be offered a free trial?
+
+    The rule is the whole of it: **a server that has never had a paid plan, by
+    either route.** Grandfathered servers are eligible — they have never paid,
+    and that is the only question asked. Deliberately so: `is_grandfathered`
+    compares a row id against a captured line and knows nothing about money,
+    and reading it into a payment decision would couple the two in the
+    direction the grandfathering rule exists to prevent.
+
+    **This fails CLOSED, and that is the opposite of `guild_has_premium` on
+    purpose.** The Discord lookup fails open to True because an API outage must
+    not switch off a paying customer — the cost of being wrong is a customer
+    losing what they bought. Here the cost of being wrong is the reverse: a
+    free month given away to a server that has already had one, repeatably, for
+    as long as the database is unhappy. A server that genuinely qualifies and
+    is briefly not offered a trial can be offered one a minute later. Do not
+    "fix" this to fail open to match the other one.
+
+    Stripe itself cannot help. Each checkout mints a fresh customer object, so
+    Stripe holds no memory linking a returning guild to the trial it already
+    used; this predicate is the only gate there is.
+    """
+    if not STRIPE_ENABLED:
+        return False
+    if guild_id is None:
+        return False
+    try:
+        return not has_ever_paid(guild_id)
+    except Exception:
+        logger.warning(
+            "Could not check trial eligibility for guild %s; refusing the "
+            "trial rather than risking a repeat one.",
+            guild_id,
+            exc_info=True,
+        )
+        return False
+
+
 # Same sentinel discipline as BRANDING_UNREADABLE: "we could not read this" is
 # a third answer, distinct from "there is no subscription". Collapsing the two
 # would put "not subscribed" next to a Buy button on the website during a
@@ -1615,6 +1760,80 @@ async def guild_has_premium(guild_id) -> bool:
             exc_info=True,
         )
         return answer
+
+
+# How many entitlements the startup sweep will page through before giving up.
+# Not a limit on the business, a limit on a boot: an unbounded walk of Discord's
+# entitlement list on every start is the kind of thing that is free for a year
+# and then is not. Overflow is logged loudly, because it means the ledger is
+# incomplete and some server will be offered a second free trial.
+ENTITLEMENT_SWEEP_MAX = _int_env("ENTITLEMENT_SWEEP_MAX", 2000, minimum=1)
+
+
+async def sweep_entitlement_history() -> int:
+    """Record every guild Discord has ever issued our SKU to.
+
+    The gateway only tells this process about entitlements that change while it
+    is connected, which leaves two holes the ledger cannot afford: everything
+    that happened before this code shipped — the tier launched 2026-08-03 and
+    every server that subscribed and cancelled since then is invisible — and
+    anything that changes during a restart or an outage.
+
+    Both close the same way, by asking Discord. `entitlements()` defaults to
+    `exclude_ended=False`, so this walks the *ended* ones too, which is the
+    entire point: a live entitlement is already visible everywhere, and an
+    ended one is the case the trial gate exists to remember.
+
+    Runs on every boot rather than once. Inserts are idempotent, so repeating
+    it costs a little API and buys self-healing: a gap opened by downtime is
+    closed by the next start rather than needing anyone to notice it. Returns
+    the number of guilds newly recorded.
+    """
+    if not (PREMIUM_ENFORCED and STRIPE_ENABLED):
+        # Nothing offers a trial, so nothing needs the ledger yet. This keeps
+        # the sweep off the boot path entirely until the feature is live.
+        return 0
+
+    seen = 0
+    added = 0
+    try:
+        async for entitlement in bot.entitlements(
+            skus=[discord.Object(id=PREMIUM_SKU_ID)], limit=ENTITLEMENT_SWEEP_MAX
+        ):
+            seen += 1
+            if seen > ENTITLEMENT_SWEEP_MAX:
+                logger.error(
+                    "Entitlement sweep hit its %s cap. The ever-paid ledger is "
+                    "INCOMPLETE, and a server past the cap can be offered a "
+                    "second free trial. Raise ENTITLEMENT_SWEEP_MAX or replace "
+                    "this with an incremental sweep.",
+                    ENTITLEMENT_SWEEP_MAX,
+                )
+                break
+            guild_id = getattr(entitlement, "guild_id", None)
+            if guild_id is None:
+                continue
+            if record_entitlement_seen(guild_id):
+                added += 1
+    except Exception:
+        # A failed sweep is not a failed boot. The ledger keeps whatever it
+        # already had, gateway events keep adding to it, and the next start
+        # tries again -- and trial_eligible fails closed meanwhile, so the
+        # worst outcome is a trial not offered rather than one given twice.
+        logger.warning(
+            "Could not sweep entitlement history; the trial ledger may be "
+            "incomplete until the next start.",
+            exc_info=True,
+        )
+        return added
+
+    logger.info(
+        "Entitlement sweep: %s entitlements seen, %s guilds newly recorded as "
+        "having paid.",
+        seen,
+        added,
+    )
+    return added
 
 
 def capture_grandfather_line() -> int | None:
@@ -5228,6 +5447,14 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
                 # warns and links to the portal; nothing anywhere cancels or
                 # refunds on anyone's behalf.
                 "active_count": (subscription or {}).get("active_count", 0),
+                # Whether a free trial may be offered. Decided here rather than
+                # on the website for the same reason sku_id and the locale list
+                # travel in this payload: a second copy of a rule is a second
+                # thing to get wrong, and this one decides whether somebody is
+                # charged for their first month. The website re-checks it
+                # before creating the session -- a rendered card is not a gate,
+                # because a POST is not a click.
+                "trial_eligible": trial_eligible(guild_id),
             },
             # A column the deployed database is missing is reported as such
             # rather than silently rendered as a working toggle.
@@ -6598,6 +6825,15 @@ async def on_ready():
     # the line to pick its audience.
     capture_grandfather_line()
 
+    # Backfills the ever-paid ledger from Discord's own entitlement list,
+    # ended ones included, so a server that subscribed and cancelled before
+    # this shipped is not offered a free trial as though it were new. Runs in
+    # the background: it is an API walk, nothing else on this path waits on it,
+    # and trial_eligible fails closed while it is still running.
+    start_background_task(
+        "entitlement_history_sweep", sweep_entitlement_history(), run_once=True
+    )
+
     # Waits for its trigger file; sends nothing on its own.
     start_background_task(
         "premium_cutover_watcher", watch_premium_cutover_trigger()
@@ -6687,6 +6923,15 @@ def _note_entitlement_change(entitlement: discord.Entitlement, event: str) -> No
         return
     premium_status_cache.invalidate(str(guild_id))
     logger.info("Entitlement %s for guild %s; premium status will re-resolve.", event, guild_id)
+
+    # Write the guild into the ever-paid ledger, which is what makes a free
+    # trial a once-per-server thing (issue #88). Recorded on `deleted` as well
+    # as the other two, deliberately: the point is that this server HAS paid,
+    # and a cancellation is the single event most likely to be the last one we
+    # ever see for it. Recording only purchases would mean an entitlement that
+    # lapsed while the bot was down is remembered by nobody.
+    if getattr(entitlement, "sku_id", None) == PREMIUM_SKU_ID:
+        record_entitlement_seen(guild_id)
 
     # A branded panel has to be re-edited for its styling to change, so a lapse
     # would otherwise leave premium styling in place until an operator ran a

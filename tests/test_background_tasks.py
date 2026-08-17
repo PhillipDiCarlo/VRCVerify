@@ -54,6 +54,7 @@ def stub_startup(monkeypatch):
         ("watch_update_trigger_file", "instructions_trigger_watcher"),
         ("watch_premium_cutover_trigger", "premium_cutover_watcher"),
         ("verification_log_flush_task", "verification_log_flush"),
+        ("sweep_entitlement_history", "entitlement_history_sweep"),
     ]:
         monkeypatch.setattr(bot, attr, make(name))
     return started
@@ -167,6 +168,11 @@ class TestOnReadyReentry:
         "instructions_trigger_watcher",
         "premium_cutover_watcher",
         "verification_log_flush",
+        # run_once, like instruction_panel_refresh: it backfills the ever-paid
+        # ledger from Discord's entitlement list and must not run again on
+        # every gateway reconnect, which is the bug this whole class exists
+        # for.
+        "entitlement_history_sweep",
     }
 
     def test_first_ready_starts_every_task(self, stub_startup):

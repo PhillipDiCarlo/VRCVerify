@@ -98,6 +98,7 @@ def payload(
     cancel=False,
     active_count=0,
     customer_id=CUSTOMER,
+    trial_eligible=True,
 ):
     return {
         "guild_id": GUILD,
@@ -117,6 +118,7 @@ def payload(
             "cancel_at_period_end": cancel,
             "active_count": active_count,
             "customer_id": customer_id,
+            "trial_eligible": trial_eligible,
         },
         "fields": {},
     }
@@ -1185,3 +1187,91 @@ class TestAmounts:
              "metadata": {"highlight": raw}}
         ])
         assert plans[0].highlight is False
+
+
+# -------------------------------------------------------------------
+# Trial eligibility (#88 phase 8)
+# -------------------------------------------------------------------
+class TestTheTrialIsOfferedOnlyToServersThatMayHaveOne:
+    """Two enforcement points, and the second is the one that matters.
+
+    The plan card not showing a trial is presentation. The checkout route
+    refusing to send one is the gate: a POST is not a click, anyone who has
+    ever bought has seen this form, and a returning server replaying it would
+    otherwise take a second free month once per cancellation, forever.
+    """
+
+    def page_for(self, **kwargs):
+        return subscription_view.build(
+            payload(**kwargs), application_id=APP_ID, plans=PLANS
+        )
+
+    def test_an_eligible_server_sees_the_trial_on_the_card(self):
+        page = self.page_for(trial_eligible=True)
+        trialled = [p for p in page.plans if page.trial_note_for(p)]
+        assert [p.price_id for p in trialled] == [PRICE_YEARLY]
+
+    def test_an_ineligible_server_sees_no_trial_anywhere(self):
+        page = self.page_for(trial_eligible=False)
+        assert all(page.trial_note_for(p) is None for p in page.plans)
+        assert all(page.trial_days_for(p) is None for p in page.plans)
+
+    def test_the_plan_still_knows_its_own_trial_length(self):
+        """Only the *offer* is withheld, not the price's metadata.
+
+        The plan object is what Stripe says the plan is; eligibility is what
+        this server may have. Conflating them would mean a page could not tell
+        "no trial configured" from "no trial for you", and the difference is
+        the one a support question turns on.
+        """
+        page = self.page_for(trial_eligible=False)
+        yearly = next(p for p in page.plans if p.price_id == PRICE_YEARLY)
+        assert yearly.trial_days == 14
+        assert page.trial_days_for(yearly) is None
+
+    def test_a_payload_from_an_older_bot_offers_no_trial(self):
+        """Absent key means no, never yes.
+
+        A bot that predates this cannot answer the question, and defaulting to
+        eligible would hand a free month to every server on the platform for as
+        long as the two halves were out of step.
+        """
+        settings = payload()
+        del settings["stripe"]["trial_eligible"]
+        page = subscription_view.build(
+            settings, application_id=APP_ID, plans=PLANS
+        )
+        assert page.trial_eligible is False
+
+    def test_the_bots_kill_switch_also_withdraws_the_trial(self):
+        page = self.page_for(stripe_enabled=False, trial_eligible=True)
+        assert page.trial_eligible is False
+
+
+class TestCheckoutHonoursEligibility:
+    def test_an_eligible_server_gets_the_trial(self, config):
+        client, _bot, stripe, session = make_client(config)
+        client.post(
+            f"/guild/{GUILD}/subscription/checkout",
+            data={"price_id": PRICE_YEARLY, "csrf_token": session.csrf_token},
+        )
+        assert stripe.checkouts[0]["trial_days"] == 14
+
+    def test_a_returning_server_is_refused_the_trial_but_not_the_purchase(
+        self, config
+    ):
+        """It still buys. It just pays for the first month like everyone else.
+
+        Refusing the whole checkout would be the wrong correction: they are
+        entitled to subscribe, they are simply not entitled to a second free
+        trial.
+        """
+        client, bot_api, stripe, session = make_client(config)
+        bot_api._settings = payload(trial_eligible=False)
+        response = client.post(
+            f"/guild/{GUILD}/subscription/checkout",
+            data={"price_id": PRICE_YEARLY, "csrf_token": session.csrf_token},
+        )
+        assert response.status_code == 303
+        assert stripe.checkouts[0]["price_id"] == PRICE_YEARLY
+        assert stripe.checkouts[0]["trial_days"] is None

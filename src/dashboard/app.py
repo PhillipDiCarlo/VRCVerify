@@ -720,11 +720,21 @@ def _register_routes(app: Flask) -> None:
                 actor_discord_id=str(session.discord_id),
                 success_url=f"{base}?bought=1",
                 cancel_url=base,
-                # From the price's own metadata, so the trial the buyer was
-                # shown on the card is the trial they get. Taking it from
-                # anywhere else is how a page advertises 14 days and Stripe
-                # grants 7.
-                trial_days=plan.trial_days,
+                # From the price's own metadata AND this server's eligibility,
+                # via the same call the card rendered from. Two things are
+                # being prevented, and they are not the same thing:
+                #
+                # the length has to match what the buyer was shown, or a page
+                # advertises 14 days while Stripe grants 7;
+                #
+                # and the *entitlement to a trial at all* has to be re-checked
+                # here, because rendering a card without one is not a gate. A
+                # POST is not a click. Anyone who has ever completed checkout
+                # has seen this form, and a returning server replaying it with
+                # its own price id would otherwise take a second free month,
+                # once per cancellation, forever. The bot decides this and the
+                # answer arrives in the settings payload read above.
+                trial_days=page.trial_days_for(plan),
             )
         except StripeAPIError as error:
             # The page apologises and offers the Discord path. It does not

@@ -219,6 +219,7 @@ class SubscriptionPage:
         ended_on: Optional[str] = None,
         last_plan_label: Optional[str] = None,
         plans_unavailable: bool = False,
+        trial_eligible: bool = False,
     ):
         self.state = state
         self.grandfathered = grandfathered
@@ -242,6 +243,29 @@ class SubscriptionPage:
         # The plan list could not be read from Stripe. Distinct from an empty
         # `plans`; see build().
         self.plans_unavailable = plans_unavailable
+        # Whether this server may be offered a free trial. The bot decides it
+        # -- it is the only process that can see whether this guild has ever
+        # held a paid plan -- and this page never derives it, only obeys it.
+        # Defaults to False so a payload without the key, from a bot that
+        # predates this, offers nobody a trial.
+        self.trial_eligible = trial_eligible
+
+    def trial_days_for(self, plan) -> Optional[int]:
+        """The trial this plan may actually grant, or None.
+
+        The single place the two halves meet: a plan carries a trial length
+        from its Stripe metadata, and this server may or may not be allowed
+        one. Both the card and the checkout route ask this rather than reading
+        `plan.trial_days` directly, so there is one answer and not two that can
+        disagree about whether somebody's first month is free.
+        """
+        if not self.trial_eligible:
+            return None
+        return plan.trial_days
+
+    def trial_note_for(self, plan) -> Optional[str]:
+        """The words under the plan label, or None if no trial is on offer."""
+        return plan.trial_note if self.trial_days_for(plan) else None
 
     @property
     def offers_card(self) -> bool:
@@ -574,4 +598,12 @@ def build(
         # customer. Resubscribing is then a status change, not a re-onboarding.
         ended_on=period_end if status else None,
         last_plan_label=label if status else None,
+        # The bot's answer, obeyed rather than recomputed. Only meaningful in
+        # this state anyway: every other one either already has a subscription
+        # or cannot take a purchase, and none of them renders a plan card.
+        #
+        # `stripe_on` is required as well, so a payload from a bot with Stripe
+        # switched off cannot advertise a trial that the checkout route --
+        # which re-reads this same field -- would then refuse to honour.
+        trial_eligible=bool(stripe_block.get("trial_eligible")) and stripe_on,
     )

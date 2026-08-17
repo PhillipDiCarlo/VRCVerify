@@ -151,6 +151,10 @@ def clean_db():
             session.query(bot.Server).delete()
             session.query(bot.DashboardAudit).delete()
             session.query(bot.PremiumGrandfatherLine).delete()
+            # Rows here are never deleted in production -- that is the whole
+            # point of the ledger -- so a test that writes one would otherwise
+            # make every later test's server look like a returning customer.
+            session.query(bot.PremiumEntitlementSeen).delete()
 
     wipe()
     bot.stripe_status_cache.clear()
@@ -1143,3 +1147,173 @@ class TestTheSubscriptionCommandNamesTheRightPlatform:
         message, view = self.reply(make_interaction(), monkeypatch)
         assert "two ways to buy it" in message  # the unsubscribed message
         assert "VRCVerify website" not in message
+
+
+# ---------------------------------------------------------------
+# Trial eligibility (#88 phase 8)
+# ---------------------------------------------------------------
+class TestTheEverPaidLedger:
+    """What makes a free trial a once-per-server thing.
+
+    A live subscription is easy to see from either platform. The hard case is
+    the one this table exists for: a server that paid, cancelled, and came
+    back. Discord leaves nothing behind when an entitlement ends, so without a
+    ledger that server is indistinguishable from a brand new one -- and a free
+    month is available again, once per cancellation, forever.
+    """
+
+    def test_a_row_is_written_once_and_is_idempotent(self):
+        assert bot.record_entitlement_seen(GUILD_ID) is True
+        assert bot.record_entitlement_seen(GUILD_ID) is False
+        with bot.session_scope() as session:
+            assert session.query(bot.PremiumEntitlementSeen).count() == 1
+
+    def test_a_failed_write_is_swallowed(self, monkeypatch):
+        """Bookkeeping must not take down the event handler it hangs off."""
+        def boom():
+            raise RuntimeError("database is down")
+
+        monkeypatch.setattr(bot, "session_scope", boom)
+        assert bot.record_entitlement_seen(GUILD_ID) is False
+
+    def test_a_lapsed_card_subscription_still_counts_as_having_paid(self):
+        """No second ledger for Stripe: the rows already outlive the plan."""
+        store_subscription(status="canceled", current_period_end=in_days(-40))
+        assert bot.has_ever_paid(GUILD_ID) is True
+
+    def test_a_server_with_no_history_has_never_paid(self):
+        assert bot.has_ever_paid(GUILD_ID) is False
+
+
+class TestTrialEligibility:
+    def test_a_brand_new_server_is_eligible(self, stripe_on):
+        make_server()
+        assert bot.trial_eligible(GUILD_ID) is True
+
+    def test_a_grandfathered_server_is_eligible(self, stripe_on):
+        """Settled 2026-08-17: never paid means eligible, full stop.
+
+        Grandfathering is a row-id comparison that knows nothing about money,
+        and reading it into a payment decision would couple the two in the
+        direction the grandfathering rule exists to prevent. A grandfathered
+        server has never paid us, so it gets the same offer as anyone else who
+        never has.
+        """
+        make_server(row_id=1)
+        with bot.session_scope() as session:
+            session.add(bot.PremiumGrandfatherLine(id=1, max_server_id=5000))
+        assert bot.is_grandfathered(GUILD_ID) is True
+        assert bot.trial_eligible(GUILD_ID) is True
+
+    def test_a_past_discord_subscriber_is_not_eligible(self, stripe_on):
+        make_server()
+        bot.record_entitlement_seen(GUILD_ID)
+        assert bot.trial_eligible(GUILD_ID) is False
+
+    def test_a_past_card_subscriber_is_not_eligible(self, stripe_on):
+        """The whole point: cancelling must not restore the offer."""
+        make_server()
+        store_subscription(status="canceled", current_period_end=in_days(-9))
+        assert bot.trial_eligible(GUILD_ID) is False
+
+    def test_eligibility_is_per_guild(self, stripe_on):
+        make_server()
+        bot.record_entitlement_seen(GUILD_ID)
+        assert bot.trial_eligible(OTHER_GUILD_ID) is True
+
+    def test_a_failed_read_refuses_the_trial(self, stripe_on, monkeypatch):
+        """Fails CLOSED, and the opposite way from guild_has_premium.
+
+        That one fails open because an outage must not switch off somebody who
+        paid. Here the cost of being wrong runs the other way: a free month
+        handed to a server that has already had one, repeatably, for as long as
+        the database is unhappy. Do not "fix" this to match the other one.
+        """
+        def boom(guild_id):
+            raise RuntimeError("database is down")
+
+        monkeypatch.setattr(bot, "has_ever_paid", boom)
+        assert bot.trial_eligible(GUILD_ID) is False
+
+    def test_with_stripe_off_nobody_is_eligible(self):
+        """No switch, no trial -- and no query either."""
+        def boom():
+            raise AssertionError("the table must not be read with Stripe off")
+
+        make_server()
+        assert bot.trial_eligible(GUILD_ID) is False
+
+    def test_the_settings_payload_carries_the_answer(self, enforced, stripe_on):
+        """Decided by the bot, never derived by the website."""
+        make_server()
+        payload = run(bot.read_dashboard_settings(GUILD_ID))
+        assert payload["stripe"]["trial_eligible"] is True
+
+        bot.record_entitlement_seen(GUILD_ID)
+        payload = run(bot.read_dashboard_settings(GUILD_ID))
+        assert payload["stripe"]["trial_eligible"] is False
+
+
+class TestTheEntitlementSweep:
+    """The backfill, without which everything that ended before this shipped
+    looks like a server that has never paid."""
+
+    def sweep_over(self, monkeypatch, *guild_ids):
+        entitlements = [
+            SimpleNamespace(guild_id=gid, sku_id=SKU_ID) for gid in guild_ids
+        ]
+
+        def _entitlements(**kwargs):
+            async def generate():
+                for item in entitlements:
+                    yield item
+
+            return generate()
+
+        monkeypatch.setattr(bot.bot, "entitlements", _entitlements)
+        return run(bot.sweep_entitlement_history())
+
+    def test_it_records_guilds_whose_entitlement_has_already_ended(
+        self, enforced, stripe_on, monkeypatch
+    ):
+        """`exclude_ended` defaults to False, which is the entire point.
+
+        A live entitlement is visible everywhere already. An ended one is the
+        case the trial gate needs and the only one nothing else remembers.
+        """
+        make_server()
+        assert self.sweep_over(monkeypatch, GUILD_ID) == 1
+        assert bot.trial_eligible(GUILD_ID) is False
+
+    def test_running_it_again_records_nothing_new(
+        self, enforced, stripe_on, monkeypatch
+    ):
+        """Every boot, not once -- so a gap opened by downtime self-heals."""
+        self.sweep_over(monkeypatch, GUILD_ID)
+        assert self.sweep_over(monkeypatch, GUILD_ID) == 0
+
+    def test_it_does_nothing_while_the_feature_is_off(self, monkeypatch):
+        def boom(**kwargs):
+            raise AssertionError("the sweep must not call Discord while off")
+
+        monkeypatch.setattr(bot.bot, "entitlements", boom)
+        assert run(bot.sweep_entitlement_history()) == 0
+
+    def test_a_failed_sweep_is_not_a_failed_boot(
+        self, enforced, stripe_on, monkeypatch
+    ):
+        def boom(**kwargs):
+            raise RuntimeError("Discord is unhappy")
+
+        monkeypatch.setattr(bot.bot, "entitlements", boom)
+        assert run(bot.sweep_entitlement_history()) == 0
+
+    def test_it_stops_at_the_cap_and_says_so(
+        self, enforced, stripe_on, monkeypatch, caplog
+    ):
+        """Overflow means the ledger is incomplete, which is worth shouting
+        about: some server past the cap gets a second free trial."""
+        monkeypatch.setattr(bot, "ENTITLEMENT_SWEEP_MAX", 2)
+        with caplog.at_level("ERROR"):
+            self.sweep_over(monkeypatch, "1", "2", "3", "4")
+        assert any("INCOMPLETE" in record.message for record in caplog.records)
