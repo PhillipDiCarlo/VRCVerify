@@ -20,6 +20,7 @@ What is testable here is that a bad configuration never reaches that point.
 import asyncio
 import time
 from dataclasses import fields as dataclass_fields
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -40,10 +41,39 @@ SETTINGS_PATH = f"/api/v1/guilds/{GUILD_ID}/settings"
 SETTINGS_OP = "GET /api/v1/guilds/{guild_id}/settings"
 ROLES_OP = "GET /api/v1/guilds/{guild_id}/roles"
 
+# Stripe ids are opaque strings to everything in this repo; these only have to
+# be shaped like the real ones, which the dashboard's own validator checks.
+CUSTOMER_ID = "cus_TESTCUSTOMER"
+SUBSCRIPTION_ID = "sub_TESTSUBSCRIPTION"
+PRICE_ID = "price_1U3q9eJZiVMQTim6LtcYV4x6"
+
 
 def run(coro):
     """Run an async helper from a sync test (no pytest-asyncio needed)."""
     return asyncio.run(coro)
+
+
+def in_days(days: int) -> datetime:
+    return datetime.now(timezone.utc) + timedelta(days=days)
+
+
+def stripe_payload(**overrides) -> dict:
+    """One normalised payload, spelled as `dashboard.stripe_events.normalise`
+    spells it. Tests that care about the spelling itself build theirs by
+    calling that function instead, so this stays a convenience and never
+    becomes the only place the field names appear."""
+    payload = {
+        "event_id": "evt_1",
+        "event_created": datetime.now(timezone.utc).isoformat(),
+        "customer_id": CUSTOMER_ID,
+        "subscription_id": SUBSCRIPTION_ID,
+        "price_id": PRICE_ID,
+        "status": "active",
+        "current_period_end": in_days(30).isoformat(),
+        "cancel_at_period_end": False,
+    }
+    payload.update(overrides)
+    return payload
 
 
 # -------------------------------------------------------------------
@@ -1519,12 +1549,31 @@ def clean_db():
             session.query(bot.PremiumGrandfatherLine).delete()
             session.query(bot.InstructionPanelView).delete()
             session.query(bot.DashboardAudit).delete()
+            # Both keyed on ids the tests reuse, so a row left behind turns the
+            # next test's first write into a duplicate or an out-of-order one
+            # -- which reads as "applied: False" and looks like a real refusal.
+            session.query(bot.StripeSubscription).delete()
+            session.query(bot.StripeEvent).delete()
 
     wipe()
     bot.premium_status_cache.clear()
+    bot.stripe_status_cache.clear()
     yield
     wipe()
     bot.premium_status_cache.clear()
+    bot.stripe_status_cache.clear()
+
+
+@pytest.fixture
+def stripe_on(monkeypatch):
+    """Switch the feature on, as STRIPE_ENABLED=1 would.
+
+    The bot module's flag gates the *reads* (`load_stripe_subscription`
+    answers None without it). The route's existence is a separate switch on
+    BotAPIConfig -- see `run_stripe_against_bot`, which sets both.
+    """
+    monkeypatch.setattr(bot, "STRIPE_ENABLED", True)
+    bot.stripe_status_cache.clear()
 
 
 @pytest.fixture
@@ -2664,12 +2713,12 @@ class TestBothHalvesTogether:
             signing_key=SIGNING_KEY,
         )
 
-    def run_against_bot(self, call):
+    def run_against_bot(self, call, *, config=None, deps=None):
         """Drive the sync client from inside the loop running the server."""
         app = bot_api.create_app(
-            make_config(),
-            make_deps(write_settings=bot.write_dashboard_settings,
-                      read_settings=bot.read_dashboard_settings),
+            config or make_config(),
+            deps or make_deps(write_settings=bot.write_dashboard_settings,
+                              read_settings=bot.read_dashboard_settings),
         )
 
         async def runner():
@@ -2683,6 +2732,185 @@ class TestBothHalvesTogether:
                 await server.close()
 
         return asyncio.run(runner())
+
+    def run_stripe_against_bot(self, call, **deps_overrides):
+        """The same, with the Stripe route wired to the bot's real writer.
+
+        `stripe_enabled` has to be set on the *config*, not only on the bot
+        module: `create_app` adds this route conditionally, so with it off the
+        call below would exercise a 404 and prove nothing while still passing
+        whatever it was asserting about refusals.
+        """
+        overrides = dict(
+            write_stripe_subscription=bot.write_dashboard_stripe_subscription,
+            read_settings=bot.read_dashboard_settings,
+        )
+        overrides.update(deps_overrides)
+        return self.run_against_bot(
+            call,
+            config=make_config(stripe_enabled=True),
+            deps=make_deps(**overrides),
+        )
+
+    def test_a_stripe_event_travels_end_to_end(self, stripe_on):
+        """The whole chain, starting from an object shaped like Stripe's.
+
+        This is the one path in the project where four separate spellings of
+        the same eight fields have to agree: Stripe's own schema, the
+        dashboard's `normalise`, the handler's `STRIPE_PAYLOAD_FIELDS`
+        envelope, and the writer's `payload.get` calls. Every other test in the
+        suite fakes at least one of those, so a field renamed on one side and
+        not the others survives all of them -- and would present in production
+        as a subscription that is paid for and simply never switches premium
+        on, with a 200 in the logs.
+        """
+        stripe_events = pytest.importorskip("dashboard.stripe_events")
+        make_server()
+
+        # Shaped like the object Stripe's API returns, not like the payload the
+        # bot wants: going through normalise() is the point.
+        payload = stripe_events.normalise(
+            {
+                "id": SUBSCRIPTION_ID,
+                "customer": CUSTOMER_ID,
+                "status": "active",
+                "current_period_end": int(in_days(30).timestamp()),
+                "cancel_at_period_end": False,
+                "items": {"data": [{"price": {"id": PRICE_ID}}]},
+            },
+            event_id="evt_end_to_end",
+            event_created=int(datetime.now(timezone.utc).timestamp()),
+        )
+        assert payload is not None, "normalise rejected its own happy path"
+
+        result = self.run_stripe_against_bot(
+            lambda client: client.put_stripe_subscription(GUILD_ID, payload)
+        )
+
+        assert result == {"applied": True, "status": "active", "premium": True}
+        stored = bot.load_stripe_subscription(GUILD_ID)
+        assert stored["status"] == "active"
+        assert stored["price_id"] == PRICE_ID
+        # The audit trail names a system actor, never a person. Nobody clicked
+        # anything here, and attributing a renewal a year from now to whichever
+        # admin happened to check out would be a lie the trail cannot correct.
+        assert [row[3] for row in audit_rows()] == [bot.STRIPE_AUDIT_ACTOR]
+
+    def test_the_cancel_flag_survives_the_wire_as_a_boolean(self, stripe_on):
+        """`bool("false")` is True, and this field decides what the page says.
+
+        A subscription cancelled at period end still grants premium until the
+        period runs out, so nothing about the *gate* would look wrong if this
+        arrived coerced. What would be wrong is the sentence shown to the
+        customer: "renews on the 3rd" instead of "ends on the 3rd".
+        """
+        stripe_events = pytest.importorskip("dashboard.stripe_events")
+        make_server()
+
+        payload = stripe_events.normalise(
+            {
+                "id": SUBSCRIPTION_ID,
+                "customer": CUSTOMER_ID,
+                "status": "active",
+                "current_period_end": int(in_days(9).timestamp()),
+                "cancel_at_period_end": True,
+                "items": {"data": [{"price": {"id": PRICE_ID}}]},
+            },
+            event_id="evt_cancelling",
+            event_created=int(datetime.now(timezone.utc).timestamp()),
+        )
+        result = self.run_stripe_against_bot(
+            lambda client: client.put_stripe_subscription(GUILD_ID, payload)
+        )
+
+        assert result["applied"] is True
+        # Still premium: a cancellation leaves the paid period alone, matching
+        # what the Discord side already does with a cancelled entitlement.
+        assert result["premium"] is True
+        stored = bot.load_stripe_subscription(GUILD_ID)
+        assert stored["cancel_at_period_end"] is True
+
+    def test_a_retry_of_the_same_event_is_recorded_once(self, stripe_on):
+        """Stripe retries for three days, so duplicates are ordinary traffic."""
+        make_server()
+        payload = stripe_payload(event_id="evt_retried")
+
+        first = self.run_stripe_against_bot(
+            lambda client: client.put_stripe_subscription(GUILD_ID, payload)
+        )
+        second = self.run_stripe_against_bot(
+            lambda client: client.put_stripe_subscription(GUILD_ID, payload)
+        )
+
+        assert first["applied"] is True
+        assert second == {"applied": False, "reason": "duplicate_event"}
+        # One audit row, not two: a retry is not a second change.
+        assert len(audit_rows()) == 1
+
+    def test_a_write_the_bot_cannot_finish_reaches_the_client_as_a_failure(
+        self, stripe_on
+    ):
+        """The single outcome that loses a subscription permanently.
+
+        The bot answers 503, the client must raise rather than return, and the
+        dashboard turns that into a non-2xx so Stripe retries. A 200 here would
+        be a paid subscription that never switches premium on, with nothing
+        anywhere saying so.
+        """
+        botapi = pytest.importorskip("dashboard.botapi")
+        make_server()
+
+        async def cannot_write(guild_id, payload):
+            return None
+
+        with pytest.raises(botapi.BotAPIError) as caught:
+            self.run_stripe_against_bot(
+                lambda client: client.put_stripe_subscription(
+                    GUILD_ID, stripe_payload()
+                ),
+                write_stripe_subscription=cannot_write,
+            )
+        assert caught.value.status == 503
+
+    def test_paying_never_creates_a_servers_row(self, stripe_on):
+        """The subtlest trap in #88, over the wire rather than in a unit.
+
+        A webhook can arrive for a guild with no `servers` row. Creating one
+        would mint a fresh `servers.id` above the captured grandfather line and
+        silently cost that server the features it was promised free forever --
+        as a direct side effect of paying us.
+        """
+        with bot.session_scope() as session:
+            session.add(bot.PremiumGrandfatherLine(id=1, max_server_id=1))
+
+        result = self.run_stripe_against_bot(
+            lambda client: client.put_stripe_subscription(
+                GUILD_ID, stripe_payload(event_id="evt_unknown_guild")
+            )
+        )
+
+        assert result["applied"] is True
+        with bot.session_scope() as session:
+            assert session.query(bot.Server).count() == 0
+
+    def test_the_route_is_absent_when_the_switch_is_off(self, stripe_on):
+        """The kill switch, proven by the client getting a 404 rather than a
+        refusal. `create_app` never adds the route, so there is no handler to
+        reach and no chance of one running by accident."""
+        botapi = pytest.importorskip("dashboard.botapi")
+        make_server()
+
+        with pytest.raises(botapi.BotAPIError) as caught:
+            self.run_against_bot(
+                lambda client: client.put_stripe_subscription(
+                    GUILD_ID, stripe_payload()
+                ),
+                config=make_config(stripe_enabled=False),
+                deps=make_deps(
+                    write_stripe_subscription=bot.write_dashboard_stripe_subscription
+                ),
+            )
+        assert caught.value.status == 404
 
     def test_a_save_travels_end_to_end(self, subscribed):
         make_server()
