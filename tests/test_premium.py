@@ -985,24 +985,62 @@ class TestPremiumStatusCopy:
         paragraph = bot.localizations[locale][key].split("\n\n")[-1]
         return [line for line in paragraph.split("\n") if line.startswith("•")]
 
+    def bulleted_paragraphs(self, locale, key):
+        """Each paragraph's bullets, in order, skipping the prose ones."""
+        groups = []
+        for paragraph in bot.localizations[locale][key].split("\n\n"):
+            bullets = [l for l in paragraph.split("\n") if l.startswith("•")]
+            if bullets:
+                groups.append(bullets)
+        return groups
+
+    @staticmethod
+    def gated_features():
+        """Every feature the code actually gates, read off the module.
+
+        The assertions below used to compare against a literal 7. A number
+        typed into a test is only correct until somebody adds a feature, and
+        both times this copy went stale that is precisely what happened --
+        first the four Phase 1 features, then the activity log, queue priority
+        and branded panel. Deriving the count from the FEATURE_ constants
+        means adding one fails here until the pitch, the subscriber's receipt
+        and the grandfathered split have all been told about it.
+        """
+        return {
+            value for name, value in vars(bot).items()
+            if name.startswith("FEATURE_") and isinstance(value, str)
+        }
+
     @pytest.mark.parametrize("key", KEYS)
     def test_every_locale_lists_the_same_number_of_features(self, key):
         expected = len(self.bullets("en-US", key))
         for locale in bot.LANGUAGE_CODES:
             assert len(self.bullets(locale, key)) == expected, (locale, key)
 
-    def test_subscribers_are_told_about_all_seven_features(self):
-        assert len(self.bullets("en-US", "premium_status_active")) == 7
-        assert len(self.bullets("en-US", "premium_status_inactive")) == 7
+    @pytest.mark.parametrize(
+        "key",
+        ("premium_status_active", "premium_status_active_card",
+         "premium_status_inactive"),
+    )
+    def test_the_copy_lists_every_feature_the_code_gates(self, key):
+        """Anchored to the FEATURE_ constants rather than to a typed number."""
+        assert len(self.bullets("en-US", key)) == len(self.gated_features())
 
     def test_grandfathered_copy_splits_free_from_paid(self):
-        """Three kept free, four that Premium adds.
+        """Kept-free and added-by-Premium, both counted off the code.
 
         The old copy said the only thing left was the cooldown, which
         understated Premium by three features to the servers most likely to
-        already trust the bot.
+        already trust the bot. The split is now derived: a feature moved into
+        or out of GRANDFATHERED_FEATURES fails this until the message that
+        tells those servers what they keep has been updated too.
         """
-        assert len(self.bullets("en-US", "premium_status_grandfathered")) == 7
+        kept, added = self.bulleted_paragraphs("en-US",
+                                               "premium_status_grandfathered")[:2]
+        assert len(kept) == len(bot.GRANDFATHERED_FEATURES)
+        assert len(added) == len(self.gated_features()) - len(
+            bot.GRANDFATHERED_FEATURES
+        )
 
     @pytest.mark.parametrize("key", KEYS)
     def test_the_server_placeholder_survives_translation(self, key):
