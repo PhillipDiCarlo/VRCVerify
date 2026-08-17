@@ -92,7 +92,13 @@ See the sections below for details and configuration.
   slash command that vanishes leaves an admin typing something Discord no
   longer offers and getting nothing back, with no clue where it went.
 - `/vrcverify_support` – Anyone. Sends help/support information.
-- `/vrcverify_subscription` – Admin-only. Shows this server's premium status and, if it isn't subscribed, Discord's purchase button.
+- `/vrcverify_subscription` – Admin-only. Shows this server's premium status,
+  and answers for all four of them: paid by Discord, paid by card, paid by
+  **both** (which warns, since nothing cancels the other automatically), or not
+  subscribed — in which case it offers Discord's purchase button alongside a
+  link to the dashboard's Subscriptions page, where the 6- and 12-month plans
+  live. A card subscriber gets a Manage subscription link and is never told to
+  cancel in Discord's User Settings, where their subscription does not exist.
 
 ---
 
@@ -398,7 +404,7 @@ it asks the bot for over mTLS, and the bot decides what it is allowed to know.
 | --- | --- | --- |
 | Overview | `/guild/<id>` | Where picking a server lands. Member count, verifications today / 7d / 30d, and the one thing worth fixing next. |
 | Settings | `/guild/<id>/settings` | Every setting the slash commands can change. |
-| Subscriptions | `/guild/<id>/subscription` | Placeholder. Buying still happens in Discord. |
+| Subscriptions | `/guild/<id>/subscription` | This server's premium status, and where a card subscription is bought. Plans come from Stripe at render time; checkout and the billing portal both redirect to Stripe's own domain. |
 
 All three authorise identically — a session to prove who is asking, then the
 bot to decide what they may see — and, just as importantly, **all three fail
@@ -406,8 +412,14 @@ identically**, through one `_guild_page_unavailable`. A 403 and a 404 from the
 bot render as the same page with the same status, because rendered differently
 they would let any signed-in user walk guild ids and enumerate the servers
 running 18+ gating. An oracle only has to exist on one of the three routes to be
-worth using, which is why the Subscriptions placeholder calls the bot before
-rendering a page that has nothing on it.
+worth using — which is why Subscriptions called the bot before rendering even
+back when it was a placeholder with nothing on it.
+
+Subscriptions has one failure rule the other two don't need: **a read that
+fails must never render as "not subscribed".** It apologises instead. "Not
+subscribed" next to a Buy button is how you sell somebody a second
+subscription, so the page carries a distinct "we could not read this" state
+rather than collapsing it into the empty one.
 
 The sidebar collapses to an icon rail from the hamburger in the top left, and
 the choice is remembered in a cookie by `POST /prefs/nav` — the one write route
