@@ -60,4 +60,20 @@ os.environ["DASHBOARD_URL"] = ""
 os.environ["STRIPE_ENABLED"] = ""
 os.environ["STRIPE_STATUS_TTL"] = ""
 
+# Fourth time, and the one the three notes above should have caught. The switch
+# that turns the premium tier on was never pinned, so on any machine whose .env
+# carries the production SKU -- which is every machine that has ever deployed
+# this bot -- ten tests fail. They are the tests asserting behaviour "while the
+# tier is off", and they cannot be off while PREMIUM_ENFORCED is true at import.
+#
+# It went unnoticed because it fails in the safe direction on a fresh checkout
+# and the noisy direction only for the maintainer, who could reasonably read ten
+# reds as a real regression in whatever they had just changed. With A-23 still
+# open there is no CI to disagree with them, so "run the suite before merging"
+# was resting on a suite that was already red for reasons unrelated to the diff.
+#
+# Tests that want the tier on use the `enforced` fixture, which sets both
+# PREMIUM_SKU_ID and PREMIUM_ENFORCED on the bot module directly.
+os.environ["PREMIUM_SKU_ID"] = ""
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
