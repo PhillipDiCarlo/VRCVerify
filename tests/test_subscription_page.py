@@ -19,6 +19,7 @@ something untrue about somebody's subscription:
 clock or a network, which is the whole point of that split.
 """
 
+import dataclasses
 import json
 import time
 
@@ -44,6 +45,7 @@ PRICE_MONTHLY = "price_monthly"
 PRICE_SIX = "price_six"
 PRICE_YEARLY = "price_yearly"
 PRODUCT_ID = "prod_PREMIUM"
+PORTAL_CONFIGURATION = "bpc_PREMIUM"
 
 # Stripe price objects as `list_prices` returns them, and the plans they become.
 # Metadata drives label, order and saving; the yearly one deliberately carries a
@@ -698,6 +700,46 @@ class TestPortal:
         assert response.status_code == 302
         assert stripe.portals == []
 
+    def test_the_configured_portal_is_the_one_that_opens(self, config):
+        """The configuration decides which plans a customer may switch to.
+
+        Stripe's account default is shared with every other product on the
+        account, so leaving the session to pick it means this product's
+        customers are offered whatever that default lists -- on an account
+        with other products, prices this one never published. The gate cannot
+        be moved to the bot instead: an unrecognised price id still grants
+        premium, on purpose, so nothing downstream would notice.
+        """
+        scoped = dataclasses.replace(
+            config, stripe_portal_configuration_id=PORTAL_CONFIGURATION
+        )
+        client, _bot, stripe, session = make_client(
+            scoped, settings=payload(premium=True, active=True, status="active")
+        )
+        client.post(
+            f"/guild/{GUILD}/subscription/portal",
+            data={"csrf_token": session.csrf_token},
+        )
+        assert stripe.portals[0]["configuration"] == PORTAL_CONFIGURATION
+
+    def test_an_unset_configuration_is_passed_as_none_not_empty(self, config):
+        """Stripe rejects `configuration=`, so absent must not become blank.
+
+        This is the default path -- the variable is optional and unset means
+        the account default -- so getting it wrong would break every portal
+        session rather than a rare one.
+        """
+        assert config.stripe_portal_configuration_id == ""
+        client, _bot, stripe, session = make_client(
+            config, settings=payload(premium=True, active=True, status="active")
+        )
+        response = client.post(
+            f"/guild/{GUILD}/subscription/portal",
+            data={"csrf_token": session.csrf_token},
+        )
+        assert response.status_code == 303
+        assert stripe.portals[0]["configuration"] is None
+
 
 class TestThePageRenders:
     def test_a_failed_read_apologises_and_offers_nothing(self, config):
@@ -856,6 +898,65 @@ class TestCheckoutFormShape:
         captured = self._post_form()
         assert captured["url"].endswith("/checkout/sessions")
         assert captured["returned"] == "https://checkout.stripe.com/c/pay/cs_test_X"
+
+
+class TestThePortalSessionForm:
+    """The same discipline as the checkout form above, for the same reason.
+
+    The portal session is where "which plans may this customer switch to" is
+    decided, and it is decided by a field that is easy to leave off -- the
+    session succeeds without it, opens a working portal, and offers whatever
+    the shared account default lists.
+    """
+
+    def _post_form(self, **kwargs):
+        from dashboard.stripe_api import StripeClient
+
+        captured = {}
+
+        class FakeResponse:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {"url": "https://billing.stripe.com/p/session/bps_X"}
+
+        def fake_post(url, headers=None, data=None, timeout=None):
+            captured["url"] = url
+            captured["form"] = list(data)
+            return FakeResponse()
+
+        client = StripeClient("sk_test_x")
+        client._session.post = fake_post
+        captured["returned"] = client.create_portal_session(
+            customer_id="cus_TEST",
+            return_url="https://dash.example/guild/1/subscription",
+            **kwargs,
+        )
+        return captured
+
+    def test_the_configuration_is_sent_when_given(self):
+        form = dict(self._post_form(configuration="bpc_TEST")["form"])
+        assert form["configuration"] == "bpc_TEST"
+
+    def test_the_field_is_absent_rather_than_empty_when_not_given(self):
+        """Stripe rejects `configuration=`, so this cannot be sent blank."""
+        keys = [key for key, _ in self._post_form()["form"]]
+        assert "configuration" not in keys
+
+    def test_none_is_the_same_as_not_given(self):
+        """The route passes `... or None`, so this is the live default path."""
+        keys = [key for key, _ in self._post_form(configuration=None)["form"]]
+        assert "configuration" not in keys
+
+    def test_a_malformed_configuration_never_reaches_stripe(self):
+        with pytest.raises(StripeAPIError):
+            self._post_form(configuration="bpc_x/../../v1/customers")
+
+    def test_it_posts_to_portal_sessions_and_returns_the_url(self):
+        captured = self._post_form()
+        assert captured["url"].endswith("/billing_portal/sessions")
+        assert captured["returned"] == "https://billing.stripe.com/p/session/bps_X"
 
 
 class TestPlansFromPrices:

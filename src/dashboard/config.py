@@ -73,6 +73,30 @@ class DashboardConfig:
     # one as before -- no price the server has not authorised -- enforced
     # against Stripe's live answer instead of a static table.
     stripe_product_id: str = ""
+    # Which billing-portal configuration a portal session opens with. Empty
+    # means Stripe's account default, which is what shipped and is the reason
+    # this exists.
+    #
+    # A portal configuration decides what a customer may do to their own
+    # subscription, and "switch plans" is one of the things it decides. The
+    # account default is shared by every product on the Stripe account -- and
+    # this account has others -- so its plan list is not necessarily this
+    # product's. A customer who can switch to another product's cheaper
+    # recurring price keeps premium at that price, because the bot grants on
+    # subscription STATUS and treats an unrecognised price id as still paid.
+    # That rule is deliberate (a catalogue mismatch must not switch off a
+    # paying customer) and it is exactly why the price cannot also be the gate.
+    #
+    # Naming a configuration scoped to this product's prices closes it without
+    # touching the shared default, which other products depend on.
+    #
+    # Deliberately OPTIONAL rather than required-when-enabled, unlike every
+    # other Stripe variable here. Those have no safe default and refusing to
+    # boot is better than pretending; this one degrades to exactly the
+    # behaviour that is live today. Making it mandatory would mean a deploy
+    # that reaches this host before the variable does takes the whole site
+    # down, which has already happened once on 2026-08-15.
+    stripe_portal_configuration_id: str = ""
 
     @classmethod
     def from_env(cls) -> "DashboardConfig":
@@ -113,6 +137,7 @@ class DashboardConfig:
         stripe_secret_key = ""
         stripe_webhook_secret = ""
         stripe_product_id = ""
+        stripe_portal_configuration_id = ""
         if stripe_enabled:
             # Refuse to boot rather than come up half-configured. A dashboard
             # missing its webhook secret rejects every event Stripe sends and
@@ -143,6 +168,26 @@ class DashboardConfig:
                     f"got {stripe_product_id!r}. A price id (price_...) here "
                     "would match no prices and offer no plans."
                 )
+            stripe_portal_configuration_id = (
+                os.getenv("STRIPE_PORTAL_CONFIGURATION_ID") or ""
+            ).strip()
+            if stripe_portal_configuration_id and not (
+                stripe_portal_configuration_id.startswith("bpc_")
+            ):
+                # Checked even though the variable is optional, because the
+                # plausible mistakes all fail LATE and quietly: a product id
+                # here, or a configuration id from the other mode. Stripe
+                # rejects the portal session, the customer is bounced to
+                # error:portal, and nothing says which of the two ids was
+                # wrong. An empty value is the one thing this must not treat
+                # as an error -- that is the documented way to keep Stripe's
+                # default.
+                raise DashboardConfigError(
+                    "STRIPE_PORTAL_CONFIGURATION_ID must be a billing portal "
+                    f"configuration id (bpc_...); got "
+                    f"{stripe_portal_configuration_id!r}. Leave it unset to "
+                    "use the Stripe account's default configuration."
+                )
 
         return cls(
             discord_client_id=client_id,
@@ -162,6 +207,7 @@ class DashboardConfig:
             stripe_secret_key=stripe_secret_key,
             stripe_webhook_secret=stripe_webhook_secret,
             stripe_product_id=stripe_product_id,
+            stripe_portal_configuration_id=stripe_portal_configuration_id,
         )
 
 

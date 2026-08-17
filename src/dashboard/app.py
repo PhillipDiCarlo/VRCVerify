@@ -791,6 +791,7 @@ def _register_routes(app: Flask) -> None:
                 return_url=url_for(
                     "guild_subscription", guild_id=guild_id, _external=True
                 ),
+                configuration=config.stripe_portal_configuration_id or None,
             )
         except StripeAPIError as error:
             logger.warning("could not create a portal session: %s", error)

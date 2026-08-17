@@ -69,15 +69,24 @@ services:
   dashboard:
     image: italiandogs/vrcverify-dashboard:${VRCVERIFY_VERSION:?Set VRCVERIFY_VERSION to a pushed version tag (never latest)}
     # Everything comes from dashboard.env, with no `environment:` block to keep
-    # in step with it. That includes the four Stripe variables: STRIPE_ENABLED,
-    # STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET and STRIPE_PRODUCT_ID -- see
-    # dashboard.env.example. (STRIPE_PRODUCT_ID replaced three STRIPE_PRICE_*
-    # variables. Stripe is the catalogue: creating a price publishes a plan,
-    # and that price's own metadata carries its label, order, saving and trial
-    # length.) With STRIPE_ENABLED set the dashboard REFUSES TO BOOT if any of
-    # the other three is missing, which is deliberate: a webhook secret that is
+    # in step with it. That includes the Stripe variables: STRIPE_ENABLED,
+    # STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRODUCT_ID and the
+    # optional STRIPE_PORTAL_CONFIGURATION_ID -- see dashboard.env.example.
+    # (STRIPE_PRODUCT_ID replaced three STRIPE_PRICE_* variables. Stripe is the
+    # catalogue: creating a price publishes a plan, and that price's own
+    # metadata carries its label, order, saving and trial length.) With
+    # STRIPE_ENABLED set the dashboard REFUSES TO BOOT if any of the three
+    # REQUIRED ones is missing, which is deliberate: a webhook secret that is
     # absent rejects every event Stripe sends while the service looks perfectly
     # healthy doing it.
+    #
+    # STRIPE_PORTAL_CONFIGURATION_ID is the exception, and is optional on
+    # purpose. Unset, portal sessions use the Stripe account default -- the
+    # behaviour that shipped -- so a deploy arriving here before the variable
+    # does degrades instead of taking the whole site down. Set it on an account
+    # carrying more than one product: the default configuration is shared, and
+    # a customer able to switch to another product's cheaper recurring price
+    # keeps premium at that price.
     env_file:
       - dashboard.env
     volumes:

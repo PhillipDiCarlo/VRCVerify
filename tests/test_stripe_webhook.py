@@ -51,6 +51,7 @@ PRICE_MONTHLY = "price_monthly"
 PRICE_SIX = "price_six_months"
 PRICE_YEARLY = "price_yearly"
 PRODUCT_ID = "prod_VRCVERIFYPREMIUM"
+PORTAL_CONFIGURATION = "bpc_VRCVERIFYPREMIUM"
 
 WEBHOOK_PATH = "/stripe/webhook"
 
@@ -742,6 +743,7 @@ class TestConfiguration:
             "STRIPE_SECRET_KEY",
             "STRIPE_WEBHOOK_SECRET",
             "STRIPE_PRODUCT_ID",
+            "STRIPE_PORTAL_CONFIGURATION_ID",
         ):
             monkeypatch.delenv(key, raising=False)
         for key, value in env.items():
@@ -807,6 +809,53 @@ class TestConfiguration:
         env["STRIPE_PRODUCT_ID"] = PRICE_MONTHLY
         with pytest.raises(DashboardConfigError):
             self.build(monkeypatch, tmp_path, certs, **env)
+
+    def test_the_portal_configuration_is_optional(
+        self, monkeypatch, tmp_path, certs
+    ):
+        """The one Stripe variable that may be absent while Stripe is on.
+
+        Unset means Stripe's account default, which is what shipped and is
+        still running. Requiring it would mean a deploy that reaches the host
+        before the variable does takes the whole site down -- the failure of
+        2026-08-15, repeated.
+        """
+        config = self.build(monkeypatch, tmp_path, certs, **self.stripe_env())
+        assert config.stripe_enabled is True
+        assert config.stripe_portal_configuration_id == ""
+
+    def test_the_portal_configuration_is_kept_when_set(
+        self, monkeypatch, tmp_path, certs
+    ):
+        env = self.stripe_env()
+        env["STRIPE_PORTAL_CONFIGURATION_ID"] = PORTAL_CONFIGURATION
+        config = self.build(monkeypatch, tmp_path, certs, **env)
+        assert config.stripe_portal_configuration_id == PORTAL_CONFIGURATION
+
+    @pytest.mark.parametrize("wrong", [PRODUCT_ID, PRICE_MONTHLY, "not-an-id"])
+    def test_something_that_is_not_a_portal_configuration_is_refused(
+        self, monkeypatch, tmp_path, certs, wrong
+    ):
+        """Every plausible mistake here fails late and says nothing.
+
+        Stripe rejects the portal session, the customer is bounced to
+        error:portal, and the log names neither which id was wrong nor that an
+        id was the problem. Checked at boot instead, where it is one line.
+        """
+        env = self.stripe_env()
+        env["STRIPE_PORTAL_CONFIGURATION_ID"] = wrong
+        with pytest.raises(DashboardConfigError):
+            self.build(monkeypatch, tmp_path, certs, **env)
+
+    def test_a_blank_portal_configuration_is_not_an_error(
+        self, monkeypatch, tmp_path, certs
+    ):
+        """An empty value is how the example file documents "use the default",
+        so whitespace must read as absent rather than as a malformed id."""
+        env = self.stripe_env()
+        env["STRIPE_PORTAL_CONFIGURATION_ID"] = "   "
+        config = self.build(monkeypatch, tmp_path, certs, **env)
+        assert config.stripe_portal_configuration_id == ""
 
 
 # -------------------------------------------------------------------
