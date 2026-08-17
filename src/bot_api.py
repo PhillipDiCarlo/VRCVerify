@@ -351,6 +351,20 @@ def _require_file(name: str) -> str:
         raise BotAPIConfigError(f"{name} is required when BOT_API_ENABLED is set.")
     if not os.path.isfile(path):
         raise BotAPIConfigError(f"{name} points at {path!r}, which is not a file.")
+    if not os.access(path, os.R_OK):
+        # Existence is not readability, and the difference matters: isfile() is
+        # a stat, which succeeds on a key this process cannot open. Without
+        # this the API would bind happily and then fail every handshake, which
+        # looks like a client problem from both ends.
+        #
+        # In a container this is nearly always ownership -- the image runs as
+        # uid 10001 and a mounted key usually belongs to whoever generated it,
+        # at mode 0600.
+        raise BotAPIConfigError(
+            f"{name} points at {path!r}, which this process cannot read. "
+            "If this is a container, check the file's owner against the uid "
+            "the image runs as."
+        )
     return path
 
 

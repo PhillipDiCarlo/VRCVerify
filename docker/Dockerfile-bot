@@ -19,7 +19,7 @@ USER appuser
 
 # The internal API the web dashboard reads settings through (issue #65).
 # Documentation only: nothing binds this port unless BOT_API_ENABLED is set,
-# and when it is, BOT_API_BIND must name the tailnet address — the API refuses
+# and when it is, BOT_API_BIND must name the tailnet address -- the API refuses
 # to start on a wildcard. Do NOT publish this port to the host.
 EXPOSE 5002
 

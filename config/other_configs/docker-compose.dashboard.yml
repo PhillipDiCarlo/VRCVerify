@@ -1,4 +1,4 @@
-# The web dashboard, for the public VPS (issue #65). NOT the homelab pair —
+# The web dashboard, for the public VPS (issue #65). NOT the homelab pair --
 # that stays docker-compose.deploy.yml.
 #
 # Usage, on the VPS next to dashboard.env, cloudflared.env and certs/:
@@ -16,7 +16,7 @@
 #
 # 1. NEITHER SERVICE PUBLISHES A PORT. cloudflared dials out to Cloudflare and
 #    reaches the dashboard over the Docker network by name. The host firewall
-#    is default-deny inbound and the IONOS panel allows only Tailscale — but
+#    is default-deny inbound and the IONOS panel allows only Tailscale -- but
 #    neither of those would save you, because published Docker ports are DNAT'd
 #    in PREROUTING and never traverse the INPUT chain. The absence of `ports:`
 #    is the actual control.
@@ -35,15 +35,15 @@
 # 3. THE DASHBOARD NOW ANSWERS ONE PUBLIC, UNAUTHENTICATED ROUTE:
 #    POST /stripe/webhook, authenticated by Stripe's signature rather than by a
 #    session. It arrives through the same tunnel as everything else, so
-#    property 1 is unchanged — but the hostname's Cloudflare managed challenge
+#    property 1 is unchanged -- but the hostname's Cloudflare managed challenge
 #    has to be skipped for that one path, or Stripe is challenged, sees a 403,
 #    and retries for three days while NOTHING reaches this origin and nothing
 #    appears in these logs. That skip rule is SECURITY_AUDIT.md A-25, it is
 #    path-scoped and must never be hostname-wide, and it has to exist and be
 #    verified by a real test-mode event BEFORE STRIPE_ENABLED is set here.
 #
-#    With STRIPE_ENABLED unset the route is not registered at all — a plain
-#    404 — so this file is safe to deploy ahead of any of that.
+#    With STRIPE_ENABLED unset the route is not registered at all -- a plain
+#    404 -- so this file is safe to deploy ahead of any of that.
 
 services:
   dashboard:
