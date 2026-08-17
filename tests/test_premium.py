@@ -961,13 +961,29 @@ class TestPremiumStatusCopy:
 
     KEYS = (
         "premium_status_active",
+        "premium_status_active_card",
+        "premium_status_active_both",
         "premium_status_inactive",
         "premium_status_grandfathered",
     )
 
+    # The messages that end on "here is how to buy it". Their final paragraph
+    # is a bulleted list of payment paths, not of features, and counting the
+    # two together would report nine features and be wrong in the direction
+    # that matters -- these assertions exist to catch the feature list going
+    # stale, which is a thing that has already happened twice.
+    OFFERS_PURCHASE = ("premium_status_inactive", "premium_status_grandfathered")
+
     def bullets(self, locale, key):
+        """The feature bullets, excluding any purchase options below them."""
         text = bot.localizations[locale][key]
+        if key in self.OFFERS_PURCHASE:
+            text = "\n\n".join(text.split("\n\n")[:-1])
         return [line for line in text.split("\n") if line.startswith("•")]
+
+    def purchase_options(self, locale, key):
+        paragraph = bot.localizations[locale][key].split("\n\n")[-1]
+        return [line for line in paragraph.split("\n") if line.startswith("•")]
 
     @pytest.mark.parametrize("key", KEYS)
     def test_every_locale_lists_the_same_number_of_features(self, key):
@@ -1015,9 +1031,51 @@ class TestPremiumStatusCopy:
     def test_the_commands_are_not_translated(self):
         """Slash command names are literal; a translated one would not work."""
         for locale in bot.LANGUAGE_CODES:
-            active = bot.localizations[locale]["premium_status_active"]
-            assert "/vrcverify_logchannel" in active, locale
-            assert "/vrcverify_settings" in active, locale
+            for key in ("premium_status_active", "premium_status_active_card"):
+                message = bot.localizations[locale][key]
+                assert "/vrcverify_logchannel" in message, (locale, key)
+                assert "/vrcverify_settings" in message, (locale, key)
+
+    @pytest.mark.parametrize("key", OFFERS_PURCHASE)
+    def test_both_ways_to_buy_are_offered_in_every_locale(self, key):
+        """Two payment paths, everywhere, or a locale is quietly selling one.
+
+        The website is the only place the 6- and 12-month plans exist, because
+        a Discord subscription SKU bills monthly and has no other interval. A
+        translation that lists only the Discord button is not merely shorter --
+        it withholds the cheaper plans from everyone who reads the bot in that
+        language.
+        """
+        for locale in bot.LANGUAGE_CODES:
+            assert len(self.purchase_options(locale, key)) == 2, (locale, key)
+
+    def test_the_card_variant_sells_the_same_bundle_as_the_discord_one(self):
+        """Derived from the Discord copy rather than written twice.
+
+        Two hand-maintained feature lists for one bundle is how a customer
+        ends up reading, in the message their own payment method produced,
+        that they get less than somebody else does for the same money.
+        """
+        for locale in bot.LANGUAGE_CODES:
+            assert (
+                self.bullets(locale, "premium_status_active_card")
+                == self.bullets(locale, "premium_status_active")
+            ), locale
+
+    def test_a_card_subscriber_is_never_sent_to_discords_settings(self):
+        """The whole reason this variant exists.
+
+        Discord's User Settings shows Discord's own subscriptions. Sending a
+        card subscriber there to cancel is sending them to look for something
+        that is not there, and the support ticket that follows is "your bot is
+        broken", not "your copy is wrong".
+        """
+        english = bot.localizations["en-US"]
+        assert "User Settings" in english["premium_status_active"]
+        assert "User Settings" not in english["premium_status_active_card"]
+        # The double-billed message names both, because that reader has to
+        # cancel one of them and needs to be told where each one lives.
+        assert "User Settings" in english["premium_status_active_both"]
 
 
 class TestCutoverCompletionWarning:
