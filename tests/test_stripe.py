@@ -985,3 +985,161 @@ class TestTheSettingsPayload:
 
         monkeypatch.setattr(bot, "session_scope", failing_scope)
         assert run(bot.read_dashboard_settings(GUILD_ID)) is None
+
+
+# ---------------------------------------------------------------
+# /vrcverify_subscription, once there are two ways to have paid
+# ---------------------------------------------------------------
+class TestTheSubscriptionCommandNamesTheRightPlatform:
+    """Which message an admin gets, and which buttons come with it.
+
+    Before Stripe there was one answer to "are you subscribed" and one place
+    to manage it, so the command needed neither branch. Now "yes" has three
+    shapes -- Discord, card, or both -- and each sends the admin somewhere
+    different. Getting this wrong is not a cosmetic bug: telling a card
+    subscriber to cancel in Discord's User Settings sends them looking for a
+    subscription that is not there, and showing a Buy button to a server that
+    already pays is how the second subscription gets sold.
+    """
+
+    DASHBOARD = "https://dashboard.example.test"
+
+    def reply(self, interaction, monkeypatch, dashboard_url=DASHBOARD):
+        """Run the command and hand back (message, view)."""
+        monkeypatch.setattr(bot, "DASHBOARD_URL", dashboard_url)
+        captured = {}
+
+        async def send_message(msg, ephemeral=False, **extra):
+            captured["message"] = msg
+            captured["view"] = extra.get("view")
+
+        interaction.response = SimpleNamespace(send_message=send_message)
+        run(bot.vrcverify_subscription.callback(interaction))
+        return captured["message"], captured["view"]
+
+    def link_urls(self, view):
+        return [] if view is None else [
+            item.url for item in view.children if getattr(item, "url", None)
+        ]
+
+    def not_grandfathered(self):
+        """Put the grandfather line below this server's row.
+
+        Without it every test server is inside the line and gets the
+        grandfathered pitch, which is a different message with a different
+        lead-in -- so an assertion about the unsubscribed copy would be
+        checking text the admin never saw.
+        """
+        with bot.session_scope() as session:
+            session.add(bot.PremiumGrandfatherLine(id=1, max_server_id=1))
+
+    def test_a_discord_subscriber_is_sent_to_discord(self, enforced, stripe_on,
+                                                     monkeypatch):
+        make_server()
+        message, view = self.reply(
+            make_interaction([FakeEntitlement()]), monkeypatch
+        )
+        assert "User Settings" in message
+        # No buttons at all: they have bought it, and there is nothing on the
+        # website they need that Discord's own settings does not cover.
+        assert view is None
+
+    def test_a_card_subscriber_is_sent_to_the_website(self, enforced, stripe_on,
+                                                      monkeypatch):
+        make_server()
+        store_subscription()
+        message, view = self.reply(make_interaction(), monkeypatch)
+        assert "VRCVerify website" in message
+        assert "User Settings" not in message
+        assert self.link_urls(view) == [
+            f"{self.DASHBOARD}/guild/{GUILD_ID}/subscription"
+        ]
+
+    def test_a_card_subscriber_still_reads_the_full_feature_list(
+        self, enforced, stripe_on, monkeypatch
+    ):
+        """Same bundle, same money, same list.
+
+        The card message is derived from the Discord one so the two cannot
+        drift (pinned per locale in test_premium). What this adds is that the
+        *command* reaches that full message rather than some shorter variant:
+        seven features, same as anyone paying the other way reads.
+        """
+        make_server()
+        store_subscription()
+        card, _ = self.reply(make_interaction(), monkeypatch)
+        bullets = [line for line in card.split("\n") if line.startswith("\u2022")]
+        assert len(bullets) == 7
+
+    def test_paying_on_both_platforms_is_named_as_such(self, enforced, stripe_on,
+                                                       monkeypatch, caplog):
+        make_server()
+        store_subscription()
+        with caplog.at_level("WARNING"):
+            message, view = self.reply(
+                make_interaction([FakeEntitlement()]), monkeypatch
+            )
+        assert "twice" in message
+        # Both places to cancel, because they have to choose one.
+        assert "User Settings" in message
+        assert self.link_urls(view) == [
+            f"{self.DASHBOARD}/guild/{GUILD_ID}/subscription"
+        ]
+        # Logged as well as shown: if this turns out to be common, the copy is
+        # unclear, and there has to be something to notice that in.
+        assert any("billed twice" in record.message for record in caplog.records)
+
+    def test_nobody_is_auto_cancelled_or_refunded(self, enforced, stripe_on,
+                                                  monkeypatch):
+        """The command warns. It does not act.
+
+        Code that cancels a subscription and moves money without a person
+        deciding is a category of bug that costs real money in the wrong
+        direction. The failure mode of a warning is a delayed refund request,
+        which is recoverable.
+        """
+        make_server()
+        store_subscription()
+        self.reply(make_interaction([FakeEntitlement()]), monkeypatch)
+        with bot.session_scope() as session:
+            row = session.query(bot.StripeSubscription).one()
+            assert row.status == "active"
+            assert row.cancel_at_period_end is False
+
+    def test_an_unsubscribed_server_is_offered_both_paths(self, enforced,
+                                                          stripe_on, monkeypatch):
+        make_server()
+        self.not_grandfathered()
+        message, view = self.reply(make_interaction(), monkeypatch)
+        assert "two ways to buy it" in message
+        assert self.link_urls(view) == [
+            f"{self.DASHBOARD}/guild/{GUILD_ID}/subscription"
+        ]
+
+    def test_without_a_dashboard_url_the_website_button_is_absent(
+        self, enforced, stripe_on, monkeypatch
+    ):
+        """The copy still mentions the website; only the shortcut goes.
+
+        A link button with no scheme is a 400 that fails the whole
+        interaction, so degrading to no button is the safe direction.
+        """
+        make_server()
+        message, view = self.reply(make_interaction(), monkeypatch, dashboard_url=None)
+        assert "website" in message
+        assert self.link_urls(view) == []
+
+    def test_with_stripe_off_a_card_row_changes_nothing(self, enforced,
+                                                        monkeypatch):
+        """The kill switch, from the admin's side of the screen.
+
+        `stripe_on` is deliberately absent here. A row can exist in the table
+        -- written by a test, or left behind by an earlier deploy -- and with
+        the switch off it must not reach a single word of the reply.
+        """
+        make_server()
+        self.not_grandfathered()
+        store_subscription()
+        message, view = self.reply(make_interaction(), monkeypatch)
+        assert "two ways to buy it" in message  # the unsubscribed message
+        assert "VRCVerify website" not in message

@@ -798,20 +798,8 @@ def _optional_int_env(name: str) -> int | None:
 DASHBOARD_URL = (os.getenv("DASHBOARD_URL") or "").strip().rstrip("/") or None
 
 
-def dashboard_guild_url(guild_id) -> Optional[str]:
-    """Deep link straight to one server's settings page.
-
-    Landing an admin on the picker and making them find the server they were
-    already looking at is the kind of small friction that turns "use the
-    website" into "the website is annoying".
-
-    Explicitly `/settings`, not the guild root. The root is the Overview now,
-    and every caller of this reached it from a command about *changing*
-    something -- the read-only summaries say "change them on the dashboard",
-    and `/vrcverify_setup` offers it as the place to finish configuring. A
-    button under that text landing on a page of counts would be a worse
-    introduction than no button.
-    """
+def _dashboard_page(guild_id, page: str) -> Optional[str]:
+    """One guild's page on the dashboard, or None if there is no usable URL."""
     if not DASHBOARD_URL:
         return None
     # Discord rejects a link button whose URL has no scheme, with a 400 that
@@ -827,7 +815,43 @@ def dashboard_guild_url(guild_id) -> Optional[str]:
             DASHBOARD_URL,
         )
         return None
-    return f"{DASHBOARD_URL}/guild/{guild_id}/settings"
+    return f"{DASHBOARD_URL}/guild/{guild_id}/{page}"
+
+
+def dashboard_guild_url(guild_id) -> Optional[str]:
+    """Deep link straight to one server's settings page.
+
+    Landing an admin on the picker and making them find the server they were
+    already looking at is the kind of small friction that turns "use the
+    website" into "the website is annoying".
+
+    Explicitly `/settings`, not the guild root. The root is the Overview now,
+    and every caller of this reached it from a command about *changing*
+    something -- the read-only summaries say "change them on the dashboard",
+    and `/vrcverify_setup` offers it as the place to finish configuring. A
+    button under that text landing on a page of counts would be a worse
+    introduction than no button.
+    """
+    return _dashboard_page(guild_id, "settings")
+
+
+def dashboard_subscription_url(guild_id) -> Optional[str]:
+    """Deep link to one server's Subscriptions page (issue #88).
+
+    Kept apart from the settings link rather than pointed at the guild root,
+    for the same reason that one is: every caller reached it from a message
+    about *buying or managing* a subscription, and the page that answers is
+    not the page the root shows.
+
+    This is the only route by which `/vrcverify_subscription` can offer the
+    card path at all. Discord's own purchase button is rendered by Discord and
+    knows nothing about the website, and the App Directory store link cannot
+    target a guild -- so without DASHBOARD_URL set, the longer plans are
+    mentioned in the copy and reachable only by the admin going and finding
+    them. That degrades to something honest, which is why it is allowed to
+    degrade at all.
+    """
+    return _dashboard_page(guild_id, "subscription")
 
 
 # The kill switch. With no SKU configured every gate answers "allowed", so this
@@ -2372,10 +2396,10 @@ CHANNEL_SUMMARY_FIELDS = frozenset({"verification_log_channel_id"})
 class DashboardLinkView(View):
     """A single link button. Nothing to time out, so no timeout."""
 
-    def __init__(self, url: str):
+    def __init__(self, url: str, label: str = "Open dashboard"):
         super().__init__(timeout=None)
         self.add_item(
-            Button(label="Open dashboard", style=discord.ButtonStyle.link, url=url)
+            Button(label=label, style=discord.ButtonStyle.link, url=url)
         )
 
 
@@ -3381,16 +3405,32 @@ async def vrcverify_setup(
 # Slash Command: /vrcverify_subscription
 # -------------------------------------------------------------------
 class PremiumUpgradeView(View):
-    """Carries Discord's own purchase button for the premium SKU.
+    """Both ways to buy: Discord's own purchase button, and the website.
 
-    Discord renders the label and the current price itself, so nothing here
-    needs to know what the tier costs.
+    Discord renders its button's label and the current price itself, so
+    nothing here needs to know what the tier costs. The website button is a
+    plain link and is added only when there is a URL to point it at.
+
+    Two buttons rather than one because the two paths do not sell the same
+    thing. Discord subscription SKUs bill monthly only -- there is no annual
+    interval to configure -- so the 6- and 12-month plans exist on the website
+    and nowhere else. An admin shown only Discord's button is not being
+    offered a choice of checkout; they are being quietly denied the cheaper
+    plans.
     """
 
-    def __init__(self):
+    def __init__(self, subscription_url: Optional[str] = None):
         super().__init__(timeout=None)
         if PREMIUM_SKU_ID is not None:
             self.add_item(Button(sku_id=PREMIUM_SKU_ID))
+        if subscription_url:
+            self.add_item(
+                Button(
+                    label="More plans on the website",
+                    style=discord.ButtonStyle.link,
+                    url=subscription_url,
+                )
+            )
 
 
 @app_commands.guild_only()
@@ -3416,10 +3456,55 @@ async def vrcverify_subscription(interaction: discord.Interaction):
         )
         return
 
-    flags = resolve_premium_flags_from_interaction(interaction)
     server_name = interaction.guild.name if interaction.guild else "this server"
+    subscription_url = dashboard_subscription_url(interaction.guild_id)
 
-    if flags.premium:
+    # The two sources, resolved separately and deliberately.
+    #
+    # Every other caller asks resolve_premium_flags_from_interaction, which
+    # short-circuits on the Discord answer so an entitled guild never pays for
+    # a Stripe lookup -- a property a test pins, because losing it would put a
+    # database query behind every slash command. This command is the one place
+    # that cannot use it. "Yes, you are subscribed" is not the whole answer
+    # here: the message has to say where to go to change or cancel, and
+    # telling a card subscriber to open Discord's User Settings sends them
+    # looking for something that does not exist there.
+    #
+    # The cost is one extra cached lookup, on an admin command run rarely, and
+    # it buys copy that is true. With STRIPE_ENABLED unset, stripe_active does
+    # not query at all and every branch below collapses to what this command
+    # did before Stripe existed.
+    by_discord = premium_from_interaction(interaction)
+    by_card = stripe_active(interaction.guild_id)
+
+    if by_discord and by_card:
+        # Paying twice. Never cancelled for them and never refunded
+        # automatically -- code that moves money without a human deciding is
+        # the wrong failure direction -- so this says so plainly and points at
+        # the page that can cancel the half we control.
+        logger.warning(
+            "Guild %s holds both a Discord entitlement and a live card "
+            "subscription; it is being billed twice.",
+            interaction.guild_id,
+        )
+        message = get_message(
+            "premium_status_active_both", interaction, server=server_name
+        )
+        extra = (
+            {"view": DashboardLinkView(subscription_url, "Manage subscription")}
+            if subscription_url
+            else {}
+        )
+    elif by_card:
+        message = get_message(
+            "premium_status_active_card", interaction, server=server_name
+        )
+        extra = (
+            {"view": DashboardLinkView(subscription_url, "Manage subscription")}
+            if subscription_url
+            else {}
+        )
+    elif by_discord:
         message = get_message("premium_status_active", interaction, server=server_name)
         # No purchase button: they already bought it. send_message() calls
         # view.is_finished(), so an absent view has to be MISSING, not None.
@@ -3427,11 +3512,11 @@ async def vrcverify_subscription(interaction: discord.Interaction):
     else:
         key = (
             "premium_status_grandfathered"
-            if flags.grandfathered
+            if is_grandfathered(interaction.guild_id)
             else "premium_status_inactive"
         )
         message = get_message(key, interaction, server=server_name)
-        extra = {"view": PremiumUpgradeView()}
+        extra = {"view": PremiumUpgradeView(subscription_url)}
 
     await interaction.response.send_message(message, ephemeral=True, **extra)
 

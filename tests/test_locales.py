@@ -1,9 +1,20 @@
 """Consistency checks for src/locales.py.
 
-These catch the two failure modes that break localization at runtime:
-missing/extra keys per locale, and translations whose {placeholders}
-don't match the English template (which makes str.format raise KeyError
-when the bot builds the message).
+These catch the failure modes that break localization at runtime:
+missing/extra keys per locale, translations whose {placeholders} don't match
+the English template (which makes str.format raise KeyError when the bot
+builds the message), unbalanced Discord markup, and a "translation" that is
+still English.
+
+**Why the structural checks earn their place.** Nobody on this project reads
+all twelve of these languages. Whether a Bengali sentence is *good* cannot be
+asserted here and is not pretended to be. What can be asserted is everything
+that goes wrong without anyone being able to read the language at all: an odd
+`**` renders literal asterisks in the middle of a sentence, a stray backtick
+swallows the rest of a paragraph into a code span, and a locale left as an
+English copy looks translated in every test that only counts keys. Those are
+the failures a reviewer who does not speak the language would never catch by
+eye, which is exactly why they are worth a test rather than a proofread.
 """
 
 import string
@@ -11,6 +22,13 @@ import string
 import pytest
 
 from locales import localizations, LANGUAGE_CODES
+
+# Deliberately English in every locale. Empty, and worth keeping empty: the
+# check below names this set in its failure message, so the next person who
+# hits it has somewhere to record an intentional exception instead of deleting
+# the assertion. `dm_unverified_failed_bot_position` sat here briefly -- it was
+# the gap that adding the check found, and it has since been translated.
+UNTRANSLATED: set[str] = set()
 
 
 def placeholder_names(template: str) -> set[str]:
@@ -56,3 +74,51 @@ def test_placeholders_match_english(locale):
         if extra:
             problems.append(f"{key}: unexpected placeholders {sorted(extra)}")
     assert not problems, f"{locale}:\n" + "\n".join(problems)
+
+
+@pytest.mark.parametrize("locale", LANGUAGE_CODES)
+def test_bold_markers_are_balanced(locale):
+    """An odd number of ** renders literal asterisks mid-sentence.
+
+    Discord does not "fail" on unbalanced markup, it just shows it, so this
+    surfaces nowhere except in front of the reader -- and only in front of the
+    readers of one language, which is the set of people least likely to be
+    able to report it in a way anyone here can act on.
+    """
+    broken = [key for key, text in localizations[locale].items()
+              if text.count("**") % 2]
+    assert not broken, f"{locale} has unbalanced ** in: {sorted(broken)}"
+
+
+@pytest.mark.parametrize("locale", LANGUAGE_CODES)
+def test_inline_code_markers_are_balanced(locale):
+    """A stray backtick swallows the rest of the message into a code span.
+
+    Worse than the bold case: the slash commands in this copy are wrapped in
+    backticks, so the damage lands on exactly the lines telling somebody which
+    command to run.
+    """
+    broken = [key for key, text in localizations[locale].items()
+              if text.count("`") % 2]
+    assert not broken, f"{locale} has an unbalanced backtick in: {sorted(broken)}"
+
+
+@pytest.mark.parametrize(
+    "locale", [code for code in LANGUAGE_CODES if code != "en-US"]
+)
+def test_no_string_is_left_as_english(locale):
+    """A key that exists but was never translated passes every other check.
+
+    `test_locale_is_complete` only asks whether the key is present, so an
+    English string copied into all twelve tables looks fully translated to
+    this suite and to anyone scanning the file who does not read the language.
+    """
+    english = localizations["en-US"]
+    copied = [
+        key for key, text in localizations[locale].items()
+        if key not in UNTRANSLATED and english.get(key) == text
+    ]
+    assert not copied, (
+        f"{locale} is still English in: {sorted(copied)}. If that is "
+        f"deliberate, add the key to UNTRANSLATED with a reason."
+    )

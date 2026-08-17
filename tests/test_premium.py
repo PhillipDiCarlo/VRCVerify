@@ -961,13 +961,55 @@ class TestPremiumStatusCopy:
 
     KEYS = (
         "premium_status_active",
+        "premium_status_active_card",
+        "premium_status_active_both",
         "premium_status_inactive",
         "premium_status_grandfathered",
     )
 
+    # The messages that end on "here is how to buy it". Their final paragraph
+    # is a bulleted list of payment paths, not of features, and counting the
+    # two together would report nine features and be wrong in the direction
+    # that matters -- these assertions exist to catch the feature list going
+    # stale, which is a thing that has already happened twice.
+    OFFERS_PURCHASE = ("premium_status_inactive", "premium_status_grandfathered")
+
     def bullets(self, locale, key):
+        """The feature bullets, excluding any purchase options below them."""
         text = bot.localizations[locale][key]
+        if key in self.OFFERS_PURCHASE:
+            text = "\n\n".join(text.split("\n\n")[:-1])
         return [line for line in text.split("\n") if line.startswith("•")]
+
+    def purchase_options(self, locale, key):
+        paragraph = bot.localizations[locale][key].split("\n\n")[-1]
+        return [line for line in paragraph.split("\n") if line.startswith("•")]
+
+    def bulleted_paragraphs(self, locale, key):
+        """Each paragraph's bullets, in order, skipping the prose ones."""
+        groups = []
+        for paragraph in bot.localizations[locale][key].split("\n\n"):
+            bullets = [l for l in paragraph.split("\n") if l.startswith("•")]
+            if bullets:
+                groups.append(bullets)
+        return groups
+
+    @staticmethod
+    def gated_features():
+        """Every feature the code actually gates, read off the module.
+
+        The assertions below used to compare against a literal 7. A number
+        typed into a test is only correct until somebody adds a feature, and
+        both times this copy went stale that is precisely what happened --
+        first the four Phase 1 features, then the activity log, queue priority
+        and branded panel. Deriving the count from the FEATURE_ constants
+        means adding one fails here until the pitch, the subscriber's receipt
+        and the grandfathered split have all been told about it.
+        """
+        return {
+            value for name, value in vars(bot).items()
+            if name.startswith("FEATURE_") and isinstance(value, str)
+        }
 
     @pytest.mark.parametrize("key", KEYS)
     def test_every_locale_lists_the_same_number_of_features(self, key):
@@ -975,18 +1017,30 @@ class TestPremiumStatusCopy:
         for locale in bot.LANGUAGE_CODES:
             assert len(self.bullets(locale, key)) == expected, (locale, key)
 
-    def test_subscribers_are_told_about_all_seven_features(self):
-        assert len(self.bullets("en-US", "premium_status_active")) == 7
-        assert len(self.bullets("en-US", "premium_status_inactive")) == 7
+    @pytest.mark.parametrize(
+        "key",
+        ("premium_status_active", "premium_status_active_card",
+         "premium_status_inactive"),
+    )
+    def test_the_copy_lists_every_feature_the_code_gates(self, key):
+        """Anchored to the FEATURE_ constants rather than to a typed number."""
+        assert len(self.bullets("en-US", key)) == len(self.gated_features())
 
     def test_grandfathered_copy_splits_free_from_paid(self):
-        """Three kept free, four that Premium adds.
+        """Kept-free and added-by-Premium, both counted off the code.
 
         The old copy said the only thing left was the cooldown, which
         understated Premium by three features to the servers most likely to
-        already trust the bot.
+        already trust the bot. The split is now derived: a feature moved into
+        or out of GRANDFATHERED_FEATURES fails this until the message that
+        tells those servers what they keep has been updated too.
         """
-        assert len(self.bullets("en-US", "premium_status_grandfathered")) == 7
+        kept, added = self.bulleted_paragraphs("en-US",
+                                               "premium_status_grandfathered")[:2]
+        assert len(kept) == len(bot.GRANDFATHERED_FEATURES)
+        assert len(added) == len(self.gated_features()) - len(
+            bot.GRANDFATHERED_FEATURES
+        )
 
     @pytest.mark.parametrize("key", KEYS)
     def test_the_server_placeholder_survives_translation(self, key):
@@ -1015,9 +1069,51 @@ class TestPremiumStatusCopy:
     def test_the_commands_are_not_translated(self):
         """Slash command names are literal; a translated one would not work."""
         for locale in bot.LANGUAGE_CODES:
-            active = bot.localizations[locale]["premium_status_active"]
-            assert "/vrcverify_logchannel" in active, locale
-            assert "/vrcverify_settings" in active, locale
+            for key in ("premium_status_active", "premium_status_active_card"):
+                message = bot.localizations[locale][key]
+                assert "/vrcverify_logchannel" in message, (locale, key)
+                assert "/vrcverify_settings" in message, (locale, key)
+
+    @pytest.mark.parametrize("key", OFFERS_PURCHASE)
+    def test_both_ways_to_buy_are_offered_in_every_locale(self, key):
+        """Two payment paths, everywhere, or a locale is quietly selling one.
+
+        The website is the only place the 6- and 12-month plans exist, because
+        a Discord subscription SKU bills monthly and has no other interval. A
+        translation that lists only the Discord button is not merely shorter --
+        it withholds the cheaper plans from everyone who reads the bot in that
+        language.
+        """
+        for locale in bot.LANGUAGE_CODES:
+            assert len(self.purchase_options(locale, key)) == 2, (locale, key)
+
+    def test_the_card_variant_sells_the_same_bundle_as_the_discord_one(self):
+        """Derived from the Discord copy rather than written twice.
+
+        Two hand-maintained feature lists for one bundle is how a customer
+        ends up reading, in the message their own payment method produced,
+        that they get less than somebody else does for the same money.
+        """
+        for locale in bot.LANGUAGE_CODES:
+            assert (
+                self.bullets(locale, "premium_status_active_card")
+                == self.bullets(locale, "premium_status_active")
+            ), locale
+
+    def test_a_card_subscriber_is_never_sent_to_discords_settings(self):
+        """The whole reason this variant exists.
+
+        Discord's User Settings shows Discord's own subscriptions. Sending a
+        card subscriber there to cancel is sending them to look for something
+        that is not there, and the support ticket that follows is "your bot is
+        broken", not "your copy is wrong".
+        """
+        english = bot.localizations["en-US"]
+        assert "User Settings" in english["premium_status_active"]
+        assert "User Settings" not in english["premium_status_active_card"]
+        # The double-billed message names both, because that reader has to
+        # cancel one of them and needs to be told where each one lives.
+        assert "User Settings" in english["premium_status_active_both"]
 
 
 class TestCutoverCompletionWarning:
