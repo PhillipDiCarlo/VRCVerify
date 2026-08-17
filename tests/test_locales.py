@@ -23,13 +23,12 @@ import pytest
 
 from locales import localizations, LANGUAGE_CODES
 
-# Known untranslated, and named here so it stays visible instead of quietly
-# passing a test that says every locale is translated. This one is English in
-# all eleven other locales -- a real gap, predating the check that found it,
-# and deliberately not fixed in the change that added this list, because
-# widening a payment-copy change into a general translation sweep is how a
-# reviewable diff stops being one.
-UNTRANSLATED = {"dm_unverified_failed_bot_position"}
+# Deliberately English in every locale. Empty, and worth keeping empty: the
+# check below names this set in its failure message, so the next person who
+# hits it has somewhere to record an intentional exception instead of deleting
+# the assertion. `dm_unverified_failed_bot_position` sat here briefly -- it was
+# the gap that adding the check found, and it has since been translated.
+UNTRANSLATED: set[str] = set()
 
 
 def placeholder_names(template: str) -> set[str]:
