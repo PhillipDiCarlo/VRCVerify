@@ -200,8 +200,14 @@
           {% else %}
             <p class="plan-saving plan-saving-none">&nbsp;</p>
           {% endif %}
-          {% if plan.trial_note %}
-            <p class="plan-trial">{{ plan.trial_note }}</p>
+          {# page.trial_note_for(plan), never plan.trial_note: the plan knows
+             how long a trial would be, only the page knows whether THIS
+             server may have one. A card advertising a trial the checkout
+             route then declines to grant is a promise broken at the moment
+             somebody hands over a card number. #}
+          {% set trial_note = page.trial_note_for(plan) %}
+          {% if trial_note %}
+            <p class="plan-trial">{{ trial_note }}</p>
           {% endif %}
           <button class="button" type="submit">Subscribe</button>
         </form>
