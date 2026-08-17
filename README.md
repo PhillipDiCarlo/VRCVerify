@@ -60,6 +60,7 @@ See the sections below for details and configuration.
   - **VerificationLogChannel:** Where a guild posts its verification activity log.
   - **StripeSubscription:** A guild's card subscription, mirrored from Stripe so the premium gate stays a database read rather than an API call. Stripe remains the source of truth; the bot holds no Stripe credential and never talks to Stripe — the dashboard verifies each webhook signature and forwards a normalised summary over the existing mTLS channel. Premium is granted if **either** this or a Discord entitlement is live.
   - **StripeEvent:** Every webhook event id already acted on. Stripe retries a delivery for up to three days, so duplicates are expected traffic; this is what makes applying one idempotent.
+  - **PremiumEntitlementSeen:** Which guilds have ever held a Discord entitlement for the premium SKU, including ones that have since ended. Discord's gateway only reports entitlements that change while the bot is connected, so this is filled by a sweep on every boot that walks ended entitlements too. It exists for one question — whether a server has ever paid — and the free trial is the only thing that asks it.
 
 - **Messaging with RabbitMQ:**  
   Uses the pika library to handle two queues:
@@ -91,15 +92,22 @@ See the sections below for details and configuration.
   slash command that vanishes leaves an admin typing something Discord no
   longer offers and getting nothing back, with no clue where it went.
 - `/vrcverify_support` – Anyone. Sends help/support information.
-- `/vrcverify_subscription` – Admin-only. Shows this server's premium status and, if it isn't subscribed, Discord's purchase button.
+- `/vrcverify_subscription` – Admin-only. Shows this server's premium status,
+  and answers for all four of them: paid by Discord, paid by card, paid by
+  **both** (which warns, since nothing cancels the other automatically), or not
+  subscribed — in which case it offers Discord's purchase button alongside a
+  link to the dashboard's Subscriptions page, where the 6- and 12-month plans
+  live. A card subscriber gets a Manage subscription link and is never told to
+  cancel in Discord's User Settings, where their subscription does not exist.
 
 ---
 
 ## Premium tier
 
-18+ verification itself is free and always will be. A per-server subscription,
-billed natively through Discord App Subscriptions (guild-scoped SKU, monthly),
-unlocks the automation around it:
+18+ verification itself is free and always will be. A per-server subscription
+unlocks the automation around it, and there are two ways to buy the same thing
+— Discord App Subscriptions (guild-scoped SKU, monthly) or a card on the web
+dashboard. See [Two ways to pay](#two-ways-to-pay).
 
 | Feature | Free | Grandfathered\* | Premium |
 | --- | :---: | :---: | :---: |
@@ -176,6 +184,58 @@ line at switch-on removes that failure entirely rather than detecting it.
 The bot logs a one-time reminder if the tier is live and the announcement is
 still outstanding. That is a courtesy nudge, not a safety check — those servers
 keep their features either way.
+
+### Two ways to pay
+
+The same subscription can be bought through **Discord** or with a **card on the
+dashboard**, and the premium gate is an OR over the two: a guild is premium if
+a Discord entitlement is live **or** a mirrored Stripe subscription is in a
+paying status. Nothing else in the bot knows which one paid.
+
+Card plans exist because Discord only offers monthly. The dashboard's
+Subscriptions page reads its plans from one Stripe **product** at render time,
+so creating a price publishes a plan and archiving one retires it, with no
+deploy either way. Each price's own metadata carries its label, order, saving
+and trial length.
+
+The bot holds **no Stripe credential and never talks to Stripe.** The dashboard
+verifies each webhook signature and forwards a normalised summary over the
+existing mTLS channel; the bot writes `StripeSubscription` and answers from the
+database. That keeps the payment integration on the public box and the money
+questions answerable without a network call.
+
+**The two halves fail in opposite directions, deliberately.** A Discord
+entitlement lookup fails **open** to the last known value, because an API
+outage must not switch off a paying customer. Trial eligibility fails
+**closed**, because the cost of being wrong there is a free month handed out
+repeatedly for as long as the database is unhappy — and a server that really
+qualifies can be offered one a minute later.
+
+#### The free trial
+
+14 days, **card only**, **monthly only**, and only for a server that has
+**never held premium by either route**. Length and which plans offer it are set
+in Stripe (`trial_days` on a price's metadata); *who may be offered one* is the
+bot's answer, travelling in the settings payload beside the SKU id, and the
+checkout route re-checks it server-side before passing a trial to Stripe — a
+card rendered without one is not a gate, because a POST is not a click.
+
+Stripe cannot enforce this. Each checkout mints a fresh customer, so it holds
+no memory linking a returning guild to the trial it already used.
+`PremiumEntitlementSeen` plus the surviving `StripeSubscription` rows are the
+whole of that memory.
+
+Grandfathered servers **are** eligible: they have never paid, and that is the
+only question asked. `is_grandfathered` compares a row id against a captured
+line and knows nothing about money; reading it into a payment decision would
+couple the two in the direction the grandfathering rule exists to prevent.
+
+#### Kill switches
+
+`STRIPE_ENABLED` exists separately on the bot and on the dashboard. **Turn the
+bot's on first.** With the dashboard's on and the bot's off, a customer
+completes checkout, is charged, and the forwarded write is answered 404 until
+Stripe gives up three days later.
 
 ### Queue priority
 
@@ -344,7 +404,7 @@ it asks the bot for over mTLS, and the bot decides what it is allowed to know.
 | --- | --- | --- |
 | Overview | `/guild/<id>` | Where picking a server lands. Member count, verifications today / 7d / 30d, and the one thing worth fixing next. |
 | Settings | `/guild/<id>/settings` | Every setting the slash commands can change. |
-| Subscriptions | `/guild/<id>/subscription` | Placeholder. Buying still happens in Discord. |
+| Subscriptions | `/guild/<id>/subscription` | This server's premium status, and where a card subscription is bought. Plans come from Stripe at render time; checkout and the billing portal both redirect to Stripe's own domain. |
 
 All three authorise identically — a session to prove who is asking, then the
 bot to decide what they may see — and, just as importantly, **all three fail
@@ -352,8 +412,14 @@ identically**, through one `_guild_page_unavailable`. A 403 and a 404 from the
 bot render as the same page with the same status, because rendered differently
 they would let any signed-in user walk guild ids and enumerate the servers
 running 18+ gating. An oracle only has to exist on one of the three routes to be
-worth using, which is why the Subscriptions placeholder calls the bot before
-rendering a page that has nothing on it.
+worth using — which is why Subscriptions called the bot before rendering even
+back when it was a placeholder with nothing on it.
+
+Subscriptions has one failure rule the other two don't need: **a read that
+fails must never render as "not subscribed".** It apologises instead. "Not
+subscribed" next to a Buy button is how you sell somebody a second
+subscription, so the page carries a distinct "we could not read this" state
+rather than collapsing it into the empty one.
 
 The sidebar collapses to an icon rail from the hamburger in the top left, and
 the choice is remembered in a cookie by `POST /prefs/nav` — the one write route
