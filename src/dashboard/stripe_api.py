@@ -282,7 +282,13 @@ class StripeClient:
             raise StripeAPIError("Stripe returned no checkout URL")
         return url
 
-    def create_portal_session(self, *, customer_id: str, return_url: str) -> str:
+    def create_portal_session(
+        self,
+        *,
+        customer_id: str,
+        return_url: str,
+        configuration: Optional[str] = None,
+    ) -> str:
         """Open Stripe's own billing portal for this customer.
 
         Cancelling, switching plan and updating a card all happen on Stripe's
@@ -290,13 +296,26 @@ class StripeClient:
         action on somebody's money, and the alternative is reimplementing them
         against an API on the box this project assumes will eventually be
         compromised.
+
+        `configuration` names which portal configuration to open with, and it
+        is the one part of that handover this side still controls. Omitted, the
+        session uses the Stripe account's default -- shared with every other
+        product on the account, so its plan list is not necessarily this
+        product's. See `DashboardConfig.stripe_portal_configuration_id`.
         """
         if not stripe_events.valid_object_id(customer_id):
             raise StripeAPIError("refusing to request a malformed customer id")
-        session = self._post(
-            "/billing_portal/sessions",
-            [("customer", customer_id), ("return_url", return_url)],
-        )
+        form = [("customer", customer_id), ("return_url", return_url)]
+        if configuration:
+            # Same shape as trial_period_days on checkout: appended only when
+            # set, so "no configuration" is an absent field rather than an
+            # empty one Stripe would reject.
+            if not stripe_events.valid_object_id(configuration):
+                raise StripeAPIError(
+                    "refusing to request a malformed portal configuration id"
+                )
+            form.append(("configuration", configuration))
+        session = self._post("/billing_portal/sessions", form)
         url = session.get("url")
         if not isinstance(url, str) or not url.startswith("https://"):
             raise StripeAPIError("Stripe returned no portal URL")
