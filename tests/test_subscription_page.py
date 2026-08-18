@@ -324,6 +324,39 @@ class TestDatesAndLabels:
         assert page.ends_on == "3 November 2026"
         assert page.renews_on is None
 
+    def test_cancelled_outright_also_says_ends_on(self):
+        """The regression, from production, 2026-08-18.
+
+        A subscription cancelled in the Stripe dashboard comes back
+        `status=canceled` with `cancel_at_period_end` still FALSE -- there is
+        no future period end left to cancel at. Reading only the flag put it on
+        the "renews" branch, so the page told a real customer they would be
+        billed again on a date nothing was going to bill them.
+
+        Both halves were individually right, which is why no unit test caught
+        it and cancelling a real subscription did.
+        """
+        page = build(
+            payload(premium=True, active=True, status="canceled", cancel=False),
+        )
+        assert page.ends_on == "3 November 2026"
+        assert page.renews_on is None
+
+    def test_an_ordinary_active_subscription_still_says_renews(self):
+        """The other side of the fix. Widening `cancelling` must not make every
+        subscription look cancelled."""
+        page = build(payload(premium=True, active=True, status="active"))
+        assert page.renews_on == "3 November 2026"
+        assert page.ends_on is None
+
+    def test_past_due_still_says_renews_rather_than_ends(self):
+        """`past_due` is Stripe still trying, not Stripe giving up. Telling
+        someone it ends on a date invites them to stop paying attention to a
+        payment that can still succeed."""
+        page = build(payload(premium=True, active=True, status="past_due"))
+        assert page.renews_on == "3 November 2026"
+        assert page.ends_on is None
+
     def test_a_lapsed_subscription_says_when_it_ended(self):
         """The row survives on purpose, so the page can say this rather than
         pretend the server was never a customer."""

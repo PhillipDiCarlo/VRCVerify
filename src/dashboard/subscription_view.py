@@ -522,7 +522,27 @@ def build(
     discord = bool(premium_block.get("discord"))
 
     period_end = _format_date(stripe_block.get("current_period_end"))
-    cancelling = bool(stripe_block.get("cancel_at_period_end"))
+    # Two different ways a subscription stops renewing, and only one of them
+    # sets `cancel_at_period_end`.
+    #
+    # "Cancel at period end" is the customer's own choice in the portal: the
+    # subscription stays `active` and the flag goes up. Cancelling outright --
+    # in the Stripe dashboard, or by Stripe giving up on an unpaid one -- sets
+    # the STATUS to `canceled` and leaves that flag FALSE, because there is no
+    # future period end to cancel at any more.
+    #
+    # Reading only the flag therefore put a live cancellation on the "renews"
+    # branch, and the page told a customer they would be billed again on a date
+    # nothing was going to bill them. Found 2026-08-18 by cancelling a real
+    # subscription and reading the page it produced, which is the only way this
+    # was ever going to surface -- both halves were individually correct.
+    #
+    # `current_period_end` does not move when a subscription is cancelled, so
+    # the date is right in both cases; it is the promise attached to it that
+    # differs. The bot grants premium until that date either way
+    # (`_stripe_row_is_paid` admits `canceled` while the period is unexpired),
+    # so this changes the words and not the entitlement.
+    cancelling = bool(stripe_block.get("cancel_at_period_end")) or status == "canceled"
     label = plan_label_for(stripe_block.get("price_id"), plans)
 
     # Exactly one of these is ever set, and they are different promises.
