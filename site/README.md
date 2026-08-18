@@ -74,6 +74,23 @@ curl -sI --resolve vrcverify.com:443:<cloudflare-ip> https://vrcverify.com/terms
 That override is worth fixing separately -- as it stands, nobody on the home
 network can see the finished site.
 
+## The canonical URLs
+
+Cloudflare's default `html_handling` answers `/terms.html` with a **307 to
+`/terms`**. Both work, which is what makes it easy to miss. Internal links use
+the extension-less form, and so should anything published elsewhere:
+
+| Page | URL to publish |
+|---|---|
+| Terms of Service | `https://vrcverify.com/terms` |
+| Privacy Policy | `https://vrcverify.com/privacy` |
+| Refund Policy | `https://vrcverify.com/refunds` |
+
+These go into Stripe and Discord, live outside this repository, and are the
+kind of thing nobody revisits. Point them at the address that answers rather
+than the one that forwards. `tests/test_site.py::test_internal_links_are_canonical`
+keeps the pages themselves honest.
+
 ## After it is live
 
 - **Stripe** → Settings → Billing → Customer portal → Business information: set
