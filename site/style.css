@@ -1,0 +1,112 @@
+/* One stylesheet for the whole apex site. No fonts, no scripts, no third
+   party anything -- a legal page that depends on a CDN is a legal page that
+   can be unavailable at the moment somebody needs to read it. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --surface: #f6f7f9;
+  --text: #16181d;
+  --muted: #5b6070;
+  --rule: #e2e5ea;
+  --accent: #4553b8;
+  --accent-text: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181d;
+    --surface: #1e2127;
+    --text: #e8eaee;
+    --muted: #a0a6b4;
+    --rule: #2c3038;
+    --accent: #8b96e8;
+    --accent-text: #16181d;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+
+header.site {
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+header.site .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  align-items: baseline;
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+}
+header.site a.brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text);
+  text-decoration: none;
+  margin-right: auto;
+}
+header.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+header.site nav a { color: var(--muted); text-decoration: none; font-size: 0.94rem; }
+header.site nav a:hover, header.site nav a:focus { color: var(--text); text-decoration: underline; }
+
+h1 { font-size: 1.9rem; line-height: 1.25; margin: 2rem 0 0.35rem; text-wrap: balance; }
+h2 { font-size: 1.2rem; margin: 2.25rem 0 0.5rem; text-wrap: balance; }
+h3 { font-size: 1rem; margin: 1.5rem 0 0.35rem; }
+p, li { color: var(--text); }
+ul, ol { padding-left: 1.35rem; }
+li { margin: 0.3rem 0; }
+
+.updated { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.5rem; }
+.lede { font-size: 1.08rem; color: var(--muted); }
+
+a { color: var(--accent); }
+
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.95rem; }
+th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+.scroll { overflow-x: auto; }
+
+.note {
+  background: var(--surface);
+  border-left: 3px solid var(--accent);
+  padding: 0.9rem 1.1rem;
+  margin: 1.25rem 0;
+  border-radius: 0 6px 6px 0;
+}
+.note p:first-child { margin-top: 0; }
+.note p:last-child { margin-bottom: 0; }
+
+.cta {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--accent-text);
+  padding: 0.6rem 1.1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  margin: 0.35rem 0.5rem 0.35rem 0;
+}
+.cta.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+
+footer.site {
+  border-top: 1px solid var(--rule);
+  margin-top: 3rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+footer.site .wrap { padding-top: 1.5rem; padding-bottom: 2.5rem; }
+footer.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 0.75rem; }
+footer.site a { color: var(--muted); }
+
+a:focus-visible, .cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

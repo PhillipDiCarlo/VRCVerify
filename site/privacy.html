@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — VRCVerify</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="/">VRCVerify</a>
+    <nav>
+      <a href="/terms.html">Terms</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/refunds.html">Refunds</a>
+      <a href="https://dashboard.vrcverify.com">Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<h1>Privacy Policy</h1>
+<p class="updated">Last updated 18 August 2026</p>
+
+<p class="lede">VRCVerify links a Discord account to a VRChat account so that a
+server can act on VRChat's age verification. That link is the most sensitive
+thing here, and this page says exactly what is stored, for how long, and who
+else sees it.</p>
+
+<div class="note">
+  <p><strong>The short version.</strong> We store your Discord user ID, your
+  VRChat user ID, and whether VRChat says you are age verified. We do not store
+  your VRChat display name, your profile bio, your email address, or any payment
+  card details. Nothing is sold, and nothing is shared for advertising.</p>
+</div>
+
+<h2>Who we are</h2>
+
+<p>VRCVerify is operated by Esatto Technologies, United States. For anything in
+this policy, including a request to see or delete your data, write to
+<a href="mailto:support@vrcverify.com">support@vrcverify.com</a>.</p>
+
+<h2>What we collect</h2>
+
+<h3>When you verify</h3>
+
+<div class="scroll">
+<table>
+  <tr><th>Data</th><th>Why</th></tr>
+  <tr><td>Your Discord user ID</td><td>To know which account has verified, and to assign the role.</td></tr>
+  <tr><td>Your VRChat user ID (<code>usr_...</code>)</td><td>To ask VRChat whether that account is age verified.</td></tr>
+  <tr><td>Whether VRChat reports you as age verified</td><td>The result the whole service exists to act on.</td></tr>
+  <tr><td>The time of your most recent verification attempt</td><td>Rate limiting, so the shared VRChat account is not overwhelmed.</td></tr>
+  <tr><td>A short verification code, the server it was issued for, and its expiry</td><td>To confirm you control the VRChat account you named. Deleted automatically when it expires, within minutes.</td></tr>
+</table>
+</div>
+
+<p>Once you have verified, the link between your Discord and VRChat accounts
+lets any other server running VRCVerify recognise you without repeating the
+process. That is the point of it, and it is why the record persists.</p>
+
+<h3>When a server uses the bot</h3>
+
+<p>For each Discord server: the server ID, its owner's Discord ID, the role and
+channel IDs it has configured, its chosen language, its feature settings, any
+custom post-verification message it has written, and a count of completed
+verifications. Where an administrator changes a setting on the dashboard, we
+record who changed what and when.</p>
+
+<h3>When a server subscribes by card</h3>
+
+<p>Stripe processes the payment. We receive and store the Stripe customer ID,
+subscription ID, price ID, subscription status and renewal date, so the bot
+knows the server has paid.</p>
+
+<p><strong>We never receive or store card numbers</strong>, and we deliberately
+do not store the billing email address Stripe collects. Card details are entered
+on Stripe's own pages, not ours.</p>
+
+<h3>What we deliberately do not collect</h3>
+
+<ul>
+  <li>Your VRChat display name or profile bio. Your bio is read at the moment of
+    verification to find your code, and is not retained.</li>
+  <li>Your Discord email address, even though Discord could provide it.</li>
+  <li>The contents of any message, anywhere.</li>
+  <li>Card or bank details of any kind.</li>
+  <li>Identity documents or photographs. VRChat performs age verification;
+    VRCVerify only reads the yes-or-no result.</li>
+</ul>
+
+<h2>Who else sees it</h2>
+
+<p>We do not sell personal data and we do not share it for advertising. Data is
+processed by:</p>
+
+<ul>
+  <li><strong>Discord</strong> — the platform the bot runs on.</li>
+  <li><strong>VRChat</strong> — asked whether an account is age verified.</li>
+  <li><strong>Stripe</strong> — payment processing, for card subscriptions only.</li>
+  <li><strong>Cloudflare</strong> — serves this site and the dashboard.</li>
+</ul>
+
+<p>We may also disclose data where the law requires it.</p>
+
+<p>Your verification <em>status</em> is visible to a server through the role the
+bot assigns, which is how the server acts on it. Your VRChat user ID is not
+shown to server administrators anywhere in the bot or the dashboard.</p>
+
+<h2>Where it is stored</h2>
+
+<p>Data is stored on servers in the United States. If you are in the United
+Kingdom or the European Economic Area, using VRCVerify involves transferring
+your data to the United States.</p>
+
+<h2>How long we keep it</h2>
+
+<div class="scroll">
+<table>
+  <tr><th>Data</th><th>Kept</th></tr>
+  <tr><td>Verification codes in progress</td><td>Minutes. Deleted automatically on expiry.</td></tr>
+  <tr><td>Your Discord ID, VRChat ID and verification status</td><td>Until you ask us to delete it.</td></tr>
+  <tr><td>Server settings</td><td>Kept after the bot is removed from a server, so an administrator does not have to reconfigure everything if it is re-invited.</td></tr>
+  <tr><td>Subscription records</td><td>Kept after a subscription ends, as a business record and to know that a server has previously subscribed.</td></tr>
+</table>
+</div>
+
+<h2>Your rights</h2>
+
+<p>You can ask us to show you the data we hold about you, correct it, or delete
+it. If you are in the UK or EEA you also have the right to object to processing,
+to request that we restrict it, to receive your data in a portable form, and to
+complain to your local data protection authority.</p>
+
+<p>To exercise any of these, email
+<a href="mailto:support@vrcverify.com">support@vrcverify.com</a> from an address
+we can tie to your Discord account, or include your Discord user ID. We will
+respond within 30 days.</p>
+
+<p>Deleting your verification record means you will need to verify again the
+next time a server asks.</p>
+
+<h2>Our legal basis, if you are in the UK or EEA</h2>
+
+<ul>
+  <li><strong>Consent</strong> for the verification itself. You start it, and you
+    can withdraw by asking us to delete the record.</li>
+  <li><strong>Performance of a contract</strong> for subscription and billing
+    records.</li>
+  <li><strong>Legitimate interests</strong> for server settings, rate limiting,
+    and keeping the service working and secure.</li>
+</ul>
+
+<h2>Children</h2>
+
+<p>Discord requires its users to be at least 13, and older in some countries.
+VRCVerify is not directed at children and we do not knowingly collect data from
+anyone below Discord's minimum age. If you believe a child's data is held here,
+email us and we will delete it.</p>
+
+<h2>Security</h2>
+
+<p>Access to the database is limited to the operator. The dashboard holds no
+database credentials and reaches the bot only over a mutually authenticated
+private network link, so a compromise of the public website does not by itself
+expose the verification data.</p>
+
+<h2>Changes</h2>
+
+<p>If this policy changes materially we will update the date at the top and, for
+significant changes, announce it in the support channel. Continuing to use
+VRCVerify after a change means accepting the updated policy.</p>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav>
+      <a href="/terms.html">Terms of Service</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/refunds.html">Refund Policy</a>
+      <a href="mailto:support@vrcverify.com">Contact</a>
+    </nav>
+    <p>VRCVerify is operated by Esatto Technologies, United States.<br>
+    Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord Inc.</p>
+  </div>
+</footer>
+
+</body>
+</html>
