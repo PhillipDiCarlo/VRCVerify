@@ -151,8 +151,13 @@ venv.bak/
 # Rope project settings
 .ropeproject
 
-# mkdocs documentation
-/site
+# mkdocs documentation -- REMOVED.
+#
+# This came from the standard Python .gitignore template and ignored
+# `/site`, which is now the apex vrcverify.com static site (#88 phase
+# 10). This project has never used mkdocs -- there is no mkdocs.yml --
+# so the entry only ever stood to silently drop a committed directory,
+# which it did once before anyone noticed.
 
 # mypy
 .mypy_cache/
