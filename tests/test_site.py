@@ -165,13 +165,51 @@ def test_nothing_is_loaded_from_a_third_party(page):
     assert "<script" not in text, f"{page.name} has a script tag"
 
 
-@pytest.mark.parametrize(
-    "page", [p for p in PAGES if p.name != "index.html"],
-    ids=[p.name for p in PAGES if p.name != "index.html"],
-)
+# index.html and 404.html are not policies; the rest are, and a policy with no
+# date cannot be shown to have been in force on a given day.
+NOT_POLICIES = {"index.html", "404.html"}
+POLICIES = [p for p in PAGES if p.name not in NOT_POLICIES]
+
+
+@pytest.mark.parametrize("page", POLICIES, ids=[p.name for p in POLICIES])
 def test_every_policy_says_when_it_was_last_updated(page):
     """A policy with no date cannot be shown to have been in force on a given
     day, which is the only question that ever gets asked about one."""
     assert re.search(r'class="updated">Last updated \d{1,2} \w+ \d{4}', read(page)), (
         f"{page.name} has no 'Last updated' line"
     )
+
+
+def test_the_404_page_exists_because_wrangler_promises_it():
+    """`not_found_handling = "404-page"` in wrangler.toml names this file.
+
+    Delete it and Cloudflare falls back to a bare, unbranded 404 on a domain
+    whose whole job is telling people where the terms are. Nothing at deploy
+    time complains.
+    """
+    config = (SITE.parent / "wrangler.toml").read_text(encoding="utf-8")
+    if 'not_found_handling = "404-page"' in config:
+        assert (SITE / "404.html").exists(), (
+            "wrangler.toml promises a 404 page and site/404.html is missing"
+        )
+
+
+def test_the_deployed_directory_is_the_one_these_tests_check():
+    """These tests are worth nothing if wrangler publishes a different folder."""
+    config = (SITE.parent / "wrangler.toml").read_text(encoding="utf-8")
+    assert 'directory = "./site"' in config
+
+
+def test_the_worker_serves_assets_only():
+    """No `main`, so no code runs on a request to the apex.
+
+    The whole argument for keeping the legal pages off the dashboard was that
+    they should not share a failure domain or an attack surface with running
+    code. A `main` here would quietly undo half of that.
+    """
+    config = (SITE.parent / "wrangler.toml").read_text(encoding="utf-8")
+    mains = [
+        line for line in config.splitlines()
+        if line.strip().startswith("main") and "=" in line
+    ]
+    assert not mains, f"wrangler.toml declares a Worker script: {mains}"

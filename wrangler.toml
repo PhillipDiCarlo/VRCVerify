@@ -1,0 +1,26 @@
+# Deploys the apex vrcverify.com (issue #88, phase 10).
+#
+# An ASSETS-ONLY Worker: there is no `main`, so no code runs on a request.
+# Cloudflare serves the files in ./site and nothing else. That is the same
+# thing Pages would have done -- Pages is simply no longer offered for new
+# projects on this account, and the Workers flow expects `npx wrangler deploy`
+# against a config in the repository.
+#
+# Keeping it in git rather than in a dashboard is the point: what is published
+# at vrcverify.com, and from which directory, is reviewable in a diff.
+#
+# THIS DOES NOT SERVE THE DASHBOARD. dashboard.vrcverify.com is the Flask app
+# on the VPS, reached through the cloudflared tunnel, and must stay that way --
+# the separation is deliberate and SECURITY_AUDIT section 2 depends on it. Only
+# the apex and www are bound here.
+
+name = "vrcverify"
+compatibility_date = "2026-08-18"
+
+[assets]
+directory = "./site"
+
+# A mistyped or rotted legal URL should land somewhere that says where to go
+# instead. Stripe and Discord both hold links into this site, and neither will
+# tell us if one stops resolving.
+not_found_handling = "404-page"

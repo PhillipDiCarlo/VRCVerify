@@ -38,21 +38,41 @@ Two things.
    what Stripe holds — a mismatch between the seller named on the site and the
    one named on the invoice is exactly what a payment dispute turns on.
 
-## Deploying to Cloudflare Pages
+## Deploying
 
-Pages builds straight from this directory, so publishing is a merge.
+Cloudflare no longer offers Pages for new projects on this account -- the
+Workers & Pages screen has only "Create application", and that flow deploys a
+Worker with `npx wrangler deploy`. So this is an **assets-only Worker**: no
+`main`, no code on the request path, Cloudflare just serves `./site`. Same
+outcome Pages would have given, with the config in `wrangler.toml` where a diff
+can show it.
 
-1. Cloudflare dashboard → Workers & Pages → Create → Pages → Connect to Git.
-2. Pick this repository. **Build command:** none. **Build output directory:**
-   `site`. **Framework preset:** none.
-3. Custom domains → add `vrcverify.com` and `www.vrcverify.com`. Cloudflare
-   creates the DNS records itself, since the zone is already here.
-4. Check both resolve over HTTPS, and that `/terms.html`, `/privacy.html` and
-   `/refunds.html` all load.
+1. Workers & Pages -> Create application -> import `PhillipDiCarlo/VRCVerify`.
+2. **Project name** `vrcverify`. **Build command** empty. **Deploy command**
+   `npx wrangler deploy`. **Path** `/`.
+3. Let it create the API token. Note that the token is account-wide -- Workers
+   Scripts, KV, R2, D1, Queues, Containers, and Workers Routes for every zone.
+   That is a broad grant to publish four static pages, and it is worth trimming
+   in My Profile -> API Tokens once the first deploy has proved the flow.
+4. After the first deploy: the Worker -> Settings -> Domains & Routes -> add
+   `vrcverify.com` and `www.vrcverify.com`.
 
-The apex is not on the cloudflared tunnel and must not be added to it. The
-tunnel serves `dashboard.vrcverify.com` from the VPS; this is the separation the
-whole arrangement exists for.
+`dashboard.vrcverify.com` is untouched by any of this and must stay that way.
+It is the Flask app on the VPS behind the cloudflared tunnel, and the whole
+argument for a separate apex is that the two do not share a failure domain.
+
+### Checking it worked
+
+**Not from the LAN.** Local DNS answers `vrcverify.com` with `10.53.1.89`, so a
+browser on that network is sent somewhere else entirely and a working deploy
+looks broken. Use mobile data, or pin the address:
+
+```
+curl -sI --resolve vrcverify.com:443:<cloudflare-ip> https://vrcverify.com/terms.html
+```
+
+That override is worth fixing separately -- as it stands, nobody on the home
+network can see the finished site.
 
 ## After it is live
 
