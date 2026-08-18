@@ -19,7 +19,7 @@ SITE = pathlib.Path(__file__).resolve().parent.parent / "site"
 PAGES = sorted(SITE.glob("*.html"))
 PAGE_NAMES = [p.name for p in PAGES]
 
-CONTACT = "support@vrcverify.com"
+CONTACT = "contact@esattotech.com"
 ENTITY = "Esatto Technologies"
 
 # Every page Stripe or Discord is configured to link to. Losing one of these

@@ -19,13 +19,19 @@ Deliberately static, deliberately not part of the dashboard app:
 
 ## Before this goes live
 
-Two things, and the first blocks the others.
+Two things.
 
-1. **`support@vrcverify.com` must actually receive mail.** Every page names it,
-   the Privacy Policy promises a 30-day response on data requests, and Stripe's
-   portal will link to it. Cloudflare Email Routing is free on a Registrar
-   domain: Website → Email → Email Routing, forward it to whatever inbox you
-   read. Do this before publishing, not after.
+1. **`contact@esattotech.com` must be monitored, not just deliverable.** Every
+   page names it and the Privacy Policy promises a 30-day response to access and
+   erasure requests, which is a commitment to read the mailbox rather than to
+   own it.
+
+   The contact deliberately sits on the *company* domain rather than the product
+   one: the seller named on the site is Esatto Technologies, the seller named on
+   the Stripe invoice is Esatto Technologies, and a contact address on a third
+   name would invite exactly the question a disputing customer asks. It also
+   matches where the bot's own `/vrcverify_support` already points.
+
 2. **Confirm the operating entity name.** These pages say *Esatto Technologies*,
    taken from the Stripe account. If the legal seller is a different entity, or
    an individual, every page's footer and the "Who we are" section need to match
