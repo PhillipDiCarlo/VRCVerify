@@ -91,11 +91,34 @@ def test_internal_links_resolve(page):
     for href in parse(page).links:
         if not href.startswith("/") or href.startswith("//"):
             continue
-        # "/" is the landing page, which Pages serves from index.html.
+        # "/" is the landing page. Everything else is linked without the .html
+        # -- see test_internal_links_are_canonical -- so both forms resolve to
+        # the same file on disk.
         target = href.lstrip("/") or "index.html"
-        if target not in available:
+        if target not in available and f"{target}.html" not in available:
             dead.append(href)
     assert not dead, f"{page.name}: {dead}"
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_internal_links_are_canonical(page):
+    """No `.html` in an internal link, because Cloudflare redirects it away.
+
+    Cloudflare's default `html_handling` is "auto-trailing-slash", which
+    answers /terms.html with a 307 to /terms. Both work, so this is invisible
+    until it matters -- and where it matters is the URLs pasted into Stripe's
+    billing portal and Discord's application settings, which are long-lived,
+    live outside this repository, and should point at the address that answers
+    rather than the one that forwards.
+
+    Verified against the live site on 2026-08-18: /terms.html -> 307 -> /terms.
+    """
+    internal = [
+        href for href in parse(page).links
+        if href.startswith("/") and not href.startswith("//")
+    ]
+    with_extension = [href for href in internal if href.endswith(".html")]
+    assert not with_extension, f"{page.name}: {with_extension}"
 
 
 @pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
