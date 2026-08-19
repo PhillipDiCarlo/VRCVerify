@@ -1,31 +1,31 @@
 import time
-import imaplib
-import re
 import os
 import json
 import pika
 import logging
-import random
-import threading
-from http.cookiejar import MozillaCookieJar
-from urllib import request as urllib_request, error as urllib_error
 from dotenv import load_dotenv
 from pika.exceptions import AMQPError
 
 # VRChat API imports
 import vrchatapi
-from vrchatapi.api import authentication_api, users_api
-from vrchatapi.models.two_factor_auth_code import TwoFactorAuthCode
-from vrchatapi.models.two_factor_email_code import TwoFactorEmailCode
+from vrchatapi.api import users_api
 from vrchatapi.exceptions import UnauthorizedException, ApiException
+
+from vrc_session import (
+    TRANSIENT_HTTP_STATUSES,
+    VRChatAccount,
+    VRChatSession,
+    backoff_delay,
+    check_session_store_writable,
+    classify_api_error,
+    default_session_error,
+    request_timeout,
+)
 
 # -------------------------------------------------------------------
 # Load environment variables
 # -------------------------------------------------------------------
 load_dotenv()
-
-VRCHAT_USERNAME = os.getenv("VRCHAT_USERNAME")
-VRCHAT_PASSWORD = os.getenv("VRCHAT_PASSWORD")
 
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT"))
@@ -43,6 +43,12 @@ RESULT_QUEUE_NAME = os.getenv("RABBITMQ_RESULT_QUEUE")
 # one a VRChat moderator can actually reach us at. It was a placeholder
 # (contact@yourdomain.com) until 2026-08-18; do not let it become one again.
 VRCHAT_USER_AGENT = "VRCVerifyBot/1.0 contact@esattotech.com"
+
+# This service's VRChat login. The session machinery itself lives in
+# vrc_session so the group-invite bot (issue #49) can run a second account
+# without a second copy of it; everything here still talks to this one.
+CHECKER_ACCOUNT = VRChatAccount.from_env(user_agent=VRCHAT_USER_AGENT, label="age-check")
+vrchat_session = VRChatSession(CHECKER_ACCOUNT)
 
 # Priority levels on the request queue, so premium servers are served ahead of
 # free ones when a backlog forms.
@@ -71,14 +77,8 @@ def is_queue_argument_mismatch(error: Exception) -> bool:
     """Is this the 406 you get from re-declaring a queue with new arguments?"""
     return getattr(error, "reply_code", None) == QUEUE_ARGUMENT_MISMATCH_CODE
 
-# Gmail IMAP Credentials
-GMAIL_USER = os.getenv("GMAIL_USER")
-GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
-
 log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
 numeric_level = getattr(logging, log_level_str, logging.INFO)
-VRCHAT_API_CONNECT_TIMEOUT_SECONDS = float(os.getenv("VRCHAT_API_CONNECT_TIMEOUT_SECONDS", "10"))
-VRCHAT_API_READ_TIMEOUT_SECONDS = float(os.getenv("VRCHAT_API_READ_TIMEOUT_SECONDS", "20"))
 
 # -------------------------------------------------------------------
 # Logging configuration
@@ -94,10 +94,6 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 # RabbitMQ Setup
 # -------------------------------------------------------------------
 credentials = pika.PlainCredentials(RABBITMQ_USERNAME, RABBITMQ_PASSWORD)
-
-
-def _vrchat_request_timeout() -> tuple[float, float]:
-    return (VRCHAT_API_CONNECT_TIMEOUT_SECONDS, VRCHAT_API_READ_TIMEOUT_SECONDS)
 
 
 def _rabbitmq_parameters() -> pika.ConnectionParameters:
@@ -141,404 +137,12 @@ def _rabbitmq_connect_with_retry(max_tries: int = 0) -> pika.BlockingConnection:
 
 
 # -------------------------------------------------------------------
-# Function to Fetch 2FA Code from Gmail
-# -------------------------------------------------------------------
-def fetch_latest_2fa_code():
-    """Waits for VRChat's 2FA email and retrieves the code from the subject line."""
-    logging.info("Waiting 10 seconds for 2FA email to arrive...")
-    time.sleep(10)  # Initial wait to allow the email to arrive
-
-    retries = 3  # Number of times to retry
-    wait_time = 5  # Seconds between retries
-
-    for attempt in range(retries):
-        try:
-            mail = imaplib.IMAP4_SSL("imap.gmail.com")
-            mail.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-            mail.select("inbox")
-
-            logging.info("Checking for VRChat 2FA email (Attempt %d/%d)...", attempt + 1, retries)
-
-            # Search for the latest VRChat 2FA email
-            status, messages = mail.search(None, 'FROM "noreply@vrchat.com"')
-
-            if not messages[0]:
-                logging.warning("No VRChat 2FA emails found yet.")
-                time.sleep(wait_time)  # Wait before retrying
-                continue
-
-            latest_email_id = messages[0].split()[-1]  # Get the most recent email
-            status, data = mail.fetch(latest_email_id, "(BODY[HEADER.FIELDS (SUBJECT)])")
-
-            # Extract subject
-            raw_subject = data[0][1].decode()
-            subject_match = re.search(r"Your One-Time Code is (\d{6})", raw_subject)
-
-            if subject_match:
-                vrchat_2fa_code = subject_match.group(1)
-                # Never log the code itself: log files shouldn't hold auth secrets.
-                logging.info("Found VRChat 2FA code in email subject.")
-                return vrchat_2fa_code
-
-            logging.warning("No 2FA code found in email subject. Retrying...")
-            time.sleep(wait_time)  # Wait before retrying
-
-        except Exception as e:
-            logging.error("Error fetching 2FA code from Gmail: %s", e)
-
-        finally:
-            try:
-                mail.logout()
-            except Exception:
-                pass  # Ignore errors when logging out
-
-    logging.error("Failed to retrieve VRChat 2FA code after multiple attempts.")
-    return None
-
-
-# -------------------------------------------------------------------
-# Session persistence
-#
-# Every fresh login consumes a 2FA email and VRChat rate-limits the 2FA
-# endpoint (429). A couple of redeploys in quick succession can therefore
-# lock the bot account out of logging in at all, which takes verification
-# down completely -- restarting is exactly when that must not happen.
-# Storing the auth cookie lets a restarted checker resume its session
-# without re-authenticating.
-#
-# The cookie is an auth credential, so the file is written 0600 and should
-# live on a volume that is not world-readable. Leave VRCHAT_SESSION_FILE
-# unset to disable persistence entirely.
-# -------------------------------------------------------------------
-VRCHAT_SESSION_FILE = os.getenv("VRCHAT_SESSION_FILE", "").strip()
-
-
-def _attach_session_store(api_client, load_existing: bool = True) -> MozillaCookieJar | None:
-    """Back the client's cookie jar with VRCHAT_SESSION_FILE, if configured.
-
-    The jar is attached even when load_existing is False, so cookies issued
-    by a fresh login still get persisted -- otherwise a login that follows a
-    rejected session would leave nothing on disk, defeating the feature in
-    exactly the case it exists for.
-
-    Returns the jar so a caller can persist it after a successful login, or
-    None when persistence is disabled. Never raises: failing to reuse a
-    stored session must never prevent logging in normally.
-    """
-    if not VRCHAT_SESSION_FILE:
-        return None
-
-    jar = MozillaCookieJar(VRCHAT_SESSION_FILE)
-    if load_existing and os.path.exists(VRCHAT_SESSION_FILE):
-        try:
-            jar.load(ignore_discard=True, ignore_expires=True)
-            logging.info("Loaded stored VRChat session from %s", VRCHAT_SESSION_FILE)
-        except Exception:
-            # load() inserts every line it parsed before raising, so a torn
-            # file (save is not atomic) leaves a TRUNCATED auth cookie behind.
-            # Sending that would fail auth in a confusing way -- drop it all.
-            jar.clear()
-            logging.warning(
-                "Stored VRChat session at %s is unreadable; discarding it",
-                VRCHAT_SESSION_FILE,
-                exc_info=True,
-            )
-    try:
-        api_client.rest_client.cookie_jar = jar
-    except Exception:
-        logging.warning("Could not attach session store to client", exc_info=True)
-        return None
-    return jar
-
-
-def _jar_sends_cookies(jar: MozillaCookieJar | None, host: str) -> bool:
-    """True only if the jar would actually send cookies to `host`.
-
-    len(jar) is the wrong test: we load with ignore_expires=True, so expired
-    cookies inflate the count even though add_cookie_header filters them out
-    at request time. A fully expired store must not look like a live session.
-    """
-    if not jar:
-        return False
-    try:
-        probe = urllib_request.Request(host)
-        jar.add_cookie_header(probe)
-        return bool(probe.get_header("Cookie"))
-    except Exception:
-        logging.warning("Could not evaluate stored session cookies", exc_info=True)
-        return False
-
-
-def _persist_session(jar: MozillaCookieJar | None) -> None:
-    """Write the auth cookie to disk atomically, owner-readable only."""
-    if jar is None:
-        return
-    try:
-        path = os.path.abspath(VRCHAT_SESSION_FILE)
-        parent = os.path.dirname(path)
-        if parent:
-            os.makedirs(parent, exist_ok=True)
-        # MozillaCookieJar.save() truncates in place, so being killed mid-write
-        # leaves a half-written file that loads as a truncated cookie. Write a
-        # temp file and rename, which is atomic on the same filesystem.
-        tmp = f"{path}.tmp"
-        jar.save(filename=tmp, ignore_discard=True, ignore_expires=True)
-        os.chmod(tmp, 0o600)
-        os.replace(tmp, path)
-        logging.info("Stored VRChat session to %s", path)
-    except Exception:
-        logging.warning(
-            "Could not persist VRChat session to %s (continuing without it)",
-            VRCHAT_SESSION_FILE,
-            exc_info=True,
-        )
-
-
-def _discard_stored_session() -> None:
-    """Delete a stored session that failed to authenticate."""
-    if not VRCHAT_SESSION_FILE:
-        return
-    try:
-        os.remove(VRCHAT_SESSION_FILE)
-        logging.info("Discarded stale VRChat session file %s", VRCHAT_SESSION_FILE)
-    except FileNotFoundError:
-        pass
-    except Exception:
-        logging.warning("Could not remove %s", VRCHAT_SESSION_FILE, exc_info=True)
-
-
-# -------------------------------------------------------------------
-# VRChat Login with Auto 2FA
-# -------------------------------------------------------------------
-def login_to_vrchat(load_stored_session: bool = True):
-    """Logs into VRChat and handles possible 2FA prompts automatically.
-
-    Reuses a stored session cookie when one is available so that restarts do
-    not burn a 2FA email (see VRCHAT_SESSION_FILE). A stored session that is
-    outright rejected is discarded and the login retried from scratch -- but
-    the retry still persists whatever session it establishes.
-
-    Returns:
-        tuple[vrchatapi.ApiClient | None, dict | None]:
-            (client, error_meta). When login succeeds, error_meta is None.
-            When login fails, client is None and error_meta contains structured
-            outage/auth metadata that can be sent back to users.
-    """
-    configuration = vrchatapi.Configuration(
-        username=VRCHAT_USERNAME, password=VRCHAT_PASSWORD
-    )
-
-    api_client = vrchatapi.ApiClient(configuration)
-    api_client.user_agent = VRCHAT_USER_AGENT
-    # Always attach the store; only loading is conditional. Newly issued
-    # cookies must land on disk even on a retry after a rejected session.
-    session_jar = _attach_session_store(api_client, load_existing=load_stored_session)
-    reused_session = _jar_sends_cookies(session_jar, configuration.host)
-    auth_api = authentication_api.AuthenticationApi(api_client)
-    request_timeout = _vrchat_request_timeout()
-
-    try:
-        current_user = auth_api.get_current_user(_request_timeout=request_timeout)
-        if reused_session:
-            logging.info("Reused stored VRChat session (no 2FA needed)")
-        logging.info("Successfully logged in as %s", current_user.display_name)
-        _persist_session(session_jar)
-        return api_client, None
-
-    except UnauthorizedException as e:
-        # "2FA required" (status 200) is the ordinary cold-login signal and
-        # must be handled in place -- it is NOT evidence the stored cookie is
-        # bad. Completing 2FA here refreshes the jar and persists it, instead
-        # of throwing the session away and paying for a second round trip.
-        if e.status != 200 and reused_session:
-            logging.warning("Stored VRChat session rejected; retrying with a fresh login")
-            _discard_stored_session()
-            return login_to_vrchat(load_stored_session=False)
-
-        if e.status == 200:
-            logging.info("2FA Required! Fetching code from email...")
-
-            # Auto-fetch the 2FA code
-            two_factor_code = fetch_latest_2fa_code()
-            if not two_factor_code:
-                logging.error("2FA required but no valid code found.")
-                return None, {
-                    "lookup_ok": False,
-                    "error_type": "vrchat_auth_error",
-                    "error_message": "2FA required but no valid code found",
-                    "vrchat_outage": False,
-                    "vrchat_outage_confirmed": False,
-                    "vrchat_status_message": None,
-                    "vrchat_status_indicator": None,
-                }
-
-            # e.reason can be None; `in None` would raise TypeError from inside
-            # this handler, escape login_to_vrchat, and kill the relogin thread.
-            if "Email 2 Factor Authentication" in (e.reason or ""):
-                auth_api.verify2_fa_email_code(
-                    TwoFactorEmailCode(two_factor_code),
-                    _request_timeout=request_timeout,
-                )
-            else:
-                auth_api.verify2_fa(
-                    TwoFactorAuthCode(two_factor_code),
-                    _request_timeout=request_timeout,
-                )
-
-            current_user = auth_api.get_current_user(_request_timeout=request_timeout)
-            logging.info("Successfully logged in as %s", current_user.display_name)
-            _persist_session(session_jar)
-            return api_client, None
-
-        logging.error("VRChat login failed: %s", e)
-        return None, {
-            "lookup_ok": False,
-            "error_type": "vrchat_auth_error",
-            "error_message": str(e),
-            "vrchat_outage": False,
-            "vrchat_outage_confirmed": False,
-            "vrchat_status_message": None,
-            "vrchat_status_indicator": None,
-        }
-
-    except ApiException as e:
-        logging.error(
-            "VRChat API error during login (timeout=%ss/%ss): %s",
-            VRCHAT_API_CONNECT_TIMEOUT_SECONDS,
-            VRCHAT_API_READ_TIMEOUT_SECONDS,
-            e,
-        )
-        return None, _classify_vrchat_api_error(e)
-    except Exception as e:
-        logging.error(
-            "Unexpected VRChat login error (timeout=%ss/%ss): %s",
-            VRCHAT_API_CONNECT_TIMEOUT_SECONDS,
-            VRCHAT_API_READ_TIMEOUT_SECONDS,
-            e,
-            exc_info=True,
-        )
-        return None, _classify_vrchat_api_error(e)
-
-
-VRCHAT_RELOGIN_INTERVAL_SECONDS = int(os.getenv("VRCHAT_RELOGIN_INTERVAL_SECONDS", "600"))
-
-vrchat_api_client: vrchatapi.ApiClient | None = None
-vrchat_login_error_meta: dict | None = None
-_vrchat_session_lock = threading.Lock()
-_vrchat_next_login_attempt_at = 0.0
-
-
-def _default_vrchat_session_error(message: str = "VRChat session not active") -> dict:
-    return {
-        "lookup_ok": False,
-        "error_type": "vrchat_session_unavailable",
-        "error_message": message,
-        "vrchat_outage": False,
-        "vrchat_outage_confirmed": False,
-        "vrchat_status_message": None,
-        "vrchat_status_indicator": None,
-    }
-
-
-def _set_vrchat_session_state(
-    client: vrchatapi.ApiClient | None,
-    error_meta: dict | None,
-    next_retry_delay_seconds: float | None = None,
-):
-    global vrchat_api_client, vrchat_login_error_meta, _vrchat_next_login_attempt_at
-    with _vrchat_session_lock:
-        vrchat_api_client = client
-        vrchat_login_error_meta = error_meta
-        if client is not None:
-            _vrchat_next_login_attempt_at = 0.0
-        else:
-            delay = VRCHAT_RELOGIN_INTERVAL_SECONDS if next_retry_delay_seconds is None else next_retry_delay_seconds
-            _vrchat_next_login_attempt_at = time.monotonic() + max(0.0, float(delay))
-
-
-def attempt_vrchat_login(force: bool = False) -> tuple[vrchatapi.ApiClient | None, dict | None]:
-    """Attempt VRChat login, optionally respecting the scheduled retry window."""
-    with _vrchat_session_lock:
-        current_client = vrchat_api_client
-        current_error = vrchat_login_error_meta
-        next_attempt_at = _vrchat_next_login_attempt_at
-
-    if current_client is not None:
-        return current_client, None
-
-    if not force and next_attempt_at and time.monotonic() < next_attempt_at:
-        return None, current_error or _default_vrchat_session_error()
-
-    client, error_meta = login_to_vrchat()
-    if client is not None:
-        _set_vrchat_session_state(client, None)
-        return client, None
-
-    _set_vrchat_session_state(None, error_meta or _default_vrchat_session_error())
-    return None, error_meta or _default_vrchat_session_error()
-
-
-def get_vrchat_session() -> tuple[vrchatapi.ApiClient | None, dict | None]:
-    """Return the current VRChat session without triggering a relogin attempt."""
-    with _vrchat_session_lock:
-        if vrchat_api_client is not None:
-            return vrchat_api_client, None
-        return None, vrchat_login_error_meta or _default_vrchat_session_error()
-
-
-def invalidate_vrchat_session(error_meta: dict | None = None):
-    """Clear the current session and schedule the next background relogin attempt."""
-    _set_vrchat_session_state(
-        None,
-        error_meta or _default_vrchat_session_error("VRChat session expired"),
-        next_retry_delay_seconds=VRCHAT_RELOGIN_INTERVAL_SECONDS,
-    )
-
-
-def _vrchat_relogin_loop():
-    """Retry VRChat login in the background on a fixed cadence when logged out."""
-    while True:
-        with _vrchat_session_lock:
-            has_client = vrchat_api_client is not None
-            next_attempt_at = _vrchat_next_login_attempt_at
-
-        if has_client:
-            time.sleep(5)
-            continue
-
-        now = time.monotonic()
-        if next_attempt_at and now < next_attempt_at:
-            time.sleep(min(5.0, max(1.0, next_attempt_at - now)))
-            continue
-
-        logging.info("Attempting scheduled VRChat login retry")
-        try:
-            attempt_vrchat_login(force=True)
-        except Exception:
-            # This thread is the ONLY thing that can recover a lost session --
-            # the main thread is blocked consuming RabbitMQ. If it dies, every
-            # verification fails until someone restarts the container, so no
-            # exception may ever escape this loop.
-            logging.exception("Scheduled VRChat login retry raised; will retry")
-        time.sleep(5)
-
-# -------------------------------------------------------------------
 # VRChat status page / outage helpers
 # -------------------------------------------------------------------
-VRCHAT_STATUS_SUMMARY_URL = os.getenv("VRCHAT_STATUS_SUMMARY_URL", "https://status.vrchat.com/api/v2/summary.json")
-VRCHAT_STATUS_CACHE_SECONDS = int(os.getenv("VRCHAT_STATUS_CACHE_SECONDS", "120"))
 # Floor of 1: this counts total attempts, not extra retries. At 0 the retry
 # loops would fall through without ever calling VRChat, reporting every user
 # as "code not found" with lookup_ok=True -- a silent, misdiagnosable failure.
 VRCHAT_LOOKUP_RETRIES = max(1, int(os.getenv("VRCHAT_LOOKUP_RETRIES", "3")))
-VRCHAT_LOOKUP_BACKOFF_BASE = float(os.getenv("VRCHAT_LOOKUP_BACKOFF_BASE", "1.5"))
-
-_vrchat_status_cache: dict[str, object] = {
-    "expires_at": 0.0,
-    "value": None,
-}
-
-
 def _result_payload(discord_id, vrc_user_id, guild_id, verification_code, **extra):
     payload = {
         "discordID": discord_id,
@@ -561,154 +165,31 @@ def _result_payload(discord_id, vrc_user_id, guild_id, verification_code, **extr
     return payload
 
 
-def _fetch_vrchat_status_summary(force_refresh: bool = False) -> dict | None:
-    now = time.monotonic()
-    cached = _vrchat_status_cache.get("value")
-    expires_at = float(_vrchat_status_cache.get("expires_at") or 0.0)
-    if cached is not None and not force_refresh and expires_at > now:
-        return cached  # type: ignore[return-value]
-
-    try:
-        req = urllib_request.Request(
-            VRCHAT_STATUS_SUMMARY_URL,
-            headers={
-                "User-Agent": "VRCVerifyBot/1.0 (+https://status.vrchat.com/)"
-            },
-        )
-        with urllib_request.urlopen(req, timeout=8) as resp:
-            raw = resp.read().decode("utf-8")
-        data = json.loads(raw)
-        _vrchat_status_cache["value"] = data
-        _vrchat_status_cache["expires_at"] = now + VRCHAT_STATUS_CACHE_SECONDS
-        return data
-    except Exception:
-        logging.warning("Failed to fetch VRChat status summary", exc_info=True)
-        if cached is not None:
-            return cached  # type: ignore[return-value]
-        return None
+def get_vrchat_session() -> tuple[vrchatapi.ApiClient | None, dict | None]:
+    """The live session for this service's account."""
+    return vrchat_session.get()
 
 
-def _extract_relevant_vrchat_status() -> dict:
-    summary = _fetch_vrchat_status_summary()
-    if not summary:
-        return {
-            "vrchat_outage": False,
-            "vrchat_outage_confirmed": False,
-            "vrchat_status_message": None,
-            "vrchat_status_indicator": None,
-        }
-
-    overall = (summary.get("status") or {})
-    incidents = summary.get("incidents") or []
-    components = summary.get("components") or []
-
-    keywords = ("api", "authentication", "login", "website")
-    relevant_components = []
-    for component in components:
-        name = str(component.get("name") or "")
-        lower = name.lower()
-        if any(k in lower for k in keywords):
-            relevant_components.append(component)
-
-    degraded_statuses = {"degraded_performance", "partial_outage", "major_outage", "under_maintenance"}
-    confirmed = any((c.get("status") in degraded_statuses) for c in relevant_components)
-
-    active_incidents = []
-    for incident in incidents:
-        incident_status = str(incident.get("status") or "")
-        if incident_status not in {"resolved", "completed", "postmortem", "none"}:
-            active_incidents.append(incident)
-
-    if not confirmed and active_incidents:
-        for incident in active_incidents:
-            name = str(incident.get("name") or "").lower()
-            body = str((incident.get("incident_updates") or [{}])[0].get("body") or "").lower()
-            if any(k in name or k in body for k in keywords):
-                confirmed = True
-                break
-
-    message = None
-    indicator = overall.get("indicator")
-    if active_incidents:
-        first = active_incidents[0]
-        updates = first.get("incident_updates") or []
-        latest_update = updates[0] if updates else {}
-        incident_name = first.get("name")
-        update_body = latest_update.get("body")
-        message = incident_name or update_body
-        if incident_name and update_body:
-            message = f"{incident_name}: {update_body}"
-    elif relevant_components:
-        degraded = [c for c in relevant_components if c.get("status") in degraded_statuses]
-        if degraded:
-            message = ", ".join(f"{c.get('name')}: {c.get('status')}" for c in degraded)
-
-    return {
-        "vrchat_outage": confirmed,
-        "vrchat_outage_confirmed": confirmed,
-        "vrchat_status_message": message,
-        "vrchat_status_indicator": indicator,
-    }
-
-
-def _classify_vrchat_api_error(exc: Exception) -> dict:
-    status = getattr(exc, "status", None)
-    reason = str(getattr(exc, "reason", exc) or exc)
-    body = str(getattr(exc, "body", "") or "")
-    text = f"{reason} {body}".lower()
-
-    error_type = "vrchat_error"
-    likely_outage = False
-
-    if status in {500, 502, 503, 504}:
-        error_type = "vrchat_upstream_error"
-        likely_outage = True
-    elif status == 429:
-        error_type = "vrchat_rate_limited"
-    elif status in {401, 403}:
-        error_type = "vrchat_auth_error"
-    elif status == 404:
-        error_type = "vrchat_user_not_found"
-    elif "timed out" in text or "timeout" in text:
-        error_type = "vrchat_timeout"
-        likely_outage = True
-    elif "application error" in text or "internal server error" in text or "bad gateway" in text or "service unavailable" in text:
-        error_type = "vrchat_upstream_error"
-        likely_outage = True
-
-    status_meta = _extract_relevant_vrchat_status() if likely_outage else {
-        "vrchat_outage": False,
-        "vrchat_outage_confirmed": False,
-        "vrchat_status_message": None,
-        "vrchat_status_indicator": None,
-    }
-
-    return {
-        "lookup_ok": False,
-        "error_type": error_type,
-        "error_message": reason if len(reason) < 500 else reason[:500],
-        "vrchat_outage": bool(likely_outage or status_meta.get("vrchat_outage")),
-        "vrchat_outage_confirmed": bool(status_meta.get("vrchat_outage_confirmed")),
-        "vrchat_status_message": status_meta.get("vrchat_status_message"),
-        "vrchat_status_indicator": status_meta.get("vrchat_status_indicator"),
-    }
+def invalidate_vrchat_session(error_meta: dict | None = None):
+    """Drop the session and let the background thread log back in."""
+    vrchat_session.invalidate(error_meta)
 
 
 def _get_vrchat_user_with_retry(users_api_instance, vrc_user_id: str):
     last_exc = None
-    request_timeout = _vrchat_request_timeout()
+    timeout = request_timeout()
     attempts = max(1, VRCHAT_LOOKUP_RETRIES)  # never skip the call entirely
     for attempt in range(1, attempts + 1):
         try:
-            return users_api_instance.get_user(vrc_user_id, _request_timeout=request_timeout)
+            return users_api_instance.get_user(vrc_user_id, _request_timeout=timeout)
         except ApiException as e:
             last_exc = e
             status = getattr(e, "status", None)
-            if status not in {500, 502, 503, 504, 429}:
+            if status not in TRANSIENT_HTTP_STATUSES:
                 raise
             if attempt >= attempts:
                 raise
-            delay = min(8.0, VRCHAT_LOOKUP_BACKOFF_BASE * attempt) + random.uniform(0.0, 0.35)
+            delay = backoff_delay(attempt)
             logging.warning(
                 "Transient VRChat get_user failure for %s (status=%s). Retrying in %.2fs (attempt %s/%s)",
                 vrc_user_id,
@@ -722,7 +203,7 @@ def _get_vrchat_user_with_retry(users_api_instance, vrc_user_id: str):
             last_exc = e
             if attempt >= attempts:
                 raise
-            delay = min(8.0, VRCHAT_LOOKUP_BACKOFF_BASE * attempt) + random.uniform(0.0, 0.35)
+            delay = backoff_delay(attempt)
             logging.warning(
                 "Transient VRChat get_user failure for %s. Retrying in %.2fs (attempt %s/%s)",
                 vrc_user_id, delay, attempt, attempts, exc_info=True
@@ -768,7 +249,7 @@ def _fetch_vrchat_profile(client, vrc_user_id: str) -> dict:
         async_req=False,
         _return_http_data_only=True,
         _preload_content=False,  # no generated model exists; decode by hand
-        _request_timeout=_vrchat_request_timeout(),
+        _request_timeout=request_timeout(),
         collection_formats={},
     )
     payload = json.loads(raw.data.decode("utf-8"))
@@ -789,9 +270,9 @@ def _get_vrchat_profile_with_retry(client, vrc_user_id: str) -> dict:
             return _fetch_vrchat_profile(client, vrc_user_id)
         except ApiException as e:
             status = getattr(e, "status", None)
-            if status not in {500, 502, 503, 504, 429} or attempt >= attempts:
+            if status not in TRANSIENT_HTTP_STATUSES or attempt >= attempts:
                 raise
-            delay = min(8.0, VRCHAT_LOOKUP_BACKOFF_BASE * attempt) + random.uniform(0.0, 0.35)
+            delay = backoff_delay(attempt)
             logging.warning(
                 "Transient VRChat /profile failure for %s (status=%s). Retrying in %.2fs (attempt %s/%s)",
                 vrc_user_id,
@@ -942,7 +423,7 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
     client, session_error = get_vrchat_session()
     if not client:
         logging.error("VRChat session not active. Failing verification.")
-        meta = session_error or _default_vrchat_session_error()
+        meta = session_error or default_session_error()
         return _result_payload(
             discord_id,
             vrc_user_id,
@@ -955,7 +436,7 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
         bio, age_status, display_name, source = fetch_profile_snapshot(client, vrc_user_id)
     except UnauthorizedException as e:
         logging.warning("VRChat session unauthorized; deferring relogin to background worker")
-        meta = _classify_vrchat_api_error(e)
+        meta = classify_api_error(e)
         invalidate_vrchat_session(meta)
         return _result_payload(
             discord_id,
@@ -967,13 +448,13 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
     except ApiException as e:
         logging.error("Failed to fetch VRChat user %s. Error: %s", vrc_user_id, e)
         if getattr(e, "status", None) in {401, 403}:
-            invalidate_vrchat_session(_classify_vrchat_api_error(e))
+            invalidate_vrchat_session(classify_api_error(e))
         return _result_payload(
             discord_id,
             vrc_user_id,
             guild_id,
             verification_code,
-            **_classify_vrchat_api_error(e),
+            **classify_api_error(e),
         )
     except Exception as e:
         logging.error("Unexpected failure while fetching VRChat user %s. Error: %s", vrc_user_id, e)
@@ -982,7 +463,7 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
             vrc_user_id,
             guild_id,
             verification_code,
-            **_classify_vrchat_api_error(e),
+            **classify_api_error(e),
         )
 
     # Do NOT swap this for /profile's `ageVerified` boolean: they disagree.
@@ -1065,7 +546,7 @@ def send_verification_result(result: dict):
 
 def listen_for_verifications():
     """Blocking function that listens for new requests from the bot."""
-    if not vrchat_api_client:
+    if not vrchat_session.client:
         logging.warning("VRChat login was not successful. We might fail all requests.")
     while True:
         connection = None
@@ -1120,48 +601,14 @@ def listen_for_verifications():
 # -------------------------------------------------------------------
 # Main
 # -------------------------------------------------------------------
-def _check_session_store_writable() -> bool:
-    """Log at ERROR if session persistence is configured but unusable.
-
-    A named volume created before the image gained /data mounts root-owned,
-    so uid 10001 cannot write there. _persist_session only warns, which means
-    persistence would stay silently off forever and every restart would burn
-    a 2FA email. Surface it loudly at startup instead.
-    """
-    if not VRCHAT_SESSION_FILE:
-        logging.info("VRCHAT_SESSION_FILE unset; VRChat session will not persist across restarts")
-        return False
-    path = os.path.abspath(VRCHAT_SESSION_FILE)
-    probe = f"{path}.probe"
-    try:
-        parent = os.path.dirname(path)
-        if parent:
-            os.makedirs(parent, exist_ok=True)
-        with open(probe, "w", encoding="utf-8") as fh:
-            fh.write("ok")
-        os.remove(probe)
-        logging.info("Session store at %s is writable", path)
-        return True
-    except Exception as exc:
-        logging.error(
-            "Session store %s is NOT writable (%s). Restarts will re-authenticate "
-            "and consume a 2FA email each time, risking a VRChat 429 lockout. "
-            "If running in Docker, check that the volume mounted at the parent "
-            "directory is owned by the container user.",
-            path,
-            exc,
-        )
-        return False
-
-
 if __name__ == "__main__":
-    _check_session_store_writable()
+    check_session_store_writable(CHECKER_ACCOUNT)
 
     logging.info("Attempting initial VRChat login")
-    attempt_vrchat_login(force=True)
+    vrchat_session.attempt_login(force=True)
     if not get_vrchat_session()[0]:
         logging.error("Initial VRChat login failed. Continuing to serve queue with outage-aware responses.")
 
-    threading.Thread(target=_vrchat_relogin_loop, name="vrchat-relogin", daemon=True).start()
+    vrchat_session.start_relogin_thread()
 
     listen_for_verifications()

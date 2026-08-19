@@ -18,6 +18,7 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
   - Applies explicit VRChat API connect/read timeouts so stalled upstream requests fail visibly instead of hanging forever.
    - Checks the target VRChat user’s profile for age verification status and whether the provided code is present in their bio.
   - Sends back the verification result via a RabbitMQ result queue, including structured outage/auth metadata when VRChat is unavailable.
+  - Its VRChat login, 2FA handling, cookie persistence and outage classification live in `src/vrc_session.py`, shared so a second VRChat account can hold its own independent session.
 
 ---
 
@@ -692,6 +693,17 @@ it.
    # VRChat Credentials (for vrc_online_checker.py)
    VRCHAT_USERNAME=your_vrchat_username
    VRCHAT_PASSWORD=your_vrchat_password
+
+   # Group-invite bot: a SEPARATE VRChat account and 2FA mailbox (optional).
+   # Its mailbox must differ from GMAIL_USER and its session file must differ
+   # from VRCHAT_SESSION_FILE -- see .env.example for why both matter.
+   # INVITE_VRCHAT_USERNAME=
+   # INVITE_VRCHAT_PASSWORD=
+   # INVITE_GMAIL_USER=
+   # INVITE_GMAIL_APP_PASSWORD=
+   # INVITE_VRCHAT_USER_ID=
+   # INVITE_VRCHAT_SESSION_FILE=/data/vrchat_invite_session.txt
+   # RABBITMQ_GROUP_INVITE_QUEUE=vrcverify_group_invites
 
    # RabbitMQ Configuration
    RABBITMQ_HOST=your_rabbitmq_host
