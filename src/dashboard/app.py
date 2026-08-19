@@ -1152,6 +1152,27 @@ SAVE_ERRORS = {
         "This bot's database is missing the column for that setting. Contact "
         "the bot operator."
     ),
+    # The VRChat group (issue #49). The controls that submit these arrive with
+    # the settings section; the copy is here first because the alternative --
+    # an admin being told "that change couldn't be saved" when the real answer
+    # is "another server already has that group" -- is a support ticket that
+    # nobody can resolve from the page.
+    "not_a_group": (
+        "That doesn't look like a VRChat group. Paste the group's ID (it "
+        "starts with grp_) or the vrchat.com link to the group."
+    ),
+    "group_shortlink_unsupported": (
+        "VRChat's vrc.group short links can't be looked up. Open the group on "
+        "vrchat.com and paste that link instead, or the group ID starting "
+        "with grp_."
+    ),
+    # Deliberately does not say which server holds it. That is another
+    # customer's guild, and naming it here would turn a group ID into a way to
+    # find out who else uses this bot.
+    "group_claimed_elsewhere": (
+        "Another Discord server has already linked that VRChat group. A group "
+        "can only belong to one server -- contact support if that's wrong."
+    ),
 }
 GENERIC_SAVE_ERROR = "That change couldn't be saved, so nothing was changed."
 

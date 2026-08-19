@@ -1546,6 +1546,10 @@ def clean_db():
             session.query(bot.Server).delete()
             session.query(bot.InstructionPanelBranding).delete()
             session.query(bot.VerificationLogChannel).delete()
+            # group_id is UNIQUE across the whole table, so a row left
+            # behind by one test makes the next test's claim of the same
+            # group look like another guild already holding it.
+            session.query(bot.GroupInviteConfig).delete()
             session.query(bot.PremiumGrandfatherLine).delete()
             session.query(bot.InstructionPanelView).delete()
             session.query(bot.DashboardAudit).delete()
