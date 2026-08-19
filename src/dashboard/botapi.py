@@ -28,6 +28,7 @@ from api_tokens import (
     OP_GUILD_CHANNELS,
     OP_GUILD_OVERVIEW,
     OP_GUILD_PANEL,
+    OP_VERIFY_GROUP,
     OP_GUILD_ROLES,
     OP_GUILD_SETTINGS,
     OP_GUILD_AUDIT,
@@ -248,6 +249,48 @@ class BotAPIClient:
             actor_id, guild_id, response.status_code, reason,
         )
         raise BotAPIError(reason or "bot API refused the panel post", response.status_code)
+
+    def verify_group(self, actor_id: int, guild_id) -> dict:
+        """Ask the bot to check this guild's VRChat group setup.
+
+        Sends no body, and there is nothing it could usefully send: the group
+        being checked comes from the guild's stored settings on the bot's side.
+        This process never handles a group id on the way in, so it cannot be
+        talked into naming a different one -- which is the whole point, since
+        the answer to this call makes a VRChat account join a group.
+        """
+        token = mint_token(
+            self.signing_key,
+            actor_id=int(actor_id),
+            operation=OP_VERIFY_GROUP,
+            guild_id=int(guild_id),
+        )
+        try:
+            response = self._session.post(
+                f"{self.base_url}/api/v1/guilds/{int(guild_id)}/verify-group",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=self.timeout,
+            )
+        except requests.exceptions.SSLError as error:
+            raise BotAPIError(f"TLS failure talking to the bot API: {error}") from error
+        except requests.RequestException as error:
+            raise BotAPIError(f"could not reach the bot API: {error}") from error
+
+        if response.status_code == 200:
+            return response.json()
+
+        reason = ""
+        try:
+            reason = response.json().get("error", "")
+        except ValueError:
+            pass
+        logger.warning(
+            "bot API refused a group verification for actor=%s guild=%s: %s %s",
+            actor_id, guild_id, response.status_code, reason,
+        )
+        raise BotAPIError(
+            reason or "bot API refused the group check", response.status_code
+        )
 
     def put_stripe_subscription(self, guild_id, subscription: dict) -> dict:
         """Forward one verified Stripe event to the bot, as the system actor.

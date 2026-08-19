@@ -535,7 +535,11 @@ class TestTheSettingsPayload:
             "can_invite": False,
             "can_see_members": False,
             "claim_code": None,
-            "account_id": None,
+            # Whoever this deployment has provisioned, which the admin has to
+            # invite. None here only because the test env sets no account.
+            "account_to_invite": bot.INVITE_VRCHAT_USER_ID,
+            # ...as opposed to whoever actually joined, which is nobody yet.
+            "joined_account": None,
             "verified_at": None,
             "requested_at": None,
         }
@@ -567,7 +571,7 @@ class TestTheSettingsPayload:
         assert block["group_name"] == "Test Group"
         assert block["can_invite"] is False
         assert block["can_see_members"] is True
-        assert block["account_id"] == "usr_0e59962a-3e0d-4303-802b-9314623027e5"
+        assert block["joined_account"] == "usr_0e59962a-3e0d-4303-802b-9314623027e5"
         # Serialised, because this payload is JSON on the wire.
         assert block["verified_at"] == when.isoformat()
 
@@ -640,9 +644,10 @@ class TestTheVocabularyMatchesTheWorker:
     def test_ready_means_the_same_thing_on_both_sides(self):
         assert bot.GROUP_SETUP_READY == inviter.STATE_READY
 
-    def test_the_states_the_bot_adds_are_only_the_two_the_worker_cannot_know(self):
-        """"Never checked" and "a job is in flight" are the bot's own business:
-        the worker only ever reports what it found."""
+    def test_the_states_the_bot_adds_are_only_the_ones_the_worker_cannot_know(self):
+        """"Never checked", "a job is in flight" and "nothing came back" are
+        this side's business: the worker only ever reports what it found, and
+        it cannot report never having been asked."""
         worker_states = {
             value
             for name, value in vars(inviter).items()
@@ -651,6 +656,8 @@ class TestTheVocabularyMatchesTheWorker:
         assert bot.GROUP_SETUP_STATES - worker_states == {
             bot.GROUP_SETUP_UNVERIFIED,
             bot.GROUP_SETUP_CHECKING,
+            bot.GROUP_SETUP_TIMED_OUT,
+            bot.GROUP_SETUP_WORKER_UNREACHABLE,
         }
 
 

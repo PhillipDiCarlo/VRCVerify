@@ -106,6 +106,10 @@ STATE_JOIN_REQUESTED = "join_requested"
 STATE_NOT_INVITED = "not_invited"
 STATE_NO_INVITE_PERMISSION = "no_invite_permission"
 STATE_GROUP_NOT_FOUND = "group_not_found"
+# The claim code is not in the group description, so nothing here proves
+# the person who typed this group id into the dashboard has anything to do
+# with the group. Refused BEFORE joining -- see claim_code_present.
+STATE_CODE_MISSING = "code_missing"
 # Terminal: no amount of re-inviting fixes being banned, so it must not be
 # reported as "we have not been invited yet".
 STATE_BANNED = "banned"
@@ -113,6 +117,12 @@ STATE_BAD_JOB = "bad_job"
 STATE_VRCHAT_UNAVAILABLE = "vrchat_unavailable"
 
 VRCHAT_CALL_RETRIES = max(1, int(os.getenv("INVITE_CALL_RETRIES", "3")))
+
+# Which account this worker is. Reported back with every result so the bot can
+# record WHICH invite account joined a group rather than assuming there is only
+# one -- there is exactly one today, and the 100-group seat cap (200 with VRC+)
+# guarantees there will not always be.
+INVITE_ACCOUNT_USER_ID = (os.getenv("INVITE_VRCHAT_USER_ID") or "").strip() or None
 
 
 def _rabbitmq_parameters() -> pika.ConnectionParameters:
@@ -224,9 +234,41 @@ def _result(job: dict, state: str, **extra) -> dict:
         "can_see_members": False,
         "group_name": None,
         "error_message": None,
+        "accountID": INVITE_ACCOUNT_USER_ID,
     }
     payload.update(extra)
     return payload
+
+
+def claim_code_present(group, claim_code) -> bool:
+    """Is the guild's one-time code in this group's description?
+
+    The group-level analogue of the bio code members already paste into their
+    VRChat profile, and it exists to answer one question: does the person who
+    typed this group id into the dashboard actually run the group? Without it,
+    anyone could name a stranger's group and -- if the account happened to be
+    invited, or the group were open -- have the bot join it.
+
+    Substring, not whole-line. A group description is prose an admin drops a
+    code into, unlike a bio where the code goes on a line of its own.
+
+    Safe against VRChat rewriting the text, which it does: confirmed
+    2026-08-19 that `.` `,` and `!` come back as U+2024, U+201A and U+01C3,
+    while the hyphen and every letter and digit stay plain ASCII. The code's
+    alphabet is exactly those, so it survives the round trip byte for byte.
+    That is a constraint on the code, not a coincidence -- a code containing
+    punctuation could never match, and the failure would look like the admin
+    not having pasted it.
+
+    A missing code is refused rather than waved through: a job with no code is
+    a job carrying no proof, which is the case this function exists to stop.
+    """
+    if not isinstance(claim_code, str) or not claim_code.strip():
+        return False
+    description = getattr(group, "description", None)
+    if not isinstance(description, str):
+        return False
+    return claim_code.strip() in description
 
 
 def verify_group_setup(job: dict) -> dict:
@@ -280,6 +322,33 @@ def verify_group_setup(job: dict) -> dict:
             error_message=(
                 "The bot is banned or blocked from this group. A group moderator has to "
                 "lift that before setup can continue."
+            ),
+        )
+
+    if job.get("requireCode", True) and not claim_code_present(
+        group, job.get("claimCode")
+    ):
+        # The ownership proof, checked before this worker joins anything.
+        # Confirmed 2026-08-19 that get_group() returns `description` to a
+        # non-member, which is what makes a pre-join check possible at all.
+        #
+        # WHETHER to require it is the bot's call, not a membership test here.
+        # "Skip it if we are already a member" looks equivalent and is not:
+        # when a guild releases a group and a second guild claims the same id,
+        # the account is still in that group, and the shortcut would hand the
+        # newcomer a verified setup for somebody else's group without their
+        # ever proving anything. The bot requires the code until THIS guild
+        # has verified THIS group, which is the question that actually matters.
+        #
+        # Absent means required. A job that lost the field somewhere must fail
+        # closed, because the field's whole purpose is to be hard to bypass.
+        return _result(
+            job,
+            STATE_CODE_MISSING,
+            group_name=getattr(group, "name", None),
+            error_message=(
+                "The setup code is not in the group's description yet. Add it, "
+                "then check again."
             ),
         )
 
