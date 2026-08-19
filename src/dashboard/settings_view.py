@@ -546,6 +546,8 @@ AUDIT_LABELS = {
     "panel_embed_color": "Panel colour",
     "panel_show_icon": "Server icon on the panel",
     "verification_log_channel_id": "Verification log channel",
+    "vrchat_group_id": "VRChat group",
+    "vrchat_group_invite_enabled": "VRChat group invites",
     # Not a setting but an action, and the only row here whose pair is not
     # (old value, new value) -- the bot stores (what it did, where). Without
     # this entry the branch's own headline feature rendered its history as the

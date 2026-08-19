@@ -696,6 +696,8 @@ class TestEveryFieldDeclaresItsGate:
         "panel_embed_color": (bot.FEATURE_BRANDED_PANEL, True),
         "panel_show_icon": (bot.FEATURE_BRANDED_PANEL, True),
         "verification_log_channel_id": (bot.FEATURE_ACTIVITY_LOG, True),
+        "vrchat_group_id": (bot.FEATURE_GROUP_INVITE, True),
+        "vrchat_group_invite_enabled": (bot.FEATURE_GROUP_INVITE, True),
     }
 
     def test_the_table_is_exactly_this(self):
@@ -730,6 +732,8 @@ class TestEveryFieldDeclaresItsGate:
             "panel_embed_color",
             "panel_show_icon",
             "verification_log_channel_id",
+            "vrchat_group_id",
+            "vrchat_group_invite_enabled",
         }
 
     def test_a_grandfathered_server_keeps_exactly_three(self, enforced):
@@ -1005,11 +1009,18 @@ class TestPremiumStatusCopy:
         and branded panel. Deriving the count from the FEATURE_ constants
         means adding one fails here until the pitch, the subscriber's receipt
         and the grandfathered split have all been told about it.
+
+        A feature can also be gated before it is reachable, which is the
+        one case this must not count: UNANNOUNCED_FEATURES names the ones the
+        copy is deliberately silent about, and a name leaving that set fails
+        the assertions below until the copy has been updated. Adding a name to
+        it is therefore the only way to skip this check, and it is a line of
+        code in bot.py rather than a test that quietly stopped counting.
         """
         return {
             value for name, value in vars(bot).items()
             if name.startswith("FEATURE_") and isinstance(value, str)
-        }
+        } - bot.UNANNOUNCED_FEATURES
 
     @pytest.mark.parametrize("key", KEYS)
     def test_every_locale_lists_the_same_number_of_features(self, key):

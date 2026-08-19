@@ -397,6 +397,136 @@ class VerificationLogChannel(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
+# How far a guild's VRChat group setup has got, as stored in
+# group_invite_config.verify_state.
+#
+# Everything except the first two is a verdict the invite worker reached, and
+# these strings must stay identical to the STATE_* constants in
+# vrc_group_inviter.py. They are duplicated rather than imported because the
+# worker is a separate process in a separate image that has neither discord.py
+# nor a database driver -- importing it here would drag both into the bot.
+# tests/test_group_invite_config.py imports both modules and asserts the two
+# vocabularies agree, which is the part that would otherwise drift silently.
+GROUP_SETUP_UNVERIFIED = "unverified"  # never checked
+GROUP_SETUP_CHECKING = "checking"  # a verify job is in flight
+GROUP_SETUP_READY = "ready"  # joined, and holds the invite permission
+GROUP_SETUP_JOIN_REQUESTED = "join_requested"
+GROUP_SETUP_NOT_INVITED = "not_invited"
+GROUP_SETUP_NO_INVITE_PERMISSION = "no_invite_permission"
+GROUP_SETUP_GROUP_NOT_FOUND = "group_not_found"
+GROUP_SETUP_BANNED = "banned"
+GROUP_SETUP_BAD_JOB = "bad_job"
+GROUP_SETUP_VRCHAT_UNAVAILABLE = "vrchat_unavailable"
+
+GROUP_SETUP_STATES = frozenset(
+    {
+        GROUP_SETUP_UNVERIFIED,
+        GROUP_SETUP_CHECKING,
+        GROUP_SETUP_READY,
+        GROUP_SETUP_JOIN_REQUESTED,
+        GROUP_SETUP_NOT_INVITED,
+        GROUP_SETUP_NO_INVITE_PERMISSION,
+        GROUP_SETUP_GROUP_NOT_FOUND,
+        GROUP_SETUP_BANNED,
+        GROUP_SETUP_BAD_JOB,
+        GROUP_SETUP_VRCHAT_UNAVAILABLE,
+    }
+)
+
+
+class GroupInviteConfig(Base):
+    """A guild's VRChat group, and how far its setup has got (issue #49).
+
+    A separate table for the same reason as the four above: create_all() adds
+    missing tables but never columns. That constraint bites harder here than
+    anywhere else in this file, because several columns below exist for phases
+    not yet written -- the dashboard's verify round trip, and the invites
+    themselves. Declaring them now costs nothing; adding one later costs a
+    hand-run ALTER against a live database, or a second table to hold the one
+    thing that was forgotten.
+
+    `group_id` is UNIQUE, and that constraint IS first-claim-wins. A group
+    belongs to the first guild that claims it and a second guild is refused,
+    because otherwise guild B could type the id of a group guild A had already
+    set up and start inviting its own members into a stranger's group. NULLs
+    do not collide in Postgres or SQLite, so an unconfigured guild claims
+    nothing, and clearing the field releases the claim for someone else.
+
+    Everything describing the VRChat side -- the name, the permissions, the
+    verify verdict -- is a cache of what the invite worker last saw, never
+    something an admin types. All of it is reset when `group_id` changes: a
+    verdict about the old group says nothing about the new one, and a stale
+    "ready" would let invites go out against a group nobody has checked.
+
+    The row survives a lapsed subscription, like VerificationLogChannel above.
+    Invites stop; the admin's configuration is theirs and comes back untouched.
+    """
+
+    __tablename__ = "group_invite_config"
+    server_id = Column(String, primary_key=True)
+    # The `grp_...` id, lower-cased by parse_vrchat_group_id. Normalising there
+    # rather than here is deliberate: unnormalised, two guilds could claim one
+    # group in different cases and the unique constraint would not notice.
+    group_id = Column(String(64), nullable=True, unique=True)
+    # What the group calls itself, as the worker last saw it. Display only --
+    # nothing keys off it, and it is allowed to go stale.
+    #
+    # Unbounded, unlike the columns around it. The rule for this table is that
+    # a value THIS code produces gets a length (the id is regex-constrained to
+    # 40 characters, the claim code to 11, the state to a closed vocabulary),
+    # and a value VRChat produces does not. A cap on somebody else's string is
+    # a length limit we would find out about when Postgres refuses a write --
+    # and the column could not be widened afterwards without the hand-run ALTER
+    # this whole table exists to avoid.
+    group_name = Column(String, nullable=True)
+    # The admin's switch, independent of whether a group is configured or
+    # verified. Off by default, so storing a group id never starts anything.
+    #
+    # NEVER the gate on its own. The settings field is write_locked, which
+    # means a lapsed subscription is refused the save and leaves this exactly
+    # as it was -- True, on a server that is no longer paying. Anything acting
+    # on this flag has to resolve the plan as well.
+    enabled = Column(Boolean, nullable=False, default=False)
+    # Which VRChat account serves this guild. There is one today, but a VRChat
+    # account can only be in 100 groups (200 with VRC+), so there will be more,
+    # and an admin must never be the one working out which one to invite.
+    invite_account_id = Column(String(64), nullable=True)
+    # Proof the claimer controls the group: shown on the dashboard, pasted into
+    # the group description, read back through get_group() before the bot
+    # joins. The group-level analogue of the bio code members already use.
+    claim_code = Column(String(20), nullable=True)
+    claim_code_issued_at = Column(DateTime(timezone=True), nullable=True)
+    # One of GROUP_SETUP_STATES: what the last check concluded.
+    verify_state = Column(
+        String(32), nullable=False, default=GROUP_SETUP_UNVERIFIED
+    )
+    # The worker's own sentence about why, for an admin to read. Not a code --
+    # verify_state is the code, and this is the part that names the group.
+    #
+    # Unbounded for the reason group_name gives, and more sharply: some of
+    # these sentences quote a VRChat API error, so a cap here would mean an
+    # unusually verbose failure fails the write that was only trying to record
+    # a failure.
+    verify_error = Column(String, nullable=True)
+    verify_requested_at = Column(DateTime(timezone=True), nullable=True)
+    verified_at = Column(DateTime(timezone=True), nullable=True)
+    # The job id the last check went out with. The round trip is asynchronous
+    # over RabbitMQ, so a slow answer to an old question can land after a fast
+    # answer to a new one; without this to match on, the stale answer wins and
+    # the page shows a verdict about a group the admin has already replaced.
+    verify_job_id = Column(String(64), nullable=True)
+    # What the account can actually do in the group, from get_group's
+    # my_member.permissions. `can_invite` is the feature itself -- confirmed
+    # empirically to need its own `group-invites-manage` checkbox, which admin
+    # does not imply. `can_see_members` is optional and only decides whether
+    # the "you are already in the group" path is available at all.
+    can_invite = Column(Boolean, nullable=False, default=False)
+    can_see_members = Column(Boolean, nullable=False, default=False)
+    updated_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
 class DashboardAudit(Base):
     """Who changed which setting, from the website, and to what.
 
@@ -984,12 +1114,37 @@ FEATURE_REDUCED_COOLDOWN = "reduced_cooldown"
 FEATURE_ACTIVITY_LOG = "activity_log"
 FEATURE_PRIORITY_QUEUE = "priority_queue"
 FEATURE_BRANDED_PANEL = "branded_panel"
+# Issue #49. Deliberately not in GRANDFATHERED_FEATURES below and never to
+# be added: it did not exist at the cutover, so no server can lose it, and
+# it is the one feature whose cost is a real resource rather than code --
+# every configured group takes a seat on a VRChat account that holds 100 of
+# them (200 with VRC+). Opening it to the free tier means buying accounts
+# for servers that pay nothing, which is how a seat cap becomes an outage.
+FEATURE_GROUP_INVITE = "group_invite"
 
 # Servers configured before the cutover keep these three for free, forever.
 # The reduced cooldown and the activity log are new, so nobody is losing them.
 GRANDFATHERED_FEATURES = frozenset(
     {FEATURE_UNVERIFIED_ROLE_REMOVAL, FEATURE_NICKNAME_SYNC, FEATURE_CUSTOM_DM}
 )
+
+# Features that exist in the code but are not yet reachable by an admin, and
+# are therefore shown to nobody. Issue #49's group invite lands in phases --
+# the gate, the storage and the API first, the dashboard that lets anyone
+# configure it later -- and everything in between would either sell a feature a
+# paying server cannot turn on, or show them a locked control with no way to
+# unlock it. Both produce the same support ticket, which nobody can answer.
+#
+# This one set drives all three surfaces:
+#
+#   * the premium pitch (locales), via tests/test_premium.py
+#   * /vrcverify_settings, via build_settings_summary below
+#   * the dashboard settings page, via tests/test_group_invite_config.py
+#
+# Each of those has a test that fails the moment a name leaves this set, so
+# taking the entry out is what forces all three to be built -- in the same
+# change that makes the feature real, and it cannot be forgotten afterwards.
+UNANNOUNCED_FEATURES = frozenset({FEATURE_GROUP_INVITE})
 
 
 class SettingsField:
@@ -1050,9 +1205,28 @@ SETTINGS_FIELDS = (
     SettingsField("panel_embed_color", FEATURE_BRANDED_PANEL, write_locked=True),
     SettingsField("panel_show_icon", FEATURE_BRANDED_PANEL, write_locked=True),
     SettingsField("verification_log_channel_id", FEATURE_ACTIVITY_LOG, write_locked=True),
+    # write_locked, like the log channel and for the same reason: refusing
+    # the save leaves the stored group id and toggle alone, so a server that
+    # lapses and resubscribes finds its group still configured rather than
+    # having to prove ownership of it a second time.
+    SettingsField("vrchat_group_id", FEATURE_GROUP_INVITE, write_locked=True),
+    SettingsField(
+        "vrchat_group_invite_enabled", FEATURE_GROUP_INVITE, write_locked=True
+    ),
 )
 
 SETTINGS_FIELDS_BY_NAME = {field.name: field for field in SETTINGS_FIELDS}
+
+
+def field_is_announced(name: str) -> bool:
+    """Whether this setting may be shown to an admin at all yet.
+
+    Read off the field's own feature, so a phased feature is hidden everywhere
+    by one entry in UNANNOUNCED_FEATURES rather than by a list per surface.
+    """
+    field = SETTINGS_FIELDS_BY_NAME.get(name)
+    return field is None or field.feature not in UNANNOUNCED_FEATURES
+
 
 # Which of those the dashboard may WRITE today. Everything else is readable and
 # refused on save, including fields that will open later.
@@ -1079,6 +1253,8 @@ DASHBOARD_WRITABLE_FIELDS = frozenset(
         "auto_nickname_change",
         "custom_verification_requested_message",
         "verification_log_channel_id",
+        "vrchat_group_id",
+        "vrchat_group_invite_enabled",
     }
 )
 
@@ -1207,6 +1383,65 @@ def _coerce_custom_message(value):
     return cleaned
 
 
+# A VRChat group id: the `grp_` prefix and a UUID. Anchored and exact rather
+# than the worker's `startswith("grp_")`, because this is the end a human types
+# into. Catching a truncated paste here means the admin is told "that is not a
+# group id" by the settings page, instead of "no VRChat group with that ID"
+# arriving from a round trip through RabbitMQ several seconds later, which
+# reads as the bot being broken rather than the id being wrong.
+_GROUP_ID_PATTERN = r"grp_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+_GROUP_ID_RE = re.compile(r"^" + _GROUP_ID_PATTERN + r"$", re.I)
+
+# https://vrchat.com/home/group/grp_... , with whatever tab or query string the
+# admin happened to be on. Accepted because it is what is in the address bar
+# when they are looking at the group, and telling someone to extract a
+# substring from a URL they can already see is a step that only exists to
+# create mistakes.
+_GROUP_URL_RE = re.compile(
+    r"^https?://(?:www\.)?vrchat\.com/home/group/(" + _GROUP_ID_PATTERN + r")(?:[/?#].*)?$",
+    re.I,
+)
+
+# vrc.group/SHORTCODE.1234 -- VRChat's own share link, and the one an admin is
+# most likely to have copied, because it is what the game hands them. There is
+# no endpoint that resolves a short code to a group id, so this cannot be
+# accepted however much we would like to: it gets its own refusal rather than
+# "that is not a group id", because the admin is holding a perfectly real group
+# link and needs telling where the other one is.
+_GROUP_SHORTLINK_RE = re.compile(r"^(?:https?://)?vrc\.group/", re.I)
+
+
+def parse_vrchat_group_id(value) -> Optional[str]:
+    """A `grp_...` id out of whatever the admin pasted, or a refusal.
+
+    Empty means "no group", which releases the claim -- the same way leaving
+    the channel argument off /vrcverify_logchannel clears the log channel.
+
+    The result is lower-cased. VRChat writes these lower-case, but the claim
+    that a group belongs to one guild rests on a UNIQUE column, and two guilds
+    submitting the same id in different cases would both be allowed to hold it.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise SettingRejected("vrchat_group_id", "not_a_group")
+
+    raw = value.strip()
+    if raw == "":
+        return None
+
+    if _GROUP_SHORTLINK_RE.match(raw):
+        raise SettingRejected("vrchat_group_id", "group_shortlink_unsupported")
+
+    url = _GROUP_URL_RE.match(raw)
+    if url:
+        raw = url.group(1)
+
+    if not _GROUP_ID_RE.match(raw):
+        raise SettingRejected("vrchat_group_id", "not_a_group")
+    return raw.lower()
+
+
 SETTING_COERCERS = {
     "instructions_locale": _coerce_locale,
     "panel_embed_color": _coerce_embed_color,
@@ -1221,6 +1456,8 @@ SETTING_COERCERS = {
     "verification_log_channel_id": _role_coercer(
         "verification_log_channel_id", required=False
     ),
+    "vrchat_group_id": parse_vrchat_group_id,
+    "vrchat_group_invite_enabled": _bool_coercer("vrchat_group_invite_enabled"),
 }
 
 # Fields whose value has to name a real role in *this* guild.
@@ -2122,6 +2359,172 @@ def set_log_channel(guild_id, channel_id: Optional[str]) -> None:
         row.updated_at = datetime.now(timezone.utc)
 
 
+def generate_group_claim_code() -> str:
+    """The code an admin puts in their group description to prove control.
+
+    Same alphabet and same `secrets` source as the member bio code. This one
+    gates a group's invite list rather than an 18+ status, but a guessable code
+    would let somebody claim a group they do not run.
+
+    A distinct prefix because an admin setting this up may well have their own
+    VRC- code on screen at the same time, and two similar codes in two similar
+    boxes is a support ticket that explains nothing.
+    """
+    return "VRCG-" + "".join(
+        secrets.choice(_VERIFICATION_CODE_ALPHABET) for _ in range(6)
+    )
+
+
+def load_group_invite_config(guild_id) -> Optional[dict]:
+    """This guild's VRChat group row, or None if it has never had one.
+
+    Deliberately does NOT swallow database errors the way load_log_channel_id
+    does. Its caller read-modify-writes this row, and a read that answered "no
+    group configured" for a connection blip would have the very next write
+    store exactly that -- clearing a verified group id and releasing its claim
+    for anyone else to take. Failing the whole request is the only safe
+    direction here, and read_dashboard_settings already turns an exception into
+    "could not read" rather than into defaults.
+
+    Returns plain values rather than the row: the session closes on the way
+    out, and a detached instance would raise on first access somewhere else.
+
+    Timestamps come back timezone-aware whatever the backend did with them.
+    Everything here stores UTC, but SQLite has no timezone type and hands back
+    a naive datetime, so a value written as aware reads back ambiguous -- and
+    an ambiguous instant on the wire is one the website renders in whatever
+    zone it guesses. Same normalisation load_stripe_subscription does, for the
+    same reason.
+    """
+    if guild_id is None:
+        return None
+
+    def utc(value):
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+
+    with session_scope() as session:
+        row = (
+            session.query(GroupInviteConfig)
+            .filter_by(server_id=panel_view_key(guild_id))
+            .first()
+        )
+        if row is None:
+            return None
+        return {
+            "group_id": row.group_id,
+            "group_name": row.group_name,
+            "enabled": bool(row.enabled),
+            "invite_account_id": row.invite_account_id,
+            "claim_code": row.claim_code,
+            "claim_code_issued_at": utc(row.claim_code_issued_at),
+            "verify_state": row.verify_state or GROUP_SETUP_UNVERIFIED,
+            "verify_error": row.verify_error,
+            "verify_requested_at": utc(row.verify_requested_at),
+            "verified_at": utc(row.verified_at),
+            "verify_job_id": row.verify_job_id,
+            "can_invite": bool(row.can_invite),
+            "can_see_members": bool(row.can_see_members),
+        }
+
+
+def group_claim_holder(group_id) -> Optional[str]:
+    """Which guild, if any, already holds this VRChat group.
+
+    Split out from the save so write_dashboard_settings can refuse a claimed
+    group during validation, before it has applied any part of the batch --
+    the promise that docstring makes. The save re-checks and the UNIQUE column
+    settles the race; this is the check that produces a sentence an admin can
+    act on.
+    """
+    if not group_id:
+        return None
+    with session_scope() as session:
+        row = (
+            session.query(GroupInviteConfig)
+            .filter(GroupInviteConfig.group_id == group_id)
+            .first()
+        )
+        return row.server_id if row else None
+
+
+def save_group_invite_config(guild_id, *, group_id, enabled) -> None:
+    """Store a guild's group id and invite toggle, claiming the group.
+
+    Raises SettingRejected("vrchat_group_id", "group_claimed_elsewhere") when
+    another guild already holds this group. Both halves of that check earn
+    their place: the query is what produces an answer worth showing an admin,
+    and the UNIQUE constraint is what makes the answer true when two guilds
+    submit the same group in the same moment.
+
+    Changing the group id resets everything cached about the VRChat side and
+    issues a fresh claim code. One rule, stated twice: nothing learned about
+    the old group is evidence about the new one, and a claim code carried over
+    would let an admin prove control of a group they have already left.
+
+    `enabled` stays independent of whether a group is configured, because the
+    dashboard offers it as its own switch. "On, with no group" therefore
+    exists, and every reader has to check both -- which is the same thing they
+    would have to do anyway for "on, with a group that failed verification".
+    """
+    key = panel_view_key(guild_id)
+    # Parsed here as well as in the coercer, because this is the function that
+    # writes the UNIQUE column and so is the one whose invariant it is. A
+    # caller reaching this with an unnormalised id -- a later phase storing
+    # what a worker echoed back, say -- would otherwise put a second casing of
+    # an already-claimed group into the table, and first-claim-wins would
+    # quietly stop being true. Idempotent for anything already parsed.
+    group_id = parse_vrchat_group_id(group_id)
+    try:
+        with session_scope() as session:
+            if group_id is not None:
+                clash = (
+                    session.query(GroupInviteConfig)
+                    .filter(GroupInviteConfig.group_id == group_id)
+                    .filter(GroupInviteConfig.server_id != key)
+                    .first()
+                )
+                if clash is not None:
+                    raise SettingRejected(
+                        "vrchat_group_id", "group_claimed_elsewhere"
+                    )
+
+            row = (
+                session.query(GroupInviteConfig).filter_by(server_id=key).first()
+            )
+            if row is None:
+                row = GroupInviteConfig(
+                    server_id=key, verify_state=GROUP_SETUP_UNVERIFIED
+                )
+                session.add(row)
+
+            if row.group_id != group_id:
+                row.group_id = group_id
+                row.group_name = None
+                row.invite_account_id = None
+                row.verify_state = GROUP_SETUP_UNVERIFIED
+                row.verify_error = None
+                row.verify_requested_at = None
+                row.verified_at = None
+                row.verify_job_id = None
+                row.can_invite = False
+                row.can_see_members = False
+                if group_id is None:
+                    row.claim_code = None
+                    row.claim_code_issued_at = None
+                else:
+                    row.claim_code = generate_group_claim_code()
+                    row.claim_code_issued_at = datetime.now(timezone.utc)
+
+            row.enabled = bool(enabled)
+            row.updated_at = datetime.now(timezone.utc)
+    except IntegrityError:
+        # The unique constraint, i.e. the other guild committed between our
+        # query above and our own commit. Same answer, arrived at the hard way.
+        raise SettingRejected("vrchat_group_id", "group_claimed_elsewhere")
+
+
 def forget_log_channel(guild_id) -> None:
     """Drop a log channel reference whose channel no longer exists."""
     try:
@@ -2606,6 +3009,8 @@ SETTINGS_SUMMARY_LABELS = (
     ("panel_embed_color", "Panel colour"),
     ("panel_show_icon", "Panel icon"),
     ("verification_log_channel_id", "Activity log"),
+    ("vrchat_group_id", "VRChat group"),
+    ("vrchat_group_invite_enabled", "Group invites"),
 )
 
 ROLE_SUMMARY_FIELDS = frozenset({"role_id", "unverified_role_id"})
@@ -2682,6 +3087,13 @@ async def build_settings_summary(guild: discord.Guild) -> Optional[discord.Embed
     auto_verify_present = payload.get("auto_verify_column_present", True)
 
     for name, label in SETTINGS_SUMMARY_LABELS:
+        # A locked row an admin has no way to unlock is worse than no row: it
+        # says the bot has a feature, offers no way to reach it, and the answer
+        # to "how do I turn this on" is "you cannot yet". See
+        # UNANNOUNCED_FEATURES -- one entry hides it here, on the website and
+        # in the pitch alike.
+        if not field_is_announced(name):
+            continue
         state = fields.get(name) or {}
         text = _summary_value(name, state.get("value"), guild)
         # The same two-kinds-of-gated distinction the website draws, for the
@@ -5393,6 +5805,14 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
         values["panel_show_icon"] = bool(show_icon)
         values["verification_log_channel_id"] = load_log_channel_id(guild_id)
 
+        # Raises rather than returning None on a database error, and that is
+        # the point -- see load_group_invite_config. The except at the bottom
+        # of this function turns it into "could not read", which the website
+        # renders as an error instead of as an unconfigured group.
+        group_invite = load_group_invite_config(guild_id) or {}
+        values["vrchat_group_id"] = group_invite.get("group_id")
+        values["vrchat_group_invite_enabled"] = bool(group_invite.get("enabled"))
+
         subscription = load_stripe_subscription(guild_id)
         if subscription is STRIPE_UNREADABLE:
             # Same refusal as unreadable branding, and for a sharper reason:
@@ -5459,6 +5879,36 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
             # A column the deployed database is missing is reported as such
             # rather than silently rendered as a working toggle.
             "auto_verify_column_present": has_auto_verify,
+            # The VRChat side of the group setup (issue #49): not settings an
+            # admin typed, but what the invite worker last found when it
+            # looked. Its own block rather than more `fields` entries, because
+            # `fields` is the settings contract -- every entry there is
+            # something with a plan gate that the website may try to save, and
+            # none of this is writable by anybody.
+            #
+            # `claim_code` is in here rather than being generated by the
+            # website: it is the proof that the admin controls the group, so
+            # the side that will later check it is the side that has to mint
+            # it.
+            "group_invite": {
+                "state": group_invite.get("verify_state", GROUP_SETUP_UNVERIFIED),
+                "error": group_invite.get("verify_error"),
+                "group_name": group_invite.get("group_name"),
+                "can_invite": bool(group_invite.get("can_invite")),
+                "can_see_members": bool(group_invite.get("can_see_members")),
+                "claim_code": group_invite.get("claim_code"),
+                "account_id": group_invite.get("invite_account_id"),
+                "verified_at": (
+                    group_invite["verified_at"].isoformat()
+                    if group_invite.get("verified_at")
+                    else None
+                ),
+                "requested_at": (
+                    group_invite["verify_requested_at"].isoformat()
+                    if group_invite.get("verify_requested_at")
+                    else None
+                ),
+            },
             # The allowed values for anything the website renders as a choice.
             # Sent rather than duplicated over there: a dashboard building its
             # own language list could offer one the bot cannot render, and the
@@ -6263,6 +6713,52 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
         if not (perms.view_channel and perms.send_messages):
             raise SettingRejected(name, "channel_not_writable")
 
+    # --- The VRChat group: read once here, applied further down ---
+    #
+    # Resolved during validation rather than at apply time so that a refused
+    # claim changes nothing at all, which is what this function promises. Two
+    # guilds claiming one group in the same instant still reach the UNIQUE
+    # column, and one of them is refused there instead -- but that is a race,
+    # not the ordinary case of an admin typing an id somebody else already has.
+    #
+    # It also means the read that feeds the read-modify-write happens before
+    # any other table has been touched, so a database failure here cannot
+    # leave half a batch applied.
+    group_names = {"vrchat_group_id", "vrchat_group_invite_enabled"}
+    group_plan = None
+    if group_names & set(coerced):
+        try:
+            current_group = load_group_invite_config(guild_id) or {}
+            claimed_by = (
+                group_claim_holder(coerced["vrchat_group_id"])
+                if coerced.get("vrchat_group_id")
+                else None
+            )
+        except Exception:
+            logger.warning(
+                "Could not read the VRChat group config for guild %s.",
+                guild_id,
+                exc_info=True,
+            )
+            return None
+
+        if claimed_by is not None and claimed_by != panel_view_key(guild_id):
+            # Not "already in use by <server>": the holder is another
+            # customer's guild id, and this admin has no business learning
+            # which server it is. The dashboard says to contact support.
+            raise SettingRejected("vrchat_group_id", "group_claimed_elsewhere")
+
+        old_group = current_group.get("group_id")
+        old_enabled = bool(current_group.get("enabled"))
+        group_plan = {
+            "old_group": old_group,
+            "old_enabled": old_enabled,
+            "new_group": coerced.get("vrchat_group_id", old_group),
+            "new_enabled": bool(
+                coerced.get("vrchat_group_invite_enabled", old_enabled)
+            ),
+        }
+
     # --- A column an older deployment is missing cannot be written ---
     if "auto_verify_new_members" in coerced and not server_has_column(
         "auto_verify_new_members"
@@ -6298,6 +6794,36 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
                     ("verification_log_channel_id", old_channel, new_channel)
                 )
                 set_log_channel(guild_id, new_channel)
+
+        # --- The group config: one row, so written as a whole ---
+        if group_plan is not None:
+            if (
+                "vrchat_group_id" in coerced
+                and group_plan["new_group"] != group_plan["old_group"]
+            ):
+                changed.append(
+                    (
+                        "vrchat_group_id",
+                        group_plan["old_group"],
+                        group_plan["new_group"],
+                    )
+                )
+            if (
+                "vrchat_group_invite_enabled" in coerced
+                and group_plan["new_enabled"] != group_plan["old_enabled"]
+            ):
+                changed.append(
+                    (
+                        "vrchat_group_invite_enabled",
+                        group_plan["old_enabled"],
+                        group_plan["new_enabled"],
+                    )
+                )
+            save_group_invite_config(
+                guild_id,
+                group_id=group_plan["new_group"],
+                enabled=group_plan["new_enabled"],
+            )
 
         # --- Everything else lives on the servers row ---
         row_fields = {
