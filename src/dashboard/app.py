@@ -848,6 +848,10 @@ def _register_routes(app: Flask) -> None:
             names_resolved=roles is not None and channels is not None,
             auto_verify_column_present=settings.get("auto_verify_column_present", True),
             saved=notice == "saved",
+            # Deliberately not "checked": the answer arrives over a queue and
+            # is not in this response. Saying it succeeded would be a claim
+            # this page cannot make yet.
+            group_check=notice == "group_check",
             panel_result=PANEL_RESULTS.get(_notice_arg(notice, "panel")),
             panel_stale=notice == "stale",
             save_error=(
@@ -1053,6 +1057,59 @@ def _register_routes(app: Flask) -> None:
                 )
 
         return _save(guild_id, session, changes)
+
+    @app.post("/guild/<int:guild_id>/group")
+    def save_group_settings(guild_id: int):
+        """The VRChat group a server invites verified members to.
+
+        The group field is submitted exactly as typed. Parsing it -- bare id or
+        vrchat.com URL, case folding, refusing vrc.group short links -- is the
+        bot's, and doing any of it here would create a second opinion about
+        what a valid group is, on the side of the wire that does not enforce
+        anything.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        changes = {}
+        if "vrchat_group_id" in request.form:
+            # Empty is a real choice: it disconnects the group and releases
+            # the claim, so another server could then connect it.
+            changes["vrchat_group_id"] = request.form.get("vrchat_group_id") or None
+        _read_checkbox(changes, "vrchat_group_invite_enabled")
+
+        return _save(guild_id, session, changes)
+
+    @app.post("/guild/<int:guild_id>/group/verify")
+    def verify_group(guild_id: int):
+        """Ask the bot to join this guild's VRChat group and report back.
+
+        The second control here that makes the bot act rather than store, and
+        the only one that sends nothing at all. There is no group id in this
+        request and there must never be: the bot reads the group from the
+        guild's own settings, which is what stops this being a way to make a
+        VRChat account join a group somebody names in a form.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        try:
+            _bot_api().verify_group(int(session.discord_id), guild_id)
+        except BotAPIError as error:
+            logger.warning(
+                "group check refused for guild %s: %s", guild_id, error
+            )
+            _store().set_notice(session.sid, f"error:{_save_error_code(error)}")
+            return redirect(url_for("guild_settings", guild_id=guild_id))
+
+        _store().set_notice(session.sid, "group_check")
+        return redirect(url_for("guild_settings", guild_id=guild_id))
 
     @app.post("/logout")
     def logout():

@@ -86,6 +86,8 @@ NEWS_CHANNEL = "800000000002"
 # two badge-only ones inactive but unlocked. Straight out of SETTINGS_FIELDS.
 FREE_PLAN = {
     "role_id": (None, True, False),
+    "vrchat_group_id": ("group_invite", False, True),
+    "vrchat_group_invite_enabled": ("group_invite", False, True),
     "unverified_role_id": ("unverified_role_removal", False, False),
     "auto_verify_new_members": (None, True, False),
     "auto_nickname_change": ("nickname_sync", False, True),
@@ -98,6 +100,8 @@ FREE_PLAN = {
 
 DEFAULT_VALUES = {
     "role_id": VERIFIED_ROLE,
+    "vrchat_group_id": None,
+    "vrchat_group_invite_enabled": False,
     "unverified_role_id": None,
     "auto_verify_new_members": True,
     "auto_nickname_change": False,
@@ -119,6 +123,30 @@ LOCALES = ["en-US", "es-ES", "ja", "de"]
 
 SKU_ID = "1533325058573865051"
 
+GROUP_ID = "grp_0e1d4755-2f87-4129-a192-5587068cbf73"
+INVITE_ACCOUNT = "usr_0e59962a-3e0d-4303-802b-9314623027e5"
+
+# What read_dashboard_settings sends for a guild that has never configured a
+# group. Shaped exactly as the bot builds it.
+GROUP_INVITE_NONE = {
+    "state": "unverified",
+    "error": None,
+    "group_name": None,
+    "can_invite": False,
+    "can_see_members": False,
+    "claim_code": None,
+    "account_to_invite": INVITE_ACCOUNT,
+    "joined_account": None,
+    "verified_at": None,
+    "requested_at": None,
+}
+
+
+def group_invite_block(**overrides):
+    block = dict(GROUP_INVITE_NONE)
+    block.update(overrides)
+    return block
+
 
 def make_settings(
     premium=False,
@@ -128,6 +156,7 @@ def make_settings(
     grandfathered=False,
     enforced=True,
     sku_id=SKU_ID,
+    group_invite=None,
 ):
     """A settings payload shaped exactly like read_dashboard_settings returns."""
     merged = dict(DEFAULT_VALUES)
@@ -152,6 +181,7 @@ def make_settings(
         },
         "auto_verify_column_present": auto_verify_column,
         "choices": {"instructions_locale": list(LOCALES)},
+        "group_invite": group_invite if group_invite is not None else GROUP_INVITE_NONE,
         "fields": fields,
     }
 
@@ -278,6 +308,7 @@ class FakeBotAPI:
         self.reads = []
         self.saves = []
         self.panel_posts = []
+        self.group_checks = []
         self._settings = settings
         self._roles = DEFAULT_ROLES if roles is None else roles
         self._channels = DEFAULT_CHANNELS if channels is None else channels
@@ -340,6 +371,12 @@ class FakeBotAPI:
         if "post_panel" in self.errors:
             raise self.errors["post_panel"]
         return self._panel_result
+
+    def verify_group(self, actor_id, guild_id):
+        self.group_checks.append((str(actor_id), str(guild_id)))
+        if "verify_group" in self.errors:
+            raise self.errors["verify_group"]
+        return {"guild_id": str(guild_id), "group_invite": {"state": "checking"}}
 
     def update_settings(self, actor_id, guild_id, changes):
         self.saves.append((str(actor_id), str(guild_id), dict(changes)))
@@ -3137,8 +3174,12 @@ class TestWriteSurface:
             "/guild/<int:guild_id>/member",
             "/guild/<int:guild_id>/panel",
             "/guild/<int:guild_id>/logging",
-            # The one route that makes the bot act rather than store.
+            "/guild/<int:guild_id>/group",
+            # The two that make the bot act rather than store.
             "/guild/<int:guild_id>/panel/post",
+            # Sends no body at all: the group it checks comes from the guild's
+            # stored settings on the bot's side, never from this form.
+            "/guild/<int:guild_id>/group/verify",
             # Writes a cookie and nothing else. It is in this list because the
             # list is meant to be complete, not because it reaches the bot --
             # test_the_nav_preference_never_reaches_the_bot pins that it does
@@ -3225,3 +3266,256 @@ class TestUnreadableCredentials:
         with pytest.raises(DashboardConfigError) as error:
             DashboardConfig.from_env()
         assert "cannot read" in str(error.value)
+
+
+# -------------------------------------------------------------------
+# The VRChat group section (issue #49, phase 4)
+# -------------------------------------------------------------------
+class TestGroupSetupSummary:
+    """The status beside the two settings. Nothing here is ever saved.
+
+    Its job is to turn one of a dozen state codes into a sentence naming the
+    next thing the admin can do. That is the whole reason the worker reports
+    nine distinct verdicts rather than "setup failed": an admin told only that
+    it failed opens a support ticket, and an admin told the bot is in the group
+    but lacks Manage Group Invites goes and ticks the box.
+    """
+
+    def summary(self, group_id=GROUP_ID, **block):
+        settings = make_settings(
+            values={"vrchat_group_id": group_id},
+            group_invite=group_invite_block(**block),
+        )
+        return settings_view.group_setup_summary(settings)
+
+    def test_an_unconfigured_guild_has_nothing_to_show(self):
+        summary = self.summary(group_id=None)
+        assert summary["configured"] is False
+        assert summary["group_url"] is None
+
+    def test_every_state_the_bot_can_send_has_copy(self):
+        """A raw state code reaching the page would be gibberish to an admin.
+
+        Derived from the bot's own vocabulary, so a state added there fails
+        here until somebody writes the sentence for it.
+        """
+        import bot as bot_module
+
+        for state in bot_module.GROUP_SETUP_STATES:
+            assert state in settings_view.GROUP_SETUP_COPY, state
+
+    def test_an_unknown_state_falls_back_rather_than_leaking(self):
+        summary = self.summary(state="something_new")
+        assert summary["headline"] == settings_view.GROUP_SETUP_FALLBACK[1]
+        assert "something_new" not in summary["headline"]
+
+    def test_a_ready_group_reads_as_ready(self):
+        summary = self.summary(
+            state="ready", can_invite=True, can_see_members=True, group_name="Club LA"
+        )
+        assert summary["tone"] == "ok"
+        assert summary["group_name"] == "Club LA"
+        assert summary["warnings"] == []
+
+    def test_ready_without_member_visibility_suggests_the_optional_permission(self):
+        """Not a failure -- invites work without it. It only decides whether a
+        member already in the group can be told so."""
+        summary = self.summary(state="ready", can_invite=True, can_see_members=False)
+        assert summary["tone"] == "ok"
+        assert any("View All Members" in w for w in summary["warnings"])
+
+    def test_the_permission_failure_says_admin_is_not_enough(self):
+        """Confirmed against a live group: group-invites-manage is its own tick
+        box that a 24-permission admin role can lack. "Make it an admin" is
+        advice that produces this exact state."""
+        summary = self.summary(state="no_invite_permission")
+        assert summary["tone"] == "warn"
+        assert "admin" in summary["detail"].lower()
+
+    def test_the_claim_code_is_shown_until_the_check_passes(self):
+        pending = self.summary(state="code_missing", claim_code="VRCG-7K2M4P")
+        assert pending["show_claim_code"] is True
+        ready = self.summary(state="ready", claim_code="VRCG-7K2M4P")
+        # It has done its job, and leaving it up invites someone to leave it in
+        # their group description for ever.
+        assert ready["show_claim_code"] is False
+
+    def test_the_account_to_invite_is_linked_by_id(self):
+        """Display names are not unique, so the usr_ id is the part that
+        matters -- an admin who invites a lookalike gets "not invited" with
+        nothing explaining why."""
+        summary = self.summary()
+        assert summary["account_id"] == INVITE_ACCOUNT
+        assert summary["account_url"].endswith(INVITE_ACCOUNT)
+
+    def test_the_group_is_linked_too(self):
+        assert self.summary()["group_url"].endswith(GROUP_ID)
+
+    def test_a_deployment_with_no_invite_account_says_so(self):
+        summary = self.summary(account_to_invite=None)
+        assert summary["account_url"] is None
+        assert any("operator" in w for w in summary["warnings"])
+
+    def test_a_very_long_error_is_clipped(self):
+        """Not about injection -- Jinja escapes it. About a page that stays
+        readable when an upstream error turns out to be a wall of JSON."""
+        summary = self.summary(state="vrchat_unavailable", error="x" * 5000)
+        assert len(summary["error"]) <= settings_view.GROUP_ERROR_MAX_LEN
+
+    def test_the_bots_own_error_travels_with_the_advice(self):
+        """One says what to do, the other says what VRChat actually replied."""
+        summary = self.summary(state="banned", error="The bot is banned")
+        assert summary["error"] == "The bot is banned"
+        assert summary["detail"] != summary["error"]
+
+
+class TestTheGroupFields:
+    def test_the_group_id_is_a_single_line_input(self):
+        settings = make_settings(premium=True, values={"vrchat_group_id": GROUP_ID})
+        field = next(
+            f
+            for group in settings_view.build_groups(
+                settings, DEFAULT_ROLES, DEFAULT_CHANNELS
+            )
+            for f in group["fields"]
+            if f.name == "vrchat_group_id"
+        )
+        assert field.kind == "line"
+        assert field.editable is True
+        assert field.value == GROUP_ID
+
+    def test_a_free_server_sees_it_locked(self):
+        settings = make_settings(values={"vrchat_group_id": GROUP_ID})
+        field = next(
+            f
+            for group in settings_view.build_groups(
+                settings, DEFAULT_ROLES, DEFAULT_CHANNELS
+            )
+            for f in group["fields"]
+            if f.name == "vrchat_group_id"
+        )
+        assert field.badge == "premium"
+        assert field.editable is False
+
+
+class TestSavingTheGroup:
+    def logged_in(self, config, store, **kwargs):
+        api = FakeBotAPI(**kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        session = login_as(test_client, store)
+        return test_client, api, session
+
+    def post(self, test_client, session, **form):
+        form.setdefault("csrf_token", session.csrf_token)
+        return test_client.post(f"/guild/{GUILD_IN}/group", data=form)
+
+    def test_the_group_is_sent_exactly_as_typed(self, config, store):
+        """Parsing is the bot's -- bare id or URL, case folding, refusing
+        vrc.group links. Doing any of it here would be a second opinion about
+        what a valid group is, on the side that enforces nothing."""
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client,
+            session,
+            vrchat_group_id=f"  HTTPS://VRChat.com/home/group/{GROUP_ID}  ",
+        )
+        assert api.saves[-1][2]["vrchat_group_id"] == (
+            f"  HTTPS://VRChat.com/home/group/{GROUP_ID}  "
+        )
+
+    def test_an_empty_field_disconnects_the_group(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(test_client, session, vrchat_group_id="")
+        assert api.saves[-1][2] == {"vrchat_group_id": None}
+
+    def test_the_toggle_travels_as_a_bool(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client,
+            session,
+            present_vrchat_group_invite_enabled="1",
+            vrchat_group_invite_enabled="on",
+        )
+        assert api.saves[-1][2] == {"vrchat_group_invite_enabled": True}
+
+    def test_a_missing_csrf_token_is_refused(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/group", data={"vrchat_group_id": GROUP_ID}
+        )
+        assert response.status_code == 400
+        assert api.saves == []
+
+    def test_a_refusal_becomes_copy_not_the_bots_text(self, config, store):
+        test_client, _api, session = self.logged_in(
+            config,
+            store,
+            errors={"update_settings": BotAPIError("group_claimed_elsewhere", 400)},
+        )
+        response = self.post(test_client, session, vrchat_group_id=GROUP_ID)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "already linked that VRChat group" in page
+
+
+class TestTheGroupCheckButton:
+    def logged_in(self, config, store, **kwargs):
+        api = FakeBotAPI(**kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        session = login_as(test_client, store)
+        return test_client, api, session
+
+    def post(self, test_client, session, **form):
+        form.setdefault("csrf_token", session.csrf_token)
+        return test_client.post(f"/guild/{GUILD_IN}/group/verify", data=form)
+
+    def test_the_button_asks_the_bot(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        response = self.post(test_client, session)
+        assert response.status_code == 302
+        assert api.group_checks == [(ACTOR, GUILD_IN)]
+
+    def test_it_carries_no_group_id_however_hard_you_try(self, config, store):
+        """The security property, from this end.
+
+        The client method takes an actor and a guild and nothing else, so a
+        group id in the form has nowhere to go. If that ever stops being true,
+        this endpoint becomes a way to make a VRChat account join whatever is
+        posted to it.
+        """
+        test_client, api, session = self.logged_in(config, store)
+        self.post(test_client, session, vrchat_group_id="grp_attacker")
+        assert api.group_checks == [(ACTOR, GUILD_IN)]
+
+    def test_the_page_says_checking_not_checked(self, config, store):
+        """The answer comes back over a queue, so it is not in this response.
+        Claiming success would be a claim this page cannot make."""
+        test_client, _api, session = self.logged_in(config, store)
+        response = self.post(test_client, session)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "Checking your VRChat group" in page
+
+    def test_a_missing_csrf_token_is_refused(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        response = test_client.post(f"/guild/{GUILD_IN}/group/verify", data={})
+        assert response.status_code == 400
+        assert api.group_checks == []
+
+    def test_a_refusal_becomes_copy(self, config, store):
+        test_client, _api, session = self.logged_in(
+            config, store, errors={"verify_group": BotAPIError("no_group_configured", 400)}
+        )
+        response = self.post(test_client, session)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "Add your VRChat group first" in page
+
+    def test_an_anonymous_visitor_gets_nowhere(self, config, store):
+        api = FakeBotAPI()
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        response = app.test_client().post(f"/guild/{GUILD_IN}/group/verify", data={})
+        assert response.status_code in (302, 400)
+        assert api.group_checks == []

@@ -45,6 +45,13 @@
   {% if saved %}
     <p class="notice ok">Saved.</p>
   {% endif %}
+  {# Not "checked" -- the answer comes back over a queue, so it is not in this
+     response. Claiming success here would be a claim the page cannot make. #}
+  {% if group_check %}
+    <p class="notice ok">
+      Checking your VRChat group. Reload this page in a moment to see the result.
+    </p>
+  {% endif %}
   {# Saved, but the live panel did not take it. Almost always a panel posted by
      an older /vrcverify_instructions, which Discord will not let the bot edit
      -- so the only repair is the replace the panel button below performs. #}
@@ -149,6 +156,51 @@
             </dd>
           </div>
         {% endif %}
+        {% if group.group_setup and group.group_setup.configured %}
+          <div class="setting">
+            <dt>Setup</dt>
+            <dd>
+              <p class="value{% if group.group_setup.tone != 'ok' %} empty{% endif %}">
+                {{ group.group_setup.headline }}
+                {%- if group.group_setup.group_name %} — {{ group.group_setup.group_name }}{% endif %}
+              </p>
+              <p class="muted desc">{{ group.group_setup.detail }}</p>
+              {# The bot's own sentence, as well as the advice above rather than
+                 instead of it: one says what to do, the other says what VRChat
+                 actually replied. #}
+              {% if group.group_setup.error and group.group_setup.tone != 'ok' %}
+                <p class="muted desc">VRChat said: {{ group.group_setup.error }}</p>
+              {% endif %}
+              {% if group.group_setup.show_claim_code %}
+                <p class="value">Setup code: <code>{{ group.group_setup.claim_code }}</code></p>
+                <p class="muted desc">
+                  Paste this anywhere in your VRChat group's description. It
+                  proves the group is yours, and you can remove it once the
+                  check passes.
+                </p>
+              {% endif %}
+              {% if group.group_setup.account_url %}
+                <p class="muted desc">
+                  Invite this account to your group:
+                  <a href="{{ group.group_setup.account_url }}" rel="noopener noreferrer"
+                     target="_blank">{{ group.group_setup.account_id }}</a>
+                  — check the ID matches, because VRChat display names are not
+                  unique.
+                </p>
+              {% endif %}
+              {% if group.group_setup.group_url %}
+                <p class="muted desc">
+                  Your group:
+                  <a href="{{ group.group_setup.group_url }}" rel="noopener noreferrer"
+                     target="_blank">open it on vrchat.com</a>
+                </p>
+              {% endif %}
+              {% for warning in group.group_setup.warnings %}
+                <p class="warn">{{ warning }}</p>
+              {% endfor %}
+            </dd>
+          </div>
+        {% endif %}
         {% for field in group.fields %}
           <div class="setting{% if field.locked %} locked{% endif %}">
             <dt>
@@ -165,6 +217,12 @@
                   <textarea name="{{ field.name }}" rows="4"
                             maxlength="{{ field.maxlength }}"
                             id="f-{{ field.name }}">{{ field.value }}</textarea>
+                {% elif field.kind == 'line' %}
+                  <input type="text" name="{{ field.name }}"
+                         value="{{ field.value }}"
+                         maxlength="{{ field.maxlength }}"
+                         spellcheck="false" autocomplete="off"
+                         id="f-{{ field.name }}">
                 {% elif field.kind == 'channel' %}
                   <select name="{{ field.name }}" id="f-{{ field.name }}">
                     <option value="" {% if field.empty %}selected{% endif %}>Off</option>
@@ -253,6 +311,21 @@
 
       {% if group.save_endpoint and editable %}
         <p class="actions"><button type="submit" class="button">Save changes</button></p>
+        </form>
+      {% endif %}
+
+      {# Its own form for the same reason the panel post below is: it posts to
+         a different endpoint, and a form inside a form is not a thing. #}
+      {% if group.group_setup and group.group_setup.configured and editable %}
+        <form method="post" action="{{ url_for('verify_group', guild_id=guild_id) }}"
+              class="panel-post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="button">Check group setup</button>
+          <span class="muted desc">
+            Asks the bot to join your group and report what it can do there.
+            This button doesn't save the settings above — do that first if
+            you've just changed the group.
+          </span>
         </form>
       {% endif %}
 

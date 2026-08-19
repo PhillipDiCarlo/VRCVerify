@@ -410,15 +410,15 @@ class TestThePlanGate:
     def test_the_feature_is_not_grandfathered(self):
         assert bot.FEATURE_GROUP_INVITE not in bot.GRANDFATHERED_FEATURES
 
-    def test_the_feature_is_not_advertised_until_it_works(self):
-        """Phase 3 has no dashboard, so no paying server can turn this on.
-
-        The premium copy therefore must not list it. UNANNOUNCED_FEATURES is
-        what keeps tests/test_premium.py's "the pitch lists every gated
-        feature" honest in the meantime, and taking the name out is what forces
-        the copy to be written.
+    def test_the_feature_is_advertised_now_that_it_works(self):
+        """It was in UNANNOUNCED_FEATURES for exactly as long as no admin could
+        reach it. The settings page arrived, the name came out, and three tests
+        that had been passing on the exception went back to being real:
+        test_premium's "the pitch lists every gated feature",
+        build_settings_summary, and the dashboard gap below.
         """
-        assert bot.FEATURE_GROUP_INVITE in bot.UNANNOUNCED_FEATURES
+        assert bot.FEATURE_GROUP_INVITE not in bot.UNANNOUNCED_FEATURES
+        assert bot.field_is_announced("vrchat_group_id") is True
 
 
 # -------------------------------------------------------------------
@@ -593,34 +593,17 @@ class TestTheSettingsPayload:
         monkeypatch.setattr(bot, "load_group_invite_config", boom)
         assert run(bot.read_dashboard_settings(GUILD_ID)) is None
 
-    def test_the_summary_has_labels_ready_but_does_not_show_them_yet(self):
-        """Both halves matter, and they pull in opposite directions.
-
-        A setting an admin cannot discover from Discord is one they will ask
-        support about -- so the labels exist, and phase 4 does not have to
-        remember them. But a locked row with no way to unlock it produces the
-        same support ticket for the opposite reason, so nothing is rendered
-        while the dashboard has no control for it.
-        """
-        labelled = {name for name, _label in bot.SETTINGS_SUMMARY_LABELS}
-        assert "vrchat_group_id" in labelled
-        assert "vrchat_group_invite_enabled" in labelled
-        assert bot.field_is_announced("vrchat_group_id") is False
-        assert bot.field_is_announced("vrchat_group_invite_enabled") is False
-        assert bot.field_is_announced("role_id") is True
-
-    def test_the_summary_embed_really_omits_them(self):
-        """The predicate above is only worth having if the embed obeys it."""
+    def test_the_retired_slash_command_summary_shows_them(self):
+        """A setting an admin cannot discover from Discord is one they will ask
+        support about. Now that the website has controls for these, the summary
+        names them too."""
         make_server()
         bot.save_group_invite_config(GUILD_ID, group_id=GROUP_ID, enabled=True)
         embed = run(bot.build_settings_summary(SummaryGuild()))
         labels = {field.name for field in embed.fields}
-        assert not any("VRChat group" in label for label in labels)
-        assert not any("Group invites" in label for label in labels)
-        # And the id itself never reaches Discord as a side effect.
-        assert not any(GROUP_ID in (field.value or "") for field in embed.fields)
-        # The rest of the summary is untouched.
-        assert any("Verified role" in label for label in labels)
+        assert any("VRChat group" in label for label in labels)
+        assert any("Group invites" in label for label in labels)
+        assert any(GROUP_ID in (field.value or "") for field in embed.fields)
 
 
 # -------------------------------------------------------------------
@@ -664,17 +647,16 @@ class TestTheVocabularyMatchesTheWorker:
 # -------------------------------------------------------------------
 # The website has not caught up yet, and says so out loud
 # -------------------------------------------------------------------
-class TestTheDashboardGapIsDeclared:
-    """Phase 3 adds no settings-page controls, and that has to be deliberate.
+class TestEverySettingReachesThePage:
+    """Every field the bot declares is rendered by the settings page.
 
-    test_dashboard.py already asserts the page renders every field in the
-    payload it is handed -- but the payload there is a hand-written fixture, so
-    a field added to the bot and not to the page slips straight past it. This
-    test builds the payload from bot.SETTINGS_FIELDS instead, which is the
+    test_dashboard.py asserts the same thing against a hand-written fixture,
+    so a field added to the bot and not to the page slips straight past it.
+    This one builds the payload from bot.SETTINGS_FIELDS itself, which is the
     version that notices.
 
-    NOT_YET_ON_THE_PAGE is normally empty. Phase 4 empties it, and this test
-    then fails until the controls actually exist.
+    The gap below is normally empty. It held the two group fields for exactly
+    as long as the page had no controls for them.
     """
 
     @staticmethod
@@ -715,9 +697,5 @@ class TestTheDashboardGapIsDeclared:
             for field in group["fields"]
         }
         assert set(payload["fields"]) - rendered == self.not_yet_on_the_page()
-        # And the gap is not empty by accident: these two are the fields this
-        # phase deliberately did not build controls for.
-        assert self.not_yet_on_the_page() == {
-            "vrchat_group_id",
-            "vrchat_group_invite_enabled",
-        }
+        # ...and there is no gap any more.
+        assert self.not_yet_on_the_page() == set()

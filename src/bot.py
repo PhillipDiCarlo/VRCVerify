@@ -1196,7 +1196,10 @@ GRANDFATHERED_FEATURES = frozenset(
 # Each of those has a test that fails the moment a name leaves this set, so
 # taking the entry out is what forces all three to be built -- in the same
 # change that makes the feature real, and it cannot be forgotten afterwards.
-UNANNOUNCED_FEATURES = frozenset({FEATURE_GROUP_INVITE})
+# Empty, and normally is. The group invite came out of it when the settings
+# page gained controls for it, which is exactly the sequence the comment above
+# describes: the name leaves in the change that makes the feature reachable.
+UNANNOUNCED_FEATURES = frozenset()
 
 
 class SettingsField:
