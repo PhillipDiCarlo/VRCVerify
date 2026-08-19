@@ -71,6 +71,28 @@ RABBITMQ_USERNAME = os.getenv("RABBITMQ_USERNAME")
 RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD")
 RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST")
 
+# The group-invite worker's own pair of queues (issue #49). Separate from the
+# verification queues above because two consumers on one queue split its
+# messages round-robin, so the age checker would swallow half the invite jobs.
+# Defaults match vrc_group_inviter.py's; tests pin that the two agree.
+RABBITMQ_GROUP_INVITE_QUEUE = os.getenv(
+    "RABBITMQ_GROUP_INVITE_QUEUE", "vrcverify_group_invites"
+)
+RABBITMQ_GROUP_INVITE_RESULT_QUEUE = os.getenv(
+    "RABBITMQ_GROUP_INVITE_RESULT_QUEUE", "vrcverify_group_invite_results"
+)
+
+# The VRChat account an admin has to invite to their group. Read here, not just
+# in the worker, because the *bot* is what tells the dashboard which account to
+# name -- and naming the wrong one produces a "not a member" verify failure
+# with nothing on screen explaining why. Display names are not unique, so the
+# usr_ id is the part that matters.
+#
+# Unset means the operator has not provisioned the account, and the feature
+# refuses to start a verification rather than sending an admin to invite
+# nobody.
+INVITE_VRCHAT_USER_ID = (os.getenv("INVITE_VRCHAT_USER_ID") or "").strip() or None
+
 # Priority levels on the request queue, so premium servers are served ahead of
 # free ones when a backlog forms. RabbitMQ only reorders messages already
 # waiting, so this changes nothing while the queue is empty — which is the
@@ -155,6 +177,17 @@ def _float_env(name: str, default: float) -> float:
     except ValueError:
         return default
 
+
+# How long a group verification may sit unanswered before the dashboard stops
+# calling it "checking". The round trip is a queue hop each way plus a couple of
+# VRChat calls, so a few seconds is normal and two minutes means the worker is
+# down, wedged, or was never deployed. Without this the page shows a spinner
+# for ever and the admin has nothing to act on.
+#
+# Evaluated when the row is read, not by a sweep: a state that expires on its
+# own needs no scheduler to be correct, and there is nothing to go wrong at
+# three in the morning.
+GROUP_VERIFY_TIMEOUT_SECONDS = _int_env("GROUP_VERIFY_TIMEOUT_SECONDS", 120)
 
 INSTRUCTIONS_REFRESH_CONCURRENCY = _int_env("INSTRUCTIONS_REFRESH_CONCURRENCY", 10)
 INSTRUCTIONS_REFRESH_RATE = _int_env("INSTRUCTIONS_REFRESH_RATE", 25)
@@ -407,13 +440,25 @@ class VerificationLogChannel(Base):
 # nor a database driver -- importing it here would drag both into the bot.
 # tests/test_group_invite_config.py imports both modules and asserts the two
 # vocabularies agree, which is the part that would otherwise drift silently.
+# The bot's own three. The worker only ever reports what it found, so it has
+# no way to say "nobody has asked yet", "we are waiting" or "the answer never
+# came" -- those are this side's business.
 GROUP_SETUP_UNVERIFIED = "unverified"  # never checked
 GROUP_SETUP_CHECKING = "checking"  # a verify job is in flight
+GROUP_SETUP_TIMED_OUT = "timed_out"  # asked, and nothing came back in time
+# The job never left this process. Distinct from the worker's
+# vrchat_unavailable, which means the worker ran and VRChat did not answer:
+# one is a broken queue here, the other is a broken API there, and a single
+# code covering both makes the state useless for working out which.
+GROUP_SETUP_WORKER_UNREACHABLE = "worker_unreachable"
+
+# The worker's verdicts.
 GROUP_SETUP_READY = "ready"  # joined, and holds the invite permission
 GROUP_SETUP_JOIN_REQUESTED = "join_requested"
 GROUP_SETUP_NOT_INVITED = "not_invited"
 GROUP_SETUP_NO_INVITE_PERMISSION = "no_invite_permission"
 GROUP_SETUP_GROUP_NOT_FOUND = "group_not_found"
+GROUP_SETUP_CODE_MISSING = "code_missing"
 GROUP_SETUP_BANNED = "banned"
 GROUP_SETUP_BAD_JOB = "bad_job"
 GROUP_SETUP_VRCHAT_UNAVAILABLE = "vrchat_unavailable"
@@ -422,16 +467,23 @@ GROUP_SETUP_STATES = frozenset(
     {
         GROUP_SETUP_UNVERIFIED,
         GROUP_SETUP_CHECKING,
+        GROUP_SETUP_TIMED_OUT,
+        GROUP_SETUP_WORKER_UNREACHABLE,
         GROUP_SETUP_READY,
         GROUP_SETUP_JOIN_REQUESTED,
         GROUP_SETUP_NOT_INVITED,
         GROUP_SETUP_NO_INVITE_PERMISSION,
         GROUP_SETUP_GROUP_NOT_FOUND,
+        GROUP_SETUP_CODE_MISSING,
         GROUP_SETUP_BANNED,
         GROUP_SETUP_BAD_JOB,
         GROUP_SETUP_VRCHAT_UNAVAILABLE,
     }
 )
+
+# Verdicts that mean the setup is finished and working. Everything else is
+# either in progress or something an admin has to act on.
+GROUP_SETUP_SUCCESS_STATES = frozenset({GROUP_SETUP_READY})
 
 
 class GroupInviteConfig(Base):
@@ -2525,6 +2577,177 @@ def save_group_invite_config(guild_id, *, group_id, enabled) -> None:
         raise SettingRejected("vrchat_group_id", "group_claimed_elsewhere")
 
 
+# The one job type the invite worker handles. Spelled the same as
+# vrc_group_inviter.JOB_VERIFY_SETUP; the drift test pins that they match.
+JOB_VERIFY_GROUP_SETUP = "verify_group_setup"
+
+
+def begin_group_verification(guild_id) -> Optional[dict]:
+    """Stamp this guild's row as "checking" and return the job to publish.
+
+    The job is built HERE, from the stored row, and never from anything a
+    browser sent. That is the same rule the invite worker's module docstring
+    enforces from the other end: the only group id that worker will ever join
+    is one an authorised admin typed into that guild's own settings. Accepting
+    a group id from the request body would hand anyone who can reach the
+    dashboard the ability to park the bot in a group of their choosing.
+
+    None means there is nothing to check -- no row, or no group id in it.
+    """
+    key = panel_view_key(guild_id)
+    # Not a UUID: this only has to be unguessable enough that a stale answer
+    # cannot be confused with a fresh one, and short enough to log.
+    job_id = secrets.token_hex(16)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = session.query(GroupInviteConfig).filter_by(server_id=key).first()
+        if row is None or not row.group_id:
+            return None
+        row.verify_state = GROUP_SETUP_CHECKING
+        row.verify_error = None
+        row.verify_job_id = job_id
+        row.verify_requested_at = now
+        row.updated_at = now
+        return {
+            "type": JOB_VERIFY_GROUP_SETUP,
+            "jobID": job_id,
+            "guildID": str(guild_id),
+            "groupID": row.group_id,
+            # Proof the admin controls the group, checked by the worker before
+            # it joins anything. None only for a row written before claim codes
+            # existed, which the worker treats as "no proof offered".
+            "claimCode": row.claim_code,
+            # Whether the worker must insist on that proof. True until THIS
+            # guild has verified THIS group -- and `verified_at` is cleared
+            # whenever the group id changes, so a new group always starts from
+            # "prove it".
+            #
+            # Deciding it here rather than letting the worker skip the check
+            # when it finds itself already a member closes a real hole: a guild
+            # that releases a group leaves the account inside it, and the next
+            # guild to claim that id would inherit a verified setup for a group
+            # it has never proved anything about.
+            #
+            # The flip side is the reason it is not simply "always": an admin
+            # who has tidied the code out of their description must not find
+            # re-verification failing for it afterwards.
+            "requireCode": row.verified_at is None,
+        }
+
+
+def abandon_group_verification(guild_id, job_id: str, message: str) -> None:
+    """Undo a "checking" stamp for a job that was never actually sent.
+
+    Without this the row sits in "checking" until the timeout expires, and the
+    admin waits two minutes to be told something the bot knew immediately.
+    """
+    key = panel_view_key(guild_id)
+    try:
+        with session_scope() as session:
+            row = (
+                session.query(GroupInviteConfig).filter_by(server_id=key).first()
+            )
+            # Only if it is still our job. A second click that got further
+            # than this one must not be rolled back by this one's failure.
+            if row is None or row.verify_job_id != job_id:
+                return
+            row.verify_state = GROUP_SETUP_WORKER_UNREACHABLE
+            row.verify_error = message
+            row.verify_job_id = None
+            row.updated_at = datetime.now(timezone.utc)
+    except Exception:
+        logger.warning(
+            "Could not clear the group verification state for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+
+
+def record_group_verification_result(payload: dict) -> str:
+    """Store one verdict from the invite worker. Returns what it did, for logs.
+
+    "stale" is the interesting outcome: the round trip is asynchronous, so a
+    slow answer about a group the admin has already replaced can arrive after
+    a fast answer about the new one. The job id is what tells them apart, and a
+    mismatch is dropped rather than written -- otherwise the page would show a
+    verdict about a group it is no longer describing.
+    """
+    if not isinstance(payload, dict):
+        return "bad_payload"
+    guild_id = payload.get("guildID")
+    job_id = payload.get("jobID")
+    state = payload.get("state")
+    if not guild_id or not job_id:
+        return "bad_payload"
+    if state not in GROUP_SETUP_STATES:
+        # An unknown verdict stored verbatim would render as nothing at all.
+        # Recording it as "the worker said something we do not understand" is
+        # the honest version, and names the string in the log.
+        logger.warning(
+            "Invite worker reported an unknown state %r for guild %s.",
+            state,
+            guild_id,
+        )
+        return "unknown_state"
+
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = (
+            session.query(GroupInviteConfig)
+            .filter_by(server_id=panel_view_key(guild_id))
+            .first()
+        )
+        if row is None:
+            return "unknown_guild"
+        if row.verify_job_id != job_id:
+            return "stale"
+        # The group could have been changed while the job was in flight, in
+        # which case save_group_invite_config already cleared verify_job_id --
+        # so reaching here means the answer is about the group still stored.
+        row.verify_state = state
+        row.verify_error = payload.get("error_message") or None
+        row.group_name = payload.get("group_name") or None
+        row.can_invite = bool(payload.get("can_invite"))
+        row.can_see_members = bool(payload.get("can_see_members"))
+        # Which account actually joined, as reported by the worker that did it.
+        # Falls back to this process's configured account for a worker that
+        # predates the field; with more than one invite account, only the
+        # worker knows the true answer.
+        row.invite_account_id = (
+            payload.get("accountID") or INVITE_VRCHAT_USER_ID or None
+        )
+        # Answered, so a duplicate delivery of the same message reads as stale
+        # rather than being applied twice.
+        row.verify_job_id = None
+        if state in GROUP_SETUP_SUCCESS_STATES:
+            row.verified_at = now
+        row.updated_at = now
+        return "applied"
+
+
+def effective_group_setup_state(config: Optional[dict]) -> str:
+    """The stored state, with "checking" expired once nothing answered in time.
+
+    Computed on read rather than by a sweep. A state that expires on its own
+    needs no scheduler to be correct, and there is nothing to fail at three in
+    the morning -- the same reasoning behind pruning stripe_event from the
+    function that inserts into it.
+    """
+    if not config:
+        return GROUP_SETUP_UNVERIFIED
+    state = config.get("verify_state") or GROUP_SETUP_UNVERIFIED
+    if state != GROUP_SETUP_CHECKING:
+        return state
+    asked = config.get("verify_requested_at")
+    if asked is None:
+        # "Checking" with no record of when: nothing can ever expire it, so it
+        # is already lost.
+        return GROUP_SETUP_TIMED_OUT
+    if (datetime.now(timezone.utc) - asked).total_seconds() > GROUP_VERIFY_TIMEOUT_SECONDS:
+        return GROUP_SETUP_TIMED_OUT
+    return state
+
+
 def forget_log_channel(guild_id) -> None:
     """Drop a log channel reference whose channel no longer exists."""
     try:
@@ -4456,6 +4679,241 @@ async def vrcverify_setrequestmessage(interaction: discord.Interaction):
     await send_settings_summary(interaction)
 
 
+def publish_group_invite_job(job: dict) -> bool:
+    """Put one job on the invite worker's queue. True if it was accepted.
+
+    Blocking, so callers run it off the event loop. Declares the queue with
+    `durable=True` and nothing else, matching vrc_group_inviter exactly -- an
+    argument this end added would fail every declare with 406 and take the
+    worker down with it.
+    """
+    properties = pika.BasicProperties(
+        content_type="application/json",
+        delivery_mode=2,  # persistent
+    )
+    max_publish_tries = int(os.getenv("RABBITMQ_PUBLISH_TRIES", "3"))
+    for attempt in range(1, max_publish_tries + 1):
+        conn = None
+        try:
+            conn = _rabbitmq_connect_with_retry(max_tries=1)
+            channel = conn.channel()
+            channel.queue_declare(queue=RABBITMQ_GROUP_INVITE_QUEUE, durable=True)
+            channel.basic_publish(
+                exchange="",
+                routing_key=RABBITMQ_GROUP_INVITE_QUEUE,
+                body=json.dumps(job),
+                properties=properties,
+            )
+            logger.info(
+                "Sent group-setup job %s for guild %s",
+                job.get("jobID"),
+                job.get("guildID"),
+            )
+            return True
+        except AMQPError as e:
+            if is_queue_argument_mismatch(e):
+                # Retrying cannot help: the queue's arguments will not change
+                # on their own, so every attempt fails identically.
+                log_queue_argument_mismatch(RABBITMQ_GROUP_INVITE_QUEUE)
+                return False
+            logger.warning(
+                "Could not publish group-setup job (attempt %s/%s); retrying...",
+                attempt,
+                max_publish_tries,
+                exc_info=True,
+            )
+            time.sleep(min(10.0, 1.5 * attempt))
+        except Exception:
+            logger.warning(
+                "Unexpected failure publishing group-setup job (attempt %s/%s)",
+                attempt,
+                max_publish_tries,
+                exc_info=True,
+            )
+            time.sleep(min(10.0, 1.5 * attempt))
+        finally:
+            try:
+                if conn and conn.is_open:
+                    conn.close()
+            except Exception:
+                pass
+    logger.error("Group-setup job dropped after %s attempts", max_publish_tries)
+    return False
+
+
+async def request_group_verification(guild_id, actor_id):
+    """Ask the invite worker to join this guild's group and report back.
+
+    The dashboard's "check invite & join" button. Returns the re-read settings
+    on success -- the same contract write_dashboard_settings has, so the page
+    lands on what is actually stored -- None when the request could not be
+    made at all, and raises SettingRejected for anything the caller got wrong.
+
+    Nothing about the group comes from the caller. `begin_group_verification`
+    builds the job from the stored row; this function only decides whether the
+    guild is allowed to ask.
+    """
+    try:
+        flags = await resolve_premium_flags(guild_id)
+    except Exception:
+        logger.warning(
+            "Could not resolve premium flags while verifying the group for "
+            "guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        return None
+    if not flags.allows(FEATURE_GROUP_INVITE):
+        raise SettingRejected("vrchat_group_id", "requires_premium", locked=True)
+
+    if INVITE_VRCHAT_USER_ID is None:
+        # An operator problem, not the admin's: there is no account for them
+        # to have invited. 503 rather than a refusal that blames the caller.
+        logger.error(
+            "A group verification was requested but INVITE_VRCHAT_USER_ID is "
+            "unset, so there is no invite account to check for."
+        )
+        return None
+
+    try:
+        job = begin_group_verification(guild_id)
+    except Exception:
+        logger.warning(
+            "Could not start a group verification for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        return None
+    if job is None:
+        raise SettingRejected("vrchat_group_id", "no_group_configured")
+
+    loop = asyncio.get_running_loop()
+    published = await loop.run_in_executor(None, publish_group_invite_job, job)
+    if not published:
+        abandon_group_verification(
+            guild_id,
+            job["jobID"],
+            "The bot could not reach the group-invite worker. Try again shortly.",
+        )
+    else:
+        try:
+            with session_scope() as session:
+                # An action, like posting the panel -- so the pair is (what was
+                # done, to which group) rather than (old value, new value).
+                _record_dashboard_audit(
+                    session,
+                    guild_id,
+                    actor_id,
+                    [("group_verify", "requested", job["groupID"])],
+                )
+        except Exception:
+            logger.warning(
+                "Could not record the group verification request for guild %s.",
+                guild_id,
+                exc_info=True,
+            )
+        logger.info(
+            "dashboard VERIFY-GROUP actor=%s guild=%s group=%s job=%s",
+            actor_id,
+            guild_id,
+            job["groupID"],
+            job["jobID"],
+        )
+
+    return await read_dashboard_settings(guild_id)
+
+
+# -------------------------------------------------------------------
+# RabbitMQ Consumer - handle group-invite results
+# -------------------------------------------------------------------
+async def consume_group_invite_results():
+    """Drain the invite worker's result queue into group_invite_config.
+
+    Its own consumer rather than a second binding on the verification results
+    queue: the two carry different payloads, and one callback that had to
+    guess which it was holding is a bug waiting for a payload that looks like
+    both.
+    """
+    loop = asyncio.get_running_loop()
+
+    def on_message(ch, method, properties, body):
+        try:
+            data = json.loads(body)
+        except Exception:
+            logger.exception(
+                "Invalid JSON on the group-invite results queue; dropping"
+            )
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            return
+        asyncio.run_coroutine_threadsafe(handle_group_invite_result(data), loop)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+
+    def do_blocking_consume():
+        while True:
+            connection = None
+            try:
+                connection = _rabbitmq_connect_with_retry(max_tries=0)
+                channel = connection.channel()
+                channel.queue_declare(
+                    queue=RABBITMQ_GROUP_INVITE_RESULT_QUEUE, durable=True
+                )
+                channel.basic_qos(prefetch_count=10)
+                logger.info(
+                    "Listening for group-invite results on '%s'...",
+                    RABBITMQ_GROUP_INVITE_RESULT_QUEUE,
+                )
+                channel.basic_consume(
+                    queue=RABBITMQ_GROUP_INVITE_RESULT_QUEUE,
+                    on_message_callback=on_message,
+                    auto_ack=False,
+                )
+                channel.start_consuming()
+            except (
+                pika.exceptions.AMQPConnectionError,
+                pika.exceptions.StreamLostError,
+                OSError,
+            ):
+                logger.warning(
+                    "Group-invite results consumer disconnected; reconnecting "
+                    "soon...",
+                    exc_info=True,
+                )
+                time.sleep(3)
+            except Exception:
+                logger.exception(
+                    "Unexpected error in the group-invite results consumer; "
+                    "restarting"
+                )
+                time.sleep(3)
+            finally:
+                try:
+                    if connection and connection.is_open:
+                        connection.close()
+                except Exception:
+                    pass
+
+    await loop.run_in_executor(None, do_blocking_consume)
+
+
+async def handle_group_invite_result(data: dict):
+    """One verdict from the invite worker, written to the guild's row."""
+    try:
+        outcome = record_group_verification_result(data)
+    except Exception:
+        logger.exception(
+            "Could not store a group-setup result for guild %s.",
+            (data or {}).get("guildID"),
+        )
+        return
+    logger.info(
+        "group-setup result guild=%s job=%s state=%s -> %s",
+        data.get("guildID"),
+        data.get("jobID"),
+        data.get("state"),
+        outcome,
+    )
+
+
 # -------------------------------------------------------------------
 # RabbitMQ Consumer - handle verification results
 # -------------------------------------------------------------------
@@ -5891,13 +6349,24 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
             # the side that will later check it is the side that has to mint
             # it.
             "group_invite": {
-                "state": group_invite.get("verify_state", GROUP_SETUP_UNVERIFIED),
+                # Expired on read, so a worker that never answered shows as
+                # timed out rather than as a spinner nobody can clear.
+                "state": effective_group_setup_state(group_invite),
                 "error": group_invite.get("verify_error"),
                 "group_name": group_invite.get("group_name"),
                 "can_invite": bool(group_invite.get("can_invite")),
                 "can_see_members": bool(group_invite.get("can_see_members")),
                 "claim_code": group_invite.get("claim_code"),
-                "account_id": group_invite.get("invite_account_id"),
+                # Two different accounts, and the difference matters. This one
+                # is who the admin must invite RIGHT NOW, from this process's
+                # configuration -- None means the operator has not provisioned
+                # an invite account and the feature cannot be set up at all.
+                "account_to_invite": INVITE_VRCHAT_USER_ID,
+                # ...and this one is who actually joined, recorded when a
+                # verification succeeded. They differ the moment a second
+                # invite account is added for capacity, and an admin looking at
+                # a working group must not be told to invite somebody else.
+                "joined_account": group_invite.get("invite_account_id"),
                 "verified_at": (
                     group_invite["verified_at"].isoformat()
                     if group_invite.get("verified_at")
@@ -7246,6 +7715,7 @@ def build_bot_api_deps() -> bot_api.BotAPIDeps:
         write_settings=write_dashboard_settings,
         write_stripe_subscription=write_dashboard_stripe_subscription,
         post_panel=post_dashboard_panel,
+        verify_group=request_group_verification,
     )
 
 
@@ -7335,6 +7805,13 @@ def start_background_task(name: str, coro, run_once: bool = False):
 async def on_ready():
     logger.info(f"Bot is ready. Logged in as {bot.user} (ID: {bot.user.id})")
     start_background_task("results_consumer", consume_results_queue())
+    # The invite worker's answers. Started unconditionally: the queue is
+    # declared by whichever end connects first, so a deployment without the
+    # worker simply has nothing arrive, and one added later needs no restart
+    # here.
+    start_background_task(
+        "group_invite_results_consumer", consume_group_invite_results()
+    )
     # Start periodic cleanup of expired pending verifications
     start_background_task("expired_pending_cleanup", expired_pending_cleanup_task())
 

@@ -46,6 +46,10 @@ OP_GUILD_OVERVIEW = "GET /api/v1/guilds/{guild_id}/overview"
 OP_UPDATE_SETTINGS = "PATCH /api/v1/guilds/{guild_id}/settings"
 # An action, not a setting: it makes the bot post in a server.
 OP_POST_PANEL = "POST /api/v1/guilds/{guild_id}/panel"
+# Also an action: it puts a job on a queue that makes a VRChat account join
+# a group. The group is not in the request -- the bot reads it from the
+# guild's own settings -- so this token authorises the *asking*, nothing more.
+OP_VERIFY_GROUP = "POST /api/v1/guilds/{guild_id}/verify-group"
 # The only operation with no human behind it: a Stripe webhook, verified on the
 # dashboard and forwarded here. See SYSTEM_ACTOR_ID.
 OP_PUT_STRIPE_SUBSCRIPTION = "PUT /api/v1/guilds/{guild_id}/stripe-subscription"

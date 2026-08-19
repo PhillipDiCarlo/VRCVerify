@@ -1173,6 +1173,9 @@ SAVE_ERRORS = {
         "Another Discord server has already linked that VRChat group. A group "
         "can only belong to one server -- contact support if that's wrong."
     ),
+    "no_group_configured": (
+        "Add your VRChat group first, then run the setup check."
+    ),
 }
 GENERIC_SAVE_ERROR = "That change couldn't be saved, so nothing was changed."
 

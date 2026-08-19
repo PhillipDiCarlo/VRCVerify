@@ -48,6 +48,11 @@ def stub_startup(monkeypatch):
     monkeypatch.setattr(discord.Client, "user", property(lambda self: SimpleNamespace(id=1)))
     for attr, name in [
         ("consume_results_queue", "results_consumer"),
+        # Every long-running coroutine on_ready starts has to be stubbed
+        # here. An unstubbed one runs for real, and both consumers retry
+        # their RabbitMQ connection forever by design -- so the omission
+        # does not fail a test, it hangs the whole suite.
+        ("consume_group_invite_results", "group_invite_results_consumer"),
         ("expired_pending_cleanup_task", "expired_pending_cleanup"),
         ("panel_nudge_sweep_task", "panel_nudge_sweep"),
         ("refresh_all_instruction_panels", "instruction_panel_refresh"),
@@ -162,6 +167,7 @@ class TestStartBackgroundTask:
 class TestOnReadyReentry:
     EXPECTED = {
         "results_consumer",
+        "group_invite_results_consumer",
         "expired_pending_cleanup",
         "panel_nudge_sweep",
         "instruction_panel_refresh",

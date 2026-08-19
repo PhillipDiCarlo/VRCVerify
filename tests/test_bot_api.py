@@ -26,6 +26,7 @@ from types import SimpleNamespace
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
+import api_tokens
 import bot
 import bot_api
 
@@ -79,7 +80,7 @@ def stripe_payload(**overrides) -> dict:
 # -------------------------------------------------------------------
 # Fakes
 # -------------------------------------------------------------------
-def make_deps(written=None, posted=None, mirrored=None, **overrides) -> bot_api.BotAPIDeps:
+def make_deps(written=None, posted=None, mirrored=None, checked=None, **overrides) -> bot_api.BotAPIDeps:
     """A permissive set of capabilities, so each test breaks exactly one thing.
 
     `written`, `posted` and `mirrored` collect what reached the three mutating
@@ -90,6 +91,7 @@ def make_deps(written=None, posted=None, mirrored=None, **overrides) -> bot_api.
     written = [] if written is None else written
     posted = [] if posted is None else posted
     mirrored = [] if mirrored is None else mirrored
+    checked = [] if checked is None else checked
 
     async def is_admin(guild_id, user_id):
         return int(user_id) == ADMIN_ID
@@ -132,6 +134,10 @@ def make_deps(written=None, posted=None, mirrored=None, **overrides) -> bot_api.
         posted.append((int(guild_id), int(actor_id), str(channel_id)))
         return {"action": "posted", "channel_id": str(channel_id)}
 
+    async def verify_group(guild_id, actor_id):
+        checked.append((guild_id, actor_id))
+        return {"guild_id": str(guild_id), "group_invite": {"state": "checking"}}
+
     async def write_settings(guild_id, actor_id, changes):
         written.append((int(guild_id), int(actor_id), dict(changes)))
         return {"guild_id": str(guild_id), "fields": {}, "written": dict(changes)}
@@ -154,6 +160,7 @@ def make_deps(written=None, posted=None, mirrored=None, **overrides) -> bot_api.
         write_settings=write_settings,
         write_stripe_subscription=write_stripe_subscription,
         post_panel=post_panel,
+        verify_group=verify_group,
     )
     defaults.update(overrides)
     return bot_api.BotAPIDeps(**defaults)
@@ -199,6 +206,17 @@ async def patch(client, path, token=None, json=None, data=None):
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     kwargs = {"data": data} if data is not None else {"json": json}
     response = await client.patch(path, headers=headers, **kwargs)
+    return response.status, await response.json()
+
+
+async def post(client, path, token=None, json=None, data=None):
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    kwargs = {}
+    if data is not None:
+        kwargs["data"] = data
+    elif json is not None:
+        kwargs["json"] = json
+    response = await client.post(path, headers=headers, **kwargs)
     return response.status, await response.json()
 
 
@@ -1389,15 +1407,19 @@ class TestTheSystemRoute:
         assert mirrored[0][0] == GUILD_ID
 
 
-class TestWriteSurfaceIsExactlyThreeThings:
+class TestTheWriteSurfaceIsExactlyThis:
     """These pin how far the API can change things, and no further.
 
     Editing any of them is how you widen what the website can do to a server,
     which is the point: it cannot happen as a side effect of adding a route or
     a dependency.
+
+    The class used to be called ...IsExactlyThreeThings, and the count went
+    stale the first time a fourth arrived. A number in a name is a claim that
+    ages; the assertions below are the claim that matters.
     """
 
-    def test_the_only_mutating_routes_are_the_settings_patch_and_the_panel_post(self):
+    def test_the_mutating_routes_are_exactly_the_declared_ones(self):
         app = bot_api.create_app(make_config(), make_deps())
         writes = {
             (route.method, route.resource.canonical)
@@ -1407,6 +1429,11 @@ class TestWriteSurfaceIsExactlyThreeThings:
         assert writes == {
             ("PATCH", "/api/v1/guilds/{guild_id}/settings"),
             ("POST", "/api/v1/guilds/{guild_id}/panel"),
+            # Takes no body at all -- see handle_verify_group. The group it
+            # acts on comes from the guild's stored settings, which is what
+            # stops this being a way to make a VRChat account join any group
+            # the caller names.
+            ("POST", "/api/v1/guilds/{guild_id}/verify-group"),
         }, f"an unexpected write route appeared: {writes}"
 
     def test_the_stripe_route_appears_only_when_stripe_is_switched_on(self):
@@ -1425,10 +1452,11 @@ class TestWriteSurfaceIsExactlyThreeThings:
         assert writes == {
             ("PATCH", "/api/v1/guilds/{guild_id}/settings"),
             ("POST", "/api/v1/guilds/{guild_id}/panel"),
+            ("POST", "/api/v1/guilds/{guild_id}/verify-group"),
             ("PUT", "/api/v1/guilds/{guild_id}/stripe-subscription"),
         }, f"an unexpected write route appeared: {writes}"
 
-    def test_the_api_holds_two_writers_and_one_action(self):
+    def test_the_api_holds_two_writers_and_two_actions(self):
         assert bot_api.deps_field_names() == frozenset(
             {
                 "is_ready",
@@ -1444,12 +1472,15 @@ class TestWriteSurfaceIsExactlyThreeThings:
                 "write_settings",
                 "write_stripe_subscription",
                 "post_panel",
+                "verify_group",
             }
         )
 
     def test_every_capability_is_named_for_what_it_does(self):
         for field in dataclass_fields(bot_api.BotAPIDeps):
-            assert field.name.startswith(("read_", "is_", "guild_", "write_", "post_"))
+            assert field.name.startswith(
+                ("read_", "is_", "guild_", "write_", "post_", "verify_")
+            )
 
     def test_the_module_decides_nothing_about_which_fields_are_writable(self):
         """The allowlist lives in the bot, not in the internet-facing path.
@@ -3541,3 +3572,132 @@ class TestUnreadableCredentials:
     def test_a_readable_key_is_accepted(self, monkeypatch, tmp_path):
         self.enable(monkeypatch, tmp_path)
         assert bot_api.BotAPIConfig.from_env() is not None
+
+
+# -------------------------------------------------------------------
+# The group-setup check (issue #49)
+# -------------------------------------------------------------------
+VERIFY_GROUP_PATH = f"/api/v1/guilds/{GUILD_ID}/verify-group"
+VERIFY_GROUP_OP = "POST /api/v1/guilds/{guild_id}/verify-group"
+
+
+class TestVerifyGroupRoute:
+    """The second endpoint whose effect is a real-world action.
+
+    Its distinguishing feature is what it does NOT accept. Every other write
+    here carries what to store; this one carries nothing, because the only
+    thing it could carry is a VRChat group id -- and a group id in a request
+    body is precisely the input that would let whoever reaches this endpoint
+    point the invite account at a group of their choosing. The group comes
+    from the guild's own settings row, on the bot's side of the wire.
+    """
+
+    def test_an_authorised_admin_may_ask(self):
+        checked = []
+
+        async def scenario(client):
+            return await post(
+                client, VERIFY_GROUP_PATH, token_for(VERIFY_GROUP_OP)
+            )
+
+        status, body = serve(scenario, deps=make_deps(checked=checked))
+        assert status == 200
+        assert body["group_invite"]["state"] == "checking"
+        assert checked == [(GUILD_ID, ADMIN_ID)]
+
+    def test_a_body_is_refused_rather_than_ignored(self):
+        """Silently dropping it would let the misunderstanding survive into
+        something that matters -- a later version that reads one key."""
+        checked = []
+
+        async def scenario(client):
+            return await post(
+                client,
+                VERIFY_GROUP_PATH,
+                token_for(VERIFY_GROUP_OP),
+                json={"group_id": "grp_deadbeef-0000-0000-0000-000000000000"},
+            )
+
+        status, body = serve(scenario, deps=make_deps(checked=checked))
+        assert status == 400
+        assert body["error"] == "unexpected_body"
+        assert checked == [], "a refused request must not reach the capability"
+
+    def test_a_settings_token_cannot_be_replayed_here(self):
+        checked = []
+
+        async def scenario(client):
+            return await post(
+                client, VERIFY_GROUP_PATH, token_for(SETTINGS_OP)
+            )
+
+        status, body = serve(scenario, deps=make_deps(checked=checked))
+        assert status == 403
+        assert checked == []
+
+    def test_a_non_admin_is_refused(self):
+        checked = []
+
+        async def scenario(client):
+            return await post(
+                client,
+                VERIFY_GROUP_PATH,
+                token_for(VERIFY_GROUP_OP, actor_id=MEMBER_ID),
+            )
+
+        status, _body = serve(scenario, deps=make_deps(checked=checked))
+        assert status == 403
+        assert checked == []
+
+    def test_no_token_is_refused(self):
+        async def scenario(client):
+            return await post(client, VERIFY_GROUP_PATH)
+
+        status, _body = serve(scenario)
+        assert status == 401
+
+    def test_a_refusal_from_the_bot_becomes_the_bot_s_reason(self):
+        async def refuse(guild_id, actor_id):
+            raise bot_api.SettingRejected("vrchat_group_id", "no_group_configured")
+
+        async def scenario(client):
+            return await post(
+                client, VERIFY_GROUP_PATH, token_for(VERIFY_GROUP_OP)
+            )
+
+        status, body = serve(scenario, deps=make_deps(verify_group=refuse))
+        assert status == 400
+        assert body["error"] == "no_group_configured"
+
+    def test_a_locked_refusal_is_a_403(self):
+        async def refuse(guild_id, actor_id):
+            raise bot_api.SettingRejected(
+                "vrchat_group_id", "requires_premium", locked=True
+            )
+
+        async def scenario(client):
+            return await post(
+                client, VERIFY_GROUP_PATH, token_for(VERIFY_GROUP_OP)
+            )
+
+        status, body = serve(scenario, deps=make_deps(verify_group=refuse))
+        assert status == 403
+        assert body["error"] == "requires_premium"
+
+    def test_an_unavailable_bot_is_a_503(self):
+        async def unavailable(guild_id, actor_id):
+            return None
+
+        async def scenario(client):
+            return await post(
+                client, VERIFY_GROUP_PATH, token_for(VERIFY_GROUP_OP)
+            )
+
+        status, body = serve(scenario, deps=make_deps(verify_group=unavailable))
+        assert status == 503
+        assert body["error"] == "unavailable"
+
+    def test_the_operation_string_matches_the_route(self):
+        """Both ends derive the token binding from the same constant; a typo
+        in either would only show up as a 403 nobody could explain."""
+        assert api_tokens.OP_VERIFY_GROUP == VERIFY_GROUP_OP

@@ -17,7 +17,23 @@ import vrc_session as vrcs
 
 GROUP_ID = "grp_0e1d4755-2f87-4129-a192-5587068cbf73"
 
-JOB = {"type": "verify_group_setup", "jobID": "j1", "guildID": "123", "groupID": GROUP_ID}
+CLAIM_CODE = "VRCG-7K2M4P"
+
+# The description an admin has pasted the code into. Prose around it on
+# purpose: the code goes anywhere in a group description, unlike the bio code,
+# which has to be on a line of its own.
+DESCRIPTION_WITH_CODE = f"Come hang out! Setup code: {CLAIM_CODE} — thanks."
+
+JOB = {
+    "type": "verify_group_setup",
+    "jobID": "j1",
+    "guildID": "123",
+    "groupID": GROUP_ID,
+    "claimCode": CLAIM_CODE,
+    # A guild setting this group up for the first time, which is the case that
+    # has to prove ownership. Tests about the other case set it False.
+    "requireCode": True,
+}
 
 # The two permissions a correctly configured role carries, and the noise that
 # comes with the group's default member role.
@@ -47,12 +63,20 @@ class FakeApiException(Exception):
         self.reason = body
 
 
-def group(membership_status="member", permissions=None, name="Club LA"):
+def group(
+    membership_status="member",
+    permissions=None,
+    name="Club LA",
+    description=DESCRIPTION_WITH_CODE,
+):
     my_member = (
         SimpleNamespace(permissions=list(permissions)) if permissions is not None else None
     )
     return SimpleNamespace(
-        name=name, membership_status=membership_status, my_member=my_member
+        name=name,
+        membership_status=membership_status,
+        my_member=my_member,
+        description=description,
     )
 
 
@@ -395,3 +419,115 @@ class TestReviewRegressions:
         assert params.heartbeat >= 300, (
             "heartbeat too tight for a job that can spend minutes inside VRChat calls"
         )
+
+
+# -------------------------------------------------------------------
+# The ownership proof
+# -------------------------------------------------------------------
+class TestTheClaimCode:
+    """The bot must not join a group on somebody's say-so alone.
+
+    Anyone can type a group id into a dashboard. The code in the description
+    is what shows they can also edit that group, and it is checked at the only
+    moment it can be -- before joining, which get_group() makes possible by
+    returning `description` to non-members (confirmed against the live API on
+    2026-08-19).
+    """
+
+    def test_a_group_it_is_not_in_is_not_joined_without_the_code(self, api):
+        api.groups = [group(membership_status="inactive", description="No code here")]
+        result = inviter.verify_group_setup(JOB)
+        assert result["state"] == inviter.STATE_CODE_MISSING
+        assert result["ok"] is False
+        assert api.joined() == [], "refused for want of proof; must not have joined"
+
+    def test_a_job_carrying_no_code_is_refused(self, api):
+        """No code is no proof. The permissive reading -- "none supplied, so
+        skip the check" -- turns the whole mechanism off for anyone who can
+        arrange for the field to be missing."""
+        api.groups = [group(membership_status="inactive")]
+        result = inviter.verify_group_setup({k: v for k, v in JOB.items() if k != "claimCode"})
+        assert result["state"] == inviter.STATE_CODE_MISSING
+        assert api.joined() == []
+
+    @pytest.mark.parametrize("description", [None, "", 12345])
+    def test_an_unreadable_description_is_not_proof(self, api, description):
+        api.groups = [group(membership_status="inactive", description=description)]
+        assert (
+            inviter.verify_group_setup(JOB)["state"] == inviter.STATE_CODE_MISSING
+        )
+        assert api.joined() == []
+
+    def test_the_code_lets_it_join(self, api):
+        api.groups = [
+            group(membership_status="inactive"),
+            group(permissions=READY_PERMISSIONS),
+        ]
+        result = inviter.verify_group_setup(JOB)
+        assert api.joined() == [("join_group", GROUP_ID)]
+        assert result["state"] == inviter.STATE_READY
+
+    def test_a_guild_that_has_already_verified_is_not_asked_again(self, api):
+        """An admin who has tidied the code out of their description must not
+        find re-verification failing for it. The bot decides this and says so
+        in the job -- see requireCode."""
+        api.groups = [
+            group(permissions=READY_PERMISSIONS, description="Nothing in here now")
+        ]
+        job = dict(JOB, requireCode=False)
+        assert inviter.verify_group_setup(job)["state"] == inviter.STATE_READY
+
+    def test_being_a_member_is_not_itself_a_reason_to_skip_the_check(self, api):
+        """The hole this closes: guild A releases a group and guild B claims
+        the same id. The account is still in that group, so a membership-based
+        shortcut would hand B a verified setup for A's group with B having
+        proved nothing at all."""
+        api.groups = [
+            group(permissions=READY_PERMISSIONS, description="Nothing in here now")
+        ]
+        assert (
+            inviter.verify_group_setup(JOB)["state"] == inviter.STATE_CODE_MISSING
+        )
+
+    def test_a_job_that_lost_the_flag_fails_closed(self, api):
+        """Absent means required. A field whose purpose is to be hard to bypass
+        must not be bypassable by leaving it out."""
+        api.groups = [
+            group(permissions=READY_PERMISSIONS, description="Nothing in here now")
+        ]
+        job = {k: v for k, v in JOB.items() if k != "requireCode"}
+        assert (
+            inviter.verify_group_setup(job)["state"] == inviter.STATE_CODE_MISSING
+        )
+
+    def test_the_code_is_matched_anywhere_in_the_description(self, api):
+        api.groups = [
+            group(membership_status="inactive", description=f"{CLAIM_CODE}"),
+            group(permissions=READY_PERMISSIONS),
+        ]
+        assert inviter.verify_group_setup(JOB)["state"] == inviter.STATE_READY
+
+    def test_a_different_guilds_code_does_not_open_the_group(self, api):
+        api.groups = [
+            group(membership_status="inactive", description="Setup code: VRCG-ZZZZZZ")
+        ]
+        assert (
+            inviter.verify_group_setup(JOB)["state"] == inviter.STATE_CODE_MISSING
+        )
+        assert api.joined() == []
+
+    def test_the_banned_check_still_comes_first(self, api):
+        """Banned is terminal, and telling someone to paste a code that cannot
+        help would send them round a loop that never ends."""
+        api.groups = [group(membership_status="banned", description="No code")]
+        assert inviter.verify_group_setup(JOB)["state"] == inviter.STATE_BANNED
+
+
+class TestTheWorkerNamesItself:
+    def test_every_result_says_which_account_produced_it(self, api, monkeypatch):
+        """One invite account today; the 100/200-group seat cap guarantees
+        there will not always be, and the bot records what it is told rather
+        than assuming."""
+        monkeypatch.setattr(inviter, "INVITE_ACCOUNT_USER_ID", "usr_test")
+        result = inviter.verify_group_setup(JOB)
+        assert result["accountID"] == "usr_test"

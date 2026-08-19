@@ -219,6 +219,12 @@ class BotAPIDeps:
     # post a message in somebody's server, so it is named separately rather
     # than folded into write_settings.
     post_panel: Callable[[int, int, str], Awaitable[Optional[dict]]]
+    # The second action. Takes (guild_id, actor_id) and nothing else: the group
+    # to check comes from the guild's stored settings, never from the request,
+    # which is what stops this endpoint being a way to make a VRChat account
+    # join an arbitrary group. Returns the re-read settings, or None if the
+    # request could not be made.
+    verify_group: Callable[[int, int], Awaitable[Optional[dict]]]
 
 
 # -------------------------------------------------------------------
@@ -840,6 +846,48 @@ async def handle_post_panel(request: web.Request) -> web.Response:
     return _json(result)
 
 
+async def handle_verify_group(request: web.Request) -> web.Response:
+    """Ask the invite worker to join this guild's VRChat group and report back.
+
+    Deliberately takes NO body. Every other write here carries what to store;
+    this one carries nothing, because the only thing it could carry is a group
+    id -- and a group id in a request body is exactly the input that would let
+    whoever can reach this endpoint point the invite account at a group of
+    their choosing. The bot reads the group from the guild's own settings row,
+    where an authorised admin put it.
+
+    A body is not merely ignored, it is refused: a caller sending one has
+    misunderstood the contract, and silently dropping it would let that
+    misunderstanding survive into something that matters.
+    """
+    try:
+        claims = await _authorize(request, guild_scoped=True)
+    except _Denied as denied:
+        return denied.response
+
+    deps: BotAPIDeps = request.app[DEPS_KEY]
+    guild_id = int(request.match_info["guild_id"])
+
+    if request.can_read_body:
+        raw = await request.read()
+        if raw.strip():
+            return _deny(request, 400, "unexpected_body", actor=claims.actor_id)
+
+    try:
+        result = await deps.verify_group(guild_id, claims.actor_id)
+    except SettingRejected as rejected:
+        return _deny(
+            request,
+            403 if rejected.locked else 400,
+            rejected.reason,
+            actor=claims.actor_id,
+        )
+
+    if result is None:
+        return _deny(request, 503, "unavailable", actor=claims.actor_id)
+    return _json(result)
+
+
 # The normalised subscription payload's complete field set. Listed here so the
 # envelope check is exhaustive rather than "the ones we happened to read": an
 # extra key means the two ends disagree about the contract, and the interesting
@@ -958,6 +1006,9 @@ def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
         "/api/v1/guilds/{guild_id}/settings", handle_update_settings
     )
     app.router.add_post("/api/v1/guilds/{guild_id}/panel", handle_post_panel)
+    app.router.add_post(
+        "/api/v1/guilds/{guild_id}/verify-group", handle_verify_group
+    )
     if config.stripe_enabled:
         app.router.add_put(
             "/api/v1/guilds/{guild_id}/stripe-subscription",

@@ -65,6 +65,18 @@ services:
       # is answered 404 until Stripe gives up three days later.
       STRIPE_ENABLED: ${STRIPE_ENABLED:-}
       STRIPE_STATUS_TTL: ${STRIPE_STATUS_TTL:-900}
+      # Issue #49's group invite. The BOT needs the invite account's usr_ id
+      # too, not just the worker: it is what tells the dashboard which account
+      # an admin has to invite to their group, and display names are not
+      # unique -- an admin who invites a lookalike gets a "not a member"
+      # failure with nothing on screen explaining why. Unset means the feature
+      # refuses to start a check rather than sending someone to invite nobody.
+      INVITE_VRCHAT_USER_ID: ${INVITE_VRCHAT_USER_ID:-}
+      RABBITMQ_GROUP_INVITE_QUEUE: ${RABBITMQ_GROUP_INVITE_QUEUE:-vrcverify_group_invites}
+      RABBITMQ_GROUP_INVITE_RESULT_QUEUE: ${RABBITMQ_GROUP_INVITE_RESULT_QUEUE:-vrcverify_group_invite_results}
+      # How long a group setup check may go unanswered before the dashboard
+      # stops calling it "checking" and says so.
+      GROUP_VERIFY_TIMEOUT_SECONDS: ${GROUP_VERIFY_TIMEOUT_SECONDS:-120}
     restart: unless-stopped
     # Docker's json-file driver does not rotate by default, so container logs
     # grow without bound until the disk does. Especially worth having here:
@@ -169,6 +181,10 @@ services:
       RABBITMQ_GROUP_INVITE_RESULT_QUEUE: ${RABBITMQ_GROUP_INVITE_RESULT_QUEUE:-vrcverify_group_invite_results}
       # The second VRChat account and its own 2FA mailbox. Unset = the worker
       # exits immediately and nothing else is affected.
+      # Reported back with every result, so the bot records WHICH
+      # invite account joined a group rather than assuming there is
+      # only one.
+      INVITE_VRCHAT_USER_ID: ${INVITE_VRCHAT_USER_ID:-}
       INVITE_VRCHAT_USERNAME: ${INVITE_VRCHAT_USERNAME:-}
       INVITE_VRCHAT_PASSWORD: ${INVITE_VRCHAT_PASSWORD:-}
       INVITE_GMAIL_USER: ${INVITE_GMAIL_USER:-}
