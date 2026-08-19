@@ -18,6 +18,7 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
   - Applies explicit VRChat API connect/read timeouts so stalled upstream requests fail visibly instead of hanging forever.
    - Checks the target VRChat user’s profile for age verification status and whether the provided code is present in their bio.
   - Sends back the verification result via a RabbitMQ result queue, including structured outage/auth metadata when VRChat is unavailable.
+  - Its VRChat login, 2FA handling, cookie persistence and outage classification live in `src/vrc_session.py`, shared so a second VRChat account can hold its own independent session.
 
 ---
 
