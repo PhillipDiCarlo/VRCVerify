@@ -10,24 +10,21 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/src/bot.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/.venv/Scripts/python.exe"
+            "console": "integratedTerminal"
         },
         {
             "name": "Online Checker Debugger",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/src/vrc_online_checker.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/.venv/Scripts/python.exe"
+            "console": "integratedTerminal"
         },
         {
             "name": "test VRC file",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/src/test_vrc.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/.venv/Scripts/python.exe"
+            "console": "integratedTerminal"
         },
         {
             "name": "Debug Tests",
@@ -35,8 +32,7 @@
             "request": "launch",
             "purpose": ["debug-test"],
             "console": "integratedTerminal",
-            "justMyCode": false,
-            "python": "${workspaceFolder}/.venv/Scripts/python.exe"
+            "justMyCode": false
         }
     ]
 }
