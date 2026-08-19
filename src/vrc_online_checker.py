@@ -27,9 +27,6 @@ from vrc_session import (
 # -------------------------------------------------------------------
 load_dotenv()
 
-VRCHAT_USERNAME = os.getenv("VRCHAT_USERNAME")
-VRCHAT_PASSWORD = os.getenv("VRCHAT_PASSWORD")
-
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT"))
 RABBITMQ_USERNAME = os.getenv("RABBITMQ_USERNAME")

@@ -549,3 +549,42 @@ class TestAccountIsolation:
             user_agent=USER_AGENT, prefix="INVITE_", label="inviter"
         )
         assert acct.username == "invite-bot"
+
+
+class TestConfigurationIsActuallyLoaded:
+    """.env must be loaded before this module freezes its constants.
+
+    Regression: when this machinery was extracted, the importing service
+    still called load_dotenv() in its own body -- which runs after the import
+    has already evaluated every os.getenv below. Timeouts, the relogin
+    interval and the status-page settings all silently fell back to their
+    defaults. Docker hid it (compose passes the environment directly), so it
+    would only have shown up on a bare-metal run, as settings that quietly
+    did nothing.
+    """
+
+    def test_dotenv_is_loaded_before_the_constants_are_read(self):
+        import inspect
+
+        src = inspect.getsource(vrcs)
+        load_at = src.find("load_dotenv()")
+        first_getenv = src.find("os.getenv(")
+        assert load_at != -1, "vrc_session must load .env itself, not rely on its importer"
+        assert load_at < first_getenv, (
+            "load_dotenv() must run before the module-level os.getenv calls; "
+            "below them it is too late and every setting silently defaults"
+        )
+
+    def test_settings_come_from_the_environment(self, monkeypatch, tmp_path):
+        """The constants are read at import time, so re-import to observe it."""
+        import importlib
+
+        monkeypatch.setenv("VRCHAT_RELOGIN_INTERVAL_SECONDS", "1234")
+        monkeypatch.setenv("VRCHAT_API_READ_TIMEOUT_SECONDS", "7.5")
+        reloaded = importlib.reload(vrcs)
+        try:
+            assert reloaded.VRCHAT_RELOGIN_INTERVAL_SECONDS == 1234
+            assert reloaded.VRCHAT_API_READ_TIMEOUT_SECONDS == 7.5
+        finally:
+            monkeypatch.undo()
+            importlib.reload(vrcs)

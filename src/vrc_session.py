@@ -24,10 +24,21 @@ from http.cookiejar import MozillaCookieJar
 from urllib import request as urllib_request
 
 import vrchatapi
+from dotenv import load_dotenv
 from vrchatapi.api import authentication_api
 from vrchatapi.exceptions import ApiException, UnauthorizedException
 from vrchatapi.models.two_factor_auth_code import TwoFactorAuthCode
 from vrchatapi.models.two_factor_email_code import TwoFactorEmailCode
+
+# Loaded HERE, not left to whichever service imports this module. The
+# constants below are read at import time, and an importing service calls
+# load_dotenv() in its own body -- which runs *after* this module has already
+# been imported and its constants frozen. Without this line every setting
+# below silently ignores .env and uses its default, which is invisible in
+# Docker (compose passes the environment directly) and only bites bare-metal
+# runs. Calling it twice is harmless: load_dotenv does not override values
+# that are already set.
+load_dotenv()
 
 # -------------------------------------------------------------------
 # Shared configuration

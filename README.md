@@ -694,6 +694,17 @@ it.
    VRCHAT_USERNAME=your_vrchat_username
    VRCHAT_PASSWORD=your_vrchat_password
 
+   # Group-invite bot: a SEPARATE VRChat account and 2FA mailbox (optional).
+   # Its mailbox must differ from GMAIL_USER and its session file must differ
+   # from VRCHAT_SESSION_FILE -- see .env.example for why both matter.
+   # INVITE_VRCHAT_USERNAME=
+   # INVITE_VRCHAT_PASSWORD=
+   # INVITE_GMAIL_USER=
+   # INVITE_GMAIL_APP_PASSWORD=
+   # INVITE_VRCHAT_USER_ID=
+   # INVITE_VRCHAT_SESSION_FILE=/data/vrchat_invite_session.txt
+   # RABBITMQ_GROUP_INVITE_QUEUE=vrcverify_group_invites
+
    # RabbitMQ Configuration
    RABBITMQ_HOST=your_rabbitmq_host
    RABBITMQ_PORT=your_rabbitmq_port
