@@ -13,13 +13,14 @@ $menu = @"
 1. Bot
 2. VRC Online Checker
 3. Dashboard (runs on the VPS, not the homelab)
-4. All
+4. VRChat Group Inviter
+5. All
 0. Exit
 "@
 
 Write-Host "Select an option to tag and upload:"
 Write-Host $menu
-$choice = Read-Host "Enter your choice (0-4)"
+$choice = Read-Host "Enter your choice (0-5)"
 
 function TagAndPush($imageName, $version) {
 
@@ -72,9 +73,13 @@ switch ($choice) {
         TagAndPush "dashboard" $version
     }
     4 {
+        TagAndPush "vrc-group-inviter" $version
+    }
+    5 {
         TagAndPush "discord-bot" $version
         TagAndPush "vrc-online-checker" $version
         TagAndPush "dashboard" $version
+        TagAndPush "vrc-group-inviter" $version
     }
     0 {
         Write-Host "Exiting script."

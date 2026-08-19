@@ -127,6 +127,46 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Group-invite worker (issue #49). Runs the SECOND VRChat account, which
+  # joins each server's VRChat group and sends invites.
+  #
+  # restart: on-failure, not unless-stopped: with INVITE_* unset the worker
+  # exits 0 on purpose, and "unless-stopped" would restart-loop a container
+  # that has nothing to do.
+  vrc-group-inviter:
+    image: italiandogs/vrcverify-vrc-group-inviter:${VRCVERIFY_VERSION:?Set VRCVERIFY_VERSION to a pushed version tag (never latest)}
+    env_file:
+      - .env
+    environment:
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Its own queues. Sharing the verification queue would have the age
+      # checker consume these jobs -- two consumers on one queue get messages
+      # round-robin.
+      RABBITMQ_GROUP_INVITE_QUEUE: ${RABBITMQ_GROUP_INVITE_QUEUE:-vrcverify_group_invites}
+      RABBITMQ_GROUP_INVITE_RESULT_QUEUE: ${RABBITMQ_GROUP_INVITE_RESULT_QUEUE:-vrcverify_group_invite_results}
+      # The second VRChat account and its own 2FA mailbox. Unset = the worker
+      # exits immediately and nothing else is affected.
+      INVITE_VRCHAT_USERNAME: ${INVITE_VRCHAT_USERNAME:-}
+      INVITE_VRCHAT_PASSWORD: ${INVITE_VRCHAT_PASSWORD:-}
+      INVITE_GMAIL_USER: ${INVITE_GMAIL_USER:-}
+      INVITE_GMAIL_APP_PASSWORD: ${INVITE_GMAIL_APP_PASSWORD:-}
+      INVITE_VRCHAT_SESSION_FILE: ${INVITE_VRCHAT_SESSION_FILE-/data/vrchat_invite_session.txt}
+    volumes:
+      - vrchat-invite-session:/data
+    restart: on-failure
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   # Persists the VRChat auth cookie so restarts skip re-authentication.
   vrchat-session:
+  # The invite account's cookie, deliberately not the same volume.
+  vrchat-invite-session:

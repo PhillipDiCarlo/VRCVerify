@@ -12,6 +12,7 @@ never share state. The only genuinely process-wide thing here is the VRChat
 status-page cache, which describes VRChat rather than any one account.
 """
 
+import email.utils
 import imaplib
 import json
 import logging
@@ -279,15 +280,46 @@ def auth_error(message: str) -> dict:
 # -------------------------------------------------------------------
 # Function to Fetch 2FA Code from Gmail
 # -------------------------------------------------------------------
-def fetch_latest_2fa_code(account: VRChatAccount):
-    """Waits for VRChat's 2FA email and retrieves the code from the subject line."""
+# How far a mail's Date header may predate the login that wants it. VRChat
+# stamps the mail when it sends it, which is always after we asked, so this is
+# pure clock-skew tolerance between their mail server and us -- not a window
+# in which old codes are welcome.
+CODE_MAIL_SKEW_TOLERANCE_SECONDS = 120
+
+# How far back to look before giving up. The wanted mail is nearly always the
+# newest; more than a handful means we are reading someone else's backlog.
+CODE_MAIL_SCAN_DEPTH = 5
+
+
+def _mail_sent_at(raw_headers: str) -> float | None:
+    """Epoch seconds from a mail's Date header, or None if unparseable."""
+    match = re.search(r"^Date:\s*(.+)$", raw_headers, re.M)
+    if not match:
+        return None
+    parsed = email.utils.parsedate_tz(match.group(1).strip())
+    return email.utils.mktime_tz(parsed) if parsed else None
+
+
+def fetch_latest_2fa_code(account: VRChatAccount, not_before: float | None = None):
+    """Waits for VRChat's 2FA email and retrieves the code from the subject line.
+
+    `not_before` is when the login that wants this code asked for it. Mails
+    older than that are ignored, and this is the entire point rather than a
+    nicety: the mailbox keeps every previous code, so without the check a mail
+    that arrives more slowly than the retry window leaves the newest message
+    being a STALE code, which is returned confidently and fails
+    authentication. That failure looks exactly like a wrong password, and
+    nothing in the logs says otherwise.
+    """
     logging.info("Waiting 10 seconds for 2FA email to arrive...")
     time.sleep(10)  # Initial wait to allow the email to arrive
 
     retries = 3  # Number of times to retry
     wait_time = 5  # Seconds between retries
+    cutoff = None if not_before is None else not_before - CODE_MAIL_SKEW_TOLERANCE_SECONDS
 
     for attempt in range(retries):
+        mail = None
         try:
             mail = imaplib.IMAP4_SSL(account.imap_host)
             mail.login(account.gmail_user, account.gmail_app_password)
@@ -303,20 +335,36 @@ def fetch_latest_2fa_code(account: VRChatAccount):
                 time.sleep(wait_time)  # Wait before retrying
                 continue
 
-            latest_email_id = messages[0].split()[-1]  # Get the most recent email
-            status, data = mail.fetch(latest_email_id, "(BODY[HEADER.FIELDS (SUBJECT)])")
+            stale_seen = 0
+            # Newest first: the one we want is nearly always the first read.
+            for email_id in reversed(messages[0].split()[-CODE_MAIL_SCAN_DEPTH:]):
+                status, data = mail.fetch(email_id, "(BODY[HEADER.FIELDS (SUBJECT DATE)])")
+                raw_headers = data[0][1].decode()
 
-            # Extract subject
-            raw_subject = data[0][1].decode()
-            subject_match = re.search(r"Your One-Time Code is (\d{6})", raw_subject)
+                sent_at = _mail_sent_at(raw_headers)
+                if cutoff is not None and sent_at is not None and sent_at < cutoff:
+                    # Everything older is older still; stop reading the backlog.
+                    stale_seen += 1
+                    break
+                if cutoff is not None and sent_at is None:
+                    # Accepted rather than refused: a header we cannot parse
+                    # must not be able to block a legitimate login. Logged so
+                    # a systematic parsing failure is visible.
+                    logging.warning("2FA email has an unreadable Date header; using it anyway")
 
-            if subject_match:
-                vrchat_2fa_code = subject_match.group(1)
-                # Never log the code itself: log files shouldn't hold auth secrets.
-                logging.info("Found VRChat 2FA code in email subject.")
-                return vrchat_2fa_code
+                subject_match = re.search(r"Your One-Time Code is (\d{6})", raw_headers)
+                if subject_match:
+                    vrchat_2fa_code = subject_match.group(1)
+                    # Never log the code itself: log files shouldn't hold auth secrets.
+                    logging.info("Found VRChat 2FA code in email subject.")
+                    return vrchat_2fa_code
 
-            logging.warning("No 2FA code found in email subject. Retrying...")
+            if stale_seen:
+                logging.info(
+                    "Only 2FA emails older than this login attempt are present; waiting for a new one."
+                )
+            else:
+                logging.warning("No 2FA code found in email subject. Retrying...")
             time.sleep(wait_time)  # Wait before retrying
 
         except Exception as e:
@@ -324,7 +372,8 @@ def fetch_latest_2fa_code(account: VRChatAccount):
 
         finally:
             try:
-                mail.logout()
+                if mail is not None:
+                    mail.logout()
             except Exception:
                 pass  # Ignore errors when logging out
 
@@ -531,8 +580,9 @@ def login(account: VRChatAccount, load_stored_session: bool = True):
         if e.status == 200:
             logging.info("2FA Required! Fetching code from email...")
 
-            # Auto-fetch the 2FA code
-            two_factor_code = fetch_latest_2fa_code(account)
+            # Auto-fetch the 2FA code. The timestamp is what stops a code
+            # from an earlier login being picked up as the newest mail.
+            two_factor_code = fetch_latest_2fa_code(account, not_before=time.time())
             if not two_factor_code:
                 logging.error("2FA required but no valid code found.")
                 return None, auth_error("2FA required but no valid code found")

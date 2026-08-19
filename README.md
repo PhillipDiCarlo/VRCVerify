@@ -20,6 +20,13 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
   - Sends back the verification result via a RabbitMQ result queue, including structured outage/auth metadata when VRChat is unavailable.
   - Its VRChat login, 2FA handling, cookie persistence and outage classification live in `src/vrc_session.py`, shared so a second VRChat account can hold its own independent session.
 
+3. **VRChat Group Inviter (vrc_group_inviter.py):**
+   - Runs a **second, separate VRChat account** from the checker, so moderation action against one cannot take the other down.
+   - Consumes its own RabbitMQ queue (`RABBITMQ_GROUP_INVITE_QUEUE`), never the verification queue: two consumers on one queue split messages round-robin, so the checker would swallow its jobs.
+   - Verifies a server's group setup on request: joins the group it was told about, then reports whether the account is a member and holds `group-invites-manage` (its own permission, which being a group admin does **not** include) and the optional `group-members-viewall`.
+   - **Never joins a group it was not explicitly told to join.** There is no loop that polls for or accepts pending invites; anyone can invite the account to a group, and that alone must never put it in one.
+   - Exits immediately when `INVITE_VRCHAT_USERNAME`/`INVITE_VRCHAT_PASSWORD` are unset, so the feature is simply not provisioned rather than broken.
+
 ---
 
 ## Recent updates
