@@ -487,8 +487,29 @@ def group_setup_summary(settings: dict) -> dict:
     group_id = _value(settings, "vrchat_group_id")
     account = block.get("account_to_invite")
 
+    # A server whose subscription lapsed keeps its stored group -- the field is
+    # write_locked, so the bot refuses the save rather than clearing it -- and
+    # therefore keeps this status too. What it must NOT keep is the list of
+    # things to go and do: there is no check button on a locked section, so
+    # "paste this code in your group description and invite this account"
+    # would be instructions for a task the page gives them no way to finish.
+    #
+    # The headline stays, because where they got to is true and worth seeing.
+    # Only the next step changes, to the same promise the locked fields make.
+    locked = bool(_state(settings, "vrchat_group_id").get("locked"))
+    if locked:
+        detail = (
+            "Group invites are part of VRCVerify Premium. Your group is kept "
+            "exactly as it is, and this picks up where it left off if the "
+            "subscription is renewed."
+        )
+
     warnings = []
-    if state == "ready" and not block.get("can_see_members"):
+    if locked:
+        # Both of the warnings below ask for an action, and there is nothing
+        # here to act with.
+        pass
+    elif state == "ready" and not block.get("can_see_members"):
         # Not a failure: invites work without it. It only decides whether a
         # member who is already in the group can be told so instead of being
         # offered a button that would fail.
@@ -497,7 +518,7 @@ def group_setup_summary(settings: dict) -> dict:
             "VRCVerify can tell members who are already in the group, rather "
             "than sending them an invite that bounces."
         )
-    if group_id and not account:
+    if group_id and not account and not locked:
         warnings.append(
             "This VRCVerify installation has no invite account configured, so "
             "the check cannot run. Contact the bot operator."
@@ -511,20 +532,28 @@ def group_setup_summary(settings: dict) -> dict:
         # The bot's own sentence about what went wrong, when it has one. Shown
         # as well as the copy above, not instead of it: the copy says what to
         # do, and this says what VRChat actually said.
-        "error": _clip(block.get("error"), GROUP_ERROR_MAX_LEN),
+        "error": None if locked else _clip(block.get("error"), GROUP_ERROR_MAX_LEN),
+        "locked": locked,
         "group_name": block.get("group_name"),
         "configured": bool(group_id),
         "group_url": f"https://vrchat.com/home/group/{group_id}" if group_id else None,
         # The usr_ id matters as much as the name. Display names are not
         # unique, and an admin who invites a lookalike account gets "the bot
         # hasn't been invited" with nothing explaining why.
-        "account_id": account,
-        "account_url": f"https://vrchat.com/home/user/{account}" if account else None,
+        # Suppressed while locked: inviting the account is a step towards a
+        # check this section cannot run.
+        "account_id": None if locked else account,
+        "account_url": (
+            None if locked or not account
+            else f"https://vrchat.com/home/user/{account}"
+        ),
         "claim_code": block.get("claim_code"),
         # Once it is working the code has done its job, and leaving it on
         # screen invites someone to leave it in their group description for
         # ever. The bot stops demanding it after a successful check.
-        "show_claim_code": bool(block.get("claim_code")) and state != "ready",
+        "show_claim_code": (
+            bool(block.get("claim_code")) and state != "ready" and not locked
+        ),
         "warnings": warnings,
     }
 

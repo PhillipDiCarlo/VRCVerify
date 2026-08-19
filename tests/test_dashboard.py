@@ -3281,8 +3281,9 @@ class TestGroupSetupSummary:
     but lacks Manage Group Invites goes and ticks the box.
     """
 
-    def summary(self, group_id=GROUP_ID, **block):
+    def summary(self, group_id=GROUP_ID, premium=True, **block):
         settings = make_settings(
+            premium=premium,
             values={"vrchat_group_id": group_id},
             group_invite=group_invite_block(**block),
         )
@@ -3519,3 +3520,60 @@ class TestTheGroupCheckButton:
         response = app.test_client().post(f"/guild/{GUILD_IN}/group/verify", data={})
         assert response.status_code in (302, 400)
         assert api.group_checks == []
+
+
+class TestALockedSectionStopsGivingInstructions:
+    """A lapsed server keeps its group -- the field is write_locked, so the bot
+    refuses the save rather than clearing it -- and therefore keeps this status.
+
+    What it must not keep is the list of things to go and do. There is no check
+    button on a locked section, so "paste this code into your group description
+    and invite this account" would be instructions for a task the page gives
+    them no way to finish.
+    """
+
+    def summary(self, **block):
+        settings = make_settings(
+            premium=False,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(**block),
+        )
+        return settings_view.group_setup_summary(settings)
+
+    def test_the_setup_code_is_not_shown(self):
+        assert self.summary(claim_code="VRCG-7K2M4P")["show_claim_code"] is False
+
+    def test_the_account_to_invite_is_not_named(self):
+        summary = self.summary()
+        assert summary["account_id"] is None
+        assert summary["account_url"] is None
+
+    def test_no_warning_asks_for_an_action(self):
+        assert self.summary(state="ready", can_see_members=False)["warnings"] == []
+
+    def test_the_next_step_is_the_same_promise_the_locked_fields_make(self):
+        summary = self.summary(state="not_invited")
+        assert "Premium" in summary["detail"]
+        assert "kept" in summary["detail"]
+
+    def test_where_they_got_to_is_still_shown(self):
+        """True, and worth seeing. Only the next step changes."""
+        assert self.summary(state="ready", group_name="Club LA")["headline"] == "Ready"
+        assert self.summary(state="ready", group_name="Club LA")["group_name"] == "Club LA"
+
+    def test_their_own_group_is_still_linked(self):
+        """A link to a group they own is not an instruction."""
+        assert self.summary()["group_url"].endswith(GROUP_ID)
+
+    def test_a_premium_server_still_gets_the_instructions(self):
+        """The other half of the pair, so this cannot pass by suppressing
+        everything for everybody."""
+        settings = make_settings(
+            premium=True,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(claim_code="VRCG-7K2M4P"),
+        )
+        summary = settings_view.group_setup_summary(settings)
+        assert summary["show_claim_code"] is True
+        assert summary["account_id"] == INVITE_ACCOUNT
+        assert summary["locked"] is False
