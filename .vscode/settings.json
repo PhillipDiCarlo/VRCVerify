@@ -10,7 +10,7 @@
     // and friends, which crash when the variable is unset -- are tracked in
     // issue #112 rather than being silenced along with the noise.
     //
-    // The real fix is migrating the models to Mapped[str] = mapped_column(...),
+    // TODO: The real fix is migrating the models to Mapped[str] = mapped_column(...),
     // at which point this line should go.
     "python.analysis.typeCheckingMode": "off",
     "python.testing.pytestArgs": [
