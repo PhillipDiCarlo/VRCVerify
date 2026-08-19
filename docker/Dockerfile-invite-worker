@@ -1,0 +1,25 @@
+# Dockerfile-invite-worker
+
+FROM python:3.14.7-slim AS runtime
+
+ENV PIP_NO_CACHE_DIR=1 \
+	PIP_DISABLE_PIP_VERSION_CHECK=1 \
+	PYTHONDONTWRITEBYTECODE=1 \
+	PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY config/other_configs/requirements-inviter.txt ./requirements.txt
+RUN pip install --no-compile -r requirements.txt
+
+RUN useradd --create-home --uid 10001 appuser
+
+# Holds this account's VRChat session cookie (INVITE_VRCHAT_SESSION_FILE).
+# Its own volume, never the checker's: two accounts sharing one cookie file
+# overwrite each other's auth and thrash between sessions.
+RUN mkdir -p /data && chown appuser:appuser /data && chmod 700 /data
+
+COPY --chown=appuser:appuser src/ ./src/
+USER appuser
+
+CMD ["python", "src/vrc_group_inviter.py"]

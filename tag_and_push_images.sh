@@ -50,9 +50,10 @@ echo "Select an option to tag and upload:"
 echo "1. Bot"
 echo "2. VRC Online Checker"
 echo "3. Dashboard (runs on the VPS, not the homelab)"
-echo "4. All"
+echo "4. VRChat Group Inviter"
+echo "5. All"
 echo "0. Exit"
-read -p "Enter your choice (0-4): " choice
+read -p "Enter your choice (0-5): " choice
 
 # Collect version number and build option
 get_version
@@ -70,9 +71,13 @@ case "$choice" in
         tag_and_push "dashboard" "$version"
         ;;
     4)
+        tag_and_push "vrc-group-inviter" "$version"
+        ;;
+    5)
         tag_and_push "discord-bot" "$version"
         tag_and_push "vrc-online-checker" "$version"
         tag_and_push "dashboard" "$version"
+        tag_and_push "vrc-group-inviter" "$version"
         ;;
     0)
         echo "Exiting script."

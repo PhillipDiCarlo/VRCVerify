@@ -10,6 +10,7 @@ The tests at the end are new, and exist because "two accounts cannot see each
 other's state" is the entire reason this module was split out.
 """
 
+import email.utils
 from http.cookiejar import Cookie, MozillaCookieJar
 from types import SimpleNamespace
 
@@ -197,7 +198,7 @@ class TestLoginRobustness:
             vrcs.authentication_api, "AuthenticationApi",
             lambda c: SimpleNamespace(get_current_user=get_current_user),
         )
-        monkeypatch.setattr(vrcs, "fetch_latest_2fa_code", lambda acct: None)
+        monkeypatch.setattr(vrcs, "fetch_latest_2fa_code", lambda acct, not_before=None: None)
 
         # Must return a structured error, not raise.
         client, err = vrcs.login(account())
@@ -372,7 +373,7 @@ class TestSessionPersistence:
         monkeypatch.setattr(vrcs.authentication_api, "AuthenticationApi", make_auth)
         monkeypatch.setattr(
             vrcs, "fetch_latest_2fa_code",
-            lambda acct: (_ for _ in ()).throw(AssertionError("unexpected 2FA")),
+            lambda acct, not_before=None: (_ for _ in ()).throw(AssertionError("unexpected 2FA")),
         )
         return created
 
@@ -446,7 +447,7 @@ class TestSessionPersistence:
 
         fresh = self._cookie("auth", "fresh_" + "F" * 40)
         self._patch_login_stack(monkeypatch, get_current_user, cookies_on_auth=[fresh])
-        monkeypatch.setattr(vrcs, "fetch_latest_2fa_code", lambda acct: "123456")
+        monkeypatch.setattr(vrcs, "fetch_latest_2fa_code", lambda acct, not_before=None: "123456")
         monkeypatch.setattr(
             vrcs.authentication_api, "AuthenticationApi",
             lambda c: SimpleNamespace(
@@ -588,3 +589,98 @@ class TestConfigurationIsActuallyLoaded:
         finally:
             monkeypatch.undo()
             importlib.reload(vrcs)
+
+
+class TestStale2faCodes:
+    """A mailbox keeps every code it has ever received.
+
+    The fetcher takes the newest mail from noreply@vrchat.com. If VRChat's
+    mail is slower than the retry window, the newest message is the PREVIOUS
+    login's code -- returned confidently, rejected by VRChat, and
+    indistinguishable in the logs from a wrong password. `not_before` is what
+    stops that.
+    """
+
+    NOW = 1_800_000_000.0
+
+    class FakeMailbox:
+        def __init__(self, mails):
+            # mails: list of (epoch, subject), oldest first, as IMAP returns them
+            self.mails = mails
+            self.fetched = []
+
+        def login(self, user, password):
+            return "OK", []
+
+        def select(self, folder):
+            return "OK", []
+
+        def search(self, charset, criteria):
+            ids = b" ".join(str(i).encode() for i in range(1, len(self.mails) + 1))
+            return "OK", [ids]
+
+        def fetch(self, email_id, parts):
+            index = int(email_id) - 1
+            self.fetched.append(index)
+            epoch, subject = self.mails[index]
+            headers = (
+                f"Subject: {subject}\r\n"
+                f"Date: {email.utils.formatdate(epoch)}\r\n"
+            ).encode()
+            return "OK", [(b"1", headers)]
+
+        def logout(self):
+            return "OK", []
+
+    def _install(self, monkeypatch, mails):
+        box = self.FakeMailbox(mails)
+        monkeypatch.setattr(vrcs.imaplib, "IMAP4_SSL", lambda host: box)
+        monkeypatch.setattr(vrcs.time, "sleep", lambda *_: None)
+        return box
+
+    def test_fresh_code_is_returned(self, monkeypatch):
+        self._install(monkeypatch, [(self.NOW + 5, "Your One-Time Code is 123456")])
+        assert vrcs.fetch_latest_2fa_code(account(), not_before=self.NOW) == "123456"
+
+    def test_stale_code_is_refused(self, monkeypatch):
+        """The regression: a day-old code must not be handed to a fresh login."""
+        self._install(monkeypatch, [(self.NOW - 86400, "Your One-Time Code is 999999")])
+        assert vrcs.fetch_latest_2fa_code(account(), not_before=self.NOW) is None
+
+    def test_newest_wins_when_an_old_code_is_still_sitting_there(self, monkeypatch):
+        box = self._install(
+            monkeypatch,
+            [
+                (self.NOW - 86400, "Your One-Time Code is 111111"),
+                (self.NOW - 3600, "Your One-Time Code is 222222"),
+                (self.NOW + 3, "Your One-Time Code is 333333"),
+            ],
+        )
+        assert vrcs.fetch_latest_2fa_code(account(), not_before=self.NOW) == "333333"
+        assert box.fetched[0] == 2, "should read newest-first, not scan the backlog"
+
+    def test_small_clock_skew_is_tolerated(self, monkeypatch):
+        """VRChat's mail server and ours need not agree to the second."""
+        self._install(monkeypatch, [(self.NOW - 30, "Your One-Time Code is 444444")])
+        assert vrcs.fetch_latest_2fa_code(account(), not_before=self.NOW) == "444444"
+
+    def test_unreadable_date_does_not_block_a_login(self, monkeypatch):
+        """A header we cannot parse must not be able to lock the account out."""
+        box = self._install(monkeypatch, [(self.NOW, "Your One-Time Code is 555555")])
+        monkeypatch.setattr(
+            box, "fetch",
+            lambda i, parts: ("OK", [(b"1", b"Subject: Your One-Time Code is 555555\r\n")]),
+        )
+        assert vrcs.fetch_latest_2fa_code(account(), not_before=self.NOW) == "555555"
+
+    def test_without_not_before_any_code_is_accepted(self, monkeypatch):
+        """Callers that do not know when they asked keep the old behaviour."""
+        self._install(monkeypatch, [(self.NOW - 86400, "Your One-Time Code is 666666")])
+        assert vrcs.fetch_latest_2fa_code(account()) == "666666"
+
+    def test_login_passes_the_time_it_asked(self):
+        """Without this argument the whole check is dead code."""
+        import inspect
+
+        src = inspect.getsource(vrcs.login)
+        assert "fetch_latest_2fa_code(account, not_before=" in src
