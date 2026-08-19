@@ -1,4 +1,18 @@
 {
+    // This project uses SQLAlchemy's legacy Column() declarative style, which
+    // 2.0's stubs type as Column[str] rather than str. Pylance therefore
+    // flags every model attribute read, assignment and truth test as a type
+    // error -- a few hundred of them, none real: the instrumentation returns
+    // the Python value at runtime, which is why the test suite passes.
+    //
+    // Switched off here rather than in user settings, so other projects keep
+    // "basic". The genuine type-level defects this surfaced -- int(os.getenv(...))
+    // and friends, which crash when the variable is unset -- are tracked in
+    // issue #112 rather than being silenced along with the noise.
+    //
+    // The real fix is migrating the models to Mapped[str] = mapped_column(...),
+    // at which point this line should go.
+    "python.analysis.typeCheckingMode": "off",
     "python.testing.pytestArgs": [
         "tests"
     ],
