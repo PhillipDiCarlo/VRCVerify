@@ -9,12 +9,17 @@
 #   VRCVERIFY_VERSION=2.6.0 docker compose -f docker-compose.deploy.yml up -d
 # or add VRCVERIFY_VERSION=2.6.0 to the .env file.
 #
-# This is a TEMPLATE, and the deployed copy on the homelab host differs from it
-# deliberately: there the dashboard API blocks at the bottom are uncommented,
-# because that host runs the API. Keep the two in step when either changes --
-# the last drift between them left a comment on the server telling the reader
-# to leave the API switched off, months after it went live, and nothing caught
-# it because the edit was made on the box rather than here.
+# This file is complete: `docker compose up -d` on the homelab needs no flags,
+# no overlay and no hand-editing. That is deliberate. It used to ship with the
+# bot API's host networking and certs mount commented out, to be uncommented on
+# the box -- and on 2026-08-19 the host copy was replaced with this template,
+# both lines went with it, and the bot API disappeared. The bot itself ran
+# perfectly throughout while the dashboard logged "Connection refused" with
+# nothing explaining why; it took four rounds of digging to find.
+#
+# Configuration only one machine needs still belongs in that machine's .env,
+# which is not in git. Configuration the deployment always needs belongs here,
+# uncommented, where a redeploy cannot lose it.
 
 services:
   discord-bot:
@@ -87,13 +92,26 @@ services:
     # container itself has no idea anything is wrong.
     #
     # Host networking instead means BOT_API_BIND is a real host interface and
-    # the refusal above means exactly what it says. Check DATABASE_URL and
-    # RABBITMQ_HOST before switching: on host networking, container names stop
-    # resolving and both must name a host address.
+    # the refusal above means exactly what it says.
     #
-    # network_mode: host
-    # volumes:
-    #   - ${BOT_API_CERT_DIR:-./certs}:/certs:ro
+    # Its cost is that container names stop resolving, so every address this
+    # service uses must be a real host address. DATABASE_URL and RABBITMQ_HOST
+    # both name IPs today, which is what makes this safe; if either ever becomes
+    # a service name, this line has to go first.
+    network_mode: host
+
+    volumes:
+      # The bot API's server certificate, its key, and the CA that signed the
+      # dashboard's client certificate. Read-only -- the bot never writes here.
+      #
+      # Files must be readable by uid 10001 (the image's appuser). Ownership is
+      # the usual cause of an API that validates its config, binds, and then
+      # fails every handshake.
+      #
+      # Mounted unconditionally: where the API is switched off an unused mount
+      # costs nothing, and a missing directory is created empty rather than
+      # failing the start. That is cheaper than a line someone has to remember.
+      - ${BOT_API_CERT_DIR:-./certs}:/certs:ro
 
   vrc-online-checker:
     image: italiandogs/vrcverify-vrc-online-checker:${VRCVERIFY_VERSION:?Set VRCVERIFY_VERSION to a pushed version tag (never latest)}
