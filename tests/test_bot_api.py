@@ -3321,9 +3321,19 @@ class TestTheRetiredCommandsStillAnswer:
         embed = run(bot.build_settings_summary(guild))
 
         names = [f.name for f in embed.fields]
-        # Every field the API reports, in the summary. A setting that exists
-        # but is not shown is one an admin cannot discover from Discord.
-        assert len(names) == len(bot.SETTINGS_FIELDS)
+        # Every field the API reports and an admin can actually reach. A
+        # setting that exists but is not shown is one an admin cannot discover
+        # from Discord -- except while a feature is still landing in phases,
+        # where a locked row nobody can unlock is the worse of the two. That
+        # exception is UNANNOUNCED_FEATURES, which is one line in bot.py rather
+        # than a number typed in here, and emptying it fails this test until
+        # the summary shows the field.
+        reachable = [
+            field
+            for field in bot.SETTINGS_FIELDS
+            if field.feature not in bot.UNANNOUNCED_FEATURES
+        ]
+        assert len(names) == len(reachable)
         assert any(n.startswith("Verified role") for n in names)
 
     def test_a_locked_field_and_a_badge_only_field_read_differently(self, free):

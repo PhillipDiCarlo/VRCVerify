@@ -470,9 +470,22 @@ class GroupInviteConfig(Base):
     group_id = Column(String(64), nullable=True, unique=True)
     # What the group calls itself, as the worker last saw it. Display only --
     # nothing keys off it, and it is allowed to go stale.
-    group_name = Column(String(128), nullable=True)
+    #
+    # Unbounded, unlike the columns around it. The rule for this table is that
+    # a value THIS code produces gets a length (the id is regex-constrained to
+    # 40 characters, the claim code to 11, the state to a closed vocabulary),
+    # and a value VRChat produces does not. A cap on somebody else's string is
+    # a length limit we would find out about when Postgres refuses a write --
+    # and the column could not be widened afterwards without the hand-run ALTER
+    # this whole table exists to avoid.
+    group_name = Column(String, nullable=True)
     # The admin's switch, independent of whether a group is configured or
     # verified. Off by default, so storing a group id never starts anything.
+    #
+    # NEVER the gate on its own. The settings field is write_locked, which
+    # means a lapsed subscription is refused the save and leaves this exactly
+    # as it was -- True, on a server that is no longer paying. Anything acting
+    # on this flag has to resolve the plan as well.
     enabled = Column(Boolean, nullable=False, default=False)
     # Which VRChat account serves this guild. There is one today, but a VRChat
     # account can only be in 100 groups (200 with VRC+), so there will be more,
@@ -489,10 +502,12 @@ class GroupInviteConfig(Base):
     )
     # The worker's own sentence about why, for an admin to read. Not a code --
     # verify_state is the code, and this is the part that names the group.
-    # Whatever writes it must truncate to 255: Postgres refuses an over-long
-    # value outright, so an unusually verbose API error would fail the write
-    # that was only trying to record an error in the first place.
-    verify_error = Column(String(255), nullable=True)
+    #
+    # Unbounded for the reason group_name gives, and more sharply: some of
+    # these sentences quote a VRChat API error, so a cap here would mean an
+    # unusually verbose failure fails the write that was only trying to record
+    # a failure.
+    verify_error = Column(String, nullable=True)
     verify_requested_at = Column(DateTime(timezone=True), nullable=True)
     verified_at = Column(DateTime(timezone=True), nullable=True)
     # The job id the last check went out with. The round trip is asynchronous
@@ -1113,18 +1128,22 @@ GRANDFATHERED_FEATURES = frozenset(
     {FEATURE_UNVERIFIED_ROLE_REMOVAL, FEATURE_NICKNAME_SYNC, FEATURE_CUSTOM_DM}
 )
 
-# Features that exist in the code but are not yet reachable by an admin, and so
-# must NOT appear anywhere in the premium copy. Issue #49's group invite lands
-# in phases -- the gate, the storage and the API first, the dashboard that lets
-# anyone configure it later -- and advertising it in between would sell a
-# feature a paying server cannot turn on.
+# Features that exist in the code but are not yet reachable by an admin, and
+# are therefore shown to nobody. Issue #49's group invite lands in phases --
+# the gate, the storage and the API first, the dashboard that lets anyone
+# configure it later -- and everything in between would either sell a feature a
+# paying server cannot turn on, or show them a locked control with no way to
+# unlock it. Both produce the same support ticket, which nobody can answer.
 #
-# tests/test_premium.py subtracts this set when it checks that the pitch lists
-# every gated feature. Taking a name out therefore fails that test until the
-# pitch, the subscriber's receipt and the grandfathered split have all been
-# told about it, in all twelve locales. That is the point: the entry comes out
-# in the same change that makes the feature real, and cannot be forgotten
-# afterwards.
+# This one set drives all three surfaces:
+#
+#   * the premium pitch (locales), via tests/test_premium.py
+#   * /vrcverify_settings, via build_settings_summary below
+#   * the dashboard settings page, via tests/test_group_invite_config.py
+#
+# Each of those has a test that fails the moment a name leaves this set, so
+# taking the entry out is what forces all three to be built -- in the same
+# change that makes the feature real, and it cannot be forgotten afterwards.
 UNANNOUNCED_FEATURES = frozenset({FEATURE_GROUP_INVITE})
 
 
@@ -1197,6 +1216,17 @@ SETTINGS_FIELDS = (
 )
 
 SETTINGS_FIELDS_BY_NAME = {field.name: field for field in SETTINGS_FIELDS}
+
+
+def field_is_announced(name: str) -> bool:
+    """Whether this setting may be shown to an admin at all yet.
+
+    Read off the field's own feature, so a phased feature is hidden everywhere
+    by one entry in UNANNOUNCED_FEATURES rather than by a list per surface.
+    """
+    field = SETTINGS_FIELDS_BY_NAME.get(name)
+    return field is None or field.feature not in UNANNOUNCED_FEATURES
+
 
 # Which of those the dashboard may WRITE today. Everything else is readable and
 # refused on save, including fields that will open later.
@@ -2439,7 +2469,13 @@ def save_group_invite_config(guild_id, *, group_id, enabled) -> None:
     would have to do anyway for "on, with a group that failed verification".
     """
     key = panel_view_key(guild_id)
-    group_id = group_id or None
+    # Parsed here as well as in the coercer, because this is the function that
+    # writes the UNIQUE column and so is the one whose invariant it is. A
+    # caller reaching this with an unnormalised id -- a later phase storing
+    # what a worker echoed back, say -- would otherwise put a second casing of
+    # an already-claimed group into the table, and first-claim-wins would
+    # quietly stop being true. Idempotent for anything already parsed.
+    group_id = parse_vrchat_group_id(group_id)
     try:
         with session_scope() as session:
             if group_id is not None:
@@ -3051,6 +3087,13 @@ async def build_settings_summary(guild: discord.Guild) -> Optional[discord.Embed
     auto_verify_present = payload.get("auto_verify_column_present", True)
 
     for name, label in SETTINGS_SUMMARY_LABELS:
+        # A locked row an admin has no way to unlock is worse than no row: it
+        # says the bot has a feature, offers no way to reach it, and the answer
+        # to "how do I turn this on" is "you cannot yet". See
+        # UNANNOUNCED_FEATURES -- one entry hides it here, on the website and
+        # in the pitch alike.
+        if not field_is_announced(name):
+            continue
         state = fields.get(name) or {}
         text = _summary_value(name, state.get("value"), guild)
         # The same two-kinds-of-gated distinction the website draws, for the

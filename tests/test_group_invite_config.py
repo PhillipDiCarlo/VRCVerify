@@ -59,6 +59,21 @@ def stored(guild_id=GUILD_ID):
     return bot.load_group_invite_config(guild_id)
 
 
+class SummaryGuild:
+    """Just enough guild for build_settings_summary to render."""
+
+    def __init__(self, guild_id=GUILD_ID):
+        self.id = guild_id
+        self.roles = []
+        self.text_channels = []
+
+    def get_role(self, role_id):
+        return None
+
+    def get_channel(self, channel_id):
+        return None
+
+
 def audit_fields():
     with bot.session_scope() as session:
         return [row.field for row in session.query(bot.DashboardAudit).all()]
@@ -261,6 +276,32 @@ class TestStorage:
         row = stored()
         assert row["enabled"] is True
         assert row["group_id"] is None
+
+    def test_the_storage_layer_normalises_the_id_too(self):
+        """The UNIQUE column's invariant belongs to the function that writes it.
+
+        The settings coercer is one caller. A later phase storing what a worker
+        echoed back would be another, and an unnormalised id reaching the table
+        would put a second casing of an already-claimed group in it -- at which
+        point first-claim-wins has quietly stopped being true.
+        """
+        bot.save_group_invite_config(
+            GUILD_ID, group_id=GROUP_ID.upper(), enabled=False
+        )
+        assert stored()["group_id"] == GROUP_ID
+        with pytest.raises(bot.SettingRejected) as caught:
+            bot.save_group_invite_config(
+                OTHER_GUILD_ID, group_id=GROUP_ID, enabled=False
+            )
+        assert caught.value.reason == "group_claimed_elsewhere"
+
+    def test_the_storage_layer_refuses_a_value_that_is_not_a_group(self):
+        with pytest.raises(bot.SettingRejected) as caught:
+            bot.save_group_invite_config(
+                GUILD_ID, group_id="not-a-group", enabled=False
+            )
+        assert caught.value.reason == "not_a_group"
+        assert bot.load_group_invite_config(GUILD_ID) is None
 
     def test_claim_codes_are_not_predictable(self):
         codes = set()
@@ -548,13 +589,34 @@ class TestTheSettingsPayload:
         monkeypatch.setattr(bot, "load_group_invite_config", boom)
         assert run(bot.read_dashboard_settings(GUILD_ID)) is None
 
-    def test_the_retired_slash_command_summary_shows_them(self):
-        """A setting an admin cannot discover from Discord is one they will
-        ask support about. The summary is derived from SETTINGS_FIELDS, so
-        this is really a check that both names reached the label table."""
+    def test_the_summary_has_labels_ready_but_does_not_show_them_yet(self):
+        """Both halves matter, and they pull in opposite directions.
+
+        A setting an admin cannot discover from Discord is one they will ask
+        support about -- so the labels exist, and phase 4 does not have to
+        remember them. But a locked row with no way to unlock it produces the
+        same support ticket for the opposite reason, so nothing is rendered
+        while the dashboard has no control for it.
+        """
         labelled = {name for name, _label in bot.SETTINGS_SUMMARY_LABELS}
         assert "vrchat_group_id" in labelled
         assert "vrchat_group_invite_enabled" in labelled
+        assert bot.field_is_announced("vrchat_group_id") is False
+        assert bot.field_is_announced("vrchat_group_invite_enabled") is False
+        assert bot.field_is_announced("role_id") is True
+
+    def test_the_summary_embed_really_omits_them(self):
+        """The predicate above is only worth having if the embed obeys it."""
+        make_server()
+        bot.save_group_invite_config(GUILD_ID, group_id=GROUP_ID, enabled=True)
+        embed = run(bot.build_settings_summary(SummaryGuild()))
+        labels = {field.name for field in embed.fields}
+        assert not any("VRChat group" in label for label in labels)
+        assert not any("Group invites" in label for label in labels)
+        # And the id itself never reaches Discord as a side effect.
+        assert not any(GROUP_ID in (field.value or "") for field in embed.fields)
+        # The rest of the summary is untouched.
+        assert any("Verified role" in label for label in labels)
 
 
 # -------------------------------------------------------------------
@@ -608,7 +670,15 @@ class TestTheDashboardGapIsDeclared:
     then fails until the controls actually exist.
     """
 
-    NOT_YET_ON_THE_PAGE = {"vrchat_group_id", "vrchat_group_invite_enabled"}
+    @staticmethod
+    def not_yet_on_the_page():
+        """Derived, not typed: one entry in UNANNOUNCED_FEATURES hides a field
+        from the pitch, from /vrcverify_settings and from here alike."""
+        return {
+            field.name
+            for field in bot.SETTINGS_FIELDS
+            if field.feature in bot.UNANNOUNCED_FEATURES
+        }
 
     def test_the_page_renders_every_field_except_the_declared_gap(self):
         payload = {
@@ -637,4 +707,10 @@ class TestTheDashboardGapIsDeclared:
             for group in settings_view.build_groups(payload, [], [])
             for field in group["fields"]
         }
-        assert set(payload["fields"]) - rendered == self.NOT_YET_ON_THE_PAGE
+        assert set(payload["fields"]) - rendered == self.not_yet_on_the_page()
+        # And the gap is not empty by accident: these two are the fields this
+        # phase deliberately did not build controls for.
+        assert self.not_yet_on_the_page() == {
+            "vrchat_group_id",
+            "vrchat_group_invite_enabled",
+        }
