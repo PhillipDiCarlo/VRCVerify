@@ -45,8 +45,19 @@ EXPOSE 8000
 # Trusting "*" is safe here specifically because this container publishes no
 # port: cloudflared is the only thing that can connect to it at all. If that
 # ever changes, this must be narrowed at the same time.
+# --no-control-socket because gunicorn 26 opens a control socket at
+# ~/.gunicorn/gunicorn.ctl by default, and this container is read_only with a
+# tmpfs only on /tmp. The write fails and every boot logs
+#
+#   [ERROR] Control server error: [Errno 30] Read-only file system
+#
+# Workers start and serve regardless, so the only real cost is an ERROR line on
+# every deploy training people to ignore ERROR lines. Nothing issues runtime
+# control commands into this container, so the feature is switched off rather
+# than the filesystem loosened to accommodate it.
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", \
 	"--workers", "2", "--threads", "4", \
 	"--access-logfile", "-", "--error-logfile", "-", \
 	"--forwarded-allow-ips", "*", \
+	"--no-control-socket", \
 	"dashboard.app:main()"]
