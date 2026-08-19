@@ -289,3 +289,109 @@ class TestServiceGuards:
                 f"{forbidden} suggests reacting to unsolicited invites; joining must "
                 "only ever follow a job naming a specific group"
             )
+
+
+class TestReviewRegressions:
+    """One test per hole found reviewing the first cut of this worker.
+
+    Each of these passed silently before: no exception, no log that named the
+    cause, and in three of the five the job simply vanished.
+    """
+
+    def test_missing_group_id_is_answered_not_dropped(self, api):
+        """None reaches the client as ApiValueError, which is NOT an ApiException.
+
+        It subclasses ValueError, so it sailed past every handler, landed in
+        the generic catch, and the job was dropped with no result -- leaving
+        whoever asked waiting on an answer that never came.
+        """
+        for bad in [None, "", "not-a-group", 12345]:
+            result = inviter.verify_group_setup(dict(JOB, groupID=bad))
+            assert result["state"] == inviter.STATE_BAD_JOB
+            assert result["ok"] is False
+        assert api.calls == [], "a malformed job must never reach the VRChat API"
+
+    def test_banned_is_terminal_not_an_invite_problem(self, api):
+        """Being banned was reported as "we have not been invited yet", which
+        sends the admin round a loop of re-inviting that cannot ever work."""
+        for status in ["banned", "userblocked"]:
+            api.calls.clear()
+            api.groups = [group(membership_status=status)]
+            result = inviter.verify_group_setup(JOB)
+            assert result["state"] == inviter.STATE_BANNED
+            assert "banned or blocked" in result["error_message"]
+            assert api.joined() == [], "join_group cannot lift a ban; do not spend the call"
+
+    def test_banned_after_the_join_attempt_is_also_terminal(self, api):
+        api.groups = [group(membership_status=None), group(membership_status="banned")]
+        result = inviter.verify_group_setup(JOB)
+        assert result["state"] == inviter.STATE_BANNED
+
+    def test_401_from_any_call_invalidates_the_session(self, api, monkeypatch):
+        """Only the first call used to do this, so a 401 from a later one left
+        a known-dead client installed until an unrelated job hit call one."""
+        invalidated = []
+        monkeypatch.setattr(
+            inviter.vrchat_session, "invalidate", lambda meta=None: invalidated.append(meta)
+        )
+        api.groups = [group(membership_status=None)]
+        api.join_error = FakeApiException(status=401, body="Missing Credentials")
+
+        inviter.verify_group_setup(JOB)
+        assert invalidated, "a 401 from join_group left the dead session in place"
+
+    def test_failed_result_publish_requeues_instead_of_acking(self, monkeypatch):
+        """publish_result used to swallow AMQPError and return normally, so the
+        job was ACKed with no result ever delivered -- and the join had already
+        happened, so the side effect was applied and the outcome lost."""
+        from pika.exceptions import AMQPError
+
+        monkeypatch.setattr(inviter, "_rabbitmq_connect_with_retry",
+                            lambda max_tries=0: (_ for _ in ()).throw(AMQPError("broker down")))
+        with pytest.raises(AMQPError):
+            inviter.publish_result({"state": "ready"})
+
+    def test_publish_failure_makes_process_job_requeue(self, monkeypatch):
+        from pika.exceptions import AMQPError
+
+        monkeypatch.setitem(inviter.HANDLERS, inviter.JOB_VERIFY_SETUP, lambda job: {"ok": True})
+        monkeypatch.setattr(
+            inviter, "publish_result",
+            lambda result: (_ for _ in ()).throw(AMQPError("broker down")),
+        )
+        ch = TestJobDispatch.Chan()
+        inviter.process_job(
+            ch, SimpleNamespace(delivery_tag=9, redelivered=False), None,
+            b'{"type": "verify_group_setup", "groupID": "grp_x"}',
+        )
+        assert ch.nacked == (9, True), "the outcome must not be lost to a broker blip"
+        assert ch.acked is None
+
+    def test_a_job_dropped_for_good_still_reports(self, monkeypatch):
+        """A job dropped after its retry left the dashboard waiting forever."""
+        published = []
+        monkeypatch.setitem(
+            inviter.HANDLERS, inviter.JOB_VERIFY_SETUP,
+            lambda job: (_ for _ in ()).throw(RuntimeError("bug")),
+        )
+        monkeypatch.setattr(inviter, "publish_result", published.append)
+
+        ch = TestJobDispatch.Chan()
+        inviter.process_job(
+            ch, SimpleNamespace(delivery_tag=10, redelivered=True), None,
+            b'{"type": "verify_group_setup", "jobID": "j9", "groupID": "grp_x"}',
+        )
+        assert ch.nacked == (10, False)
+        assert len(published) == 1, "dropped silently; nobody is ever told"
+        assert published[0]["ok"] is False
+        assert published[0]["jobID"] == "j9", "the reply must be routable back to the job"
+
+    def test_heartbeat_outlasts_the_worst_case_job(self):
+        """VRChat work runs inline, and pika cannot heartbeat while blocked in
+        the callback. Three retried call chains can outlast a 60s heartbeat,
+        after which the broker drops the connection, the ack fails, and the
+        job is redelivered and re-run."""
+        params = inviter._rabbitmq_parameters()
+        assert params.heartbeat >= 300, (
+            "heartbeat too tight for a job that can spend minutes inside VRChat calls"
+        )

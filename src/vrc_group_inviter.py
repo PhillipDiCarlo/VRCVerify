@@ -106,6 +106,10 @@ STATE_JOIN_REQUESTED = "join_requested"
 STATE_NOT_INVITED = "not_invited"
 STATE_NO_INVITE_PERMISSION = "no_invite_permission"
 STATE_GROUP_NOT_FOUND = "group_not_found"
+# Terminal: no amount of re-inviting fixes being banned, so it must not be
+# reported as "we have not been invited yet".
+STATE_BANNED = "banned"
+STATE_BAD_JOB = "bad_job"
 STATE_VRCHAT_UNAVAILABLE = "vrchat_unavailable"
 
 VRCHAT_CALL_RETRIES = max(1, int(os.getenv("INVITE_CALL_RETRIES", "3")))
@@ -122,7 +126,13 @@ def _rabbitmq_parameters() -> pika.ConnectionParameters:
         port=RABBITMQ_PORT,
         virtual_host=RABBITMQ_VHOST,
         credentials=pika.PlainCredentials(RABBITMQ_USERNAME, RABBITMQ_PASSWORD),
-        heartbeat=int(os.getenv("RABBITMQ_HEARTBEAT", "60")),
+        # Deliberately longer than the other two services. VRChat work runs
+        # inline on this thread, and pika cannot send heartbeats while
+        # start_consuming() is inside the callback. A job doing three
+        # retried call chains under 429/5xx can outlast the usual 2x60s
+        # window, at which point the broker drops the connection, the ack
+        # fails, and the job is redelivered and re-run.
+        heartbeat=int(os.getenv("RABBITMQ_HEARTBEAT_INVITER", "300")),
         blocked_connection_timeout=int(os.getenv("RABBITMQ_BLOCKED_TIMEOUT", "30")),
         connection_attempts=int(os.getenv("RABBITMQ_CONN_ATTEMPTS", "3")),
         retry_delay=int(os.getenv("RABBITMQ_RETRY_DELAY", "2")),
@@ -159,8 +169,18 @@ def _call_with_retry(func, *args, **kwargs):
     for attempt in range(1, VRCHAT_CALL_RETRIES + 1):
         try:
             return func(*args, **kwargs)
+        except UnauthorizedException as e:
+            # Handled here rather than at each call site: only the first call
+            # used to do this, so a 401 from any later call left a known-dead
+            # client installed until some unrelated job happened to hit the
+            # first one.
+            vrchat_session.invalidate(classify_api_error(e))
+            raise
         except ApiException as e:
             last_exc = e
+            if getattr(e, "status", None) == 401:
+                vrchat_session.invalidate(classify_api_error(e))
+                raise
             if getattr(e, "status", None) not in TRANSIENT_HTTP_STATUSES or attempt >= VRCHAT_CALL_RETRIES:
                 raise
             delay = backoff_delay(attempt)
@@ -216,6 +236,15 @@ def verify_group_setup(job: dict) -> dict:
     the group id carried by this job -- see the module docstring.
     """
     group_id = job.get("groupID")
+    # Checked before any API call: passing None to the client raises
+    # ApiValueError, which is NOT an ApiException (it subclasses ValueError),
+    # so it would sail past every handler below and be dropped with no result
+    # published -- leaving whoever asked waiting forever.
+    if not isinstance(group_id, str) or not group_id.startswith("grp_"):
+        return _result(
+            job, STATE_BAD_JOB, error_message="That is not a VRChat group ID (they start with grp_)"
+        )
+
     client, session_error = vrchat_session.get()
     if client is None:
         meta = session_error or default_session_error()
@@ -240,6 +269,19 @@ def verify_group_setup(job: dict) -> dict:
         return _result(job, STATE_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message"))
 
     status = _membership_status(group)
+
+    if status in {"banned", "userblocked"}:
+        # Terminal. join_group cannot fix it and re-inviting cannot either, so
+        # say what actually has to happen.
+        return _result(
+            job,
+            STATE_BANNED,
+            group_name=getattr(group, "name", None),
+            error_message=(
+                "The bot is banned or blocked from this group. A group moderator has to "
+                "lift that before setup can continue."
+            ),
+        )
 
     if status != "member":
         # Accepts a pending invite, files a request on a request-to-join group,
@@ -269,6 +311,17 @@ def verify_group_setup(job: dict) -> dict:
         status = _membership_status(group)
 
     group_name = getattr(group, "name", None)
+
+    if status in {"banned", "userblocked"}:
+        return _result(
+            job,
+            STATE_BANNED,
+            group_name=group_name,
+            error_message=(
+                "The bot is banned or blocked from this group. A group moderator has to "
+                "lift that before setup can continue."
+            ),
+        )
 
     if status == "requested":
         # Request-to-join group: a moderator has to approve before anything
@@ -345,7 +398,12 @@ def publish_result(result: dict):
                     connection.close()
             except Exception:
                 pass
-    logging.error("RabbitMQ result publish failed after retries; giving up", exc_info=last_exc)
+    # Raised, not swallowed. Returning here ACKed the job with no result ever
+    # delivered: the join had already happened and whoever asked waited
+    # forever. Raising lets process_job requeue it, and re-running a
+    # verification is harmless -- it re-reads state it already established.
+    logging.error("RabbitMQ result publish failed after retries; requeueing the job", exc_info=last_exc)
+    raise last_exc or AMQPError("result publish failed")
 
 
 def process_job(ch, method, properties, body):
@@ -381,6 +439,20 @@ def process_job(ch, method, properties, body):
             "Unexpected error processing job; %s",
             "dropping (already retried once)" if already_retried else "requeueing once",
         )
+        if already_retried:
+            # About to drop this for good, so say so rather than leaving the
+            # dashboard waiting on an answer that is never coming. Best
+            # effort: if this publish fails too there is nothing left to try.
+            try:
+                publish_result(
+                    _result(
+                        job if isinstance(job, dict) else {},
+                        STATE_VRCHAT_UNAVAILABLE,
+                        error_message="The setup check failed unexpectedly. Please try again.",
+                    )
+                )
+            except Exception:
+                logging.exception("Could not report the failure either; dropping silently")
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=not already_retried)
 
 
