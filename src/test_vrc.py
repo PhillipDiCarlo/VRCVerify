@@ -85,7 +85,7 @@ def login_to_vrchat():
     )
 
     with vrchatapi.ApiClient(configuration) as api_client:
-        api_client.user_agent = "VRCVerifyBot/1.0 (contact@yourdomain.com) my@email.com"
+        api_client.user_agent = "VRCVerifyBot/1.0 contact@esattotech.com"
 
         auth_api = authentication_api.AuthenticationApi(api_client)
 

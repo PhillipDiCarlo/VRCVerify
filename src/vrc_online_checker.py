@@ -35,6 +35,15 @@ RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST")
 RABBITMQ_QUEUE_NAME = os.getenv("RABBITMQ_QUEUE_NAME")
 RESULT_QUEUE_NAME = os.getenv("RABBITMQ_RESULT_QUEUE")
 
+# How this bot identifies itself to VRChat on every request.
+#
+# VRChat's Creator Guidelines require the "applicationName/Version contactInfo"
+# form and state that failing to identify yourself, or identifying yourself
+# improperly, results in moderation action — so the contact address has to be
+# one a VRChat moderator can actually reach us at. It was a placeholder
+# (contact@yourdomain.com) until 2026-08-18; do not let it become one again.
+VRCHAT_USER_AGENT = "VRCVerifyBot/1.0 contact@esattotech.com"
+
 # Priority levels on the request queue, so premium servers are served ahead of
 # free ones when a backlog forms.
 #
@@ -320,7 +329,7 @@ def login_to_vrchat(load_stored_session: bool = True):
     )
 
     api_client = vrchatapi.ApiClient(configuration)
-    api_client.user_agent = "VRCVerifyBot/1.0 (contact@yourdomain.com)"
+    api_client.user_agent = VRCHAT_USER_AGENT
     # Always attach the store; only loading is conditional. Newly issued
     # cookies must land on disk even on a retry after a rejected session.
     session_jar = _attach_session_store(api_client, load_existing=load_stored_session)
