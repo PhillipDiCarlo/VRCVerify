@@ -587,7 +587,7 @@ def group_setup_summary(settings: dict) -> dict:
 _VRCHAT_FILE_RE = re.compile(
     r"^https://api\.vrchat\.cloud/api/1/file/"
     r"(file_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"
-    r"/(\d{1,4})/file$",
+    r"/([0-9]{1,4})/file$",
     re.I,
 )
 

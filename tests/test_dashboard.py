@@ -3859,6 +3859,11 @@ class TestTheIconProxy:
             "/vrchat-icon/file_not-a-uuid/1",
             "/vrchat-icon/file_5ec52378-026d-4479-a2ea-914c52598964/abc",
             "/vrchat-icon/file_5ec52378-026d-4479-a2ea-914c52598964/99999",
+            # str.isdigit() and \d both say yes to this. [0-9] does not, and
+            # a validator that does not mean what it says is one somebody
+            # later relies on for something that matters.
+            "/vrchat-icon/file_5ec52378-026d-4479-a2ea-914c52598964/\u0663",
+            "/vrchat-icon/file_5ec52378-026d-4479-a2ea-914c52598964/\u00b2",
         ],
     )
     def test_only_a_real_file_id_and_version_are_accepted(self, config, store, path):
@@ -3923,3 +3928,206 @@ class TestSniffingTheBytes:
         """An upstream that answers with an error page must not have it
         forwarded to a browser as a picture."""
         assert app_module._sniff_image(body) is None
+
+
+class TestTheProxyCannotBeAimedElsewhere:
+    """The safety argument is that the host is fixed and no caller names one.
+
+    Everything here is about keeping that true, because the moment it stops
+    being true this is a fetcher that runs inside the network perimeter.
+    """
+
+    FILE_ID = "file_" + "0" * 8 + "-0000-0000-0000-" + "0" * 12
+    PNG = bytes([137, 80, 78, 71, 13, 10, 26, 10]) + b"body"
+
+    def fake_requests(self, monkeypatch, script):
+        """`script` maps a URL to (status, headers, body). Records the hops."""
+        seen = []
+
+        class Raw:
+            def __init__(self, body):
+                self._body = body
+
+            def read(self, size, decode_content=False):
+                return self._body[:size]
+
+        class Resp:
+            def __init__(self, status, headers, body):
+                self.status_code = status
+                self.headers = headers
+                self.raw = Raw(body)
+                self.is_redirect = status in (301, 302, 303, 307, 308)
+                self.is_permanent_redirect = status in (301, 308)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def fake_get(url, **kwargs):
+            seen.append((url, kwargs))
+            if url not in script:
+                raise AssertionError(f"unscripted fetch: {url}")
+            return Resp(*script[url])
+
+        monkeypatch.setattr(app_module.requests, "get", fake_get)
+        return seen
+
+    def test_every_hop_is_taken_deliberately(self, monkeypatch):
+        """allow_redirects is always False. The loop takes each hop itself,
+        after checking it -- requests offers no per-hop hook, and
+        allow_redirects=True would take any of them on trust."""
+        first = app_module.VRCHAT_ICON_URL.format(file_id=self.FILE_ID, version="1")
+        second = "https://files.vrchat.cloud/thumbnails/x.png?Signature=y"
+        seen = self.fake_requests(monkeypatch, {
+            first: (302, {"Location": second}, b""),
+            second: (200, {}, self.PNG),
+        })
+
+        assert app_module._fetch_vrchat_icon(self.FILE_ID, "1") == ("image/png", self.PNG)
+        assert [url for url, _ in seen] == [first, second]
+        assert all(kw["allow_redirects"] is False for _, kw in seen)
+
+    @pytest.mark.parametrize(
+        "location",
+        [
+            "http://169.254.169.254/latest/meta-data/",
+            "https://169.254.169.254/latest/meta-data/",
+            "https://evil.test/x",
+            "https://files.vrchat.cloud@evil.test/x",
+            "http://files.vrchat.cloud/x",
+            "https://files.vrchat.cloud:8443/x",
+            "//evil.test/x",
+        ],
+    )
+    def test_a_redirect_off_the_allowed_hosts_is_refused(self, monkeypatch, location):
+        """The one that matters. Following a response's choice of host is how a
+        fetcher inside the network perimeter becomes somebody else's."""
+        first = app_module.VRCHAT_ICON_URL.format(file_id=self.FILE_ID, version="1")
+        seen = self.fake_requests(monkeypatch, {first: (302, {"Location": location}, b"")})
+
+        assert app_module._fetch_vrchat_icon(self.FILE_ID, "1") is None
+        assert len(seen) == 1, "it must not have fetched the redirect target"
+
+    def test_a_relative_redirect_is_resolved_and_still_checked(self, monkeypatch):
+        first = app_module.VRCHAT_ICON_URL.format(file_id=self.FILE_ID, version="1")
+        resolved = (
+            "https://api.vrchat.cloud/api/1/image/"
+            + self.FILE_ID
+            + "/1/elsewhere.png"
+        )
+        seen = self.fake_requests(monkeypatch, {
+            first: (302, {"Location": "elsewhere.png"}, b""),
+            resolved: (200, {}, self.PNG),
+        })
+        assert app_module._fetch_vrchat_icon(self.FILE_ID, "1") == ("image/png", self.PNG)
+        assert [url for url, _ in seen] == [first, resolved]
+
+    def test_a_redirect_loop_ends(self, monkeypatch):
+        first = app_module.VRCHAT_ICON_URL.format(file_id=self.FILE_ID, version="1")
+        seen = self.fake_requests(monkeypatch, {first: (302, {"Location": first}, b"")})
+        assert app_module._fetch_vrchat_icon(self.FILE_ID, "1") is None
+        assert len(seen) == app_module.VRCHAT_ICON_MAX_HOPS
+
+    @pytest.mark.parametrize(
+        "url,allowed",
+        [
+            ("https://api.vrchat.cloud/x", True),
+            ("https://files.vrchat.cloud/x", True),
+            ("https://FILES.VRCHAT.CLOUD/x", True),
+            ("https://files.vrchat.cloud@evil.test/x", False),
+            ("https://evil.test/x", False),
+            ("http://files.vrchat.cloud/x", False),
+            ("https://files.vrchat.cloud:8443/x", False),
+            ("https://sub.files.vrchat.cloud/x", False),
+            ("https://files.vrchat.cloud.evil.test/x", False),
+            ("not a url at all", False),
+        ],
+    )
+    def test_which_hosts_are_allowed(self, url, allowed):
+        assert app_module._vrchat_hop_allowed(url) is allowed
+
+    def test_an_oversized_response_is_dropped(self, monkeypatch):
+        """The cap bounds the cache as much as the response: entries live in
+        memory in a read_only container, and limit x max_bytes is the ceiling."""
+
+        class Raw:
+            def read(self, size, decode_content=False):
+                return b"\x89PNG\r\n\x1a\n" + b"x" * size
+
+        class Resp:
+            status_code = 200
+            headers: dict = {}
+            raw = Raw()
+            is_redirect = False
+            is_permanent_redirect = False
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        monkeypatch.setattr(app_module.requests, "get", lambda url, **kw: Resp())
+        assert app_module._fetch_vrchat_icon(
+            "file_" + "0" * 8 + "-0000-0000-0000-" + "0" * 12, "1"
+        ) is None
+
+
+class TestTheIconCache:
+    def test_a_success_is_reused(self):
+        cache = app_module._IconCache(ttl=100)
+        calls = []
+        fetch = lambda: (calls.append(1), ("image/png", b"x"))[1]
+        assert cache.get("k", fetch, now=0) == ("image/png", b"x")
+        assert cache.get("k", fetch, now=50) == ("image/png", b"x")
+        assert len(calls) == 1
+
+    def test_a_failure_expires_much_sooner_than_a_success(self):
+        """Caching failures stops a dead upstream becoming a stream of
+        outbound requests. Caching them for an hour would hide an icon far
+        longer than the blip that lost it."""
+        cache = app_module._IconCache(ttl=3600, failure_ttl=60)
+        calls = []
+
+        def fetch():
+            calls.append(1)
+            return None
+
+        cache.get("k", fetch, now=0)
+        cache.get("k", fetch, now=30)
+        assert len(calls) == 1, "still inside the failure window"
+        cache.get("k", fetch, now=90)
+        assert len(calls) == 2, "past it, so it tries again"
+
+    def test_it_stays_within_its_limit(self):
+        cache = app_module._IconCache(ttl=100, limit=3)
+        for n in range(10):
+            cache.get(n, lambda: ("image/png", b"x"), now=float(n))
+        assert len(cache._entries) <= 3
+
+    def test_eviction_survives_another_thread_writing(self):
+        """min() over a dict another thread is writing raises "dictionary
+        changed size during iteration" -- rarely, which is the worst frequency
+        a crash can have. gunicorn runs four threads per worker."""
+        import threading
+
+        cache = app_module._IconCache(ttl=100, limit=64)
+        errors = []
+
+        def hammer(base):
+            try:
+                for n in range(400):
+                    cache.get((base, n), lambda: ("image/png", b"x"), now=float(n))
+            except Exception as error:  # pragma: no cover - the bug being pinned
+                errors.append(error)
+
+        threads = [threading.Thread(target=hammer, args=(i,)) for i in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert errors == []
+        assert len(cache._entries) <= 64
