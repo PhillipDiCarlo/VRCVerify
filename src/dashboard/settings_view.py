@@ -538,9 +538,14 @@ def group_setup_summary(settings: dict) -> dict:
             "instead of possibly sending them a second one."
         )
     if group_id and not account and not locked:
+        # Two operator problems reach here and neither is the admin's doing:
+        # no invite account is provisioned at all, or every one of them has
+        # used up its group slots. Deliberately one sentence for both -- the
+        # admin's next step is identical, and naming the difference would only
+        # invite them to try to work around a capacity limit they cannot see.
         warnings.append(
-            "This VRCVerify installation has no invite account configured, so "
-            "the check cannot run. Contact the bot operator."
+            "No invite account is available to this VRCVerify installation "
+            "right now, so the check cannot run. Contact the bot operator."
         )
 
     return {

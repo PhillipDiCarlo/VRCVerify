@@ -777,6 +777,21 @@ GROUP_INVITE_STATES = frozenset(
 # as the two vocabularies above: the worker has neither discord.py nor a
 # database driver, so importing it here would drag both in.
 JOB_LEAVE_GROUP = "leave_group"
+
+# Why a leave was asked for. Echoed back by the worker, because the two need
+# opposite handling and the result alone cannot tell them apart.
+#
+#   reclaim   -- the guild lapsed; on success the seat goes back in the pool.
+#   displaced -- the admin pointed the guild at a DIFFERENT group. The old
+#                group must be left, but the seat stays exactly where it is:
+#                they are setting up a new group on the same account.
+#
+# Without this distinction, an admin changing their group had their seat freed
+# and their brand-new setup marked as reclaimed, by the success of a leave that
+# was only ever about the old group.
+RELEASE_REASON_RECLAIM = "reclaim"
+RELEASE_REASON_DISPLACED = "displaced"
+
 SEAT_LEAVE_DONE = "left"
 SEAT_LEAVE_FAILED = "leave_failed"
 SEAT_LEAVE_STATES = frozenset({SEAT_LEAVE_DONE, SEAT_LEAVE_FAILED})
@@ -1022,6 +1037,12 @@ class GroupSeatLease(Base):
     # is treated as lapsing from the sweep that first looks at it, not from the
     # epoch. NULL is therefore "not yet observed", never "lapsed long ago".
     last_premium_at = Column(DateTime(timezone=True), nullable=True)
+    # The reclaim job this lease is waiting on. The round trip is asynchronous,
+    # so a slow answer can arrive after the guild has resubscribed and set
+    # itself up again -- and freeing the seat then would break a working setup
+    # with the success of a question nobody is asking any more. Same hazard and
+    # same fix as group_invite_config.verify_job_id.
+    release_job_id = Column(String(64), nullable=True)
     # Set when the bot has actually left the group. A released row is kept
     # rather than deleted: it is the record that says this guild HAD a seat and
     # what happened to it, which is the difference between "never set up" and
@@ -3617,6 +3638,7 @@ def load_seat_lease(guild_id) -> Optional[dict]:
         return {
             "invite_account_id": row.invite_account_id,
             "reserved_at": _utc(row.reserved_at),
+            "release_job_id": row.release_job_id,
             "last_premium_at": _utc(row.last_premium_at),
             "released_at": _utc(row.released_at),
         }
@@ -3654,6 +3676,37 @@ def invite_account_for_guild(guild_id) -> Optional[InviteAccount]:
     if lease is None and len(INVITE_ACCOUNTS) == 1:
         return INVITE_ACCOUNTS[0]
     return None
+
+
+def invite_account_to_show(guild_id) -> Optional[InviteAccount]:
+    """The account this guild's admin should invite, WITHOUT reserving one.
+
+    The dashboard needs an answer before the guild has committed to anything:
+    its own instructions are "paste the code, invite the bot, then run the
+    check", so the account has to be on screen first. Reserving on a page load
+    would spend capacity on everyone who merely looked.
+
+    A guild that already holds a seat gets that account, always -- that is the
+    one sitting in their group, and naming any other would send an admin to
+    invite a stranger and get an unexplained "not a member" back.
+
+    Otherwise this previews what assign_invite_account would choose. The two
+    can disagree if the last seat on that account goes to somebody else in
+    between, which self-corrects: the check assigns for real, and reports
+    against whichever account it actually got.
+    """
+    held = invite_account_for_guild(guild_id)
+    if held is not None:
+        return held
+    usage = seat_usage()
+    candidates = [
+        account
+        for account in INVITE_ACCOUNTS
+        if usage.get(account.user_id, 0) < account.seats
+    ]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda a: (usage.get(a.user_id, 0), a.user_id))
 
 
 def assign_invite_account(guild_id) -> Optional[InviteAccount]:
@@ -3722,13 +3775,28 @@ def _record_seat_lease(key, account_id, now) -> None:
             row = GroupSeatLease(server_id=key)
             session.add(row)
         elif row.invite_account_id == account_id and row.released_at is None:
-            # Already leased to this account; do not move reserved_at, or a
-            # guild that merely re-saves its settings would keep resetting the
-            # clock that expires an abandoned reservation.
+            # Already leased to this account. reserved_at deliberately does NOT
+            # move -- a guild that merely re-saves its settings would otherwise
+            # keep resetting the clock that expires an abandoned reservation.
+            #
+            # release_job_id DOES clear, and it is the whole point of this
+            # branch existing rather than returning early. A guild that lapsed,
+            # had a leave sent for it, then resubscribed and pressed "check
+            # group setup" arrives here: the account is unchanged, so nothing
+            # else needs writing, but it is emphatically no longer waiting on
+            # that reclaim. Leaving it set let the in-flight leave's success
+            # free a live seat and mark a working setup as reclaimed.
+            if row.release_job_id is not None:
+                row.release_job_id = None
+                row.updated_at = now
             return
         row.invite_account_id = account_id
         row.reserved_at = now
         row.released_at = None
+        # A guild that has just been (re)assigned is not waiting on a reclaim.
+        # Clearing this is what makes an in-flight leave's answer stale rather
+        # than authoritative.
+        row.release_job_id = None
         row.updated_at = now
 
 
@@ -3802,7 +3870,7 @@ def mark_group_seat_released(guild_id) -> None:
         row.updated_at = now
 
 
-def build_seat_release_job(guild_id, group_id) -> dict:
+def build_seat_release_job(guild_id, group_id, reason=RELEASE_REASON_RECLAIM) -> dict:
     """The job that takes the bot out of one guild's group.
 
     Built from the stored lease and the stored group, never from a caller --
@@ -3814,19 +3882,29 @@ def build_seat_release_job(guild_id, group_id) -> dict:
         "jobID": secrets.token_hex(16),
         "guildID": str(guild_id),
         "groupID": group_id,
+        "reason": reason,
     }
 
 
-async def request_seat_release(guild_id, group_id, account) -> bool:
+async def request_seat_release(
+    guild_id, group_id, account, reason=RELEASE_REASON_RECLAIM
+) -> bool:
     """Ask the worker to leave a group. True if the job was accepted.
 
-    The seat is NOT freed here. It is freed when the worker reports it is
-    actually out, because a seat handed to a second guild while the bot is
-    still sitting in the first one's group is a seat that does not exist.
+    The seat is NOT freed here, and for a `displaced` leave it is never freed
+    at all -- see RELEASE_REASON_DISPLACED. For a reclaim it is freed when the
+    worker reports the bot is actually out, because a seat handed to a second
+    guild while the bot still sits in the first one's group is a seat that does
+    not exist.
     """
     if not group_id or account is None:
         return False
-    job = build_seat_release_job(guild_id, group_id)
+    job = build_seat_release_job(guild_id, group_id, reason)
+    if reason == RELEASE_REASON_RECLAIM:
+        # Recorded before the publish, so the answer can be matched to the
+        # question. A job that fails to publish leaves a stale id behind, which
+        # is harmless: the next sweep overwrites it.
+        _record_release_job(guild_id, job["jobID"])
     loop = asyncio.get_running_loop()
     published = await loop.run_in_executor(
         None, publish_group_invite_job, job, account.queue
@@ -3849,15 +3927,39 @@ async def request_seat_release(guild_id, group_id, account) -> bool:
     return True
 
 
+def _record_release_job(guild_id, job_id) -> None:
+    """Note which reclaim a lease is waiting on."""
+    with session_scope() as session:
+        row = (
+            session.query(GroupSeatLease)
+            .filter_by(server_id=panel_view_key(guild_id))
+            .first()
+        )
+        if row is None:
+            return
+        row.release_job_id = job_id
+        row.updated_at = datetime.now(timezone.utc)
+
+
 async def handle_seat_release_result(data: dict):
     """One leave verdict. The seat is freed only on a definite success."""
     guild_id = data.get("guildID")
     state = data.get("state")
+    reason = data.get("reason") or RELEASE_REASON_RECLAIM
     if state not in SEAT_LEAVE_STATES:
         logger.warning(
             "Unknown leave state %r for guild %s; ignoring.", state, guild_id
         )
         return
+
+    if reason != RELEASE_REASON_RECLAIM:
+        # A displaced group. Leaving it was the whole job; the guild keeps its
+        # seat and whatever it has configured since.
+        logger.info(
+            "Left guild %s's previous group (%s).", guild_id, state
+        )
+        return
+
     if state != SEAT_LEAVE_DONE:
         # Left alone on purpose: the lease stays, so the seat stays spoken for
         # and the sweep tries again. Freeing it now would advertise capacity
@@ -3869,6 +3971,19 @@ async def handle_seat_release_result(data: dict):
         )
         return
     try:
+        lease = load_seat_lease(guild_id)
+        job_id = data.get("jobID")
+        if not lease or lease.get("release_job_id") != job_id:
+            # The answer is about a reclaim this lease has already moved past:
+            # the guild resubscribed and set itself up again while the leave
+            # was in flight. Acting on it would free a live seat and mark a
+            # working setup as reclaimed.
+            logger.info(
+                "Ignoring a stale leave verdict for guild %s (job %s).",
+                guild_id,
+                job_id,
+            )
+            return
         account_id = release_seat(guild_id)
         mark_group_seat_released(guild_id)
     except Exception:
@@ -3890,6 +4005,8 @@ def load_seat_sweep_candidates() -> list:
             session.query(
                 GroupInviteConfig.server_id,
                 GroupInviteConfig.group_id,
+                GroupInviteConfig.invite_account_id,
+                GroupSeatLease.server_id,
                 GroupSeatLease.invite_account_id,
                 GroupSeatLease.last_premium_at,
                 GroupSeatLease.released_at,
@@ -3905,12 +4022,61 @@ def load_seat_sweep_candidates() -> list:
         {
             "server_id": server_id,
             "group_id": group_id,
-            "invite_account_id": account_id,
+            # Who the worker said actually joined. The only evidence available
+            # for a guild that predates the lease table.
+            "joined_account_id": joined_account_id,
+            # False means there is no lease ROW at all, which is different from
+            # a row whose account is null -- the first needs creating, the
+            # second needs assigning.
+            "has_lease": lease_server_id is not None,
+            "invite_account_id": leased_account_id,
             "last_premium_at": _utc(last_premium_at),
             "released_at": _utc(released_at),
         }
-        for server_id, group_id, account_id, last_premium_at, released_at in rows
+        for (
+            server_id,
+            group_id,
+            joined_account_id,
+            lease_server_id,
+            leased_account_id,
+            last_premium_at,
+            released_at,
+        ) in rows
     ]
+
+
+def backfill_seat_lease(guild_id, joined_account_id) -> Optional[str]:
+    """Give a pre-existing guild the lease its seat always implied.
+
+    Every guild that set up group invites before this table existed holds a
+    seat with no row to say so, and that gap is not cosmetic. The lapse clock
+    lives on the lease, so without one the guild can never be reclaimed -- and
+    seat_capacity() reports its occupied seat as FREE, which sends the next
+    admin to an account that is already full.
+
+    Prefers the account the WORKER reported joining: that is the one really
+    sitting in the group, and on a multi-account installation it is the only
+    thing that knows which. Falls back to the single-account answer, which is
+    what every installation running today is.
+    """
+    account_id = None
+    if joined_account_id and joined_account_id in INVITE_ACCOUNTS_BY_ID:
+        account_id = joined_account_id
+    else:
+        account = invite_account_for_guild(guild_id)
+        account_id = account.user_id if account else None
+    if account_id is None:
+        logger.warning(
+            "Guild %s holds a group but no seat can be attributed to it; "
+            "leaving it out of capacity until an admin sets it up again.",
+            guild_id,
+        )
+        return None
+    _record_seat_lease(
+        panel_view_key(guild_id), account_id, datetime.now(timezone.utc)
+    )
+    logger.info("Backfilled guild %s's seat on %s.", guild_id, account_id)
+    return account_id
 
 
 def expire_stale_reservations() -> int:
@@ -3998,12 +4164,20 @@ async def seat_sweep_pass() -> dict:
 
     expire_stale_reservations()
 
-    for index, candidate in enumerate(load_seat_sweep_candidates()):
+    for candidate in load_seat_sweep_candidates():
         if candidate["released_at"] is not None:
             continue
         if asked >= SEAT_SWEEP_MAX_PER_PASS:
             break
         guild_id = candidate["server_id"]
+        if not candidate["has_lease"]:
+            # A guild from before this table existed. Give it a lease before
+            # anything below tries to write to one: touch_premium_seen is a
+            # no-op without a row, so the lapse clock would never start and the
+            # seat could never be reclaimed.
+            if backfill_seat_lease(guild_id, candidate["joined_account_id"]) is None:
+                continue
+
         try:
             flags = await resolve_premium_flags(guild_id)
         except Exception:
@@ -8254,6 +8428,10 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
         # of this function turns it into "could not read", which the website
         # renders as an error instead of as an unconfigured group.
         group_invite = load_group_invite_config(guild_id) or {}
+        # Which account THIS guild should invite -- their own if they hold a
+        # seat, otherwise the one they would be assigned. Read-only: rendering
+        # the settings page must never spend capacity.
+        shown_account = invite_account_to_show(guild_id)
         values["vrchat_group_id"] = group_invite.get("group_id")
         values["vrchat_group_invite_enabled"] = bool(group_invite.get("enabled"))
 
@@ -8348,7 +8526,9 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
                 # is who the admin must invite RIGHT NOW, from this process's
                 # configuration -- None means the operator has not provisioned
                 # an invite account and the feature cannot be set up at all.
-                "account_to_invite": INVITE_VRCHAT_USER_ID,
+                "account_to_invite": (
+                    shown_account.user_id if shown_account else None
+                ),
                 # ...and this one is who actually joined, recorded when a
                 # verification succeeded. They differ the moment a second
                 # invite account is added for capacity, and an admin looking at
@@ -9292,7 +9472,10 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
                 # seat.
                 try:
                     await request_seat_release(
-                        guild_id, displaced, invite_account_for_guild(guild_id)
+                        guild_id,
+                        displaced,
+                        invite_account_for_guild(guild_id),
+                        RELEASE_REASON_DISPLACED,
                     )
                 except Exception:
                     logger.warning(

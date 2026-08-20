@@ -345,6 +345,58 @@ class TestResolvingAGuildsAccount:
         assert lease() is None
 
 
+class TestTheAccountTheAdminIsToldToInvite:
+    """The switchboard's whole user-facing promise: each admin is told the
+    account that will actually serve them.
+
+    Getting this wrong is not cosmetic. The existing code already warns that an
+    admin who invites the wrong account gets an unexplained "not a member"
+    failure -- so naming a global account on a multi-account installation would
+    break setup for everyone not assigned to the first one.
+    """
+
+    def test_a_guild_that_holds_a_seat_is_told_its_own_account(self, two_accounts):
+        set_lease(GUILD_ID, ACCOUNT_B)
+        assert bot.invite_account_to_show(GUILD_ID).user_id == ACCOUNT_B
+
+    def test_a_new_guild_is_shown_the_one_it_would_be_assigned(self, two_accounts):
+        """The dashboard's own instructions are "paste the code, invite the
+        bot, then run the check", so the account has to be on screen before
+        the guild has committed to anything."""
+        set_lease(OTHER_GUILD_ID, ACCOUNT_A)
+        assert bot.invite_account_to_show(GUILD_ID).user_id == ACCOUNT_B
+
+    def test_showing_never_reserves(self, two_accounts):
+        """Rendering a settings page must not spend capacity."""
+        bot.invite_account_to_show(GUILD_ID)
+        assert lease() is None
+        assert bot.seat_usage() == {}
+
+    def test_a_full_installation_shows_nobody(self, two_accounts):
+        for index in range(4):
+            set_lease(index, ACCOUNT_A if index < 2 else ACCOUNT_B)
+        assert bot.invite_account_to_show(GUILD_ID) is None
+
+    def test_a_held_seat_beats_capacity(self, two_accounts):
+        """A guild already in a group must keep being told that account even
+        when every account is full -- otherwise the page tells an admin with a
+        working setup that nothing is available."""
+        set_lease(GUILD_ID, ACCOUNT_A)
+        set_lease(1, ACCOUNT_A)
+        set_lease(2, ACCOUNT_B)
+        set_lease(3, ACCOUNT_B)
+        assert bot.invite_account_to_show(GUILD_ID).user_id == ACCOUNT_A
+
+    def test_the_settings_payload_uses_it(self):
+        """Rather than a global account id, which is what it did before and
+        what made this a bug worth a test."""
+        import inspect
+
+        source = inspect.getsource(bot.read_dashboard_settings)
+        assert "invite_account_to_show" in source
+        assert '"account_to_invite": INVITE_VRCHAT_USER_ID' not in source
+
+
 # -------------------------------------------------------------------
 # Routing
 # -------------------------------------------------------------------
@@ -376,7 +428,7 @@ class TestJobsReachTheRightAccount:
         """A leave whose group came from a request body would let anyone evict
         the bot from any group it is in."""
         job = bot.build_seat_release_job(GUILD_ID, GROUP_ID)
-        assert set(job) == {"type", "jobID", "guildID", "groupID"}
+        assert set(job) == {"type", "jobID", "guildID", "groupID", "reason"}
 
     def test_a_full_installation_refuses_the_verification(
         self, subscribed, published, two_accounts
@@ -460,32 +512,41 @@ class TestReleasingASeat:
 
 
 class TestTheSeatIsFreedOnlyWhenTheBotIsActuallyOut:
-    def result(self, state):
+    def result(self, state, job_id="job-1", reason=bot.RELEASE_REASON_RECLAIM):
         return {
             "type": inviter.JOB_LEAVE_GROUP,
-            "jobID": "job-1",
+            "jobID": job_id,
             "guildID": str(GUILD_ID),
             "groupID": GROUP_ID,
+            "reason": reason,
             "state": state,
         }
+
+    def awaiting(self, job_id="job-1"):
+        """A lease that is waiting on exactly this reclaim."""
+        set_lease(GUILD_ID, ACCOUNT_A)
+        with bot.session_scope() as session:
+            session.query(bot.GroupSeatLease).filter_by(
+                server_id=str(GUILD_ID)
+            ).first().release_job_id = job_id
 
     def test_a_successful_leave_frees_the_seat(self):
         make_server()
         configure_group()
-        set_lease(GUILD_ID, ACCOUNT_A)
+        self.awaiting()
         run(bot.handle_seat_release_result(self.result(bot.SEAT_LEAVE_DONE)))
         assert lease()["released_at"] is not None
         assert bot.seat_usage() == {}
 
     def test_a_failed_leave_keeps_the_seat_spoken_for(self):
         """Freeing it would advertise capacity the bot is still occupying."""
-        set_lease(GUILD_ID, ACCOUNT_A)
+        self.awaiting()
         run(bot.handle_seat_release_result(self.result(bot.SEAT_LEAVE_FAILED)))
         assert lease()["released_at"] is None
         assert bot.seat_usage() == {ACCOUNT_A: 1}
 
     def test_an_unknown_state_changes_nothing(self):
-        set_lease(GUILD_ID, ACCOUNT_A)
+        self.awaiting()
         run(bot.handle_seat_release_result(self.result("something_new")))
         assert lease()["released_at"] is None
 
@@ -699,6 +760,181 @@ class TestChangingTheGroupLeavesTheOldOne:
         )
 
 
+class TestGuildsThatPredateTheLeaseTable:
+    """Found by adversarial review, before merge, and it mattered.
+
+    Every guild that set up group invites before this table existed holds a
+    seat with no row to say so. Without a backfill the whole of phase 6 was
+    inert on the only deployment that exists: the lapse clock lives on the
+    lease, so touch_premium_seen was a no-op, nothing was ever reclaimed, and
+    seat_capacity() reported every occupied seat as free -- the direction that
+    sends the next admin to an account that is already full.
+    """
+
+    def legacy(self):
+        """Configured, verified, in the group -- and no lease."""
+        make_server()
+        configure_group()
+        with bot.session_scope() as session:
+            session.query(bot.GroupSeatLease).delete()
+
+    def test_the_sweep_gives_it_a_lease(self, free):
+        self.legacy()
+        run(bot.seat_sweep_pass())
+        assert lease() is not None
+
+    def test_and_starts_its_lapse_clock(self, free):
+        self.legacy()
+        run(bot.seat_sweep_pass())
+        assert lease()["last_premium_at"] is not None
+
+    def test_its_seat_stops_reading_as_free(self, free):
+        self.legacy()
+        run(bot.seat_sweep_pass())
+        assert bot.seat_capacity()["used"] == 1
+
+    def test_it_is_not_reclaimed_on_the_very_first_sweep(self, free, published):
+        """The clock starts now, not at the epoch."""
+        self.legacy()
+        run(bot.seat_sweep_pass())
+        assert published == []
+
+    def test_the_account_the_worker_reported_is_preferred(self, two_accounts):
+        """On a multi-account installation it is the only thing that knows
+        which account is actually sitting in the group."""
+        make_server()
+        configure_group()
+        with bot.session_scope() as session:
+            session.query(bot.GroupSeatLease).delete()
+            row = (
+                session.query(bot.GroupInviteConfig)
+                .filter_by(server_id=str(GUILD_ID))
+                .first()
+            )
+            row.invite_account_id = ACCOUNT_B
+        assert bot.backfill_seat_lease(GUILD_ID, ACCOUNT_B) == ACCOUNT_B
+        assert lease()["invite_account_id"] == ACCOUNT_B
+
+    def test_an_unattributable_seat_is_left_out_rather_than_guessed(
+        self, two_accounts
+    ):
+        make_server()
+        configure_group()
+        with bot.session_scope() as session:
+            session.query(bot.GroupSeatLease).delete()
+        assert bot.backfill_seat_lease(GUILD_ID, None) is None
+        assert lease() is None
+
+
+class TestALateLeaveVerdictCannotBreakALiveSetup:
+    """Also found by review. The round trip is asynchronous, so a leave can be
+    answered long after the guild it was about has moved on."""
+
+    def verdict(self, job_id, reason=bot.RELEASE_REASON_RECLAIM):
+        return {
+            "type": bot.JOB_LEAVE_GROUP,
+            "jobID": job_id,
+            "guildID": str(GUILD_ID),
+            "groupID": GROUP_ID,
+            "reason": reason,
+            "state": bot.SEAT_LEAVE_DONE,
+        }
+
+    def test_a_resubscribed_guild_keeps_its_setup(self):
+        """Sweep asks the worker to leave; the admin resubscribes and sets up
+        again; only then does the old answer land."""
+        make_server()
+        configure_group()
+        set_lease(GUILD_ID, ACCOUNT_A)
+        run(bot.handle_seat_release_result(self.verdict("a-reclaim-nobody-awaits")))
+        assert (
+            bot.load_group_invite_config(GUILD_ID)["verify_state"]
+            == bot.GROUP_SETUP_READY
+        )
+        assert lease()["released_at"] is None
+
+    def test_reassignment_clears_the_reclaim_it_was_waiting_on(self):
+        """Which is what turns an in-flight leave's answer into a straggler
+        rather than an authority.
+
+        The subtle half: assignment is STICKY, so a guild resubscribing and
+        pressing "check group setup" takes the unchanged-account path. That
+        path has to clear this anyway -- leaving it set let the in-flight
+        leave's success free a live seat.
+        """
+        make_server()
+        configure_group()
+        set_lease(GUILD_ID, ACCOUNT_A)
+        bot.assign_invite_account(GUILD_ID)
+        bot._record_release_job(GUILD_ID, "in-flight-reclaim")
+        assert lease()["release_job_id"] == "in-flight-reclaim"
+        bot.assign_invite_account(GUILD_ID)
+        assert lease()["release_job_id"] is None
+
+    def test_the_sticky_path_still_does_not_move_the_reservation_clock(self):
+        """Clearing the reclaim must not become "reset everything", or a guild
+        re-saving its settings would postpone its own reservation expiry."""
+        make_server()
+        bot.save_group_invite_config(GUILD_ID, group_id=GROUP_ID, enabled=True)
+        bot.assign_invite_account(GUILD_ID)
+        set_lease(GUILD_ID, ACCOUNT_A, reserved_days_ago=20)
+        before = lease()["reserved_at"]
+        bot._record_release_job(GUILD_ID, "in-flight-reclaim")
+        bot.assign_invite_account(GUILD_ID)
+        assert lease()["reserved_at"] == before
+        assert lease()["release_job_id"] is None
+
+
+class TestChangingGroupKeepsTheSeat:
+    """A `displaced` leave is about the GROUP, not the seat. Before this was
+    told apart, an admin changing their group had their seat freed and their
+    brand-new setup marked as reclaimed -- by the success of a leave that was
+    only ever about the old group."""
+
+    def displaced_verdict(self):
+        return {
+            "type": bot.JOB_LEAVE_GROUP,
+            "jobID": "leave-the-old-one",
+            "guildID": str(GUILD_ID),
+            "groupID": GROUP_ID,
+            "reason": bot.RELEASE_REASON_DISPLACED,
+            "state": bot.SEAT_LEAVE_DONE,
+        }
+
+    def test_the_seat_survives(self):
+        make_server()
+        configure_group()
+        set_lease(GUILD_ID, ACCOUNT_A)
+        bot.save_group_invite_config(GUILD_ID, group_id=OTHER_GROUP_ID, enabled=True)
+        run(bot.handle_seat_release_result(self.displaced_verdict()))
+        assert lease()["released_at"] is None
+
+    def test_the_new_setup_is_not_marked_as_reclaimed(self):
+        make_server()
+        configure_group()
+        set_lease(GUILD_ID, ACCOUNT_A)
+        bot.save_group_invite_config(GUILD_ID, group_id=OTHER_GROUP_ID, enabled=True)
+        run(bot.handle_seat_release_result(self.displaced_verdict()))
+        assert (
+            bot.load_group_invite_config(GUILD_ID)["verify_state"]
+            != bot.GROUP_SETUP_SEAT_RELEASED
+        )
+
+    def test_a_group_change_sends_the_displaced_reason(self):
+        job = bot.build_seat_release_job(
+            GUILD_ID, GROUP_ID, bot.RELEASE_REASON_DISPLACED
+        )
+        assert job["reason"] == bot.RELEASE_REASON_DISPLACED
+
+    def test_a_reclaim_is_the_default_reason(self):
+        """The safe default is the one that requires a job-id match before it
+        does anything destructive."""
+        assert (
+            bot.build_seat_release_job(GUILD_ID, GROUP_ID)["reason"]
+            == bot.RELEASE_REASON_RECLAIM
+        )
+
+
 # -------------------------------------------------------------------
 # The worker
 # -------------------------------------------------------------------
@@ -779,11 +1015,20 @@ class TestTheWorkerLeaves:
             "jobID",
             "guildID",
             "groupID",
+            "reason",
             "ok",
             "state",
             "accountID",
             "error_message",
         }
+
+    def test_the_reason_is_echoed_back_unread(self):
+        """The worker leaves either way. Only the bot cares why, and echoing
+        rather than storing keeps that decision on the side that made it."""
+        job = dict(LEAVE_JOB, reason=bot.RELEASE_REASON_DISPLACED)
+        assert inviter._leave_result(job, inviter.LEAVE_DONE)["reason"] == (
+            bot.RELEASE_REASON_DISPLACED
+        )
 
 
 class TestTheLeaveVocabularyMatches:

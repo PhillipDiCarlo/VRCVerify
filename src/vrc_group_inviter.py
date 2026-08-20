@@ -639,12 +639,20 @@ def verify_group_setup(job: dict) -> dict:
 
 
 def _leave_result(job: dict, state: str, **extra) -> dict:
-    """One leave outcome. Carries `type` so the bot can route it."""
+    """One leave outcome. Carries `type` so the bot can route it.
+
+    `reason` is echoed straight back, unread. This worker has no opinion about
+    why it was asked to leave -- it leaves the group either way -- but the bot
+    needs it to tell "the guild lapsed, free its seat" from "the admin changed
+    group, leave the old one and change nothing else". Echoing rather than
+    storing keeps that decision entirely on the side that made it.
+    """
     payload = {
         "type": JOB_LEAVE_GROUP,
         "jobID": job.get("jobID"),
         "guildID": job.get("guildID"),
         "groupID": job.get("groupID"),
+        "reason": job.get("reason"),
         "ok": state == LEAVE_DONE,
         "state": state,
         "accountID": INVITE_ACCOUNT_USER_ID,
