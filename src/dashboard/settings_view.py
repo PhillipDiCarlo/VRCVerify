@@ -408,6 +408,14 @@ GROUP_SETUP_COPY = {
         "The bot couldn't reach the part of itself that talks to VRChat. Try "
         "again shortly.",
     ),
+    "seat_released": (
+        "warn",
+        "The bot left your group",
+        "A VRChat account can only be in so many groups, so after a long time "
+        "without a subscription the bot left yours to free the space. Invite "
+        "the account below back and run the check again \u2014 your group and "
+        "setup code are still saved, so there is nothing else to redo.",
+    ),
     "ready": (
         "ok",
         "Ready",
@@ -530,9 +538,14 @@ def group_setup_summary(settings: dict) -> dict:
             "instead of possibly sending them a second one."
         )
     if group_id and not account and not locked:
+        # Two operator problems reach here and neither is the admin's doing:
+        # no invite account is provisioned at all, or every one of them has
+        # used up its group slots. Deliberately one sentence for both -- the
+        # admin's next step is identical, and naming the difference would only
+        # invite them to try to work around a capacity limit they cannot see.
         warnings.append(
-            "This VRCVerify installation has no invite account configured, so "
-            "the check cannot run. Contact the bot operator."
+            "No invite account is available to this VRCVerify installation "
+            "right now, so the check cannot run. Contact the bot operator."
         )
 
     return {

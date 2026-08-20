@@ -125,6 +125,7 @@ def clean_db():
             session.query(bot.Server).delete()
             session.query(bot.User).delete()
             session.query(bot.GroupInviteConfig).delete()
+            session.query(bot.GroupSeatLease).delete()
             session.query(bot.GroupInviteRequest).delete()
             session.query(bot.DashboardAudit).delete()
             session.query(bot.PremiumGrandfatherLine).delete()
