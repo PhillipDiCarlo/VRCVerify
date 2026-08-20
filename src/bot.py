@@ -189,6 +189,25 @@ def _float_env(name: str, default: float) -> float:
 # three in the morning.
 GROUP_VERIFY_TIMEOUT_SECONDS = _int_env("GROUP_VERIFY_TIMEOUT_SECONDS", 120)
 
+# The same idea for one member's invite: how long a request may sit unanswered
+# before the member is told it did not work rather than watching "asking
+# VRChat..." forever. Shorter than a setup check because a setup check may sit
+# behind a join and two get_group calls, while an invite is two calls at most.
+GROUP_INVITE_TIMEOUT_SECONDS = _int_env("GROUP_INVITE_TIMEOUT_SECONDS", 90)
+
+# Minimum gap between two invite ATTEMPTS by the same member for the same
+# group. It has nothing to say about the settled outcomes -- being a member,
+# or having said no, is permanent and needs no timer.
+#
+# What it bounds is retries. A member whose invite failed transiently (VRChat
+# down, the server's permission broken) gets the button back so they can try
+# again, and this is what stops that becoming a tight loop against the invite
+# account's shared rate budget. Five minutes, because it is measured against a
+# human deciding to press a button again rather than against a machine: long
+# enough that mashing achieves nothing, short enough that someone who hit a
+# blip is not locked out of a feature they are paying for.
+GROUP_INVITE_COOLDOWN_SECONDS = _int_env("GROUP_INVITE_COOLDOWN_SECONDS", 300)
+
 INSTRUCTIONS_REFRESH_CONCURRENCY = _int_env("INSTRUCTIONS_REFRESH_CONCURRENCY", 10)
 INSTRUCTIONS_REFRESH_RATE = _int_env("INSTRUCTIONS_REFRESH_RATE", 25)
 
@@ -486,6 +505,104 @@ GROUP_SETUP_STATES = frozenset(
 GROUP_SETUP_SUCCESS_STATES = frozenset({GROUP_SETUP_READY})
 
 
+# group_invite_request.state -- what happened when ONE member asked for ONE
+# invite (issue #49, phase 5).
+#
+# A separate vocabulary from the setup states above because it answers a
+# different question for a different reader: a setup state is a sentence for
+# the server's admin on the dashboard, an invite state is a sentence for the
+# member in a DM. Sharing one set would have members reading
+# "no_invite_permission" as though it were something they could fix.
+#
+# Everything except the bot's own three below is a verdict the invite worker
+# reached, and must stay identical to vrc_group_inviter.INVITE_STATES. Same
+# duplication and same reason as the setup states: the worker has neither
+# discord.py nor a database driver, so the constants are copied and a test
+# asserts the two agree.
+GROUP_INVITE_SENT = "sent"
+GROUP_INVITE_ALREADY_MEMBER = "already_member"
+GROUP_INVITE_ALREADY_INVITED = "already_invited"
+GROUP_INVITE_BLOCKED = "blocked"
+GROUP_INVITE_BANNED = "banned"
+GROUP_INVITE_GROUP_NOT_FOUND = "group_not_found"
+# The member's stored VRChat account does not resolve -- they relinked, or the
+# id was never real. Theirs to fix by verifying again, and kept apart from the
+# group's own failures because the advice is opposite: this one must never tell
+# them their server's setup is broken and send them to an admin who can do
+# nothing about it.
+GROUP_INVITE_USER_NOT_FOUND = "user_not_found"
+GROUP_INVITE_NO_PERMISSION = "no_invite_permission"
+GROUP_INVITE_VRCHAT_UNAVAILABLE = "vrchat_unavailable"
+GROUP_INVITE_BAD_JOB = "bad_job"
+
+# The bot's own three. The worker only reports what it found, so it cannot say
+# "we are waiting", "the answer never came", or "the job never left this
+# process" -- those are this side's business, exactly as with setup.
+GROUP_INVITE_PENDING = "pending"
+GROUP_INVITE_TIMED_OUT = "timed_out"
+GROUP_INVITE_WORKER_UNREACHABLE = "worker_unreachable"
+
+# What the WORKER is allowed to tell us. The bot's own three are not in here,
+# and that is the point: a result carrying "pending" would push a settled row
+# back into flight and rewrite the member's DM to "asking VRChat..." for ever.
+# Nothing should ever send one -- which is exactly why the wire must not
+# accept one.
+GROUP_INVITE_WORKER_STATES = frozenset(
+    {
+        GROUP_INVITE_SENT,
+        GROUP_INVITE_ALREADY_MEMBER,
+        GROUP_INVITE_ALREADY_INVITED,
+        GROUP_INVITE_BLOCKED,
+        GROUP_INVITE_BANNED,
+        GROUP_INVITE_GROUP_NOT_FOUND,
+        GROUP_INVITE_USER_NOT_FOUND,
+        GROUP_INVITE_NO_PERMISSION,
+        GROUP_INVITE_VRCHAT_UNAVAILABLE,
+        GROUP_INVITE_BAD_JOB,
+    }
+)
+
+GROUP_INVITE_STATES = frozenset(
+    {
+        GROUP_INVITE_SENT,
+        GROUP_INVITE_ALREADY_MEMBER,
+        GROUP_INVITE_ALREADY_INVITED,
+        GROUP_INVITE_BLOCKED,
+        GROUP_INVITE_BANNED,
+        GROUP_INVITE_GROUP_NOT_FOUND,
+        GROUP_INVITE_USER_NOT_FOUND,
+        GROUP_INVITE_NO_PERMISSION,
+        GROUP_INVITE_VRCHAT_UNAVAILABLE,
+        GROUP_INVITE_BAD_JOB,
+        GROUP_INVITE_PENDING,
+        GROUP_INVITE_TIMED_OUT,
+        GROUP_INVITE_WORKER_UNREACHABLE,
+    }
+)
+
+# Reaching one of these means the member is done with this group for good, and
+# the offer is never made to them again -- the whole of "do not re-offer once
+# one was already sent".
+#
+# BLOCKED and BANNED are in here for a stronger reason than tidiness. A member
+# with group invites switched off has said no; re-offering on every future
+# verification is precisely the unsolicited-invite pattern that the opt-in
+# design exists to avoid, and it is what the Creator Guidelines call abuse.
+#
+# Everything NOT in here is a transient failure -- VRChat down, the server's
+# permissions broken, the job lost -- and those deliberately leave the offer
+# available, because none of them is the member's answer to the question.
+GROUP_INVITE_SETTLED_STATES = frozenset(
+    {
+        GROUP_INVITE_SENT,
+        GROUP_INVITE_ALREADY_MEMBER,
+        GROUP_INVITE_ALREADY_INVITED,
+        GROUP_INVITE_BLOCKED,
+        GROUP_INVITE_BANNED,
+    }
+)
+
+
 class GroupInviteConfig(Base):
     """A guild's VRChat group, and how far its setup has got (issue #49).
 
@@ -586,10 +703,83 @@ class GroupInviteConfig(Base):
     # What the account can actually do in the group, from get_group's
     # my_member.permissions. `can_invite` is the feature itself -- confirmed
     # empirically to need its own `group-invites-manage` checkbox, which admin
-    # does not imply. `can_see_members` is optional and only decides whether
-    # the "you are already in the group" path is available at all.
+    # does not imply.
+    #
+    # `can_see_members` is optional and nothing gates on it. It is recorded so
+    # the dashboard can suggest granting it: without it the bot cannot tell
+    # that a member already has an invite waiting, and may send a second. The
+    # invite path itself never reads this -- it asks VRChat and copes with
+    # whatever comes back, because what that endpoint requires has never
+    # actually been measured.
     can_invite = Column(Boolean, nullable=False, default=False)
     can_see_members = Column(Boolean, nullable=False, default=False)
+    updated_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class GroupInviteRequest(Base):
+    """One member's standing with one server's VRChat group (issue #49).
+
+    A separate table for the same reason as the five above: create_all() adds
+    missing tables but never columns.
+
+    One row per (server, member), rewritten in place rather than appended to.
+    This is not an audit log -- it is the answer to two questions asked on
+    every verification: may we offer this member an invite, and what happened
+    the last time they asked. A history of attempts would answer neither
+    better, and it would accumulate a Discord-to-VRChat mapping row per
+    attempt for no purpose. The verification log deliberately refuses to
+    publish that link at all (see the comment on queue_verification_log), so
+    this table holds the minimum that makes the feature work: who asked, about
+    which group, and how it went.
+
+    `group_id` is stored beside the outcome rather than read from the config,
+    because the two can disagree. An admin who changes the server's group has
+    invalidated everything learned about the old one -- a member who is
+    "already_member" of the group this server used to use tells us nothing
+    about the one it uses now, and without this column that stale row would
+    silently suppress the offer for ever. Every read compares it.
+
+    The row survives a lapsed subscription, like the two config tables above.
+    Invites stop; nobody is re-offered something they already declined or
+    already has when the subscription comes back.
+    """
+
+    __tablename__ = "group_invite_request"
+    # Composite natural key, as VerificationDaily does it. There is exactly one
+    # standing per member per server, and making that the key is what stops a
+    # double press writing two rows that disagree.
+    server_id = Column(String, primary_key=True)
+    discord_id = Column(String(30), primary_key=True)
+    # Which group this outcome is about. See the docstring -- this is the
+    # column that keeps a verdict about the old group from suppressing the
+    # offer for the new one.
+    group_id = Column(String(64), nullable=True)
+    # The member's VRChat account, as it was when they asked. Kept so the
+    # worker's answer can be matched to the account it was actually about: a
+    # member who relinks to a different VRChat account has a standing that
+    # describes somebody else's membership.
+    vrc_user_id = Column(String(50), nullable=True)
+    # One of GROUP_INVITE_STATES.
+    state = Column(String(32), nullable=False, default=GROUP_INVITE_PENDING)
+    # The job id this request went out with. The round trip is asynchronous
+    # over RabbitMQ, so a slow answer to an old question can land after a fast
+    # answer to a new one; without this to match on, the stale answer wins.
+    # Same hazard, same fix, as group_invite_config.verify_job_id.
+    job_id = Column(String(64), nullable=True)
+    # When the member pressed the button. Both the cooldown and the "this
+    # request is never coming back" timeout are measured from here, on read --
+    # no sweep, for the reason GROUP_VERIFY_TIMEOUT_SECONDS gives.
+    requested_at = Column(DateTime(timezone=True), nullable=True)
+    settled_at = Column(DateTime(timezone=True), nullable=True)
+    # The DM the button was pressed in, so the outcome can be edited into that
+    # same message instead of arriving as a second DM. Stored rather than held
+    # in memory because the worker's answer can outlive a bot restart, and a
+    # member left looking at "asking VRChat..." for ever is the failure this
+    # avoids. Strings, like every other Discord id in this file.
+    channel_id = Column(String(30), nullable=True)
+    message_id = Column(String(30), nullable=True)
     updated_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -996,6 +1186,11 @@ class VRCVerifyBot(discord.Client):
         # keeps whatever labels it was rendered with, and the callbacks resolve
         # locale per interaction.
         self.add_view(VRCVerifyInstructionView(locale="en-US"))
+        # The group-invite button carries its guild id in the custom_id, so it
+        # is registered as a dynamic item rather than a view: one registration
+        # routes every offer DM ever sent, in every server, without the bot
+        # holding any of them in memory.
+        self.add_dynamic_items(GroupInviteButton)
         # Sync slash commands to the server
         await self.tree.sync()
 
@@ -2816,6 +3011,290 @@ def effective_group_setup_state(config: Optional[dict]) -> str:
     return state
 
 
+# -------------------------------------------------------------------
+# One member's standing with one server's group (issue #49, phase 5)
+# -------------------------------------------------------------------
+def load_group_invite_request(guild_id, discord_id) -> Optional[dict]:
+    """This member's row for this server, or None if they have never asked.
+
+    Swallows nothing, for the same reason load_group_invite_config does not:
+    its callers decide from the answer whether to offer an invite, and a read
+    that answered "never asked" for a connection blip would re-offer to
+    somebody who has already said no. Failing loudly is the only safe
+    direction; every caller here is wrapped.
+
+    Timestamps come back timezone-aware whatever the backend did with them --
+    SQLite has no timezone type and hands back naive datetimes, which the
+    cooldown arithmetic below would then compare against an aware `now` and
+    raise on.
+    """
+    if guild_id is None or discord_id is None:
+        return None
+
+    def utc(value):
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+
+    with session_scope() as session:
+        row = (
+            session.query(GroupInviteRequest)
+            .filter_by(
+                server_id=panel_view_key(guild_id), discord_id=str(discord_id)
+            )
+            .first()
+        )
+        if row is None:
+            return None
+        return {
+            "group_id": row.group_id,
+            "vrc_user_id": row.vrc_user_id,
+            "state": row.state or GROUP_INVITE_PENDING,
+            "job_id": row.job_id,
+            "requested_at": utc(row.requested_at),
+            "settled_at": utc(row.settled_at),
+            "channel_id": row.channel_id,
+            "message_id": row.message_id,
+        }
+
+
+def effective_group_invite_state(request: Optional[dict]) -> str:
+    """The stored state, with "pending" expired once nothing answered in time.
+
+    Computed on read rather than by a sweep, exactly as
+    effective_group_setup_state is: a state that expires on its own needs no
+    scheduler to be correct, and there is nothing to fail at three in the
+    morning. It matters more here than there, because a request stuck in
+    "pending" for ever is a member permanently unable to ask again.
+    """
+    if not request:
+        return GROUP_INVITE_PENDING
+    state = request.get("state") or GROUP_INVITE_PENDING
+    if state != GROUP_INVITE_PENDING:
+        return state
+    asked = request.get("requested_at")
+    if asked is None:
+        # Pending with no record of when: nothing can ever expire it, so it is
+        # already lost.
+        return GROUP_INVITE_TIMED_OUT
+    age = (datetime.now(timezone.utc) - asked).total_seconds()
+    if age > GROUP_INVITE_TIMEOUT_SECONDS:
+        return GROUP_INVITE_TIMED_OUT
+    return state
+
+
+# Why an invite was not offered or not sent. Returned rather than raised: none
+# of these is an error, they are all ordinary answers, and three of the four
+# are things the member is told in their own language.
+INVITE_REFUSED_SETTLED = "settled"  # already sent / already in / already said no
+INVITE_REFUSED_PENDING = "pending"  # one is in flight right now
+INVITE_REFUSED_COOLDOWN = "cooldown"  # tried too recently
+
+
+def group_invite_refusal(request: Optional[dict], group_id) -> Optional[str]:
+    """Why this member may not ask for an invite right now, or None if they may.
+
+    One function used by both the offer and the press, so the DM and the button
+    can never disagree about who is eligible.
+
+    A request about a DIFFERENT group is no reason to refuse. An admin who
+    changes the server's group has invalidated everything learned about the old
+    one, and a member who already belongs to the group this server used to use
+    knows nothing about the one it uses now.
+    """
+    if not request:
+        return None
+    if request.get("group_id") != group_id:
+        return None
+    state = effective_group_invite_state(request)
+    if state in GROUP_INVITE_SETTLED_STATES:
+        return INVITE_REFUSED_SETTLED
+    if state == GROUP_INVITE_PENDING:
+        return INVITE_REFUSED_PENDING
+    # Everything left is a transient failure, which the member may retry --
+    # but not immediately. See GROUP_INVITE_COOLDOWN_SECONDS.
+    asked = request.get("requested_at")
+    if asked is not None:
+        age = (datetime.now(timezone.utc) - asked).total_seconds()
+        if age < GROUP_INVITE_COOLDOWN_SECONDS:
+            return INVITE_REFUSED_COOLDOWN
+    return None
+
+
+def member_vrchat_id(discord_id) -> Optional[str]:
+    """The VRChat account this member verified with, or None.
+
+    Read separately from the verification flow rather than threaded through
+    assign_role's arguments: three of assign_role's four call sites do not have
+    it to pass, and the one that does is passing a display name.
+    """
+    with session_scope() as session:
+        user = (
+            session.query(User).filter_by(discord_id=str(discord_id)).first()
+        )
+        return (user.vrc_user_id or None) if user else None
+
+
+JOB_SEND_GROUP_INVITE = "send_group_invite"
+
+
+def begin_group_invite(
+    guild_id, discord_id, *, group_id, vrc_user_id, channel_id, message_id
+) -> Optional[dict]:
+    """Claim this member's row and return the job to publish, or None.
+
+    Returns None when the row was claimed by something else between the
+    button being drawn and being pressed -- the refusal check runs again HERE,
+    inside the write, because the check the caller did happened before the
+    interaction and a second press could otherwise get through both.
+
+    The job carries no Discord identity. `guildID` and `jobID` are enough for
+    the answer to find its way back to this row, and the process holding the
+    VRChat session has no business knowing which Discord account is behind a
+    usr_ id -- that mapping is the thing the verification log already refuses
+    to publish.
+    """
+    key = panel_view_key(guild_id)
+    # secrets, not uuid4, matching begin_group_verification. Nothing here
+    # depends on it being unguessable, but two job-id generators in one file
+    # that differ for no reason is a question somebody has to answer later.
+    job_id = secrets.token_hex(16)
+    now = datetime.now(timezone.utc)
+
+    with session_scope() as session:
+        row = (
+            session.query(GroupInviteRequest)
+            .filter_by(server_id=key, discord_id=str(discord_id))
+            .first()
+        )
+        if row is not None:
+            existing = {
+                "group_id": row.group_id,
+                "state": row.state or GROUP_INVITE_PENDING,
+                "requested_at": (
+                    row.requested_at.replace(tzinfo=timezone.utc)
+                    if row.requested_at is not None
+                    and row.requested_at.tzinfo is None
+                    else row.requested_at
+                ),
+            }
+            if group_invite_refusal(existing, group_id) is not None:
+                return None
+        else:
+            row = GroupInviteRequest(server_id=key, discord_id=str(discord_id))
+            session.add(row)
+
+        row.group_id = group_id
+        row.vrc_user_id = vrc_user_id
+        row.state = GROUP_INVITE_PENDING
+        row.job_id = job_id
+        row.requested_at = now
+        row.settled_at = None
+        row.channel_id = str(channel_id) if channel_id is not None else None
+        row.message_id = str(message_id) if message_id is not None else None
+        row.updated_at = now
+
+    return {
+        "type": JOB_SEND_GROUP_INVITE,
+        "jobID": job_id,
+        "guildID": str(guild_id),
+        "groupID": group_id,
+        "vrcUserID": vrc_user_id,
+    }
+
+
+def abandon_group_invite(guild_id, discord_id, job_id) -> None:
+    """Mark a request whose job never reached the queue.
+
+    Without this the row sits "pending" until the read-side timeout expires it,
+    and for that whole window the member cannot ask again for a request that
+    provably never left this process. Matched on job_id so a retry that DID get
+    through is never clobbered by a late failure report about an older one.
+    """
+    now = datetime.now(timezone.utc)
+    try:
+        with session_scope() as session:
+            row = (
+                session.query(GroupInviteRequest)
+                .filter_by(
+                    server_id=panel_view_key(guild_id),
+                    discord_id=str(discord_id),
+                    job_id=job_id,
+                )
+                .first()
+            )
+            if row is None or row.state != GROUP_INVITE_PENDING:
+                return
+            row.state = GROUP_INVITE_WORKER_UNREACHABLE
+            row.settled_at = now
+            row.updated_at = now
+    except Exception:
+        logger.warning(
+            "Could not record a failed invite publish for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+
+
+def record_group_invite_result(data: dict) -> tuple[str, Optional[dict]]:
+    """Store one invite verdict. Returns (outcome, the row it landed on).
+
+    The row comes back so the caller can edit the member's DM without a second
+    read, and because it carries the channel and message ids that the result
+    payload deliberately does not.
+
+    `stale` is the interesting outcome: the answer is about a job this row has
+    already moved past. See group_invite_request.job_id -- the round trip is
+    asynchronous, so a slow answer to an old question can land after a fast
+    answer to a new one, and letting the straggler win would show the member a
+    verdict about a request they have already seen the result of.
+    """
+    if not isinstance(data, dict):
+        return "bad_payload", None
+    guild_id = data.get("guildID")
+    job_id = data.get("jobID")
+    state = data.get("state")
+    if not guild_id or not job_id:
+        return "bad_payload", None
+    if state not in GROUP_INVITE_WORKER_STATES:
+        # Deliberately narrower than GROUP_INVITE_STATES. See that set: the
+        # bot's own three describe this side's bookkeeping and must never
+        # arrive from the queue.
+        return "unknown_state", None
+
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = (
+            session.query(GroupInviteRequest)
+            .filter_by(server_id=panel_view_key(guild_id), job_id=job_id)
+            .first()
+        )
+        if row is None:
+            return "unknown_request", None
+        if row.state not in {GROUP_INVITE_PENDING, GROUP_INVITE_TIMED_OUT}:
+            # Already settled for good -- by an abandon, or by this very
+            # message being redelivered. The member has been told something
+            # already, and it was true.
+            return "stale", None
+        # TIMED_OUT is deliberately still open to an answer. The timeout is
+        # wall-clock and knows nothing about queue depth, so a verification
+        # rush behind INVITE_MIN_SPACING_SECONDS expires rows whose invites are
+        # queued and about to succeed. Refusing the late answer left those
+        # members reading "VRChat didn't answer" about an invite that was in
+        # fact sent, and their row still un-settled, so the next verification
+        # offered them a second one.
+        row.state = state
+        row.settled_at = now
+        row.updated_at = now
+        return "applied", {
+            "discord_id": row.discord_id,
+            "group_id": row.group_id,
+            "channel_id": row.channel_id,
+            "message_id": row.message_id,
+            "state": state,
+        }
+
+
 def forget_log_channel(guild_id) -> None:
     """Drop a log channel reference whose channel no longer exists."""
     try:
@@ -3919,6 +4398,461 @@ async def publish_to_vrc_checker(
     await loop.run_in_executor(None, _publish)
 
 
+# -------------------------------------------------------------------
+# The member-facing group invite (issue #49, phase 5)
+# -------------------------------------------------------------------
+# Which sentence the member reads for each outcome. A map rather than a chain
+# of ifs because several states deliberately share one message: the difference
+# between "the group is gone" and "the bot lost its invite permission" matters
+# enormously to the server's admin and not at all to the member, who can do
+# nothing about either. Their message says so and points at the admins.
+GROUP_INVITE_MESSAGE_KEYS = {
+    GROUP_INVITE_SENT: "group_invite_sent",
+    GROUP_INVITE_ALREADY_MEMBER: "group_invite_already_member",
+    GROUP_INVITE_ALREADY_INVITED: "group_invite_already_invited",
+    GROUP_INVITE_BLOCKED: "group_invite_blocked",
+    GROUP_INVITE_BANNED: "group_invite_banned",
+    GROUP_INVITE_GROUP_NOT_FOUND: "group_invite_setup_problem",
+    GROUP_INVITE_USER_NOT_FOUND: "group_invite_account_missing",
+    GROUP_INVITE_NO_PERMISSION: "group_invite_setup_problem",
+    GROUP_INVITE_VRCHAT_UNAVAILABLE: "group_invite_unavailable",
+    # Not "try again in a few minutes": a job the worker calls malformed is a
+    # stored VRChat id that will be just as malformed next time. The only
+    # thing that changes it is verifying again, which is what this says.
+    GROUP_INVITE_BAD_JOB: "group_invite_account_missing",
+    GROUP_INVITE_TIMED_OUT: "group_invite_unavailable",
+    GROUP_INVITE_WORKER_UNREACHABLE: "group_invite_unavailable",
+    GROUP_INVITE_PENDING: "group_invite_working",
+}
+
+# Bump this when the button's meaning changes, the way
+# INSTRUCTIONS_VIEW_VERSION is bumped. Old DMs keep their old custom_id and
+# simply stop matching, which is the correct outcome for a stale offer sitting
+# in someone's DMs -- unlike a panel, there is nothing to re-edit.
+GROUP_INVITE_VIEW_VERSION = 1
+GROUP_INVITE_CUSTOM_ID_PREFIX = f"vrcverify:groupinvite:v{GROUP_INVITE_VIEW_VERSION}:"
+
+# Strong references to the per-request expiry tasks below.
+#
+# asyncio keeps only a weak reference to a running task, so one whose handle
+# nobody holds can be collected mid-await. These sleep for
+# GROUP_INVITE_TIMEOUT_SECONDS before doing anything, which is an unusually
+# long window in which to be quietly discarded -- and the symptom would be a
+# member left watching "asking VRChat" with nothing in the log.
+#
+# Deliberately NOT bot.background_tasks: that dict is the registry of the
+# long-running singletons on_ready starts, and its contents are asserted
+# against a fixed list. These are ordinary short-lived tasks that happen to
+# need an owner.
+_group_invite_expiry_tasks: set = set()
+
+
+class GroupInviteButton(
+    discord.ui.DynamicItem[Button],
+    template=r"vrcverify:groupinvite:v1:(?P<guild_id>[0-9]{1,20})",
+):
+    """"Send me an invite", in one member's DM, for one server's group.
+
+    A DynamicItem rather than a fixed custom_id like the instruction panel's
+    buttons, because this one has to carry WHICH server it is about. The panel
+    lives in a guild channel, so an interaction on it arrives with a guild_id
+    attached; a DM has none, and a member verified in several servers can be
+    holding several of these at once. The guild id therefore travels in the
+    custom_id and discord.py matches it back out with the template above.
+
+    That id is not trusted for anything. It selects a row; every question that
+    follows -- is the feature on, is the plan current, has this member already
+    asked -- is answered from that row and from the member's own record. A
+    custom_id can only come from a message this bot posted, but the config
+    behind it can have changed completely since it did.
+    """
+
+    def __init__(self, guild_id: int, locale: str = "en-US"):
+        self.guild_id = guild_id
+        super().__init__(
+            Button(
+                label=localizations.get(locale, localizations["en-US"]).get(
+                    "btn_group_invite", localizations["en-US"]["btn_group_invite"]
+                ),
+                style=discord.ButtonStyle.primary,
+                custom_id=f"{GROUP_INVITE_CUSTOM_ID_PREFIX}{guild_id}",
+            )
+        )
+
+    @classmethod
+    async def from_custom_id(cls, interaction, item, match, /):
+        # The label here is never rendered. Discord already has the message,
+        # with whatever label it was posted with; this instance exists only to
+        # route the click, so it deliberately does not try to re-resolve the
+        # server's locale for a string nobody will see.
+        return cls(int(match["guild_id"]))
+
+    async def callback(self, interaction: discord.Interaction):
+        await handle_group_invite_press(interaction, self.guild_id)
+
+
+class GroupInviteOfferView(View):
+    """The offer DM's single button. Persistent: timeout=None, no state."""
+
+    def __init__(self, guild_id: int, locale: str = "en-US"):
+        super().__init__(timeout=None)
+        self.add_item(GroupInviteButton(guild_id, locale))
+
+
+async def group_invite_target(guild_id) -> Optional[dict]:
+    """This server's group, if it is genuinely ready to invite people, else None.
+
+    Every condition that has to hold before ANY invite goes out, in one place,
+    so the DM that offers the button and the callback that acts on it cannot
+    drift apart. The callback re-runs this rather than trusting that the offer
+    was correct when it was made -- a subscription can lapse, an admin can turn
+    the feature off, and a group's permissions can be taken away, all between
+    the DM being sent and the button being pressed.
+    """
+    try:
+        config = load_group_invite_config(guild_id)
+    except Exception:
+        logger.warning(
+            "Could not read the group config for guild %s.", guild_id, exc_info=True
+        )
+        return None
+    if not config or not config.get("group_id") or not config.get("enabled"):
+        return None
+    # `enabled` is never the gate on its own: the settings field is
+    # write_locked, so a lapsed server keeps its True untouched. The plan has
+    # to be resolved as well -- see the comment on the column.
+    if effective_group_setup_state(config) != GROUP_SETUP_READY:
+        return None
+    if not config.get("can_invite"):
+        return None
+    try:
+        flags = await resolve_premium_flags(guild_id)
+    except Exception:
+        logger.warning(
+            "Could not resolve premium flags for guild %s while considering a "
+            "group invite.",
+            guild_id,
+            exc_info=True,
+        )
+        return None
+    if not flags.allows(FEATURE_GROUP_INVITE):
+        return None
+    return config
+
+
+async def offer_group_invite(
+    member: discord.Member,
+    guild: discord.Guild,
+    instr_locale: Optional[str] = None,
+    premium: Optional["PremiumFlags"] = None,
+) -> None:
+    """DM a freshly verified member the opt-in button, if they should have one.
+
+    Nothing here touches VRChat. The whole point of the opt-in design is that
+    no invite exists until the member asks for one, and a membership check
+    before the DM would spend an API call per verification on the members who
+    never press it. The worker checks membership as the first thing it does
+    when they DO press -- see vrc_group_inviter.send_group_invite.
+
+    Silent on every "no". A member who has already been invited, already said
+    no, or is already in the group gets no DM at all, which is the whole of
+    "do not re-offer once one was already sent".
+    """
+    guild_id = str(guild.id)
+    if premium is not None and not premium.allows(FEATURE_GROUP_INVITE):
+        # Already resolved by the caller; skip the second entitlement read.
+        return
+
+    config = await group_invite_target(guild_id)
+    if not config:
+        return
+
+    vrc_user_id = None
+    try:
+        vrc_user_id = member_vrchat_id(member.id)
+    except Exception:
+        logger.warning(
+            "Could not read the VRChat id for member %s.", member.id, exc_info=True
+        )
+        return
+    if not vrc_user_id:
+        # Verified with no stored VRChat account. Nothing to invite, and no
+        # sentence worth sending about it.
+        return
+
+    try:
+        request = load_group_invite_request(guild_id, member.id)
+    except Exception:
+        logger.warning(
+            "Could not read the invite standing for member %s in guild %s.",
+            member.id,
+            guild_id,
+            exc_info=True,
+        )
+        return
+    if group_invite_refusal(request, config["group_id"]) is not None:
+        return
+
+    locale_code = get_server_locale_code(guild_id, guild)
+    try:
+        await member.send(
+            get_message(
+                "dm_group_invite_offer",
+                SimpleNamespace(locale=locale_code),
+                server=guild.name,
+                group=(config.get("group_name") or "their VRChat group"),
+            ),
+            view=GroupInviteOfferView(guild.id, locale_code),
+        )
+    except discord.Forbidden:
+        logger.warning(
+            "Cannot DM user %s the group invite offer for guild %s.",
+            member.id,
+            guild_id,
+        )
+    except Exception:
+        logger.exception("Unexpected error sending a group invite offer.")
+
+
+async def handle_group_invite_press(
+    interaction: discord.Interaction, guild_id: int
+) -> None:
+    """The member pressed "send me an invite".
+
+    Acknowledged FIRST, with the button removed, before anything slow happens.
+    Discord gives an interaction three seconds, and the work below includes a
+    blocking RabbitMQ publish -- but more importantly, a button that is still
+    there while the publish runs is a button that can be pressed again.
+    """
+    # Resolved from the id in the custom_id, NOT from interaction.guild --
+    # this button only ever lives in a DM, where interaction.guild is always
+    # None. Reading it there would name every server "this server".
+    guild = bot.get_guild(guild_id)
+    server_name = guild.name if guild else "this server"
+    locale_code = get_server_locale_code(str(guild_id), guild)
+    ctx = SimpleNamespace(locale=locale_code)
+
+    async def settle(key: str, *, retryable: bool = False, **kwargs) -> None:
+        view = GroupInviteOfferView(guild_id, locale_code) if retryable else None
+        try:
+            await interaction.edit_original_response(
+                content=get_message(key, ctx, **kwargs), view=view
+            )
+        except discord.HTTPException:
+            logger.warning(
+                "Could not update the invite DM for guild %s.", guild_id, exc_info=True
+            )
+
+    try:
+        await interaction.response.edit_message(
+            content=get_message("group_invite_working", ctx), view=None
+        )
+    except discord.HTTPException:
+        logger.warning(
+            "Could not acknowledge an invite press for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        return
+
+    config = await group_invite_target(str(guild_id))
+    if not config:
+        # Between the offer and the press, the server turned this off, let its
+        # subscription lapse, or lost the group. Not the member's doing, and
+        # not worth a retry button that would fail the same way.
+        await settle("group_invite_setup_problem", server=server_name)
+        return
+
+    # Are they still in the server this offer came from?
+    #
+    # Checked HERE and not at the offer, because the offer is only ever made to
+    # someone assign_role just verified. This DM, though, has no expiry and the
+    # button routes for ever -- so without this, somebody who left the server,
+    # or was kicked or banned from it, could press a months-old button and be
+    # invited into that server's private VRChat group. The entire feature is
+    # "members of this Discord get into this group", and leaving is the most
+    # obvious way to stop being one.
+    if guild is None:
+        # NOT a reason to skip the check -- the strongest possible reason to
+        # refuse. get_guild returns None when the bot has been removed from
+        # the server, or has not received it over the gateway yet. In the first
+        # case the server is gone and its members are not our business; in the
+        # second we simply cannot tell. Skipping here let an ex-member of a
+        # server the bot had been kicked out of press a months-old button and
+        # be invited into that server's private group.
+        await settle("group_invite_unavailable", retryable=True)
+        return
+
+    try:
+        still_a_member = await fetch_member_cached(guild, interaction.user.id)
+    except discord.HTTPException:
+        # Could not establish it either way. Refused rather than assumed:
+        # the cost of a wrong "yes" is a stranger in somebody's private
+        # group, and the cost of a wrong "no" is one retry.
+        logger.warning(
+            "Could not confirm guild membership before a group invite for "
+            "guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        await settle("group_invite_unavailable", retryable=True)
+        return
+    if still_a_member is None:
+        # Nothing recorded. If they rejoin and verify, they are offered
+        # again from scratch, which is the right outcome.
+        await settle("group_invite_not_a_member", server=server_name)
+        return
+
+    try:
+        vrc_user_id = member_vrchat_id(interaction.user.id)
+    except Exception:
+        logger.warning(
+            "Could not read the VRChat id for member %s on press.",
+            interaction.user.id,
+            exc_info=True,
+        )
+        await settle("group_invite_unavailable", retryable=True)
+        return
+    if not vrc_user_id:
+        await settle("group_invite_unavailable")
+        return
+
+    group_name = config.get("group_name") or "the group"
+
+    try:
+        request = load_group_invite_request(str(guild_id), interaction.user.id)
+    except Exception:
+        logger.warning(
+            "Could not read the invite standing for member %s on press.",
+            interaction.user.id,
+            exc_info=True,
+        )
+        await settle("group_invite_unavailable", retryable=True)
+        return
+
+    refusal = group_invite_refusal(request, config["group_id"])
+    if refusal is not None:
+        state = effective_group_invite_state(request)
+        if refusal == INVITE_REFUSED_SETTLED:
+            # They pressed a button that should not have been there -- an old
+            # DM, most likely. Tell them where they actually stand.
+            await settle(
+                GROUP_INVITE_MESSAGE_KEYS.get(state, "group_invite_unavailable"),
+                server=server_name,
+                group=group_name,
+            )
+        else:
+            # The button survives a cooldown refusal, and that is the whole
+            # point of distinguishing the two.
+            #
+            # A transient failure hands the member their button back. Pressing
+            # it inside GROUP_INVITE_COOLDOWN_SECONDS is refused -- so removing
+            # it here would leave them with a message telling them to wait a
+            # few minutes and nothing to wait FOR, short of verifying all over
+            # again. A request genuinely in flight needs no button: its result
+            # is already on its way to rewrite this message.
+            await settle(
+                "group_invite_too_soon",
+                retryable=(refusal == INVITE_REFUSED_COOLDOWN),
+            )
+        return
+
+    try:
+        job = begin_group_invite(
+            str(guild_id),
+            interaction.user.id,
+            group_id=config["group_id"],
+            vrc_user_id=vrc_user_id,
+            channel_id=interaction.channel_id,
+            message_id=(interaction.message.id if interaction.message else None),
+        )
+    except Exception:
+        logger.exception(
+            "Could not record an invite request for member %s in guild %s.",
+            interaction.user.id,
+            guild_id,
+        )
+        await settle("group_invite_unavailable", retryable=True)
+        return
+
+    if job is None:
+        # The row was claimed between the read above and this write -- a double
+        # press that beat the button being removed.
+        await settle("group_invite_too_soon")
+        return
+
+    loop = asyncio.get_running_loop()
+    published = await loop.run_in_executor(None, publish_group_invite_job, job)
+    if not published:
+        abandon_group_invite(str(guild_id), interaction.user.id, job["jobID"])
+        await settle("group_invite_unavailable", retryable=True)
+        return
+
+    logger.info(
+        "group-invite requested guild=%s member=%s group=%s job=%s",
+        guild_id,
+        interaction.user.id,
+        job["groupID"],
+        job["jobID"],
+    )
+    task = asyncio.create_task(
+        expire_group_invite_if_unanswered(
+            str(guild_id), interaction.user.id, job["jobID"]
+        )
+    )
+    _group_invite_expiry_tasks.add(task)
+    task.add_done_callback(_group_invite_expiry_tasks.discard)
+
+
+async def expire_group_invite_if_unanswered(guild_id, discord_id, job_id) -> None:
+    """Give up on one request that nothing ever answered, and say so.
+
+    A per-request task, like assign_role's delayed role cleanup, rather than a
+    registered background sweep -- there is nothing to sweep, only this one
+    member's message to correct, and a sweep would be a scheduler that can fail
+    quietly for a job that already knows when it is due.
+
+    Its counterpart is effective_group_invite_state, which expires the same row
+    on read. That one is what makes a bot restart mid-flight survivable: this
+    task dies with the process, and the row then expires the next time anyone
+    looks at it. The member's message stays wrong until they verify again,
+    which is the honest cost of not running a scheduler for it.
+    """
+    try:
+        await asyncio.sleep(GROUP_INVITE_TIMEOUT_SECONDS)
+        now = datetime.now(timezone.utc)
+        row = None
+        with session_scope() as session:
+            record = (
+                session.query(GroupInviteRequest)
+                .filter_by(
+                    server_id=panel_view_key(guild_id),
+                    discord_id=str(discord_id),
+                    job_id=job_id,
+                )
+                .first()
+            )
+            if record is None or record.state != GROUP_INVITE_PENDING:
+                return
+            record.state = GROUP_INVITE_TIMED_OUT
+            record.settled_at = now
+            record.updated_at = now
+            row = {
+                "discord_id": record.discord_id,
+                "channel_id": record.channel_id,
+                "message_id": record.message_id,
+            }
+        await tell_member_about_invite(guild_id, row, GROUP_INVITE_TIMED_OUT)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        logger.warning(
+            "Could not expire an unanswered invite for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+
+
 async def assign_role(
     discord_id: str,
     is_18_plus: bool,
@@ -4069,6 +5003,31 @@ async def assign_role(
             except discord.HTTPException:
                 logger.warning(f"Could not set nickname for {member}.", exc_info=True)
                 await dm_localized(member, guild, "nickname_update_failed", instr_locale)
+
+        # Last, and in its own DM. Every path that verifies somebody arrives
+        # here -- a fresh verification, a re-check, pressing Begin Verification
+        # while already verified, and auto-verify on join -- because all four
+        # call assign_role, which is why the offer lives here rather than in
+        # any one of them.
+        #
+        # Its own message rather than a button on the success DM above: that
+        # DM can be a server's custom text, which an admin wrote without
+        # knowing a button would be attached to it.
+        #
+        # Reuses the flags resolved at the top of this branch, so the offer
+        # costs no extra entitlement read. offer_group_invite is silent for
+        # everyone who should not see it.
+        try:
+            await offer_group_invite(member, guild, instr_locale, premium)
+        except Exception:
+            # Never let this take down a verification that has already
+            # succeeded. The role is on, the DM has gone out, and the milestone
+            # bookkeeping after this call still has to run.
+            logger.exception(
+                "Could not offer a group invite to %s in guild %s.",
+                discord_id,
+                guild_id,
+            )
     else:
         # Not 18+. Resolved separately from the branch above, which never runs
         # here — and still short-circuits before the entitlement read when the
@@ -4964,7 +5923,21 @@ async def consume_group_invite_results():
 
 
 async def handle_group_invite_result(data: dict):
-    """One verdict from the invite worker, written to the guild's row."""
+    """One verdict from the invite worker.
+
+    Both job types come back on this one queue, so the first thing to settle is
+    which of the two this is. Routed on `type` rather than on which fields are
+    present: the two payloads overlap in almost every field, and a callback
+    that had to guess would guess wrong the first time somebody added a field.
+
+    A payload with no `type` at all is treated as a setup verdict, because at
+    the time this consumer shipped that was the only kind there was and one may
+    still be in the queue across the upgrade.
+    """
+    if isinstance(data, dict) and data.get("type") == JOB_SEND_GROUP_INVITE:
+        await handle_member_invite_result(data)
+        return
+
     try:
         outcome = record_group_verification_result(data)
     except Exception:
@@ -4980,6 +5953,142 @@ async def handle_group_invite_result(data: dict):
         data.get("state"),
         outcome,
     )
+
+
+async def handle_member_invite_result(data: dict):
+    """One member's invite verdict: stored, then shown to them."""
+    try:
+        outcome, row = record_group_invite_result(data)
+    except Exception:
+        logger.exception(
+            "Could not store a group-invite result for guild %s.",
+            (data or {}).get("guildID"),
+        )
+        return
+
+    logger.info(
+        "group-invite result guild=%s job=%s state=%s -> %s",
+        data.get("guildID"),
+        data.get("jobID"),
+        data.get("state"),
+        outcome,
+    )
+    if outcome != "applied" or not row:
+        return
+
+    try:
+        await tell_member_about_invite(data.get("guildID"), row, row["state"])
+    except Exception:
+        # The verdict is already stored and the queue message already acked.
+        # An exception from here would travel into the concurrent.futures
+        # Future that run_coroutine_threadsafe returns and that the consumer
+        # discards -- which logs nothing at all. The member would be left
+        # reading "asking VRChat..." for ever, on a row that is settled and so
+        # is never offered again, with no trace anywhere of why.
+        logger.exception(
+            "Stored a group-invite verdict for guild %s but could not tell "
+            "the member.",
+            data.get("guildID"),
+        )
+
+
+async def tell_member_about_invite(guild_id, row: dict, state: str) -> None:
+    """Replace the member's offer DM with what actually happened.
+
+    Edited in place rather than sent as a second DM. The message they are
+    looking at says "asking VRChat", and answering it somewhere else leaves
+    that sentence standing for ever next to the real answer.
+
+    The button comes back for anything that was not the member's own answer --
+    VRChat unreachable, the server's permissions broken, the job lost. Those
+    are not "no", and a member who hit one should not have to verify all over
+    again to get another chance. GROUP_INVITE_COOLDOWN_SECONDS is what stops
+    that becoming a retry loop.
+    """
+    guild = bot.get_guild(int(guild_id)) if guild_id else None
+    locale_code = get_server_locale_code(str(guild_id) if guild_id else None, guild)
+    ctx = SimpleNamespace(locale=locale_code)
+
+    group_name = None
+    try:
+        config = load_group_invite_config(guild_id)
+        group_name = (config or {}).get("group_name")
+    except Exception:
+        logger.warning(
+            "Could not read the group name while reporting an invite for "
+            "guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+
+    text = get_message(
+        GROUP_INVITE_MESSAGE_KEYS.get(state, "group_invite_unavailable"),
+        ctx,
+        server=(guild.name if guild else "this server"),
+        group=(group_name or "the group"),
+    )
+
+    view = None
+    if state not in GROUP_INVITE_SETTLED_STATES and guild is not None:
+        view = GroupInviteOfferView(guild.id, locale_code)
+
+    channel_id = row.get("channel_id")
+    message_id = row.get("message_id")
+    if channel_id and message_id:
+        try:
+            # A partial messageable rather than a fetched channel: DM channels
+            # are not in the bot's cache (member_cache_flags is none()), and
+            # fetching one costs an API call to reach a message we already
+            # know the id of.
+            channel = bot.get_partial_messageable(
+                int(channel_id), type=discord.ChannelType.private
+            )
+            await channel.get_partial_message(int(message_id)).edit(
+                content=text, view=view
+            )
+            return
+        except discord.NotFound:
+            # They deleted the message. Nothing is left standing, so a fresh
+            # DM is the only way they hear the answer -- fall through.
+            pass
+        except discord.HTTPException:
+            # The original message is probably still standing, still reading
+            # "asking VRChat...", so a fresh DM leaves that stale sentence
+            # above the real answer. Sent anyway, deliberately.
+            #
+            # By the time this runs the row is SETTLED -- record_group_invite_
+            # result stored the verdict before calling here. So there is no
+            # retry and no future offer: staying quiet on a transient 429 or
+            # 500 means this member never learns the outcome at all, and is
+            # never offered again either. A confusing pair of messages is
+            # recoverable; silence is not.
+            logger.warning(
+                "Could not edit the invite DM for guild %s; sending a new one.",
+                guild_id,
+                exc_info=True,
+            )
+
+    if guild is None:
+        return
+    try:
+        member = await fetch_member_cached(guild, int(row["discord_id"]))
+    except Exception:
+        logger.warning(
+            "Could not reach member %s to report a group invite.",
+            row.get("discord_id"),
+            exc_info=True,
+        )
+        return
+    if not member:
+        return
+    try:
+        await member.send(text, view=view)
+    except discord.Forbidden:
+        logger.warning(
+            "Cannot DM user %s their group-invite outcome.", row["discord_id"]
+        )
+    except Exception:
+        logger.exception("Unexpected error sending a group-invite outcome DM.")
 
 
 # -------------------------------------------------------------------
