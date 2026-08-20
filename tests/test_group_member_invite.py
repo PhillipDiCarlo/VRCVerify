@@ -591,6 +591,109 @@ class TestTheOffer:
         assert len(self.offer()) == 1
 
 
+class TestOnlyMembersOfTheServerMayPress:
+    """The offer DM never expires and the button routes for ever.
+
+    So membership has to be re-checked at the press, not merely implied by the
+    offer having been made. Without it, somebody who left the server -- or was
+    kicked or banned from it -- could press a months-old button and be invited
+    into that server's private VRChat group. The whole feature is "members of
+    this Discord get into this group", and leaving is the most obvious way to
+    stop being one.
+    """
+
+    def test_the_press_path_confirms_membership(self):
+        import inspect
+
+        source = inspect.getsource(bot.handle_group_invite_press)
+        code = "\n".join(
+            line for line in source.splitlines() if not line.strip().startswith("#")
+        )
+        assert "fetch_member_cached" in code
+        assert "group_invite_not_a_member" in code
+
+    def test_a_non_member_is_refused_before_anything_is_claimed(self):
+        """It must sit ahead of begin_group_invite: a refusal that had already
+        claimed the row would burn the cooldown of somebody who did nothing."""
+        import inspect
+
+        source = inspect.getsource(bot.handle_group_invite_press)
+        assert source.index("fetch_member_cached") < source.index(
+            "begin_group_invite"
+        )
+
+    def test_an_unconfirmable_membership_is_refused_not_assumed(self):
+        """A wrong "yes" puts a stranger in somebody's private group. A wrong
+        "no" costs one retry."""
+        import inspect
+
+        source = inspect.getsource(bot.handle_group_invite_press)
+        after = source[source.index("fetch_member_cached"):]
+        assert "except discord.HTTPException" in after
+        assert (
+            after.index("group_invite_unavailable")
+            < after.index("group_invite_not_a_member")
+        )
+
+    def test_the_refusal_has_its_own_sentence(self):
+        """Reusing the setup-problem copy would tell an ex-member their old
+        server is broken, which is both wrong and unactionable."""
+        from locales import localizations
+
+        assert "group_invite_not_a_member" in localizations["en-US"]
+        assert (
+            localizations["en-US"]["group_invite_not_a_member"]
+            != localizations["en-US"]["group_invite_setup_problem"]
+        )
+
+
+class TestTheWireCannotSetTheBotsOwnStates:
+    """GROUP_INVITE_WORKER_STATES is deliberately narrower than
+    GROUP_INVITE_STATES."""
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            bot.GROUP_INVITE_PENDING,
+            bot.GROUP_INVITE_TIMED_OUT,
+            bot.GROUP_INVITE_WORKER_UNREACHABLE,
+        ],
+    )
+    def test_a_result_carrying_a_bot_state_is_refused(self, state):
+        """"pending" is the dangerous one: accepted, it would push a settled row
+        back into flight and rewrite the member's DM to "asking VRChat..."
+        permanently, with nothing left to answer it."""
+        job = bot.begin_group_invite(
+            GUILD_ID,
+            MEMBER_ID,
+            group_id=GROUP_ID,
+            vrc_user_id=VRC_USER_ID,
+            channel_id=CHANNEL_ID,
+            message_id=MESSAGE_ID,
+        )
+        outcome, row = bot.record_group_invite_result(
+            {
+                "type": inviter.JOB_SEND_INVITE,
+                "jobID": job["jobID"],
+                "guildID": str(GUILD_ID),
+                "state": state,
+            }
+        )
+        assert outcome == "unknown_state"
+        assert row is None
+        assert standing()["state"] == bot.GROUP_INVITE_PENDING
+
+    def test_the_worker_set_is_exactly_what_the_worker_can_produce(self):
+        assert bot.GROUP_INVITE_WORKER_STATES == inviter.INVITE_STATES
+
+    def test_the_bots_own_states_are_the_difference(self):
+        assert bot.GROUP_INVITE_STATES - bot.GROUP_INVITE_WORKER_STATES == {
+            bot.GROUP_INVITE_PENDING,
+            bot.GROUP_INVITE_TIMED_OUT,
+            bot.GROUP_INVITE_WORKER_UNREACHABLE,
+        }
+
+
 class TestTheButtonIdentifiesItsServer:
     def test_the_press_handler_never_reads_interaction_guild(self):
         """This button only ever lives in a DM, where interaction.guild is

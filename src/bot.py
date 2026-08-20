@@ -542,6 +542,26 @@ GROUP_INVITE_PENDING = "pending"
 GROUP_INVITE_TIMED_OUT = "timed_out"
 GROUP_INVITE_WORKER_UNREACHABLE = "worker_unreachable"
 
+# What the WORKER is allowed to tell us. The bot's own three are not in here,
+# and that is the point: a result carrying "pending" would push a settled row
+# back into flight and rewrite the member's DM to "asking VRChat..." for ever.
+# Nothing should ever send one -- which is exactly why the wire must not
+# accept one.
+GROUP_INVITE_WORKER_STATES = frozenset(
+    {
+        GROUP_INVITE_SENT,
+        GROUP_INVITE_ALREADY_MEMBER,
+        GROUP_INVITE_ALREADY_INVITED,
+        GROUP_INVITE_BLOCKED,
+        GROUP_INVITE_BANNED,
+        GROUP_INVITE_GROUP_NOT_FOUND,
+        GROUP_INVITE_USER_NOT_FOUND,
+        GROUP_INVITE_NO_PERMISSION,
+        GROUP_INVITE_VRCHAT_UNAVAILABLE,
+        GROUP_INVITE_BAD_JOB,
+    }
+)
+
 GROUP_INVITE_STATES = frozenset(
     {
         GROUP_INVITE_SENT,
@@ -3236,7 +3256,10 @@ def record_group_invite_result(data: dict) -> tuple[str, Optional[dict]]:
     state = data.get("state")
     if not guild_id or not job_id:
         return "bad_payload", None
-    if state not in GROUP_INVITE_STATES:
+    if state not in GROUP_INVITE_WORKER_STATES:
+        # Deliberately narrower than GROUP_INVITE_STATES. See that set: the
+        # bot's own three describe this side's bookkeeping and must never
+        # arrive from the queue.
         return "unknown_state", None
 
     now = datetime.now(timezone.utc)
@@ -4629,6 +4652,36 @@ async def handle_group_invite_press(
         # not worth a retry button that would fail the same way.
         await settle("group_invite_setup_problem", server=server_name)
         return
+
+    # Are they still in the server this offer came from?
+    #
+    # Checked HERE and not at the offer, because the offer is only ever made to
+    # someone assign_role just verified. This DM, though, has no expiry and the
+    # button routes for ever -- so without this, somebody who left the server,
+    # or was kicked or banned from it, could press a months-old button and be
+    # invited into that server's private VRChat group. The entire feature is
+    # "members of this Discord get into this group", and leaving is the most
+    # obvious way to stop being one.
+    if guild is not None:
+        try:
+            still_a_member = await fetch_member_cached(guild, interaction.user.id)
+        except discord.HTTPException:
+            # Could not establish it either way. Refused rather than assumed:
+            # the cost of a wrong "yes" is a stranger in somebody's private
+            # group, and the cost of a wrong "no" is one retry.
+            logger.warning(
+                "Could not confirm guild membership before a group invite for "
+                "guild %s.",
+                guild_id,
+                exc_info=True,
+            )
+            await settle("group_invite_unavailable", retryable=True)
+            return
+        if still_a_member is None:
+            # Nothing recorded. If they rejoin and verify, they are offered
+            # again from scratch, which is the right outcome.
+            await settle("group_invite_not_a_member", server=server_name)
+            return
 
     try:
         vrc_user_id = member_vrchat_id(interaction.user.id)
