@@ -48,8 +48,11 @@ import hashlib
 import logging
 import mimetypes
 import os
+import re
 import secrets
+import threading
 import time
+from urllib.parse import urlsplit
 from typing import Optional
 
 from flask import (
@@ -62,6 +65,7 @@ from flask import (
     request,
     url_for,
 )
+import requests
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from dashboard import (
@@ -99,6 +103,222 @@ MAX_REQUEST_BYTES = 256 * 1024
 # page -- and every checkout, which re-fetches to validate -- is a synchronous
 # call to a third party on the request path.
 STRIPE_PRICE_CACHE_TTL = 300
+
+
+# A VRChat file id and version, as they appear in a group's icon_url. The
+# ONLY parts of an upstream URL this app will accept, and they go into a fixed
+# template below -- there is no request in which a caller names a host.
+VRCHAT_FILE_ID_RE = re.compile(
+    r"^file_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I
+)
+
+# 128 for a 64px slot: the retina size, and the largest that is still served as
+# a real image -- above 512 VRChat falls back to the raw upload as
+# application/octet-stream. Measured 2026-08-19.
+VRCHAT_ICON_URL = "https://api.vrchat.cloud/api/1/image/{file_id}/{version}/128"
+
+# That endpoint answers 302, not 200 -- it hands out a signed, expiring URL on
+# VRChat's file host, and the picture is there rather than here. So redirects
+# have to be followed, and following them is exactly what would turn a fetcher
+# aimed at one fixed host into one aimed wherever a response points, a
+# link-local metadata address included.
+#
+# Followed by hand, one hop at a time, with every hop checked against this set.
+# `requests` offers no per-hop hook, and allow_redirects=True would take any of
+# them on trust.
+VRCHAT_ICON_HOSTS = frozenset({"api.vrchat.cloud", "files.vrchat.cloud"})
+VRCHAT_ICON_MAX_HOPS = 3
+
+
+def _vrchat_hop_allowed(url: str) -> bool:
+    """May this fetcher follow to `url`?
+
+    https, a host on the list, and the default port. `.hostname` is the part
+    that matters: it lower-cases, and it drops any userinfo, so
+    `https://files.vrchat.cloud@evil.test/x` reads as evil.test rather than as
+    a host we trust.
+    """
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return False
+    if parsed.scheme != "https" or parsed.hostname not in VRCHAT_ICON_HOSTS:
+        return False
+    try:
+        return parsed.port is None
+    except ValueError:
+        return False
+
+# VRChat answers 403 to a request without a browser-shaped User-Agent, so this
+# has to look like one. It is not pretending to be a person -- the same
+# contact address the bot identifies itself with is appended, which is what
+# VRChat's own guidelines ask for.
+VRCHAT_ICON_USER_AGENT = (
+    "Mozilla/5.0 (compatible; VRCVerifyDashboard/1.0; +contact@esattotech.com)"
+)
+
+# ASCII digits only. `str.isdigit()` and `\d` both accept Unicode digits --
+# "\u0663".isdigit() is True -- and while a percent-encoded Arabic-Indic three
+# in the path only earns a 404 from VRChat, a validator that does not mean what
+# it says is one somebody will later rely on for something that matters.
+VRCHAT_FILE_VERSION_RE = re.compile(r"^[0-9]{1,4}$")
+
+# The measured icon at this size is 24KB, so this is ten times what a real one
+# needs. It bounds the cache as much as the response: entries are held in
+# memory in a read_only container, and limit x max_bytes is the ceiling.
+VRCHAT_ICON_MAX_BYTES = 256 * 1024
+VRCHAT_ICON_TIMEOUT = 6
+VRCHAT_ICON_TTL = 3600
+# Failures expire far sooner than successes. Caching them at all is deliberate
+# -- see _IconCache -- but an hour of hidden icon after a thirty-second blip
+# upstream is the cache being wrong for far longer than the thing it cached.
+VRCHAT_ICON_FAILURE_TTL = 60
+
+# The signatures of the formats an <img> can use and this app will pass on.
+# Checked against the bytes rather than the upstream Content-Type, because the
+# whole reason this proxy exists is that VRChat's content types are not
+# reliable.
+_IMAGE_SIGNATURES = (
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+    (b"RIFF", "image/webp"),  # refined below
+)
+
+
+def _sniff_image(body: bytes) -> Optional[str]:
+    """The image type these bytes actually are, or None.
+
+    Bytes, not headers. An upstream that labels a PNG
+    `application/octet-stream` is exactly the situation this function is for,
+    and passing that label through to a browser is what made the icon a broken
+    image in the first place.
+    """
+    if body[:4] == b"RIFF" and body[8:12] == b"WEBP":
+        return "image/webp"
+    for signature, content_type in _IMAGE_SIGNATURES:
+        if signature != b"RIFF" and body.startswith(signature):
+            return content_type
+    return None
+
+
+class _IconCache:
+    """Fetched group icons, briefly, so a page view is not an upstream request.
+
+    In-process like _PriceCache and _RateLimiter, for the same reason: there is
+    one container, and a shared cache would be a dependency added to hold a
+    copy of a picture.
+
+    Failures are cached too, unlike prices -- and deliberately. A missing icon
+    costs nothing, while retrying a dead upstream on every render of every
+    settings page turns one broken image into a stream of outbound requests.
+    They expire much sooner, though: see VRCHAT_ICON_FAILURE_TTL.
+
+    Locked, unlike _RateLimiter and _PriceCache beside it, and for a reason
+    neither of those has: this one *iterates* its dict to evict, and gunicorn
+    runs four threads per worker. `min()` over a dict another thread is writing
+    raises "dictionary changed size during iteration" -- rarely, which is the
+    worst frequency for a crash to have. The lock is never held across the
+    fetch, so a slow upstream cannot block anything but bookkeeping.
+    """
+
+    def __init__(self, ttl: int, limit: int = 256, failure_ttl: Optional[int] = None):
+        self.ttl = ttl
+        self.failure_ttl = ttl if failure_ttl is None else failure_ttl
+        self.limit = limit
+        self._entries: dict = {}
+        self._lock = threading.Lock()
+
+    def get(self, key, fetch, *, now: float):
+        with self._lock:
+            hit = self._entries.get(key)
+            if hit is not None:
+                stored_at, value = hit
+                ttl = self.ttl if value is not None else self.failure_ttl
+                if now - stored_at < ttl:
+                    return value
+
+        # Outside the lock: two threads may fetch the same icon at once, which
+        # costs one extra request and is cheaper than serialising every miss
+        # behind a six-second timeout.
+        value = fetch()
+
+        with self._lock:
+            if len(self._entries) >= self.limit:
+                # Cheapest possible eviction: drop the oldest single entry.
+                # This holds pictures, and the cost of being wrong about which
+                # one to keep is one extra fetch.
+                oldest = min(self._entries, key=lambda k: self._entries[k][0])
+                self._entries.pop(oldest, None)
+            self._entries[key] = (now, value)
+        return value
+
+
+def _fetch_vrchat_icon(file_id: str, version: str):
+    """One group icon from VRChat, as (content_type, bytes), or None.
+
+    None covers every failure, because they all render the same way -- no
+    picture -- and the page has nothing useful to say about which it was.
+    The log does.
+    """
+    url = VRCHAT_ICON_URL.format(file_id=file_id.lower(), version=version)
+    body = None
+
+    for _hop in range(VRCHAT_ICON_MAX_HOPS):
+        try:
+            response = requests.get(
+                url,
+                headers={
+                    "User-Agent": VRCHAT_ICON_USER_AGENT,
+                    "Accept": "image/*",
+                },
+                timeout=VRCHAT_ICON_TIMEOUT,
+                stream=True,
+                # Never on trust. Each hop is checked below before it is taken.
+                allow_redirects=False,
+            )
+        except requests.RequestException as error:
+            logger.warning("Could not fetch a VRChat group icon: %s", error)
+            return None
+
+        with response:
+            if response.is_redirect or response.is_permanent_redirect:
+                target = response.headers.get("Location") or ""
+                # Relative Locations are resolved against the URL we just
+                # fetched, which is one we already trust -- but the result is
+                # checked like any other, so a resolution that lands somewhere
+                # else still fails.
+                url = requests.compat.urljoin(url, target)
+                if not _vrchat_hop_allowed(url):
+                    logger.warning(
+                        "A VRChat group icon redirected off the allowed hosts; "
+                        "not followed."
+                    )
+                    return None
+                continue
+
+            if response.status_code != 200:
+                logger.warning(
+                    "VRChat refused a group icon: HTTP %s", response.status_code
+                )
+                return None
+            body = response.raw.read(VRCHAT_ICON_MAX_BYTES + 1, decode_content=True)
+            break
+    else:
+        logger.warning("A VRChat group icon redirected more than %s times.",
+                       VRCHAT_ICON_MAX_HOPS)
+        return None
+
+    if len(body) > VRCHAT_ICON_MAX_BYTES:
+        logger.warning("A VRChat group icon exceeded %s bytes; dropped.",
+                       VRCHAT_ICON_MAX_BYTES)
+        return None
+    content_type = _sniff_image(body)
+    if content_type is None:
+        logger.warning("VRChat served a group icon that is not an image.")
+        return None
+    return content_type, body
 
 
 class _PriceCache:
@@ -203,6 +423,10 @@ CSP = (
     # the image, so a third party can neither see who is loading the dashboard
     # nor break it by going down.
     "font-src 'self'; "
+    # VRChat is deliberately NOT here. Group icons are fetched by this app and
+    # served from its own origin -- see the /vrchat-icon route -- which is what
+    # lets the policy stay this narrow, and means an admin's browser never
+    # makes a request to VRChat at all.
     "img-src 'self' https://cdn.discordapp.com; "
     # Stripe's two hosted pages are named here because `form-action` governs
     # where a form submission may end up INCLUDING AFTER A REDIRECT -- it is
@@ -281,6 +505,9 @@ def create_app(
         STRIPE_WEBHOOK_RATE_LIMIT, STRIPE_WEBHOOK_RATE_WINDOW
     )
     app.config["STRIPE_PRICES"] = _PriceCache(STRIPE_PRICE_CACHE_TTL)
+    app.config["ICON_CACHE"] = _IconCache(
+        VRCHAT_ICON_TTL, failure_ttl=VRCHAT_ICON_FAILURE_TTL
+    )
 
     # Python's mimetypes table does not know WOFF2 on every platform, and Flask
     # asks it. Served as application/octet-stream the font still works in
@@ -417,6 +644,13 @@ def _register_hooks(app: Flask) -> None:
         # is unreachable rather than merely unwanted.
         if request.endpoint == "static":
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif request.endpoint == "vrchat_icon":
+            # Keeps what the route set: private, so no shared cache holds it,
+            # but cacheable, because re-fetching a group icon from VRChat every
+            # time an admin reloads the settings page turns one page view into
+            # upstream traffic. It carries nothing about a session -- it is a
+            # picture of a group anyone can look at.
+            pass
         else:
             response.headers["Cache-Control"] = "no-store"
         # Cloudflare terminates TLS, but HSTS is the origin's statement, and a
@@ -848,6 +1082,10 @@ def _register_routes(app: Flask) -> None:
             names_resolved=roles is not None and channels is not None,
             auto_verify_column_present=settings.get("auto_verify_column_present", True),
             saved=notice == "saved",
+            # Deliberately not "checked": the answer arrives over a queue and
+            # is not in this response. Saying it succeeded would be a claim
+            # this page cannot make yet.
+            group_check=notice == "group_check",
             panel_result=PANEL_RESULTS.get(_notice_arg(notice, "panel")),
             panel_stale=notice == "stale",
             save_error=(
@@ -1053,6 +1291,104 @@ def _register_routes(app: Flask) -> None:
                 )
 
         return _save(guild_id, session, changes)
+
+    @app.get("/vrchat-icon/<file_id>/<version>")
+    def vrchat_icon(file_id: str, version: str):
+        """A VRChat group icon, served from this origin.
+
+        VRChat's own URL cannot be used in an <img>. The endpoint the API puts
+        in `icon_url` answers `application/octet-stream`, which browsers
+        refuse to draw and offer to download instead; the resized endpoint
+        answers `image/png` but only up to 512, and relying on a third party's
+        content types is what produced a broken image on a live page twice.
+
+        Serving it from here settles all of it at once: one origin, a content
+        type this app decided by looking at the bytes, no CSP exception, and
+        an admin's browser that never contacts VRChat at all.
+
+        Not an open proxy. The path carries a file id and a version, both
+        pattern-matched, and they go into a fixed host and path -- there is no
+        request in which a caller names a host. Login is required so it cannot
+        be used as an anonymous relay, though the files themselves are public.
+        """
+        session = _require_login()
+        if session is None:
+            abort(404)
+        if not VRCHAT_FILE_ID_RE.match(file_id):
+            abort(404)
+        if not VRCHAT_FILE_VERSION_RE.match(version):
+            abort(404)
+
+        cache: _IconCache = app.config["ICON_CACHE"]
+        found = cache.get(
+            (file_id.lower(), version),
+            lambda: _fetch_vrchat_icon(file_id, version),
+            now=time.time(),
+        )
+        if found is None:
+            # The page renders its own placeholder around this, so a 404 is a
+            # gap in the layout rather than a broken-image icon.
+            abort(404)
+
+        content_type, body = found
+        response = app.response_class(body, mimetype=content_type)
+        # Private: it is only reachable by a signed-in admin, and a shared
+        # cache holding it buys nothing.
+        response.headers["Cache-Control"] = f"private, max-age={VRCHAT_ICON_TTL}"
+        return response
+
+    @app.post("/guild/<int:guild_id>/group")
+    def save_group_settings(guild_id: int):
+        """The VRChat group a server invites verified members to.
+
+        The group field is submitted exactly as typed. Parsing it -- bare id or
+        vrchat.com URL, case folding, refusing vrc.group short links -- is the
+        bot's, and doing any of it here would create a second opinion about
+        what a valid group is, on the side of the wire that does not enforce
+        anything.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        changes = {}
+        if "vrchat_group_id" in request.form:
+            # Empty is a real choice: it disconnects the group and releases
+            # the claim, so another server could then connect it.
+            changes["vrchat_group_id"] = request.form.get("vrchat_group_id") or None
+        _read_checkbox(changes, "vrchat_group_invite_enabled")
+
+        return _save(guild_id, session, changes)
+
+    @app.post("/guild/<int:guild_id>/group/verify")
+    def verify_group(guild_id: int):
+        """Ask the bot to join this guild's VRChat group and report back.
+
+        The second control here that makes the bot act rather than store, and
+        the only one that sends nothing at all. There is no group id in this
+        request and there must never be: the bot reads the group from the
+        guild's own settings, which is what stops this being a way to make a
+        VRChat account join a group somebody names in a form.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        try:
+            _bot_api().verify_group(int(session.discord_id), guild_id)
+        except BotAPIError as error:
+            logger.warning(
+                "group check refused for guild %s: %s", guild_id, error
+            )
+            _store().set_notice(session.sid, f"error:{_save_error_code(error)}")
+            return redirect(url_for("guild_settings", guild_id=guild_id))
+
+        _store().set_notice(session.sid, "group_check")
+        return redirect(url_for("guild_settings", guild_id=guild_id))
 
     @app.post("/logout")
     def logout():

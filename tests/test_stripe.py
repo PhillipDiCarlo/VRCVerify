@@ -1067,13 +1067,22 @@ class TestTheSubscriptionCommandNamesTheRightPlatform:
         The card message is derived from the Discord one so the two cannot
         drift (pinned per locale in test_premium). What this adds is that the
         *command* reaches that full message rather than some shorter variant:
-        seven features, same as anyone paying the other way reads.
+        every gated feature, same as anyone paying the other way reads.
+
+        Counted off the FEATURE_ constants rather than typed. It used to say 7,
+        which was true until it was not -- the same way the copy itself goes
+        stale, and for the same reason.
         """
         make_server()
         store_subscription()
         card, _ = self.reply(make_interaction(), monkeypatch)
         bullets = [line for line in card.split("\n") if line.startswith("\u2022")]
-        assert len(bullets) == 7
+        gated = {
+            value
+            for name, value in vars(bot).items()
+            if name.startswith("FEATURE_") and isinstance(value, str)
+        } - bot.UNANNOUNCED_FEATURES
+        assert len(bullets) == len(gated)
 
     def test_paying_on_both_platforms_is_named_as_such(self, enforced, stripe_on,
                                                        monkeypatch, caplog):

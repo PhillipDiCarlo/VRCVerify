@@ -35,6 +35,7 @@ pytest.importorskip("flask")
 
 from dashboard import oauth, overview_view, settings_view  # noqa: E402
 from dashboard.app import CSP, SESSION_COOKIE, create_app  # noqa: E402
+from dashboard import app as app_module  # noqa: E402
 from dashboard.botapi import BotAPIError  # noqa: E402
 from dashboard.config import DashboardConfig, DashboardConfigError  # noqa: E402
 from dashboard import sessions as sessions_module  # noqa: E402
@@ -86,6 +87,8 @@ NEWS_CHANNEL = "800000000002"
 # two badge-only ones inactive but unlocked. Straight out of SETTINGS_FIELDS.
 FREE_PLAN = {
     "role_id": (None, True, False),
+    "vrchat_group_id": ("group_invite", False, True),
+    "vrchat_group_invite_enabled": ("group_invite", False, True),
     "unverified_role_id": ("unverified_role_removal", False, False),
     "auto_verify_new_members": (None, True, False),
     "auto_nickname_change": ("nickname_sync", False, True),
@@ -98,6 +101,8 @@ FREE_PLAN = {
 
 DEFAULT_VALUES = {
     "role_id": VERIFIED_ROLE,
+    "vrchat_group_id": None,
+    "vrchat_group_invite_enabled": False,
     "unverified_role_id": None,
     "auto_verify_new_members": True,
     "auto_nickname_change": False,
@@ -119,6 +124,31 @@ LOCALES = ["en-US", "es-ES", "ja", "de"]
 
 SKU_ID = "1533325058573865051"
 
+GROUP_ID = "grp_0e1d4755-2f87-4129-a192-5587068cbf73"
+INVITE_ACCOUNT = "usr_0e59962a-3e0d-4303-802b-9314623027e5"
+
+# What read_dashboard_settings sends for a guild that has never configured a
+# group. Shaped exactly as the bot builds it.
+GROUP_INVITE_NONE = {
+    "state": "unverified",
+    "error": None,
+    "group_name": None,
+    "icon_url": None,
+    "can_invite": False,
+    "can_see_members": False,
+    "claim_code": None,
+    "account_to_invite": INVITE_ACCOUNT,
+    "joined_account": None,
+    "verified_at": None,
+    "requested_at": None,
+}
+
+
+def group_invite_block(**overrides):
+    block = dict(GROUP_INVITE_NONE)
+    block.update(overrides)
+    return block
+
 
 def make_settings(
     premium=False,
@@ -128,6 +158,7 @@ def make_settings(
     grandfathered=False,
     enforced=True,
     sku_id=SKU_ID,
+    group_invite=None,
 ):
     """A settings payload shaped exactly like read_dashboard_settings returns."""
     merged = dict(DEFAULT_VALUES)
@@ -152,6 +183,7 @@ def make_settings(
         },
         "auto_verify_column_present": auto_verify_column,
         "choices": {"instructions_locale": list(LOCALES)},
+        "group_invite": group_invite if group_invite is not None else GROUP_INVITE_NONE,
         "fields": fields,
     }
 
@@ -278,6 +310,7 @@ class FakeBotAPI:
         self.reads = []
         self.saves = []
         self.panel_posts = []
+        self.group_checks = []
         self._settings = settings
         self._roles = DEFAULT_ROLES if roles is None else roles
         self._channels = DEFAULT_CHANNELS if channels is None else channels
@@ -340,6 +373,12 @@ class FakeBotAPI:
         if "post_panel" in self.errors:
             raise self.errors["post_panel"]
         return self._panel_result
+
+    def verify_group(self, actor_id, guild_id):
+        self.group_checks.append((str(actor_id), str(guild_id)))
+        if "verify_group" in self.errors:
+            raise self.errors["verify_group"]
+        return {"guild_id": str(guild_id), "group_invite": {"state": "checking"}}
 
     def update_settings(self, actor_id, guild_id, changes):
         self.saves.append((str(actor_id), str(guild_id), dict(changes)))
@@ -3137,8 +3176,12 @@ class TestWriteSurface:
             "/guild/<int:guild_id>/member",
             "/guild/<int:guild_id>/panel",
             "/guild/<int:guild_id>/logging",
-            # The one route that makes the bot act rather than store.
+            "/guild/<int:guild_id>/group",
+            # The two that make the bot act rather than store.
             "/guild/<int:guild_id>/panel/post",
+            # Sends no body at all: the group it checks comes from the guild's
+            # stored settings on the bot's side, never from this form.
+            "/guild/<int:guild_id>/group/verify",
             # Writes a cookie and nothing else. It is in this list because the
             # list is meant to be complete, not because it reaches the bot --
             # test_the_nav_preference_never_reaches_the_bot pins that it does
@@ -3225,3 +3268,866 @@ class TestUnreadableCredentials:
         with pytest.raises(DashboardConfigError) as error:
             DashboardConfig.from_env()
         assert "cannot read" in str(error.value)
+
+
+# -------------------------------------------------------------------
+# The VRChat group section (issue #49, phase 4)
+# -------------------------------------------------------------------
+class TestGroupSetupSummary:
+    """The status beside the two settings. Nothing here is ever saved.
+
+    Its job is to turn one of a dozen state codes into a sentence naming the
+    next thing the admin can do. That is the whole reason the worker reports
+    nine distinct verdicts rather than "setup failed": an admin told only that
+    it failed opens a support ticket, and an admin told the bot is in the group
+    but lacks Manage Group Invites goes and ticks the box.
+    """
+
+    def summary(self, group_id=GROUP_ID, premium=True, **block):
+        settings = make_settings(
+            premium=premium,
+            values={"vrchat_group_id": group_id},
+            group_invite=group_invite_block(**block),
+        )
+        return settings_view.group_setup_summary(settings)
+
+    def test_an_unconfigured_guild_has_nothing_to_show(self):
+        summary = self.summary(group_id=None)
+        assert summary["configured"] is False
+        assert summary["group_url"] is None
+
+    def test_every_state_the_bot_can_send_has_copy(self):
+        """A raw state code reaching the page would be gibberish to an admin.
+
+        Derived from the bot's own vocabulary, so a state added there fails
+        here until somebody writes the sentence for it.
+        """
+        import bot as bot_module
+
+        for state in bot_module.GROUP_SETUP_STATES:
+            assert state in settings_view.GROUP_SETUP_COPY, state
+
+    def test_an_unknown_state_falls_back_rather_than_leaking(self):
+        summary = self.summary(state="something_new")
+        assert summary["headline"] == settings_view.GROUP_SETUP_FALLBACK[1]
+        assert "something_new" not in summary["headline"]
+
+    def test_a_ready_group_reads_as_ready(self):
+        summary = self.summary(
+            state="ready", can_invite=True, can_see_members=True, group_name="Club LA"
+        )
+        assert summary["tone"] == "ok"
+        assert summary["group_name"] == "Club LA"
+        assert summary["warnings"] == []
+
+    def test_ready_without_member_visibility_suggests_the_optional_permission(self):
+        """Not a failure -- invites work without it. It only decides whether a
+        member already in the group can be told so."""
+        summary = self.summary(state="ready", can_invite=True, can_see_members=False)
+        assert summary["tone"] == "ok"
+        assert any("View All Members" in w for w in summary["warnings"])
+
+    def test_the_permission_failure_says_admin_is_not_enough(self):
+        """Confirmed against a live group: group-invites-manage is its own tick
+        box that a 24-permission admin role can lack. "Make it an admin" is
+        advice that produces this exact state."""
+        summary = self.summary(state="no_invite_permission")
+        assert summary["tone"] == "warn"
+        assert "admin" in summary["detail"].lower()
+
+    def test_the_claim_code_is_shown_until_the_check_passes(self):
+        pending = self.summary(state="code_missing", claim_code="VRCG-7K2M4P")
+        assert pending["show_claim_code"] is True
+        ready = self.summary(state="ready", claim_code="VRCG-7K2M4P")
+        # It has done its job, and leaving it up invites someone to leave it in
+        # their group description for ever.
+        assert ready["show_claim_code"] is False
+
+    def test_the_account_to_invite_is_linked_by_id(self):
+        """Display names are not unique, so the usr_ id is the part that
+        matters -- an admin who invites a lookalike gets "not invited" with
+        nothing explaining why."""
+        summary = self.summary()
+        assert summary["account_id"] == INVITE_ACCOUNT
+        assert summary["account_url"].endswith(INVITE_ACCOUNT)
+
+    def test_the_group_is_linked_too(self):
+        assert self.summary()["group_url"].endswith(GROUP_ID)
+
+    def test_a_deployment_with_no_invite_account_says_so(self):
+        summary = self.summary(account_to_invite=None)
+        assert summary["account_url"] is None
+        assert any("operator" in w for w in summary["warnings"])
+
+    def test_a_very_long_error_is_clipped(self):
+        """Not about injection -- Jinja escapes it. About a page that stays
+        readable when an upstream error turns out to be a wall of JSON."""
+        summary = self.summary(state="vrchat_unavailable", error="x" * 5000)
+        assert len(summary["error"]) <= settings_view.GROUP_ERROR_MAX_LEN
+
+    def test_the_bots_own_error_travels_with_the_advice(self):
+        """One says what to do, the other says what VRChat actually replied."""
+        summary = self.summary(state="banned", error="The bot is banned")
+        assert summary["error"] == "The bot is banned"
+        assert summary["detail"] != summary["error"]
+
+
+class TestTheGroupFields:
+    def test_the_group_id_is_a_single_line_input(self):
+        settings = make_settings(premium=True, values={"vrchat_group_id": GROUP_ID})
+        field = next(
+            f
+            for group in settings_view.build_groups(
+                settings, DEFAULT_ROLES, DEFAULT_CHANNELS
+            )
+            for f in group["fields"]
+            if f.name == "vrchat_group_id"
+        )
+        assert field.kind == "line"
+        assert field.editable is True
+        assert field.value == GROUP_ID
+
+    def test_a_free_server_sees_it_locked(self):
+        settings = make_settings(values={"vrchat_group_id": GROUP_ID})
+        field = next(
+            f
+            for group in settings_view.build_groups(
+                settings, DEFAULT_ROLES, DEFAULT_CHANNELS
+            )
+            for f in group["fields"]
+            if f.name == "vrchat_group_id"
+        )
+        assert field.badge == "premium"
+        assert field.editable is False
+
+
+class TestSavingTheGroup:
+    def logged_in(self, config, store, **kwargs):
+        api = FakeBotAPI(**kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        session = login_as(test_client, store)
+        return test_client, api, session
+
+    def post(self, test_client, session, **form):
+        form.setdefault("csrf_token", session.csrf_token)
+        return test_client.post(f"/guild/{GUILD_IN}/group", data=form)
+
+    def test_the_group_is_sent_exactly_as_typed(self, config, store):
+        """Parsing is the bot's -- bare id or URL, case folding, refusing
+        vrc.group links. Doing any of it here would be a second opinion about
+        what a valid group is, on the side that enforces nothing."""
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client,
+            session,
+            vrchat_group_id=f"  HTTPS://VRChat.com/home/group/{GROUP_ID}  ",
+        )
+        assert api.saves[-1][2]["vrchat_group_id"] == (
+            f"  HTTPS://VRChat.com/home/group/{GROUP_ID}  "
+        )
+
+    def test_an_empty_field_disconnects_the_group(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(test_client, session, vrchat_group_id="")
+        assert api.saves[-1][2] == {"vrchat_group_id": None}
+
+    def test_the_toggle_travels_as_a_bool(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client,
+            session,
+            present_vrchat_group_invite_enabled="1",
+            vrchat_group_invite_enabled="on",
+        )
+        assert api.saves[-1][2] == {"vrchat_group_invite_enabled": True}
+
+    def test_a_missing_csrf_token_is_refused(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/group", data={"vrchat_group_id": GROUP_ID}
+        )
+        assert response.status_code == 400
+        assert api.saves == []
+
+    def test_a_refusal_becomes_copy_not_the_bots_text(self, config, store):
+        test_client, _api, session = self.logged_in(
+            config,
+            store,
+            errors={"update_settings": BotAPIError("group_claimed_elsewhere", 400)},
+        )
+        response = self.post(test_client, session, vrchat_group_id=GROUP_ID)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "already linked that VRChat group" in page
+
+
+class TestTheGroupCheckButton:
+    def logged_in(self, config, store, **kwargs):
+        api = FakeBotAPI(**kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        session = login_as(test_client, store)
+        return test_client, api, session
+
+    def post(self, test_client, session, **form):
+        form.setdefault("csrf_token", session.csrf_token)
+        return test_client.post(f"/guild/{GUILD_IN}/group/verify", data=form)
+
+    def test_the_button_asks_the_bot(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        response = self.post(test_client, session)
+        assert response.status_code == 302
+        assert api.group_checks == [(ACTOR, GUILD_IN)]
+
+    def test_it_carries_no_group_id_however_hard_you_try(self, config, store):
+        """The security property, from this end.
+
+        The client method takes an actor and a guild and nothing else, so a
+        group id in the form has nowhere to go. If that ever stops being true,
+        this endpoint becomes a way to make a VRChat account join whatever is
+        posted to it.
+        """
+        test_client, api, session = self.logged_in(config, store)
+        self.post(test_client, session, vrchat_group_id="grp_attacker")
+        assert api.group_checks == [(ACTOR, GUILD_IN)]
+
+    def test_the_page_says_checking_not_checked(self, config, store):
+        """The answer comes back over a queue, so it is not in this response.
+        Claiming success would be a claim this page cannot make."""
+        test_client, _api, session = self.logged_in(config, store)
+        response = self.post(test_client, session)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "Checking your VRChat group" in page
+
+    def test_a_missing_csrf_token_is_refused(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        response = test_client.post(f"/guild/{GUILD_IN}/group/verify", data={})
+        assert response.status_code == 400
+        assert api.group_checks == []
+
+    def test_a_refusal_becomes_copy(self, config, store):
+        test_client, _api, session = self.logged_in(
+            config, store, errors={"verify_group": BotAPIError("no_group_configured", 400)}
+        )
+        response = self.post(test_client, session)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "Add your VRChat group first" in page
+
+    def test_an_anonymous_visitor_gets_nowhere(self, config, store):
+        api = FakeBotAPI()
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        response = app.test_client().post(f"/guild/{GUILD_IN}/group/verify", data={})
+        assert response.status_code in (302, 400)
+        assert api.group_checks == []
+
+
+class TestALockedSectionStopsGivingInstructions:
+    """A lapsed server keeps its group -- the field is write_locked, so the bot
+    refuses the save rather than clearing it -- and therefore keeps this status.
+
+    What it must not keep is the list of things to go and do. There is no check
+    button on a locked section, so "paste this code into your group description
+    and invite this account" would be instructions for a task the page gives
+    them no way to finish.
+    """
+
+    def summary(self, **block):
+        settings = make_settings(
+            premium=False,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(**block),
+        )
+        return settings_view.group_setup_summary(settings)
+
+    def test_the_setup_code_is_not_shown(self):
+        assert self.summary(claim_code="VRCG-7K2M4P")["show_claim_code"] is False
+
+    def test_the_account_to_invite_is_not_named(self):
+        summary = self.summary()
+        assert summary["account_id"] is None
+        assert summary["account_url"] is None
+
+    def test_no_warning_asks_for_an_action(self):
+        assert self.summary(state="ready", can_see_members=False)["warnings"] == []
+
+    def test_the_next_step_is_the_same_promise_the_locked_fields_make(self):
+        summary = self.summary(state="not_invited")
+        assert "Premium" in summary["detail"]
+        assert "kept" in summary["detail"]
+
+    def test_where_they_got_to_is_still_shown(self):
+        """True, and worth seeing. Only the next step changes."""
+        assert self.summary(state="ready", group_name="Club LA")["headline"] == "Ready"
+        assert self.summary(state="ready", group_name="Club LA")["group_name"] == "Club LA"
+
+    def test_their_own_group_is_still_linked(self):
+        """A link to a group they own is not an instruction."""
+        assert self.summary()["group_url"].endswith(GROUP_ID)
+
+    def test_a_premium_server_still_gets_the_instructions(self):
+        """The other half of the pair, so this cannot pass by suppressing
+        everything for everybody."""
+        settings = make_settings(
+            premium=True,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(claim_code="VRCG-7K2M4P"),
+        )
+        summary = settings_view.group_setup_summary(settings)
+        assert summary["show_claim_code"] is True
+        assert summary["account_id"] == INVITE_ACCOUNT
+        assert summary["locked"] is False
+
+
+class TestValuesCarryNoTemplateWhitespace:
+    """`.value` is `white-space: pre-wrap`, so template indentation is content.
+
+    The CSS is deliberate -- the custom verification message is free text an
+    admin wrote, and reflowing their line breaks would show them something they
+    did not type. The cost is that every other value in one of those paragraphs
+    renders the template's own newlines and indentation too, which is a hanging
+    indent and a blank line under every setting on the page.
+
+    It went unnoticed until a status line long enough to wrap made it obvious.
+    This is the guard, and it is page-wide rather than about one field.
+    """
+
+    def page(self, config, store, **kwargs):
+        api = FakeBotAPI(**kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        return test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+
+    def values(self, html):
+        return re.findall(r'<p class="value[^"]*">(.*?)</p>', html, re.S)
+
+    def test_no_value_starts_or_ends_with_whitespace(self, config, store):
+        html = self.page(
+            config,
+            store,
+            settings=make_settings(
+                premium=True,
+                values={"vrchat_group_id": GROUP_ID},
+                group_invite=group_invite_block(
+                    state="ready", can_invite=True, can_see_members=True,
+                    group_name="Club LA",
+                ),
+            ),
+        )
+        rendered = self.values(html)
+        assert rendered, "no values on the page at all -- the regex is wrong"
+        for value in rendered:
+            assert value == value.strip(), repr(value)
+
+    def test_the_status_line_is_one_line(self, config, store):
+        """It reads "Ready — Club LA", not "Ready" and then a hanging dash."""
+        html = self.page(
+            config,
+            store,
+            settings=make_settings(
+                premium=True,
+                values={"vrchat_group_id": GROUP_ID},
+                group_invite=group_invite_block(
+                    state="ready", can_invite=True, can_see_members=True,
+                    group_name="Club LA",
+                ),
+            ),
+        )
+        assert '<p class="value">Ready — Club LA</p>' in html
+
+    def test_an_admins_own_line_breaks_still_survive(self, config, store):
+        """The reason the CSS is what it is. Stripping the template's
+        whitespace must not touch the value's own."""
+        html = self.page(
+            config,
+            store,
+            settings=make_settings(
+                premium=True,
+                values={"custom_verification_requested_message": "one\ntwo"},
+            ),
+        )
+        assert "one\ntwo" in html
+
+
+class TestTheAccountIsNamedOnlyWhileItMatters:
+    """"Invite this account" is an instruction, so it stops once the bot is in
+    the group. A completed instruction left on screen reads as one that did not
+    work -- which is exactly how it looked beside "the bot is in your group and
+    can send invites"."""
+
+    def summary(self, **block):
+        settings = make_settings(
+            premium=True,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(**block),
+        )
+        return settings_view.group_setup_summary(settings)
+
+    @pytest.mark.parametrize(
+        "state", ["unverified", "not_invited", "code_missing", "join_requested"]
+    )
+    def test_it_is_named_while_somebody_still_has_to_invite_it(self, state):
+        assert self.summary(state=state)["show_account"] is True
+
+    @pytest.mark.parametrize("state", ["ready", "no_invite_permission"])
+    def test_it_is_not_named_once_the_bot_is_in_the_group(self, state):
+        """no_invite_permission is a member that cannot invite -- a permissions
+        problem, not an invitation one, and telling them to invite it again
+        sends them down the wrong path entirely."""
+        assert self.summary(state=state)["show_account"] is False
+
+    def test_a_locked_section_never_names_it(self):
+        settings = make_settings(
+            premium=False,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(),
+        )
+        assert settings_view.group_setup_summary(settings)["show_account"] is False
+
+    def test_the_toggle_label_is_short_enough_to_sit_beside_a_checkbox(self):
+        """The template renders the label twice -- once as the setting's name,
+        once as the checkbox's caption -- which is fine for "Nickname sync" and
+        silly for a sentence."""
+        settings = make_settings(premium=True)
+        field = next(
+            f
+            for group in settings_view.build_groups(
+                settings, DEFAULT_ROLES, DEFAULT_CHANNELS
+            )
+            for f in group["fields"]
+            if f.name == "vrchat_group_invite_enabled"
+        )
+        assert len(field.label.split()) <= 4
+
+
+# What the API stores: the raw file, which an <img> cannot use.
+ICON_URL = (
+    "https://api.vrchat.cloud/api/1/file/"
+    "file_5ec52378-026d-4479-a2ea-914c52598964/1/file"
+)
+# ...and what the page must emit instead: a path on this site, because the
+# icon is proxied rather than hotlinked.
+ICON_DISPLAY_URL = "/vrchat-icon/file_5ec52378-026d-4479-a2ea-914c52598964/1"
+
+
+class TestTheGroupIconOnThePage:
+    def summary(self, premium=True, **block):
+        settings = make_settings(
+            premium=premium,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(**block),
+        )
+        return settings_view.group_setup_summary(settings)
+
+    def test_the_page_points_at_this_site_not_at_vrchat(self):
+        """Two attempts at hotlinking VRChat's own URLs both shipped broken.
+        The icon is fetched by this app and served from its own origin, which
+        is the version that does not depend on what a third party decides to
+        call its bytes today."""
+        emitted = self.summary(icon_url=ICON_URL)["icon_url"]
+        assert emitted == ICON_DISPLAY_URL
+        assert "vrchat.cloud" not in emitted
+
+    def test_the_emitted_url_is_built_and_never_echoed(self):
+        """Assembled from a file id and a version that both had to match, so
+        there is no path by which a stored string reaches an src attribute
+        intact."""
+        weird = (
+            "https://api.vrchat.cloud/api/1/file/"
+            "FILE_5EC52378-026D-4479-A2EA-914C52598964/1/file"
+        )
+        assert self.summary(icon_url=weird)["icon_url"] == ICON_DISPLAY_URL
+
+    def test_a_group_with_no_icon_shows_none(self):
+        assert self.summary()["icon_url"] is None
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            # Not https.
+            ICON_URL.replace("https://", "http://"),
+            # The host is a prefix of another host, which is not the same host.
+            ICON_URL.replace("api.vrchat.cloud", "api.vrchat.cloud.evil.test"),
+            # The host in a path.
+            "https://evil.test/api.vrchat.cloud/api/1/file/file_x/1/file",
+            # Anything appended: the pattern is anchored at both ends.
+            ICON_URL + "/../../evil",
+            ICON_URL + "?x=1",
+            # A file id that is not one.
+            ICON_URL.replace("file_5ec52378-026d-4479-a2ea-914c52598964", "file_x"),
+            "javascript:alert(1)",
+            "data:image/png;base64,AAAA",
+            "/local/path.png",
+            12345,
+        ],
+    )
+    def test_anything_the_csp_would_refuse_is_not_emitted(self, url):
+        """Not really about an attacker -- the value comes from the worker,
+        which read it off the group. It is about not emitting a `src` the
+        browser will refuse, which renders as a broken image with the
+        explanation only in a console nobody has open.
+        """
+        assert self.summary(icon_url=url)["icon_url"] is None
+
+    def test_a_locked_section_still_shows_it(self):
+        """A picture of the admin's own group is not a step they are being
+        asked to take, so it survives what the instructions do not."""
+        summary = self.summary(premium=False, icon_url=ICON_URL)
+        assert summary["locked"] is True
+        assert summary["icon_url"] == ICON_DISPLAY_URL
+        assert summary["show_account"] is False
+
+    def test_the_page_renders_it_above_the_name(self, config, store):
+        api = FakeBotAPI(settings=make_settings(
+            premium=True,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(
+                state="ready", can_invite=True, can_see_members=True,
+                group_name="Club LA", icon_url=ICON_URL,
+            ),
+        ))
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        html = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+
+        assert f'<img class="group-icon" src="{ICON_DISPLAY_URL}"' in html
+        assert html.index("group-icon") < html.index("Ready — Club LA")
+
+    def test_the_csp_never_had_to_be_widened_for_vrchat(self, config, store):
+        """The point of proxying. A same-origin image needs no exception, so
+        the policy went back to what it was before the icon existed."""
+        app = create_app(config, store=store, client=FakeBotAPI())
+        app.config.update(TESTING=True)
+        response = app.test_client().get("/")
+        directive = next(
+            part.strip()
+            for part in response.headers["Content-Security-Policy"].split(";")
+            if part.strip().startswith("img-src")
+        )
+        assert directive == "img-src 'self' https://cdn.discordapp.com"
+        assert "vrchat" not in response.headers["Content-Security-Policy"]
+
+
+class TestTheIconProxy:
+    """Serving the icon ourselves, which is what made it work at all.
+
+    VRChat's own URLs were tried twice: `icon_url` is `application/octet-stream`
+    and browsers refuse to draw it, and the resized endpoint is `image/png`
+    only up to 512. Relying on a third party's content type is what put a
+    broken image on a live page, so this app looks at the bytes and decides.
+    """
+
+    PNG = bytes([137, 80, 78, 71, 13, 10, 26, 10]) + b"rest of a png"
+    FILE_ID = "file_5ec52378-026d-4479-a2ea-914c52598964"
+
+    def client_for(self, config, store, fetch=None):
+        app = create_app(config, store=store, client=FakeBotAPI())
+        app.config.update(TESTING=True)
+        if fetch is not None:
+            app.config["ICON_CACHE"] = _StubCache(fetch)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        return test_client
+
+    def test_a_signed_in_admin_gets_the_image(self, config, store):
+        test_client = self.client_for(
+            config, store, fetch=lambda: ("image/png", self.PNG)
+        )
+        response = test_client.get(f"/vrchat-icon/{self.FILE_ID}/1")
+        assert response.status_code == 200
+        assert response.headers["Content-Type"].startswith("image/png")
+        assert response.data == self.PNG
+
+    def test_it_is_not_an_anonymous_relay(self, config, store):
+        """The files are public, so this is not protecting them. It is
+        refusing to be a general-purpose fetcher for people with no account."""
+        app = create_app(config, store=store, client=FakeBotAPI())
+        app.config.update(TESTING=True)
+        response = app.test_client().get(f"/vrchat-icon/{self.FILE_ID}/1")
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/vrchat-icon/usr_5ec52378-026d-4479-a2ea-914c52598964/1",
+            "/vrchat-icon/file_not-a-uuid/1",
+            "/vrchat-icon/file_5ec52378-026d-4479-a2ea-914c52598964/abc",
+            "/vrchat-icon/file_5ec52378-026d-4479-a2ea-914c52598964/99999",
+            # str.isdigit() and \d both say yes to this. [0-9] does not, and
+            # a validator that does not mean what it says is one somebody
+            # later relies on for something that matters.
+            "/vrchat-icon/file_5ec52378-026d-4479-a2ea-914c52598964/\u0663",
+            "/vrchat-icon/file_5ec52378-026d-4479-a2ea-914c52598964/\u00b2",
+        ],
+    )
+    def test_only_a_real_file_id_and_version_are_accepted(self, config, store, path):
+        """The pair goes into a fixed host and path, so there is no request in
+        which a caller names a host -- but a malformed one must not reach
+        VRChat at all."""
+        called = []
+
+        def fetch():
+            called.append(True)
+            return ("image/png", self.PNG)
+
+        test_client = self.client_for(config, store, fetch=fetch)
+        assert test_client.get(path).status_code == 404
+        assert called == []
+
+    def test_a_failed_fetch_is_a_gap_not_a_crash(self, config, store):
+        test_client = self.client_for(config, store, fetch=lambda: None)
+        assert test_client.get(f"/vrchat-icon/{self.FILE_ID}/1").status_code == 404
+
+    def test_it_is_cached_privately(self, config, store):
+        test_client = self.client_for(
+            config, store, fetch=lambda: ("image/png", self.PNG)
+        )
+        response = test_client.get(f"/vrchat-icon/{self.FILE_ID}/1")
+        assert "private" in response.headers["Cache-Control"]
+        assert "no-store" not in response.headers["Cache-Control"]
+
+
+class _StubCache:
+    """Stands in for _IconCache without caching, so each test sees its own
+    fetch rather than the previous test's."""
+
+    def __init__(self, fetch):
+        self._fetch = fetch
+
+    def get(self, key, fetch, *, now):
+        return self._fetch()
+
+
+class TestSniffingTheBytes:
+    """The upstream content type is the thing that could not be trusted, so
+    the proxy does not repeat it."""
+
+    def test_a_png_is_recognised(self):
+        assert app_module._sniff_image(bytes([137, 80, 78, 71, 13, 10, 26, 10])) == "image/png"
+
+    def test_a_jpeg_is_recognised(self):
+        assert app_module._sniff_image(b"\xff\xd8\xff\xe0rest") == "image/jpeg"
+
+    def test_a_webp_is_recognised(self):
+        assert app_module._sniff_image(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == "image/webp"
+
+    def test_a_riff_that_is_not_a_webp_is_not_an_image(self):
+        assert app_module._sniff_image(b"RIFF\x00\x00\x00\x00WAVEfmt ") is None
+
+    @pytest.mark.parametrize(
+        "body",
+        [b"", b"<!doctype html>", b"{\"error\": \"nope\"}", b"%PDF-1.4"],
+    )
+    def test_anything_else_is_refused(self, body):
+        """An upstream that answers with an error page must not have it
+        forwarded to a browser as a picture."""
+        assert app_module._sniff_image(body) is None
+
+
+class TestTheProxyCannotBeAimedElsewhere:
+    """The safety argument is that the host is fixed and no caller names one.
+
+    Everything here is about keeping that true, because the moment it stops
+    being true this is a fetcher that runs inside the network perimeter.
+    """
+
+    FILE_ID = "file_" + "0" * 8 + "-0000-0000-0000-" + "0" * 12
+    PNG = bytes([137, 80, 78, 71, 13, 10, 26, 10]) + b"body"
+
+    def fake_requests(self, monkeypatch, script):
+        """`script` maps a URL to (status, headers, body). Records the hops."""
+        seen = []
+
+        class Raw:
+            def __init__(self, body):
+                self._body = body
+
+            def read(self, size, decode_content=False):
+                return self._body[:size]
+
+        class Resp:
+            def __init__(self, status, headers, body):
+                self.status_code = status
+                self.headers = headers
+                self.raw = Raw(body)
+                self.is_redirect = status in (301, 302, 303, 307, 308)
+                self.is_permanent_redirect = status in (301, 308)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def fake_get(url, **kwargs):
+            seen.append((url, kwargs))
+            if url not in script:
+                raise AssertionError(f"unscripted fetch: {url}")
+            return Resp(*script[url])
+
+        monkeypatch.setattr(app_module.requests, "get", fake_get)
+        return seen
+
+    def test_every_hop_is_taken_deliberately(self, monkeypatch):
+        """allow_redirects is always False. The loop takes each hop itself,
+        after checking it -- requests offers no per-hop hook, and
+        allow_redirects=True would take any of them on trust."""
+        first = app_module.VRCHAT_ICON_URL.format(file_id=self.FILE_ID, version="1")
+        second = "https://files.vrchat.cloud/thumbnails/x.png?Signature=y"
+        seen = self.fake_requests(monkeypatch, {
+            first: (302, {"Location": second}, b""),
+            second: (200, {}, self.PNG),
+        })
+
+        assert app_module._fetch_vrchat_icon(self.FILE_ID, "1") == ("image/png", self.PNG)
+        assert [url for url, _ in seen] == [first, second]
+        assert all(kw["allow_redirects"] is False for _, kw in seen)
+
+    @pytest.mark.parametrize(
+        "location",
+        [
+            "http://169.254.169.254/latest/meta-data/",
+            "https://169.254.169.254/latest/meta-data/",
+            "https://evil.test/x",
+            "https://files.vrchat.cloud@evil.test/x",
+            "http://files.vrchat.cloud/x",
+            "https://files.vrchat.cloud:8443/x",
+            "//evil.test/x",
+        ],
+    )
+    def test_a_redirect_off_the_allowed_hosts_is_refused(self, monkeypatch, location):
+        """The one that matters. Following a response's choice of host is how a
+        fetcher inside the network perimeter becomes somebody else's."""
+        first = app_module.VRCHAT_ICON_URL.format(file_id=self.FILE_ID, version="1")
+        seen = self.fake_requests(monkeypatch, {first: (302, {"Location": location}, b"")})
+
+        assert app_module._fetch_vrchat_icon(self.FILE_ID, "1") is None
+        assert len(seen) == 1, "it must not have fetched the redirect target"
+
+    def test_a_relative_redirect_is_resolved_and_still_checked(self, monkeypatch):
+        first = app_module.VRCHAT_ICON_URL.format(file_id=self.FILE_ID, version="1")
+        resolved = (
+            "https://api.vrchat.cloud/api/1/image/"
+            + self.FILE_ID
+            + "/1/elsewhere.png"
+        )
+        seen = self.fake_requests(monkeypatch, {
+            first: (302, {"Location": "elsewhere.png"}, b""),
+            resolved: (200, {}, self.PNG),
+        })
+        assert app_module._fetch_vrchat_icon(self.FILE_ID, "1") == ("image/png", self.PNG)
+        assert [url for url, _ in seen] == [first, resolved]
+
+    def test_a_redirect_loop_ends(self, monkeypatch):
+        first = app_module.VRCHAT_ICON_URL.format(file_id=self.FILE_ID, version="1")
+        seen = self.fake_requests(monkeypatch, {first: (302, {"Location": first}, b"")})
+        assert app_module._fetch_vrchat_icon(self.FILE_ID, "1") is None
+        assert len(seen) == app_module.VRCHAT_ICON_MAX_HOPS
+
+    @pytest.mark.parametrize(
+        "url,allowed",
+        [
+            ("https://api.vrchat.cloud/x", True),
+            ("https://files.vrchat.cloud/x", True),
+            ("https://FILES.VRCHAT.CLOUD/x", True),
+            ("https://files.vrchat.cloud@evil.test/x", False),
+            ("https://evil.test/x", False),
+            ("http://files.vrchat.cloud/x", False),
+            ("https://files.vrchat.cloud:8443/x", False),
+            ("https://sub.files.vrchat.cloud/x", False),
+            ("https://files.vrchat.cloud.evil.test/x", False),
+            ("not a url at all", False),
+        ],
+    )
+    def test_which_hosts_are_allowed(self, url, allowed):
+        assert app_module._vrchat_hop_allowed(url) is allowed
+
+    def test_an_oversized_response_is_dropped(self, monkeypatch):
+        """The cap bounds the cache as much as the response: entries live in
+        memory in a read_only container, and limit x max_bytes is the ceiling."""
+
+        class Raw:
+            def read(self, size, decode_content=False):
+                return b"\x89PNG\r\n\x1a\n" + b"x" * size
+
+        class Resp:
+            status_code = 200
+            headers: dict = {}
+            raw = Raw()
+            is_redirect = False
+            is_permanent_redirect = False
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        monkeypatch.setattr(app_module.requests, "get", lambda url, **kw: Resp())
+        assert app_module._fetch_vrchat_icon(
+            "file_" + "0" * 8 + "-0000-0000-0000-" + "0" * 12, "1"
+        ) is None
+
+
+class TestTheIconCache:
+    def test_a_success_is_reused(self):
+        cache = app_module._IconCache(ttl=100)
+        calls = []
+        fetch = lambda: (calls.append(1), ("image/png", b"x"))[1]
+        assert cache.get("k", fetch, now=0) == ("image/png", b"x")
+        assert cache.get("k", fetch, now=50) == ("image/png", b"x")
+        assert len(calls) == 1
+
+    def test_a_failure_expires_much_sooner_than_a_success(self):
+        """Caching failures stops a dead upstream becoming a stream of
+        outbound requests. Caching them for an hour would hide an icon far
+        longer than the blip that lost it."""
+        cache = app_module._IconCache(ttl=3600, failure_ttl=60)
+        calls = []
+
+        def fetch():
+            calls.append(1)
+            return None
+
+        cache.get("k", fetch, now=0)
+        cache.get("k", fetch, now=30)
+        assert len(calls) == 1, "still inside the failure window"
+        cache.get("k", fetch, now=90)
+        assert len(calls) == 2, "past it, so it tries again"
+
+    def test_it_stays_within_its_limit(self):
+        cache = app_module._IconCache(ttl=100, limit=3)
+        for n in range(10):
+            cache.get(n, lambda: ("image/png", b"x"), now=float(n))
+        assert len(cache._entries) <= 3
+
+    def test_eviction_survives_another_thread_writing(self):
+        """min() over a dict another thread is writing raises "dictionary
+        changed size during iteration" -- rarely, which is the worst frequency
+        a crash can have. gunicorn runs four threads per worker."""
+        import threading
+
+        cache = app_module._IconCache(ttl=100, limit=64)
+        errors = []
+
+        def hammer(base):
+            try:
+                for n in range(400):
+                    cache.get((base, n), lambda: ("image/png", b"x"), now=float(n))
+            except Exception as error:  # pragma: no cover - the bug being pinned
+                errors.append(error)
+
+        threads = [threading.Thread(target=hammer, args=(i,)) for i in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert errors == []
+        assert len(cache._entries) <= 64

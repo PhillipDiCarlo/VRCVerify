@@ -506,6 +506,22 @@ button.link:hover { color: var(--ink-strong); }
 
 .swatch { flex: 0 0 auto; vertical-align: middle; }
 
+/* The VRChat group's icon, above its name. Sized here rather than trusting
+ * whatever VRChat serves: the file is whatever an admin uploaded, and a 2048px
+ * square would otherwise push the whole section off the screen. */
+.group-icon {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-card);
+  object-fit: cover;
+  margin: 0 0 0.5rem;
+  /* Shown while the image loads, and left behind if VRChat's file host is
+     unreachable -- a 64px hole in the layout beats the layout moving. */
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+
 .desc, .plan { margin: 0.2rem 0 0; font-size: 0.875rem; color: var(--muted); }
 .plan { font-style: italic; }
 

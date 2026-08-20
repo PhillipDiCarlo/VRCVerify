@@ -25,6 +25,7 @@ failure this module exists to avoid.
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 # Display names only. The authoritative list is locales.LANGUAGE_CODES in the
@@ -45,6 +46,11 @@ CUSTOM_MESSAGE_MAX_LEN = 1000
 
 # Field kinds rendered as a <select>, which is only usable with options.
 CHOICE_KINDS = frozenset({"role", "role_optional", "locale", "channel"})
+
+# A VRChat group id is 40 characters. The input allows a bit more so pasting
+# the full vrchat.com URL -- which the bot accepts and reduces to the id --
+# is not silently truncated at the keyboard.
+GROUP_INPUT_MAXLEN = 120
 
 LOCALE_NAMES = {
     "en-US": "English",
@@ -319,6 +325,7 @@ def build_groups(
     locale = _locale_field(settings)
     log_channel = _log_channel_field(settings, channels)
     color, icon = _panel_fields(settings)
+    vrchat_group, group_enabled = _group_invite_fields(settings)
 
     return [
         {
@@ -355,12 +362,308 @@ def build_groups(
             "save_endpoint": "save_panel_settings",
         },
         {
+            "title": "VRChat group",
+            "blurb": "Invite members to your group once they're verified.",
+            "fields": [vrchat_group, group_enabled],
+            "group_setup": group_setup_summary(settings),
+            "save_endpoint": "save_group_settings",
+        },
+        {
             "title": "Logging",
             "blurb": "A record of verification activity for your moderators.",
             "fields": [log_channel],
             "save_endpoint": "save_logging_settings",
         },
     ]
+
+
+# What each setup state means, as a headline and the next thing to do. Keyed
+# on the bot's own state codes; anything unrecognised falls through to a
+# generic line rather than reaching the page as a raw identifier.
+#
+# Every one of these names something the admin can act on, which is the whole
+# reason the worker reports nine states instead of "setup failed". An admin
+# told only that it failed will open a support ticket; an admin told the bot is
+# in the group but lacks `group-invites-manage` will go and tick the box.
+GROUP_SETUP_COPY = {
+    "unverified": (
+        "pending",
+        "Not checked yet",
+        "Put the setup code in your group's description, invite the bot to the "
+        "group, then run the check.",
+    ),
+    "checking": (
+        "pending",
+        "Checking\u2026",
+        "The bot is talking to VRChat. Reload this page in a moment.",
+    ),
+    "timed_out": (
+        "warn",
+        "No answer from the checker",
+        "The check was sent but nothing came back. Try again shortly.",
+    ),
+    "worker_unreachable": (
+        "warn",
+        "Couldn't start the check",
+        "The bot couldn't reach the part of itself that talks to VRChat. Try "
+        "again shortly.",
+    ),
+    "ready": (
+        "ok",
+        "Ready",
+        "The bot is in your group and can send invites.",
+    ),
+    "join_requested": (
+        "pending",
+        "Waiting for a moderator",
+        "The bot has asked to join and a group moderator needs to approve it. "
+        "Run the check again once they have.",
+    ),
+    "not_invited": (
+        "warn",
+        "The bot hasn't been invited yet",
+        "Invite the account below to your group from VRChat, then run the "
+        "check again.",
+    ),
+    "no_invite_permission": (
+        "warn",
+        "In the group, but it can't invite anyone",
+        "Give the bot's role the \u201cManage Group Invites\u201d permission in "
+        "VRChat. Being an admin is not enough \u2014 it is its own tick box.",
+    ),
+    "code_missing": (
+        "warn",
+        "The setup code isn't in the group description",
+        "Paste the code below anywhere in your VRChat group's description, "
+        "then run the check again. You can remove it once the check passes.",
+    ),
+    "group_not_found": (
+        "warn",
+        "No VRChat group with that ID",
+        "Check the ID, or paste the group's vrchat.com link instead.",
+    ),
+    "banned": (
+        "warn",
+        "The bot is banned or blocked from that group",
+        "A group moderator has to lift that before setup can continue.",
+    ),
+    "bad_job": (
+        "warn",
+        "That group ID wasn't usable",
+        "Check the ID, or paste the group's vrchat.com link instead.",
+    ),
+    "vrchat_unavailable": (
+        "warn",
+        "VRChat didn't answer",
+        "Nothing is wrong with your setup. Try the check again shortly.",
+    ),
+}
+
+# The bot's error sentence is the only free text on this page that the bot
+# authored, and most of it is our own wording -- but classify_api_error can
+# fold in whatever VRChat replied, which is a third party's string. Jinja
+# escapes it, so this is not about injection; it is about a page that stays
+# readable when an upstream error turns out to be a wall of JSON.
+GROUP_ERROR_MAX_LEN = 200
+
+# States that mean the account is already inside the group. Not the same as
+# "setup worked": no_invite_permission is a member that cannot invite, which is
+# a permissions problem rather than an invitation one.
+GROUP_STATES_ALREADY_IN = frozenset({"ready", "no_invite_permission"})
+
+GROUP_SETUP_FALLBACK = (
+    "warn",
+    "Setup couldn't be confirmed",
+    "Run the check again. If it keeps happening, contact support.",
+)
+
+
+def group_setup_summary(settings: dict) -> dict:
+    """How far this guild's VRChat group setup has got, ready to render.
+
+    A status rather than a setting: nothing here is ever saved, and the bot is
+    the only thing that writes any of it. It sits beside the two fields for the
+    same reason the panel's whereabouts sits beside the panel's appearance --
+    "what did I set" and "did it work" are one question to the person reading.
+    """
+    block = settings.get("group_invite") or {}
+    state = str(block.get("state") or "unverified")
+    tone, headline, detail = GROUP_SETUP_COPY.get(state, GROUP_SETUP_FALLBACK)
+
+    group_id = _value(settings, "vrchat_group_id")
+    account = block.get("account_to_invite")
+
+    # A server whose subscription lapsed keeps its stored group -- the field is
+    # write_locked, so the bot refuses the save rather than clearing it -- and
+    # therefore keeps this status too. What it must NOT keep is the list of
+    # things to go and do: there is no check button on a locked section, so
+    # "paste this code in your group description and invite this account"
+    # would be instructions for a task the page gives them no way to finish.
+    #
+    # The headline stays, because where they got to is true and worth seeing.
+    # Only the next step changes, to the same promise the locked fields make.
+    locked = bool(_state(settings, "vrchat_group_id").get("locked"))
+    if locked:
+        detail = (
+            "Group invites are part of VRCVerify Premium. Your group is kept "
+            "exactly as it is, and this picks up where it left off if the "
+            "subscription is renewed."
+        )
+
+    warnings = []
+    if locked:
+        # Both of the warnings below ask for an action, and there is nothing
+        # here to act with.
+        pass
+    elif state == "ready" and not block.get("can_see_members"):
+        # Not a failure: invites work without it. It only decides whether a
+        # member who is already in the group can be told so instead of being
+        # offered a button that would fail.
+        warnings.append(
+            "Optional: add \u201cView All Members\u201d to the bot's role and "
+            "VRCVerify can tell members who are already in the group, rather "
+            "than sending them an invite that bounces."
+        )
+    if group_id and not account and not locked:
+        warnings.append(
+            "This VRCVerify installation has no invite account configured, so "
+            "the check cannot run. Contact the bot operator."
+        )
+
+    return {
+        "state": state,
+        "tone": tone,
+        "headline": headline,
+        "detail": detail,
+        # The bot's own sentence about what went wrong, when it has one. Shown
+        # as well as the copy above, not instead of it: the copy says what to
+        # do, and this says what VRChat actually said.
+        "error": None if locked else _clip(block.get("error"), GROUP_ERROR_MAX_LEN),
+        "locked": locked,
+        "group_name": block.get("group_name"),
+        # Rendered above the name. Not suppressed while locked, unlike the
+        # instructions: a picture of the admin's own group is not a step they
+        # are being asked to take.
+        #
+        # Only ever an https URL on VRChat's own file host, because that is the
+        # single origin the CSP allows an image from -- anything else is a
+        # broken image rather than a request. Checked here anyway so the page
+        # does not emit a src it knows the browser will refuse.
+        "icon_url": _vrchat_image(block.get("icon_url")),
+        "configured": bool(group_id),
+        "group_url": f"https://vrchat.com/home/group/{group_id}" if group_id else None,
+        # The usr_ id matters as much as the name. Display names are not
+        # unique, and an admin who invites a lookalike account gets "the bot
+        # hasn't been invited" with nothing explaining why.
+        # Suppressed while locked: inviting the account is a step towards a
+        # check this section cannot run.
+        "account_id": None if locked else account,
+        "account_url": (
+            None if locked or not account
+            else f"https://vrchat.com/home/user/{account}"
+        ),
+        # Naming the account is an instruction, so it stops once the bot is
+        # in the group. "Invite this account" beside "the bot is in your group
+        # and can send invites" is a step somebody has already taken, and a
+        # completed instruction left on screen reads as one that did not work.
+        "show_account": bool(
+            account and not locked and state not in GROUP_STATES_ALREADY_IN
+        ),
+        "claim_code": block.get("claim_code"),
+        # Once it is working the code has done its job, and leaving it on
+        # screen invites someone to leave it in their group description for
+        # ever. The bot stops demanding it after a successful check.
+        "show_claim_code": (
+            bool(block.get("claim_code")) and state != "ready" and not locked
+        ),
+        "warnings": warnings,
+    }
+
+
+# What the API puts in `icon_url`: the raw file, which is NOT usable in an
+# <img>. It comes back as `application/octet-stream` -- the same reason
+# clicking one in a browser downloads it instead of showing it -- and at full
+# upload size, 744KB for a group icon shown at 64 pixels.
+_VRCHAT_FILE_RE = re.compile(
+    r"^https://api\.vrchat\.cloud/api/1/file/"
+    r"(file_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"
+    r"/([0-9]{1,4})/file$",
+    re.I,
+)
+
+# ...and where the page actually points, which is back at this app. Serving
+# the icon from our own origin is what stopped it being a browser-by-browser
+# argument about content types. See the /vrchat-icon route -- VRChat's own
+# URLs were tried twice and neither is dependable in an <img>:
+#
+#     /api/1/file/<id>/1/file   application/octet-stream   744 KB
+#     /api/1/image/<id>/1/128   image/png                   24 KB
+#
+# The first is what the API stores, and a browser will not draw it. The second
+# is a real image, and still a third party deciding per request what it is
+# sending -- so the proxy reads the bytes and says so itself.
+VRCHAT_ICON_PATH = "/vrchat-icon/{file_id}/{version}"
+
+
+def _vrchat_image(url):
+    """A path on this site that will serve the icon, or None.
+
+    Built, never echoed. The result is assembled from a file id and a version
+    that both had to match the pattern above, so no stored string reaches an
+    `src` attribute intact -- and what it produces is same-origin, so the CSP
+    needs no exception for it at all.
+
+    None for anything else, because the alternative is emitting an `src` that
+    fails, which renders as a broken image with the explanation only in a
+    console nobody has open. That is exactly what the first two versions of
+    this did.
+    """
+    if not isinstance(url, str):
+        return None
+    match = _VRCHAT_FILE_RE.match(url.strip())
+    if match is None:
+        return None
+    return VRCHAT_ICON_PATH.format(
+        file_id=match.group(1).lower(), version=match.group(2)
+    )
+
+
+def _clip(text, limit: int):
+    if not isinstance(text, str):
+        return None
+    text = text.strip()
+    if not text:
+        return None
+    return text if len(text) <= limit else text[: limit - 1] + "\u2026"
+
+
+def _group_invite_fields(settings: dict):
+    group_state = _state(settings, "vrchat_group_id")
+    raw = group_state.get("value")
+    group = Field(
+        "vrchat_group_id",
+        "VRChat group",
+        "The group verified members can be invited to. Paste the group's ID "
+        "(it starts with grp_) or its vrchat.com link. Leave it empty to "
+        "disconnect the group.",
+        "line",
+        str(raw) if raw else "No group connected",
+        empty=not raw,
+        value="" if raw is None else str(raw),
+        maxlength=GROUP_INPUT_MAXLEN,
+        **_plan(group_state),
+    )
+
+    enabled = _bool_field(
+        settings,
+        "vrchat_group_invite_enabled",
+        "Offer group invites",
+        "Adds a button to the message a member gets after verifying, which "
+        "invites them to your group. Nothing is sent unless they press it.",
+        on="On",
+        off="Off",
+    )
+    return group, enabled
 
 
 def _custom_dm_field(settings: dict) -> Field:
