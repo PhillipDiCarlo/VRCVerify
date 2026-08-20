@@ -338,15 +338,30 @@ class TestWhetherTheServerCanInviteAtAll:
 # Claiming the row and building the job
 # -------------------------------------------------------------------
 class TestBeginningARequest:
-    def build(self):
+    def build(self, can_see_members=True):
         return bot.begin_group_invite(
             GUILD_ID,
             MEMBER_ID,
             group_id=GROUP_ID,
             vrc_user_id=VRC_USER_ID,
+            can_see_members=can_see_members,
             channel_id=CHANNEL_ID,
             message_id=MESSAGE_ID,
         )
+
+    def test_the_job_reports_whether_the_bot_can_read_members(self):
+        """The worker skips its membership check without this, rather than
+        failing the invite -- group-members-viewall is optional."""
+        assert self.build(can_see_members=True)["canSeeMembers"] is True
+
+    def test_a_group_that_never_granted_the_optional_permission(self):
+        assert self.build(can_see_members=False)["canSeeMembers"] is False
+
+    def test_a_missing_capability_is_not_a_missing_key(self):
+        """None must arrive as False, not vanish. An absent key and a False one
+        read the same to the worker today, and would stop doing so the moment
+        anyone gave that field a default."""
+        assert self.build(can_see_members=None)["canSeeMembers"] is False
 
     def test_the_job_carries_only_what_the_worker_needs(self):
         """No Discord identity crosses to the process holding the VRChat
@@ -354,7 +369,14 @@ class TestBeginningARequest:
         home, and the Discord-to-VRChat mapping is the thing the verification
         log already refuses to publish."""
         job = self.build()
-        assert set(job) == {"type", "jobID", "guildID", "groupID", "vrcUserID"}
+        assert set(job) == {
+            "type",
+            "jobID",
+            "guildID",
+            "groupID",
+            "vrcUserID",
+            "canSeeMembers",
+        }
         assert str(MEMBER_ID) not in str(job)
 
     def test_the_row_records_where_to_answer(self):
@@ -407,6 +429,7 @@ class TestRecordingTheResult:
             MEMBER_ID,
             group_id=GROUP_ID,
             vrc_user_id=VRC_USER_ID,
+            can_see_members=True,
             channel_id=CHANNEL_ID,
             message_id=MESSAGE_ID,
         )
@@ -681,12 +704,16 @@ class FakeGroupsApi:
         return [c for c in self.calls if c[0] == "create_group_invite"]
 
 
+# canSeeMembers True by default: these tests are about the membership check,
+# and the account holding group-members-viewall is what makes it run at all.
+# TestWithoutTheOptionalPermission below covers the other half.
 INVITE_JOB = {
     "type": inviter.JOB_SEND_INVITE,
     "jobID": "job-1",
     "guildID": str(GUILD_ID),
     "groupID": GROUP_ID,
     "vrcUserID": VRC_USER_ID,
+    "canSeeMembers": True,
 }
 
 
@@ -829,6 +856,89 @@ class TestSendingOneInvite:
             "state",
             "accountID",
         }
+
+
+class TestWithoutTheOptionalPermission:
+    """The regression that reached production on 2026-08-20.
+
+    group-members-viewall is documented as optional -- PERMISSION_VIEW_MEMBERS
+    says "without it the feature still works and falls back to attempting the
+    invite". The first cut of send_group_invite called get_group_member
+    unconditionally and turned its 403 into a terminal refusal, so a group that
+    had granted group-invites-manage and nothing else failed EVERY invite, and
+    told the member their server's setup was broken when it was not.
+    """
+
+    def job(self):
+        return dict(INVITE_JOB, canSeeMembers=False)
+
+    def test_the_membership_check_is_skipped(self, api):
+        inviter.send_group_invite(self.job())
+        assert [c[0] for c in api.calls] == ["create_group_invite"]
+
+    def test_the_invite_is_still_sent(self, api):
+        assert inviter.send_group_invite(self.job())["state"] == inviter.INVITE_SENT
+
+    def test_an_existing_member_is_still_recognised(self, api):
+        """The fallback the docstring promises: create_group_invite's own 400
+        catches the case the skipped check would have caught."""
+        api.invite_error = FakeApiException(400, "already a member of this group")
+        assert (
+            inviter.send_group_invite(self.job())["state"]
+            == inviter.INVITE_ALREADY_MEMBER
+        )
+
+    def test_a_403_that_would_have_come_from_the_check_never_happens(self, api):
+        """Even with get_group_member primed to refuse, nothing calls it."""
+        api.get_member_error = FakeApiException(403, "You're not a member.")
+        assert inviter.send_group_invite(self.job())["state"] == inviter.INVITE_SENT
+
+    def test_a_job_with_the_field_missing_skips_the_check(self):
+        """Absent means "we were not told we can", which is the safe reading:
+        the invite still goes out, where the wrong reading fails it."""
+        job = dict(INVITE_JOB)
+        del job["canSeeMembers"]
+        assert not job.get("canSeeMembers")
+
+
+class TestTellingTwoKindsOf403Apart:
+    """403 from create_group_invite is ambiguous, and only one side of it is
+    permanent. Getting this backwards records a refusal the member never made
+    and locks them out of the group for good."""
+
+    def test_the_recipient_refusing_is_the_members_answer(self, api):
+        api.invite_error = FakeApiException(403, "You can't invite that user")
+        assert (
+            inviter.send_group_invite(INVITE_JOB)["state"] == inviter.INVITE_BLOCKED
+        )
+
+    def test_a_json_envelope_around_the_same_wording_still_counts(self, api):
+        api.invite_error = FakeApiException(
+            403, '{"error":{"message":"You can\'t invite that user","status_code":403}}'
+        )
+        assert (
+            inviter.send_group_invite(INVITE_JOB)["state"] == inviter.INVITE_BLOCKED
+        )
+
+    def test_our_own_permission_being_revoked_is_not(self, api):
+        api.invite_error = FakeApiException(403, "Insufficient permissions")
+        assert (
+            inviter.send_group_invite(INVITE_JOB)["state"]
+            == inviter.INVITE_NO_PERMISSION
+        )
+
+    def test_an_unrecognised_403_fails_to_the_retryable_side(self, api):
+        """Guessing wrong this way costs a retry. Guessing wrong the other way
+        costs somebody their place in the group permanently."""
+        api.invite_error = FakeApiException(403, "something nobody has seen yet")
+        state = inviter.send_group_invite(INVITE_JOB)["state"]
+        assert state == inviter.INVITE_NO_PERMISSION
+        assert state not in bot.GROUP_INVITE_SETTLED_STATES
+
+    def test_the_members_refusal_is_permanent(self, api):
+        api.invite_error = FakeApiException(403, "You can't invite that user")
+        state = inviter.send_group_invite(INVITE_JOB)["state"]
+        assert state in bot.GROUP_INVITE_SETTLED_STATES
 
 
 class TestThroughputIsSpaced:

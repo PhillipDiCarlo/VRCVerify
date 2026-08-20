@@ -349,6 +349,27 @@ def _display(group) -> dict:
     }
 
 
+# VRChat's wording for "the recipient will not accept this invite", as
+# documented on create_group_invite and confirmed in the wild. Matched
+# loosely: the surrounding JSON envelope varies, and the alternative to
+# matching is treating every 403 as the member's refusal.
+_RECIPIENT_REFUSED_MARKERS = ("invite that user", "can't invite that")
+
+
+def _is_about_the_recipient(exc) -> bool:
+    """Is this 403 about the person being invited, rather than about us?
+
+    Fails to the safe answer. Anything unrecognised is treated as our problem,
+    because our problems are retryable and the member's refusal is permanent --
+    so guessing wrong in this direction costs a retry, and guessing wrong in
+    the other costs somebody their place in the group for good.
+    """
+    text = " ".join(
+        str(getattr(exc, attr, "") or "") for attr in ("body", "reason")
+    ).lower()
+    return any(marker in text for marker in _RECIPIENT_REFUSED_MARKERS)
+
+
 def claim_code_present(group, claim_code) -> bool:
     """Is the guild's one-time code in this group's description?
 
@@ -588,6 +609,15 @@ def send_group_invite(job: dict) -> dict:
     look at their notifications. Answering both with "already a member" would
     send people hunting through a group they have not joined.
 
+    That check is an OPTIMISATION, not a gate. get_group_member needs
+    group-members-viewall, which PERMISSION_VIEW_MEMBERS documents as optional
+    -- "without it the feature still works and falls back to attempting the
+    invite". The bot says in the job whether the account has it, and without it
+    this goes straight to create_group_invite, whose own 400 still catches an
+    existing member. Running the check regardless would make an optional
+    permission mandatory and fail every invite for a group that never granted
+    it, which is exactly what it did the first time this shipped.
+
     confirm_override_block is passed as False, EXPLICITLY. It exists to push an
     invite past a user who has blocked the group, which is the exact thing this
     feature must not do -- the member-initiated design is the compliance
@@ -618,36 +648,47 @@ def send_group_invite(job: dict) -> dict:
 
     groups = GroupsApi(client)
 
-    # 1) Where do they stand today? A 404 is the ordinary "not a member"
-    #    answer, not an error.
-    try:
-        member = _call_with_retry(
-            groups.get_group_member, group_id, user_id, _request_timeout=request_timeout()
-        )
-        status = _membership_status(member) if member is not None else None
-    except UnauthorizedException as e:
-        vrchat_session.invalidate(classify_api_error(e))
-        return _invite_result(
-            job, INVITE_VRCHAT_UNAVAILABLE, error_message="VRChat session expired"
-        )
-    except ApiException as e:
-        code = getattr(e, "status", None)
-        if code == 404:
-            status = None
-        elif code == 403:
-            # "You're not a member." -- of the two accounts in this call, the
-            # one that has to be a member is ours. So this is the setup having
-            # come apart since it was verified, not anything about the member.
-            return _invite_result(
-                job,
-                INVITE_NO_PERMISSION,
-                error_message="The bot is no longer a member of this group",
+    # 1) Where do they stand today? Skipped entirely when the account lacks
+    #    group-members-viewall -- see the docstring. A 404 is the ordinary
+    #    "not a member" answer, not an error.
+    status = None
+    if job.get("canSeeMembers"):
+        try:
+            member = _call_with_retry(
+                groups.get_group_member,
+                group_id,
+                user_id,
+                _request_timeout=request_timeout(),
             )
-        else:
-            meta = classify_api_error(e)
+            status = _membership_status(member) if member is not None else None
+        except UnauthorizedException as e:
+            vrchat_session.invalidate(classify_api_error(e))
             return _invite_result(
-                job, INVITE_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message")
+                job, INVITE_VRCHAT_UNAVAILABLE, error_message="VRChat session expired"
             )
+        except ApiException as e:
+            code = getattr(e, "status", None)
+            if code == 404:
+                status = None
+            elif code == 403:
+                # We were told we hold group-members-viewall and VRChat
+                # disagrees, so the permission has been taken away or the
+                # account has left the group. Either way the stored setup is
+                # stale; the invite would fail too, and this names why.
+                return _invite_result(
+                    job,
+                    INVITE_NO_PERMISSION,
+                    error_message=(
+                        "The bot can no longer read this group's members"
+                    ),
+                )
+            else:
+                meta = classify_api_error(e)
+                return _invite_result(
+                    job,
+                    INVITE_VRCHAT_UNAVAILABLE,
+                    error_message=meta.get("error_message"),
+                )
 
     if status == "member":
         return _invite_result(job, INVITE_ALREADY_MEMBER)
@@ -682,9 +723,25 @@ def send_group_invite(job: dict) -> dict:
             # seconds since the check above. Reported as what it is.
             return _invite_result(job, INVITE_ALREADY_MEMBER)
         if code == 403:
-            # "You can't invite that user": they have group invites off, or
-            # have blocked us. Not retried, and not overridden.
-            return _invite_result(job, INVITE_BLOCKED)
+            # Two very different things arrive as 403 here, and telling them
+            # apart matters because only one of them is permanent.
+            #
+            # "You can't invite that user" is about the RECIPIENT: they have
+            # group invites off, or have blocked us. That is their answer, it
+            # is recorded, and it is never retried or overridden.
+            #
+            # Anything else is about US -- the invite permission revoked, the
+            # account removed from the group. Marking the member "blocked" for
+            # that would record a refusal they never made and lock them out of
+            # the group permanently, so an unrecognised 403 is reported as our
+            # problem, which is retryable.
+            if _is_about_the_recipient(e):
+                return _invite_result(job, INVITE_BLOCKED)
+            return _invite_result(
+                job,
+                INVITE_NO_PERMISSION,
+                error_message="The bot is not allowed to invite people to this group",
+            )
         if code == 404:
             return _invite_result(job, INVITE_GROUP_NOT_FOUND)
         meta = classify_api_error(e)
