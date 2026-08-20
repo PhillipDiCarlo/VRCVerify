@@ -635,6 +635,20 @@ class TestOnlyMembersOfTheServerMayPress:
             < after.index("group_invite_not_a_member")
         )
 
+    def test_a_guild_the_bot_cannot_see_is_refused_not_skipped(self):
+        """get_guild returns None when the bot has been REMOVED from a server,
+        as well as when the gateway has not delivered it yet. Skipping the
+        membership check in that case let an ex-member of a server the bot had
+        been kicked out of press a months-old button and be invited into that
+        server's private group."""
+        import inspect
+
+        source = inspect.getsource(bot.handle_group_invite_press)
+        guard = source.index("if guild is None")
+        assert guard < source.index("fetch_member_cached")
+        # It must RETURN there, not fall through to the check it cannot do.
+        assert "return" in source[guard : source.index("fetch_member_cached")]
+
     def test_the_refusal_has_its_own_sentence(self):
         """Reusing the setup-problem copy would tell an ex-member their old
         server is broken, which is both wrong and unactionable."""
@@ -801,16 +815,20 @@ class FakeGroupsApi:
         self.member = None
         self.get_member_error = FakeApiException(404, "Not Found")
         self.invite_error = None
-        # The group exists unless a test says otherwise. Only consulted to read
-        # a 404 from create_group_invite, which covers both "no such group" and
-        # "no such user".
+        # The group exists, and we can still invite into it, unless a test says
+        # otherwise. Consulted only to read a 403 or 404 from
+        # create_group_invite -- both of which are ambiguous on their own.
         self.get_group_error = None
+        self.group_permissions = ["group-invites-manage", "group-members-viewall"]
 
     def get_group(self, group_id, **kwargs):
         self.calls.append(("get_group", group_id))
         if self.get_group_error:
             raise self.get_group_error
-        return SimpleNamespace(name="Club LA")
+        return SimpleNamespace(
+            name="Club LA",
+            my_member=SimpleNamespace(permissions=list(self.group_permissions)),
+        )
 
     def get_group_member(self, group_id, user_id, **kwargs):
         self.calls.append(("get_group_member", group_id, user_id))
@@ -829,6 +847,11 @@ class FakeGroupsApi:
     def invites(self):
         return [c for c in self.calls if c[0] == "create_group_invite"]
 
+
+# Captured before any fixture replaces it. The `api` fixture stubs the throttle
+# out so the other tests do not sleep, so the throttle's own tests need a way
+# back to the real one.
+REAL_SPACE_INVITE_CALLS = inviter._space_invite_calls
 
 INVITE_JOB = {
     "type": inviter.JOB_SEND_INVITE,
@@ -904,14 +927,23 @@ class TestSendingOneInvite:
         assert result["state"] == inviter.INVITE_ALREADY_INVITED
         assert api.invites() == []
 
-    @pytest.mark.parametrize("status", ["banned", "userblocked"])
-    def test_a_banned_member_is_not_invited(self, api, status):
-        api.member = member_record(status)
+    def test_a_banned_member_is_not_invited(self, api):
+        api.member = member_record("banned")
         result = inviter.send_group_invite(INVITE_JOB)
         assert result["state"] == inviter.INVITE_BANNED
         assert api.invites() == []
 
+    def test_a_member_who_blocked_the_group_is_not_invited(self, api):
+        """userblocked is its own GroupMemberStatus and is NOT a moderator ban.
+        Folding it into banned told the member "only a group moderator can
+        change that" about a block they placed themselves."""
+        api.member = member_record("userblocked")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_BLOCKED
+        assert api.invites() == []
+
     def test_a_member_who_switched_group_invites_off(self, api):
+        """We still hold the invite permission, so the refusal is theirs."""
         api.invite_error = FakeApiException(403, "You can't invite that user")
         result = inviter.send_group_invite(INVITE_JOB)
         assert result["state"] == inviter.INVITE_BLOCKED
@@ -1083,15 +1115,29 @@ class TestTellingTwoKindsOf404Apart:
         inviter.send_group_invite(INVITE_JOB)
         assert [c[0] for c in api.calls if c[0] == "get_group"] == []
 
-    def test_an_unrelated_failure_does_not_invent_a_missing_group(self, api):
-        """A 500 while asking is not evidence the group has gone. Falling back
-        to blaming the member's account is the recoverable half -- they have
-        something to try, and a group that really has gone shows up plainly on
-        the dashboard's own setup check."""
+    def test_an_unrelated_failure_blames_nobody(self, api):
+        """A 500 while asking is not evidence about the group OR the member.
+        Every other answer here blames somebody and two of them stick, so not
+        knowing is reported as not knowing."""
         api.invite_error = FakeApiException(404, "Not Found")
         api.get_group_error = FakeApiException(500, "Internal Server Error")
         result = inviter.send_group_invite(INVITE_JOB)
-        assert result["state"] == inviter.INVITE_USER_NOT_FOUND
+        assert result["state"] == inviter.INVITE_VRCHAT_UNAVAILABLE
+
+    def test_a_dead_session_during_the_probe_blames_nobody(self, api, monkeypatch):
+        """UnauthorizedException subclasses ApiException, so the probe used to
+        read a dead session as "not a 404, therefore the group is present,
+        therefore the member's account is at fault" -- and told them to
+        re-verify an account that was never the problem."""
+
+        class FakeUnauthorized(Exception):
+            status = 401
+
+        monkeypatch.setattr(inviter, "UnauthorizedException", FakeUnauthorized)
+        api.invite_error = FakeApiException(404, "Not Found")
+        api.get_group_error = FakeUnauthorized()
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_VRCHAT_UNAVAILABLE
 
     def test_the_member_is_not_sent_to_blame_their_admin(self):
         """The whole point: these two must not share a sentence."""
@@ -1109,7 +1155,13 @@ class TestTellingTwoKindsOf404Apart:
 class TestTellingTwoKindsOf403Apart:
     """403 from create_group_invite is ambiguous, and only one side of it is
     permanent. Getting this backwards records a refusal the member never made
-    and locks them out of the group for good."""
+    and locks them out of the group for good.
+
+    Resolved by asking the group what our permissions are, rather than by
+    matching English in the error body -- the earlier approach, which broke on
+    rewording and broke asymmetrically, since a permission error mentioning
+    "...invite that user" would have been filed as the MEMBER's refusal.
+    """
 
     def test_the_recipient_refusing_is_the_members_answer(self, api):
         api.invite_error = FakeApiException(403, "You can't invite that user")
@@ -1126,19 +1178,23 @@ class TestTellingTwoKindsOf403Apart:
         )
 
     def test_our_own_permission_being_revoked_is_not(self, api):
+        """Read from the group itself, not from the error's wording."""
         api.invite_error = FakeApiException(403, "Insufficient permissions")
-        assert (
-            inviter.send_group_invite(INVITE_JOB)["state"]
-            == inviter.INVITE_NO_PERMISSION
-        )
-
-    def test_an_unrecognised_403_fails_to_the_retryable_side(self, api):
-        """Guessing wrong this way costs a retry. Guessing wrong the other way
-        costs somebody their place in the group permanently."""
-        api.invite_error = FakeApiException(403, "something nobody has seen yet")
+        api.group_permissions = ["group-members-viewall"]
         state = inviter.send_group_invite(INVITE_JOB)["state"]
         assert state == inviter.INVITE_NO_PERMISSION
         assert state not in bot.GROUP_INVITE_SETTLED_STATES
+
+    def test_the_wording_of_the_403_is_never_consulted(self, api):
+        """The point of the rewrite. An error phrased any way at all is read
+        the same, because the reading comes from a question with an answer --
+        which survives VRChat rewording or localising its messages."""
+        outcomes = set()
+        for body in ["You can't invite that user", "nonsense", "", "Verboten"]:
+            api.calls.clear()
+            api.invite_error = FakeApiException(403, body)
+            outcomes.add(inviter.send_group_invite(INVITE_JOB)["state"])
+        assert outcomes == {inviter.INVITE_BLOCKED}
 
     def test_the_members_refusal_is_permanent(self, api):
         api.invite_error = FakeApiException(403, "You can't invite that user")
@@ -1147,18 +1203,46 @@ class TestTellingTwoKindsOf403Apart:
 
 
 class TestThroughputIsSpaced:
-    def test_consecutive_invites_are_spaced_apart(self, monkeypatch):
+    def test_consecutive_invites_are_spaced_apart(self, api, monkeypatch):
         """One account issues invites for every guild, so a verification rush
         must not be able to spend the whole shared budget in a burst."""
         slept = []
         monkeypatch.setattr(inviter.time, "sleep", slept.append)
         monkeypatch.setattr(inviter, "INVITE_MIN_SPACING_SECONDS", 3.0)
         monkeypatch.setattr(inviter, "_last_invite_call", 0.0)
-        clock = iter([1000.0, 1000.0, 1000.1, 1000.1])
-        monkeypatch.setattr(inviter.time, "monotonic", lambda: next(clock))
-        inviter._space_invite_calls()
-        inviter._space_invite_calls()
-        assert slept and slept[-1] >= 2.5
+        monkeypatch.setattr(inviter, "_space_invite_calls", REAL_SPACE_INVITE_CALLS)
+        monkeypatch.setattr(inviter.time, "monotonic", lambda: 1000.0)
+        inviter.send_group_invite(INVITE_JOB)
+        inviter.send_group_invite(INVITE_JOB)
+        assert slept and slept[-1] >= 3.0
+
+    def test_the_gap_is_measured_from_when_the_call_FINISHED(self, monkeypatch, api):
+        """Stamped before the call instead, a job whose retries took twelve
+        seconds left the next one measuring its gap from the start of that
+        chain -- and firing immediately."""
+        monkeypatch.setattr(inviter.time, "sleep", lambda *_: None)
+        monkeypatch.setattr(inviter, "_space_invite_calls", REAL_SPACE_INVITE_CALLS)
+        ticks = iter([100.0, 175.0])  # measuring the gap, then stamping
+        monkeypatch.setattr(inviter.time, "monotonic", lambda: next(ticks))
+        monkeypatch.setattr(inviter, "_last_invite_call", 0.0)
+        inviter.send_group_invite(INVITE_JOB)
+        assert inviter._last_invite_call == 175.0
+
+    def test_the_throttle_survives_a_failed_call(self, monkeypatch, api):
+        """The timestamp is stamped in a finally. Without it, a 429 -- VRChat
+        telling us to slow down -- would leave the next invite unthrottled."""
+        monkeypatch.setattr(inviter.time, "sleep", lambda *_: None)
+        monkeypatch.setattr(inviter.time, "monotonic", lambda: 500.0)
+        monkeypatch.setattr(inviter, "_last_invite_call", 0.0)
+        api.invite_error = FakeApiException(500, "boom")
+        inviter.send_group_invite(INVITE_JOB)
+        assert inviter._last_invite_call == 500.0
+
+    def test_a_mistyped_spacing_cannot_stop_the_worker(self):
+        """time.sleep(inf) raises OverflowError inside the consumer callback,
+        and anything past the broker heartbeat drops the connection mid-job. A
+        bad setting must degrade to "slow", never to "stops answering"."""
+        assert inviter.INVITE_MIN_SPACING_SECONDS <= 60.0
 
     def test_the_wait_is_jittered(self):
         """A fixed interval is exactly what makes many callers synchronise into
@@ -1241,6 +1325,188 @@ class TestTheCrashFallbackAnswersTheRightQuestion:
         assert len(published) == 1
         assert published[0]["type"] == inviter.JOB_SEND_INVITE
         assert published[0]["state"] == inviter.INVITE_VRCHAT_UNAVAILABLE
+
+
+class TestOneButtonPressCannotSendManyInvites:
+    """Redelivery is what bounds this, and nothing else.
+
+    process_job runs handler(job) BEFORE publish_result, so every redelivery
+    re-runs the handler. For verify_group_setup that is harmless -- it re-reads
+    state it already established. send_group_invite is a WRITE to somebody
+    else's platform, and an uncapped requeue turns one press into an invite per
+    redelivery, for ever. That is precisely the spam pattern the opt-in design
+    exists not to produce.
+    """
+
+    def channel(self, acks):
+        return SimpleNamespace(
+            basic_ack=lambda **kw: acks.append(("ack", kw)),
+            basic_nack=lambda **kw: acks.append(("nack", kw)),
+        )
+
+    def test_a_publish_failure_is_requeued_at_most_once(self, monkeypatch):
+        sent = []
+        monkeypatch.setitem(
+            inviter.HANDLERS, inviter.JOB_SEND_INVITE, lambda job: sent.append(job)
+        )
+
+        def refuse(result):
+            raise inviter.AMQPError("broker is unhappy")
+
+        monkeypatch.setattr(inviter, "publish_result", refuse)
+
+        acks = []
+        first = SimpleNamespace(delivery_tag=1, redelivered=False)
+        inviter.process_job(self.channel(acks), first, None, json.dumps(INVITE_JOB))
+        assert acks[-1] == ("nack", {"delivery_tag": 1, "requeue": True})
+
+        again = SimpleNamespace(delivery_tag=2, redelivered=True)
+        inviter.process_job(self.channel(acks), again, None, json.dumps(INVITE_JOB))
+        assert acks[-1] == ("nack", {"delivery_tag": 2, "requeue": False})
+
+    def test_a_dropped_job_leaves_the_member_to_the_read_side_timeout(self):
+        """Dropping is the right trade only because the bot expires the row on
+        read and tells them. Nothing else would."""
+        assert bot.GROUP_INVITE_TIMED_OUT in bot.GROUP_INVITE_MESSAGE_KEYS
+
+    @pytest.mark.parametrize("body", ["5", '"text"', "[1, 2]", "null"])
+    def test_a_json_body_that_is_not_an_object_is_dropped(self, body):
+        """All valid JSON, none of it has .get(). The AttributeError used to
+        escape process_job entirely -- outside both try blocks -- so the message
+        was neither acked nor nacked, start_consuming unwound, and the broker
+        redelivered it for ever with every other job stuck behind it."""
+        acks = []
+        method = SimpleNamespace(delivery_tag=9, redelivered=False)
+        inviter.process_job(self.channel(acks), method, None, body)
+        assert acks == [("nack", {"delivery_tag": 9, "requeue": False})]
+
+
+class TestALateAnswerIsStillAnAnswer:
+    """The read-side timeout is wall-clock and knows nothing about queue depth.
+
+    Behind INVITE_MIN_SPACING_SECONDS a verification rush expires rows whose
+    invites are queued and about to succeed. Refusing the late answer left
+    those members reading "VRChat didn't answer" about an invite that had in
+    fact been sent -- and their row un-settled, so the next verification
+    offered them a second one.
+    """
+
+    def start(self):
+        return bot.begin_group_invite(
+            GUILD_ID,
+            MEMBER_ID,
+            group_id=GROUP_ID,
+            vrc_user_id=VRC_USER_ID,
+            channel_id=CHANNEL_ID,
+            message_id=MESSAGE_ID,
+        )
+
+    def payload(self, job_id, state):
+        return {
+            "type": inviter.JOB_SEND_INVITE,
+            "jobID": job_id,
+            "guildID": str(GUILD_ID),
+            "groupID": GROUP_ID,
+            "state": state,
+        }
+
+    def expire(self):
+        with bot.session_scope() as session:
+            session.query(bot.GroupInviteRequest).first().state = (
+                bot.GROUP_INVITE_TIMED_OUT
+            )
+
+    def test_a_timed_out_row_still_accepts_the_verdict(self):
+        job = self.start()
+        self.expire()
+        outcome, row = bot.record_group_invite_result(
+            self.payload(job["jobID"], bot.GROUP_INVITE_SENT)
+        )
+        assert outcome == "applied"
+        assert standing()["state"] == bot.GROUP_INVITE_SENT
+
+    def test_and_is_then_not_offered_again(self):
+        job = self.start()
+        self.expire()
+        bot.record_group_invite_result(
+            self.payload(job["jobID"], bot.GROUP_INVITE_SENT)
+        )
+        assert (
+            bot.group_invite_refusal(standing(), GROUP_ID)
+            == bot.INVITE_REFUSED_SETTLED
+        )
+
+    def test_a_row_settled_for_good_still_refuses_a_late_answer(self):
+        job = self.start()
+        bot.record_group_invite_result(
+            self.payload(job["jobID"], bot.GROUP_INVITE_SENT)
+        )
+        outcome, _ = bot.record_group_invite_result(
+            self.payload(job["jobID"], bot.GROUP_INVITE_BLOCKED)
+        )
+        assert outcome == "stale"
+
+    def test_an_abandoned_row_is_not_reopened(self):
+        """abandon_group_invite means the job provably never left the process.
+        An answer to it cannot exist, so one arriving is not to be believed."""
+        job = self.start()
+        bot.abandon_group_invite(GUILD_ID, MEMBER_ID, job["jobID"])
+        outcome, _ = bot.record_group_invite_result(
+            self.payload(job["jobID"], bot.GROUP_INVITE_SENT)
+        )
+        assert outcome == "stale"
+
+
+class TestAStoredVerdictAlwaysReachesSomeone:
+    def test_a_failed_edit_still_delivers_the_answer(self):
+        """The verdict is stored BEFORE this runs, so the row is settled: there
+        is no retry and no future offer. Staying quiet on a transient 429 means
+        the member never learns the outcome and is never offered again. A
+        confusing pair of messages is recoverable; silence is not."""
+        import inspect
+
+        source = inspect.getsource(bot.tell_member_about_invite)
+        http = source.index("except discord.HTTPException")
+        forbidden = source.index("except discord.Forbidden")
+        # No early return between the failed edit and the fresh-DM path.
+        assert "return" not in source[http:forbidden].split("logger.warning")[0]
+
+    def test_a_failure_to_tell_the_member_is_logged_not_swallowed(self):
+        """handle_member_invite_result runs under run_coroutine_threadsafe, and
+        the consumer discards the Future it returns -- so an exception escaping
+        here logs NOTHING. The member would sit on "asking VRChat..." for ever,
+        on a row that is settled and so never offered again, with no trace of
+        why anywhere."""
+        import inspect
+
+        source = inspect.getsource(bot.handle_member_invite_result)
+        tell_at = source.index("tell_member_about_invite")
+        assert "try:" in source[:tell_at]
+        assert "logger.exception" in source[tell_at:]
+
+    def test_the_bad_job_state_tells_them_something_they_can_act_on(self):
+        """A job the worker calls malformed is a stored VRChat id that will be
+        just as malformed next time, so "try again in a few minutes" is advice
+        that cannot work."""
+        assert (
+            bot.GROUP_INVITE_MESSAGE_KEYS[bot.GROUP_INVITE_BAD_JOB]
+            == "group_invite_account_missing"
+        )
+
+
+class TestTheWorkerLogDoesNotPairTheTwoIdentities:
+    def test_the_result_payload_is_summarised_not_dumped(self):
+        """VRChat names the user in its own error prose -- "User usr_... is
+        already a member" -- and the payload carries guildID. Logging the whole
+        body put a VRChat id and a Discord server on one line, which is most of
+        the mapping this project deliberately refuses to store."""
+        import inspect
+
+        source = inspect.getsource(inviter.publish_result)
+        logged = [l for l in source.splitlines() if "logging.info" in l]
+        assert logged, "publish_result no longer logs at all"
+        after = source[source.index("logging.info"):]
+        assert "body" not in after.split(")")[0]
 
 
 # -------------------------------------------------------------------

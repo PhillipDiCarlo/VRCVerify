@@ -213,7 +213,13 @@ VRCHAT_CALL_RETRIES = _int_env("INVITE_CALL_RETRIES", 3)
 # No lock guards the timestamp below because none is needed: this worker
 # consumes with prefetch_count=1 and runs VRChat calls inline on the consumer
 # thread, so exactly one invite is ever in flight.
-INVITE_MIN_SPACING_SECONDS = _float_env("INVITE_MIN_SPACING_SECONDS", 3.0)
+# Capped as well as floored. time.sleep(inf) raises OverflowError inside the
+# consumer callback, and any value past the broker heartbeat drops the
+# connection mid-job -- so a mistyped setting must degrade to "slow", never to
+# "the worker stops answering".
+INVITE_MIN_SPACING_SECONDS = min(
+    60.0, _float_env("INVITE_MIN_SPACING_SECONDS", 3.0)
+)
 _last_invite_call = 0.0
 
 # Which account this worker is. Reported back with every result so the bot can
@@ -356,13 +362,6 @@ def _display(group) -> dict:
     }
 
 
-# VRChat's wording for "the recipient will not accept this invite", as
-# documented on create_group_invite and confirmed in the wild. Matched
-# loosely: the surrounding JSON envelope varies, and the alternative to
-# matching is treating every 403 as the member's refusal.
-_RECIPIENT_REFUSED_MARKERS = ("invite that user", "can't invite that")
-
-
 def _api_detail(exc) -> str:
     """The most useful short description of an ApiException, for a log line.
 
@@ -383,43 +382,59 @@ def _api_detail(exc) -> str:
             parsed = json.loads(body)
             message = (parsed.get("error") or {}).get("message")
             if message:
-                return str(message)
+                # Capped like the fallbacks below. This is the branch that
+                # actually gets taken, and it was the one without a limit.
+                return str(message)[:300]
         except Exception:
             pass
         return str(body)[:300]
     return str(getattr(exc, "reason", "") or "")[:300]
 
 
-def _group_is_gone(groups, group_id) -> bool:
-    """Does the group still exist? Used only to read a 404 correctly.
+# What a probe of the group found. `unknown` is a first-class answer: not
+# knowing must never be reported as either of the other two.
+GROUP_PRESENT = "present"
+GROUP_GONE = "gone"
+GROUP_UNKNOWN = "unknown"
 
-    Answers False on any error that is not a clean 404, so an unrelated
-    failure here cannot invent a missing group. The caller's fallback in that
-    case is to blame the member's account, which is the recoverable half: a
-    member told to re-verify has something to try, and if the group really has
-    gone the setup check on the dashboard says so plainly.
+
+def _probe_group(groups, group_id) -> tuple[str, bool]:
+    """Ask what is actually true about the group, to read an error correctly.
+
+    Returns (presence, can_invite).
+
+    Only ever called after create_group_invite has already failed, because both
+    statuses it disambiguates are genuinely ambiguous:
+
+      * 404 means "no such group" OR "no such user"
+      * 403 means "you may not invite" OR "that user will not be invited"
+
+    The alternative is matching English substrings in an error body, which is
+    what this replaced. That approach breaks on rewording or localisation, and
+    it broke asymmetrically: a permission error mentioning "...cannot invite
+    that user" would have been recorded as the MEMBER's refusal, which is
+    permanent and never retried. This asks a question with an answer instead.
+
+    UnauthorizedException is caught first and deliberately. It subclasses
+    ApiException, so a dead session used to be read as "not a 404, therefore
+    the group is present, therefore the member's account is at fault" -- and
+    the member was told to re-verify an account that was never the problem.
+    That is the exact wrong-attribution bug this branch already fixed once.
     """
     try:
-        _call_with_retry(groups.get_group, group_id, _request_timeout=request_timeout())
-        return False
+        group = _call_with_retry(
+            groups.get_group, group_id, _request_timeout=request_timeout()
+        )
+    except UnauthorizedException:
+        return GROUP_UNKNOWN, False
     except ApiException as e:
-        return getattr(e, "status", None) == 404
+        if getattr(e, "status", None) == 404:
+            return GROUP_GONE, False
+        return GROUP_UNKNOWN, False
     except Exception:
-        return False
-
-
-def _is_about_the_recipient(exc) -> bool:
-    """Is this 403 about the person being invited, rather than about us?
-
-    Fails to the safe answer. Anything unrecognised is treated as our problem,
-    because our problems are retryable and the member's refusal is permanent --
-    so guessing wrong in this direction costs a retry, and guessing wrong in
-    the other costs somebody their place in the group for good.
-    """
-    text = " ".join(
-        str(getattr(exc, attr, "") or "") for attr in ("body", "reason")
-    ).lower()
-    return any(marker in text for marker in _RECIPIENT_REFUSED_MARKERS)
+        return GROUP_UNKNOWN, False
+    can_invite, _ = _capabilities(_permissions(group))
+    return GROUP_PRESENT, can_invite
 
 
 def claim_code_present(group, claim_code) -> bool:
@@ -640,12 +655,33 @@ def _space_invite_calls() -> None:
     backoff_delay's: a fixed interval is exactly what makes many callers
     synchronise, and VRChat's guidelines call that out by name.
     """
-    global _last_invite_call
     wait = INVITE_MIN_SPACING_SECONDS + random.uniform(0.0, 0.5)
     elapsed = time.monotonic() - _last_invite_call
     if elapsed < wait:
         time.sleep(wait - elapsed)
-    _last_invite_call = time.monotonic()
+
+
+def _throttled_invite(groups, group_id, request):
+    """One create_group_invite call, spaced from the previous one.
+
+    Passed to _call_with_retry rather than wrapped around it, so that RETRIES
+    are spaced too. Spacing the retry loop from the outside only threw the
+    throttle away at the exact moment it exists for: _call_with_retry's own
+    backoff is shorter than the configured gap, so a 429 -- VRChat telling us
+    to slow down -- used to make us speed up.
+
+    The timestamp is taken AFTER the call returns, not before. Stamped before,
+    a job whose retries took twelve seconds left the next job measuring its gap
+    from the start of that chain, and firing immediately.
+    """
+    global _last_invite_call
+    _space_invite_calls()
+    try:
+        return groups.create_group_invite(
+            group_id, request, _request_timeout=request_timeout()
+        )
+    finally:
+        _last_invite_call = time.monotonic()
 
 
 def send_group_invite(job: dict) -> dict:
@@ -741,22 +777,27 @@ def send_group_invite(job: dict) -> dict:
         return _invite_result(job, INVITE_ALREADY_MEMBER)
     if status == "invited":
         return _invite_result(job, INVITE_ALREADY_INVITED)
-    if status in {"banned", "userblocked"}:
+    if status == "banned":
         return _invite_result(job, INVITE_BANNED)
+    if status == "userblocked":
+        # A distinct value in GroupMemberStatus, and not a moderator ban. The
+        # banned copy tells the member "only a group moderator can change
+        # that", which for a block they placed themselves is simply untrue --
+        # the blocked copy already names the case correctly.
+        return _invite_result(job, INVITE_BLOCKED)
     if status == "requested":
         # They have asked to join under their own steam. An invite would cut
         # across a moderator's pending decision, so leave it alone and say so.
         return _invite_result(job, INVITE_ALREADY_INVITED)
 
     # 2) Nothing waiting for them, so send one.
-    _space_invite_calls()
     try:
         _call_with_retry(
-            groups.create_group_invite,
+            _throttled_invite,
+            groups,
             group_id,
             # See the docstring: False is NOT this field's default.
             CreateGroupInviteRequest(user_id=user_id, confirm_override_block=False),
-            _request_timeout=request_timeout(),
         )
     except UnauthorizedException as e:
         vrchat_session.invalidate(classify_api_error(e))
@@ -781,43 +822,39 @@ def send_group_invite(job: dict) -> dict:
             # "User X is already a member of this group" -- they joined in the
             # seconds since the check above. Reported as what it is.
             return _invite_result(job, INVITE_ALREADY_MEMBER, error_message=detail)
-        if code == 403:
-            # Two very different things arrive as 403 here, and telling them
-            # apart matters because only one of them is permanent.
-            #
-            # "You can't invite that user" is about the RECIPIENT: they have
-            # group invites off, or have blocked us. That is their answer, it
-            # is recorded, and it is never retried or overridden.
-            #
-            # Anything else is about US -- the invite permission revoked, the
-            # account removed from the group. Marking the member "blocked" for
-            # that would record a refusal they never made and lock them out of
-            # the group permanently, so an unrecognised 403 is reported as our
-            # problem, which is retryable.
-            if _is_about_the_recipient(e):
+        if code in {403, 404}:
+            # Both are ambiguous, and both are resolved the same way: ask what
+            # is actually true about the group. See _probe_group. One extra
+            # call, only on a path that has already failed, and only where the
+            # readings need opposite advice -- "re-verify" versus "go and find
+            # an admin" -- or differ in whether they are permanent.
+            presence, can_invite = _probe_group(groups, group_id)
+            if presence == GROUP_UNKNOWN:
+                # Not knowing is reported as not knowing. Every other answer
+                # here blames somebody, and two of them stick.
+                return _invite_result(
+                    job, INVITE_VRCHAT_UNAVAILABLE, error_message=detail
+                )
+            if presence == GROUP_GONE:
+                return _invite_result(
+                    job, INVITE_GROUP_NOT_FOUND, error_message=detail
+                )
+            # The group is there and we can see it.
+            if code == 404:
+                # So the thing that could not be found is the member.
+                return _invite_result(
+                    job, INVITE_USER_NOT_FOUND, error_message=detail
+                )
+            if can_invite:
+                # We still hold the permission, so the refusal is about the
+                # recipient: they have group invites off, or have blocked us.
+                # Their answer, recorded, never retried and never overridden.
                 return _invite_result(job, INVITE_BLOCKED, error_message=detail)
             return _invite_result(
                 job,
                 INVITE_NO_PERMISSION,
                 error_message=detail
                 or "The bot is not allowed to invite people to this group",
-            )
-        if code == 404:
-            # 404 covers "no such group" and "no such user", and the body does
-            # not reliably say which. Rather than matching on wording -- the
-            # habit that produced two wrong fixes already -- ask a question
-            # with an unambiguous answer: if the group still resolves, the 404
-            # was about the member.
-            #
-            # One extra call, only on a path that has already failed. Worth it
-            # because the two need opposite advice: one tells the member to
-            # re-verify, the other tells them to go and find an admin.
-            return _invite_result(
-                job,
-                INVITE_GROUP_NOT_FOUND
-                if _group_is_gone(groups, group_id)
-                else INVITE_USER_NOT_FOUND,
-                error_message=detail,
             )
         meta = classify_api_error(e)
         return _invite_result(
@@ -849,7 +886,22 @@ def publish_result(result: dict):
             channel.basic_publish(
                 exchange="", routing_key=RESULT_QUEUE_NAME, body=body, properties=properties
             )
-            logging.info("Sent group-setup result to '%s': %s", RESULT_QUEUE_NAME, body)
+            # Summarised, not dumped. error_message carries VRChat's own prose,
+            # and VRChat names the user in it -- "User usr_... is already a
+            # member of this group". Logging the whole payload put a usr_ id
+            # and a guild id on one line, which is most of the Discord-to-
+            # VRChat mapping this project deliberately refuses to store.
+            #
+            # Also no longer says "group-setup" for an invite. Two job types
+            # share this queue now.
+            logging.info(
+                "Sent %s result to '%s': job=%s guild=%s state=%s",
+                result.get("type"),
+                RESULT_QUEUE_NAME,
+                result.get("jobID"),
+                result.get("guildID"),
+                result.get("state"),
+            )
             return
         except AMQPError as e:
             last_exc = e
@@ -881,6 +933,17 @@ def process_job(ch, method, properties, body):
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
         return
 
+    # `5`, `"text"`, `[1, 2]` and `null` are all valid JSON and none of them
+    # has .get(). Without this the AttributeError escapes process_job entirely
+    # -- outside both try blocks below -- so the message is neither acked nor
+    # nacked, start_consuming unwinds, listen_for_jobs reconnects, and the
+    # broker redelivers the same message for ever with every invite and setup
+    # job in the queue stuck behind it.
+    if not isinstance(job, dict):
+        logging.error("Job body is %s, not an object; dropping", type(job).__name__)
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        return
+
     handler = HANDLERS.get(job.get("type"))
     if handler is None:
         # An unknown type is a message we will never understand, so requeueing
@@ -890,17 +953,38 @@ def process_job(ch, method, properties, body):
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
         return
 
+    # Redelivery is capped for BOTH failure kinds below, and that cap is not
+    # tidiness -- it is the only thing bounding how many invites one button
+    # press can send.
+    #
+    # handler(job) runs before publish_result, so every redelivery re-runs the
+    # handler. For verify_group_setup that is harmless: it re-reads state it
+    # already established, which is what publish_result's comment argues and
+    # was true when this file had one job type. send_group_invite is a WRITE to
+    # somebody else's platform. A persistent publish failure -- a durable-flag
+    # mismatch on the result queue, a vhost permission change -- used to loop
+    # here forever, sending a real invite on every pass, which is precisely the
+    # spam pattern this whole feature is designed not to produce.
+    already_retried = bool(getattr(method, "redelivered", False))
     try:
         publish_result(handler(job))
         ch.basic_ack(delivery_tag=method.delivery_tag)
     except AMQPError:
-        logging.exception("RabbitMQ publish failed; requeueing job")
-        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+        # The broker is the thing that is broken, so there is nowhere to report
+        # this. Dropping leaves the bot's row pending; its read-side timeout
+        # expires it and the member is told it did not work. That is the right
+        # trade against an unbounded invite loop.
+        logging.exception(
+            "RabbitMQ publish failed; %s",
+            "dropping (already retried once)" if already_retried else "requeueing once",
+        )
+        ch.basic_nack(
+            delivery_tag=method.delivery_tag, requeue=not already_retried
+        )
     except Exception:
         # Requeue at most once, for the same reason the checker does: an
         # unconditional requeue turns any unhandled bug into an unbounded
         # redelivery loop that stalls every other guild's setup.
-        already_retried = bool(getattr(method, "redelivered", False))
         logging.exception(
             "Unexpected error processing job; %s",
             "dropping (already retried once)" if already_retried else "requeueing once",

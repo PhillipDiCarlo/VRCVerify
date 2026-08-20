@@ -3271,11 +3271,18 @@ def record_group_invite_result(data: dict) -> tuple[str, Optional[dict]]:
         )
         if row is None:
             return "unknown_request", None
-        if row.state != GROUP_INVITE_PENDING:
-            # Already settled -- by the read-side timeout, by an abandon, or by
-            # this very message being redelivered. Either way the member has
-            # been told something already.
+        if row.state not in {GROUP_INVITE_PENDING, GROUP_INVITE_TIMED_OUT}:
+            # Already settled for good -- by an abandon, or by this very
+            # message being redelivered. The member has been told something
+            # already, and it was true.
             return "stale", None
+        # TIMED_OUT is deliberately still open to an answer. The timeout is
+        # wall-clock and knows nothing about queue depth, so a verification
+        # rush behind INVITE_MIN_SPACING_SECONDS expires rows whose invites are
+        # queued and about to succeed. Refusing the late answer left those
+        # members reading "VRChat didn't answer" about an invite that was in
+        # fact sent, and their row still un-settled, so the next verification
+        # offered them a second one.
         row.state = state
         row.settled_at = now
         row.updated_at = now
@@ -4409,7 +4416,10 @@ GROUP_INVITE_MESSAGE_KEYS = {
     GROUP_INVITE_USER_NOT_FOUND: "group_invite_account_missing",
     GROUP_INVITE_NO_PERMISSION: "group_invite_setup_problem",
     GROUP_INVITE_VRCHAT_UNAVAILABLE: "group_invite_unavailable",
-    GROUP_INVITE_BAD_JOB: "group_invite_unavailable",
+    # Not "try again in a few minutes": a job the worker calls malformed is a
+    # stored VRChat id that will be just as malformed next time. The only
+    # thing that changes it is verifying again, which is what this says.
+    GROUP_INVITE_BAD_JOB: "group_invite_account_missing",
     GROUP_INVITE_TIMED_OUT: "group_invite_unavailable",
     GROUP_INVITE_WORKER_UNREACHABLE: "group_invite_unavailable",
     GROUP_INVITE_PENDING: "group_invite_working",
@@ -4662,26 +4672,36 @@ async def handle_group_invite_press(
     # invited into that server's private VRChat group. The entire feature is
     # "members of this Discord get into this group", and leaving is the most
     # obvious way to stop being one.
-    if guild is not None:
-        try:
-            still_a_member = await fetch_member_cached(guild, interaction.user.id)
-        except discord.HTTPException:
-            # Could not establish it either way. Refused rather than assumed:
-            # the cost of a wrong "yes" is a stranger in somebody's private
-            # group, and the cost of a wrong "no" is one retry.
-            logger.warning(
-                "Could not confirm guild membership before a group invite for "
-                "guild %s.",
-                guild_id,
-                exc_info=True,
-            )
-            await settle("group_invite_unavailable", retryable=True)
-            return
-        if still_a_member is None:
-            # Nothing recorded. If they rejoin and verify, they are offered
-            # again from scratch, which is the right outcome.
-            await settle("group_invite_not_a_member", server=server_name)
-            return
+    if guild is None:
+        # NOT a reason to skip the check -- the strongest possible reason to
+        # refuse. get_guild returns None when the bot has been removed from
+        # the server, or has not received it over the gateway yet. In the first
+        # case the server is gone and its members are not our business; in the
+        # second we simply cannot tell. Skipping here let an ex-member of a
+        # server the bot had been kicked out of press a months-old button and
+        # be invited into that server's private group.
+        await settle("group_invite_unavailable", retryable=True)
+        return
+
+    try:
+        still_a_member = await fetch_member_cached(guild, interaction.user.id)
+    except discord.HTTPException:
+        # Could not establish it either way. Refused rather than assumed:
+        # the cost of a wrong "yes" is a stranger in somebody's private
+        # group, and the cost of a wrong "no" is one retry.
+        logger.warning(
+            "Could not confirm guild membership before a group invite for "
+            "guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        await settle("group_invite_unavailable", retryable=True)
+        return
+    if still_a_member is None:
+        # Nothing recorded. If they rejoin and verify, they are offered
+        # again from scratch, which is the right outcome.
+        await settle("group_invite_not_a_member", server=server_name)
+        return
 
     try:
         vrc_user_id = member_vrchat_id(interaction.user.id)
@@ -5956,9 +5976,20 @@ async def handle_member_invite_result(data: dict):
     if outcome != "applied" or not row:
         return
 
-    await tell_member_about_invite(
-        data.get("guildID"), row, row["state"]
-    )
+    try:
+        await tell_member_about_invite(data.get("guildID"), row, row["state"])
+    except Exception:
+        # The verdict is already stored and the queue message already acked.
+        # An exception from here would travel into the concurrent.futures
+        # Future that run_coroutine_threadsafe returns and that the consumer
+        # discards -- which logs nothing at all. The member would be left
+        # reading "asking VRChat..." for ever, on a row that is settled and so
+        # is never offered again, with no trace anywhere of why.
+        logger.exception(
+            "Stored a group-invite verdict for guild %s but could not tell "
+            "the member.",
+            data.get("guildID"),
+        )
 
 
 async def tell_member_about_invite(guild_id, row: dict, state: str) -> None:
@@ -6017,10 +6048,20 @@ async def tell_member_about_invite(guild_id, row: dict, state: str) -> None:
             )
             return
         except discord.NotFound:
-            # They deleted the DM. Fall through and send a fresh one rather
-            # than dropping the answer they asked for.
+            # They deleted the message. Nothing is left standing, so a fresh
+            # DM is the only way they hear the answer -- fall through.
             pass
         except discord.HTTPException:
+            # The original message is probably still standing, still reading
+            # "asking VRChat...", so a fresh DM leaves that stale sentence
+            # above the real answer. Sent anyway, deliberately.
+            #
+            # By the time this runs the row is SETTLED -- record_group_invite_
+            # result stored the verdict before calling here. So there is no
+            # retry and no future offer: staying quiet on a transient 429 or
+            # 500 means this member never learns the outcome at all, and is
+            # never offered again either. A confusing pair of messages is
+            # recoverable; silence is not.
             logger.warning(
                 "Could not edit the invite DM for guild %s; sending a new one.",
                 guild_id,
@@ -6029,7 +6070,15 @@ async def tell_member_about_invite(guild_id, row: dict, state: str) -> None:
 
     if guild is None:
         return
-    member = await fetch_member_cached(guild, int(row["discord_id"]))
+    try:
+        member = await fetch_member_cached(guild, int(row["discord_id"]))
+    except Exception:
+        logger.warning(
+            "Could not reach member %s to report a group invite.",
+            row.get("discord_id"),
+            exc_info=True,
+        )
+        return
     if not member:
         return
     try:
