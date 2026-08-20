@@ -4722,7 +4722,19 @@ async def handle_group_invite_press(
                 group=group_name,
             )
         else:
-            await settle("group_invite_too_soon")
+            # The button survives a cooldown refusal, and that is the whole
+            # point of distinguishing the two.
+            #
+            # A transient failure hands the member their button back. Pressing
+            # it inside GROUP_INVITE_COOLDOWN_SECONDS is refused -- so removing
+            # it here would leave them with a message telling them to wait a
+            # few minutes and nothing to wait FOR, short of verifying all over
+            # again. A request genuinely in flight needs no button: its result
+            # is already on its way to rewrite this message.
+            await settle(
+                "group_invite_too_soon",
+                retryable=(refusal == INVITE_REFUSED_COOLDOWN),
+            )
         return
 
     try:

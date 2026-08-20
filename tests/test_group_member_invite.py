@@ -694,6 +694,42 @@ class TestTheWireCannotSetTheBotsOwnStates:
         }
 
 
+class TestACooldownDoesNotStrandTheMember:
+    """A transient failure gives the button back; the cooldown then refuses a
+    press for a few minutes. Removing the button on that refusal left the
+    member holding "wait a few minutes" with nothing to wait for -- short of
+    verifying all over again."""
+
+    def test_a_cooldown_refusal_keeps_the_button(self):
+        import inspect
+
+        source = inspect.getsource(bot.handle_group_invite_press)
+        branch = source[source.index("group_invite_too_soon"):]
+        assert "INVITE_REFUSED_COOLDOWN" in branch[:400]
+
+    def test_the_two_refusals_are_not_treated_alike(self):
+        """An in-flight request needs no button: its result is already on its
+        way to rewrite the message. A cooldown has nothing coming."""
+        assert bot.INVITE_REFUSED_COOLDOWN != bot.INVITE_REFUSED_PENDING
+
+    def test_a_transient_failure_is_retryable_after_the_wait(self):
+        """The path the button is being kept for, end to end."""
+        set_standing(
+            bot.GROUP_INVITE_VRCHAT_UNAVAILABLE,
+            age_seconds=1,
+        )
+        assert (
+            bot.group_invite_refusal(standing(), GROUP_ID)
+            == bot.INVITE_REFUSED_COOLDOWN
+        )
+        with bot.session_scope() as session:
+            row = session.query(bot.GroupInviteRequest).first()
+            row.requested_at = datetime.now(timezone.utc) - timedelta(
+                seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 5
+            )
+        assert bot.group_invite_refusal(standing(), GROUP_ID) is None
+
+
 class TestTheButtonIdentifiesItsServer:
     def test_the_press_handler_never_reads_interaction_guild(self):
         """This button only ever lives in a DM, where interaction.guild is
