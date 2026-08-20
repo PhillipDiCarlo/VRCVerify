@@ -76,4 +76,19 @@ os.environ["STRIPE_STATUS_TTL"] = ""
 # PREMIUM_SKU_ID and PREMIUM_ENFORCED on the bot module directly.
 os.environ["PREMIUM_SKU_ID"] = ""
 
+# Fifth, and this one is a timer rather than a switch. Issue #49's invite gate
+# is written in terms of these three numbers, and several tests assert on which
+# side of them a request falls -- "a transient failure may not be retried
+# immediately" is only true while the cooldown is not zero. A developer who
+# tuned any of them in their own .env would move the line those tests are
+# measuring against, and the suite would disagree with itself per machine for
+# reasons no diff explains.
+#
+# Empty rather than a chosen value: _int_env falls back to the default written
+# in bot.py, so the suite measures against the numbers the code actually ships
+# with. Tests that need a different timing monkeypatch the module attribute.
+os.environ["GROUP_INVITE_TIMEOUT_SECONDS"] = ""
+os.environ["GROUP_INVITE_COOLDOWN_SECONDS"] = ""
+os.environ["INVITE_MIN_SPACING_SECONDS"] = ""
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))

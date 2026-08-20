@@ -18,13 +18,17 @@ job from the guild's stored settings -- typed in by a Discord admin on the
 dashboard -- rather than from anything a browser sent. Anyone can invite this
 account to their group; that alone must never put it in one.
 
-This phase handles setup verification only. Sending invites arrives with the
-member-facing opt-in button.
+Two jobs live here. `verify_group_setup` is the admin-facing one described
+above. `send_group_invite` is the member-facing one: a verified member presses
+a button in their post-verification DM, and this worker checks whether they
+are already in the group before inviting them. It never invites anyone who did
+not ask, and it never overrides a block -- see send_group_invite.
 """
 
 import json
 import logging
 import os
+import random
 import time
 
 import pika
@@ -32,6 +36,7 @@ from dotenv import load_dotenv
 from pika.exceptions import AMQPError
 from vrchatapi.api.groups_api import GroupsApi
 from vrchatapi.exceptions import ApiException, UnauthorizedException
+from vrchatapi.models.create_group_invite_request import CreateGroupInviteRequest
 
 from vrc_session import (
     TRANSIENT_HTTP_STATUSES,
@@ -45,6 +50,29 @@ from vrc_session import (
 )
 
 load_dotenv()
+
+
+def _int_env(name: str, default: int, minimum: int = 1) -> int:
+    """int(os.getenv(...)) that survives a blank or malformed value.
+
+    Same shape as bot.py's helper of the same name, and here for the same
+    reason it is there: `INVITE_MIN_SPACING_SECONDS=` in a .env file -- a
+    setting somebody started to write and left empty -- would otherwise raise
+    ValueError at import, before any logging is configured, and take the whole
+    worker down with a traceback that names neither the variable nor the file.
+    """
+    try:
+        return max(minimum, int(os.getenv(name) or default))
+    except ValueError:
+        return default
+
+
+def _float_env(name: str, default: float, minimum: float = 0.0) -> float:
+    try:
+        return max(minimum, float(os.getenv(name) or default))
+    except ValueError:
+        return default
+
 
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT") or 5672)
@@ -98,6 +126,7 @@ PERMISSION_VIEW_MEMBERS = "group-members-viewall"
 PERMISSION_WILDCARD = "*"
 
 JOB_VERIFY_SETUP = "verify_group_setup"
+JOB_SEND_INVITE = "send_group_invite"
 
 # Outcomes the dashboard renders. Each names one specific thing an admin can
 # act on, because "setup failed" tells them nothing about what to do next.
@@ -116,7 +145,69 @@ STATE_BANNED = "banned"
 STATE_BAD_JOB = "bad_job"
 STATE_VRCHAT_UNAVAILABLE = "vrchat_unavailable"
 
-VRCHAT_CALL_RETRIES = max(1, int(os.getenv("INVITE_CALL_RETRIES", "3")))
+# Outcomes of trying to invite ONE member (issue #49, phase 5). A separate
+# vocabulary from the setup states above, because they answer a different
+# question and are read by a different audience: a setup state is a sentence
+# for the server's admin on the dashboard, an invite state is a sentence for
+# the member in a DM. Sharing one set would mean the member reading
+# "no_invite_permission" as though it were something they could fix.
+INVITE_SENT = "sent"
+# The member is already in the group, so there is nothing to send. Not a
+# failure, and the bot stores it so the offer is never made to them again.
+INVITE_ALREADY_MEMBER = "already_member"
+# An invite is already sitting in their VRChat notifications. Sending a second
+# would be the "unsolicited invite" pattern the Creator Guidelines call abuse,
+# and it would not help them either.
+INVITE_ALREADY_INVITED = "already_invited"
+# 403 "You can't invite that user" -- the member has group invites switched
+# off, or has blocked the account. Terminal on purpose: the whole compliance
+# argument for this feature is that a member's "no" is honoured, so this is
+# recorded and never retried.
+INVITE_BLOCKED = "blocked"
+# The member is banned from the group. Nothing the bot or the member can do.
+INVITE_BANNED = "banned"
+# The group has gone, or the account has lost its invite permission since the
+# setup check passed. The server's problem, not the member's -- so the member
+# is told something honest and the offer stays available for a later attempt.
+INVITE_GROUP_NOT_FOUND = "group_not_found"
+INVITE_NO_PERMISSION = "no_invite_permission"
+INVITE_VRCHAT_UNAVAILABLE = "vrchat_unavailable"
+INVITE_BAD_JOB = "bad_job"
+
+# Enumerated rather than reflected over, unlike the STATE_* set above: the
+# INVITE_ prefix is already carrying the account's user agent and user id, so
+# a test that swept the module by prefix would pick up two strings that are
+# not states at all. The bot mirrors this set and a test asserts they agree.
+INVITE_STATES = frozenset(
+    {
+        INVITE_SENT,
+        INVITE_ALREADY_MEMBER,
+        INVITE_ALREADY_INVITED,
+        INVITE_BLOCKED,
+        INVITE_BANNED,
+        INVITE_GROUP_NOT_FOUND,
+        INVITE_NO_PERMISSION,
+        INVITE_VRCHAT_UNAVAILABLE,
+        INVITE_BAD_JOB,
+    }
+)
+
+VRCHAT_CALL_RETRIES = _int_env("INVITE_CALL_RETRIES", 3)
+
+# Minimum gap between two create_group_invite calls, with jitter on top.
+#
+# One account issues invites for every guild, so throughput is a shared budget
+# and a server running a verification drive must not be able to spend all of
+# it in a burst. 429 plus backoff would eventually shape this, but only after
+# VRChat has already seen the burst -- and "a lot of group invites very fast
+# from one account" is precisely the pattern the Creator Guidelines describe
+# as abuse. Cheaper to never send it.
+#
+# No lock guards the timestamp below because none is needed: this worker
+# consumes with prefetch_count=1 and runs VRChat calls inline on the consumer
+# thread, so exactly one invite is ever in flight.
+INVITE_MIN_SPACING_SECONDS = _float_env("INVITE_MIN_SPACING_SECONDS", 3.0)
+_last_invite_call = 0.0
 
 # Which account this worker is. Reported back with every result so the bot can
 # record WHICH invite account joined a group rather than assuming there is only
@@ -449,7 +540,165 @@ def verify_group_setup(job: dict) -> dict:
     )
 
 
-HANDLERS = {JOB_VERIFY_SETUP: verify_group_setup}
+def _invite_result(job: dict, state: str, **extra) -> dict:
+    """One invite outcome, shaped for the bot's result consumer.
+
+    Carries `type` so the consumer can tell it from a setup verdict without
+    guessing from which fields happen to be present -- the two travel on the
+    same result queue.
+    """
+    payload = {
+        "type": JOB_SEND_INVITE,
+        "jobID": job.get("jobID"),
+        "guildID": job.get("guildID"),
+        "groupID": job.get("groupID"),
+        "ok": state == INVITE_SENT,
+        "state": state,
+        "accountID": INVITE_ACCOUNT_USER_ID,
+    }
+    payload.update(extra)
+    return payload
+
+
+def _space_invite_calls() -> None:
+    """Sleep until enough time has passed since the last invite went out.
+
+    See INVITE_MIN_SPACING_SECONDS. The jitter is on the same reasoning as
+    backoff_delay's: a fixed interval is exactly what makes many callers
+    synchronise, and VRChat's guidelines call that out by name.
+    """
+    global _last_invite_call
+    wait = INVITE_MIN_SPACING_SECONDS + random.uniform(0.0, 0.5)
+    elapsed = time.monotonic() - _last_invite_call
+    if elapsed < wait:
+        time.sleep(wait - elapsed)
+    _last_invite_call = time.monotonic()
+
+
+def send_group_invite(job: dict) -> dict:
+    """Invite one member to one group, if they are not already in it.
+
+    Called only for a member who pressed the opt-in button in their own DM.
+    The bot builds this job from the guild's stored, verified configuration --
+    the group id never comes from anything a browser or a client sent.
+
+    Membership is checked first rather than inferred from create_group_invite's
+    400, because the two "nothing to do" cases need different sentences: being
+    a member is finished, and having an invite already waiting is a nudge to go
+    look at their notifications. Answering both with "already a member" would
+    send people hunting through a group they have not joined.
+
+    confirm_override_block is passed as False, EXPLICITLY. It exists to push an
+    invite past a user who has blocked the group, which is the exact thing this
+    feature must not do -- the member-initiated design is the compliance
+    argument for the whole feature, and overriding a block would throw it away.
+
+    The explicitness is not decoration. Confirmed against vrchatapi 1.0.0 on
+    2026-08-20: CreateGroupInviteRequest(user_id=...) leaves the field at its
+    generated default, which is True. Omitting it therefore opts IN to
+    overriding blocks, silently, in the one call where that matters most.
+    """
+    group_id = job.get("groupID")
+    user_id = job.get("vrcUserID")
+    # Both checked before any API call, for the reason verify_group_setup
+    # gives: the client raises ApiValueError on None, which subclasses
+    # ValueError rather than ApiException and would sail past every handler
+    # below -- leaving the member watching a message that never updates.
+    if not isinstance(group_id, str) or not group_id.startswith("grp_"):
+        return _invite_result(job, INVITE_BAD_JOB)
+    if not isinstance(user_id, str) or not user_id.startswith("usr_"):
+        return _invite_result(job, INVITE_BAD_JOB)
+
+    client, session_error = vrchat_session.get()
+    if client is None:
+        meta = session_error or default_session_error()
+        return _invite_result(
+            job, INVITE_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message")
+        )
+
+    groups = GroupsApi(client)
+
+    # 1) Where do they stand today? A 404 is the ordinary "not a member"
+    #    answer, not an error.
+    try:
+        member = _call_with_retry(
+            groups.get_group_member, group_id, user_id, _request_timeout=request_timeout()
+        )
+        status = _membership_status(member) if member is not None else None
+    except UnauthorizedException as e:
+        vrchat_session.invalidate(classify_api_error(e))
+        return _invite_result(
+            job, INVITE_VRCHAT_UNAVAILABLE, error_message="VRChat session expired"
+        )
+    except ApiException as e:
+        code = getattr(e, "status", None)
+        if code == 404:
+            status = None
+        elif code == 403:
+            # "You're not a member." -- of the two accounts in this call, the
+            # one that has to be a member is ours. So this is the setup having
+            # come apart since it was verified, not anything about the member.
+            return _invite_result(
+                job,
+                INVITE_NO_PERMISSION,
+                error_message="The bot is no longer a member of this group",
+            )
+        else:
+            meta = classify_api_error(e)
+            return _invite_result(
+                job, INVITE_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message")
+            )
+
+    if status == "member":
+        return _invite_result(job, INVITE_ALREADY_MEMBER)
+    if status == "invited":
+        return _invite_result(job, INVITE_ALREADY_INVITED)
+    if status in {"banned", "userblocked"}:
+        return _invite_result(job, INVITE_BANNED)
+    if status == "requested":
+        # They have asked to join under their own steam. An invite would cut
+        # across a moderator's pending decision, so leave it alone and say so.
+        return _invite_result(job, INVITE_ALREADY_INVITED)
+
+    # 2) Nothing waiting for them, so send one.
+    _space_invite_calls()
+    try:
+        _call_with_retry(
+            groups.create_group_invite,
+            group_id,
+            # See the docstring: False is NOT this field's default.
+            CreateGroupInviteRequest(user_id=user_id, confirm_override_block=False),
+            _request_timeout=request_timeout(),
+        )
+    except UnauthorizedException as e:
+        vrchat_session.invalidate(classify_api_error(e))
+        return _invite_result(
+            job, INVITE_VRCHAT_UNAVAILABLE, error_message="VRChat session expired"
+        )
+    except ApiException as e:
+        code = getattr(e, "status", None)
+        if code == 400:
+            # "User X is already a member of this group" -- they joined in the
+            # seconds since the check above. Reported as what it is.
+            return _invite_result(job, INVITE_ALREADY_MEMBER)
+        if code == 403:
+            # "You can't invite that user": they have group invites off, or
+            # have blocked us. Not retried, and not overridden.
+            return _invite_result(job, INVITE_BLOCKED)
+        if code == 404:
+            return _invite_result(job, INVITE_GROUP_NOT_FOUND)
+        meta = classify_api_error(e)
+        return _invite_result(
+            job, INVITE_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message")
+        )
+
+    return _invite_result(job, INVITE_SENT)
+
+
+HANDLERS = {
+    JOB_VERIFY_SETUP: verify_group_setup,
+    JOB_SEND_INVITE: send_group_invite,
+}
 
 
 def publish_result(result: dict):
@@ -525,17 +774,32 @@ def process_job(ch, method, properties, body):
             "dropping (already retried once)" if already_retried else "requeueing once",
         )
         if already_retried:
-            # About to drop this for good, so say so rather than leaving the
-            # dashboard waiting on an answer that is never coming. Best
+            # About to drop this for good, so say so rather than leaving
+            # whoever asked waiting on an answer that is never coming. Best
             # effort: if this publish fails too there is nothing left to try.
+            #
+            # Shaped as the same KIND of result the job asked for. Both types
+            # travel on one result queue and the bot routes on `type`, so a
+            # setup-shaped apology for a failed invite would be filed against
+            # the guild's setup row and the member's DM would hang forever.
+            failed = job if isinstance(job, dict) else {}
             try:
-                publish_result(
-                    _result(
-                        job if isinstance(job, dict) else {},
-                        STATE_VRCHAT_UNAVAILABLE,
-                        error_message="The setup check failed unexpectedly. Please try again.",
+                if failed.get("type") == JOB_SEND_INVITE:
+                    publish_result(
+                        _invite_result(
+                            failed,
+                            INVITE_VRCHAT_UNAVAILABLE,
+                            error_message="The invite failed unexpectedly.",
+                        )
                     )
-                )
+                else:
+                    publish_result(
+                        _result(
+                            failed,
+                            STATE_VRCHAT_UNAVAILABLE,
+                            error_message="The setup check failed unexpectedly. Please try again.",
+                        )
+                    )
             except Exception:
                 logging.exception("Could not report the failure either; dropping silently")
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=not already_retried)

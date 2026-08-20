@@ -25,7 +25,18 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
    - Consumes its own RabbitMQ queue (`RABBITMQ_GROUP_INVITE_QUEUE`), never the verification queue: two consumers on one queue split messages round-robin, so the checker would swallow its jobs.
    - Verifies a server's group setup on request: joins the group it was told about, then reports whether the account is a member and holds `group-invites-manage` (its own permission, which being a group admin does **not** include) and the optional `group-members-viewall`.
    - **Never joins a group it was not explicitly told to join.** There is no loop that polls for or accepts pending invites; anyone can invite the account to a group, and that alone must never put it in one.
+   - Sends one member's invite on request, after checking where they already stand: an existing member, a waiting invite, or a pending join request all mean "nothing to send", each with its own answer. `confirm_override_block` is passed as **False** explicitly, because `vrchatapi` defaults it to `True` — omitting it would opt in to pushing invites past people who have blocked the group.
+   - Spaces consecutive invites with jitter (`INVITE_MIN_SPACING_SECONDS`). One account serves every guild, so throughput is a shared budget and a server's verification drive must not be able to spend it in a burst.
    - Exits immediately when `INVITE_VRCHAT_USERNAME`/`INVITE_VRCHAT_PASSWORD` are unset, so the feature is simply not provisioned rather than broken.
+
+   **How a member gets invited.** Nothing reaches VRChat until they ask. A
+   verified member in a server with a ready group gets a DM offering a button;
+   pressing it is what creates the request. A member who ignores the DM costs
+   no API call at all, and one who has been invited, is already in the group,
+   or has group invites switched off is never offered again — their answer is
+   recorded and honoured. That is a compliance position as much as a privacy
+   one: VRChat's Creator Guidelines treat unsolicited automation as abuse, and
+   an invite nobody asked for is exactly that.
 
 ---
 
