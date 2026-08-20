@@ -516,13 +516,18 @@ def group_setup_summary(settings: dict) -> dict:
         # here to act with.
         pass
     elif state == "ready" and not block.get("can_see_members"):
-        # Not a failure: invites work without it. It only decides whether a
-        # member who is already in the group can be told so instead of being
-        # offered a button that would fail.
+        # Not a failure, and the reason is narrower than it used to be. Invites
+        # work without it: a member who is already in the group is recognised
+        # from the invite attempt itself and told so.
+        #
+        # What it still buys is the case that attempt CANNOT distinguish -- a
+        # member who already has an invite waiting in VRChat. Without this the
+        # bot may send them a second one, which is the thing the opt-in design
+        # exists to avoid.
         warnings.append(
-            "Optional: add \u201cView All Members\u201d to the bot's role and "
-            "VRCVerify can tell members who are already in the group, rather "
-            "than sending them an invite that bounces."
+            "Optional: add \u201cView All Members\u201d to the bot's role so "
+            "VRCVerify can see that a member already has an invite waiting, "
+            "instead of possibly sending them a second one."
         )
     if group_id and not account and not locked:
         warnings.append(

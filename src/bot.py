@@ -683,8 +683,14 @@ class GroupInviteConfig(Base):
     # What the account can actually do in the group, from get_group's
     # my_member.permissions. `can_invite` is the feature itself -- confirmed
     # empirically to need its own `group-invites-manage` checkbox, which admin
-    # does not imply. `can_see_members` is optional and only decides whether
-    # the "you are already in the group" path is available at all.
+    # does not imply.
+    #
+    # `can_see_members` is optional and nothing gates on it. It is recorded so
+    # the dashboard can suggest granting it: without it the bot cannot tell
+    # that a member already has an invite waiting, and may send a second. The
+    # invite path itself never reads this -- it asks VRChat and copes with
+    # whatever comes back, because what that endpoint requires has never
+    # actually been measured.
     can_invite = Column(Boolean, nullable=False, default=False)
     can_see_members = Column(Boolean, nullable=False, default=False)
     updated_at = Column(
@@ -3113,14 +3119,7 @@ JOB_SEND_GROUP_INVITE = "send_group_invite"
 
 
 def begin_group_invite(
-    guild_id,
-    discord_id,
-    *,
-    group_id,
-    vrc_user_id,
-    can_see_members,
-    channel_id,
-    message_id,
+    guild_id, discord_id, *, group_id, vrc_user_id, channel_id, message_id
 ) -> Optional[dict]:
     """Claim this member's row and return the job to publish, or None.
 
@@ -3134,13 +3133,6 @@ def begin_group_invite(
     VRChat session has no business knowing which Discord account is behind a
     usr_ id -- that mapping is the thing the verification log already refuses
     to publish.
-
-    `canSeeMembers` comes from the stored setup verdict, not from the worker
-    asking. group-members-viewall is optional -- it only buys a better sentence
-    for someone already in the group -- so the worker skips its membership
-    check without it rather than failing the invite. Sending it here keeps that
-    decision on the side that already knows the answer, and costs no API call
-    to find out.
     """
     key = panel_view_key(guild_id)
     # secrets, not uuid4, matching begin_group_verification. Nothing here
@@ -3188,7 +3180,6 @@ def begin_group_invite(
         "guildID": str(guild_id),
         "groupID": group_id,
         "vrcUserID": vrc_user_id,
-        "canSeeMembers": bool(can_see_members),
     }
 
 
@@ -4687,7 +4678,6 @@ async def handle_group_invite_press(
             interaction.user.id,
             group_id=config["group_id"],
             vrc_user_id=vrc_user_id,
-            can_see_members=config.get("can_see_members"),
             channel_id=interaction.channel_id,
             message_id=(interaction.message.id if interaction.message else None),
         )

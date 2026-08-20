@@ -338,30 +338,15 @@ class TestWhetherTheServerCanInviteAtAll:
 # Claiming the row and building the job
 # -------------------------------------------------------------------
 class TestBeginningARequest:
-    def build(self, can_see_members=True):
+    def build(self):
         return bot.begin_group_invite(
             GUILD_ID,
             MEMBER_ID,
             group_id=GROUP_ID,
             vrc_user_id=VRC_USER_ID,
-            can_see_members=can_see_members,
             channel_id=CHANNEL_ID,
             message_id=MESSAGE_ID,
         )
-
-    def test_the_job_reports_whether_the_bot_can_read_members(self):
-        """The worker skips its membership check without this, rather than
-        failing the invite -- group-members-viewall is optional."""
-        assert self.build(can_see_members=True)["canSeeMembers"] is True
-
-    def test_a_group_that_never_granted_the_optional_permission(self):
-        assert self.build(can_see_members=False)["canSeeMembers"] is False
-
-    def test_a_missing_capability_is_not_a_missing_key(self):
-        """None must arrive as False, not vanish. An absent key and a False one
-        read the same to the worker today, and would stop doing so the moment
-        anyone gave that field a default."""
-        assert self.build(can_see_members=None)["canSeeMembers"] is False
 
     def test_the_job_carries_only_what_the_worker_needs(self):
         """No Discord identity crosses to the process holding the VRChat
@@ -369,14 +354,7 @@ class TestBeginningARequest:
         home, and the Discord-to-VRChat mapping is the thing the verification
         log already refuses to publish."""
         job = self.build()
-        assert set(job) == {
-            "type",
-            "jobID",
-            "guildID",
-            "groupID",
-            "vrcUserID",
-            "canSeeMembers",
-        }
+        assert set(job) == {"type", "jobID", "guildID", "groupID", "vrcUserID"}
         assert str(MEMBER_ID) not in str(job)
 
     def test_the_row_records_where_to_answer(self):
@@ -429,7 +407,6 @@ class TestRecordingTheResult:
             MEMBER_ID,
             group_id=GROUP_ID,
             vrc_user_id=VRC_USER_ID,
-            can_see_members=True,
             channel_id=CHANNEL_ID,
             message_id=MESSAGE_ID,
         )
@@ -714,16 +691,12 @@ class FakeGroupsApi:
         return [c for c in self.calls if c[0] == "create_group_invite"]
 
 
-# canSeeMembers True by default: these tests are about the membership check,
-# and the account holding group-members-viewall is what makes it run at all.
-# TestWithoutTheOptionalPermission below covers the other half.
 INVITE_JOB = {
     "type": inviter.JOB_SEND_INVITE,
     "jobID": "job-1",
     "guildID": str(GUILD_ID),
     "groupID": GROUP_ID,
     "vrcUserID": VRC_USER_ID,
-    "canSeeMembers": True,
 }
 
 
@@ -897,50 +870,6 @@ class TestSendingOneInvite:
         }
 
 
-class TestWithoutTheOptionalPermission:
-    """The regression that reached production on 2026-08-20.
-
-    group-members-viewall is documented as optional -- PERMISSION_VIEW_MEMBERS
-    says "without it the feature still works and falls back to attempting the
-    invite". The first cut of send_group_invite called get_group_member
-    unconditionally and turned its 403 into a terminal refusal, so a group that
-    had granted group-invites-manage and nothing else failed EVERY invite, and
-    told the member their server's setup was broken when it was not.
-    """
-
-    def job(self):
-        return dict(INVITE_JOB, canSeeMembers=False)
-
-    def test_the_membership_check_is_skipped(self, api):
-        inviter.send_group_invite(self.job())
-        assert [c[0] for c in api.calls] == ["create_group_invite"]
-
-    def test_the_invite_is_still_sent(self, api):
-        assert inviter.send_group_invite(self.job())["state"] == inviter.INVITE_SENT
-
-    def test_an_existing_member_is_still_recognised(self, api):
-        """The fallback the docstring promises: create_group_invite's own 400
-        catches the case the skipped check would have caught."""
-        api.invite_error = FakeApiException(400, "already a member of this group")
-        assert (
-            inviter.send_group_invite(self.job())["state"]
-            == inviter.INVITE_ALREADY_MEMBER
-        )
-
-    def test_a_403_that_would_have_come_from_the_check_never_happens(self, api):
-        """Even with get_group_member primed to refuse, nothing calls it."""
-        api.get_member_error = FakeApiException(403, "You're not a member.")
-        assert inviter.send_group_invite(self.job())["state"] == inviter.INVITE_SENT
-        assert [c[0] for c in api.calls] == ["create_group_invite"]
-
-    def test_a_job_with_the_field_missing_skips_the_check(self):
-        """Absent means "we were not told we can", which is the safe reading:
-        the invite still goes out, where the wrong reading fails it."""
-        job = dict(INVITE_JOB)
-        del job["canSeeMembers"]
-        assert not job.get("canSeeMembers")
-
-
 class TestThePrecheckCanNeverBlockAnInvite:
     """The invariant both production failures violated, in one place.
 
@@ -949,11 +878,23 @@ class TestThePrecheckCanNeverBlockAnInvite:
     every authoritative answer comes from.
     """
 
-    @pytest.mark.parametrize("status", [400, 401, 403, 404, 429, 500, 502, 503])
+    # 401 is deliberately absent: vrchatapi raises UnauthorizedException for
+    # it, not a bare ApiException, and that is the one precheck failure that
+    # does stop -- see the test above. Listing it here would pin behaviour the
+    # real client cannot produce.
+    @pytest.mark.parametrize("status", [400, 403, 404, 429, 500, 502, 503])
     def test_no_precheck_status_prevents_the_invite(self, api, status):
         api.get_member_error = FakeApiException(status, "whatever")
         inviter.send_group_invite(INVITE_JOB)
         assert len(api.invites()) == 1
+
+    def test_the_session_exception_really_is_a_subclass(self):
+        """The two except clauses in send_group_invite are ordered on this. If
+        UnauthorizedException stopped subclassing ApiException, the dead-session
+        branch would still work; if the order were swapped, it never would."""
+        from vrchatapi.exceptions import ApiException, UnauthorizedException
+
+        assert issubclass(UnauthorizedException, ApiException)
 
     def test_a_precheck_returning_nothing_useful_still_invites(self, api):
         api.member = SimpleNamespace(membership_status=None)

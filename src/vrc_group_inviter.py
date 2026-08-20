@@ -661,34 +661,21 @@ def send_group_invite(job: dict) -> dict:
     look at their notifications. Answering both with "already a member" would
     send people hunting through a group they have not joined.
 
-    That check is an OPTIMISATION, not a gate, and nothing it does may stop an
-    invite being attempted. It is skipped entirely when the bot lacks
-    group-members-viewall, and any failure of it falls through to the invite
-    rather than being reported.
+    That check is an OPTIMISATION, not a gate. Every failure of it falls
+    through to the invite, and it is never reported. This is the one part of
+    this function that was rewritten twice in production, both times because a
+    fix gave get_group_member's 403 a precise meaning from a single
+    observation -- first "the target is not in the group", then "the bot is not
+    in the group". Neither held: the 403 that prompted them came from a userId
+    that resolved to no VRChat account at all, and what else it means is still
+    unmeasured.
 
-    Both halves of that were learned the hard way, in production, within an
-    hour of each other:
-
-      * group-members-viewall is optional (see PERMISSION_VIEW_MEMBERS) and the
-        first cut made it mandatory, failing every invite for a group that had
-        granted only the permission the feature actually rests on.
-
-      * a 403 from get_group_member does not reliably mean what the issue
-        said it meant. The second cut read it as "the bot is not a member of
-        this group" and refused to invite; in the incident it actually came
-        from a userId that did not resolve to any VRChat account at all.
-        Whether it ALSO means "the target is not in the group" is still
-        unmeasured, and deliberately no longer matters here.
-
-    That last point is the whole reason for the design. Two consecutive fixes
-    tried to give this endpoint's 403 a precise meaning from one observation
-    each, and both were wrong. Not needing to know is worth more than another
-    guess.
-
-    The authoritative answers all come from create_group_invite anyway: 400 for
-    an existing member, 403 for a recipient who will not take invites, 404 for
-    a group that has gone. The check only buys a better sentence in the two
-    cases it can recognise, and buying nothing is an acceptable outcome.
+    So it deliberately does not need to be known. Every authoritative answer
+    comes from create_group_invite regardless -- 400 for an existing member,
+    403 for a recipient who will not take invites, 404 for a group that has
+    gone or a member whose account does not resolve. The check only buys a
+    better sentence in the cases it can recognise, and buying nothing is an
+    acceptable outcome.
 
     confirm_override_block is passed as False, EXPLICITLY. It exists to push an
     invite past a user who has blocked the group, which is the exact thing this
@@ -721,35 +708,34 @@ def send_group_invite(job: dict) -> dict:
     groups = GroupsApi(client)
 
     # 1) Where do they stand today? Best effort only -- see the docstring.
-    #    Skipped without group-members-viewall, and every failure below leaves
-    #    status as None, which means "go and try the invite".
+    #    Every failure here leaves status as None, which means "go and try the
+    #    invite".
     status = None
-    if job.get("canSeeMembers"):
-        try:
-            member = _call_with_retry(
-                groups.get_group_member,
-                group_id,
-                user_id,
-                _request_timeout=request_timeout(),
-            )
-            status = _membership_status(member) if member is not None else None
-        except UnauthorizedException as e:
-            # The one exception that is NOT best effort. A dead session means
-            # the invite cannot work either, and pressing on would spend a
-            # second call finding that out.
-            vrchat_session.invalidate(classify_api_error(e))
-            return _invite_result(
-                job, INVITE_VRCHAT_UNAVAILABLE, error_message="VRChat session expired"
-            )
-        except ApiException as e:
-            logging.info(
-                "Could not read %s's membership of %s (status=%s: %s); "
-                "attempting the invite anyway",
-                user_id,
-                group_id,
-                getattr(e, "status", None),
-                _api_detail(e),
-            )
+    try:
+        member = _call_with_retry(
+            groups.get_group_member,
+            group_id,
+            user_id,
+            _request_timeout=request_timeout(),
+        )
+        status = _membership_status(member) if member is not None else None
+    except UnauthorizedException as e:
+        # The one failure here that is NOT best effort. A dead session means
+        # the invite cannot work either, and pressing on would spend a second
+        # call finding that out.
+        vrchat_session.invalidate(classify_api_error(e))
+        return _invite_result(
+            job, INVITE_VRCHAT_UNAVAILABLE, error_message="VRChat session expired"
+        )
+    except ApiException as e:
+        logging.info(
+            "Could not read %s's membership of %s (status=%s: %s); attempting "
+            "the invite anyway",
+            user_id,
+            group_id,
+            getattr(e, "status", None),
+            _api_detail(e),
+        )
 
     if status == "member":
         return _invite_result(job, INVITE_ALREADY_MEMBER)
