@@ -804,16 +804,40 @@ class TestSendingOneInvite:
         result = inviter.send_group_invite(INVITE_JOB)
         assert result["state"] == inviter.INVITE_GROUP_NOT_FOUND
 
-    def test_the_bot_falling_out_of_the_group(self, api):
-        """403 on get_group_member is "you're not a member" -- and of the two
-        accounts in that call, the one that has to be a member is ours."""
+    def test_a_403_on_the_precheck_still_sends_the_invite(self, api):
+        """Measured 2026-08-20: get_group_member answers 403 when the TARGET is
+        not in the group -- the bot was a member and held viewall, and asking
+        about a non-member still got 403. Refusing here refused an invite in
+        exactly the case an invite is for."""
         api.get_member_error = FakeApiException(403, "You're not a member.")
         result = inviter.send_group_invite(INVITE_JOB)
-        assert result["state"] == inviter.INVITE_NO_PERMISSION
+        assert result["state"] == inviter.INVITE_SENT
+        assert len(api.invites()) == 1
+
+    def test_vrchat_being_down_on_the_precheck_still_tries(self, api):
+        """The precheck buys a better sentence, nothing more. Its failure must
+        never cost the member their invite."""
+        api.get_member_error = FakeApiException(500, "Internal Server Error")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_SENT
+
+    def test_a_dead_session_is_the_one_precheck_failure_that_stops(
+        self, api, monkeypatch
+    ):
+        """Not best effort: the invite cannot work either, and pressing on
+        would spend a second call finding that out."""
+
+        class FakeUnauthorized(Exception):
+            status = 401
+
+        monkeypatch.setattr(inviter, "UnauthorizedException", FakeUnauthorized)
+        api.get_member_error = FakeUnauthorized()
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_VRCHAT_UNAVAILABLE
         assert api.invites() == []
 
-    def test_vrchat_being_down(self, api):
-        api.get_member_error = FakeApiException(500, "Internal Server Error")
+    def test_vrchat_being_down_on_the_invite_is_reported(self, api):
+        api.invite_error = FakeApiException(500, "Internal Server Error")
         result = inviter.send_group_invite(INVITE_JOB)
         assert result["state"] == inviter.INVITE_VRCHAT_UNAVAILABLE
 
@@ -892,6 +916,7 @@ class TestWithoutTheOptionalPermission:
         """Even with get_group_member primed to refuse, nothing calls it."""
         api.get_member_error = FakeApiException(403, "You're not a member.")
         assert inviter.send_group_invite(self.job())["state"] == inviter.INVITE_SENT
+        assert [c[0] for c in api.calls] == ["create_group_invite"]
 
     def test_a_job_with_the_field_missing_skips_the_check(self):
         """Absent means "we were not told we can", which is the safe reading:
@@ -899,6 +924,39 @@ class TestWithoutTheOptionalPermission:
         job = dict(INVITE_JOB)
         del job["canSeeMembers"]
         assert not job.get("canSeeMembers")
+
+
+class TestThePrecheckCanNeverBlockAnInvite:
+    """The invariant both production failures violated, in one place.
+
+    The membership check exists to word a message better. Whatever it does,
+    an invite must still be attempted -- because create_group_invite is where
+    every authoritative answer comes from.
+    """
+
+    @pytest.mark.parametrize("status", [400, 401, 403, 404, 429, 500, 502, 503])
+    def test_no_precheck_status_prevents_the_invite(self, api, status):
+        api.get_member_error = FakeApiException(status, "whatever")
+        inviter.send_group_invite(INVITE_JOB)
+        assert len(api.invites()) == 1
+
+    def test_a_precheck_returning_nothing_useful_still_invites(self, api):
+        api.member = SimpleNamespace(membership_status=None)
+        api.get_member_error = None
+        assert (
+            inviter.send_group_invite(INVITE_JOB)["state"] == inviter.INVITE_SENT
+        )
+
+    def test_only_a_recognised_standing_stops_it(self, api):
+        """The two cases the check is FOR, and nothing else."""
+        stopped = []
+        for status in ["member", "invited", "requested", "banned", "userblocked"]:
+            api.calls.clear()
+            api.member = member_record(status)
+            inviter.send_group_invite(INVITE_JOB)
+            if not api.invites():
+                stopped.append(status)
+        assert stopped == ["member", "invited", "requested", "banned", "userblocked"]
 
 
 class TestTellingTwoKindsOf403Apart:

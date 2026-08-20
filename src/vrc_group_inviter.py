@@ -609,14 +609,29 @@ def send_group_invite(job: dict) -> dict:
     look at their notifications. Answering both with "already a member" would
     send people hunting through a group they have not joined.
 
-    That check is an OPTIMISATION, not a gate. get_group_member needs
-    group-members-viewall, which PERMISSION_VIEW_MEMBERS documents as optional
-    -- "without it the feature still works and falls back to attempting the
-    invite". The bot says in the job whether the account has it, and without it
-    this goes straight to create_group_invite, whose own 400 still catches an
-    existing member. Running the check regardless would make an optional
-    permission mandatory and fail every invite for a group that never granted
-    it, which is exactly what it did the first time this shipped.
+    That check is an OPTIMISATION, not a gate, and nothing it does may stop an
+    invite being attempted. It is skipped entirely when the bot lacks
+    group-members-viewall, and any failure of it falls through to the invite
+    rather than being reported.
+
+    Both halves of that were learned the hard way, in production, within an
+    hour of each other:
+
+      * group-members-viewall is optional (see PERMISSION_VIEW_MEMBERS) and the
+        first cut made it mandatory, failing every invite for a group that had
+        granted only the permission the feature actually rests on.
+
+      * get_group_member answers 403 when the TARGET is not in the group.
+        Measured 2026-08-20: the bot was a member, held viewall, and asking
+        about a non-member still got 403 -- so the second cut refused to invite
+        in exactly the case an invite is for. The issue's note that 403 means
+        "the caller is not a member" was an assumption, and it is wrong, or at
+        least not the only thing it means.
+
+    The authoritative answers all come from create_group_invite anyway: 400 for
+    an existing member, 403 for a recipient who will not take invites, 404 for
+    a group that has gone. The check only buys a better sentence in the two
+    cases it can recognise, and buying nothing is an acceptable outcome.
 
     confirm_override_block is passed as False, EXPLICITLY. It exists to push an
     invite past a user who has blocked the group, which is the exact thing this
@@ -648,9 +663,9 @@ def send_group_invite(job: dict) -> dict:
 
     groups = GroupsApi(client)
 
-    # 1) Where do they stand today? Skipped entirely when the account lacks
-    #    group-members-viewall -- see the docstring. A 404 is the ordinary
-    #    "not a member" answer, not an error.
+    # 1) Where do they stand today? Best effort only -- see the docstring.
+    #    Skipped without group-members-viewall, and every failure below leaves
+    #    status as None, which means "go and try the invite".
     status = None
     if job.get("canSeeMembers"):
         try:
@@ -662,33 +677,21 @@ def send_group_invite(job: dict) -> dict:
             )
             status = _membership_status(member) if member is not None else None
         except UnauthorizedException as e:
+            # The one exception that is NOT best effort. A dead session means
+            # the invite cannot work either, and pressing on would spend a
+            # second call finding that out.
             vrchat_session.invalidate(classify_api_error(e))
             return _invite_result(
                 job, INVITE_VRCHAT_UNAVAILABLE, error_message="VRChat session expired"
             )
         except ApiException as e:
-            code = getattr(e, "status", None)
-            if code == 404:
-                status = None
-            elif code == 403:
-                # We were told we hold group-members-viewall and VRChat
-                # disagrees, so the permission has been taken away or the
-                # account has left the group. Either way the stored setup is
-                # stale; the invite would fail too, and this names why.
-                return _invite_result(
-                    job,
-                    INVITE_NO_PERMISSION,
-                    error_message=(
-                        "The bot can no longer read this group's members"
-                    ),
-                )
-            else:
-                meta = classify_api_error(e)
-                return _invite_result(
-                    job,
-                    INVITE_VRCHAT_UNAVAILABLE,
-                    error_message=meta.get("error_message"),
-                )
+            logging.info(
+                "Could not read %s's membership of %s (status=%s); attempting "
+                "the invite anyway",
+                user_id,
+                group_id,
+                getattr(e, "status", None),
+            )
 
     if status == "member":
         return _invite_result(job, INVITE_ALREADY_MEMBER)
