@@ -160,6 +160,14 @@
           <div class="setting">
             <dt>Setup</dt>
             <dd>
+              {% if group.group_setup.icon_url %}
+                {# The group's icon, not its banner: the banner is a wide
+                   header image and would dwarf a one-line status. alt is
+                   empty because the name is right underneath -- a screen
+                   reader announcing it twice is worse than not at all. #}
+                <img class="group-icon" src="{{ group.group_setup.icon_url }}"
+                     alt="" width="64" height="64" loading="lazy">
+              {% endif %}
               <p class="value{% if group.group_setup.tone != 'ok' %} empty{% endif %}">
                 {{- group.group_setup.headline -}}
                 {%- if group.group_setup.group_name %} — {{ group.group_setup.group_name }}{% endif -%}

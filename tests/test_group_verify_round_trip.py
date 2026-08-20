@@ -27,6 +27,7 @@ SKU_ID = 555000111
 GROUP_ID = "grp_0e1d4755-2f87-4129-a192-5587068cbf73"
 OTHER_GROUP_ID = "grp_11111111-2222-3333-4444-555555555555"
 ACCOUNT_ID = "usr_0e59962a-3e0d-4303-802b-9314623027e5"
+ICON_URL = "https://api.vrchat.cloud/api/1/file/file_5ec52378/1/file"
 
 
 def run(coro):
@@ -72,6 +73,7 @@ def result_payload(job_id, **overrides):
         "can_invite": True,
         "can_see_members": True,
         "group_name": "Club LA",
+        "icon_url": ICON_URL,
         "error_message": None,
         "accountID": ACCOUNT_ID,
     }
@@ -510,3 +512,90 @@ class TestTheContractWithTheWorker:
         assert bot.record_group_verification_result(payload) == "applied"
         assert stored()["verify_state"] == bot.GROUP_SETUP_READY
         assert stored()["can_invite"] is True
+
+
+class TestTheGroupIcon:
+    """Stored like the name, and forgotten like the name.
+
+    The column arrived after the table shipped, so any database that already
+    had group_invite_config needs one ALTER. bot.py's startup check names the
+    statement in the log rather than leaving a driver error to be decoded.
+    """
+
+    def test_it_is_stored_with_the_rest_of_the_verdict(self):
+        configure_group()
+        job = bot.begin_group_verification(GUILD_ID)
+        bot.record_group_verification_result(result_payload(job["jobID"]))
+        assert stored()["group_icon_url"] == ICON_URL
+
+    def test_changing_the_group_forgets_it(self):
+        """A picture of the old group is no more true about the new one than
+        the old verdict was."""
+        configure_group()
+        job = bot.begin_group_verification(GUILD_ID)
+        bot.record_group_verification_result(result_payload(job["jobID"]))
+        bot.save_group_invite_config(GUILD_ID, group_id=OTHER_GROUP_ID, enabled=True)
+        assert stored()["group_icon_url"] is None
+
+    def test_a_worker_that_sends_none_clears_it(self):
+        configure_group()
+        job = bot.begin_group_verification(GUILD_ID)
+        bot.record_group_verification_result(
+            result_payload(job["jobID"], icon_url=None)
+        )
+        assert stored()["group_icon_url"] is None
+
+    def test_the_payload_carries_it(self):
+        make_server()
+        configure_group()
+        job = bot.begin_group_verification(GUILD_ID)
+        bot.record_group_verification_result(result_payload(job["jobID"]))
+        block = run(bot.read_dashboard_settings(GUILD_ID))["group_invite"]
+        assert block["icon_url"] == ICON_URL
+
+    def test_a_complete_database_says_nothing(self, caplog):
+        """The suite's database is built by create_all, so it has the column.
+        A check that shouted on a healthy deployment would be ignored on an
+        unhealthy one."""
+        with caplog.at_level("ERROR"):
+            bot._warn_about_missing_columns()
+        assert "group_icon_url" not in caplog.text
+
+    def test_a_missing_column_is_named_with_the_statement_to_fix_it(
+        self, monkeypatch, caplog
+    ):
+        """The symptom otherwise is every query against this table failing with
+        a driver error that names a column and says nothing about a migration.
+        Whoever reads that log is several steps from the answer."""
+
+        class Blind:
+            def get_table_names(self):
+                return ["group_invite_config"]
+
+            def get_columns(self, table):
+                return [{"name": "server_id"}, {"name": "group_id"}]
+
+        monkeypatch.setattr(bot, "inspect", lambda engine: Blind())
+        with caplog.at_level("ERROR"):
+            bot._warn_about_missing_columns()
+
+        assert "group_icon_url" in caplog.text
+        assert "ALTER TABLE group_invite_config" in caplog.text
+
+    def test_a_database_without_the_table_at_all_is_left_alone(
+        self, monkeypatch, caplog
+    ):
+        """create_all builds a missing table complete, so there is nothing to
+        warn about -- and a warning here would fire on every fresh install."""
+
+        class Empty:
+            def get_table_names(self):
+                return []
+
+            def get_columns(self, table):  # pragma: no cover - never reached
+                raise AssertionError("should not have been asked")
+
+        monkeypatch.setattr(bot, "inspect", lambda engine: Empty())
+        with caplog.at_level("ERROR"):
+            bot._warn_about_missing_columns()
+        assert caplog.text == ""

@@ -63,11 +63,17 @@ class FakeApiException(Exception):
         self.reason = body
 
 
+ICON_URL = "https://api.vrchat.cloud/api/1/file/file_5ec52378/1/file"
+BANNER_URL = "https://api.vrchat.cloud/api/1/file/file_3a1a998c/1/file"
+
+
 def group(
     membership_status="member",
     permissions=None,
     name="Club LA",
     description=DESCRIPTION_WITH_CODE,
+    icon_url=ICON_URL,
+    banner_url=BANNER_URL,
 ):
     my_member = (
         SimpleNamespace(permissions=list(permissions)) if permissions is not None else None
@@ -77,6 +83,8 @@ def group(
         membership_status=membership_status,
         my_member=my_member,
         description=description,
+        icon_url=icon_url,
+        banner_url=banner_url,
     )
 
 
@@ -531,3 +539,27 @@ class TestTheWorkerNamesItself:
         monkeypatch.setattr(inviter, "INVITE_ACCOUNT_USER_ID", "usr_test")
         result = inviter.verify_group_setup(JOB)
         assert result["accountID"] == "usr_test"
+
+
+class TestTheGroupsOwnPicture:
+    def test_the_icon_is_reported(self, api):
+        assert inviter.verify_group_setup(JOB)["icon_url"] == ICON_URL
+
+    def test_it_is_the_icon_and_never_the_banner(self, api):
+        """Separate fields on the group. The banner is a wide header image,
+        correct in VRChat's own UI and wrong beside a one-line status."""
+        result = inviter.verify_group_setup(JOB)
+        assert result["icon_url"] != BANNER_URL
+
+    def test_a_group_with_no_icon_reports_none(self, api):
+        api.groups = [group(permissions=READY_PERMISSIONS, icon_url=None)]
+        assert inviter.verify_group_setup(JOB)["icon_url"] is None
+
+    def test_a_failure_still_carries_what_it_knows(self, api):
+        """The name and the icon travel together on every outcome, so a page
+        showing "banned" still shows which group it is talking about."""
+        api.groups = [group(membership_status="banned")]
+        result = inviter.verify_group_setup(JOB)
+        assert result["state"] == inviter.STATE_BANNED
+        assert result["group_name"] == "Club LA"
+        assert result["icon_url"] == ICON_URL

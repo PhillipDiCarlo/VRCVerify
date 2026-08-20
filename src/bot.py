@@ -531,6 +531,22 @@ class GroupInviteConfig(Base):
     # and the column could not be widened afterwards without the hand-run ALTER
     # this whole table exists to avoid.
     group_name = Column(String, nullable=True)
+    # The group's icon, as VRChat serves it -- `icon_url`, never `banner_url`.
+    # They are separate fields and the banner is a wide header image, correct
+    # in VRChat's own UI and wrong beside a one-line status.
+    #
+    # ADDED AFTER THIS TABLE WAS ALREADY DEPLOYED, which create_all() cannot
+    # do -- it adds missing tables and never columns. Any database that
+    # already had group_invite_config needs, once:
+    #
+    #   ALTER TABLE group_invite_config ADD COLUMN group_icon_url VARCHAR;
+    #
+    # A fresh database gets it from create_all() like everything else, so this
+    # is a one-time step for existing deployments rather than lasting drift.
+    # The startup check below names the statement in the log if it is missing,
+    # because the symptom otherwise is every query against this table failing
+    # with a driver error that says nothing about a migration.
+    group_icon_url = Column(String, nullable=True)
     # The admin's switch, independent of whether a group is configured or
     # verified. Off by default, so storing a group id never starts anything.
     #
@@ -788,6 +804,52 @@ class PremiumEntitlementSeen(Base):
 # Creates any missing tables. Note this does NOT add columns to tables that
 # already exist — those still need a manual ALTER.
 Base.metadata.create_all(engine)
+
+
+def _warn_about_missing_columns() -> None:
+    """Say so, loudly and with the exact statement, at startup.
+
+    A column in the model that the database lacks does not fail politely: it
+    fails on the next SELECT against that table, with a driver error naming a
+    column and nothing about a migration. Whoever reads that log is several
+    steps from the answer.
+
+    Only tables whose columns arrived after the table did are worth checking,
+    so this is a short list rather than a scan of everything.
+    """
+    expected = {
+        # Added by issue #49's icon support, after the table shipped.
+        "group_invite_config": {"group_icon_url"},
+    }
+    try:
+        insp = inspect(engine)
+        existing_tables = set(insp.get_table_names())
+    except Exception:
+        logger.warning("Could not inspect the database for missing columns.", exc_info=True)
+        return
+
+    for table, columns in expected.items():
+        if table not in existing_tables:
+            continue  # create_all will have built it complete
+        try:
+            present = {c["name"] for c in insp.get_columns(table)}
+        except Exception:
+            logger.warning("Could not inspect %s.", table, exc_info=True)
+            continue
+        for column in sorted(columns - present):
+            logger.error(
+                "Database column %s.%s is missing. Every query against %s will "
+                "fail until it is added. Run:  ALTER TABLE %s ADD COLUMN %s "
+                "VARCHAR;",
+                table,
+                column,
+                table,
+                table,
+                column,
+            )
+
+
+_warn_about_missing_columns()
 
 
 # Helper: check if a column exists on the 'servers' table (no auto-migration)
@@ -2470,6 +2532,7 @@ def load_group_invite_config(guild_id) -> Optional[dict]:
         return {
             "group_id": row.group_id,
             "group_name": row.group_name,
+            "group_icon_url": row.group_icon_url,
             "enabled": bool(row.enabled),
             "invite_account_id": row.invite_account_id,
             "claim_code": row.claim_code,
@@ -2557,6 +2620,7 @@ def save_group_invite_config(guild_id, *, group_id, enabled) -> None:
             if row.group_id != group_id:
                 row.group_id = group_id
                 row.group_name = None
+                row.group_icon_url = None
                 row.invite_account_id = None
                 row.verify_state = GROUP_SETUP_UNVERIFIED
                 row.verify_error = None
@@ -2710,6 +2774,7 @@ def record_group_verification_result(payload: dict) -> str:
         row.verify_state = state
         row.verify_error = payload.get("error_message") or None
         row.group_name = payload.get("group_name") or None
+        row.group_icon_url = payload.get("icon_url") or None
         row.can_invite = bool(payload.get("can_invite"))
         row.can_see_members = bool(payload.get("can_see_members"))
         # Which account actually joined, as reported by the worker that did it.
@@ -6357,6 +6422,7 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
                 "state": effective_group_setup_state(group_invite),
                 "error": group_invite.get("verify_error"),
                 "group_name": group_invite.get("group_name"),
+                "icon_url": group_invite.get("group_icon_url"),
                 "can_invite": bool(group_invite.get("can_invite")),
                 "can_see_members": bool(group_invite.get("can_see_members")),
                 "claim_code": group_invite.get("claim_code"),

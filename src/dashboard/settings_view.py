@@ -540,6 +540,15 @@ def group_setup_summary(settings: dict) -> dict:
         "error": None if locked else _clip(block.get("error"), GROUP_ERROR_MAX_LEN),
         "locked": locked,
         "group_name": block.get("group_name"),
+        # Rendered above the name. Not suppressed while locked, unlike the
+        # instructions: a picture of the admin's own group is not a step they
+        # are being asked to take.
+        #
+        # Only ever an https URL on VRChat's own file host, because that is the
+        # single origin the CSP allows an image from -- anything else is a
+        # broken image rather than a request. Checked here anyway so the page
+        # does not emit a src it knows the browser will refuse.
+        "icon_url": _vrchat_image(block.get("icon_url")),
         "configured": bool(group_id),
         "group_url": f"https://vrchat.com/home/group/{group_id}" if group_id else None,
         # The usr_ id matters as much as the name. Display names are not
@@ -568,6 +577,27 @@ def group_setup_summary(settings: dict) -> dict:
         ),
         "warnings": warnings,
     }
+
+
+# The one image host the group section may load from, and the one the CSP
+# names. A prefix match, not a substring: "https://api.vrchat.cloud.evil.test/"
+# contains the host and is not it.
+VRCHAT_IMAGE_PREFIX = "https://api.vrchat.cloud/"
+
+
+def _vrchat_image(url):
+    """An icon URL, or None if it is not one VRChat served.
+
+    The value reaches here from the worker, which read it off the group object,
+    so this is not defending against an attacker so much as against a field
+    that turns out to hold something else -- and against emitting a `src` the
+    CSP will refuse, which renders as a broken image with the explanation only
+    in a console nobody has open.
+    """
+    if not isinstance(url, str):
+        return None
+    url = url.strip()
+    return url if url.startswith(VRCHAT_IMAGE_PREFIX) else None
 
 
 def _clip(text, limit: int):

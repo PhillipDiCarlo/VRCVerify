@@ -132,6 +132,7 @@ GROUP_INVITE_NONE = {
     "state": "unverified",
     "error": None,
     "group_name": None,
+    "icon_url": None,
     "can_invite": False,
     "can_see_members": False,
     "claim_code": None,
@@ -3700,3 +3701,84 @@ class TestTheAccountIsNamedOnlyWhileItMatters:
             if f.name == "vrchat_group_invite_enabled"
         )
         assert len(field.label.split()) <= 4
+
+
+ICON_URL = "https://api.vrchat.cloud/api/1/file/file_5ec52378/1/file"
+
+
+class TestTheGroupIconOnThePage:
+    def summary(self, premium=True, **block):
+        settings = make_settings(
+            premium=premium,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(**block),
+        )
+        return settings_view.group_setup_summary(settings)
+
+    def test_an_icon_from_vrchat_is_shown(self):
+        assert self.summary(icon_url=ICON_URL)["icon_url"] == ICON_URL
+
+    def test_a_group_with_no_icon_shows_none(self):
+        assert self.summary()["icon_url"] is None
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://api.vrchat.cloud/api/1/file/x/1/file",   # not https
+            "https://api.vrchat.cloud.evil.test/x",          # host is a prefix
+            "https://evil.test/api.vrchat.cloud/x",          # host in the path
+            "javascript:alert(1)",
+            "data:image/png;base64,AAAA",
+            "/local/path.png",
+            12345,
+        ],
+    )
+    def test_anything_the_csp_would_refuse_is_not_emitted(self, url):
+        """Not really about an attacker -- the value comes from the worker,
+        which read it off the group. It is about not emitting a `src` the
+        browser will refuse, which renders as a broken image with the
+        explanation only in a console nobody has open.
+        """
+        assert self.summary(icon_url=url)["icon_url"] is None
+
+    def test_a_locked_section_still_shows_it(self):
+        """A picture of the admin's own group is not a step they are being
+        asked to take, so it survives what the instructions do not."""
+        summary = self.summary(premium=False, icon_url=ICON_URL)
+        assert summary["locked"] is True
+        assert summary["icon_url"] == ICON_URL
+        assert summary["show_account"] is False
+
+    def test_the_page_renders_it_above_the_name(self, config, store):
+        api = FakeBotAPI(settings=make_settings(
+            premium=True,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(
+                state="ready", can_invite=True, can_see_members=True,
+                group_name="Club LA", icon_url=ICON_URL,
+            ),
+        ))
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        html = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+
+        assert f'<img class="group-icon" src="{ICON_URL}"' in html
+        assert html.index("group-icon") < html.index("Ready — Club LA")
+
+    def test_the_csp_allows_that_host_and_no_other_new_one(self, config, store):
+        """An image tag the policy refuses is a broken image, and widening the
+        policy is the kind of change that should be deliberate rather than a
+        side effect of adding a picture."""
+        app = create_app(config, store=store, client=FakeBotAPI())
+        app.config.update(TESTING=True)
+        response = app.test_client().get("/")
+        directive = next(
+            part.strip()
+            for part in response.headers["Content-Security-Policy"].split(";")
+            if part.strip().startswith("img-src")
+        )
+        assert directive == (
+            "img-src 'self' https://cdn.discordapp.com https://api.vrchat.cloud"
+        )

@@ -203,7 +203,12 @@ CSP = (
     # the image, so a third party can neither see who is loading the dashboard
     # nor break it by going down.
     "font-src 'self'; "
-    "img-src 'self' https://cdn.discordapp.com; "
+    # api.vrchat.cloud serves group icons, which the VRChat group section
+    # shows beside the group's name. The same trade already made for Discord's
+    # CDN above, and a narrow one: images only, and Referrer-Policy is
+    # no-referrer, so VRChat sees an IP asking for a file id and learns
+    # nothing about which admin is looking at which server.
+    "img-src 'self' https://cdn.discordapp.com https://api.vrchat.cloud; "
     # Stripe's two hosted pages are named here because `form-action` governs
     # where a form submission may end up INCLUDING AFTER A REDIRECT -- it is
     # not only about the action attribute. The checkout and portal routes both

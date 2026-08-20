@@ -532,6 +532,7 @@ class TestTheSettingsPayload:
             "state": bot.GROUP_SETUP_UNVERIFIED,
             "error": None,
             "group_name": None,
+            "icon_url": None,
             "can_invite": False,
             "can_see_members": False,
             "claim_code": None,

@@ -233,11 +233,29 @@ def _result(job: dict, state: str, **extra) -> dict:
         "can_invite": False,
         "can_see_members": False,
         "group_name": None,
+        "icon_url": None,
         "error_message": None,
         "accountID": INVITE_ACCOUNT_USER_ID,
     }
     payload.update(extra)
     return payload
+
+
+def _display(group) -> dict:
+    """The group's name and icon, as the dashboard shows them.
+
+    One helper rather than two arguments at eight call sites: they are always
+    reported together, and a result that carried the name without the icon
+    would render a nameplate with a hole in it.
+
+    `icon_url`, never `banner_url`. They are separate fields on the group and
+    the banner is a wide header image -- correct in VRChat's own UI, wrong
+    beside a one-line status.
+    """
+    return {
+        "group_name": getattr(group, "name", None),
+        "icon_url": getattr(group, "icon_url", None),
+    }
 
 
 def claim_code_present(group, claim_code) -> bool:
@@ -318,7 +336,7 @@ def verify_group_setup(job: dict) -> dict:
         return _result(
             job,
             STATE_BANNED,
-            group_name=getattr(group, "name", None),
+            **_display(group),
             error_message=(
                 "The bot is banned or blocked from this group. A group moderator has to "
                 "lift that before setup can continue."
@@ -345,7 +363,7 @@ def verify_group_setup(job: dict) -> dict:
         return _result(
             job,
             STATE_CODE_MISSING,
-            group_name=getattr(group, "name", None),
+            **_display(group),
             error_message=(
                 "The setup code is not in the group's description yet. Add it, "
                 "then check again."
@@ -363,7 +381,7 @@ def verify_group_setup(job: dict) -> dict:
                 return _result(
                     job,
                     STATE_NOT_INVITED,
-                    group_name=getattr(group, "name", None),
+                    **_display(group),
                     error_message="The bot has not been invited to this group yet",
                 )
             meta = classify_api_error(e)
@@ -379,13 +397,11 @@ def verify_group_setup(job: dict) -> dict:
             return _result(job, STATE_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message"))
         status = _membership_status(group)
 
-    group_name = getattr(group, "name", None)
-
     if status in {"banned", "userblocked"}:
         return _result(
             job,
             STATE_BANNED,
-            group_name=group_name,
+            **_display(group),
             error_message=(
                 "The bot is banned or blocked from this group. A group moderator has to "
                 "lift that before setup can continue."
@@ -398,7 +414,7 @@ def verify_group_setup(job: dict) -> dict:
         return _result(
             job,
             STATE_JOIN_REQUESTED,
-            group_name=group_name,
+            **_display(group),
             error_message="Join request sent; a group moderator has to approve it",
         )
 
@@ -406,7 +422,7 @@ def verify_group_setup(job: dict) -> dict:
         return _result(
             job,
             STATE_NOT_INVITED,
-            group_name=group_name,
+            **_display(group),
             error_message="The bot has not been invited to this group yet",
         )
 
@@ -416,7 +432,7 @@ def verify_group_setup(job: dict) -> dict:
         return _result(
             job,
             STATE_NO_INVITE_PERMISSION,
-            group_name=group_name,
+            **_display(group),
             can_see_members=can_see_members,
             error_message=(
                 "The bot is in the group but cannot send invites. Give its role the "
@@ -427,7 +443,7 @@ def verify_group_setup(job: dict) -> dict:
     return _result(
         job,
         STATE_READY,
-        group_name=group_name,
+        **_display(group),
         can_invite=True,
         can_see_members=can_see_members,
     )
