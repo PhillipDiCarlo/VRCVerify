@@ -35,6 +35,7 @@ pytest.importorskip("flask")
 
 from dashboard import oauth, overview_view, settings_view  # noqa: E402
 from dashboard.app import CSP, SESSION_COOKIE, create_app  # noqa: E402
+from dashboard import app as app_module  # noqa: E402
 from dashboard.botapi import BotAPIError  # noqa: E402
 from dashboard.config import DashboardConfig, DashboardConfigError  # noqa: E402
 from dashboard import sessions as sessions_module  # noqa: E402
@@ -3708,11 +3709,9 @@ ICON_URL = (
     "https://api.vrchat.cloud/api/1/file/"
     "file_5ec52378-026d-4479-a2ea-914c52598964/1/file"
 )
-# ...and what the page must emit instead.
-ICON_DISPLAY_URL = (
-    "https://api.vrchat.cloud/api/1/image/"
-    "file_5ec52378-026d-4479-a2ea-914c52598964/1/128"
-)
+# ...and what the page must emit instead: a path on this site, because the
+# icon is proxied rather than hotlinked.
+ICON_DISPLAY_URL = "/vrchat-icon/file_5ec52378-026d-4479-a2ea-914c52598964/1"
 
 
 class TestTheGroupIconOnThePage:
@@ -3724,14 +3723,14 @@ class TestTheGroupIconOnThePage:
         )
         return settings_view.group_setup_summary(settings)
 
-    def test_the_raw_file_url_is_turned_into_an_image_url(self):
-        """The API's icon_url is the raw file: `application/octet-stream`, at
-        full upload size. A browser downloads it rather than drawing it, which
-        is exactly what the first version of this shipped -- a broken image on
-        a live page. Measured on 2026-08-19: 744KB of octet-stream from
-        /file/, 24KB of image/png from /image/<id>/<v>/128.
-        """
-        assert self.summary(icon_url=ICON_URL)["icon_url"] == ICON_DISPLAY_URL
+    def test_the_page_points_at_this_site_not_at_vrchat(self):
+        """Two attempts at hotlinking VRChat's own URLs both shipped broken.
+        The icon is fetched by this app and served from its own origin, which
+        is the version that does not depend on what a third party decides to
+        call its bytes today."""
+        emitted = self.summary(icon_url=ICON_URL)["icon_url"]
+        assert emitted == ICON_DISPLAY_URL
+        assert "vrchat.cloud" not in emitted
 
     def test_the_emitted_url_is_built_and_never_echoed(self):
         """Assembled from a file id and a version that both had to match, so
@@ -3800,10 +3799,9 @@ class TestTheGroupIconOnThePage:
         assert f'<img class="group-icon" src="{ICON_DISPLAY_URL}"' in html
         assert html.index("group-icon") < html.index("Ready — Club LA")
 
-    def test_the_csp_allows_that_host_and_no_other_new_one(self, config, store):
-        """An image tag the policy refuses is a broken image, and widening the
-        policy is the kind of change that should be deliberate rather than a
-        side effect of adding a picture."""
+    def test_the_csp_never_had_to_be_widened_for_vrchat(self, config, store):
+        """The point of proxying. A same-origin image needs no exception, so
+        the policy went back to what it was before the icon existed."""
         app = create_app(config, store=store, client=FakeBotAPI())
         app.config.update(TESTING=True)
         response = app.test_client().get("/")
@@ -3812,6 +3810,116 @@ class TestTheGroupIconOnThePage:
             for part in response.headers["Content-Security-Policy"].split(";")
             if part.strip().startswith("img-src")
         )
-        assert directive == (
-            "img-src 'self' https://cdn.discordapp.com https://api.vrchat.cloud"
+        assert directive == "img-src 'self' https://cdn.discordapp.com"
+        assert "vrchat" not in response.headers["Content-Security-Policy"]
+
+
+class TestTheIconProxy:
+    """Serving the icon ourselves, which is what made it work at all.
+
+    VRChat's own URLs were tried twice: `icon_url` is `application/octet-stream`
+    and browsers refuse to draw it, and the resized endpoint is `image/png`
+    only up to 512. Relying on a third party's content type is what put a
+    broken image on a live page, so this app looks at the bytes and decides.
+    """
+
+    PNG = bytes([137, 80, 78, 71, 13, 10, 26, 10]) + b"rest of a png"
+    FILE_ID = "file_5ec52378-026d-4479-a2ea-914c52598964"
+
+    def client_for(self, config, store, fetch=None):
+        app = create_app(config, store=store, client=FakeBotAPI())
+        app.config.update(TESTING=True)
+        if fetch is not None:
+            app.config["ICON_CACHE"] = _StubCache(fetch)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        return test_client
+
+    def test_a_signed_in_admin_gets_the_image(self, config, store):
+        test_client = self.client_for(
+            config, store, fetch=lambda: ("image/png", self.PNG)
         )
+        response = test_client.get(f"/vrchat-icon/{self.FILE_ID}/1")
+        assert response.status_code == 200
+        assert response.headers["Content-Type"].startswith("image/png")
+        assert response.data == self.PNG
+
+    def test_it_is_not_an_anonymous_relay(self, config, store):
+        """The files are public, so this is not protecting them. It is
+        refusing to be a general-purpose fetcher for people with no account."""
+        app = create_app(config, store=store, client=FakeBotAPI())
+        app.config.update(TESTING=True)
+        response = app.test_client().get(f"/vrchat-icon/{self.FILE_ID}/1")
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/vrchat-icon/usr_5ec52378-026d-4479-a2ea-914c52598964/1",
+            "/vrchat-icon/file_not-a-uuid/1",
+            "/vrchat-icon/file_5ec52378-026d-4479-a2ea-914c52598964/abc",
+            "/vrchat-icon/file_5ec52378-026d-4479-a2ea-914c52598964/99999",
+        ],
+    )
+    def test_only_a_real_file_id_and_version_are_accepted(self, config, store, path):
+        """The pair goes into a fixed host and path, so there is no request in
+        which a caller names a host -- but a malformed one must not reach
+        VRChat at all."""
+        called = []
+
+        def fetch():
+            called.append(True)
+            return ("image/png", self.PNG)
+
+        test_client = self.client_for(config, store, fetch=fetch)
+        assert test_client.get(path).status_code == 404
+        assert called == []
+
+    def test_a_failed_fetch_is_a_gap_not_a_crash(self, config, store):
+        test_client = self.client_for(config, store, fetch=lambda: None)
+        assert test_client.get(f"/vrchat-icon/{self.FILE_ID}/1").status_code == 404
+
+    def test_it_is_cached_privately(self, config, store):
+        test_client = self.client_for(
+            config, store, fetch=lambda: ("image/png", self.PNG)
+        )
+        response = test_client.get(f"/vrchat-icon/{self.FILE_ID}/1")
+        assert "private" in response.headers["Cache-Control"]
+        assert "no-store" not in response.headers["Cache-Control"]
+
+
+class _StubCache:
+    """Stands in for _IconCache without caching, so each test sees its own
+    fetch rather than the previous test's."""
+
+    def __init__(self, fetch):
+        self._fetch = fetch
+
+    def get(self, key, fetch, *, now):
+        return self._fetch()
+
+
+class TestSniffingTheBytes:
+    """The upstream content type is the thing that could not be trusted, so
+    the proxy does not repeat it."""
+
+    def test_a_png_is_recognised(self):
+        assert app_module._sniff_image(bytes([137, 80, 78, 71, 13, 10, 26, 10])) == "image/png"
+
+    def test_a_jpeg_is_recognised(self):
+        assert app_module._sniff_image(b"\xff\xd8\xff\xe0rest") == "image/jpeg"
+
+    def test_a_webp_is_recognised(self):
+        assert app_module._sniff_image(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == "image/webp"
+
+    def test_a_riff_that_is_not_a_webp_is_not_an_image(self):
+        assert app_module._sniff_image(b"RIFF\x00\x00\x00\x00WAVEfmt ") is None
+
+    @pytest.mark.parametrize(
+        "body",
+        [b"", b"<!doctype html>", b"{\"error\": \"nope\"}", b"%PDF-1.4"],
+    )
+    def test_anything_else_is_refused(self, body):
+        """An upstream that answers with an error page must not have it
+        forwarded to a browser as a picture."""
+        assert app_module._sniff_image(body) is None

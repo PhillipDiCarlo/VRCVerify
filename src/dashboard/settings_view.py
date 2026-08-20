@@ -591,38 +591,39 @@ _VRCHAT_FILE_RE = re.compile(
     re.I,
 )
 
-# ...and the endpoint that serves the same file as a real image. Measured
-# against a live group icon on 2026-08-19:
+# ...and where the page actually points, which is back at this app. Serving
+# the icon from our own origin is what stopped it being a browser-by-browser
+# argument about content types. See the /vrchat-icon route -- VRChat's own
+# URLs were tried twice and neither is dependable in an <img>:
 #
 #     /api/1/file/<id>/1/file   application/octet-stream   744 KB
 #     /api/1/image/<id>/1/128   image/png                   24 KB
-#     /api/1/image/<id>/1/512   image/png                  244 KB
-#     /api/1/image/<id>/1/1024  application/octet-stream   744 KB  (falls back)
 #
-# 128 for a 64px slot, which is the retina size and nothing more. Anything
-# above 512 stops being an image again, so the size is not a knob to turn up.
-VRCHAT_IMAGE_URL = "https://api.vrchat.cloud/api/1/image/{file_id}/{version}/128"
+# The first is what the API stores, and a browser will not draw it. The second
+# is a real image, and still a third party deciding per request what it is
+# sending -- so the proxy reads the bytes and says so itself.
+VRCHAT_ICON_PATH = "/vrchat-icon/{file_id}/{version}"
 
 
 def _vrchat_image(url):
-    """A displayable icon URL built from what the API gave us, or None.
+    """A path on this site that will serve the icon, or None.
 
     Built, never echoed. The result is assembled from a file id and a version
-    that both had to match the pattern above, so the only thing this can emit
-    is a URL on the one host the CSP names -- there is no path by which a
-    stored string reaches an `src` attribute intact.
+    that both had to match the pattern above, so no stored string reaches an
+    `src` attribute intact -- and what it produces is same-origin, so the CSP
+    needs no exception for it at all.
 
-    None for anything else, because the alternative is emitting an `src` the
-    browser refuses or downloads, which renders as a broken image with the
-    explanation only in a console nobody has open. That is exactly what the
-    first version of this did.
+    None for anything else, because the alternative is emitting an `src` that
+    fails, which renders as a broken image with the explanation only in a
+    console nobody has open. That is exactly what the first two versions of
+    this did.
     """
     if not isinstance(url, str):
         return None
     match = _VRCHAT_FILE_RE.match(url.strip())
     if match is None:
         return None
-    return VRCHAT_IMAGE_URL.format(
+    return VRCHAT_ICON_PATH.format(
         file_id=match.group(1).lower(), version=match.group(2)
     )
 
