@@ -3703,7 +3703,16 @@ class TestTheAccountIsNamedOnlyWhileItMatters:
         assert len(field.label.split()) <= 4
 
 
-ICON_URL = "https://api.vrchat.cloud/api/1/file/file_5ec52378/1/file"
+# What the API stores: the raw file, which an <img> cannot use.
+ICON_URL = (
+    "https://api.vrchat.cloud/api/1/file/"
+    "file_5ec52378-026d-4479-a2ea-914c52598964/1/file"
+)
+# ...and what the page must emit instead.
+ICON_DISPLAY_URL = (
+    "https://api.vrchat.cloud/api/1/image/"
+    "file_5ec52378-026d-4479-a2ea-914c52598964/1/128"
+)
 
 
 class TestTheGroupIconOnThePage:
@@ -3715,8 +3724,24 @@ class TestTheGroupIconOnThePage:
         )
         return settings_view.group_setup_summary(settings)
 
-    def test_an_icon_from_vrchat_is_shown(self):
-        assert self.summary(icon_url=ICON_URL)["icon_url"] == ICON_URL
+    def test_the_raw_file_url_is_turned_into_an_image_url(self):
+        """The API's icon_url is the raw file: `application/octet-stream`, at
+        full upload size. A browser downloads it rather than drawing it, which
+        is exactly what the first version of this shipped -- a broken image on
+        a live page. Measured on 2026-08-19: 744KB of octet-stream from
+        /file/, 24KB of image/png from /image/<id>/<v>/128.
+        """
+        assert self.summary(icon_url=ICON_URL)["icon_url"] == ICON_DISPLAY_URL
+
+    def test_the_emitted_url_is_built_and_never_echoed(self):
+        """Assembled from a file id and a version that both had to match, so
+        there is no path by which a stored string reaches an src attribute
+        intact."""
+        weird = (
+            "https://api.vrchat.cloud/api/1/file/"
+            "FILE_5EC52378-026D-4479-A2EA-914C52598964/1/file"
+        )
+        assert self.summary(icon_url=weird)["icon_url"] == ICON_DISPLAY_URL
 
     def test_a_group_with_no_icon_shows_none(self):
         assert self.summary()["icon_url"] is None
@@ -3724,9 +3749,17 @@ class TestTheGroupIconOnThePage:
     @pytest.mark.parametrize(
         "url",
         [
-            "http://api.vrchat.cloud/api/1/file/x/1/file",   # not https
-            "https://api.vrchat.cloud.evil.test/x",          # host is a prefix
-            "https://evil.test/api.vrchat.cloud/x",          # host in the path
+            # Not https.
+            ICON_URL.replace("https://", "http://"),
+            # The host is a prefix of another host, which is not the same host.
+            ICON_URL.replace("api.vrchat.cloud", "api.vrchat.cloud.evil.test"),
+            # The host in a path.
+            "https://evil.test/api.vrchat.cloud/api/1/file/file_x/1/file",
+            # Anything appended: the pattern is anchored at both ends.
+            ICON_URL + "/../../evil",
+            ICON_URL + "?x=1",
+            # A file id that is not one.
+            ICON_URL.replace("file_5ec52378-026d-4479-a2ea-914c52598964", "file_x"),
             "javascript:alert(1)",
             "data:image/png;base64,AAAA",
             "/local/path.png",
@@ -3746,7 +3779,7 @@ class TestTheGroupIconOnThePage:
         asked to take, so it survives what the instructions do not."""
         summary = self.summary(premium=False, icon_url=ICON_URL)
         assert summary["locked"] is True
-        assert summary["icon_url"] == ICON_URL
+        assert summary["icon_url"] == ICON_DISPLAY_URL
         assert summary["show_account"] is False
 
     def test_the_page_renders_it_above_the_name(self, config, store):
@@ -3764,7 +3797,7 @@ class TestTheGroupIconOnThePage:
         login_as(test_client, store)
         html = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
 
-        assert f'<img class="group-icon" src="{ICON_URL}"' in html
+        assert f'<img class="group-icon" src="{ICON_DISPLAY_URL}"' in html
         assert html.index("group-icon") < html.index("Ready — Club LA")
 
     def test_the_csp_allows_that_host_and_no_other_new_one(self, config, store):

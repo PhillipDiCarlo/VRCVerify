@@ -25,6 +25,7 @@ failure this module exists to avoid.
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 # Display names only. The authoritative list is locales.LANGUAGE_CODES in the
@@ -579,25 +580,51 @@ def group_setup_summary(settings: dict) -> dict:
     }
 
 
-# The one image host the group section may load from, and the one the CSP
-# names. A prefix match, not a substring: "https://api.vrchat.cloud.evil.test/"
-# contains the host and is not it.
-VRCHAT_IMAGE_PREFIX = "https://api.vrchat.cloud/"
+# What the API puts in `icon_url`: the raw file, which is NOT usable in an
+# <img>. It comes back as `application/octet-stream` -- the same reason
+# clicking one in a browser downloads it instead of showing it -- and at full
+# upload size, 744KB for a group icon shown at 64 pixels.
+_VRCHAT_FILE_RE = re.compile(
+    r"^https://api\.vrchat\.cloud/api/1/file/"
+    r"(file_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"
+    r"/(\d{1,4})/file$",
+    re.I,
+)
+
+# ...and the endpoint that serves the same file as a real image. Measured
+# against a live group icon on 2026-08-19:
+#
+#     /api/1/file/<id>/1/file   application/octet-stream   744 KB
+#     /api/1/image/<id>/1/128   image/png                   24 KB
+#     /api/1/image/<id>/1/512   image/png                  244 KB
+#     /api/1/image/<id>/1/1024  application/octet-stream   744 KB  (falls back)
+#
+# 128 for a 64px slot, which is the retina size and nothing more. Anything
+# above 512 stops being an image again, so the size is not a knob to turn up.
+VRCHAT_IMAGE_URL = "https://api.vrchat.cloud/api/1/image/{file_id}/{version}/128"
 
 
 def _vrchat_image(url):
-    """An icon URL, or None if it is not one VRChat served.
+    """A displayable icon URL built from what the API gave us, or None.
 
-    The value reaches here from the worker, which read it off the group object,
-    so this is not defending against an attacker so much as against a field
-    that turns out to hold something else -- and against emitting a `src` the
-    CSP will refuse, which renders as a broken image with the explanation only
-    in a console nobody has open.
+    Built, never echoed. The result is assembled from a file id and a version
+    that both had to match the pattern above, so the only thing this can emit
+    is a URL on the one host the CSP names -- there is no path by which a
+    stored string reaches an `src` attribute intact.
+
+    None for anything else, because the alternative is emitting an `src` the
+    browser refuses or downloads, which renders as a broken image with the
+    explanation only in a console nobody has open. That is exactly what the
+    first version of this did.
     """
     if not isinstance(url, str):
         return None
-    url = url.strip()
-    return url if url.startswith(VRCHAT_IMAGE_PREFIX) else None
+    match = _VRCHAT_FILE_RE.match(url.strip())
+    if match is None:
+        return None
+    return VRCHAT_IMAGE_URL.format(
+        file_id=match.group(1).lower(), version=match.group(2)
+    )
 
 
 def _clip(text, limit: int):
