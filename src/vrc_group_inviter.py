@@ -356,6 +356,33 @@ def _display(group) -> dict:
 _RECIPIENT_REFUSED_MARKERS = ("invite that user", "can't invite that")
 
 
+def _api_detail(exc) -> str:
+    """The most useful short description of an ApiException, for a log line.
+
+    VRChat answers with a JSON envelope whose `error.message` is the sentence a
+    human wrote; everything around it is noise. Falls back to the raw body.
+
+    This exists because its absence cost three deploys. Every unexpected status
+    from this worker was being classified into one of our own state names and
+    the body dropped on the floor, so the logs recorded what WE concluded and
+    never what VRChat said -- which is the only way to find out that a guess
+    about an endpoint was wrong.
+    """
+    body = getattr(exc, "body", None)
+    if isinstance(body, bytes):
+        body = body.decode("utf-8", "replace")
+    if body:
+        try:
+            parsed = json.loads(body)
+            message = (parsed.get("error") or {}).get("message")
+            if message:
+                return str(message)
+        except Exception:
+            pass
+        return str(body)[:300]
+    return str(getattr(exc, "reason", "") or "")[:300]
+
+
 def _is_about_the_recipient(exc) -> bool:
     """Is this 403 about the person being invited, rather than about us?
 
@@ -686,11 +713,12 @@ def send_group_invite(job: dict) -> dict:
             )
         except ApiException as e:
             logging.info(
-                "Could not read %s's membership of %s (status=%s); attempting "
-                "the invite anyway",
+                "Could not read %s's membership of %s (status=%s: %s); "
+                "attempting the invite anyway",
                 user_id,
                 group_id,
                 getattr(e, "status", None),
+                _api_detail(e),
             )
 
     if status == "member":
@@ -721,10 +749,22 @@ def send_group_invite(job: dict) -> dict:
         )
     except ApiException as e:
         code = getattr(e, "status", None)
+        detail = _api_detail(e)
+        # Logged before it is classified, and at WARNING, because every state
+        # below is OUR reading of somebody else's error. When the reading is
+        # wrong -- and it has been, twice -- this line is the only record of
+        # what VRChat actually said.
+        logging.warning(
+            "create_group_invite for %s into %s failed (status=%s: %s)",
+            user_id,
+            group_id,
+            code,
+            detail,
+        )
         if code == 400:
             # "User X is already a member of this group" -- they joined in the
             # seconds since the check above. Reported as what it is.
-            return _invite_result(job, INVITE_ALREADY_MEMBER)
+            return _invite_result(job, INVITE_ALREADY_MEMBER, error_message=detail)
         if code == 403:
             # Two very different things arrive as 403 here, and telling them
             # apart matters because only one of them is permanent.
@@ -739,14 +779,15 @@ def send_group_invite(job: dict) -> dict:
             # the group permanently, so an unrecognised 403 is reported as our
             # problem, which is retryable.
             if _is_about_the_recipient(e):
-                return _invite_result(job, INVITE_BLOCKED)
+                return _invite_result(job, INVITE_BLOCKED, error_message=detail)
             return _invite_result(
                 job,
                 INVITE_NO_PERMISSION,
-                error_message="The bot is not allowed to invite people to this group",
+                error_message=detail
+                or "The bot is not allowed to invite people to this group",
             )
         if code == 404:
-            return _invite_result(job, INVITE_GROUP_NOT_FOUND)
+            return _invite_result(job, INVITE_GROUP_NOT_FOUND, error_message=detail)
         meta = classify_api_error(e)
         return _invite_result(
             job, INVITE_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message")
