@@ -685,6 +685,16 @@ class FakeGroupsApi:
         self.member = None
         self.get_member_error = FakeApiException(404, "Not Found")
         self.invite_error = None
+        # The group exists unless a test says otherwise. Only consulted to read
+        # a 404 from create_group_invite, which covers both "no such group" and
+        # "no such user".
+        self.get_group_error = None
+
+    def get_group(self, group_id, **kwargs):
+        self.calls.append(("get_group", group_id))
+        if self.get_group_error:
+            raise self.get_group_error
+        return SimpleNamespace(name="Club LA")
 
     def get_group_member(self, group_id, user_id, **kwargs):
         self.calls.append(("get_group_member", group_id, user_id))
@@ -801,14 +811,19 @@ class TestSendingOneInvite:
 
     def test_a_group_that_has_gone(self, api):
         api.invite_error = FakeApiException(404, "Can't find group!")
+        api.get_group_error = FakeApiException(404, "Can't find group!")
         result = inviter.send_group_invite(INVITE_JOB)
         assert result["state"] == inviter.INVITE_GROUP_NOT_FOUND
 
     def test_a_403_on_the_precheck_still_sends_the_invite(self, api):
-        """Measured 2026-08-20: get_group_member answers 403 when the TARGET is
-        not in the group -- the bot was a member and held viewall, and asking
-        about a non-member still got 403. Refusing here refused an invite in
-        exactly the case an invite is for."""
+        """What this 403 means is genuinely unknown, and that is the point.
+
+        Two fixes in a row assigned it a precise meaning from one observation
+        each -- "the target is not a member", then "the bot is not a member" --
+        and both were wrong; in the incident it came from a userId that
+        resolved to no VRChat account at all. The invite attempt is what
+        produces an authoritative answer, so it always happens.
+        """
         api.get_member_error = FakeApiException(403, "You're not a member.")
         result = inviter.send_group_invite(INVITE_JOB)
         assert result["state"] == inviter.INVITE_SENT
@@ -957,6 +972,58 @@ class TestThePrecheckCanNeverBlockAnInvite:
             if not api.invites():
                 stopped.append(status)
         assert stopped == ["member", "invited", "requested", "banned", "userblocked"]
+
+
+class TestTellingTwoKindsOf404Apart:
+    """The incident of 2026-08-20, as a test.
+
+    A member whose linked VRChat account did not resolve was told their
+    server's group "isn't set up correctly" and sent to find an admin. The
+    group was fine; the account was not, and only they could fix it.
+
+    create_group_invite answers 404 for both, and the body does not reliably
+    say which. Rather than matching on wording -- the habit behind two wrong
+    fixes already -- the worker asks whether the group still resolves, which
+    has an unambiguous answer.
+    """
+
+    def test_a_member_whose_account_does_not_resolve(self, api):
+        api.invite_error = FakeApiException(404, "Not Found")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_USER_NOT_FOUND
+
+    def test_a_group_that_really_has_gone(self, api):
+        api.invite_error = FakeApiException(404, "Can't find group!")
+        api.get_group_error = FakeApiException(404, "Can't find group!")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_GROUP_NOT_FOUND
+
+    def test_the_group_is_only_consulted_on_a_404(self, api):
+        """One extra call, and only on a path that has already failed."""
+        inviter.send_group_invite(INVITE_JOB)
+        assert [c[0] for c in api.calls if c[0] == "get_group"] == []
+
+    def test_an_unrelated_failure_does_not_invent_a_missing_group(self, api):
+        """A 500 while asking is not evidence the group has gone. Falling back
+        to blaming the member's account is the recoverable half -- they have
+        something to try, and a group that really has gone shows up plainly on
+        the dashboard's own setup check."""
+        api.invite_error = FakeApiException(404, "Not Found")
+        api.get_group_error = FakeApiException(500, "Internal Server Error")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_USER_NOT_FOUND
+
+    def test_the_member_is_not_sent_to_blame_their_admin(self):
+        """The whole point: these two must not share a sentence."""
+        assert (
+            bot.GROUP_INVITE_MESSAGE_KEYS[bot.GROUP_INVITE_USER_NOT_FOUND]
+            != bot.GROUP_INVITE_MESSAGE_KEYS[bot.GROUP_INVITE_GROUP_NOT_FOUND]
+        )
+
+    def test_re_verifying_gets_them_another_chance(self):
+        """Their account resolving again is exactly the fix, so this must not
+        be one of the outcomes that is never offered again."""
+        assert bot.GROUP_INVITE_USER_NOT_FOUND not in bot.GROUP_INVITE_SETTLED_STATES
 
 
 class TestTellingTwoKindsOf403Apart:

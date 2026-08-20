@@ -101,6 +101,7 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_setup_problem": "**{server}**'s VRChat group isn't set up correctly right now, so the invite couldn't be sent. Please let the server's admins know.",
         "group_invite_unavailable": "VRChat didn't answer, so the invite couldn't be sent. Please try again in a few minutes.",
         "group_invite_too_soon": "You've already asked for an invite. Please give it a few minutes before trying again.",
+        "group_invite_account_missing": "VRChat didn't recognise the account you verified with, so the invite couldn't be sent. Try verifying again to relink your VRChat account.",
     },
 
     "es-ES": {
@@ -196,6 +197,7 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_setup_problem": "El grupo de VRChat de **{server}** no está configurado correctamente ahora mismo, así que no se pudo enviar la invitación. Avisa a los administradores del servidor.",
         "group_invite_unavailable": "VRChat no respondió, así que no se pudo enviar la invitación. Inténtalo de nuevo en unos minutos.",
         "group_invite_too_soon": "Ya has pedido una invitación. Espera unos minutos antes de volver a intentarlo.",
+        "group_invite_account_missing": "VRChat no reconoció la cuenta con la que te verificaste, así que no se pudo enviar la invitación. Vuelve a verificarte para volver a vincular tu cuenta de VRChat.",
     },
 
     "zh-CN": {
@@ -291,6 +293,7 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_setup_problem": "**{server}** 的 VRChat 群组目前配置不正确，因此无法发送邀请。请告知该服务器的管理员。",
         "group_invite_unavailable": "VRChat 没有响应，因此无法发送邀请。请几分钟后再试。",
         "group_invite_too_soon": "你已经申请过邀请了。请等几分钟再试。",
+        "group_invite_account_missing": "VRChat 无法识别你验证时使用的账号，因此邀请无法发送。请重新进行验证，以重新关联你的 VRChat 账号。",
     },
 
     "ja": {
@@ -386,6 +389,7 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_setup_problem": "現在 **{server}** の VRChat グループの設定が正しくないため、招待を送信できませんでした。サーバーの管理者にお知らせください。",
         "group_invite_unavailable": "VRChat から応答がなかったため、招待を送信できませんでした。数分後にもう一度お試しください。",
         "group_invite_too_soon": "すでに招待をリクエスト済みです。数分待ってからもう一度お試しください。",
+        "group_invite_account_missing": "認証に使用したアカウントを VRChat が認識できなかったため、招待を送信できませんでした。もう一度認証して VRChat アカウントを再リンクしてください。",
     },
 
     "de": {
@@ -481,6 +485,7 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_setup_problem": "Die VRChat-Gruppe von **{server}** ist derzeit nicht korrekt eingerichtet, daher konnte die Einladung nicht gesendet werden. Bitte sag den Admins des Servers Bescheid.",
         "group_invite_unavailable": "VRChat hat nicht geantwortet, daher konnte die Einladung nicht gesendet werden. Bitte versuche es in ein paar Minuten erneut.",
         "group_invite_too_soon": "Du hast bereits eine Einladung angefragt. Bitte warte ein paar Minuten, bevor du es erneut versuchst.",
+        "group_invite_account_missing": "VRChat hat das Konto, mit dem du dich verifiziert hast, nicht erkannt, daher konnte die Einladung nicht gesendet werden. Verifiziere dich erneut, um dein VRChat-Konto neu zu verknüpfen.",
     },
 
     "nl": {
@@ -576,6 +581,7 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_setup_problem": "De VRChat-groep van **{server}** is op dit moment niet goed ingesteld, dus de uitnodiging kon niet worden verstuurd. Laat het de beheerders van de server weten.",
         "group_invite_unavailable": "VRChat gaf geen antwoord, dus de uitnodiging kon niet worden verstuurd. Probeer het over een paar minuten opnieuw.",
         "group_invite_too_soon": "Je hebt al om een uitnodiging gevraagd. Wacht een paar minuten voordat je het opnieuw probeert.",
+        "group_invite_account_missing": "VRChat herkende het account waarmee je je hebt geverifieerd niet, dus de uitnodiging kon niet worden verstuurd. Verifieer je opnieuw om je VRChat-account opnieuw te koppelen.",
     },
 
     "hi-IN": {
@@ -671,6 +677,7 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_setup_problem": "**{server}** का VRChat समूह इस समय सही ढंग से सेट नहीं है, इसलिए आमंत्रण नहीं भेजा जा सका। कृपया सर्वर के व्यवस्थापकों को बताएँ।",
         "group_invite_unavailable": "VRChat ने उत्तर नहीं दिया, इसलिए आमंत्रण नहीं भेजा जा सका। कृपया कुछ मिनट बाद फिर कोशिश करें।",
         "group_invite_too_soon": "आप पहले ही आमंत्रण माँग चुके हैं। दोबारा कोशिश करने से पहले कुछ मिनट रुकें।",
+        "group_invite_account_missing": "VRChat ने उस खाते को नहीं पहचाना जिससे आपने सत्यापन किया था, इसलिए आमंत्रण नहीं भेजा जा सका। अपना VRChat खाता दोबारा जोड़ने के लिए फिर से सत्यापन करें।",
     },
 
     "ar": {
@@ -766,6 +773,7 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_setup_problem": "مجموعة **{server}** على VRChat غير مُهيّأة بشكل صحيح حاليًا، لذا تعذّر إرسال الدعوة. من فضلك أبلغ مسؤولي الخادم.",
         "group_invite_unavailable": "لم يستجب VRChat، لذا تعذّر إرسال الدعوة. يرجى المحاولة مرة أخرى بعد بضع دقائق.",
         "group_invite_too_soon": "لقد طلبت دعوة بالفعل. يرجى الانتظار بضع دقائق قبل المحاولة مرة أخرى.",
+        "group_invite_account_missing": "لم يتعرّف VRChat على الحساب الذي تحققت به، لذا تعذّر إرسال الدعوة. أعد التحقق لإعادة ربط حسابك على VRChat.",
     },
 
     "bn": {
@@ -861,6 +869,7 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_setup_problem": "**{server}**-এর VRChat গ্রুপ এই মুহূর্তে সঠিকভাবে সেট করা নেই, তাই আমন্ত্রণ পাঠানো যায়নি। অনুগ্রহ করে সার্ভারের অ্যাডমিনদের জানান।",
         "group_invite_unavailable": "VRChat সাড়া দেয়নি, তাই আমন্ত্রণ পাঠানো যায়নি। কয়েক মিনিট পরে আবার চেষ্টা করুন।",
         "group_invite_too_soon": "আপনি ইতিমধ্যেই একটি আমন্ত্রণ চেয়েছেন। আবার চেষ্টা করার আগে কয়েক মিনিট অপেক্ষা করুন।",
+        "group_invite_account_missing": "আপনি যে অ্যাকাউন্ট দিয়ে যাচাই করেছিলেন VRChat সেটি চিনতে পারেনি, তাই আমন্ত্রণ পাঠানো যায়নি। আপনার VRChat অ্যাকাউন্ট পুনরায় যুক্ত করতে আবার যাচাই করুন।",
     },
 
     "pt-BR": {
@@ -956,6 +965,7 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_setup_problem": "O grupo de VRChat de **{server}** não está configurado corretamente no momento, então o convite não pôde ser enviado. Avise os administradores do servidor.",
         "group_invite_unavailable": "O VRChat não respondeu, então o convite não pôde ser enviado. Tente de novo em alguns minutos.",
         "group_invite_too_soon": "Você já pediu um convite. Espere alguns minutos antes de tentar de novo.",
+        "group_invite_account_missing": "O VRChat não reconheceu a conta com que você se verificou, então o convite não pôde ser enviado. Verifique-se de novo para revincular sua conta do VRChat.",
     },
 
     "ru": {
@@ -1051,6 +1061,7 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_setup_problem": "Группа VRChat сервера **{server}** сейчас настроена неверно, поэтому приглашение отправить не удалось. Сообщите об этом администраторам сервера.",
         "group_invite_unavailable": "VRChat не ответил, поэтому приглашение отправить не удалось. Попробуйте ещё раз через несколько минут.",
         "group_invite_too_soon": "Вы уже запрашивали приглашение. Подождите несколько минут, прежде чем пробовать снова.",
+        "group_invite_account_missing": "VRChat не распознал аккаунт, с которым вы проходили проверку, поэтому приглашение отправить не удалось. Пройдите проверку заново, чтобы перепривязать аккаунт VRChat.",
     },
 
     "pa-IN": {
@@ -1146,5 +1157,6 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_setup_problem": "**{server}** ਦਾ VRChat ਗਰੁੱਪ ਇਸ ਵੇਲੇ ਸਹੀ ਢੰਗ ਨਾਲ ਸੈੱਟ ਨਹੀਂ ਹੈ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਸਰਵਰ ਦੇ ਪ੍ਰਬੰਧਕਾਂ ਨੂੰ ਦੱਸੋ।",
         "group_invite_unavailable": "VRChat ਨੇ ਜਵਾਬ ਨਹੀਂ ਦਿੱਤਾ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਕੁਝ ਮਿੰਟਾਂ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
         "group_invite_too_soon": "ਤੁਸੀਂ ਪਹਿਲਾਂ ਹੀ ਸੱਦਾ ਮੰਗ ਚੁੱਕੇ ਹੋ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਕੁਝ ਮਿੰਟ ਉਡੀਕੋ।",
+        "group_invite_account_missing": "VRChat ਨੇ ਉਸ ਖਾਤੇ ਨੂੰ ਨਹੀਂ ਪਛਾਣਿਆ ਜਿਸ ਨਾਲ ਤੁਸੀਂ ਪ੍ਰਮਾਣੀਕਰਨ ਕੀਤਾ ਸੀ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਆਪਣਾ VRChat ਖਾਤਾ ਦੁਬਾਰਾ ਜੋੜਨ ਲਈ ਫਿਰ ਤੋਂ ਪ੍ਰਮਾਣੀਕਰਨ ਕਰੋ।",
     }
 }

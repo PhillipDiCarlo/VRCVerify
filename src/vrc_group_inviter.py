@@ -170,6 +170,12 @@ INVITE_BANNED = "banned"
 # setup check passed. The server's problem, not the member's -- so the member
 # is told something honest and the offer stays available for a later attempt.
 INVITE_GROUP_NOT_FOUND = "group_not_found"
+# The member's stored VRChat account does not resolve. Their problem to fix by
+# re-verifying, and emphatically NOT the server's -- reported separately
+# because create_group_invite answers 404 for this and for a missing group
+# alike, and telling the member their admin broke something sends them to
+# complain about a setup that is working.
+INVITE_USER_NOT_FOUND = "user_not_found"
 INVITE_NO_PERMISSION = "no_invite_permission"
 INVITE_VRCHAT_UNAVAILABLE = "vrchat_unavailable"
 INVITE_BAD_JOB = "bad_job"
@@ -186,6 +192,7 @@ INVITE_STATES = frozenset(
         INVITE_BLOCKED,
         INVITE_BANNED,
         INVITE_GROUP_NOT_FOUND,
+        INVITE_USER_NOT_FOUND,
         INVITE_NO_PERMISSION,
         INVITE_VRCHAT_UNAVAILABLE,
         INVITE_BAD_JOB,
@@ -381,6 +388,24 @@ def _api_detail(exc) -> str:
             pass
         return str(body)[:300]
     return str(getattr(exc, "reason", "") or "")[:300]
+
+
+def _group_is_gone(groups, group_id) -> bool:
+    """Does the group still exist? Used only to read a 404 correctly.
+
+    Answers False on any error that is not a clean 404, so an unrelated
+    failure here cannot invent a missing group. The caller's fallback in that
+    case is to blame the member's account, which is the recoverable half: a
+    member told to re-verify has something to try, and if the group really has
+    gone the setup check on the dashboard says so plainly.
+    """
+    try:
+        _call_with_retry(groups.get_group, group_id, _request_timeout=request_timeout())
+        return False
+    except ApiException as e:
+        return getattr(e, "status", None) == 404
+    except Exception:
+        return False
 
 
 def _is_about_the_recipient(exc) -> bool:
@@ -648,12 +673,17 @@ def send_group_invite(job: dict) -> dict:
         first cut made it mandatory, failing every invite for a group that had
         granted only the permission the feature actually rests on.
 
-      * get_group_member answers 403 when the TARGET is not in the group.
-        Measured 2026-08-20: the bot was a member, held viewall, and asking
-        about a non-member still got 403 -- so the second cut refused to invite
-        in exactly the case an invite is for. The issue's note that 403 means
-        "the caller is not a member" was an assumption, and it is wrong, or at
-        least not the only thing it means.
+      * a 403 from get_group_member does not reliably mean what the issue
+        said it meant. The second cut read it as "the bot is not a member of
+        this group" and refused to invite; in the incident it actually came
+        from a userId that did not resolve to any VRChat account at all.
+        Whether it ALSO means "the target is not in the group" is still
+        unmeasured, and deliberately no longer matters here.
+
+    That last point is the whole reason for the design. Two consecutive fixes
+    tried to give this endpoint's 403 a precise meaning from one observation
+    each, and both were wrong. Not needing to know is worth more than another
+    guess.
 
     The authoritative answers all come from create_group_invite anyway: 400 for
     an existing member, 403 for a recipient who will not take invites, 404 for
@@ -787,7 +817,22 @@ def send_group_invite(job: dict) -> dict:
                 or "The bot is not allowed to invite people to this group",
             )
         if code == 404:
-            return _invite_result(job, INVITE_GROUP_NOT_FOUND, error_message=detail)
+            # 404 covers "no such group" and "no such user", and the body does
+            # not reliably say which. Rather than matching on wording -- the
+            # habit that produced two wrong fixes already -- ask a question
+            # with an unambiguous answer: if the group still resolves, the 404
+            # was about the member.
+            #
+            # One extra call, only on a path that has already failed. Worth it
+            # because the two need opposite advice: one tells the member to
+            # re-verify, the other tells them to go and find an admin.
+            return _invite_result(
+                job,
+                INVITE_GROUP_NOT_FOUND
+                if _group_is_gone(groups, group_id)
+                else INVITE_USER_NOT_FOUND,
+                error_message=detail,
+            )
         meta = classify_api_error(e)
         return _invite_result(
             job, INVITE_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message")

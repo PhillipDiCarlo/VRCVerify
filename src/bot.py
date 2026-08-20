@@ -525,6 +525,12 @@ GROUP_INVITE_ALREADY_INVITED = "already_invited"
 GROUP_INVITE_BLOCKED = "blocked"
 GROUP_INVITE_BANNED = "banned"
 GROUP_INVITE_GROUP_NOT_FOUND = "group_not_found"
+# The member's stored VRChat account does not resolve -- they relinked, or the
+# id was never real. Theirs to fix by verifying again, and kept apart from the
+# group's own failures because the advice is opposite: this one must never tell
+# them their server's setup is broken and send them to an admin who can do
+# nothing about it.
+GROUP_INVITE_USER_NOT_FOUND = "user_not_found"
 GROUP_INVITE_NO_PERMISSION = "no_invite_permission"
 GROUP_INVITE_VRCHAT_UNAVAILABLE = "vrchat_unavailable"
 GROUP_INVITE_BAD_JOB = "bad_job"
@@ -544,6 +550,7 @@ GROUP_INVITE_STATES = frozenset(
         GROUP_INVITE_BLOCKED,
         GROUP_INVITE_BANNED,
         GROUP_INVITE_GROUP_NOT_FOUND,
+        GROUP_INVITE_USER_NOT_FOUND,
         GROUP_INVITE_NO_PERMISSION,
         GROUP_INVITE_VRCHAT_UNAVAILABLE,
         GROUP_INVITE_BAD_JOB,
@@ -4385,6 +4392,7 @@ GROUP_INVITE_MESSAGE_KEYS = {
     GROUP_INVITE_BLOCKED: "group_invite_blocked",
     GROUP_INVITE_BANNED: "group_invite_banned",
     GROUP_INVITE_GROUP_NOT_FOUND: "group_invite_setup_problem",
+    GROUP_INVITE_USER_NOT_FOUND: "group_invite_account_missing",
     GROUP_INVITE_NO_PERMISSION: "group_invite_setup_problem",
     GROUP_INVITE_VRCHAT_UNAVAILABLE: "group_invite_unavailable",
     GROUP_INVITE_BAD_JOB: "group_invite_unavailable",
