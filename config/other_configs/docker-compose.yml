@@ -43,6 +43,32 @@ services:
       # retries after a transient failure, where the member gets their button
       # back; the settled outcomes need no timer.
       GROUP_INVITE_COOLDOWN_SECONDS: ${GROUP_INVITE_COOLDOWN_SECONDS:-300}
+      # Issue #49 phase 6 -- seats. A VRChat account can be in 100 groups (200
+      # with VRC+), and that cap is the scarcest thing this feature has.
+      #
+      # INVITE_ACCOUNTS is the roster: usr_id|queue|seats per entry, seats
+      # optional, entries comma-separated. Leave it UNSET while there is one
+      # account -- the bot then builds a one-entry roster from
+      # INVITE_VRCHAT_USER_ID and RABBITMQ_GROUP_INVITE_QUEUE, which is exactly
+      # what this file already configures.
+      #
+      # Each account needs its OWN queue. Two workers on one queue split its
+      # messages round-robin, so an invite for a group only the second account
+      # joined would be handed to the first.
+      INVITE_ACCOUNTS: ${INVITE_ACCOUNTS:-}
+      INVITE_ACCOUNT_SEAT_CAP: ${INVITE_ACCOUNT_SEAT_CAP:-100}
+      # How long a server may go without a subscription before the bot leaves
+      # its group and the seat returns to the pool. Their configuration
+      # survives -- coming back is "invite the bot again and press check", not
+      # a full re-setup.
+      SEAT_LAPSE_GRACE_SECONDS: ${SEAT_LAPSE_GRACE_SECONDS:-7776000}
+      # A seat promised to an admin who never finished setting up.
+      SEAT_RESERVATION_GRACE_SECONDS: ${SEAT_RESERVATION_GRACE_SECONDS:-2592000}
+      # Warn in the log while there is still time to provision another account.
+      SEAT_CAPACITY_WARN_FREE: ${SEAT_CAPACITY_WARN_FREE:-10}
+      SEAT_SWEEP_INTERVAL: ${SEAT_SWEEP_INTERVAL:-21600}
+      SEAT_SWEEP_MAX_PER_PASS: ${SEAT_SWEEP_MAX_PER_PASS:-25}
+      SEAT_SWEEP_SPACING: ${SEAT_SWEEP_SPACING:-2}
     restart: unless-stopped
 
   vrc-online-checker:

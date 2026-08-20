@@ -408,6 +408,14 @@ GROUP_SETUP_COPY = {
         "The bot couldn't reach the part of itself that talks to VRChat. Try "
         "again shortly.",
     ),
+    "seat_released": (
+        "warn",
+        "The bot left your group",
+        "A VRChat account can only be in so many groups, so after a long time "
+        "without a subscription the bot left yours to free the space. Invite "
+        "the account below back and run the check again \u2014 your group and "
+        "setup code are still saved, so there is nothing else to redo.",
+    ),
     "ready": (
         "ok",
         "Ready",

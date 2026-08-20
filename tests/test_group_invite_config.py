@@ -85,6 +85,7 @@ def clean_db():
         with bot.session_scope() as session:
             session.query(bot.Server).delete()
             session.query(bot.GroupInviteConfig).delete()
+            session.query(bot.GroupSeatLease).delete()
             session.query(bot.DashboardAudit).delete()
             session.query(bot.PremiumGrandfatherLine).delete()
 
@@ -642,6 +643,7 @@ class TestTheVocabularyMatchesTheWorker:
             bot.GROUP_SETUP_CHECKING,
             bot.GROUP_SETUP_TIMED_OUT,
             bot.GROUP_SETUP_WORKER_UNREACHABLE,
+            bot.GROUP_SETUP_SEAT_RELEASED,
         }
 
 

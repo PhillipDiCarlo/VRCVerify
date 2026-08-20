@@ -3,10 +3,12 @@ import json
 import asyncio
 import logging
 import secrets
+import random
 import string
 import re
 import time
 from typing import Optional
+from dataclasses import dataclass
 from html import escape
 from urllib.parse import urlparse
 from types import SimpleNamespace
@@ -92,6 +94,7 @@ RABBITMQ_GROUP_INVITE_RESULT_QUEUE = os.getenv(
 # refuses to start a verification rather than sending an admin to invite
 # nobody.
 INVITE_VRCHAT_USER_ID = (os.getenv("INVITE_VRCHAT_USER_ID") or "").strip() or None
+
 
 # Priority levels on the request queue, so premium servers are served ahead of
 # free ones when a backlog forms. RabbitMQ only reorders messages already
@@ -249,6 +252,176 @@ logging.basicConfig(
 )
 logging.getLogger("pika").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
+
+# -------------------------------------------------------------------
+# The invite-account roster (issue #49, phase 6)
+# -------------------------------------------------------------------
+# How many groups one VRChat account may hold. 100 is the platform limit; VRC+
+# raises it to 200 on the account that has it, which is why the roster below
+# lets an entry override this rather than assuming one number fits every
+# account.
+INVITE_ACCOUNT_SEAT_CAP = _int_env("INVITE_ACCOUNT_SEAT_CAP", 100)
+
+
+@dataclass(frozen=True)
+class InviteAccount:
+    """One VRChat account that can hold groups, and the queue that reaches it.
+
+    The queue is per-account and that is the whole point. Two workers
+    consuming one queue get its messages round-robin, so an invite for a group
+    only account B has joined would be handed to account A -- the same trap
+    that made the invite worker take its own queue instead of sharing the age
+    checker's. Routing is therefore explicit: the bot publishes each job to the
+    queue belonging to the account that holds that guild's seat.
+    """
+
+    user_id: str
+    queue: str
+    seats: int
+
+
+def parse_invite_accounts(raw, *, default_queue, default_seats, default_user_id=None):
+    """The invite-account roster, from INVITE_ACCOUNTS.
+
+    Format is `usr_id|queue|seats`, entries separated by commas, seats
+    optional:
+
+        INVITE_ACCOUNTS=usr_aaa|vrcverify_group_invites|200,usr_bbb|vrcverify_group_invites_2
+
+    Unset falls back to the single account the pre-switchboard settings
+    describe, so an existing deployment keeps working untouched and only grows
+    this variable when it grows a second account.
+
+    A malformed entry is logged and skipped rather than raised. Refusing to
+    start over one typo takes down invites for every guild including the ones
+    whose accounts parsed fine; dropping the entry costs the guilds on that one
+    account, which is strictly less. Both are loud.
+    """
+    accounts = []
+    seen_ids = set()
+    seen_queues = set()
+
+    def add(user_id, queue, seats, where):
+        if not user_id or not user_id.startswith("usr_"):
+            logger.error(
+                "INVITE_ACCOUNTS %s: %r is not a VRChat user id; skipping.",
+                where,
+                user_id,
+            )
+            return
+        if not queue:
+            logger.error("INVITE_ACCOUNTS %s: no queue name; skipping.", where)
+            return
+        if user_id in seen_ids:
+            logger.error(
+                "INVITE_ACCOUNTS %s: %s appears twice; keeping the first.",
+                where,
+                user_id,
+            )
+            return
+        if queue in seen_queues:
+            # Two accounts on one queue is the round-robin bug this design
+            # exists to avoid, arriving by configuration instead of by code.
+            logger.error(
+                "INVITE_ACCOUNTS %s: queue %r is already used by another "
+                "account; skipping. Two accounts sharing a queue would have "
+                "each other's jobs.",
+                where,
+                queue,
+            )
+            return
+        seen_ids.add(user_id)
+        seen_queues.add(queue)
+        accounts.append(InviteAccount(user_id=user_id, queue=queue, seats=seats))
+
+    text = (raw or "").strip()
+    if not text:
+        if default_user_id:
+            add(default_user_id, default_queue, default_seats, "(from INVITE_VRCHAT_USER_ID)")
+        return tuple(accounts)
+
+    for index, entry in enumerate(text.split(","), start=1):
+        entry = entry.strip()
+        if not entry:
+            continue
+        parts = [p.strip() for p in entry.split("|")]
+        where = "entry %s" % index
+        if len(parts) not in (2, 3):
+            logger.error(
+                "INVITE_ACCOUNTS %s: expected usr_id|queue or usr_id|queue|seats, "
+                "got %r; skipping.",
+                where,
+                entry,
+            )
+            continue
+        seats = default_seats
+        if len(parts) == 3:
+            try:
+                seats = int(parts[2])
+            except ValueError:
+                logger.error(
+                    "INVITE_ACCOUNTS %s: %r is not a seat count; using %s.",
+                    where,
+                    parts[2],
+                    default_seats,
+                )
+            else:
+                if seats < 1:
+                    logger.error(
+                        "INVITE_ACCOUNTS %s: seat count %s is not positive; "
+                        "using %s.",
+                        where,
+                        seats,
+                        default_seats,
+                    )
+                    seats = default_seats
+        add(parts[0], parts[1], seats, where)
+    return tuple(accounts)
+
+
+INVITE_ACCOUNTS = parse_invite_accounts(
+    os.getenv("INVITE_ACCOUNTS"),
+    default_queue=RABBITMQ_GROUP_INVITE_QUEUE,
+    default_seats=INVITE_ACCOUNT_SEAT_CAP,
+    default_user_id=INVITE_VRCHAT_USER_ID,
+)
+INVITE_ACCOUNTS_BY_ID = {a.user_id: a for a in INVITE_ACCOUNTS}
+
+# How long a guild may be without a subscription before its seat goes back in
+# the pool. The bot leaves the VRChat group; everything the admin configured
+# survives, including verified_at -- so coming back is "invite the bot again
+# and press check", never a full re-setup with the claim code.
+#
+# 90 days rather than 60. The two ways of being wrong are not symmetrical:
+# holding a seat too long costs one seat, and reclaiming too early takes a
+# returning customer's working setup away from them.
+SEAT_LAPSE_GRACE_SECONDS = _int_env("SEAT_LAPSE_GRACE_SECONDS", 90 * 24 * 3600)
+
+# A seat reserved for an admin who never finished setting up. Without this the
+# feature leaks capacity to everyone who tried it once and gave up.
+SEAT_RESERVATION_GRACE_SECONDS = _int_env(
+    "SEAT_RESERVATION_GRACE_SECONDS", 30 * 24 * 3600
+)
+
+# Warn the operator while there is still time to provision another account.
+SEAT_CAPACITY_WARN_FREE = _int_env("SEAT_CAPACITY_WARN_FREE", 10, minimum=0)
+
+# The seat sweep. Everything else time-based in this feature expires ON READ,
+# deliberately -- "a state that expires on its own needs no scheduler to be
+# correct, and there is nothing to fail at three in the morning". That does not
+# work here, and the reason is worth stating: nothing reads a lapsed guild's
+# row, which is precisely what makes it lapsed. Leaving a VRChat group is an
+# action nobody will otherwise trigger, so this one genuinely needs a sweep.
+#
+# Six hours, against a ninety-day grace period. The interval is not what makes
+# the reclaim timely -- the grace period is -- so this is set by how fresh the
+# capacity warning should be, not by how fast a seat comes back.
+SEAT_SWEEP_INTERVAL = _int_env("SEAT_SWEEP_INTERVAL", 6 * 3600)
+# Capped and spaced for the same reason panel nudges are: a backlog, a clock
+# jump or a long outage must trickle out rather than becoming a burst of VRChat
+# writes from one account.
+SEAT_SWEEP_MAX_PER_PASS = _int_env("SEAT_SWEEP_MAX_PER_PASS", 25)
+SEAT_SWEEP_SPACING = _float_env("SEAT_SWEEP_SPACING", 2.0)
 
 # -------------------------------------------------------------------
 # SQLAlchemy setup
@@ -470,6 +643,13 @@ GROUP_SETUP_TIMED_OUT = "timed_out"  # asked, and nothing came back in time
 # one is a broken queue here, the other is a broken API there, and a single
 # code covering both makes the state useless for working out which.
 GROUP_SETUP_WORKER_UNREACHABLE = "worker_unreachable"
+# The bot left the group to free its seat after a long lapse (phase 6). Its own
+# state rather than reusing "not_invited": that copy is accurate -- the bot
+# really is not in the group -- but it reads as though the admin never did the
+# setup, when in fact they did it and we undid it. The distinction is worth a
+# string because the actions differ too: this one only needs the bot invited
+# again, and specifically does NOT need a fresh claim code.
+GROUP_SETUP_SEAT_RELEASED = "seat_released"
 
 # The worker's verdicts.
 GROUP_SETUP_READY = "ready"  # joined, and holds the invite permission
@@ -488,6 +668,7 @@ GROUP_SETUP_STATES = frozenset(
         GROUP_SETUP_CHECKING,
         GROUP_SETUP_TIMED_OUT,
         GROUP_SETUP_WORKER_UNREACHABLE,
+        GROUP_SETUP_SEAT_RELEASED,
         GROUP_SETUP_READY,
         GROUP_SETUP_JOIN_REQUESTED,
         GROUP_SETUP_NOT_INVITED,
@@ -592,6 +773,14 @@ GROUP_INVITE_STATES = frozenset(
 # Everything NOT in here is a transient failure -- VRChat down, the server's
 # permissions broken, the job lost -- and those deliberately leave the offer
 # available, because none of them is the member's answer to the question.
+# vrc_group_inviter.LEAVE_STATES, mirrored. Same duplication and same reason
+# as the two vocabularies above: the worker has neither discord.py nor a
+# database driver, so importing it here would drag both in.
+JOB_LEAVE_GROUP = "leave_group"
+SEAT_LEAVE_DONE = "left"
+SEAT_LEAVE_FAILED = "leave_failed"
+SEAT_LEAVE_STATES = frozenset({SEAT_LEAVE_DONE, SEAT_LEAVE_FAILED})
+
 GROUP_INVITE_SETTLED_STATES = frozenset(
     {
         GROUP_INVITE_SENT,
@@ -780,6 +969,64 @@ class GroupInviteRequest(Base):
     # avoids. Strings, like every other Discord id in this file.
     channel_id = Column(String(30), nullable=True)
     message_id = Column(String(30), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class GroupSeatLease(Base):
+    """Which invite account holds a guild's seat, and since when (issue #49).
+
+    A separate table for the same reason as the six above: create_all() adds
+    missing tables but never columns.
+
+    A VRChat account can be in 100 groups, 200 with VRC+. That cap is the
+    scarcest thing this feature has, and it is spent by servers rather than by
+    members -- so it needs accounting that a lapsed server cannot quietly hold
+    forever. This table is that accounting.
+
+    It exists as its own table rather than as columns on group_invite_config
+    because two of its three dates answer questions that table cannot:
+
+      * `reserved_at` is set when an account is ASSIGNED, which is the moment
+        the dashboard first names it to an admin -- before they have invited
+        anything. Counting only groups the bot had actually joined would let
+        fifty admins setting up at once all be sent to the same nearly-full
+        account and push it past its cap.
+
+      * `last_premium_at` is the one piece of state nothing else records. A
+        Stripe subscriber's lapse date can be read from
+        stripe_subscription.current_period_end, but a guild on a Discord
+        entitlement simply stops appearing -- premium_entitlement_seen holds
+        `first_seen` and nothing else. Without this column there is no date to
+        measure a grace period from.
+
+    Releasing a seat leaves the VRChat group and clears the lease. It
+    deliberately does NOT clear the guild's configuration: group_id keeps the
+    UNIQUE claim so nobody can squat on a lapsed server's group while it is
+    away, and `verified_at` survives so begin_group_verification still computes
+    `requireCode` as False. A returning admin re-invites the bot and presses
+    check; they never paste the claim code back into their group description.
+    """
+
+    __tablename__ = "group_seat_lease"
+    server_id = Column(String, primary_key=True)
+    # Which account is holding the seat. Indexed because every capacity
+    # decision counts rows by this column, and that count happens on the path
+    # an admin waits on.
+    invite_account_id = Column(String(64), nullable=True, index=True)
+    # When the account was assigned -- not when the bot joined. See above.
+    reserved_at = Column(DateTime(timezone=True), nullable=True)
+    # The last moment this guild was seen paying. The grace period counts from
+    # here, so a guild that has never been seen paying since this table shipped
+    # is treated as lapsing from the sweep that first looks at it, not from the
+    # epoch. NULL is therefore "not yet observed", never "lapsed long ago".
+    last_premium_at = Column(DateTime(timezone=True), nullable=True)
+    # Set when the bot has actually left the group. A released row is kept
+    # rather than deleted: it is the record that says this guild HAD a seat and
+    # what happened to it, which is the difference between "never set up" and
+    # "set up, then reclaimed" on a support ticket.
+    released_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -2762,8 +3009,15 @@ def group_claim_holder(group_id) -> Optional[str]:
         return row.server_id if row else None
 
 
-def save_group_invite_config(guild_id, *, group_id, enabled) -> None:
+def save_group_invite_config(guild_id, *, group_id, enabled) -> Optional[str]:
     """Store a guild's group id and invite toggle, claiming the group.
+
+    Returns the group the bot has just been DISPLACED from, if any -- the id it
+    was in before an admin pointed this guild somewhere else or cleared the
+    field. The caller is expected to ask the worker to leave it. Returned
+    rather than acted on here because leaving is asynchronous and this function
+    is not, and because a seat that is still occupied must not be advertised as
+    free before the bot is actually out of the group.
 
     Raises SettingRejected("vrchat_group_id", "group_claimed_elsewhere") when
     another guild already holds this group. Both halves of that check earn
@@ -2789,6 +3043,7 @@ def save_group_invite_config(guild_id, *, group_id, enabled) -> None:
     # an already-claimed group into the table, and first-claim-wins would
     # quietly stop being true. Idempotent for anything already parsed.
     group_id = parse_vrchat_group_id(group_id)
+    displaced = None
     try:
         with session_scope() as session:
             if group_id is not None:
@@ -2813,6 +3068,12 @@ def save_group_invite_config(guild_id, *, group_id, enabled) -> None:
                 session.add(row)
 
             if row.group_id != group_id:
+                # Only a group the bot actually got into is worth leaving.
+                # verified_at is the marker for that: without it the join
+                # never succeeded, so there is nothing to leave and no seat
+                # being held on the far side.
+                if row.group_id and row.verified_at is not None:
+                    displaced = row.group_id
                 row.group_id = group_id
                 row.group_name = None
                 row.group_icon_url = None
@@ -2837,6 +3098,7 @@ def save_group_invite_config(guild_id, *, group_id, enabled) -> None:
         # The unique constraint, i.e. the other guild committed between our
         # query above and our own commit. Same answer, arrived at the hard way.
         raise SettingRejected("vrchat_group_id", "group_claimed_elsewhere")
+    return displaced
 
 
 # The one job type the invite worker handles. Spelled the same as
@@ -3293,6 +3555,521 @@ def record_group_invite_result(data: dict) -> tuple[str, Optional[dict]]:
             "message_id": row.message_id,
             "state": state,
         }
+
+
+# -------------------------------------------------------------------
+# Seats: which invite account serves which guild (issue #49, phase 6)
+# -------------------------------------------------------------------
+def _utc(value):
+    """A stored timestamp, made timezone-aware.
+
+    SQLite has no timezone type and hands back naive datetimes, which every
+    comparison against an aware `now` below would raise on.
+    """
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def seat_usage() -> dict:
+    """How many seats each invite account is holding, by account id.
+
+    Counts leases rather than joined groups on purpose: a seat is spent the
+    moment it is promised to an admin, not when the bot finally gets into their
+    group. See GroupSeatLease.reserved_at.
+    """
+    with session_scope() as session:
+        rows = (
+            session.query(
+                GroupSeatLease.invite_account_id, func.count(GroupSeatLease.server_id)
+            )
+            .filter(GroupSeatLease.released_at.is_(None))
+            .filter(GroupSeatLease.invite_account_id.isnot(None))
+            .group_by(GroupSeatLease.invite_account_id)
+            .all()
+        )
+    return {account_id: int(count) for account_id, count in rows}
+
+
+def seat_capacity() -> dict:
+    """(used, total, free) across the whole roster."""
+    usage = seat_usage()
+    total = sum(a.seats for a in INVITE_ACCOUNTS)
+    # Only counts accounts still on the roster. A retired account's leases are
+    # not capacity anyone can use, and counting them as "used" would understate
+    # free seats rather than overstate them, which is the safe direction.
+    used = sum(usage.get(a.user_id, 0) for a in INVITE_ACCOUNTS)
+    return {"used": used, "total": total, "free": max(0, total - used)}
+
+
+def load_seat_lease(guild_id) -> Optional[dict]:
+    """This guild's lease, or None if it has never held a seat."""
+    if guild_id is None:
+        return None
+    with session_scope() as session:
+        row = (
+            session.query(GroupSeatLease)
+            .filter_by(server_id=panel_view_key(guild_id))
+            .first()
+        )
+        if row is None:
+            return None
+        return {
+            "invite_account_id": row.invite_account_id,
+            "reserved_at": _utc(row.reserved_at),
+            "last_premium_at": _utc(row.last_premium_at),
+            "released_at": _utc(row.released_at),
+        }
+
+
+def invite_account_for_guild(guild_id) -> Optional[InviteAccount]:
+    """The account serving this guild, or None if there is not one.
+
+    Read-only. Assignment is a write and belongs to assign_invite_account,
+    which the admin's own actions trigger -- a read that quietly reserved
+    capacity would spend seats on anyone who merely opened the settings page.
+
+    A guild with no lease on a SINGLE-account installation gets that account.
+    Every guild configured before this table existed is in exactly that
+    position, and the alternative is telling them the feature is unavailable
+    until a sweep materialises a row that was never in doubt. With several
+    accounts the answer genuinely is unknown until one is assigned, so it says
+    so instead of guessing.
+    """
+    lease = load_seat_lease(guild_id)
+    if lease and lease["released_at"] is None and lease["invite_account_id"]:
+        account = INVITE_ACCOUNTS_BY_ID.get(lease["invite_account_id"])
+        if account is not None:
+            return account
+        # The lease names an account the roster no longer has. Not an error
+        # worth failing on -- the operator retired it -- but this guild needs
+        # reassigning, and saying None is what makes the dashboard ask for it.
+        logger.warning(
+            "Guild %s holds a seat on %s, which is no longer in "
+            "INVITE_ACCOUNTS.",
+            guild_id,
+            lease["invite_account_id"],
+        )
+        return None
+    if lease is None and len(INVITE_ACCOUNTS) == 1:
+        return INVITE_ACCOUNTS[0]
+    return None
+
+
+def assign_invite_account(guild_id) -> Optional[InviteAccount]:
+    """Reserve a seat for this guild and return the account, or None if full.
+
+    Sticky. Once a guild holds a seat it keeps it, because the account it was
+    told to invite is the account that is in its group -- reassigning would
+    tell an admin looking at a working setup to go and invite somebody else.
+
+    Least loaded, not first-with-room. The accounts are separate precisely so
+    moderation action against one cannot take the others down, so spreading
+    guilds across them means a ban costs a fraction of them rather than all.
+
+    Two guilds assigning in the same instant can both pick the same account and
+    put it one over its cap. Left alone deliberately: the loser finds out at
+    join time with a clear failure, and the alternative is serialising every
+    setup in the product behind one lock to save a seat that VRC+ doubles.
+    """
+    if not INVITE_ACCOUNTS:
+        logger.error(
+            "A guild needs an invite account but INVITE_ACCOUNTS is empty."
+        )
+        return None
+
+    key = panel_view_key(guild_id)
+    now = datetime.now(timezone.utc)
+
+    existing = invite_account_for_guild(guild_id)
+    if existing is not None:
+        # Materialise the lease for a single-account installation that has
+        # never had one, so the seat is counted from here on.
+        _record_seat_lease(key, existing.user_id, now)
+        return existing
+
+    usage = seat_usage()
+    candidates = [
+        account
+        for account in INVITE_ACCOUNTS
+        if usage.get(account.user_id, 0) < account.seats
+    ]
+    if not candidates:
+        logger.error(
+            "Every invite account is at its seat cap; guild %s cannot be "
+            "given one. Provision another account.",
+            guild_id,
+        )
+        return None
+
+    chosen = min(candidates, key=lambda a: (usage.get(a.user_id, 0), a.user_id))
+    _record_seat_lease(key, chosen.user_id, now)
+    logger.info(
+        "Assigned guild %s to invite account %s (%s/%s seats used).",
+        guild_id,
+        chosen.user_id,
+        usage.get(chosen.user_id, 0) + 1,
+        chosen.seats,
+    )
+    return chosen
+
+
+def _record_seat_lease(key, account_id, now) -> None:
+    """Write the reservation. Idempotent for a guild already on that account."""
+    with session_scope() as session:
+        row = session.query(GroupSeatLease).filter_by(server_id=key).first()
+        if row is None:
+            row = GroupSeatLease(server_id=key)
+            session.add(row)
+        elif row.invite_account_id == account_id and row.released_at is None:
+            # Already leased to this account; do not move reserved_at, or a
+            # guild that merely re-saves its settings would keep resetting the
+            # clock that expires an abandoned reservation.
+            return
+        row.invite_account_id = account_id
+        row.reserved_at = now
+        row.released_at = None
+        row.updated_at = now
+
+
+def touch_premium_seen(guild_id, when=None) -> None:
+    """Record that this guild was seen paying, for the lapse grace period.
+
+    Only ever moves the timestamp forward. The sweep is what calls this, so a
+    guild that stops being swept -- because it lost its lease, say -- keeps the
+    last date anyone actually observed rather than drifting to now.
+    """
+    key = panel_view_key(guild_id)
+    moment = when or datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = session.query(GroupSeatLease).filter_by(server_id=key).first()
+        if row is None:
+            return
+        current = _utc(row.last_premium_at)
+        if current is not None and current >= moment:
+            return
+        row.last_premium_at = moment
+        row.updated_at = moment
+
+
+def release_seat(guild_id) -> Optional[str]:
+    """Give a guild's seat back. Returns the account that held it, or None.
+
+    Only the lease is cleared. The guild's configuration is untouched --
+    group_id keeps the UNIQUE claim so nobody can take the group while they are
+    away, and verified_at survives so a returning admin re-invites the bot
+    without pasting the claim code again.
+    """
+    key = panel_view_key(guild_id)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = session.query(GroupSeatLease).filter_by(server_id=key).first()
+        if row is None or row.released_at is not None:
+            return None
+        account_id = row.invite_account_id
+        row.released_at = now
+        row.updated_at = now
+    return account_id
+
+
+def mark_group_seat_released(guild_id) -> None:
+    """Record that the bot is out of this guild's group.
+
+    Everything the admin configured survives. Only what the bot LEARNED about
+    the VRChat side is cleared, because none of it is true any more:
+
+      * `verified_at` is kept. begin_group_verification computes
+        `requireCode` as `verified_at is None`, so keeping it is exactly what
+        lets a returning admin re-invite the bot and press check without
+        pasting the claim code back into their group description. Clearing it
+        would silently turn a one-click return into a full re-setup.
+      * `group_id` is kept, and with it the UNIQUE claim -- so nobody can take
+        the group while its server is away.
+      * `enabled` is kept. The admin never turned it off; we left.
+    """
+    key = panel_view_key(guild_id)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = session.query(GroupInviteConfig).filter_by(server_id=key).first()
+        if row is None:
+            return
+        row.verify_state = GROUP_SETUP_SEAT_RELEASED
+        row.can_invite = False
+        row.can_see_members = False
+        row.invite_account_id = None
+        row.verify_job_id = None
+        row.verify_error = None
+        row.updated_at = now
+
+
+def build_seat_release_job(guild_id, group_id) -> dict:
+    """The job that takes the bot out of one guild's group.
+
+    Built from the stored lease and the stored group, never from a caller --
+    the same rule the join obeys. A leave whose group came from a request body
+    would let anyone evict the bot from any group it is in.
+    """
+    return {
+        "type": JOB_LEAVE_GROUP,
+        "jobID": secrets.token_hex(16),
+        "guildID": str(guild_id),
+        "groupID": group_id,
+    }
+
+
+async def request_seat_release(guild_id, group_id, account) -> bool:
+    """Ask the worker to leave a group. True if the job was accepted.
+
+    The seat is NOT freed here. It is freed when the worker reports it is
+    actually out, because a seat handed to a second guild while the bot is
+    still sitting in the first one's group is a seat that does not exist.
+    """
+    if not group_id or account is None:
+        return False
+    job = build_seat_release_job(guild_id, group_id)
+    loop = asyncio.get_running_loop()
+    published = await loop.run_in_executor(
+        None, publish_group_invite_job, job, account.queue
+    )
+    if not published:
+        logger.warning(
+            "Could not ask %s to leave group %s for guild %s; the sweep will "
+            "try again.",
+            account.user_id,
+            group_id,
+            guild_id,
+        )
+        return False
+    logger.info(
+        "Asked %s to leave group %s, releasing guild %s's seat.",
+        account.user_id,
+        group_id,
+        guild_id,
+    )
+    return True
+
+
+async def handle_seat_release_result(data: dict):
+    """One leave verdict. The seat is freed only on a definite success."""
+    guild_id = data.get("guildID")
+    state = data.get("state")
+    if state not in SEAT_LEAVE_STATES:
+        logger.warning(
+            "Unknown leave state %r for guild %s; ignoring.", state, guild_id
+        )
+        return
+    if state != SEAT_LEAVE_DONE:
+        # Left alone on purpose: the lease stays, so the seat stays spoken for
+        # and the sweep tries again. Freeing it now would advertise capacity
+        # that the bot is still occupying.
+        logger.warning(
+            "Could not free guild %s's seat: %s",
+            guild_id,
+            data.get("error_message"),
+        )
+        return
+    try:
+        account_id = release_seat(guild_id)
+        mark_group_seat_released(guild_id)
+    except Exception:
+        logger.exception("Could not record a released seat for guild %s.", guild_id)
+        return
+    logger.info(
+        "Freed guild %s's seat on %s.", guild_id, account_id or "an unknown account"
+    )
+
+
+def load_seat_sweep_candidates() -> list:
+    """Every guild that holds a seat, or should hold one, with its group.
+
+    Returns dicts rather than rows: the session closes on the way out, and the
+    sweep does slow asynchronous work with each of these afterwards.
+    """
+    with session_scope() as session:
+        rows = (
+            session.query(
+                GroupInviteConfig.server_id,
+                GroupInviteConfig.group_id,
+                GroupSeatLease.invite_account_id,
+                GroupSeatLease.last_premium_at,
+                GroupSeatLease.released_at,
+            )
+            .outerjoin(
+                GroupSeatLease,
+                GroupSeatLease.server_id == GroupInviteConfig.server_id,
+            )
+            .filter(GroupInviteConfig.group_id.isnot(None))
+            .all()
+        )
+    return [
+        {
+            "server_id": server_id,
+            "group_id": group_id,
+            "invite_account_id": account_id,
+            "last_premium_at": _utc(last_premium_at),
+            "released_at": _utc(released_at),
+        }
+        for server_id, group_id, account_id, last_premium_at, released_at in rows
+    ]
+
+
+def expire_stale_reservations() -> int:
+    """Release seats promised to admins who never finished setting up.
+
+    Without this the feature leaks capacity to everyone who tried it once and
+    gave up. Safe to do without asking the worker to leave anything: a
+    reservation that never reached a successful verification is, by
+    definition, a group the bot never joined.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(
+        seconds=SEAT_RESERVATION_GRACE_SECONDS
+    )
+    now = datetime.now(timezone.utc)
+    released = 0
+    with session_scope() as session:
+        rows = (
+            session.query(GroupSeatLease)
+            .filter(GroupSeatLease.released_at.is_(None))
+            .filter(GroupSeatLease.invite_account_id.isnot(None))
+            .all()
+        )
+        for row in rows:
+            reserved = _utc(row.reserved_at)
+            if reserved is None or reserved > cutoff:
+                continue
+            config = (
+                session.query(GroupInviteConfig)
+                .filter_by(server_id=row.server_id)
+                .first()
+            )
+            # Only an UNUSED reservation. A guild whose setup succeeded holds a
+            # real seat, and its release is the lapse path's business, not this
+            # one's.
+            if config is not None and config.verified_at is not None:
+                continue
+            row.released_at = now
+            row.updated_at = now
+            released += 1
+    if released:
+        logger.info(
+            "Released %s seat(s) reserved by setups that were never finished.",
+            released,
+        )
+    return released
+
+
+def report_seat_capacity() -> dict:
+    """Log how much room is left, loudly enough to act on."""
+    capacity = seat_capacity()
+    if not INVITE_ACCOUNTS:
+        return capacity
+    if capacity["free"] <= 0:
+        logger.error(
+            "Every invite account is full (%s/%s seats). New servers cannot "
+            "set up group invites until another account is provisioned.",
+            capacity["used"],
+            capacity["total"],
+        )
+    elif capacity["free"] <= SEAT_CAPACITY_WARN_FREE:
+        logger.warning(
+            "Invite capacity is nearly gone: %s of %s seats free. Provision "
+            "another VRChat account before it runs out.",
+            capacity["free"],
+            capacity["total"],
+        )
+    else:
+        logger.info(
+            "Invite capacity: %s of %s seats free.",
+            capacity["free"],
+            capacity["total"],
+        )
+    return capacity
+
+
+async def seat_sweep_pass() -> dict:
+    """One pass: observe who is paying, reclaim what has lapsed.
+
+    Split from the loop so a test can run exactly one pass without a scheduler,
+    and so the loop below has nothing in it but timing.
+    """
+    now = datetime.now(timezone.utc)
+    reclaimed = 0
+    asked = 0
+
+    expire_stale_reservations()
+
+    for index, candidate in enumerate(load_seat_sweep_candidates()):
+        if candidate["released_at"] is not None:
+            continue
+        if asked >= SEAT_SWEEP_MAX_PER_PASS:
+            break
+        guild_id = candidate["server_id"]
+        try:
+            flags = await resolve_premium_flags(guild_id)
+        except Exception:
+            # Never reclaim on an unanswered question. A billing hiccup that
+            # read as "not paying" would evict paying customers from their own
+            # groups, and the cost of waiting is one sweep.
+            logger.warning(
+                "Could not resolve premium for guild %s during the seat "
+                "sweep; leaving its seat alone.",
+                guild_id,
+                exc_info=True,
+            )
+            continue
+
+        if flags.allows(FEATURE_GROUP_INVITE):
+            touch_premium_seen(guild_id, now)
+            continue
+
+        last_paid = candidate["last_premium_at"]
+        if last_paid is None:
+            # First time anyone has looked at this guild while it was not
+            # paying. The grace period starts NOW rather than at the epoch --
+            # a NULL means "not yet observed", never "lapsed long ago", and
+            # reading it the other way would evict every lapsed guild the
+            # instant this shipped.
+            touch_premium_seen(guild_id, now)
+            continue
+        if (now - last_paid).total_seconds() < SEAT_LAPSE_GRACE_SECONDS:
+            continue
+
+        account = invite_account_for_guild(guild_id)
+        if account is None:
+            # No account to ask, so nothing is holding a group. Free the lease
+            # directly rather than leaving it to pin capacity forever.
+            release_seat(guild_id)
+            reclaimed += 1
+            continue
+
+        if asked:
+            await asyncio.sleep(SEAT_SWEEP_SPACING)
+        if await request_seat_release(guild_id, candidate["group_id"], account):
+            asked += 1
+
+    report_seat_capacity()
+    return {"asked": asked, "reclaimed": reclaimed}
+
+
+async def seat_sweep_task(interval_seconds: int = SEAT_SWEEP_INTERVAL):
+    """Reclaim seats from guilds that stopped paying a long time ago."""
+    while True:
+        try:
+            outcome = await seat_sweep_pass()
+            if outcome["asked"] or outcome["reclaimed"]:
+                logger.info(
+                    "Seat sweep: asked for %s group(s) to be left, freed %s "
+                    "lease(s) outright.",
+                    outcome["asked"],
+                    outcome["reclaimed"],
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Seat sweep failed; retrying next interval.")
+        # Jittered, like every other repeating schedule here: a fixed interval
+        # is what makes many deployments synchronise into a spike.
+        await asyncio.sleep(interval_seconds + random.uniform(0, 60))
 
 
 def forget_log_channel(guild_id) -> None:
@@ -4655,6 +5432,15 @@ async def handle_group_invite_press(
         )
         return
 
+    # Which account serves this guild. Resolved read-only: a member pressing a
+    # button must never reserve capacity, and a guild that has lost its seat --
+    # reclaimed after a long lapse, or on an account the operator retired --
+    # has no invite to send until an admin sets it up again.
+    account = invite_account_for_guild(str(guild_id))
+    if account is None:
+        await settle("group_invite_setup_problem", server=server_name)
+        return
+
     config = await group_invite_target(str(guild_id))
     if not config:
         # Between the offer and the press, the server turned this off, let its
@@ -4782,7 +5568,9 @@ async def handle_group_invite_press(
         return
 
     loop = asyncio.get_running_loop()
-    published = await loop.run_in_executor(None, publish_group_invite_job, job)
+    published = await loop.run_in_executor(
+        None, publish_group_invite_job, job, account.queue
+    )
     if not published:
         abandon_group_invite(str(guild_id), interaction.user.id, job["jobID"])
         await settle("group_invite_unavailable", retryable=True)
@@ -5706,14 +6494,21 @@ async def vrcverify_setrequestmessage(interaction: discord.Interaction):
     await send_settings_summary(interaction)
 
 
-def publish_group_invite_job(job: dict) -> bool:
-    """Put one job on the invite worker's queue. True if it was accepted.
+def publish_group_invite_job(job: dict, queue: Optional[str] = None) -> bool:
+    """Put one job on one invite worker's queue. True if it was accepted.
+
+    The queue names WHICH account does the work, and getting it wrong is not a
+    performance problem -- it hands a job about group X to an account that has
+    never joined group X. Callers pass the queue belonging to the guild's
+    seat; the default is the single-account queue, which is what every
+    installation with one account still uses.
 
     Blocking, so callers run it off the event loop. Declares the queue with
     `durable=True` and nothing else, matching vrc_group_inviter exactly -- an
     argument this end added would fail every declare with 406 and take the
     worker down with it.
     """
+    queue = queue or RABBITMQ_GROUP_INVITE_QUEUE
     properties = pika.BasicProperties(
         content_type="application/json",
         delivery_mode=2,  # persistent
@@ -5724,24 +6519,26 @@ def publish_group_invite_job(job: dict) -> bool:
         try:
             conn = _rabbitmq_connect_with_retry(max_tries=1)
             channel = conn.channel()
-            channel.queue_declare(queue=RABBITMQ_GROUP_INVITE_QUEUE, durable=True)
+            channel.queue_declare(queue=queue, durable=True)
             channel.basic_publish(
                 exchange="",
-                routing_key=RABBITMQ_GROUP_INVITE_QUEUE,
+                routing_key=queue,
                 body=json.dumps(job),
                 properties=properties,
             )
             logger.info(
-                "Sent group-setup job %s for guild %s",
+                "Sent %s job %s for guild %s to '%s'",
+                job.get("type"),
                 job.get("jobID"),
                 job.get("guildID"),
+                queue,
             )
             return True
         except AMQPError as e:
             if is_queue_argument_mismatch(e):
                 # Retrying cannot help: the queue's arguments will not change
                 # on their own, so every attempt fails identically.
-                log_queue_argument_mismatch(RABBITMQ_GROUP_INVITE_QUEUE)
+                log_queue_argument_mismatch(queue)
                 return False
             logger.warning(
                 "Could not publish group-setup job (attempt %s/%s); retrying...",
@@ -5793,12 +6590,18 @@ async def request_group_verification(guild_id, actor_id):
     if not flags.allows(FEATURE_GROUP_INVITE):
         raise SettingRejected("vrchat_group_id", "requires_premium", locked=True)
 
-    if INVITE_VRCHAT_USER_ID is None:
-        # An operator problem, not the admin's: there is no account for them
-        # to have invited. 503 rather than a refusal that blames the caller.
+    # Assignment happens HERE rather than on the settings read, because this is
+    # the first moment the guild commits to setup and the first moment a seat
+    # has to be real. It is sticky, so pressing check twice does not move them.
+    account = assign_invite_account(guild_id)
+    if account is None:
+        # Either no account is provisioned at all, or every one of them is
+        # full. Both are the operator's problem rather than the admin's, and
+        # both are a 503 rather than a refusal that blames the caller.
         logger.error(
-            "A group verification was requested but INVITE_VRCHAT_USER_ID is "
-            "unset, so there is no invite account to check for."
+            "A group verification was requested for guild %s but no invite "
+            "account could be assigned.",
+            guild_id,
         )
         return None
 
@@ -5815,7 +6618,9 @@ async def request_group_verification(guild_id, actor_id):
         raise SettingRejected("vrchat_group_id", "no_group_configured")
 
     loop = asyncio.get_running_loop()
-    published = await loop.run_in_executor(None, publish_group_invite_job, job)
+    published = await loop.run_in_executor(
+        None, publish_group_invite_job, job, account.queue
+    )
     if not published:
         abandon_group_verification(
             guild_id,
@@ -5936,6 +6741,10 @@ async def handle_group_invite_result(data: dict):
     """
     if isinstance(data, dict) and data.get("type") == JOB_SEND_GROUP_INVITE:
         await handle_member_invite_result(data)
+        return
+
+    if isinstance(data, dict) and data.get("type") == JOB_LEAVE_GROUP:
+        await handle_seat_release_result(data)
         return
 
     try:
@@ -8466,11 +9275,33 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
                         group_plan["new_enabled"],
                     )
                 )
-            save_group_invite_config(
+            displaced = save_group_invite_config(
                 guild_id,
                 group_id=group_plan["new_group"],
                 enabled=group_plan["new_enabled"],
             )
+            if displaced:
+                # The admin pointed this server at a different group, or
+                # cleared it. The bot is still sitting in the old one holding a
+                # seat that nothing else will ever reclaim -- the lapse sweep
+                # only looks at the group a guild currently has.
+                #
+                # The lease is deliberately NOT released here. It stays with
+                # this guild, who is about to set up a new group on the same
+                # account; what is being given back is the old GROUP, not the
+                # seat.
+                try:
+                    await request_seat_release(
+                        guild_id, displaced, invite_account_for_guild(guild_id)
+                    )
+                except Exception:
+                    logger.warning(
+                        "Could not ask the worker to leave %s after guild %s "
+                        "changed its group.",
+                        displaced,
+                        guild_id,
+                        exc_info=True,
+                    )
 
         # --- Everything else lives on the servers row ---
         row_fields = {
@@ -8995,6 +9826,10 @@ async def on_ready():
 
     # Follow up with admins who ran /vrcverify_setup but never posted a panel.
     start_background_task("panel_nudge_sweep", panel_nudge_sweep_task())
+    # Issue #49 phase 6. The one part of the group-invite feature that needs a
+    # scheduler: nothing reads a lapsed guild's row, so nothing else would ever
+    # notice that its seat should go back in the pool.
+    start_background_task("seat_sweep", seat_sweep_task())
 
     # Drains buffered verification log entries into each guild's log channel.
     start_background_task(
@@ -9081,6 +9916,17 @@ async def on_guild_remove(guild: discord.Guild):
     removed is frequently temporary — a permissions cleanup, a server rebuild,
     an accidental kick — and forcing an admin back through /vrcverify_setup on
     re-invite costs them far more than a stale row costs us.
+
+    The VRChat group seat is kept too, and that is a decision rather than an
+    omission (issue #49, phase 6). Leaving the group here would free scarce
+    capacity, but an accidental kick would then cost the admin a manual
+    re-invite in VRChat on top of re-adding the bot -- the same trade this
+    docstring already makes, with a higher price.
+
+    The seat is not held forever either: a server the bot is not in stops
+    paying sooner or later, and the lapse sweep reclaims it after the usual
+    grace period. A server that keeps paying while the bot is out keeps its
+    seat, which is the right answer -- they are paying for it.
     """
     logger.info(f"Removed from guild {guild.id} ({guild.name})")
     try:

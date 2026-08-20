@@ -87,6 +87,7 @@ def clean_db():
         with bot.session_scope() as session:
             session.query(bot.Server).delete()
             session.query(bot.GroupInviteConfig).delete()
+            session.query(bot.GroupSeatLease).delete()
             session.query(bot.DashboardAudit).delete()
             session.query(bot.PremiumGrandfatherLine).delete()
 
@@ -101,6 +102,11 @@ def clean_db():
 def account_configured(monkeypatch):
     """An invite account exists, as it does in any real deployment."""
     monkeypatch.setattr(bot, "INVITE_VRCHAT_USER_ID", ACCOUNT_ID)
+    account = bot.InviteAccount(
+        user_id=ACCOUNT_ID, queue="vrcverify_group_invites", seats=100
+    )
+    monkeypatch.setattr(bot, "INVITE_ACCOUNTS", (account,))
+    monkeypatch.setattr(bot, "INVITE_ACCOUNTS_BY_ID", {ACCOUNT_ID: account})
 
 
 @pytest.fixture
@@ -108,7 +114,7 @@ def published(monkeypatch):
     """Collect the jobs that would have gone on the queue."""
     jobs = []
 
-    def fake_publish(job):
+    def fake_publish(job, queue=None):
         jobs.append(job)
         return True
 
@@ -118,7 +124,7 @@ def published(monkeypatch):
 
 @pytest.fixture
 def publishing_fails(monkeypatch):
-    def fake_publish(job):
+    def fake_publish(job, queue=None):
         return False
 
     monkeypatch.setattr(bot, "publish_group_invite_job", fake_publish)
@@ -425,7 +431,8 @@ class TestRequestingACheck:
     ):
         """503, not a refusal that blames the caller: there is no account for
         them to have invited, and nothing they can do about it."""
-        monkeypatch.setattr(bot, "INVITE_VRCHAT_USER_ID", None)
+        monkeypatch.setattr(bot, "INVITE_ACCOUNTS", ())
+        monkeypatch.setattr(bot, "INVITE_ACCOUNTS_BY_ID", {})
         make_server()
         configure_group()
         assert run(bot.request_group_verification(GUILD_ID, ADMIN_ID)) is None

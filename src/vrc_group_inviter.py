@@ -127,6 +127,7 @@ PERMISSION_WILDCARD = "*"
 
 JOB_VERIFY_SETUP = "verify_group_setup"
 JOB_SEND_INVITE = "send_group_invite"
+JOB_LEAVE_GROUP = "leave_group"
 
 # Outcomes the dashboard renders. Each names one specific thing an admin can
 # act on, because "setup failed" tells them nothing about what to do next.
@@ -184,6 +185,15 @@ INVITE_BAD_JOB = "bad_job"
 # INVITE_ prefix is already carrying the account's user agent and user id, so
 # a test that swept the module by prefix would pick up two strings that are
 # not states at all. The bot mirrors this set and a test asserts they agree.
+# Outcomes of giving a group's seat back (issue #49, phase 6). Deliberately
+# few: the only question the bot needs answered is "is this account out of that
+# group", because that is what decides whether the seat may be handed to
+# somebody else. Everything that is not a definite yes is a retry.
+LEAVE_DONE = "left"
+LEAVE_FAILED = "leave_failed"
+
+LEAVE_STATES = frozenset({LEAVE_DONE, LEAVE_FAILED})
+
 INVITE_STATES = frozenset(
     {
         INVITE_SENT,
@@ -628,6 +638,22 @@ def verify_group_setup(job: dict) -> dict:
     )
 
 
+def _leave_result(job: dict, state: str, **extra) -> dict:
+    """One leave outcome. Carries `type` so the bot can route it."""
+    payload = {
+        "type": JOB_LEAVE_GROUP,
+        "jobID": job.get("jobID"),
+        "guildID": job.get("guildID"),
+        "groupID": job.get("groupID"),
+        "ok": state == LEAVE_DONE,
+        "state": state,
+        "accountID": INVITE_ACCOUNT_USER_ID,
+        "error_message": None,
+    }
+    payload.update(extra)
+    return payload
+
+
 def _invite_result(job: dict, state: str, **extra) -> dict:
     """One invite outcome, shaped for the bot's result consumer.
 
@@ -864,9 +890,64 @@ def send_group_invite(job: dict) -> dict:
     return _invite_result(job, INVITE_SENT)
 
 
+def leave_group(job: dict) -> dict:
+    """Take this account out of one group, freeing the seat it was holding.
+
+    The mirror of the join in verify_group_setup, and the only other write this
+    worker performs. Same rule applies: it leaves the group this job names and
+    nothing else, and the bot builds the job from its own stored lease rather
+    than from anything a browser sent.
+
+    Already being out of the group counts as success. A 404 is "no such group"
+    or "not a member of it", and in both cases the thing the caller wanted --
+    this account not holding a seat there -- is already true. Reporting a
+    failure would leave the seat pinned by a group that does not exist.
+    """
+    group_id = job.get("groupID")
+    if not isinstance(group_id, str) or not group_id.startswith("grp_"):
+        # Same reasoning as the other handlers: the client raises
+        # ApiValueError on None, which is not an ApiException and would escape
+        # every handler here.
+        return _leave_result(job, LEAVE_FAILED, error_message="Not a group ID")
+
+    client, session_error = vrchat_session.get()
+    if client is None:
+        meta = session_error or default_session_error()
+        return _leave_result(
+            job, LEAVE_FAILED, error_message=meta.get("error_message")
+        )
+
+    groups = GroupsApi(client)
+    try:
+        _call_with_retry(
+            groups.leave_group, group_id, _request_timeout=request_timeout()
+        )
+    except UnauthorizedException as e:
+        vrchat_session.invalidate(classify_api_error(e))
+        return _leave_result(job, LEAVE_FAILED, error_message="VRChat session expired")
+    except ApiException as e:
+        code = getattr(e, "status", None)
+        detail = _api_detail(e)
+        if code == 404:
+            logging.info(
+                "Nothing to leave for %s (404: %s); treating as done",
+                group_id,
+                detail,
+            )
+            return _leave_result(job, LEAVE_DONE)
+        logging.warning(
+            "Could not leave %s (status=%s: %s)", group_id, code, detail
+        )
+        return _leave_result(job, LEAVE_FAILED, error_message=detail)
+
+    logging.info("Left group %s; its seat is free", group_id)
+    return _leave_result(job, LEAVE_DONE)
+
+
 HANDLERS = {
     JOB_VERIFY_SETUP: verify_group_setup,
     JOB_SEND_INVITE: send_group_invite,
+    JOB_LEAVE_GROUP: leave_group,
 }
 
 
@@ -1000,7 +1081,15 @@ def process_job(ch, method, properties, body):
             # the guild's setup row and the member's DM would hang forever.
             failed = job if isinstance(job, dict) else {}
             try:
-                if failed.get("type") == JOB_SEND_INVITE:
+                if failed.get("type") == JOB_LEAVE_GROUP:
+                    publish_result(
+                        _leave_result(
+                            failed,
+                            LEAVE_FAILED,
+                            error_message="The leave failed unexpectedly.",
+                        )
+                    )
+                elif failed.get("type") == JOB_SEND_INVITE:
                     publish_result(
                         _invite_result(
                             failed,
