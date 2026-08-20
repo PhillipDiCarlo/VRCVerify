@@ -161,8 +161,8 @@
             <dt>Setup</dt>
             <dd>
               <p class="value{% if group.group_setup.tone != 'ok' %} empty{% endif %}">
-                {{ group.group_setup.headline }}
-                {%- if group.group_setup.group_name %} — {{ group.group_setup.group_name }}{% endif %}
+                {{- group.group_setup.headline -}}
+                {%- if group.group_setup.group_name %} — {{ group.group_setup.group_name }}{% endif -%}
               </p>
               <p class="muted desc">{{ group.group_setup.detail }}</p>
               {# The bot's own sentence, as well as the advice above rather than
@@ -172,14 +172,14 @@
                 <p class="muted desc">VRChat said: {{ group.group_setup.error }}</p>
               {% endif %}
               {% if group.group_setup.show_claim_code %}
-                <p class="value">Setup code: <code>{{ group.group_setup.claim_code }}</code></p>
+                <p class="value">{{- "Setup code:" }} <code>{{ group.group_setup.claim_code }}</code></p>
                 <p class="muted desc">
                   Paste this anywhere in your VRChat group's description. It
                   proves the group is yours, and you can remove it once the
                   check passes.
                 </p>
               {% endif %}
-              {% if group.group_setup.account_url %}
+              {% if group.group_setup.show_account %}
                 <p class="muted desc">
                   Invite this account to your group:
                   <a href="{{ group.group_setup.account_url }}" rel="noopener noreferrer"
@@ -269,7 +269,7 @@
                 {% endif %}
               {% else %}
               <p class="value{% if field.empty %} empty{% endif %}">
-                {% if field.swatch %}
+                {%- if field.swatch %}
                   {# An SVG, not a styled span: the CSP is style-src 'self',
                      which blocks inline style attributes, and adding
                      'unsafe-inline' to paint a square would be a poor trade.
@@ -277,8 +277,8 @@
                   <svg class="swatch" width="14" height="14" aria-hidden="true">
                     <rect width="14" height="14" rx="3" fill="{{ field.swatch }}"></rect>
                   </svg>
-                {% endif %}
-                {{ field.display }}
+                {%- endif %}
+                {{- field.display -}}
               </p>
               {% endif %}
               <p class="muted desc">{{ field.description }}</p>

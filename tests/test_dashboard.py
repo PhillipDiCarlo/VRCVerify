@@ -3577,3 +3577,126 @@ class TestALockedSectionStopsGivingInstructions:
         assert summary["show_claim_code"] is True
         assert summary["account_id"] == INVITE_ACCOUNT
         assert summary["locked"] is False
+
+
+class TestValuesCarryNoTemplateWhitespace:
+    """`.value` is `white-space: pre-wrap`, so template indentation is content.
+
+    The CSS is deliberate -- the custom verification message is free text an
+    admin wrote, and reflowing their line breaks would show them something they
+    did not type. The cost is that every other value in one of those paragraphs
+    renders the template's own newlines and indentation too, which is a hanging
+    indent and a blank line under every setting on the page.
+
+    It went unnoticed until a status line long enough to wrap made it obvious.
+    This is the guard, and it is page-wide rather than about one field.
+    """
+
+    def page(self, config, store, **kwargs):
+        api = FakeBotAPI(**kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        return test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+
+    def values(self, html):
+        return re.findall(r'<p class="value[^"]*">(.*?)</p>', html, re.S)
+
+    def test_no_value_starts_or_ends_with_whitespace(self, config, store):
+        html = self.page(
+            config,
+            store,
+            settings=make_settings(
+                premium=True,
+                values={"vrchat_group_id": GROUP_ID},
+                group_invite=group_invite_block(
+                    state="ready", can_invite=True, can_see_members=True,
+                    group_name="Club LA",
+                ),
+            ),
+        )
+        rendered = self.values(html)
+        assert rendered, "no values on the page at all -- the regex is wrong"
+        for value in rendered:
+            assert value == value.strip(), repr(value)
+
+    def test_the_status_line_is_one_line(self, config, store):
+        """It reads "Ready — Club LA", not "Ready" and then a hanging dash."""
+        html = self.page(
+            config,
+            store,
+            settings=make_settings(
+                premium=True,
+                values={"vrchat_group_id": GROUP_ID},
+                group_invite=group_invite_block(
+                    state="ready", can_invite=True, can_see_members=True,
+                    group_name="Club LA",
+                ),
+            ),
+        )
+        assert '<p class="value">Ready — Club LA</p>' in html
+
+    def test_an_admins_own_line_breaks_still_survive(self, config, store):
+        """The reason the CSS is what it is. Stripping the template's
+        whitespace must not touch the value's own."""
+        html = self.page(
+            config,
+            store,
+            settings=make_settings(
+                premium=True,
+                values={"custom_verification_requested_message": "one\ntwo"},
+            ),
+        )
+        assert "one\ntwo" in html
+
+
+class TestTheAccountIsNamedOnlyWhileItMatters:
+    """"Invite this account" is an instruction, so it stops once the bot is in
+    the group. A completed instruction left on screen reads as one that did not
+    work -- which is exactly how it looked beside "the bot is in your group and
+    can send invites"."""
+
+    def summary(self, **block):
+        settings = make_settings(
+            premium=True,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(**block),
+        )
+        return settings_view.group_setup_summary(settings)
+
+    @pytest.mark.parametrize(
+        "state", ["unverified", "not_invited", "code_missing", "join_requested"]
+    )
+    def test_it_is_named_while_somebody_still_has_to_invite_it(self, state):
+        assert self.summary(state=state)["show_account"] is True
+
+    @pytest.mark.parametrize("state", ["ready", "no_invite_permission"])
+    def test_it_is_not_named_once_the_bot_is_in_the_group(self, state):
+        """no_invite_permission is a member that cannot invite -- a permissions
+        problem, not an invitation one, and telling them to invite it again
+        sends them down the wrong path entirely."""
+        assert self.summary(state=state)["show_account"] is False
+
+    def test_a_locked_section_never_names_it(self):
+        settings = make_settings(
+            premium=False,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(),
+        )
+        assert settings_view.group_setup_summary(settings)["show_account"] is False
+
+    def test_the_toggle_label_is_short_enough_to_sit_beside_a_checkbox(self):
+        """The template renders the label twice -- once as the setting's name,
+        once as the checkbox's caption -- which is fine for "Nickname sync" and
+        silly for a sentence."""
+        settings = make_settings(premium=True)
+        field = next(
+            f
+            for group in settings_view.build_groups(
+                settings, DEFAULT_ROLES, DEFAULT_CHANNELS
+            )
+            for f in group["fields"]
+            if f.name == "vrchat_group_invite_enabled"
+        )
+        assert len(field.label.split()) <= 4

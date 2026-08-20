@@ -465,6 +465,11 @@ GROUP_SETUP_COPY = {
 # readable when an upstream error turns out to be a wall of JSON.
 GROUP_ERROR_MAX_LEN = 200
 
+# States that mean the account is already inside the group. Not the same as
+# "setup worked": no_invite_permission is a member that cannot invite, which is
+# a permissions problem rather than an invitation one.
+GROUP_STATES_ALREADY_IN = frozenset({"ready", "no_invite_permission"})
+
 GROUP_SETUP_FALLBACK = (
     "warn",
     "Setup couldn't be confirmed",
@@ -547,6 +552,13 @@ def group_setup_summary(settings: dict) -> dict:
             None if locked or not account
             else f"https://vrchat.com/home/user/{account}"
         ),
+        # Naming the account is an instruction, so it stops once the bot is
+        # in the group. "Invite this account" beside "the bot is in your group
+        # and can send invites" is a step somebody has already taken, and a
+        # completed instruction left on screen reads as one that did not work.
+        "show_account": bool(
+            account and not locked and state not in GROUP_STATES_ALREADY_IN
+        ),
         "claim_code": block.get("claim_code"),
         # Once it is working the code has done its job, and leaving it on
         # screen invites someone to leave it in their group description for
@@ -587,7 +599,7 @@ def _group_invite_fields(settings: dict):
     enabled = _bool_field(
         settings,
         "vrchat_group_invite_enabled",
-        "Offer the group to verified members",
+        "Offer group invites",
         "Adds a button to the message a member gets after verifying, which "
         "invites them to your group. Nothing is sent unless they press it.",
         on="On",
