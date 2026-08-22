@@ -807,6 +807,29 @@ GROUP_INVITE_SETTLED_STATES = frozenset(
     }
 )
 
+# Settled for THIS button, but not for ever: a new verification offers again.
+#
+# An invite is not a one-shot entitlement. Invites get ignored, lost in a pile
+# of VRChat notifications, declined by accident, or deleted; members leave a
+# group and want back in. None of those should mean "never again" for somebody
+# who is still 18+ and still in the Discord -- the point of the feature is that
+# verified members can get into the group, not that they get exactly one
+# chance at it.
+#
+# The two left out are the ones where asking again is the wrong thing to do.
+# BANNED is a group moderator's decision, and re-inviting somebody they threw
+# out is precisely the pattern VRChat's guidelines call abuse. BLOCKED is the
+# member's own: they switched group invites off, and re-offering argues with an
+# opt-out (the invite would 403 anyway, since confirm_override_block is always
+# False). Both stay permanent.
+GROUP_INVITE_FINAL_STATES = frozenset(
+    {
+        GROUP_INVITE_BLOCKED,
+        GROUP_INVITE_BANNED,
+    }
+)
+GROUP_INVITE_REOFFERABLE_STATES = GROUP_INVITE_SETTLED_STATES - GROUP_INVITE_FINAL_STATES
+
 
 class GroupInviteConfig(Base):
     """A guild's VRChat group, and how far its setup has got (issue #49).
@@ -3375,11 +3398,26 @@ INVITE_REFUSED_PENDING = "pending"  # one is in flight right now
 INVITE_REFUSED_COOLDOWN = "cooldown"  # tried too recently
 
 
-def group_invite_refusal(request: Optional[dict], group_id) -> Optional[str]:
+def group_invite_refusal(
+    request: Optional[dict], group_id, *, for_offer: bool = False
+) -> Optional[str]:
     """Why this member may not ask for an invite right now, or None if they may.
 
-    One function used by both the offer and the press, so the DM and the button
-    can never disagree about who is eligible.
+    One function for both the offer and the press, so the DM and the button
+    cannot drift apart about who is eligible. They differ in exactly one place,
+    named by `for_offer`, and that difference is the whole re-offer rule:
+
+      * The PRESS refuses every settled state. That is what makes a spent
+        button dead -- press it again, press an older one, press one you were
+        sent months ago, and the answer is the outcome you already had. Without
+        this, a member holding several DMs could turn each one into another
+        invite.
+
+      * The OFFER refuses only GROUP_INVITE_FINAL_STATES. A new verification is
+        a fresh ask by a member who is still 18+ and still here, so a previous
+        `sent`, `already_invited` or `already_member` is re-offered -- subject
+        to the same cooldown as any other request, which is what stops
+        re-verifying in a loop from becoming an invite tap.
 
     A request about a DIFFERENT group is no reason to refuse. An admin who
     changes the server's group has invalidated everything learned about the old
@@ -3391,7 +3429,9 @@ def group_invite_refusal(request: Optional[dict], group_id) -> Optional[str]:
     if request.get("group_id") != group_id:
         return None
     state = effective_group_invite_state(request)
-    if state in GROUP_INVITE_SETTLED_STATES:
+    if state in GROUP_INVITE_FINAL_STATES:
+        return INVITE_REFUSED_SETTLED
+    if state in GROUP_INVITE_SETTLED_STATES and not for_offer:
         return INVITE_REFUSED_SETTLED
     if state == GROUP_INVITE_PENDING:
         return INVITE_REFUSED_PENDING
@@ -3510,6 +3550,46 @@ def begin_group_invite(
         "groupID": group_id,
         "vrcUserID": vrc_user_id,
     }
+
+
+def retire_group_invite_request(guild_id, discord_id) -> bool:
+    """Clear a spent request so a fresh offer can be honoured. True if cleared.
+
+    Deleted rather than moved to some "offered again" state, because that IS
+    the member's standing now: they have been offered a button and have not
+    asked for anything with it, which is exactly a member with no row.
+
+    Called only from the offer, and only after the refusal check has agreed the
+    member may be asked again -- so the cooldown has already been measured
+    against the request this is about to remove. What stops a re-verification
+    loop from becoming an invite tap is that the PRESS writes a new row with a
+    new `requested_at`: extra verifications hand out extra buttons, but the
+    first press claims the row and every other button then refuses against it.
+
+    Deliberately ahead of the DM rather than after it. If the send fails the
+    member is left with no row, which the next verification simply offers
+    again; clearing afterwards would leave a live button that the press refuses
+    against the very row it was sent to replace.
+    """
+    try:
+        with session_scope() as session:
+            deleted = (
+                session.query(GroupInviteRequest)
+                .filter_by(
+                    server_id=panel_view_key(guild_id),
+                    discord_id=str(discord_id),
+                )
+                .delete()
+            )
+        return bool(deleted)
+    except Exception:
+        logger.warning(
+            "Could not clear a spent invite request for member %s in guild %s.",
+            discord_id,
+            guild_id,
+            exc_info=True,
+        )
+        return False
 
 
 def abandon_group_invite(guild_id, discord_id, job_id) -> None:
@@ -5600,8 +5680,29 @@ async def offer_group_invite(
             exc_info=True,
         )
         return
-    if group_invite_refusal(request, config["group_id"]) is not None:
+    if group_invite_refusal(request, config["group_id"], for_offer=True) is not None:
         return
+
+    # A previous outcome that is being offered again has to be cleared, or the
+    # press would refuse the very button this DM is about: the press treats
+    # every settled state as final, which is what keeps spent buttons dead.
+    # Clearing here is what makes "a new verification is a new chance" real,
+    # and it is the only place that distinction is drawn.
+    if (
+        request
+        and request.get("group_id") == config["group_id"]
+        and effective_group_invite_state(request) in GROUP_INVITE_REOFFERABLE_STATES
+    ):
+        if not retire_group_invite_request(guild_id, member.id):
+            # Could not clear it, so the button would arrive dead. Better to
+            # send nothing than a control that answers "you already had one".
+            logger.warning(
+                "Not re-offering member %s in guild %s: the spent request "
+                "could not be cleared.",
+                member.id,
+                guild_id,
+            )
+            return
 
     locale_code = get_server_locale_code(guild_id, guild)
     try:

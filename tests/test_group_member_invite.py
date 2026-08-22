@@ -572,12 +572,82 @@ class TestTheOffer:
         assert self.offer() == []
 
     @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_SETTLED_STATES))
-    def test_a_member_who_has_settled_is_never_offered_again(self, subscribed, state):
+    def test_a_settled_member_is_not_offered_again_straight_away(
+        self, subscribed, state
+    ):
+        """Whatever the outcome, the cooldown applies -- so re-verifying in a
+        loop cannot be turned into a stream of buttons."""
         make_server()
         make_user()
         ready_group()
         set_standing(state)
         assert self.offer() == []
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_FINAL_STATES))
+    def test_a_final_outcome_is_never_offered_again(self, subscribed, state):
+        """Banned is a group moderator's decision and blocked is the member's
+        own. Neither is waiting for a better moment, so the cooldown lapsing
+        changes nothing."""
+        make_server()
+        make_user()
+        ready_group()
+        set_standing(state, age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 100)
+        assert self.offer() == []
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_REOFFERABLE_STATES))
+    def test_a_spent_outcome_is_offered_again_once_the_cooldown_lapses(
+        self, subscribed, state
+    ):
+        """An invite is not a one-shot entitlement. Invites get ignored, lost
+        in a pile of VRChat notifications, or deleted; members leave a group
+        and want back in. A member who is still 18+ and still here gets
+        another chance on their next verification."""
+        make_server()
+        make_user()
+        ready_group()
+        set_standing(state, age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60)
+        assert len(self.offer()) == 1
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_REOFFERABLE_STATES))
+    def test_re_offering_clears_the_spent_request(self, subscribed, state):
+        """Or the button would arrive dead: the press refuses every settled
+        state, so an uncleared row would refuse the very button the DM is
+        about."""
+        make_server()
+        make_user()
+        ready_group()
+        set_standing(state, age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60)
+        self.offer()
+        assert standing() is None
+
+    def test_a_failure_to_clear_sends_no_button(self, subscribed, monkeypatch):
+        """A button the press will refuse is worse than no button: it answers
+        "you already had one" to somebody who was just told to try again."""
+        make_server()
+        make_user()
+        ready_group()
+        set_standing(
+            bot.GROUP_INVITE_SENT,
+            age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60,
+        )
+        monkeypatch.setattr(
+            bot, "retire_group_invite_request", lambda *a, **k: False
+        )
+        assert self.offer() == []
+
+    def test_a_verdict_about_another_group_is_not_cleared(self, subscribed):
+        """It is not refusing anything, so there is nothing to retire -- and
+        the row still records where they stand with the old group."""
+        make_server()
+        make_user()
+        ready_group()
+        set_standing(
+            bot.GROUP_INVITE_SENT,
+            group_id=OTHER_GROUP_ID,
+            age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60,
+        )
+        assert len(self.offer()) == 1
+        assert standing() is not None
 
     def test_a_lapsed_server_offers_nothing(self, free):
         make_server()
@@ -838,6 +908,106 @@ class TestOnlyTheVerifiedAccountMayBeInvited:
         from locales import localizations
 
         assert all(key in strings for strings in localizations.values())
+
+
+class TestASpentButtonStaysDead:
+    """The other half of the re-offer rule.
+
+    A new verification offers again, but the BUTTON that was already spent must
+    not work -- otherwise a member holding several old DMs could turn each one
+    into another invite without verifying at all. The offer and the press
+    deliberately disagree about settled states, and this is the side that does
+    not budge.
+    """
+
+    def press(self, account=FINGERPRINT):
+        interaction = FakeInteraction()
+        run(bot.handle_group_invite_press(interaction, GUILD_ID, account))
+        return interaction
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_SETTLED_STATES))
+    def test_pressing_a_spent_button_sends_nothing(
+        self, subscribed, pressable, state
+    ):
+        make_user()
+        set_standing(state, age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 100)
+        self.press()
+        assert pressable == []
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_SETTLED_STATES))
+    def test_a_spent_button_reports_where_they_actually_stand(
+        self, subscribed, pressable, state
+    ):
+        """They pressed a control that should not have been there. Telling them
+        the outcome they already had beats a generic failure."""
+        make_user()
+        set_standing(state, age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 100)
+        content, _ = self.press().settled
+        assert content == localized(bot.GROUP_INVITE_MESSAGE_KEYS[state])
+
+    def test_the_offer_and_the_press_disagree_only_here(self):
+        """Stated as an invariant, because the two callers of one function
+        having different answers is the kind of thing a later reader 'fixes'."""
+        row = {
+            "group_id": GROUP_ID,
+            "state": bot.GROUP_INVITE_SENT,
+            "requested_at": datetime.now(timezone.utc)
+            - timedelta(seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60),
+        }
+        assert bot.group_invite_refusal(row, GROUP_ID) == bot.INVITE_REFUSED_SETTLED
+        assert bot.group_invite_refusal(row, GROUP_ID, for_offer=True) is None
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_FINAL_STATES))
+    def test_a_final_outcome_refuses_both(self, state):
+        row = {
+            "group_id": GROUP_ID,
+            "state": state,
+            "requested_at": datetime.now(timezone.utc)
+            - timedelta(seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 100),
+        }
+        assert bot.group_invite_refusal(row, GROUP_ID) == bot.INVITE_REFUSED_SETTLED
+        assert (
+            bot.group_invite_refusal(row, GROUP_ID, for_offer=True)
+            == bot.INVITE_REFUSED_SETTLED
+        )
+
+    def test_a_second_invite_needs_a_new_verification(self, subscribed, pressable):
+        """The whole rule, end to end: invite, spent button refused, verify
+        again, new button, second invite."""
+        make_user()
+        ready_group()
+
+        # First invite.
+        self.press()
+        assert len(pressable) == 1
+        bot.record_group_invite_result(
+            {
+                "type": inviter.JOB_SEND_INVITE,
+                "jobID": pressable[0][0]["jobID"],
+                "guildID": str(GUILD_ID),
+                "state": bot.GROUP_INVITE_SENT,
+            }
+        )
+        assert standing()["state"] == bot.GROUP_INVITE_SENT
+
+        # The button they already used is dead, and stays dead.
+        self.press()
+        assert len(pressable) == 1
+
+        # Verifying again offers a new one...
+        with bot.session_scope() as session:
+            row = session.query(bot.GroupInviteRequest).first()
+            row.requested_at = datetime.now(timezone.utc) - timedelta(
+                seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60
+            )
+        member, guild = FakeMember(), FakeGuild()
+        run(bot.offer_group_invite(member, guild, "en-US", None))
+        assert len(member.sent) == 1
+
+        # ...which works.
+        self.press()
+        assert len(pressable) == 2
+        assert standing()["state"] == bot.GROUP_INVITE_PENDING
 
 
 class TestTheOfferIsStampedForOneAccount:

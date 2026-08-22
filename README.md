@@ -45,11 +45,26 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
    **How a member gets invited.** Nothing reaches VRChat until they ask. A
    verified member in a server with a ready group gets a DM offering a button;
    pressing it is what creates the request. A member who ignores the DM costs
-   no API call at all, and one who has been invited, is already in the group,
-   or has group invites switched off is never offered again — their answer is
-   recorded and honoured. That is a compliance position as much as a privacy
-   one: VRChat's Creator Guidelines treat unsolicited automation as abuse, and
-   an invite nobody asked for is exactly that.
+   no API call at all. That is a compliance position as much as a privacy one:
+   VRChat's Creator Guidelines treat unsolicited automation as abuse, and an
+   invite nobody asked for is exactly that.
+
+   **An invite is not a one-shot entitlement, but a button is.** Invites get
+   ignored, buried in VRChat notifications, declined by accident or deleted,
+   and members leave a group and want back in — so somebody who is still 18+
+   and still in the Discord is offered again on their next verification. What
+   they cannot do is press an old button twice: the offer and the press
+   deliberately disagree about a settled request, and only a new verification
+   clears it. Extra verifications hand out extra buttons, but the first press
+   claims the request and every other button then refuses against it, so the
+   ceiling is one invite per `GROUP_INVITE_COOLDOWN_SECONDS`.
+
+   Two outcomes are final and are never offered again: **banned**, which is a
+   group moderator's decision and where re-inviting is exactly the pattern the
+   guidelines call abuse, and **blocked**, which is the member's own choice to
+   switch group invites off — re-offering would argue with an opt-out, and the
+   invite would be refused anyway, since `confirm_override_block` is always
+   `False`.
 
    **The offer is made to one VRChat account, not to a Discord account.** The
    button's `custom_id` carries a fingerprint of the account it was offered
