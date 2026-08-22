@@ -253,6 +253,22 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logging.getLogger("pika").setLevel(logging.WARNING)
+# discord.py, like pika, is a library whose internals are not this bot's logs.
+#
+# It used to silence itself by accident: Client.run called its own
+# setup_logging with root=True, which set the ROOT logger to INFO and so
+# quietly overrode LOG_LEVEL for everything. Opting out of that (log_handler
+# =None, needed so it cannot install a handler behind install_log_scrubbing)
+# made LOG_LEVEL work as documented -- and LOG_LEVEL=DEBUG then buried every
+# line this bot writes under gateway keepalives and raw event payloads.
+#
+# Pinned here so the two settings are independent: LOG_LEVEL controls OUR
+# logs, and turning it up for a real investigation does not cost the ability
+# to read them. Raise DISCORD_LOG_LEVEL deliberately when the gateway itself
+# is what is under suspicion.
+logging.getLogger("discord").setLevel(
+    getattr(logging, os.getenv("DISCORD_LOG_LEVEL", "WARNING").upper(), logging.WARNING)
+)
 # Attacker-controlled text reaches these logs -- Discord ids, OAuth claims,
 # guild ids from Stripe metadata. See log_safety.
 install_log_scrubbing()
