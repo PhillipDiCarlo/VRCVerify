@@ -13,10 +13,13 @@ neither is obvious from reading a diff:
     as a privacy one -- the Creator Guidelines treat unsolicited automation as
     abuse, and an invite nobody asked for is exactly that.
 
-  * A "no" is permanent. A member who has said no, is already in the group, or
-    already has an invite waiting is never offered one again, and
-    confirm_override_block -- the parameter that exists to push an invite past
-    someone who blocked the group -- is passed as False every time.
+  * A "no" is permanent, and it is the member's own no. Somebody who blocked
+    group invites, or who a group moderator banned, is never offered again --
+    GROUP_INVITE_FINAL_STATES. Every other outcome is offered again on a later
+    verification, because an ignored or deleted invite is not an answer; what
+    never works twice is the same button. And confirm_override_block -- the
+    parameter that exists to push an invite past someone who blocked the group
+    -- is passed as False every time.
 
     That last one is explicit rather than omitted because vrchatapi 1.0.0
     defaults it to True. Leaving it out opts in to overriding blocks, in the
@@ -945,6 +948,39 @@ class TestASpentButtonStaysDead:
         content, _ = self.press().settled
         assert content == localized(bot.GROUP_INVITE_MESSAGE_KEYS[state])
 
+    def test_the_cooldown_runs_from_the_outcome_not_the_request(self):
+        """The worker spaces its calls, and a late answer to a timed-out
+        request is deliberately still accepted -- so an invite can land minutes
+        after it was asked for. Keyed on requested_at, the cooldown would
+        already be spent when the member finally hears anything, and the next
+        verification would re-offer seconds after their invite arrived."""
+        now = datetime.now(timezone.utc)
+        row = {
+            "group_id": GROUP_ID,
+            "state": bot.GROUP_INVITE_SENT,
+            # Asked for long ago, answered just now.
+            "requested_at": now - timedelta(
+                seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 3
+            ),
+            "settled_at": now,
+        }
+        assert (
+            bot.group_invite_refusal(row, GROUP_ID, for_offer=True)
+            == bot.INVITE_REFUSED_COOLDOWN
+        )
+
+    def test_a_request_that_never_settled_falls_back_to_when_it_was_asked(self):
+        """Rows written before this existed, and any row whose outcome never
+        arrived, still have to be able to leave the cooldown."""
+        row = {
+            "group_id": GROUP_ID,
+            "state": bot.GROUP_INVITE_VRCHAT_UNAVAILABLE,
+            "requested_at": datetime.now(timezone.utc)
+            - timedelta(seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60),
+            "settled_at": None,
+        }
+        assert bot.group_invite_refusal(row, GROUP_ID) is None
+
     def test_the_offer_and_the_press_disagree_only_here(self):
         """Stated as an invariant, because the two callers of one function
         having different answers is the kind of thing a later reader 'fixes'."""
@@ -994,12 +1030,15 @@ class TestASpentButtonStaysDead:
         self.press()
         assert len(pressable) == 1
 
-        # Verifying again offers a new one...
+        # Verifying again offers a new one, once the cooldown since the
+        # OUTCOME has lapsed -- settled_at is what it is measured from.
         with bot.session_scope() as session:
             row = session.query(bot.GroupInviteRequest).first()
-            row.requested_at = datetime.now(timezone.utc) - timedelta(
+            lapsed = datetime.now(timezone.utc) - timedelta(
                 seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60
             )
+            row.requested_at = lapsed
+            row.settled_at = lapsed
         member, guild = FakeMember(), FakeGuild()
         run(bot.offer_group_invite(member, guild, "en-US", None))
         assert len(member.sent) == 1

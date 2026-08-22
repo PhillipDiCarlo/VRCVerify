@@ -762,18 +762,6 @@ GROUP_INVITE_STATES = frozenset(
     }
 )
 
-# Reaching one of these means the member is done with this group for good, and
-# the offer is never made to them again -- the whole of "do not re-offer once
-# one was already sent".
-#
-# BLOCKED and BANNED are in here for a stronger reason than tidiness. A member
-# with group invites switched off has said no; re-offering on every future
-# verification is precisely the unsolicited-invite pattern that the opt-in
-# design exists to avoid, and it is what the Creator Guidelines call abuse.
-#
-# Everything NOT in here is a transient failure -- VRChat down, the server's
-# permissions broken, the job lost -- and those deliberately leave the offer
-# available, because none of them is the member's answer to the question.
 # vrc_group_inviter.LEAVE_STATES, mirrored. Same duplication and same reason
 # as the two vocabularies above: the worker has neither discord.py nor a
 # database driver, so importing it here would drag both in.
@@ -797,6 +785,14 @@ SEAT_LEAVE_DONE = "left"
 SEAT_LEAVE_FAILED = "leave_failed"
 SEAT_LEAVE_STATES = frozenset({SEAT_LEAVE_DONE, SEAT_LEAVE_FAILED})
 
+# An answer, as opposed to a failure to get one. Reaching one of these settles
+# the request, and settles the BUTTON that produced it for good: the press
+# refuses every state in here, which is what stops one member's pile of old
+# DMs becoming a pile of invites.
+#
+# Everything NOT in here is a transient failure -- VRChat down, the server's
+# permissions broken, the job lost -- and those deliberately leave the button
+# live, because none of them is the member's answer to the question.
 GROUP_INVITE_SETTLED_STATES = frozenset(
     {
         GROUP_INVITE_SENT,
@@ -3415,9 +3411,15 @@ def group_invite_refusal(
 
       * The OFFER refuses only GROUP_INVITE_FINAL_STATES. A new verification is
         a fresh ask by a member who is still 18+ and still here, so a previous
-        `sent`, `already_invited` or `already_member` is re-offered -- subject
-        to the same cooldown as any other request, which is what stops
-        re-verifying in a loop from becoming an invite tap.
+        `sent`, `already_invited` or `already_member` is re-offered once the
+        cooldown since that outcome has lapsed.
+
+    What the cooldown bounds is INVITES, not DMs. A member who verifies over
+    and over while holding an unpressed button collects more buttons -- that
+    has always been true, since a member with no request row at all is offered
+    on every verification -- but the first press writes the row that every
+    other button then refuses against. So the ceiling stays one invite per
+    GROUP_INVITE_COOLDOWN_SECONDS, which is the number VRChat cares about.
 
     A request about a DIFFERENT group is no reason to refuse. An admin who
     changes the server's group has invalidated everything learned about the old
@@ -3435,11 +3437,21 @@ def group_invite_refusal(
         return INVITE_REFUSED_SETTLED
     if state == GROUP_INVITE_PENDING:
         return INVITE_REFUSED_PENDING
-    # Everything left is a transient failure, which the member may retry --
+    # What is left may be asked again -- a transient failure the member can
+    # retry, or (for an offer) an outcome they are allowed a second run at --
     # but not immediately. See GROUP_INVITE_COOLDOWN_SECONDS.
-    asked = request.get("requested_at")
-    if asked is not None:
-        age = (datetime.now(timezone.utc) - asked).total_seconds()
+    #
+    # Measured from when the attempt CONCLUDED, falling back to when it was
+    # made. The two are usually seconds apart, but not under load: the worker
+    # spaces its calls by INVITE_MIN_SPACING_SECONDS, and a late answer to a
+    # timed-out request is deliberately still accepted, so an invite can land
+    # several minutes after it was asked for. Keying on `requested_at` alone
+    # would then have the cooldown already spent by the time the member hears
+    # anything, and the very next verification would offer again seconds after
+    # their invite actually arrived.
+    since = request.get("settled_at") or request.get("requested_at")
+    if since is not None:
+        age = (datetime.now(timezone.utc) - since).total_seconds()
         if age < GROUP_INVITE_COOLDOWN_SECONDS:
             return INVITE_REFUSED_COOLDOWN
     return None
@@ -5632,9 +5644,15 @@ async def offer_group_invite(
     never press it. The worker checks membership as the first thing it does
     when they DO press -- see vrc_group_inviter.send_group_invite.
 
-    Silent on every "no". A member who has already been invited, already said
-    no, or is already in the group gets no DM at all, which is the whole of
-    "do not re-offer once one was already sent".
+    Silent on every "no", because there is no sentence worth sending about a
+    button somebody was never going to be shown.
+
+    A previous outcome is not one of those "no"s, except for
+    GROUP_INVITE_FINAL_STATES. A member who was invited and never accepted, or
+    who has since left the group, is offered again on their next verification
+    -- see group_invite_refusal, which is where the offer and the press part
+    company, and which is the only reader of GROUP_INVITE_REOFFERABLE_STATES
+    besides the retire below.
     """
     guild_id = str(guild.id)
     if premium is not None and not premium.allows(FEATURE_GROUP_INVITE):
