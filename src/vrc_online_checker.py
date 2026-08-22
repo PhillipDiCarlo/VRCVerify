@@ -6,6 +6,8 @@ import logging
 from dotenv import load_dotenv
 from pika.exceptions import AMQPError
 
+from log_safety import install_log_scrubbing
+
 # VRChat API imports
 import vrchatapi
 from vrchatapi.api import users_api
@@ -89,6 +91,8 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logging.getLogger("pika").setLevel(logging.WARNING)
+# VRChat display names and bios reach these logs. See log_safety.
+install_log_scrubbing()
 
 # -------------------------------------------------------------------
 # RabbitMQ Setup

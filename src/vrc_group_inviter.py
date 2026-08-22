@@ -34,6 +34,8 @@ import time
 import pika
 from dotenv import load_dotenv
 from pika.exceptions import AMQPError
+
+from log_safety import install_log_scrubbing
 from vrchatapi.api.groups_api import GroupsApi
 from vrchatapi.exceptions import ApiException, UnauthorizedException
 from vrchatapi.models.create_group_invite_request import CreateGroupInviteRequest
@@ -105,6 +107,8 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logging.getLogger("pika").setLevel(logging.WARNING)
+# Group and user ids off the queue reach these logs. See log_safety.
+install_log_scrubbing()
 
 # -------------------------------------------------------------------
 # What the account must be able to do, confirmed against a live group

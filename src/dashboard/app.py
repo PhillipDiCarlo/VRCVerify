@@ -80,6 +80,9 @@ from dashboard.config import DashboardConfig
 from dashboard.sessions import SessionStore
 from dashboard.stripe_api import StripeAPIError, StripeClient
 
+# Flat import: shipped alongside dashboard/ in the image, like api_tokens.
+from log_safety import install_log_scrubbing
+
 logger = logging.getLogger(__name__)
 
 # The webhook's own budget. Sized well above Stripe's honest traffic -- a
@@ -2066,6 +2069,10 @@ def main():  # pragma: no cover - container entrypoint
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
+    # This process logs the most externally-controlled text of the four:
+    # OAuth claims, Stripe event and subscription ids, and guild ids taken
+    # from Checkout metadata that anyone can set. See log_safety.
+    install_log_scrubbing()
     return create_app()
 
 

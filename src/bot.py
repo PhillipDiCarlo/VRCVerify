@@ -40,6 +40,7 @@ from datetime import date, datetime, timezone, timedelta
 from dotenv import load_dotenv
 from locales import localizations, LANGUAGE_CODES
 import bot_api
+from log_safety import install_log_scrubbing
 
 
 # --- Localization Helpers ---
@@ -252,6 +253,9 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logging.getLogger("pika").setLevel(logging.WARNING)
+# Attacker-controlled text reaches these logs -- Discord ids, OAuth claims,
+# guild ids from Stripe metadata. See log_safety.
+install_log_scrubbing()
 logger = logging.getLogger(__name__)
 
 # -------------------------------------------------------------------
