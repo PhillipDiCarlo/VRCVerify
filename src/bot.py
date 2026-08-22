@@ -3,6 +3,7 @@ import json
 import asyncio
 import logging
 import secrets
+import hashlib
 import random
 import string
 import re
@@ -3404,18 +3405,43 @@ def group_invite_refusal(request: Optional[dict], group_id) -> Optional[str]:
     return None
 
 
-def member_vrchat_id(discord_id) -> Optional[str]:
-    """The VRChat account this member verified with, or None.
+def member_invite_identity(discord_id) -> tuple[Optional[str], bool]:
+    """The VRChat account this member is linked to, and whether they are 18+.
 
     Read separately from the verification flow rather than threaded through
     assign_role's arguments: three of assign_role's four call sites do not have
     it to pass, and the one that does is passing a display name.
+
+    Both halves come from ONE read because every caller needs both and they
+    have to describe the same instant. `verification_status` is not a property
+    of the Discord account on its own -- it is the verdict on whichever VRChat
+    account was linked when it was written -- so reading the flag and the id in
+    two queries would let a re-link land between them and invite an account
+    that was never the one checked.
     """
     with session_scope() as session:
         user = (
             session.query(User).filter_by(discord_id=str(discord_id)).first()
         )
-        return (user.vrc_user_id or None) if user else None
+        if not user:
+            return None, False
+        return (user.vrc_user_id or None), bool(user.verification_status)
+
+
+def group_invite_account_fingerprint(vrc_user_id: str) -> str:
+    """The account half of an offer button's custom_id.
+
+    Hashed rather than carried whole for two reasons. A custom_id is capped at
+    100 characters, and VRChat has used more than one id format (`usr_`+UUID
+    today, short alphanumerics historically), so a fixed 16 keeps the template
+    from being one format change away from silently matching nothing. It also
+    keeps an account id out of a string that gets copied into logs and
+    exception reports.
+
+    Only ever compared for equality, never reversed -- this is a change
+    detector, not a secret.
+    """
+    return hashlib.sha256(vrc_user_id.encode("utf-8")).hexdigest()[:16]
 
 
 JOB_SEND_GROUP_INVITE = "send_group_invite"
@@ -3572,6 +3598,7 @@ def record_group_invite_result(data: dict) -> tuple[str, Optional[dict]]:
         return "applied", {
             "discord_id": row.discord_id,
             "group_id": row.group_id,
+            "vrc_user_id": row.vrc_user_id,
             "channel_id": row.channel_id,
             "message_id": row.message_id,
             "state": state,
@@ -5380,7 +5407,13 @@ GROUP_INVITE_MESSAGE_KEYS = {
 # INSTRUCTIONS_VIEW_VERSION is bumped. Old DMs keep their old custom_id and
 # simply stop matching, which is the correct outcome for a stale offer sitting
 # in someone's DMs -- unlike a panel, there is nothing to re-edit.
-GROUP_INVITE_VIEW_VERSION = 1
+#
+# v1 -> v2: the custom_id gained the account fingerprint below. Every v1 button
+# still sitting in a DM stops matching, and that is the point rather than a
+# side effect: a v1 button carries no record of which VRChat account it was
+# offered for, so there is no way to honour one safely. They were the
+# vulnerable population, and retiring them is the fix.
+GROUP_INVITE_VIEW_VERSION = 2
 GROUP_INVITE_CUSTOM_ID_PREFIX = f"vrcverify:groupinvite:v{GROUP_INVITE_VIEW_VERSION}:"
 
 # Strong references to the per-request expiry tasks below.
@@ -5400,7 +5433,10 @@ _group_invite_expiry_tasks: set = set()
 
 class GroupInviteButton(
     discord.ui.DynamicItem[Button],
-    template=r"vrcverify:groupinvite:v1:(?P<guild_id>[0-9]{1,20})",
+    template=(
+        rf"vrcverify:groupinvite:v{GROUP_INVITE_VIEW_VERSION}:"
+        r"(?P<guild_id>[0-9]{1,20}):(?P<account>[0-9a-f]{16})"
+    ),
 ):
     """"Send me an invite", in one member's DM, for one server's group.
 
@@ -5411,22 +5447,31 @@ class GroupInviteButton(
     holding several of these at once. The guild id therefore travels in the
     custom_id and discord.py matches it back out with the template above.
 
-    That id is not trusted for anything. It selects a row; every question that
-    follows -- is the feature on, is the plan current, has this member already
-    asked -- is answered from that row and from the member's own record. A
-    custom_id can only come from a message this bot posted, but the config
-    behind it can have changed completely since it did.
+    Neither field is trusted for anything. They select a row; every question
+    that follows -- is the feature on, is the plan current, is this member
+    still 18+, has this member already asked -- is answered from that row and
+    from the member's own record. A custom_id can only come from a message this
+    bot posted, but the config behind it can have changed completely since it
+    did.
+
+    The account fingerprint is what makes this button an offer to one VRChat
+    account rather than a standing capability. The callback resolves the
+    member's CURRENT account and refuses if it is not the one the offer was
+    made for -- without that, re-linking silently hands an old button's invite
+    to the new account, which is how a member who had lost their 18+ status
+    reached a private group.
     """
 
-    def __init__(self, guild_id: int, locale: str = "en-US"):
+    def __init__(self, guild_id: int, account: str, locale: str = "en-US"):
         self.guild_id = guild_id
+        self.account = account
         super().__init__(
             Button(
                 label=localizations.get(locale, localizations["en-US"]).get(
                     "btn_group_invite", localizations["en-US"]["btn_group_invite"]
                 ),
                 style=discord.ButtonStyle.primary,
-                custom_id=f"{GROUP_INVITE_CUSTOM_ID_PREFIX}{guild_id}",
+                custom_id=f"{GROUP_INVITE_CUSTOM_ID_PREFIX}{guild_id}:{account}",
             )
         )
 
@@ -5436,18 +5481,20 @@ class GroupInviteButton(
         # with whatever label it was posted with; this instance exists only to
         # route the click, so it deliberately does not try to re-resolve the
         # server's locale for a string nobody will see.
-        return cls(int(match["guild_id"]))
+        return cls(int(match["guild_id"]), match["account"])
 
     async def callback(self, interaction: discord.Interaction):
-        await handle_group_invite_press(interaction, self.guild_id)
+        await handle_group_invite_press(
+            interaction, self.guild_id, self.account
+        )
 
 
 class GroupInviteOfferView(View):
     """The offer DM's single button. Persistent: timeout=None, no state."""
 
-    def __init__(self, guild_id: int, locale: str = "en-US"):
+    def __init__(self, guild_id: int, account: str, locale: str = "en-US"):
         super().__init__(timeout=None)
-        self.add_item(GroupInviteButton(guild_id, locale))
+        self.add_item(GroupInviteButton(guild_id, account, locale))
 
 
 async def group_invite_target(guild_id) -> Optional[dict]:
@@ -5520,7 +5567,7 @@ async def offer_group_invite(
 
     vrc_user_id = None
     try:
-        vrc_user_id = member_vrchat_id(member.id)
+        vrc_user_id, verified = member_invite_identity(member.id)
     except Exception:
         logger.warning(
             "Could not read the VRChat id for member %s.", member.id, exc_info=True
@@ -5529,6 +5576,18 @@ async def offer_group_invite(
     if not vrc_user_id:
         # Verified with no stored VRChat account. Nothing to invite, and no
         # sentence worth sending about it.
+        return
+    if not verified:
+        # Belt and braces: this function is only ever called from assign_role's
+        # 18+ branch, so reaching here means the stored verdict disagrees with
+        # the one that just ran. Offering anyway would put a live button in the
+        # DMs of somebody the database says is not 18+.
+        logger.warning(
+            "Declined to offer member %s a group invite in guild %s: the "
+            "stored verification says they are not 18+.",
+            member.id,
+            guild_id,
+        )
         return
 
     try:
@@ -5553,7 +5612,11 @@ async def offer_group_invite(
                 server=guild.name,
                 group=(config.get("group_name") or "their VRChat group"),
             ),
-            view=GroupInviteOfferView(guild.id, locale_code),
+            view=GroupInviteOfferView(
+                guild.id,
+                group_invite_account_fingerprint(vrc_user_id),
+                locale_code,
+            ),
         )
     except discord.Forbidden:
         logger.warning(
@@ -5566,7 +5629,7 @@ async def offer_group_invite(
 
 
 async def handle_group_invite_press(
-    interaction: discord.Interaction, guild_id: int
+    interaction: discord.Interaction, guild_id: int, offered_account: str
 ) -> None:
     """The member pressed "send me an invite".
 
@@ -5574,6 +5637,12 @@ async def handle_group_invite_press(
     Discord gives an interaction three seconds, and the work below includes a
     blocking RabbitMQ publish -- but more importantly, a button that is still
     there while the publish runs is a button that can be pressed again.
+
+    `offered_account` is the MEMBER's VRChat account, fingerprinted, as carried
+    by the button that was pressed. Named at length because `account` further
+    down is the invite bot's own account -- two different things one word
+    apart, and getting them confused compiles perfectly and refuses every
+    invite.
     """
     # Resolved from the id in the custom_id, NOT from interaction.guild --
     # this button only ever lives in a DM, where interaction.guild is always
@@ -5584,7 +5653,15 @@ async def handle_group_invite_press(
     ctx = SimpleNamespace(locale=locale_code)
 
     async def settle(key: str, *, retryable: bool = False, **kwargs) -> None:
-        view = GroupInviteOfferView(guild_id, locale_code) if retryable else None
+        # Reissued with the SAME fingerprint the press arrived with. A retry is
+        # the same offer to the same account, not a fresh one -- rebuilding it
+        # from whatever is linked now would let a transient failure launder a
+        # stale button into a valid one for a different account.
+        view = (
+            GroupInviteOfferView(guild_id, offered_account, locale_code)
+            if retryable
+            else None
+        )
         try:
             await interaction.edit_original_response(
                 content=get_message(key, ctx, **kwargs), view=view
@@ -5664,7 +5741,7 @@ async def handle_group_invite_press(
         return
 
     try:
-        vrc_user_id = member_vrchat_id(interaction.user.id)
+        vrc_user_id, verified = member_invite_identity(interaction.user.id)
     except Exception:
         logger.warning(
             "Could not read the VRChat id for member %s on press.",
@@ -5675,6 +5752,45 @@ async def handle_group_invite_press(
         return
     if not vrc_user_id:
         await settle("group_invite_unavailable")
+        return
+
+    # Is this member 18+ RIGHT NOW?
+    #
+    # Checked here for the same reason guild membership is, only more so: this
+    # DM never expires and the button routes for ever, so an offer made to
+    # somebody who was verified stays pressable long after a re-check has taken
+    # their role away. Without this, failing a re-check and pressing the old
+    # button was a way into a private group -- which inverts the one thing the
+    # whole feature exists to guarantee.
+    #
+    # Never retryable. Their verification is the thing that is wrong, and no
+    # amount of pressing this button will fix it; the sentence points them at
+    # verifying again instead.
+    if not verified:
+        logger.warning(
+            "Refused a group invite for member %s in guild %s: not verified 18+.",
+            interaction.user.id,
+            guild_id,
+        )
+        await settle("group_invite_not_verified", server=server_name)
+        return
+
+    # ...and is it still the same VRChat account the offer was made for?
+    #
+    # `verified` above is the verdict on whichever account is linked now, so it
+    # alone would already refuse the account that caused this. This refuses the
+    # wider case: any re-link at all invalidates the old button, so an invite
+    # can only ever reach the account a completed verification actually put in
+    # front of the group. Re-verifying issues a fresh button for the new
+    # account, which is the supported way through.
+    if group_invite_account_fingerprint(vrc_user_id) != offered_account:
+        logger.warning(
+            "Refused a group invite for member %s in guild %s: the linked "
+            "VRChat account is not the one this offer was made for.",
+            interaction.user.id,
+            guild_id,
+        )
+        await settle("group_invite_account_changed", server=server_name)
         return
 
     group_name = config.get("group_name") or "the group"
@@ -5801,6 +5917,7 @@ async def expire_group_invite_if_unanswered(guild_id, discord_id, job_id) -> Non
             record.updated_at = now
             row = {
                 "discord_id": record.discord_id,
+                "vrc_user_id": record.vrc_user_id,
                 "channel_id": record.channel_id,
                 "message_id": record.message_id,
             }
@@ -7011,9 +7128,27 @@ async def tell_member_about_invite(guild_id, row: dict, state: str) -> None:
         group=(group_name or "the group"),
     )
 
+    # Stamped with the account the request was MADE for, read off the stored
+    # row rather than resolved fresh. A retry is the same offer to the same
+    # account -- and if the member has re-linked since, the press refuses on
+    # the fingerprint rather than inviting whoever is linked now.
+    #
+    # No account on the row means no button. That should not happen (every row
+    # is written with one by begin_group_invite), but the alternative is a
+    # ValueError out of DynamicItem for a custom_id that cannot match the
+    # template, thrown while reporting an outcome on an already-settled row --
+    # which the callers' catch-all would swallow, leaving the member reading
+    # "asking VRChat" for ever with nothing left to answer them.
     view = None
-    if state not in GROUP_INVITE_SETTLED_STATES and guild is not None:
-        view = GroupInviteOfferView(guild.id, locale_code)
+    offered_account = row.get("vrc_user_id")
+    if (
+        state not in GROUP_INVITE_SETTLED_STATES
+        and guild is not None
+        and offered_account
+    ):
+        view = GroupInviteOfferView(
+            guild.id, group_invite_account_fingerprint(offered_account), locale_code
+        )
 
     channel_id = row.get("channel_id")
     message_id = row.get("message_id")

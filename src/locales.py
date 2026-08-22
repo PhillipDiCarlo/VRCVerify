@@ -103,6 +103,8 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_too_soon": "You've already asked for an invite. Please give it a few minutes before trying again.",
         "group_invite_account_missing": "VRChat didn't recognise the account you verified with, so the invite couldn't be sent. Try verifying again to relink your VRChat account.",
         "group_invite_not_a_member": "This invite was for **{server}**, and you're no longer a member there. Join the server and verify again if you'd still like an invite.",
+        "group_invite_not_verified": "You're not currently verified as 18+ in **{server}**, so the invite couldn't be sent. Verify again to get a new invite offer.",
+        "group_invite_account_changed": "This offer was for a different VRChat account than the one you have linked now. Verify again to get a new invite offer for your current account.",
     },
 
     "es-ES": {
@@ -200,6 +202,8 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_too_soon": "Ya has pedido una invitación. Espera unos minutos antes de volver a intentarlo.",
         "group_invite_account_missing": "VRChat no reconoció la cuenta con la que te verificaste, así que no se pudo enviar la invitación. Vuelve a verificarte para volver a vincular tu cuenta de VRChat.",
         "group_invite_not_a_member": "Esta invitación era para **{server}**, y ya no eres miembro de ese servidor. Únete al servidor y verifícate de nuevo si aún quieres una invitación.",
+        "group_invite_not_verified": "Actualmente no estás verificado como 18+ en **{server}**, así que no se pudo enviar la invitación. Verifícate de nuevo para recibir una nueva invitación.",
+        "group_invite_account_changed": "Esta invitación era para una cuenta de VRChat distinta a la que tienes vinculada ahora. Verifícate de nuevo para recibir una nueva invitación para tu cuenta actual.",
     },
 
     "zh-CN": {
@@ -297,6 +301,8 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_too_soon": "你已经申请过邀请了。请等几分钟再试。",
         "group_invite_account_missing": "VRChat 无法识别你验证时使用的账号，因此邀请无法发送。请重新进行验证，以重新关联你的 VRChat 账号。",
         "group_invite_not_a_member": "这份邀请来自 **{server}**，而你已不再是该服务器的成员。如果仍想获得邀请，请重新加入该服务器并再次进行验证。",
+        "group_invite_not_verified": "你目前在 **{server}** 中未被验证为 18+，因此无法发送邀请。请重新验证以获得新的邀请。",
+        "group_invite_account_changed": "此邀请是为另一个 VRChat 账号发出的，与你当前绑定的账号不同。请重新验证，以便为你当前的账号获得新的邀请。",
     },
 
     "ja": {
@@ -394,6 +400,8 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_too_soon": "すでに招待をリクエスト済みです。数分待ってからもう一度お試しください。",
         "group_invite_account_missing": "認証に使用したアカウントを VRChat が認識できなかったため、招待を送信できませんでした。もう一度認証して VRChat アカウントを再リンクしてください。",
         "group_invite_not_a_member": "この招待は **{server}** のものですが、あなたはもうそのサーバーのメンバーではありません。まだ招待が必要な場合は、サーバーに参加して再度認証してください。",
+        "group_invite_not_verified": "現在 **{server}** で18歳以上として認証されていないため、招待を送信できませんでした。もう一度認証すると、新しい招待が届きます。",
+        "group_invite_account_changed": "この招待は、現在リンクされているものとは別の VRChat アカウント宛てに送られたものです。現在のアカウントで新しい招待を受け取るには、もう一度認証してください。",
     },
 
     "de": {
@@ -491,6 +499,8 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_too_soon": "Du hast bereits eine Einladung angefragt. Bitte warte ein paar Minuten, bevor du es erneut versuchst.",
         "group_invite_account_missing": "VRChat hat das Konto, mit dem du dich verifiziert hast, nicht erkannt, daher konnte die Einladung nicht gesendet werden. Verifiziere dich erneut, um dein VRChat-Konto neu zu verknüpfen.",
         "group_invite_not_a_member": "Diese Einladung galt für **{server}**, und du bist dort kein Mitglied mehr. Tritt dem Server wieder bei und verifiziere dich erneut, wenn du noch eine Einladung möchtest.",
+        "group_invite_not_verified": "Du bist derzeit auf **{server}** nicht als 18+ verifiziert, daher konnte die Einladung nicht gesendet werden. Verifiziere dich erneut, um eine neue Einladung zu erhalten.",
+        "group_invite_account_changed": "Diese Einladung galt für ein anderes VRChat-Konto als das, das du jetzt verknüpft hast. Verifiziere dich erneut, um eine neue Einladung für dein aktuelles Konto zu erhalten.",
     },
 
     "nl": {
@@ -588,6 +598,8 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_too_soon": "Je hebt al om een uitnodiging gevraagd. Wacht een paar minuten voordat je het opnieuw probeert.",
         "group_invite_account_missing": "VRChat herkende het account waarmee je je hebt geverifieerd niet, dus de uitnodiging kon niet worden verstuurd. Verifieer je opnieuw om je VRChat-account opnieuw te koppelen.",
         "group_invite_not_a_member": "Deze uitnodiging was voor **{server}**, en je bent daar geen lid meer. Word weer lid van de server en verifieer je opnieuw als je nog een uitnodiging wilt.",
+        "group_invite_not_verified": "Je bent op dit moment niet als 18+ geverifieerd in **{server}**, dus de uitnodiging kon niet worden verstuurd. Verifieer je opnieuw om een nieuwe uitnodiging te krijgen.",
+        "group_invite_account_changed": "Deze uitnodiging was voor een ander VRChat-account dan het account dat je nu gekoppeld hebt. Verifieer je opnieuw om een nieuwe uitnodiging voor je huidige account te krijgen.",
     },
 
     "hi-IN": {
@@ -685,6 +697,8 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_too_soon": "आप पहले ही आमंत्रण माँग चुके हैं। दोबारा कोशिश करने से पहले कुछ मिनट रुकें।",
         "group_invite_account_missing": "VRChat ने उस खाते को नहीं पहचाना जिससे आपने सत्यापन किया था, इसलिए आमंत्रण नहीं भेजा जा सका। अपना VRChat खाता दोबारा जोड़ने के लिए फिर से सत्यापन करें।",
         "group_invite_not_a_member": "यह आमंत्रण **{server}** के लिए था, और अब आप उस सर्वर के सदस्य नहीं हैं। यदि आप अब भी आमंत्रण चाहते हैं, तो सर्वर में शामिल होकर दोबारा सत्यापन करें।",
+        "group_invite_not_verified": "आप इस समय **{server}** में 18+ के रूप में सत्यापित नहीं हैं, इसलिए आमंत्रण नहीं भेजा जा सका। नया आमंत्रण पाने के लिए दोबारा सत्यापन करें।",
+        "group_invite_account_changed": "यह आमंत्रण एक अलग VRChat खाते के लिए था, जो अभी आपके जुड़े हुए खाते से भिन्न है। अपने वर्तमान खाते के लिए नया आमंत्रण पाने हेतु दोबारा सत्यापन करें।",
     },
 
     "ar": {
@@ -782,6 +796,8 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_too_soon": "لقد طلبت دعوة بالفعل. يرجى الانتظار بضع دقائق قبل المحاولة مرة أخرى.",
         "group_invite_account_missing": "لم يتعرّف VRChat على الحساب الذي تحققت به، لذا تعذّر إرسال الدعوة. أعد التحقق لإعادة ربط حسابك على VRChat.",
         "group_invite_not_a_member": "كانت هذه الدعوة لخادم **{server}**، ولم تعد عضوًا فيه. انضم إلى الخادم وتحقق مرة أخرى إذا كنت ما زلت ترغب في الحصول على دعوة.",
+        "group_invite_not_verified": "أنت غير مُتحقَّق حاليًا كبالغ 18+ في **{server}**، لذا تعذّر إرسال الدعوة. تحقّق مرة أخرى للحصول على دعوة جديدة.",
+        "group_invite_account_changed": "كانت هذه الدعوة لحساب VRChat مختلف عن الحساب المرتبط بك الآن. تحقّق مرة أخرى للحصول على دعوة جديدة لحسابك الحالي.",
     },
 
     "bn": {
@@ -879,6 +895,8 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_too_soon": "আপনি ইতিমধ্যেই একটি আমন্ত্রণ চেয়েছেন। আবার চেষ্টা করার আগে কয়েক মিনিট অপেক্ষা করুন।",
         "group_invite_account_missing": "আপনি যে অ্যাকাউন্ট দিয়ে যাচাই করেছিলেন VRChat সেটি চিনতে পারেনি, তাই আমন্ত্রণ পাঠানো যায়নি। আপনার VRChat অ্যাকাউন্ট পুনরায় যুক্ত করতে আবার যাচাই করুন।",
         "group_invite_not_a_member": "এই আমন্ত্রণটি **{server}**-এর জন্য ছিল, এবং আপনি আর সেই সার্ভারের সদস্য নন। আপনি যদি এখনও আমন্ত্রণ চান, তাহলে সার্ভারে যোগ দিয়ে আবার যাচাই করুন।",
+        "group_invite_not_verified": "আপনি বর্তমানে **{server}**-এ 18+ হিসেবে যাচাইকৃত নন, তাই আমন্ত্রণ পাঠানো যায়নি। নতুন আমন্ত্রণ পেতে আবার যাচাই করুন।",
+        "group_invite_account_changed": "এই আমন্ত্রণটি এমন একটি VRChat অ্যাকাউন্টের জন্য ছিল যা এখন আপনার সংযুক্ত অ্যাকাউন্ট থেকে ভিন্ন। আপনার বর্তমান অ্যাকাউন্টের জন্য নতুন আমন্ত্রণ পেতে আবার যাচাই করুন।",
     },
 
     "pt-BR": {
@@ -976,6 +994,8 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_too_soon": "Você já pediu um convite. Espere alguns minutos antes de tentar de novo.",
         "group_invite_account_missing": "O VRChat não reconheceu a conta com que você se verificou, então o convite não pôde ser enviado. Verifique-se de novo para revincular sua conta do VRChat.",
         "group_invite_not_a_member": "Este convite era para **{server}**, e você não é mais membro desse servidor. Entre no servidor e verifique-se de novo se ainda quiser um convite.",
+        "group_invite_not_verified": "Você não está verificado como 18+ em **{server}** no momento, então o convite não pôde ser enviado. Verifique-se de novo para receber um novo convite.",
+        "group_invite_account_changed": "Este convite era para uma conta do VRChat diferente da que você tem vinculada agora. Verifique-se de novo para receber um novo convite para sua conta atual.",
     },
 
     "ru": {
@@ -1073,6 +1093,8 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_too_soon": "Вы уже запрашивали приглашение. Подождите несколько минут, прежде чем пробовать снова.",
         "group_invite_account_missing": "VRChat не распознал аккаунт, с которым вы проходили проверку, поэтому приглашение отправить не удалось. Пройдите проверку заново, чтобы перепривязать аккаунт VRChat.",
         "group_invite_not_a_member": "Это приглашение было для сервера **{server}**, а вы больше не состоите в нём. Вернитесь на сервер и пройдите проверку заново, если приглашение всё ещё нужно.",
+        "group_invite_not_verified": "Сейчас вы не подтверждены как 18+ на сервере **{server}**, поэтому приглашение не отправлено. Пройдите проверку заново, чтобы получить новое приглашение.",
+        "group_invite_account_changed": "Это приглашение предназначалось для другого аккаунта VRChat, не для того, который привязан сейчас. Пройдите проверку заново, чтобы получить новое приглашение для текущего аккаунта.",
     },
 
     "pa-IN": {
@@ -1170,5 +1192,7 @@ localizations: dict[str, dict[str, str]] = {
         "group_invite_too_soon": "ਤੁਸੀਂ ਪਹਿਲਾਂ ਹੀ ਸੱਦਾ ਮੰਗ ਚੁੱਕੇ ਹੋ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਕੁਝ ਮਿੰਟ ਉਡੀਕੋ।",
         "group_invite_account_missing": "VRChat ਨੇ ਉਸ ਖਾਤੇ ਨੂੰ ਨਹੀਂ ਪਛਾਣਿਆ ਜਿਸ ਨਾਲ ਤੁਸੀਂ ਪ੍ਰਮਾਣੀਕਰਨ ਕੀਤਾ ਸੀ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਆਪਣਾ VRChat ਖਾਤਾ ਦੁਬਾਰਾ ਜੋੜਨ ਲਈ ਫਿਰ ਤੋਂ ਪ੍ਰਮਾਣੀਕਰਨ ਕਰੋ।",
         "group_invite_not_a_member": "ਇਹ ਸੱਦਾ **{server}** ਲਈ ਸੀ, ਅਤੇ ਤੁਸੀਂ ਹੁਣ ਉਸ ਸਰਵਰ ਦੇ ਮੈਂਬਰ ਨਹੀਂ ਹੋ। ਜੇ ਤੁਸੀਂ ਹਾਲੇ ਵੀ ਸੱਦਾ ਚਾਹੁੰਦੇ ਹੋ, ਤਾਂ ਸਰਵਰ ਵਿੱਚ ਸ਼ਾਮਲ ਹੋ ਕੇ ਦੁਬਾਰਾ ਪ੍ਰਮਾਣੀਕਰਨ ਕਰੋ।",
+        "group_invite_not_verified": "ਤੁਸੀਂ ਇਸ ਵੇਲੇ **{server}** ਵਿੱਚ 18+ ਵਜੋਂ ਤਸਦੀਕ ਨਹੀਂ ਹੋ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਨਵਾਂ ਸੱਦਾ ਲੈਣ ਲਈ ਦੁਬਾਰਾ ਤਸਦੀਕ ਕਰੋ।",
+        "group_invite_account_changed": "ਇਹ ਸੱਦਾ ਇੱਕ ਵੱਖਰੇ VRChat ਖਾਤੇ ਲਈ ਸੀ, ਜੋ ਹੁਣ ਤੁਹਾਡੇ ਜੁੜੇ ਖਾਤੇ ਤੋਂ ਵੱਖਰਾ ਹੈ। ਆਪਣੇ ਮੌਜੂਦਾ ਖਾਤੇ ਲਈ ਨਵਾਂ ਸੱਦਾ ਲੈਣ ਲਈ ਦੁਬਾਰਾ ਤਸਦੀਕ ਕਰੋ।",
     }
 }
