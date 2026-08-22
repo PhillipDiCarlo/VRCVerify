@@ -13,10 +13,13 @@ neither is obvious from reading a diff:
     as a privacy one -- the Creator Guidelines treat unsolicited automation as
     abuse, and an invite nobody asked for is exactly that.
 
-  * A "no" is permanent. A member who has said no, is already in the group, or
-    already has an invite waiting is never offered one again, and
-    confirm_override_block -- the parameter that exists to push an invite past
-    someone who blocked the group -- is passed as False every time.
+  * A "no" is permanent, and it is the member's own no. Somebody who blocked
+    group invites, or who a group moderator banned, is never offered again --
+    GROUP_INVITE_FINAL_STATES. Every other outcome is offered again on a later
+    verification, because an ignored or deleted invite is not an answer; what
+    never works twice is the same button. And confirm_override_block -- the
+    parameter that exists to push an invite past someone who blocked the group
+    -- is passed as False every time.
 
     That last one is explicit rather than omitted because vrchatapi 1.0.0
     defaults it to True. Leaving it out opts in to overriding blocks, in the
@@ -30,10 +33,15 @@ import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+import discord
 import pytest
 
 import bot
 import vrc_group_inviter as inviter
+
+# Captured before any fixture can replace it, so a test that needs the REAL
+# membership lookup can put it back.
+REAL_FETCH_MEMBER_CACHED = bot.fetch_member_cached
 
 
 GUILD_ID = 987654321
@@ -112,8 +120,16 @@ def localized(key, **kwargs):
 
 
 def set_standing(state, *, group_id=GROUP_ID, age_seconds=0, job_id="job-1"):
-    """Put a member's row straight into one state, as if it had settled there."""
+    """Put a member's row straight into one state, as if it had settled there.
+
+    `settled_at` is written for anything that is not still pending, because
+    that is what the row would really look like and it is what the cooldown is
+    measured from. Leaving it NULL -- as this helper used to -- quietly tested
+    only the requested_at fallback, so every parametrised suite below would
+    have passed with the cooldown keyed on the wrong field.
+    """
     when = datetime.now(timezone.utc) - timedelta(seconds=age_seconds)
+    settled = None if state == bot.GROUP_INVITE_PENDING else when
     with bot.session_scope() as session:
         session.add(
             bot.GroupInviteRequest(
@@ -124,6 +140,7 @@ def set_standing(state, *, group_id=GROUP_ID, age_seconds=0, job_id="job-1"):
                 state=state,
                 job_id=job_id,
                 requested_at=when,
+                settled_at=settled,
                 channel_id=str(CHANNEL_ID),
                 message_id=str(MESSAGE_ID),
             )
@@ -389,6 +406,30 @@ class TestBeginningARequest:
         set_standing(bot.GROUP_INVITE_SENT)
         assert self.build() is None
 
+    def test_the_claim_measures_the_cooldown_from_the_outcome(self):
+        """This check runs INSIDE the write, and is the one that matters -- it
+        exists to catch a row that changed between the caller's check and this
+        one. Built from fewer fields than group_invite_refusal reads, it was
+        weaker than the check it is meant to backstop: keyed on requested_at
+        alone it would wave through a second job for a request that a late
+        worker answer had settled seconds earlier."""
+        with bot.session_scope() as session:
+            session.add(
+                bot.GroupInviteRequest(
+                    server_id=str(GUILD_ID),
+                    discord_id=str(MEMBER_ID),
+                    group_id=GROUP_ID,
+                    vrc_user_id=VRC_USER_ID,
+                    state=bot.GROUP_INVITE_VRCHAT_UNAVAILABLE,
+                    job_id="old-job",
+                    # Asked for long ago, answered a moment ago.
+                    requested_at=datetime.now(timezone.utc)
+                    - timedelta(seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 3),
+                    settled_at=datetime.now(timezone.utc),
+                )
+            )
+        assert self.build() is None
+
     def test_a_retry_after_a_transient_failure_gets_a_new_job_id(self):
         set_standing(
             bot.GROUP_INVITE_VRCHAT_UNAVAILABLE,
@@ -572,12 +613,82 @@ class TestTheOffer:
         assert self.offer() == []
 
     @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_SETTLED_STATES))
-    def test_a_member_who_has_settled_is_never_offered_again(self, subscribed, state):
+    def test_a_settled_member_is_not_offered_again_straight_away(
+        self, subscribed, state
+    ):
+        """Whatever the outcome, the cooldown applies -- so re-verifying in a
+        loop cannot be turned into a stream of buttons."""
         make_server()
         make_user()
         ready_group()
         set_standing(state)
         assert self.offer() == []
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_FINAL_STATES))
+    def test_a_final_outcome_is_never_offered_again(self, subscribed, state):
+        """Banned is a group moderator's decision and blocked is the member's
+        own. Neither is waiting for a better moment, so the cooldown lapsing
+        changes nothing."""
+        make_server()
+        make_user()
+        ready_group()
+        set_standing(state, age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 100)
+        assert self.offer() == []
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_REOFFERABLE_STATES))
+    def test_a_spent_outcome_is_offered_again_once_the_cooldown_lapses(
+        self, subscribed, state
+    ):
+        """An invite is not a one-shot entitlement. Invites get ignored, lost
+        in a pile of VRChat notifications, or deleted; members leave a group
+        and want back in. A member who is still 18+ and still here gets
+        another chance on their next verification."""
+        make_server()
+        make_user()
+        ready_group()
+        set_standing(state, age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60)
+        assert len(self.offer()) == 1
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_REOFFERABLE_STATES))
+    def test_re_offering_clears_the_spent_request(self, subscribed, state):
+        """Or the button would arrive dead: the press refuses every settled
+        state, so an uncleared row would refuse the very button the DM is
+        about."""
+        make_server()
+        make_user()
+        ready_group()
+        set_standing(state, age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60)
+        self.offer()
+        assert standing() is None
+
+    def test_a_failure_to_clear_sends_no_button(self, subscribed, monkeypatch):
+        """A button the press will refuse is worse than no button: it answers
+        "you already had one" to somebody who was just told to try again."""
+        make_server()
+        make_user()
+        ready_group()
+        set_standing(
+            bot.GROUP_INVITE_SENT,
+            age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60,
+        )
+        monkeypatch.setattr(
+            bot, "retire_group_invite_request", lambda *a, **k: False
+        )
+        assert self.offer() == []
+
+    def test_a_verdict_about_another_group_is_not_cleared(self, subscribed):
+        """It is not refusing anything, so there is nothing to retire -- and
+        the row still records where they stand with the old group."""
+        make_server()
+        make_user()
+        ready_group()
+        set_standing(
+            bot.GROUP_INVITE_SENT,
+            group_id=OTHER_GROUP_ID,
+            age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60,
+        )
+        assert len(self.offer()) == 1
+        assert standing() is not None
 
     def test_a_lapsed_server_offers_nothing(self, free):
         make_server()
@@ -662,6 +773,79 @@ class TestOnlyMembersOfTheServerMayPress:
         # It must RETURN there, not fall through to the check it cannot do.
         assert "return" in source[guard : source.index("fetch_member_cached")]
 
+    def test_a_banned_member_cannot_ride_the_member_cache(
+        self, subscribed, pressable, monkeypatch
+    ):
+        """Found by adversarial audit, 2026-08-22.
+
+        fetch_member_cached keeps positive lookups for REST_TTL_SECONDS and
+        nothing invalidates them -- the bot registers no member-removal
+        listener. The verification that sends the button is itself what warms
+        that cache, so a member who verified and was then kicked or BANNED read
+        as present for three more minutes, and could spend that window putting
+        themselves inside the server's private VRChat group. Banning them from
+        the Discord does not remove them from the VRChat group afterwards.
+        """
+        make_user()
+        gone = FakeGuild()
+
+        async def kicked(user_id):
+            raise discord.NotFound(
+                SimpleNamespace(status=404, reason="Not Found"), "Unknown Member"
+            )
+
+        gone.fetch_member = kicked
+        # The real lookup, not the fixture's stub: the cache IS what is on
+        # trial here.
+        monkeypatch.setattr(bot, "fetch_member_cached", REAL_FETCH_MEMBER_CACHED)
+        monkeypatch.setattr(bot.bot, "get_guild", lambda gid: gone)
+        interaction = FakeInteraction()
+
+        async def warm_then_press():
+            # Exactly what a verification moments earlier would leave behind.
+            bot._member_fetch_cache.set(
+                (gone.id, MEMBER_ID), SimpleNamespace(id=MEMBER_ID)
+            )
+            await bot.handle_group_invite_press(interaction, GUILD_ID, FINGERPRINT)
+
+        run(warm_then_press())
+
+        assert pressable == []
+        assert standing() is None
+        assert interaction.settled[0] == localized("group_invite_not_a_member")
+
+    def test_a_stale_entry_is_dropped_once_discord_says_theyre_gone(self):
+        """Otherwise every other caller keeps being told they are still here
+        for the rest of the TTL."""
+        gone = FakeGuild()
+
+        async def kicked(user_id):
+            raise discord.NotFound(
+                SimpleNamespace(status=404, reason="Not Found"), "Unknown Member"
+            )
+
+        gone.fetch_member = kicked
+        key = (gone.id, MEMBER_ID)
+
+        async def seed_then_fetch():
+            bot._member_fetch_cache.set(key, SimpleNamespace(id=MEMBER_ID))
+            got = await bot.fetch_member_cached(gone, MEMBER_ID, fresh=True)
+            return got, bot._member_fetch_cache.get(key)
+
+        got, left = run(seed_then_fetch())
+        assert got is None
+        assert left is None
+
+    def test_the_verification_path_still_uses_the_cache(self):
+        """fresh=True is for authority checks only. Making every lookup fresh
+        would put a REST call on the verification hot path, which is the whole
+        reason this cache exists."""
+        import inspect
+
+        source = inspect.getsource(bot.handle_verification_result)
+        assert "fetch_member_cached(guild, int(discord_id))" in source
+        assert "fresh=True" not in source
+
     def test_the_refusal_has_its_own_sentence(self):
         """Reusing the setup-problem copy would tell an ex-member their old
         server is broken, which is both wrong and unactionable."""
@@ -716,7 +900,7 @@ def pressable(monkeypatch):
     guild = FakeGuild()
     monkeypatch.setattr(bot.bot, "get_guild", lambda gid: guild)
 
-    async def still_here(g, uid):
+    async def still_here(g, uid, *, fresh=False):
         return SimpleNamespace(id=uid)
 
     monkeypatch.setattr(bot, "fetch_member_cached", still_here)
@@ -838,6 +1022,142 @@ class TestOnlyTheVerifiedAccountMayBeInvited:
         from locales import localizations
 
         assert all(key in strings for strings in localizations.values())
+
+
+class TestASpentButtonStaysDead:
+    """The other half of the re-offer rule.
+
+    A new verification offers again, but the BUTTON that was already spent must
+    not work -- otherwise a member holding several old DMs could turn each one
+    into another invite without verifying at all. The offer and the press
+    deliberately disagree about settled states, and this is the side that does
+    not budge.
+    """
+
+    def press(self, account=FINGERPRINT):
+        interaction = FakeInteraction()
+        run(bot.handle_group_invite_press(interaction, GUILD_ID, account))
+        return interaction
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_SETTLED_STATES))
+    def test_pressing_a_spent_button_sends_nothing(
+        self, subscribed, pressable, state
+    ):
+        make_user()
+        set_standing(state, age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 100)
+        self.press()
+        assert pressable == []
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_SETTLED_STATES))
+    def test_a_spent_button_reports_where_they_actually_stand(
+        self, subscribed, pressable, state
+    ):
+        """They pressed a control that should not have been there. Telling them
+        the outcome they already had beats a generic failure."""
+        make_user()
+        set_standing(state, age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 100)
+        content, _ = self.press().settled
+        assert content == localized(bot.GROUP_INVITE_MESSAGE_KEYS[state])
+
+    def test_the_cooldown_runs_from_the_outcome_not_the_request(self):
+        """The worker spaces its calls, and a late answer to a timed-out
+        request is deliberately still accepted -- so an invite can land minutes
+        after it was asked for. Keyed on requested_at, the cooldown would
+        already be spent when the member finally hears anything, and the next
+        verification would re-offer seconds after their invite arrived."""
+        now = datetime.now(timezone.utc)
+        row = {
+            "group_id": GROUP_ID,
+            "state": bot.GROUP_INVITE_SENT,
+            # Asked for long ago, answered just now.
+            "requested_at": now - timedelta(
+                seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 3
+            ),
+            "settled_at": now,
+        }
+        assert (
+            bot.group_invite_refusal(row, GROUP_ID, for_offer=True)
+            == bot.INVITE_REFUSED_COOLDOWN
+        )
+
+    def test_a_request_that_never_settled_falls_back_to_when_it_was_asked(self):
+        """Rows written before this existed, and any row whose outcome never
+        arrived, still have to be able to leave the cooldown."""
+        row = {
+            "group_id": GROUP_ID,
+            "state": bot.GROUP_INVITE_VRCHAT_UNAVAILABLE,
+            "requested_at": datetime.now(timezone.utc)
+            - timedelta(seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60),
+            "settled_at": None,
+        }
+        assert bot.group_invite_refusal(row, GROUP_ID) is None
+
+    def test_the_offer_and_the_press_disagree_only_here(self):
+        """Stated as an invariant, because the two callers of one function
+        having different answers is the kind of thing a later reader 'fixes'."""
+        row = {
+            "group_id": GROUP_ID,
+            "state": bot.GROUP_INVITE_SENT,
+            "requested_at": datetime.now(timezone.utc)
+            - timedelta(seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60),
+        }
+        assert bot.group_invite_refusal(row, GROUP_ID) == bot.INVITE_REFUSED_SETTLED
+        assert bot.group_invite_refusal(row, GROUP_ID, for_offer=True) is None
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_FINAL_STATES))
+    def test_a_final_outcome_refuses_both(self, state):
+        row = {
+            "group_id": GROUP_ID,
+            "state": state,
+            "requested_at": datetime.now(timezone.utc)
+            - timedelta(seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 100),
+        }
+        assert bot.group_invite_refusal(row, GROUP_ID) == bot.INVITE_REFUSED_SETTLED
+        assert (
+            bot.group_invite_refusal(row, GROUP_ID, for_offer=True)
+            == bot.INVITE_REFUSED_SETTLED
+        )
+
+    def test_a_second_invite_needs_a_new_verification(self, subscribed, pressable):
+        """The whole rule, end to end: invite, spent button refused, verify
+        again, new button, second invite."""
+        make_user()
+        ready_group()
+
+        # First invite.
+        self.press()
+        assert len(pressable) == 1
+        bot.record_group_invite_result(
+            {
+                "type": inviter.JOB_SEND_INVITE,
+                "jobID": pressable[0][0]["jobID"],
+                "guildID": str(GUILD_ID),
+                "state": bot.GROUP_INVITE_SENT,
+            }
+        )
+        assert standing()["state"] == bot.GROUP_INVITE_SENT
+
+        # The button they already used is dead, and stays dead.
+        self.press()
+        assert len(pressable) == 1
+
+        # Verifying again offers a new one, once the cooldown since the
+        # OUTCOME has lapsed -- settled_at is what it is measured from.
+        with bot.session_scope() as session:
+            row = session.query(bot.GroupInviteRequest).first()
+            lapsed = datetime.now(timezone.utc) - timedelta(
+                seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60
+            )
+            row.requested_at = lapsed
+            row.settled_at = lapsed
+        member, guild = FakeMember(), FakeGuild()
+        run(bot.offer_group_invite(member, guild, "en-US", None))
+        assert len(member.sent) == 1
+
+        # ...which works.
+        self.press()
+        assert len(pressable) == 2
+        assert standing()["state"] == bot.GROUP_INVITE_PENDING
 
 
 class TestTheOfferIsStampedForOneAccount:
@@ -969,9 +1289,14 @@ class TestACooldownDoesNotStrandTheMember:
         )
         with bot.session_scope() as session:
             row = session.query(bot.GroupInviteRequest).first()
-            row.requested_at = datetime.now(timezone.utc) - timedelta(
+            lapsed = datetime.now(timezone.utc) - timedelta(
                 seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 5
             )
+            # Both, because the cooldown runs from the outcome: a failure that
+            # concluded a moment ago is not retryable however long ago it was
+            # asked for.
+            row.requested_at = lapsed
+            row.settled_at = lapsed
         assert bot.group_invite_refusal(standing(), GROUP_ID) is None
 
 

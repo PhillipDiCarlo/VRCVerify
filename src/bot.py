@@ -762,18 +762,6 @@ GROUP_INVITE_STATES = frozenset(
     }
 )
 
-# Reaching one of these means the member is done with this group for good, and
-# the offer is never made to them again -- the whole of "do not re-offer once
-# one was already sent".
-#
-# BLOCKED and BANNED are in here for a stronger reason than tidiness. A member
-# with group invites switched off has said no; re-offering on every future
-# verification is precisely the unsolicited-invite pattern that the opt-in
-# design exists to avoid, and it is what the Creator Guidelines call abuse.
-#
-# Everything NOT in here is a transient failure -- VRChat down, the server's
-# permissions broken, the job lost -- and those deliberately leave the offer
-# available, because none of them is the member's answer to the question.
 # vrc_group_inviter.LEAVE_STATES, mirrored. Same duplication and same reason
 # as the two vocabularies above: the worker has neither discord.py nor a
 # database driver, so importing it here would drag both in.
@@ -797,6 +785,14 @@ SEAT_LEAVE_DONE = "left"
 SEAT_LEAVE_FAILED = "leave_failed"
 SEAT_LEAVE_STATES = frozenset({SEAT_LEAVE_DONE, SEAT_LEAVE_FAILED})
 
+# An answer, as opposed to a failure to get one. Reaching one of these settles
+# the request, and settles the BUTTON that produced it for good: the press
+# refuses every state in here, which is what stops one member's pile of old
+# DMs becoming a pile of invites.
+#
+# Everything NOT in here is a transient failure -- VRChat down, the server's
+# permissions broken, the job lost -- and those deliberately leave the button
+# live, because none of them is the member's answer to the question.
 GROUP_INVITE_SETTLED_STATES = frozenset(
     {
         GROUP_INVITE_SENT,
@@ -806,6 +802,29 @@ GROUP_INVITE_SETTLED_STATES = frozenset(
         GROUP_INVITE_BANNED,
     }
 )
+
+# Settled for THIS button, but not for ever: a new verification offers again.
+#
+# An invite is not a one-shot entitlement. Invites get ignored, lost in a pile
+# of VRChat notifications, declined by accident, or deleted; members leave a
+# group and want back in. None of those should mean "never again" for somebody
+# who is still 18+ and still in the Discord -- the point of the feature is that
+# verified members can get into the group, not that they get exactly one
+# chance at it.
+#
+# The two left out are the ones where asking again is the wrong thing to do.
+# BANNED is a group moderator's decision, and re-inviting somebody they threw
+# out is precisely the pattern VRChat's guidelines call abuse. BLOCKED is the
+# member's own: they switched group invites off, and re-offering argues with an
+# opt-out (the invite would 403 anyway, since confirm_override_block is always
+# False). Both stay permanent.
+GROUP_INVITE_FINAL_STATES = frozenset(
+    {
+        GROUP_INVITE_BLOCKED,
+        GROUP_INVITE_BANNED,
+    }
+)
+GROUP_INVITE_REOFFERABLE_STATES = GROUP_INVITE_SETTLED_STATES - GROUP_INVITE_FINAL_STATES
 
 
 class GroupInviteConfig(Base):
@@ -1407,6 +1426,10 @@ class _TTLCache:
                 pass
         self._store[key] = (asyncio.get_event_loop().time() + self.ttl, value)
 
+    def drop(self, key):
+        """Forget one entry now, rather than when it expires."""
+        self._store.pop(key, None)
+
 
 _member_fetch_cache = _TTLCache(REST_CACHE_MAX, REST_TTL_SECONDS)
 _rest_semaphore = asyncio.Semaphore(REST_CONCURRENCY)
@@ -1423,19 +1446,39 @@ _rest_semaphore = asyncio.Semaphore(REST_CONCURRENCY)
 BOT_API_ADMIN_TTL = _int_env("BOT_API_ADMIN_TTL", 15, minimum=0)
 _admin_check_cache = _TTLCache(REST_CACHE_MAX, BOT_API_ADMIN_TTL)
 
-async def fetch_member_cached(guild: discord.Guild, user_id: int) -> discord.Member | None:
+async def fetch_member_cached(
+    guild: discord.Guild, user_id: int, *, fresh: bool = False
+) -> discord.Member | None:
+    """This member, from cache if we have one.
+
+    `fresh=True` costs a REST call and asks Discord now. Pass it wherever the
+    answer is an AUTHORITY check rather than a convenience -- the same reason
+    the admin-verdict cache below is separate and shorter-lived. A member who
+    left, was kicked, or was BANNED stays in this cache for REST_TTL_SECONDS:
+    nothing invalidates it, and the bot registers no member-removal listener.
+    For the verification path a slightly stale member costs nothing. For the
+    group-invite press it was a three-minute window in which somebody a
+    moderator had just banned could still put themselves inside that server's
+    private VRChat group -- and the Discord ban does not remove them from it
+    afterwards.
+
+    A fresh lookup that comes back empty also drops any stale entry, so the
+    other callers stop being told the member is still there.
+    """
     if not guild:
         return None
     key = (guild.id, user_id)
-    cached = _member_fetch_cache.get(key)
-    if cached:
-        return cached  # type: ignore
+    if not fresh:
+        cached = _member_fetch_cache.get(key)
+        if cached:
+            return cached  # type: ignore
     async with _rest_semaphore:
         try:
             member = await guild.fetch_member(user_id)
             _member_fetch_cache.set(key, member)
             return member
         except discord.NotFound:
+            _member_fetch_cache.drop(key)
             return None
 
 
@@ -3375,11 +3418,32 @@ INVITE_REFUSED_PENDING = "pending"  # one is in flight right now
 INVITE_REFUSED_COOLDOWN = "cooldown"  # tried too recently
 
 
-def group_invite_refusal(request: Optional[dict], group_id) -> Optional[str]:
+def group_invite_refusal(
+    request: Optional[dict], group_id, *, for_offer: bool = False
+) -> Optional[str]:
     """Why this member may not ask for an invite right now, or None if they may.
 
-    One function used by both the offer and the press, so the DM and the button
-    can never disagree about who is eligible.
+    One function for both the offer and the press, so the DM and the button
+    cannot drift apart about who is eligible. They differ in exactly one place,
+    named by `for_offer`, and that difference is the whole re-offer rule:
+
+      * The PRESS refuses every settled state. That is what makes a spent
+        button dead -- press it again, press an older one, press one you were
+        sent months ago, and the answer is the outcome you already had. Without
+        this, a member holding several DMs could turn each one into another
+        invite.
+
+      * The OFFER refuses only GROUP_INVITE_FINAL_STATES. A new verification is
+        a fresh ask by a member who is still 18+ and still here, so a previous
+        `sent`, `already_invited` or `already_member` is re-offered once the
+        cooldown since that outcome has lapsed.
+
+    What the cooldown bounds is INVITES, not DMs. A member who verifies over
+    and over while holding an unpressed button collects more buttons -- that
+    has always been true, since a member with no request row at all is offered
+    on every verification -- but the first press writes the row that every
+    other button then refuses against. So the ceiling stays one invite per
+    GROUP_INVITE_COOLDOWN_SECONDS, which is the number VRChat cares about.
 
     A request about a DIFFERENT group is no reason to refuse. An admin who
     changes the server's group has invalidated everything learned about the old
@@ -3391,15 +3455,27 @@ def group_invite_refusal(request: Optional[dict], group_id) -> Optional[str]:
     if request.get("group_id") != group_id:
         return None
     state = effective_group_invite_state(request)
-    if state in GROUP_INVITE_SETTLED_STATES:
+    if state in GROUP_INVITE_FINAL_STATES:
+        return INVITE_REFUSED_SETTLED
+    if state in GROUP_INVITE_SETTLED_STATES and not for_offer:
         return INVITE_REFUSED_SETTLED
     if state == GROUP_INVITE_PENDING:
         return INVITE_REFUSED_PENDING
-    # Everything left is a transient failure, which the member may retry --
+    # What is left may be asked again -- a transient failure the member can
+    # retry, or (for an offer) an outcome they are allowed a second run at --
     # but not immediately. See GROUP_INVITE_COOLDOWN_SECONDS.
-    asked = request.get("requested_at")
-    if asked is not None:
-        age = (datetime.now(timezone.utc) - asked).total_seconds()
+    #
+    # Measured from when the attempt CONCLUDED, falling back to when it was
+    # made. The two are usually seconds apart, but not under load: the worker
+    # spaces its calls by INVITE_MIN_SPACING_SECONDS, and a late answer to a
+    # timed-out request is deliberately still accepted, so an invite can land
+    # several minutes after it was asked for. Keying on `requested_at` alone
+    # would then have the cooldown already spent by the time the member hears
+    # anything, and the very next verification would offer again seconds after
+    # their invite actually arrived.
+    since = request.get("settled_at") or request.get("requested_at")
+    if since is not None:
+        age = (datetime.now(timezone.utc) - since).total_seconds()
         if age < GROUP_INVITE_COOLDOWN_SECONDS:
             return INVITE_REFUSED_COOLDOWN
     return None
@@ -3477,15 +3553,17 @@ def begin_group_invite(
             .first()
         )
         if row is not None:
+            # Every field group_invite_refusal reads, or this check is weaker
+            # than the one the caller already did -- and this is the one that
+            # matters, because it is the one inside the write. Omitting
+            # settled_at made it fall back to requested_at and so let a second
+            # job through when a late worker answer settled the row between the
+            # caller's check and this one.
             existing = {
                 "group_id": row.group_id,
                 "state": row.state or GROUP_INVITE_PENDING,
-                "requested_at": (
-                    row.requested_at.replace(tzinfo=timezone.utc)
-                    if row.requested_at is not None
-                    and row.requested_at.tzinfo is None
-                    else row.requested_at
-                ),
+                "requested_at": _utc(row.requested_at),
+                "settled_at": _utc(row.settled_at),
             }
             if group_invite_refusal(existing, group_id) is not None:
                 return None
@@ -3510,6 +3588,46 @@ def begin_group_invite(
         "groupID": group_id,
         "vrcUserID": vrc_user_id,
     }
+
+
+def retire_group_invite_request(guild_id, discord_id) -> bool:
+    """Clear a spent request so a fresh offer can be honoured. True if cleared.
+
+    Deleted rather than moved to some "offered again" state, because that IS
+    the member's standing now: they have been offered a button and have not
+    asked for anything with it, which is exactly a member with no row.
+
+    Called only from the offer, and only after the refusal check has agreed the
+    member may be asked again -- so the cooldown has already been measured
+    against the request this is about to remove. What stops a re-verification
+    loop from becoming an invite tap is that the PRESS writes a new row with a
+    new `requested_at`: extra verifications hand out extra buttons, but the
+    first press claims the row and every other button then refuses against it.
+
+    Deliberately ahead of the DM rather than after it. If the send fails the
+    member is left with no row, which the next verification simply offers
+    again; clearing afterwards would leave a live button that the press refuses
+    against the very row it was sent to replace.
+    """
+    try:
+        with session_scope() as session:
+            deleted = (
+                session.query(GroupInviteRequest)
+                .filter_by(
+                    server_id=panel_view_key(guild_id),
+                    discord_id=str(discord_id),
+                )
+                .delete()
+            )
+        return bool(deleted)
+    except Exception:
+        logger.warning(
+            "Could not clear a spent invite request for member %s in guild %s.",
+            discord_id,
+            guild_id,
+            exc_info=True,
+        )
+        return False
 
 
 def abandon_group_invite(guild_id, discord_id, job_id) -> None:
@@ -5552,9 +5670,14 @@ async def offer_group_invite(
     never press it. The worker checks membership as the first thing it does
     when they DO press -- see vrc_group_inviter.send_group_invite.
 
-    Silent on every "no". A member who has already been invited, already said
-    no, or is already in the group gets no DM at all, which is the whole of
-    "do not re-offer once one was already sent".
+    Silent on every "no", because there is no sentence worth sending about a
+    button somebody was never going to be shown.
+
+    A previous outcome is not one of those "no"s, except for
+    GROUP_INVITE_FINAL_STATES. A member who was invited and never accepted, or
+    who has since left the group, is offered again on their next verification
+    -- see group_invite_refusal, which is where the offer and the press part
+    company.
     """
     guild_id = str(guild.id)
     if premium is not None and not premium.allows(FEATURE_GROUP_INVITE):
@@ -5600,8 +5723,29 @@ async def offer_group_invite(
             exc_info=True,
         )
         return
-    if group_invite_refusal(request, config["group_id"]) is not None:
+    if group_invite_refusal(request, config["group_id"], for_offer=True) is not None:
         return
+
+    # A previous outcome that is being offered again has to be cleared, or the
+    # press would refuse the very button this DM is about: the press treats
+    # every settled state as final, which is what keeps spent buttons dead.
+    # Clearing here is what makes "a new verification is a new chance" real,
+    # and it is the only place that distinction is drawn.
+    if (
+        request
+        and request.get("group_id") == config["group_id"]
+        and effective_group_invite_state(request) in GROUP_INVITE_REOFFERABLE_STATES
+    ):
+        if not retire_group_invite_request(guild_id, member.id):
+            # Could not clear it, so the button would arrive dead. Better to
+            # send nothing than a control that answers "you already had one".
+            logger.warning(
+                "Not re-offering member %s in guild %s: the spent request "
+                "could not be cleared.",
+                member.id,
+                guild_id,
+            )
+            return
 
     locale_code = get_server_locale_code(guild_id, guild)
     try:
@@ -5721,7 +5865,16 @@ async def handle_group_invite_press(
         return
 
     try:
-        still_a_member = await fetch_member_cached(guild, interaction.user.id)
+        # fresh=True, at the cost of one REST call per press. The cached answer
+        # is up to REST_TTL_SECONDS old and nothing invalidates it, so a member
+        # who left -- or was kicked or BANNED -- read as present for three more
+        # minutes. The verification that sent this button is itself what warms
+        # that cache, so the stale window lined up exactly with the button
+        # being in their hands. Presses are rare and already cost a VRChat
+        # call; being right here is worth a REST call.
+        still_a_member = await fetch_member_cached(
+            guild, interaction.user.id, fresh=True
+        )
     except discord.HTTPException:
         # Could not establish it either way. Refused rather than assumed:
         # the cost of a wrong "yes" is a stranger in somebody's private
