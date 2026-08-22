@@ -51,6 +51,22 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
    one: VRChat's Creator Guidelines treat unsolicited automation as abuse, and
    an invite nobody asked for is exactly that.
 
+   **The offer is made to one VRChat account, not to a Discord account.** The
+   button's `custom_id` carries a fingerprint of the account it was offered
+   for, and the press re-checks two things against the member's record as it
+   stands at that moment: that they are still verified 18+, and that the
+   account linked now is still the one the offer named. Both refusals are
+   final rather than retryable — verifying again is what issues a fresh
+   button.
+
+   This matters because a DM never expires and the button routes for ever. An
+   offer made to a member who was 18+ stays pressable after a re-check takes
+   their role away, and resolving the VRChat account at press time meant the
+   button followed the member's *current* link: re-verifying with a different
+   account silently handed that account the pending invite. Verified live on
+   2026-08-22 — an account that had just been told "you're not 18+" pressed an
+   older button and was invited into the group.
+
 ---
 
 ## Recent updates

@@ -46,6 +46,9 @@ VRC_USER_ID = "usr_9f8e7d6c-5b4a-3928-1706-abcdef012345"
 ACCOUNT_ID = "usr_0e59962a-3e0d-4303-802b-9314623027e5"
 CHANNEL_ID = 111222333
 MESSAGE_ID = 444555666
+# The account half of the button's custom_id, for VRC_USER_ID.
+FINGERPRINT = bot.group_invite_account_fingerprint(VRC_USER_ID)
+OTHER_VRC_USER_ID = "usr_deadbeef-0000-1111-2222-333344445555"
 
 
 def run(coro):
@@ -65,13 +68,13 @@ def make_server(**overrides):
         session.add(bot.Server(**fields))
 
 
-def make_user(vrc_user_id=VRC_USER_ID, discord_id=str(MEMBER_ID)):
+def make_user(vrc_user_id=VRC_USER_ID, discord_id=str(MEMBER_ID), verified=True):
     with bot.session_scope() as session:
         session.add(
             bot.User(
                 discord_id=discord_id,
                 vrc_user_id=vrc_user_id,
-                verification_status=True,
+                verification_status=verified,
             )
         )
 
@@ -97,6 +100,15 @@ def ready_group(group_id=GROUP_ID, enabled=True, can_invite=True):
 
 def standing():
     return bot.load_group_invite_request(GUILD_ID, MEMBER_ID)
+
+
+def localized(key, **kwargs):
+    """What the member is shown for one message key, in the test server's
+    locale -- so an assertion names the key rather than pasting the sentence,
+    which would then have to be edited every time the copy is reworded."""
+    kwargs.setdefault("server", "Club LA Discord")
+    kwargs.setdefault("group", "Club LA")
+    return bot.get_message(key, SimpleNamespace(locale="en-US"), **kwargs)
 
 
 def set_standing(state, *, group_id=GROUP_ID, age_seconds=0, job_id="job-1"):
@@ -662,6 +674,224 @@ class TestOnlyMembersOfTheServerMayPress:
         )
 
 
+class FakeInteractionResponse:
+    def __init__(self, outer):
+        self.outer = outer
+
+    async def edit_message(self, content=None, view=None):
+        self.outer.edits.append((content, view))
+
+
+class FakeInteraction:
+    """Just enough of an Interaction for the press handler to run end to end."""
+
+    def __init__(self, user_id=MEMBER_ID):
+        self.edits = []
+        self.user = SimpleNamespace(id=user_id)
+        self.channel_id = CHANNEL_ID
+        self.message = SimpleNamespace(id=MESSAGE_ID)
+        self.response = FakeInteractionResponse(self)
+
+    async def edit_original_response(self, content=None, view=None):
+        self.edits.append((content, view))
+
+    @property
+    def settled(self):
+        """What the member is left looking at."""
+        return self.edits[-1]
+
+
+@pytest.fixture
+def pressable(monkeypatch):
+    """A server, a ready group, a seat, and a queue that records instead of
+    publishing -- everything a press needs except the member's own record."""
+    make_server()
+    ready_group()
+    only = bot.InviteAccount(
+        user_id=ACCOUNT_ID, queue="vrcverify_group_invites", seats=100
+    )
+    monkeypatch.setattr(bot, "INVITE_ACCOUNTS", (only,))
+    monkeypatch.setattr(bot, "INVITE_ACCOUNTS_BY_ID", {only.user_id: only})
+
+    guild = FakeGuild()
+    monkeypatch.setattr(bot.bot, "get_guild", lambda gid: guild)
+
+    async def still_here(g, uid):
+        return SimpleNamespace(id=uid)
+
+    monkeypatch.setattr(bot, "fetch_member_cached", still_here)
+
+    published = []
+    monkeypatch.setattr(
+        bot,
+        "publish_group_invite_job",
+        lambda job, queue=None: (published.append((job, queue)), True)[1],
+    )
+    return published
+
+
+class TestOnlyTheVerifiedAccountMayBeInvited:
+    """The hole this closes, found live on 2026-08-22.
+
+    A Discord account verified with an 18+ VRChat account, was offered the
+    button, then re-verified with a VRChat account that was NOT 18+. It was
+    told "you're not 18+" and lost its role -- and the original button was
+    still sitting in the DM. Pressing it invited the new, unverified account
+    into the server's private group.
+
+    Two things were wrong. The press re-checked the config, the seat, and guild
+    membership, but never the one thing the feature exists to enforce. And the
+    VRChat account was resolved at press time from whatever was linked THEN,
+    so the button was not an offer to one account -- it was a standing
+    capability that followed the member's current link wherever it went.
+    """
+
+    def press(self, interaction=None, account=FINGERPRINT):
+        interaction = interaction or FakeInteraction()
+        run(bot.handle_group_invite_press(interaction, GUILD_ID, account))
+        return interaction
+
+    def test_the_verified_account_still_gets_its_invite(self, subscribed, pressable):
+        """The control: nothing below is refusing everybody."""
+        make_user()
+        self.press()
+        assert len(pressable) == 1
+        job, queue = pressable[0]
+        assert job["vrcUserID"] == VRC_USER_ID
+        assert standing()["state"] == bot.GROUP_INVITE_PENDING
+
+    def test_a_member_who_is_no_longer_18_plus_is_refused(self, subscribed, pressable):
+        """The exact live failure."""
+        make_user(verified=False)
+        interaction = self.press()
+        content, view = interaction.settled
+        assert content == localized("group_invite_not_verified")
+        assert pressable == []
+
+    def test_the_refusal_claims_nothing(self, subscribed, pressable):
+        """It has to sit ahead of begin_group_invite, for the same reason the
+        membership check does: a refusal that claimed the row first would burn
+        the cooldown of somebody who was told no."""
+        make_user(verified=False)
+        self.press()
+        assert standing() is None
+
+    def test_being_told_no_is_not_retryable(self, subscribed, pressable):
+        """Their verification is what is wrong. Handing back a button invites
+        them to press it again, and it will refuse again every time."""
+        make_user(verified=False)
+        _, view = self.press().settled
+        assert view is None
+
+    def test_a_relinked_account_cannot_use_the_old_button(
+        self, subscribed, pressable
+    ):
+        """Even when the new account IS 18+. The offer was made to one account
+        and stays made to that one; re-verifying issues a fresh button."""
+        make_user(vrc_user_id=OTHER_VRC_USER_ID, verified=True)
+        interaction = self.press()
+        content, view = interaction.settled
+        assert content == localized("group_invite_account_changed")
+        assert pressable == []
+        assert standing() is None
+
+    def test_the_invite_goes_to_the_account_the_offer_named(
+        self, subscribed, pressable
+    ):
+        """A press must never invite an account that was not the one checked."""
+        make_user()
+        self.press()
+        job, _ = pressable[0]
+        assert bot.group_invite_account_fingerprint(job["vrcUserID"]) == FINGERPRINT
+
+    def test_a_button_stamped_for_someone_else_is_refused(
+        self, subscribed, pressable
+    ):
+        """The custom_id is not evidence of anything. A button carrying another
+        member's fingerprint, pressed by this one, is a mismatch like any
+        other -- it is compared against the presser's own record, never
+        trusted to name the account to invite."""
+        make_user()
+        interaction = self.press(
+            account=bot.group_invite_account_fingerprint(OTHER_VRC_USER_ID)
+        )
+        assert interaction.settled[0] == localized("group_invite_account_changed")
+        assert pressable == []
+
+    def test_the_two_refusals_read_differently(self):
+        """"You are not 18+" and "that was a different account" need different
+        actions from the member. Collapsing them into the generic failure
+        would tell someone whose verification lapsed that VRChat is down."""
+        from locales import localizations
+
+        en = localizations["en-US"]
+        assert (
+            en["group_invite_not_verified"]
+            != en["group_invite_account_changed"]
+            != en["group_invite_unavailable"]
+        )
+
+    @pytest.mark.parametrize(
+        "key", ["group_invite_not_verified", "group_invite_account_changed"]
+    )
+    def test_every_locale_can_say_it(self, key):
+        from locales import localizations
+
+        assert all(key in strings for strings in localizations.values())
+
+
+class TestTheOfferIsStampedForOneAccount:
+    def test_the_button_carries_the_members_own_account(self, subscribed):
+        make_server()
+        make_user()
+        ready_group()
+        member, guild = FakeMember(), FakeGuild()
+        run(bot.offer_group_invite(member, guild, "en-US", None))
+        view = member.sent[0][1]["view"]
+        pattern = bot.GroupInviteButton.__discord_ui_compiled_template__
+        match = pattern.fullmatch(view.children[0].custom_id)
+        assert match["account"] == FINGERPRINT
+
+    def test_a_member_the_database_says_is_not_18_is_never_offered(self, subscribed):
+        """offer_group_invite is only called from assign_role's 18+ branch, so
+        this can only fire if the stored verdict disagrees with the one that
+        just ran. Offering anyway would put a live button in the DMs of
+        somebody the database says is not 18+."""
+        make_server()
+        make_user(verified=False)
+        ready_group()
+        member, guild = FakeMember(), FakeGuild()
+        run(bot.offer_group_invite(member, guild, "en-US", None))
+        assert member.sent == []
+
+    def test_the_fingerprint_distinguishes_accounts(self):
+        assert bot.group_invite_account_fingerprint(
+            VRC_USER_ID
+        ) != bot.group_invite_account_fingerprint(OTHER_VRC_USER_ID)
+
+    def test_the_fingerprint_fits_the_template(self):
+        """A custom_id is capped at 100 characters and the template pins this
+        field's shape. A fingerprint that did not match would route nothing."""
+        import re
+
+        for uid in (VRC_USER_ID, OTHER_VRC_USER_ID, "8JoV9XEdKs", "usr_" + "z" * 60):
+            fp = bot.group_invite_account_fingerprint(uid)
+            assert re.fullmatch(r"[0-9a-f]{16}", fp)
+
+    def test_the_whole_custom_id_fits_discords_limit(self):
+        custom_id = (
+            bot.GroupInviteOfferView(2**63 - 1, FINGERPRINT).children[0].custom_id
+        )
+        assert len(custom_id) <= 100
+
+    def test_v1_buttons_no_longer_route(self):
+        """Every button posted before this fix carries no account fingerprint,
+        so there is no way to honour one safely. They were the vulnerable
+        population; retiring them IS the fix, not a side effect."""
+        pattern = bot.GroupInviteButton.__discord_ui_compiled_template__
+        assert pattern.fullmatch(f"vrcverify:groupinvite:v1:{GUILD_ID}") is None
+
+
 class TestTheWireCannotSetTheBotsOwnStates:
     """GROUP_INVITE_WORKER_STATES is deliberately narrower than
     GROUP_INVITE_STATES."""
@@ -763,32 +993,35 @@ class TestTheButtonIdentifiesItsServer:
         assert "bot.get_guild(guild_id)" in code
 
     def test_the_custom_id_carries_the_guild(self):
-        view = bot.GroupInviteOfferView(GUILD_ID)
-        assert view.children[0].custom_id.endswith(str(GUILD_ID))
+        view = bot.GroupInviteOfferView(GUILD_ID, FINGERPRINT)
+        assert str(GUILD_ID) in view.children[0].custom_id
 
     def test_the_template_matches_what_the_view_posts(self):
         """If these two disagree, every button ever posted answers "this
         interaction failed" and nothing in the logs says why."""
         pattern = bot.GroupInviteButton.__discord_ui_compiled_template__
-        custom_id = bot.GroupInviteOfferView(GUILD_ID).children[0].custom_id
+        custom_id = (
+            bot.GroupInviteOfferView(GUILD_ID, FINGERPRINT).children[0].custom_id
+        )
         match = pattern.fullmatch(custom_id)
         assert match and match["guild_id"] == str(GUILD_ID)
+        assert match["account"] == FINGERPRINT
 
     def test_the_view_never_expires(self):
         """A DM sits in someone's inbox indefinitely; a timeout would leave a
         button that looks live and is not."""
-        assert bot.GroupInviteOfferView(GUILD_ID).timeout is None
+        assert bot.GroupInviteOfferView(GUILD_ID, FINGERPRINT).timeout is None
 
     def test_the_label_follows_the_servers_language(self):
         from locales import localizations
 
-        view = bot.GroupInviteOfferView(GUILD_ID, "de")
+        view = bot.GroupInviteOfferView(GUILD_ID, FINGERPRINT, "de")
         assert view.children[0].item.label == localizations["de"]["btn_group_invite"]
 
     def test_an_unknown_locale_falls_back_to_english(self):
         from locales import localizations
 
-        view = bot.GroupInviteOfferView(GUILD_ID, "fr")
+        view = bot.GroupInviteOfferView(GUILD_ID, FINGERPRINT, "fr")
         assert (
             view.children[0].item.label
             == localizations["en-US"]["btn_group_invite"]
