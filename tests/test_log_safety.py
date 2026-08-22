@@ -242,3 +242,31 @@ class TestNothingReinstallsAnUnfilteredHandler:
 
         signature = inspect.signature(discord.utils.setup_logging)
         assert signature.parameters["root"].default is True
+
+
+class TestDiscordsInternalsStayOutOfOurLogs:
+    """log_handler=None had a side effect worth pinning.
+
+    Client.run used to call setup_logging with root=True, which set the ROOT
+    logger to INFO and so silently overrode LOG_LEVEL for everything. Opting
+    out of that made LOG_LEVEL work as documented -- and LOG_LEVEL=DEBUG then
+    buried every line this bot writes under gateway keepalives and raw event
+    payloads, which is exactly what happened in production on 2026-08-22.
+    """
+
+    def test_the_discord_logger_is_pinned(self):
+        import logging as _logging
+
+        import bot  # noqa: F401  -- importing is what configures it
+
+        assert _logging.getLogger("discord").level == _logging.WARNING
+
+    def test_our_own_level_is_still_ours(self):
+        """The point of pinning discord separately: turning LOG_LEVEL up for a
+        real investigation must not cost the ability to read the result."""
+        import inspect
+
+        import bot
+
+        source = inspect.getsource(bot)
+        assert 'os.getenv("DISCORD_LOG_LEVEL", "WARNING")' in source
