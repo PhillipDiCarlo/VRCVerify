@@ -24,6 +24,9 @@ RUN useradd --create-home --uid 10001 appuser
 # reimplementing is what guarantees that. It is stdlib-only, so it brings
 # nothing with it.
 COPY --chown=appuser:appuser src/api_tokens.py ./src/api_tokens.py
+# Same deal: stdlib-only, shared with every other service so that one
+# escaping rule applies to all four sets of logs.
+COPY --chown=appuser:appuser src/log_safety.py ./src/log_safety.py
 COPY --chown=appuser:appuser src/dashboard/ ./src/dashboard/
 
 # Sessions live here. Mount a volume over it; the image itself keeps nothing.

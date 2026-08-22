@@ -80,6 +80,9 @@ from dashboard.config import DashboardConfig
 from dashboard.sessions import SessionStore
 from dashboard.stripe_api import StripeAPIError, StripeClient
 
+# Flat import: shipped alongside dashboard/ in the image, like api_tokens.
+from log_safety import install_log_scrubbing
+
 logger = logging.getLogger(__name__)
 
 # The webhook's own budget. Sized well above Stripe's honest traffic -- a
@@ -2065,6 +2068,19 @@ def main():  # pragma: no cover - container entrypoint
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+    # This process logs the most externally-controlled text of the four:
+    # OAuth claims, Stripe event and subscription ids, and guild ids taken
+    # from Checkout metadata that anyone can set. See log_safety.
+    #
+    # gunicorn's two loggers are named explicitly because it sets
+    # propagate = False on both and gives them their own handlers, so they are
+    # invisible from root. It runs this factory after configuring them, which
+    # is what makes naming them here work at all.
+    install_log_scrubbing(
+        logging.getLogger(),
+        logging.getLogger("gunicorn.error"),
+        logging.getLogger("gunicorn.access"),
     )
     return create_app()
 
