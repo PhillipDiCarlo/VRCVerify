@@ -1304,6 +1304,22 @@ class PremiumEntitlementSeen(Base):
 Base.metadata.create_all(engine)
 
 
+def _ddl_type_for(table: str, column: str) -> str:
+    """The column's real SQL type, so the statement in the log can be pasted.
+
+    A hardcoded VARCHAR was right for the two string columns that had gone
+    missing so far and would be quietly wrong for the first timestamp or
+    boolean -- and an ALTER that runs and creates the wrong type is worse than
+    one that does not run.
+    """
+    try:
+        model_column = Base.metadata.tables[table].columns[column]
+        return model_column.type.compile(dialect=engine.dialect)
+    except Exception:
+        # Never let formatting the advice swallow the warning it belongs to.
+        return "/* see the model for this column's type */"
+
+
 def _warn_about_missing_columns() -> None:
     """Say so, loudly and with the exact statement, at startup.
 
@@ -1312,12 +1328,19 @@ def _warn_about_missing_columns() -> None:
     column and nothing about a migration. Whoever reads that log is several
     steps from the answer.
 
-    Only tables whose columns arrived after the table did are worth checking,
-    so this is a short list rather than a scan of everything.
+    Derived from the models rather than from a hand-kept list. It used to be a
+    list, on the reasoning that only tables whose columns arrived after the
+    table did are worth checking -- which is true, and useless, because it
+    depends on whoever adds a column also remembering to add it here. Nobody
+    did for group_seat_lease.release_job_id, and the first anyone heard of it
+    was a live ProgrammingError on a member pressing a button.
+
+    Comparing the metadata to the database costs one inspection at startup and
+    cannot fall out of date, because there is nothing to keep up to date.
     """
     expected = {
-        # Added by issue #49's icon support, after the table shipped.
-        "group_invite_config": {"group_icon_url"},
+        table.name: {column.name for column in table.columns}
+        for table in Base.metadata.sorted_tables
     }
     try:
         insp = inspect(engine)
@@ -1337,13 +1360,13 @@ def _warn_about_missing_columns() -> None:
         for column in sorted(columns - present):
             logger.error(
                 "Database column %s.%s is missing. Every query against %s will "
-                "fail until it is added. Run:  ALTER TABLE %s ADD COLUMN %s "
-                "VARCHAR;",
+                "fail until it is added. Run:  ALTER TABLE %s ADD COLUMN %s %s;",
                 table,
                 column,
                 table,
                 table,
                 column,
+                _ddl_type_for(table, column),
             )
 
 
