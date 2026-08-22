@@ -69,6 +69,13 @@ jobs:
       with:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
+        # tests/ is asserting on message strings and mock URLs, not sanitizing
+        # untrusted input -- py/incomplete-url-substring-sanitization fired on
+        # three `assert "..." in msg` lines there and nowhere else in the repo.
+        # Scanning the app code only keeps that class of false positive out.
+        config: |
+          paths-ignore:
+            - tests/**
         # If you wish to specify custom queries, you can do so here or in a config file.
         # By default, queries listed here will override any specified in a config file.
         # Prefix the list here with "+" to use these queries and those in the config file.
