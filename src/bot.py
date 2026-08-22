@@ -1426,6 +1426,10 @@ class _TTLCache:
                 pass
         self._store[key] = (asyncio.get_event_loop().time() + self.ttl, value)
 
+    def drop(self, key):
+        """Forget one entry now, rather than when it expires."""
+        self._store.pop(key, None)
+
 
 _member_fetch_cache = _TTLCache(REST_CACHE_MAX, REST_TTL_SECONDS)
 _rest_semaphore = asyncio.Semaphore(REST_CONCURRENCY)
@@ -1442,19 +1446,39 @@ _rest_semaphore = asyncio.Semaphore(REST_CONCURRENCY)
 BOT_API_ADMIN_TTL = _int_env("BOT_API_ADMIN_TTL", 15, minimum=0)
 _admin_check_cache = _TTLCache(REST_CACHE_MAX, BOT_API_ADMIN_TTL)
 
-async def fetch_member_cached(guild: discord.Guild, user_id: int) -> discord.Member | None:
+async def fetch_member_cached(
+    guild: discord.Guild, user_id: int, *, fresh: bool = False
+) -> discord.Member | None:
+    """This member, from cache if we have one.
+
+    `fresh=True` costs a REST call and asks Discord now. Pass it wherever the
+    answer is an AUTHORITY check rather than a convenience -- the same reason
+    the admin-verdict cache below is separate and shorter-lived. A member who
+    left, was kicked, or was BANNED stays in this cache for REST_TTL_SECONDS:
+    nothing invalidates it, and the bot registers no member-removal listener.
+    For the verification path a slightly stale member costs nothing. For the
+    group-invite press it was a three-minute window in which somebody a
+    moderator had just banned could still put themselves inside that server's
+    private VRChat group -- and the Discord ban does not remove them from it
+    afterwards.
+
+    A fresh lookup that comes back empty also drops any stale entry, so the
+    other callers stop being told the member is still there.
+    """
     if not guild:
         return None
     key = (guild.id, user_id)
-    cached = _member_fetch_cache.get(key)
-    if cached:
-        return cached  # type: ignore
+    if not fresh:
+        cached = _member_fetch_cache.get(key)
+        if cached:
+            return cached  # type: ignore
     async with _rest_semaphore:
         try:
             member = await guild.fetch_member(user_id)
             _member_fetch_cache.set(key, member)
             return member
         except discord.NotFound:
+            _member_fetch_cache.drop(key)
             return None
 
 
@@ -3529,15 +3553,17 @@ def begin_group_invite(
             .first()
         )
         if row is not None:
+            # Every field group_invite_refusal reads, or this check is weaker
+            # than the one the caller already did -- and this is the one that
+            # matters, because it is the one inside the write. Omitting
+            # settled_at made it fall back to requested_at and so let a second
+            # job through when a late worker answer settled the row between the
+            # caller's check and this one.
             existing = {
                 "group_id": row.group_id,
                 "state": row.state or GROUP_INVITE_PENDING,
-                "requested_at": (
-                    row.requested_at.replace(tzinfo=timezone.utc)
-                    if row.requested_at is not None
-                    and row.requested_at.tzinfo is None
-                    else row.requested_at
-                ),
+                "requested_at": _utc(row.requested_at),
+                "settled_at": _utc(row.settled_at),
             }
             if group_invite_refusal(existing, group_id) is not None:
                 return None
@@ -5651,8 +5677,7 @@ async def offer_group_invite(
     GROUP_INVITE_FINAL_STATES. A member who was invited and never accepted, or
     who has since left the group, is offered again on their next verification
     -- see group_invite_refusal, which is where the offer and the press part
-    company, and which is the only reader of GROUP_INVITE_REOFFERABLE_STATES
-    besides the retire below.
+    company.
     """
     guild_id = str(guild.id)
     if premium is not None and not premium.allows(FEATURE_GROUP_INVITE):
@@ -5840,7 +5865,16 @@ async def handle_group_invite_press(
         return
 
     try:
-        still_a_member = await fetch_member_cached(guild, interaction.user.id)
+        # fresh=True, at the cost of one REST call per press. The cached answer
+        # is up to REST_TTL_SECONDS old and nothing invalidates it, so a member
+        # who left -- or was kicked or BANNED -- read as present for three more
+        # minutes. The verification that sent this button is itself what warms
+        # that cache, so the stale window lined up exactly with the button
+        # being in their hands. Presses are rare and already cost a VRChat
+        # call; being right here is worth a REST call.
+        still_a_member = await fetch_member_cached(
+            guild, interaction.user.id, fresh=True
+        )
     except discord.HTTPException:
         # Could not establish it either way. Refused rather than assumed:
         # the cost of a wrong "yes" is a stranger in somebody's private

@@ -33,10 +33,15 @@ import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+import discord
 import pytest
 
 import bot
 import vrc_group_inviter as inviter
+
+# Captured before any fixture can replace it, so a test that needs the REAL
+# membership lookup can put it back.
+REAL_FETCH_MEMBER_CACHED = bot.fetch_member_cached
 
 
 GUILD_ID = 987654321
@@ -115,8 +120,16 @@ def localized(key, **kwargs):
 
 
 def set_standing(state, *, group_id=GROUP_ID, age_seconds=0, job_id="job-1"):
-    """Put a member's row straight into one state, as if it had settled there."""
+    """Put a member's row straight into one state, as if it had settled there.
+
+    `settled_at` is written for anything that is not still pending, because
+    that is what the row would really look like and it is what the cooldown is
+    measured from. Leaving it NULL -- as this helper used to -- quietly tested
+    only the requested_at fallback, so every parametrised suite below would
+    have passed with the cooldown keyed on the wrong field.
+    """
     when = datetime.now(timezone.utc) - timedelta(seconds=age_seconds)
+    settled = None if state == bot.GROUP_INVITE_PENDING else when
     with bot.session_scope() as session:
         session.add(
             bot.GroupInviteRequest(
@@ -127,6 +140,7 @@ def set_standing(state, *, group_id=GROUP_ID, age_seconds=0, job_id="job-1"):
                 state=state,
                 job_id=job_id,
                 requested_at=when,
+                settled_at=settled,
                 channel_id=str(CHANNEL_ID),
                 message_id=str(MESSAGE_ID),
             )
@@ -390,6 +404,30 @@ class TestBeginningARequest:
 
     def test_a_settled_member_cannot_start_another(self):
         set_standing(bot.GROUP_INVITE_SENT)
+        assert self.build() is None
+
+    def test_the_claim_measures_the_cooldown_from_the_outcome(self):
+        """This check runs INSIDE the write, and is the one that matters -- it
+        exists to catch a row that changed between the caller's check and this
+        one. Built from fewer fields than group_invite_refusal reads, it was
+        weaker than the check it is meant to backstop: keyed on requested_at
+        alone it would wave through a second job for a request that a late
+        worker answer had settled seconds earlier."""
+        with bot.session_scope() as session:
+            session.add(
+                bot.GroupInviteRequest(
+                    server_id=str(GUILD_ID),
+                    discord_id=str(MEMBER_ID),
+                    group_id=GROUP_ID,
+                    vrc_user_id=VRC_USER_ID,
+                    state=bot.GROUP_INVITE_VRCHAT_UNAVAILABLE,
+                    job_id="old-job",
+                    # Asked for long ago, answered a moment ago.
+                    requested_at=datetime.now(timezone.utc)
+                    - timedelta(seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 3),
+                    settled_at=datetime.now(timezone.utc),
+                )
+            )
         assert self.build() is None
 
     def test_a_retry_after_a_transient_failure_gets_a_new_job_id(self):
@@ -735,6 +773,79 @@ class TestOnlyMembersOfTheServerMayPress:
         # It must RETURN there, not fall through to the check it cannot do.
         assert "return" in source[guard : source.index("fetch_member_cached")]
 
+    def test_a_banned_member_cannot_ride_the_member_cache(
+        self, subscribed, pressable, monkeypatch
+    ):
+        """Found by adversarial audit, 2026-08-22.
+
+        fetch_member_cached keeps positive lookups for REST_TTL_SECONDS and
+        nothing invalidates them -- the bot registers no member-removal
+        listener. The verification that sends the button is itself what warms
+        that cache, so a member who verified and was then kicked or BANNED read
+        as present for three more minutes, and could spend that window putting
+        themselves inside the server's private VRChat group. Banning them from
+        the Discord does not remove them from the VRChat group afterwards.
+        """
+        make_user()
+        gone = FakeGuild()
+
+        async def kicked(user_id):
+            raise discord.NotFound(
+                SimpleNamespace(status=404, reason="Not Found"), "Unknown Member"
+            )
+
+        gone.fetch_member = kicked
+        # The real lookup, not the fixture's stub: the cache IS what is on
+        # trial here.
+        monkeypatch.setattr(bot, "fetch_member_cached", REAL_FETCH_MEMBER_CACHED)
+        monkeypatch.setattr(bot.bot, "get_guild", lambda gid: gone)
+        interaction = FakeInteraction()
+
+        async def warm_then_press():
+            # Exactly what a verification moments earlier would leave behind.
+            bot._member_fetch_cache.set(
+                (gone.id, MEMBER_ID), SimpleNamespace(id=MEMBER_ID)
+            )
+            await bot.handle_group_invite_press(interaction, GUILD_ID, FINGERPRINT)
+
+        run(warm_then_press())
+
+        assert pressable == []
+        assert standing() is None
+        assert interaction.settled[0] == localized("group_invite_not_a_member")
+
+    def test_a_stale_entry_is_dropped_once_discord_says_theyre_gone(self):
+        """Otherwise every other caller keeps being told they are still here
+        for the rest of the TTL."""
+        gone = FakeGuild()
+
+        async def kicked(user_id):
+            raise discord.NotFound(
+                SimpleNamespace(status=404, reason="Not Found"), "Unknown Member"
+            )
+
+        gone.fetch_member = kicked
+        key = (gone.id, MEMBER_ID)
+
+        async def seed_then_fetch():
+            bot._member_fetch_cache.set(key, SimpleNamespace(id=MEMBER_ID))
+            got = await bot.fetch_member_cached(gone, MEMBER_ID, fresh=True)
+            return got, bot._member_fetch_cache.get(key)
+
+        got, left = run(seed_then_fetch())
+        assert got is None
+        assert left is None
+
+    def test_the_verification_path_still_uses_the_cache(self):
+        """fresh=True is for authority checks only. Making every lookup fresh
+        would put a REST call on the verification hot path, which is the whole
+        reason this cache exists."""
+        import inspect
+
+        source = inspect.getsource(bot.handle_verification_result)
+        assert "fetch_member_cached(guild, int(discord_id))" in source
+        assert "fresh=True" not in source
+
     def test_the_refusal_has_its_own_sentence(self):
         """Reusing the setup-problem copy would tell an ex-member their old
         server is broken, which is both wrong and unactionable."""
@@ -789,7 +900,7 @@ def pressable(monkeypatch):
     guild = FakeGuild()
     monkeypatch.setattr(bot.bot, "get_guild", lambda gid: guild)
 
-    async def still_here(g, uid):
+    async def still_here(g, uid, *, fresh=False):
         return SimpleNamespace(id=uid)
 
     monkeypatch.setattr(bot, "fetch_member_cached", still_here)
@@ -1178,9 +1289,14 @@ class TestACooldownDoesNotStrandTheMember:
         )
         with bot.session_scope() as session:
             row = session.query(bot.GroupInviteRequest).first()
-            row.requested_at = datetime.now(timezone.utc) - timedelta(
+            lapsed = datetime.now(timezone.utc) - timedelta(
                 seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 5
             )
+            # Both, because the cooldown runs from the outcome: a failure that
+            # concluded a moment ago is not retryable however long ago it was
+            # asked for.
+            row.requested_at = lapsed
+            row.settled_at = lapsed
         assert bot.group_invite_refusal(standing(), GROUP_ID) is None
 
 
