@@ -3598,6 +3598,7 @@ def record_group_invite_result(data: dict) -> tuple[str, Optional[dict]]:
         return "applied", {
             "discord_id": row.discord_id,
             "group_id": row.group_id,
+            "vrc_user_id": row.vrc_user_id,
             "channel_id": row.channel_id,
             "message_id": row.message_id,
             "state": state,
@@ -5916,6 +5917,7 @@ async def expire_group_invite_if_unanswered(guild_id, discord_id, job_id) -> Non
             record.updated_at = now
             row = {
                 "discord_id": record.discord_id,
+                "vrc_user_id": record.vrc_user_id,
                 "channel_id": record.channel_id,
                 "message_id": record.message_id,
             }
@@ -7126,9 +7128,27 @@ async def tell_member_about_invite(guild_id, row: dict, state: str) -> None:
         group=(group_name or "the group"),
     )
 
+    # Stamped with the account the request was MADE for, read off the stored
+    # row rather than resolved fresh. A retry is the same offer to the same
+    # account -- and if the member has re-linked since, the press refuses on
+    # the fingerprint rather than inviting whoever is linked now.
+    #
+    # No account on the row means no button. That should not happen (every row
+    # is written with one by begin_group_invite), but the alternative is a
+    # ValueError out of DynamicItem for a custom_id that cannot match the
+    # template, thrown while reporting an outcome on an already-settled row --
+    # which the callers' catch-all would swallow, leaving the member reading
+    # "asking VRChat" for ever with nothing left to answer them.
     view = None
-    if state not in GROUP_INVITE_SETTLED_STATES and guild is not None:
-        view = GroupInviteOfferView(guild.id, locale_code)
+    offered_account = row.get("vrc_user_id")
+    if (
+        state not in GROUP_INVITE_SETTLED_STATES
+        and guild is not None
+        and offered_account
+    ):
+        view = GroupInviteOfferView(
+            guild.id, group_invite_account_fingerprint(offered_account), locale_code
+        )
 
     channel_id = row.get("channel_id")
     message_id = row.get("message_id")

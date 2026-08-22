@@ -1691,6 +1691,143 @@ class TestALateAnswerIsStillAnAnswer:
         assert outcome == "stale"
 
 
+class TestTheOutcomeDmIsActuallyEditable:
+    """Every one of these ran the real function, because the one bug this
+    class exists to catch was invisible to source inspection.
+
+    `tell_member_about_invite` rebuilds the offer button for outcomes that are
+    not the member's own answer, and it was the one call site missed when the
+    view grew its account argument. `locale_code` landed in the account slot,
+    DynamicItem raised ValueError on a custom_id that cannot match the
+    template, and the callers' catch-all swallowed it -- so on every retryable
+    outcome the member's DM was never edited and they sat on "asking VRChat"
+    for ever, on a row already settled and so never offered again.
+    """
+
+    @pytest.fixture
+    def dm(self, monkeypatch):
+        """Capture the edit that replaces the member's offer DM."""
+        edits = []
+
+        class FakeMessage:
+            async def edit(self, content=None, view=None):
+                edits.append((content, view))
+
+        class FakePartialChannel:
+            def get_partial_message(self, mid):
+                return FakeMessage()
+
+        monkeypatch.setattr(
+            bot.bot, "get_partial_messageable", lambda cid, type=None: FakePartialChannel()
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda gid: FakeGuild())
+        return edits
+
+    def row(self, **overrides):
+        fields = dict(
+            discord_id=str(MEMBER_ID),
+            vrc_user_id=VRC_USER_ID,
+            channel_id=str(CHANNEL_ID),
+            message_id=str(MESSAGE_ID),
+        )
+        fields.update(overrides)
+        return fields
+
+    @pytest.mark.parametrize(
+        "state",
+        sorted(bot.GROUP_INVITE_STATES - bot.GROUP_INVITE_SETTLED_STATES),
+    )
+    def test_every_retryable_outcome_can_be_told(self, dm, state):
+        """Parametrised over the whole set rather than one example: the bug was
+        in the branch shared by all of them."""
+        run(bot.tell_member_about_invite(GUILD_ID, self.row(), state))
+        assert len(dm) == 1
+        content, view = dm[0]
+        assert content
+        assert isinstance(view, bot.GroupInviteOfferView)
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_SETTLED_STATES))
+    def test_every_settled_outcome_can_be_told(self, dm, state):
+        run(bot.tell_member_about_invite(GUILD_ID, self.row(), state))
+        assert len(dm) == 1
+        content, view = dm[0]
+        assert content
+        assert view is None
+
+    def test_the_returned_button_is_stamped_for_the_same_account(self, dm):
+        """A retry is the same offer to the same account. Rebuilding it from
+        whatever is linked now would let a VRChat hiccup launder a stale
+        button into a valid one for a different account."""
+        run(
+            bot.tell_member_about_invite(
+                GUILD_ID, self.row(), bot.GROUP_INVITE_VRCHAT_UNAVAILABLE
+            )
+        )
+        _, view = dm[0]
+        pattern = bot.GroupInviteButton.__discord_ui_compiled_template__
+        match = pattern.fullmatch(view.children[0].custom_id)
+        assert match["account"] == FINGERPRINT
+
+    def test_a_row_with_no_account_still_delivers_the_answer(self, dm):
+        """Should not happen -- begin_group_invite writes one every time. But
+        the alternative to degrading here is throwing while reporting an
+        outcome on a settled row, which is the failure mode above."""
+        run(
+            bot.tell_member_about_invite(
+                GUILD_ID,
+                self.row(vrc_user_id=None),
+                bot.GROUP_INVITE_VRCHAT_UNAVAILABLE,
+            )
+        )
+        assert len(dm) == 1
+        content, view = dm[0]
+        assert content
+        assert view is None
+
+    def test_the_rows_that_reach_here_carry_an_account(self):
+        """Both builders that feed this function, checked at the source: a row
+        missing vrc_user_id silently downgrades to a buttonless retry, which
+        strands the member exactly as before, only quietly."""
+        job = bot.begin_group_invite(
+            GUILD_ID,
+            MEMBER_ID,
+            group_id=GROUP_ID,
+            vrc_user_id=VRC_USER_ID,
+            channel_id=CHANNEL_ID,
+            message_id=MESSAGE_ID,
+        )
+        outcome, row = bot.record_group_invite_result(
+            {
+                "type": inviter.JOB_SEND_INVITE,
+                "jobID": job["jobID"],
+                "guildID": str(GUILD_ID),
+                "state": bot.GROUP_INVITE_VRCHAT_UNAVAILABLE,
+            }
+        )
+        assert outcome == "applied"
+        assert row["vrc_user_id"] == VRC_USER_ID
+
+    def test_the_timeout_path_carries_an_account_too(self, dm, monkeypatch):
+        """The other builder. It expires a pending row and reports it, and
+        "timed_out" is retryable -- so it hits the same branch."""
+        monkeypatch.setattr(bot, "GROUP_INVITE_TIMEOUT_SECONDS", 0)
+        job = bot.begin_group_invite(
+            GUILD_ID,
+            MEMBER_ID,
+            group_id=GROUP_ID,
+            vrc_user_id=VRC_USER_ID,
+            channel_id=CHANNEL_ID,
+            message_id=MESSAGE_ID,
+        )
+        run(
+            bot.expire_group_invite_if_unanswered(GUILD_ID, MEMBER_ID, job["jobID"])
+        )
+        assert standing()["state"] == bot.GROUP_INVITE_TIMED_OUT
+        assert len(dm) == 1
+        _, view = dm[0]
+        assert isinstance(view, bot.GroupInviteOfferView)
+
+
 class TestAStoredVerdictAlwaysReachesSomeone:
     def test_a_failed_edit_still_delivers_the_answer(self):
         """The verdict is stored BEFORE this runs, so the row is settled: there
