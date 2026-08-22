@@ -2072,7 +2072,16 @@ def main():  # pragma: no cover - container entrypoint
     # This process logs the most externally-controlled text of the four:
     # OAuth claims, Stripe event and subscription ids, and guild ids taken
     # from Checkout metadata that anyone can set. See log_safety.
-    install_log_scrubbing()
+    #
+    # gunicorn's two loggers are named explicitly because it sets
+    # propagate = False on both and gives them their own handlers, so they are
+    # invisible from root. It runs this factory after configuring them, which
+    # is what makes naming them here work at all.
+    install_log_scrubbing(
+        logging.getLogger(),
+        logging.getLogger("gunicorn.error"),
+        logging.getLogger("gunicorn.access"),
+    )
     return create_app()
 
 

@@ -10502,4 +10502,9 @@ async def on_member_join(member: discord.Member):
 # Main
 # -------------------------------------------------------------------
 if __name__ == "__main__":
-    bot.run(DISCORD_BOT_TOKEN)
+    # log_handler=None or discord.py calls its own setup_logging, which adds
+    # a SECOND StreamHandler to the root logger -- after install_log_scrubbing
+    # ran, so without this filter. Every discord.* record then goes out
+    # unescaped (and twice), and Docker merges the streams, so a forged line
+    # lands in the same place the escaped one does.
+    bot.run(DISCORD_BOT_TOKEN, log_handler=None)

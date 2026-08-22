@@ -49,6 +49,34 @@ class TestScrub:
     def test_the_result_is_always_one_line(self):
         assert "\n" not in scrub("a\nb\nc\r\nd")
 
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("a\x85b", "a\\x85b"),
+            ("a\u2028b", "a\\u2028b"),
+            ("a\u2029b", "a\\u2029b"),
+        ],
+    )
+    def test_the_unicode_line_separators_are_caught(self, raw, expected):
+        """NEL, LINE SEPARATOR and PARAGRAPH SEPARATOR are not C0 and look
+        like ordinary characters, but str.splitlines() breaks on all three --
+        so a display name carrying U+2028 splits the line in the reader with
+        nothing in the byte stream looking like a newline."""
+        assert scrub(raw) == expected
+
+    @pytest.mark.parametrize("raw", ["\n", "\r", "\t", "\x00", "\x85", "\u2028", "\u2029"])
+    def test_nothing_escapable_survives_splitlines(self, raw):
+        """The property that actually matters, stated once over everything
+        Python itself is willing to split on."""
+        assert len(scrub("a%sb" % raw).splitlines()) == 1
+
+    def test_wide_codepoints_use_a_four_digit_escape(self):
+        """\\xNN is two hex digits by definition. As \\x2028, U+2028 reads as an
+        escaped \\x20 followed by a literal "28" -- wrong, and quietly
+        misleading about what was really in the log."""
+        assert scrub("\u2028") == "\\u2028"
+        assert scrub("\x1b") == "\\x1b"
+
 
 class TestTheFilter:
     def record(self, msg, *args):
@@ -152,6 +180,26 @@ class TestInstall:
         logging.getLogger("log_safety_test.child").warning("a\nb")
         assert stream.getvalue() == "a\\nb\n"
 
+    def test_more_than_one_logger_can_be_named(self, wired):
+        """Root covers everything that propagates and nothing that does not.
+        gunicorn.error and gunicorn.access both set propagate = False and keep
+        their own handlers, so they are invisible from root."""
+        logger, _ = wired
+        other = logging.getLogger("log_safety_test_other")
+        other.handlers.clear()
+        other.addHandler(logging.StreamHandler(io.StringIO()))
+        try:
+            assert install_log_scrubbing(logger, other) == 2
+        finally:
+            other.handlers.clear()
+
+    def test_a_logger_with_no_handlers_is_simply_skipped(self):
+        """Naming gunicorn's loggers must not blow up when the dashboard is
+        run any other way -- under the test client, or `flask run`."""
+        empty = logging.getLogger("log_safety_test_empty")
+        empty.handlers.clear()
+        assert install_log_scrubbing(empty) == 0
+
     def test_a_traceback_keeps_its_shape(self, wired):
         """Tracebacks are multi-line on purpose and are appended after this
         filter runs. Escaping them would make every logger.exception call
@@ -165,3 +213,32 @@ class TestInstall:
         out = stream.getvalue()
         assert "Traceback (most recent call last):" in out
         assert out.count("\n") > 2
+
+
+class TestNothingReinstallsAnUnfilteredHandler:
+    """The filter guarantees nothing if a library adds a handler after it.
+
+    discord.py's Client.run calls its own setup_logging unless log_handler is
+    None, and that adds a StreamHandler to the ROOT logger -- after
+    install_log_scrubbing has run, so without the filter. Every discord.*
+    record then goes out unescaped, and twice; Docker merges stdout and
+    stderr, so the forged line lands beside the escaped one.
+    """
+
+    def test_the_bot_opts_out_of_discords_logging_setup(self):
+        import inspect
+
+        import bot
+
+        source = inspect.getsource(bot)
+        assert "bot.run(DISCORD_BOT_TOKEN, log_handler=None)" in source
+
+    def test_discord_would_otherwise_touch_the_root_logger(self):
+        """Pinning the behaviour this guards against, so a discord.py upgrade
+        that changes it shows up here rather than as silent unescaped logs."""
+        import inspect
+
+        import discord.utils
+
+        signature = inspect.signature(discord.utils.setup_logging)
+        assert signature.parameters["root"].default is True
