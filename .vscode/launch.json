@@ -10,6 +10,11 @@
             // credentials, for looking at templates and CSS. Never reads .env
             // and cannot reach the real bot -- see scripts/dev_dashboard.py.
             // Stop it with the red square, or Ctrl+C in the terminal.
+            //
+            // Signed in against a stub, so the picker, overview, settings,
+            // subscription and error pages all render. Four invented servers:
+            // premium, free, bot-not-added, and one that always fails. The
+            // terminal prints their URLs on start. See scripts/preview_bot.py.
             "name": "Dashboard (local preview)",
             "type": "debugpy",
             "request": "launch",
@@ -18,6 +23,23 @@
             // The Flask reloader is off in the script, so breakpoints in
             // app.py, the view modules and Jinja stay attached.
             "justMyCode": false,
+            "serverReadyAction": {
+                "pattern": "Dashboard preview: (https?://\\S+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        },
+        {
+            // The same preview with no session, which is the only way to see
+            // the sign-in page -- the entry above lands past it and its
+            // sign-out button is inert. Use this one for #134.
+            "name": "Dashboard (local preview, signed out)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/dev_dashboard.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": { "PREVIEW_SIGNED_IN": "0" },
             "serverReadyAction": {
                 "pattern": "Dashboard preview: (https?://\\S+)",
                 "uriFormat": "%s",
