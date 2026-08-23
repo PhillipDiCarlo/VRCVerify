@@ -140,7 +140,7 @@
      and without it the browser downloads the file twice. #}
   <link rel="preload" as="font" type="font/woff2" crossorigin
         href="{{ asset('fonts/inter-latin-var.woff2') }}">
-  {# The only script in the app, and it is a warning rather than a mechanism:
+  {# The first of the two scripts, and it is a warning rather than a mechanism:
      it notices you edited one settings group and saved a different one. Every
      page works identically without it -- see static/app.js. `defer` so it
      never delays rendering. #}
@@ -223,8 +223,9 @@
       {# THE THEME PICKER
          ----------------
          A <details> disclosure, so it opens and closes with no JavaScript at
-         all. Phase 4 makes the choice instant; today every option is a form
-         submit, and the page works completely without a script either way.
+         all. prefs.js makes the choice instant where it runs; with it blocked
+         every option is a plain form submit, and the page works completely
+         either way.
 
          Three submit buttons rather than radios and a Save: a theme is a
          one-click decision, and a picker that needs a second click to confirm

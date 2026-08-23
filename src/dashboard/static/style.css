@@ -1202,7 +1202,13 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * saved value is kept -- and Vercel's permission toggles do the same. */
 .switch:disabled { cursor: not-allowed; opacity: 0.5; }
 
-.switch-row { display: flex; align-items: center; gap: var(--space-3); }
+/* `margin: 0` because this is a <p>, and it was the only one in the file
+ * without the reset -- .value, .desc, .warn, .server-action and .actions all
+ * have it. Left at the UA default it carried 1em top and bottom, so every
+ * boolean row stood ~11px taller above and 16px below than the select beside
+ * it, on the page phase 5 restyled so that a select, an input and a button
+ * would line up rather than nearly. */
+.switch-row { display: flex; align-items: center; gap: var(--space-3); margin: 0; }
 
 /* --- unsaved changes ---
  *
