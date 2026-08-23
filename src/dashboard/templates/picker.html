@@ -13,39 +13,91 @@
   {% endif %}
 
   {% if not servers %}
-    <p class="muted">
-      No servers to show. This page lists servers where you have the
-      Administrator permission; if you manage one and don't see it, sign out
-      and back in to refresh the list.
-    </p>
+    {# The empty state is reachable in a perfectly ordinary way: somebody who
+       administers a server but was promoted after they last signed in. Discord
+       tells us the server list once, at sign-in, so the fix really is to sign
+       in again -- which makes this an empty state with something to do, rather
+       than a sentence apologising. #}
+    <div class="empty">
+      <p class="empty-title">No servers to show</p>
+      <p class="empty-body">
+        This page lists servers where you have the Administrator permission.
+        Discord tells us that list when you sign in, so a permission you were
+        given since then will not be in it yet.
+      </p>
+      <form method="post" action="{{ url_for('logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="button">Sign out and start again</button>
+      </form>
+      <p class="empty-note">You'll be asked to sign in with Discord again.</p>
+    </div>
   {% else %}
     <ul class="servers">
       {% for server in servers %}
-        <li class="server {% if not server.installed %}absent{% endif %}">
-          {% if server.installed %}
-            <a href="{{ url_for('guild_overview', guild_id=server.id) }}">
-              <span class="icon" aria-hidden="true">
-                {% if server.icon_url %}
-                  <img src="{{ server.icon_url }}" alt="" width="64" height="64" loading="lazy">
-                {% else %}
-                  <span class="initial">{{ server.name[:1] | upper }}</span>
-                {% endif %}
-              </span>
-              <span class="name">{{ server.name }}</span>
-              <span class="state">Settings</span>
-            </a>
-          {% else %}
-            <a href="{{ server.invite_url }}" rel="noopener">
-              <span class="icon" aria-hidden="true">
-                {% if server.icon_url %}
-                  <img src="{{ server.icon_url }}" alt="" width="64" height="64" loading="lazy">
-                {% else %}
-                  <span class="initial">{{ server.name[:1] | upper }}</span>
-                {% endif %}
-              </span>
-              <span class="name">{{ server.name }}</span>
-              <span class="state">Add to this server</span>
-            </a>
+        {# THREE STATES, NOT TWO.
+           `installed` is false both for a server the bot is not in and for
+           every server when the bot could not be asked -- and those are not
+           the same thing. Treating them the same is what made this page
+           offer "Add to this server" for a server the bot was already in,
+           every time the bot was briefly unreachable, with only the banner
+           above to contradict it.
+
+           So an unreachable bot means unknown, and unknown offers no install
+           button at all. It is better to make somebody click through and find
+           out than to invite them to reinstall something already working. #}
+        {% set state = 'unknown' if not reachable
+                       else ('ready' if server.installed else 'absent') %}
+        <li class="server-card {{ state }}">
+          {# The shape follows Sentry's project grid: the card does not change,
+             the contents of its slots do. A configured project's card carries
+             data; an unconfigured one carries "No activity yet" and a Start
+             Setup button in the same place. That is what makes the two
+             distinguishable before you read either of them, and why the
+             distinction survives being colour-blind or seeing the page in
+             greyscale -- a button is a shape, not a hue. #}
+          <span class="icon" aria-hidden="true">
+            {% if server.icon_url %}
+              <img src="{{ server.icon_url }}" alt="" width="64" height="64"
+                   loading="lazy">
+            {% else %}
+              <span class="initial">{{ server.name[:1] | upper }}</span>
+            {% endif %}
+          </span>
+
+          <p class="server-name">
+            {% if state == 'absent' %}
+              {# Nowhere to go: the bot is not in it, so its pages would refuse.
+                 The name is text, and the button below is the only action. #}
+              {{ server.name }}
+            {% else %}
+              {# Stretched by the stylesheet to cover the whole card, so the
+                 target is the card and the markup is still one honest link.
+                 Safe here precisely because these two states have no button
+                 to be swallowed by it. #}
+              <a href="{{ url_for('guild_overview', guild_id=server.id) }}"
+                 >{{ server.name }}</a>
+            {% endif %}
+          </p>
+
+          {# The slot Sentry fills with a sparkline. There is nothing truthful
+             to put in it yet: this page asks the bot one question -- which of
+             these servers am I in -- and per-server counts would mean one call
+             each. See the note on #133 about a batch summary endpoint. #}
+          <p class="server-state">
+            {% if state == 'ready' %}
+              Overview, settings and activity
+            {% elif state == 'absent' %}
+              VRCVerify isn't in this server yet
+            {% else %}
+              Can't check this server right now
+            {% endif %}
+          </p>
+
+          {% if state == 'absent' %}
+            <p class="server-action">
+              <a class="button" href="{{ server.invite_url }}" rel="noopener">
+                Add to server</a>
+            </p>
           {% endif %}
         </li>
       {% endfor %}

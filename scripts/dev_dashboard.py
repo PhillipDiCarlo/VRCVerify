@@ -289,6 +289,9 @@ if __name__ == "__main__":
         print(f"    free         /guild/{FREE}/settings")
         print(f"    always down  /guild/{UNREACHABLE}         (error.html)")
         print("    not added    on the picker at /\n")
+        if os.environ.get("PREVIEW_BOT_DOWN") == "1":
+            print("  THE BOT IS PRETENDING TO BE DOWN. Every card reads as")
+            print("  unknown and nothing offers to install anything.\n")
         print("  Sign-out does nothing here; run the signed-out entry for that.\n")
     else:
         print("  Signed out -- the sign-in page only.\n")

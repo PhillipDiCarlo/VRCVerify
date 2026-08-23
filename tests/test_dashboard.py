@@ -904,9 +904,12 @@ class TestPicker:
         response = client.get("/")
         assert response.status_code == 200
         assert b"Alpha Club" in response.data
-        assert b"Add to this server" in response.data
-        # Installed servers link into their settings; absent ones link to the
-        # invite instead.
+        # An install action for the one the bot is not in. Asserted as the
+        # invite link rather than the button's wording -- the copy is #133's
+        # to change, the routing is not.
+        assert b"Add to server" in response.data
+        # Installed servers link into their pages; absent ones offer the
+        # invite instead and link nowhere.
         assert f'href="/guild/{GUILD_IN}"'.encode() in response.data
         assert f'href="/guild/{GUILD_OUT}"'.encode() not in response.data
 
@@ -943,6 +946,117 @@ class TestPicker:
         response = test_client.get("/")
         assert response.status_code == 200
         assert b"Can&#39;t reach the bot" in response.data or b"Can't reach the bot" in response.data
+
+    # --- the cards themselves (#133 phase 3) ---
+
+    @staticmethod
+    def _card(page: str, guild_id: str) -> str:
+        """One card's markup, found by the link or invite it contains."""
+        cards = re.findall(r'<li class="server-card [^"]*">.*?</li>', page, re.S)
+        for card in cards:
+            if guild_id in card:
+                return card
+        raise AssertionError(f"no card for {guild_id}")
+
+    def test_an_installed_server_offers_no_install_button(self, client, store):
+        """The button is the whole signal. On a card that is already set up it
+        would be an instruction to redo something that is done."""
+        login_as(client, store)
+        card = self._card(client.get("/").data.decode(), GUILD_IN)
+        assert "server-action" not in card
+        assert "Add to server" not in card
+
+    def test_an_absent_server_has_a_button_and_goes_nowhere_else(
+        self, client, store
+    ):
+        """Its pages would refuse -- the bot is not in it -- so the name is
+        text and the invite is the only thing to click."""
+        login_as(client, store)
+        card = self._card(client.get("/").data.decode(), GUILD_OUT)
+        assert "Add to server" in card
+        assert f'href="/guild/{GUILD_OUT}"' not in card
+
+    def test_the_two_states_differ_by_more_than_a_colour(self, client, store):
+        """The point of the Sentry pattern this is shaped after: a card is
+        told apart by what is in it, not by what shade it is. Someone seeing
+        the page in greyscale, or not seeing colour at all, still gets it."""
+        page = client.get("/").data.decode()
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        installed = self._card(page, GUILD_IN)
+        absent = self._card(page, GUILD_OUT)
+
+        def structure(card):
+            return sorted(set(re.findall(r'class="([a-z- ]+)"', card)))
+
+        assert structure(installed) != structure(absent)
+
+    def test_an_unreachable_bot_offers_no_install_buttons_at_all(
+        self, client, store, config
+    ):
+        """THE BUG THIS PHASE FIXES.
+
+        `installed` is false for a server the bot is not in AND for every
+        server when the bot could not be asked. Rendering those the same way
+        meant that a brief outage turned this page into an invitation to
+        reinstall the bot on servers it was already running in -- with only
+        the banner above to contradict it.
+
+        Unknown is now its own state, and it offers nothing to click that
+        could make things worse.
+        """
+        app = create_app(config, store=store, client=FakeBotAPI(fail=True))
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+
+        page = test_client.get("/").data.decode()
+        assert "Add to server" not in page
+        assert "disable_guild_select" not in page
+        # And it says so on each card rather than only in the banner.
+        assert page.count("Can't check this server right now") == 2
+
+    def test_an_unreachable_bot_still_lets_you_try_a_server(
+        self, client, store, config
+    ):
+        """Refusing to link anywhere would be the other overreaction. The
+        server pages will either work or explain themselves; that beats this
+        page deciding on their behalf from a failed read."""
+        app = create_app(config, store=store, client=FakeBotAPI(fail=True))
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+
+        page = test_client.get("/").data.decode()
+        assert f'href="/guild/{GUILD_IN}"' in page
+
+    def test_the_empty_state_offers_the_fix_it_describes(self, client, store):
+        """It is reachable by an ordinary route -- promoted since last sign-in
+        -- and the remedy really is to sign in again, so the page should do
+        that rather than describe it."""
+        # `admin_hint` false is exactly the case the copy describes: Discord
+        # reported these servers at sign-in and said you administered none of
+        # them. `guilds=[]` would not do -- login_as falls back to the default
+        # list on an empty one.
+        login_as(
+            client,
+            store,
+            guilds=[
+                {"id": GUILD_IN, "name": "Alpha Club", "icon": None,
+                 "admin_hint": False}
+            ],
+        )
+        page = client.get("/").data.decode()
+
+        assert "No servers to show" in page
+        # Scoped to the empty block on purpose. Searching the whole page for
+        # `action="/logout"` passes on the account menu in the header, which
+        # is on every page -- so the unscoped version of this assertion could
+        # not fail, and did not when the form was deleted to check.
+        start = page.index('<div class="empty">')
+        empty = page[start : page.index("</div>", start)]
+        assert 'action="/logout"' in empty
+        assert "empty-title" in empty
 
 
 # -------------------------------------------------------------------
