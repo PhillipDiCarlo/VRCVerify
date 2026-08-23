@@ -706,46 +706,84 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 /* The rail. Every label goes, every target stays: the links keep their height
  * and remain tabbable, which is the difference between a collapsed sidebar and
- * a broken one. */
+ * a broken one.
+ *
+ * With icons now shown in both states, collapsing is a change of width and
+ * nothing else -- the same rows, the same order, the same marks, without the
+ * words. Previously it was a change of kind: labels vanished and glyphs the
+ * reader had never seen appeared in their place. */
 .layout.collapsed .side-text { display: none; }
-.layout.collapsed .side-guild { justify-content: center; }
-.layout.collapsed .side-link,
-.layout.collapsed .side-back a { justify-content: center; }
+.layout.collapsed .side-guild,
+.layout.collapsed .side-up a,
+.layout.collapsed .side-link { justify-content: center; }
 
+/* "All servers", above the server it leaves.
+ *
+ * Quieter than a section link and never pill-highlighted, because it is never
+ * the current page -- it is the way out of this one. The size difference is
+ * doing the separating that a hairline was failing to do at the foot of the
+ * sidebar. */
+.side-up { margin: 0 0 var(--space-2); font-size: var(--text-note); }
+
+.side-up a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-control);
+  color: var(--faint);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.side-up a:hover { background: var(--hover); color: var(--ink-strong); }
+.side-up-mark { flex: 0 0 auto; display: flex; }
+
+/* The server everything below belongs to.
+ *
+ * Bigger icon and a heavier name than any nav row, and a rule beneath rather
+ * than above: it is a header for the list, not the first item in it. */
 .side-guild {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  margin: 0 0 0.5rem;
-  padding: 0.35rem 0.5rem 0.75rem;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  padding: 0 var(--space-1) var(--space-3);
   border-bottom: 1px solid var(--line);
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: var(--ink-strong);
 }
 
-.side-guild .icon { width: 32px; height: 32px; margin: 0; flex: 0 0 auto; }
-.side-guild .icon img { width: 32px; height: 32px; }
-.side-guild .initial { font-size: 0.875rem; }
+.side-guild .icon { width: 40px; height: 40px; margin: 0; flex: 0 0 auto; }
+.side-guild .icon img { width: 40px; height: 40px; }
+.side-guild .initial { font-size: 1.0625rem; }
+
+/* Heading treatment without a heading element -- see the note in base.html.
+ * `line-height` is tightened because a two-line server name in the sidebar is
+ * common and the default leading makes it look like two separate things. */
+.side-guild-name {
+  font-size: var(--text-section);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: -0.01em;
+  color: var(--ink-strong);
+  min-width: 0;
+}
 
 .side-nav { list-style: none; margin: 0; padding: 0; }
 
-.side-link,
-.side-back a {
+.side-link {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.6rem;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2);
   margin-bottom: 0.125rem;
   border-radius: var(--radius-control);
   color: var(--muted);
   text-decoration: none;
-  font-size: 0.9375rem;
+  font-size: var(--text-body);
   font-weight: 500;
 }
 
-.side-link:hover,
-.side-back a:hover { background: var(--hover); color: var(--ink-strong); }
+.side-link:hover { background: var(--hover); color: var(--ink-strong); }
 
 /* The current section. Discord marks selection with a filled pill rather than
  * a coloured label, which leaves the brand colour free to mean "act on this"
@@ -757,21 +795,12 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   font-weight: 600;
 }
 
-/* Section icons stand in for the labels on the rail, and only there. Expanded,
- * the label already says what the link is and a glyph beside it is decoration
- * competing with the one thing that matters. */
-.side-mark { display: none; flex: 0 0 auto; }
-.layout.collapsed .side-mark { display: block; }
-
-.side-back {
-  margin: 0.5rem 0 0;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--line);
-  font-size: 0.9375rem;
-}
-
-/* The back arrow is not a label substitute, so it stays in both states. */
-.back-mark { flex: 0 0 auto; display: flex; }
+/* Section icons, in both states. See the macro comment in base.html for why
+ * they stopped being rail-only. Dimmer than the label at rest so the word is
+ * still what the eye lands on, and full strength on the current row. */
+.side-mark { flex: 0 0 auto; color: var(--faint); }
+.side-link:hover .side-mark { color: inherit; }
+.side-link.current .side-mark { color: var(--accent-text); }
 
 /* --- server picker --- */
 .servers {
@@ -1140,7 +1169,7 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
  * only to coarse pointers so a mouse still gets the tighter rhythm. */
 @media (pointer: coarse) {
   .side-link,
-  .side-back a { min-height: 44px; }
+  .side-up a { min-height: 44px; }
   .hamburger { width: 44px; height: 44px; }
   /* 44px inside a 48px bar, which is why --bar-h is 3rem and not less. */
   .bar-button { width: 44px; height: 44px; }
@@ -1161,14 +1190,17 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
     text-align: left;
   }
   .layout.collapsed .sidebar { flex-basis: auto; text-align: left; }
-  /* The rail makes no sense as a horizontal strip -- labels come back. */
+  /* The rail makes no sense as a horizontal strip -- labels come back. The
+   * icons stay: they are shown in both states now, and a strip of icon+label
+   * pairs is exactly what the wide sidebar already is, laid on its side. */
   .layout.collapsed .side-text { display: inline; }
-  .layout.collapsed .side-mark { display: none; }
   .side-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; }
   .side-nav li { flex: 1 1 auto; }
   .side-link { justify-content: center; }
   .layout.collapsed .side-link { justify-content: center; }
-  .side-back { display: block; }
+  /* The identity block keeps the full row it has when wide -- centring it
+   * over a full-width strip would leave the server name marooned. */
+  .layout.collapsed .side-guild { justify-content: flex-start; }
   main { padding: 1rem 0 2rem; }
   .panel { padding: 1rem 1.1rem; }
   .setup-row { grid-template-columns: 1.25rem 1fr; }

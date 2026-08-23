@@ -1,5 +1,11 @@
-{# The rail's icons. Only ever visible when the sidebar is collapsed -- expanded,
-   the labels speak for themselves and a glyph beside each one is noise.
+{# The section icons, shown in both states.
+
+   They were hidden when the sidebar was expanded, on the reasoning that a
+   label makes a glyph beside it noise. Every product this dashboard was
+   compared against disagrees -- Air, Ditto, Campsite, Navattic, Slack, Vercel
+   and Discord itself all pair icon with label -- and pairing them makes
+   collapsing the sidebar a change of *width* rather than a change of kind. The
+   rail stops being a different navigation that happens to be narrower.
 
    Drawn inline rather than loaded, because the CSP is img-src 'self' plus
    Discord's CDN and a data: URI would mean widening it for three small shapes.
@@ -29,10 +35,21 @@
       {# Bars: the page is counts. #}
       <path d="M3.5 13V9.5M8 13V3.5M12.5 13V6.5"></path>
     {%- elif key == 'settings' -%}
-      {# Sliders rather than a gear -- fewer strokes survive at 16px. #}
-      <path d="M2 5h12M2 11h12"></path>
-      <circle cx="10.5" cy="5" r="1.9" fill="var(--panel)"></circle>
-      <circle cx="5.5" cy="11" r="1.9" fill="var(--panel)"></circle>
+      {# Sliders rather than a gear -- fewer strokes survive at 16px.
+
+         The knobs used to be filled with var(--panel) to punch a hole in the
+         track behind them. That was wrong on every surface this icon actually
+         sits on: the sidebar is --chrome, a hovered row is --hover, and the
+         current row is --selected, so the "hole" was a pale disc that matched
+         none of them. It went unnoticed while these icons only appeared on the
+         collapsed rail; showing them in both states put it in plain view.
+
+         The track is drawn with a gap instead, so there is nothing to fill and
+         no surface colour to guess. #}
+      <path d="M2 5h6.6M12.4 5h1.6"></path>
+      <path d="M2 11h1.6M7.4 11h6.6"></path>
+      <circle cx="10.5" cy="5" r="1.9"></circle>
+      <circle cx="5.5" cy="11" r="1.9"></circle>
     {%- else -%}
       {# A card. #}
       <rect x="2" y="4" width="12" height="8.5" rx="1.5"></rect>
@@ -346,10 +363,45 @@
          obvious to anyone who can see it, and a screen reader needs the name
          more than the page needs the pixels. #}
       <nav class="sidebar" aria-label="Sections">
+        {# UP ONE LEVEL, AND ABOVE EVERYTHING ELSE.
+           This used to sit at the foot of the sidebar under a hairline, where
+           it read as a fourth section rather than a way out of this server --
+           the three links below it navigate *within* the server named beneath
+           it, and this one leaves.
+
+           Putting it above the server it leaves is what makes that legible
+           without a label explaining it: the order on screen is the order in
+           the hierarchy. #}
+        <p class="side-up">
+          {# Inline SVG for the same reason the ticks are: U+2190 is not in the
+             vendored Inter subset, so an arrow character would fall back to
+             another family mid-line. #}
+          <a href="{{ url_for('index') }}" title="All servers">
+            <span class="side-up-mark" aria-hidden="true">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
+                   stroke="currentColor" stroke-width="1.8"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 8H3M6.5 4.5L3 8l3.5 3.5"></path>
+              </svg>
+            </span>
+            <span class="side-text">All servers</span>
+          </a>
+        </p>
+
+        {# WHOSE SERVER THIS IS.
+           A <p> rather than a heading, deliberately: this sits before the page
+           <h1> in reading order, and a heading here would announce the server
+           as the document's first section when the section is Overview or
+           Settings. It is styled as a heading because it is the anchor for
+           everything below it; it is not marked up as one because it is not.
+
+           The icon is bigger than the rail's glyphs and stays that way when
+           collapsed -- shrunk to match, the server becomes indistinguishable
+           from a nav item, which is the one thing the block exists to prevent. #}
         <p class="side-guild">
           <span class="icon" aria-hidden="true">
             {% if guild_icon %}
-              <img src="{{ guild_icon }}" alt="" width="32" height="32">
+              <img src="{{ guild_icon }}" alt="" width="40" height="40">
             {% else %}
               <span class="initial">{{ guild_name[:1] | upper }}</span>
             {% endif %}
@@ -373,25 +425,6 @@
             </li>
           {% endfor %}
         </ul>
-
-        <p class="side-back">
-          {# Its own class, not `side-mark`: the section icons appear only on
-             the rail, but a back arrow is an affordance rather than a label
-             substitute and belongs there in both states. #}
-          {# Inline SVG for the same reason the ticks are: U+2190 is not in the
-             vendored Inter subset, so an arrow character would fall back to
-             another family mid-line. #}
-          <a href="{{ url_for('index') }}" title="All servers">
-            <span class="back-mark" aria-hidden="true">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
-                   stroke="currentColor" stroke-width="1.8"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <path d="M13 8H3M6.5 4.5L3 8l3.5 3.5"></path>
-              </svg>
-            </span>
-            <span class="side-text">All servers</span>
-          </a>
-        </p>
       </nav>
     {% endif %}
 
