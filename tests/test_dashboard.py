@@ -1053,7 +1053,7 @@ class TestPicker:
         # `action="/logout"` passes on the account menu in the header, which
         # is on every page -- so the unscoped version of this assertion could
         # not fail, and did not when the form was deleted to check.
-        start = page.index('<div class="empty">')
+        start = page.index('<div class="empty-state">')
         empty = page[start : page.index("</div>", start)]
         assert 'action="/logout"' in empty
         assert "empty-title" in empty
@@ -3215,6 +3215,219 @@ class TestTheControls(object):
         rule = re.search(r"\.error-mark\s*\{([^}]*)\}", css)
         assert rule and "var(--notice)" in rule.group(1)
         assert "var(--danger)" not in rule.group(1)
+
+
+class TestNarrowScreens(object):
+    """#133 phase 6. What the app does on a phone.
+
+    An admin fixing their server from a phone is the case the issue asks to be
+    decided on purpose rather than left to whatever falls out of the collapse
+    cookie -- so the decision is asserted here and explained in the stylesheet
+    beside the rules that carry it.
+    """
+
+    @staticmethod
+    def _css() -> str:
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            return re.sub(r"/\*.*?\*/", "", handle.read(), flags=re.S)
+
+    @classmethod
+    def _block(cls, opener: str) -> str:
+        """The body of one @media block, brace-matched.
+
+        Searching the whole file would find the wide rule and the narrow
+        override alike, and every assertion here is about which of the two it
+        landed in.
+        """
+        css = cls._css()
+        start = css.index(opener) + len(opener)
+        depth = 1
+        for i in range(start, len(css)):
+            depth += {"{": 1, "}": -1}.get(css[i], 0)
+            if depth == 0:
+                return css[start:i]
+        raise AssertionError(f"unclosed block: {opener}")
+
+    @classmethod
+    def _narrow(cls) -> str:
+        return cls._block("@media (max-width: 48rem) {")
+
+    @classmethod
+    def _touch(cls) -> str:
+        return cls._block("@media (pointer: coarse) {")
+
+    @staticmethod
+    def _rule(css: str, selector: str) -> str:
+        found = re.search(
+            r"(?<![\w.:-])" + re.escape(selector) + r"\s*\{([^}]*)\}", css
+        )
+        assert found, f"no rule for {selector}"
+        return found.group(1)
+
+    @staticmethod
+    def _px(length: str) -> float:
+        """rem at the 16px root this stylesheet sets on <html>."""
+        if length.endswith("rem"):
+            return float(length[:-3]) * 16
+        if length.endswith("px"):
+            return float(length[:-2])
+        return float(length)
+
+    # --- the sidebar decision ---
+
+    def test_the_collapse_button_is_hidden_where_collapsing_does_nothing(self):
+        """The narrow-screen bug, and it was a control that lied.
+
+        Below 48rem the sidebar is a strip rather than a column, and the same
+        block restores the labels whatever the cookie says -- so `collapsed`
+        and expanded render identically down here. The hamburger was still in
+        the bar: pressing it posted a form, reloaded the page, and changed
+        nothing except its own label from "Hide the sidebar" to "Show the
+        sidebar". A screen reader was being told something had been hidden
+        that had not been.
+        """
+        narrow = self._narrow()
+        assert "display: none" in self._rule(narrow, ".nav-toggle")
+        # The reason it does nothing, asserted alongside so the two cannot
+        # drift apart: if collapsing ever means something at this width again,
+        # this line goes and the button should come back with it.
+        assert "display: inline" in self._rule(narrow, ".layout.collapsed .side-text")
+
+    def test_the_button_is_hidden_by_the_stylesheet_and_not_by_the_template(
+        self, config, store
+    ):
+        """The obvious alternative fix is wrong, and quietly so.
+
+        Dropping the hamburger from base.html behind a condition would hide it
+        on a desktop too: the server renders the same HTML for every viewport
+        and has no way to know how wide the window is. Only CSS knows. So the
+        markup stays on every section page and the media query decides -- and
+        the collapse preference keeps round-tripping, so a rail collapsed on a
+        desktop is still collapsed when its owner goes back to one.
+        """
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        assert 'class="nav-toggle"' in page
+        assert 'name="collapsed" value="1"' in page
+
+    def test_the_strip_puts_the_way_out_and_the_server_on_one_row(self):
+        """Three stacked rows -- "All servers", the server, the sections --
+        cost most of a phone screen before any content. Two rows is the
+        decision: a breadcrumb line, then the sections as tabs beneath a
+        rule."""
+        narrow = self._narrow()
+        assert "display: grid" in self._rule(narrow, ".sidebar")
+        nav = self._rule(narrow, ".side-nav")
+        assert "grid-column: 1 / -1" in nav
+        # The separator moves from under the identity block to above the tabs,
+        # so the two rows are divided once rather than twice.
+        assert "border-top" in nav
+        assert "border-bottom: 0" in self._rule(narrow, ".side-guild")
+
+    # --- pages with no sidebar at all ---
+
+    def test_a_page_without_a_sidebar_keeps_its_margins_on_a_phone(self, client):
+        """The sign-in page and the server picker wear `.layout.plain`, which
+        zeroes the wrapper's padding and leaves `main` to carry it. The narrow
+        block set `main` to `padding: 1rem 0 2rem`, so those two ran edge to
+        edge on a phone -- cards touching both sides of the screen, on the
+        first page anybody sees after signing in."""
+        sides = self._rule(self._narrow(), "main").split("padding:")[1]
+        horizontal = sides.split(";")[0].split()[1]
+        assert self._px(horizontal) > 0, "plain pages lose their side padding"
+
+    def test_every_other_page_still_takes_its_inset_from_the_wrapper(self):
+        """The pairing that makes the rule above safe. A page WITH a sidebar
+        gets its inset from `.layout`, and `main` adding its own would inset
+        the content twice -- so the more specific rule zeroing it has to stay
+        or the fix above becomes a different bug."""
+        rule = self._rule(self._css(), ".layout:not(.plain) main")
+        assert "padding-left: 0" in rule
+        assert "padding-right: 0" in rule
+
+    def test_the_chrome_and_the_content_share_one_left_edge(self):
+        """The bar was inset 1.5rem while the content it sits over was inset
+        0.75rem, so the brand hung inboard of every card on the page. The
+        1.5rem was also the widest thing in the bar, and losing it is half of
+        what stops the header overflowing a 320px screen -- the hidden
+        hamburger is the other half."""
+        narrow = self._narrow()
+        edges = {
+            selector: self._rule(narrow, selector).split("padding:")[1].split(";")[0]
+            for selector in (".bar", ".layout", "footer")
+        }
+        insets = {name: self._px(value.split()[1]) for name, value in edges.items()}
+        assert len(set(insets.values())) == 1, insets
+
+    # --- touch targets ---
+
+    def test_a_switch_clears_the_minimum_target_size(self):
+        """WCAG 2.2 SC 2.5.8 asks for 24x24 CSS pixels. The switch this issue
+        added was drawn at 36x20 -- four pixels short, and short for everybody
+        rather than only on a phone, since the requirement is not about which
+        pointer you happen to be using."""
+        base = self._rule(self._css(), ".switch")
+        width = self._px(re.search(r"width:\s*(\S+);", base).group(1))
+        height = self._px(re.search(r"height:\s*(\S+);", base).group(1))
+        assert (width, height) >= (24, 24), (width, height)
+
+        # And comfortably bigger where the pointer is a thumb. Not 44 tall:
+        # see the note in the stylesheet about the row rhythm on the densest
+        # page in the app.
+        touch = self._rule(self._touch(), ".switch")
+        assert self._px(re.search(r"width:\s*(\S+);", touch).group(1)) >= 44
+        assert self._px(re.search(r"height:\s*(\S+);", touch).group(1)) >= 24
+
+    def test_the_knob_stops_at_the_end_of_the_track(self):
+        """At BOTH sizes, which is why the two widths were picked the way they
+        were: width - knob - (2 x inset) lands on 16px either way, so one
+        `translate` serves both. The base size satisfied it before this phase
+        by luck of the original numbers; the touch size did not exist. It is
+        here so that a future resize cannot quietly leave the knob overhanging
+        the end of its track -- nothing else in the suite would notice."""
+        css = self._css()
+        travel = self._px(
+            re.search(r"\.switch:checked::before\s*\{[^}]*translate:\s*(\S+)\s", css)
+            .group(1)
+        )
+        inset = self._px(
+            re.search(r"\.switch::before\s*\{[^}]*left:\s*(\S+);", css, re.S).group(1)
+        )
+
+        for scope, knob_rule in (
+            (self._css(), r"\.switch::before\s*\{"),
+            (self._touch(), r"\.switch::before\s*\{"),
+        ):
+            track = self._px(
+                re.search(r"(?<![\w.:-])\.switch\s*\{[^}]*width:\s*(\S+);", scope).group(1)
+            )
+            knob = self._px(
+                re.search(knob_rule + r"[^}]*width:\s*(\S+);", scope, re.S).group(1)
+            )
+            assert track - knob - 2 * inset == travel, (track, knob, travel)
+
+    # --- one word, two meanings ---
+
+    def test_the_pickers_empty_state_cannot_restyle_a_settings_value(self, config, store):
+        """`.empty` was two different things in two templates.
+
+        settings.html marks a value with nothing behind it as
+        `class="value empty"` -- "Not set", "No panel found", "Couldn't check"
+        -- and the picker's empty-state card was a bare `.empty`, so every one
+        of those little grey phrases was being drawn as a padded, bordered
+        card on the densest page in the app.
+        """
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        assert 'class="value empty"' in page, "settings still marks empty values"
+
+        bare = re.findall(r"(?:^|[\s,>+~{}])(\.empty)(?![\w-])", self._css())
+        assert not bare, "`.empty` on its own reaches a settings value"
 
 
 class TestWhatTheDashboardSaysAboutDiscord:

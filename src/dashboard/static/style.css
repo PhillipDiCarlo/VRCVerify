@@ -993,8 +993,15 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 /* --- the empty picker ---
  *
  * Reachable in an ordinary way -- somebody promoted since they last signed in
- * -- so it gets a way forward rather than an apology in grey text. */
-.empty {
+ * -- so it gets a way forward rather than an apology in grey text.
+ *
+ * `.empty-state`, NOT `.empty`, and that rename is a bug fix rather than a
+ * tidy-up. settings.html marks a value with nothing behind it as
+ * `class="value empty"` -- "Not set", "No panel found", "Couldn't check" --
+ * and a bare `.empty` here reached every one of them. Each of those little
+ * grey phrases was being drawn as a padded, bordered card on the densest page
+ * in the app. Two templates, one word, entirely different meanings. */
+.empty-state {
   margin: 1rem 0 0;
   padding: var(--space-6) var(--space-5);
   background: var(--inset);
@@ -1017,7 +1024,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   font-size: var(--text-body);
 }
 
-.empty form { margin: 0; }
+.empty-state form { margin: 0; }
 .empty-note { margin: var(--space-2) 0 0; font-size: var(--text-note); color: var(--faint); }
 
 /* --- one server's pages --- */
@@ -1147,12 +1154,22 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  *
  * That is why the unsaved-changes indicator below is not a nicety. It ships
  * with the switches or the switches do not ship. */
+/* 40x24, and the 24 is the number that matters: WCAG 2.2 SC 2.5.8 asks for a
+ * target of at least 24x24 CSS pixels, and this control was drawn at 36x20.
+ * Four pixels short is still short, and it was short for everybody -- a mouse
+ * with a tremor and a thumb on a phone alike. The coarse-pointer block near
+ * the foot of this file takes it to 44 wide, which is the comfortable size
+ * rather than the required one.
+ *
+ * The knob's travel is 1rem at BOTH sizes, which is not a coincidence: each
+ * width is chosen so that width - knob - (2 x inset) lands on 16px. One
+ * `translate` to be right about instead of two. */
 .switch {
   appearance: none;
   flex: 0 0 auto;
   position: relative;
-  width: 2.25rem;
-  height: 1.25rem;
+  width: 2.5rem;
+  height: 1.5rem;
   margin: 0;
   border: 0;
   border-radius: var(--radius-pill);
@@ -1165,8 +1182,8 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   position: absolute;
   top: 0.1875rem;
   left: 0.1875rem;
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 1.125rem;
+  height: 1.125rem;
   border-radius: 50%;
   background: var(--switch-knob);
 }
@@ -1478,14 +1495,73 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   .bar-button { width: 44px; height: 44px; }
   .menu-item { min-height: 44px; }
   .button { min-height: 44px; }
+
+  /* 44x28, and the knob's travel is still 1rem -- see the note on .switch.
+     It does NOT get a 44px height the way the rows above do. A switch lives
+     in a list of settings where the spacing between rows is what separates
+     one control from the next, and a 44px-tall switch would set the vertical
+     rhythm of the densest page in the app to suit its tallest control. Wide
+     enough for a thumb, past 24 in both directions, and the padding on the
+     row does the rest. */
+  .switch { width: 2.75rem; height: 1.75rem; }
+  .switch::before { width: 1.375rem; height: 1.375rem; }
 }
 
-/* --- narrow screens --- */
-/* Below this the sidebar would take a third of the screen from the content it
- * exists to navigate, so it becomes a full-width strip above it instead. */
+/* --- narrow screens ---
+ *
+ * WHAT THE SIDEBAR DOES ON A PHONE, decided here rather than left to fall out
+ * of the collapse cookie. An admin fixing their server from a phone is a real
+ * case and it deserves an answer on purpose.
+ *
+ * The answer: below 48rem the sidebar stops being a sidebar. A 15rem column
+ * would take half the width of the content it exists to navigate, and a 4rem
+ * rail would take a strip out of the middle of the screen to show three
+ * glyphs. So it becomes a strip above the content -- the way out and the
+ * server on one row, the sections as a row of tabs under a rule.
+ *
+ * THE COLLAPSE BUTTON IS HIDDEN, and that is the part worth being explicit
+ * about. There is no rail to collapse into down here, so `collapsed` renders
+ * identically to expanded -- the rules below restore the labels either way.
+ * The hamburger was still in the bar on a phone: pressing it posted a form,
+ * reloaded the page, and changed nothing except its own label from "Hide the
+ * sidebar" to "Show the sidebar". A control that costs a round trip and does
+ * nothing is worse than no control, and a screen reader was being told it had
+ * hidden something it had not. The cookie is left alone rather than cleared,
+ * so a collapsed rail is still collapsed when the same person opens the same
+ * page on a desktop.
+ *
+ * Discord's own server settings on a phone (and Craft's) shrink the identity
+ * block and give the sections the full width. Jira Cloud puts the project name
+ * on one line with the way back and runs the sections as tabs beneath it,
+ * which is the shape used here -- with three sections they wrap rather than
+ * scroll, so nothing is hidden off the edge. */
 @media (max-width: 48rem) {
+  /* Same 0.75rem inset for the bar, the content and the footer, so the brand,
+     the cards and the footer text all sit on one left edge. The bar's 1.5rem
+     was also the widest thing in it: with the hamburger gone and the padding
+     halved, the brand and the button cluster fit inside 320px with room over,
+     where before they overflowed and gave the whole page a sideways scroll. */
+  .bar { padding: 0 0.75rem; }
+  footer { padding: 0 0.75rem 2rem; }
+
   .layout { flex-direction: column; gap: 0; padding: 0 0.75rem; }
+
+  /* The sign-in page and the server picker have no sidebar, so `.layout.plain`
+     zeroes the wrapper's padding and `main` carries it instead. Without the
+     0.75rem here those two pages ran edge to edge on a phone -- cards touching
+     both sides of the screen, on the first page anybody sees after signing in.
+     Every other page keeps 0 from `.layout:not(.plain) main`, which is more
+     specific than this rule and wins. */
+  main { padding: 1rem 0.75rem 2rem; }
+
+  /* Two rows, not three. Grid rather than the flex column it inherits: the way
+     out and the server it leaves read as a breadcrumb at this width, and the
+     row they used to take each is the row the content wanted. */
   .sidebar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--space-3);
     flex-basis: auto;
     width: 100%;
     position: static;
@@ -1493,18 +1569,40 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
     text-align: left;
   }
   .layout.collapsed .sidebar { flex-basis: auto; text-align: left; }
-  /* The rail makes no sense as a horizontal strip -- labels come back. The
-   * icons stay: they are shown in both states now, and a strip of icon+label
-   * pairs is exactly what the wide sidebar already is, laid on its side. */
+
+  /* The rail makes no sense as a horizontal strip -- labels come back, whatever
+   * the cookie says. The icons stay: they are shown in both states now, and a
+   * strip of icon+label pairs is exactly what the wide sidebar already is,
+   * laid on its side. */
   .layout.collapsed .side-text { display: inline; }
-  .side-nav { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .nav-toggle { display: none; }
+
+  .side-up { margin: 0; }
+
+  /* The rule moves off the bottom of the identity block and onto the top of
+     the tab row. Same separation, one row less of it. */
+  .side-guild {
+    margin: 0;
+    padding: 0;
+    border-bottom: 0;
+  }
+  .side-guild .icon,
+  .side-guild .icon img { width: 32px; height: 32px; }
+
+  .side-nav {
+    grid-column: 1 / -1;
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
   .side-nav li { flex: 1 1 auto; }
   .side-link { justify-content: center; }
   .layout.collapsed .side-link { justify-content: center; }
-  /* The identity block keeps the full row it has when wide -- centring it
-   * over a full-width strip would leave the server name marooned. */
   .layout.collapsed .side-guild { justify-content: flex-start; }
-  main { padding: 1rem 0 2rem; }
+
   .panel { padding: 1rem 1.1rem; }
   .setup-row { grid-template-columns: 1.25rem 1fr; }
   .setup-note { grid-column: 2; }
