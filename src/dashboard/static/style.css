@@ -802,28 +802,77 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 .side-link:hover .side-mark { color: inherit; }
 .side-link.current .side-mark { color: var(--accent-text); }
 
-/* --- server picker --- */
+/* --- server picker ---
+ *
+ * A card grid, shaped after Sentry's project list: the card is the same in
+ * every state and the CONTENTS of its slots change. A server that is set up
+ * gets a name that opens it; one the bot is not in gets an "Add to server"
+ * button in the slot where nothing else lives. The difference is a shape
+ * rather than a shade, so it survives greyscale, colour blindness, and being
+ * glanced at rather than read.
+ *
+ * The greyscale on an absent icon stays, but it is now the second signal
+ * rather than the only one. */
 .servers {
   list-style: none;
-  margin: 0;
+  margin: 1rem 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: var(--space-4);
 }
 
-.server { text-align: center; }
-
-.server a,
-.server > .icon {
-  display: block;
-  color: inherit;
-  text-decoration: none;
-  border-radius: var(--radius-control);
-  padding: 0.5rem 0.25rem;
+.server-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  text-align: center;
 }
 
-.server a:hover { background: var(--hover); }
+/* Hover belongs to the whole card only where the whole card is clickable.
+ * An absent card is inert except for its button, so lighting it up on hover
+ * would promise a click that does nothing. */
+.server-card.ready:hover,
+.server-card.unknown:hover { border-color: var(--accent-text); }
+
+.server-name {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.server-name a { color: var(--ink-strong); text-decoration: none; }
+
+/* The whole card becomes the target while the markup stays one link around
+ * the name. Only ever applied to the states with no button on the card --
+ * a stretched link over a button swallows the button. */
+.server-card.ready .server-name a::after,
+.server-card.unknown .server-name a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-card);
+}
+
+.server-state {
+  margin: 0;
+  font-size: var(--text-note);
+  color: var(--muted);
+  line-height: var(--leading-tight);
+}
+
+/* Above the stretched link so it stays clickable in its own right. There is
+ * no stretched link on an absent card, so this is belt and braces -- kept
+ * because the day someone adds one is the day this button stops working, and
+ * nothing would say so. */
+.server-action { position: relative; margin: var(--space-2) 0 0; }
+.server-action .button { text-decoration: none; }
 
 .icon {
   display: block;
@@ -848,20 +897,46 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   color: var(--faint);
 }
 
-.name {
-  display: block;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  overflow-wrap: anywhere;
+/* Servers the bot is not in, and servers we could not ask about. Greyscale
+ * reads as "available but not set up" and is the SECOND cue in both cases --
+ * the first is the button, or its absence. */
+.server-card.absent .icon img,
+.server-card.unknown .icon img { filter: grayscale(1); opacity: 0.55; }
+.server-card.absent .server-name { color: var(--muted); }
+
+/* Unknown is not a diagnosis, so it is stated in the faintest voice on the
+ * page. The banner above the grid is what explains it. */
+.server-card.unknown .server-state { color: var(--faint); font-style: italic; }
+
+/* --- the empty picker ---
+ *
+ * Reachable in an ordinary way -- somebody promoted since they last signed in
+ * -- so it gets a way forward rather than an apology in grey text. */
+.empty {
+  margin: 1rem 0 0;
+  padding: var(--space-6) var(--space-5);
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  text-align: center;
 }
 
-.state { display: block; font-size: 0.8rem; color: var(--faint); }
+.empty-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-section);
+  font-weight: 700;
+  color: var(--ink-strong);
+}
 
-/* Servers the bot isn't in. Greyscale reads as "available but not set up",
- * which is why the whole tile is the install link. */
-.server.absent .icon img { filter: grayscale(1); opacity: 0.55; }
-.server.absent .name { color: var(--muted); }
-.server.absent .state { color: var(--accent-text); }
+.empty-body {
+  margin: 0 auto var(--space-4);
+  max-width: 34rem;
+  color: var(--muted);
+  font-size: var(--text-body);
+}
+
+.empty form { margin: 0; }
+.empty-note { margin: var(--space-2) 0 0; font-size: var(--text-note); color: var(--faint); }
 
 /* --- one server's pages --- */
 .guild-head {
@@ -1219,7 +1294,8 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   .button,
   .side-link,
   .hamburger,
-  .server a,
+  .server-card,
+  .server-name a,
   .bar-button,
   .menu-item,
   select,

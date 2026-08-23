@@ -129,22 +129,26 @@ def test_the_stub_remembers_what_was_saved():
     assert after is not before
 
 
-def test_the_launch_config_offers_both_signed_in_and_signed_out():
-    """#134 redesigns the sign-in page, which the default entry lands past."""
+def test_the_launch_config_offers_every_preview_state():
+    """Three, because three states of the app cannot be reached from one
+    another: signed in (most of the work), signed out (#134 redesigns that
+    page), and the bot refusing everything (the picker's unknown cards and
+    error.html, which have no other local route)."""
     import json
     import re
 
     raw = (REPO / ".vscode" / "launch.json").read_text(encoding="utf-8")
     configs = json.loads(re.sub(r"^\s*//.*$", "", raw, flags=re.M))["configurations"]
-    previews = {
-        c["name"]: c.get("env", {})
+    previews = [
+        c.get("env", {})
         for c in configs
         if c.get("program", "").endswith("dev_dashboard.py")
-    }
+    ]
 
-    assert len(previews) == 2
-    assert {} in previews.values()
-    assert {"PREVIEW_SIGNED_IN": "0"} in previews.values()
+    assert {} in previews
+    assert {"PREVIEW_SIGNED_IN": "0"} in previews
+    assert {"PREVIEW_BOT_DOWN": "1"} in previews
+    assert len(previews) == 3
 
 
 def test_the_scratch_session_file_is_not_inside_the_repo():

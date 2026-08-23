@@ -42,6 +42,7 @@ It is the cheaper of the two mistakes.
 
 from __future__ import annotations
 
+import os
 import pathlib
 import sys
 
@@ -71,6 +72,21 @@ except ImportError as missing:  # pragma: no cover - a dev-tool setup problem
         "  Or run the signed-out preview, which needs none of this:\n\n"
         "    PREVIEW_SIGNED_IN=0 python scripts/dev_dashboard.py\n"
     ) from missing
+
+# A bot that answers nothing, for the states an outage produces.
+#
+# Not the same as the one unreachable server below: that one is a single guild
+# refusing while the bot is otherwise fine. This is `admin_guild_ids` itself
+# failing, which is what makes the picker unable to say which servers the bot
+# is in -- and #133 phase 3 turned that into its own "unknown" card state
+# rather than showing everything as un-installed. There is no way to look at
+# those cards without being able to break this call.
+BOT_DOWN = os.environ.get("PREVIEW_BOT_DOWN") == "1"
+
+
+def _outage() -> BotAPIError:
+    return BotAPIError("preview: the whole bot is pretending to be down", status=503)
+
 
 # Who the preview is signed in as. Matches the tests' actor so anything copied
 # between the two lines up.
@@ -151,9 +167,13 @@ class PreviewBotAPI:
     # --- reads ---
 
     def healthz(self) -> dict:
+        if BOT_DOWN:
+            raise _outage()
         return {"ok": True}
 
     def admin_guild_ids(self, actor_id, guild_ids) -> set:
+        if BOT_DOWN:
+            raise _outage()
         return {g for g in map(str, guild_ids) if g in INSTALLED}
 
     def settings(self, actor_id, guild_id) -> dict:
@@ -243,6 +263,8 @@ class PreviewBotAPI:
         an admin to try again beats telling them their server does not exist.
         See `_guild_page_unavailable`.
         """
+        if BOT_DOWN:
+            raise _outage()
         guild_id = str(guild_id)
         if guild_id == NOT_ADDED:
             raise BotAPIError("preview: the bot is not in this server", status=404)
