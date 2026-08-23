@@ -25,6 +25,7 @@ import os
 import re
 import sqlite3
 import stat
+import struct
 import time
 from html.parser import HTMLParser
 from types import SimpleNamespace
@@ -3334,6 +3335,149 @@ class TestTheThemePicker:
         api.reads.clear(); api.calls.clear(); api.saves.clear()
         test_client.post("/prefs/theme", data={"theme": "light"})
         assert api.reads == [] and api.calls == [] and api.saves == []
+
+
+class TestTheHeaderBar:
+    """The chrome every page sits inside (issue #133 phase 1).
+
+    Two things are pinned here beyond appearance. The account menu must keep
+    working with no JavaScript, like everything else in this app. And the slot
+    #136's notification bell drops into must stay where this phase put it --
+    reserving it is most of why this phase went first, since #123, #136 and the
+    rest of #133 all edit base.html.
+    """
+
+    def test_the_account_menu_opens_without_a_script(self, client, store):
+        """A <details> disclosure, not a script. If this ever became
+        script-driven, signing out would stop working with JS off -- and
+        signing out is the one control nobody can be asked to do without."""
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        assert '<details class="account bar-menu">' in page
+        assert "onclick" not in page and "javascript:" not in page
+
+    def test_both_sign_out_routes_are_inside_that_menu(self, client, store):
+        """The whole menu, from <details> to </details>, has to contain both --
+        otherwise one of them is still loose in the bar."""
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        start = page.index('<details class="account')
+        menu = page[start : page.index("</details>", start)]
+        assert 'action="/logout"' in menu
+        assert 'action="/logout/everywhere"' in menu
+
+    def test_each_sign_out_form_carries_its_own_token(self, client, store):
+        """Two forms, two routes, two tokens. The theme picker next to them is
+        the one form in this app allowed to go without."""
+        session = login_as(client, store)
+        page = client.get("/").data.decode()
+        start = page.index('<details class="account')
+        menu = page[start : page.index("</details>", start)]
+        assert menu.count(f'value="{session.csrf_token}"') == 2
+
+    def test_there_is_no_account_menu_when_nobody_is_signed_in(self, client):
+        """The sign-in page has no session to sign out of."""
+        page = client.get("/").data.decode()
+        assert '<details class="account' not in page
+        assert 'action="/logout"' not in page
+
+    def test_what_everywhere_means_is_text_rather_than_a_tooltip(
+        self, client, store
+    ):
+        """It used to live only in a `title` attribute, which is to say only
+        for somebody using a mouse on a desktop. The distinction between the
+        two controls is the entire reason there are two."""
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        explanation = "on every device"
+        assert f'title="{explanation}' not in page
+        assert explanation in page
+        # And in the menu, not somewhere else on the page.
+        start = page.index('<details class="account')
+        assert explanation in page[start : page.index("</details>", start)]
+
+    def test_neither_control_is_styled_as_destructive(self, client, store):
+        """Red would be the obvious choice for "sign out everywhere" and the
+        wrong one: it destroys no data, and it is exactly what you want
+        somebody to do without hesitating when they think they have been
+        compromised. A hazard colour would discourage it."""
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        start = page.index('<details class="account')
+        menu = page[start : page.index("</details>", start)]
+        assert "danger" not in menu
+
+    # --- the reserved slot ---
+
+    def test_the_bell_slot_is_reserved_before_the_theme_picker(self, client):
+        """#136 adds one element inside .bar-actions. This pins that the
+        container exists and that the theme picker is inside it, which is what
+        stops the two issues fighting over this file."""
+        page = client.get("/").data.decode()
+        actions = page.index('class="bar-actions"')
+        assert actions < page.index('<details class="theme bar-menu">')
+
+    def test_the_menus_share_one_pattern(self, client, store):
+        """Both wear .bar-menu, which is what prefs.js dismisses and what #136
+        will wear too. Two menus styled two ways is how a bar ends up with
+        three popovers that each close differently."""
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        assert page.count("bar-menu") == 2
+        assert page.count("bar-panel") == 2
+
+    # --- the logo ---
+
+    def test_the_logo_is_served_from_our_own_static_files(self, client):
+        """`img-src` is 'self' plus Discord's CDN. A logo from anywhere else
+        would need the CSP widened, which is not a trade worth making for a
+        picture."""
+        page = client.get("/").data.decode()
+        mark = re.search(r"<img[^>]*brand-mark[^>]*>", page).group(0)
+        assert 'src="/static/logo.png?v=' in mark
+
+    def test_the_logo_is_marked_decorative(self, client):
+        """The word "VRCVerify" sits beside it saying the same thing. A screen
+        reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
+        that just says where it goes."""
+        page = client.get("/").data.decode()
+        mark = re.search(r"<img[^>]*brand-mark[^>]*>", page).group(0)
+        assert 'alt=""' in mark
+        assert "VRCVerify" in page[page.index(mark) : page.index(mark) + 400]
+
+    def test_the_logo_declares_its_intrinsic_size(self, client):
+        """Without these the wordmark jumps sideways when the image lands.
+        They are the file's real dimensions, not its rendered ones -- the
+        browser wants the ratio, the stylesheet sets the height."""
+        import dashboard
+
+        page = client.get("/").data.decode()
+        mark = re.search(r"<img[^>]*brand-mark[^>]*>", page).group(0)
+        declared = (
+            int(re.search(r'width="(\d+)"', mark).group(1)),
+            int(re.search(r'height="(\d+)"', mark).group(1)),
+        )
+        path = os.path.join(
+            os.path.dirname(dashboard.__file__), "static", "logo.png"
+        )
+        with open(path, "rb") as handle:
+            header = handle.read(24)
+        assert struct.unpack(">II", header[16:24]) == declared
+
+    def test_the_dark_theme_recolours_the_logo_rather_than_swapping_it(self):
+        """One file, inverted. The alternative is a second PNG and a standing
+        obligation to keep two images in step forever."""
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            css = handle.read()
+        assert "--logo-filter: none;" in css
+        assert "--dark-logo-filter: invert(1);" in css
+        # Once per dark selector: the explicit one and the OS one.
+        assert css.count("--logo-filter: var(--dark-logo-filter);") == 2
 
 
 class TestOverviewViewModel:
