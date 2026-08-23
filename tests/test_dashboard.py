@@ -2921,14 +2921,14 @@ class TestTheSidebar:
         assert f'href="/guild/{GUILD_IN}/settings"' in page
         assert f'href="/guild/{GUILD_IN}/subscription"' in page
 
-    def test_a_section_name_stands_alone(self, config, store):
-        """No glyph beside the label when the sidebar is open.
+    def test_no_section_is_reduced_to_its_initial(self, config, store):
+        """The links used to carry the section's first letter, which was
+        ambiguous as well as ugly: Settings and Subscriptions share an initial,
+        so the rail offered two identical marks for two different pages.
 
-        The links used to carry the section's first letter, which was both
-        noise next to a label that already says the same thing and ambiguous:
-        Settings and Subscriptions share an initial, so the rail showed two
-        identical marks for two different pages. Icons replaced them, and they
-        are shown only when the labels are gone.
+        Icons replaced them. #133 phase 2 then stopped hiding those icons when
+        the sidebar is expanded -- so the rule this pins is no longer "a label
+        stands alone", it is "a letter never stands in for a section".
         """
         test_client, _api = settings_client(config, store)
         page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
@@ -2958,6 +2958,121 @@ class TestTheSidebar:
     def test_the_login_page_has_no_sidebar(self, client):
         page = client.get("/").data.decode()
         assert 'class="sidebar"' not in page
+
+
+class TestTheSidebarLayout:
+    """How the sidebar is ordered and what shows in each state (#133 phase 2)."""
+
+    @staticmethod
+    def _sidebar(page: str) -> str:
+        start = page.index('<nav class="sidebar"')
+        return page[start : page.index("</nav>", start)]
+
+    def _page(self, config, store, collapsed=False):
+        test_client, _api = settings_client(config, store)
+        if collapsed:
+            test_client.set_cookie("vrcverify_nav", "1", domain="localhost")
+        return test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+
+    def test_every_section_renders_an_icon(self, config, store):
+        sidebar = self._sidebar(self._page(config, store))
+        assert sidebar.count('class="side-mark"') == 3
+        assert sidebar.count('<span class="side-text">') >= 3
+
+    def test_the_icons_are_not_hidden_when_the_sidebar_is_expanded(self):
+        """This has to read the stylesheet, and the first version of it did
+        not -- which made it pass against the behaviour it was written to
+        change.
+
+        The icons were ALWAYS in the markup; `display: none` is what kept them
+        off the expanded sidebar. So counting `side-mark` in the HTML says
+        nothing at all about whether they are visible, and a markup assertion
+        here is worse than none: it reads like coverage.
+        """
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            css = handle.read()
+
+        rule = re.search(r"^\.side-mark\s*\{([^}]*)\}", css, flags=re.M)
+        assert rule, ".side-mark has no rule of its own"
+        assert "display: none" not in rule.group(1)
+        # And nothing may re-reveal them only on the rail, which is what the
+        # pair of rules used to do between them.
+        assert ".collapsed .side-mark" not in css
+
+    def test_the_collapsed_rail_keeps_the_icons_and_the_links(self, config, store):
+        """Labels go, targets stay. A collapsed sidebar that drops its links
+        is a broken one."""
+        sidebar = self._sidebar(self._page(config, store, collapsed=True))
+        assert sidebar.count('class="side-mark"') == 3
+        for endpoint in ("", "/settings", "/subscription"):
+            assert f'href="/guild/{GUILD_IN}{endpoint}"' in sidebar
+
+    def test_the_way_out_comes_before_the_server_it_leaves(self, config, store):
+        """Order on screen is order in the hierarchy.
+
+        "All servers" sat at the foot of the sidebar under a hairline, where it
+        read as a fourth section. The three real sections navigate *within* one
+        server; this one leaves it, so it belongs above the server's name
+        rather than below the list of its pages.
+        """
+        sidebar = self._sidebar(self._page(config, store))
+        assert sidebar.index("All servers") < sidebar.index("side-guild")
+        assert sidebar.index("side-guild") < sidebar.index("side-nav")
+
+    def test_the_way_out_is_not_dressed_as_a_section(self, config, store):
+        """It can never be the current page, so it must never wear the class
+        that means "this is where you are"."""
+        sidebar = self._sidebar(self._page(config, store))
+        up = sidebar[sidebar.index("side-up") : sidebar.index("side-guild")]
+        assert "side-link" not in up
+        assert "aria-current" not in up
+
+    def test_the_server_name_is_not_marked_up_as_a_heading(self, config, store):
+        """It is styled as one and is deliberately not one: the sidebar comes
+        before the page's <h1> in reading order, and a heading here would
+        announce the server as the document's first section."""
+        sidebar = self._sidebar(self._page(config, store))
+        for level in ("h1", "h2", "h3"):
+            assert f"<{level}" not in sidebar
+
+    def test_the_server_icon_outsizes_the_section_icons(self, config, store):
+        """The block is a header for the list, not the first row in it. Sized
+        to match, the server becomes another nav item."""
+        page = self._page(config, store)
+        sidebar = self._sidebar(page)
+        guild_icon = re.search(r'<img[^>]*width="(\d+)"', sidebar)
+        assert guild_icon and int(guild_icon.group(1)) > 16
+
+    def test_no_sidebar_icon_paints_itself_a_surface_colour(self, config, store):
+        """An icon cannot know what is behind it.
+
+        The settings glyph filled its slider knobs with `--panel` to punch a
+        hole in the track. The sidebar is `--chrome`, a hovered row is
+        `--hover` and the current row is `--selected`, so that disc matched
+        nothing it was ever drawn on. It hid while these icons only appeared on
+        the collapsed rail; phase 2 shows them always.
+
+        The general rule, which is what this pins: a glyph may use
+        `currentColor` and nothing else. Anything that needs a hole in it
+        should be drawn with a gap.
+        """
+        sidebar = self._sidebar(self._page(config, store))
+        for surface in ("--panel", "--chrome", "--bg", "--inset", "--hover"):
+            assert f"var({surface})" not in sidebar
+
+    def test_every_section_still_carries_its_accessible_name(self, config, store):
+        """The icons are aria-hidden, so the label is the whole accessible
+        name. If a future change ever hides the label from assistive
+        technology too, these links become three blank targets."""
+        sidebar = self._sidebar(self._page(config, store, collapsed=True))
+        for label in ("Overview", "Settings", "Subscriptions"):
+            assert f'>{label}</span>' in sidebar
+        assert "offscreen" not in sidebar
 
 
 class TestTheSidebarPreference:
