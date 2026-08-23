@@ -1877,12 +1877,40 @@ class TestTheFormMatchesWhatTheBotAccepts:
         page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
         assert 'maxlength="1000"' in page
 
+    # The theme picker is the one form in the app with no CSRF token, and the
+    # exception is deliberate: it posts to /prefs/theme, which is reachable
+    # signed out -- the sign-in page carries the control and has no token to
+    # give it. Named here rather than subtracted silently, so a *second*
+    # tokenless form still fails this test.
+    CSRF_EXEMPT_FORMS = 1
+
     def test_every_form_carries_a_csrf_token(self, config, store):
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
         page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
-        assert page.count('name="csrf_token"') >= page.count("<form")
+        assert (
+            page.count('name="csrf_token"')
+            >= page.count("<form") - self.CSRF_EXEMPT_FORMS
+        )
+
+    def test_the_only_tokenless_form_is_the_theme_picker(self, config, store):
+        """Pins *which* form the exemption above is spending itself on.
+
+        Without this, the allowance is a hole any future form could fall into
+        by accident -- the count would still pass and nobody would look.
+        """
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(premium=True)
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        tokenless = [
+            form
+            for form in re.findall(r"<form\b.*?</form>", page, re.S)
+            if 'name="csrf_token"' not in form
+        ]
+        assert len(tokenless) == self.CSRF_EXEMPT_FORMS
+        assert 'action="/prefs/theme"' in tokenless[0]
 
 
 # -------------------------------------------------------------------
@@ -3141,6 +3169,153 @@ class TestTheThemeAttribute:
         ) == baseline
 
 
+class TestTheThemePicker:
+    """`/prefs/theme`, and the control that posts to it (issue #123 phase 3).
+
+    The route is the one POST in this app that requires neither a session nor
+    a CSRF token. That is deliberate -- the sign-in page carries this control
+    and has neither -- so the tests below pin both halves: that it works
+    without them, and that dropping them bought nothing an attacker wants.
+    """
+
+    @staticmethod
+    def _html_tag(page: str) -> str:
+        start = page.index("<html")
+        return page[start : page.index(">", start) + 1]
+
+    @staticmethod
+    def _current_option(page: str):
+        """Which option the page marks as in force, by aria-current."""
+        match = re.search(r'<button[^>]*aria-current="true"[^>]*>', page)
+        return re.search(r'value="([a-z]+)"', match.group(0)).group(1) if match else None
+
+    # --- the control itself ---
+
+    def test_the_picker_offers_all_three_and_needs_no_session(self, client):
+        page = client.get("/").data.decode()
+        for value in ("dark", "light", "system"):
+            assert f'name="theme" value="{value}"' in page
+
+    def test_the_picker_is_on_the_signed_out_page(self, client):
+        """The page with no session and no CSRF token is the whole reason the
+        route requires neither."""
+        page = client.get("/").data.decode()
+        assert b"Sign in with Discord" in page.encode()
+        assert 'action="/prefs/theme"' in page
+
+    @pytest.mark.parametrize("chosen", ["dark", "light", "system"])
+    def test_the_option_in_force_is_marked(self, client, chosen):
+        client.set_cookie("vrcverify_theme", chosen)
+        assert self._current_option(client.get("/").data.decode()) == chosen
+
+    def test_it_needs_no_javascript(self, client):
+        """`<details>` opens it, a submit button applies it. If either became
+        script-driven this page would stop working with JS off, which is the
+        promise the whole app is built on."""
+        page = client.get("/").data.decode()
+        assert "<details" in page
+        assert "onclick" not in page and "javascript:" not in page
+
+    # --- the route ---
+
+    @pytest.mark.parametrize("chosen", ["light", "system"])
+    def test_choosing_a_non_default_stores_it(self, client, chosen):
+        response = client.post("/prefs/theme", data={"theme": chosen})
+        assert response.status_code == 302
+        assert client.get_cookie("vrcverify_theme").value == chosen
+
+    def test_choosing_dark_clears_the_cookie_rather_than_storing_it(self, client):
+        """Dark is what no cookie already means.
+
+        Storing "dark" would be a second way of saying the same thing, and two
+        representations of one state is a thing to keep in agreement forever.
+        Same shape as the sidebar's "expanded".
+        """
+        client.set_cookie("vrcverify_theme", "light")
+        client.post("/prefs/theme", data={"theme": "dark"})
+        remaining = client.get_cookie("vrcverify_theme")
+        assert remaining is None or remaining.value == ""
+        # And the page still renders dark, which is the point.
+        assert 'data-theme="dark"' in self._html_tag(client.get("/").data.decode())
+
+    def test_it_works_with_no_session_at_all(self, client):
+        """No login, no CSRF token, and it still applies."""
+        response = client.post("/prefs/theme", data={"theme": "light"})
+        assert response.status_code == 302
+        assert client.get_cookie("vrcverify_theme").value == "light"
+
+    def test_the_cookie_is_readable_by_script(self, client):
+        """Phase 4 has the button write this directly -- there is no
+        `connect-src` in the CSP, so a script cannot ask the server instead.
+        httponly here would make that impossible."""
+        client.post("/prefs/theme", data={"theme": "light"})
+        header = "\n".join(
+            v for k, v in client.post(
+                "/prefs/theme", data={"theme": "light"}
+            ).headers if k.lower() == "set-cookie"
+        )
+        assert "vrcverify_theme=light" in header
+        assert "httponly" not in header.lower()
+        assert "Secure" in header and "SameSite=Lax" in header
+
+    @pytest.mark.parametrize(
+        "value", ["", "purple", "DARK", "dark light", '"><script>', "../../etc"]
+    )
+    def test_an_unrecognised_choice_changes_nothing(self, client, value):
+        client.set_cookie("vrcverify_theme", "light")
+        response = client.post("/prefs/theme", data={"theme": value})
+        assert response.status_code == 302
+        assert client.get_cookie("vrcverify_theme").value == "light"
+
+    def test_a_missing_choice_changes_nothing(self, client):
+        client.set_cookie("vrcverify_theme", "light")
+        client.post("/prefs/theme", data={})
+        assert client.get_cookie("vrcverify_theme").value == "light"
+
+    # --- the redirect, which is the part that could actually hurt ---
+
+    @pytest.mark.parametrize(
+        "return_to",
+        ["https://evil.example", "//evil.example", "/guild/1/settings", "nope", ""],
+    )
+    def test_the_redirect_cannot_be_steered(self, client, return_to):
+        """An endpoint name from a fixed table, never a path from the form.
+
+        Dropping CSRF from this route makes it trivially callable by anyone,
+        so the redirect target is the one thing here worth attacking.
+        """
+        response = client.post(
+            "/prefs/theme",
+            data={"theme": "light", "return_to": return_to, "guild_id": "123"},
+        )
+        assert response.headers["Location"] == "/"
+
+    def test_a_known_endpoint_returns_you_to_the_page_you_were_on(self, client):
+        response = client.post(
+            "/prefs/theme",
+            data={"theme": "light", "return_to": "guild_settings", "guild_id": "123"},
+        )
+        assert response.headers["Location"] == "/guild/123/settings"
+
+    def test_a_non_numeric_guild_is_dropped(self, client):
+        response = client.post(
+            "/prefs/theme",
+            data={
+                "theme": "light",
+                "return_to": "guild_settings",
+                "guild_id": "../../etc/passwd",
+            },
+        )
+        assert response.headers["Location"] == "/"
+
+    def test_the_theme_never_reaches_the_bot(self, config, store):
+        """A display preference must not be a way to spend the bot's calls."""
+        test_client, api = settings_client(config, store)
+        api.reads.clear(); api.calls.clear(); api.saves.clear()
+        test_client.post("/prefs/theme", data={"theme": "light"})
+        assert api.reads == [] and api.calls == [] and api.saves == []
+
+
 class TestOverviewViewModel:
     """The three tile states, tested without a request."""
 
@@ -3281,6 +3456,14 @@ class TestWriteSurface:
             # test_the_nav_preference_never_reaches_the_bot pins that it does
             # not.
             "/prefs/nav",
+            # The same, and the only route here that requires neither a session
+            # nor a CSRF token -- the sign-in page carries the theme control
+            # and has neither to offer. It reads nothing, stores nothing
+            # server-side and never reaches the bot; the whole effect of a
+            # forged call is that the caller's own next page is a different
+            # colour. See set_theme_preference, and TestTheThemePicker for the
+            # redirect, which is the only part of it worth attacking.
+            "/prefs/theme",
             # The two that spend money, or end a subscription. Neither writes
             # anything here: each creates a session on Stripe and hands the
             # browser over, so the whole of what they can do is bounded by what
