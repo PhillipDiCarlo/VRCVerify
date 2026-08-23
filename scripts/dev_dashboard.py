@@ -33,12 +33,23 @@ this at live secrets.
 
 from __future__ import annotations
 
+import errno
 import os
 import pathlib
+import socket
+import subprocess
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
+
+# Loopback rather than 0.0.0.0: this binds where the network cannot reach it,
+# so running it on an untrusted wifi exposes nothing. The port is named once
+# because three things have to agree on it -- the OAuth redirect below, the
+# bind, and the banner. Changing PORT here is enough: Run and Debug opens
+# whatever URL the banner prints, so .vscode/launch.json needs no edit.
+HOST = "127.0.0.1"
+PORT = 5001
 
 # Fake, and structured so nothing here could be mistaken for a real value.
 # The two keys are different from each other because config.py refuses to start
@@ -47,7 +58,7 @@ sys.path.insert(0, str(REPO / "src"))
 os.environ.update(
     DISCORD_CLIENT_ID="000000000000000000",
     DISCORD_CLIENT_SECRET="local-preview-not-a-real-secret",
-    OAUTH_REDIRECT_URI="http://127.0.0.1:5001/callback",
+    OAUTH_REDIRECT_URI=f"http://{HOST}:{PORT}/callback",
     DASHBOARD_SECRET_KEY="local-preview-cookie-key-" + "x" * 40,
     BOT_API_TOKEN_SIGNING_KEY="local-preview-signing-key-" + "y" * 40,
     # Closed port, chosen so a stray call fails immediately and loudly rather
@@ -125,14 +136,116 @@ def _never_cache(response):
     return response
 
 
+def _port_is_free(host: str, port: int) -> bool:
+    """Ask the kernel whether we could bind, without keeping the socket.
+
+    `SO_REUSEADDR` is set because werkzeug sets it, and the whole point of
+    this check is to predict what werkzeug is about to do. Without it a socket
+    left in TIME_WAIT by a preview stopped seconds ago would look occupied,
+    and we would refuse to start a server that would in fact have started
+    fine -- a false alarm is worse than the error message it replaces.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((host, port))
+        except OSError as exc:
+            if exc.errno in (errno.EADDRINUSE, errno.EACCES):
+                return False
+            raise
+    return True
+
+
+def _listeners(port: int) -> list[tuple[str, str]]:
+    """Best-effort (pid, command) for whatever is listening on the port.
+
+    Best-effort in the strict sense: `lsof` may be missing, may be a different
+    `lsof` on another platform, or may return nothing because the owner
+    belongs to another user. Every one of those ends as an empty list and a
+    slightly less specific message -- none of them is allowed to turn a
+    diagnostic into a second failure, which is why this catches broadly and
+    the caller treats the result as optional.
+    """
+    def _run(args: list[str]) -> str:
+        try:
+            done = subprocess.run(
+                args, capture_output=True, text=True, timeout=3, check=False
+            )
+        except (OSError, subprocess.SubprocessError):
+            return ""
+        return done.stdout
+
+    pids = [
+        pid
+        for pid in _run(["lsof", "-ti", f"tcp:{port}", "-sTCP:LISTEN"]).split()
+        if pid.isdigit()
+    ]
+    return [
+        (pid, " ".join(_run(["ps", "-o", "command=", "-p", pid]).split()))
+        for pid in dict.fromkeys(pids)
+    ]
+
+
+def _explain_port_in_use(port: int) -> None:
+    """Say what is wrong and what to type, instead of a bare traceback.
+
+    The failure this replaces is `OSError: [Errno 48] Address already in use`
+    at the bottom of a werkzeug stack, which says nothing about *what* holds
+    the port -- and the answer is nearly always an earlier copy of this very
+    script, because closing the browser tab does not stop a server and a run
+    started from a terminal outlives the Run and Debug stop button.
+    """
+    owners = _listeners(port)
+    mine = [(pid, cmd) for pid, cmd in owners if "dev_dashboard.py" in cmd]
+
+    print(f"\n  Port {port} is in use, so the preview did not start.\n", file=sys.stderr)
+
+    if mine:
+        print("  An earlier preview is still running:", file=sys.stderr)
+        for pid, cmd in mine:
+            print(f"    pid {pid}  {cmd}", file=sys.stderr)
+        print(f"\n  Stop it with:\n    kill {' '.join(pid for pid, _ in mine)}\n",
+              file=sys.stderr)
+    elif owners:
+        # Deliberately no `kill` line here. We did not start this and have no
+        # idea what it is; handing over a command to kill an unidentified
+        # process is how a preview script eats someone's database.
+        print("  Something that is not a preview is holding it:", file=sys.stderr)
+        for pid, cmd in owners:
+            print(f"    pid {pid}  {cmd or '(command unavailable)'}", file=sys.stderr)
+        print("\n  Stop that, or change PORT near the top of this file -- Run and\n"
+              "  Debug follows the URL in the banner, so nothing else needs editing.\n",
+              file=sys.stderr)
+    else:
+        # lsof told us nothing, but the bind still failed -- so the port is
+        # genuinely taken by a process we cannot see, usually another user's.
+        print("  Nothing could be identified as the owner -- it may belong to\n"
+              "  another user. To look yourself:\n"
+              f"    lsof -i tcp:{port}\n", file=sys.stderr)
+
+
 if __name__ == "__main__":
-    print("\n  Dashboard preview: http://127.0.0.1:5001/")
+    # Checked before the banner rather than after: `serverReadyAction` in
+    # launch.json opens a browser at the first URL this prints, and printing
+    # one we are about to fail to serve sends VS Code to a dead tab.
+    if not _port_is_free(HOST, PORT):
+        _explain_port_in_use(PORT)
+        raise SystemExit(1)
+
+    print(f"\n  Dashboard preview: http://{HOST}:{PORT}/")
     print("  Sign-in page only -- anything past it needs a real bot.\n")
     print("  Theme (devtools console, then reload):")
     print('    document.cookie = "vrcverify_theme=dark;   path=/"')
     print('    document.cookie = "vrcverify_theme=light;  path=/"')
     print('    document.cookie = "vrcverify_theme=system; path=/"')
     print('    document.cookie = "vrcverify_theme=; path=/; max-age=0"   (clear)\n')
-    # 127.0.0.1 rather than 0.0.0.0: this binds to the loopback only, so it is
-    # not reachable from the network even on an untrusted one.
-    app.run(host="127.0.0.1", port=5001, debug=False, use_reloader=False)
+    try:
+        app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
+    except OSError as exc:
+        # The check above is not a lock: something can take the port in the
+        # moment between the two binds. Rare, but the traceback it produces is
+        # the exact one this file exists to avoid, so handle it in both places.
+        if exc.errno != errno.EADDRINUSE:
+            raise
+        _explain_port_in_use(PORT)
+        raise SystemExit(1) from None
