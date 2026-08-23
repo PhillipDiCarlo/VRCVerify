@@ -148,9 +148,19 @@
    * Anything lighter fails both at once; --selected, the obvious candidate,
    * managed 1.44:1.
    *
-   * On: exactly --accent here. On dark it cannot be; see --dark-switch-on. */
-  --switch-off: #8d919b;
+   * On: exactly --accent here. On dark it cannot be; see --dark-switch-on.
+   *
+   * --control-line is named for the general case rather than for the switch,
+   * because an input needs exactly the same thing: its own edge, 3:1 against
+   * the card. It was carrying both jobs under two names until the inputs were
+   * measured and came out at 1.17:1 -- the inset fill alone, with a
+   * transparent border, is very nearly invisible on a white card. */
+  --control-line: #8d919b;
   --switch-on: #5865f2;
+
+  /* One height for every control on the page, so a select, an input and a
+   * button sitting in a row line up on both edges rather than nearly. */
+  --control-h: 2.25rem;
 
   /* White in both themes, and therefore not repeated in either dark block. The
    * knob is a physical object in the metaphor -- it does not change colour
@@ -235,8 +245,9 @@
    * --accent there and only diverges here. */
   --dark-switch-on: #7681f5;
 
-  /* 3.38:1 against the card, 3.74:1 against the knob. */
-  --dark-switch-off: #80848e;
+  /* 3.38:1 against the card, 3.74:1 against the knob, and the same figure for
+   * an input's border because it is the same requirement. */
+  --dark-control-line: #80848e;
 }
 
 /* Dark, chosen explicitly. Beats the light floor on specificity, and is
@@ -272,7 +283,7 @@
 
   --logo-filter: var(--dark-logo-filter);
   --switch-on: var(--dark-switch-on);
-  --switch-off: var(--dark-switch-off);
+  --control-line: var(--dark-control-line);
 }
 
 /* Dark, because the OS asked and the reader has not said otherwise.
@@ -312,7 +323,7 @@
 
     --logo-filter: var(--dark-logo-filter);
     --switch-on: var(--dark-switch-on);
-    --switch-off: var(--dark-switch-off);
+    --control-line: var(--dark-control-line);
   }
 }
 
@@ -640,6 +651,26 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 .centered { max-width: 34rem; margin: 3rem auto; }
 
+/* The mark on the refusal page. --notice rather than --danger: the bot being
+ * unreachable, or a server not being yours, is a situation rather than a
+ * fault, and nothing has been lost. Red would say something went wrong with
+ * the thing the reader was doing, which is exactly what the copy is at pains
+ * to deny. */
+.error-mark {
+  margin: 0 0 var(--space-2);
+  color: var(--notice);
+  line-height: 1;
+}
+
+/* Centred on its own class, NOT on .centered.
+ *
+ * .centered is also what the sign-in page wears, and centring there would
+ * restyle a page this phase has no business touching -- #134 redesigns it. A
+ * shared class picking up a look meant for one of its users is how a stylesheet
+ * starts changing pages nobody edited. */
+.refusal { text-align: center; }
+.refusal .actions { justify-content: center; }
+
 .muted { color: var(--muted); font-size: 0.9375rem; }
 
 .notice {
@@ -653,6 +684,12 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   font-weight: 500;
 }
 
+/* The one notice with no fill behind it, and that asymmetry is load-bearing.
+ *
+ * Filling it to match the warning was tried: --ok on --inset is 4.14:1 in the
+ * light theme, under AA. Unfilled it sits on --panel, where --ok is tested and
+ * passes. Consistency here would have been a contrast failure wearing a tidier
+ * shape. */
 .notice.ok {
   background: none;
   border-color: var(--ok);
@@ -663,7 +700,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
+  min-height: var(--control-h);
   background: var(--accent);
   color: var(--accent-ink);
   padding: 0.45rem 1.1rem;
@@ -1119,7 +1156,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   margin: 0;
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--switch-off);
+  background: var(--control-line);
   cursor: pointer;
 }
 
@@ -1189,22 +1226,60 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * button still appears, so nothing is lost that mattered. */
 .group:has(.is-dirty) { box-shadow: inset 3px 0 0 var(--notice); }
 
+/* --- the controls ---
+ *
+ * `input[type="text"]` was missing from this list entirely, so the VRChat
+ * group field rendered as whatever the browser drew by default -- a white box
+ * with a blue focus ring, in a dark theme, at a height nothing else shared.
+ *
+ * The inset fill stays: an input reads as pressed into the card rather than
+ * raised off it, which is what --inset encodes. What it did NOT have was an
+ * edge. `border: 1px solid transparent` left the boundary carried entirely by
+ * a fill measuring 1.17:1 against a white card, well under the 3:1 a control
+ * needs, so the box was more implied than drawn. */
 select,
 textarea,
+input[type="text"],
 input[type="color"] {
   font: inherit;
   color: var(--ink);
   background: var(--inset);
-  border: 1px solid transparent;
+  border: 1px solid var(--control-line);
   border-radius: var(--radius-control);
   padding: 0.4rem 0.5rem;
   max-width: 100%;
 }
 
-select:hover, textarea:hover { border-color: var(--line); }
-select:focus, textarea:focus { border-color: var(--accent-text); outline: none; }
+select,
+input[type="text"] { height: var(--control-h); }
 
-input[type="color"] { padding: 0.15rem; width: 3.5rem; height: 2.25rem; }
+input[type="text"] { width: 100%; }
+
+select:hover,
+textarea:hover,
+input[type="text"]:hover { border-color: var(--ink); }
+
+/* THE FOCUS RING IS NOT SET HERE, and specifically `outline: none` is not.
+ *
+ * This rule used to end with it, replacing the ring with a 1px border colour.
+ * `select:focus` is more specific than the `:focus-visible` rule at the foot
+ * of this file, so it won every time -- these two controls had no focus ring
+ * at all, for anybody, including somebody navigating by keyboard. The
+ * `select:focus-visible { outline-offset: 0 }` rule further down is the
+ * giveaway: it adjusts an outline that was never being drawn.
+ *
+ * The border still moves on focus. It is now the second signal rather than
+ * the only one. */
+select:focus,
+textarea:focus,
+input[type="text"]:focus { border-color: var(--accent-text); }
+
+input[type="color"] {
+  padding: 0.15rem;
+  width: 3.5rem;
+  height: var(--control-h);
+  cursor: pointer;
+}
 
 textarea {
   display: block;

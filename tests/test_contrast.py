@@ -63,8 +63,20 @@ PAIRS = [
     ("ok", "panel", '"Saved."'),
     ("danger", "panel", "an error an admin has to act on"),
     ("notice", "notice-bg", "a warning in its own box"),
+    # The success notice has no fill of its own and sits on the card. Filling
+    # it to match the warning was tried and is 4.14:1 in light -- see the
+    # comment on .notice.ok.
+    ("ok", "panel", "a save confirmation"),
 ]
 
+# Deliberately NOT here: a control's edge against its OWN fill. It was added
+# and then removed -- --control-line on --inset is 2.69:1 in light, and the
+# instinct was to darken the border until it passed. It is not a requirement.
+# 1.4.11 asks that a component be distinguishable from what is ADJACENT and
+# outside it; the border and the fill together are the control, and nothing is
+# lost when they sit close. Pairs listed here should be things a reader has to
+# tell apart, not every two colours that touch.
+#
 # THE SWITCH HAS TO CLEAR 3:1 TWICE, in opposite directions.
 #
 # The track is a component and must be distinguishable from the card behind
@@ -73,8 +85,8 @@ PAIRS = [
 # alone is easy -- which is exactly how a switch ends up looking fine and
 # being unreadable. Both are listed so neither can be traded for the other.
 UI_PAIRS = [
-    ("switch-off", "panel", "an off switch against the card"),
-    ("switch-knob", "switch-off", "the knob on an off switch"),
+    ("control-line", "panel", "a control's edge against the card"),
+    ("switch-knob", "control-line", "the knob on an off switch"),
     ("switch-on", "panel", "an on switch against the card"),
     ("switch-knob", "switch-on", "the knob on an on switch"),
 ]

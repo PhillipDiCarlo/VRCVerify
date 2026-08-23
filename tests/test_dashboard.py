@@ -3101,6 +3101,122 @@ def _copy_only(source: str, filename: str) -> str:
     return "\n".join(kept)
 
 
+class TestTheControls(object):
+    """Inputs, selects, buttons and the refusal page (#133 phase 5)."""
+
+    @staticmethod
+    def _css() -> str:
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            return re.sub(r"/\*.*?\*/", "", handle.read(), flags=re.S)
+
+    @staticmethod
+    def _refusal(config, store) -> str:
+        """The page _guild_page_unavailable renders when a read is refused.
+
+        `fail=True` is not enough: it only breaks admin_guild_ids, which the
+        picker uses. A guild page reads `overview`, so that is the endpoint
+        that has to say no.
+        """
+        api = FakeBotAPI(errors={"overview": BotAPIError("down", status=503)})
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        return test_client.get(f"/guild/{GUILD_IN}").data.decode()
+
+    def test_no_rule_removes_a_focus_outline(self):
+        """THE BUG THIS PHASE FIXES, and it was invisible by design.
+
+        `select:focus, textarea:focus { ... outline: none }` is MORE SPECIFIC
+        than the `:focus-visible` rule that draws the ring, so it won every
+        time -- those two controls had no focus ring at all, for anybody,
+        including somebody navigating entirely by keyboard.
+
+        The giveaway was two rules further down: `select:focus-visible {
+        outline-offset: 0 }` adjusts the position of an outline that was never
+        being drawn.
+
+        Stated as a blanket rule because that is what makes it hold: any new
+        `outline: none` reintroduces the same class of bug, whatever control it
+        is attached to.
+        """
+        assert "outline: none" not in self._css()
+        assert "outline:none" not in self._css()
+
+    def test_the_focus_ring_is_defined_once(self):
+        """From the tokens #123 added, so it cannot drift per control."""
+        css = self._css()
+        assert "outline: var(--focus-width) solid var(--accent-text)" in css
+
+    def test_every_text_control_is_styled_by_us(self):
+        """`input[type="text"]` was missing from the control rule entirely, so
+        the VRChat group field rendered as the browser's default -- a white box
+        with a blue ring, in a dark theme, at a height nothing else shared."""
+        css = self._css()
+        rule = re.search(
+            r'select,\s*textarea,\s*input\[type="text"\],'
+            r'\s*input\[type="color"\]\s*\{',
+            css,
+        )
+        assert rule, "the shared control rule no longer covers all four"
+
+    def test_a_control_has_an_edge_of_its_own(self):
+        """It was `border: 1px solid transparent`, leaving the boundary to a
+        fill measuring 1.17:1 against a white card. A control the eye has to
+        infer is not a control that has been drawn."""
+        css = self._css()
+        assert "border: 1px solid var(--control-line)" in css
+        assert "border: 1px solid transparent" not in css
+
+    def test_one_height_serves_every_control(self):
+        """So a select, an input and a button in a row line up on both edges
+        rather than nearly."""
+        css = self._css()
+        assert "--control-h:" in css
+        for rule in ("min-height: var(--control-h)", "height: var(--control-h)"):
+            assert rule in css
+
+    # --- the page reached when the bot cannot answer ---
+
+    def test_the_refusal_page_uses_the_same_chrome_as_every_other(
+        self, client, store, config
+    ):
+        """It is read by somebody whose server may be having a problem right
+        now. A page that looks broken while explaining that something is broken
+        makes the outage feel bigger than it is."""
+        page = self._refusal(config, store)
+        assert 'class="panel centered refusal"' in page
+        assert 'class="button"' in page
+
+    def test_the_refusal_page_does_not_restyle_the_sign_in_page(self):
+        """`.centered` is worn by both. Centring the refusal page through it
+        would silently restyle a page this phase has no business touching --
+        #134 redesigns that one."""
+        css = self._css()
+        assert ".centered { text-align: center" not in css
+        assert ".refusal { text-align: center; }" in css
+
+    def test_the_refusal_mark_is_not_alarming_and_not_announced(
+        self, client, store, config
+    ):
+        """--notice, not --danger: an unreachable bot is a situation rather
+        than a fault, and the copy is at pains to say nothing was lost. And it
+        is decorative -- the sentence beside it already says what happened."""
+        page = self._refusal(config, store)
+        mark = re.search(r'<p class="error-mark"[^>]*>', page)
+        assert mark and 'aria-hidden="true"' in mark.group(0)
+
+        css = self._css()
+        rule = re.search(r"\.error-mark\s*\{([^}]*)\}", css)
+        assert rule and "var(--notice)" in rule.group(1)
+        assert "var(--danger)" not in rule.group(1)
+
+
 class TestWhatTheDashboardSaysAboutDiscord:
     """Issue #154. The dashboard told people to change settings with a command
     that stopped being able to change anything.
