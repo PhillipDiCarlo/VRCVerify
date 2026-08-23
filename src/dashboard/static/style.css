@@ -20,9 +20,16 @@
  * No framework, no CDN. One vendored font (see @font-face) and one stylesheet,
  * which is what keeps the CSP as tight as it is.
  *
- * MOTION: hover and focus fade over 120ms. That is the whole of it. Page
- * navigation is instant, nothing loops, nothing spins, nothing slides, and the
- * fades are off under prefers-reduced-motion.
+ * MOTION: hover and focus fade over --motion-fast (120ms). That is the whole
+ * of it. Page navigation is instant, nothing loops, nothing spins, nothing
+ * slides, and the fades are off under prefers-reduced-motion.
+ *
+ * TOKENS: the block below defines three palettes' worth of colour plus a
+ * vocabulary for type, spacing, elevation, motion and focus. Most of the
+ * non-colour tokens are not applied to the rules further down yet -- they are
+ * adopted component by component as each is restyled, so the conversion lands
+ * in reviewable pieces rather than one commit that touches every line. Reach
+ * for an existing token before adding a literal.
  */
 
 /* Inter, vendored into static/fonts rather than loaded from a font CDN: a
@@ -46,12 +53,43 @@
   font-display: swap;
 }
 
-:root {
-  color-scheme: light dark;
+/* THEMING, AND WHY IT IS SHAPED LIKE THIS
+ * ---------------------------------------
+ * Three states, not two: an explicit Dark, an explicit Light, and "follow the
+ * OS" when the reader has expressed no preference. The third is the absence of
+ * a `data-theme` attribute rather than a value of it, which is what lets the
+ * server render the correct theme in the first paint instead of a script
+ * correcting it afterwards -- see issue #123.
+ *
+ * The cascade does the work, so read the four blocks below in order:
+ *
+ *   1. Light values on `:root`, which every document matches. This is the
+ *      floor.
+ *   2. The dark values, named once as `--dark-*`. Nothing paints from these
+ *      directly; they exist so the two dark selectors can share them.
+ *   3. An explicit `[data-theme="dark"]`.
+ *   4. No attribute at all, plus a dark OS.
+ *
+ * `:not([data-theme])` in block 4 is the load-bearing part. Without it a reader
+ * who explicitly chose Light on a dark-OS machine would be overridden by their
+ * own operating system, and "System" would be the only setting that worked.
+ *
+ * The dark hexes appear exactly once, in block 2. Blocks 3 and 4 repeat the
+ * *mapping* because a media query cannot be folded into a selector list, but a
+ * colour change is still a one-line edit rather than two that can disagree. */
 
-  /* Discord's light palette. The ground is genuinely grey rather than white --
-   * white is reserved for the cards, and without that the ramp has nowhere to
-   * go. */
+/* Light: the floor, and what an explicit Light choice pins.
+ *
+ * Discord's light palette. The ground is genuinely grey rather than white --
+ * white is reserved for the cards, and without that the ramp has nowhere to
+ * go. */
+:root,
+:root[data-theme="light"] {
+  /* Per-theme rather than `light dark`, so form controls and scrollbars follow
+   * the theme the page actually chose rather than the one the OS prefers. With
+   * no attribute set this resolves exactly as `light dark` did. */
+  color-scheme: light;
+
   --bg: #e3e5e8;          /* page ground, the layer everything sits on */
   --chrome: #f2f3f5;      /* header bar and sidebar */
   --panel: #ffffff;       /* cards */
@@ -78,9 +116,164 @@
   --notice: #8a5300;
   --notice-bg: #fdf3e0;
   --notice-line: #f0c98a;
+}
+
+/* The dark values, named once and painted by nothing.
+ *
+ * Kept on `:root` rather than inside either dark block so both can reference
+ * them. Custom properties cost nothing when unused, and the alternative is the
+ * same twenty hexes typed twice with no mechanism to keep them equal. */
+:root {
+  --dark-bg: #1e1f22;
+  --dark-chrome: #2b2d31;
+  --dark-panel: #313338;
+  --dark-inset: #1e1f22;
+  --dark-hover: #35373c;
+  --dark-selected: #404249;
+
+  --dark-ink: #dbdee1;
+  --dark-ink-strong: #f2f3f5;
+  --dark-muted: #b5bac1;
+  --dark-faint: #949ba4;
+
+  --dark-line: #3f4147;
+  --dark-line-soft: #35373c;
+
+  --dark-accent: #5865f2;
+  --dark-accent-hover: #4752c4;
+  --dark-accent-ink: #ffffff;
+
+  --dark-ok: #23a55a;
+  --dark-danger: #f23f43;
+  --dark-notice: #f0b232;
+  --dark-notice-bg: #3a2f13;
+  --dark-notice-line: #5c4a1c;
+}
+
+/* Dark, chosen explicitly. Beats the light floor on specificity, and is
+ * unaffected by what the OS prefers -- which is the point of choosing. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: var(--dark-bg);
+  --chrome: var(--dark-chrome);
+  --panel: var(--dark-panel);
+  --inset: var(--dark-inset);
+  --hover: var(--dark-hover);
+  --selected: var(--dark-selected);
+
+  --ink: var(--dark-ink);
+  --ink-strong: var(--dark-ink-strong);
+  --muted: var(--dark-muted);
+  --faint: var(--dark-faint);
+
+  --line: var(--dark-line);
+  --line-soft: var(--dark-line-soft);
+
+  --accent: var(--dark-accent);
+  --accent-hover: var(--dark-accent-hover);
+  --accent-ink: var(--dark-accent-ink);
+
+  --ok: var(--dark-ok);
+  --danger: var(--dark-danger);
+  --notice: var(--dark-notice);
+  --notice-bg: var(--dark-notice-bg);
+  --notice-line: var(--dark-notice-line);
+}
+
+/* Dark, because the OS asked and the reader has not said otherwise.
+ *
+ * This is the whole of "System" mode, and today -- with nothing yet setting
+ * `data-theme` -- it is the only dark path there is, which is why this change
+ * is invisible until #123 phase 2 starts stamping the attribute. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --bg: var(--dark-bg);
+    --chrome: var(--dark-chrome);
+    --panel: var(--dark-panel);
+    --inset: var(--dark-inset);
+    --hover: var(--dark-hover);
+    --selected: var(--dark-selected);
+
+    --ink: var(--dark-ink);
+    --ink-strong: var(--dark-ink-strong);
+    --muted: var(--dark-muted);
+    --faint: var(--dark-faint);
+
+    --line: var(--dark-line);
+    --line-soft: var(--dark-line-soft);
+
+    --accent: var(--dark-accent);
+    --accent-hover: var(--dark-accent-hover);
+    --accent-ink: var(--dark-accent-ink);
+
+    --ok: var(--dark-ok);
+    --danger: var(--dark-danger);
+    --notice: var(--dark-notice);
+    --notice-bg: var(--dark-notice-bg);
+    --notice-line: var(--dark-notice-line);
+  }
+}
+
+/* Everything that is not a colour, and therefore not a theme.
+ *
+ * These are the vocabulary the rest of this epic builds against. Most of them
+ * are NOT yet applied to the rules below: converting several hundred literals
+ * in one commit is a large diff in which a single mistyped digit changes the
+ * layout and nothing catches it. Each component adopts them as it is restyled
+ * in later phases, so the conversion arrives in reviewable pieces.
+ *
+ * They are declared now, together, because six issues are about to edit this
+ * file and they need one agreed scale to reach for rather than six. */
+:root {
+  /* Type, named by role rather than size -- the role survives a redesign and a
+   * number does not. Values are the ones already in use: 0.9375rem is the body
+   * size on fifteen rules today, and 1.4rem is what `h1` already is. */
+  --text-hero: 1.75rem;      /* the big figure on a stat tile */
+  --text-page-title: 1.4rem; /* h1 */
+  --text-section: 1.05rem;   /* h2, group headings */
+  --text-body: 0.9375rem;
+  --text-note: 0.8125rem;    /* descriptions under a control */
+  --text-micro: 0.6875rem;   /* badges, the smallest thing that is still text */
+
+  --leading-tight: 1.25;
+  --leading-body: 1.55;      /* what `body` already sets */
+
+  /* Spacing. The file currently uses 0.1, 0.15, 0.3, 0.45, 0.5, 0.55, 0.6,
+   * 0.7, 0.9, 1, 1.25 and 3rem -- twelve values that are not a scale, chosen
+   * one rule at a time. This is the scale they collapse into. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
 
   --radius-card: 8px;
   --radius-control: 4px;
+  --radius-pill: 999px;
+
+  /* Elevation. The surface ramp above is still the primary way things separate
+   * -- these are for the few things that genuinely float over the page, like
+   * the theme picker and notification panel that phases 3 and #136 add. A
+   * shadow tuned for light reads as a smudge on dark, hence two sets. */
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.08), 0 2px 8px rgb(0 0 0 / 0.06);
+  --shadow-overlay: 0 4px 12px rgb(0 0 0 / 0.12), 0 12px 32px rgb(0 0 0 / 0.10);
+
+  /* Motion. One place to change the duration, and one place for
+   * prefers-reduced-motion to zero it -- rather than a growing list of
+   * selectors each repeating 120ms. */
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --ease: ease;
+
+  /* Focus. The one style on this page that must never be subtle, so it gets
+   * named rather than repeated. */
+  --focus-width: 2px;
+  --focus-offset: 2px;
 
   /* The system stack is the fallback rather than an afterthought: it is what
    * renders for the ~200ms before Inter arrives, and permanently for anyone
@@ -94,32 +287,16 @@
   accent-color: var(--accent);
 }
 
+/* Shadows are the one token set that has to change with the theme. */
+:root[data-theme="dark"] {
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.32), 0 2px 8px rgb(0 0 0 / 0.28);
+  --shadow-overlay: 0 4px 12px rgb(0 0 0 / 0.40), 0 12px 32px rgb(0 0 0 / 0.36);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1e1f22;
-    --chrome: #2b2d31;
-    --panel: #313338;
-    --inset: #1e1f22;
-    --hover: #35373c;
-    --selected: #404249;
-
-    --ink: #dbdee1;
-    --ink-strong: #f2f3f5;
-    --muted: #b5bac1;
-    --faint: #949ba4;
-
-    --line: #3f4147;
-    --line-soft: #35373c;
-
-    --accent: #5865f2;
-    --accent-hover: #4752c4;
-    --accent-ink: #ffffff;
-
-    --ok: #23a55a;
-    --danger: #f23f43;
-    --notice: #f0b232;
-    --notice-bg: #3a2f13;
-    --notice-line: #5c4a1c;
+  :root:not([data-theme]) {
+    --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.32), 0 2px 8px rgb(0 0 0 / 0.28);
+    --shadow-overlay: 0 4px 12px rgb(0 0 0 / 0.40), 0 12px 32px rgb(0 0 0 / 0.36);
   }
 }
 
@@ -725,8 +902,8 @@ footer {
 /* The browser default focus ring disappears against several of the surfaces
  * above. This is the one style on the page that must never be subtle. */
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: var(--focus-offset);
   border-radius: 2px;
 }
 
@@ -785,8 +962,9 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   .server a,
   select,
   textarea {
-    transition: background-color 120ms ease, color 120ms ease,
-                border-color 120ms ease;
+    transition: background-color var(--motion-fast) var(--ease),
+                color var(--motion-fast) var(--ease),
+                border-color var(--motion-fast) var(--ease);
   }
 }
 
