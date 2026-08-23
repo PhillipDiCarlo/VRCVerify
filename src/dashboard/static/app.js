@@ -1,9 +1,10 @@
-/* The only JavaScript in this application.
+/* One of the two scripts in this application; prefs.js is the other.
  *
  * WHY THIS EXISTS AT ALL
  * ----------------------
- * The settings page carries five independent forms -- verification, member,
- * logging, panel, and the panel-post action -- each with its own Save button.
+ * The settings page carries six independent forms -- verification, member,
+ * logging, panel, group, and the panel-post action -- each with its own Save
+ * button.
  * Editing a field in one group and then clicking Save in another submits only
  * the second group, and the first group's edits are silently discarded. The
  * page reloads showing the old values, with no error, because nothing went

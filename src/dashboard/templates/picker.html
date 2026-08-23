@@ -18,7 +18,7 @@
        tells us the server list once, at sign-in, so the fix really is to sign
        in again -- which makes this an empty state with something to do, rather
        than a sentence apologising. #}
-    <div class="empty">
+    <div class="empty-state">
       <p class="empty-title">No servers to show</p>
       <p class="empty-body">
         This page lists servers where you have the Administrator permission.
@@ -83,17 +83,40 @@
              to put in it yet: this page asks the bot one question -- which of
              these servers am I in -- and per-server counts would mean one call
              each. See the note on #133 about a batch summary endpoint. #}
+          {# "absent" IS TWO ANSWERS WEARING ONE NAME, and this line must not
+             pick one of them. `admin_guild_ids` returns the guilds the bot is
+             in AND you administer; its own docstring says a guild missing from
+             that answer means either "bot not there" or "not yours" --
+             indistinguishable on purpose, because telling them apart would let
+             a signed-in user map which communities run 18+ gating.
+
+             So the card cannot say "VRCVerify isn't in this server yet", which
+             is what it said before: a definite claim about the bot's presence,
+             built on a signal that deliberately carries no such fact. An admin
+             demoted since their last sign-in would be told their working bot
+             was not installed, and offered a link to install it again.
+
+             `_guild_page_unavailable` -- one click away, same signal -- has
+             always got this right: "Either VRCVerify isn't in it, or you don't
+             have the Administrator permission there." This is that sentence,
+             at the width of a card. #}
           <p class="server-state">
             {% if state == 'ready' %}
               Overview, settings and activity
             {% elif state == 'absent' %}
-              VRCVerify isn't in this server yet
+              Not set up here, or not yours to manage
             {% else %}
               Can't check this server right now
             {% endif %}
           </p>
 
           {% if state == 'absent' %}
+            {# Kept as an OFFER rather than turned into instructions, because
+               an offer is true under both readings of `absent`: Discord
+               refuses the install to anyone without Manage Server, and
+               re-authorising a bot already in the server changes nothing.
+               A sentence telling somebody to go and install it would only be
+               right under one of the two. #}
             <p class="server-action">
               <a class="button" href="{{ server.invite_url }}" rel="noopener">
                 Add to server</a>

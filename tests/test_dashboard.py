@@ -1053,7 +1053,7 @@ class TestPicker:
         # `action="/logout"` passes on the account menu in the header, which
         # is on every page -- so the unscoped version of this assertion could
         # not fail, and did not when the form was deleted to check.
-        start = page.index('<div class="empty">')
+        start = page.index('<div class="empty-state">')
         empty = page[start : page.index("</div>", start)]
         assert 'action="/logout"' in empty
         assert "empty-title" in empty
@@ -2259,11 +2259,16 @@ class TestHardening:
         that holds admin sessions.
         """
         test_client, _api = settings_client(config, store)
+        seen = 0
         for path in ("/", f"/guild/{GUILD_IN}", f"/guild/{GUILD_IN}/settings"):
             for script in markup(test_client.get(path).data).scripts:
+                seen += 1
                 assert script["body"].strip() == "", f"inline script on {path}"
                 src = script["attrs"].get("src") or ""
                 assert src.startswith("/static/"), f"non-local script on {path}"
+        # Every assertion above is inside the loop, so a parser that stopped
+        # finding <script> would turn a CSP test green rather than red.
+        assert seen, "no scripts found at all -- this test proved nothing"
 
     def test_an_uppercase_script_tag_would_still_be_caught(self):
         """The bug CodeQL found, pinned so it cannot come back.
@@ -2299,6 +2304,7 @@ class TestHardening:
         page should never contain one to begin with."""
         test_client, _api = settings_client(config, store)
         scripts = markup(test_client.get(f"/guild/{GUILD_IN}/settings").data).scripts
+        assert scripts, "no scripts found at all -- this test proved nothing"
         for script in scripts:
             assert script["attrs"].get("src"), "a script with no src is inline"
             assert not script["body"].strip()
@@ -3217,6 +3223,435 @@ class TestTheControls(object):
         assert "var(--danger)" not in rule.group(1)
 
 
+class TestThePickerSaysOnlyWhatItKnows(object):
+    """`installed` is two answers wearing one name.
+
+    `admin_guild_ids` returns the guilds the bot is in AND the caller
+    administers; its docstring says a guild missing from that answer means
+    either "bot not there" or "not yours" -- indistinguishable on purpose,
+    because telling them apart would let a signed-in user map which
+    communities run 18+ gating.
+
+    Phase 3 rebuilt the card and had it print "VRCVerify isn't in this server
+    yet": a definite claim about the bot's presence, drawn from a signal that
+    carries no such fact. An admin demoted since their last sign-in was told
+    their working bot was not installed, and offered a link to install it
+    again.
+    """
+
+    def _absent_card(self, client, store) -> str:
+        """The card for GUILD_OUT, which the default fake bot is not in."""
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        cards = re.findall(r'<li class="server-card absent">.*?</li>', page, re.S)
+        assert len(cards) == 1, f"expected one absent card, got {len(cards)}"
+        return cards[0]
+
+    def test_the_card_does_not_claim_the_bot_is_absent(self, client, store):
+        """The bot's presence is precisely what this page cannot establish."""
+        card = self._absent_card(client, store)
+        for claim in (
+            "isn't in this server",
+            "is not in this server",
+            "isn't here yet",
+            "not installed",
+        ):
+            assert claim not in card, f"card asserts {claim!r}"
+
+    def test_the_card_carries_both_readings(self, client, store):
+        """The refusal page one click away has always got this right: "Either
+        VRCVerify isn't in it, or you don't have the Administrator permission
+        there." The card has to mean the same thing at its own width."""
+        card = self._absent_card(client, store).lower()
+        assert "or" in card
+        assert "not set up here" in card
+
+    def test_the_offer_survives_both_readings(self, client, store):
+        """The install link stays, and stays an offer rather than an
+        instruction: Discord refuses it to anyone without Manage Server, and
+        re-authorising a bot already in the server changes nothing. A sentence
+        telling somebody to go and install it would be right under only one of
+        the two readings."""
+        card = self._absent_card(client, store)
+        assert "Add to server" in card
+        assert "/oauth2/authorize" in card or "discord.com" in card
+
+
+class TestTheAccountMenuIsWhereItPromisedToBe(object):
+    """base.html gates the account menu on `csrf_token`, and the 404 and 500
+    handlers passed none -- so a signed-in admin who mistyped a URL landed on a
+    page with no way to sign out.
+
+    That is the one thing the menu is in the bar for. The comment beside it
+    says "sign out everywhere" is what you want at the moment you realise
+    somebody else has your session, "and at that moment you should not have to
+    go looking". A typo should not be what takes it away.
+    """
+
+    def test_a_mistyped_url_still_offers_a_way_out(self, client, store):
+        login_as(client, store)
+        page = client.get("/nope").data.decode()
+        assert "Sign out everywhere" in page, "no account menu on the 404 page"
+
+    def test_the_signed_out_404_still_offers_nothing(self, client):
+        """The other half: no session, no menu, and no CSRF token minted for
+        somebody who has not signed in."""
+        page = client.get("/nope").data.decode()
+        assert "Sign out everywhere" not in page
+
+    def test_the_guild_refusal_pages_were_always_right(self, client, store, config):
+        """They pass the token through `_guild_page_unavailable`, which is why
+        only the generic handlers were affected. Asserted so the two paths
+        cannot drift apart again."""
+        api = FakeBotAPI(errors={"overview": BotAPIError("down", status=503)})
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert "Sign out everywhere" in page
+
+
+class TestEverySettingsControlIsLabelled(object):
+    """Found by an adversarial pass over the whole of #133, not by the suite.
+
+    Phase 4 put `id="l-<field>"` on all eleven setting rows and then wired only
+    the four switches to it, so six controls -- both role pickers, the log
+    channel, the language, the group id and the custom message -- had no
+    accessible name at all. A screen reader announced the verified-role picker
+    as an unnamed combo box.
+
+    The same phase took something away on the way past. A boolean used to be
+    `<label class="check"><input type="checkbox"> Auto verify</label>`, where
+    the words were part of the target. The switch that replaced it had a name
+    via `aria-labelledby` and no label element, so the caption stopped being
+    clickable and a 40x24 switch became the only thing you could hit.
+    """
+
+    @staticmethod
+    def _controls(page: str) -> list:
+        """Every control a person can operate, with where its name comes from."""
+        labels_for = set(re.findall(r'<label[^>]*\sfor="([^"]+)"', page))
+        wrapped = set()
+        for block in re.findall(r"<label\b.*?</label>", page, re.S):
+            wrapped.update(
+                re.findall(r'<(?:input|select|textarea)\b[^>]*name="([^"]+)"', block)
+            )
+
+        found = []
+        for match in re.finditer(r"<(input|select|textarea)\b([^>]*)>", page, re.S):
+            attrs = match.group(2)
+            kind = re.search(r'type="([^"]+)"', attrs)
+            if kind and kind.group(1) in ("hidden", "submit"):
+                continue
+            name = re.search(r'name="([^"]+)"', attrs)
+            name = name.group(1) if name else ""
+            control_id = re.search(r'\sid="([^"]+)"', attrs)
+            sources = []
+            if "aria-labelledby" in attrs:
+                sources.append("aria-labelledby")
+            if "aria-label=" in attrs:
+                sources.append("aria-label")
+            if control_id and control_id.group(1) in labels_for:
+                sources.append("label-for")
+            if name in wrapped:
+                sources.append("label-wraps-it")
+            found.append((match.group(1), name, attrs, sources))
+
+        assert found, "no controls on the page -- every assertion below is vacuous"
+        return found
+
+    def _page(self, config, store, **kwargs):
+        test_client, _api = settings_client(config, store, **kwargs)
+        return test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+
+    def test_every_control_has_an_accessible_name(self, config, store):
+        """Six of the thirteen had none. The mechanism to fix it was already on
+        every row -- the <dt> has carried an id since phase 4."""
+        page = self._page(config, store, settings=make_settings(premium=True))
+        nameless = [
+            name or tag
+            for tag, name, _attrs, sources in self._controls(page)
+            if not sources
+        ]
+        assert not nameless, f"no accessible name: {nameless}"
+
+    def test_the_words_beside_a_control_are_part_of_its_target(
+        self, config, store
+    ):
+        """What the switches took away, and the reason phase 6's target-size
+        fix was treating a symptom.
+
+        `aria-labelledby` names a control; it does not make anything clickable.
+        Only a <label> does -- either pointing at the control with `for` or
+        wrapping it -- and clicking the caption is what a checkbox has always
+        done. Every operable control on this page has to have one, whatever
+        shape it is drawn as.
+        """
+        page = self._page(config, store, settings=make_settings(premium=True))
+        unreachable = [
+            name or tag
+            for tag, name, attrs, sources in self._controls(page)
+            if "disabled" not in attrs
+            and not {"label-for", "label-wraps-it"} & set(sources)
+        ]
+        assert not unreachable, f"caption is not part of the target: {unreachable}"
+
+    def test_a_label_never_points_at_a_control_nobody_can_operate(
+        self, config, store
+    ):
+        """A locked field's caption must not invite a click that does nothing.
+        The disabled switches carry no id at all, so nothing can point at
+        them -- this is what keeps that true."""
+        page = self._page(config, store)
+        targets = set(re.findall(r'<label[^>]*\sfor="([^"]+)"', page))
+        for target in targets:
+            control = re.search(
+                r'<(?:input|select|textarea)\b[^>]*\sid="' + re.escape(target) + r'"[^>]*>',
+                page,
+            )
+            assert control, f"label points at {target}, which does not exist"
+            assert "disabled" not in control.group(0), target
+
+    def test_the_unsaved_warning_is_announced_and_not_only_shown(
+        self, config, store
+    ):
+        """CSS revealing a static node fires no accessibility event. Without a
+        live region the page makes the switch's promise visually and corrects
+        it visually, which is no correction at all for somebody listening."""
+        page = self._page(config, store, settings=make_settings(premium=True))
+        indicator = re.search(r'<span class="unsaved"[^>]*>', page)
+        assert indicator, "no unsaved indicator on a saveable page"
+        assert 'role="status"' in indicator.group(0)
+
+    def test_a_switch_row_sits_at_the_same_height_as_every_other_row(self):
+        """It is a <p>, and it was the only one in the stylesheet left with the
+        UA `margin: 1em 0` -- so a boolean row stood taller than the select
+        beside it, on the page phase 5 restyled to line those up."""
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            css = re.sub(r"/\*.*?\*/", "", handle.read(), flags=re.S)
+        rule = re.search(r"\.switch-row\s*\{([^}]*)\}", css)
+        assert rule and "margin: 0" in rule.group(1)
+
+
+class TestNarrowScreens(object):
+    """#133 phase 6. What the app does on a phone.
+
+    An admin fixing their server from a phone is the case the issue asks to be
+    decided on purpose rather than left to whatever falls out of the collapse
+    cookie -- so the decision is asserted here and explained in the stylesheet
+    beside the rules that carry it.
+    """
+
+    @staticmethod
+    def _css() -> str:
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            return re.sub(r"/\*.*?\*/", "", handle.read(), flags=re.S)
+
+    @classmethod
+    def _block(cls, opener: str) -> str:
+        """The body of one @media block, brace-matched.
+
+        Searching the whole file would find the wide rule and the narrow
+        override alike, and every assertion here is about which of the two it
+        landed in.
+        """
+        css = cls._css()
+        start = css.index(opener) + len(opener)
+        depth = 1
+        for i in range(start, len(css)):
+            depth += {"{": 1, "}": -1}.get(css[i], 0)
+            if depth == 0:
+                return css[start:i]
+        raise AssertionError(f"unclosed block: {opener}")
+
+    @classmethod
+    def _narrow(cls) -> str:
+        return cls._block("@media (max-width: 48rem) {")
+
+    @classmethod
+    def _touch(cls) -> str:
+        return cls._block("@media (pointer: coarse) {")
+
+    @staticmethod
+    def _rule(css: str, selector: str) -> str:
+        found = re.search(
+            r"(?<![\w.:-])" + re.escape(selector) + r"\s*\{([^}]*)\}", css
+        )
+        assert found, f"no rule for {selector}"
+        return found.group(1)
+
+    @staticmethod
+    def _px(length: str) -> float:
+        """rem at the 16px root this stylesheet sets on <html>."""
+        if length.endswith("rem"):
+            return float(length[:-3]) * 16
+        if length.endswith("px"):
+            return float(length[:-2])
+        return float(length)
+
+    # --- the sidebar decision ---
+
+    def test_the_collapse_button_is_hidden_where_collapsing_does_nothing(self):
+        """The narrow-screen bug, and it was a control that lied.
+
+        Below 48rem the sidebar is a strip rather than a column, and the same
+        block restores the labels whatever the cookie says -- so `collapsed`
+        and expanded render identically down here. The hamburger was still in
+        the bar: pressing it posted a form, reloaded the page, and changed
+        nothing except its own label from "Hide the sidebar" to "Show the
+        sidebar". A screen reader was being told something had been hidden
+        that had not been.
+        """
+        narrow = self._narrow()
+        assert "display: none" in self._rule(narrow, ".nav-toggle")
+        # The reason it does nothing, asserted alongside so the two cannot
+        # drift apart: if collapsing ever means something at this width again,
+        # this line goes and the button should come back with it.
+        assert "display: inline" in self._rule(narrow, ".layout.collapsed .side-text")
+
+    def test_the_button_is_hidden_by_the_stylesheet_and_not_by_the_template(
+        self, config, store
+    ):
+        """The obvious alternative fix is wrong, and quietly so.
+
+        Dropping the hamburger from base.html behind a condition would hide it
+        on a desktop too: the server renders the same HTML for every viewport
+        and has no way to know how wide the window is. Only CSS knows. So the
+        markup stays on every section page and the media query decides -- and
+        the collapse preference keeps round-tripping, so a rail collapsed on a
+        desktop is still collapsed when its owner goes back to one.
+        """
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        assert 'class="nav-toggle"' in page
+        assert 'name="collapsed" value="1"' in page
+
+    def test_the_strip_puts_the_way_out_and_the_server_on_one_row(self):
+        """Three stacked rows -- "All servers", the server, the sections --
+        cost most of a phone screen before any content. Two rows is the
+        decision: a breadcrumb line, then the sections as tabs beneath a
+        rule."""
+        narrow = self._narrow()
+        assert "display: grid" in self._rule(narrow, ".sidebar")
+        nav = self._rule(narrow, ".side-nav")
+        assert "grid-column: 1 / -1" in nav
+        # The separator moves from under the identity block to above the tabs,
+        # so the two rows are divided once rather than twice.
+        assert "border-top" in nav
+        assert "border-bottom: 0" in self._rule(narrow, ".side-guild")
+
+    # --- pages with no sidebar at all ---
+
+    def test_a_page_without_a_sidebar_keeps_its_margins_on_a_phone(self, client):
+        """The sign-in page and the server picker wear `.layout.plain`, which
+        zeroes the wrapper's padding and leaves `main` to carry it. The narrow
+        block set `main` to `padding: 1rem 0 2rem`, so those two ran edge to
+        edge on a phone -- cards touching both sides of the screen, on the
+        first page anybody sees after signing in."""
+        sides = self._rule(self._narrow(), "main").split("padding:")[1]
+        horizontal = sides.split(";")[0].split()[1]
+        assert self._px(horizontal) > 0, "plain pages lose their side padding"
+
+    def test_every_other_page_still_takes_its_inset_from_the_wrapper(self):
+        """The pairing that makes the rule above safe. A page WITH a sidebar
+        gets its inset from `.layout`, and `main` adding its own would inset
+        the content twice -- so the more specific rule zeroing it has to stay
+        or the fix above becomes a different bug."""
+        rule = self._rule(self._css(), ".layout:not(.plain) main")
+        assert "padding-left: 0" in rule
+        assert "padding-right: 0" in rule
+
+    def test_the_chrome_and_the_content_share_one_left_edge(self):
+        """The bar was inset 1.5rem while the content it sits over was inset
+        0.75rem, so the brand hung inboard of every card on the page. The
+        1.5rem was also the widest thing in the bar, and losing it is half of
+        what stops the header overflowing a 320px screen -- the hidden
+        hamburger is the other half."""
+        narrow = self._narrow()
+        edges = {
+            selector: self._rule(narrow, selector).split("padding:")[1].split(";")[0]
+            for selector in (".bar", ".layout", "footer")
+        }
+        insets = {name: self._px(value.split()[1]) for name, value in edges.items()}
+        assert len(set(insets.values())) == 1, insets
+
+    # --- touch targets ---
+
+    def test_a_switch_clears_the_minimum_target_size(self):
+        """WCAG 2.2 SC 2.5.8 asks for 24x24 CSS pixels. The switch this issue
+        added was drawn at 36x20 -- four pixels short, and short for everybody
+        rather than only on a phone, since the requirement is not about which
+        pointer you happen to be using."""
+        base = self._rule(self._css(), ".switch")
+        width = self._px(re.search(r"width:\s*(\S+);", base).group(1))
+        height = self._px(re.search(r"height:\s*(\S+);", base).group(1))
+        assert (width, height) >= (24, 24), (width, height)
+
+        # And comfortably bigger where the pointer is a thumb. Not 44 tall:
+        # see the note in the stylesheet about the row rhythm on the densest
+        # page in the app.
+        touch = self._rule(self._touch(), ".switch")
+        assert self._px(re.search(r"width:\s*(\S+);", touch).group(1)) >= 44
+        assert self._px(re.search(r"height:\s*(\S+);", touch).group(1)) >= 24
+
+    def test_the_knob_stops_at_the_end_of_the_track(self):
+        """At BOTH sizes, which is why the two widths were picked the way they
+        were: width - knob - (2 x inset) lands on 16px either way, so one
+        `translate` serves both. The base size satisfied it before this phase
+        by luck of the original numbers; the touch size did not exist. It is
+        here so that a future resize cannot quietly leave the knob overhanging
+        the end of its track -- nothing else in the suite would notice."""
+        css = self._css()
+        travel = self._px(
+            re.search(r"\.switch:checked::before\s*\{[^}]*translate:\s*(\S+)\s", css)
+            .group(1)
+        )
+        inset = self._px(
+            re.search(r"\.switch::before\s*\{[^}]*left:\s*(\S+);", css, re.S).group(1)
+        )
+
+        for scope, knob_rule in (
+            (self._css(), r"\.switch::before\s*\{"),
+            (self._touch(), r"\.switch::before\s*\{"),
+        ):
+            track = self._px(
+                re.search(r"(?<![\w.:-])\.switch\s*\{[^}]*width:\s*(\S+);", scope).group(1)
+            )
+            knob = self._px(
+                re.search(knob_rule + r"[^}]*width:\s*(\S+);", scope, re.S).group(1)
+            )
+            assert track - knob - 2 * inset == travel, (track, knob, travel)
+
+    # --- one word, two meanings ---
+
+    def test_the_pickers_empty_state_cannot_restyle_a_settings_value(self, config, store):
+        """`.empty` was two different things in two templates.
+
+        settings.html marks a value with nothing behind it as
+        `class="value empty"` -- "Not set", "No panel found", "Couldn't check"
+        -- and the picker's empty-state card was a bare `.empty`, so every one
+        of those little grey phrases was being drawn as a padded, bordered
+        card on the densest page in the app.
+        """
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        assert 'class="value empty"' in page, "settings still marks empty values"
+
+        bare = re.findall(r"(?:^|[\s,>+~{}])(\.empty)(?![\w-])", self._css())
+        assert not bare, "`.empty` on its own reaches a settings value"
+
+
 class TestWhatTheDashboardSaysAboutDiscord:
     """Issue #154. The dashboard told people to change settings with a command
     that stopped being able to change anything.
@@ -3311,13 +3746,26 @@ class TestTheToggleSwitches:
 
     @staticmethod
     def _rows(page: str) -> dict:
-        """Every setting row that renders a switch, by field name."""
+        """Every setting row that renders a switch, by field name.
+
+        ASSERTS THAT IT FOUND SOME. Three tests below are `for row in
+        _rows(...)` with every assertion inside the loop, so an empty result
+        made all three pass while checking nothing -- including the one that
+        guards against silently turning a setting off. Proved rather than
+        supposed: renaming `class="switch"` to `class="swtich"` in the
+        template, which deletes every switch from the page, left all three
+        green.
+
+        One helper, one place to fix it. A per-test `assert rows` would have
+        to be remembered by whoever writes the fourth.
+        """
         found = {}
         for row in re.findall(r'<div class="setting[^"]*">.*?</div>', page, re.S):
             if 'class="switch"' not in row:
                 continue
             name = re.search(r'<dt id="l-([a-z_]+)"', row).group(1)
             found[name] = row
+        assert found, "no switch rows on the page -- every caller would pass vacuously"
         return found
 
     def _page(self, config, store, **kwargs):
@@ -3423,9 +3871,15 @@ class TestTheToggleSwitches:
         nobody made.
         """
         page = self._page(config, store)
+        checked = 0
         for name, row in self._rows(page).items():
             if "disabled" in row:
+                checked += 1
                 assert f'name="present_{name}"' not in row, name
+        # The rows themselves being non-empty is not enough here: the assertion
+        # only runs for a DISABLED switch, so a fixture with none would still
+        # have proved nothing.
+        assert checked, "no disabled switch on the page to check"
 
     def test_an_editable_switch_is_still_declared_present(self, config, store):
         """The other half. Without the marker, turning a switch OFF and saving
@@ -3594,7 +4048,14 @@ class TestTheSidebarLayout:
         page = self._page(config, store)
         sidebar = self._sidebar(page)
         guild_icon = re.search(r'<img[^>]*width="(\d+)"', sidebar)
-        assert guild_icon and int(guild_icon.group(1)) > 16
+        assert guild_icon, "no server icon in the sidebar"
+        # Measured against the section glyphs as they are actually drawn, not
+        # against a 16 written here. The old version compared to that literal,
+        # so it could not notice the section icons changing size -- which is
+        # the entire comparison its name makes.
+        marks = [int(w) for w in re.findall(r'<svg[^>]*width="(\d+)"', sidebar)]
+        assert marks, "no section glyphs in the sidebar"
+        assert int(guild_icon.group(1)) > max(marks)
 
     def test_no_sidebar_icon_paints_itself_a_surface_colour(self, config, store):
         """An icon cannot know what is behind it.

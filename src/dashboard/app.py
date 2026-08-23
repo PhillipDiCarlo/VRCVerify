@@ -1570,13 +1570,34 @@ def _register_routes(app: Flask) -> None:
         response.delete_cookie(SESSION_COOKIE, path="/")
         return response
 
+    def _chrome_for_error() -> dict:
+        """The header the error pages were rendering without.
+
+        base.html gates the account menu on `csrf_token`, so an error page that
+        did not pass one came out with no way to sign out. That is the one
+        thing the menu is in the bar for: the comment there says "sign out
+        everywhere" is what you want at the moment you realise somebody else
+        has your session, "and at that moment you should not have to go
+        looking". Mistyping a URL should not be the thing that takes it away.
+
+        `getattr` rather than `g.session` because a 500 raised inside
+        `load_session` itself would leave the attribute unset, and an error
+        handler that raises is the one place there is no second chance.
+        """
+        session = getattr(g, "session", None)
+        return {"csrf_token": session.csrf_token} if session else {}
+
     @app.errorhandler(404)
     def not_found(_error):
-        return render_template("error.html", message="Page not found."), 404
+        return render_template(
+            "error.html", message="Page not found.", **_chrome_for_error()
+        ), 404
 
     @app.errorhandler(500)
     def server_error(_error):  # pragma: no cover - defensive
-        return render_template("error.html", message="Something went wrong."), 500
+        return render_template(
+            "error.html", message="Something went wrong.", **_chrome_for_error()
+        ), 500
 
 
 # The refusals worth explaining differently, and the copy for each. Anything

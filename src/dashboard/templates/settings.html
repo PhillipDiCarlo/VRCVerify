@@ -219,11 +219,27 @@
         {% endif %}
         {% for field in group.fields %}
           <div class="setting{% if field.locked %} locked{% endif %}">
-            {# The id is what a bare switch below uses for its accessible name.
-               It deliberately covers the badge too: "Group invites, Premium"
-               is more use to somebody listening than the label alone. #}
+            {# TWO JOBS, AND THEY ARE NOT THE SAME JOB.
+               The id is what every control below points `aria-labelledby` at,
+               so the accessible name covers the badge too: "Group invites,
+               Premium" is more use to somebody listening than the label alone.
+
+               The <label for> is what makes the WORDS CLICKABLE. That is not
+               decoration -- before the switches landed, a boolean was
+               `<label class="check"><input type=checkbox> Auto verify</label>`
+               and the whole row toggled it, the way every checkbox on the web
+               does. Replacing it with a bare input and an aria-labelledby gave
+               the control a name and quietly took its target away, leaving a
+               40x24 switch as the only thing you could hit.
+
+               Only when the field is editable: a `for` pointing at a disabled
+               control invites a click that does nothing. #}
             <dt id="l-{{ field.name }}">
-              {{ field.label }}
+              {% if field.editable %}
+                <label for="f-{{ field.name }}">{{ field.label }}</label>
+              {% else %}
+                {{ field.label }}
+              {% endif %}
               {% if field.badge == 'premium' %}
                 <span class="badge premium">Premium</span>
               {% elif field.badge == 'inactive' %}
@@ -235,15 +251,19 @@
                 {% if field.kind == 'text' %}
                   <textarea name="{{ field.name }}" rows="4"
                             maxlength="{{ field.maxlength }}"
+                            aria-labelledby="l-{{ field.name }}"
                             id="f-{{ field.name }}">{{ field.value }}</textarea>
                 {% elif field.kind == 'line' %}
                   <input type="text" name="{{ field.name }}"
                          value="{{ field.value }}"
                          maxlength="{{ field.maxlength }}"
                          spellcheck="false" autocomplete="off"
+                         aria-labelledby="l-{{ field.name }}"
                          id="f-{{ field.name }}">
                 {% elif field.kind == 'channel' %}
-                  <select name="{{ field.name }}" id="f-{{ field.name }}">
+                  <select name="{{ field.name }}"
+                          aria-labelledby="l-{{ field.name }}"
+                          id="f-{{ field.name }}">
                     <option value="" {% if field.empty %}selected{% endif %}>Off</option>
                     {% for channel_id, label in field.choices %}
                       <option value="{{ channel_id }}"
@@ -251,7 +271,9 @@
                     {% endfor %}
                   </select>
                 {% elif field.kind in ('role', 'role_optional') %}
-                  <select name="{{ field.name }}" id="f-{{ field.name }}">
+                  <select name="{{ field.name }}"
+                          aria-labelledby="l-{{ field.name }}"
+                          id="f-{{ field.name }}">
                     {% if field.kind == 'role_optional' %}
                       <option value="" {% if field.empty %}selected{% endif %}>None</option>
                     {% endif %}
@@ -261,7 +283,9 @@
                     {% endfor %}
                   </select>
                 {% elif field.kind == 'locale' %}
-                  <select name="{{ field.name }}" id="f-{{ field.name }}">
+                  <select name="{{ field.name }}"
+                          aria-labelledby="l-{{ field.name }}"
+                          id="f-{{ field.name }}">
                     {% for code, label in field.choices %}
                       <option value="{{ code }}"
                         {%- if code == field.value %} selected{% endif %}>{{ label }}</option>
@@ -277,13 +301,18 @@
                     Use the default blue
                   </label>
                   <input type="color" name="{{ field.name }}"
-                         value="{{ field.value }}" aria-label="Panel colour">
+                         value="{{ field.value }}"
+                         aria-labelledby="l-{{ field.name }}"
+                         id="f-{{ field.name }}">
                 {% elif field.kind == 'bool' %}
                   {{ present(field) }}
-                  {# No visible label beside it: the <dt> directly above says
+                  {# No visible label BESIDE it: the <dt> directly above says
                      the same words, and a switch captioned with its own name
-                     twice reads as two settings. `aria-labelledby` gives it
-                     that name without printing it again.
+                     twice reads as two settings. The <dt> carries a
+                     `<label for>` pointing here, so those words are the
+                     switch's target as well as its caption, and
+                     `aria-labelledby` names it from the whole <dt> including
+                     the badge.
 
                      Still a real checkbox, so the space bar, the focus ring
                      and everything a screen reader announces about it are the
@@ -379,7 +408,16 @@
            never shows, which is exactly how this page behaved before. #}
         <p class="actions">
           <button type="submit" class="button">Save changes</button>
-          <span class="unsaved">
+          {# `role="status"` because CSS revealing a static node fires no
+             accessibility event at all -- app.js adds a class, `display` goes
+             from none to inline-flex, and a screen reader is told nothing.
+
+             The whole case for this indicator is that a switch promises
+             "flipping this saves it" and ours cannot keep that promise, so
+             the page has to say so. Made visually and not audibly, the
+             promise was still being made to somebody who could not hear the
+             correction. #}
+          <span class="unsaved" role="status">
             <span class="unsaved-dot" aria-hidden="true"></span>
             Unsaved changes in this group
           </span>
