@@ -100,7 +100,11 @@
   --ink: #313338;         /* body text */
   --ink-strong: #060607;  /* headings, values, anything you scan for */
   --muted: #5c5e66;       /* descriptions. 5.4:1 on white, not decorative grey */
-  --faint: #80848e;       /* the least important thing on the page */
+  --faint: #63666f;       /* the least important thing on the page, and still
+                             text: 5.7:1 on a card, 4.6:1 on the ground, which
+                             is the darkest surface it lands on. Was #80848e --
+                             3.7:1 on white, below AA however unimportant the
+                             words are. */
 
   --line: #dfe0e3;
   --line-soft: #ebedef;
@@ -108,6 +112,15 @@
   --accent: #5865f2;
   --accent-hover: #4752c4;
   --accent-ink: #ffffff;
+  /* Blurple as FOREGROUND -- a link, a tick, the current nav item. Identical
+   * to --accent here because #5865f2 already clears 4.5:1 on white. On dark it
+   * cannot be identical, which is the whole reason this token exists; see the
+   * dark block below. */
+  --accent-text: #4150f0;   /* 5.8:1 on a card, 4.6:1 on the ground. Darker
+                             * than --accent rather than lighter, the mirror of
+                             * what the dark theme needs -- a foreground has to
+                             * move away from its background, and here the
+                             * background is the pale one. */
 
   /* Semantic, and separate from the accent on purpose -- "this succeeded" and
    * "this is the current page" must never be the same colour. */
@@ -139,12 +152,31 @@
   --dark-line: #3f4147;
   --dark-line-soft: #35373c;
 
+  /* ONE BLURPLE CANNOT DO BOTH JOBS ON A DARK SURFACE, so there are two.
+   *
+   * As a button background, --accent has to stay dark enough for white
+   * --accent-ink to read on it: #5865f2 gives 4.6:1, and lightening it to
+   * #8a93f6 would drop that to 2.8:1.
+   *
+   * As a foreground -- a link, a tick, the current nav item -- it has to be
+   * light enough to read *against* the card: #5865f2 on #313338 is 2.7:1,
+   * below the 3:1 floor for a UI component and well below the 4.5:1 a link
+   * needs.
+   *
+   * Those pull in opposite directions and no single value satisfies both,
+   * which is why --accent-text exists. It is still blurple, so the rule at the
+   * top of this file -- that the accent means exactly two things -- is intact.
+   * It is the tint of it that survives on a dark card. */
   --dark-accent: #5865f2;
   --dark-accent-hover: #4752c4;
   --dark-accent-ink: #ffffff;
+  --dark-accent-text: #8a93f6;   /* 4.6:1 on panel, 5.0:1 on chrome */
 
-  --dark-ok: #23a55a;
-  --dark-danger: #f23f43;
+  /* Both lifted to clear 4.5:1 on --panel. Discord's own values are 4.0:1 and
+   * 3.4:1 there, which is fine for a status dot and not for the word "Saved"
+   * or an error an admin has to act on. */
+  --dark-ok: #26b261;
+  --dark-danger: #f57174;
   --dark-notice: #f0b232;
   --dark-notice-bg: #3a2f13;
   --dark-notice-line: #5c4a1c;
@@ -173,6 +205,7 @@
   --accent: var(--dark-accent);
   --accent-hover: var(--dark-accent-hover);
   --accent-ink: var(--dark-accent-ink);
+  --accent-text: var(--dark-accent-text);
 
   --ok: var(--dark-ok);
   --danger: var(--dark-danger);
@@ -208,6 +241,7 @@
     --accent: var(--dark-accent);
     --accent-hover: var(--dark-accent-hover);
     --accent-ink: var(--dark-accent-ink);
+    --accent-text: var(--dark-accent-text);
 
     --ok: var(--dark-ok);
     --danger: var(--dark-danger);
@@ -424,7 +458,7 @@ p { text-wrap: pretty; }
 /* The icon keeps its column when the tick is absent, so the three rows do not
  * shift by 13px depending on which one is current. */
 .theme-option .theme-mark { flex: 0 0 auto; color: var(--muted); }
-.theme-option.current .theme-mark { color: var(--accent); }
+.theme-option.current .theme-mark { color: var(--accent-text); }
 
 .theme-option-text { display: flex; flex-direction: column; flex: 1 1 auto; }
 .theme-option-label { font-size: var(--text-body); line-height: var(--leading-tight); }
@@ -437,7 +471,7 @@ p { text-wrap: pretty; }
   line-height: var(--leading-tight);
 }
 
-.theme-tick { flex: 0 0 auto; color: var(--accent); }
+.theme-tick { flex: 0 0 auto; color: var(--accent-text); }
 
 main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
@@ -699,7 +733,7 @@ button.link:hover { color: var(--ink-strong); }
  * which is why the whole tile is the install link. */
 .server.absent .icon img { filter: grayscale(1); opacity: 0.55; }
 .server.absent .name { color: var(--muted); }
-.server.absent .state { color: var(--accent); }
+.server.absent .state { color: var(--accent-text); }
 
 /* --- one server's pages --- */
 .guild-head {
@@ -720,14 +754,14 @@ button.link:hover { color: var(--ink-strong); }
   margin: 1.25rem 0 0;
   padding: 0.9rem 1rem;
   background: var(--inset);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--accent-text);
   border-radius: var(--radius-control);
 }
 
 .upgrade h2 { font-size: 1rem; margin: 0 0 0.4rem; }
 .upgrade p { margin: 0 0 0.5rem; font-size: 0.9375rem; }
 .upgrade p:last-child { margin-bottom: 0; }
-.upgrade a { color: var(--accent); }
+.upgrade a { color: var(--accent-text); }
 
 /* Each settings group is its own card. Whitespace alone did not separate them:
  * the settings *inside* a group are divided by a hairline, so a group boundary
@@ -822,7 +856,7 @@ input[type="color"] {
 }
 
 select:hover, textarea:hover { border-color: var(--line); }
-select:focus, textarea:focus { border-color: var(--accent); outline: none; }
+select:focus, textarea:focus { border-color: var(--accent-text); outline: none; }
 
 input[type="color"] { padding: 0.15rem; width: 3.5rem; height: 2.25rem; }
 
@@ -928,7 +962,7 @@ footer {
 
 /* The one suggested action. Accented like the upgrade box, because it is the
  * same kind of thing: a prompt on a page you came to read. */
-.next-step { border-left: 3px solid var(--accent); }
+.next-step { border-left: 3px solid var(--accent-text); }
 
 .setup { list-style: none; margin: 0; padding: 0; }
 
@@ -996,7 +1030,7 @@ footer {
 /* The browser default focus ring disappears against several of the surfaces
  * above. This is the one style on the page that must never be subtle. */
 :focus-visible {
-  outline: var(--focus-width) solid var(--accent);
+  outline: var(--focus-width) solid var(--accent-text);
   outline-offset: var(--focus-offset);
   border-radius: 2px;
 }
@@ -1106,8 +1140,8 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
 /* `highlight` in a price's metadata. Presentational only -- it changes no
  * price and nothing the server will accept. */
 .plan-featured {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  border-color: var(--accent-text);
+  box-shadow: 0 0 0 1px var(--accent-text);
 }
 
 .plan-badge {
@@ -1171,7 +1205,7 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   margin: 0;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .plan .button { margin-top: auto; align-self: stretch; }

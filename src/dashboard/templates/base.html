@@ -96,6 +96,10 @@
      page works identically without it -- see static/app.js. `defer` so it
      never delays rendering. #}
   <script src="{{ asset('app.js') }}" defer></script>
+  {# The second script, and the same bargain: it makes the theme switch
+     instant, it does not make it possible. With this blocked the picker is
+     three submit buttons and works completely. See static/prefs.js. #}
+  <script src="{{ asset('prefs.js') }}" defer></script>
 </head>
 <body>
   <header class="bar">

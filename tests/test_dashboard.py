@@ -2161,12 +2161,32 @@ class TestHardening:
         assert found.scripts[0]["body"] == "bad()"
         assert found.scripts[0]["attrs"]["src"] == "https://evil.example/x.js"
 
-    def test_the_only_script_is_the_one_we_meant_to_add(self, config, store):
-        """A second script arriving without a decision should fail here."""
+    # The scripts this application has decided to load, in order. Two, and each
+    # one is a decision with a reason written in its own header:
+    #
+    #   app.js   -- warns that you edited one settings group and saved another.
+    #   prefs.js -- makes the theme switch instant. The picker works without it.
+    #
+    # A third must not arrive quietly, which is what the test below is for.
+    EXPECTED_SCRIPTS = ["app.js", "prefs.js"]
+
+    def test_the_only_scripts_are_the_ones_we_meant_to_add(self, config, store):
+        """A script arriving without a decision should fail here."""
         test_client, _api = settings_client(config, store)
         scripts = markup(test_client.get(f"/guild/{GUILD_IN}/settings").data).scripts
-        assert len(scripts) == 1
-        assert "app.js" in scripts[0]["attrs"].get("src", "")
+        assert len(scripts) == len(self.EXPECTED_SCRIPTS)
+        for script, expected in zip(scripts, self.EXPECTED_SCRIPTS):
+            assert expected in script["attrs"].get("src", "")
+
+    def test_no_script_is_inline(self, config, store):
+        """`script-src 'self'` blocks inline script, so an inline block would
+        not run -- but it would also not error anywhere a developer looks. The
+        page should never contain one to begin with."""
+        test_client, _api = settings_client(config, store)
+        scripts = markup(test_client.get(f"/guild/{GUILD_IN}/settings").data).scripts
+        for script in scripts:
+            assert script["attrs"].get("src"), "a script with no src is inline"
+            assert not script["body"].strip()
 
     def test_the_page_still_works_without_the_script(self, config, store):
         """Progressive enhancement, pinned.
