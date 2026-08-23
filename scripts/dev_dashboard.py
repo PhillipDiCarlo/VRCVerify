@@ -74,6 +74,44 @@ app.jinja_env.auto_reload = True
 
 
 @app.after_request
+def _drop_secure_from_cookies(response):
+    """Let the browser actually keep the cookies this app sets.
+
+    Every cookie here is `Secure`, which is right: in production the dashboard
+    is HTTPS-only behind the tunnel. But this preview is plain HTTP on
+    loopback, and a browser asked to store a `Secure` cookie over `http://`
+    may simply decline -- Safari always does, and Chrome does in some
+    configurations. The request succeeds, the redirect happens, the page
+    reloads, and nothing changes, which reads exactly like a broken feature.
+
+    It is worth knowing that curl does NOT behave this way: it keeps and
+    replays `Secure` cookies over http regardless, so an automated round-trip
+    through curl passes against a preview a real browser cannot use. That gap
+    is how the theme picker looked verified and still failed on first click.
+
+    Stripped here and only here. The flag itself is pinned by the test suite,
+    so production keeps it and this cannot quietly become the real behaviour.
+
+    The alternative -- serving the preview over HTTPS with the repo's certs --
+    tests the real flags but puts a browser warning in front of every reload.
+    Not worth it for looking at a stylesheet.
+    """
+    cookies = response.headers.getlist("Set-Cookie")
+    if cookies:
+        del response.headers["Set-Cookie"]
+        for cookie in cookies:
+            response.headers.add(
+                "Set-Cookie",
+                "; ".join(
+                    part
+                    for part in cookie.split("; ")
+                    if part.strip().lower() != "secure"
+                ),
+            )
+    return response
+
+
+@app.after_request
 def _never_cache(response):
     """Make every reload a genuine cold load.
 

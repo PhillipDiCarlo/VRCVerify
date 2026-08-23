@@ -397,16 +397,16 @@ NAV_COOKIE_MAX_AGE = 31536000
 # no guild, and worth forging only to change the colour of your own page. Not
 # `__Host-` prefixed, so the session cookie stays the one that stands out.
 #
-# Nothing writes this yet -- phase 3 adds the picker and the route that sets
-# it, and phase 4 lets a script write it directly so the switch is instant.
-# That last part is why it will NOT be httponly, unlike NAV_COOKIE: a script
-# cannot write a header the browser hides from it, and with no `connect-src` in
-# the CSP it cannot ask the server to do it either. The choice is between a
-# full navigation on every toggle and a cookie the page can write.
-#
-# For now this is read-only from the app's point of view: set it by hand to
-# exercise the three states.
+# Deliberately NOT httponly, unlike NAV_COOKIE. Phase 4 lets the theme button
+# write it from a script so the switch is instant, and a script cannot write a
+# header the browser hides from it. With no `connect-src` in the CSP it cannot
+# ask the server to do it either, so the choice is between a full navigation on
+# every toggle and a cookie the page can write. Nothing reads it but the
+# stylesheet, via the attribute theme_attr() puts on <html>.
 THEME_COOKIE = "vrcverify_theme"
+# A year, like NAV_COOKIE. The preference is one click to re-set and there is
+# nothing about it worth expiring.
+THEME_COOKIE_MAX_AGE = 31536000
 
 # What the cookie may say. Anything else is treated as if it were absent, which
 # is what stops a hand-edited value reaching a `data-` attribute unchecked.
@@ -619,6 +619,17 @@ def _register_assets(app: Flask) -> None:
         if chosen == "system":
             return Markup("")
         return Markup(' data-theme="%s"') % chosen
+
+    @app.template_global()
+    def current_theme() -> str:
+        """Which theme is in force, as a plain word.
+
+        `theme_attr()` above answers what `<html>` should carry, which is not
+        the same question: "system" renders as no attribute at all, so the
+        attribute cannot tell the picker which option to mark as current. One
+        of the three words, always -- including "system".
+        """
+        return _theme()
 
 
 # -------------------------------------------------------------------
@@ -1181,7 +1192,7 @@ def _register_routes(app: Flask) -> None:
             abort(400)
 
         collapsed = bool(request.form.get("collapsed"))
-        response = redirect(_nav_return_url())
+        response = redirect(_preference_return_url())
         if collapsed:
             response.set_cookie(
                 NAV_COOKIE,
@@ -1196,6 +1207,79 @@ def _register_routes(app: Flask) -> None:
             # Expanded is the default, so the preference is the absence of the
             # cookie rather than a second value to interpret.
             response.delete_cookie(NAV_COOKIE, path="/")
+        return response
+
+    @app.post("/prefs/theme")
+    def set_theme_preference():
+        """Dark, Light or System. Writes one cookie and nothing else.
+
+        **THIS IS THE ONE POST IN THIS APP THAT REQUIRES NEITHER A SESSION NOR
+        A CSRF TOKEN, AND THE DEPARTURE IS DELIBERATE.**
+
+        `set_nav_preference` above argues the opposite for itself -- that "this
+        endpoint is harmless" is an assumption that ages badly -- so the
+        difference is worth stating rather than leaving to be rediscovered.
+
+        Why no session: the sign-in page has one of these buttons, and before
+        signing in there is no session to require. `index` renders
+        `login.html` with no arguments at all, so there is no CSRF token on
+        that page either. Requiring either would mean the theme control works
+        everywhere except the first page anybody sees, and would break the
+        no-JavaScript promise exactly where it is easiest to notice.
+
+        Why that is safe here, and would not be on the route above: this one
+        reads nothing, stores nothing server-side, and never touches the bot.
+        The entire consequence of a forged request is that somebody's own page
+        renders in a different colour on their next load. There is no state to
+        corrupt, nothing to leak, and no authority to borrow -- the cookie is
+        read by exactly one thing, `_theme()`, which reduces it to one of three
+        known words before it reaches the markup.
+
+        Not rate-limited, also deliberately. It does strictly less work than
+        the page render it redirects to -- no database, no crypto, no bot call
+        -- so budgeting this while leaving every GET unbudgeted would be
+        guarding the cheap path. The Stripe webhook has a limiter because it
+        verifies a signature and writes rows; this sets a cookie.
+
+        What it still does, because these are not about authentication:
+
+        1. The submitted value is checked against a fixed set. A value from a
+           form reaching a `data-` attribute unchecked is how a preference
+           becomes an injection, and `_theme()` is the second line of that
+           defence rather than the only one.
+        2. The return trip is an endpoint *name* looked up in a fixed table,
+           never a path from the form -- the same rule `set_nav_preference`
+           follows, and for the same reason.
+        """
+        chosen = request.form.get("theme") or ""
+        response = redirect(_preference_return_url())
+        if chosen not in THEMES:
+            # A form that submitted nothing recognisable changes nothing. No
+            # error page: there is no way for an admin to cause this, so the
+            # only reachable cause is a hand-built request, and the honest
+            # answer to one of those is the page they asked to go back to.
+            return response
+
+        if chosen == THEME_DEFAULT:
+            # Dark is what no cookie already means, so choosing it removes the
+            # cookie rather than storing a second way of saying the same
+            # thing. Same shape as the sidebar's "expanded" above -- one state,
+            # one representation, nothing to keep in agreement.
+            response.delete_cookie(THEME_COOKIE, path="/")
+            return response
+
+        response.set_cookie(
+            THEME_COOKIE,
+            chosen,
+            max_age=THEME_COOKIE_MAX_AGE,
+            secure=True,
+            # NOT httponly: phase 4 has the button write this from a script so
+            # the switch is instant, and the CSP has no `connect-src`, so a
+            # script cannot ask the server to set it instead. See THEME_COOKIE.
+            httponly=False,
+            samesite="Lax",
+            path="/",
+        )
         return response
 
     @app.post("/guild/<int:guild_id>/verification")
@@ -2007,14 +2091,21 @@ def _theme() -> str:
     return chosen if chosen in THEMES else THEME_DEFAULT
 
 
-def _nav_return_url() -> str:
-    """Where the hamburger sends you back to, from a name we chose.
+def _preference_return_url() -> str:
+    """Where a preference form sends you back to, from a name we chose.
+
+    Shared by the sidebar toggle and the theme picker -- both post from every
+    page in the app and both have to land the reader back where they were.
 
     The form submits an endpoint name and, for a guild page, an id. Both are
     checked here: an unknown name falls back to the picker, and a guild id that
     is not a number is dropped. Nothing from the request is ever interpolated
     into a redirect target, so the worst a crafted form achieves is landing the
     user on their own server list.
+
+    The theme picker reaches this while signed out, where the only reachable
+    entry is `index` -- which renders the sign-in page. That is the correct
+    destination and needs no special case.
     """
     endpoint = request.form.get("return_to") or ""
     if endpoint not in NAV_RETURN_ENDPOINTS:

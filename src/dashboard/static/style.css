@@ -345,6 +345,100 @@ p { text-wrap: pretty; }
  * misreading in this bar that actually costs something. */
 .account { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 
+/* --- theme picker ---
+ *
+ * A <details> disclosure. It opens, closes, and submits with no JavaScript;
+ * phase 4 only makes the choice instant, it does not make it possible.
+ *
+ * One known rough edge, accepted for now: without a script, clicking outside
+ * an open menu does not close it. Choosing an option navigates, which closes
+ * it the ordinary way, so the only way to be left with it open is to open it
+ * and then change your mind. */
+.theme { position: relative; }
+
+/* The default triangle has to go from both engines: `list-style` covers
+ * Firefox and current Chrome, the pseudo-element covers older WebKit. The
+ * icon is the marker. */
+.theme-button { list-style: none; }
+.theme-button::-webkit-details-marker { display: none; }
+
+.theme-button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.theme-button:hover { background: var(--hover); color: var(--ink); }
+.theme[open] .theme-button { background: var(--hover); color: var(--ink); }
+
+/* Anchored to the bar's right edge rather than the button's left, so the menu
+ * never runs off the side of a narrow window. */
+.theme-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 20;
+  min-width: 15rem;
+  padding: var(--space-2);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-overlay);
+}
+
+.theme-menu ul { list-style: none; margin: 0; padding: 0; }
+
+.theme-menu-label {
+  margin: var(--space-1) var(--space-2) var(--space-2);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* A button rather than a radio: a theme is a one-click decision, and a picker
+ * needing a second click to confirm is worse than the toggle it replaced. */
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.theme-option:hover { background: var(--hover); }
+.theme-option.current { color: var(--ink-strong); }
+
+/* The icon keeps its column when the tick is absent, so the three rows do not
+ * shift by 13px depending on which one is current. */
+.theme-option .theme-mark { flex: 0 0 auto; color: var(--muted); }
+.theme-option.current .theme-mark { color: var(--accent); }
+
+.theme-option-text { display: flex; flex-direction: column; flex: 1 1 auto; }
+.theme-option-label { font-size: var(--text-body); line-height: var(--leading-tight); }
+
+/* Says what "System" actually means. A bare label is guessable; the sentence
+ * removes the guess, which is the one thing every comparable picker does. */
+.theme-option-hint {
+  font-size: var(--text-note);
+  color: var(--muted);
+  line-height: var(--leading-tight);
+}
+
+.theme-tick { flex: 0 0 auto; color: var(--accent); }
+
 main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 .panel {
@@ -960,6 +1054,8 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   .side-link,
   .hamburger,
   .server a,
+  .theme-button,
+  .theme-option,
   select,
   textarea {
     transition: background-color var(--motion-fast) var(--ease),
