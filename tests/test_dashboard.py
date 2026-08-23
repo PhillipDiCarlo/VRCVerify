@@ -3074,6 +3074,216 @@ class TestTheSidebar:
         assert 'class="sidebar"' not in page
 
 
+class TestTheToggleSwitches:
+    """#133 phase 4. The phase the issue puts a warning on.
+
+    Every switch in every product this was compared against saves the moment
+    you flip it. This one cannot -- there is no `connect-src`, so saving means
+    submitting the form. A switch that looks like it saved and did not is
+    WORSE than the checkbox it replaced, so the tests here are mostly about
+    the four states staying distinguishable and about the form never sending
+    something nobody asked for.
+    """
+
+    @staticmethod
+    def _rows(page: str) -> dict:
+        """Every setting row that renders a switch, by field name."""
+        found = {}
+        for row in re.findall(r'<div class="setting[^"]*">.*?</div>', page, re.S):
+            if 'class="switch"' not in row:
+                continue
+            name = re.search(r'<dt id="l-([a-z_]+)"', row).group(1)
+            found[name] = row
+        return found
+
+    def _page(self, config, store, **kwargs):
+        test_client, _api = settings_client(config, store, **kwargs)
+        return test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+
+    def test_a_switch_is_a_real_checkbox(self, config, store):
+        """Not a div with a click handler. Keeping the native control is what
+        makes the keyboard, the focus ring, the label association and the
+        screen reader announcement the browser's problem rather than ours."""
+        rows = self._rows(self._page(config, store, settings=make_settings(premium=True)))
+        assert rows
+        for row in rows.values():
+            assert 'type="checkbox"' in row
+
+    def test_a_switch_borrows_its_name_from_the_row_it_sits_in(
+        self, config, store
+    ):
+        """It has no visible label of its own -- the <dt> above says the same
+        words, and printing them twice reads as two settings."""
+        rows = self._rows(self._page(config, store, settings=make_settings(premium=True)))
+        for name, row in rows.items():
+            assert f'aria-labelledby="l-{name}"' in row
+            assert f'<dt id="l-{name}"' in row
+
+    # --- the four states ---
+
+    def test_a_locked_switch_cannot_be_flipped_and_says_why(
+        self, config, store
+    ):
+        """The bot refuses the save, so offering the control would be an
+        invitation to lose a change."""
+        row = self._rows(self._page(config, store))["auto_nickname_change"]
+        assert "disabled" in row
+        assert "badge premium" in row
+        assert "Premium only" in row
+
+    def test_an_inactive_switch_can_still_be_flipped(self, config, store):
+        """THE DISTINCTION THAT KEEPS THIS SITE FROM BEING STRICTER THAN THE
+        SLASH COMMANDS.
+
+        `inactive` means the value saves fine for anyone and the bot simply
+        does not act on it. Disabling it here would tell an admin they cannot
+        set something they can plainly set in Discord.
+        """
+        settings = make_settings()
+        settings["fields"]["auto_nickname_change"].update(
+            active=False, locked=False
+        )
+        row = self._rows(self._page(config, store, settings=settings))[
+            "auto_nickname_change"
+        ]
+        assert "disabled" not in row
+        assert "badge inactive" in row
+        assert "not acted on" in row
+
+    def test_locked_and_inactive_do_not_share_a_style(self, config, store):
+        """Collapsing them would be a functional regression, not a styling
+        choice -- one refuses the save and the other accepts it."""
+        settings = make_settings()
+        settings["fields"]["auto_nickname_change"].update(
+            active=False, locked=False
+        )
+        inactive = self._rows(self._page(config, store, settings=settings))[
+            "auto_nickname_change"
+        ]
+        locked = self._rows(self._page(config, store))["auto_nickname_change"]
+
+        assert ("disabled" in locked) != ("disabled" in inactive)
+        assert "Premium only" in locked and "Premium only" not in inactive
+
+    def test_an_unwritable_switch_does_not_blame_the_plan(self, config, store):
+        """The fourth state, and the one with nothing to do with premium: the
+        bot's save path has not opened this field to the website. It looks
+        non-interactive for the same reason a locked field does and is
+        non-interactive for a completely different one."""
+        settings = make_settings(
+            premium=True, writable=WRITABLE - {"panel_show_icon"}
+        )
+        row = self._rows(self._page(config, store, settings=settings))[
+            "panel_show_icon"
+        ]
+        assert "disabled" in row
+        assert "badge premium" not in row
+        assert "Premium only" not in row
+        assert "hasn't opened this setting" in row
+
+    # --- the invariant that could lose data ---
+
+    def test_a_switch_nobody_can_flip_is_not_declared_present(
+        self, config, store
+    ):
+        """THE ONE THAT COULD DESTROY A SETTING.
+
+        A disabled input submits nothing at all, which is indistinguishable
+        from an unticked one. The hidden `present_<name>` marker is what tells
+        the save path "this field was on the page" -- so rendering it beside a
+        disabled switch would post "it was there and it is off", which is how
+        you ask for a setting to be turned OFF.
+
+        The bot would refuse both of these fields anyway, being the reason they
+        are uneditable. That is not a defence: this page must not send a change
+        nobody made.
+        """
+        page = self._page(config, store)
+        for name, row in self._rows(page).items():
+            if "disabled" in row:
+                assert f'name="present_{name}"' not in row, name
+
+    def test_an_editable_switch_is_still_declared_present(self, config, store):
+        """The other half. Without the marker, turning a switch OFF and saving
+        looks exactly like a form that never carried the field, so the change
+        would be dropped instead."""
+        page = self._page(config, store, settings=make_settings(premium=True))
+        for name, row in self._rows(page).items():
+            assert "disabled" not in row
+            assert f'name="present_{name}"' in row, name
+
+    # --- the promise a switch makes ---
+
+    def test_every_group_that_saves_carries_an_unsaved_indicator(
+        self, config, store
+    ):
+        """It ships with the switches or the switches do not ship. A switch is
+        a much stronger promise than a checkbox -- everywhere else, flipping
+        one saves it -- and this page cannot keep that promise."""
+        page = self._page(config, store, settings=make_settings(premium=True))
+        forms = re.findall(r"<form[^>]*data-guard.*?</form>", page, re.S)
+        assert forms
+        for form in forms:
+            assert 'class="unsaved"' in form
+            assert "Save changes" in form
+
+    def test_the_indicator_is_rendered_by_the_page_not_the_script(self):
+        """app.js is documented as never writing markup. It reveals the
+        indicator with a class the stylesheet already knows; the words come
+        from the template on every load."""
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "app.js"),
+            encoding="utf-8",
+        ) as handle:
+            script = handle.read()
+        # Comments first: this file's own docstring forbids `innerHTML` by
+        # name, so a naive search finds the prohibition and calls it a
+        # violation. The first version of this test did exactly that.
+        code = re.sub(r"/\*.*?\*/", "", script, flags=re.S)
+        code = re.sub(r"^\s*//.*$", "", code, flags=re.M)
+        assert "innerHTML" not in code
+        assert "createElement" not in code
+        assert "is-dirty" in code
+
+    def test_the_beforeunload_guard_is_still_there(self):
+        """The indicator is the visible half, not a replacement. The prompt is
+        the last thing between an admin and a lost edit."""
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "app.js"),
+            encoding="utf-8",
+        ) as handle:
+            script = handle.read()
+        # Comments stripped for the same reason as above: this file explains
+        # the guard at length, so searching the whole text finds the
+        # explanation and calls it the guard. Renaming the listener to
+        # something inert left this test passing until it was checked.
+        code = re.sub(r"/\*.*?\*/", "", script, flags=re.S)
+        code = re.sub(r"^\s*//.*$", "", code, flags=re.M)
+        assert 'addEventListener("beforeunload"' in code
+        assert "returnValue" in code
+
+    def test_the_knob_only_moves_when_motion_is_welcome(self):
+        """A switch that stopped changing state under prefers-reduced-motion
+        would be a broken control rather than a calmer one, so only the
+        travel is inside the guard."""
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            css = handle.read()
+
+        guard = css.index("@media (prefers-reduced-motion: no-preference)")
+        assert css.index(".switch::before { transition") > guard
+        # The state change itself is not conditional on anything.
+        assert ".switch:checked { background: var(--switch-on); }" in css
+
+
 class TestTheSidebarLayout:
     """How the sidebar is ordered and what shows in each state (#133 phase 2)."""
 

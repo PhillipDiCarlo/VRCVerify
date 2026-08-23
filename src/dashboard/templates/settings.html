@@ -211,7 +211,10 @@
         {% endif %}
         {% for field in group.fields %}
           <div class="setting{% if field.locked %} locked{% endif %}">
-            <dt>
+            {# The id is what a bare switch below uses for its accessible name.
+               It deliberately covers the badge too: "Group invites, Premium"
+               is more use to somebody listening than the label alone. #}
+            <dt id="l-{{ field.name }}">
               {{ field.label }}
               {% if field.badge == 'premium' %}
                 <span class="badge premium">Premium</span>
@@ -269,12 +272,40 @@
                          value="{{ field.value }}" aria-label="Panel colour">
                 {% elif field.kind == 'bool' %}
                   {{ present(field) }}
-                  <label class="check">
-                    <input type="checkbox" name="{{ field.name }}"
+                  {# No visible label beside it: the <dt> directly above says
+                     the same words, and a switch captioned with its own name
+                     twice reads as two settings. `aria-labelledby` gives it
+                     that name without printing it again.
+
+                     Still a real checkbox, so the space bar, the focus ring
+                     and everything a screen reader announces about it are the
+                     browser's, not ours. #}
+                  <p class="switch-row">
+                    <input type="checkbox" class="switch" name="{{ field.name }}"
+                           id="f-{{ field.name }}"
+                           aria-labelledby="l-{{ field.name }}"
                            {%- if field.value %} checked{% endif %}>
-                    {{ field.label }}
-                  </label>
+                  </p>
                 {% endif %}
+              {% elif field.kind == 'bool' %}
+                {# NOT EDITABLE, AND STILL A SWITCH -- disabled, showing what is
+                   actually stored. Two different reasons land here: the plan
+                   refuses the save (`locked`) and the bot's write path has not
+                   opened this field yet (not `writable`). The sentence beneath
+                   is what tells them apart; see settings_view.py.
+
+                   NO `present(field)` HERE, AND THAT IS LOAD-BEARING. A
+                   disabled input submits nothing, so if the hidden
+                   `present_<name>` marker were rendered the form would post
+                   "this field was on the page and is unticked" -- which is how
+                   you ask for it to be turned OFF. The bot would refuse, being
+                   the reason the field is uneditable in the first place, but
+                   the dashboard has no business sending it. #}
+                <p class="switch-row">
+                  <input type="checkbox" class="switch" disabled
+                         aria-labelledby="l-{{ field.name }}"
+                         {%- if field.value %} checked{% endif %}>
+                </p>
               {% else %}
               <p class="value{% if field.empty %} empty{% endif %}">
                 {%- if field.swatch %}
@@ -307,6 +338,21 @@
                   Saved, but not acted on without Premium. Anyone can set this;
                   the bot just won't use it until the feature is active.
                 </p>
+              {% elif not field.writable %}
+                {# The fourth state, and the one with nothing to do with the
+                   plan: the bot's save path has not opened this field to the
+                   website. It is non-interactive for the same visual reason a
+                   locked field is and for an entirely different actual reason,
+                   so it must not borrow that sentence -- "Premium only" here
+                   would be a straightforward lie.
+
+                   Deliberately no "set it in Discord instead": /vrcverify_settings
+                   became a read-only summary when editing moved here, so that
+                   would send somebody to a command that cannot do it. #}
+                <p class="muted plan">
+                  Not editable from the website yet. Nothing is wrong with it —
+                  the bot hasn't opened this setting to the dashboard.
+                </p>
               {% endif %}
 
               {% for warning in field.warnings %}
@@ -318,7 +364,18 @@
       </dl>
 
       {% if group.save_endpoint and editable %}
-        <p class="actions"><button type="submit" class="button">Save changes</button></p>
+        {# The indicator is in the markup on every render and revealed by CSS
+           when app.js marks the form dirty. It is not created by the script:
+           app.js does not write markup, and keeping that true is worth more
+           than the few bytes this costs on a clean page. With no JavaScript it
+           never shows, which is exactly how this page behaved before. #}
+        <p class="actions">
+          <button type="submit" class="button">Save changes</button>
+          <span class="unsaved">
+            <span class="unsaved-dot" aria-hidden="true"></span>
+            Unsaved changes in this group
+          </span>
+        </p>
         </form>
       {% endif %}
 

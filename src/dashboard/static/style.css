@@ -134,6 +134,28 @@
    * theme recolours it rather than loading a second image -- see
    * --dark-logo-filter for why that is not laziness. */
   --logo-filter: none;
+
+  /* THE TOGGLE SWITCH, which has to clear 3:1 TWICE.
+   *
+   * A switch is a UI component, so its track must be distinguishable from the
+   * card behind it; and the knob is what states on or off, so it must be
+   * distinguishable from the track. Those are two 3:1 requirements pulling in
+   * opposite directions on one shape, which is why these are their own tokens
+   * rather than reuses.
+   *
+   * Off: #8d919b is 3.16:1 against a white card and 3.16:1 against the white
+   * knob -- the same figure, because both comparisons are against white.
+   * Anything lighter fails both at once; --selected, the obvious candidate,
+   * managed 1.44:1.
+   *
+   * On: exactly --accent here. On dark it cannot be; see --dark-switch-on. */
+  --switch-off: #8d919b;
+  --switch-on: #5865f2;
+
+  /* White in both themes, and therefore not repeated in either dark block. The
+   * knob is a physical object in the metaphor -- it does not change colour
+   * when the room does. */
+  --switch-knob: #ffffff;
 }
 
 /* The dark values, named once and painted by nothing.
@@ -196,6 +218,25 @@
    * looking at the two, not by reasoning about it. A second PNG would be the
    * other answer and would mean two files to keep in step forever. */
   --dark-logo-filter: invert(1);
+
+  /* NO EXISTING BLURPLE SATISFIES BOTH SWITCH CONSTRAINTS ON DARK, so the
+   * switch gets its own -- the same shape of problem that produced
+   * --accent-text, one step further along.
+   *
+   *   --accent      #5865f2 : 2.74:1 against the card. Fails.
+   *   --accent-text #8a93f6 : 2.77:1 against the white knob. Fails.
+   *   --switch-on   #7681f5 : 3.75:1 against the card, 3.37:1 against the
+   *                           knob. Clears both.
+   *
+   * It sits between the two because it has to; a token squeezed from both
+   * sides has less room than one squeezed from one. On light no squeeze
+   * happens -- the card and the knob are both white, so the two requirements
+   * collapse into the same number -- which is why --switch-on is plain
+   * --accent there and only diverges here. */
+  --dark-switch-on: #7681f5;
+
+  /* 3.38:1 against the card, 3.74:1 against the knob. */
+  --dark-switch-off: #80848e;
 }
 
 /* Dark, chosen explicitly. Beats the light floor on specificity, and is
@@ -230,6 +271,8 @@
   --notice-line: var(--dark-notice-line);
 
   --logo-filter: var(--dark-logo-filter);
+  --switch-on: var(--dark-switch-on);
+  --switch-off: var(--dark-switch-off);
 }
 
 /* Dark, because the OS asked and the reader has not said otherwise.
@@ -268,6 +311,8 @@
     --notice-line: var(--dark-notice-line);
 
     --logo-filter: var(--dark-logo-filter);
+    --switch-on: var(--dark-switch-on);
+    --switch-off: var(--dark-switch-off);
   }
 }
 
@@ -1046,6 +1091,104 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   margin-bottom: 0.35rem;
 }
 
+/* --- the toggle switch ---
+ *
+ * A REAL <input type="checkbox">, restyled. Not a div with a click handler:
+ * keeping the native control means the keyboard behaviour, the focus ring, the
+ * label association and everything a screen reader says about it are the
+ * browser's job and stay correct for free. `appearance: none` removes the box
+ * and nothing else.
+ *
+ * THE THING TO BE CAREFUL ABOUT
+ * -----------------------------
+ * Every switch in every product this was compared against saves the moment you
+ * flip it. This one CANNOT: the CSP has no `connect-src`, so a script here
+ * could not tell the server anything even if it wanted to, and saving means
+ * submitting the form. A switch that looks like Substack's and silently
+ * discards the change when you navigate away is WORSE than the checkbox it
+ * replaced -- a checkbox at least looked like part of a form.
+ *
+ * That is why the unsaved-changes indicator below is not a nicety. It ships
+ * with the switches or the switches do not ship. */
+.switch {
+  appearance: none;
+  flex: 0 0 auto;
+  position: relative;
+  width: 2.25rem;
+  height: 1.25rem;
+  margin: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--switch-off);
+  cursor: pointer;
+}
+
+.switch::before {
+  content: "";
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 50%;
+  background: var(--switch-knob);
+}
+
+.switch:checked { background: var(--switch-on); }
+.switch:checked::before { translate: 1rem 0; }
+
+/* Disabled covers two different situations that must not be confused -- the
+ * plan refuses the save (`locked`) and the bot's write path has not opened
+ * this field yet (not `writable`). Neither is interactive, so both are dimmed
+ * the same way; what tells them apart is the badge and the sentence beneath,
+ * which say different things. Dimming is deliberately NOT the whole story.
+ *
+ * The knob still reflects the stored value. A disabled switch forced to read
+ * "off" would contradict the sentence under a locked field, which promises the
+ * saved value is kept -- and Vercel's permission toggles do the same. */
+.switch:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.switch-row { display: flex; align-items: center; gap: var(--space-3); }
+
+/* --- unsaved changes ---
+ *
+ * Five independent forms on this page, each with its own Save. That is the
+ * whole reason app.js exists: edit one group, save another, and the first
+ * group's edits go away with no error, because nothing went wrong.
+ *
+ * Chatbase and Laravel Cloud both solve this with one bar at the foot of the
+ * page. That works when there is one form and does not here -- a single bar
+ * could not say WHICH group is unsaved, and "which group" is the entire
+ * question. So the indicator is per group, beside the Save button that would
+ * resolve it.
+ *
+ * Hidden by default and revealed by a class app.js sets. With no JavaScript it
+ * never appears, which is the behaviour this page has always had. */
+.unsaved {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-note);
+  font-weight: 500;
+  color: var(--notice);
+}
+
+.is-dirty .unsaved { display: inline-flex; }
+
+.unsaved-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--notice);
+  flex: 0 0 auto;
+}
+
+/* The card carrying unsaved edits, marked down its edge so it is findable
+ * after scrolling past it. `:has` is what lets a class on the form reach the
+ * card that contains it; where it is unsupported the text beside the Save
+ * button still appears, so nothing is lost that mattered. */
+.group:has(.is-dirty) { box-shadow: inset 3px 0 0 var(--notice); }
+
 select,
 textarea,
 input[type="color"] {
@@ -1070,7 +1213,17 @@ textarea {
   line-height: 1.5;
 }
 
-.actions { margin: 1.1rem 0 0; }
+/* The Save button stays a full, labelled button and does not shrink to an icon
+ * when idle. It is the only thing on the card that commits anything, and a
+ * control that is hard to find while you are looking for it is a worse problem
+ * than one that is prominent while you are not. */
+.actions {
+  margin: 1.1rem 0 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
 
 .badge {
   font-size: 0.6875rem;
@@ -1294,6 +1447,7 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   .button,
   .side-link,
   .hamburger,
+  .switch,
   .server-card,
   .server-name a,
   .bar-button,
@@ -1304,6 +1458,12 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
                 color var(--motion-fast) var(--ease),
                 border-color var(--motion-fast) var(--ease);
   }
+
+  /* The knob travels. Only here: with motion reduced the switch still changes
+   * state and still changes colour, it simply arrives rather than slides.
+   * A switch that stopped working under prefers-reduced-motion would be a
+   * broken control, not a calmer one. */
+  .switch::before { transition: translate var(--motion-fast) var(--ease); }
 }
 
 /* No @view-transition here, deliberately.

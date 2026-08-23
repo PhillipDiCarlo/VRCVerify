@@ -121,15 +121,27 @@ GUILDS = [
 # would take.
 INSTALLED = {PREMIUM, FREE, UNREACHABLE}
 
-# One field held back from `writable`, so the read-only switch state can be
-# seen at all.
+# TWO OF THE FOUR SWITCH STATES HAVE NO NATURAL EXAMPLE, so they are made here.
 #
-# It cannot be seen anywhere else: `bot.DASHBOARD_WRITABLE_FIELDS` currently
-# contains every declared setting, so a not-`writable` field does not occur in
-# production today. #133 phase 4 still has to render it distinctly from
-# `locked` -- the two are non-interactive for entirely different reasons and
-# need different copy -- and this is the only place that can be checked.
-WITHHELD = "custom_verification_requested_message"
+# #133 phase 4 has to render four distinct states, and the free plan only
+# produces two of them on a boolean field:
+#
+#   normal            auto_verify_new_members, on the free server. Fine.
+#   locked            three fields on the free server. Fine.
+#   inactive          every inactive boolean in FREE_PLAN is ALSO locked, so an
+#                     enabled switch wearing "Not applied" -- the state that
+#                     keeps this site from being stricter than the slash
+#                     commands -- appears nowhere. Forced below on the free
+#                     server.
+#   not `writable`    bot.DASHBOARD_WRITABLE_FIELDS currently contains every
+#                     declared setting, so this does not occur in production at
+#                     all. Withheld below on the premium server, which has no
+#                     locked fields to confuse it with.
+#
+# Both are real states of the rendering code reached by unreal data. That is
+# the point: a style nobody can look at is a style nobody has checked.
+FORCED_INACTIVE = "auto_nickname_change"
+WITHHELD = "panel_show_icon"
 
 PREVIEW_AUDIT = [
     {
@@ -182,9 +194,15 @@ class PreviewBotAPI:
         payload = make_settings(
             premium=premium,
             values=self._saved_values.get(guild_id),
-            writable=WRITABLE if premium else WRITABLE - {WITHHELD},
+            # Withheld on the PREMIUM server, where nothing else is locked, so
+            # "read-only for a reason that is not the plan" cannot be mistaken
+            # for "read-only because you have not paid".
+            writable=WRITABLE - {WITHHELD} if premium else WRITABLE,
         )
         payload["guild_id"] = guild_id
+        if not premium:
+            # Enabled, saveable, and not acted on -- see FORCED_INACTIVE.
+            payload["fields"][FORCED_INACTIVE].update(active=False, locked=False)
         return payload
 
     def overview(self, actor_id, guild_id) -> dict:
