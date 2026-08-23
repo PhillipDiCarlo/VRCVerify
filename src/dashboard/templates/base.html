@@ -41,7 +41,14 @@
   </svg>
 {%- endmacro %}
 <!DOCTYPE html>
-<html lang="en">
+{# `data-theme` is stamped by the server, in the markup, before a byte of CSS
+   or script is parsed -- which is what makes the first paint already correct.
+   A script that corrected the theme after paint would flash the wrong one on
+   every cold load, and that flash is the single most visible way a theme
+   feature goes wrong.
+
+   Absent means "follow the OS": see theme_attr() in app.py. #}
+<html lang="en"{{ theme_attr() }}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">

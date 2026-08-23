@@ -3047,6 +3047,100 @@ class TestTheSidebarPreference:
         assert response.headers["Location"].endswith("/")
 
 
+class TestTheThemeAttribute:
+    """What `<html>` carries, and why "system" carries nothing (issue #123).
+
+    The stylesheet resolves three states from two selectors and an absence:
+    `[data-theme="dark"]`, `[data-theme="light"]`, and
+    `:root:not([data-theme])` inside the dark media query. So "follow the OS"
+    is the *absence* of the attribute, and a test that only checked for the
+    right string would pass on a page that pinned every reader to light.
+    """
+
+    @staticmethod
+    def _html_tag(page: str) -> str:
+        start = page.index("<html")
+        return page[start : page.index(">", start) + 1]
+
+    def test_no_cookie_means_dark(self, client):
+        """The product decision from #123, and the reason this phase exists."""
+        assert 'data-theme="dark"' in self._html_tag(client.get("/").data.decode())
+
+    @pytest.mark.parametrize("chosen", ["dark", "light"])
+    def test_an_explicit_choice_is_rendered(self, client, chosen):
+        client.set_cookie("vrcverify_theme", chosen)
+        tag = self._html_tag(client.get("/").data.decode())
+        assert f'data-theme="{chosen}"' in tag
+
+    def test_system_renders_no_attribute_at_all(self, client):
+        """Not `data-theme="system"`.
+
+        That value matches none of the stylesheet's three blocks, so it would
+        silently pin the reader to the light floor -- the opposite of what
+        choosing "System" asks for, and invisible to anyone whose OS is light.
+        """
+        client.set_cookie("vrcverify_theme", "system")
+        assert "data-theme" not in self._html_tag(client.get("/").data.decode())
+
+    @pytest.mark.parametrize(
+        "value",
+        ["", "System", "DARK", "purple", "dark light", '"><script>', "../../etc"],
+    )
+    def test_anything_unrecognised_falls_back_to_dark(self, client, value):
+        """The cookie is attacker-controlled; the attribute is not.
+
+        `_theme()` reduces it to one of three known words before it is
+        interpolated, so nothing from a header can reach the markup. Note the
+        casing cases: matching is exact, so `DARK` is not a third spelling of
+        dark, it is simply unrecognised.
+        """
+        client.set_cookie("vrcverify_theme", value)
+        tag = self._html_tag(client.get("/").data.decode())
+        assert 'data-theme="dark"' in tag
+        assert "<script>" not in tag
+
+    def test_the_signed_out_page_is_themed_too(self, client):
+        """The sign-in page renders with no session and no arguments at all.
+
+        `render_template("login.html")` passes nothing, which is exactly why
+        the theme is a template global rather than a context variable. If it
+        were threaded through render calls, this page is the one that would
+        have been missed.
+        """
+        page = client.get("/").data.decode()
+        assert b"Sign in with Discord" in page.encode()
+        assert 'data-theme="dark"' in self._html_tag(page)
+
+    def test_every_page_is_themed_not_just_the_first(self, config, store):
+        """A signed-in page inherits it from the same base template."""
+        test_client, _api = settings_client(config, store)
+        for path in ("/", f"/guild/{GUILD_IN}/settings"):
+            tag = self._html_tag(test_client.get(path).data.decode())
+            assert 'data-theme="dark"' in tag, path
+
+    def test_the_theme_costs_no_extra_bot_calls(self, config, store):
+        """A display preference must not be a way to spend the bot's calls.
+
+        Compared against the same page rendered with no cookie rather than
+        against zero: the picker legitimately asks the bot which guilds it is
+        in, so the question is whether choosing a theme adds anything, not
+        whether the page talks to the bot at all.
+        """
+        plain_client, plain_api = settings_client(config, store)
+        plain_client.get("/")
+        baseline = (
+            len(plain_api.reads), len(plain_api.calls), len(plain_api.saves)
+        )
+
+        themed_client, themed_api = settings_client(config, store)
+        themed_client.set_cookie("vrcverify_theme", "light")
+        themed_client.get("/")
+
+        assert (
+            len(themed_api.reads), len(themed_api.calls), len(themed_api.saves)
+        ) == baseline
+
+
 class TestOverviewViewModel:
     """The three tile states, tested without a request."""
 

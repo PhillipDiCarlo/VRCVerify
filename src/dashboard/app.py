@@ -65,6 +65,7 @@ from flask import (
     request,
     url_for,
 )
+from markupsafe import Markup
 import requests
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -391,6 +392,33 @@ NAV_COOKIE = "vrcverify_nav"
 # A year. The preference is trivial to re-set and there is nothing to expire.
 NAV_COOKIE_MAX_AGE = 31536000
 
+# The chosen theme (issue #123). Same class of thing as NAV_COOKIE and for the
+# same reasons: a display preference, read by no authorisation decision, naming
+# no guild, and worth forging only to change the colour of your own page. Not
+# `__Host-` prefixed, so the session cookie stays the one that stands out.
+#
+# Nothing writes this yet -- phase 3 adds the picker and the route that sets
+# it, and phase 4 lets a script write it directly so the switch is instant.
+# That last part is why it will NOT be httponly, unlike NAV_COOKIE: a script
+# cannot write a header the browser hides from it, and with no `connect-src` in
+# the CSP it cannot ask the server to do it either. The choice is between a
+# full navigation on every toggle and a cookie the page can write.
+#
+# For now this is read-only from the app's point of view: set it by hand to
+# exercise the three states.
+THEME_COOKIE = "vrcverify_theme"
+
+# What the cookie may say. Anything else is treated as if it were absent, which
+# is what stops a hand-edited value reaching a `data-` attribute unchecked.
+THEMES = frozenset({"dark", "light", "system"})
+
+# No cookie means dark. That is the product decision from #123 -- the people
+# using this page have Discord open on the other monitor, and Discord is dark
+# -- and it is why "absent" and "dark" resolve to the same render rather than
+# being told apart. A first-time visitor and someone who explicitly chose dark
+# want the same thing, so nothing here needs to know which they are.
+THEME_DEFAULT = "dark"
+
 # Where the hamburger may send you back to. An endpoint name, never a URL from
 # the request -- a form field carrying a path is an open redirect waiting for
 # someone to notice, and this form exists to toggle a cookie.
@@ -562,6 +590,35 @@ def _register_assets(app: Flask) -> None:
         url = url_for("static", filename=filename)
         version = digest(filename)
         return f"{url}?v={version}" if version else url
+
+    @app.template_global()
+    def theme_attr() -> Markup:
+        """The `data-theme` attribute for `<html>`, or nothing at all.
+
+        A template global rather than a variable passed to `render_template`,
+        and that is the whole point. There are thirteen render calls in this
+        module and one of them -- the sign-in page -- passes no arguments
+        whatsoever, because before a session exists there is nothing to pass.
+        Threading a `theme` through all thirteen would mean every page added
+        after this one has to remember to, and the one that forgets renders
+        with no theme at all. This way `base.html` asks for it and no call site
+        can leave it out.
+
+        **"System" is the absence of the attribute, not a value of it.** The
+        stylesheet's third block is `:root:not([data-theme])` inside the dark
+        media query, so leaving the attribute off is what hands the decision
+        back to the OS. Emitting `data-theme="system"` would match none of the
+        three blocks and quietly pin everyone to the light default.
+
+        Returned as Markup because it is markup -- an escaped ` data-theme=...`
+        would land in the page as text. Nothing from the request reaches it:
+        `_theme()` has already reduced the cookie to one of three known words,
+        so there is no path from a header into this attribute.
+        """
+        chosen = _theme()
+        if chosen == "system":
+            return Markup("")
+        return Markup(' data-theme="%s"') % chosen
 
 
 # -------------------------------------------------------------------
@@ -1936,6 +1993,18 @@ def _guild_chrome(session, guild_id: int, section: str) -> dict:
 def _nav_collapsed() -> bool:
     """Whether this browser last asked for the narrow sidebar."""
     return request.cookies.get(NAV_COOKIE) == "1"
+
+
+def _theme() -> str:
+    """Which of the three themes this browser last asked for.
+
+    Anything unrecognised -- absent, empty, hand-edited, left over from a
+    future version -- becomes the default rather than an error. There is no
+    state to corrupt and nothing to warn about: the reader gets a dark page and
+    can pick again.
+    """
+    chosen = request.cookies.get(THEME_COOKIE)
+    return chosen if chosen in THEMES else THEME_DEFAULT
 
 
 def _nav_return_url() -> str:
