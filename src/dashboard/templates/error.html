@@ -2,9 +2,33 @@
 {% block title %}VRCVerify{% endblock %}
 
 {% block content %}
-<section class="panel centered">
+{# THE PAGE PEOPLE SEE AT THE WORST MOMENT.
+   Reached through _guild_page_unavailable when the bot cannot answer, so it
+   is read by somebody whose server may be having a problem right now. It gets
+   the same card, tokens and button as every other page rather than a special
+   apology layout -- a page that looks broken while telling you something is
+   broken makes the outage feel bigger than it is.
+
+   `message` is chosen from a fixed set in app.py and never carries anything
+   the bot said, so there is nothing here that could reflect a caller's text
+   back onto the page. #}
+<section class="panel centered refusal">
+  {# Decorative: the sentence below says what happened, and a screen reader
+     announcing "warning triangle" before it adds nothing. Inline SVG for the
+     same reason as every other glyph -- the vendored Inter subset has no such
+     character. #}
+  <p class="error-mark" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="28" height="28" fill="none"
+         stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+         stroke-linejoin="round">
+      <path d="M12 3.6 22 20.4H2z"></path>
+      <path d="M12 10v4.2M12 17.4h.01"></path>
+    </svg>
+  </p>
   <h1>Sorry</h1>
   <p>{{ message }}</p>
-  <p><a class="button" href="{{ url_for('index') }}">Back to your servers</a></p>
+  <p class="actions">
+    <a class="button" href="{{ url_for('index') }}">Back to your servers</a>
+  </p>
 </section>
 {% endblock %}
