@@ -20,9 +20,20 @@ it is why the placeholders are deliberately non-functional rather than merely
 absent -- a config that half-works against real infrastructure is worse than
 one that cannot reach it at all.
 
-`BOT_API_URL` points at a closed port on purpose. Anything past the sign-in
-page needs a real session and a reachable bot, and will fail here; that is the
-intended blast radius, not a bug to fix.
+`BOT_API_URL` points at a closed port on purpose, and with the stub below in
+place nothing ever calls it -- see scripts/preview_bot.py. The preview is
+therefore *less* able to reach production than it was, not more.
+
+SIGNED IN OR SIGNED OUT
+-----------------------
+Signed in by default, because almost everything left to restyle lives behind
+the sign-in page. Set PREVIEW_SIGNED_IN=0 for the sign-in page itself, which
+#134 redesigns; there is a Run and Debug entry for each.
+
+Signed in, the session is injected on the request rather than handed to the
+browser as a cookie, so signing out does nothing here. That is the trade for
+not having to walk the OAuth flow against a Discord that would refuse these
+credentials anyway. To look at the signed-out pages, use the other entry.
 
 **This file never reads .env.** The repository root has one, it holds real
 credentials, and loading it would silently turn a preview into a client of
@@ -72,9 +83,19 @@ os.environ.update(
     STRIPE_ENABLED="0",
 )
 
+from flask import g  # noqa: E402
 from dashboard.app import create_app  # noqa: E402  (after os.environ is set)
 
-app = create_app()
+# Signed in unless told otherwise: the sign-in page is one of the few surfaces
+# that renders without a session, and everything else needs one.
+PREVIEW_SIGNED_IN = os.environ.get("PREVIEW_SIGNED_IN", "1") != "0"
+
+if PREVIEW_SIGNED_IN:
+    from preview_bot import ACTOR, GUILDS, PreviewBotAPI  # noqa: E402
+
+    app = create_app(client=PreviewBotAPI())
+else:
+    app = create_app()
 
 # Templates re-read from disk on every render. The process reloader is left
 # OFF deliberately: it forks, and a forked process drops the debugger, so
@@ -82,6 +103,33 @@ app = create_app()
 # half -- edit a template, refresh the browser -- without that cost.
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.jinja_env.auto_reload = True
+
+
+if PREVIEW_SIGNED_IN:
+    # A real Session row, built by the real store, rather than a hand-made
+    # object: the store is a local SQLite file the preview already owns, and
+    # letting it construct the session means this cannot drift if the dataclass
+    # gains a field.
+    _store = app.config["STORE"]
+    _preview_session = _store.complete_login(
+        _store.begin_login("preview-not-a-real-oauth-state").sid, ACTOR, GUILDS
+    )
+
+    @app.before_request
+    def _sign_in():
+        """Put the session on `g` directly, without a cookie.
+
+        Registered after create_app, so it runs after the app's own
+        `load_session` hook and overwrites what that found -- which is nothing,
+        because no browser here has a session cookie.
+
+        Handing the browser a real cookie was the alternative. It would make
+        sign-out work, at the cost of a session that expires mid-session and
+        cannot be renewed without an OAuth round trip Discord would refuse. A
+        preview that logs you out after an hour of styling is worse than one
+        where the sign-out button is inert.
+        """
+        g.session = _preview_session
 
 
 @app.after_request
@@ -233,12 +281,17 @@ if __name__ == "__main__":
         raise SystemExit(1)
 
     print(f"\n  Dashboard preview: http://{HOST}:{PORT}/")
-    print("  Sign-in page only -- anything past it needs a real bot.\n")
-    print("  Theme (devtools console, then reload):")
-    print('    document.cookie = "vrcverify_theme=dark;   path=/"')
-    print('    document.cookie = "vrcverify_theme=light;  path=/"')
-    print('    document.cookie = "vrcverify_theme=system; path=/"')
-    print('    document.cookie = "vrcverify_theme=; path=/; max-age=0"   (clear)\n')
+    if PREVIEW_SIGNED_IN:
+        from preview_bot import FREE, PREMIUM, UNREACHABLE
+
+        print("  Signed in against a stub. Every server below is invented.\n")
+        print(f"    premium      /guild/{PREMIUM}/settings")
+        print(f"    free         /guild/{FREE}/settings")
+        print(f"    always down  /guild/{UNREACHABLE}         (error.html)")
+        print("    not added    on the picker at /\n")
+        print("  Sign-out does nothing here; run the signed-out entry for that.\n")
+    else:
+        print("  Signed out -- the sign-in page only.\n")
     try:
         app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
     except OSError as exc:
