@@ -1593,9 +1593,15 @@ SAVE_ERRORS = {
         "Run /vrcverify_setup in your server first -- VRCVerify needs a "
         "verified role before it can store anything else."
     ),
+    # No "use /vrcverify_settings instead". That command stopped being an
+    # editor when configuration moved here -- it shows what is stored and links
+    # back -- so sending somebody there to make a change would hand them a
+    # command that reports success at displaying and alters nothing. It is the
+    # worst place to do it, too: this string is read by an admin whose save was
+    # just refused, who is looking for the thing that will work.
     "not_writable_yet": (
-        "That setting can't be changed from the website yet. Use "
-        "/vrcverify_settings in your server."
+        "That setting can't be changed from the website yet. Nothing was "
+        "changed."
     ),
     "unavailable": (
         "The bot couldn't complete the save, so nothing was changed. Try again "

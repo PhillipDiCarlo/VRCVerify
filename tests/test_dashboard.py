@@ -3074,6 +3074,114 @@ class TestTheSidebar:
         assert 'class="sidebar"' not in page
 
 
+def _copy_only(source: str, filename: str) -> str:
+    """The parts of a file a person could actually read on the page.
+
+    Comments are stripped because a comment naming a retired command is a
+    NOTE about it, not an instruction to use it -- and this exact test failed
+    on the comment written to explain the bug it had just found. Python
+    comments go through `tokenize` rather than a regex so a `#` inside a
+    string, of which this codebase has several as colours, cannot swallow the
+    rest of the line.
+    """
+    if filename.endswith(".html"):
+        source = re.sub(r"\{#.*?#\}", "", source, flags=re.S)
+        return re.sub(r"<!--.*?-->", "", source, flags=re.S)
+
+    import io
+    import tokenize
+
+    kept = []
+    try:
+        for token in tokenize.generate_tokens(io.StringIO(source).readline):
+            if token.type != tokenize.COMMENT:
+                kept.append(token.string)
+    except (tokenize.TokenError, IndentationError):  # pragma: no cover
+        return source
+    return "\n".join(kept)
+
+
+class TestWhatTheDashboardSaysAboutDiscord:
+    """Issue #154. The dashboard told people to change settings with a command
+    that stopped being able to change anything.
+
+    Three commands used to edit settings -- /vrcverify_settings,
+    /vrcverify_logchannel and /vrcverify_setrequestmessage. When configuration
+    moved to this site all three became the same read-only summary that links
+    back here. They were kept deliberately, so a command that is now a
+    migration notice still answers rather than vanishing.
+
+    That makes them the worst thing to point somebody at. A command that no
+    longer exists fails visibly; one that renders a settings summary looks like
+    it worked.
+    """
+
+    # Reads and links back. Naming any of these as the way to CHANGE something
+    # is the bug this class exists to keep fixed.
+    READ_ONLY = (
+        "/vrcverify_settings",
+        "/vrcverify_logchannel",
+        "/vrcverify_setrequestmessage",
+    )
+
+    def test_no_save_error_sends_an_admin_to_a_read_only_command(self):
+        """Every one of these is read by somebody whose save was just refused,
+        looking for the thing that will work instead. There is no wording in
+        which naming a read-only command there is correct, so the rule is
+        absolute rather than per-string."""
+        for reason, message in app_module.SAVE_ERRORS.items():
+            for command in self.READ_ONLY:
+                assert command not in message, f"{reason}: {message}"
+
+    def test_the_sign_in_page_does_not_claim_discord_can_configure(
+        self, client
+    ):
+        """It said configuration could all be done from Discord instead, and
+        that this site was "an alternative, not a replacement". Neither is
+        true, on the page read while deciding whether to sign in at all."""
+        page = client.get("/").data.decode()
+        assert "configure everything" not in page
+        assert "an alternative, not a" not in page
+
+    def test_the_sign_in_page_names_the_command_that_can_still_write(
+        self, client
+    ):
+        """Removing the false claim without replacing it would leave somebody
+        who does not want a browser with nothing. /vrcverify_setup survived the
+        cut and really does configure a server enough to start verifying."""
+        page = client.get("/").data.decode()
+        assert "/vrcverify_setup" in page
+
+    def test_every_command_the_dashboard_names_still_exists(self):
+        """The general version, and the drift this class is one instance of.
+
+        The dashboard image does not ship bot.py, so nothing at runtime can
+        notice a command being renamed or removed -- the copy would simply go
+        on naming it. Here in the repo the two can be compared.
+        """
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, "src", "bot.py"), encoding="utf-8") as handle:
+            bot_source = handle.read()
+        registered = set(re.findall(r'name="(vrcverify[a-z_]*)"', bot_source))
+        assert registered, "no slash commands found in bot.py"
+
+        import dashboard
+
+        named = set()
+        dashboard_dir = os.path.dirname(dashboard.__file__)
+        for folder, _dirs, files in os.walk(dashboard_dir):
+            for name in files:
+                if not name.endswith((".py", ".html")):
+                    continue
+                path = os.path.join(folder, name)
+                with open(path, encoding="utf-8") as handle:
+                    source = handle.read()
+                named |= set(re.findall(r"/(vrcverify[a-z_]*)", _copy_only(source, name)))
+
+        assert named, "the dashboard names no commands at all any more"
+        assert named <= registered, f"named but not registered: {named - registered}"
+
+
 class TestTheToggleSwitches:
     """#133 phase 4. The phase the issue puts a warning on.
 

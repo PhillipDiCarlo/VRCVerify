@@ -15,10 +15,23 @@
   <p>
     <a class="button" href="{{ url_for('login') }}">Sign in with Discord</a>
   </p>
+  {# What Discord can and cannot do, stated accurately.
+
+     This used to say configuration could all be done from Discord with
+     /vrcverify_settings, and that this site was "an alternative, not a
+     replacement". Both halves stopped being true when the editors were
+     removed: that command, /vrcverify_logchannel and /vrcverify_setrequestmessage
+     all show the same read-only summary and link back here.
+
+     Getting it wrong here is expensive in a way a typo is not -- this is the
+     page somebody reads while deciding whether to sign in at all, and the
+     command it named would have appeared to work, since it does render a
+     settings summary. #}
   <p class="muted">
-    You can configure everything here from inside Discord instead, with
-    <code>/vrcverify_settings</code>. This site is an alternative, not a
-    replacement.
+    <code>/vrcverify_setup</code> in Discord sets a server's verified role,
+    which is enough to start verifying members, and
+    <code>/vrcverify_settings</code> shows what's stored. Everything else is
+    changed here.
   </p>
 </section>
 {% endblock %}

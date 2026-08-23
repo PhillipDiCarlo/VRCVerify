@@ -142,9 +142,17 @@
                 <p class="muted desc">The bot didn't answer this one. Try again shortly.</p>
               {% elif not group.panel.posted %}
                 <p class="value empty">No panel found</p>
+                {# Named the wrong command: /vrcverify_panel has never
+                   existed. The one that posts a panel is
+                   /vrcverify_instructions -- and this page has a button that
+                   does it too, a few lines further down, which is the better
+                   answer to give somebody already looking at this page.
+
+                   Found by the drift test in tests/test_dashboard.py, not by
+                   anyone reading it, which is the argument for that test. #}
                 <p class="muted desc">
-                  Post one with <code>/vrcverify_panel</code> so members have
-                  somewhere to start.
+                  Post one below, or with <code>/vrcverify_instructions</code>
+                  in Discord, so members have somewhere to start.
                 </p>
               {% else %}
                 <p class="value">{{ group.panel.channel }}</p>
