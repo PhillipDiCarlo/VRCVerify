@@ -6,6 +6,25 @@
     "configurations": [
 
         {
+            // Serves the dashboard at http://127.0.0.1:5001 with fake
+            // credentials, for looking at templates and CSS. Never reads .env
+            // and cannot reach the real bot -- see scripts/dev_dashboard.py.
+            // Stop it with the red square, or Ctrl+C in the terminal.
+            "name": "Dashboard (local preview)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/dev_dashboard.py",
+            "console": "integratedTerminal",
+            // The Flask reloader is off in the script, so breakpoints in
+            // app.py, the view modules and Jinja stay attached.
+            "justMyCode": false,
+            "serverReadyAction": {
+                "pattern": "Dashboard preview: (https?://\\S+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        },
+        {
             "name": "Bot.py Debugger",
             "type": "debugpy",
             "request": "launch",
