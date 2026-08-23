@@ -47,7 +47,7 @@
    attribute is a presentation attribute -- style-src 'self' blocks inline
    style="" too. #}
 {% macro theme_icon(which) -%}
-  <svg class="theme-mark" viewBox="0 0 16 16" width="16" height="16"
+  <svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16"
        aria-hidden="true" fill="none" stroke="currentColor"
        stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
     {%- if which == 'dark' -%}
@@ -63,6 +63,38 @@
       {# A monitor: "whatever this machine says". #}
       <rect x="1.8" y="2.8" width="12.4" height="8.4" rx="1.3"></rect>
       <path d="M6 13.8h4"></path>
+    {%- endif -%}
+  </svg>
+{%- endmacro %}
+
+{# The account menu's three glyphs, drawn the same way as every other icon in
+   this file: inline SVG, presentation attributes only, no character that would
+   have to exist in the vendored Inter subset.
+
+   'everywhere' is two devices side by side rather than one device with
+   something layered over it. The overlapping version needs the upper shape to
+   punch a hole in the lower one with `fill`, and the only colour available to
+   fill it with is the surface behind -- which is `--panel` at rest and
+   `--hover` under the pointer, so it would show its seams on hover. Two
+   separate shapes say "more than this one" without that problem. #}
+{% macro account_icon(which) -%}
+  <svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16"
+       aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    {%- if which == 'person' -%}
+      <circle cx="8" cy="5.4" r="2.7"></circle>
+      <path d="M2.9 13.6a5.2 5.2 0 0 1 10.2 0"></path>
+    {%- elif which == 'out' -%}
+      {# A door you are walking out of: the frame is open on the side the
+         arrow leaves through, so the two read as one movement. #}
+      <path d="M6.4 2.6H3.5A1.3 1.3 0 0 0 2.2 3.9v8.2a1.3 1.3 0 0 0 1.3 1.3h2.9"></path>
+      <path d="M10.6 5.3 13.5 8l-2.9 2.7"></path>
+      <path d="M13.5 8H6.6"></path>
+    {%- else -%}
+      {# A screen and a phone: "every device", not "this one". #}
+      <rect x="1.2" y="3" width="8.4" height="6.2" rx="1.1"></rect>
+      <path d="M5.4 9.2v2.5M3.8 11.7h3.2"></path>
+      <rect x="11.2" y="5.6" width="3.6" height="7.4" rx="1.1"></rect>
     {%- endif -%}
   </svg>
 {%- endmacro %}
@@ -129,95 +161,181 @@
       </form>
     {% endif %}
 
-    <a class="brand" href="{{ url_for('index') }}">VRCVerify</a>
+    {# The mark and the word together. The image carries `alt=""` because it is
+       decorative in the strict sense: the word beside it says the same thing,
+       and a screen reader announcing "VRCVerify logo, VRCVerify" is a worse
+       link than one that just says where it goes.
 
-    {# THE THEME PICKER
-       ----------------
-       A <details> disclosure, so it opens and closes with no JavaScript at
-       all. Phase 4 makes the choice instant; today every option is a form
-       submit, and the page works completely without a script either way.
+       `width`/`height` are the file's intrinsic size, not its rendered size --
+       they give the browser the aspect ratio so the wordmark does not jump
+       sideways when the image lands. The stylesheet sets the height it is
+       actually drawn at.
 
-       Three submit buttons rather than radios and a Save: a theme is a
-       one-click decision, and a picker that needs a second click to confirm
-       is a worse control than the one-button toggle it replaced. Each button
-       carries its own value, so the server is told exactly which was pressed.
+       Served through asset() like everything else, so it carries a content
+       digest and can be cached for a year. `img-src` is already `'self'` plus
+       Discord's CDN, so a local file needs no CSP change.
 
-       Not inside the `{% if section %}` guard the hamburger uses -- this
-       belongs on every page including the sign-in one, which has no session.
-       `set_theme_preference` requires neither a session nor a CSRF token for
-       exactly that reason; see the route. #}
-    <details class="theme">
-      {# The summary shows the theme in force. `list-style: none` in the
-         stylesheet removes the default triangle -- the icon is the marker. #}
-      <summary class="theme-button"
-               title="Theme: {{ current_theme() }}"
-               aria-label="Theme: {{ current_theme() }}. Choose a different one.">
-        {{ theme_icon(current_theme()) }}
-      </summary>
+       static/logo.png is Logos/VRCVerify-Logo.png cropped to the artwork and
+       scaled down: the source is 1024x1024 with a third of its height empty,
+       which at this size would be 33KB to draw a 28px mark. Regenerate it from
+       the source rather than from this copy if the logo ever changes. #}
+    <a class="brand" href="{{ url_for('index') }}">
+      <img class="brand-mark" src="{{ asset('logo.png') }}" alt=""
+           width="128" height="99">
+      <span class="brand-name">VRCVerify</span>
+    </a>
 
-      <form method="post" action="{{ url_for('set_theme_preference') }}"
-            class="theme-menu">
-        {# Where to come back to. An endpoint NAME from a fixed table, never a
-           path -- a hidden field carrying a URL is how a preference toggle
-           becomes an open redirect. Undefined on the sign-in page and the
-           picker, where `index` is the right answer anyway. #}
-        <input type="hidden" name="return_to" value="{{ nav_return_to or 'index' }}">
-        {% if guild_id %}
-          <input type="hidden" name="guild_id" value="{{ guild_id }}">
-        {% endif %}
+    {# THE RIGHT-HAND CLUSTER
+       ----------------------
+       Everything after the brand is pinned right and sized alike. The order is
+       the one every comparable product uses: notifications, then preferences,
+       then the account -- account last, because that is the corner people
+       already look in for it. #}
+    <div class="bar-actions">
 
-        <p class="theme-menu-label" id="theme-menu-label">Appearance</p>
-        <ul aria-labelledby="theme-menu-label">
-          {% for key, label, hint in [
-              ('dark',   'Dark',   'Always dark.'),
-              ('light',  'Light',  'Always light.'),
-              ('system', 'System', 'Matches the theme set on your device.')
-          ] %}
-            <li>
-              {# aria-current is the accessible half of the tick: the class
-                 says "this one looks different", this says which is in force. #}
-              <button type="submit" name="theme" value="{{ key }}"
-                      class="theme-option{% if key == current_theme() %} current{% endif %}"
-                      {% if key == current_theme() %}aria-current="true"{% endif %}>
-                {{ theme_icon(key) }}
-                <span class="theme-option-text">
-                  <span class="theme-option-label">{{ label }}</span>
-                  <span class="theme-option-hint">{{ hint }}</span>
-                </span>
-                {% if key == current_theme() %}
-                  {# Inline SVG rather than a tick character: the vendored
-                     Inter subset has no U+2713, so it would fall back to
-                     another family mid-line. Same reason as overview.html. #}
-                  <svg class="theme-tick" viewBox="0 0 16 16" width="13" height="13"
-                       aria-hidden="true" fill="none" stroke="currentColor"
-                       stroke-width="2.2" stroke-linecap="round"
-                       stroke-linejoin="round">
-                    <path d="M3 8.5l3.5 3.5L13 4.5"></path>
-                  </svg>
-                {% endif %}
-              </button>
-            </li>
-          {% endfor %}
-        </ul>
-      </form>
-    </details>
-    {# Both live in the bar rather than on an account page, because the second
-       one is what you want when you have just realised somebody else has your
-       session -- and at that moment you should not have to go looking. #}
-    {% if csrf_token %}
-      <nav class="account">
-        <form method="post" action="{{ url_for('logout') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button type="submit" class="link">Sign out</button>
+      {# THE NOTIFICATION BELL FROM #136 GOES HERE, AS THE FIRST CHILD.
+         This is the reserved slot, and reserving it is half of why this phase
+         goes first: #123, #136 and the rest of #133 all edit this one file.
+
+         Add a single <details class="bell bar-menu"> here and it will size,
+         space and align itself. The panel it opens is .bar-panel, already
+         written; the button is .bar-button; prefs.js already closes anything
+         wearing .bar-menu on an outside click and on Escape. Nothing in this
+         file or the stylesheet has to move to make room for it. #}
+
+      {# THE THEME PICKER
+         ----------------
+         A <details> disclosure, so it opens and closes with no JavaScript at
+         all. Phase 4 makes the choice instant; today every option is a form
+         submit, and the page works completely without a script either way.
+
+         Three submit buttons rather than radios and a Save: a theme is a
+         one-click decision, and a picker that needs a second click to confirm
+         is a worse control than the one-button toggle it replaced. Each button
+         carries its own value, so the server is told exactly which was pressed.
+
+         Not inside the `{% if section %}` guard the hamburger uses -- this
+         belongs on every page including the sign-in one, which has no session.
+         `set_theme_preference` requires neither a session nor a CSRF token for
+         exactly that reason; see the route. #}
+      <details class="theme bar-menu">
+        {# The summary shows the theme in force. `list-style: none` in the
+           stylesheet removes the default triangle -- the icon is the marker. #}
+        <summary class="bar-button"
+                 title="Theme: {{ current_theme() }}"
+                 aria-label="Theme: {{ current_theme() }}. Choose a different one.">
+          {{ theme_icon(current_theme()) }}
+        </summary>
+
+        <form method="post" action="{{ url_for('set_theme_preference') }}"
+              class="bar-panel">
+          {# Where to come back to. An endpoint NAME from a fixed table, never a
+             path -- a hidden field carrying a URL is how a preference toggle
+             becomes an open redirect. Undefined on the sign-in page and the
+             picker, where `index` is the right answer anyway. #}
+          <input type="hidden" name="return_to" value="{{ nav_return_to or 'index' }}">
+          {% if guild_id %}
+            <input type="hidden" name="guild_id" value="{{ guild_id }}">
+          {% endif %}
+
+          <p class="menu-label" id="theme-menu-label">Appearance</p>
+          <ul aria-labelledby="theme-menu-label">
+            {% for key, label, hint in [
+                ('dark',   'Dark',   'Always dark.'),
+                ('light',  'Light',  'Always light.'),
+                ('system', 'System', 'Matches the theme set on your device.')
+            ] %}
+              <li>
+                {# aria-current is the accessible half of the tick: the class
+                   says "this one looks different", this says which is in force. #}
+                <button type="submit" name="theme" value="{{ key }}"
+                        class="menu-item{% if key == current_theme() %} current{% endif %}"
+                        {% if key == current_theme() %}aria-current="true"{% endif %}>
+                  {{ theme_icon(key) }}
+                  <span class="menu-item-text">
+                    <span class="menu-item-label">{{ label }}</span>
+                    <span class="menu-item-hint">{{ hint }}</span>
+                  </span>
+                  {% if key == current_theme() %}
+                    {# Inline SVG rather than a tick character: the vendored
+                       Inter subset has no U+2713, so it would fall back to
+                       another family mid-line. Same reason as overview.html. #}
+                    <svg class="menu-tick" viewBox="0 0 16 16" width="13" height="13"
+                         aria-hidden="true" fill="none" stroke="currentColor"
+                         stroke-width="2.2" stroke-linecap="round"
+                         stroke-linejoin="round">
+                      <path d="M3 8.5l3.5 3.5L13 4.5"></path>
+                    </svg>
+                  {% endif %}
+                </button>
+              </li>
+            {% endfor %}
+          </ul>
         </form>
-        <form method="post" action="{{ url_for('logout_everywhere') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button type="submit" class="link"
-                  title="Ends every VRCVerify session signed in as you, on every device.">
-            Sign out everywhere</button>
-        </form>
-      </nav>
-    {% endif %}
+      </details>
+
+      {# THE ACCOUNT MENU
+         ----------------
+         The same <details> disclosure as the picker above, so it opens and
+         closes with no JavaScript and both controls submit as ordinary forms.
+
+         Both still live in the bar rather than on an account page, and that
+         reasoning is unchanged and still load-bearing: the second one is what
+         you want at the moment you have just realised somebody else has your
+         session, and at that moment you should not have to go looking. A menu
+         costs one click; a page would cost a navigation and a hunt.
+
+         Two forms rather than one, because they post to two different routes.
+         Each carries its own CSRF token -- neither of these is the anonymous
+         case the theme picker is.
+
+         The sentence explaining "everywhere" used to be a `title` attribute,
+         which showed it only to somebody using a mouse on a desktop. It is
+         ordinary text now.
+
+         There is no name or avatar at the top of this menu, unlike every
+         comparable one. The session holds a Discord id and a guild list and
+         deliberately nothing else; see the sign-in page's promise. #}
+      {% if csrf_token %}
+        <details class="account bar-menu">
+          <summary class="bar-button" title="Account" aria-label="Account">
+            {{ account_icon('person') }}
+          </summary>
+
+          <nav class="bar-panel account-menu" aria-labelledby="account-menu-label">
+            <p class="menu-label" id="account-menu-label">Account</p>
+            <ul>
+              <li>
+                <form method="post" action="{{ url_for('logout') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button type="submit" class="menu-item">
+                    {{ account_icon('out') }}
+                    <span class="menu-item-text">
+                      <span class="menu-item-label">Sign out</span>
+                      <span class="menu-item-hint">Ends this session, on this
+                        browser.</span>
+                    </span>
+                  </button>
+                </form>
+              </li>
+              <li>
+                <form method="post" action="{{ url_for('logout_everywhere') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button type="submit" class="menu-item">
+                    {{ account_icon('everywhere') }}
+                    <span class="menu-item-text">
+                      <span class="menu-item-label">Sign out everywhere</span>
+                      <span class="menu-item-hint">Ends every VRCVerify session
+                        signed in as you, on every device.</span>
+                    </span>
+                  </button>
+                </form>
+              </li>
+            </ul>
+          </nav>
+        </details>
+      {% endif %}
+    </div>
   </header>
 
   {# One <main>, wrapped either way -- a Jinja block can only be defined once,
