@@ -2871,6 +2871,134 @@ class TestTheOverviewPage:
             assert guild == GUILD_IN
 
 
+class TestTheChartOnThePage(object):
+    """#135 phase 2. The rendered SVG, its offscreen table, and the two
+    degraded states -- as opposed to TestTheChartGeometry, which checks the
+    numbers without a request at all.
+    """
+
+    def _page(self, config, store, **overview_kwargs):
+        test_client, _api = settings_client(
+            config, store, overview=make_overview(**overview_kwargs)
+        )
+        return test_client.get(f"/guild/{GUILD_IN}").data.decode()
+
+    def test_the_chart_renders_as_inline_svg(self, config, store):
+        """No CDN, no <script>, no library -- CSP forbids both."""
+        page = self._page(config, store)
+        assert "<svg" in page
+        assert re.search(r'<rect class="chart-bar[^"]*"', page)
+
+    def test_no_style_attribute_appears_anywhere_in_it(self, config, store):
+        """`style-src 'self'` drops an inline style="" SILENTLY -- no error,
+        no console warning, the rule simply never applies. The chart is drawn
+        entirely in x/y/width/height/fill attributes for exactly that reason."""
+        page = self._page(config, store)
+        chart = re.search(r'<div class="chart".*?</div>', page, re.S)
+        assert chart
+        assert 'style="' not in chart.group(0)
+
+    def test_no_script_tag_or_handler_is_needed_to_draw_it(self, config, store):
+        """It needs no JavaScript at all -- the numbers arrive already
+        rendered, unlike the theme picker or the unsaved-changes indicator,
+        which are enhancements on top of working markup."""
+        page = self._page(config, store)
+        chart = re.search(r'<div class="chart".*?</div>', page, re.S)
+        assert chart
+        assert "onclick" not in chart.group(0) and "<script" not in chart.group(0)
+
+    def test_the_bars_use_presentation_attributes_not_hardcoded_colour(
+        self, config, store
+    ):
+        """No hex value anywhere in the markup -- the whole point of
+        `fill="currentColor"` plus a CSS class is that the chart is wrong in
+        exactly one theme the moment somebody hardcodes a colour here."""
+        page = self._page(config, store)
+        chart = re.search(r'<div class="chart".*?</div>', page, re.S)
+        assert chart
+        assert not re.search(r"#[0-9a-fA-F]{3,8}", chart.group(0))
+        assert 'fill="currentColor"' in chart.group(0)
+
+    def test_zero_and_no_data_are_different_numbers_of_bars(self, config, store):
+        """The acceptance criterion. A quiet day draws a <rect>; an unmeasured
+        one draws nothing -- so the count of rects is the count of MEASURED
+        days, not the count of days in the window."""
+        daily = (
+            [{"day": f"2026-07-{d:02d}", "count": None} for d in range(1, 11)]
+            + [{"day": f"2026-07-{d:02d}", "count": 0} for d in range(11, 26)]
+            + [{"day": f"2026-07-{d:02d}", "count": 3} for d in range(26, 31)]
+        )
+        page = self._page(config, store, daily=daily)
+        chart = re.search(r'<div class="chart".*?</div>', page, re.S)
+        assert chart, "no chart section rendered"
+        rects = re.findall(r"<rect\b[^>]*>", chart.group(0))
+        assert len(rects) == 20  # the 15 zero days + the 5 real days, not 30
+
+    def test_the_offscreen_table_carries_every_day_including_gaps(
+        self, config, store
+    ):
+        """The table is the accessible fallback, and it is not allowed to be
+        thinner than the chart -- an unmeasured day is real information
+        ("we don't know yet"), so it gets a row too, not a silent omission."""
+        daily = [{"day": f"2026-07-{d:02d}", "count": None} for d in range(1, 6)] + [
+            {"day": f"2026-07-{d:02d}", "count": d} for d in range(6, 31)
+        ]
+        page = self._page(config, store, daily=daily)
+        table = re.search(r'<table class="offscreen">.*?</table>', page, re.S)
+        assert table
+        assert table.group(0).count("<tr>") == 31  # header row + 30 days
+        assert table.group(0).count("Not measured") == 5
+
+    def test_the_table_numbers_agree_with_the_bars(self, config, store):
+        """Read together rather than independently -- a mismatch here would
+        mean a sighted and a non-sighted reader learn different things from
+        the same page."""
+        page = self._page(
+            config,
+            store,
+            daily=[{"day": "2026-07-30", "count": 7}] + [
+                {"day": f"2026-07-{d:02d}", "count": 0} for d in range(1, 30)
+            ],
+        )
+        assert "<td>7</td>" in page
+        assert re.search(r'<rect class="chart-bar"[^>]*height="64', page)
+
+    def test_a_failed_rollup_read_shows_neither_chart_nor_bad_table(
+        self, config, store
+    ):
+        page = self._page(config, store, known=False)
+        group = re.search(r'<h2>Verifications</h2>.*?</section>', page, re.S)
+        assert group, "no Verifications section on the page"
+        assert "<svg" not in group.group(0)
+        assert "<table" not in group.group(0)
+        assert "Couldn't load the daily trend" in group.group(0)
+
+    def test_nothing_collected_yet_names_the_state_without_a_chart(
+        self, config, store
+    ):
+        page = self._page(
+            config,
+            store,
+            daily=[{"day": f"d{i}", "count": None} for i in range(30)],
+            collecting_since=None,
+        )
+        group = re.search(r'<h2>Verifications</h2>.*?</section>', page, re.S)
+        assert group, "no Verifications section on the page"
+        assert "<svg" not in group.group(0)
+        assert "not collecting" in group.group(0).lower()
+
+    def test_the_chart_has_a_text_alternative_for_a_screen_reader(
+        self, config, store
+    ):
+        """`role="img"` on the wrapper takes the SVG itself out of a screen
+        reader's way; the aria-label and the offscreen table are what a
+        non-sighted reader actually gets instead of a picture."""
+        page = self._page(config, store)
+        wrapper = re.search(r'<div class="chart" role="img"[^>]*>', page)
+        assert wrapper and "aria-label=" in wrapper.group(0)
+        assert '<svg viewBox="0 0 300 64" aria-hidden="true"' in page
+
+
 class TestZeroAndBlankAreDifferentAnswers:
     """The distinction the whole page rests on.
 
@@ -4829,6 +4957,173 @@ class TestTheHeaderBar:
         assert "--dark-logo-filter: invert(1);" in css
         # Once per dark selector: the explicit one and the OS one.
         assert css.count("--logo-filter: var(--dark-logo-filter);") == 2
+
+
+class TestTheChartGeometry:
+    """#135 phase 2. Every coordinate the SVG draws, computed without a
+    request or a template -- the same reasoning `Tile` is built on, one level
+    up: a chart is thirty tiles, and it must not flatten any of their states
+    into each other either.
+    """
+
+    @staticmethod
+    def _series(counts) -> list:
+        """`counts` is 30 values, oldest first: an int for a measured day, or
+        None for a day before the collection floor. Day labels are synthetic
+        -- the geometry cares about order and None-vs-int, not real dates."""
+        assert len(counts) == 30, "the bot always returns exactly 30 entries"
+        return [{"day": f"d{i}", "count": c} for i, c in enumerate(counts)]
+
+    @staticmethod
+    def _overview(daily, known=True, collecting_since="2026-07-01"):
+        return {
+            "verifications": {
+                "daily": daily,
+                "known": known,
+                "collecting_since": collecting_since,
+            }
+        }
+
+    # --- the three states ---
+
+    def test_no_overview_at_all_is_unknown(self):
+        chart = overview_view.build_chart(None)
+        assert chart.state == "unknown"
+        assert chart.bars == []
+
+    def test_a_failed_rollup_read_is_unknown_not_blank(self):
+        """Mirrors `_window_tile`'s `known` check from the same payload flag,
+        so the tiles and the chart can never disagree about whether the read
+        itself succeeded."""
+        overview = self._overview(daily=None, known=False)
+        chart = overview_view.build_chart(overview)
+        assert chart.state == "unknown"
+
+    def test_every_day_unmeasured_is_blank_not_unknown(self):
+        """A fleet that has never collected anything, anywhere -- a
+        successful read of a question the data cannot answer yet. Different
+        from the bot failing, and the copy has to say a different thing."""
+        overview = self._overview(self._series([None] * 30), collecting_since=None)
+        chart = overview_view.build_chart(overview)
+        assert chart.state == "blank"
+        assert chart.bars == []
+        assert "not collecting" in chart.note.lower()
+
+    def test_the_blank_note_names_the_collection_start_when_known(self):
+        overview = self._overview(self._series([None] * 30))
+        chart = overview_view.build_chart(overview)
+        assert "2026-07-01" in chart.note
+
+    # --- the issue's named edge cases ---
+
+    def test_an_empty_series_is_blank_and_does_not_crash(self):
+        """Defensive: the bot never actually returns an empty list -- 30
+        entries or None -- but the geometry loop divides by the day count, and
+        a future change to DAILY_SERIES_DAYS should not be able to reintroduce
+        a division by zero here."""
+        chart = overview_view.build_chart(self._overview([]))
+        assert chart.state == "blank"
+        assert chart.bars == []
+
+    def test_all_zeros_still_draws_bars_at_the_floor_height(self):
+        """THE FALSY-ZERO BUG ONE LEVEL UP. Every day measured and quiet is
+        real data -- a panel is up and nobody is using it -- and must be
+        drawn, not folded into "blank" because every value happens to be
+        zero."""
+        chart = overview_view.build_chart(self._overview(self._series([0] * 30)))
+        assert chart.state == "value"
+        assert len(chart.bars) == 30
+        assert all(bar.height == overview_view.CHART_MIN_BAR_HEIGHT for bar in chart.bars)
+        # And still real bars, not gaps -- a reader can tell "measured, zero"
+        # from "not measured" only because something is drawn here at all.
+        assert all(bar.count == 0 for bar in chart.bars)
+
+    def test_a_single_measured_day_leaves_the_rest_as_gaps(self):
+        counts = [None] * 29 + [4]
+        chart = overview_view.build_chart(self._overview(self._series(counts)))
+
+        with_bars = [bar for bar in chart.bars if bar.height is not None]
+        without = [bar for bar in chart.bars if bar.height is None]
+        assert len(with_bars) == 1 and len(without) == 29
+        assert with_bars[0].count == 4
+        # The lone measured day is also the peak, so it fills the chart.
+        assert with_bars[0].height == overview_view.CHART_VIEW_HEIGHT
+
+    def test_a_spike_sets_the_scale_for_every_other_bar(self):
+        """The whole reason peak-scaling exists: a quiet day next to a busy
+        one must still read as proportionally small, not as its own
+        independent 0-to-100 bar."""
+        counts = [1] * 29 + [200]
+        chart = overview_view.build_chart(self._overview(self._series(counts)))
+
+        spike = chart.bars[-1]
+        quiet = chart.bars[0]
+        assert spike.count == 200 and quiet.count == 1
+        assert spike.height == overview_view.CHART_VIEW_HEIGHT
+        # Proportional to the spike, and still cleared by the floor rather
+        # than rounding away to nothing.
+        expected = max(
+            overview_view.CHART_MIN_BAR_HEIGHT,
+            (1 / 200) * overview_view.CHART_VIEW_HEIGHT,
+        )
+        assert quiet.height == pytest.approx(expected)
+        assert quiet.height < spike.height
+
+    def test_a_window_straddling_the_floor_mixes_gaps_and_bars(self):
+        """The acceptance criterion, stated as geometry: a day with no data
+        and a day with zero verifications must be distinguishable -- here,
+        because one has no rect and the other has a rect at the floor
+        height."""
+        counts = [None] * 10 + [0] * 15 + [3] * 5
+        chart = overview_view.build_chart(self._overview(self._series(counts)))
+
+        assert chart.state == "value"
+        gaps = [bar for bar in chart.bars if bar.height is None]
+        zero_bars = [bar for bar in chart.bars if bar.count == 0]
+        real_bars = [bar for bar in chart.bars if bar.count == 3]
+        assert len(gaps) == 10
+        assert len(zero_bars) == 15 and all(
+            b.height == overview_view.CHART_MIN_BAR_HEIGHT for b in zero_bars
+        )
+        assert len(real_bars) == 5 and all(
+            b.height == overview_view.CHART_VIEW_HEIGHT for b in real_bars
+        )
+        # A gap and a zero-height-floor bar are not the same object, so a
+        # template that only checks truthiness could still conflate them --
+        # pinned explicitly rather than trusted to the height comparison
+        # above.
+        assert gaps[0].height is None
+        assert zero_bars[0].height is not None
+
+    # --- geometry mechanics ---
+
+    def test_bars_are_left_to_right_in_day_order(self):
+        chart = overview_view.build_chart(self._overview(self._series([1] * 30)))
+        xs = [bar.x for bar in chart.bars]
+        assert xs == sorted(xs)
+        assert xs[0] == 0
+
+    def test_bars_fit_inside_the_declared_width(self):
+        chart = overview_view.build_chart(self._overview(self._series([1] * 30)))
+        rightmost = chart.bars[-1].x + chart.bar_width
+        assert rightmost <= overview_view.CHART_VIEW_WIDTH
+
+    def test_y_places_the_rect_on_the_baseline(self):
+        """SVG y grows downward, so a bar's rect starts at
+        (chart height - bar height) and its bottom edge lands on the chart's
+        own height -- the x-axis every bar shares."""
+        chart = overview_view.build_chart(self._overview(self._series([1] * 30)))
+        for bar in chart.bars:
+            assert bar.y + bar.height == overview_view.CHART_VIEW_HEIGHT
+
+    def test_another_guilds_scale_cannot_leak_into_this_one(self):
+        """Not a real hazard in this pure function -- there is no cross-guild
+        state to leak -- but pinned anyway: two independent calls must
+        compute two independent peaks."""
+        busy = overview_view.build_chart(self._overview(self._series([50] * 30)))
+        quiet = overview_view.build_chart(self._overview(self._series([1] * 30)))
+        assert busy.bars[0].height == overview_view.CHART_VIEW_HEIGHT
+        assert quiet.bars[0].height == overview_view.CHART_VIEW_HEIGHT
 
 
 class TestOverviewViewModel:

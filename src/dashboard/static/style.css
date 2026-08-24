@@ -1534,6 +1534,44 @@ footer {
  * same kind of thing: a prompt on a page you came to read. */
 .next-step { border-left: 3px solid var(--accent-text); }
 
+/* --- the trend chart ---
+ *
+ * The SVG scales to the width CSS gives it -- `viewBox` in the markup is a
+ * fixed coordinate space, `width: 100%` here is what makes it responsive.
+ * `display: block` drops the few px of baseline gap inline SVG otherwise
+ * leaves under itself, which was reading as a mismatched bottom margin
+ * against .tiles above it. */
+.chart {
+  margin: var(--space-4) 0 0;
+  width: 100%;
+  height: 4.5rem;
+}
+
+.chart svg { display: block; width: 100%; height: 100%; }
+
+/* `fill="currentColor"` in the markup, `color` here: the same split every
+ * other icon in this file uses, and the reason the chart needs no hex value
+ * of its own to follow the theme. `accent-text` rather than `accent` -- a bar
+ * chart's fill is exactly the kind of UI component 1.4.11 asks 3:1 of, and
+ * `accent` measures 2.74:1 on the dark card these bars sit on, under the
+ * floor. `accent-text` is 4.57:1 there and clears every surface tested in
+ * test_contrast.py, which is why it is the token every tick and current-page
+ * mark in this file already uses. */
+.chart-bar { color: var(--accent-text); }
+
+/* A measured zero and an unmeasured day are already distinguished by
+ * existing at all -- see the template comment on `bar.height is not none`.
+ * This is not a second signal competing with that one; it is a slightly
+ * quieter fill so a reader scanning the shape of a busy month is not drawn to
+ * every quiet day as if it were a value worth reading, while the row of
+ * flush-bottom slivers still reads as "measured" rather than "gap" the
+ * moment the eye compares it to the actual gaps beside it. */
+.chart-bar-zero { color: var(--faint); }
+
+.chart-note { margin: var(--space-4) 0 0; }
+
+
+
 .setup { list-style: none; margin: 0; padding: 0; }
 
 .setup-row {

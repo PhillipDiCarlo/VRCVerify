@@ -894,6 +894,7 @@ def _register_routes(app: Flask) -> None:
         return render_template(
             "overview.html",
             tiles=overview_view.build_tiles(overview),
+            chart=overview_view.build_chart(overview),
             next_step=overview_view.build_next_step(overview),
             setup=overview_view.build_setup(overview),
             premium=(overview.get("premium") or {}),
