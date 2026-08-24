@@ -1616,11 +1616,15 @@ footer {
  * would be the first thing to undo it. */
 .setup-action { padding: 0.4rem 0.9rem; font-size: 0.85rem; }
 
+/* No fill, same reason .notice.ok has none: --ok on --inset is 4.14:1 in the
+ * light theme, under AA -- measured once already for that rule (see the
+ * comment above .notice.ok) and true here too, since it's the same two
+ * tokens. Unfilled it sits on --panel, where --ok passes at 4.86:1. */
 .setup-complete {
   margin: 0 0 var(--space-3);
   padding: 0.6rem 0.85rem;
+  border: 1px solid var(--ok);
   border-radius: var(--radius-control);
-  background: var(--inset);
   color: var(--ok);
   font-weight: 600;
 }
