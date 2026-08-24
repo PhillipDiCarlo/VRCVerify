@@ -127,6 +127,136 @@ def build_tiles(overview: Optional[dict]) -> list:
     return tiles
 
 
+# --- the trend chart ---
+#
+# viewBox units, not pixels: the SVG scales to whatever width the CSS gives it,
+# and every coordinate below is computed in this fixed space regardless of the
+# reader's screen.
+CHART_VIEW_WIDTH = 300
+CHART_VIEW_HEIGHT = 64
+CHART_BAR_GAP = 1.0
+# A real zero has to remain a bar, not a point -- this is the floor that keeps
+# it visible rather than collapsing to a 0px rect indistinguishable from the
+# blank space where an unmeasured day draws nothing at all.
+CHART_MIN_BAR_HEIGHT = 2.0
+
+
+class ChartBar:
+    """One day's column.
+
+    `height` is None for an unmeasured day, and THAT IS THE POINT: the
+    template draws a <rect> only when `height` is not None, so a day before
+    `collecting_since` is an honest gap in the chart -- no element there at
+    all -- rather than a bar interpolating across a day nothing is known
+    about. A bar chart can represent "nothing here" natively; a line cannot.
+    """
+
+    def __init__(self, day: str, count: Optional[int], x: float, height: Optional[float]):
+        self.day = day
+        self.count = count
+        self.x = x
+        self.height = height
+
+    @property
+    def y(self) -> float:
+        """The rect's top edge. Only meaningful when `height` is not None; the
+        template never reads it otherwise."""
+        return CHART_VIEW_HEIGHT - (self.height or 0.0)
+
+
+class Chart:
+    """The verification trend, with every SVG coordinate already computed.
+
+    Nothing in overview.html does arithmetic -- geometry lives here so the
+    cases that matter (an empty series, a spike, a window straddling the
+    collection floor) are testable without rendering a template, the same
+    reasoning `Tile` is built on.
+
+    THE SAME THREE STATES AS A TILE, for the same reason: "unknown" is the
+    bot failing to answer, which is not the same fact as "blank", which is a
+    successful read of a question the data cannot answer yet. A chart with
+    every day genuinely unmeasured (`state="blank"`) must not be confused
+    with a chart nobody could ask (`state="unknown"`) -- the copy beside each
+    says a different thing, and collapsing them would repeat the exact
+    mistake `Tile.display` exists to prevent, just one level up.
+    """
+
+    def __init__(self, bars=None, *, state: str = "value", note: Optional[str] = None,
+                 bar_width: float = 0.0):
+        self.bars = bars or []
+        self.state = state
+        self.note = note
+        self.bar_width = bar_width
+        self.width = CHART_VIEW_WIDTH
+        self.height = CHART_VIEW_HEIGHT
+
+
+def build_chart(overview: Optional[dict]) -> Chart:
+    """The verification trend chart, ready for the template to draw.
+
+    Mirrors `_window_tile`'s three-way split rather than inventing a fourth
+    vocabulary for the same idea:
+
+    * **value** -- at least one day in the series was actually measured, so
+      there is something to draw. This covers "all measured days are zero"
+      too, which is real data and gets bars at the floor height, not the
+      blank state -- the chart-level version of the falsy-zero bug `Tile`
+      guards against.
+    * **blank** -- the read succeeded and every day came back unmeasured,
+      which happens for a server on a fleet that has never collected
+      anything anywhere. Not a failure; there is simply nothing yet.
+    * **unknown** -- the rollup could not be read at all. Mirrors
+      `_window_tile`'s `known` check exactly, from the same payload flag, so
+      the tiles and the chart can never disagree about whether the read
+      itself succeeded.
+    """
+    if not overview:
+        return Chart(state="unknown", note="The bot didn't answer this one.")
+
+    counts = overview.get("verifications") or {}
+    known = bool(counts.get("known", True))
+    daily = counts.get("daily")
+    since = counts.get("collecting_since")
+
+    if not known or daily is None:
+        return Chart(state="unknown", note="The bot didn't answer this one.")
+
+    if not any(entry.get("count") is not None for entry in daily):
+        note = f"Only counting since {since}." if since else "Not collecting yet."
+        return Chart(state="blank", note=note)
+
+    day_count = len(daily)
+    bar_width = (
+        (CHART_VIEW_WIDTH - CHART_BAR_GAP * (day_count - 1)) / day_count
+        if day_count
+        else 0.0
+    )
+
+    measured = [entry["count"] for entry in daily if entry.get("count") is not None]
+    peak = max(measured) if measured else 0
+
+    bars = []
+    for index, entry in enumerate(daily):
+        x = index * (bar_width + CHART_BAR_GAP)
+        count = entry.get("count")
+        if count is None:
+            bars.append(ChartBar(entry["day"], None, x, None))
+            continue
+        if peak > 0:
+            # Floored rather than left to round to nothing: a small count
+            # against a tall spike must still read as "measured, and low" --
+            # not vanish into the same nothing an unmeasured day draws.
+            height = max(CHART_MIN_BAR_HEIGHT, (count / peak) * CHART_VIEW_HEIGHT)
+        else:
+            # Every measured day is zero. There is no spike to scale against,
+            # so every bar sits at the floor -- visibly present, at the
+            # baseline, which is exactly what "measured and quiet" looks like.
+            height = CHART_MIN_BAR_HEIGHT
+        bars.append(ChartBar(entry["day"], count, x, height))
+
+    return Chart(bars, state="value", bar_width=bar_width)
+
+
 # Which configuration the Overview reports, and what each one being off
 # actually means. The wording carries the difference: a missing verified role
 # stops verification, while a missing log channel is a choice most servers make

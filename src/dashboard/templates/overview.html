@@ -65,6 +65,63 @@
         </li>
       {% endfor %}
     </ul>
+
+    {# THE TREND CHART.
+       No JavaScript, no chart library -- there is no connect-src to fetch one
+       from and no CDN this CSP would allow. Every coordinate is computed in
+       overview_view.build_chart and emitted here as SVG attributes, which is
+       markup rather than styling, so it survives style-src 'self' dropping an
+       inline style="" without a sound.
+
+       `fill="currentColor"` on the bars picks up .chart-bar's `color` in
+       style.css, so the chart follows the theme with zero hex values in this
+       file or that function -- the same discipline #123 put on every other
+       icon here. #}
+    {% if chart.state == 'value' %}
+      <div class="chart" role="img"
+           aria-label="Verifications per day, last {{ chart.bars|length }} days. The exact numbers follow this chart.">
+        <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" aria-hidden="true"
+             preserveAspectRatio="none">
+          {% for bar in chart.bars %}
+            {# A day before the collection floor draws nothing here -- an
+               honest gap, not a bar interpolating across data that was never
+               measured. A measured day, even a quiet one, always gets a rect:
+               that is what makes zero and "no data" distinguishable at a
+               glance rather than only in the table below. #}
+            {% if bar.height is not none %}
+              <rect class="chart-bar{% if bar.count == 0 %} chart-bar-zero{% endif %}"
+                    x="{{ bar.x }}" y="{{ bar.y }}"
+                    width="{{ chart.bar_width }}" height="{{ bar.height }}"
+                    fill="currentColor"></rect>
+            {% endif %}
+          {% endfor %}
+        </svg>
+      </div>
+
+      {# The text alternative, not a caption beside a picture. `role="img"`
+         above takes the SVG out of a screen reader's way entirely, so this
+         table -- offscreen, like the setup rows' state announcements -- is
+         where every reader who is not looking at pixels gets the real
+         numbers, in the same order the bars are drawn. #}
+      <table class="offscreen">
+        <caption>Verifications per day, last {{ chart.bars|length }} days</caption>
+        <thead>
+          <tr><th scope="col">Day</th><th scope="col">Verifications</th></tr>
+        </thead>
+        <tbody>
+          {% for bar in chart.bars %}
+            <tr>
+              <td>{{ bar.day }}</td>
+              <td>{% if bar.count is none %}Not measured{% else %}{{ bar.count }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% elif chart.state == 'blank' %}
+      <p class="muted chart-note">{{ chart.note }}</p>
+    {% else %}
+      <p class="muted chart-note">Couldn't load the daily trend just now.</p>
+    {% endif %}
   {% endif %}
 </section>
 
