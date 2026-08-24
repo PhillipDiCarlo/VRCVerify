@@ -19,6 +19,42 @@
 <section class="panel group">
   <h2>Subscriptions</h2>
 
+  {# THE STATUS, BEFORE THE EXPLANATION (#141 phase 1).
+     Eight of this page's states used to open with a paragraph, so "you are
+     being charged twice" and "verification is free" arrived in the same voice
+     at the same weight. A chip says which state this is; the fact list says
+     what the reader came to check -- what plan, billed where, and when the
+     next thing happens. The prose below still explains; it is no longer doing
+     the announcing as well.
+
+     Both come from subscription_view, not from conditions grown here. This is
+     the page that takes money, and two template branches disagreeing about
+     whether somebody has paid is the failure this page's own header warns
+     about. #}
+  {% if page.chip %}
+    <p class="sub-status">
+      {# Deliberately NOT `.badge.premium`. That chip means "your plan cannot
+         use this" on the settings page (#136), and borrowing it here to mean
+         "your plan is working" would give one component two opposite
+         meanings. #}
+      <span class="sub-chip sub-chip-{{ page.chip.tone }}">{{ page.chip.label }}</span>
+    </p>
+  {% endif %}
+
+  {% if page.facts %}
+    {# A description list, because that is what this is: each row is a term
+       and the thing it names. It also gives a screen reader the pairing for
+       free, which a two-column grid of <span>s would not. #}
+    <dl class="sub-facts">
+      {% for label, value in page.facts %}
+        <div>
+          <dt>{{ label }}</dt>
+          <dd>{{ value }}</dd>
+        </div>
+      {% endfor %}
+    </dl>
+  {% endif %}
+
   {% if page.state == 'unavailable' %}
     {# Never "not subscribed". A failed read rendered as "you have no plan",
        next to a Buy button, is how a paying customer buys a second one. #}
@@ -79,13 +115,10 @@
         </li>
       {% endif %}
     </ul>
-    {% if page.plan_label %}
-      <p class="muted">
-        Card plan: {{ page.plan_label }}{% if page.renews_on %}, renews on
-        {{ page.renews_on }}{% elif page.ends_on %}, ends on
-        {{ page.ends_on }}{% endif %}.
-      </p>
-    {% endif %}
+    {# The card plan and its renewal date used to be repeated here. They are
+       the first and third rows of the fact list at the top of this card now,
+       and a page that states the same thing twice invites the reader to check
+       whether the two agree. #}
 
   {% elif page.state == 'past_due' %}
     {# An honest banner. Not an error, and not silence. #}
@@ -94,31 +127,22 @@
       retries the card — update your card details under
       <strong>Manage billing</strong> below.
     </p>
-    <p class="blurb">
-      Current plan: <strong>{{ page.plan_label }}</strong>{% if page.renews_on %},
-      due to renew on {{ page.renews_on }}{% endif %}.
-    </p>
+    {# Plan and renewal date: see the fact list above. #}
 
   {% elif page.state == 'stripe' %}
-    <p class="blurb">
-      This server has <strong>VRCVerify Premium</strong> on the
-      <strong>{{ page.plan_label }}</strong> plan, paid by card.
-    </p>
+    {# Plan, payment route and date are all in the fact list above. What is
+       left is the one thing the list cannot say: that a cancelled
+       subscription is not a lapsed one, and the server keeps Premium for the
+       period it has already paid for. #}
     {% if page.ends_on %}
-      <p class="muted">
-        Cancelled — Premium stays on until <strong>{{ page.ends_on }}</strong>,
-        the end of the period you've already paid for.
+      <p class="blurb">
+        Cancelled, and nothing changes before then — this server keeps Premium
+        for the whole of the period it has already paid for.
       </p>
-    {% elif page.renews_on %}
-      <p class="muted">Renews on <strong>{{ page.renews_on }}</strong>.</p>
     {% endif %}
 
   {% elif page.state == 'discord' %}
     <p class="blurb">
-      This server has <strong>VRCVerify Premium</strong>, bought through
-      Discord.
-    </p>
-    <p class="muted">
       Discord handles the billing, so cancelling or changing the payment method
       happens there — <strong>User Settings → Subscriptions</strong>. We can't
       manage a Discord subscription from here.
@@ -139,11 +163,23 @@
         the custom verification message — stay free whatever you decide here.
       </p>
     {% endif %}
-    {% if page.ended_on %}
-      <p class="muted">
-        Your previous {{ page.last_plan_label }} subscription ended on
-        {{ page.ended_on }}. Subscribing again picks up where it left off.
-      </p>
+    {% if page.winback %}
+      {# NOT a muted line at the foot of the card, which is what this was.
+         This is the one state on the page where the reader has already
+         decided to pay once before, and it was being reported more quietly
+         than the sentence above it explaining that verification is free. #}
+      <div class="sub-winback">
+        <p class="sub-winback-head">Your Premium ended on {{ page.winback.when }}</p>
+        <p class="sub-winback-body">
+          {% if page.winback.plan %}
+            The {{ page.winback.plan }} plan. Subscribing again picks up where
+            it left off — nothing was reset when it lapsed.
+          {% else %}
+            Subscribing again picks up where it left off — nothing was reset
+            when it lapsed.
+          {% endif %}
+        </p>
+      </div>
     {% endif %}
   {% endif %}
 </section>

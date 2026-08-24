@@ -1638,6 +1638,90 @@ textarea {
  * break inside `.actions`, which lays its children out in a row. */
 .next-step-dismiss { display: contents; }
 
+/* --- the subscription page's status (#141 phase 1) ---
+ *
+ * A chip and a fact list, the shape every billing page gathered as reference
+ * settles on (Superhuman, Base44, Rise, Grammarly). What it replaces is eight
+ * states rendered as eight paragraphs of grey prose under one heading, so the
+ * page announced "you are being charged twice" in the same voice, at the same
+ * weight, as "verification is free".
+ *
+ * DELIBERATELY NOT `.badge.premium`. That chip means "your plan cannot use
+ * this" on the settings page, decided in #136 -- and this page and that one
+ * are two clicks apart. Reusing it here to mean "your plan is working" would
+ * hand one component two opposite meanings. */
+.sub-status { margin: var(--space-3) 0; }
+
+.sub-chip {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-control);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Tinted text on a hairline, not a filled pill. A filled chip at this size
+ * competes with the Subscribe buttons further down the page, and on the one
+ * page where a button means "spend money" nothing else should look like one.
+ * `currentColor` for the border so each tone needs one declaration. */
+.sub-chip-ok { color: var(--ok); box-shadow: inset 0 0 0 1px currentColor; }
+.sub-chip-warn { color: var(--notice); box-shadow: inset 0 0 0 1px currentColor; }
+.sub-chip-muted { color: var(--muted); box-shadow: inset 0 0 0 1px currentColor; }
+
+/* Rows of term-and-value. `grid` on each row rather than a two-column grid on
+ * the <dl>, so a long value wraps under itself instead of dragging every
+ * other row's baseline down with it. */
+.sub-facts { margin: 0 0 var(--space-4); }
+
+.sub-facts > div {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.sub-facts > div:first-child { border-top: 0; }
+.sub-facts dt { color: var(--muted); font-size: var(--text-note); }
+.sub-facts dd { margin: 0; color: var(--ink-strong); font-weight: 500; }
+
+@media (max-width: 30rem) {
+  /* The label column has nowhere to go at this width; stacking keeps the
+   * value from wrapping to two words per line. */
+  .sub-facts > div { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; }
+}
+
+/* The lapsed state, which is the one moment on this page where the reader has
+ * already decided to pay once before. It was a muted sentence at the foot of
+ * the card -- reported more quietly than the line above it explaining that
+ * verification is free.
+ *
+ * Bordered and tinted with the accent rather than with --notice: nothing has
+ * gone wrong, and an amber box would say something has. */
+.sub-winback {
+  margin: var(--space-4) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent-text);
+  border-radius: var(--radius-card);
+  background: var(--inset);
+}
+
+.sub-winback-head {
+  margin: 0 0 0.2rem;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.sub-winback-body {
+  margin: 0;
+  font-size: var(--text-note);
+  line-height: var(--leading-body);
+  color: var(--muted);
+}
+
 .badge {
   font-size: 0.6875rem;
   font-weight: 700;

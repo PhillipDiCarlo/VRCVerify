@@ -62,6 +62,11 @@ try:
         make_overview,
         make_settings,
     )
+    # The subscription states, from the module that already builds them for
+    # the tests. Same bargain as make_settings above: a second builder here
+    # would be a second thing to keep in step with the bot, with nothing
+    # watching it drift.
+    from test_subscription_page import PRICES, payload as _sub_payload  # noqa: E402
 except ImportError as missing:  # pragma: no cover - a dev-tool setup problem
     # The test module needs pytest at import time. Somebody running the
     # preview from a bot-only environment would otherwise get a traceback
@@ -120,6 +125,43 @@ GUILDS = [
 # installed, so clicking into it reaches error.html by the path a real outage
 # would take.
 INSTALLED = {PREMIUM, FREE, UNREACHABLE}
+
+# THE SUBSCRIPTION STATES HAVE NO NATURAL EXAMPLE EITHER (#141).
+#
+# `subscription.html` branches eight ways and only two of them are reachable
+# from the four servers above -- "free" and "bought through Discord". The
+# other six are the ones worth looking at: a card subscription, a cancelled
+# one still running out its period, a failed payment, a server being charged
+# twice, a lapsed server worth winning back, and Stripe being unreachable.
+#
+# Selected by PREVIEW_SUB rather than by adding six more servers to the
+# picker, which would bury the four that are about something else. Same idiom
+# as PREVIEW_BOT_DOWN and PREVIEW_SIGNED_IN, and scripts/shoot_pages.py
+# already knows how to drive a page through an environment variable.
+#
+#   PREVIEW_SUB=card       paying by card, renews
+#   PREVIEW_SUB=cancelled  cancelled, premium until the period ends
+#   PREVIEW_SUB=past_due   the last payment failed, Stripe is retrying
+#   PREVIEW_SUB=both       paying twice, once by card and once through Discord
+#   PREVIEW_SUB=lapsed     not premium now, but was -- the win-back state
+#   PREVIEW_SUB=none       Stripe cannot be reached (plans_unavailable)
+#
+# Applied to the FREE server, because that is the one an admin arrives at from
+# every premium call-to-action in #133, #135 and #136.
+PREVIEW_SUB = os.environ.get("PREVIEW_SUB", "")
+
+_SUB_STATES = {
+    "card": dict(premium=True, active=True, status="active"),
+    "cancelled": dict(premium=True, active=True, status="active", cancel=True),
+    "past_due": dict(premium=True, active=True, status="past_due"),
+    "both": dict(premium=True, discord=True, active=True, status="active",
+                 active_count=1),
+    # Not premium NOW -- that is the point. `active` false with a period end in
+    # the past is what subscription_view reads as "ended on", and it is the
+    # only state on this page that is a win-back rather than a status.
+    "lapsed": dict(premium=False, active=False, status="canceled",
+                   period_end="2026-08-03T00:00:00+00:00"),
+}
 
 # TWO OF THE FOUR SWITCH STATES HAVE NO NATURAL EXAMPLE, so they are made here.
 #
@@ -190,6 +232,8 @@ class PreviewBotAPI:
 
     def settings(self, actor_id, guild_id) -> dict:
         guild_id = self._check(guild_id)
+        if guild_id == FREE and PREVIEW_SUB in _SUB_STATES:
+            return self._sub_state(guild_id)
         premium = guild_id == PREMIUM
         payload = make_settings(
             premium=premium,
@@ -204,6 +248,25 @@ class PreviewBotAPI:
             # Enabled, saveable, and not acted on -- see FORCED_INACTIVE.
             payload["fields"][FORCED_INACTIVE].update(active=False, locked=False)
         return payload
+
+    def _sub_state(self, guild_id) -> dict:
+        """One of #141's subscription states, on the free server.
+
+        Built from `test_subscription_page.payload()` so the `stripe` block is
+        the shape the bot really sends -- `make_settings` has no such block at
+        all, which is why the six interesting states were invisible in the
+        preview until now.
+
+        The `fields` come from `make_settings` regardless, so the Settings
+        page still renders while one of these is selected.
+        """
+        chosen = dict(_SUB_STATES[PREVIEW_SUB])
+        built = _sub_payload(**chosen)
+        built["guild_id"] = guild_id
+        built["fields"] = make_settings(premium=chosen.get("premium", False))["fields"]
+        built["choices"] = {"instructions_locale": ["en"]}
+        built["auto_verify_column_present"] = True
+        return built
 
     def overview(self, actor_id, guild_id) -> dict:
         guild_id = self._check(guild_id)
