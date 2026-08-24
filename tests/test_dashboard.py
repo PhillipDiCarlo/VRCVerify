@@ -3223,6 +3223,69 @@ class TestTheControls(object):
         assert "var(--danger)" not in rule.group(1)
 
 
+class TestTheSignedOutPageHasNoTokenToGive(object):
+    """#134 phase 2, retargeted.
+
+    The phase as written asked for four things -- that the header renders with
+    no session, that the theme button works signed out, that it works with
+    JavaScript off, and a signed-out theme test. All four were already covered
+    by tests #123 phase 3 and #133 phase 1 wrote while this issue waited, so
+    what is here instead is the gap nobody had named.
+
+    `test_the_only_tokenless_form_is_the_theme_picker` pins that exactly one
+    form on the SETTINGS page carries no CSRF token, and which one. Nothing
+    made the same promise about the signed-out page -- where it matters more,
+    because there is no session and therefore no token to give any form at
+    all. A second form added to login.html would be silently tokenless, its
+    POST would be refused, and no test would have anything to say about it.
+    """
+
+    def test_the_only_form_here_is_the_one_that_needs_no_token(self, client):
+        """The signed-out counterpart of the settings-page invariant.
+
+        `/prefs/theme` is exempt on purpose: this page carries the control and
+        has nothing to sign it with, which is the whole reason #123 made that
+        route session-free and CSRF-free. The exemption is spent, once, here.
+        """
+        page = client.get("/").data.decode()
+        forms = re.findall(r"<form\b.*?</form>", page, re.S)
+        assert len(forms) == 1, [
+            re.search(r'action="([^"]*)"', form) for form in forms
+        ]
+        assert 'action="/prefs/theme"' in forms[0]
+        assert 'name="csrf_token"' not in forms[0]
+
+    def test_nothing_here_renders_an_empty_token(self, client):
+        """The failure this page invites, and it fails silently.
+
+        `render_template("login.html")` passes no `csrf_token`, and Jinja's
+        default undefined renders as an empty string rather than raising. So a
+        form written here with `{{ csrf_token }}` in it produces
+        `value=""` -- no template error, no warning, and a 400 the first time
+        anybody submits it. The page has to carry no token input at all.
+        """
+        page = client.get("/").data.decode()
+        assert 'name="csrf_token"' not in page
+        assert 'value=""' not in page
+
+    def test_the_page_survives_the_chrome_it_shares_with_signed_in_pages(
+        self, client
+    ):
+        """base.html branches on `section` and `csrf_token`, and this is the
+        one page that has neither. Asserted here as well as in #133 because
+        that is where a future header change would break it -- the account
+        menu is inside `{% if csrf_token %}`, and the sidebar inside
+        `{% if section %}`."""
+        page = client.get("/").data.decode()
+        assert 'class="sidebar"' not in page
+        assert 'class="nav-toggle"' not in page
+        assert "Sign out" not in page
+        # And what must still be there: the bar itself, and the one control on
+        # it that works without a session.
+        assert 'class="bar"' in page
+        assert 'action="/prefs/theme"' in page
+
+
 class TestTheSignInCard(object):
     """#134 phase 1. The first page anybody sees.
 
