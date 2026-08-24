@@ -303,16 +303,28 @@
 {% if page.discord_command %}
   <section class="panel group">
     <h2>Buy inside Discord</h2>
+    {# THE SECOND ROUTE, AND IT HAS TO READ AS ONE.
+       The card route above gets three laid-out cards with prices and buttons;
+       this one was a paragraph with the command buried mid-sentence. That is
+       the redesign quietly favouring one of the two, which this page cannot
+       afford to do -- it is the only place that lists both, and the 6- and
+       12-month terms are card-only precisely because Discord bills monthly.
+
+       So the command gets the weight a button would get on the other route.
+       It is not a button: nothing here can run it, and a control that looks
+       clickable and is not is worse than text. It is the thing to copy, so it
+       is presented as the thing to copy. #}
+    <p class="buy-command"><code>/vrcverify_subscription</code></p>
     {% if page.state == 'none' %}
       <p class="blurb">
-        Run <code>/vrcverify_subscription</code> in {{ guild_name }}. Discord
-        handles the payment, and the command's button is already pointed at
-        this server. Monthly only, at the same price as the monthly plan above.
+        Run it in {{ guild_name }}. Discord handles the payment, and the
+        command's button is already pointed at this server.
+        <strong>Monthly only</strong>, at the same price as the monthly plan
+        above.
       </p>
     {% else %}
       <p class="blurb">
-        Run <code>/vrcverify_subscription</code> in {{ guild_name }} to see this
-        server's Discord subscription.
+        Run it in {{ guild_name }} to see this server's Discord subscription.
       </p>
     {% endif %}
     {% if page.store_url %}

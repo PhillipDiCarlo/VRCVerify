@@ -1041,6 +1041,49 @@ class TestThePageRenders:
         assert "plan-trial" not in page
         assert "free trial" not in page
 
+    def test_no_link_falls_back_to_the_browsers_own_colour(self, config):
+        """#168. There was no `a { color }` rule at all, so "See what's
+        included on Discord's store page" rendered in Chrome's link blue -- on
+        a card the design system painted, on the page that takes money.
+
+        Read from the stylesheet rather than the render, because a computed
+        colour needs a browser and this is the rule's existence, not its
+        value. `test_contrast.py` owns whether --accent-text is legible where
+        links are drawn.
+        """
+        import pathlib
+        import re as _re
+
+        import dashboard
+
+        css = (
+            pathlib.Path(dashboard.__file__).parent / "static" / "style.css"
+        ).read_text(encoding="utf-8")
+        base = _re.search(r"\na\s*\{([^}]*)\}", css)
+        assert base, "no base `a { }` rule -- links fall back to the user agent"
+        assert "color:" in base.group(1)
+        # Colour alone is not a link affordance (WCAG 1.4.1). The
+        # component-scoped rules drop the underline deliberately, because a nav
+        # item is identifiable by position; a word inside a sentence is not.
+        assert "text-decoration" in base.group(1)
+
+    def test_the_discord_route_is_not_left_as_a_paragraph(self, config):
+        """The card route gets three laid-out cards with prices and buttons.
+        This page is the only place that lists both routes, and the 6- and
+        12-month terms are card-only precisely because Discord bills monthly --
+        so the redesign must not quietly favour one."""
+        client, _bot, _stripe, _session = make_client(config)
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert 'class="buy-command"' in page
+        assert "/vrcverify_subscription" in page
+
+    def test_both_purchase_routes_are_still_offered(self, config):
+        """Neither may quietly disappear in a restyle."""
+        client, _bot, _stripe, _session = make_client(config)
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert "/subscription/checkout" in page
+        assert "/vrcverify_subscription" in page
+
     def test_no_inline_style_reaches_the_page(self, config):
         """`style-src 'self'` drops inline styles SILENTLY, so a colour written
         as style="" would simply not apply and nothing would say so."""

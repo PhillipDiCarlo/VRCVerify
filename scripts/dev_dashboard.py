@@ -135,11 +135,42 @@ class _PreviewPrices:
         return PREVIEW_PRICES
 
 
+# --- checkout and the portal, without an account ------------------------
+#
+# THIS EXISTS FOR ONE CHECK THAT TESTS CANNOT MAKE (#141 phase 3).
+#
+# `form-action` is `'self'` plus Stripe's two hosted pages, and it governs
+# where a submission may end up INCLUDING AFTER A REDIRECT. Both routes answer
+# a POST with a 303 to Stripe. Get the policy wrong and the browser sends the
+# request, receives the redirect, and silently refuses to follow it: no
+# navigation, no error page, nothing in the server log. The button simply does
+# nothing. That was the "Subscribe does nothing" bug of 2026-08-15.
+#
+# A test cannot catch it, because there is no server-side evidence to assert
+# on -- the refusal happens entirely inside the browser. What CAN catch it is a
+# real browser following a real 303 to a real `checkout.stripe.com` URL, which
+# is exactly what this returns. No key, no account, no network: the CSP does
+# not care whether the page at the other end exists, only what origin it is
+# on.
+class _PreviewStripe:
+    """Stands in for `StripeClient` for the two redirect-producing calls."""
+
+    def create_checkout_session(self, **kwargs) -> str:
+        # A real Stripe origin with an obviously fake session id. Following it
+        # lands on Stripe's own "this session does not exist" page, which is
+        # the correct outcome: the navigation is the thing being tested.
+        return "https://checkout.stripe.com/c/pay/cs_test_preview_not_a_real_session"
+
+    def create_portal_session(self, **kwargs) -> str:
+        return "https://billing.stripe.com/p/session/preview_not_a_real_session"
+
+
 if PREVIEW_SIGNED_IN:
     from preview_bot import PREVIEW_SUB  # noqa: E402
     from test_subscription_page import PRICES as PREVIEW_PRICES  # noqa: E402
 
     app.config["STRIPE_PRICES"] = _PreviewPrices()
+    app.config["STRIPE"] = _PreviewStripe()
 
 
 if PREVIEW_SIGNED_IN:
@@ -167,6 +198,27 @@ if PREVIEW_SIGNED_IN:
         where the sign-out button is inert.
         """
         g.session = _preview_session
+
+
+# A deliberately BROKEN policy, for one purpose: proving that the check which
+# verifies the Stripe redirect can actually fail. `form-action` refusing a
+# redirect leaves no server-side evidence, so the only honest way to trust a
+# green result is to watch the same check go red against a policy with Stripe
+# taken out. Off unless asked for, and it only ever removes permissions.
+if os.environ.get("PREVIEW_BREAK_FORM_ACTION") == "1":
+    import re as _re
+
+    import dashboard.app as _app_module
+
+    # The MODULE CONSTANT, not an after_request hook. The app sets this header
+    # in a hook of its own registered inside create_app, and Flask runs
+    # after_request handlers in reverse registration order -- so anything added
+    # out here runs first and is then overwritten. The first version of this
+    # did exactly that, and the control it exists to provide came back green
+    # against a policy that had not actually changed.
+    _app_module.CSP = _re.sub(
+        r"form-action[^;]*", "form-action 'self'", _app_module.CSP
+    )
 
 
 @app.after_request
