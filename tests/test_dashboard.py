@@ -34,7 +34,7 @@ import pytest
 
 pytest.importorskip("flask")
 
-from dashboard import oauth, overview_view, settings_view  # noqa: E402
+from dashboard import changelog, oauth, overview_view, settings_view  # noqa: E402
 from dashboard.app import CSP, SESSION_COOKIE, create_app  # noqa: E402
 from dashboard import app as app_module  # noqa: E402
 from dashboard.botapi import BotAPIError  # noqa: E402
@@ -509,6 +509,32 @@ def login_as(client, store, guilds=None):
     session = store.complete_login(pending.sid, ACTOR, guilds or GUILDS)
     client.set_cookie(SESSION_COOKIE, session.sid, domain="localhost")
     return session
+
+
+def csrf_from(page: str) -> str:
+    """The token a rendered page is carrying, read the way a browser would.
+
+    Posting `session.csrf_token` directly is what most tests here do and is
+    fine; this exists for the ones that are also asserting the FORM carries a
+    usable token, where taking it from the session would pass even if the
+    template had left the field out.
+    """
+    match = re.search(r'name="csrf_token" value="([^"]+)"', page)
+    assert match, "no CSRF token in the page"
+    return match.group(1)
+
+
+def set_cookie_header(response, name: str) -> str:
+    """The one `Set-Cookie` header for `name`, attributes and all.
+
+    `response.headers.getlist` rather than `.get`, which returns whichever
+    happens to be first -- a response setting two cookies would otherwise be
+    asserted against the wrong one.
+    """
+    for header in response.headers.getlist("Set-Cookie"):
+        if header.startswith(f"{name}="):
+            return header
+    raise AssertionError(f"no Set-Cookie for {name!r}")
 
 
 # -------------------------------------------------------------------
@@ -1221,12 +1247,174 @@ class TestSettingsDoesNotLeakWhichServersRunTheBot:
             assert never not in page
 
 
+class TestTheBell:
+    """The what's-new panel in the header (issue #136 phase 2).
+
+    The rules about WHICH entries go where are pinned in test_changelog.py
+    against the pure module. What is pinned here is the part only a request
+    can answer: that the panel is markup rather than a script, that it is
+    absent for anybody who should not see it, and that the dot tells the truth
+    about this browser.
+    """
+
+    def test_it_opens_without_a_script(self, client, store):
+        """A <details>, like the two menus beside it. This is not a
+        preference here: the CSP is `default-src 'none'` with no
+        `connect-src`, so a panel that fetched its contents could not open at
+        all."""
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        assert '<details class="bell bar-menu"' in page
+        bell = page.split('<details class="bell', 1)[1].split("</details>", 1)[0]
+        assert "onclick" not in bell and "javascript:" not in bell
+
+    def test_it_is_absent_when_signed_out(self, client):
+        """The sign-in page has nothing to announce to somebody who has not
+        arrived yet. #137 is where a stranger reads this list."""
+        page = client.get("/").data.decode()
+        assert "bell bar-menu" not in page
+
+    def test_it_renders_the_entries(self, client, store):
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        newest = changelog.ENTRIES[0]
+        assert newest.title in page
+        assert newest.display_date in page
+        assert f'datetime="{newest.date.isoformat()}"' in page
+
+    def test_it_shows_at_most_a_handful(self, client, store):
+        """A dropdown is a summary; #137's page is the list."""
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        bell = page.split('<details class="bell', 1)[1].split("</details>", 1)[0]
+        assert bell.count("bell-title") <= changelog.BELL_LIMIT
+
+    def test_a_premium_entry_never_wears_the_lock_badge(self, client, store):
+        """`.badge.premium` means "your plan cannot use this" on the settings
+        page, and this bell renders on that page. One chip with two meanings
+        on one document is a chip that means neither."""
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        bell = page.split('<details class="bell', 1)[1].split("</details>", 1)[0]
+        assert "badge premium" not in bell
+        assert "bell-tag premium" in bell
+
+    def test_the_dot_is_there_for_a_browser_that_has_seen_nothing(
+        self, client, store
+    ):
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        assert "bell-dot" in page
+        assert "There are updates you haven" in page
+
+    def test_the_dot_goes_once_the_newest_is_seen(self, client, store):
+        login_as(client, store)
+        client.set_cookie("vrcverify_seen", changelog.ENTRIES[0].id)
+        page = client.get("/").data.decode()
+        assert "bell-dot" not in page
+
+    def test_an_older_id_still_leaves_the_dot(self, client, store):
+        login_as(client, store)
+        client.set_cookie("vrcverify_seen", changelog.ENTRIES[-1].id)
+        page = client.get("/").data.decode()
+        assert "bell-dot" in page
+
+    def test_a_hand_edited_cookie_shows_the_dot_rather_than_hiding_entries(
+        self, client, store
+    ):
+        """Validated against the ids actually shipped. Trusting an
+        unrecognised value would hide entries this browser has never seen; the
+        dot appearing once more is the harmless direction to fail in."""
+        login_as(client, store)
+        client.set_cookie("vrcverify_seen", "../../etc/passwd")
+        page = client.get("/").data.decode()
+        assert "bell-dot" in page
+        assert "etc/passwd" not in page
+
+    def test_marking_read_writes_the_cookie_and_comes_back(self, client, store):
+        login_as(client, store)
+        token = csrf_from(client.get("/").data.decode())
+        response = client.post(
+            "/prefs/seen", data={"csrf_token": token, "return_to": "index"}
+        )
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/"
+        cookie = set_cookie_header(response, "vrcverify_seen")
+        assert changelog.ENTRIES[0].id in cookie
+        assert "Secure" in cookie and "SameSite=Lax" in cookie
+        # Not httponly: prefs.js writes this one too, and with no connect-src
+        # it has no other way to say the panel was opened.
+        assert "HttpOnly" not in cookie
+
+    def test_it_takes_the_newest_id_from_us_not_from_the_form(self, client, store):
+        """A crafted post must not be able to mark an entry seen that the
+        browser never saw."""
+        login_as(client, store)
+        token = csrf_from(client.get("/").data.decode())
+        response = client.post(
+            "/prefs/seen",
+            data={"csrf_token": token, "return_to": "index", "seen": "whatever"},
+        )
+        assert changelog.ENTRIES[0].id in set_cookie_header(response, "vrcverify_seen")
+
+    def test_marking_read_needs_a_token(self, client, store):
+        login_as(client, store)
+        assert client.post("/prefs/seen", data={"return_to": "index"}).status_code == 400
+
+    def test_marking_read_needs_a_session(self, client):
+        response = client.post("/prefs/seen", data={"return_to": "index"})
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/"
+
+    def test_it_never_reaches_the_bot(self, config, store):
+        """A dot in the header must not be a way to spend the bot's rate
+        limit. Same assertion as `/prefs/nav`, for the same reason."""
+        test_client, api = settings_client(config, store)
+        session = store.load(test_client.get_cookie(SESSION_COOKIE).value)
+        api.reads.clear()
+        api.calls.clear()
+        api.saves.clear()
+        test_client.post(
+            "/prefs/seen",
+            data={
+                "csrf_token": session.csrf_token,
+                "return_to": "guild_settings",
+                "guild_id": GUILD_IN,
+            },
+        )
+        assert api.reads == []
+        assert api.calls == []
+        assert api.saves == []
+
+
 class TestPlanBadgesMirrorTheBot:
-    """The site must be neither stricter nor looser than the slash commands."""
+    """The site must be neither stricter nor looser than the slash commands.
+
+    THESE ASSERTIONS READ `<main>`, NOT THE WHOLE DOCUMENT. They used to grep
+    the response body, which worked only while the settings form was the sole
+    thing on the page that could say "Premium" -- #136's bell put a second,
+    unrelated use of the word in the header and broke the proxy.
+
+    The subject was always the FIELDS. `_form` makes that explicit rather than
+    leaving the next feature to trip over the same shortcut, and it is the
+    reason the bell had to stop using `.badge.premium`: one chip meaning "your
+    plan cannot use this" beside a form and "this exists" in a dropdown on the
+    same page is a badge that means nothing.
+    """
+
+    @staticmethod
+    def _form(page: str) -> str:
+        """Everything inside <main> -- the settings form and nothing else.
+
+        The header (bell, theme picker, account menu) and the footer are
+        chrome, and no assertion in this class is about them.
+        """
+        assert "<main>" in page and "</main>" in page
+        return page.split("<main>", 1)[1].split("</main>", 1)[0]
 
     def test_write_locked_fields_are_marked_premium(self, config, store):
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = self._form(test_client.get(f"/guild/{GUILD_IN}/settings").data.decode())
         assert "Nickname sync" in page
         assert "Premium</span>" in page
 
@@ -1246,7 +1434,7 @@ class TestPlanBadgesMirrorTheBot:
                 }
             ),
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = self._form(test_client.get(f"/guild/{GUILD_IN}/settings").data.decode())
         # The values are shown, not hidden or replaced with an upsell.
         assert "Unverified" in page
         assert "Welcome aboard!" in page
@@ -1257,7 +1445,7 @@ class TestPlanBadgesMirrorTheBot:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = self._form(test_client.get(f"/guild/{GUILD_IN}/settings").data.decode())
         assert "Premium</span>" not in page
         assert "Not applied</span>" not in page
         assert "VRCVerify Premium is active" in page
@@ -5052,13 +5240,18 @@ class TestTheHeaderBar:
         assert actions < page.index('<details class="theme bar-menu">')
 
     def test_the_menus_share_one_pattern(self, client, store):
-        """Both wear .bar-menu, which is what prefs.js dismisses and what #136
-        will wear too. Two menus styled two ways is how a bar ends up with
-        three popovers that each close differently."""
+        """All three wear .bar-menu, which is what prefs.js dismisses. Two
+        menus styled two ways is how a bar ends up with three popovers that
+        each close differently -- so #136's bell joined the pattern rather
+        than bringing a fourth.
+
+        Three since #136 phase 2: the bell, the theme picker, the account
+        menu, in that order left to right.
+        """
         login_as(client, store)
         page = client.get("/").data.decode()
-        assert page.count("bar-menu") == 2
-        assert page.count("bar-panel") == 2
+        assert page.count("bar-menu") == 3
+        assert page.count("bar-panel") == 3
 
     # --- the logo ---
 
@@ -5628,6 +5821,14 @@ class TestWriteSurface:
             # colour. See set_theme_preference, and TestTheThemePicker for the
             # redirect, which is the only part of it worth attacking.
             "/prefs/theme",
+            # The bell's "Mark all as read" (#136). One cookie, nothing else:
+            # no session state, no bot call, and the value written is the
+            # newest entry id this process already knows rather than anything
+            # from the form -- so a forged post cannot mark an entry seen that
+            # the browser never saw. Session and CSRF required, following
+            # /prefs/nav rather than /prefs/theme: the bell renders only for a
+            # signed-in admin, so there is always a token to require.
+            "/prefs/seen",
             # The two that spend money, or end a subscription. Neither writes
             # anything here: each creates a session on Stripe and hands the
             # browser over, so the whole of what they can do is bounded by what

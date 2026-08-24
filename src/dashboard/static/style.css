@@ -609,6 +609,161 @@ p { text-wrap: pretty; }
 
 .menu-tick { flex: 0 0 auto; color: var(--accent-text); }
 
+/* --- the notification bell (#136) ---
+ *
+ * A <details> like the two menus above, so it opens with no JavaScript at all
+ * -- which is not a nicety here. The CSP is `default-src 'none'` with no
+ * `connect-src`, so a panel that needed to fetch its contents could not open.
+ *
+ * The one thing it adds to the shared pattern is a dot, and the one thing it
+ * changes is width: the other two panels hold labels, this one holds
+ * sentences. */
+.bell-dot {
+  position: absolute;
+  /* Pinned to the glyph's upper right rather than the button's corner. The
+   * button is a 34px target around a 16px icon, so the corner is empty space
+   * and a dot there reads as belonging to the bar, not to the bell. */
+  top: 0.4rem;
+  right: 0.4rem;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 50%;
+  background: var(--accent-text);
+  /* A ring in the surface colour, so the dot stays a dot when it overlaps the
+   * bell's outline instead of merging into the stroke. `box-shadow` rather
+   * than a border, which would grow the element and shift it off the corner.
+   * --chrome at rest; the [open] rule below swaps it, because the button is
+   * --hover then and a --chrome ring would show as a halo. */
+  box-shadow: 0 0 0 1.5px var(--chrome);
+}
+
+.bell .bar-button { position: relative; }
+.bell[open] .bell-dot,
+.bell .bar-button:hover .bell-dot { box-shadow: 0 0 0 1.5px var(--hover); }
+
+/* Sentences, not labels, so it is wider than the two menus beside it -- and
+ * capped against the viewport so it cannot open off the side of a phone. It
+ * is already anchored right by .bar-panel, so it grows inwards. */
+.bell-panel {
+  width: min(21rem, calc(100vw - 2 * var(--space-3)));
+}
+
+/* A SAFETY NET, NOT THE NORMAL CASE -- and it started out as the normal case,
+ * which is the bug a browser pass caught.
+ *
+ * With full bodies the list was taller than its cap at every viewport, so it
+ * always scrolled. That would be tolerable if it looked like scrolling; it did
+ * not. The cut landed near an entry boundary, so the panel read as a complete
+ * list of three -- and the entry it hid was the premium one, the only thing in
+ * here doing any conversion work. A scroll region that ends flush is
+ * indistinguishable from the end of the list.
+ *
+ * Clamping the bodies below is what fixes that: five clamped entries fit
+ * inside this cap, so the feed is whole on open and this only engages if
+ * BELL_LIMIT ever grows. The cap stays because a panel taller than the window
+ * is the worse failure. */
+.bell-list {
+  max-height: min(70vh, 30rem);
+  overflow-y: auto;
+}
+
+.bell-list > li {
+  padding: var(--space-2);
+  border-radius: var(--radius-control);
+}
+
+/* Hairlines BETWEEN entries only. A rule under the last one would sit directly
+ * above the footer's own border and read as a double line. */
+.bell-list > li + li { border-top: 1px solid var(--line-soft); border-radius: 0; }
+
+.bell-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 0.2rem;
+  font-size: var(--text-micro);
+  color: var(--faint);
+}
+
+/* DELIBERATELY NOT .badge.premium, even for a premium entry.
+ *
+ * That chip means "this field is locked, your plan cannot use it" on the
+ * settings page -- and this bell renders on the settings page. The same filled
+ * chip saying that beside a form and "this exists" inside a dropdown is how a
+ * badge stops meaning anything, which is what TestPlanBadgesMirrorTheBot
+ * caught.
+ *
+ * A tint rather than a fill for the second reason too: this panel is the
+ * quiet surface. It earns the credibility that makes phase 4's Overview card
+ * land as news instead of as an advert, and a column of coloured chips is how
+ * that gets spent. */
+.bell-tag {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* 4.6:1 on --panel, pinned by test_contrast.py. Enough to pick out of the
+ * column without becoming the loudest thing in it. */
+.bell-tag.premium { color: var(--accent-text); }
+
+.bell-title {
+  margin: 0 0 0.15rem;
+  font-size: var(--text-body);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+  color: var(--ink-strong);
+}
+
+/* Two lines, then an ellipsis. A dropdown is a summary; the full text belongs
+ * on #137's changelog page, which phase 3 builds and links from the foot of
+ * this panel.
+ *
+ * The trade is deliberate and it is the better half of a choice between two
+ * imperfect ones: a clamped entry is visible with its title and tag intact,
+ * where an unclamped one four deep in a scroll region is not visible at all.
+ *
+ * `-webkit-line-clamp` is the prefixed property every engine implements,
+ * including Firefox and Chrome; the unprefixed `line-clamp` is written beside
+ * it so this stops needing the prefix on its own. Both need the
+ * -webkit-box display and `overflow: hidden` to do anything. */
+.bell-body {
+  margin: 0;
+  font-size: var(--text-note);
+  line-height: var(--leading-body);
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Where #137's "See all updates", #138's channel invite and #139's email
+ * signup land, above the form. See the reserved-slot comment in base.html --
+ * three issues want this row and naming the order is what stops them
+ * colliding. */
+.bell-foot {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+.bell-read {
+  width: 100%;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  font: inherit;
+  font-size: var(--text-note);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.bell-read:hover { background: var(--hover); color: var(--ink); }
+
 /* --- account menu ---
  *
  * The two sign-out controls. They were two bare text buttons side by side in
@@ -1738,6 +1893,33 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
      where before they overflowed and gave the whole page a sideways scroll. */
   .bar { padding: 0 0.75rem; }
   footer { padding: 0 0.75rem 2rem; }
+
+  /* THE BELL'S PANEL PINS TO THE VIEWPORT HERE, NOT TO ITS BUTTON.
+   *
+   * .bar-panel anchors every menu to its own right edge, which is correct for
+   * the theme picker and the account menu: both are narrow and both sit at the
+   * very end of the row, so opening inwards keeps them on screen.
+   *
+   * The bell is the LEFTMOST of the three and its panel is the widest, because
+   * it holds sentences rather than labels. On a 375px screen its right edge is
+   * about 100px in from the window's, so a 21rem panel hanging off it starts
+   * 76px off the left of the screen -- which is what a browser pass caught:
+   * "WHAT'S NEW" rendered as "T'S NEW" and every title lost its first word.
+   *
+   * Capping the WIDTH does not fix that, and this is the part worth
+   * remembering: the width was already capped against the viewport. The
+   * overflow is a position problem, so the fix has to be positional. Fixed to
+   * the window with an inset on both sides makes the panel independent of
+   * where in the row its button ended up. `.bar` is position: relative, which
+   * does not contain a fixed child, and nothing in the header applies a
+   * transform or filter that would. */
+  .bell-panel {
+    position: fixed;
+    top: calc(var(--bar-h) + var(--space-2));
+    left: var(--space-3);
+    right: var(--space-3);
+    width: auto;
+  }
 
   .layout { flex-direction: column; gap: 0; padding: 0 0.75rem; }
 

@@ -210,15 +210,136 @@
        already look in for it. #}
     <div class="bar-actions">
 
-      {# THE NOTIFICATION BELL FROM #136 GOES HERE, AS THE FIRST CHILD.
-         This is the reserved slot, and reserving it is half of why this phase
-         goes first: #123, #136 and the rest of #133 all edit this one file.
+      {# THE NOTIFICATION BELL (#136 phase 2), IN THE SLOT #133 RESERVED.
+         Everything that comment promised held: this is a <details
+         class="bell bar-menu"> wearing .bar-button and .bar-panel, and it
+         sized, spaced and aligned itself with no change to the header rules.
 
-         Add a single <details class="bell bar-menu"> here and it will size,
-         space and align itself. The panel it opens is .bar-panel, already
-         written; the button is .bar-button; prefs.js already closes anything
-         wearing .bar-menu on an outside click and on Escape. Nothing in this
-         file or the stylesheet has to move to make room for it. #}
+         A <details> disclosure, so the panel opens with ZERO JavaScript. That
+         is the trick that makes the whole feature work under
+         `default-src 'none'` -- there is no connect-src, so a panel that
+         needed a fetch could not open at all.
+
+         Signed-in only, gated on csrf_token exactly as the account menu below
+         is. The sign-in page has nothing to announce to somebody who has not
+         arrived yet, and the public version of this list is #137's job.
+
+         Suppressed entirely when the feed is empty, rather than rendering a
+         control that opens onto nothing. `updates().show` is that check and
+         it lives in changelog.py, so "is there a bell" is one decision rather
+         than a truth table in a template. #}
+      {% if csrf_token %}
+        {% set feed = updates() %}
+        {% if feed.show %}
+          {# `data-newest` is what prefs.js writes into the cookie when the
+             panel opens. An id from our own constant, never anything from a
+             request -- and the server validates whatever comes back against
+             the shipped ids anyway, so the script cannot invent one. #}
+          <details class="bell bar-menu" data-newest="{{ feed.entries[0].id }}">
+            <summary class="bar-button"
+                     title="What's new"
+                     aria-label="What's new{% if feed.unread %}. There are updates you haven't seen.{% endif %}">
+              {# A bell, drawn the same way as every other glyph in this file:
+                 inline SVG, presentation attributes only, nothing that has to
+                 exist in the vendored Inter subset. #}
+              <svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16"
+                   aria-hidden="true" fill="none" stroke="currentColor"
+                   stroke-width="1.6" stroke-linecap="round"
+                   stroke-linejoin="round">
+                <path d="M8 1.9a4.2 4.2 0 0 0-4.2 4.2c0 3.1-1.2 4-1.2 4h10.8s-1.2-.9-1.2-4A4.2 4.2 0 0 0 8 1.9z"></path>
+                <path d="M6.6 12.5a1.6 1.6 0 0 0 2.8 0"></path>
+              </svg>
+              {% if feed.unread %}
+                {# aria-hidden because the summary's own label already says
+                   it in words. A dot announced twice is worse than one
+                   announced once. #}
+                <span class="bell-dot" aria-hidden="true"></span>
+              {% endif %}
+            </summary>
+
+            <div class="bar-panel bell-panel" aria-labelledby="bell-menu-label">
+              <p class="menu-label" id="bell-menu-label">What&#39;s new</p>
+
+              <ul class="bell-list">
+                {% for item in feed.entries %}
+                  <li>
+                    <p class="bell-meta">
+                      {# NOT `.badge.premium`, and the reason is a collision
+                         rather than taste. That chip already means one
+                         specific thing on the settings page -- "this field is
+                         locked, your plan cannot use it" -- and this bell
+                         renders on that same page. One component saying "you
+                         cannot have this" beside a form and "this exists"
+                         inside a dropdown is how a badge stops meaning
+                         anything. `TestPlanBadgesMirrorTheBot` is the test
+                         that caught it.
+
+                         So the tag is a quiet word beside the date, tinted
+                         for premium and not for the rest. It also has to be
+                         plan-NEUTRAL: base.html backs the picker too, where
+                         there is no guild and so no plan to be neutral
+                         about. "Premium" as a category is true for a
+                         subscriber and a free server alike; "Upgrade" would
+                         not be.
+
+                         The panel is deliberately the quiet surface. Its job
+                         is credibility -- the thing that makes phase 4's
+                         Overview card land as news rather than as an advert
+                         -- and a column of coloured chips spends exactly that. #}
+                      <span class="bell-tag{% if item.premium %} premium{% endif %}">{{ item.tag }}</span>
+                      {# The ISO form for machines, the readable one for
+                         people. `display_date` builds "24 Aug 2026" without
+                         `%-d`, which is not portable. #}
+                      <time datetime="{{ item.date.isoformat() }}">{{ item.display_date }}</time>
+                    </p>
+                    <p class="bell-title">{{ item.title }}</p>
+                    <p class="bell-body">{{ item.body }}</p>
+                  </li>
+                {% endfor %}
+              </ul>
+
+              {# RESERVED SLOTS, AND WHY THEY ARE COMMENTS RATHER THAN MARKUP.
+                 Three issues want a row at the foot of this panel and all
+                 three would edit the same lines. Naming the order here is
+                 what stops them colliding, the same trick #133 used to hand
+                 this slot over intact:
+
+                   1. #137 -- "See all updates", linking to the changelog
+                      page. Lands in PHASE 3 of this issue, which builds that
+                      route. Deliberately absent rather than pointing
+                      somewhere that 404s.
+                   2. #138 -- "Follow our announcement channel", once a
+                      VRCVerify Discord server exists to follow.
+                   3. #139 -- "Get updates by email", once the Privacy Policy
+                      amendment that feature requires has shipped.
+
+                 All three belong inside .bell-foot below, before the form. #}
+
+              {# THE NO-JAVASCRIPT PATH.
+                 prefs.js clears the dot the moment this panel opens, by
+                 writing the cookie directly -- no fetch, because there is no
+                 connect-src to fetch with. With scripts blocked nothing tells
+                 the server the panel was opened, so this button is what keeps
+                 the dot honest: an indicator that never clears stops being an
+                 indicator.
+
+                 Not a fallback bolted on for that case. Every comparable
+                 panel has this control, and it does the same thing whether or
+                 not prefs.js ran. #}
+              <div class="bell-foot">
+                <form method="post" action="{{ url_for('mark_updates_seen') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="return_to" value="{{ nav_return_to or 'index' }}">
+                  {% if guild_id %}
+                    <input type="hidden" name="guild_id" value="{{ guild_id }}">
+                  {% endif %}
+                  <button type="submit" class="bell-read">Mark all as read</button>
+                </form>
+              </div>
+            </div>
+          </details>
+        {% endif %}
+      {% endif %}
 
       {# THE THEME PICKER
          ----------------

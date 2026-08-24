@@ -111,6 +111,18 @@ class Entry:
         """The badge the bell and the changelog page put beside the title."""
         return "Premium" if self.premium else "New"
 
+    @property
+    def display_date(self) -> str:
+        """"24 Aug 2026". Built without `%-d`, which is a glibc/BSD extension
+        the standard does not promise -- this renders the same everywhere.
+
+        English, like every other string here, and one more for #97 to catch
+        when the dashboard learns the twelve languages the bot already speaks.
+        The `<time datetime>` beside it carries the ISO form, so the machine
+        readable half never depends on this.
+        """
+        return f"{self.date.day} {self.date:%b %Y}"
+
 
 # The fixed table. A `cta_endpoint` not named here is not renderable, and
 # `test_changelog.py` fails on one -- see `validate_entries`.
