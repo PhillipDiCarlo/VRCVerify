@@ -189,6 +189,9 @@ def make_settings(
     }
 
 
+_UNSET = object()
+
+
 def make_overview(
     member_count=1284,
     total=417,
@@ -196,6 +199,7 @@ def make_overview(
     last_7_days=12,
     last_30_days=63,
     collecting_since="2026-06-01",
+    daily=_UNSET,
     known=True,
     panel=None,
     configured=None,
@@ -207,7 +211,23 @@ def make_overview(
     Windows are passed through as given, including None -- which is the state
     that means "not collecting that far back", and is the one worth being able
     to construct explicitly in a test.
+
+    `daily` defaults to a plausible 30-day series rather than to None, because
+    None is the failure state and a fixture should default to the ordinary
+    one. Pass `daily=None` to build the state where the rollup could not be
+    read at all.
+
+    That this shape really does match the bot is checked by
+    `test_overview.py::TestTheFakePayloadMatchesTheRealOne` -- the claim in the
+    line above used to be only a claim.
     """
+    if daily is _UNSET:
+        # Thirty measured days, the last of them carrying `today`, so the
+        # series and the tiles beside it tell the same story by default.
+        daily = [
+            {"day": f"2026-07-{day:02d}", "count": 0} for day in range(1, 30)
+        ] + [{"day": "2026-07-30", "count": today}]
+
     return {
         "guild_id": GUILD_IN,
         "member_count": member_count,
@@ -222,6 +242,7 @@ def make_overview(
             "today": today,
             "last_7_days": last_7_days,
             "last_30_days": last_30_days,
+            "daily": daily,
             "collecting_since": collecting_since,
             "known": known,
         },

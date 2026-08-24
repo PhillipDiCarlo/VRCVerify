@@ -228,6 +228,154 @@ class TestTheWindows:
         assert bot._verification_windows(GUILD_ID)["today"] == 2
 
 
+class TestTheDailySeries:
+    """#135 phase 1. Thirty days of counts, for a chart that cannot lie.
+
+    The window totals beside this can only ever be one number, so a window
+    straddling the collection floor has to blank entirely. A series does not
+    have that problem -- it can carry real counts for the covered days and
+    None for the rest -- which is the whole reason it is worth adding rather
+    than deriving the chart from the three totals already there.
+
+    Everything below is about the same three-way distinction the windows have:
+    a count, a measured zero, and a day nobody measured.
+    """
+
+    def series(self, guild_id=GUILD_ID, days=30):
+        return {
+            entry["day"]: entry["count"]
+            for entry in bot._verification_daily(guild_id, days)
+        }
+
+    def test_it_covers_the_window_one_entry_per_day(self):
+        add_day(today() - timedelta(days=40), 1)  # collection well underway
+        entries = bot._verification_daily(GUILD_ID, 30)
+
+        assert len(entries) == 30
+        days = [entry["day"] for entry in entries]
+        assert days == sorted(days), "oldest first, so a chart reads left to right"
+        assert days[-1] == today().isoformat()
+        assert days[0] == (today() - timedelta(days=29)).isoformat()
+
+    def test_a_measured_day_with_nothing_on_it_is_zero_not_absent(self):
+        """The distinction the whole feature turns on. The table writes no row
+        for a quiet day, so the calendar has to be rebuilt here -- and above
+        the floor, a missing row means nothing happened."""
+        add_day(today() - timedelta(days=10), 5)
+        counts = self.series()
+
+        assert counts[(today() - timedelta(days=10)).isoformat()] == 5
+        assert counts[(today() - timedelta(days=9)).isoformat()] == 0
+        assert counts[today().isoformat()] == 0
+
+    def test_days_before_collection_started_are_not_zero(self):
+        """They are None. Nothing was measured, so no number would be true --
+        and a chart that drew them as zero would invent a quiet fortnight."""
+        first = today() - timedelta(days=6)
+        add_day(first, 3)
+        counts = self.series()
+
+        assert counts[(first - timedelta(days=1)).isoformat()] is None
+        assert counts[(today() - timedelta(days=29)).isoformat()] is None
+        # And the floor day itself is measured.
+        assert counts[first.isoformat()] == 3
+
+    def test_an_empty_table_measures_nothing_at_all(self):
+        """Not thirty zeroes. Nothing has ever been counted anywhere."""
+        counts = self.series()
+        assert len(counts) == 30
+        assert set(counts.values()) == {None}
+
+    def test_a_single_day_of_data_leaves_the_rest_unmeasured(self):
+        add_day(today(), 4)
+        counts = self.series()
+
+        assert counts[today().isoformat()] == 4
+        assert all(
+            value is None for day, value in counts.items()
+            if day != today().isoformat()
+        )
+
+    def test_another_guilds_rows_are_not_counted(self):
+        add_day(today(), 9, server_id=OTHER_GUILD)
+        add_day(today(), 2)
+
+        assert self.series()[today().isoformat()] == 2
+        assert self.series(OTHER_GUILD)[today().isoformat()] == 9
+
+    def test_a_quiet_guild_still_gets_zeroes_once_anyone_is_collecting(self):
+        """`_collection_started()` is global on purpose. A guild that has never
+        verified anybody, on a fleet that has been collecting for months, has a
+        fully measured window of zeroes -- not thirty unmeasured days."""
+        add_day(today() - timedelta(days=40), 1, server_id=OTHER_GUILD)
+        counts = self.series()
+
+        assert set(counts.values()) == {0}
+
+    def test_the_series_agrees_with_the_window_beside_it(self):
+        """They are read from the same table in the same request and appear in
+        the same payload, so a chart summing to something other than the tile
+        above it would be the page contradicting itself on screen."""
+        add_day(today() - timedelta(days=40), 100)  # floor well back
+        add_day(today() - timedelta(days=5), 7)
+        add_day(today() - timedelta(days=1), 2)
+        add_day(today(), 1)
+
+        total = sum(v for v in self.series().values() if v is not None)
+        assert total == bot._verification_windows(GUILD_ID)["last_30_days"] == 10
+
+    def test_the_series_says_more_than_the_window_can(self):
+        """The reason this exists at all.
+
+        A window straddling the floor must blank -- one number cannot be
+        part-measured. The series carries the covered days as real counts and
+        the rest as None, so a server collecting for a week gets six real bars
+        where the tile can only show a dash.
+        """
+        first = today() - timedelta(days=5)
+        add_day(first, 4)
+
+        assert bot._verification_windows(GUILD_ID)["last_30_days"] is None
+        counts = self.series()
+        measured = [v for v in counts.values() if v is not None]
+        assert len(measured) == 6 and sum(measured) == 4
+
+    def test_it_asks_the_database_once(self, monkeypatch):
+        """Thirty days must not be thirty queries. This runs on every Overview
+        render, for every admin, on a page whose whole point is loading fast
+        enough to answer "is it working"."""
+        calls = []
+        real = bot.session_scope
+
+        def counting_scope(*args, **kwargs):
+            calls.append(1)
+            return real(*args, **kwargs)
+
+        add_day(today() - timedelta(days=40), 1)
+        # Warm `_collecting_since` first. It is memoised globally and every
+        # Overview render before this one has already paid for it, so counting
+        # it here would measure a cold process rather than the series -- and
+        # the claim being made is about the series.
+        bot._collection_started()
+
+        monkeypatch.setattr(bot, "session_scope", counting_scope)
+        bot._verification_daily(GUILD_ID, 30)
+        assert len(calls) == 1, f"{len(calls)} database sessions for one series"
+
+    def test_it_stores_no_more_than_a_day_and_a_number(self):
+        """The privacy ceiling, restated at the payload boundary.
+
+        `VerificationDaily` is counts-only by design, and this is the first
+        thing to expose its rows one at a time rather than summed. A series is
+        finer-grained than a total, so it is worth pinning that finer does not
+        mean more identifying: an entry is a date and a count, and nothing a
+        date and a count can be joined to names a member.
+        """
+        add_day(today(), 1)
+        for entry in bot._verification_daily(GUILD_ID, 3):
+            assert set(entry) == {"day", "count"}
+
+
 class TestCollectionStart:
     def test_it_is_global_not_per_guild(self):
         """A guild's own first row is the wrong question.
@@ -324,6 +472,34 @@ class TestTheOverviewPayload:
         assert counts["today"] is None
         assert counts["last_7_days"] is None
         assert counts["last_30_days"] is None
+        # None, not []. The read failed, and an empty list is a chart's way of
+        # saying thirty days of confidently reported nothing.
+        assert counts["daily"] is None
+
+    def test_the_payload_carries_the_daily_series(self, in_guild):
+        """The series travels with the totals it has to agree with. Splitting
+        it into a second call would let a chart and the tile above it be read
+        a moment apart and disagree on screen."""
+        make_server()
+        add_day(today() - timedelta(days=40), 1)  # floor well back
+        add_day(today(), 3)
+
+        counts = read_overview()["verifications"]
+        assert len(counts["daily"]) == 30
+        assert counts["daily"][-1] == {"day": today().isoformat(), "count": 3}
+        assert counts["known"] is True
+
+    def test_the_series_and_the_thirty_day_tile_cannot_disagree(self, in_guild):
+        """Both are read in one request from one table, and the page shows them
+        within an inch of each other."""
+        make_server()
+        add_day(today() - timedelta(days=40), 99)
+        add_day(today() - timedelta(days=3), 5)
+        add_day(today(), 2)
+
+        counts = read_overview()["verifications"]
+        measured = [e["count"] for e in counts["daily"] if e["count"] is not None]
+        assert sum(measured) == counts["last_30_days"] == 7
 
     def test_a_missing_verification_count_column_omits_the_total(
         self, in_guild, monkeypatch
@@ -366,6 +542,65 @@ class TestTheOverviewPayload:
         rendered = repr(payload)
         for forbidden in ("discord_id", "vrc_user_id", "user_id", "member_id"):
             assert forbidden not in rendered
+
+
+class TestTheFakePayloadMatchesTheRealOne:
+    """`make_overview()` in test_dashboard.py says it is "shaped exactly like
+    read_dashboard_overview returns". Until now that was a sentence in a
+    docstring with nothing behind it.
+
+    It matters more than an ordinary fixture, because two things build on that
+    claim: every dashboard test that renders the Overview, and
+    `scripts/preview_bot.py`, which imports the same helper so the local
+    preview cannot drift from the bot. A field added here and forgotten there
+    means a page built and reviewed against a payload production never sends.
+
+    Phase 1 of #135 is exactly that kind of change -- it adds `daily` -- so
+    this lands with it rather than after the first thing it would have caught.
+
+    KEYS, NOT VALUES. The fake's job is to produce plausible contents, not the
+    same contents; asserting equality would make it a copy of the bot rather
+    than a stand-in for it.
+    """
+
+    def _real(self, in_guild):
+        make_server()
+        add_day(today(), 1)
+        return read_overview()
+
+    def _fake(self):
+        pytest.importorskip("flask")
+        # Imported here rather than at module scope on purpose: test_dashboard
+        # imports the Flask app, and this module is the bot's. Keeping the
+        # dependency one-way and lazy also keeps `bot` out of test_dashboard's
+        # import graph, which is what stops `scripts/preview_bot.py` from
+        # pulling `load_dotenv()` into the local preview -- see #162.
+        from test_dashboard import make_overview
+
+        return make_overview()
+
+    def test_the_top_level_keys_match(self, in_guild):
+        assert set(self._fake()) == set(self._real(in_guild))
+
+    def test_the_verifications_block_matches(self, in_guild):
+        """Where phase 1 added a field, and where the next phases will add
+        more."""
+        real = self._real(in_guild)["verifications"]
+        fake = self._fake()["verifications"]
+        assert set(fake) == set(real), (
+            f"fake has {sorted(set(fake) - set(real))} extra, "
+            f"missing {sorted(set(real) - set(fake))}"
+        )
+
+    def test_a_daily_entry_has_the_same_shape_in_both(self, in_guild):
+        real = self._real(in_guild)["verifications"]["daily"]
+        fake = self._fake()["verifications"]["daily"]
+        assert real and fake
+        assert set(real[0]) == set(fake[0]) == {"day", "count"}
+        # And both are ordered oldest-first, which the chart depends on.
+        for series in (real, fake):
+            days = [entry["day"] for entry in series]
+            assert days == sorted(days)
 
 
 class TestTheRollupStoresNoPeople:
