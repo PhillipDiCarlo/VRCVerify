@@ -29,14 +29,25 @@
 
 {# The one thing worth doing next, if there is one. Above the numbers on
    purpose: a server with no verified role has nothing to count, and burying
-   the reason under four zeroes is how an admin concludes the bot is broken. #}
+   the reason under four zeroes is how an admin concludes the bot is broken.
+
+   #135 phase 4: this is no longer only a setup nag. `build_next_step` now
+   ranks a setup step above a premium changelog entry above a data-backed
+   demo, so `next_step.action` names WHICH page fixes it -- a setup step
+   goes to Settings, a premium pitch goes to Subscriptions, and a template
+   `if` is enough because there are only ever the two. #}
 {% if next_step %}
   <section class="panel group next-step">
     <h2>{{ next_step.title }}</h2>
     <p class="muted blurb">{{ next_step.body }}</p>
     <p class="actions">
-      <a class="button" href="{{ url_for('guild_settings', guild_id=guild_id) }}">
-        Go to Settings</a>
+      {% if next_step.action == 'subscription' %}
+        <a class="button" href="{{ url_for('guild_subscription', guild_id=guild_id) }}">
+          See plans and subscribe</a>
+      {% else %}
+        <a class="button" href="{{ url_for('guild_settings', guild_id=guild_id) }}">
+          Go to Settings</a>
+      {% endif %}
     </p>
   </section>
 {% endif %}

@@ -3090,6 +3090,49 @@ class TestTheOverviewSuggestsOneNextStep:
         assert "No instructions panel is posted" in page
 
 
+class TestThePremiumPitchOnThePage:
+    """#135 phase 4. Once setup is complete, the same attention slot ranks a
+    data-backed demo -- the fixture's own default state, since make_overview()
+    defaults to a fully configured, non-premium server with a real 30-day
+    count."""
+
+    def _page(self, config, store, **overview):
+        test_client, _api = settings_client(
+            config, store, overview=make_overview(**overview)
+        )
+        return test_client.get(f"/guild/{GUILD_IN}").data.decode()
+
+    def test_a_fully_configured_free_server_sees_the_demo(self, config, store):
+        page = self._page(config, store, last_30_days=214)
+        assert "Upgrade to VRCVerify Premium" in page
+        assert "214 members verified" in page
+
+    def test_the_demo_links_to_subscriptions_not_settings(self, config, store):
+        page = self._page(config, store, last_30_days=214)
+        section = re.search(r'<h2>Upgrade to VRCVerify Premium</h2>.*?</section>', page, re.S)
+        assert section
+        assert f'href="/guild/{GUILD_IN}/subscription"' in section.group(0)
+        assert "See plans and subscribe" in section.group(0)
+
+    def test_a_premium_server_sees_no_pitch_at_all(self, config, store):
+        page = self._page(config, store, last_30_days=214, premium=True)
+        assert "Upgrade to VRCVerify Premium" not in page
+        assert "Add VRCVerify Premium" not in page
+
+    def test_a_grandfathered_server_sees_the_reassurance_first(self, config, store):
+        page = self._page(config, store, last_30_days=214, grandfathered=True)
+        assert "Add VRCVerify Premium" in page
+        assert "grandfathered extras stay free" in page
+
+    def test_a_quiet_server_sees_no_pitch(self, config, store):
+        page = self._page(config, store, last_30_days=0)
+        assert "VRCVerify Premium" not in page
+
+    def test_a_blank_window_sees_no_pitch(self, config, store):
+        page = self._page(config, store, last_30_days=None)
+        assert "VRCVerify Premium" not in page
+
+
 class TestTheSetupListOnThePage:
     """#135 phase 3. The merged Apollo-pattern list -- health and setup as one
     actioned list -- as opposed to TestOverviewViewModel, which checks the
@@ -5430,6 +5473,112 @@ class TestOverviewViewModel:
             )
             is None
         )
+
+    def test_a_failed_settings_read_returns_no_next_step(self):
+        """Mirrors build_setup's own silence -- guessing from half the
+        checks would be worse than matching it."""
+        assert overview_view.build_next_step({"configured": None}) is None
+
+    def test_a_broken_required_row_is_a_setup_step_with_its_own_title(self):
+        """Deleted, not just unset -- the top banner has to say which,
+        reusing the exact note build_setup already wrote for the row."""
+        step = overview_view.build_next_step(
+            {
+                "configured": self._configured(verified_role_exists=False,
+                                                verified_role_assignable=None),
+                "panel": {"posted": True},
+            }
+        )
+        assert step["title"] == "The verified role needs attention"
+        assert "deleted" in step["body"]
+        assert step["action"] == "settings"
+
+
+class TestTheNextStepRanker:
+    """#135 phase 4. `build_next_step` ranks three kinds of thing into one
+    slot: a setup step always wins, then an undismissed premium changelog
+    entry (#136's contract, not yet a real caller), then the data-backed
+    demo built from this server's own 30-day count."""
+
+    def _configured(self, **overrides):
+        base = {
+            "verified_role": True,
+            "verified_role_exists": True,
+            "verified_role_assignable": True,
+            "unverified_role": False,
+            "log_channel": False,
+            "auto_verify": True,
+        }
+        base.update(overrides)
+        return base
+
+    def _overview(self, **overrides):
+        return make_overview(panel={"posted": True}, **overrides)
+
+    CHANGELOG = {"title": "New: branded panels", "body": "...", "action": "subscription"}
+
+    def test_setup_beats_a_changelog_entry_and_a_demo(self):
+        overview = self._overview(
+            configured=self._configured(verified_role=False,
+                                         verified_role_exists=None,
+                                         verified_role_assignable=None),
+            last_30_days=214,
+        )
+        step = overview_view.build_next_step(overview, changelog_entry=self.CHANGELOG)
+        assert step["title"] == "No verified role is set"
+
+    def test_a_changelog_entry_beats_the_demo(self):
+        overview = self._overview(last_30_days=214)
+        step = overview_view.build_next_step(overview, changelog_entry=self.CHANGELOG)
+        assert step == self.CHANGELOG
+
+    def test_the_demo_appears_when_nothing_outranks_it(self):
+        overview = self._overview(last_30_days=214)
+        step = overview_view.build_next_step(overview)
+        assert step["action"] == "subscription"
+        assert "214" in step["body"]
+
+    def test_no_changelog_entry_by_default(self):
+        """The parameter exists for #136; nothing supplies one yet, and
+        build_next_step must not invent its own."""
+        overview = self._overview(last_30_days=214)
+        step = overview_view.build_next_step(overview)
+        assert step != self.CHANGELOG
+
+    def test_the_demo_is_suppressed_for_a_premium_server(self):
+        overview = self._overview(last_30_days=214, premium=True)
+        assert overview_view.build_next_step(overview) is None
+
+    def test_the_demo_is_suppressed_for_a_blank_window(self):
+        overview = self._overview(last_30_days=None)
+        assert overview_view.build_next_step(overview) is None
+
+    def test_the_demo_is_suppressed_when_the_rollup_is_unknown(self):
+        overview = self._overview(last_30_days=None, known=False)
+        assert overview_view.build_next_step(overview) is None
+
+    def test_the_demo_is_suppressed_for_a_genuine_zero(self):
+        """"0 members verified, upgrade to log them" argues against buying,
+        not for it -- the issue's own words for why this must stay silent."""
+        overview = self._overview(last_30_days=0)
+        assert overview_view.build_next_step(overview) is None
+
+    def test_the_demo_names_the_real_count(self):
+        overview = self._overview(last_30_days=7)
+        step = overview_view.build_next_step(overview)
+        assert "7 members verified" in step["body"]
+
+    def test_singular_count_is_grammatical(self):
+        overview = self._overview(last_30_days=1)
+        step = overview_view.build_next_step(overview)
+        assert "1 member verified" in step["body"]
+
+    def test_a_grandfathered_server_leads_with_what_it_keeps(self):
+        overview = self._overview(last_30_days=214, grandfathered=True)
+        step = overview_view.build_next_step(overview)
+        assert step["title"] == "Add VRCVerify Premium"
+        assert "stay free" in step["body"]
+        assert "214" in step["body"]
 
 
 class TestWriteSurface:
