@@ -38,24 +38,33 @@
 (function () {
   "use strict";
 
-  // The one place cookie writing happens. #136 uses this too, which is why it
-  // takes a name rather than assuming the theme.
+  // The one place cookie writing happens. #136 uses this too -- for which
+  // entry the bell has been seen up to, and which cards have been dismissed --
+  // which is why it takes a name rather than assuming the theme.
   //
-  // No `Secure` here even though the server sets it: this only ever runs on a
-  // page already served over HTTPS in production, and adding it would make the
-  // preview on plain-HTTP loopback silently stop working -- which is exactly
-  // the bug that made phase 3 look broken on first click.
+  // `Secure` is conditional, not absent (#161). It used to be omitted outright,
+  // with a comment claiming this only ran on the plain-HTTP loopback preview.
+  // It does not: it runs on every instant theme change in production, so the
+  // first time anyone switched theme, the server's Secure cookie was replaced
+  // by a non-Secure one with a year to live. The reasoning was sound and the
+  // placement was wrong -- the exception belongs to the preview, so it is
+  // written as one. On https this now matches what the server sets; on
+  // loopback the preview keeps working.
   var YEAR = 31536000;
+  var SECURE = location.protocol === "https:" ? "; Secure" : "";
 
   function writeCookie(name, value) {
     var base = encodeURIComponent(name) + "=";
     if (value === null) {
-      document.cookie = base + "; Max-Age=0; Path=/; SameSite=Lax";
+      // Deleting has to carry the same attributes as writing, Secure
+      // included: a browser matches on name, path and domain, but a cookie
+      // set Secure is not overwritten by a non-Secure one of the same name.
+      document.cookie = base + "; Max-Age=0; Path=/; SameSite=Lax" + SECURE;
       return;
     }
     document.cookie =
       base + encodeURIComponent(value) +
-      "; Max-Age=" + YEAR + "; Path=/; SameSite=Lax";
+      "; Max-Age=" + YEAR + "; Path=/; SameSite=Lax" + SECURE;
   }
 
   // Must agree with THEMES and THEME_DEFAULT in app.py. If they ever disagree
