@@ -2872,6 +2872,18 @@ class TestTheOverviewPage:
             assert actor == ACTOR
             assert guild == GUILD_IN
 
+    def test_a_tile_leads_with_its_label_not_its_number(self, config, store):
+        """#135 phase 5: the Featurebase/Framer shape reads label-then-value,
+        the reverse of the original tile order -- pinned so a future edit
+        cannot swap it back without noticing."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        one_tile = re.search(r'<li class="tile">.*?</li>', page, re.S)
+        assert one_tile, "no fully-known tile on the default fixture"
+        label_at = one_tile.group(0).index('class="tile-label"')
+        value_at = one_tile.group(0).index('class="tile-value"')
+        assert label_at < value_at
+
 
 class TestTheChartOnThePage(object):
     """#135 phase 2. The rendered SVG, its offscreen table, and the two

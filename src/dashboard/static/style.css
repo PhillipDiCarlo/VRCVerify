@@ -1477,24 +1477,35 @@ footer {
   font-size: 0.85rem;
 }
 
-/* --- overview --- */
+/* --- overview ---
+ *
+ * #135 phase 5: the Featurebase/Framer shape from the issue's own reference
+ * -- a stat row that reads as one piece with the chart below it, not four
+ * separate pill-shaped cards sitting above an unrelated graphic. Both
+ * references drop the per-tile card chrome entirely; this follows suit
+ * rather than splitting the difference; see the CSS above `.chart` for how
+ * the two halves join. */
 .tiles {
   list-style: none;
   margin: 0.9rem 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-  gap: 0.6rem;
+  gap: var(--space-4);
 }
 
-.tile {
-  padding: 0.85rem 0.9rem;
-  background: var(--inset);
-  border-radius: var(--radius-control);
+.tile { padding: 0; }
+
+.tile-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .tile-value {
   display: block;
+  margin-top: 0.2rem;
   color: var(--ink-strong);
   font-size: 1.75rem;
   font-weight: 700;
@@ -1503,14 +1514,6 @@ footer {
   /* Tabular figures so a row of counts lines up on the digits rather than
    * wandering with the glyph widths. */
   font-variant-numeric: tabular-nums;
-}
-
-.tile-label {
-  display: block;
-  margin-top: 0.1rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--muted);
 }
 
 .tile-note { display: block; margin-top: 0.3rem; font-size: 0.78rem; }
@@ -1542,7 +1545,11 @@ footer {
  * leaves under itself, which was reading as a mismatched bottom margin
  * against .tiles above it. */
 .chart {
-  margin: var(--space-4) 0 0;
+  /* --space-5, not --space-4 -- flattening the tile cards in phase 5 removed
+   * the padding that used to sit between a tile's own note text and this
+   * chart. Without it, a wrapped .tile-note (the all-time tile almost always
+   * has one) read as crowding straight into the bars below. */
+  margin: var(--space-5) 0 0;
   width: 100%;
   height: 4.5rem;
 }
@@ -1609,11 +1616,15 @@ footer {
  * would be the first thing to undo it. */
 .setup-action { padding: 0.4rem 0.9rem; font-size: 0.85rem; }
 
+/* No fill, same reason .notice.ok has none: --ok on --inset is 4.14:1 in the
+ * light theme, under AA -- measured once already for that rule (see the
+ * comment above .notice.ok) and true here too, since it's the same two
+ * tokens. Unfilled it sits on --panel, where --ok passes at 4.86:1. */
 .setup-complete {
   margin: 0 0 var(--space-3);
   padding: 0.6rem 0.85rem;
+  border: 1px solid var(--ok);
   border-radius: var(--radius-control);
-  background: var(--inset);
   color: var(--ok);
   font-weight: 600;
 }
