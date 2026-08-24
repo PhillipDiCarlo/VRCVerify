@@ -9415,6 +9415,76 @@ def _collection_started() -> Optional[date]:
     return _collecting_since
 
 
+DAILY_SERIES_DAYS = 30
+
+
+def _verification_daily(guild_id, days: int = DAILY_SERIES_DAYS) -> list:
+    """One entry per UTC day for the last `days`, oldest first.
+
+    `[{"day": "2026-08-24", "count": 3}, ...]`, where **count is None for a day
+    before collection started** and an integer for every day after it.
+
+    THREE OUTCOMES, NOT TWO, and keeping them apart is the whole job:
+
+      count: 3     that many verifications happened
+      count: 0     the day was measured and nothing happened -- a real answer,
+                   and usually the interesting one: a panel is up and nobody
+                   is using it
+      count: None  the day is before `_collection_started()`, so nothing was
+                   measured and no number would be true
+
+    The table cannot tell you this by itself. `VerificationDaily` writes no row
+    for a day with no verifications -- deliberately, per its docstring, because
+    writing zero-rows nightly would destroy the distinction and buy nothing --
+    so absent and zero look identical *in the table*. The calendar is
+    reconstructed here, and `_collection_started()` is what separates them:
+    below that floor absent means unmeasured, above it absent means zero.
+
+    Reuses `_collection_started()` rather than asking the same question a
+    second way. Note it is global rather than per guild, for the reason given
+    in its own docstring: a guild's own MIN(day) is the day it first verified
+    somebody, which would report a brand-new server's fully-covered window as
+    "no data".
+
+    THIS IS STRICTLY MORE INFORMATIVE THAN THE 30-DAY WINDOW BESIDE IT.
+    `_verification_windows` must blank `last_30_days` entirely when the window
+    straddles the floor, because one number cannot be part-measured. A series
+    can: the covered days carry counts and the rest carry None, so a server
+    collecting for a week gets six real bars instead of one blank tile.
+
+    One query, not thirty. Counts only -- nothing here identifies a member, and
+    a series of daily totals cannot be turned back into one.
+    """
+    key = panel_view_key(guild_id)
+    today = datetime.now(timezone.utc).date()
+    first_day = today - timedelta(days=days - 1)
+    started = _collection_started()
+
+    rows = {}
+    if started is not None:
+        with session_scope() as session:
+            rows = {
+                row.day: int(row.count or 0)
+                for row in session.query(VerificationDaily).filter(
+                    VerificationDaily.server_id == key,
+                    VerificationDaily.day >= first_day,
+                    VerificationDaily.day <= today,
+                )
+            }
+
+    series = []
+    for offset in range(days):
+        day = first_day + timedelta(days=offset)
+        # `started is None` means nothing has ever been counted anywhere, so
+        # every day in the window is unmeasured rather than empty.
+        measured = started is not None and day >= started
+        series.append({
+            "day": day.isoformat(),
+            "count": rows.get(day, 0) if measured else None,
+        })
+    return series
+
+
 def _verification_windows(guild_id) -> Optional[dict]:
     """Counts for today, 7 days and 30 days — or None if they can't be read.
 
@@ -9512,6 +9582,10 @@ async def read_dashboard_overview(guild_id) -> Optional[dict]:
 
     try:
         windows = _verification_windows(guild_id)
+        # Same read, same failure, so one `known` flag covers both rather than
+        # the page having to reason about a series that loaded while the
+        # totals beside it did not.
+        daily = _verification_daily(guild_id)
         started = _collection_started()
         windows_known = True
     except Exception:
@@ -9521,6 +9595,9 @@ async def read_dashboard_overview(guild_id) -> Optional[dict]:
             exc_info=True,
         )
         windows = {"today": None, "last_7_days": None, "last_30_days": None}
+        # Not an empty list: nothing was read, and a chart drawn from [] would
+        # be thirty days of confidently reported nothing.
+        daily = None
         started = None
         windows_known = False
 
@@ -9539,6 +9616,9 @@ async def read_dashboard_overview(guild_id) -> Optional[dict]:
             # cannot stand behind.
             "total": total,
             **windows,
+            # Oldest first, one entry per day, count None where unmeasured.
+            # None (rather than []) when the rollup could not be read at all.
+            "daily": daily,
             "collecting_since": started.isoformat() if started else None,
             # False only when the rollup itself could not be read. Distinct
             # from a window being None, which is a successful read of a
