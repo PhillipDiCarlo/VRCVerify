@@ -298,22 +298,22 @@
                 {% endfor %}
               </ul>
 
-              {# RESERVED SLOTS, AND WHY THEY ARE COMMENTS RATHER THAN MARKUP.
+              {# RESERVED SLOTS, AND WHY THEY ARE NAMED HERE.
                  Three issues want a row at the foot of this panel and all
-                 three would edit the same lines. Naming the order here is
-                 what stops them colliding, the same trick #133 used to hand
-                 this slot over intact:
+                 three would edit the same lines. Naming the order is what
+                 stops them colliding, the same trick #133 used to hand this
+                 slot over intact:
 
-                   1. #137 -- "See all updates", linking to the changelog
-                      page. Lands in PHASE 3 of this issue, which builds that
-                      route. Deliberately absent rather than pointing
-                      somewhere that 404s.
+                   1. "See all updates" -- LANDED, phase 3. It is the first
+                      row below and it is what makes the two-line clamp on
+                      each body honest: the full text is one click away.
                    2. #138 -- "Follow our announcement channel", once a
                       VRCVerify Discord server exists to follow.
                    3. #139 -- "Get updates by email", once the Privacy Policy
                       amendment that feature requires has shipped.
 
-                 All three belong inside .bell-foot below, before the form. #}
+                 Rows 2 and 3 go inside .bell-foot below, between the link and
+                 the form. #}
 
               {# THE NO-JAVASCRIPT PATH.
                  prefs.js clears the dot the moment this panel opens, by
@@ -327,6 +327,7 @@
                  panel has this control, and it does the same thing whether or
                  not prefs.js ran. #}
               <div class="bell-foot">
+                <a class="bell-all" href="{{ url_for('whats_new') }}">See all updates</a>
                 <form method="post" action="{{ url_for('mark_updates_seen') }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <input type="hidden" name="return_to" value="{{ nav_return_to or 'index' }}">
@@ -555,8 +556,33 @@
     </main>
   </div>
 
+  {# THE FOOTER GREW A LINK ROW IN #136 PHASE 3.
+     It was one sentence and nothing else, which meant the changelog page had
+     no global place to be reached from other than the bell -- and a page only
+     reachable from inside a dropdown is a page most people never find.
+
+     The three legal links are absolute, because they live on the apex site
+     rather than in this app -- a separate failure domain on purpose, so Terms
+     and Privacy still resolve when the dashboard is down (see site/README.md).
+     Same tab and no `rel`: `Referrer-Policy: no-referrer` is set on every
+     response, so there is nothing to leak. The same three, in the same order,
+     as the sign-in page's `.signin-legal` row -- which stays where it is,
+     since that page is the one place somebody reads them before deciding to
+     sign in at all.
+
+     "What's new" is first and is the only relative link here: it is ours, it
+     is the reason this row exists, and it is the one somebody comes back
+     for. #}
   <footer>
     <p>Core 18+ verification is free, forever.</p>
+    <p class="footer-links">
+      {% if csrf_token %}
+        <a href="{{ url_for('whats_new') }}">What&#39;s new</a>
+      {% endif %}
+      <a href="https://vrcverify.com/terms">Terms</a>
+      <a href="https://vrcverify.com/privacy">Privacy</a>
+      <a href="https://vrcverify.com/refunds">Refunds</a>
+    </p>
   </footer>
 </body>
 </html>

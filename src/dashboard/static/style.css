@@ -750,6 +750,23 @@ p { text-wrap: pretty; }
   border-top: 1px solid var(--line);
 }
 
+/* The first row in the foot, and the one that makes the two-line clamp on
+ * each body honest -- the full text is one click away. Styled as a row rather
+ * than a link in a sentence, so it is the same target size as the button
+ * under it. */
+.bell-all {
+  display: block;
+  padding: var(--space-2);
+  border-radius: var(--radius-control);
+  font-size: var(--text-note);
+  font-weight: 500;
+  color: var(--accent-text);
+  text-align: center;
+  text-decoration: none;
+}
+
+.bell-all:hover { background: var(--hover); text-decoration: underline; }
+
 .bell-read {
   width: 100%;
   padding: var(--space-2);
@@ -1630,6 +1647,64 @@ footer {
   padding: 0 1.25rem 2rem;
   color: var(--faint);
   font-size: 0.85rem;
+}
+
+footer p { margin: 0; }
+
+/* Wraps rather than scrolls: four links at this size fit one line on a
+ * desktop and take two on a phone, and two lines of footer is fine where a
+ * sideways scrollbar under the content is not.
+ *
+ * These declare their own colour instead of inheriting, which is the
+ * workaround #168 describes rather than the fix for it -- the stylesheet has
+ * no base `a { color }` rule, so an unstyled link here would render in the
+ * browser's default blue against a palette this file painted. Fixing that
+ * properly changes every link in the app and belongs in its own change. */
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.footer-links a { color: var(--faint); text-decoration: none; }
+.footer-links a:hover { color: var(--ink); text-decoration: underline; }
+
+/* --- the changelog page (#136 phase 3) ---
+ *
+ * The full list the bell summarises. Bodies are NOT clamped here: this is
+ * where the panel's two-line previews point, so clamping again would leave
+ * the text nowhere to be read.
+ *
+ * An <ol>, because these are a sequence and that is the point. The numbers
+ * come off because the dates already say where you are. */
+.changelog {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.changelog-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-micro);
+  color: var(--faint);
+}
+
+/* Each entry is a card, so the h2 inside it should not also carry the
+ * section-heading margins the rest of the app gives one. */
+.changelog-entry h2 { margin: 0 0 var(--space-2); font-size: var(--text-section); }
+
+.changelog-body {
+  margin: 0;
+  max-width: 62ch;
+  line-height: var(--leading-body);
+  color: var(--muted);
 }
 
 /* --- overview ---

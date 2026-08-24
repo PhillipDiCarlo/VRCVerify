@@ -27,6 +27,7 @@ import sqlite3
 import stat
 import struct
 import time
+from datetime import date
 from html.parser import HTMLParser
 from types import SimpleNamespace
 
@@ -1385,6 +1386,136 @@ class TestTheBell:
         assert api.reads == []
         assert api.calls == []
         assert api.saves == []
+
+
+class TestTheChangelogPage:
+    """The full list the bell summarises (issue #136 phase 3)."""
+
+    def test_it_lists_every_entry_in_full(self, client, store):
+        """Bodies are NOT clamped here. This page is where the panel's
+        two-line previews point, so clamping again would leave the text with
+        nowhere to be read."""
+        login_as(client, store)
+        page = client.get("/updates").data.decode()
+        for item in changelog.ENTRIES:
+            assert item.title in page
+            assert item.body in page
+
+    def test_it_is_signed_in_only(self, client):
+        """The public version is #137's job, which is what the `public` flag
+        on the model exists for."""
+        response = client.get("/updates")
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/"
+
+    def test_it_has_no_sidebar(self, client, store):
+        """It belongs to no server. The sidebar navigates WITHIN one, so
+        rendering it here would make a global page look like a property of
+        whichever server happened to be open."""
+        login_as(client, store)
+        page = client.get("/updates").data.decode()
+        assert '<nav class="sidebar"' not in page
+
+    def test_no_entry_body_reaches_the_page_as_markup(self, monkeypatch, client, store):
+        """The acceptance criterion, tested at the END of the path.
+
+        `validate_entries` stops markup getting into the constant, and
+        test_changelog.py pins that. This is the other end: even if something
+        did, the template must render it as text. Asserting "the shipped
+        entries contain no angle brackets" would pass without proving
+        anything about the template at all, which is why an entry carrying
+        markup is put through a real render here.
+        """
+        hostile = changelog.Entry(
+            id="2026-09-hostile",
+            date=date(2026, 9, 1),
+            title="<script>alert(1)</script>",
+            body="<img src=x onerror=alert(1)> & <b>bold</b>",
+        )
+        monkeypatch.setattr(changelog, "ENTRIES", (hostile,))
+        login_as(client, store)
+        page = client.get("/updates").data.decode()
+        listing = page.split('<ol class="changelog">', 1)[1]
+        assert "<script>" not in listing
+        assert "<img" not in listing
+        assert "&lt;script&gt;" in listing
+        assert "&amp;" in listing
+
+    def test_a_premium_entry_never_wears_the_lock_badge(self, client, store):
+        """Same collision as the bell: this page is reachable from a premium
+        server, and there is no guild in context to be plan-specific about."""
+        login_as(client, store)
+        page = client.get("/updates").data.decode()
+        listing = page.split('<ol class="changelog">', 1)[1]
+        assert "badge premium" not in listing
+        assert "bell-tag premium" in listing
+
+    def test_visiting_it_clears_the_dot(self, client, store):
+        """The reader with no JavaScript is the one this matters for. prefs.js
+        clears the dot when the panel opens; without it, following "See all
+        updates" would leave the dot lit over a list just read in full."""
+        login_as(client, store)
+        response = client.get("/updates")
+        cookie = set_cookie_header(response, "vrcverify_seen")
+        assert changelog.ENTRIES[0].id in cookie
+        assert "Secure" in cookie and "SameSite=Lax" in cookie
+        assert "HttpOnly" not in cookie
+        assert "bell-dot" not in client.get("/").data.decode()
+
+    def test_its_own_bell_is_not_still_claiming_unread(self, client, store):
+        """The response that clears the dot also renders the bell. The cookie
+        it sets is not readable until the NEXT request, so without an override
+        the header would announce unread entries at the top of the very page
+        listing them in full."""
+        login_as(client, store)
+        assert "bell-dot" not in client.get("/updates").data.decode()
+
+    def test_it_never_reaches_the_bot(self, config, store):
+        test_client, api = settings_client(config, store)
+        api.reads.clear()
+        api.calls.clear()
+        api.saves.clear()
+        test_client.get("/updates")
+        assert api.reads == [] and api.calls == [] and api.saves == []
+
+    def test_the_bell_links_to_it(self, client, store):
+        """What makes the panel's two-line clamp honest."""
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        bell = page.split('<details class="bell', 1)[1].split("</details>", 1)[0]
+        assert 'href="/updates"' in bell
+
+    def test_the_footer_links_to_it(self, client, store):
+        """A page reachable only from inside a dropdown is a page most people
+        never find."""
+        login_as(client, store)
+        footer = client.get("/").data.decode().split("<footer>", 1)[1]
+        assert 'href="/updates"' in footer
+
+    def test_the_footer_keeps_the_legal_links_absolute(self, client, store):
+        """They live on the apex site, which is a separate failure domain on
+        purpose -- Terms and Privacy have to resolve when this app is down."""
+        login_as(client, store)
+        footer = client.get("/").data.decode().split("<footer>", 1)[1]
+        for path in ("terms", "privacy", "refunds"):
+            assert f'href="https://vrcverify.com/{path}"' in footer
+
+    def test_the_footer_offers_no_signed_in_page_to_a_stranger(self, client):
+        """The sign-in page renders this footer too, and /updates would just
+        bounce them back."""
+        footer = client.get("/").data.decode().split("<footer>", 1)[1]
+        assert 'href="/updates"' not in footer
+        assert 'href="https://vrcverify.com/terms"' in footer
+
+    def test_the_theme_picker_comes_back_here(self, client, store):
+        """`whats_new` had to join NAV_RETURN_ENDPOINTS, or switching theme on
+        this page would drop the reader on the picker."""
+        login_as(client, store)
+        client.get("/updates")
+        response = client.post(
+            "/prefs/theme", data={"theme": "light", "return_to": "whats_new"}
+        )
+        assert response.headers["Location"] == "/updates"
 
 
 class TestPlanBadgesMirrorTheBot:

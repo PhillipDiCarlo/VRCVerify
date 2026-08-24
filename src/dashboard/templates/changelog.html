@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}What's new · VRCVerify{% endblock %}
+
+{# THE FULL LIST, where the bell is a summary.
+
+   No `section` is passed, so `base.html` renders this in the sidebar-less
+   `.layout.plain` layout -- the same one the picker and the sign-in page use.
+   That is the right shape: the sidebar navigates within one server, and this
+   page belongs to no server. Putting it in `SECTIONS` would make it look like
+   a property of whichever server you happened to have open.
+
+   Entries render their bodies IN FULL here. The bell clamps to two lines
+   because a dropdown is a summary; this is the page those clamped lines point
+   at, so clamping again would leave the text with nowhere to be read. #}
+{% block content %}
+{# The picker's shape: an <h1> and a line of context, both inside the first
+   card rather than floating on the page ground above it. #}
+<section class="panel">
+  <h1>What's new</h1>
+  <p class="muted blurb">
+    Everything that has shipped in VRCVerify, newest first.
+  </p>
+</section>
+
+{# An ordered list, because it is one: these are in a sequence and the
+   sequence is the point. `list-style: none` in the stylesheet takes the
+   numbers off -- the dates say where you are. #}
+<ol class="changelog">
+  {% for item in entries %}
+    {# `.panel` for the card, but NOT `.group`. That class gives its h2 a
+       rule underneath, which is right where a heading introduces a list of
+       settings and wrong here: an entry's title and its sentence are one
+       thought, and a line between them makes each card read as a form
+       section. #}
+    <li class="panel changelog-entry">
+      <p class="changelog-meta">
+        {# The same restraint as the bell, and for the same reason: `.badge`
+           `.premium` means "your plan cannot use this" on the settings page,
+           so a premium entry wears the quiet tag instead. This page is also
+           reachable from every server, including a premium one, so the tag
+           has to be plan-neutral here too -- there is no guild in context to
+           be neutral about. #}
+        <span class="bell-tag{% if item.premium %} premium{% endif %}">{{ item.tag }}</span>
+        <time datetime="{{ item.date.isoformat() }}">{{ item.display_date }}</time>
+      </p>
+      <h2>{{ item.title }}</h2>
+      {# Plain text, escaped by Jinja. Entry bodies carry no markup and the
+         model forbids it -- see the module docstring in changelog.py and
+         `validate_entries`, which fails the build on an entry containing
+         any. Keeping the one path from that constant to this element boring
+         is worth more than a link inside a sentence. #}
+      <p class="changelog-body">{{ item.body }}</p>
+    </li>
+  {% endfor %}
+</ol>
+
+{# RESERVED, and named here for the same reason the bell's foot is:
+   #138's "follow our announcement channel" and #139's "get updates by email"
+   both want a row at the bottom of this page, and two issues editing the same
+   lines is how they collide. Both belong below, above nothing else. #}
+{% endblock %}

@@ -185,7 +185,7 @@ ENTRIES = (
         title="See how verification is going",
         body=(
             "The Overview page now charts the last 30 days of verifications, "
-            "and checks the things that quietly break a server -- a verified "
+            "and checks the things that quietly break a server \u2014 a verified "
             "role that was deleted, a role the bot cannot assign, an "
             "instructions panel that is no longer where it was posted."
         ),
@@ -430,6 +430,9 @@ def validate_entries(entries=ENTRIES) -> list:
     down at import for a typo in a cosmetic feature, which is a far worse
     trade than a red build.
     """
+    def text_all(entry) -> str:
+        return f"{entry.title} {entry.body}"
+
     problems = []
     seen_ids = set()
     for entry in entries:
@@ -449,6 +452,17 @@ def validate_entries(entries=ENTRIES) -> list:
                     f"{where}: {field} contains markup. Bodies are plain text "
                     "-- see the module docstring."
                 )
+
+        if "--" in text_all(entry):
+            # The repo writes em dashes as `--` in comments and docstrings,
+            # and this file is mostly comment. A browser pass caught one that
+            # had leaked into an entry body and rendered as two hyphens on
+            # the changelog page. Cheap to check, and it is exactly the
+            # mistake this file's own house style invites.
+            problems.append(
+                f"{where}: contains `--`. Entry copy is read by admins, not "
+                "by us -- use a real em dash (\u2014)."
+            )
 
         if entry.cta_endpoint is not None and entry.cta_endpoint not in CTA_ACTIONS:
             problems.append(

@@ -66,6 +66,14 @@ class TestTheShippedConstant:
         ids = [item.id for item in changelog.ENTRIES]
         assert len(ids) == len(set(ids))
 
+    def test_no_entry_writes_an_em_dash_as_two_hyphens(self):
+        """This file's own house style writes `--` in comments, and one leaked
+        into an entry body -- caught by looking at the rendered changelog page,
+        not by any test. `validate_entries` covers it now; this names it so the
+        next person understands why that check exists."""
+        for item in changelog.ENTRIES:
+            assert "--" not in item.body and "--" not in item.title
+
     def test_no_body_carries_markup(self):
         # The one path from this data to the DOM stays boring. Jinja escapes
         # what it renders, so markup here would show as literal angle brackets
