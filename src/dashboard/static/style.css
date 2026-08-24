@@ -1407,6 +1407,10 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   border: 1px solid var(--line);
 }
 
+/* The settings footnote. It kept the bare name because it is the older claim
+ * on it; the purchase card on the subscriptions page was renamed to
+ * `.plan-card` instead (#158) -- every one of that card's children was already
+ * `.plan-*`, so it was the half that had drifted. */
 .desc, .plan { margin: 0.2rem 0 0; font-size: 0.875rem; color: var(--muted); }
 .plan { font-style: italic; }
 
@@ -2229,8 +2233,21 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
 }
 
 /* Each card is a form of its own, so the button posts one plan and the plan
- * cannot be swapped between clicking and submitting. */
-.plan {
+ * cannot be swapped between clicking and submitting.
+ *
+ * `.plan-card`, NOT `.plan` -- #158. `settings.html` uses `<p class="muted
+ * plan">` for an italic grey footnote, and this block declared no `color`,
+ * `font-size`, `font-style` or `margin`, so it inherited all four. On the page
+ * that takes money, in both themes, at every width, the price rendered italic
+ * and --muted instead of --ink-strong and the Subscribe label was italic: the
+ * amount was drawn as a footnote. The leaked `margin: 0.2rem 0 0` also put a
+ * 3.2px top margin on every grid item, so `.plan-badge`'s -0.6rem overhung by
+ * 6.4px rather than sitting where it was drawn.
+ *
+ * This is the third class collision of the same shape (`.centered`, `.empty`,
+ * `.plan`), which is why there is now a test walking the templates for bare
+ * class names shared between two of them. */
+.plan-card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -2244,7 +2261,7 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
 
 /* `highlight` in a price's metadata. Presentational only -- it changes no
  * price and nothing the server will accept. */
-.plan-featured {
+.plan-card.plan-featured {
   border-color: var(--accent-text);
   box-shadow: 0 0 0 1px var(--accent-text);
 }
@@ -2264,7 +2281,7 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   border-radius: 999px;
 }
 
-.plan h3 {
+.plan-card h3 {
   font-size: 0.9375rem;
   font-weight: 600;
   margin: 0;
@@ -2306,14 +2323,31 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
 /* The trial, when a price's metadata names one. Distinct from the saving --
  * one is a discount on what you pay, the other is a period where you do not --
  * so it does not reuse --ok, which reads as "money off". */
+/* The trial, when a price's metadata names one. Distinct from the saving --
+ * one is a discount on what you pay, the other is a period where you do not --
+ * so it does not reuse --ok, which reads as "money off".
+ *
+ * Given a tinted box and a clock rather than left as a fourth line of small
+ * text, because it can start appearing from a `trial_days` edit on a Stripe
+ * price with no code and no deploy behind it. It has to look deliberate the
+ * first time it shows up, on a card nobody was looking at when it did. */
 .plan-trial {
-  margin: 0;
+  margin: 0.15rem 0 0;
+  padding: 0.2rem 0.45rem;
+  border-radius: var(--radius-control);
+  /* A hairline of its own colour rather than a fill. There is no soft-accent
+   * surface token, and inventing one would mean a fourth background value to
+   * keep in step across two themes for a badge this size -- the same
+   * reasoning the status chips in phase 1 followed. `currentColor` means the
+   * tint and the edge cannot drift apart. */
+  box-shadow: inset 0 0 0 1px currentColor;
   font-size: 0.8125rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--accent-text);
 }
 
-.plan .button { margin-top: auto; align-self: stretch; }
+
+.plan-card .button { margin-top: auto; align-self: stretch; }
 
 .plan-notes {
   margin: 1rem 0 0;
@@ -2325,5 +2359,9 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
 .plan-notes li { margin: 0.3rem 0; }
 
 @media (max-width: 40rem) {
-  .plans { grid-template-columns: 1fr; }
+  /* One column, and a wider gap than the row layout needs. `.plan-badge`
+   * overhangs its card by 0.6rem, which is invisible beside a neighbour and
+   * lands on the card above it once these stack -- the 0.75rem row gap left
+   * it touching the border above. */
+  .plans { grid-template-columns: 1fr; gap: 1.35rem; }
 }

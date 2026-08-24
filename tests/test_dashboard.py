@@ -1519,6 +1519,80 @@ class TestDismissingAPremiumCard:
         slot = page.split('class="panel group next-step"', 1)[1].split("</section>", 1)[0]
         assert "/prefs/dismiss" not in slot
 
+    def test_no_class_is_claimed_twice_from_two_ends_of_the_stylesheet(self):
+        """#158, and the fourth of these is what this exists to stop.
+
+        Three have now happened, all one shape: one word, two meanings, and a
+        second rule block that silently inherits from the first.
+
+          `.centered`  caught in #133 phase 5, before it shipped
+          `.empty`     settings values drawn as bordered cards; shipped on
+                       main through three phases with a green suite
+          `.plan`      the purchase card inheriting the settings footnote's
+                       italic and --muted, so the PRICE rendered as a footnote
+                       on the page that takes money
+
+        WHAT THIS MEASURES, AND WHY NOT THE OBVIOUS THING. The first attempt
+        looked for component classes shared between two templates. That is not
+        the defect: `.panel`, `.group` and `.button` are shared on purpose and
+        it flagged all of them. Sharing a class is the design system working.
+
+        The defect is in the STYLESHEET -- one bare class claimed by two rule
+        blocks written by two different intentions. Distance is what tells that
+        apart from a deliberate second rule: a state variant or a split reset
+        sits within a screen of the original (`.bar-button` twice, three lines
+        apart). `.plan` was declared at 1411 and 2233, in two different
+        sections of the file. Eight hundred lines is not a second thought about
+        the same component; it is a second component.
+
+        `@media` and `@supports` blocks are excluded outright. An override
+        there is the entire point of writing one, and every responsive rule in
+        this file lives at the bottom -- including them made the check flag
+        nineteen innocent classes and nothing else.
+        """
+        import pathlib
+        import re as _re
+
+        import dashboard
+
+        css = (
+            pathlib.Path(dashboard.__file__).parent / "static" / "style.css"
+        ).read_text(encoding="utf-8")
+
+        # Blank out at-rule blocks, keeping line numbers intact.
+        kept, depth, inside = [], 0, False
+        for line in css.splitlines():
+            if not inside and _re.match(r"\s*@(media|supports)", line):
+                inside, depth = True, line.count("{") - line.count("}")
+                kept.append("")
+                continue
+            if inside:
+                depth += line.count("{") - line.count("}")
+                kept.append("")
+                if depth <= 0:
+                    inside = False
+                continue
+            kept.append(line)
+
+        spots = {}
+        for number, line in enumerate(kept, 1):
+            for match in _re.finditer(
+                r"(?:^|,)\s*\.([a-z][a-z0-9-]*)\s*(?:\{|,\s*$)", line
+            ):
+                spots.setdefault(match.group(1), []).append(number)
+
+        # A screen or two apart is a second thought about one component.
+        # Further than that is two components wearing one name.
+        far = {
+            name: lines
+            for name, lines in spots.items()
+            if len(lines) > 1 and max(lines) - min(lines) > 100
+        }
+        assert not far, (
+            "a bare class claimed from two ends of the stylesheet -- one word, "
+            f"two meanings is how #158 happened: {far}"
+        )
+
     def test_no_template_puts_a_form_inside_a_paragraph(self):
         """A <form> is block-level, so an HTML parser CLOSES an open <p> when
         it meets one -- the form is hoisted out and lands on its own line, and
