@@ -124,7 +124,21 @@
 
   /* Semantic, and separate from the accent on purpose -- "this succeeded" and
    * "this is the current page" must never be the same colour. */
-  --ok: #1a8245;
+  /* Darkened from #1a8245 by the adversarial pass over #141. That value is
+   * 4.86:1 on --panel and passed everywhere it was measured -- but the plan
+   * cards are drawn on --inset, and on that surface it is 4.14:1. "Save about
+   * 20%" was below AA on the page that takes money, on the words whose whole
+   * job is making the longer plans attractive.
+   *
+   * THE THIRD TIME THIS EXACT PAIRING HAS FAILED. #135 phase 5 caught
+   * --ok/--inset at 4.14:1 on .setup-complete and fixed it by moving that
+   * element onto --panel. A plan's saving cannot move -- it lives inside the
+   * card. So the token moves instead, which also lifts every other --ok use
+   * rather than leaving the next surface to be discovered the same way.
+   *
+   * 4.59:1 on --inset, 5.39:1 on --panel, 4.85:1 on --bg. Every pair using it
+   * is pinned in test_contrast.py, --inset included now. */
+  --ok: #177a41;
   --danger: #d83c3e;
   --notice: #8a5300;
   --notice-bg: #fdf3e0;

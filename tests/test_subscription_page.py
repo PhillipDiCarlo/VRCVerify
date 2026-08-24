@@ -812,6 +812,37 @@ class TestTheStatusChipAndFactList:
         assert page.chip == {"label": "Charged twice", "tone": "warn"}
         assert ("Billed through", "Card and Discord") in page.facts
 
+    def test_a_discord_subscriber_is_still_told_it_has_premium(self):
+        """A regression this issue introduced, caught by an adversarial pass.
+
+        The sentence "This server has VRCVerify Premium, bought through
+        Discord" was deleted on the assumption the fact list carried it.
+        `build()` passes no `plan_label` for that branch -- Discord sends no
+        price id -- so the page named the payment route and never named what
+        was bought, on the page whose entire job is saying whether you are
+        paying.
+        """
+        page = build(payload(premium=True, discord=True))
+        labels = dict(page.facts)
+        assert labels["Plan"] == subscription_view.UNKNOWN_PLAN_LABEL
+        assert labels["Billed through"] == "Discord"
+
+    def test_a_failing_payment_does_not_promise_a_renewal(self):
+        """"Renews on 3 November" directly under "your last payment didn't go
+        through" is a promise this page cannot make -- Stripe is retrying and
+        may yet give up. The prose this replaced hedged with "due to renew",
+        and dropping that hedge was an accident of compressing it to a label.
+        """
+        labels = dict(build(payload(premium=True, active=True,
+                                    status="past_due")).facts)
+        assert "Renews" not in labels
+        assert labels["Due to renew"]
+
+    def test_a_healthy_subscription_still_says_renews(self):
+        labels = dict(build(payload(premium=True, active=True,
+                                    status="active")).facts)
+        assert labels["Renews"]
+
     def test_a_free_server_gets_no_chip(self):
         """"Not subscribed" is not a status worth stamping, and a grey pill
         saying "Free" beside a Buy button reads as a downgrade."""

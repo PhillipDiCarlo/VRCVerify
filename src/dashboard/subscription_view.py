@@ -315,7 +315,19 @@ class SubscriptionPage:
             return ()
 
         rows = []
-        if self.plan_label:
+        if self.state == "discord":
+            # `build()` passes no `plan_label` for this branch -- Discord does
+            # not tell us a price id, so there is no cadence to name. But the
+            # server plainly HAS Premium, and saying so is the whole job of
+            # this list: without this row the page states which payment route
+            # is in use and never states what was bought.
+            #
+            # Caught by an adversarial pass over all three phases, and it was
+            # a regression this issue introduced: the sentence "This server
+            # has VRCVerify Premium, bought through Discord" was deleted on
+            # the assumption the fact list carried it, and it did not.
+            rows.append(("Plan", self.plan_label or UNKNOWN_PLAN_LABEL))
+        elif self.plan_label:
             rows.append(("Plan", self.plan_label))
 
         if self.state == "discord":
@@ -328,7 +340,14 @@ class SubscriptionPage:
             rows.append(("Billed through", "Card"))
 
         if self.renews_on:
-            rows.append(("Renews", self.renews_on))
+            # "Due to renew" while a payment is failing, not "Renews". Stripe
+            # is retrying the card and may yet give up, so the flat assertion
+            # is a promise this page cannot make -- directly under a notice
+            # saying the last payment did not go through. The prose this
+            # replaced hedged with the same three words; dropping the hedge
+            # was an accident of compressing it into a label.
+            label = "Due to renew" if self.state == "past_due" else "Renews"
+            rows.append((label, self.renews_on))
         elif self.ends_on:
             rows.append(("Premium until", self.ends_on))
         return tuple(rows)

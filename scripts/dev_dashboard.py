@@ -125,14 +125,24 @@ app.jinja_env.auto_reload = True
 # `plans_from_prices` still runs: what the preview draws is built by the same
 # code the deployed page uses, from prices shaped the way Stripe sends them.
 class _PreviewPrices:
-    """Stands in for `_PriceCache`. Same one-method surface: `.get(loader, now)`."""
+    """Stands in for `_PriceCache`. Same one-method surface: `.get(loader, now)`.
+
+    Takes its prices as an argument rather than reading a module global. The
+    first version closed over names that only exist inside the signed-in
+    branch below, so the class was fine in practice and a NameError waiting
+    for anybody who moved it.
+    """
+
+    def __init__(self, prices, unavailable: bool = False):
+        self._prices = prices
+        self._unavailable = unavailable
 
     def get(self, loader, now=None):
-        if PREVIEW_SUB == "none":
+        if self._unavailable:
             from dashboard.stripe_api import StripeAPIError
 
             raise StripeAPIError("preview: pretending Stripe is unreachable")
-        return PREVIEW_PRICES
+        return self._prices
 
 
 # --- checkout and the portal, without an account ------------------------
@@ -169,7 +179,9 @@ if PREVIEW_SIGNED_IN:
     from preview_bot import PREVIEW_SUB  # noqa: E402
     from test_subscription_page import PRICES as PREVIEW_PRICES  # noqa: E402
 
-    app.config["STRIPE_PRICES"] = _PreviewPrices()
+    app.config["STRIPE_PRICES"] = _PreviewPrices(
+        PREVIEW_PRICES, unavailable=PREVIEW_SUB == "none"
+    )
     app.config["STRIPE"] = _PreviewStripe()
 
 
