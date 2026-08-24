@@ -35,20 +35,60 @@
    ranks a setup step above a premium changelog entry above a data-backed
    demo, so `next_step.action` names WHICH page fixes it -- a setup step
    goes to Settings, a premium pitch goes to Subscriptions, and a template
-   `if` is enough because there are only ever the two. #}
+   `if` is enough because there are only ever the two.
+
+   #136 phase 4: a changelog entry can now be the thing in this slot, and it
+   is the only one of the three that is DISMISSIBLE. That difference is
+   `entry_id`, which only a changelog card carries:
+
+     * A setup step is not dismissible because the server is broken and
+       hiding the reason does not fix it.
+     * The data-backed demo is not dismissible because it is derived from
+       live figures -- it comes and goes on its own as the numbers change,
+       and there is no stable thing for "dismissed" to be recorded against.
+     * A changelog entry has a permanent id and announces something once. Its
+       whole contract is that dismissing it means gone. #}
 {% if next_step %}
   <section class="panel group next-step">
     <h2>{{ next_step.title }}</h2>
     <p class="muted blurb">{{ next_step.body }}</p>
-    <p class="actions">
+    {# A <div>, NOT the <p class="actions"> the other cards use, and the
+       difference is required rather than stylistic. A <form> is block-level,
+       so an HTML parser CLOSES an open <p> the moment it meets one -- the
+       form is hoisted out of the paragraph and lands after it, on its own
+       line, no matter what the stylesheet says. Nothing errors; the browser
+       repairs the markup silently and the flex row simply has one child.
+
+       Caught by measuring the rendered boxes, not by reading either file:
+       `.actions` computed `display: flex` and had room to spare, and the
+       button still wrapped. #}
+    <div class="actions">
       {% if next_step.action == 'subscription' %}
         <a class="button" href="{{ url_for('guild_subscription', guild_id=guild_id) }}">
-          See plans and subscribe</a>
+          {# The entry names its own button. The fallback is the wording the
+             setup step and the demo have always used, so the two candidates
+             that carry no label are unchanged. #}
+          {{ next_step.cta_label or 'See plans and subscribe' }}</a>
       {% else %}
         <a class="button" href="{{ url_for('guild_settings', guild_id=guild_id) }}">
-          Go to Settings</a>
+          {{ next_step.cta_label or 'Go to Settings' }}</a>
       {% endif %}
-    </p>
+
+      {% if next_step.entry_id %}
+        {# An ordinary form post, like every other control in this app. It
+           costs a navigation and it works with scripts blocked, which is the
+           acceptance criterion -- "entries are dismissible with JavaScript
+           disabled". A script could make it instant later; nothing here
+           depends on one existing. #}
+        <form method="post" action="{{ url_for('dismiss_update') }}" class="next-step-dismiss">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="return_to" value="guild_overview">
+          <input type="hidden" name="guild_id" value="{{ guild_id }}">
+          <input type="hidden" name="entry_id" value="{{ next_step.entry_id }}">
+          <button type="submit" class="linkish">Dismiss</button>
+        </form>
+      {% endif %}
+    </div>
   </section>
 {% endif %}
 

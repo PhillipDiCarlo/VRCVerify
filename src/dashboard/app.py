@@ -423,6 +423,26 @@ THEME_COOKIE_MAX_AGE = 31536000
 SEEN_COOKIE = "vrcverify_seen"
 SEEN_COOKIE_MAX_AGE = 31536000
 
+# Which premium entries have been dismissed, per guild (#136 phase 4). Holds
+# `guild:entry` pairs, bounded -- see MAX_DISMISSALS in changelog.py for why a
+# ceiling is not optional on a cookie sent with every request.
+#
+# PER GUILD AND PER BROWSER, and only the first half of that is a design goal.
+# An admin running four servers is pitched once per server, which is the
+# property that matters. Dismissing on a laptop not dismissing on a desktop is
+# the accepted cost: the dashboard holds no database credentials by design
+# (site/privacy.html states that separation as a guarantee), so the only
+# alternative is a bot-side table, two guild-scoped operations, two client
+# methods and a bot deploy coupled to a dashboard feature -- a great deal of
+# machinery to remember that somebody clicked a dismiss button. The failure
+# mode is one card reappearing once on another device.
+#
+# Not httponly, like the two above, so a future enhancement can dismiss
+# without a navigation. Nothing reads it but changelog.parse_dismissed, which
+# drops every pair it does not recognise.
+DISMISS_COOKIE = "vrcverify_dismissed"
+DISMISS_COOKIE_MAX_AGE = 31536000
+
 # What the cookie may say. Anything else is treated as if it were absent, which
 # is what stops a hand-edited value reaching a `data-` attribute unchecked.
 THEMES = frozenset({"dark", "light", "system"})
@@ -935,15 +955,26 @@ def _register_routes(app: Flask) -> None:
         except BotAPIError as error:
             return _guild_page_unavailable(error, guild_id, session, "overview")
 
+        premium = overview.get("premium") or {}
+        # #135 phase 4 left `changelog_entry` as an explicit stub with no
+        # caller. This is the caller. Everything about WHICH entry, and how it
+        # is worded for this server's plan, is decided in changelog.py; the
+        # ranking is decided in build_next_step. Neither knows about the
+        # other, and this line is the only place they meet.
+        changelog_entry = changelog.build_premium_card(
+            guild_id,
+            dismissed=_dismissed(),
+            premium=bool(premium.get("premium")),
+            grandfathered=bool(premium.get("grandfathered")),
+        )
+
         return render_template(
             "overview.html",
             tiles=overview_view.build_tiles(overview),
             chart=overview_view.build_chart(overview),
-            # `changelog_entry` defaults to None -- #136 is what will read an
-            # undismissed premium changelog entry and pass one through here.
-            next_step=overview_view.build_next_step(overview),
+            next_step=overview_view.build_next_step(overview, changelog_entry),
             setup=overview_view.build_setup(overview),
-            premium=(overview.get("premium") or {}),
+            premium=premium,
             **_guild_chrome(session, guild_id, "overview"),
         )
 
@@ -1363,6 +1394,51 @@ def _register_routes(app: Flask) -> None:
             # NOT httponly, for the same reason as THEME_COOKIE: prefs.js
             # writes this one too, and with no `connect-src` it has no other
             # way to record that the panel was opened.
+            httponly=False,
+            samesite="Lax",
+            path="/",
+        )
+        return response
+
+    @app.post("/prefs/dismiss")
+    def dismiss_update():
+        """Put one premium entry's Overview card away, for one server.
+
+        Session and CSRF, like `/prefs/nav` -- this only renders for a
+        signed-in admin, so there is always a token to require.
+
+        THE ENTRY ID IS CHECKED AGAINST WHAT WE SHIPPED. It has to come from
+        the form, unlike `/prefs/seen`'s value: which card was on screen is
+        something only the page knows. So it is validated against the shipped
+        ids rather than trusted -- an id we do not recognise changes nothing
+        and simply redirects back, which also keeps a crafted post from
+        filling a bounded cookie with pairs that will never match anything.
+
+        The guild id is likewise checked for being a number and nothing more.
+        Neither value reaches the bot; this route writes one cookie.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        response = redirect(_preference_return_url())
+
+        entry_id = request.form.get("entry_id") or ""
+        if entry_id not in {entry.id for entry in changelog.ENTRIES}:
+            return response
+        try:
+            guild_id = int(request.form.get("guild_id") or "")
+        except ValueError:
+            return response
+
+        value = changelog.add_dismissal(_dismissed(), guild_id, entry_id)
+        response.set_cookie(
+            DISMISS_COOKIE,
+            value,
+            max_age=DISMISS_COOKIE_MAX_AGE,
+            secure=True,
             httponly=False,
             samesite="Lax",
             path="/",
@@ -2259,6 +2335,16 @@ def _guild_chrome(session, guild_id: int, section: str) -> dict:
         "nav_return_to": SECTION_ENDPOINTS.get(section, "index"),
         "csrf_token": session.csrf_token,
     }
+
+
+def _dismissed() -> tuple:
+    """The `guild:entry` pairs this browser has dismissed.
+
+    `changelog.parse_dismissed` drops anything malformed and anything naming
+    an entry we no longer ship, so nothing downstream has to be defensive
+    about a hand-edited cookie.
+    """
+    return changelog.parse_dismissed(request.cookies.get(DISMISS_COOKIE))
 
 
 def _nav_collapsed() -> bool:
