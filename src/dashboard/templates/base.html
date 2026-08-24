@@ -532,6 +532,35 @@
           <span class="side-text side-guild-name">{{ guild_name }}</span>
         </p>
 
+        {# THERE IS NO UPSELL SLOT AT THE FOOT OF THIS SIDEBAR, and after
+           three issues considered one, that is now a decision rather than a
+           deferral. Written here because this is where somebody would put it.
+
+           #133 phase 2 left it out on the grounds that it could not know when
+           to suppress itself until `build_next_step()` was the ranker. #135
+           made it the ranker and recorded that the slot still did not exist.
+           #136 phase 4 went to build it and measured what a free server
+           actually meets, which settled it:
+
+             Overview       one pitch -- the premium changelog card, or the
+                            data-backed demo once that is dismissed
+             Settings       one pitch -- the .upgrade card
+             Subscriptions  the purchase page itself
+
+           Every page a free server can reach already carries exactly one, in
+           every state. The sidebar is on all three, so a permanent slot here
+           is a SECOND pitch on every screen -- which is the one thing the
+           product's own rule forbids.
+
+           Suppression does not rescue it. The only states where this would be
+           the sole pitch are a server with unfinished setup, which must be
+           fixed rather than sold to, and a configured server with no
+           verification data and the card dismissed -- the server there is
+           least reason to pitch. That is a corner case, not a slot.
+
+           If the pitch is ever to become persistent chrome, the change is to
+           MOVE the settings card here rather than to add a fourth surface,
+           and that is its own issue. #}
         <ul class="side-nav">
           {% for key, label, endpoint in sections %}
             <li>
