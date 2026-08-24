@@ -9628,17 +9628,29 @@ async def read_dashboard_overview(guild_id) -> Optional[dict]:
         "panel": panel,
         # Enough to tell an admin why nothing is happening, which is the most
         # common reason to open this page at all.
-        "configured": _overview_configuration(settings),
+        "configured": _overview_configuration(settings, guild),
     }
 
 
-def _overview_configuration(settings: Optional[dict]) -> Optional[dict]:
+def _overview_configuration(settings: Optional[dict], guild) -> Optional[dict]:
     """The handful of settings the Overview reports as set or not set.
 
     Booleans only, never the ids themselves. The Overview's job is to say
     whether verification is wired up; the Settings page is where the actual
     values live, and duplicating them here would be a second place for them to
     be wrong.
+
+    `verified_role_exists` and `verified_role_assignable` are the health half
+    of that same discipline: still booleans, still never an id, but "wired up"
+    and "actually works" are different questions once a role can be deleted
+    out from under a stored id, or the bot's own role can be moved below it.
+    Both are None when the question doesn't apply yet -- no role_id set means
+    there is nothing to check for existence, and no role (or no `guild.me`)
+    means there is nothing to check for hierarchy -- so the caller can tell
+    "not configured" apart from "configured and broken" apart from "cannot
+    tell". Same `top_role > role` and `managed` check as `read_dashboard_roles`
+    uses for `assignable`, run for one role instead of all of them, which is
+    what keeps this cheap enough to run on every page load.
     """
     if not settings:
         return None
@@ -9647,8 +9659,24 @@ def _overview_configuration(settings: Optional[dict]) -> Optional[dict]:
     def value(name):
         return (fields.get(name) or {}).get("value")
 
+    role_id = value("role_id")
+    role = None
+    if role_id:
+        try:
+            role = guild.get_role(int(role_id))
+        except (TypeError, ValueError):
+            role = None
+
+    role_assignable = None
+    if role is not None:
+        top_role = guild.me.top_role if guild.me is not None else None
+        if top_role is not None:
+            role_assignable = bool(not role.managed and top_role > role)
+
     return {
-        "verified_role": bool(value("role_id")),
+        "verified_role": bool(role_id),
+        "verified_role_exists": (role is not None) if role_id else None,
+        "verified_role_assignable": role_assignable,
         "unverified_role": bool(value("unverified_role_id")),
         "log_channel": bool(value("verification_log_channel_id")),
         "auto_verify": bool(value("auto_verify_new_members")),

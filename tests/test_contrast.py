@@ -63,6 +63,10 @@ PAIRS = [
     ("ok", "panel", '"Saved."'),
     ("danger", "panel", "an error an admin has to act on"),
     ("notice", "notice-bg", "a warning in its own box"),
+    # Unboxed, straight on the card -- the Setup list's "todo" and "broken"
+    # rows (#135 phase 3). Used since #123's setup checklist for a missing
+    # required field, but never actually pinned until now.
+    ("notice", "panel", "an unfinished or broken row in the setup list"),
     # The success notice has no fill of its own and sits on the card. Filling
     # it to match the warning was tried and is 4.14:1 in light -- see the
     # comment on .notice.ok.

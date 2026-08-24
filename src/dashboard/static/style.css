@@ -1576,7 +1576,7 @@ footer {
 
 .setup-row {
   display: grid;
-  grid-template-columns: 1.25rem minmax(8rem, auto) 1fr;
+  grid-template-columns: 1.25rem minmax(8rem, auto) 1fr auto;
   align-items: baseline;
   gap: 0.6rem;
   padding: 0.6rem 0;
@@ -1585,14 +1585,38 @@ footer {
 }
 
 .setup-state { color: var(--ok); display: flex; align-items: center; }
-.setup-row.off .setup-state { color: var(--faint); }
+/* Off is a choice, not a problem -- see OPTIONAL_ROWS in overview_view.py.
+ * It is the only state that stays this quiet; both of the others below are
+ * required rows asking for attention, just for different reasons. */
+.setup-row-off .setup-state { color: var(--faint); }
+
+/* Not configured, and configured-but-broken, share the amber "needs
+ * attention" colour -- neither is --danger, because a server missing its
+ * verified role is not an error state, it is one step from finished.
+ * "Broken" additionally colours its note: an admin who thought this was
+ * already working needs that sentence to stand out more than "not set yet"
+ * does. See `_role_row` and `_panel_row` in overview_view.py for which row
+ * lands in which state. */
+.setup-row-todo .setup-state,
+.setup-row-broken .setup-state { color: var(--notice); }
+.setup-row-broken .setup-note { color: var(--notice); }
+
 .setup-label { font-weight: 600; color: var(--ink-strong); }
 .setup-note { font-size: 0.85rem; }
 
-/* Only a *required* piece that is missing. The tick and cross alone would
- * otherwise read as four pass/fail results, and three of these are ordinary
- * choices rather than faults. */
-.setup-row.missing .setup-state { color: var(--notice); }
+/* Full `.button` height, not a shrunk one -- #133 phase 5 put every control
+ * on the page at one height on purpose, and a row of smaller buttons here
+ * would be the first thing to undo it. */
+.setup-action { padding: 0.4rem 0.9rem; font-size: 0.85rem; }
+
+.setup-complete {
+  margin: 0 0 var(--space-3);
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius-control);
+  background: var(--inset);
+  color: var(--ok);
+  font-weight: 600;
+}
 
 /* --- change history --- */
 .audit { list-style: none; margin: 0; padding: 0; }
@@ -1766,6 +1790,7 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   .panel { padding: 1rem 1.1rem; }
   .setup-row { grid-template-columns: 1.25rem 1fr; }
   .setup-note { grid-column: 2; }
+  .setup-action { grid-column: 2; margin-top: 0.4rem; }
 }
 
 /* --- motion ---

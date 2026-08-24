@@ -129,27 +129,49 @@
   <section class="panel group">
     <h2>Setup</h2>
     <p class="muted blurb">
-      What's switched on in this server. Change any of it on
+      What's configured here, and whether it's actually working -- one list
+      instead of two, since "switched on" and "still works" used to be
+      answered in different places on this page. Change any of it on
       <a href="{{ url_for('guild_settings', guild_id=guild_id) }}">Settings</a>.
     </p>
 
+    {# Pipedrive's finished state, not a fourth tick among three: a fully
+       configured server should read as done, not as a checklist with nothing
+       left to check off. #}
+    {% if setup.complete %}
+      <p class="setup-complete">Setup complete — verification is fully working here.</p>
+    {% endif %}
+
     <ul class="setup">
-      {% for row in setup %}
-        {# Only a missing *required* piece is marked as a problem. Flagging an
-           optional setting an admin deliberately left off would report a
-           working server as broken. #}
-        <li class="setup-row{% if not row.on %} off{% endif %}
-                   {%- if row.required and not row.on %} missing{% endif %}">
+      {% for row in setup.rows %}
+        {# THREE VISUAL STATES, NOT TWO, because "not configured" and
+           "configured but broken" need different notes and the same colour
+           would erase that. `state` comes straight from overview_view, which
+           is also where "off means fine" for the three optional rows and
+           "off means blocked" for the first two stays a single decision
+           rather than one made twice, here and in Python. #}
+        <li class="setup-row setup-row-{{ row.state }}">
           {# Inline SVG rather than &check; / &times;. The vendored Inter subset
              has no U+2713, so a tick would silently fall back to another
              family and land at a different weight and baseline -- which reads
              as a rendering fault rather than a design choice. #}
           <span class="setup-state" aria-hidden="true">
-            {%- if row.on -%}
+            {%- if row.state == 'done' -%}
               <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
                    stroke="currentColor" stroke-width="2.2"
                    stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 8.5l3.5 3.5L13 4.5"></path>
+              </svg>
+            {%- elif row.state == 'broken' -%}
+              {# Configured, and wrong -- a different mark from an ordinary
+                 X, because the fix here is "something changed", not "turn
+                 this on". #}
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
+                   stroke="currentColor" stroke-width="2.2"
+                   stroke-linecap="round">
+                <circle cx="8" cy="8" r="6.2"></circle>
+                <path d="M8 5.1v3.6"></path>
+                <circle cx="8" cy="11.1" r="0.2" fill="currentColor" stroke="none"></circle>
               </svg>
             {%- else -%}
               <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
@@ -162,10 +184,18 @@
           <span class="setup-label">
             {{ row.label }}
             <span class="offscreen">
-              {%- if row.on %}: set{% else %}: not set{% endif -%}
+              {%- if row.state == 'done' %}: set
+              {%- elif row.state == 'broken' %}: needs attention
+              {%- else %}: not set{% endif -%}
             </span>
           </span>
           <span class="muted setup-note">{{ row.note }}</span>
+          {% if row.action %}
+            <a class="button setup-action"
+               href="{{ url_for('guild_settings', guild_id=guild_id) }}#{{ row.action.anchor }}">
+              {{- row.action.label -}}
+            </a>
+          {% endif %}
         </li>
       {% endfor %}
     </ul>
