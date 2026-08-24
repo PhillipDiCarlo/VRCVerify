@@ -1,20 +1,106 @@
 {% extends "base.html" %}
 {% block title %}Sign in — VRCVerify{% endblock %}
 
+{# THE DISCORD MARK.
+   Inline, like every other icon here: the CSP is img-src 'self' plus Discord's
+   CDN, and a data: URI would mean widening it to draw one shape. `fill` is a
+   presentation attribute, not CSS -- style-src 'self' drops inline style=""
+   silently, so a colour written that way would simply not apply.
+
+   currentColor rather than Discord's blurple: the button is already
+   --accent-ink on --accent, and a second brand colour inside it would be a
+   third colour competing in one control. Discord's brand guidelines ask for
+   the mark's shape to be unaltered, which this is; they do not require it be
+   drawn in blurple on a coloured button, and their own docs show the white
+   mark on dark buttons. #}
+{% macro discord_mark() -%}
+  <svg class="signin-discord" viewBox="0 0 24 24" width="18" height="18"
+       aria-hidden="true" fill="currentColor">
+    <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.198.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"></path>
+  </svg>
+{%- endmacro %}
+
+{# THE THREE GRANT MARKS.
+   Two of the three statements are things this site CANNOT do, and the slash is
+   what carries that -- not colour, which would be the only cue for anybody
+   seeing the page in greyscale, and not red, which would read as a warning
+   about a thing that is actually a reassurance.
+
+   16px with a slash through it is busy, so these are drawn at 18. #}
+{% macro grant_mark(kind) -%}
+  <svg class="signin-grant-mark" viewBox="0 0 18 18" width="18" height="18"
+       aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    {%- if kind == 'asks' -%}
+      {# A person: who you are, and the list of servers you are in. #}
+      <circle cx="9" cy="6" r="2.75"></circle>
+      <path d="M3.5 15c0-2.75 2.45-4.4 5.5-4.4s5.5 1.65 5.5 4.4"></path>
+    {%- elif kind == 'token' -%}
+      {# A key, struck through. #}
+      <circle cx="6.25" cy="9" r="2.6"></circle>
+      <path d="M8.85 9h5.4M12.4 9v2.1M14.25 9v1.7"></path>
+      <path d="M3 15.4 15 2.6"></path>
+    {%- else -%}
+      {# An eye, struck through. #}
+      <path d="M1.9 9S4.6 4.9 9 4.9 16.1 9 16.1 9 13.4 13.1 9 13.1 1.9 9 1.9 9Z"></path>
+      <circle cx="9" cy="9" r="2"></circle>
+      <path d="M3 15.4 15 2.6"></path>
+    {%- endif -%}
+  </svg>
+{%- endmacro %}
+
 {% block content %}
-<section class="panel centered">
-  <h1>Server settings</h1>
-  <p>
-    Sign in with Discord to configure VRCVerify on the servers you administer.
+<section class="panel signin">
+  {# The mark alone, not the lockup: the heading below says the name, and a
+     wordmark directly above a heading carrying the same word reads as the page
+     stuttering. Drawn at 48px from a 128px file, so it is still crisp at 2x.
+
+     alt="" because it is decorative in the strict sense -- the <h1> two lines
+     down says "VRCVerify", and a screen reader announcing the logo as well
+     would say the product's name twice before reaching the sentence that
+     explains the page. #}
+  <img class="signin-mark" src="{{ asset('logo.png') }}" alt=""
+       width="128" height="99">
+
+  <h1>Manage your VRCVerify servers</h1>
+  <p class="signin-lede">
+    Set the verified role, the instructions panel and logging for any Discord
+    server you administer.
   </p>
-  <p class="muted">
-    You'll be asked for your identity and your server list, and nothing else.
-    We don't keep your Discord token after you sign in, and this site can't
-    see who has verified — only your server's settings.
+
+  {# THE MOST VALUABLE THING ON THIS PAGE, AND IT USED TO BE THE QUIETEST.
+     These three sentences were one <p class="muted"> -- which is to say the
+     limits of what signing in grants were styled as the least important thing
+     on the page, below a lede nobody needs.
+
+     They sit ABOVE the button on purpose. Google's own consent screens put the
+     scope list above Continue, and the order is the argument: here is what you
+     are handing over, now decide. A button above the list would be asking
+     first and explaining after. The list is three lines, so the button stays
+     in view either way. #}
+  <ul class="signin-grants">
+    <li>
+      {{ grant_mark('asks') }}
+      <span>Discord tells us <strong>who you are and which servers you are
+        in</strong>, and nothing else.</span>
+    </li>
+    <li>
+      {{ grant_mark('token') }}
+      <span>We <strong>don't keep your Discord token</strong> after you sign
+        in.</span>
+    </li>
+    <li>
+      {{ grant_mark('eye') }}
+      <span>This site <strong>can't see who has verified</strong> — only your
+        server's settings.</span>
+    </li>
+  </ul>
+
+  <p class="signin-go">
+    <a class="button" href="{{ url_for('login') }}">
+      {{ discord_mark() }} Sign in with Discord</a>
   </p>
-  <p>
-    <a class="button" href="{{ url_for('login') }}">Sign in with Discord</a>
-  </p>
+
   {# What Discord can and cannot do, stated accurately.
 
      This used to say configuration could all be done from Discord with
@@ -27,11 +113,21 @@
      page somebody reads while deciding whether to sign in at all, and the
      command it named would have appeared to work, since it does render a
      settings summary. #}
-  <p class="muted">
+  <p class="signin-note">
     <code>/vrcverify_setup</code> in Discord sets a server's verified role,
     which is enough to start verifying members, and
     <code>/vrcverify_settings</code> shows what's stored. Everything else is
     changed here.
+  </p>
+
+  {# Absolute, because these live on the apex site rather than in this app.
+     Same tab and no `rel`: `Referrer-Policy: no-referrer` is set on every
+     response, so there is nothing to leak, and there is nothing on this page
+     to lose your place in. #}
+  <p class="signin-legal">
+    <a href="https://vrcverify.com/terms">Terms</a>
+    <a href="https://vrcverify.com/privacy">Privacy</a>
+    <a href="https://vrcverify.com/refunds">Refunds</a>
   </p>
 </section>
 {% endblock %}

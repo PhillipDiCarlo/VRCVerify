@@ -1027,6 +1027,122 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 .empty-state form { margin: 0; }
 .empty-note { margin: var(--space-2) 0 0; font-size: var(--text-note); color: var(--faint); }
 
+/* --- the sign-in card ---
+ *
+ * The first thing anybody sees, and the only page here that renders with no
+ * session at all. Shaped after the single-card OAuth screens -- Weavy,
+ * Dovetail, Otter -- with one difference that is the whole point of the page:
+ * those cards are a stack of provider buttons and nothing else, because there
+ * is nothing unusual to say. This one has three sentences about what signing
+ * in grants and what this site cannot see, and they were previously drawn as
+ * one grey <p class="muted"> underneath the lede.
+ *
+ * Everything is prefixed `signin-`. Three class collisions surfaced during
+ * #133 -- `.centered`, `.empty` and `.plan`, each one word meaning two things
+ * in two templates, each invisible to the tests -- and a page-specific prefix
+ * is the cheapest way not to be the fourth. It is also why this card no longer
+ * wears `.centered`: that class is shared with the refusal page, and the two
+ * want different widths. */
+.signin {
+  max-width: 30rem;
+  margin: 2.5rem auto;
+  text-align: center;
+}
+
+/* 48px drawn from a 128px file, so it is still crisp at 2x without a second
+ * asset. The mark alone, not the lockup -- the <h1> below already says the
+ * name. Same --logo-filter as the header's mark: it is the whole dark-theme
+ * story for this image. */
+.signin-mark {
+  display: block;
+  height: 3rem;
+  width: auto;
+  margin: 0 auto var(--space-4);
+  filter: var(--logo-filter);
+}
+
+.signin h1 { font-size: 1.5rem; margin: 0 0 var(--space-2); }
+
+.signin-lede {
+  margin: 0 auto var(--space-5);
+  max-width: 24rem;
+  color: var(--muted);
+  font-size: var(--text-body);
+}
+
+/* THE PART THAT WAS STYLED AS THE LEAST IMPORTANT THING ON THE PAGE.
+ *
+ * Given the card's own inset surface so it reads as a block rather than as
+ * more prose, and left-aligned because these are sentences: three centred
+ * lines of different lengths is a poem, not a list. */
+.signin-grants {
+  list-style: none;
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-5);
+  padding: var(--space-4);
+  background: var(--inset);
+  border-radius: var(--radius-control);
+  text-align: left;
+}
+
+.signin-grants li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font-size: var(--text-body);
+  color: var(--muted);
+}
+
+/* The claim itself at full strength, the grammar around it quieter. Somebody
+ * skimming reads "who you are and which servers you are in", "don't keep your
+ * Discord token", "can't see who has verified" -- which is the sentence the
+ * page is making, with the joins left out. */
+.signin-grants strong { color: var(--ink-strong); font-weight: 600; }
+
+/* Nudged down so the glyph sits on the first line's baseline rather than its
+ * box top, which reads as a bullet rather than as a mark floating above one. */
+.signin-grant-mark {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  color: var(--accent-text);
+}
+
+.signin-go { margin: 0 0 var(--space-5); }
+
+/* Full width and taller than the standard control: it is the only action on
+ * the page, and 2.75rem is the same 44px the coarse-pointer block gives every
+ * other target, so it does not change under a thumb. */
+.signin-go .button {
+  width: 100%;
+  min-height: 2.75rem;
+  gap: var(--space-2);
+  font-size: 1rem;
+}
+
+.signin-note {
+  margin: 0 0 var(--space-4);
+  text-align: left;
+  font-size: var(--text-note);
+  color: var(--muted);
+}
+
+/* Under everything, in the quietest voice on the page that is still readable:
+ * --faint on --panel is tested. Craft and OpenAI both sit them here, small and
+ * unemphasised -- present for somebody looking for them, not competing with
+ * the one action. */
+.signin-legal {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  font-size: var(--text-note);
+}
+
+.signin-legal a { color: var(--faint); text-decoration: none; }
+.signin-legal a:hover { color: var(--ink); text-decoration: underline; }
+
 /* --- one server's pages --- */
 .guild-head {
   display: flex;

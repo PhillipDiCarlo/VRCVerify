@@ -3223,6 +3223,149 @@ class TestTheControls(object):
         assert "var(--danger)" not in rule.group(1)
 
 
+class TestTheSignInCard(object):
+    """#134 phase 1. The first page anybody sees.
+
+    It was 24 lines of prose with a link in it. The copy was good -- unusually
+    so: it states the limits of what signing in grants, in plain language,
+    before asking. That paragraph was `class="muted"`, which is to say the most
+    valuable thing on the page was styled as the least important.
+    """
+
+    # The three statements, in the words that matter rather than verbatim, so
+    # the assertions survive a comma moving.
+    PROMISES = (
+        "who you are and which servers you are in",
+        "don't keep your Discord token",
+        "can't see who has verified",
+    )
+
+    @staticmethod
+    def _css() -> str:
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            return re.sub(r"/\*.*?\*/", "", handle.read(), flags=re.S)
+
+    @staticmethod
+    def _rows(page: str) -> list:
+        block = re.search(r'<ul class="signin-grants">(.*?)</ul>', page, re.S)
+        assert block, "no promise list on the sign-in page"
+        rows = re.findall(r"<li>(.*?)</li>", block.group(1), re.S)
+        assert rows, "the promise list is empty"
+        # Collapsed, because a claim that wraps across two source lines is one
+        # phrase once the browser has it. Asserting against the raw indentation
+        # would fail on a reflow that changes nothing anybody reads.
+        return [re.sub(r"\s+", " ", row) for row in rows]
+
+    def test_each_promise_is_its_own_row_with_its_own_mark(self, client):
+        """Three sentences in one grey paragraph is a paragraph. Three rows
+        with a glyph each is a list of what you are granting, which is what
+        these actually are."""
+        rows = self._rows(client.get("/").data.decode())
+        assert len(rows) == 3, f"expected three promises, found {len(rows)}"
+        for promise in self.PROMISES:
+            assert any(promise in row for row in rows), promise
+        for row in rows:
+            assert 'class="signin-grant-mark"' in row
+
+    def test_the_promises_are_not_the_quietest_thing_on_the_page(self, client):
+        """The substantive change. `muted` on this block is what the redesign
+        exists to undo, and it would be an easy thing to reintroduce while
+        tidying."""
+        page = client.get("/").data.decode()
+        block = re.search(r'<ul class="signin-grants"[^>]*>.*?</ul>', page, re.S)
+        assert block and "muted" not in block.group(0)
+        # And the block has a surface of its own, so it reads as a statement
+        # rather than as more prose.
+        rule = re.search(r"\.signin-grants\s*\{([^}]*)\}", self._css())
+        assert rule and "background:" in rule.group(1)
+
+    def test_the_claim_in_each_row_carries_the_weight(self, client):
+        """Somebody skimming should read the three claims and none of the
+        grammar joining them."""
+        for row in self._rows(client.get("/").data.decode()):
+            strong = re.search(r"<strong>(.*?)</strong>", row, re.S)
+            assert strong, f"nothing emphasised in: {row.strip()[:60]}"
+
+    def test_there_is_one_primary_action_and_it_starts_the_flow(self, client):
+        """"One unmistakable primary action." A second `.button` anywhere on
+        this page would be a competing one."""
+        page = client.get("/").data.decode()
+        buttons = re.findall(r'<a class="button"[^>]*href="([^"]+)"', page)
+        assert buttons == ["/login"], buttons
+        assert page.count('class="button"') == 1
+
+    def test_the_discord_mark_rides_inside_the_button(self, client):
+        """Inline SVG with presentation attributes only -- `style-src 'self'`
+        drops inline style="" silently, and a data: URI would mean widening
+        img-src to draw one shape."""
+        page = client.get("/").data.decode()
+        anchor = re.search(r'<a class="button".*?</a>', page, re.S)
+        assert anchor and 'class="signin-discord"' in anchor.group(0)
+        mark = re.search(r"<svg class=\"signin-discord\"[^>]*>", page)
+        assert mark and 'aria-hidden="true"' in mark.group(0)
+        assert "style=" not in mark.group(0)
+
+    def test_the_logo_is_local_and_carries_a_digest(self, client):
+        """`img-src` is 'self' plus Discord's CDN, so it has to be served from
+        here -- and through asset(), or a deploy leaves a year-cached stale
+        copy behind."""
+        page = client.get("/").data.decode()
+        src = re.search(r'<img class="signin-mark" src="([^"]+)"', page)
+        assert src, "no logo on the sign-in card"
+        assert src.group(1).startswith("/static/")
+        assert "?v=" in src.group(1)
+
+    def test_the_terms_are_reachable_from_the_page_that_asks_you_to_agree(
+        self, client
+    ):
+        """A sign-in screen that never mentions the terms is a gap. They live
+        on the apex site, so these are absolute rather than url_for."""
+        page = client.get("/").data.decode()
+        for path in ("terms", "privacy", "refunds"):
+            assert f"https://vrcverify.com/{path}" in page, path
+
+    def test_the_card_does_not_share_a_class_with_another_page(self, client):
+        """`.centered` was worn by this page and the refusal page both, and
+        #133 phase 5 nearly restyled this one by accident through it. Three
+        collisions of that shape turned up across #133 -- `.centered`,
+        `.empty`, `.plan` -- so this card's classes are prefixed, and this is
+        what keeps them that way.
+        """
+        import dashboard
+
+        directory = os.path.join(os.path.dirname(dashboard.__file__), "templates")
+        with open(os.path.join(directory, "login.html"), encoding="utf-8") as handle:
+            login = re.sub(r"\{#.*?#\}", "", handle.read(), flags=re.S)
+
+        mine = {
+            name
+            for attr in re.findall(r'class="([^"{]+)"', login)
+            for name in attr.split()
+            if name.startswith("signin")
+        }
+        assert mine, "the card introduced no classes of its own"
+
+        for other in os.listdir(directory):
+            if other in ("login.html", "base.html"):
+                continue
+            with open(os.path.join(directory, other), encoding="utf-8") as handle:
+                body = re.sub(r"\{#.*?#\}", "", handle.read(), flags=re.S)
+            used = {
+                name
+                for attr in re.findall(r'class="([^"{]+)"', body)
+                for name in attr.split()
+            }
+            assert not (mine & used), f"{other} shares {sorted(mine & used)}"
+
+        # And the page no longer borrows the refusal page's class.
+        assert "centered" not in login
+
+
 class TestThePickerSaysOnlyWhatItKnows(object):
     """`installed` is two answers wearing one name.
 
