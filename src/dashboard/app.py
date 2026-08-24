@@ -70,6 +70,7 @@ import requests
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from dashboard import (
+    changelog,
     oauth,
     overview_view,
     settings_view,
@@ -408,6 +409,20 @@ THEME_COOKIE = "vrcverify_theme"
 # nothing about it worth expiring.
 THEME_COOKIE_MAX_AGE = 31536000
 
+# Which changelog entry this browser has already seen (issue #136). The same
+# class of thing again -- a display preference forgeable only to change what
+# your own bell looks like -- and the same reasoning for every attribute:
+# no `__Host-` prefix, and not httponly, because prefs.js clears the dot on
+# open by writing this directly. There is no `connect-src` in the CSP, so a
+# script cannot ask the server to write it instead.
+#
+# It holds ONE id, not a set: the feed is ordered, so "the newest one you have
+# seen" answers the only question the dot asks. `changelog.read_seen` validates
+# it against the ids actually shipped, so a hand-edited value shows the dot
+# once more rather than hiding entries this browser never saw.
+SEEN_COOKIE = "vrcverify_seen"
+SEEN_COOKIE_MAX_AGE = 31536000
+
 # What the cookie may say. Anything else is treated as if it were absent, which
 # is what stops a hand-edited value reaching a `data-` attribute unchecked.
 THEMES = frozenset({"dark", "light", "system"})
@@ -630,6 +645,21 @@ def _register_assets(app: Flask) -> None:
         of the three words, always -- including "system".
         """
         return _theme()
+
+    @app.template_global()
+    def updates():
+        """What the header's bell should render, if anything.
+
+        A template global for exactly the reason `theme_attr()` is one: the
+        bell is in `base.html`, `base.html` backs every page, and threading a
+        `bell` argument through every `render_template` call in this module
+        would mean the next page somebody adds renders without one. The
+        template asks; no call site can forget.
+
+        All the deciding happens in `changelog.py`, which is pure. This
+        function's whole job is turning one cookie into an argument.
+        """
+        return changelog.build_bell(changelog.read_seen(request.cookies.get(SEEN_COOKIE)))
 
 
 # -------------------------------------------------------------------
@@ -1210,6 +1240,62 @@ def _register_routes(app: Flask) -> None:
             # Expanded is the default, so the preference is the absence of the
             # cookie rather than a second value to interpret.
             response.delete_cookie(NAV_COOKIE, path="/")
+        return response
+
+    @app.post("/prefs/seen")
+    def mark_updates_seen():
+        """Clear the bell's unread dot. Writes one cookie and nothing else.
+
+        THE NO-JAVASCRIPT PATH, and the reason the dot is honest.
+
+        prefs.js clears the dot the moment the panel opens, by writing this
+        cookie directly -- which is what makes the interaction feel like every
+        other notification panel. With scripts blocked, nothing tells the
+        server the panel was ever opened, so without this route the dot would
+        sit there permanently on a browser that had already read everything.
+        That is worse than no dot at all: an indicator that never clears stops
+        being an indicator.
+
+        So the panel carries a plain "Mark all as read" button that posts
+        here. It is not a fallback bolted on for the no-script case -- every
+        comparable panel has one, and it works identically whether or not
+        prefs.js ran.
+
+        Follows `set_nav_preference` rather than `set_theme_preference` on
+        session and CSRF: the bell is only rendered for a signed-in admin, so
+        there is always a session and always a token, and none of the theme
+        route's reasons for going without apply.
+
+        The value is not taken from the form. The newest id is something this
+        process already knows, and accepting one from a request would mean a
+        crafted post could mark an entry seen that the browser never saw.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        response = redirect(_preference_return_url())
+        newest = changelog.newest_id()
+        if newest is None:
+            # No feed, so nothing to have seen. Clearing rather than writing
+            # keeps "absent" the only representation of "seen nothing".
+            response.delete_cookie(SEEN_COOKIE, path="/")
+            return response
+
+        response.set_cookie(
+            SEEN_COOKIE,
+            newest,
+            max_age=SEEN_COOKIE_MAX_AGE,
+            secure=True,
+            # NOT httponly, for the same reason as THEME_COOKIE: prefs.js
+            # writes this one too, and with no `connect-src` it has no other
+            # way to record that the panel was opened.
+            httponly=False,
+            samesite="Lax",
+            path="/",
+        )
         return response
 
     @app.post("/prefs/theme")

@@ -13,7 +13,7 @@
  * app.js is documented as doing exactly one thing -- noticing you edited one
  * settings group and saved another -- and it is worth keeping that true. This
  * file is the other thing: the small set of preferences the browser can store
- * on its own, which today is the theme and in #136 will be which changelog
+ * on its own, which today is the theme and, since #136, which changelog
  * entries have been seen.
  *
  * WHAT IT MAY NOT DO
@@ -109,6 +109,45 @@
       if (summary) summary.focus();
     });
   });
+
+  // --- the bell's unread dot (#136) -------------------------------------
+  //
+  // MUST STAY ABOVE the theme block below, which early-returns out of this
+  // IIFE when it finds no picker. Anything placed after it runs only on pages
+  // that have one.
+  //
+  // The same bargain as everything else in this file: it makes the dot behave
+  // the way a notification dot is expected to, it does not make the panel
+  // work. With this blocked the panel still opens -- it is a <details> -- and
+  // "Mark all as read" in its footer posts to /prefs/seen and clears the dot
+  // the ordinary way. That button is not a fallback; it is there either way.
+  //
+  // No fetch, and not for want of trying: the CSP is `default-src 'none'`
+  // with no `connect-src`, so an XHR from this page is blocked outright. The
+  // cookie is the only channel a script has to tell the server something, and
+  // that is exactly why SEEN_COOKIE is not httponly.
+  var bell = document.querySelector("details.bell");
+  if (bell) {
+    bell.addEventListener("toggle", function () {
+      if (!bell.hasAttribute("open")) return;
+
+      var newest = bell.getAttribute("data-newest");
+      if (!newest) return;
+      writeCookie("vrcverify_seen", newest);
+
+      // Drop the dot now rather than at the next navigation. Leaving it lit
+      // over a panel the reader is looking at is the one state that makes the
+      // indicator feel broken -- and the server has already been told, so the
+      // page and the cookie do not disagree.
+      var dot = bell.querySelector(".bell-dot");
+      if (dot) dot.remove();
+
+      // The summary's accessible name carries the same claim in words, so it
+      // has to lose the sentence at the same moment the dot goes.
+      var summary = bell.querySelector("summary");
+      if (summary) summary.setAttribute("aria-label", "What's new");
+    });
+  }
 
   // --- the theme, made instant ------------------------------------------
 

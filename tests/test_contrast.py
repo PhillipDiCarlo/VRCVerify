@@ -90,6 +90,13 @@ PAIRS = [
 # being unreadable. Both are listed so neither can be traded for the other.
 UI_PAIRS = [
     ("control-line", "panel", "a control's edge against the card"),
+    # The bell's unread dot (#136). A shape, not text, so 3:1 -- and it has to
+    # clear it against BOTH surfaces the button wears, because the button goes
+    # to --hover while its panel is open and on pointer hover. A dot that is
+    # legible at rest and vanishes the moment you reach for it is the one
+    # failure a notification indicator cannot have.
+    ("accent-text", "chrome", "the bell's unread dot at rest"),
+    ("accent-text", "hover", "the bell's unread dot while its panel is open"),
     ("switch-knob", "control-line", "the knob on an off switch"),
     ("switch-on", "panel", "an on switch against the card"),
     ("switch-knob", "switch-on", "the knob on an on switch"),
