@@ -250,6 +250,8 @@ def make_overview(
         "configured": (
             {
                 "verified_role": True,
+                "verified_role_exists": True,
+                "verified_role_assignable": True,
                 "unverified_role": False,
                 "log_channel": False,
                 "auto_verify": True,
@@ -3088,6 +3090,104 @@ class TestTheOverviewSuggestsOneNextStep:
         assert "No instructions panel is posted" in page
 
 
+class TestTheSetupListOnThePage:
+    """#135 phase 3. The merged Apollo-pattern list -- health and setup as one
+    actioned list -- as opposed to TestOverviewViewModel, which checks the
+    row data without a request."""
+
+    def _page(self, config, store, **overview_kwargs):
+        test_client, _api = settings_client(
+            config, store, overview=make_overview(**overview_kwargs)
+        )
+        return test_client.get(f"/guild/{GUILD_IN}").data.decode()
+
+    def _configured(self, **overrides):
+        base = {
+            "verified_role": True,
+            "verified_role_exists": True,
+            "verified_role_assignable": True,
+            "unverified_role": False,
+            "log_channel": False,
+            "auto_verify": True,
+        }
+        base.update(overrides)
+        return base
+
+    def test_every_row_label_appears(self, config, store):
+        page = self._page(config, store, panel={"posted": True})
+        for label in (
+            "Verified role", "Instructions panel", "Auto-verify on join",
+            "Unverified role", "Verification log",
+        ):
+            assert label in page
+
+    def test_a_broken_role_shows_its_own_note_and_a_settings_link(self, config, store):
+        page = self._page(
+            config, store,
+            configured=self._configured(verified_role_exists=False,
+                                         verified_role_assignable=None),
+            panel={"posted": True},
+        )
+        assert "has been deleted" in page
+        section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
+        assert section
+        assert f'href="/guild/{GUILD_IN}/settings#f-role_id"' in section.group(0)
+
+    def test_a_broken_panel_shows_its_own_note_and_a_settings_link(self, config, store):
+        page = self._page(
+            config, store,
+            panel={"posted": True, "channel_exists": True, "channel_postable": False},
+        )
+        section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
+        assert section
+        assert "check its permissions" in section.group(0)
+        assert f'href="/guild/{GUILD_IN}/settings#panel_channel_id"' in section.group(0)
+
+    def test_an_unfinished_required_row_reads_differently_from_an_off_optional_one(
+        self, config, store
+    ):
+        """The bug a screenshot caught: a missing verified role and a
+        deliberately-unset optional toggle both draw an X, and without a
+        second class they would be visually identical -- which is exactly the
+        thing #123's `.setup-row.missing` existed to prevent, one CSS
+        refactor before this test was written to keep it that way."""
+        page = self._page(
+            config, store,
+            configured=self._configured(verified_role=False,
+                                         verified_role_exists=None,
+                                         verified_role_assignable=None,
+                                         log_channel=False),
+            panel={"posted": True},
+        )
+        assert "setup-row setup-row-todo" in page
+        assert "setup-row setup-row-off" in page
+
+    def test_a_done_row_carries_no_action_button(self, config, store):
+        page = self._page(config, store, panel={"posted": True})
+        section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
+        assert section
+        # Two rows can be unfinished at most in this fixture (role, panel);
+        # both are done here, so no Settings link should appear at all.
+        assert "setup-action" not in section.group(0)
+
+    def test_the_complete_banner_appears_only_when_both_required_rows_are_done(
+        self, config, store
+    ):
+        done = self._page(config, store, panel={"posted": True})
+        assert "Setup complete" in done
+
+        not_done = self._page(config, store, panel={"posted": False})
+        assert "Setup complete" not in not_done
+
+    def test_no_style_attribute_appears_in_the_setup_section(self, config, store):
+        """`style-src 'self'` drops inline style="" silently -- the same trap
+        the chart's own render test guards against."""
+        page = self._page(config, store, panel={"posted": True})
+        section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
+        assert section
+        assert 'style="' not in section.group(0)
+
+
 class TestEverySectionFailsTheSameWay:
     """The oracle only has to exist on one route to be worth using.
 
@@ -5193,39 +5293,132 @@ class TestOverviewViewModel:
         )
         assert "verified role" in step["title"]
 
-    def test_setup_reports_each_piece_as_a_yes_or_no(self):
-        rows = overview_view.build_setup(
-            {
-                "configured": {
-                    "verified_role": True,
-                    "unverified_role": False,
-                    "log_channel": False,
-                    "auto_verify": True,
-                }
-            }
-        )
-        assert {row["label"]: row["on"] for row in rows} == {
-            "Verified role": True,
-            "Auto-verify on join": True,
-            "Unverified role": False,
-            "Verification log": False,
+    def _configured(self, **overrides):
+        base = {
+            "verified_role": True,
+            "verified_role_exists": True,
+            "verified_role_assignable": True,
+            "unverified_role": False,
+            "log_channel": False,
+            "auto_verify": True,
         }
+        base.update(overrides)
+        return base
 
-    def test_only_the_verified_role_counts_as_missing(self):
-        """The other three are choices, not faults.
-
-        Marking a deliberately-unset optional feature as a problem would report
-        a working server as broken.
-        """
-        rows = overview_view.build_setup(
-            {"configured": {"verified_role": False, "log_channel": False}}
+    def test_setup_reports_each_optional_piece_as_done_or_off(self):
+        setup = overview_view.build_setup(
+            {"configured": self._configured(), "panel": {"posted": True}}
         )
-        flagged = [row["label"] for row in rows if row["required"] and not row["on"]]
-        assert flagged == ["Verified role"]
+        states = {row["label"]: row["state"] for row in setup["rows"]}
+        assert states["Auto-verify on join"] == "done"
+        assert states["Unverified role"] == "off"
+        assert states["Verification log"] == "off"
 
-    def test_a_failed_settings_read_shows_no_setup_rows(self):
-        """Better silent than reporting four features as switched off."""
-        assert overview_view.build_setup({"configured": None}) == []
+    def test_a_missing_verified_role_is_todo_not_broken(self):
+        """Never configured is a different note from configured-and-broken,
+        even though both need the same fix."""
+        setup = overview_view.build_setup(
+            {"configured": self._configured(verified_role=False,
+                                             verified_role_exists=None,
+                                             verified_role_assignable=None),
+             "panel": {"posted": True}}
+        )
+        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        assert role["state"] == "todo"
+        assert role["action"] == {"label": "Go to Settings", "anchor": "f-role_id"}
+
+    def test_a_deleted_verified_role_is_broken_not_todo(self):
+        setup = overview_view.build_setup(
+            {"configured": self._configured(verified_role_exists=False,
+                                             verified_role_assignable=None),
+             "panel": {"posted": True}}
+        )
+        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        assert role["state"] == "broken"
+        assert "deleted" in role["note"]
+
+    def test_an_unassignable_verified_role_is_broken(self):
+        """The silent-failure case: the role exists and looks configured, but
+        the bot's own role sits below it in the hierarchy."""
+        setup = overview_view.build_setup(
+            {"configured": self._configured(verified_role_assignable=False),
+             "panel": {"posted": True}}
+        )
+        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        assert role["state"] == "broken"
+        assert "sit above" in role["note"]
+
+    def test_unknown_assignability_is_not_treated_as_broken(self):
+        """`None` means the hierarchy could not be checked, not that it
+        failed -- crying wolf on a working server is worse than staying
+        quiet."""
+        setup = overview_view.build_setup(
+            {"configured": self._configured(verified_role_assignable=None),
+             "panel": {"posted": True}}
+        )
+        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        assert role["state"] == "done"
+
+    def test_a_panel_in_a_deleted_channel_is_broken_not_done(self):
+        setup = overview_view.build_setup(
+            {"configured": self._configured(),
+             "panel": {"posted": True, "channel_exists": False}}
+        )
+        panel = next(row for row in setup["rows"] if row["label"] == "Instructions panel")
+        assert panel["state"] == "broken"
+        assert "deleted" in panel["note"]
+
+    def test_a_panel_the_bot_cannot_post_to_is_broken(self):
+        setup = overview_view.build_setup(
+            {"configured": self._configured(),
+             "panel": {"posted": True, "channel_exists": True, "channel_postable": False}}
+        )
+        panel = next(row for row in setup["rows"] if row["label"] == "Instructions panel")
+        assert panel["state"] == "broken"
+
+    def test_complete_requires_both_the_role_and_the_panel(self):
+        role_missing = overview_view.build_setup(
+            {"configured": self._configured(verified_role=False,
+                                             verified_role_exists=None,
+                                             verified_role_assignable=None),
+             "panel": {"posted": True}}
+        )
+        assert role_missing["complete"] is False
+
+        # The role alone is not enough -- a done role beside an unposted
+        # panel must not read as complete either.
+        panel_missing = overview_view.build_setup(
+            {"configured": self._configured(), "panel": {"posted": False}}
+        )
+        assert panel_missing["complete"] is False
+
+        complete = overview_view.build_setup(
+            {"configured": self._configured(), "panel": {"posted": True}}
+        )
+        assert complete["complete"] is True
+
+    def test_complete_does_not_require_the_optional_rows(self):
+        """An admin who leaves auto-verify or the log channel off has not
+        left anything unfinished -- those are choices, not debts."""
+        setup = overview_view.build_setup(
+            {"configured": self._configured(auto_verify=False, log_channel=False),
+             "panel": {"posted": True}}
+        )
+        assert setup["complete"] is True
+
+    def test_optional_rows_never_carry_an_action(self):
+        """No nagging about a deliberately-unset optional feature."""
+        setup = overview_view.build_setup(
+            {"configured": self._configured(unverified_role=False, log_channel=False),
+             "panel": {"posted": True}}
+        )
+        optional = [row for row in setup["rows"] if row["label"] not in
+                    ("Verified role", "Instructions panel")]
+        assert all(row["action"] is None for row in optional)
+
+    def test_a_failed_settings_read_shows_no_setup_section(self):
+        """Better silent than reporting every row as switched off."""
+        assert overview_view.build_setup({"configured": None}) is None
 
     def test_no_next_step_for_a_configured_server(self):
         assert (

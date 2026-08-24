@@ -257,46 +257,145 @@ def build_chart(overview: Optional[dict]) -> Chart:
     return Chart(bars, state="value", bar_width=bar_width)
 
 
-# Which configuration the Overview reports, and what each one being off
-# actually means. The wording carries the difference: a missing verified role
-# stops verification, while a missing log channel is a choice most servers make
-# and must not read as a fault.
-SETUP_ROWS = (
-    ("verified_role", "Verified role", "Required — verification can't finish without one."),
+# The optional toggles: on/off only, no health question behind either state.
+# The wording carries the difference from the two rows above them -- these are
+# ordinary choices, and marking one red for being off would tell an admin
+# their working server is broken.
+OPTIONAL_ROWS = (
     ("auto_verify", "Auto-verify on join", "Members are checked when they join."),
     ("unverified_role", "Unverified role", "Optional. Removed once someone verifies."),
     ("log_channel", "Verification log", "Optional. Premium."),
 )
 
+# Where each fixable row's action points, as a fragment on the Settings page
+# rather than a full URL -- this module stays Flask-free, like `settings_view`,
+# so the template is what turns this into `url_for('guild_settings', ...) +
+# '#' + anchor`.
+_SETTINGS_ANCHOR = {"verified_role": "f-role_id", "panel": "panel_channel_id"}
 
-def build_setup(overview: Optional[dict]) -> list:
-    """Which pieces of configuration are in place, as yes/no.
 
-    Booleans from the bot, never the ids themselves -- the values live on the
-    Settings page, and a second rendering of them here would be a second place
-    for them to be wrong. This page answers "is it wired up", which is the
-    question you have while looking at a count you did not expect.
+def _role_row(configured: dict) -> dict:
+    """Verified role: set, still exists, and the bot can actually grant it.
+
+    All three ways this can be unfinished point at the same fix -- the role
+    picker in Settings, which already flags an unassignable role (see
+    `read_dashboard_roles`'s `assignable`) when choosing one -- so every
+    non-done state gets the same action rather than three different ones.
+    """
+    action = {"label": "Go to Settings", "anchor": _SETTINGS_ANCHOR["verified_role"]}
+    if not configured.get("verified_role"):
+        return {
+            "label": "Verified role",
+            "state": "todo",
+            "note": "Required — verification can't finish without one.",
+            "action": action,
+        }
+    if configured.get("verified_role_exists") is False:
+        return {
+            "label": "Verified role",
+            "state": "broken",
+            "note": "The role that was set has been deleted. Choose another.",
+            "action": action,
+        }
+    if configured.get("verified_role_assignable") is False:
+        return {
+            "label": "Verified role",
+            "state": "broken",
+            "note": "VRCVerify's own role needs to sit above this one to grant it.",
+            "action": action,
+        }
+    # `verified_role_assignable` of None means the hierarchy could not be
+    # checked -- not proof it is broken, so this stays "done" rather than
+    # crying wolf on a working server. Same restraint `read_dashboard_panel`
+    # takes with a channel it cannot confirm is postable.
+    return {
+        "label": "Verified role",
+        "state": "done",
+        "note": "Set, and VRCVerify can grant it.",
+        "action": None,
+    }
+
+
+def _panel_row(panel: Optional[dict]) -> dict:
+    """Instructions panel: posted, in a channel that still exists, and one the
+    bot can still post to. Mirrors `_role_row`'s three-way split for the same
+    reason -- "not set up" and "set up and now broken" need different notes
+    even though both need the same fix."""
+    action = {"label": "Go to Settings", "anchor": _SETTINGS_ANCHOR["panel"]}
+    if not panel or not panel.get("posted"):
+        return {
+            "label": "Instructions panel",
+            "state": "todo",
+            "note": "Members need a message to start from.",
+            "action": action,
+        }
+    if panel.get("channel_exists") is False:
+        return {
+            "label": "Instructions panel",
+            "state": "broken",
+            "note": "The channel it was posted in was deleted.",
+            "action": action,
+        }
+    if panel.get("channel_postable") is False:
+        return {
+            "label": "Instructions panel",
+            "state": "broken",
+            "note": "VRCVerify can't post there anymore — check its permissions.",
+            "action": action,
+        }
+    return {
+        "label": "Instructions panel",
+        "state": "done",
+        "note": "Posted, and VRCVerify can still reach it.",
+        "action": None,
+    }
+
+
+def build_setup(overview: Optional[dict]) -> Optional[dict]:
+    """The Apollo-pattern list: setup and health merged into one, each row
+    carrying its own state and its own fix.
+
+    Two lists reporting different questions -- "is it configured" and "is it
+    working" -- used to sit apart on this page, which is worse than either
+    alone: an admin staring at four ticks has no way to learn the role behind
+    one of them was deleted last week. One row per concern instead, in the
+    order that blocks verification: the role first, since nothing after it
+    matters without one; the panel second, since nothing starts without it;
+    the three ordinary choices last, where being off is never a fault.
+
+    `complete` is true exactly when the two required rows are both "done" --
+    not when every row is, since an optional toggle left off is not something
+    left to finish. Phase 4 rewires the premium slot to appear only then.
+
+    Returns None -- not a dict with empty rows -- when nothing could be read,
+    so `{% if setup %}` keeps hiding the whole section exactly as it did when
+    this returned an empty list.
     """
     if not overview:
-        return []
+        return None
     configured = overview.get("configured")
     if configured is None:
         # The settings read failed behind the overview. Saying nothing beats
-        # reporting four features as switched off.
-        return []
+        # reporting every row as switched off.
+        return None
 
-    return [
+    role = _role_row(configured)
+    panel = _panel_row(overview.get("panel"))
+
+    rows = [role, panel] + [
         {
             "label": label,
-            "on": bool(configured.get(key)),
+            "state": "done" if configured.get(key) else "off",
             "note": note,
-            # Only the verified role is a problem when missing. The other three
-            # are ordinary choices, and marking them red would tell an admin
-            # their working server is broken.
-            "required": key == "verified_role",
+            "action": None,
         }
-        for key, label, note in SETUP_ROWS
+        for key, label, note in OPTIONAL_ROWS
     ]
+
+    return {
+        "rows": rows,
+        "complete": role["state"] == "done" and panel["state"] == "done",
+    }
 
 
 # What to tell an admin to do, in the order it stops verification working. Only

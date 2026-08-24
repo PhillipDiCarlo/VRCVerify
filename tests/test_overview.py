@@ -410,15 +410,41 @@ class TestCollectionStart:
 # -------------------------------------------------------------------
 # The payload
 # -------------------------------------------------------------------
+class FakeRole:
+    """Enough of `discord.Role` for the hierarchy check: a position to compare
+    on and a `managed` flag. `>`/`<` mirror the ordering `top_role > role` in
+    `_overview_configuration` relies on -- higher position outranks lower."""
+
+    def __init__(self, role_id, position=1, managed=False):
+        self.id = role_id
+        self.position = position
+        self.managed = managed
+
+    def __gt__(self, other):
+        return self.position > other.position
+
+    def __lt__(self, other):
+        return self.position < other.position
+
+
+class FakeMember:
+    def __init__(self, top_role):
+        self.top_role = top_role
+
+
 class FakeGuild:
     def __init__(self, guild_id=GUILD_ID, member_count=42):
         self.id = int(guild_id)
         self.member_count = member_count
         self.me = None
         self.owner_id = int(OWNER_ID)
+        self._roles = {}
 
     def get_channel_or_thread(self, _id):
         return None
+
+    def get_role(self, role_id):
+        return self._roles.get(role_id)
 
 
 @pytest.fixture
@@ -519,14 +545,80 @@ class TestTheOverviewPayload:
 
         Ids belong on Settings. Repeating them here would be a second place for
         them to be wrong, and this page has no control to change them.
+
+        The two health fields are the exception to "always a bool" rather than
+        to "never an id" -- they are None when the health question does not
+        apply yet (no role_id, or nothing to compare it against), which is
+        also this test's job to pin, not just describe.
         """
         make_server(role_id="900000000001")
 
         configured = read_overview()["configured"]
         assert configured["verified_role"] is True
         assert configured["unverified_role"] is False
-        for value in configured.values():
-            assert isinstance(value, bool)
+        health_only = {"verified_role_exists", "verified_role_assignable"}
+        for key, value in configured.items():
+            if key in health_only:
+                assert value is None or isinstance(value, bool)
+            else:
+                assert isinstance(value, bool)
+
+
+class TestVerifiedRoleHealth:
+    """The two facts `configured` adds beyond "is a role_id stored": does that
+    role still exist, and could the bot actually grant it. Three answers each
+    -- yes, no, and "cannot tell" -- and the None case matters as much as the
+    booleans: a role that was never set has nothing to check, and that must
+    not print the same as a role that was checked and found missing."""
+
+    def test_no_role_set_answers_neither_question(self, in_guild):
+        make_server(role_id=None)
+        configured = read_overview()["configured"]
+        assert configured["verified_role"] is False
+        assert configured["verified_role_exists"] is None
+        assert configured["verified_role_assignable"] is None
+
+    def test_a_deleted_role_exists_is_false_and_assignable_is_moot(self, in_guild):
+        make_server(role_id="900000000001")
+        # in_guild's FakeGuild.get_role returns nothing for an id it was never
+        # given -- exactly what a deleted role looks like to the real guild.
+        configured = read_overview()["configured"]
+        assert configured["verified_role_exists"] is False
+        assert configured["verified_role_assignable"] is None
+
+    def test_role_exists_but_no_guild_me_cannot_answer_assignable(self, in_guild):
+        make_server(role_id="900000000001")
+        in_guild._roles[900000000001] = FakeRole(900000000001, position=3)
+        # in_guild.me is None by default -- the bot's own member object was
+        # unavailable, so hierarchy is genuinely unknown, not "no".
+        configured = read_overview()["configured"]
+        assert configured["verified_role_exists"] is True
+        assert configured["verified_role_assignable"] is None
+
+    def test_bots_role_above_the_verified_role_is_assignable(self, in_guild):
+        make_server(role_id="900000000001")
+        verified = FakeRole(900000000001, position=3)
+        in_guild._roles[900000000001] = verified
+        in_guild.me = FakeMember(top_role=FakeRole(0, position=10))
+        assert read_overview()["configured"]["verified_role_assignable"] is True
+
+    def test_bots_role_below_the_verified_role_is_not_assignable(self, in_guild):
+        """The silent-failure case the issue calls out: the bot can see the
+        role and even offer it in the picker, and still cannot grant it."""
+        make_server(role_id="900000000001")
+        verified = FakeRole(900000000001, position=8)
+        in_guild._roles[900000000001] = verified
+        in_guild.me = FakeMember(top_role=FakeRole(0, position=2))
+        assert read_overview()["configured"]["verified_role_assignable"] is False
+
+    def test_a_managed_role_is_never_assignable_even_from_above(self, in_guild):
+        """An integration's own role -- a booster role, a bot role. Nobody can
+        grant those by hand, whatever the hierarchy says."""
+        make_server(role_id="900000000001")
+        verified = FakeRole(900000000001, position=1, managed=True)
+        in_guild._roles[900000000001] = verified
+        in_guild.me = FakeMember(top_role=FakeRole(0, position=10))
+        assert read_overview()["configured"]["verified_role_assignable"] is False
 
     def test_no_member_identifier_appears_anywhere_in_the_payload(self, in_guild):
         """The privacy ceiling, pinned end to end.
@@ -587,6 +679,16 @@ class TestTheFakePayloadMatchesTheRealOne:
         more."""
         real = self._real(in_guild)["verifications"]
         fake = self._fake()["verifications"]
+        assert set(fake) == set(real), (
+            f"fake has {sorted(set(fake) - set(real))} extra, "
+            f"missing {sorted(set(real) - set(fake))}"
+        )
+
+    def test_the_configured_block_matches(self, in_guild):
+        """Phase 3 added `verified_role_exists` and `verified_role_assignable`
+        -- the same drift this class exists to catch, one field earlier."""
+        real = self._real(in_guild)["configured"]
+        fake = self._fake()["configured"]
         assert set(fake) == set(real), (
             f"fake has {sorted(set(fake) - set(real))} extra, "
             f"missing {sorted(set(real) - set(fake))}"
