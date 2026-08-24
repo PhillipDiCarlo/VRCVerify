@@ -1611,6 +1611,33 @@ textarea {
   flex-wrap: wrap;
 }
 
+/* "Dismiss" beside the CTA in the next-step card (#136 phase 4).
+ *
+ * A <button> in a form, because dismissing writes a cookie and that is a POST
+ * -- but it must not LOOK like a second call to action next to the primary
+ * one. Two buttons of equal weight is how a card stops having an obvious
+ * action. So it is a button that reads as a quiet link: no fill, no border,
+ * --faint until hovered.
+ *
+ * `font: inherit` and the reset around it matter because a <button> does not
+ * inherit the page's family or size on its own, and the default one is
+ * noticeably heavier than the text beside it. */
+.linkish {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-note);
+  color: var(--faint);
+  cursor: pointer;
+}
+
+.linkish:hover { color: var(--ink); text-decoration: underline; }
+
+/* The form is only a wrapper for the POST -- it must not introduce a line
+ * break inside `.actions`, which lays its children out in a row. */
+.next-step-dismiss { display: contents; }
+
 .badge {
   font-size: 0.6875rem;
   font-weight: 700;

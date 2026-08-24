@@ -44,6 +44,18 @@ from dashboard import sessions as sessions_module  # noqa: E402
 from dashboard.sessions import SessionStore  # noqa: E402
 
 ACTOR = "424242424242"
+
+
+def _premium_entry():
+    """The one premium entry in the shipped feed.
+
+    Asserted rather than assumed: several tests below read as nonsense if the
+    feed ever carries two, and a helper quietly returning the first would hide
+    that rather than say so.
+    """
+    found = [entry for entry in changelog.ENTRIES if entry.premium]
+    assert len(found) == 1, "these tests assume exactly one premium entry"
+    return found[0]
 GUILD_IN = "111111111111"
 GUILD_OUT = "222222222222"
 GUILD_NOT_ADMIN = "333333333333"
@@ -1386,6 +1398,167 @@ class TestTheBell:
         assert api.reads == []
         assert api.calls == []
         assert api.saves == []
+
+
+class TestDismissingAPremiumCard:
+    """The `guild:entry` cookie and the POST that writes it (#136 phase 4)."""
+
+    def _client(self, config, store):
+        test_client, _api = settings_client(
+            config, store, overview=make_overview(last_30_days=214)
+        )
+        return test_client
+
+    def _dismiss(self, test_client, store, guild_id=None, entry_id=None):
+        session = store.load(test_client.get_cookie(SESSION_COOKIE).value)
+        return test_client.post(
+            "/prefs/dismiss",
+            data={
+                "csrf_token": session.csrf_token,
+                "return_to": "guild_overview",
+                "guild_id": guild_id or GUILD_IN,
+                "entry_id": entry_id or _premium_entry().id,
+            },
+        )
+
+    def test_the_card_is_dismissible_with_javascript_disabled(self, config, store):
+        """An ordinary form post. The acceptance criterion is about the reader
+        with scripts blocked, so the control cannot be script-driven."""
+        test_client = self._client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        slot = page.split('class="panel group next-step"', 1)[1].split("</section>", 1)[0]
+        assert 'action="/prefs/dismiss"' in slot
+        assert "onclick" not in slot and "javascript:" not in slot
+
+    def test_dismissing_puts_it_away_and_comes_back(self, config, store):
+        test_client = self._client(config, store)
+        response = self._dismiss(test_client, store)
+        assert response.status_code == 302
+        assert response.headers["Location"] == f"/guild/{GUILD_IN}"
+        cookie = set_cookie_header(response, "vrcverify_dismissed")
+        assert f"{GUILD_IN}:{_premium_entry().id}" in cookie
+        assert "Secure" in cookie and "SameSite=Lax" in cookie
+
+    def test_it_stays_dismissed(self, config, store):
+        test_client = self._client(config, store)
+        self._dismiss(test_client, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        slot = page.split('class="panel group next-step"', 1)[1].split("</section>", 1)[0]
+        assert _premium_entry().title not in slot
+
+    def test_dismissing_one_guild_leaves_another_showing(self, config, store):
+        """The property the whole per-guild design exists for: an admin
+        running four servers is pitched once per server, not once in total."""
+        test_client = self._client(config, store)
+        self._dismiss(test_client, store, guild_id=GUILD_IN)
+        cookie = test_client.get_cookie("vrcverify_dismissed").value
+        assert changelog.is_dismissed(
+            changelog.parse_dismissed(cookie), GUILD_IN, _premium_entry().id
+        )
+        assert not changelog.is_dismissed(
+            changelog.parse_dismissed(cookie), "999999999999", _premium_entry().id
+        )
+
+    def test_an_unknown_entry_id_changes_nothing(self, config, store):
+        """It has to come from the form -- which card was on screen is
+        something only the page knows -- so it is checked against the shipped
+        ids rather than trusted. That also keeps a crafted post from filling a
+        bounded cookie with pairs that will never match."""
+        test_client = self._client(config, store)
+        response = self._dismiss(test_client, store, entry_id="not-an-entry")
+        assert response.status_code == 302
+        with pytest.raises(AssertionError):
+            set_cookie_header(response, "vrcverify_dismissed")
+
+    def test_a_non_numeric_guild_changes_nothing(self, config, store):
+        test_client = self._client(config, store)
+        response = self._dismiss(test_client, store, guild_id="../../etc")
+        with pytest.raises(AssertionError):
+            set_cookie_header(response, "vrcverify_dismissed")
+
+    def test_it_needs_the_csrf_token(self, config, store):
+        test_client = self._client(config, store)
+        response = test_client.post(
+            "/prefs/dismiss",
+            data={"guild_id": GUILD_IN, "entry_id": _premium_entry().id,
+                  "return_to": "guild_overview"},
+        )
+        assert response.status_code == 400
+
+    def test_it_never_reaches_the_bot(self, config, store):
+        test_client, api = settings_client(config, store)
+        api.reads.clear()
+        api.calls.clear()
+        api.saves.clear()
+        self._dismiss(test_client, store)
+        assert api.reads == [] and api.calls == [] and api.saves == []
+
+    def test_a_hand_edited_cookie_is_ignored_rather_than_trusted(self, config, store):
+        """Dropping what it cannot parse means the card comes back, which is
+        the harmless direction. Trusting it would let a crafted value hide an
+        announcement the reader never saw."""
+        test_client = self._client(config, store)
+        test_client.set_cookie(
+            "vrcverify_dismissed", "<script>:x,notaguild:y", domain="localhost"
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        slot = page.split('class="panel group next-step"', 1)[1].split("</section>", 1)[0]
+        assert _premium_entry().title in slot
+        assert "<script>" not in slot
+
+    def test_the_setup_step_and_the_demo_carry_no_dismiss_control(self, config, store):
+        """Only a changelog entry has a permanent id to record dismissal
+        against. A broken server must not be able to hide the reason, and the
+        demo comes and goes with the numbers on its own."""
+        test_client, _api = settings_client(
+            config, store,
+            overview=make_overview(last_30_days=214,
+                                   configured={"verified_role": False}),
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        slot = page.split('class="panel group next-step"', 1)[1].split("</section>", 1)[0]
+        assert "/prefs/dismiss" not in slot
+
+    def test_no_template_puts_a_form_inside_a_paragraph(self):
+        """A <form> is block-level, so an HTML parser CLOSES an open <p> when
+        it meets one -- the form is hoisted out and lands on its own line, and
+        no stylesheet can put it back. Nothing errors; the browser repairs the
+        markup silently.
+
+        This cost a measuring session: `.actions` computed `display: flex`,
+        had 700px of room to spare, and the button still wrapped. Pinned
+        across every template rather than only the one that had it, because
+        the mistake is invisible in the source and looks like a CSS bug.
+        """
+        import pathlib
+
+        import dashboard
+
+        folder = pathlib.Path(dashboard.__file__).parent / "templates"
+        # `<p>` or `<p class=...`, never `<path>` -- base.html is full of
+        # inline SVG and the first version of this check flagged every one of
+        # them.
+        opener = re.compile(r"<p[\s>]")
+        for template in folder.glob("*.html"):
+            # Jinja comments are stripped first: these files explain
+            # themselves at length, and the comment warning about this very
+            # mistake quotes the markup that makes it.
+            markup = re.sub(
+                r"\{#.*?#\}", "", template.read_text(encoding="utf-8"), flags=re.S
+            )
+            for match in opener.finditer(markup):
+                paragraph = markup[match.start():].split("</p>", 1)[0]
+                assert "<form" not in paragraph, (
+                    f"{template.name}: a <form> inside a <p>. The parser will "
+                    "close the paragraph before it -- use a <div>."
+                )
+
+    def test_the_entry_names_its_own_button(self, config, store):
+        test_client = self._client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        slot = page.split('class="panel group next-step"', 1)[1].split("</section>", 1)[0]
+        assert _premium_entry().cta_label in slot
+        assert "See plans and subscribe" not in slot
 
 
 class TestTheChangelogPage:
@@ -3422,18 +3595,60 @@ class TestTheOverviewSuggestsOneNextStep:
 
 
 class TestThePremiumPitchOnThePage:
-    """#135 phase 4. Once setup is complete, the same attention slot ranks a
-    data-backed demo -- the fixture's own default state, since make_overview()
-    defaults to a fully configured, non-premium server with a real 30-day
-    count."""
+    """#135 phase 4, and what #136 phase 4 did to it.
 
-    def _page(self, config, store, **overview):
+    THE DEMO IS NO LONGER THE DEFAULT OCCUPANT OF THIS SLOT. #135 wrote these
+    against a feed that had no premium entries, so a configured free server
+    fell straight through to the data-backed demo. There is one premium entry
+    now, and it ranks ABOVE the demo -- which is the behaviour #135's own
+    docstring specified and left with no caller.
+
+    So each of these dismisses that entry to reach the demo. That is not a
+    workaround: it is the real sequence an admin goes through, and testing the
+    demo through it is what proves the fall-through works rather than the
+    entry simply hiding it forever.
+    """
+
+    @staticmethod
+    def _slot(page: str) -> str:
+        """The next-step card alone.
+
+        Necessary since #136 phase 2: the bell renders every entry's title and
+        body in the header of every page, so "the entry is not on this page"
+        is no longer the same claim as "the entry is not in the slot". A
+        whole-page grep would now pass or fail for the wrong reason.
+        """
+        marker = '<section class="panel group next-step">'
+        if marker not in page:
+            return ""
+        return page.split(marker, 1)[1].split("</section>", 1)[0]
+
+    def _page(self, config, store, dismissed=True, **overview):
         test_client, _api = settings_client(
             config, store, overview=make_overview(**overview)
         )
+        if dismissed:
+            # The state after an admin has put the changelog card away for
+            # this server. `add_dismissal` builds the value rather than a
+            # literal, so a change to the cookie format cannot leave these
+            # passing against a shape the app no longer writes.
+            test_client.set_cookie(
+                "vrcverify_dismissed",
+                changelog.add_dismissal((), GUILD_IN, _premium_entry().id),
+                domain="localhost",
+            )
         return test_client.get(f"/guild/{GUILD_IN}").data.decode()
 
-    def test_a_fully_configured_free_server_sees_the_demo(self, config, store):
+    def test_the_changelog_entry_outranks_the_demo(self, config, store):
+        """The whole point of #136 phase 4. An undismissed premium entry takes
+        the slot from a demo that would otherwise have it."""
+        slot = self._slot(self._page(config, store, dismissed=False, last_30_days=214))
+        assert _premium_entry().title in slot
+        assert "214 members verified" not in slot
+
+    def test_the_demo_returns_once_the_entry_is_dismissed(self, config, store):
+        """The fall-through, and the reason dismissal is per-entry rather than
+        "no more pitches on this page ever"."""
         page = self._page(config, store, last_30_days=214)
         assert "Upgrade to VRCVerify Premium" in page
         assert "214 members verified" in page
@@ -3446,14 +3661,28 @@ class TestThePremiumPitchOnThePage:
         assert "See plans and subscribe" in section.group(0)
 
     def test_a_premium_server_sees_no_pitch_at_all(self, config, store):
-        page = self._page(config, store, last_30_days=214, premium=True)
+        """The demo is suppressed for a premium server, and the changelog
+        entry is reframed rather than sold -- so neither of the two words a
+        pitch would use appears."""
+        page = self._page(config, store, dismissed=False, last_30_days=214, premium=True)
         assert "Upgrade to VRCVerify Premium" not in page
         assert "Add VRCVerify Premium" not in page
+        assert "New in Premium" not in page
+        assert "New in your plan" in page
 
     def test_a_grandfathered_server_sees_the_reassurance_first(self, config, store):
         page = self._page(config, store, last_30_days=214, grandfathered=True)
         assert "Add VRCVerify Premium" in page
         assert "grandfathered extras stay free" in page
+
+    def test_a_grandfathered_server_is_reassured_by_the_entry_too(self, config, store):
+        """The rule from #59 has to hold on whichever of the two is showing --
+        a server that meets both over time must never read either as a
+        threat to what it already has."""
+        slot = self._slot(self._page(config, store, dismissed=False,
+                                     last_30_days=214, grandfathered=True))
+        assert "grandfathered extras stay free" in slot
+        assert _premium_entry().title in slot
 
     def test_a_quiet_server_sees_no_pitch(self, config, store):
         page = self._page(config, store, last_30_days=0)
@@ -3462,6 +3691,20 @@ class TestThePremiumPitchOnThePage:
     def test_a_blank_window_sees_no_pitch(self, config, store):
         page = self._page(config, store, last_30_days=None)
         assert "VRCVerify Premium" not in page
+
+    def test_a_broken_server_is_fixed_rather_than_sold_to(self, config, store):
+        """Rank 1 is absolute. A server that cannot finish a verification sees
+        the reason, not an announcement -- even an undismissed one."""
+        slot = self._slot(self._page(
+            config, store, dismissed=False, last_30_days=214,
+            configured={"verified_role": False},
+        ))
+        assert "No verified role is set" in slot
+        assert _premium_entry().title not in slot
+
+    def test_only_ever_one_item_in_the_slot(self, config, store):
+        page = self._page(config, store, dismissed=False, last_30_days=214)
+        assert page.count('class="panel group next-step"') == 1
 
 
 class TestTheSetupListOnThePage:
@@ -5952,6 +6195,13 @@ class TestWriteSurface:
             # colour. See set_theme_preference, and TestTheThemePicker for the
             # redirect, which is the only part of it worth attacking.
             "/prefs/theme",
+            # Putting one premium changelog card away, for one server (#136
+            # phase 4). One cookie again, and the only route here that takes
+            # an id from the form -- which card was on screen is something
+            # only the page knows. It is checked against the shipped entry ids
+            # rather than trusted, so a crafted post changes nothing and
+            # cannot fill a bounded cookie with pairs that match nothing.
+            "/prefs/dismiss",
             # The bell's "Mark all as read" (#136). One cookie, nothing else:
             # no session state, no bot call, and the value written is the
             # newest entry id this process already knows rather than anything
