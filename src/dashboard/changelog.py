@@ -69,9 +69,8 @@ channel and getting ignored:
 
 * Entries are about things that **shipped**. Not roadmap, not marketing.
 * **A premium entry must announce something new.** "Premium exists" is not an
-  entry. A release with no premium feature in it has no premium entry -- which
-  is why `ENTRIES` currently contains none, and that is correct rather than a
-  gap to be filled.
+  entry. A release with no premium feature in it has no premium entry, and the
+  feed is expected to go long stretches carrying none.
 * Ordinary entries should outnumber premium ones. The bell's credibility is
   what makes a premium card land as news instead of as an advert, and it is
   spent every time an entry is not really news.
@@ -152,12 +151,21 @@ _FIELD_SEPARATOR = ":"
 # Newest first. Position decides order everywhere; `date` is display only, so
 # correcting a date never reshuffles the feed.
 #
-# The feed starts at the 2026-08 dashboard revamp and goes forward. The five
-# premium features that shipped over the summer are deliberately NOT backfilled
-# here: no admin was ever told about them, which is a real argument for adding
-# them, but the bell's first impression would be a backlog rather than news,
-# and dating an old entry to the month we got round to announcing it is the
-# first small lie that makes the whole feed untrustworthy.
+# The feed starts at the 2026-08 dashboard revamp and goes forward. The four
+# premium features that closed on 2026-08-03 -- the log channel, the priority
+# queue, scheduled re-verification and the branded embed -- are deliberately
+# NOT backfilled: no admin was ever told about them, which is a real argument
+# for adding them, but the bell's first impression would be a backlog rather
+# than news, and dating a July feature to the month we got round to announcing
+# it is the first small lie that makes the whole feed untrustworthy.
+#
+# The VRChat group invite is the one exception, and the line it sits on the
+# right side of is REACHABILITY rather than sentiment. It became something an
+# admin could actually turn on when the settings page grew controls for it on
+# 2026-08-19/20, days before the revamp -- so it is the most recent thing that
+# shipped, not a rediscovered one, and its entry is dated when it became
+# usable rather than when the issue was filed. The other four had been
+# reachable for three weeks by then.
 ENTRIES = (
     Entry(
         id="2026-08-overview-trends",
@@ -189,6 +197,23 @@ ENTRIES = (
             "The dashboard is dark by default now, with a theme button in the "
             "header. Your choice is remembered on this browser."
         ),
+    ),
+    Entry(
+        id="2026-08-group-invite",
+        date=date(2026, 8, 20),
+        title="Invite verified members to your VRChat group",
+        body=(
+            "Link a private VRChat group to your server, and members who "
+            "finish verification are offered an invite to it. Nothing is sent "
+            "to VRChat unless the member asks for it."
+        ),
+        premium=True,
+        # Named rather than left to the default, so the entry says where its
+        # button goes instead of the renderer assuming. Only the free and
+        # grandfathered framings use it -- a server already on Premium is sent
+        # to Settings, because it has nothing left to buy.
+        cta_endpoint="guild_subscription",
+        cta_label="See Premium",
     ),
 )
 
@@ -323,9 +348,10 @@ def build_premium_card(
     """The newest undismissed premium entry, phrased for this server's plan --
     or None, which is the common case.
 
-    Returns exactly the `{"title", "body", "action"}` shape
-    `build_next_step()` already returns for its other two candidates, because
-    that function's docstring asks for it: *"#136 can hand back exactly what
+    Returns the `{"title", "body", "action"}` shape `build_next_step()`
+    already returns for its other two candidates -- plus `cta_label` and
+    `entry_id`, which that function passes through untouched and only phase
+    4's template reads. It asks for this shape by name: *"#136 can hand back exactly what
     should be shown without this function needing to know anything about
     changelogs."* Nothing here knows where in the ranking it lands, and
     `build_next_step` stays the one place that decides.
@@ -353,6 +379,9 @@ def build_premium_card(
                 "title": f"New in your plan: {entry.title}",
                 "body": f"{entry.body} It's included in your subscription.",
                 "action": "settings",
+                # Not the entry's own label: that one sells, and this server
+                # has already bought. The button goes to the thing itself.
+                "cta_label": "Set it up",
                 "entry_id": entry.id,
             }
 
@@ -374,6 +403,7 @@ def build_premium_card(
             "title": f"New in Premium: {entry.title}",
             "body": body,
             "action": action,
+            "cta_label": entry.cta_label or "See Premium",
             "entry_id": entry.id,
         }
     return None

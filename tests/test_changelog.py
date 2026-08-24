@@ -6,19 +6,19 @@ and returns what to show where, so all of it is a function call. No Flask, no
 request, no cookie jar -- those arrive in phases 2 and 4, and the rules they
 enforce are already pinned here.
 
-WHY MOST OF THIS USES FIXTURE ENTRIES RATHER THAN `ENTRIES`
-------------------------------------------------------------
-There are deliberately **no premium entries shipping today**: the feed starts
-at the 2026-08 dashboard revamp and everything in that revamp is free. The
-module's own editorial rule says a release with no premium feature in it has
-no premium entry, so the shipped constant is correct as it stands and will
-gain its first premium entry when the next premium feature does.
+FIXTURES FOR THE RULES, `ENTRIES` FOR THE COPY
+-----------------------------------------------
+Most of the routing is tested against fixture entries, because the rules have
+to hold for entries nobody has written yet -- a premium entry appearing in the
+constant should not be what makes "an ordinary entry never reaches the
+Overview" testable.
 
-That leaves the premium routing -- the part this whole feature exists for --
-with nothing real to route. So it is built and tested against fixtures here,
-complete and correct before there is anything to put through it. The tests
-that DO assert on `ENTRIES` are the ones that must hold whatever it contains:
-that it is well-formed, ordered, and free of markup.
+`TestTheShippedConstant` and `TestTheGroupInviteEntry` are the exceptions.
+They assert on what actually ships, because the copy an admin reads is worth
+pinning too: this feed's one premium entry is the VRChat group invite, and it
+is the thing that will occupy every free server's Overview slot once phase 4
+lands. Its three framings are tested through the real entry rather than a
+stand-in.
 """
 
 from datetime import date
@@ -81,12 +81,21 @@ class TestTheShippedConstant:
         # an entry.
         assert all(item.public for item in changelog.ENTRIES)
 
-    def test_there_are_no_premium_entries_yet_and_that_is_correct(self):
-        # Pinning the editorial rule, not the current contents. If a premium
-        # entry is added, this test is the one that should be deleted -- and
-        # deleting it should be a deliberate act, because it is also the
-        # moment the Overview card starts appearing for every free server.
-        assert [item for item in changelog.ENTRIES if item.premium] == []
+    def test_ordinary_entries_outnumber_premium_ones(self):
+        # The editorial rule that keeps the bell worth opening. The premium
+        # card lands as news because the entries around it are not adverts,
+        # and that credibility is spent every time the ratio slips.
+        premium = [item for item in changelog.ENTRIES if item.premium]
+        ordinary = [item for item in changelog.ENTRIES if not item.premium]
+        assert len(ordinary) > len(premium)
+
+    def test_every_premium_entry_names_a_cta_endpoint(self):
+        # Leaving it to the default works, but an entry that will occupy the
+        # best slot on the page should say where its button goes.
+        for item in changelog.ENTRIES:
+            if item.premium:
+                assert item.cta_endpoint in changelog.CTA_ACTIONS
+                assert item.cta_label
 
 
 class TestTheUnreadDot:
@@ -148,6 +157,76 @@ class TestThePublicFlag:
 
     def test_the_default_is_public(self):
         assert entry().public is True
+
+
+class TestTheGroupInviteEntry:
+    """The feed's one premium entry, and the copy three audiences will read.
+
+    It is here rather than among the fixtures because it is real: once phase 4
+    lands, this is what every free server finds in its Overview slot. The
+    VRChat group invite shipped on 2026-08-19/20 and no admin was ever told
+    about it, which is why it is in the feed while the four premium features
+    that closed on 2026-08-03 are not -- it was the most recent thing that
+    shipped, not a rediscovered one.
+    """
+
+    @staticmethod
+    def entry():
+        found = [item for item in changelog.ENTRIES if item.premium]
+        assert len(found) == 1, "this class assumes exactly one premium entry"
+        return found[0]
+
+    def test_it_is_the_group_invite(self):
+        assert self.entry().id == "2026-08-group-invite"
+
+    def test_it_is_dated_when_it_became_reachable(self):
+        # Not when the issue was filed, and not when it closed. The date an
+        # admin could first turn it on is the only one that means anything to
+        # the person reading the entry.
+        assert self.entry().date == date(2026, 8, 20)
+
+    def test_it_says_the_member_has_to_ask(self):
+        # The opt-in is a compliance argument as well as a privacy one -- see
+        # #49's API terms spike, which concluded a member pressing a button is
+        # human-initiated and an unsolicited invite on every verification is
+        # what abuse looks like. An entry that implied the latter would be
+        # advertising something we deliberately did not build.
+        assert "unless the member asks" in self.entry().body
+
+    def test_it_is_public(self):
+        # #137, #138 and #139 all publish it. Nothing in the wording addresses
+        # a signed-in admin or references one server's state.
+        assert self.entry().public is True
+        assert self.entry() in changelog.public_entries()
+
+    def test_a_free_server_is_pitched_it(self):
+        card = changelog.build_premium_card(GUILD)
+        assert card["title"] == (
+            "New in Premium: Invite verified members to your VRChat group"
+        )
+        assert card["action"] == "subscription"
+        assert card["cta_label"] == "See Premium"
+
+    def test_a_premium_server_is_shown_how_to_turn_it_on(self):
+        card = changelog.build_premium_card(GUILD, premium=True)
+        assert card["action"] == "settings"
+        assert card["cta_label"] == "Set it up"
+        assert "included in your subscription" in card["body"]
+
+    def test_a_grandfathered_server_keeps_what_it_has(self):
+        # The group invite was deliberately kept OUT of GRANDFATHERED_FEATURES
+        # (#49), so this server really would be buying something new. The
+        # opening sentence is true as well as kind.
+        card = changelog.build_premium_card(GUILD, grandfathered=True)
+        assert card["body"].startswith(
+            "Your grandfathered extras stay free whatever you decide."
+        )
+
+    def test_dismissing_it_clears_the_slot(self):
+        dismissed = changelog.parse_dismissed(
+            changelog.add_dismissal((), GUILD, self.entry().id)
+        )
+        assert changelog.build_premium_card(GUILD, dismissed=dismissed) is None
 
 
 class TestTheDismissalCookie:
