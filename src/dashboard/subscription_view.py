@@ -250,6 +250,110 @@ class SubscriptionPage:
         # predates this, offers nobody a trial.
         self.trial_eligible = trial_eligible
 
+    # THE STATUS CHIP AND THE FACT LIST (#141 phase 1)
+    # ------------------------------------------------
+    # Eight of this page's states used to be eight paragraphs of grey prose
+    # under one heading, so "you are being charged twice" and "verification is
+    # free" arrived in the same voice at the same weight. Every billing page
+    # gathered as reference does the same two things instead -- a chip on the
+    # plan name saying which state this is, and a labelled list of the facts
+    # underneath. Superhuman, Base44, Rise and Grammarly all land on it.
+    #
+    # Built here rather than branched in the template for the reason the
+    # module docstring already gives about `state`: this is the page that
+    # takes money, and a condition grown inside a template branch is how two
+    # of these end up disagreeing about whether somebody has paid.
+
+    #: The chip's tone. Maps to a class, never to a colour -- the stylesheet
+    #: owns which token each tone resolves to, and `test_contrast.py` owns
+    #: whether that token is legible where it is drawn.
+    _CHIP = {
+        "stripe": ("Active", "ok"),
+        "discord": ("Active", "ok"),
+        "past_due": ("Payment failed", "warn"),
+        "both": ("Charged twice", "warn"),
+        "pending": ("Confirming", "muted"),
+        "unavailable": ("Unknown", "muted"),
+    }
+
+    @property
+    def chip(self) -> Optional[dict]:
+        """The state, as a word and a tone, or None where there is no status.
+
+        `off` and the free/lapsed default get no chip: "not subscribed" is not
+        a status worth stamping, and a grey pill saying "Free" next to a Buy
+        button reads as a downgrade rather than as a fact.
+        """
+        # Cancelled-but-still-running is not a state of its own -- `build()`
+        # keeps it inside `stripe` and marks it by setting `ends_on` instead
+        # of `renews_on`. It is worth its own word here, because "Active" on a
+        # subscription that stops next month is true and unhelpful, and the
+        # fact list underneath says "Premium until" rather than "Renews" for
+        # exactly the same reason.
+        if self.state == "stripe" and self.ends_on:
+            return {"label": "Cancelled", "tone": "muted"}
+
+        found = self._CHIP.get(self.state)
+        if found is None:
+            return None
+        label, tone = found
+        return {"label": label, "tone": tone}
+
+    @property
+    def facts(self) -> tuple:
+        """`(label, value)` rows for the fact list, in reading order.
+
+        Only what this page actually knows. A row whose value is missing is
+        omitted rather than rendered as a dash: an empty row on a billing page
+        invites the reader to wonder what should be in it, and the honest
+        answer is that we were never told.
+
+        "Renews" and "Ends" are never both present -- they are different
+        promises about somebody's money, and `build()` sets exactly one.
+        """
+        if self.state in ("off", "unavailable", "pending"):
+            return ()
+
+        rows = []
+        if self.plan_label:
+            rows.append(("Plan", self.plan_label))
+
+        if self.state == "discord":
+            rows.append(("Billed through", "Discord"))
+        elif self.state == "both":
+            # Named rather than implied. An admin cannot go and cancel the
+            # right one without being told there are two.
+            rows.append(("Billed through", "Card and Discord"))
+        elif self.state in ("stripe", "past_due"):
+            rows.append(("Billed through", "Card"))
+
+        if self.renews_on:
+            rows.append(("Renews", self.renews_on))
+        elif self.ends_on:
+            rows.append(("Premium until", self.ends_on))
+        return tuple(rows)
+
+    @property
+    def winback(self) -> Optional[dict]:
+        """The lapsed state, as something to act on rather than a status line.
+
+        `ended_on` exists so this page can say "your subscription ended on the
+        3rd" instead of pretending the server was never a customer. It was
+        rendering as one more muted sentence at the foot of a card, which
+        wastes the one moment on this page where the reader has already
+        decided to pay once before.
+        """
+        if not self.ended_on:
+            return None
+        return {
+            "when": self.ended_on,
+            # The plan may not be known -- the bot sends the price id and a
+            # price that has since been archived resolves to nothing. The
+            # sentence has to work either way rather than saying "your None
+            # subscription".
+            "plan": self.last_plan_label,
+        }
+
     def trial_days_for(self, plan) -> Optional[int]:
         """The trial this plan may actually grant, or None.
 

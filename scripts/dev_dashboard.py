@@ -80,7 +80,15 @@ os.environ.update(
     BOT_API_CA=str(REPO / "certs/ca.pem"),
     # Not the deployed path, and not inside the repo.
     SESSION_DB_PATH="/tmp/vrcverify-preview-sessions.db",
-    STRIPE_ENABLED="0",
+    # On, unlike the bot API above, and stubbed rather than closed off. The
+    # plan cards are most of what #141 restyles and the kill switch being off
+    # hides them completely -- a preview that cannot draw the page's main
+    # content is not much of a preview. `_PreviewPrices` below is what answers;
+    # nothing here reaches Stripe.
+    STRIPE_ENABLED="1",
+    STRIPE_SECRET_KEY="sk_test_preview_not_a_real_key",
+    STRIPE_PRODUCT_ID="prod_preview",
+    STRIPE_WEBHOOK_SECRET="whsec_preview",
 )
 
 from flask import g  # noqa: E402
@@ -103,6 +111,35 @@ else:
 # half -- edit a template, refresh the browser -- without that cost.
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.jinja_env.auto_reload = True
+
+
+# --- the plans, without Stripe -------------------------------------------
+#
+# `_offered_plans()` asks `app.config["STRIPE_PRICES"]` for the price list and
+# turns a StripeAPIError into `plans_unavailable`, which is a DIFFERENT state
+# from an empty list -- "we cannot tell what there is to sell" versus "there is
+# nothing to sell". Both are rendered differently and both are worth being able
+# to look at, so this stub can do either.
+#
+# It replaces the cache object rather than the client so the real
+# `plans_from_prices` still runs: what the preview draws is built by the same
+# code the deployed page uses, from prices shaped the way Stripe sends them.
+class _PreviewPrices:
+    """Stands in for `_PriceCache`. Same one-method surface: `.get(loader, now)`."""
+
+    def get(self, loader, now=None):
+        if PREVIEW_SUB == "none":
+            from dashboard.stripe_api import StripeAPIError
+
+            raise StripeAPIError("preview: pretending Stripe is unreachable")
+        return PREVIEW_PRICES
+
+
+if PREVIEW_SIGNED_IN:
+    from preview_bot import PREVIEW_SUB  # noqa: E402
+    from test_subscription_page import PRICES as PREVIEW_PRICES  # noqa: E402
+
+    app.config["STRIPE_PRICES"] = _PreviewPrices()
 
 
 if PREVIEW_SIGNED_IN:

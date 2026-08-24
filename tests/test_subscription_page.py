@@ -774,6 +774,119 @@ class TestPortal:
         assert stripe.portals[0]["configuration"] is None
 
 
+class TestTheStatusChipAndFactList:
+    """#141 phase 1. The chip and the fact list, built by the view.
+
+    WHY THESE ARE HERE AT ALL: this module is 1,400 lines and almost every
+    assertion in it is against `build()`'s attributes rather than against what
+    the page says. Deleting four rendered sentences during this phase changed
+    nothing in the suite -- the prose was genuinely untested. These cover the
+    new structure at both ends, the object and the render, so the same gap
+    does not simply move.
+    """
+
+    def test_a_card_subscriber_is_marked_active(self):
+        page = build(payload(premium=True, active=True, status="active"))
+        assert page.chip == {"label": "Active", "tone": "ok"}
+
+    def test_a_cancelled_one_says_cancelled_not_active(self):
+        """"Active" on a subscription that stops next month is true and
+        unhelpful -- and it is the same reason the fact list below says
+        "Premium until" rather than "Renews"."""
+        page = build(payload(premium=True, active=True, status="active", cancel=True))
+        assert page.chip["label"] == "Cancelled"
+        assert ("Premium until", page.ends_on) in page.facts
+        assert not any(label == "Renews" for label, _ in page.facts)
+
+    def test_a_failed_payment_is_marked(self):
+        page = build(payload(premium=True, active=True, status="past_due"))
+        assert page.chip == {"label": "Payment failed", "tone": "warn"}
+
+    def test_double_billing_is_marked_and_names_both_routes(self):
+        """An admin cannot go and cancel the right one without being told
+        there are two."""
+        page = build(payload(premium=True, discord=True, active=True,
+                             status="active", active_count=1))
+        assert page.chip == {"label": "Charged twice", "tone": "warn"}
+        assert ("Billed through", "Card and Discord") in page.facts
+
+    def test_a_free_server_gets_no_chip(self):
+        """"Not subscribed" is not a status worth stamping, and a grey pill
+        saying "Free" beside a Buy button reads as a downgrade."""
+        assert build(payload()).chip is None
+        assert build(payload()).facts == ()
+
+    def test_a_failed_read_is_unknown_and_states_no_facts(self):
+        page = build(None)
+        assert page.chip == {"label": "Unknown", "tone": "muted"}
+        assert page.facts == ()
+
+    def test_renews_and_premium_until_are_never_both_present(self):
+        """They are different promises about somebody's money."""
+        for settings in (
+            payload(premium=True, active=True, status="active"),
+            payload(premium=True, active=True, status="active", cancel=True),
+        ):
+            labels = [label for label, _ in build(settings).facts]
+            assert not ("Renews" in labels and "Premium until" in labels)
+
+    def test_an_archived_price_still_names_a_plan(self):
+        """Not the omission case, and worth pinning because it looks like one.
+
+        Retiring a plan means archiving its price, and `list_prices` asks only
+        for active ones -- so everyone still paying for a retired plan misses
+        the lookup. `plan_label_for` degrades to "Premium" rather than to
+        nothing, which is the right answer: their subscription is real and only
+        the label is unknown. The fact list must show that row, not drop it.
+        """
+        page = build(payload(premium=True, active=True, status="active",
+                             price_id="price_archived_and_gone"))
+        assert ("Plan", subscription_view.UNKNOWN_PLAN_LABEL) in page.facts
+
+    def test_a_row_with_nothing_behind_it_is_omitted_rather_than_dashed(self):
+        """An empty row on a billing page invites the reader to wonder what
+        should be in it, and the honest answer is that we were never told.
+
+        Built directly rather than through `build()`, because `build()` is
+        careful enough that it never produces this -- which is the point. The
+        helper must not depend on that carefulness holding forever.
+        """
+        page = subscription_view.SubscriptionPage("stripe", plan_label=None)
+        assert not any(label == "Plan" for label, _ in page.facts)
+        assert ("Billed through", "Card") in page.facts
+
+
+class TestTheLapsedWinback:
+    """The one state on this page where the reader has already paid once."""
+
+    @staticmethod
+    def lapsed(**overrides):
+        fields = dict(premium=False, active=False, status="canceled", period_end=PAST)
+        fields.update(overrides)
+        return build(payload(**fields))
+
+    def test_it_carries_when_it_ended(self):
+        page = self.lapsed()
+        assert page.winback is not None
+        assert page.winback["when"] == page.ended_on
+
+    def test_a_server_that_never_paid_has_none(self):
+        assert build(payload()).winback is None
+
+    def test_an_archived_price_still_names_the_plan_that_ended(self):
+        page = self.lapsed(price_id="price_archived_and_gone")
+        assert page.winback["plan"] == subscription_view.UNKNOWN_PLAN_LABEL
+
+    def test_the_sentence_works_with_no_plan_at_all(self):
+        """`build()` sets `last_plan_label` only when the bot sent a status,
+        so None is reachable. The copy has to work rather than say "your None
+        subscription" -- the template branches on it."""
+        page = subscription_view.SubscriptionPage(
+            "off", ended_on="3 August 2026", last_plan_label=None
+        )
+        assert page.winback == {"when": "3 August 2026", "plan": None}
+
+
 class TestThePageRenders:
     def test_a_failed_read_apologises_and_offers_nothing(self, config):
         client, bot_api, _stripe, _session = make_client(config)
@@ -811,6 +924,59 @@ class TestThePageRenders:
         )
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
         assert "/subscription/checkout" not in page
+
+    def test_the_status_chip_and_facts_reach_the_page(self, config):
+        """The render half. Deleting four rendered sentences in #141 phase 1
+        changed nothing in this suite, so the structure that replaced them is
+        asserted at both ends rather than only on the object."""
+        client, _bot, _stripe, _session = make_client(
+            config, settings=payload(premium=True, active=True, status="active")
+        )
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert "sub-chip-ok" in page
+        assert "Active" in page
+        assert "sub-facts" in page
+        assert "Billed through" in page
+
+    def test_the_chip_is_not_the_settings_page_lock_badge(self, config):
+        """`.badge.premium` means "your plan cannot use this" two clicks away
+        (#136). One component with two opposite meanings is worse than two
+        components."""
+        client, _bot, _stripe, _session = make_client(
+            config, settings=payload(premium=True, active=True, status="active")
+        )
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        main = page.split("<main>", 1)[1].split("</main>", 1)[0]
+        assert "badge premium" not in main
+
+    def test_the_facts_are_not_also_repeated_in_prose(self, config):
+        """A page that states the same thing twice invites the reader to check
+        whether the two agree. The renewal date belongs to the fact list."""
+        client, _bot, _stripe, _session = make_client(
+            config, settings=payload(premium=True, active=True, status="active")
+        )
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        main = page.split("<main>", 1)[1].split("</main>", 1)[0]
+        assert main.count("3 November 2026") == 1
+
+    def test_a_lapsed_server_gets_a_winback_not_a_muted_line(self, config):
+        client, _bot, _stripe, _session = make_client(
+            config,
+            settings=payload(premium=False, active=False, status="canceled",
+                             period_end=PAST),
+        )
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert "sub-winback" in page
+        assert "Your Premium ended on" in page
+        # And it is still offered something to buy -- a win-back with no way
+        # to act on it is just a status line with a border.
+        assert "/subscription/checkout" in page
+
+    def test_a_free_server_that_never_paid_sees_no_winback(self, config):
+        client, _bot, _stripe, _session = make_client(config)
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert "sub-winback" not in page
+        assert "sub-chip" not in page
 
     def test_no_inline_style_reaches_the_page(self, config):
         """`style-src 'self'` drops inline styles SILENTLY, so a colour written

@@ -71,6 +71,17 @@ PAIRS = [
     # it to match the warning was tried and is 4.14:1 in light -- see the
     # comment on .notice.ok.
     ("ok", "panel", "a save confirmation"),
+    # #141 phase 1: the subscription status chips. Tinted text on a hairline
+    # of the same colour, drawn straight on the card -- so the text itself has
+    # to clear 4.5:1 there, not just the border. `ok` and `notice` on `panel`
+    # are already above; `muted` on `panel` is too. Listed by name anyway,
+    # because these are the words that say whether somebody is being charged
+    # twice and it should be obvious which pairs that claim rests on.
+    ("ok", "panel", "the ACTIVE subscription chip"),
+    ("notice", "panel", "the PAYMENT FAILED and CHARGED TWICE chips"),
+    ("muted", "panel", "the CONFIRMING and UNKNOWN chips"),
+    ("ink-strong", "inset", "the lapsed win-back heading"),
+    ("muted", "inset", "the lapsed win-back sentence"),
 ]
 
 # Deliberately NOT here: a control's edge against its OWN fill. It was added
