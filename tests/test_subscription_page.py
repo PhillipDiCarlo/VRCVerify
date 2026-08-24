@@ -23,6 +23,8 @@ import dataclasses
 import json
 import time
 
+import re as _re
+
 import pytest
 
 pytest.importorskip("flask")
@@ -977,6 +979,67 @@ class TestThePageRenders:
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
         assert "sub-winback" not in page
         assert "sub-chip" not in page
+
+    def test_the_purchase_card_is_not_the_settings_footnote(self, config):
+        """#158. `settings.html` uses `<p class="muted plan">` for an italic
+        grey footnote, and the purchase card declared no colour, size, style or
+        margin -- so it inherited all four. The PRICE rendered italic and
+        --muted on the page that takes money, and the Subscribe label was
+        italic too.
+
+        Asserting the class name is what makes this a regression test rather
+        than a restatement: the two rules cannot collide again while the card
+        is not called `.plan`.
+        """
+        client, _bot, _stripe, _session = make_client(config)
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert 'class="plan-card' in page
+        assert 'class="plan ' not in page and 'class="plan"' not in page
+
+    def test_the_three_plans_are_declared_one_product(self, config):
+        """Three cards at rising prices is the shape of a tier comparison, and
+        a reader who scans will take the dearest to unlock more. It does not.
+
+        Layout cannot fix that here: the reference that solves it best
+        normalises every card to one unit, which needs a figure derived from
+        the charge -- and this repo computes no amounts, because a second copy
+        of a price on a page about money is a second thing to be wrong. So the
+        claim is stated in words, above the cards.
+        """
+        client, _bot, _stripe, _session = make_client(config)
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert "One Premium, three ways to pay for it" in page
+        assert "exactly the same features" in page
+
+    def test_still_no_amount_is_computed_anywhere(self, config):
+        """The rule that ruled out the better layout. Every figure on this page
+        comes from the Stripe read that rendered it."""
+        client, _bot, _stripe, _session = make_client(config)
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        shown = {"$4.99", "$26.99", "$47.99"}
+        found = set(_re.findall(r"\$\d+\.\d\d", page))
+        assert found <= shown, f"a price on the page that Stripe did not send: {found - shown}"
+
+    def test_the_trial_note_is_its_own_element(self, config):
+        """It can start appearing from a `trial_days` edit on a Stripe price
+        with no code and no deploy -- so it has to look deliberate the first
+        time it shows up, on a card nobody was watching when it did."""
+        client, _bot, _stripe, _session = make_client(config)
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert 'class="plan-trial"' in page
+        assert "free trial" in page
+
+    def test_an_ineligible_server_is_shown_no_trial(self, config):
+        """The card asks `page.trial_note_for(plan)`, never `plan.trial_note`:
+        the plan knows how long a trial would be, only the page knows whether
+        THIS server may have one. A card advertising a trial the checkout then
+        declines is a promise broken while somebody is typing a card number."""
+        client, _bot, _stripe, _session = make_client(
+            config, settings=payload(trial_eligible=False)
+        )
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert "plan-trial" not in page
+        assert "free trial" not in page
 
     def test_no_inline_style_reaches_the_page(self, config):
         """`style-src 'self'` drops inline styles SILENTLY, so a colour written

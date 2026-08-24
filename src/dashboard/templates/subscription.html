@@ -202,6 +202,27 @@
 {% if page.offers_card %}
   <section class="panel group">
     <h2>Pay by card</h2>
+    {# ONE PRODUCT, THREE CADENCES, SAID OUTRIGHT.
+       Three cards at rising prices is the shape of a tier comparison, and a
+       reader who scans rather than reads will take the $47.99 card to unlock
+       more than the $4.99 one. It does not: all three are the same Premium at
+       a different billing period.
+
+       Layout alone cannot fix that. The reference that solves it best (Uxcel)
+       normalises both its cards to one unit -- "$20 per month" beside "$8 per
+       month, paid yearly" -- which cannot be misread. That move is not
+       available here: it needs a per-month figure derived from the charge, and
+       this repo holds that no amount is ever computed, because a second copy
+       of a price on a page about money is a second thing to be wrong. See the
+       comment on .plan-saving.
+
+       So the claim is stated in words instead, above the cards, before anyone
+       starts comparing them. #}
+    <p class="blurb">
+      <strong>One Premium, three ways to pay for it.</strong> Every plan below
+      unlocks exactly the same features — the only difference is how long you
+      pay for at once, and how much that saves.
+    </p>
     <p class="blurb muted">
       Prices are in US dollars and <strong>exclude tax</strong>; any tax due
       where you are is added at checkout. Payment is handled by Stripe — card
@@ -209,7 +230,12 @@
     </p>
     <div class="plans">
       {% for plan in page.plans %}
-        <form class="plan{% if plan.highlight %} plan-featured{% endif %}"
+        {# `.plan-card`, not `.plan` (#158). `settings.html` uses `.plan` for
+           an italic grey footnote, and this card inherited its colour, size,
+           style and margin from it -- so the price rendered italic and muted
+           on the page that takes money. Every child here was already
+           `.plan-*`; the card was the half that had drifted. #}
+        <form class="plan-card{% if plan.highlight %} plan-featured{% endif %}"
               method="post"
               action="{{ url_for('subscription_checkout', guild_id=guild_id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
