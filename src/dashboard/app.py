@@ -439,6 +439,10 @@ THEME_DEFAULT = "dark"
 # someone to notice, and this form exists to toggle a cookie.
 NAV_RETURN_ENDPOINTS = {
     "index": (),
+    # The changelog page (#136 phase 3). Global rather than per-guild, so it
+    # takes no values -- the theme picker and the bell's own "Mark all as
+    # read" both post from this page and both have to land back on it.
+    "whats_new": (),
     "guild_overview": ("guild_id",),
     "guild_settings": ("guild_id",),
     "guild_subscription": ("guild_id",),
@@ -658,8 +662,18 @@ def _register_assets(app: Flask) -> None:
 
         All the deciding happens in `changelog.py`, which is pure. This
         function's whole job is turning one cookie into an argument.
+
+        `g.changelog_seen` beats the cookie, and it exists for exactly one
+        case: the changelog page CLEARS the dot in the same response it
+        renders. The cookie it sets is not readable until the next request, so
+        without this the bell would sit there announcing unread entries at the
+        top of the very page listing them in full -- which is the one place
+        the claim is obviously false.
         """
-        return changelog.build_bell(changelog.read_seen(request.cookies.get(SEEN_COOKIE)))
+        seen = getattr(g, "changelog_seen", None)
+        if seen is None:
+            seen = changelog.read_seen(request.cookies.get(SEEN_COOKIE))
+        return changelog.build_bell(seen)
 
 
 # -------------------------------------------------------------------
@@ -1198,6 +1212,63 @@ def _register_routes(app: Flask) -> None:
             ),
             **_guild_chrome(session, guild_id, "settings"),
         )
+
+    @app.get("/updates")
+    def whats_new():
+        """Everything that shipped, in one list.
+
+        Deliberately NOT in `SECTIONS`. Every entry there takes a `guild_id`
+        and is a view of one server; this is global, and putting it in the
+        sidebar would make it look like a property of whichever server you
+        happened to be looking at. It is reached from the bell and from the
+        footer, which are the two places that are also global.
+
+        Signed-in only. The public version is #137's job on the apex site,
+        which is why the model carries a `public` flag -- an entry here may
+        address the admin of a server, and a page a stranger can read may not.
+
+        THIS GET WRITES A COOKIE, which is worth defending rather than
+        leaving to be found. Normally a GET that changes something is a
+        mistake; what changes here is the record of what this browser has
+        been shown, and being shown the whole list is exactly what this GET
+        did. It is the same class of thing as the theme cookie: no session
+        state, no bot call, nothing to corrupt, and the entire consequence of
+        a forged navigation is that somebody's own unread dot goes out.
+
+        It also matters most for the reader who has no JavaScript. prefs.js
+        clears the dot when the panel opens; without it, following "See all
+        updates" from that panel would leave the dot lit over a list the
+        reader has just read in full.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+
+        # Before the render, not after: `updates()` reads this while building
+        # the header's bell, and the cookie set below is not visible until the
+        # next request. See that function.
+        newest = changelog.newest_id()
+        g.changelog_seen = newest
+
+        response = make_response(
+            render_template(
+                "changelog.html",
+                entries=changelog.ENTRIES,
+                csrf_token=session.csrf_token,
+                nav_return_to="whats_new",
+            )
+        )
+        if newest is not None:
+            response.set_cookie(
+                SEEN_COOKIE,
+                newest,
+                max_age=SEEN_COOKIE_MAX_AGE,
+                secure=True,
+                httponly=False,
+                samesite="Lax",
+                path="/",
+            )
+        return response
 
     @app.post("/prefs/nav")
     def set_nav_preference():
