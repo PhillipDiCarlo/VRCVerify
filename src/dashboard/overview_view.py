@@ -398,45 +398,112 @@ def build_setup(overview: Optional[dict]) -> Optional[dict]:
     }
 
 
-# What to tell an admin to do, in the order it stops verification working. Only
-# the first one is shown: a page listing four things wrong is a page nobody
-# acts on, and the verified role genuinely blocks everything after it.
-def build_next_step(overview: Optional[dict]) -> Optional[dict]:
-    """The single most useful thing this server could do next, if anything.
+def _setup_step(setup: dict) -> dict:
+    """The single most useful setup row to surface at the top of the page,
+    for whichever of the two required rows isn't done.
 
-    Deliberately one item. The two conditions below are the entire reason a
-    working install produces no verifications, and they are ordered: without a
-    verified role the bot cannot finish a verification at all, and without a
-    panel nobody can start one.
+    Reuses `build_setup`'s own row -- state, note, and all -- rather than a
+    second copy of "is the role missing" that could disagree with the list
+    right below it. `state` decides only the *title*, because "todo" and
+    "broken" already have distinct, accurate notes from #135 phase 3 and
+    duplicating that wording here is how the two drift.
+    """
+    by_label = {row["label"]: row for row in setup["rows"]}
 
-    Returns None when neither applies, which is the common case -- a configured
-    server should not be nagged about anything.
+    role = by_label["Verified role"]
+    if role["state"] != "done":
+        title = "No verified role is set" if role["state"] == "todo" \
+            else "The verified role needs attention"
+        return {"title": title, "body": role["note"], "action": "settings"}
+
+    panel = by_label["Instructions panel"]
+    title = "No instructions panel is posted" if panel["state"] == "todo" \
+        else "The instructions panel needs attention"
+    return {"title": title, "body": panel["note"], "action": "settings"}
+
+
+def _demo_step(overview: dict) -> Optional[dict]:
+    """The data-backed pitch: a real number this server produced, paired with
+    what Premium would do with it. The lock reads as a loss instead of an
+    abstract paywall specifically because the number is theirs.
+
+    Three ways this stays silent rather than guessing: a `blank` or `unknown`
+    30-day figure is never rendered (that would be inventing a number this
+    page doesn't have), a covered-but-empty window gets no pitch either ("0
+    members verified, upgrade to log them" argues against buying, not for
+    it), and an already-premium server sees nothing here at all -- there is
+    nothing left to sell it.
+    """
+    premium = overview.get("premium") or {}
+    if premium.get("premium"):
+        return None
+
+    counts = overview.get("verifications") or {}
+    if not counts.get("known", True):
+        return None
+    count = counts.get("last_30_days")
+    if not isinstance(count, int) or count <= 0:
+        return None
+
+    pitch = (
+        f"{count:,} member{'' if count == 1 else 's'} verified here in the "
+        "last 30 days. Premium logs each one to a channel of your choice."
+    )
+    if premium.get("grandfathered"):
+        # Leads with what stays free, per the issue's own rule -- the model
+        # is settings.html's upgrade card, which makes the same two-sentence
+        # move: reassure, then offer. Truthful either way, since the activity
+        # log was never one of the grandfathered extras (see
+        # GRANDFATHERED_FEATURES in bot.py) -- this server really would be
+        # buying something new, not being asked to pay for what it already
+        # has.
+        return {
+            "title": "Add VRCVerify Premium",
+            "body": f"Your grandfathered extras stay free whatever you decide. {pitch}",
+            "action": "subscription",
+        }
+    return {
+        "title": "Upgrade to VRCVerify Premium",
+        "body": pitch,
+        "action": "subscription",
+    }
+
+
+def build_next_step(
+    overview: Optional[dict], changelog_entry: Optional[dict] = None
+) -> Optional[dict]:
+    """The single most useful thing to put in the best attention slot on the
+    page, if anything. At most one item, ranked:
+
+    1. A genuine setup step -- always wins. A server that cannot finish a
+       verification must not be sold to instead of fixed.
+    2. `changelog_entry`, an undismissed premium changelog entry. This
+       parameter is #136's contract, not #135's: nothing calls this with one
+       yet, and the default keeps today's behaviour exactly as it was. #135
+       only defines where it ranks and what shape it needs -- the same shape
+       this function itself returns, `{"title", "body", "action"}` -- so #136
+       can hand back exactly what should be shown without this function
+       needing to know anything about changelogs.
+    3. The data-backed demo, `_demo_step` -- suppressed for a premium server,
+       and never rendered from a figure this page cannot stand behind.
+
+    Returns None when nothing applies, which is the common case: a fully
+    configured premium server with nothing new to announce should not be
+    nagged about anything.
     """
     if not overview:
         return None
 
-    configured = overview.get("configured")
-    if configured is not None and not configured.get("verified_role"):
-        return {
-            "title": "No verified role is set",
-            "body": (
-                "VRCVerify can't finish a verification without a role to give "
-                "people. Set one in Settings."
-            ),
-        }
+    setup = build_setup(overview)
+    if setup is None:
+        # The settings read failed behind the overview -- build_setup already
+        # says nothing rather than guess, and repeating half its checks here
+        # with the other half missing would be worse than matching it.
+        return None
+    if not setup["complete"]:
+        return _setup_step(setup)
 
-    panel = overview.get("panel")
-    # `posted: false` is not proof there is no panel -- the bot returns the
-    # same thing when it could not read the record -- but the advice is
-    # harmless either way, and reposting an existing panel refreshes it rather
-    # than duplicating it.
-    if isinstance(panel, dict) and not panel.get("posted"):
-        return {
-            "title": "No instructions panel is posted",
-            "body": (
-                "Members need a message to start from. Post one from the "
-                "Instructions panel section in Settings."
-            ),
-        }
+    if changelog_entry:
+        return changelog_entry
 
-    return None
+    return _demo_step(overview)

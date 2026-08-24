@@ -895,6 +895,8 @@ def _register_routes(app: Flask) -> None:
             "overview.html",
             tiles=overview_view.build_tiles(overview),
             chart=overview_view.build_chart(overview),
+            # `changelog_entry` defaults to None -- #136 is what will read an
+            # undismissed premium changelog entry and pass one through here.
             next_step=overview_view.build_next_step(overview),
             setup=overview_view.build_setup(overview),
             premium=(overview.get("premium") or {}),
