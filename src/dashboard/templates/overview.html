@@ -67,9 +67,12 @@
         {# Three states, and the template must not decide between them --
            `display` does, because `value or "-"` is exactly the falsy-zero bug
            that would hide a server where nobody is verifying. #}
+        {# #135 phase 5: label before value, not after -- the Featurebase and
+           Framer references this restyle targets both lead with the label,
+           so the eye reads "what this number is" before "how big it is". #}
         <li class="tile{% if tile.state != 'value' %} tile-{{ tile.state }}{% endif %}">
-          <span class="tile-value">{{ tile.display }}</span>
           <span class="tile-label">{{ tile.label }}</span>
+          <span class="tile-value">{{ tile.display }}</span>
           {% if tile.note %}
             <span class="muted tile-note">{{ tile.note }}</span>
           {% endif %}
