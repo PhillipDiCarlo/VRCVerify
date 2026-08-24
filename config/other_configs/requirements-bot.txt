@@ -1,5 +1,5 @@
 discord.py==2.7.1
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 SQLAlchemy==2.0.52
 psycopg2-binary==2.9.12
 pika==1.4.4
