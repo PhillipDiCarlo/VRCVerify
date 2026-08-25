@@ -450,6 +450,35 @@ def client(app):
     return app.test_client()
 
 
+# Settings is a page per group now (#140), so "the settings page" is no longer
+# an address. A test either says which group it is about, or -- when its
+# subject is markup that lives on Settings without belonging to any one group
+# -- reads all five and joins them.
+SETTINGS_GROUPS = ("verification", "after-verifying", "panel", "vrchat-group", "logging")
+
+
+def settings_page(test_client, group="verification", guild=None):
+    """One group's settings page. Verification by default: it is the group the
+    bare /settings URL redirects to, so it is what "Settings" used to mean for
+    every test that only needed the page's chrome."""
+    return test_client.get(f"/guild/{guild or GUILD_IN}/settings/{group}")
+
+
+def every_settings_page(test_client, guild=None):
+    """All five groups' pages, joined.
+
+    The faithful translation of a test that scanned "the settings page" for a
+    field, a badge or a warning: the markup is still all on Settings, just no
+    longer all in one response. Callers that search for something specific
+    still assert they found it, so a join that silently returned nothing would
+    fail rather than pass vacuously.
+    """
+    return "".join(
+        settings_page(test_client, group, guild).data.decode()
+        for group in SETTINGS_GROUPS
+    )
+
+
 GUILDS = [
     {"id": GUILD_IN, "name": "Alpha Club", "icon": "abc123", "admin_hint": True},
     {"id": GUILD_OUT, "name": "Beta Lounge", "icon": None, "admin_hint": True},
@@ -1153,7 +1182,7 @@ def _locked_panel():
 
 class TestSettingsPage:
     def test_signed_out_visitors_are_sent_to_the_login_page(self, client):
-        response = client.get(f"/guild/{GUILD_IN}/settings")
+        response = settings_page(client)
         assert response.status_code == 302
         assert response.headers["Location"].endswith("/")
 
@@ -1162,21 +1191,23 @@ class TestSettingsPage:
         test_client, _api = settings_client(
             config, store, settings=make_settings(writable=set())
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert "Verified" in page
         assert VERIFIED_ROLE not in page
 
     def test_an_editable_role_is_labelled_by_name(self, config, store):
         """Editable, the id has to be in the option value -- the label doesn't."""
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert f'<option value="{VERIFIED_ROLE}" selected>Verified</option>' in page
 
     def test_every_read_is_scoped_to_the_session_owner_and_that_guild(
         self, config, store
     ):
+        """Across all six sub-pages, so no group gets its own idea of scope."""
         test_client, api = settings_client(config, store)
-        test_client.get(f"/guild/{GUILD_IN}/settings")
+        for group in SETTINGS_GROUPS + ("activity",):
+            settings_page(test_client, group)
         assert {what for what, _, _ in api.reads} == {
             "settings",
             "roles",
@@ -1188,9 +1219,40 @@ class TestSettingsPage:
             assert actor == ACTOR
             assert guild == GUILD_IN
 
+    # ----- what each group actually reads (#140) -----
+    #
+    # The point of the split that is easy to lose: a page per group can ask the
+    # bot for less than a page showing everything had to. If one of these ever
+    # grows a read it does not render, this is the test that says so.
+    @pytest.mark.parametrize(
+        "group, expected",
+        [
+            ("verification", {"settings", "roles"}),
+            ("after-verifying", {"settings"}),
+            ("panel", {"settings", "channels", "panel"}),
+            ("vrchat-group", {"settings"}),
+            ("logging", {"settings", "channels"}),
+            # Roles and channels because the history resolves the ids inside
+            # each entry into names -- without them a record of role changes
+            # reads as a list of numbers.
+            ("activity", {"settings", "roles", "channels", "audit"}),
+        ],
+    )
+    def test_a_group_reads_only_what_it_renders(self, config, store, group, expected):
+        test_client, api = settings_client(config, store)
+        settings_page(test_client, group)
+        assert {what for what, _, _ in api.reads} == expected
+
+    def test_no_group_reads_the_audit_trail_except_activity(self, config, store):
+        """It used to be fetched on every settings page load, and shown on one."""
+        test_client, api = settings_client(config, store)
+        for group in SETTINGS_GROUPS:
+            settings_page(test_client, group)
+        assert not [what for what, _, _ in api.reads if what == "audit"]
+
     def test_the_guild_name_comes_from_the_session_not_the_bot(self, config, store):
         test_client, _api = settings_client(config, store)
-        assert b"Alpha Club" in test_client.get(f"/guild/{GUILD_IN}/settings").data
+        assert b"Alpha Club" in settings_page(test_client).data
 
     def test_a_guild_missing_from_a_stale_oauth_list_still_renders(
         self, config, store
@@ -1206,7 +1268,7 @@ class TestSettingsPage:
         test_client = app.test_client()
         login_as(test_client, store, guilds=[])
 
-        response = test_client.get(f"/guild/{GUILD_IN}/settings")
+        response = settings_page(test_client)
         assert response.status_code == 200
         assert b"Verified" in response.data
 
@@ -1224,7 +1286,7 @@ class TestSettingsDoesNotLeakWhichServersRunTheBot:
         test_client, _api = settings_client(
             config, store, errors={"settings": BotAPIError("nope", status)}
         )
-        return test_client.get(f"/guild/{GUILD_IN}/settings")
+        return settings_page(test_client)
 
     def test_403_and_404_are_byte_identical(self, config, store):
         # One client, so the comparison isn't confounded by the per-session
@@ -1232,10 +1294,10 @@ class TestSettingsDoesNotLeakWhichServersRunTheBot:
         test_client, api = settings_client(
             config, store, errors={"settings": BotAPIError("nope", 403)}
         )
-        forbidden = test_client.get(f"/guild/{GUILD_IN}/settings")
+        forbidden = settings_page(test_client)
 
         api.errors = {"settings": BotAPIError("nope", 404)}
-        missing = test_client.get(f"/guild/{GUILD_IN}/settings")
+        missing = settings_page(test_client)
 
         assert forbidden.status_code == missing.status_code == 404
         assert forbidden.data == missing.data
@@ -1782,17 +1844,23 @@ class TestPlanBadgesMirrorTheBot:
 
     @staticmethod
     def _form(page: str) -> str:
-        """Everything inside <main> -- the settings form and nothing else.
+        """Everything inside <main> -- the settings forms and nothing else.
 
         The header (bell, theme picker, account menu) and the footer are
         chrome, and no assertion in this class is about them.
+
+        EVERY <main>, not the first: `every_settings_page` joins one response
+        per group (#140), and taking only the first would have quietly narrowed
+        these assertions to the Verification page -- where the fields they are
+        about do not live.
         """
-        assert "<main>" in page and "</main>" in page
-        return page.split("<main>", 1)[1].split("</main>", 1)[0]
+        mains = re.findall(r"<main>(.*?)</main>", page, re.S)
+        assert mains, "no <main> on the page"
+        return "".join(mains)
 
     def test_write_locked_fields_are_marked_premium(self, config, store):
         test_client, _api = settings_client(config, store)
-        page = self._form(test_client.get(f"/guild/{GUILD_IN}/settings").data.decode())
+        page = self._form(every_settings_page(test_client))
         assert "Nickname sync" in page
         assert "Premium</span>" in page
 
@@ -1812,7 +1880,7 @@ class TestPlanBadgesMirrorTheBot:
                 }
             ),
         )
-        page = self._form(test_client.get(f"/guild/{GUILD_IN}/settings").data.decode())
+        page = self._form(every_settings_page(test_client))
         # The values are shown, not hidden or replaced with an upsell.
         assert "Unverified" in page
         assert "Welcome aboard!" in page
@@ -1823,7 +1891,7 @@ class TestPlanBadgesMirrorTheBot:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = self._form(test_client.get(f"/guild/{GUILD_IN}/settings").data.decode())
+        page = self._form(every_settings_page(test_client))
         assert "Premium</span>" not in page
         assert "Not applied</span>" not in page
         assert "VRCVerify Premium is active" in page
@@ -1831,7 +1899,7 @@ class TestPlanBadgesMirrorTheBot:
     def test_auto_verify_is_never_gated(self, config, store):
         """Free for everyone, forever -- mirrors TestAutoVerifyOnJoinIsFree."""
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         section = page.split("Auto-verify on join")[1].split("</div>")[0]
         assert "badge" not in section
 
@@ -1839,7 +1907,7 @@ class TestPlanBadgesMirrorTheBot:
         test_client, _api = settings_client(
             config, store, settings=make_settings(auto_verify_column=False)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert "missing the auto-verify column" in page
 
 
@@ -1855,7 +1923,7 @@ class TestTheUpgradeOffer:
 
     def test_a_free_server_is_pointed_at_the_subscriptions_page(self, config, store):
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert "Upgrade to VRCVerify Premium" in page
         assert f"/guild/{GUILD_IN}/subscription" in page
 
@@ -1867,7 +1935,7 @@ class TestTheUpgradeOffer:
         still the one an admin reads about buying.
         """
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert "/vrcverify_subscription" not in page
         assert "application-directory" not in page
         assert "you choose the server during checkout" not in page
@@ -1876,7 +1944,7 @@ class TestTheUpgradeOffer:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert "VRCVerify Premium is active" in page
         assert "/vrcverify_subscription" not in page
         assert "application-directory" not in page
@@ -1890,7 +1958,7 @@ class TestTheUpgradeOffer:
         test_client, _api = settings_client(
             config, store, settings=make_settings(grandfathered=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert "Add VRCVerify Premium" in page
         assert "grandfathered extras stay free" in page
         assert f"/guild/{GUILD_IN}/subscription" in page
@@ -1907,7 +1975,7 @@ class TestTheUpgradeOffer:
             store,
             settings=make_settings(premium=True, enforced=False, sku_id=None),
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert "Verified role" in page  # the settings page really rendered
         assert "/vrcverify_subscription" not in page
         assert "application-directory" not in page
@@ -1932,7 +2000,7 @@ class TestTheUpgradeOffer:
         test_client, _api = settings_client(
             config, store, settings=make_settings(sku_id=None)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert "Verified role" in page  # the settings page really rendered
         assert "application-directory" not in page
         assert "store/None" not in page
@@ -1941,7 +2009,7 @@ class TestTheUpgradeOffer:
         """Every group saves now. The page said otherwise for a while, which
         sent admins to the slash commands past a working Save button."""
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert "Verified role" in page  # the settings page really rendered
         assert "Only the instructions panel settings can be changed" not in page
 
@@ -1953,7 +2021,7 @@ class TestSettingsWarnings:
         test_client, _api = settings_client(
             config, store, settings=make_settings(values={"role_id": UNASSIGNABLE_ROLE})
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert "cannot grant this role" in page
         assert "Server Settings -&gt; Roles" in page
 
@@ -1961,14 +2029,14 @@ class TestSettingsWarnings:
         test_client, _api = settings_client(
             config, store, settings=make_settings(values={"role_id": "404404404404"})
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert "no longer exists" in page
 
     def test_no_verified_role_is_called_out(self, config, store):
         test_client, _api = settings_client(
             config, store, settings=make_settings(values={"role_id": None})
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert "verification cannot complete" in page
 
     def test_an_announcement_log_channel_is_called_out(self, config, store):
@@ -1980,7 +2048,7 @@ class TestSettingsWarnings:
                 premium=True, values={"verification_log_channel_id": NEWS_CHANNEL}
             ),
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert "republish age disclosures" in page
 
     def test_a_locked_panel_channel_is_called_out_without_crying_wolf(
@@ -2002,7 +2070,7 @@ class TestSettingsWarnings:
                 },
             ],
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         # Both permissions named: the panel is an embed, so Embed Links alone
         # being off produces this with no other symptom anywhere on the page.
         assert "Send Messages and Embed Links" in page
@@ -2030,7 +2098,7 @@ class TestSettingsWarnings:
         test_client, _api = settings_client(
             config, store, channels=channels, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         # Offered once, by the log channel's own select -- not by the panel's.
         assert page.count(f'<option value="{LOG_CHANNEL}"') == 1
 
@@ -2065,7 +2133,7 @@ class TestSettingsWarnings:
                 },
             ],
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert f'<option value="{PANEL_CHANNEL}"' in page
         assert f'<option value="{SHUT_CHANNEL}"' not in page
 
@@ -2077,7 +2145,7 @@ class TestSecondaryReadsDegradeGracefully:
         test_client, _api = settings_client(
             config, store, errors={"roles": BotAPIError("unavailable", 503)}
         )
-        response = test_client.get(f"/guild/{GUILD_IN}/settings")
+        response = settings_page(test_client)
         assert response.status_code == 200
         page = response.data.decode()
         assert f"Unknown role ({VERIFIED_ROLE})" in page
@@ -2092,7 +2160,7 @@ class TestSecondaryReadsDegradeGracefully:
         test_client, _api = settings_client(
             config, store, errors={"roles": BotAPIError("unavailable", 503)}
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert 'name="role_id"' not in page
         assert 'name="unverified_role_id"' not in page
 
@@ -2101,7 +2169,7 @@ class TestSecondaryReadsDegradeGracefully:
         test_client, _api = settings_client(
             config, store, errors={"roles": BotAPIError("unavailable", 503)}
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert "no longer exists" not in page
 
     def test_the_page_renders_without_the_audit_read(self, config, store):
@@ -2109,7 +2177,7 @@ class TestSecondaryReadsDegradeGracefully:
         test_client, _api = settings_client(
             config, store, errors={"audit": BotAPIError("unavailable", 503)}
         )
-        response = test_client.get(f"/guild/{GUILD_IN}/settings")
+        response = settings_page(test_client, "activity")
         assert response.status_code == 200
         page = response.data.decode()
         assert "Couldn't load the history" in page
@@ -2119,7 +2187,7 @@ class TestSecondaryReadsDegradeGracefully:
         test_client, _api = settings_client(
             config, store, errors={"panel": BotAPIError("unavailable", 503)}
         )
-        response = test_client.get(f"/guild/{GUILD_IN}/settings")
+        response = settings_page(test_client, "panel")
         assert response.status_code == 200
         # Literal template text, so the apostrophe is not entity-escaped here.
         assert b"Couldn't check" in response.data
@@ -2153,8 +2221,9 @@ class TestSavingThePanelGroup:
         )
         assert response.status_code == 302
         # The notice is session state now, not a query parameter, so the
-        # redirect target is bare and "Saved." appears on the next render.
-        assert response.headers["Location"].endswith(f"/guild/{GUILD_IN}/settings")
+        # redirect target carries no flags -- and it names the group the save
+        # came from (#140), so "Saved." appears on the page the admin was on.
+        assert response.headers["Location"].endswith(f"/guild/{GUILD_IN}/settings/panel")
         assert "Saved." in test_client.get(response.headers["Location"]).data.decode()
         actor, guild, changes = api.saves[-1]
         assert (actor, guild) == (ACTOR, GUILD_IN)
@@ -2532,12 +2601,12 @@ class TestTheGroupSlugs:
             with pytest.raises(ValueError):
                 app_module._settings_url(GUILD_IN, "verifikation")
 
-    def test_the_save_path_still_returns_to_settings(self, app):
-        """Phase 1 changes no destination. Only phase 2 may do that."""
+    def test_the_save_path_returns_to_the_group_it_came_from(self, app):
+        """The line phase 1 promised: the right notice on the right page."""
         with app.test_request_context():
             for slug in settings_view.SETTINGS_SLUGS:
-                assert app_module._settings_url(GUILD_IN, slug).endswith(
-                    f"/guild/{GUILD_IN}/settings"
+                assert app_module._settings_url(GUILD_IN, slug) == (
+                    f"/guild/{GUILD_IN}/settings/{slug}"
                 )
 
     # Every POST that returns to Settings passes a literal slug, so a typo in
@@ -2546,11 +2615,17 @@ class TestTheGroupSlugs:
     # save routes, plus both action routes. The success exits share the same
     # `group` variable and are covered by the save tests above.
     @pytest.mark.parametrize(
-        "route",
-        ["verification", "member", "logging", "panel", "group"],
+        "route, slug",
+        [
+            ("verification", "verification"),
+            ("member", "after-verifying"),
+            ("logging", "logging"),
+            ("panel", "panel"),
+            ("group", "vrchat-group"),
+        ],
     )
-    def test_a_save_with_nothing_to_save_redirects_without_raising(
-        self, config, store, route
+    def test_a_save_with_nothing_to_save_returns_to_its_own_group(
+        self, config, store, route, slug
     ):
         api = FakeBotAPI()
         application = create_app(config, store=store, client=api)
@@ -2561,7 +2636,9 @@ class TestTheGroupSlugs:
             f"/guild/{GUILD_IN}/{route}", data={"csrf_token": session.csrf_token}
         )
         assert response.status_code == 302
-        assert response.headers["Location"].endswith(f"/guild/{GUILD_IN}/settings")
+        assert response.headers["Location"].endswith(
+            f"/guild/{GUILD_IN}/settings/{slug}"
+        )
         assert api.saves == []
 
     def test_the_panel_post_with_no_channel_redirects_without_raising(
@@ -2577,7 +2654,252 @@ class TestTheGroupSlugs:
             data={"csrf_token": session.csrf_token, "panel_channel_id": ""},
         )
         assert response.status_code == 302
+        assert response.headers["Location"].endswith(
+            f"/guild/{GUILD_IN}/settings/panel"
+        )
+
+
+class TestSettingsIsAPagePerGroup:
+    """#140 phase 2. The split itself, and the links that had to move with it."""
+
+    def logged_in(self, config, store, **kwargs):
+        test_client, _api = settings_client(config, store, **kwargs)
+        return test_client
+
+    # ----- the external contract -----
+    def test_the_bare_url_still_resolves(self, config, store):
+        """Discord link buttons in message history cannot be edited.
+
+        The bot posts /guild/<id>/settings from /vrcverify_setup and the
+        summary commands. Every one already sent has to keep working, so this
+        is the one URL in the app that may never simply stop.
+        """
+        test_client = self.logged_in(config, store)
+        response = test_client.get(f"/guild/{GUILD_IN}/settings")
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith(
+            f"/guild/{GUILD_IN}/settings/{settings_view.SETTINGS_DEFAULT_SLUG}"
+        )
+
+    def test_the_bare_url_lands_on_a_real_page(self, config, store):
+        """A redirect to a 404 would satisfy the letter and not the promise."""
+        test_client = self.logged_in(config, store)
+        landed = test_client.get(f"/guild/{GUILD_IN}/settings", follow_redirects=True)
+        assert landed.status_code == 200
+        assert b"Verification" in landed.data
+
+    def test_a_group_nobody_serves_is_a_404(self, config, store):
+        """Typed or guessed, since the nav is built from the same table."""
+        test_client = self.logged_in(config, store)
+        assert test_client.get(f"/guild/{GUILD_IN}/settings/verifikation").status_code == 404
+
+    # ----- one table, two readers -----
+    def test_every_slug_has_a_page_and_every_page_has_a_slug(self, config, store):
+        """The reads table and the slug table cannot drift apart.
+
+        A group missing from one is unreachable; an entry with no group is a
+        URL the sub-nav can never offer. Either is the 404 the single table
+        exists to prevent.
+        """
+        assert set(app_module.SETTINGS_GROUP_READS) == set(
+            settings_view.SETTINGS_SLUGS
+        ) | {settings_view.ACTIVITY_SLUG}
+
+    @pytest.mark.parametrize("group", SETTINGS_GROUPS + ("activity",))
+    def test_every_group_renders(self, config, store, group):
+        test_client = self.logged_in(config, store)
+        assert settings_page(test_client, group).status_code == 200
+
+    # ----- one form per page, where that is possible -----
+    def test_the_three_single_form_groups_carry_exactly_one_save(
+        self, config, store
+    ):
+        """The hazard `app.js` exists for, removed rather than mitigated.
+
+        Edit one group, save a different one, and the first group's edits are
+        discarded with no error. On these three pages there is no second form
+        to submit by mistake.
+        """
+        test_client = self.logged_in(
+            config, store, settings=make_settings(premium=True)
+        )
+        for group in ("verification", "after-verifying", "logging"):
+            page = settings_page(test_client, group).data.decode()
+            main = re.search(r"<main>(.*?)</main>", page, re.S).group(1)
+            assert main.count("<form") == 1, group
+
+    def test_the_two_action_groups_still_carry_their_second_form(
+        self, config, store
+    ):
+        """And the issue should not pretend otherwise.
+
+        `post_panel` and `verify_group` post to different endpoints, and a form
+        inside a form is not a thing, so those two pages keep two forms and
+        keep the hazard. The copy that warns about it has to stay.
+        """
+        # A group has to be configured for its check button to exist at all --
+        # there is nothing to check otherwise, and that is the state this test
+        # is about.
+        test_client = self.logged_in(
+            config,
+            store,
+            settings=make_settings(
+                premium=True, values={"vrchat_group_id": GROUP_ID}
+            ),
+        )
+        # Each says it in its own words, and both must survive the split --
+        # this copy is the only thing standing between the reader and the
+        # hazard on these two pages.
+        # The panel's wording depends on whether one is already posted, so it
+        # is matched rather than quoted; the group check has one sentence.
+        warning = {
+            "panel": r"the settings (saved )?above",
+            "vrchat-group": r"doesn't save the settings above",
+        }
+        for group in ("panel", "vrchat-group"):
+            page = settings_page(test_client, group).data.decode()
+            main = re.search(r"<main>(.*?)</main>", page, re.S).group(1)
+            assert main.count("<form") == 2, group
+            assert re.search(warning[group], main), group
+
+    # ----- a group shows its own fields and no others -----
+    @pytest.mark.parametrize(
+        "group, mine, not_mine",
+        [
+            ("verification", 'name="role_id"', 'name="verification_log_channel_id"'),
+            ("logging", 'name="verification_log_channel_id"', 'name="role_id"'),
+            ("panel", 'name="instructions_locale"', 'name="role_id"'),
+        ],
+    )
+    def test_a_group_renders_its_own_fields_only(
+        self, config, store, group, mine, not_mine
+    ):
+        test_client = self.logged_in(
+            config, store, settings=make_settings(premium=True)
+        )
+        page = settings_page(test_client, group).data.decode()
+        assert mine in page
+        assert not_mine not in page
+
+    def test_activity_carries_the_history_and_no_settings_form(
+        self, config, store
+    ):
+        """It was never one of the groups -- `build_groups()` does not return it."""
+        test_client = self.logged_in(config, store, audit=AUDIT_ENTRIES)
+        page = settings_page(test_client, "activity").data.decode()
+        assert "Recent changes" in page
+        main = re.search(r"<main>(.*?)</main>", page, re.S).group(1)
+        assert "<form" not in main
+
+    def test_every_group_page_can_reach_the_history(self, config, store):
+        """It used to be at the bottom of this page, so it needs a door.
+
+        The sub-nav in phase 3 is the real answer; until then a phase that
+        merges and stalls would have left the change history unreachable.
+        """
+        test_client = self.logged_in(config, store)
+        target = f'href="/guild/{GUILD_IN}/settings/activity"'
+        for group in SETTINGS_GROUPS:
+            assert target in settings_page(test_client, group).data.decode(), group
+
+    def test_no_group_page_renders_the_history_itself(self, config, store):
+        """It used to be read on every page load and shown at the bottom.
+
+        The list, not the word: every group links to Activity by name, so
+        "Recent changes" appears on all of them. What must not appear is the
+        trail.
+        """
+        test_client = self.logged_in(config, store, audit=AUDIT_ENTRIES)
+        for group in SETTINGS_GROUPS:
+            page = settings_page(test_client, group).data.decode()
+            assert 'class="audit"' not in page, group
+            assert "Preview Admin" not in page, group
+
+    # ----- the preference forms come back to the right page -----
+    def _prefs(self, test_client, session, group=None, path="/prefs/theme"):
+        data = {
+            "csrf_token": session.csrf_token,
+            "return_to": "guild_settings",
+            "guild_id": GUILD_IN,
+            "theme": "light",
+        }
+        if group is not None:
+            data["group"] = group
+        return test_client.post(path, data=data)
+
+    def test_changing_theme_returns_to_the_group_you_were_on(self, config, store):
+        """Otherwise the picker silently moves you to a different page."""
+        test_client, _api = settings_client(config, store)
+        session = login_as(test_client, store)
+        response = self._prefs(test_client, session, "logging")
+        assert response.headers["Location"].endswith(
+            f"/guild/{GUILD_IN}/settings/logging"
+        )
+
+    def test_collapsing_the_sidebar_returns_to_the_group_you_were_on(
+        self, config, store
+    ):
+        test_client, _api = settings_client(config, store)
+        session = login_as(test_client, store)
+        response = test_client.post(
+            "/prefs/nav",
+            data={
+                "csrf_token": session.csrf_token,
+                "collapsed": "1",
+                "return_to": "guild_settings",
+                "guild_id": GUILD_IN,
+                "group": "vrchat-group",
+            },
+        )
+        assert response.headers["Location"].endswith(
+            f"/guild/{GUILD_IN}/settings/vrchat-group"
+        )
+
+    def test_activity_is_a_place_a_preference_form_can_return_to(
+        self, config, store
+    ):
+        test_client, _api = settings_client(config, store)
+        session = login_as(test_client, store)
+        response = self._prefs(test_client, session, "activity")
+        assert response.headers["Location"].endswith(
+            f"/guild/{GUILD_IN}/settings/activity"
+        )
+
+    def test_a_form_carrying_no_group_still_lands_on_settings(
+        self, config, store
+    ):
+        """A page cached before this shipped, and the cost of guessing wrong.
+
+        Bouncing a reader out to the server list would be a worse answer than
+        the first settings page, and the bare URL redirects there anyway.
+        """
+        test_client, _api = settings_client(config, store)
+        session = login_as(test_client, store)
+        response = self._prefs(test_client, session)
         assert response.headers["Location"].endswith(f"/guild/{GUILD_IN}/settings")
+
+    def test_a_group_the_table_does_not_know_never_reaches_the_url(
+        self, config, store
+    ):
+        """The rule this path states is that nothing from a form is
+        interpolated into a redirect target. A slug is no more trustworthy for
+        being short."""
+        test_client, _api = settings_client(config, store)
+        session = login_as(test_client, store)
+        response = self._prefs(test_client, session, "../../evil")
+        assert response.headers["Location"].endswith(f"/guild/{GUILD_IN}/settings")
+        assert "evil" not in response.headers["Location"]
+
+    def test_the_group_travels_in_the_page_the_forms_are_on(self, config, store):
+        """The hidden field, without which none of the above can happen."""
+        test_client, _api = settings_client(config, store)
+        page = settings_page(test_client, "logging").data.decode()
+        assert '<input type="hidden" name="group" value="logging">' in page
+
+    def test_no_group_field_on_a_page_that_has_no_group(self, config, store):
+        test_client, _api = settings_client(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        assert 'name="group"' not in page
 
 
 class TestTheFormMatchesWhatTheBotAccepts:
@@ -2587,7 +2909,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert 'name="instructions_locale"' in page
         assert 'name="panel_embed_color"' in page
         assert 'name="panel_show_icon"' in page
@@ -2597,7 +2919,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
         """Branding is write-locked, so no control -- but the language is free
         and must stay editable."""
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert 'name="instructions_locale"' in page
         assert 'type="color"' not in page
         assert 'name="panel_show_icon"' not in page
@@ -2606,7 +2928,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True, writable=set())
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert 'name="panel_embed_color"' not in page
         assert 'name="instructions_locale"' not in page
         assert "Save changes" not in page
@@ -2618,7 +2940,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
             store,
             settings=make_settings(premium=True),
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         for code in LOCALES:
             assert f'value="{code}"' in page
         # Present in LOCALE_NAMES, absent from what the bot offered.
@@ -2634,7 +2956,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         logging_section = page.split("<h2>Logging</h2>")[1]
         assert f'value="{LOG_CHANNEL}"' in logging_section
         assert f'value="{NEWS_CHANNEL}"' not in logging_section
@@ -2649,7 +2971,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         panel_form = page.split('class="panel-post"')[1]
         assert f'value="{NEWS_CHANNEL}"' in panel_form
 
@@ -2660,14 +2982,14 @@ class TestTheFormMatchesWhatTheBotAccepts:
             settings=make_settings(premium=True),
             errors={"channels": BotAPIError("unavailable", 503)},
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert 'name="verification_log_channel_id"' not in page
 
     def test_the_custom_message_textarea_carries_the_bot_s_cap(self, config, store):
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert 'maxlength="1000"' in page
 
     # The theme picker is the one form in the app with no CSRF token, and the
@@ -2681,11 +3003,14 @@ class TestTheFormMatchesWhatTheBotAccepts:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
-        assert (
-            page.count('name="csrf_token"')
-            >= page.count("<form") - self.CSRF_EXEMPT_FORMS
-        )
+        # Per page, not over the five joined: the exemption is one form of
+        # chrome, and every group's page carries its own copy of it.
+        for group in SETTINGS_GROUPS:
+            page = settings_page(test_client, group).data.decode()
+            assert (
+                page.count('name="csrf_token"')
+                >= page.count("<form") - self.CSRF_EXEMPT_FORMS
+            ), group
 
     def test_the_only_tokenless_form_is_the_theme_picker(self, config, store):
         """Pins *which* form the exemption above is spending itself on.
@@ -2696,14 +3021,15 @@ class TestTheFormMatchesWhatTheBotAccepts:
         test_client, _api = settings_client(
             config, store, settings=make_settings(premium=True)
         )
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
-        tokenless = [
-            form
-            for form in re.findall(r"<form\b.*?</form>", page, re.S)
-            if 'name="csrf_token"' not in form
-        ]
-        assert len(tokenless) == self.CSRF_EXEMPT_FORMS
-        assert 'action="/prefs/theme"' in tokenless[0]
+        for group in SETTINGS_GROUPS:
+            page = settings_page(test_client, group).data.decode()
+            tokenless = [
+                form
+                for form in re.findall(r"<form\b.*?</form>", page, re.S)
+                if 'name="csrf_token"' not in form
+            ]
+            assert len(tokenless) == self.CSRF_EXEMPT_FORMS, group
+            assert 'action="/prefs/theme"' in tokenless[0]
 
 
 # -------------------------------------------------------------------
@@ -2766,7 +3092,7 @@ class TestHardening:
         """
         test_client, _api = settings_client(config, store)
 
-        for path in ("/", f"/guild/{GUILD_IN}", f"/guild/{GUILD_IN}/settings"):
+        for path in ("/", f"/guild/{GUILD_IN}", f"/guild/{GUILD_IN}/settings/verification"):
             assert test_client.get(path).headers["Cache-Control"] == "no-store"
 
         for path in ("/static/style.css", "/static/app.js"):
@@ -2777,7 +3103,7 @@ class TestHardening:
     def test_asset_urls_carry_a_content_digest(self, config, store):
         """Without this the year-long cache above would be reckless."""
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assets = re.findall(r'(?:href|src)="(/static/[^"]+)"', page)
         assert assets, "no static assets referenced"
         for url in assets:
@@ -2805,7 +3131,7 @@ class TestHardening:
     def test_the_guard_reaches_the_settings_forms(self, config, store):
         """A marker that stops matching is a guard that silently does nothing."""
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert page.count("data-guard") >= 1
         # The panel-post form is an action rather than a set of edits, so it is
         # deliberately not guarded -- warning there would fire on a button that
@@ -2872,7 +3198,7 @@ class TestHardening:
         test_client = app.test_client()
         login_as(test_client, store)
 
-        response = test_client.get(f"/guild/{GUILD_IN}/settings")
+        response = settings_page(test_client)
         page = page_text(response.data).lower()
         assert response.status_code == 404
         for status in ("403", "404", "503"):
@@ -2938,7 +3264,7 @@ class TestHardening:
         """
         test_client, _api = settings_client(config, store)
         seen = 0
-        for path in ("/", f"/guild/{GUILD_IN}", f"/guild/{GUILD_IN}/settings"):
+        for path in ("/", f"/guild/{GUILD_IN}", f"/guild/{GUILD_IN}/settings/verification"):
             for script in markup(test_client.get(path).data).scripts:
                 seen += 1
                 assert script["body"].strip() == "", f"inline script on {path}"
@@ -2971,7 +3297,7 @@ class TestHardening:
     def test_the_only_scripts_are_the_ones_we_meant_to_add(self, config, store):
         """A script arriving without a decision should fail here."""
         test_client, _api = settings_client(config, store)
-        scripts = markup(test_client.get(f"/guild/{GUILD_IN}/settings").data).scripts
+        scripts = markup(settings_page(test_client).data).scripts
         assert len(scripts) == len(self.EXPECTED_SCRIPTS)
         for script, expected in zip(scripts, self.EXPECTED_SCRIPTS):
             assert expected in script["attrs"].get("src", "")
@@ -2981,7 +3307,7 @@ class TestHardening:
         not run -- but it would also not error anywhere a developer looks. The
         page should never contain one to begin with."""
         test_client, _api = settings_client(config, store)
-        scripts = markup(test_client.get(f"/guild/{GUILD_IN}/settings").data).scripts
+        scripts = markup(settings_page(test_client).data).scripts
         assert scripts, "no scripts found at all -- this test proved nothing"
         for script in scripts:
             assert script["attrs"].get("src"), "a script with no src is inline"
@@ -2995,7 +3321,7 @@ class TestHardening:
         element that only becomes usable once JavaScript has run.
         """
         test_client, _api = settings_client(config, store)
-        response = test_client.get(f"/guild/{GUILD_IN}/settings")
+        response = settings_page(test_client)
         page = response.data.decode()
         # Real actions, present in the markup rather than wired up later.
         assert 'action="/guild/' in page
@@ -3024,12 +3350,19 @@ class TestHardening:
                 premium=True, writable=set(), values={"panel_embed_color": 0xFF00FF}
             ),
         )
-        for path in ("/", f"/guild/{GUILD_IN}/settings"):
+        # Both settings pages that carry a swatch: the role colours are on
+        # Verification, the panel colour on its own page (#140).
+        for path in (
+            "/",
+            f"/guild/{GUILD_IN}/settings/verification",
+            f"/guild/{GUILD_IN}/settings/panel",
+        ):
             page = test_client.get(path).data
             assert b"style=" not in page, f"inline style on {path}"
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data
-        assert b'fill="#ff00ff"' in page   # the panel colour
-        assert b'fill="#5865f2"' in page   # the verified role's colour
+        # And the swatches really are there to be got wrong -- one per page
+        # now, so each is asserted where it actually renders.
+        assert b'fill="#ff00ff"' in settings_page(test_client, "panel").data
+        assert b'fill="#5865f2"' in settings_page(test_client, "verification").data
 
     def test_the_settings_page_closes_every_container_it_opens(
         self, config, store
@@ -3069,7 +3402,7 @@ class TestHardening:
 
         test_client, _api = settings_client(config, store)
         parser = Balance()
-        parser.feed(test_client.get(f"/guild/{GUILD_IN}/settings").data.decode())
+        parser.feed(settings_page(test_client).data.decode())
 
         assert not parser.errors, parser.errors
         assert not parser.stack, f"never closed: {parser.stack}"
@@ -3371,7 +3704,7 @@ class TestTheChangeHistoryOfPanelActions:
 class TestTheChangeHistory:
     def test_it_names_the_setting_the_actor_and_both_values(self, config, store):
         test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client, "activity").data.decode()
         assert "Verified role" in page
         assert "Sasha" in page
         # The id is resolved to the role's name, as on the settings above.
@@ -3379,17 +3712,17 @@ class TestTheChangeHistory:
 
     def test_an_actor_who_left_is_shown_by_id(self, config, store):
         test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client, "activity").data.decode()
         assert "ID 555555555555" in page
 
     def test_a_colour_reads_as_a_colour(self, config, store):
         test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
-        assert "#ff0000" in test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        assert "#ff0000" in settings_page(test_client, "activity").data.decode()
 
     def test_an_empty_history_says_so(self, config, store):
         test_client, _api = settings_client(config, store, audit=[])
-        assert b"No changes have been made" in test_client.get(
-            f"/guild/{GUILD_IN}/settings"
+        assert b"No changes have been made" in settings_page(
+            test_client, "activity"
         ).data
 
     def test_a_long_value_is_truncated(self):
@@ -3911,7 +4244,10 @@ class TestTheSetupListOnThePage:
         assert "has been deleted" in page
         section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
         assert section
-        assert f'href="/guild/{GUILD_IN}/settings#f-role_id"' in section.group(0)
+        assert (
+            f'href="/guild/{GUILD_IN}/settings/verification#f-role_id"'
+            in section.group(0)
+        )
 
     def test_a_broken_panel_shows_its_own_note_and_a_settings_link(self, config, store):
         page = self._page(
@@ -3921,7 +4257,13 @@ class TestTheSetupListOnThePage:
         section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
         assert section
         assert "check its permissions" in section.group(0)
-        assert f'href="/guild/{GUILD_IN}/settings#panel_channel_id"' in section.group(0)
+        # The link this split would have broken silently: the panel field is
+        # not on the page the bare /settings URL redirects to, so a fragment
+        # alone would have scrolled to nothing.
+        assert (
+            f'href="/guild/{GUILD_IN}/settings/panel#panel_channel_id"'
+            in section.group(0)
+        )
 
     def test_an_unfinished_required_row_reads_differently_from_an_off_optional_one(
         self, config, store
@@ -3976,7 +4318,7 @@ class TestEverySectionFailsTheSameWay:
     and these tests are what stops a fourth section quietly not doing so.
     """
 
-    SECTIONS = ("", "/settings", "/subscription")
+    SECTIONS = ("", "/settings/verification", "/subscription")
 
     @pytest.mark.parametrize("suffix", SECTIONS)
     def test_403_and_404_are_byte_identical(self, config, store, suffix):
@@ -4080,7 +4422,7 @@ class TestTheSidebar:
         stands alone", it is "a letter never stands in for a section".
         """
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
 
         for label in ("Overview", "Settings", "Subscriptions"):
             assert f'>{label[:1]}</span>' not in page
@@ -4088,13 +4430,13 @@ class TestTheSidebar:
 
     def test_it_marks_the_current_section(self, config, store):
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         # The accessible half of the highlight, not just a class.
         assert 'aria-current="page"' in page
 
     def test_it_offers_the_way_back_to_the_server_list(self, config, store):
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
         assert "All servers" in page
 
     def test_the_picker_has_no_sidebar(self, config, store):
@@ -4598,7 +4940,7 @@ class TestEverySettingsControlIsLabelled(object):
 
     def _page(self, config, store, **kwargs):
         test_client, _api = settings_client(config, store, **kwargs)
-        return test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        return every_settings_page(test_client)
 
     def test_every_control_has_an_accessible_name(self, config, store):
         """Six of the thirteen had none. The mechanism to fix it was already on
@@ -4768,7 +5110,7 @@ class TestNarrowScreens(object):
         desktop is still collapsed when its owner goes back to one.
         """
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert 'class="nav-toggle"' in page
         assert 'name="collapsed" value="1"' in page
 
@@ -4880,7 +5222,7 @@ class TestNarrowScreens(object):
         card on the densest page in the app.
         """
         test_client, _api = settings_client(config, store)
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = every_settings_page(test_client)
         assert 'class="value empty"' in page, "settings still marks empty values"
 
         bare = re.findall(r"(?:^|[\s,>+~{}])(\.empty)(?![\w-])", self._css())
@@ -5005,7 +5347,7 @@ class TestTheToggleSwitches:
 
     def _page(self, config, store, **kwargs):
         test_client, _api = settings_client(config, store, **kwargs)
-        return test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        return every_settings_page(test_client)
 
     def test_a_switch_is_a_real_checkbox(self, config, store):
         """Not a div with a click handler. Keeping the native control is what
@@ -5209,7 +5551,9 @@ class TestTheSidebarLayout:
         test_client, _api = settings_client(config, store)
         if collapsed:
             test_client.set_cookie("vrcverify_nav", "1", domain="localhost")
-        return test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        # One page, not all five: the subject here is the sidebar, and five
+        # joined copies would make "exactly one of these" true five times.
+        return settings_page(test_client).data.decode()
 
     def test_every_section_renders_an_icon(self, config, store):
         sidebar = self._sidebar(self._page(config, store))
@@ -5345,11 +5689,11 @@ class TestTheSidebarPreference:
     def test_the_collapsed_state_survives_the_next_page(self, config, store):
         test_client, _api = settings_client(config, store)
 
-        expanded = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        expanded = settings_page(test_client).data.decode()
         assert 'class="layout collapsed"' not in expanded
 
         test_client.set_cookie("vrcverify_nav", "1", domain="localhost")
-        collapsed = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        collapsed = settings_page(test_client).data.decode()
         assert 'class="layout collapsed"' in collapsed
 
     def test_a_collapsed_sidebar_keeps_every_link(self, config, store):
@@ -5361,7 +5705,7 @@ class TestTheSidebarPreference:
         """
         test_client, _api = settings_client(config, store)
         test_client.set_cookie("vrcverify_nav", "1", domain="localhost")
-        page = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        page = settings_page(test_client).data.decode()
 
         assert f'href="/guild/{GUILD_IN}"' in page
         assert f'href="/guild/{GUILD_IN}/subscription"' in page
@@ -5522,7 +5866,7 @@ class TestTheThemeAttribute:
     def test_every_page_is_themed_not_just_the_first(self, config, store):
         """A signed-in page inherits it from the same base template."""
         test_client, _api = settings_client(config, store)
-        for path in ("/", f"/guild/{GUILD_IN}/settings"):
+        for path in ("/", f"/guild/{GUILD_IN}/settings/verification"):
             tag = self._html_tag(test_client.get(path).data.decode())
             assert 'data-theme="dark"' in tag, path
 
@@ -6110,7 +6454,13 @@ class TestOverviewViewModel:
         )
         role = next(row for row in setup["rows"] if row["label"] == "Verified role")
         assert role["state"] == "todo"
-        assert role["action"] == {"label": "Go to Settings", "anchor": "f-role_id"}
+        assert role["action"] == {
+            "label": "Go to Settings",
+            # The group as well as the anchor (#140): Settings is five pages
+            # and only one of them has a role picker.
+            "group": "verification",
+            "anchor": "f-role_id",
+        }
 
     def test_a_deleted_verified_role_is_broken_not_todo(self):
         setup = overview_view.build_setup(
@@ -6786,7 +7136,7 @@ class TestValuesCarryNoTemplateWhitespace:
         app.config.update(TESTING=True)
         test_client = app.test_client()
         login_as(test_client, store)
-        return test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        return every_settings_page(test_client)
 
     def values(self, html):
         return re.findall(r'<p class="value[^"]*">(.*?)</p>', html, re.S)
@@ -6980,7 +7330,7 @@ class TestTheGroupIconOnThePage:
         app.config.update(TESTING=True)
         test_client = app.test_client()
         login_as(test_client, store)
-        html = test_client.get(f"/guild/{GUILD_IN}/settings").data.decode()
+        html = settings_page(test_client, "vrchat-group").data.decode()
 
         assert f'<img class="group-icon" src="{ICON_DISPLAY_URL}"' in html
         assert html.index("group-icon") < html.index("Ready — Club LA")
