@@ -468,6 +468,29 @@ NAV_RETURN_ENDPOINTS = {
     "guild_subscription": ("guild_id",),
 }
 
+# What each settings sub-page actually reads from the bot, beyond the settings
+# themselves -- which every one of them needs and none of them may do without.
+#
+# This table is also the list of slugs the route will serve, so a group that is
+# not here is a 404 rather than a page that renders nothing. It is keyed by the
+# slugs in `settings_view.SETTINGS_SLUGS` plus Activity, and a test pins the
+# two against each other: a group with no entry would be unreachable, and an
+# entry with no group would be a URL the sub-nav can never offer.
+#
+# ACTIVITY NEEDS ROLES AND CHANNELS, not just the audit trail. #140 says
+# "Activity needs `audit` alone", and that is wrong: `build_audit` resolves the
+# ids inside each entry into names, so without them a history of role changes
+# reads as a list of numbers. It still needs them far less often than every
+# group's page did.
+SETTINGS_GROUP_READS = {
+    "verification": ("roles",),
+    "after-verifying": (),
+    "panel": ("channels", "panel"),
+    "vrchat-group": (),
+    "logging": ("channels",),
+    "activity": ("roles", "channels", "audit"),
+}
+
 # The `__Host-` prefix is enforced by the browser: it only accepts the cookie if
 # it is Secure, has no Domain, and is Path=/. That makes it impossible for a
 # sibling subdomain to shadow this cookie with a Domain-scoped one of the same
@@ -1183,18 +1206,41 @@ def _register_routes(app: Flask) -> None:
         return redirect(portal_url, code=303)
 
     @app.get("/guild/<int:guild_id>/settings")
-    def guild_settings(guild_id: int):
-        """One server's settings, read-only.
+    @app.get("/guild/<int:guild_id>/settings/<group>")
+    def guild_settings(guild_id: int, group: Optional[str] = None):
+        """One group of one server's settings, read-only.
 
         Authority is the bot's, on every one of the calls below: each mints its
         own token and the bot re-checks Administrator before answering. The
         session is what proves who is asking, never what they may see -- so a
         stale OAuth guild list cannot widen access, and a demotion in Discord
         takes effect on the next page load rather than at session expiry.
+
+        TWO RULES, ONE VIEW. `/settings` with no group is a hard external
+        contract, not a courtesy: the bot posts that URL as Discord link
+        buttons, and a link button in message history cannot be edited after
+        the fact. Every one already sent has to keep working, so the bare URL
+        redirects to the first group rather than 404ing or growing an index
+        page nobody asked for.
+
+        Keeping both rules on one endpoint is also what stops this split being
+        a flag day -- `url_for("guild_settings", guild_id=...)` still resolves
+        everywhere it already appears, and lands the reader on a real page via
+        one redirect, so links move deliberately rather than all at once.
         """
         session = _require_login()
         if session is None:
             return redirect(url_for("index"))
+
+        if group is None:
+            return redirect(_settings_url(guild_id, settings_view.SETTINGS_DEFAULT_SLUG))
+
+        # A slug nobody serves is a 404, not a quiet bounce to the first group.
+        # The sub-nav cannot produce one -- it is built from this same table --
+        # so anything arriving here was typed or guessed, and telling a reader
+        # their URL is wrong beats silently showing them a different page.
+        if group not in SETTINGS_GROUP_READS:
+            abort(404)
 
         actor = int(session.discord_id)
         try:
@@ -1202,33 +1248,72 @@ def _register_routes(app: Flask) -> None:
         except BotAPIError as error:
             return _guild_page_unavailable(error, guild_id, session, "settings")
 
-        # Names for ids, and the panel's whereabouts. Best-effort on purpose:
-        # an unresolved id renders as an id, which is less useful but still
-        # true, and that is a better page than an error over a secondary read.
-        # The settings themselves are not optional -- rendering defaults an
-        # admin never chose would be a lie the step-5 save path could persist.
-        roles = _optional_read(lambda: _bot_api().roles(actor, guild_id), "roles", guild_id)
-        channels = _optional_read(
-            lambda: _bot_api().channels(actor, guild_id), "channels", guild_id
-        )
+        # Only what this group renders. The single page had to read everything
+        # because it showed everything; a page per group can ask for less, so
+        # splitting Settings costs fewer bot calls per view rather than more,
+        # despite more views per visit.
+        #
+        # Best-effort on purpose: an unresolved id renders as an id, which is
+        # less useful but still true, and that is a better page than an error
+        # over a secondary read. The settings themselves are not optional --
+        # rendering defaults an admin never chose would be a lie the save path
+        # could persist.
+        needs = SETTINGS_GROUP_READS[group]
+        roles = channels = panel = audit = None
+        if "roles" in needs:
+            roles = _optional_read(
+                lambda: _bot_api().roles(actor, guild_id), "roles", guild_id
+            )
+        if "channels" in needs:
+            channels = _optional_read(
+                lambda: _bot_api().channels(actor, guild_id), "channels", guild_id
+            )
+        if "panel" in needs:
+            panel = _optional_read(
+                lambda: _bot_api().panel(actor, guild_id), "panel", guild_id
+            )
+        if "audit" in needs:
+            audit = _optional_read(
+                lambda: _bot_api().audit(actor, guild_id), "audit", guild_id
+            )
+
         # Read once and cleared, so a reload does not repeat it.
         notice = _store().take_notice(session.sid)
-        panel = _optional_read(
-            lambda: _bot_api().panel(actor, guild_id), "panel", guild_id
+
+        # True when everything THIS page needed came back, which is not the
+        # same question the single page asked. A group with no ids to resolve
+        # has nothing to warn about and must not inherit a warning from the
+        # reads it never made.
+        names_resolved = ("roles" not in needs or roles is not None) and (
+            "channels" not in needs or channels is not None
         )
-        audit = _optional_read(
-            lambda: _bot_api().audit(actor, guild_id), "audit", guild_id
-        )
+
+        if group == settings_view.ACTIVITY_SLUG:
+            return render_template(
+                "activity.html",
+                audit=settings_view.build_audit(audit, roles, channels),
+                # The shared header says what this server is paying for, so
+                # this page needs it too -- one sentence, one place, rather
+                # than a second copy that can disagree with Settings'.
+                premium=settings.get("premium") or {},
+                names_resolved=names_resolved,
+                **_guild_chrome(session, guild_id, "settings", group),
+            )
+
+        groups = settings_view.build_groups(settings, roles, channels, panel)
+        current = next(one for one in groups if one["slug"] == group)
 
         return render_template(
             "settings.html",
-            groups=settings_view.build_groups(settings, roles, channels, panel),
-            audit=settings_view.build_audit(audit, roles, channels),
+            # A list of one. The template's loop body is unchanged by the
+            # split, which is why the field renderer is not duplicated five
+            # times -- the page is the same page, given less.
+            groups=[current],
             premium=settings.get("premium") or {},
             upgrade=settings_view.build_upgrade(
                 settings, _config().discord_client_id
             ),
-            names_resolved=roles is not None and channels is not None,
+            names_resolved=names_resolved,
             auto_verify_column_present=settings.get("auto_verify_column_present", True),
             saved=notice == "saved",
             # Deliberately not "checked": the answer arrives over a queue and
@@ -1241,7 +1326,7 @@ def _register_routes(app: Flask) -> None:
                 _save_error_message(_notice_arg(notice, "error"))
                 or _panel_error_message(_notice_arg(notice, "panel_error"))
             ),
-            **_guild_chrome(session, guild_id, "settings"),
+            **_guild_chrome(session, guild_id, "settings", group),
         )
 
     @app.get("/updates")
@@ -2171,21 +2256,20 @@ def _settings_url(guild_id: int, group: str) -> str:
     actually on -- otherwise a save on Logging answers on Verification, with
     the right notice on the wrong page.
 
-    `group` is deliberately unused today. Settings is still one page, so there
-    is nothing yet to send it to and no behaviour to change; what this buys is
-    that the slug is already threaded through all nine call sites, and phase 2
-    edits this function instead of finding them again. The easy one to miss is
-    `_save`'s `if not changes:` guard, which looks like a no-op.
+    Phase 1 threaded the slug through all nine call sites and ignored it here.
+    This is the line that phase promised: the same nine now answer on the page
+    the admin was actually on, instead of putting the right notice on the wrong
+    one. The easy site to miss is `_save`'s `if not changes:` guard, which reads
+    like a no-op.
 
-    It is checked against the table anyway, now rather than in phase 2. Every
-    caller passes a literal, so a slug that is not in SETTINGS_SLUGS is a typo
-    -- and one that reaches phase 2 unchecked becomes a redirect to a URL no
-    route serves, which is the 404 this table exists to make impossible. Loud
-    here, in a test run, beats silent there.
+    The slug is checked against the table rather than trusted. Every caller
+    passes a literal, so one outside SETTINGS_SLUGS is a typo -- and a typo
+    here is now a redirect to a URL that 404s, which is exactly what one table
+    of slugs exists to prevent.
     """
     if group not in settings_view.SETTINGS_SLUGS:
         raise ValueError(f"unknown settings group: {group!r}")
-    return url_for("guild_settings", guild_id=guild_id)
+    return url_for("guild_settings", guild_id=guild_id, group=group)
 
 
 def _save(guild_id: int, session, changes: dict, group: str):
@@ -2343,13 +2427,21 @@ SECTIONS = (
 SECTION_ENDPOINTS = {key: endpoint for key, _label, endpoint in SECTIONS}
 
 
-def _guild_chrome(session, guild_id: int, section: str) -> dict:
+def _guild_chrome(
+    session, guild_id: int, section: str, group: Optional[str] = None
+) -> dict:
     """Everything every guild page needs regardless of which section it is.
 
     The name and icon come from the session's OAuth copy, which is display data
     and stale by design -- the bot has already decided whether this page may be
     rendered at all, and a guild missing from a stale list still renders rather
     than pretending an admin promoted since login has no server.
+
+    `group` is the settings sub-page, when there is one. It travels because the
+    theme picker, the sidebar toggle and the bell's "Mark all as read" all post
+    from every page and all have to land the reader back on the one they were
+    reading -- and once Settings is six pages, "the settings page" is no longer
+    an answer.
     """
     guild = _session_guild(session, guild_id)
     return {
@@ -2362,6 +2454,9 @@ def _guild_chrome(session, guild_id: int, section: str) -> dict:
         # Which page the hamburger should return to. A key from our own table,
         # so the form carries a name we recognise rather than a path it chose.
         "nav_return_to": SECTION_ENDPOINTS.get(section, "index"),
+        # Empty on every page that has no sub-page, which the forms treat as
+        # "no group" rather than as a value.
+        "nav_return_group": group or "",
         "csrf_token": session.csrf_token,
     }
 
@@ -2420,6 +2515,27 @@ def _preference_return_url() -> str:
             values[name] = int(raw)
         except (TypeError, ValueError):
             return url_for("index")
+
+    # The one string a return form may carry, and the only reason this function
+    # needed touching for #140: Settings is six pages now, so "back to
+    # Settings" is no longer an answer. Without this, changing theme on
+    # /settings/logging drops the reader on /settings/verification.
+    #
+    # Looked up, never passed through. A slug is no more trustworthy than a
+    # path for being short, and the rule this function states -- that nothing
+    # from the request is interpolated into a redirect target -- has to hold
+    # for strings as well as for ids.
+    #
+    # Anything unrecognised falls through to the bare settings URL rather than
+    # to the server list: a form cached before this shipped carries no group at
+    # all, and bouncing a reader out of the server they were configuring is a
+    # worse answer than landing them on its first settings page. A hand-edited
+    # one gets the same treatment, because the value never reaches `url_for`.
+    if endpoint == "guild_settings":
+        group = request.form.get("group") or ""
+        if group in SETTINGS_GROUP_READS:
+            values["group"] = group
+
     return url_for(endpoint, **values)
 
 

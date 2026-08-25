@@ -13,34 +13,17 @@
 {# No breadcrumb: the sidebar carries both the way back to the server list and
    the name of the server you are in. #}
 
-{# Each group below is its own card rather than a heading inside one long
-   panel. Settings within a group are separated by a hairline, so when the
-   groups were only separated by whitespace the two boundaries carried the
-   same visual weight and "which section am I in" had to be read rather than
-   seen. #}
+{# Each group is its own card rather than a heading inside one long panel.
+   Settings within a group are separated by a hairline, so when the groups were
+   only separated by whitespace the two boundaries carried the same visual
+   weight and "which section am I in" had to be read rather than seen.
+
+   The loop below now receives one group, not five (#140) -- it stays a loop
+   because the body is unchanged by the split, and rewriting three hundred
+   lines of field rendering to address a single object would have been a large
+   diff to say the same thing. #}
 <section class="panel">
-  <header class="guild-head">
-    <span class="icon" aria-hidden="true">
-      {% if guild_icon %}
-        <img src="{{ guild_icon }}" alt="" width="64" height="64">
-      {% else %}
-        <span class="initial">{{ guild_name[:1] | upper }}</span>
-      {% endif %}
-    </span>
-    <div>
-      <h1>{{ guild_name }}</h1>
-      <p class="muted">
-        {% if premium.premium %}
-          VRCVerify Premium is active on this server.
-        {% elif premium.grandfathered %}
-          This server was set up before Premium launched, so it keeps several
-          extras free, permanently.
-        {% else %}
-          18+ verification is free on this server, and always will be.
-        {% endif %}
-      </p>
-    </div>
-  </header>
+  {% include "_guild_head.html" %}
 
   {% if saved %}
     <p class="notice ok">Saved.</p>
@@ -475,29 +458,12 @@
   </section>
 {% endfor %}
 
-<section class="panel group">
-    <h2>Recent changes</h2>
-    <p class="muted blurb">
-      Settings changed from this website. Changes made with slash commands in
-      Discord aren't listed here.
-    </p>
-
-    {% if audit is none %}
-      <p class="muted">Couldn't load the history just now. Try again shortly.</p>
-    {% elif not audit %}
-      <p class="muted">No changes have been made from the website yet.</p>
-    {% else %}
-      <ul class="audit">
-        {% for entry in audit %}
-          <li>
-            <span class="audit-what">{{ entry.label }}</span>
-            <span class="muted">{{ entry.old }} &rarr; {{ entry.new }}</span>
-            <span class="muted audit-who">{{ entry.actor }}{% if entry.when_text %} &middot;
-              <time datetime="{{ entry.when }}">{{ entry.when_text }}</time>
-            {% endif %}</span>
-          </li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-</section>
+{# The change history used to sit at the bottom of this page. It has its own
+   page now, and until the sidebar grows a sub-nav (#140 phase 3) this link is
+   the only way to reach it -- a phase that merges and then stalls must not
+   leave a feature with no door, which is the rule this issue set itself. The
+   sub-nav replaces this; it is a seam, not a design. #}
+<p class="muted settings-more">
+  <a href="{{ url_for('guild_settings', guild_id=guild_id, group='activity') }}">Recent changes</a>
+</p>
 {% endblock %}

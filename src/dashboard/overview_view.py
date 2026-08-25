@@ -267,11 +267,27 @@ OPTIONAL_ROWS = (
     ("log_channel", "Verification log", "Optional. Premium."),
 )
 
-# Where each fixable row's action points, as a fragment on the Settings page
-# rather than a full URL -- this module stays Flask-free, like `settings_view`,
-# so the template is what turns this into `url_for('guild_settings', ...) +
-# '#' + anchor`.
-_SETTINGS_ANCHOR = {"verified_role": "f-role_id", "panel": "panel_channel_id"}
+# Where each fixable row's action points: which settings group, and which field
+# on it. Not a full URL -- this module stays Flask-free, like `settings_view`,
+# so the template is what turns this into `url_for('guild_settings', ...,
+# group=...) + '#' + anchor`.
+#
+# THE GROUP IS NOT DECORATION. Settings is a page per group now (#140), and a
+# fragment alone would land wherever the bare /settings URL redirects to. That
+# happens to be the Verification page, so `f-role_id` would have gone on
+# working by luck while `panel_channel_id` scrolled to nothing at all -- no
+# error, no log line, a button that simply stops taking you anywhere. The slugs
+# are the fix, which is why they ship in the same phase as the split.
+_SETTINGS_ANCHOR = {
+    "verified_role": ("verification", "f-role_id"),
+    "panel": ("panel", "panel_channel_id"),
+}
+
+
+def _settings_action(key: str, label: str = "Go to Settings") -> dict:
+    """A "fix it here" button, aimed at the field rather than at the page."""
+    group, anchor = _SETTINGS_ANCHOR[key]
+    return {"label": label, "group": group, "anchor": anchor}
 
 
 def _role_row(configured: dict) -> dict:
@@ -282,7 +298,7 @@ def _role_row(configured: dict) -> dict:
     `read_dashboard_roles`'s `assignable`) when choosing one -- so every
     non-done state gets the same action rather than three different ones.
     """
-    action = {"label": "Go to Settings", "anchor": _SETTINGS_ANCHOR["verified_role"]}
+    action = _settings_action("verified_role")
     if not configured.get("verified_role"):
         return {
             "label": "Verified role",
@@ -321,7 +337,7 @@ def _panel_row(panel: Optional[dict]) -> dict:
     bot can still post to. Mirrors `_role_row`'s three-way split for the same
     reason -- "not set up" and "set up and now broken" need different notes
     even though both need the same fix."""
-    action = {"label": "Go to Settings", "anchor": _SETTINGS_ANCHOR["panel"]}
+    action = _settings_action("panel")
     if not panel or not panel.get("posted"):
         return {
             "label": "Instructions panel",
@@ -414,12 +430,26 @@ def _setup_step(setup: dict) -> dict:
     if role["state"] != "done":
         title = "No verified role is set" if role["state"] == "todo" \
             else "The verified role needs attention"
-        return {"title": title, "body": role["note"], "action": "settings"}
+        # Named, not left to the template's fallback: this is the one
+        # candidate whose button already knew which field it was about, and
+        # after the split (#140) "Settings" is five pages, only one of which
+        # has a role picker on it.
+        return {
+            "title": title,
+            "body": role["note"],
+            "action": "settings",
+            "group": _SETTINGS_ANCHOR["verified_role"][0],
+        }
 
     panel = by_label["Instructions panel"]
     title = "No instructions panel is posted" if panel["state"] == "todo" \
         else "The instructions panel needs attention"
-    return {"title": title, "body": panel["note"], "action": "settings"}
+    return {
+        "title": title,
+        "body": panel["note"],
+        "action": "settings",
+        "group": _SETTINGS_ANCHOR["panel"][0],
+    }
 
 
 def _demo_step(overview: dict) -> Optional[dict]:

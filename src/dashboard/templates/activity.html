@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ guild_name }} — VRCVerify{% endblock %}
+
+{% block content %}
+{# The audit log, which was never one of the settings groups -- `build_groups()`
+   does not return it and never did, so it rendered below the loop as a card of
+   its own. Splitting Settings gives it the sub-page that status already
+   implied, rather than attaching it to whichever group it happened to sit
+   under (#140).
+
+   It is also the one page here that reads the audit trail, which every group's
+   page used to fetch whether or not it showed it. #}
+<section class="panel">
+  {% include "_guild_head.html" %}
+
+  {% if not names_resolved %}
+    <p class="notice">
+      Couldn't load this server's roles and channels just now, so some changes
+      below name an ID instead of a role or channel. The history itself is
+      correct.
+    </p>
+  {% endif %}
+</section>
+
+<section class="panel group">
+    <h2>Recent changes</h2>
+    <p class="muted blurb">
+      Settings changed from this website. Changes made with slash commands in
+      Discord aren't listed here.
+    </p>
+
+    {% if audit is none %}
+      <p class="muted">Couldn't load the history just now. Try again shortly.</p>
+    {% elif not audit %}
+      <p class="muted">No changes have been made from the website yet.</p>
+    {% else %}
+      <ul class="audit">
+        {% for entry in audit %}
+          <li>
+            <span class="audit-what">{{ entry.label }}</span>
+            <span class="muted">{{ entry.old }} &rarr; {{ entry.new }}</span>
+            <span class="muted audit-who">{{ entry.actor }}{% if entry.when_text %} &middot;
+              <time datetime="{{ entry.when }}">{{ entry.when_text }}</time>
+            {% endif %}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+</section>
+{% endblock %}

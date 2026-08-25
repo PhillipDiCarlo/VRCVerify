@@ -153,7 +153,7 @@
   {% else %}
     <p class="blurb">
       18+ verification is free and always will be. Premium unlocks the settings
-      marked on <a href="{{ url_for('guild_settings', guild_id=guild_id) }}">Settings</a>,
+      marked on <a href="{{ url_for('guild_settings', guild_id=guild_id, group='verification') }}">Settings</a>,
       shortens the wait between verifications, and moves this server up the
       verification queue.
     </p>

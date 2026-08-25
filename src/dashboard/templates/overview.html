@@ -70,7 +70,7 @@
              that carry no label are unchanged. #}
           {{ next_step.cta_label or 'See plans and subscribe' }}</a>
       {% else %}
-        <a class="button" href="{{ url_for('guild_settings', guild_id=guild_id) }}">
+        <a class="button" href="{{ url_for('guild_settings', guild_id=guild_id, group=next_step.group or 'verification') }}">
           {{ next_step.cta_label or 'Go to Settings' }}</a>
       {% endif %}
 
@@ -186,7 +186,7 @@
       What's configured here, and whether it's actually working -- one list
       instead of two, since "switched on" and "still works" used to be
       answered in different places on this page. Change any of it on
-      <a href="{{ url_for('guild_settings', guild_id=guild_id) }}">Settings</a>.
+      <a href="{{ url_for('guild_settings', guild_id=guild_id, group='verification') }}">Settings</a>.
     </p>
 
     {# Pipedrive's finished state, not a fourth tick among three: a fully
@@ -245,8 +245,11 @@
           </span>
           <span class="muted setup-note">{{ row.note }}</span>
           {% if row.action %}
+            {# The group as well as the fragment (#140). Without it this
+               lands on whatever the bare URL redirects to, and the panel row's
+               anchor matches nothing there. #}
             <a class="button setup-action"
-               href="{{ url_for('guild_settings', guild_id=guild_id) }}#{{ row.action.anchor }}">
+               href="{{ url_for('guild_settings', guild_id=guild_id, group=row.action.group) }}#{{ row.action.anchor }}">
               {{- row.action.label -}}
             </a>
           {% endif %}

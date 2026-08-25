@@ -165,6 +165,11 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="return_to" value="{{ nav_return_to }}">
         <input type="hidden" name="guild_id" value="{{ guild_id }}">
+        {# Which settings sub-page to come back to (#140). Absent everywhere
+           else, and absent here too until Settings has one. #}
+        {% if nav_return_group %}
+          <input type="hidden" name="group" value="{{ nav_return_group }}">
+        {% endif %}
         {# Sends the state it moves you TO. Absent means expanded, which is why
            the expand button carries no value at all. #}
         {% if nav_collapsed %}
@@ -334,6 +339,9 @@
                   {% if guild_id %}
                     <input type="hidden" name="guild_id" value="{{ guild_id }}">
                   {% endif %}
+                  {% if nav_return_group %}
+                    <input type="hidden" name="group" value="{{ nav_return_group }}">
+                  {% endif %}
                   <button type="submit" class="bell-read">Mark all as read</button>
                 </form>
               </div>
@@ -376,6 +384,9 @@
           <input type="hidden" name="return_to" value="{{ nav_return_to or 'index' }}">
           {% if guild_id %}
             <input type="hidden" name="guild_id" value="{{ guild_id }}">
+          {% endif %}
+          {% if nav_return_group %}
+            <input type="hidden" name="group" value="{{ nav_return_group }}">
           {% endif %}
 
           <p class="menu-label" id="theme-menu-label">Appearance</p>
