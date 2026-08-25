@@ -45,9 +45,14 @@ obviously fake session id, which is exactly what a person clicking the button
 to check this would do. No key, no account, no personal data. Every local
 alternative was tried above and none of them can tell the two outcomes apart.
 """
-import os, pathlib, subprocess, sys, time, urllib.request
+import os, pathlib, subprocess, sys, time, urllib.parse, urllib.request
 REPO = pathlib.Path("/Users/italiandogs/Documents/Git-Repos/VRCVerify")
 BASE="http://127.0.0.1:5001"; FREE="700000000000000002"
+
+def is_stripe(url):
+    """Host check, not a substring one: evil.com/?x=stripe.com is not Stripe."""
+    host = (urllib.parse.urlsplit(url).hostname or "").lower()
+    return host == "stripe.com" or host.endswith(".stripe.com")
 
 WATCH = """
 window.__csp = [];
@@ -77,7 +82,7 @@ def run(state, click, label, break_csp=False):
             page.click(click)
             page.wait_for_timeout(1200)
             posted = any(m == "POST" for m, _ in seen)
-            hops = [u for m, u in seen if m == "GET" and "stripe.com" in u]
+            hops = [u for m, u in seen if m == "GET" and is_stripe(u)]
             verdict = "followed" if hops else "BLOCKED -- the button did nothing"
             print(f"  {label:22} POST={posted} -> {verdict}")
             if hops: print(f"    {hops[0][:76]}")
