@@ -66,13 +66,21 @@ GROUP_INPUT_MAXLEN = 120
 # These become a URL contract the moment phase 2 ships them. An admin who
 # bookmarks /settings/vrchat-group keeps that link, so renaming one later is a
 # redirect to add, not a string to edit.
-SETTINGS_SLUGS = (
-    "verification",
-    "after-verifying",
-    "panel",
-    "vrchat-group",
-    "logging",
+SETTINGS_GROUPS = (
+    ("verification", "Verification"),
+    ("after-verifying", "After verifying"),
+    ("panel", "Instructions panel"),
+    ("vrchat-group", "VRChat group"),
+    ("logging", "Logging"),
 )
+
+# The names, not a second copy of them. `build_groups()` titles its cards from
+# this table and the sub-nav labels its links from it, so a group renamed on
+# the page is renamed in the nav by the same edit -- which is the whole point
+# of #140's "not a second hand-maintained list that can drift from either".
+SETTINGS_TITLES = dict(SETTINGS_GROUPS)
+
+SETTINGS_SLUGS = tuple(slug for slug, _title in SETTINGS_GROUPS)
 
 # Where /guild/<id>/settings with no group sends an admin. First rather than a
 # landing page: the bot posts the bare URL as Discord link buttons that live in
@@ -80,8 +88,11 @@ SETTINGS_SLUGS = (
 # forever, and one canonical URL per group is worth more than an index.
 SETTINGS_DEFAULT_SLUG = SETTINGS_SLUGS[0]
 
-# The audit log's own sub-page.
+# The audit log's own sub-page. One word in the nav and the same word at the
+# top of the page: a reader who taps "Activity" and lands on something headed
+# differently has to stop and check they got where they meant to.
 ACTIVITY_SLUG = "activity"
+ACTIVITY_TITLE = "Activity"
 
 LOCALE_NAMES = {
     "en-US": "English",
@@ -365,21 +376,21 @@ def build_groups(
 
     return [
         {
-            "title": "Verification",
+            "title": SETTINGS_TITLES["verification"],
             "slug": "verification",
             "blurb": "The core of the bot. These are free for every server.",
             "fields": [verified, unverified, auto_verify],
             "save_endpoint": "save_verification_settings",
         },
         {
-            "title": "After verifying",
+            "title": SETTINGS_TITLES["after-verifying"],
             "slug": "after-verifying",
             "blurb": "What happens once a member is confirmed.",
             "fields": [nickname, custom_dm],
             "save_endpoint": "save_member_settings",
         },
         {
-            "title": "Instructions panel",
+            "title": SETTINGS_TITLES["panel"],
             "slug": "panel",
             "blurb": "The message members use to start verification.",
             "fields": [locale, color, icon],
@@ -401,7 +412,7 @@ def build_groups(
             "save_endpoint": "save_panel_settings",
         },
         {
-            "title": "VRChat group",
+            "title": SETTINGS_TITLES["vrchat-group"],
             "slug": "vrchat-group",
             "blurb": "Invite members to your group once they're verified.",
             "fields": [vrchat_group, group_enabled],
@@ -409,7 +420,7 @@ def build_groups(
             "save_endpoint": "save_group_settings",
         },
         {
-            "title": "Logging",
+            "title": SETTINGS_TITLES["logging"],
             "slug": "logging",
             "blurb": "A record of verification activity for your moderators.",
             "fields": [log_channel],

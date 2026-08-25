@@ -574,18 +574,78 @@
            and that is its own issue. #}
         <ul class="side-nav">
           {% for key, label, endpoint in sections %}
-            <li>
-              {# aria-current is the accessible half of the highlight. The
-                 class alone says "this one looks different"; this says which
-                 one you are on. #}
-              <a href="{{ url_for(endpoint, guild_id=guild_id) }}"
-                 class="side-link{% if key == section %} current{% endif %}"
-                 {% if key == section %}aria-current="page"{% endif %}
-                 title="{{ label }}">
-                {{ side_icon(key) }}
-                <span class="side-text">{{ label }}</span>
-              </a>
-            </li>
+            {% if key == 'settings' %}
+              {# Settings has children (#140 phase 3). The section stays a link
+                 -- to its first group, which is where the bare URL sends you
+                 anyway -- and its children appear as a list beneath it while
+                 you are inside it.
+
+                 NOT A `<details>` DISCLOSURE, which is what #140 specified and
+                 what three other menus in this file use. Two reasons, one
+                 measured and one not:
+
+                 * Below --bp the sidebar is a tab strip, so the summary has to
+                   stay in that row while the children take a row of their own.
+                   `display: contents` is the only thing that lifts them out of
+                   the `<details>`, and Chromium then sizes the child against a
+                   box that no longer exists: flex-basis 100%, 100vw and
+                   max-width 100% were all ignored and the six tabs ran 679px
+                   wide on a 390px phone, scrolling the page sideways.
+                 * A disclosure costs a tap. From Overview, Settings would
+                   expand rather than go anywhere, and the reader would then
+                   pick a child. Featurebase -- this issue's own reference --
+                   puts sub-navigation on the content side for exactly this
+                   reason; the nesting lives in the sidebar only where there is
+                   a sidebar.
+
+                 The open state is still what #140 asked for, and by its own
+                 "simplest correct answer": the list is rendered when the
+                 section is Settings and not otherwise, so it cannot disagree
+                 with the page. No cookie, no JavaScript, nothing to sync. #}
+              <li>
+                <a href="{{ url_for('guild_settings', guild_id=guild_id, group=settings_subnav[0][0]) }}"
+                   class="side-link{% if key == section %} current{% endif %}"
+                   title="{{ label }}">
+                  {{ side_icon(key) }}
+                  <span class="side-text">{{ label }}</span>
+                </a>
+              </li>
+              {% if key == section %}
+                {# Its own <li> rather than a list nested in the one above: a
+                   nested list cannot become a full-width row of a wrapping
+                   flex strip without `display: contents`, and that is the rule
+                   Chromium mis-sizes. #}
+                <li class="side-branch">
+                  <ul class="side-sub" aria-label="Settings sections">
+                    {% for slug, sub_label in settings_subnav %}
+                      <li>
+                        {# aria-current goes here, never on the section above:
+                           that link points at the first group, so marking it
+                           "page" would name the wrong one. #}
+                        <a href="{{ url_for('guild_settings', guild_id=guild_id, group=slug) }}"
+                           class="side-sub-link{% if slug == settings_group %} current{% endif %}"
+                           {% if slug == settings_group %}aria-current="page"{% endif %}>
+                          {{ sub_label }}
+                        </a>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </li>
+              {% endif %}
+            {% else %}
+              <li>
+                {# aria-current is the accessible half of the highlight. The
+                   class alone says "this one looks different"; this says which
+                   one you are on. #}
+                <a href="{{ url_for(endpoint, guild_id=guild_id) }}"
+                   class="side-link{% if key == section %} current{% endif %}"
+                   {% if key == section %}aria-current="page"{% endif %}
+                   title="{{ label }}">
+                  {{ side_icon(key) }}
+                  <span class="side-text">{{ label }}</span>
+                </a>
+              </li>
+            {% endif %}
           {% endfor %}
         </ul>
       </nav>

@@ -91,6 +91,11 @@ PAIRS = [
     ("faint", "inset", "the per-period suffix beside a price"),
     ("ok", "inset", "a plan's saving"),
     ("accent-text", "inset", "the trial chip on a plan card"),
+    # #140 phase 3: the sub-nav's current group sits on the same selected pill
+    # the current section always did -- a pairing that shipped with the sidebar
+    # and was never on this list. Adding a second, smaller use of it is the
+    # cheapest moment to find out whether the first one was ever legible.
+    ("ink-strong", "selected", "the current section and group in the sidebar"),
 ]
 
 # Deliberately NOT here: a control's edge against its OWN fill. It was added

@@ -2457,6 +2457,15 @@ def _guild_chrome(
         # Empty on every page that has no sub-page, which the forms treat as
         # "no group" rather than as a value.
         "nav_return_group": group or "",
+        # The Settings sub-nav, on every page rather than only on Settings --
+        # the disclosure is in the sidebar, so it is rendered (closed) beside
+        # Overview and Subscriptions too. Slugs and labels come from the one
+        # table the routes read, so the nav cannot offer a page that does not
+        # exist. Activity is appended rather than listed there because it is
+        # not a settings group: `build_groups()` does not return it.
+        "settings_subnav": settings_view.SETTINGS_GROUPS
+        + ((settings_view.ACTIVITY_SLUG, settings_view.ACTIVITY_TITLE),),
+        "settings_group": group or "",
         "csrf_token": session.csrf_token,
     }
 
