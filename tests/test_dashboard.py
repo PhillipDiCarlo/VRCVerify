@@ -2491,6 +2491,95 @@ class TestSavingTheRemainingGroups:
         assert not getattr(bot_api, "saves", [])
 
 
+class TestTheGroupSlugs:
+    """#140 phase 1. Nothing here is visible yet -- that is the point.
+
+    The slugs exist before the routes that will serve them so that the routes,
+    the sidebar sub-nav and `build_groups()` all read one table instead of each
+    keeping a list. A sub-nav that names a slug no route serves is a link to a
+    404, and two hand-maintained lists is how that happens.
+    """
+
+    def test_every_group_carries_its_slug_in_table_order(self):
+        groups = settings_view.build_groups({}, [], [], None)
+        assert [g["slug"] for g in groups] == list(settings_view.SETTINGS_SLUGS)
+
+    def test_no_group_is_missing_one(self):
+        """A group without a slug is a group phase 2 cannot route to."""
+        groups = settings_view.build_groups({}, [], [], None)
+        assert all(g.get("slug") for g in groups)
+
+    def test_the_slugs_survive_being_put_in_a_url(self):
+        """They become a bookmarkable contract the moment phase 2 ships them."""
+        for slug in settings_view.SETTINGS_SLUGS + (settings_view.ACTIVITY_SLUG,):
+            assert re.fullmatch(r"[a-z][a-z-]*[a-z]", slug), slug
+
+    def test_activity_is_not_one_of_the_groups(self):
+        """The audit log is not returned by build_groups() and never was."""
+        assert settings_view.ACTIVITY_SLUG not in settings_view.SETTINGS_SLUGS
+        groups = settings_view.build_groups({}, [], [], None)
+        assert settings_view.ACTIVITY_SLUG not in {g["slug"] for g in groups}
+
+    def test_the_default_is_the_first_group(self):
+        """Where the bare /settings URL in old Discord buttons will land."""
+        assert (
+            settings_view.SETTINGS_DEFAULT_SLUG == settings_view.SETTINGS_SLUGS[0]
+        )
+
+    def test_a_slug_the_table_does_not_know_is_refused(self, app):
+        """Loud in a test run beats a redirect to a 404 in phase 2."""
+        with app.test_request_context():
+            with pytest.raises(ValueError):
+                app_module._settings_url(GUILD_IN, "verifikation")
+
+    def test_the_save_path_still_returns_to_settings(self, app):
+        """Phase 1 changes no destination. Only phase 2 may do that."""
+        with app.test_request_context():
+            for slug in settings_view.SETTINGS_SLUGS:
+                assert app_module._settings_url(GUILD_IN, slug).endswith(
+                    f"/guild/{GUILD_IN}/settings"
+                )
+
+    # Every POST that returns to Settings passes a literal slug, so a typo in
+    # one is only found by running it. These exercise the exit that is easiest
+    # to get wrong -- the early guard that looks like a no-op -- for all five
+    # save routes, plus both action routes. The success exits share the same
+    # `group` variable and are covered by the save tests above.
+    @pytest.mark.parametrize(
+        "route",
+        ["verification", "member", "logging", "panel", "group"],
+    )
+    def test_a_save_with_nothing_to_save_redirects_without_raising(
+        self, config, store, route
+    ):
+        api = FakeBotAPI()
+        application = create_app(config, store=store, client=api)
+        application.config.update(TESTING=True)
+        test_client = application.test_client()
+        session = login_as(test_client, store)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/{route}", data={"csrf_token": session.csrf_token}
+        )
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith(f"/guild/{GUILD_IN}/settings")
+        assert api.saves == []
+
+    def test_the_panel_post_with_no_channel_redirects_without_raising(
+        self, config, store
+    ):
+        api = FakeBotAPI()
+        application = create_app(config, store=store, client=api)
+        application.config.update(TESTING=True)
+        test_client = application.test_client()
+        session = login_as(test_client, store)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/panel/post",
+            data={"csrf_token": session.csrf_token, "panel_channel_id": ""},
+        )
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith(f"/guild/{GUILD_IN}/settings")
+
+
 class TestTheFormMatchesWhatTheBotAccepts:
     """Controls appear only where the bot said it would take the value."""
 

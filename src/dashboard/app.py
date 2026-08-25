@@ -1543,7 +1543,7 @@ def _register_routes(app: Flask) -> None:
             changes["unverified_role_id"] = request.form.get("unverified_role_id") or None
         _read_checkbox(changes, "auto_verify_new_members")
 
-        return _save(guild_id, session, changes)
+        return _save(guild_id, session, changes, "verification")
 
     @app.post("/guild/<int:guild_id>/panel/post")
     def post_panel(guild_id: int):
@@ -1564,7 +1564,7 @@ def _register_routes(app: Flask) -> None:
 
         channel_id = (request.form.get("panel_channel_id") or "").strip()
         if not channel_id:
-            return redirect(url_for("guild_settings", guild_id=guild_id))
+            return redirect(_settings_url(guild_id, "panel"))
 
         try:
             result = _bot_api().post_panel(
@@ -1573,7 +1573,7 @@ def _register_routes(app: Flask) -> None:
         except BotAPIError as error:
             logger.warning("panel post refused for guild %s: %s", guild_id, error)
             _store().set_notice(session.sid, f"panel_error:{_panel_error_code(error)}")
-            return redirect(url_for("guild_settings", guild_id=guild_id))
+            return redirect(_settings_url(guild_id, "panel"))
 
         # Clamped to a known key before it travels, like the two error codes
         # are. This is the bot's own string, but it is the one place a bot value
@@ -1584,7 +1584,7 @@ def _register_routes(app: Flask) -> None:
             session.sid,
             f"panel:{action if action in PANEL_RESULTS else 'posted'}",
         )
-        return redirect(url_for("guild_settings", guild_id=guild_id))
+        return redirect(_settings_url(guild_id, "panel"))
 
     @app.post("/guild/<int:guild_id>/member")
     def save_member_settings(guild_id: int):
@@ -1610,7 +1610,7 @@ def _register_routes(app: Flask) -> None:
                 "custom_verification_requested_message"
             )
 
-        return _save(guild_id, session, changes)
+        return _save(guild_id, session, changes, "after-verifying")
 
     @app.post("/guild/<int:guild_id>/logging")
     def save_logging_settings(guild_id: int):
@@ -1629,7 +1629,7 @@ def _register_routes(app: Flask) -> None:
                 request.form.get("verification_log_channel_id") or None
             )
 
-        return _save(guild_id, session, changes)
+        return _save(guild_id, session, changes, "logging")
 
     @app.post("/guild/<int:guild_id>/panel")
     def save_panel_settings(guild_id: int):
@@ -1670,7 +1670,7 @@ def _register_routes(app: Flask) -> None:
                     request.form.get("panel_embed_color")
                 )
 
-        return _save(guild_id, session, changes)
+        return _save(guild_id, session, changes, "panel")
 
     @app.get("/vrchat-icon/<file_id>/<version>")
     def vrchat_icon(file_id: str, version: str):
@@ -1740,7 +1740,7 @@ def _register_routes(app: Flask) -> None:
             changes["vrchat_group_id"] = request.form.get("vrchat_group_id") or None
         _read_checkbox(changes, "vrchat_group_invite_enabled")
 
-        return _save(guild_id, session, changes)
+        return _save(guild_id, session, changes, "vrchat-group")
 
     @app.post("/guild/<int:guild_id>/group/verify")
     def verify_group(guild_id: int):
@@ -1765,10 +1765,10 @@ def _register_routes(app: Flask) -> None:
                 "group check refused for guild %s: %s", guild_id, error
             )
             _store().set_notice(session.sid, f"error:{_save_error_code(error)}")
-            return redirect(url_for("guild_settings", guild_id=guild_id))
+            return redirect(_settings_url(guild_id, "vrchat-group"))
 
         _store().set_notice(session.sid, "group_check")
-        return redirect(url_for("guild_settings", guild_id=guild_id))
+        return redirect(_settings_url(guild_id, "vrchat-group"))
 
     @app.post("/logout")
     def logout():
@@ -2163,15 +2163,44 @@ def _csrf_ok(session) -> bool:
     return _same_secret(session.csrf_token, request.form.get("csrf_token", ""))
 
 
-def _save(guild_id: int, session, changes: dict):
+def _settings_url(guild_id: int, group: str) -> str:
+    """Where a POST from a settings group returns to.
+
+    ONE PLACE, because #140 phase 2 splits Settings into a page per group and
+    every redirect below has to follow the admin to the group they were
+    actually on -- otherwise a save on Logging answers on Verification, with
+    the right notice on the wrong page.
+
+    `group` is deliberately unused today. Settings is still one page, so there
+    is nothing yet to send it to and no behaviour to change; what this buys is
+    that the slug is already threaded through all nine call sites, and phase 2
+    edits this function instead of finding them again. The easy one to miss is
+    `_save`'s `if not changes:` guard, which looks like a no-op.
+
+    It is checked against the table anyway, now rather than in phase 2. Every
+    caller passes a literal, so a slug that is not in SETTINGS_SLUGS is a typo
+    -- and one that reaches phase 2 unchecked becomes a redirect to a URL no
+    route serves, which is the 404 this table exists to make impossible. Loud
+    here, in a test run, beats silent there.
+    """
+    if group not in settings_view.SETTINGS_SLUGS:
+        raise ValueError(f"unknown settings group: {group!r}")
+    return url_for("guild_settings", guild_id=guild_id)
+
+
+def _save(guild_id: int, session, changes: dict, group: str):
     """Hand a group's changes to the bot and turn the answer into a redirect.
 
     Shared by every group so there is exactly one place that talks to the write
     endpoint, one place that decides what a refusal looks like, and one thing
     to re-read if that ever needs to change.
+
+    `group` is the caller's slug from `settings_view.SETTINGS_SLUGS`, passed so
+    every one of the four exits below can return to the page the save came
+    from. See `_settings_url`.
     """
     if not changes:
-        return redirect(url_for("guild_settings", guild_id=guild_id))
+        return redirect(_settings_url(guild_id, group))
 
     try:
         saved = _bot_api().update_settings(int(session.discord_id), guild_id, changes)
@@ -2181,7 +2210,7 @@ def _save(guild_id: int, session, changes: dict):
         # as a failure would send an admin round the loop that produced it.
         if isinstance(saved, dict) and saved.get("panel_stale"):
             _store().set_notice(session.sid, "stale")
-            return redirect(url_for("guild_settings", guild_id=guild_id))
+            return redirect(_settings_url(guild_id, group))
     except BotAPIError as error:
         logger.warning("save refused for guild %s: %s", guild_id, error)
         # A code, never the bot's text. What comes back is a fixed reason
@@ -2190,10 +2219,10 @@ def _save(guild_id: int, session, changes: dict):
         # day one of them carries something a caller influenced is not the day
         # to find that out.
         _store().set_notice(session.sid, f"error:{_save_error_code(error)}")
-        return redirect(url_for("guild_settings", guild_id=guild_id))
+        return redirect(_settings_url(guild_id, group))
 
     _store().set_notice(session.sid, "saved")
-    return redirect(url_for("guild_settings", guild_id=guild_id))
+    return redirect(_settings_url(guild_id, group))
 
 
 # What the Subscriptions page may say back to an admin after a POST, keyed so
