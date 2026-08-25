@@ -82,6 +82,15 @@ PAIRS = [
     ("muted", "panel", "the CONFIRMING and UNKNOWN chips"),
     ("ink-strong", "inset", "the lapsed win-back heading"),
     ("muted", "inset", "the lapsed win-back sentence"),
+    # #141 phase 2: the plan cards are drawn on --inset, not --panel, so every
+    # pair on them needs its own entry. Only `ink on inset` was listed before
+    # -- for text typed into an input -- and the price, the saving, the plan
+    # label and the trial chip were all riding on that one line.
+    ("ink", "inset", "the price on a plan card"),
+    ("muted", "inset", "a plan's label"),
+    ("faint", "inset", "the per-period suffix beside a price"),
+    ("ok", "inset", "a plan's saving"),
+    ("accent-text", "inset", "the trial chip on a plan card"),
 ]
 
 # Deliberately NOT here: a control's edge against its OWN fill. It was added

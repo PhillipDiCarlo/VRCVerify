@@ -812,6 +812,37 @@ class TestTheStatusChipAndFactList:
         assert page.chip == {"label": "Charged twice", "tone": "warn"}
         assert ("Billed through", "Card and Discord") in page.facts
 
+    def test_a_discord_subscriber_is_still_told_it_has_premium(self):
+        """A regression this issue introduced, caught by an adversarial pass.
+
+        The sentence "This server has VRCVerify Premium, bought through
+        Discord" was deleted on the assumption the fact list carried it.
+        `build()` passes no `plan_label` for that branch -- Discord sends no
+        price id -- so the page named the payment route and never named what
+        was bought, on the page whose entire job is saying whether you are
+        paying.
+        """
+        page = build(payload(premium=True, discord=True))
+        labels = dict(page.facts)
+        assert labels["Plan"] == subscription_view.UNKNOWN_PLAN_LABEL
+        assert labels["Billed through"] == "Discord"
+
+    def test_a_failing_payment_does_not_promise_a_renewal(self):
+        """"Renews on 3 November" directly under "your last payment didn't go
+        through" is a promise this page cannot make -- Stripe is retrying and
+        may yet give up. The prose this replaced hedged with "due to renew",
+        and dropping that hedge was an accident of compressing it to a label.
+        """
+        labels = dict(build(payload(premium=True, active=True,
+                                    status="past_due")).facts)
+        assert "Renews" not in labels
+        assert labels["Due to renew"]
+
+    def test_a_healthy_subscription_still_says_renews(self):
+        labels = dict(build(payload(premium=True, active=True,
+                                    status="active")).facts)
+        assert labels["Renews"]
+
     def test_a_free_server_gets_no_chip(self):
         """"Not subscribed" is not a status worth stamping, and a grey pill
         saying "Free" beside a Buy button reads as a downgrade."""
@@ -1040,6 +1071,49 @@ class TestThePageRenders:
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
         assert "plan-trial" not in page
         assert "free trial" not in page
+
+    def test_no_link_falls_back_to_the_browsers_own_colour(self, config):
+        """#168. There was no `a { color }` rule at all, so "See what's
+        included on Discord's store page" rendered in Chrome's link blue -- on
+        a card the design system painted, on the page that takes money.
+
+        Read from the stylesheet rather than the render, because a computed
+        colour needs a browser and this is the rule's existence, not its
+        value. `test_contrast.py` owns whether --accent-text is legible where
+        links are drawn.
+        """
+        import pathlib
+        import re as _re
+
+        import dashboard
+
+        css = (
+            pathlib.Path(dashboard.__file__).parent / "static" / "style.css"
+        ).read_text(encoding="utf-8")
+        base = _re.search(r"\na\s*\{([^}]*)\}", css)
+        assert base, "no base `a { }` rule -- links fall back to the user agent"
+        assert "color:" in base.group(1)
+        # Colour alone is not a link affordance (WCAG 1.4.1). The
+        # component-scoped rules drop the underline deliberately, because a nav
+        # item is identifiable by position; a word inside a sentence is not.
+        assert "text-decoration" in base.group(1)
+
+    def test_the_discord_route_is_not_left_as_a_paragraph(self, config):
+        """The card route gets three laid-out cards with prices and buttons.
+        This page is the only place that lists both routes, and the 6- and
+        12-month terms are card-only precisely because Discord bills monthly --
+        so the redesign must not quietly favour one."""
+        client, _bot, _stripe, _session = make_client(config)
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert 'class="buy-command"' in page
+        assert "/vrcverify_subscription" in page
+
+    def test_both_purchase_routes_are_still_offered(self, config):
+        """Neither may quietly disappear in a restyle."""
+        client, _bot, _stripe, _session = make_client(config)
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert "/subscription/checkout" in page
+        assert "/vrcverify_subscription" in page
 
     def test_no_inline_style_reaches_the_page(self, config):
         """`style-src 'self'` drops inline styles SILENTLY, so a colour written

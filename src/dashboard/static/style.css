@@ -124,7 +124,21 @@
 
   /* Semantic, and separate from the accent on purpose -- "this succeeded" and
    * "this is the current page" must never be the same colour. */
-  --ok: #1a8245;
+  /* Darkened from #1a8245 by the adversarial pass over #141. That value is
+   * 4.86:1 on --panel and passed everywhere it was measured -- but the plan
+   * cards are drawn on --inset, and on that surface it is 4.14:1. "Save about
+   * 20%" was below AA on the page that takes money, on the words whose whole
+   * job is making the longer plans attractive.
+   *
+   * THE THIRD TIME THIS EXACT PAIRING HAS FAILED. #135 phase 5 caught
+   * --ok/--inset at 4.14:1 on .setup-complete and fixed it by moving that
+   * element onto --panel. A plan's saving cannot move -- it lives inside the
+   * card. So the token moves instead, which also lifts every other --ok use
+   * rather than leaving the next surface to be discovered the same way.
+   *
+   * 4.59:1 on --inset, 5.39:1 on --panel, 4.85:1 on --bg. Every pair using it
+   * is pinned in test_contrast.py, --inset included now. */
+  --ok: #177a41;
   --danger: #d83c3e;
   --notice: #8a5300;
   --notice-bg: #fdf3e0;
@@ -433,6 +447,35 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* THE DESIGN SYSTEM OWNS ITS LINK COLOUR (#168).
+ *
+ * There was no `a { color }` rule at all. Links took their colour from five
+ * component-scoped rules and everything else fell back to the user agent's --
+ * so "See what's included on Discord's store page" rendered in Chrome's link
+ * blue, on a card this file had painted, next to text in --ink and --muted. On
+ * the page that takes money.
+ *
+ * It was better than it sounds and still wrong: `color-scheme` is declared per
+ * theme, so Chrome supplied its dark-mode link colour on dark rather than
+ * #0000EE on #313338. Both were legible. But the colour was the browser's, it
+ * did not match --accent-text, which exists for exactly this, and it would not
+ * have followed the palette if the tokens changed.
+ *
+ * --accent-text rather than --accent: the latter is a button background and is
+ * 2.7:1 against a card. Both pairs used here are pinned in test_contrast.py.
+ *
+ * Underlined, not just tinted. Colour alone is not a link affordance, and
+ * WCAG 1.4.1 says so -- the five component rules that already set a colour
+ * drop the underline deliberately, because a nav item and a breadcrumb are
+ * identifiable by position. A sentence with a word in it is not. */
+a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+a:hover { color: var(--ink-strong); }
 
 /* Type. Discord runs heavier than a document would: 500 for ordinary UI text,
  * 600-700 for anything that names a thing. */
@@ -2348,6 +2391,26 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
 
 
 .plan-card .button { margin-top: auto; align-self: stretch; }
+
+/* The Discord route's command, given the weight the card route's buttons get.
+ * Not styled as a button: nothing on this page can run it, and a control that
+ * looks clickable and is not is worse than plain text. It is the thing to
+ * copy, so it is presented as the thing to copy -- selectable, monospaced, on
+ * its own line. */
+.buy-command {
+  margin: 0 0 var(--space-3);
+}
+
+.buy-command code {
+  display: inline-block;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.9375rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--inset);
+  /* Selecting a command is the point of showing one. */
+  user-select: all;
+}
 
 .plan-notes {
   margin: 1rem 0 0;
