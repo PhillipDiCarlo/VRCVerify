@@ -52,6 +52,37 @@ CHOICE_KINDS = frozenset({"role", "role_optional", "locale", "channel"})
 # is not silently truncated at the keyboard.
 GROUP_INPUT_MAXLEN = 120
 
+# The URL slug for each settings group, in the order the groups are built, plus
+# one for the audit log -- which is not a group and never has been, so it gets
+# its own slug rather than being attached to whichever group it happened to sit
+# below (#140).
+#
+# ONE TABLE, because a sub-nav that names a slug no route serves is a link to a
+# 404. That is the same argument `SECTIONS` in app.py already makes for the top
+# level, and it holds one level down: the routes, the sidebar sub-nav and the
+# groups below all read these names from here rather than each spelling them
+# out.
+#
+# These become a URL contract the moment phase 2 ships them. An admin who
+# bookmarks /settings/vrchat-group keeps that link, so renaming one later is a
+# redirect to add, not a string to edit.
+SETTINGS_SLUGS = (
+    "verification",
+    "after-verifying",
+    "panel",
+    "vrchat-group",
+    "logging",
+)
+
+# Where /guild/<id>/settings with no group sends an admin. First rather than a
+# landing page: the bot posts the bare URL as Discord link buttons that live in
+# message history and cannot be edited, so it has to resolve to something
+# forever, and one canonical URL per group is worth more than an index.
+SETTINGS_DEFAULT_SLUG = SETTINGS_SLUGS[0]
+
+# The audit log's own sub-page.
+ACTIVITY_SLUG = "activity"
+
 LOCALE_NAMES = {
     "en-US": "English",
     "es-ES": "Spanish",
@@ -271,6 +302,11 @@ def build_groups(
     "what does it look like" and "where is it, and can the bot still reach it"
     are one question to the person reading. It stays a separate key rather than
     a tenth field: it is a status, not a setting, and nothing will ever save it.
+
+    Each group carries its `slug` from SETTINGS_SLUGS, which is what the split
+    into a page per group is routed and navigated by (#140). Nothing reads it
+    while Settings is still one page; it is here first so the routes and the
+    sub-nav can share this list rather than keeping one of their own.
     """
     verified = _role_field(
         settings,
@@ -330,18 +366,21 @@ def build_groups(
     return [
         {
             "title": "Verification",
+            "slug": "verification",
             "blurb": "The core of the bot. These are free for every server.",
             "fields": [verified, unverified, auto_verify],
             "save_endpoint": "save_verification_settings",
         },
         {
             "title": "After verifying",
+            "slug": "after-verifying",
             "blurb": "What happens once a member is confirmed.",
             "fields": [nickname, custom_dm],
             "save_endpoint": "save_member_settings",
         },
         {
             "title": "Instructions panel",
+            "slug": "panel",
             "blurb": "The message members use to start verification.",
             "fields": [locale, color, icon],
             "panel": panel_summary(panel),
@@ -363,6 +402,7 @@ def build_groups(
         },
         {
             "title": "VRChat group",
+            "slug": "vrchat-group",
             "blurb": "Invite members to your group once they're verified.",
             "fields": [vrchat_group, group_enabled],
             "group_setup": group_setup_summary(settings),
@@ -370,6 +410,7 @@ def build_groups(
         },
         {
             "title": "Logging",
+            "slug": "logging",
             "blurb": "A record of verification activity for your moderators.",
             "fields": [log_channel],
             "save_endpoint": "save_logging_settings",
