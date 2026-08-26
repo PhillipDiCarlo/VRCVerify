@@ -1136,8 +1136,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   font-weight: 600;
 }
 
-/* The collapsed rail is icons only, and a sub-item has no icon to be. The
- * section still expands -- it just has nothing to show until the rail does. */
+/* The collapsed rail is icons only, and a sub-item has no icon to be. */
 .layout.collapsed .side-sub { display: none; }
 
 /* --- server picker ---
@@ -2129,6 +2128,18 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
      row does the rest. */
   .switch { width: 2.75rem; height: 1.75rem; }
   .switch::before { width: 1.375rem; height: 1.375rem; }
+
+  /* The one interactive sidebar row this rule forgot when it shipped (#140).
+   * The sub-nav is built for exactly the touch-width case this block exists
+   * for, and every other row in the sidebar gets bumped here -- this one has
+   * to as well, or it is the one link on the phone strip a thumb keeps
+   * missing. Flex + centered text rather than line-height, so the extra
+   * height is real hit area and not a taller line of text. */
+  .side-sub-link {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }
 
 /* --- narrow screens ---

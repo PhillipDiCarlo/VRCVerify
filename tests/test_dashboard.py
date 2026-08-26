@@ -5342,6 +5342,61 @@ class TestNarrowScreens(object):
         assert not bare, "`.empty` on its own reaches a settings value"
 
 
+class TestSettingsPagesHaveDistinctTitles:
+    """Found on an adversarial pass over #140: six routes shared one title.
+
+    Verification and Logging, open in two tabs -- the exact workflow the split
+    makes MORE likely, since it trades one long page for six short ones -- were
+    impossible to tell apart from the tab bar, and neither was distinguishable
+    from Overview's tab for the same guild.
+    """
+
+    def logged_in(self, config, store, **kwargs):
+        test_client, _api = settings_client(config, store, **kwargs)
+        return test_client
+
+    @staticmethod
+    def _title(page: str) -> str:
+        return re.search(r"<title>(.*?)</title>", page, re.S).group(1)
+
+    def test_every_group_gets_its_own_title(self, config, store):
+        test_client = self.logged_in(config, store)
+        titles = {
+            group: self._title(settings_page(test_client, group).data.decode())
+            for group in SETTINGS_GROUPS
+        }
+        assert len(set(titles.values())) == len(titles), titles
+
+    def test_activity_is_not_named_like_a_group(self, config, store):
+        test_client = self.logged_in(config, store)
+        titles = {
+            self._title(settings_page(test_client, group).data.decode())
+            for group in SETTINGS_GROUPS
+        }
+        assert self._title(
+            settings_page(test_client, "activity").data.decode()
+        ) not in titles
+
+    def test_no_settings_title_collides_with_overview(self, config, store):
+        test_client = self.logged_in(config, store)
+        overview_title = self._title(
+            test_client.get(f"/guild/{GUILD_IN}").data.decode()
+        )
+        for group in SETTINGS_GROUPS + ("activity",):
+            assert (
+                self._title(settings_page(test_client, group).data.decode())
+                != overview_title
+            ), group
+
+    def test_the_title_names_the_group_by_its_own_label(self, config, store):
+        """Not a second copy of the name -- read from the same table the nav
+        and the page heading already share."""
+        test_client = self.logged_in(config, store)
+        for slug, label in settings_view.SETTINGS_GROUPS:
+            title = self._title(settings_page(test_client, slug).data.decode())
+            assert title.startswith(label), (slug, title)
+
+
 class TestTheSubNavOnAPhone(object):
     """#140 phase 3. The one part of this the reference screenshot could not
     answer, because the reference is a desktop sidebar.
@@ -5362,6 +5417,7 @@ class TestTheSubNavOnAPhone(object):
     # `staticmethod` because a bare assignment would turn them back into
     # instance methods and hand each one a `self` it has no parameter for.
     _css = staticmethod(TestNarrowScreens._css)
+    _block = classmethod(TestNarrowScreens._block.__func__)
     _narrow = staticmethod(TestNarrowScreens._narrow)
     _rule = staticmethod(TestNarrowScreens._rule)
 
@@ -5410,6 +5466,16 @@ class TestTheSubNavOnAPhone(object):
         """Icons only, and a sub-item has no icon to be."""
         wide = self._css().split("@media (max-width: 48rem)")[0]
         assert "display: none" in self._rule(wide, ".layout.collapsed .side-sub")
+
+    def test_the_touch_target_matches_every_other_sidebar_row(self):
+        """Found on an adversarial pass: every other interactive sidebar row --
+        `.side-link`, `.menu-item`, the hamburger, `.button` -- gets bumped to
+        44px under `@media (pointer: coarse)`. This is the one new interactive
+        element phase 3 introduced for exactly the touch-width case that block
+        exists for, and it was left out. Measured before the fix: 34.4px
+        rendered on a 390px touch viewport."""
+        rule = self._rule(self._block("@media (pointer: coarse) {"), ".side-sub-link")
+        assert "min-height: 44px" in rule
 
 
 class TestWhatTheDashboardSaysAboutDiscord:

@@ -514,6 +514,14 @@ def build_next_step(
        this function itself returns, `{"title", "body", "action"}` -- so #136
        can hand back exactly what should be shown without this function
        needing to know anything about changelogs.
+
+       #140 ADDS A SILENT REQUIREMENT TO THAT SHAPE: `action: "settings"` now
+       also needs a `"group"` key, one of `settings_view.SETTINGS_SLUGS`, or
+       overview.html's template falls back to `"verification"` -- which is
+       right for the two setup steps that use it today, both of which set it,
+       but would be wrong for any future changelog entry pointing at a
+       different group. Nothing enforces this yet because nothing can: #136
+       has no caller. Whoever writes one has to set `group` explicitly.
     3. The data-backed demo, `_demo_step` -- suppressed for a premium server,
        and never rendered from a figure this page cannot stand behind.
 
