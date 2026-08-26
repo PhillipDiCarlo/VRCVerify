@@ -1,5 +1,10 @@
 {% extends "base.html" %}
-{% block title %}{{ guild_name }} — VRCVerify{% endblock %}
+{# Settings became six pages (#140), and this title stayed one -- an admin
+   with Verification and Logging open in two tabs, which the split makes a
+   more likely thing to do, could not tell them apart from the tab bar, nor
+   from Overview's tab for the same guild. Subscriptions already names its
+   section this way; Settings' six pages need it more, not less. #}
+{% block title %}{{ groups[0].title }} — {{ guild_name }} — VRCVerify{% endblock %}
 
 {# An unticked checkbox submits nothing at all, which is indistinguishable from
    a control that was never on the page -- and the difference matters, because
