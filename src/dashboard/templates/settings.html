@@ -458,12 +458,4 @@
   </section>
 {% endfor %}
 
-{# The change history used to sit at the bottom of this page. It has its own
-   page now, and until the sidebar grows a sub-nav (#140 phase 3) this link is
-   the only way to reach it -- a phase that merges and then stalls must not
-   leave a feature with no door, which is the rule this issue set itself. The
-   sub-nav replaces this; it is a seam, not a design. #}
-<p class="muted settings-more">
-  <a href="{{ url_for('guild_settings', guild_id=guild_id, group='activity') }}">Recent changes</a>
-</p>
 {% endblock %}

@@ -1099,6 +1099,47 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 .side-link:hover .side-mark { color: inherit; }
 .side-link.current .side-mark { color: var(--accent-text); }
 
+/* --- the Settings sub-nav (#140 phase 3) ---
+ *
+ * Rendered only while you are inside Settings, so there is no open state to
+ * keep anywhere and nothing that can disagree with the page. See base.html for
+ * why this is a sibling list rather than the `<details>` the issue specified.
+ *
+ * Indented on a real sidebar, a second tab strip where the sidebar is a strip
+ * -- the same content, laid out by the space there is for it. */
+.side-sub {
+  list-style: none;
+  margin: 0 0 0.125rem;
+  /* Indented to the width of an icon plus its gap, so the children line up
+   * under the label of the section they belong to rather than under its
+   * icon. */
+  padding: 0 0 0 calc(var(--space-2) + 1rem + var(--space-3));
+}
+
+.side-sub-link {
+  display: block;
+  padding: 0.3rem var(--space-2);
+  margin-bottom: 0.125rem;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+
+.side-sub-link:hover { background: var(--hover); color: var(--ink-strong); }
+
+.side-sub-link.current,
+.side-sub-link.current:hover {
+  background: var(--selected);
+  color: var(--ink-strong);
+  font-weight: 600;
+}
+
+/* The collapsed rail is icons only, and a sub-item has no icon to be. The
+ * section still expands -- it just has nothing to show until the rail does. */
+.layout.collapsed .side-sub { display: none; }
+
 /* --- server picker ---
  *
  * A card grid, shaped after Sentry's project list: the card is the same in
@@ -2212,6 +2253,69 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   .side-link { justify-content: center; }
   .layout.collapsed .side-link { justify-content: center; }
   .layout.collapsed .side-guild { justify-content: flex-start; }
+
+  /* THE SUB-NAV IS A SECOND TAB STRIP HERE, NOT AN INDENTED LIST (#140).
+   *
+   * There is no sidebar at this width -- `.side-nav` is a row of tabs above
+   * the content -- so six children indented under one of them has nowhere to
+   * indent from. Letting them wrap instead would push the nav to three or four
+   * rows on every settings page, before a single setting.
+   *
+   * `display: contents` lifts the summary and the sub-list out of their
+   * wrapper so both become direct children of the tab row: the summary sits in
+   * the strip like any other tab, and the sub-list takes a full row of its own
+   * underneath. The `<details>` still hides it when closed, which is what
+   * keeps this to one strip on Overview and Subscriptions.
+   *
+   * It scrolls rather than wrapping -- one row, always, however many groups
+   * there are. Featurebase, Reddit and Etsy all put sub-navigation on the
+   * content side this way; the reference screenshot for this issue could not
+   * answer it because the reference is a desktop sidebar. */
+  /* The children take a row of their own, under the tabs. `.side-branch` is a
+   * real `<li>` and a real flex item, so `flex-basis: 100%` resolves the way
+   * it is supposed to -- which it did not when the list was lifted out of a
+   * `<details>` with `display: contents`. */
+  .side-branch {
+    flex: 1 1 100%;
+    min-width: 0;
+    /* Last, whatever the source order says. The children belong under the
+     * whole strip, not wedged into the middle of it -- in source order this
+     * row sits between Settings and Subscriptions and pushed Subscriptions
+     * onto a third line of its own. `order` is a visual reordering of a list
+     * whose reading order is unchanged, which is exactly the case it is for.
+     * Only here: above --bp the list is not a flex container and this has no
+     * effect at all. */
+    order: 1;
+  }
+
+  .side-sub {
+    /* `min-width: auto` is a flex item's default and it means "never shrink
+     * below your content", which for a nowrap row of six tabs is 679px on a
+     * 390px phone -- the strip stops scrolling and the PAGE scrolls sideways
+     * instead. Measured, not assumed: the row was one line and looked right,
+     * and the body still had a horizontal scrollbar. */
+    min-width: 0;
+    max-width: 100%;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.25rem;
+    margin: 0;
+    padding: var(--space-2) 0 0;
+    border-top: 1px solid var(--line);
+    /* A phone scrolls this with a finger and shows no bar; a trackpad shows
+     * one and would otherwise sit it on top of the last tab. */
+    scrollbar-width: thin;
+  }
+
+  /* Tabs keep their own width and do not squeeze to fit -- the point of
+   * scrolling is that "Instructions panel" stays readable. */
+  .side-sub li { flex: 0 0 auto; }
+  .side-sub-link { white-space: nowrap; }
+
+  /* The rail is a tab strip at this width too, so the sub-nav is as usable
+   * here as anywhere and the desktop rule that hides it does not apply. */
+  .layout.collapsed .side-sub { display: flex; }
 
   .panel { padding: 1rem 1.1rem; }
   .setup-row { grid-template-columns: 1.25rem 1fr; }

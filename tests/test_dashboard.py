@@ -2659,6 +2659,116 @@ class TestTheGroupSlugs:
         )
 
 
+class TestTheSettingsSubNav:
+    """#140 phase 3. The sidebar's second level."""
+
+    @staticmethod
+    def _sidebar(page: str) -> str:
+        start = page.index('<nav class="sidebar"')
+        return page[start : page.index("</nav>", start)]
+
+    def test_it_lists_every_group_and_activity(self, config, store):
+        test_client, _api = settings_client(config, store)
+        nav = self._sidebar(settings_page(test_client).data.decode())
+        for slug, label in settings_view.SETTINGS_GROUPS:
+            assert f'href="/guild/{GUILD_IN}/settings/{slug}"' in nav, slug
+            assert label in nav, label
+        assert f'href="/guild/{GUILD_IN}/settings/activity"' in nav
+        assert settings_view.ACTIVITY_TITLE in nav
+
+    def test_the_nav_cannot_offer_a_page_that_does_not_exist(self, config, store):
+        """The reason it is built from the table rather than written out.
+
+        A nav that disagrees with the routes is a link to a 404, so every
+        target it renders is fetched.
+        """
+        test_client, _api = settings_client(config, store)
+        nav = self._sidebar(settings_page(test_client).data.decode())
+        targets = set(
+            re.findall(rf'href="(/guild/{GUILD_IN}/settings/[a-z-]+)"', nav)
+        )
+        # The five groups, Activity, and the section link itself -- which
+        # points at the first group rather than at a page of its own.
+        assert len(targets) == len(settings_view.SETTINGS_SLUGS) + 1
+        for target in targets:
+            assert test_client.get(target).status_code == 200, target
+
+    def test_the_labels_are_the_headings(self, config, store):
+        """One table, so renaming a group renames its nav entry by the same
+        edit. Two lists is how a nav starts describing a page it no longer
+        matches."""
+        assert settings_view.SETTINGS_TITLES == {
+            group["slug"]: group["title"]
+            for group in settings_view.build_groups({}, [], [], None)
+        }
+
+    def test_the_open_group_is_marked_current(self, config, store):
+        test_client, _api = settings_client(config, store)
+        nav = self._sidebar(settings_page(test_client, "logging").data.decode())
+        current = re.findall(r'href="([^"]+)"[^>]*aria-current="page"', nav)
+        assert current == [f"/guild/{GUILD_IN}/settings/logging"]
+
+    def test_activity_can_be_the_current_one(self, config, store):
+        test_client, _api = settings_client(config, store)
+        nav = self._sidebar(settings_page(test_client, "activity").data.decode())
+        assert (
+            f'href="/guild/{GUILD_IN}/settings/activity"' in nav
+            and 'aria-current="page"' in nav
+        )
+
+    def test_the_section_link_is_not_marked_as_the_page(self, config, store):
+        """It points at the first group, so calling it "page" names the wrong
+        one the moment you are on any of the other five."""
+        test_client, _api = settings_client(config, store)
+        nav = self._sidebar(settings_page(test_client, "logging").data.decode())
+        section = re.search(r'<a[^>]*class="side-link[^"]*"[^>]*>', nav).group(0)
+        assert "aria-current" not in section
+        # The bare URL is a redirect, not a destination; nothing links to it.
+        assert f'href="/guild/{GUILD_IN}/settings"' not in nav
+
+    def test_it_shows_inside_settings_and_nowhere_else(self, config, store):
+        """No cookie and no open state: the list is rendered when you are in
+        the section and not otherwise, so it cannot disagree with the page."""
+        test_client, _api = settings_client(config, store)
+        assert 'class="side-sub"' in settings_page(test_client).data.decode()
+        for path in (f"/guild/{GUILD_IN}", f"/guild/{GUILD_IN}/subscription"):
+            assert 'class="side-sub"' not in test_client.get(path).data.decode(), path
+
+    def test_it_needs_no_javascript(self, config, store):
+        """`<details>` opens by itself, which is why this is a disclosure and
+        not a menu."""
+        test_client, _api = settings_client(config, store)
+        nav = self._sidebar(settings_page(test_client).data.decode())
+        assert "<script" not in nav
+        assert "onclick" not in nav
+
+    def test_it_is_not_dressed_as_a_popover(self, config, store):
+        """prefs.js closes every `details.bar-menu` on outside-click and on
+        Escape, and opening one closes the rest. Right for the bell, the theme
+        picker and the account menu; wrong for a nav section, which would shut
+        itself the moment the reader clicked the form beside it."""
+        test_client, _api = settings_client(config, store)
+        nav = self._sidebar(settings_page(test_client).data.decode())
+        assert "bar-menu" not in nav
+        assert "<details" not in nav
+
+    def test_settings_is_one_tap_from_anywhere(self, config, store):
+        """The section link goes straight to a page rather than expanding.
+
+        A disclosure would have cost a tap from every other section, which is
+        half of why this is a list rather than the `<details>` #140 specified.
+        """
+        test_client, _api = settings_client(config, store)
+        for path in (f"/guild/{GUILD_IN}", f"/guild/{GUILD_IN}/subscription"):
+            nav = self._sidebar(test_client.get(path).data.decode())
+            assert f'href="/guild/{GUILD_IN}/settings/verification"' in nav, path
+
+    def test_no_group_is_marked_current_outside_settings(self, config, store):
+        test_client, _api = settings_client(config, store)
+        nav = self._sidebar(test_client.get(f"/guild/{GUILD_IN}").data.decode())
+        assert 'class="side-sub-link current"' not in nav
+
+
 class TestSettingsIsAPagePerGroup:
     """#140 phase 2. The split itself, and the links that had to move with it."""
 
@@ -2787,15 +2897,15 @@ class TestSettingsIsAPagePerGroup:
         """It was never one of the groups -- `build_groups()` does not return it."""
         test_client = self.logged_in(config, store, audit=AUDIT_ENTRIES)
         page = settings_page(test_client, "activity").data.decode()
-        assert "Recent changes" in page
+        assert "Activity" in page
         main = re.search(r"<main>(.*?)</main>", page, re.S).group(1)
         assert "<form" not in main
 
     def test_every_group_page_can_reach_the_history(self, config, store):
         """It used to be at the bottom of this page, so it needs a door.
 
-        The sub-nav in phase 3 is the real answer; until then a phase that
-        merges and stalls would have left the change history unreachable.
+        Phase 2 spent a line at the foot of each group on this; the sub-nav
+        (phase 3) took the job over and that line is gone.
         """
         test_client = self.logged_in(config, store)
         target = f'href="/guild/{GUILD_IN}/settings/activity"'
@@ -4406,10 +4516,13 @@ class TestTheSubscriptionPage:
 
 class TestTheSidebar:
     def test_it_lists_every_section_on_a_guild_page(self, config, store):
+        """Settings is a disclosure now (#140 phase 3), so it is reached
+        through its children rather than by a link of its own -- the summary
+        toggles, the sub-links navigate."""
         test_client, _api = settings_client(config, store)
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
         assert f'href="/guild/{GUILD_IN}"' in page
-        assert f'href="/guild/{GUILD_IN}/settings"' in page
+        assert f'href="/guild/{GUILD_IN}/settings/verification"' in page
         assert f'href="/guild/{GUILD_IN}/subscription"' in page
 
     def test_no_section_is_reduced_to_its_initial(self, config, store):
@@ -5229,6 +5342,76 @@ class TestNarrowScreens(object):
         assert not bare, "`.empty` on its own reaches a settings value"
 
 
+class TestTheSubNavOnAPhone(object):
+    """#140 phase 3. The one part of this the reference screenshot could not
+    answer, because the reference is a desktop sidebar.
+
+    Below --bp there is no sidebar to indent into: `.side-nav` is a row of tabs
+    above the content. The decision is a SECOND STRIP -- one row, scrolling
+    sideways -- rather than letting six children wrap the nav to three or four
+    rows before a single setting. Featurebase, Reddit and Etsy all put
+    sub-navigation on the content side this way.
+
+    Asserted against the stylesheet like the rest of #133 phase 6, and measured
+    in a real browser besides: the first two attempts at this rule produced a
+    row that looked right and scrolled the whole PAGE sideways.
+    """
+
+    # Borrowed rather than copied: the same brace-matching reader #133 phase 6
+    # uses, so both classes are asserting against the same parse. Wrapped in
+    # `staticmethod` because a bare assignment would turn them back into
+    # instance methods and hand each one a `self` it has no parameter for.
+    _css = staticmethod(TestNarrowScreens._css)
+    _narrow = staticmethod(TestNarrowScreens._narrow)
+    _rule = staticmethod(TestNarrowScreens._rule)
+
+    def test_the_children_take_a_row_of_their_own(self):
+        rule = self._rule(self._narrow(), ".side-branch")
+        assert "100%" in rule
+
+    def test_that_row_comes_after_the_whole_strip(self):
+        """In source order it sits between Settings and Subscriptions, which
+        pushed Subscriptions onto a third line of its own."""
+        assert "order:" in self._rule(self._narrow(), ".side-branch")
+
+    def test_it_is_one_row_that_scrolls(self):
+        rule = self._rule(self._narrow(), ".side-sub")
+        assert "nowrap" in rule
+        assert "overflow-x: auto" in rule
+
+    def test_the_row_can_shrink_below_its_contents(self):
+        """`min-width: auto` is a flex item's default and means "never shrink
+        below your content". With six tabs that is 679px on a 390px phone: the
+        strip stops scrolling and the page scrolls sideways instead. Nothing in
+        the markup shows this -- it was found by measuring the rendered box."""
+        rule = self._rule(self._narrow(), ".side-sub")
+        assert "min-width: 0" in rule
+
+    def test_a_tab_keeps_its_width_rather_than_squeezing(self):
+        """The point of scrolling is that "Instructions panel" stays readable."""
+        assert "0 0 auto" in self._rule(self._narrow(), ".side-sub li")
+        assert "nowrap" in self._rule(self._narrow(), ".side-sub-link")
+
+    def test_the_rail_still_shows_it_here(self):
+        """A collapsed sidebar is a tab strip at this width, so the desktop
+        rule that hides the sub-nav in the rail must not apply."""
+        assert "display: flex" in self._rule(
+            self._narrow(), ".layout.collapsed .side-sub"
+        )
+
+    def test_the_wide_layout_indents_instead(self):
+        """And does not inherit any of the above."""
+        wide = self._css().split("@media (max-width: 48rem)")[0]
+        rule = self._rule(wide, ".side-sub")
+        assert "padding" in rule
+        assert "overflow-x" not in rule
+
+    def test_the_rail_hides_it_on_a_real_sidebar(self):
+        """Icons only, and a sub-item has no icon to be."""
+        wide = self._css().split("@media (max-width: 48rem)")[0]
+        assert "display: none" in self._rule(wide, ".layout.collapsed .side-sub")
+
+
 class TestWhatTheDashboardSaysAboutDiscord:
     """Issue #154. The dashboard told people to change settings with a command
     that stopped being able to change anything.
@@ -5590,7 +5773,9 @@ class TestTheSidebarLayout:
         is a broken one."""
         sidebar = self._sidebar(self._page(config, store, collapsed=True))
         assert sidebar.count('class="side-mark"') == 3
-        for endpoint in ("", "/settings", "/subscription"):
+        # Settings' own target is its first child's: the section is a
+        # disclosure and has no page of its own to point at.
+        for endpoint in ("", "/settings/verification", "/subscription"):
             assert f'href="/guild/{GUILD_IN}{endpoint}"' in sidebar
 
     def test_the_way_out_comes_before_the_server_it_leaves(self, config, store):
