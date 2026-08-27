@@ -374,8 +374,54 @@
   --text-note: 0.8125rem;    /* descriptions under a control */
   --text-micro: 0.6875rem;   /* badges, the smallest thing that is still text */
 
+  /* THE ONE SIZE A CONSOLE DOES NOT HAVE, and the reason /pricing came out
+   * wrong (#195 phase 1).
+   *
+   * Every step above is a console step: the largest, --text-page-title, is
+   * 22.4px, which is correct for Overview and Settings and sits inside the
+   * 20-28px the reference consoles use. /pricing is not a console page. It is
+   * a marketing page that happens to be served from this app because prices
+   * have to be read from Stripe at render time, and it took 22.4px because
+   * that was the only thing on offer -- against 44-56px on every pricing page
+   * this epic looked at.
+   *
+   * So this step exists to be reached for deliberately, by the handful of
+   * surfaces that are selling rather than administering. It is NOT a bigger
+   * h1: reaching for it on Overview would make a console shout.
+   *
+   * The identical declaration is in site/style.css, where the landing hero
+   * already used this clamp -- it is the one type value the two files share
+   * outright, which is what makes the pricing page and the landing page it is
+   * reached from read as one product. Change it in one, change it in the
+   * other. */
+  --text-display: clamp(2rem, 1.3rem + 2.6vw, 3rem);
+
   --leading-tight: 1.25;
   --leading-body: 1.55;      /* what `body` already sets */
+
+  /* A MEASURE, because prose in this app had none (#195 phase 1).
+   *
+   * Measured at 1280px: the longest line on Overview and Settings ran 120
+   * characters, against 78 on the apex site, which caps `main.wrap`. `main`
+   * here is 60rem, but the CARDS inside it then run text edge to edge, so the
+   * page-level measure never reached a paragraph.
+   *
+   * `ch` rather than a rem width, because the constraint is a count of
+   * characters and `ch` is the unit that says so -- and it keeps holding if
+   * --text-body ever moves.
+   *
+   * THE NUMBER IS NOT THE CHARACTER COUNT, and that trap cost a round here.
+   * `1ch` is the advance of "0", which is far wider than the average
+   * lowercase letter, so a nominal `72ch` rendered ~100 real characters --
+   * still over the 45-75 norm this was meant to enforce. 52ch measures ~73.
+   * Tuned against the rendered result rather than the nominal, because the
+   * nominal is not what a reader's eye travels.
+   *
+   * It goes on PROSE only. A label, a table cell, a control row and a stat
+   * tile are not prose and clamping them would leave dead space where an
+   * element is meant to fill its column. `.changelog-body` reached this
+   * conclusion first, at 62ch, and keeps its own tighter value. */
+  --measure: 52ch;
 
   /* Spacing. The file currently uses 0.1, 0.15, 0.3, 0.45, 0.5, 0.55, 0.6,
    * 0.7, 0.9, 1, 1.25 and 3rem -- twelve values that are not a scale, chosen
@@ -492,8 +538,22 @@ a:hover { color: var(--ink-strong); }
 /* Type. Discord runs heavier than a document would: 500 for ordinary UI text,
  * 600-700 for anything that names a thing. */
 h1, h2, h3 { color: var(--ink-strong); text-wrap: balance; }
-h1 { margin: 0 0 0.75rem; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.01em; }
+h1 { margin: 0 0 0.75rem; font-size: var(--text-page-title); font-weight: 700; letter-spacing: -0.01em; }
 p { text-wrap: pretty; }
+
+/* PROSE TAKES A MEASURE (#195 phase 1). See --measure for the why.
+ *
+ * `.blurb` is the app's prose class (28 uses) and `.desc` is the helper line
+ * under a control (11). Both ran the full width of whatever card held them,
+ * which on a 948px card is ~120 characters.
+ *
+ * Scoped to `.panel` rather than applied globally: a paragraph outside a card
+ * is chrome -- the footer's line, an empty-state note centred in its own box --
+ * and those are already short or already centred, so a max-width there would
+ * either do nothing or fight the centring. */
+.panel .blurb,
+.panel .desc,
+.panel > p { max-width: var(--measure); }
 
 /* --- header bar ---
  *

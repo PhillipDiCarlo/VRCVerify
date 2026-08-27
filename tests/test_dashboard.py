@@ -7945,3 +7945,88 @@ class TestTheIconCache:
 
         assert errors == []
         assert len(cache._entries) <= 64
+
+
+class TestTheSharedTypeScaleAndMeasure(object):
+    """One ramp across two stylesheets, and a line a reader can follow (#195 p1)."""
+
+    @staticmethod
+    def _css(which: str) -> str:
+        import dashboard
+
+        if which == "dashboard":
+            path = os.path.join(
+                os.path.dirname(dashboard.__file__), "static", "style.css"
+            )
+        else:
+            # From this file, not from a directory name: the repo is not
+            # always cloned into a folder called "VRCVerify".
+            repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            path = os.path.join(repo, "site", "style.css")
+        with open(path, encoding="utf-8") as handle:
+            return handle.read()
+
+    def test_the_display_size_is_identical_in_both_stylesheets(self):
+        """The ONE type value the two files share outright.
+
+        Every other step differs on purpose -- a console is denser than a
+        document -- but the marketing size has to match, because a visitor
+        crossing from the landing page to /pricing sees both within one click
+        and any difference reads as two products.
+
+        Same bargain as the colour tokens: two origins, two deploys, no shared
+        stylesheet possible, so the guarantee is a test rather than an import.
+        """
+        pattern = r"--text-display:\s*([^;]+);"
+        here = re.search(pattern, self._css("dashboard"))
+        there = re.search(pattern, self._css("site"))
+        assert here and there, "a stylesheet has stopped declaring --text-display"
+        assert here.group(1).strip() == there.group(1).strip(), (
+            "the marketing size has drifted between the two files: "
+            f"dashboard {here.group(1)!r} vs site {there.group(1)!r}"
+        )
+
+    def test_both_stylesheets_hold_prose_to_a_measure(self):
+        """A count of characters, not a width.
+
+        #195 reported this site at 78 characters and the dashboard at 120.
+        Both numbers were wrong -- the metric divided text length by rendered
+        line count, which `-webkit-line-clamp` and any author-placed <br> break
+        independently. Measured properly, both surfaces ran long and the apex
+        site ran longer on some pages.
+        """
+        for which in ("dashboard", "site"):
+            found = re.search(r"--measure:\s*(\d+)ch;", self._css(which))
+            assert found, f"{which} declares no --measure"
+            # Not the character count: 1ch is the advance of "0", much wider
+            # than average lowercase, so the nominal always undershoots what
+            # renders. Tuned against the rendered result -- see the comment.
+            assert 45 <= int(found.group(1)) <= 65, (
+                f"{which} --measure is {found.group(1)}ch, outside the band "
+                "that renders inside the 45-75 norm"
+            )
+
+    def test_the_page_title_size_is_not_written_twice(self):
+        """`h1` hardcoded 1.4rem while --text-page-title said the same thing.
+
+        Two places to change and one of them silently disagreeing is the whole
+        failure mode a token layer exists to remove.
+        """
+        css = self._css("dashboard")
+        rule = re.search(r"\nh1 \{([^}]*)\}", css)
+        assert rule, "the dashboard has no bare h1 rule"
+        assert "var(--text-page-title)" in rule.group(1), (
+            "h1 does not draw its size from the token that names it"
+        )
+
+    def test_prose_takes_the_measure_but_controls_do_not(self):
+        """A label, a table cell and a stat tile are not prose.
+
+        Clamping them would leave dead space where an element is meant to fill
+        its column, so the rule is scoped to the prose classes rather than
+        applied to every element inside a card.
+        """
+        css = self._css("dashboard")
+        assert re.search(r"\.panel \.blurb,\s*\n\.panel \.desc,\s*\n\.panel > p \{[^}]*var\(--measure\)", css), (
+            "the dashboard's prose classes do not take the measure"
+        )

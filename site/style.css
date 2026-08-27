@@ -208,6 +208,63 @@
 
 * { box-sizing: border-box; }
 
+/* THE TYPE SCALE, NAMED (#195 phase 1).
+   Every value below is what this file already used; nothing here changes how
+   a byte of this site renders. What changes is that the ramp -- the heading
+   and prose ladder every page walks -- stops being magic numbers and gains a
+   role per step.
+
+   THIS NAMES THE RAMP, NOT YET EVERY SIZE IN THE FILE. Component sizes are
+   still literals: the nav's 0.94rem, the flow diagram's 0.9375rem, the plan
+   card's 1.5rem, and the `.policy` overrides that deliberately run a step
+   larger than the shared ramp for long-form reading. Each is adopted as its
+   component is restyled in a later phase, which is the same bargain the
+   dashboard's token block struck for the same reason -- converting a whole
+   stylesheet in one commit is a large diff in which a single mistyped digit
+   changes the layout and nothing catches it.
+
+   THE OTHER HALF OF THIS PAIR IS IN src/dashboard/static/style.css, exactly
+   as the colour tokens are, and for the same reason -- two origins, two
+   deploys, no shared stylesheet possible. Read that file's block before
+   changing anything here.
+
+   The two ramps are NOT identical, and that is deliberate rather than drift:
+
+     --text-display   IS identical, and is the only step that is. It is the
+                      marketing size. This site's hero already used it, and
+                      the dashboard now declares the same clamp so /pricing
+                      can reach it -- which is what makes a visitor crossing
+                      from the landing page to the price meet one product.
+
+     everything else  differs, because a console is denser than a document on
+                      purpose. The dashboard's largest step is 22.4px and
+                      belongs on Overview; this site's h1 is 30.4px and
+                      belongs on Terms. Forcing one number on both would make
+                      the legal pages smaller to no one's benefit.
+
+   So: shared vocabulary, shared display size, different density. A step that
+   means the same thing in both files carries the same name. */
+:root {
+  --text-display: clamp(2rem, 1.3rem + 2.6vw, 3rem); /* 32-48px, the hero */
+  --text-title: 1.9rem;    /* 30.4px  h1 on a document page */
+  --text-section: 1.2rem;  /* 19.2px  h2 */
+  --text-lede: 1.15rem;    /* 18.4px  the sentence under a hero */
+  --text-blurb: 1.08rem;   /*  17.3px the sentence under a document title */
+  --text-subhead: 1rem;    /*    16px h3, and body */
+  --text-note: 0.9375rem;  /*    15px the notes under a plan card */
+  --text-micro: 0.9rem;    /*  14.4px the footer, the smallest thing here */
+
+  --leading-body: 1.65;
+  --leading-tight: 1.25;
+
+  /* A MEASURE. This site already held one at the layout level -- `main.wrap`
+     caps at 42-60rem depending on the page -- which is why its longest line
+     is 78 characters against the dashboard's 120. Named here so the pair of
+     files says the same word for the same idea; the dashboard needs it as a
+     per-element rule because its cards, not its layout, are what run wide. */
+  --measure: 52ch;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -217,6 +274,43 @@ body {
 }
 
 .wrap { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+
+/* PROSE TAKES THE MEASURE, and this site needed it as much as the dashboard
+   did -- which was not what #195 originally claimed.
+
+   That issue reported this site holding 78 characters against the dashboard's
+   120, and both numbers were wrong: the first metric divided text length by
+   rendered line count, which the bell's `-webkit-line-clamp` and any
+   author-placed <br> both break. Measured properly -- canvas text metrics at
+   each element's computed font, counting only leaf prose that actually wraps
+   -- this site was running 111 characters on the landing page's plans note and
+   91 on Terms, i.e. WIDER than the dashboard on some pages.
+
+   The per-page `main.wrap` widths above are layout measures and they stay:
+   they set how far a card grid or a flow diagram may spread. What they cannot
+   do is hold a paragraph to a readable line, because 42rem of 16px text is 91
+   characters. So the layout keeps its width and the prose inside it takes its
+   own.
+
+   This overrides a deliberate choice in #137 phase 3, which set `.policy` to
+   42rem "tuned for reading long-form terms". That reasoning was right and the
+   number was not measured; 45-75 is the norm and 91 is outside it.
+
+   Card interiors are unaffected -- a plan card is ~430px and a flow step
+   ~260px, both already inside 55ch -- so this cannot squeeze a component. */
+main.wrap p,
+main.wrap li { max-width: var(--measure); }
+
+/* TWO THINGS IN main THAT ARE NOT PROSE, and the measure broke both.
+   `.trust-strip` is a row of three claims joined by middots -- a label, read
+   in one glance, not a sentence read left to right. Clamped, it wrapped and
+   left "OVERRIDE" alone on a second line, which reads as a layout fault
+   rather than a deliberate break.
+   `.flow-note` is a one-sentence callout against an accent rule; at 52ch it
+   broke after "yes or a" and orphaned "no." on its own line under the rule.
+   Both are short enough that no measure was protecting them anyway. */
+.trust-strip,
+.flow-note { max-width: none; }
 
 /* THE CHROME IS ONE WIDTH ON EVERY PAGE, and this rule is what guarantees it.
    `.wrap` wraps the header, the main content AND the footer, so any per-page
@@ -295,15 +389,15 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
   padding: 0.2rem 0.4rem;
 }
 
-h1 { font-size: 1.9rem; line-height: 1.25; margin: 2rem 0 0.35rem; text-wrap: balance; color: var(--ink-strong); }
-h2 { font-size: 1.2rem; margin: 2.25rem 0 0.5rem; text-wrap: balance; color: var(--ink-strong); }
-h3 { font-size: 1rem; margin: 1.5rem 0 0.35rem; color: var(--ink-strong); }
+h1 { font-size: var(--text-title); line-height: var(--leading-tight); margin: 2rem 0 0.35rem; text-wrap: balance; color: var(--ink-strong); }
+h2 { font-size: var(--text-section); margin: 2.25rem 0 0.5rem; text-wrap: balance; color: var(--ink-strong); }
+h3 { font-size: var(--text-subhead); margin: 1.5rem 0 0.35rem; color: var(--ink-strong); }
 p, li { color: var(--ink); }
 ul, ol { padding-left: 1.35rem; }
 li { margin: 0.3rem 0; }
 
 .updated { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.5rem; }
-.lede { font-size: 1.08rem; color: var(--muted); }
+.lede { font-size: var(--text-blurb); color: var(--muted); }
 
 a { color: var(--accent-text); }
 
@@ -368,16 +462,19 @@ th { color: var(--muted); font-weight: 600; }
    both suffocate at 46rem, so index widens and the prose inside it keeps a
    measure of its own. */
 .home main.wrap { max-width: 60rem; }
-.home main.wrap > p,
-.home main.wrap > ul,
+/* The heading may span the wider landing measure; the prose under it may not
+   -- this rule used to cap all three at 46rem, which is 111 characters of
+   16px text and outranked `main.wrap p` on specificity. */
 .home main.wrap > h2 { max-width: 46rem; }
+.home main.wrap > p,
+.home main.wrap > ul { max-width: var(--measure); }
 
 .home h1 {
-  font-size: clamp(2rem, 1.3rem + 2.6vw, 3rem);
+  font-size: var(--text-display);
   letter-spacing: -0.015em;
   margin-top: 3rem;
 }
-.home .lede { font-size: 1.15rem; max-width: 42rem; }
+.home .lede { font-size: var(--text-lede); max-width: 42rem; }
 
 .cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1.75rem 0 0; }
 .cta-row .cta { margin: 0; }
@@ -520,7 +617,7 @@ th { color: var(--muted); font-weight: 600; }
 }
 .plan-card .cta { margin: auto 0 0; align-self: stretch; text-align: center; }
 
-.plans-note { margin: 1rem 0 0; color: var(--faint); font-size: 0.9375rem; }
+.plans-note { margin: 1rem 0 0; color: var(--faint); font-size: var(--text-note); }
 
 @media (max-width: 46rem) {
   .flow { flex-direction: column; align-items: stretch; }
@@ -726,7 +823,7 @@ footer.site {
   background: var(--chrome);
   margin-top: 3rem;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--text-micro);
 }
 footer.site .wrap { padding-top: 1.5rem; padding-bottom: 2.5rem; }
 footer.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 0.75rem; }
