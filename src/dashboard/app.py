@@ -900,6 +900,37 @@ def _register_routes(app: Flask) -> None:
             csrf_token=session.csrf_token,
         )
 
+    @app.get("/pricing")
+    def pricing():
+        """What Premium costs, readable without a Discord account (#188).
+
+        THE FIRST DELIBERATELY SIGNED-OUT PAGE IN THIS APP, and the reason it
+        is here rather than on the apex site is worth keeping in view: prices
+        come from Stripe on the render that shows them. A figure typed into a
+        static file deploys on a pipeline that knows nothing about Stripe, so
+        it would keep quoting the old number after a price change, silently,
+        on the same domain the Terms live on. `subscription.html` states the
+        rule -- no amount is ever computed, because a second copy of a price on
+        a page about money is a second thing to be wrong.
+
+        No `_require_login()`, and that is the whole point: a prospect who has
+        not installed the bot is exactly who this page is for. It reaches
+        nothing per-guild and nothing per-user -- `_offered_plans()` takes no
+        session and no guild, and there is no bot call on this path at all.
+
+        No `section`, so `base.html` renders the sidebar-less layout the sign-in
+        page and the picker use. No `csrf_token` either, so the bell, the
+        account menu and the theme picker all stay gated off, the same as the
+        sign-in page.
+        """
+        plans, plans_unavailable = _offered_plans()
+        page = subscription_view.build_public_pricing(
+            plans,
+            plans_unavailable=plans_unavailable,
+            stripe_configured=_config().stripe_enabled,
+        )
+        return render_template("pricing.html", page=page)
+
     @app.get("/login")
     def login():
         state = oauth.new_state()
