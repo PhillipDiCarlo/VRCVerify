@@ -307,15 +307,32 @@ def test_the_theme_picker_ships_hidden(page):
     assert "hidden" in picker.group(1), f"{page.name}'s theme picker is not hidden"
 
 
-@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
-def test_the_picker_offers_exactly_the_three_themes(page):
-    """The markup and `VALID` in theme.js have to agree.
+def test_the_menu_offers_exactly_the_three_themes():
+    """The offered list and `VALID` have to agree.
 
     An option the script rejects would silently do nothing when chosen; a
-    theme the script accepts with no option is one nobody can reach.
+    theme the script accepts but never offers is one nobody can reach.
+
+    Both lists live in theme.js since #195 phase 7 built the control there --
+    the pages carry an empty placeholder now. That removes the markup half of
+    this drift, and it does not remove the drift: OPTIONS and VALID are still
+    two lists in one file.
     """
-    options = set(re.findall(r'<option value="([^"]+)"', read(page)))
-    assert options == THEMES, f"{page.name}: {sorted(options)}"
+    script = THEME_JS.read_text(encoding="utf-8")
+    block = re.search(r"var OPTIONS = \[(.*?)\];", script, re.S)
+    assert block, "theme.js no longer declares the offered themes"
+    offered = set(re.findall(r'\["([a-z]+)"', block.group(1)))
+    assert offered == THEMES, sorted(offered)
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_no_page_ships_a_theme_control_of_its_own(page):
+    """The placeholder is the whole of it. A <select> or a button left behind
+    on one page would be a second control the script does not know about, on a
+    header that is meant to be byte-identical across six files."""
+    body = read(page)
+    assert "<option" not in body, f"{page.name} still ships theme options"
+    assert "theme-select" not in body, f"{page.name} still ships the old picker"
 
 
 def test_the_script_accepts_exactly_the_themes_the_markup_offers():
@@ -1036,3 +1053,40 @@ def test_the_non_prose_rows_outrank_the_measure_that_would_wrap_them():
         "the exemption is not scoped to the container whose rule it must "
         f"outrank, so the measure wins again: {selector.strip()!r}"
     )
+
+
+def test_system_is_stamped_as_itself_and_not_as_an_absent_attribute():
+    """THE BUG THIS PHASE NEARLY SHIPPED, and it would have been silent.
+
+    The dashboard represents "System" as the ABSENCE of `data-theme`, because
+    its server always knows what to stamp before first paint. This site cannot:
+    absence is also what a reader sees before theme.js runs, and forever with
+    JavaScript off, so absence has to mean the default -- dark -- and System
+    has to be an explicit `data-theme="system"` for the fourth cascade block in
+    style.css to match.
+
+    Porting the dashboard's control brought its rule with it for one commit.
+    Mapping "system" to null here pins every System reader to Dark on a
+    light-OS machine, and nothing renders wrong enough to notice: the page is
+    simply always dark, which is also what it looks like when it is working.
+    """
+    script = THEME_JS.read_text(encoding="utf-8")
+    assert '"system" ? null' not in script.replace(" ", ""), (
+        "theme.js maps System to no attribute, which is the dashboard's rule "
+        "and the opposite of this site's"
+    )
+    # And the cascade block it depends on still exists.
+    css = STYLE.read_text(encoding="utf-8")
+    assert '[data-theme="system"]' in css, (
+        "style.css has no rule for an explicit System, so stamping it does "
+        "nothing"
+    )
+
+
+def test_the_control_is_built_from_the_placeholder_the_pages_ship():
+    """The pages carry `<div class="theme-picker" hidden></div>` and nothing
+    else. If the script ever stops looking for that class, six pages ship an
+    empty div and no theme control, with no error anywhere."""
+    script = THEME_JS.read_text(encoding="utf-8")
+    assert ".theme-picker" in script, "theme.js no longer finds the placeholder"
+    assert "hidden = false" in script, "theme.js never reveals the control"
