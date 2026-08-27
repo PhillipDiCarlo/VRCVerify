@@ -397,6 +397,10 @@
   --text-display: clamp(2rem, 1.3rem + 2.6vw, 3rem);
 
   --leading-tight: 1.25;
+  /* 1.55 here against site/style.css's 1.65, deliberately -- see the note
+   * beside that one. A console is operated and a document is read; matching
+   * them would loosen every settings row to suit prose this app does not
+   * have much of. --leading-tight is identical in both. */
   --leading-body: 1.55;      /* what `body` already sets */
 
   /* A MEASURE, because prose in this app had none (#195 phase 1).

@@ -8390,3 +8390,41 @@ def test_the_server_name_is_not_announced_twice_on_a_phone():
         "the rule is not inside a media query, so the sidebar loses its name "
         "at every width"
     )
+
+
+def test_the_two_stylesheets_agree_on_tight_leading_and_explain_the_body_one():
+    """#195's last acceptance criterion: every measured difference between the
+    two hosts either agrees or has its reason written next to the rule.
+
+    `--leading-tight` is the same in both because a heading is a heading.
+    `--leading-body` is not, because a console is operated and a document is
+    read -- and that sentence has to exist in both files, or the next person to
+    compare them finds two numbers and no argument.
+    """
+    import dashboard
+
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    dash = open(
+        os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+        encoding="utf-8",
+    ).read()
+    site = open(os.path.join(repo, "site", "style.css"), encoding="utf-8").read()
+
+    def token(css, name):
+        found = re.search(rf"{name}:\s*([0-9.]+);", css)
+        return found.group(1) if found else None
+
+    assert token(dash, "--leading-tight") == token(site, "--leading-tight"), (
+        "the two files disagree about heading leading, which nothing justifies"
+    )
+    assert token(dash, "--leading-body") != token(site, "--leading-body"), (
+        "the body leading now matches; delete the notes explaining why it does "
+        "not, rather than leaving two files arguing for a difference that is "
+        "no longer there"
+    )
+    for css, name in ((dash, "dashboard"), (site, "site")):
+        window = css[max(0, css.index("--leading-body") - 700):css.index("--leading-body")]
+        assert "console" in window and "document" in window, (
+            f"{name}'s --leading-body differs from the other host's with no "
+            "reason written beside it"
+        )
