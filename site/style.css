@@ -115,6 +115,16 @@
      (3.68:1 on --chrome, 3.38:1 on --panel). The light value below is the one
      that diverges -- see the light block. */
   --control-line: #80848e;
+
+  /* COPIED ACROSS FOR THE THEME MENU (#195 phase 7), following the rule this
+     file's header states: take a dashboard component token when a rule here
+     actually needs it, rather than importing a vocabulary this site does not
+     speak. These five are what a popover needs and nothing else here uses. */
+  --hover: #35373c;
+  --radius-control: 4px;
+  --radius-card: 8px;
+  --bar-control: 2rem;
+  --shadow-overlay: 0 4px 12px rgb(0 0 0 / 0.40), 0 12px 32px rgb(0 0 0 / 0.36);
 }
 
 /* 2. The light values, named once and painted by nothing.
@@ -153,6 +163,11 @@
      --ok when the plan cards put it on a surface it had not been measured
      against: move the token, not the element. Pinned in test_site.py. */
   --light-control-line: #848892;
+
+  /* The light halves of the theme-menu tokens. --radius-* and --bar-control do
+     not change with the theme, so they are declared once above. */
+  --light-hover: #e3e5e8;
+  --light-shadow-overlay: 0 4px 12px rgb(0 0 0 / 0.12), 0 12px 32px rgb(0 0 0 / 0.10);
 }
 
 /* 3. Light, chosen explicitly. Unaffected by what the OS prefers, which is
@@ -177,6 +192,8 @@
   --accent-ink: var(--light-accent-ink);
   --accent-text: var(--light-accent-text);
   --control-line: var(--light-control-line);
+  --hover: var(--light-hover);
+  --shadow-overlay: var(--light-shadow-overlay);
 }
 
 /* 4. Light, because the OS asked and the reader chose to follow it.
@@ -203,6 +220,8 @@
     --accent-ink: var(--light-accent-ink);
     --accent-text: var(--light-accent-text);
     --control-line: var(--light-control-line);
+    --hover: var(--light-hover);
+    --shadow-overlay: var(--light-shadow-overlay);
   }
 }
 
@@ -421,30 +440,108 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
   header.site nav a { font-size: 0.875rem; }
 }
 
-/* THE THEME PICKER.
-   Ships `hidden` and is revealed by /theme.js. A control that cannot work
-   without JavaScript should not be painted before JavaScript arrives -- with
-   the script blocked the page is simply dark, which is a complete experience
-   rather than a broken one.
+/* THE THEME MENU (#195 phase 7).
 
-   A `<select>` rather than a button that cycles: #123 surveyed six products
-   and every one of them gave the three-way choice an explicit labelled
-   picker. None cycled, because a cycling button cannot say what it will do
-   next. The dashboard renders that choice as a popover of form buttons, which
-   needs a server to post to; a native select is the honest static equivalent
-   and costs no CSS to make accessible. */
-.theme-picker { display: flex; align-items: baseline; gap: 0.4rem; margin: 0; }
-.theme-picker[hidden] { display: none; }
-.theme-picker label { color: var(--faint); font-size: 0.94rem; }
-.theme-picker select {
-  font: inherit;
-  font-size: 0.94rem;
-  color: var(--ink);
-  background: var(--panel);
-  border: 1px solid var(--control-line);
-  border-radius: 6px;
-  padding: 0.2rem 0.4rem;
+   ONE AFFORDANCE ACROSS BOTH HOSTS. This was a labelled <select> while the
+   dashboard used an icon opening a popover -- two controls for the same
+   three-way choice, met by the same person within one click of each other.
+   The dashboard's is the model because it is the one that works with
+   JavaScript off; this site's never did, and could not, because there is no
+   server here to post to.
+
+   That is also why the markup for this is BUILT BY theme.js rather than
+   written into the six pages. The control is JavaScript-only either way, so
+   markup describing it would be markup describing something that may never
+   exist -- and the header is byte-identical across six hand-maintained files,
+   one of them generated, so every line of it is a line to keep in step six
+   times. The <div class="theme-picker" hidden> placeholder is all the markup
+   needs to carry.
+
+   The class names and the shape follow the dashboard's `.bar-menu` /
+   `.menu-item`, so the two read as one control. The tokens it needs were
+   copied across at the top of this file. */
+.theme-menu { position: relative; }
+.theme-menu[hidden] { display: none; }
+
+/* The default disclosure triangle has to go from both engines: `list-style`
+   covers Firefox and current Chrome, the pseudo-element covers older WebKit.
+   The icon is the marker. */
+.theme-button { list-style: none; }
+.theme-button::-webkit-details-marker { display: none; }
+
+.theme-button {
+  display: grid;
+  place-items: center;
+  width: var(--bar-control);
+  height: var(--bar-control);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  cursor: pointer;
 }
+.theme-button:hover { background: var(--hover); color: var(--ink-strong); }
+/* Stays lit while its menu is open, so it is obvious which control produced
+   the panel now covering part of the page. */
+.theme-menu[open] .theme-button { background: var(--hover); color: var(--ink-strong); }
+
+/* Anchored to its own right edge, so a panel wider than the button it hangs
+   from opens inwards and never off the side of the window. */
+.theme-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 20;
+  min-width: 15rem;
+  padding: 0.5rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-overlay);
+  text-align: left;
+}
+.theme-panel ul { list-style: none; margin: 0; padding: 0; }
+
+.theme-panel-label {
+  margin: 0.25rem 0.5rem 0.5rem;
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Always a button, never a radio: a theme is a one-click decision, and a
+   picker needing a second click to confirm is a worse control than the select
+   it replaced. */
+.theme-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.theme-item:hover { background: var(--hover); }
+.theme-item.current { color: var(--ink-strong); }
+
+/* The icon keeps its column when the tick is absent, so the three rows do not
+   shift depending on which one is current. */
+.theme-item .theme-mark { flex: 0 0 auto; color: var(--muted); }
+.theme-item.current .theme-mark { color: var(--accent-text); }
+
+.theme-item-text { display: flex; flex-direction: column; flex: 1 1 auto; }
+.theme-item-label { font-size: var(--text-subhead); line-height: var(--leading-tight); }
+.theme-item-hint {
+  font-size: var(--text-micro);
+  color: var(--faint);
+  line-height: var(--leading-tight);
+}
+.theme-tick { flex: 0 0 auto; color: var(--accent-text); }
 
 h1 { font-size: var(--text-title); line-height: var(--leading-tight); margin: 2rem 0 0.35rem; text-wrap: balance; color: var(--ink-strong); }
 h2 { font-size: var(--text-section); margin: 2.25rem 0 0.5rem; text-wrap: balance; color: var(--ink-strong); }
@@ -886,7 +983,8 @@ footer.site .wrap { padding-top: 1.5rem; padding-bottom: 2.5rem; }
 footer.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 0.75rem; }
 footer.site a { color: var(--muted); }
 
-a:focus-visible, .cta:focus-visible, .theme-picker select:focus-visible {
+a:focus-visible, .cta:focus-visible,
+.theme-button:focus-visible, .theme-item:focus-visible {
   outline: 2px solid var(--accent-text);
   outline-offset: 2px;
 }
