@@ -30,7 +30,7 @@ import pytest
 pytest.importorskip("flask")
 
 from dashboard import subscription_view  # noqa: E402
-from dashboard.app import SESSION_COOKIE, create_app  # noqa: E402
+from dashboard.app import SESSION_COOKIE, THEME_COOKIE, create_app  # noqa: E402
 from dashboard.botapi import BotAPIError  # noqa: E402
 from dashboard.config import DashboardConfig  # noqa: E402
 from dashboard.sessions import SessionStore  # noqa: E402
@@ -1862,3 +1862,70 @@ class TestThePublicPricingPage:
         page = app.test_client().get("/pricing").data.decode()
         assert "Everything you need to verify your members" in page
         assert page.index("Free, forever") < page.index(">Premium<")
+
+    # ----------------------------------------------------------------------
+    # Cache posture and the links in (#188 phase 2).
+    # ----------------------------------------------------------------------
+
+    def test_it_is_cacheable_but_only_by_the_browser_that_asked(self, config):
+        """`private`, never `public`, and the issue asking for this assumed the
+        opposite -- it reasoned the page is "the same bytes for every visitor".
+        It is not, and the second half of this proves it rather than asserting
+        the header and trusting the reasoning: `theme_attr()` stamps the chosen
+        theme into <html> from a cookie, so two readers get two documents.
+
+        A shared cache serving one reader's light page to a reader who chose
+        dark is the bug this asserts against. `Vary: Cookie` would be the
+        nominal fix and a bad one: Cloudflare fronts this origin and does not
+        vary on arbitrary request headers.
+        """
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        client = app.test_client()
+        cache = client.get("/pricing").headers["Cache-Control"]
+        assert "no-store" not in cache
+        assert cache.startswith("private"), cache
+        assert "public" not in cache
+
+        default = client.get("/pricing").data
+        client.set_cookie(THEME_COOKIE, "light", domain="localhost")
+        assert client.get("/pricing").data != default, (
+            "if this page really were the same bytes for everyone, `public` "
+            "would be safe -- so the day it becomes true, come back here"
+        )
+
+    def test_the_page_may_not_outlive_a_price_change_for_long(self, config):
+        """The two caches are in series, not overlapping: a figure is already
+        up to STRIPE_PRICE_CACHE_TTL old before it reaches this handler, and
+        the browser's copy adds to that rather than hiding inside it. So the
+        browser's share stays a fraction of the budget that already exists.
+        """
+        from dashboard.app import PRICING_PAGE_CACHE_TTL, STRIPE_PRICE_CACHE_TTL
+
+        assert 0 < PRICING_PAGE_CACHE_TTL < STRIPE_PRICE_CACHE_TTL
+
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        cache = app.test_client().get("/pricing").headers["Cache-Control"]
+        assert f"max-age={PRICING_PAGE_CACHE_TTL}" in cache
+
+    def test_no_other_page_picked_up_the_relaxed_cache(self, config):
+        """The branch is keyed on one endpoint name. A signed-in page landing
+        in a browser cache is the failure this guards, and it is silent.
+        """
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        client = app.test_client()
+        for path in ("/", "/login"):
+            assert client.get(path).headers["Cache-Control"] == "no-store", path
+
+    def test_an_admin_can_hand_the_prices_to_whoever_holds_the_card(self, config):
+        """The one thing `/pricing` does that the subscription page cannot: a
+        URL that works with no Discord account and no admin rights. Same shape,
+        and the same reasoning, as the changelog's public cross-link."""
+        client, _bot, _stripe, _session = make_client(config)
+        page = client.get(f"/guild/{GUILD}/subscription").data.decode()
+        assert 'href="/pricing"' in page

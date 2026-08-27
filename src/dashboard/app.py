@@ -109,6 +109,12 @@ MAX_REQUEST_BYTES = 256 * 1024
 # call to a third party on the request path.
 STRIPE_PRICE_CACHE_TTL = 300
 
+# How long a browser may keep the public pricing page (#188). Added to
+# STRIPE_PRICE_CACHE_TTL rather than overlapping it: the two are in series, so
+# the worst case a reader can see is the sum. See `harden()` for why this is
+# `private` and not `public`.
+PRICING_PAGE_CACHE_TTL = 60
+
 
 # A VRChat file id and version, as they appear in a group's icon_url. The
 # ONLY parts of an upstream URL this app will accept, and they go into a fixed
@@ -793,8 +799,10 @@ def _register_hooks(app: Flask) -> None:
         # CDN with every icon request would leak which guild is being looked at.
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-        # Authenticated pages must not sit in a shared cache. Static files are
-        # the exception, and it is a real one: `no-store` on everything meant
+        # Authenticated pages must not sit in a shared cache. `no-store` is
+        # therefore the default and the three branches below are the named
+        # exceptions -- none of which is an authenticated page. Static files
+        # are the first, and a real one: `no-store` on everything meant
         # the 48KB font and the stylesheet were re-fetched on every single page
         # view, by every admin, forever. They carry nothing about a session --
         # they are the same bytes for a signed-out stranger -- and their URLs
@@ -802,6 +810,39 @@ def _register_hooks(app: Flask) -> None:
         # is unreachable rather than merely unwanted.
         if request.endpoint == "static":
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif request.endpoint == "pricing":
+            # PRIVATE, NOT PUBLIC, and the issue asking for this assumed
+            # otherwise -- it reasoned that /pricing "is the same bytes for
+            # every visitor and carries nothing about a session". It is not.
+            # `theme_attr()` stamps the chosen theme into <html> from the
+            # THEME_COOKIE, server-side and by design: #123 renders the theme
+            # into the markup precisely so a cold load never flashes the wrong
+            # one and so the control still works with JavaScript off.
+            #
+            # (NAV_COOKIE does not vary this page, and that is worth stating
+            # because it looks like it should: `nav_collapsed` comes from
+            # `_page_context()`, which only guild pages call, so it is simply
+            # undefined here. The theme cookie alone is enough.)
+            #
+            # So the response varies by cookie, and a shared cache that ignored
+            # that would hand one reader's light page to the next reader who
+            # chose dark. `Vary: Cookie` is the nominal fix and a bad one here:
+            # Cloudflare fronts this origin and does not vary on arbitrary
+            # request headers, so the header would buy a correctness guarantee
+            # this deployment does not actually get.
+            #
+            # `private` scopes the cache to the one browser whose cookie
+            # produced the page, which is exactly the scope that cookie has. A
+            # shared cache is off the table until the theme stops being
+            # server-rendered, and it should not.
+            #
+            # The number is short on purpose. Prices are already up to
+            # STRIPE_PRICE_CACHE_TTL stale before they reach this handler, and
+            # a browser cache adds to that window rather than overlapping it --
+            # so a minute buys the back button and a reload while adding a
+            # fifth to a staleness budget that already exists, where matching
+            # the 300 would double it.
+            response.headers["Cache-Control"] = f"private, max-age={PRICING_PAGE_CACHE_TTL}"
         elif request.endpoint == "vrchat_icon":
             # Keeps what the route set: private, so no shared cache holds it,
             # but cacheable, because re-fetching a group icon from VRChat every

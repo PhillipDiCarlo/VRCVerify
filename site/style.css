@@ -256,6 +256,20 @@ header.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; }
 header.site nav a { color: var(--muted); text-decoration: none; font-size: 0.94rem; }
 header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); text-decoration: underline; }
 
+/* FIVE LINKS ON A PHONE (#188 phase 2).
+   Adding Pricing pushed the nav to a second line on every common phone width,
+   and it wrapped as a single orphaned "Dashboard" -- which reads as a broken
+   header rather than a wrapped one. Tightening the gap below 26rem puts all
+   five back on one line at 360px and up.
+
+   It does NOT fix 320px, and deliberately so: five links do not fit there and
+   the nav already wrapped at that width before Pricing existed, so nothing
+   regressed. Shrinking the type until they fit would trade a legible wrapped
+   header for an illegible unwrapped one. */
+@media (max-width: 26rem) {
+  header.site nav { gap: 0.75rem; }
+}
+
 /* THE THEME PICKER.
    Ships `hidden` and is revealed by /theme.js. A control that cannot work
    without JavaScript should not be painted before JavaScript arrives -- with
