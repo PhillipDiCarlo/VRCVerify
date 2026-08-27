@@ -11,7 +11,10 @@
      origin, ~30 lines, and nothing on this page needs it to work. -->
 <script src="/theme.js"></script>
 </head>
-<body>
+<!-- `home` widens .wrap and unlocks the landing-page blocks in style.css. The
+     legal pages deliberately do not carry it: their 46rem measure is tuned for
+     reading long-form terms and a wider one would be worse. -->
+<body class="home">
 
 <header class="site">
   <div class="wrap">
@@ -35,30 +38,141 @@
 
 <main class="wrap">
 
-  <h1>18+ verification for Discord, using VRChat's own age check</h1>
+  <!-- HERO.
+       The headline is unchanged: it says exactly what the product is, which is
+       the hardest thing for a landing page to do and this one already did it.
+
+       NO ACCENT ON THE HEADING. The obvious move from the dark-hero references
+       is a two-tone headline with the second line in blurple. The epic forbids
+       it -- blurple means "the page you are on" and "the button that does the
+       thing", never decoration -- so the hierarchy here is carried by size and
+       weight instead, and the only blurple above the fold is the one button
+       that does the thing. -->
+  <h1>18+ verification for Discord, using VRChat&#39;s own age check</h1>
 
   <p class="lede">A member links their VRChat account, VRCVerify reads whether
   VRChat has age-verified them, and the bot assigns the role. No documents are
-  handled here, no photographs, and nothing about a member's identity is shown
+  handled here, no photographs, and nothing about a member&#39;s identity is shown
   to anyone.</p>
 
-  <p>
+  <p class="cta-row">
     <a class="cta" href="https://discord.com/oauth2/authorize?client_id=1335738139825799188">Add to your server</a>
     <a class="cta secondary" href="https://dashboard.vrcverify.com">Open the dashboard</a>
   </p>
 
+  <!-- The three claims from "What it does not do", promoted to sit under the
+       buttons where the decision is made. Deliberately NOT a replacement for
+       that section: this is the headline version, that is the detail, and the
+       section below still carries the full four with their reasons. A visitor
+       who reads nothing else should still leave knowing this much. -->
+  <p class="trust-strip">No identity documents · No photographs · No manual override</p>
+
+  <!-- HOW IT WORKS.
+       The "visual proof" this page was missing. Built from real HTML text with
+       inline SVG only for the arrows, rather than as one SVG drawing: text in
+       an SVG does not reflow, does not scale with the reader's font size, and
+       would be one more set of English strings that #97 cannot reach. This
+       way the diagram is legible at 390px, selectable, and themed by the same
+       tokens as everything else. -->
+  <h2>How a member gets verified</h2>
+
+  <ol class="flow">
+    <li class="flow-step">
+      <span class="flow-num">1</span>
+      <h3>VRChat verifies their age</h3>
+      <p>The member completes VRChat&#39;s own age check, with VRChat. Their
+      documents never leave that process.</p>
+    </li>
+    <li class="flow-arrow" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </li>
+    <li class="flow-step">
+      <span class="flow-num">2</span>
+      <h3>VRCVerify reads the result</h3>
+      <p>The member links their account and VRCVerify asks one question: has
+      VRChat verified this person as 18+?</p>
+    </li>
+    <li class="flow-arrow" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </li>
+    <li class="flow-step">
+      <span class="flow-num">3</span>
+      <h3>The bot assigns the role</h3>
+      <p>Your server&#39;s verified role goes on. Nobody has to review anything,
+      and no administrator sees anything.</p>
+    </li>
+  </ol>
+
+  <p class="flow-note">The only thing that crosses from VRChat into VRCVerify is
+  a yes or a no.</p>
+
+  <!-- FREE VS PREMIUM.
+       This replaces a paragraph that listed six premium features in prose --
+       the question every visitor actually has, answered in the format that
+       answers it. Two cards, not a comparison matrix: a matrix is built for
+       three-plus tiers and would make two plans look more complicated than
+       they are.
+
+       THE FREE CARD IS NOT A CRIPPLED TIER AND MUST NOT READ AS ONE. "Core
+       verification is free, forever" is the product's actual promise and its
+       best trust signal, so the free column leads with what it *is* rather
+       than what it lacks.
+
+       NO PREMIUM AMOUNT ON THIS PAGE, deliberately. Premium's prices come from
+       Stripe at render time in the dashboard, and this site deploys on a
+       different pipeline entirely -- a figure typed here is a second copy of a
+       price that can disagree with the one actually being charged, and nothing
+       would catch the disagreement. subscription.html states the same rule for
+       the same reason: no amount is ever computed, because a second copy of a
+       price on a page about money is a second thing to be wrong.
+
+       NO FIGURE AT ALL, in fact -- not even $0. Premium's amounts belong on
+       the public pricing page, which is a live route reading Stripe rather
+       than anything typed into a static file, and this page's job is to send
+       people there rather than to summarise it badly. "Free" says the same
+       thing $0 did without putting a price-shaped token on a page that has
+       deliberately opted out of quoting prices.
+
+       Class names mirror the dashboard's (#141/#158): .plan-card, never a bare
+       .plan, and .plan-featured for the outlined one. -->
   <h2>Verification is free, and stays free</h2>
 
-  <p>Every server can verify members, auto-verify people who have already
-  verified elsewhere, and let members update their own nickname, at no cost.
-  That is the part that matters and it is not behind a paywall.</p>
+  <div class="plans">
+    <div class="plan-card">
+      <h3>Free</h3>
+      <p class="plan-price">Free<span>forever</span></p>
+      <p class="plan-blurb">Everything you need to verify your members.</p>
+      <ul class="plan-list">
+        <li>Verify members as 18+</li>
+        <li>Auto-verify people who verified in another server</li>
+        <li>Members can update their own nickname</li>
+      </ul>
+      <a class="cta secondary" href="https://discord.com/oauth2/authorize?client_id=1335738139825799188">Add to your server</a>
+    </div>
 
-  <p>A per-server subscription unlocks the automation around it: automatic
-  removal of an unverified role, nickname syncing, a custom post-verification
-  message, a verification log channel, priority in the verification queue, and
-  a branded instructions panel. It can be bought through Discord monthly, or
-  with a card on the dashboard where six- and twelve-month plans are also
-  available.</p>
+    <div class="plan-card plan-featured">
+      <h3>Premium</h3>
+      <p class="plan-price">Per server<span>monthly, 6 or 12 months</span></p>
+      <p class="plan-blurb">The automation around verification, for servers
+      that want it.</p>
+      <ul class="plan-list">
+        <li>Automatic removal of an unverified role</li>
+        <li>Nickname syncing</li>
+        <li>A custom post-verification message</li>
+        <li>A verification log channel</li>
+        <li>Priority in the verification queue</li>
+        <li>A branded instructions panel</li>
+      </ul>
+      <a class="cta" href="https://dashboard.vrcverify.com">See pricing in the dashboard</a>
+    </div>
+  </div>
+
+  <p class="plans-note">Premium is bought per server, through Discord monthly or
+  with a card on the dashboard. Verification itself is never part of it.</p>
 
   <h2>What it does not do</h2>
 

@@ -424,3 +424,132 @@ def test_the_picker_label_is_readable_in_both_themes():
     ):
         ratio = _contrast(faint, chrome)
         assert ratio >= 4.5, f"{theme}: label {faint} on {chrome} is {ratio:.2f}:1"
+
+
+# --------------------------------------------------------------------------
+# The landing page (#137 phase 2).
+# --------------------------------------------------------------------------
+
+INDEX = SITE / "index.html"
+
+
+def test_no_premium_amount_is_hardcoded_anywhere_on_the_site():
+    """A price typed here is a second copy of one Stripe is the truth for.
+
+    `subscription.html` states the rule this enforces: no amount is ever
+    computed, because a second copy of a price on a page about money is a
+    second thing to be wrong. This site deploys on a completely separate
+    pipeline from the dashboard, so a figure typed here could disagree with
+    what is actually being charged and nothing would ever catch it.
+
+    NO figure at all, not even `$0`. The free card says "Free", which states
+    the same standing promise without putting a price-shaped token on a site
+    that has opted out of quoting prices. Amounts live on the public pricing
+    page, which is a live route reading Stripe -- so this assertion is total
+    rather than carrying an exception somebody would later widen.
+
+    Comments are stripped before scanning. The rule is about what a reader is
+    shown, and the comments explaining the rule necessarily quote the figures
+    it forbids -- a check that fired on its own rationale would be noise.
+    """
+    for page in PAGES:
+        visible = re.sub(r"<!--.*?-->", "", read(page), flags=re.S)
+        amounts = set(re.findall(r"\$\d+(?:\.\d{2})?", visible))
+        assert not amounts, (
+            f"{page.name} names a price: {sorted(amounts)}. Amounts belong on "
+            "the pricing page, read from Stripe at render time."
+        )
+
+
+def test_the_plan_cards_never_use_a_bare_plan_class():
+    """#158, on the other side of the fence.
+
+    The dashboard shipped `.plan` and it collided with an unrelated `.plan` in
+    settings.html, rendering the price on the page that takes money as an
+    italic grey footnote. It was renamed `.plan-card` and a collision test was
+    added there. This site copies the card design, so it copies the lesson --
+    a bare `.plan` here would be the same mistake with a fresh stylesheet.
+    """
+    classes = re.findall(r'class="([^"]+)"', read(INDEX))
+    bare = [c for c in classes if "plan" in c.split() ]
+    assert not bare, f"index.html uses a bare `plan` class: {bare}"
+
+
+def test_the_free_card_leads_with_what_it_is():
+    """The free column is the product's best trust signal and must not read as
+    a crippled tier. If this copy ever inverts into a list of what free lacks,
+    that is a deliberate decision and should fail here first."""
+    text = read(INDEX)
+    assert "Everything you need to verify your members." in text
+
+
+def test_the_hero_states_the_three_things_the_product_does_not_do():
+    """The most trust-building claim on the site, promoted to sit under the
+    buttons. The full four, with reasons, stay in their own section below."""
+    text = read(INDEX)
+    strip = re.search(r'<p class="trust-strip">(.*?)</p>', text, re.S)
+    assert strip, "the hero has no trust strip"
+    for claim in ("No identity documents", "No photographs", "No manual override"):
+        assert claim in strip.group(1), f"the trust strip dropped {claim!r}"
+    # The detailed section is not replaced by the strip.
+    assert "<h2>What it does not do</h2>" in text
+
+
+def test_the_flow_has_three_steps_and_its_arrows_are_decorative():
+    """An arrow is punctuation between steps; a screen reader announcing it
+    would be reading the gaps aloud."""
+    text = read(INDEX)
+    assert len(re.findall(r'<li class="flow-step">', text)) == 3
+    arrows = re.findall(r'<li class="flow-arrow"([^>]*)>', text)
+    assert len(arrows) == 2, f"expected 2 arrows between 3 steps, got {len(arrows)}"
+    for attrs in arrows:
+        assert 'aria-hidden="true"' in attrs
+
+
+def test_only_the_landing_page_widens_the_measure():
+    """`.home` unlocks the wide landing layout. The legal pages keep 46rem,
+    which is tuned for reading long-form terms -- a wider measure there would
+    be worse, not better."""
+    for page in PAGES:
+        has_home = 'class="home"' in read(page)
+        assert has_home == (page.name == "index.html"), (
+            f"{page.name}: class=\"home\" should be on index.html alone"
+        )
+
+
+def test_the_landing_page_text_clears_aa_in_both_themes():
+    """Every pairing the landing page introduced, measured rather than assumed.
+
+    Card borders are deliberately NOT in here. A card is a container, not a UI
+    component, and this design separates it with the surface ramp -- ground,
+    chrome, card -- rather than with a border, which the dashboard's stylesheet
+    header states outright. Holding a container edge to the 3:1 a control needs
+    would mean heavy borders that contradict the design language.
+    """
+    pairs = [
+        ("trust strip / plans note", "--faint", "--bg"),
+        ("flow note", "--muted", "--bg"),
+        ("flow body, plan blurb, plan eyebrow", "--muted", "--panel"),
+        ("plan price", "--ink-strong", "--panel"),
+        ("plan feature tick", "--accent-text", "--panel"),
+        ("plan feature text", "--ink", "--panel"),
+    ]
+    for label, fg, bg in pairs:
+        for theme, prefix in (("dark", ""), ("light", "--light")):
+            fg_token = fg if theme == "dark" else fg.replace("--", "--light-", 1)
+            bg_token = bg if theme == "dark" else bg.replace("--", "--light-", 1)
+            ratio = _contrast(_token(fg_token), _token(bg_token))
+            assert ratio >= 4.5, (
+                f"{theme}: {label} is {ratio:.2f}:1 ({fg_token} on {bg_token})"
+            )
+
+
+def test_the_number_ring_in_the_flow_is_visible():
+    """It is drawn with --control-line rather than --line for the same reason
+    the theme picker is: a ring that vanishes is not a ring."""
+    for theme, edge, panel in (
+        ("dark", _token("--control-line"), _token("--panel")),
+        ("light", _token("--light-control-line"), _token("--light-panel")),
+    ):
+        ratio = _contrast(edge, panel)
+        assert ratio >= 3.0, f"{theme}: flow number ring is {ratio:.2f}:1"

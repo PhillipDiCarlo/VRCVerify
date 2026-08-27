@@ -299,6 +299,164 @@ th { color: var(--muted); font-weight: 600; }
 .cta.secondary { background: transparent; color: var(--accent-text); border: 1px solid var(--accent); }
 .cta.secondary:hover, .cta.secondary:focus { background: var(--line-soft); }
 
+/* ==========================================================================
+   THE LANDING PAGE (#137 phase 2)
+   Everything below is index.html only. The legal pages use none of it.
+   ========================================================================== */
+
+/* A landing page wants more room than a policy does. The .wrap measure is
+   tuned for reading long-form terms; the hero and the two-card comparison
+   both suffocate at 46rem, so index widens and the prose inside it keeps a
+   measure of its own. */
+.home .wrap { max-width: 60rem; }
+.home main.wrap > p,
+.home main.wrap > ul,
+.home main.wrap > h2 { max-width: 46rem; }
+
+.home h1 {
+  font-size: clamp(2rem, 1.3rem + 2.6vw, 3rem);
+  letter-spacing: -0.015em;
+  margin-top: 3rem;
+}
+.home .lede { font-size: 1.15rem; max-width: 42rem; }
+
+.cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1.75rem 0 0; }
+.cta-row .cta { margin: 0; }
+
+/* Small, quiet, and the last thing under the buttons -- the Zaro pattern, in
+   --faint rather than the accent, because the accent is spoken for. */
+.trust-strip {
+  margin: 1.25rem 0 0;
+  color: var(--faint);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* THE FLOW.
+   A row on a desktop, a column on a phone, with the arrows rotating a quarter
+   turn rather than being hidden -- an arrow that disappears takes the "and
+   then" with it, and three unconnected boxes do not read as a sequence. */
+.flow {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+  margin: 1.25rem 0 0;
+}
+.flow-step {
+  flex: 1;
+  margin: 0;
+  padding: 1.15rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.flow-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--control-line);
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.flow-step h3 { margin: 0.7rem 0 0.3rem; font-size: 1rem; }
+.flow-step p { margin: 0; color: var(--muted); font-size: 0.9375rem; }
+.flow-arrow {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  color: var(--faint);
+  flex: 0 0 auto;
+}
+
+.flow-note {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  border-left: 3px solid var(--accent);
+  padding-left: 0.9rem;
+}
+
+/* THE TWO PLANS.
+   .plan-card and .plan-featured are the dashboard's names on purpose (#141,
+   #158) so the two surfaces stay recognisably one product -- and so nobody
+   reintroduces a bare `.plan`, which is the collision #158 was filed for.
+   The dashboard draws these on --inset, which this site does not carry; the
+   equivalent surface here is --panel.
+
+   NO .plan-badge, unlike the dashboard. It needs one because it renders three
+   cards and a `highlight` flag decides which is featured. Two cards, one of
+   them outlined in the accent, is already unambiguous -- and the badge sat
+   directly above an <h3> saying the same word. */
+.plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0 0;
+  align-items: start;
+}
+.plan-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding: 1.35rem 1.25rem 1.25rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  position: relative;
+  height: 100%;
+}
+/* Outlined rather than filled: the accent states which card is the paid one,
+   and it is still doing one of its two permitted jobs. */
+.plan-card.plan-featured {
+  border-color: var(--accent-text);
+  box-shadow: 0 0 0 1px var(--accent-text);
+}
+.plan-card h3 { margin: 0; font-size: 0.9375rem; font-weight: 600; color: var(--muted); }
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.15rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.plan-price span { font-size: 0.875rem; font-weight: 400; color: var(--muted); }
+.plan-blurb { margin: 0.5rem 0 0; color: var(--muted); font-size: 0.9375rem; }
+.plan-list { margin: 0.9rem 0 1.25rem; padding: 0; list-style: none; }
+.plan-list li {
+  position: relative;
+  padding-left: 1.5rem;
+  margin: 0.35rem 0;
+  font-size: 0.9375rem;
+}
+/* A tick drawn in text rather than an image, and marked decorative so a
+   screen reader reads the feature and not "check mark" six times. */
+.plan-list li::before {
+  content: "\2713";
+  position: absolute;
+  left: 0;
+  color: var(--accent-text);
+  font-weight: 700;
+}
+.plan-card .cta { margin: auto 0 0; align-self: stretch; text-align: center; }
+
+.plans-note { margin: 1rem 0 0; color: var(--faint); font-size: 0.9375rem; }
+
+@media (max-width: 46rem) {
+  .flow { flex-direction: column; align-items: stretch; }
+  .flow-arrow { justify-content: center; transform: rotate(90deg); }
+}
+
 footer.site {
   border-top: 1px solid var(--line);
   background: var(--chrome);
