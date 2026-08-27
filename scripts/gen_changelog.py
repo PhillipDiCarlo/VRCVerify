@@ -96,7 +96,7 @@ def render(entries=None) -> str:
         # Not expected, and not a crash either. A page that renders nothing is
         # better than a deploy that fails at the moment somebody empties the
         # constant to fix something.
-        items = '    <li class="entry"><p class="entry-body">Nothing yet.</p></li>'
+        items = '    <li class="entry empty">Nothing yet.</li>'
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -138,6 +138,19 @@ def render(entries=None) -> str:
 """
 
 
+def _display(path: pathlib.Path):
+    """A repo-relative path where that means anything, the full path otherwise.
+
+    `relative_to` raises for a path outside the repo, which is every path in a
+    test using tmp_path -- and a reporting helper should not be the thing that
+    crashes the run.
+    """
+    try:
+        return path.relative_to(REPO)
+    except ValueError:
+        return path
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -151,20 +164,26 @@ def main(argv=None) -> int:
     if args.check:
         current = OUTPUT.read_text(encoding="utf-8") if OUTPUT.exists() else ""
         if current == fresh:
-            print(f"{OUTPUT.relative_to(REPO)} is up to date")
+            print(f"{_display(OUTPUT)} is up to date")
             return 0
         print(
-            f"{OUTPUT.relative_to(REPO)} is out of date.\n"
+            f"{_display(OUTPUT)} is out of date.\n"
             "Run: python scripts/gen_changelog.py",
             file=sys.stderr,
         )
         return 1
 
-    OUTPUT.write_text(fresh, encoding="utf-8")
+    # newline="\n" rather than the platform default. Every other file in site/
+    # is LF, .gitattributes has no *.html rule, and this repo carries PowerShell
+    # scripts -- so a run on Windows would otherwise commit the one CRLF page in
+    # the directory. It would fail loudly rather than silently (the drift test
+    # and the identical-footer test both break), but failing not at all is
+    # better.
+    OUTPUT.write_text(fresh, encoding="utf-8", newline="\n")
     total = len(changelog.ENTRIES)
     shown = len(changelog.public_entries())
     print(
-        f"wrote {OUTPUT.relative_to(REPO)} "
+        f"wrote {_display(OUTPUT)} "
         f"({shown} public {'entry' if shown == 1 else 'entries'}"
         + (f", {total - shown} withheld" if total != shown else "")
         + ")"
