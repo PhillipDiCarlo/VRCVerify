@@ -190,6 +190,24 @@ class Chart:
         self.width = CHART_VIEW_WIDTH
         self.height = CHART_VIEW_HEIGHT
 
+    @property
+    def peak(self) -> Optional[int]:
+        """The busiest measured day in the window, or None if none was.
+
+        THE SCALE THIS CHART HAD NO WAY TO SHOW (#195 phase 8). Bars are drawn
+        against the peak, so without naming it a reader has heights and no
+        units: one tall bar beside a row of floor-height slivers is the shape
+        of a quiet month and the shape of a broken chart, and nothing on the
+        page said which.
+
+        Read off the bars rather than recomputed from the payload -- the bars
+        are what was drawn, so a peak taken from anywhere else could disagree
+        with the tallest thing on screen. Unmeasured days carry `count` None
+        and are skipped; they are a gap, not a zero.
+        """
+        counts = [bar.count for bar in self.bars if bar.count is not None]
+        return max(counts) if counts else None
+
 
 def build_chart(overview: Optional[dict]) -> Chart:
     """The verification trend chart, ready for the template to draw.
