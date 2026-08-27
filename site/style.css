@@ -1,27 +1,200 @@
-/* One stylesheet for the whole apex site. No fonts, no scripts, no third
-   party anything -- a legal page that depends on a CDN is a legal page that
-   can be unavailable at the moment somebody needs to read it. */
+/* One stylesheet for the whole apex site. No fonts, no third party anything --
+   a legal page that depends on a CDN is a legal page that can be unavailable
+   at the moment somebody needs to read it.
 
-:root {
-  color-scheme: light dark;
-  --bg: #ffffff;
-  --surface: #f6f7f9;
-  --text: #16181d;
-  --muted: #5b6070;
-  --rule: #e2e5ea;
-  --accent: #4553b8;
-  --accent-text: #ffffff;
+   There is now exactly one script, /theme.js, served from this origin. It is
+   the theme toggle and nothing else. See the block below.
+
+   TOKENS ARE COPIED FROM THE DASHBOARD, ON PURPOSE
+   ------------------------------------------------
+   The values below are the same ones as
+   `src/dashboard/static/style.css` (issue #123). The two files cannot share a
+   stylesheet -- different origins, different deploy pipelines, and the whole
+   argument for this site being static is that it does not depend on the box
+   the dashboard runs on. So the values are duplicated, and this comment is
+   half of the pair that says so. The other half is in the dashboard's file.
+   Undocumented duplication is how two surfaces drift into looking like two
+   products.
+
+   Change a colour in one, change it in the other.
+
+   WHAT WAS NOT COPIED, and where to find it if a later phase needs it: the
+   toggle-switch tokens, --control-h, --logo-filter, the --notice-* set and
+   --ok / --danger. Those are dashboard *component* tokens with nothing on
+   this site to paint. Copy one across when a rule here actually needs it,
+   rather than importing a vocabulary this file does not speak.
+
+   --control-line came across that way, for the theme picker, and is the one
+   token whose light value deliberately differs from the dashboard's. The
+   reason is measured and written next to it in the light block. Everything
+   else on both sides is the same hex.
+
+   ONE NAME CHANGED MEANING, so read this before copying a rule between files.
+   This stylesheet used to define `--accent-text` as the text drawn ON the
+   accent -- white on blurple, inside a button. In the dashboard's vocabulary
+   that is `--accent-ink`, and `--accent-text` is the opposite thing: blurple
+   as a FOREGROUND, for a link on a page. They are now used the dashboard's
+   way here too. A rule moved between the files without noticing would paint a
+   button's label in blurple on blurple.
+
+   THEMING: DARK BY DEFAULT, AND WHY THE BLOCKS ARE ORDERED THIS WAY
+   -----------------------------------------------------------------
+   Three states, same as the dashboard: explicit Dark, explicit Light, and
+   "follow the OS". The mechanism has to differ because there is no server
+   here to render the right one into the first paint.
+
+   The dashboard can treat *no attribute* as "System", because its server
+   always knows what to stamp. This site cannot: no attribute is also what a
+   reader sees before /theme.js runs, and what they see forever with
+   JavaScript off. So here the absence of an attribute means DARK -- the
+   default -- and "System" is an explicit `data-theme="system"`.
+
+   That inverts the dashboard's block order. Read these four in order:
+
+     1. Dark values on bare `:root`, which every document matches, plus the
+        explicit `[data-theme="dark"]`. This is the floor, so a first visit
+        with no stored choice and no JavaScript is dark with no flash and no
+        correction after paint.
+     2. The light values, named once as `--light-*`. Nothing paints from
+        these; they exist so the two light selectors can share them.
+     3. An explicit `[data-theme="light"]`.
+     4. `[data-theme="system"]` plus a light OS.
+
+   Dark needs no equivalent of block 4: "System" on a dark OS is already the
+   floor, so there is nothing to override. That asymmetry is the reward for
+   putting the default at the bottom of the cascade. */
+
+/* 1. Dark: the floor, and what an explicit Dark choice pins. */
+:root,
+:root[data-theme="dark"] {
+  /* Per-theme rather than `light dark`, so form controls and scrollbars
+     follow the theme the page actually chose rather than the one the OS
+     prefers. */
+  color-scheme: dark;
+
+  --bg: #1e1f22;          /* page ground */
+  --chrome: #2b2d31;      /* header and footer bars */
+  --panel: #313338;       /* cards and call-out notes */
+
+  --ink: #dbdee1;         /* body text */
+  --ink-strong: #f2f3f5;  /* headings, anything you scan for */
+  --muted: #b5bac1;       /* ledes, descriptions, footer text */
+  --faint: #949ba4;       /* the least important thing that is still text */
+
+  --line: #3f4147;
+  --line-soft: #35373c;
+
+  /* Blurple means exactly two things, here as in the dashboard: "this is the
+     button that does the thing", and a link. Never a border for decoration,
+     never a heading.
+
+     Two tokens because one value cannot do both jobs on a dark surface. As a
+     button background --accent must stay dark enough for white --accent-ink
+     to read on it (4.6:1). As a foreground it must be light enough to read
+     against the panel, which #5865f2 is not (2.7:1) -- hence --accent-text. */
+  --accent: #5865f2;
+  --accent-hover: #4752c4;
+  --accent-ink: #ffffff;
+  --accent-text: #8a93f6;
+
+  /* THE ONE CONTROL ON THIS SITE NEEDS ITS OWN EDGE, and --line cannot be it.
+     --line is a separator between things that are already distinguishable; a
+     control has to be identifiable as a control, which WCAG 1.4.11 puts at
+     3:1 against what surrounds it. --line manages 1.35:1 against the header
+     bar, so the select had no visible edge at all until this was measured.
+
+     This is the dashboard's --control-line, at the dark value unchanged
+     (3.68:1 on --chrome, 3.38:1 on --panel). The light value below is the one
+     that diverges -- see the light block. */
+  --control-line: #80848e;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #16181d;
-    --surface: #1e2127;
-    --text: #e8eaee;
-    --muted: #a0a6b4;
-    --rule: #2c3038;
-    --accent: #8b96e8;
-    --accent-text: #16181d;
+/* 2. The light values, named once and painted by nothing.
+      Kept on `:root` so both light selectors can reference them, rather than
+      the same hexes typed twice with no mechanism to keep them equal. */
+:root {
+  --light-bg: #e3e5e8;
+  --light-chrome: #f2f3f5;
+  --light-panel: #ffffff;
+
+  --light-ink: #313338;
+  --light-ink-strong: #060607;
+  --light-muted: #5c5e66;
+  --light-faint: #63666f;
+
+  --light-line: #dfe0e3;
+  --light-line-soft: #ebedef;
+
+  --light-accent: #5865f2;
+  --light-accent-hover: #4752c4;
+  --light-accent-ink: #ffffff;
+  /* Darker than --accent rather than lighter: a foreground has to move away
+     from its background, and on light the background is the pale one. */
+  --light-accent-text: #4150f0;
+
+  /* THE ONE VALUE THAT DELIBERATELY DIFFERS FROM THE DASHBOARD.
+     The dashboard's light --control-line is #8d919b, tuned against the white
+     cards its inputs sit on, where it gives 3.16:1. This site's only control
+     sits on the header bar -- --chrome, #f2f3f5, which is darker than white --
+     and against that the same grey gives 2.84:1, under the 3:1 a UI component
+     needs. The dashboard was never asked for that pairing, so its value is not
+     wrong; it is measured against a surface this site does not use here.
+
+     #848892 clears both the bar it sits on (3.20:1) and the fill it surrounds
+     (3.55:1). Darkening the token is the same fix the dashboard applied to
+     --ok when the plan cards put it on a surface it had not been measured
+     against: move the token, not the element. Pinned in test_site.py. */
+  --light-control-line: #848892;
+}
+
+/* 3. Light, chosen explicitly. Unaffected by what the OS prefers, which is
+      the point of choosing. */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: var(--light-bg);
+  --chrome: var(--light-chrome);
+  --panel: var(--light-panel);
+
+  --ink: var(--light-ink);
+  --ink-strong: var(--light-ink-strong);
+  --muted: var(--light-muted);
+  --faint: var(--light-faint);
+
+  --line: var(--light-line);
+  --line-soft: var(--light-line-soft);
+
+  --accent: var(--light-accent);
+  --accent-hover: var(--light-accent-hover);
+  --accent-ink: var(--light-accent-ink);
+  --accent-text: var(--light-accent-text);
+  --control-line: var(--light-control-line);
+}
+
+/* 4. Light, because the OS asked and the reader chose to follow it.
+      The whole of "System" mode -- the dark half needs no block, because dark
+      is the floor. */
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    color-scheme: light;
+
+    --bg: var(--light-bg);
+    --chrome: var(--light-chrome);
+    --panel: var(--light-panel);
+
+    --ink: var(--light-ink);
+    --ink-strong: var(--light-ink-strong);
+    --muted: var(--light-muted);
+    --faint: var(--light-faint);
+
+    --line: var(--light-line);
+    --line-soft: var(--light-line-soft);
+
+    --accent: var(--light-accent);
+    --accent-hover: var(--light-accent-hover);
+    --accent-ink: var(--light-accent-ink);
+    --accent-text: var(--light-accent-text);
+    --control-line: var(--light-control-line);
   }
 }
 
@@ -30,7 +203,7 @@
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--text);
+  color: var(--ink);
   font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-text-size-adjust: 100%;
 }
@@ -38,8 +211,8 @@ body {
 .wrap { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
 
 header.site {
-  border-bottom: 1px solid var(--rule);
-  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  background: var(--chrome);
 }
 header.site .wrap {
   display: flex;
@@ -52,33 +225,58 @@ header.site .wrap {
 header.site a.brand {
   font-weight: 700;
   font-size: 1.05rem;
-  color: var(--text);
+  color: var(--ink-strong);
   text-decoration: none;
   margin-right: auto;
 }
 header.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; }
 header.site nav a { color: var(--muted); text-decoration: none; font-size: 0.94rem; }
-header.site nav a:hover, header.site nav a:focus { color: var(--text); text-decoration: underline; }
+header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); text-decoration: underline; }
 
-h1 { font-size: 1.9rem; line-height: 1.25; margin: 2rem 0 0.35rem; text-wrap: balance; }
-h2 { font-size: 1.2rem; margin: 2.25rem 0 0.5rem; text-wrap: balance; }
-h3 { font-size: 1rem; margin: 1.5rem 0 0.35rem; }
-p, li { color: var(--text); }
+/* THE THEME PICKER.
+   Ships `hidden` and is revealed by /theme.js. A control that cannot work
+   without JavaScript should not be painted before JavaScript arrives -- with
+   the script blocked the page is simply dark, which is a complete experience
+   rather than a broken one.
+
+   A `<select>` rather than a button that cycles: #123 surveyed six products
+   and every one of them gave the three-way choice an explicit labelled
+   picker. None cycled, because a cycling button cannot say what it will do
+   next. The dashboard renders that choice as a popover of form buttons, which
+   needs a server to post to; a native select is the honest static equivalent
+   and costs no CSS to make accessible. */
+.theme-picker { display: flex; align-items: baseline; gap: 0.4rem; margin: 0; }
+.theme-picker[hidden] { display: none; }
+.theme-picker label { color: var(--faint); font-size: 0.94rem; }
+.theme-picker select {
+  font: inherit;
+  font-size: 0.94rem;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--control-line);
+  border-radius: 6px;
+  padding: 0.2rem 0.4rem;
+}
+
+h1 { font-size: 1.9rem; line-height: 1.25; margin: 2rem 0 0.35rem; text-wrap: balance; color: var(--ink-strong); }
+h2 { font-size: 1.2rem; margin: 2.25rem 0 0.5rem; text-wrap: balance; color: var(--ink-strong); }
+h3 { font-size: 1rem; margin: 1.5rem 0 0.35rem; color: var(--ink-strong); }
+p, li { color: var(--ink); }
 ul, ol { padding-left: 1.35rem; }
 li { margin: 0.3rem 0; }
 
 .updated { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.5rem; }
 .lede { font-size: 1.08rem; color: var(--muted); }
 
-a { color: var(--accent); }
+a { color: var(--accent-text); }
 
 table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.95rem; }
-th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--muted); font-weight: 600; }
 .scroll { overflow-x: auto; }
 
 .note {
-  background: var(--surface);
+  background: var(--panel);
   border-left: 3px solid var(--accent);
   padding: 0.9rem 1.1rem;
   margin: 1.25rem 0;
@@ -90,17 +288,20 @@ th { color: var(--muted); font-weight: 600; }
 .cta {
   display: inline-block;
   background: var(--accent);
-  color: var(--accent-text);
+  color: var(--accent-ink);
   padding: 0.6rem 1.1rem;
   border-radius: 6px;
   text-decoration: none;
   font-weight: 600;
   margin: 0.35rem 0.5rem 0.35rem 0;
 }
-.cta.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.cta:hover, .cta:focus { background: var(--accent-hover); }
+.cta.secondary { background: transparent; color: var(--accent-text); border: 1px solid var(--accent); }
+.cta.secondary:hover, .cta.secondary:focus { background: var(--line-soft); }
 
 footer.site {
-  border-top: 1px solid var(--rule);
+  border-top: 1px solid var(--line);
+  background: var(--chrome);
   margin-top: 3rem;
   color: var(--muted);
   font-size: 0.9rem;
@@ -109,4 +310,7 @@ footer.site .wrap { padding-top: 1.5rem; padding-bottom: 2.5rem; }
 footer.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 0.75rem; }
 footer.site a { color: var(--muted); }
 
-a:focus-visible, .cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a:focus-visible, .cta:focus-visible, .theme-picker select:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}

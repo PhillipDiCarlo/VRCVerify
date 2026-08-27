@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Terms of Service — VRCVerify</title>
 <link rel="stylesheet" href="/style.css">
+<!-- Blocking, and in <head>, so a stored Light choice paints light on the
+     first frame rather than flashing dark and correcting itself. Same
+     origin, ~30 lines, and nothing on this page needs it to work. -->
+<script src="/theme.js"></script>
 </head>
 <body>
 
@@ -17,6 +21,14 @@
       <a href="/refunds">Refunds</a>
       <a href="https://dashboard.vrcverify.com">Dashboard</a>
     </nav>
+    <div class="theme-picker" hidden>
+      <label for="theme-select">Theme</label>
+      <select id="theme-select">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+        <option value="system">System</option>
+      </select>
+    </div>
   </div>
 </header>
 
