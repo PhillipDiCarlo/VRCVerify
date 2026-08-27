@@ -8271,3 +8271,122 @@ class TestTheFooterIsABar(object):
         # that has nothing to sell.
         assert "Esatto Technologies" in page
         assert "Not affiliated with" in page
+
+
+class TestTheChartNamesItsScale(object):
+    """A sparse month has to read as a chart, not a rule (#195 phase 8)."""
+
+    @staticmethod
+    def _series(counts):
+        from datetime import timedelta
+
+        start = date(2026, 8, 1)
+        return [
+            {"day": (start + timedelta(days=i)).isoformat(), "count": c}
+            for i, c in enumerate(counts)
+        ]
+
+    def _overview(self, daily):
+        return {
+            "verifications": {
+                "known": True,
+                "daily": daily,
+                "collecting_since": "2026-08-01",
+            }
+        }
+
+    def test_the_peak_is_the_busiest_measured_day(self):
+        """Bars are drawn against it, so without naming it a reader has heights
+        and no units -- one tall bar beside a row of floor-height slivers is
+        the shape of a quiet month and of a broken chart at the same time."""
+        chart = overview_view.build_chart(self._overview(self._series([0, 3, 1, 0])))
+        assert chart.peak == 3
+
+    def test_an_unmeasured_day_is_not_a_zero_when_taking_the_peak(self):
+        """A day before the collection floor is a gap. Treating None as 0 would
+        be the same conflation `bar.height is not none` exists to prevent, one
+        level up."""
+        chart = overview_view.build_chart(self._overview(self._series([None, 2, None])))
+        assert chart.peak == 2
+
+    def test_a_window_with_nothing_measured_has_no_peak(self):
+        """"Peak 0" on a month of gaps is a number pretending to be a reading.
+        The template omits the label entirely rather than printing one."""
+        chart = overview_view.build_chart(self._overview(self._series([None] * 30)))
+        assert chart.peak is None
+
+    def test_a_measured_month_of_zeroes_still_has_a_peak_of_zero(self):
+        """Distinct from the case above, and the distinction is the whole
+        point: this server was measured and did nothing, which is a reading."""
+        chart = overview_view.build_chart(self._overview(self._series([0] * 30)))
+        assert chart.peak == 0
+
+    def test_the_peak_matches_the_tallest_bar_that_is_drawn(self):
+        """Read off the bars rather than the payload, so it cannot disagree
+        with the tallest thing on screen."""
+        chart = overview_view.build_chart(self._overview(self._series([1, 9, 4])))
+        tallest = max(b for b in (bar.height for bar in chart.bars) if b is not None)
+        peak_bar = next(bar for bar in chart.bars if bar.count == chart.peak)
+        assert peak_bar.height == tallest
+
+    def test_the_chart_has_a_baseline_and_the_label_escapes_the_measure(self):
+        """Two CSS facts this phase depends on.
+
+        The baseline is on the container, not in the SVG: `preserveAspectRatio`
+        is `none`, so a stroke inside the viewBox would stretch with it.
+
+        And `.chart-scale` is a label, not prose -- clamped to the measure it
+        right-aligned inside a 490px box in the middle of a 900px card. That is
+        the third time a structural `<p>` selector caught something that is not
+        a sentence; the apex site's trust strip and flow note were the others.
+        """
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            css = handle.read()
+        assert re.search(r"\n\.chart \{ border-bottom: 1px solid var\(--line\); \}", css), (
+            "the chart has no baseline"
+        )
+        assert ".panel > .chart-scale { max-width: none; }" in css, (
+            "the axis label is clamped to the prose measure"
+        )
+
+
+def test_the_server_name_is_not_announced_twice_on_a_phone():
+    """Deferred from #195 phase 4 and closed here.
+
+    Below the breakpoint the sidebar is a tab strip stacked directly above the
+    content, and phase 4 moved the page title onto the ground -- so the server
+    name appeared twice within about 300px. On a desktop the two sit in
+    different columns and read as nav plus title; stacked, they read as a
+    repeat.
+
+    The ICON stays, so the strip still says which server without saying it
+    again in words, and the <h1> below is the accessible name either way. This
+    hides a duplicate label, never the only one -- which is why the rule has to
+    be inside the media query and nowhere else.
+    """
+    import dashboard
+
+    with open(
+        os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+        encoding="utf-8",
+    ) as handle:
+        css = handle.read()
+
+    hide = ".side-guild .side-guild-name { display: none; }"
+    assert hide in css, "the duplicate server name is not hidden anywhere"
+
+    # It must be inside a max-width query: hiding it on the desktop would take
+    # the name out of the sidebar, where it is the only one.
+    before = css[: css.index(hide)]
+    opened = before.count("@media (max-width")
+    # every media block that opened before this point and has not closed
+    depth = before.count("{") - before.count("}")
+    assert opened and depth > 0, (
+        "the rule is not inside a media query, so the sidebar loses its name "
+        "at every width"
+    )

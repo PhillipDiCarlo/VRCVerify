@@ -572,6 +572,20 @@ p { text-wrap: pretty; }
 .panel .desc,
 .panel > p { max-width: var(--measure); }
 
+/* NOT PROSE, AND THE MEASURE HAD TO BE TOLD SO -- the third time (#195 phase
+ * 8). The apex site's trust strip and flow note were the first two, in phase
+ * 2, and the shape of the mistake is identical: `.panel > p` is a structural
+ * selector, and a <p> is not always a sentence.
+ *
+ * `.chart-scale` is a right-aligned label meant to sit over the end of the
+ * series. Clamped to 52ch it right-aligned inside a 490px box in the middle of
+ * a 900px card, which reads as a stray caption rather than an axis label --
+ * and nothing measured it wrong, because a short label inside a measure is
+ * still a short label.
+ *
+ * A reviewer adding a <p> to a card should ask which of the two it is. */
+.panel > .chart-scale { max-width: none; }
+
 /* --- header bar ---
  *
  * Left to right: the sidebar toggle, the brand, then a cluster of equal square
@@ -2150,6 +2164,34 @@ footer p + p { margin-top: var(--space-2); }
 
 .chart svg { display: block; width: 100%; height: 100%; }
 
+/* A BASELINE, so a sparse month reads as a chart rather than a rule (#195
+ * phase 8).
+ *
+ * `CHART_MIN_BAR_HEIGHT` is working exactly as designed when it draws a row of
+ * slivers -- a measured zero has to stay visible, and that was decided in
+ * #135. What was missing is the axis they sit on: without it, thirty floor
+ * bars and one tall one look like a horizontal rule that something spilled
+ * onto, and the card reads as broken rather than quiet.
+ *
+ * On the container, not in the SVG: `preserveAspectRatio="none"` stretches the
+ * viewBox to the card's width, which would take a 1px stroke with it and
+ * render an axis that is 1px on a narrow card and hairline-thin on a wide one.
+ */
+.chart { border-bottom: 1px solid var(--line); }
+
+/* Right-aligned, so it sits over the end of the series rather than over the
+ * start, where it would compete with the first bars for the same corner. */
+.chart-scale {
+  margin: var(--space-5) 0 var(--space-1);
+  text-align: right;
+  font-size: var(--text-note);
+  color: var(--faint);
+}
+/* The label already carries the gap above the chart, so the chart drops its
+ * own -- otherwise the two stack and the bars drift away from the tiles they
+ * belong to. */
+.chart-scale + .chart { margin-top: 0; }
+
 /* `fill="currentColor"` in the markup, `color` here: the same split every
  * other icon in this file uses, and the reason the chart needs no hex value
  * of its own to follow the theme. `accent-text` rather than `accent` -- a bar
@@ -2416,6 +2458,22 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   }
   .side-guild .icon,
   .side-guild .icon img { width: 32px; height: 32px; }
+
+  /* THE NAME COMES OFF HERE, and only here (#195 phase 8, deferred from
+     phase 4).
+   *
+   * At this width the sidebar is a tab strip stacked directly above the
+   * content, and phase 4 moved the page title out of its card and onto the
+   * ground -- so the server's name appeared twice within about 300px, once in
+   * the strip and once as the <h1> immediately below it. On a desktop the two
+   * sit in different columns and read as nav plus title; stacked, they read
+   * as a repeat.
+   *
+   * The icon stays, so the strip still says WHICH server without saying it
+   * again in words, and the <h1> underneath is the accessible name either
+   * way -- this hides a duplicate label, never the only one. Above the
+   * breakpoint nothing changes. */
+  .side-guild .side-guild-name { display: none; }
 
   .side-nav {
     grid-column: 1 / -1;

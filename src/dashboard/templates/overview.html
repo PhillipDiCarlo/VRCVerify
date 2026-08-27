@@ -109,6 +109,20 @@
        file or that function -- the same discipline #123 put on every other
        icon here. #}
     {% if chart.state == 'value' %}
+      {# THE SCALE, NAMED (#195 phase 8).
+         Bars are drawn against the busiest day, so without saying what that
+         day was a reader has heights and no units -- and one tall bar beside a
+         row of floor-height slivers is the shape of a quiet month and the
+         shape of a broken chart at the same time.
+
+         HTML rather than SVG <text>: the chart carries
+         `preserveAspectRatio="none"` so it can stretch to the card's width,
+         which would stretch a glyph with it. Omitted when nothing was measured
+         -- "Peak 0" on a month of gaps is a number pretending to be a
+         reading. #}
+      {% if chart.peak is not none %}
+        <p class="chart-scale">Peak {{ chart.peak }} a day</p>
+      {% endif %}
       <div class="chart" role="img"
            aria-label="Verifications per day, last {{ chart.bars|length }} days. The exact numbers follow this chart.">
         <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" aria-hidden="true"
