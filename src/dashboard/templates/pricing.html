@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Pricing · VRCVerify{% endblock %}
+
+{# WHAT PREMIUM COSTS, FOR SOMEBODY WHO HAS NOT SIGNED IN (#188).
+
+   Every figure on this page came from Stripe on this request. Nothing here is
+   typed, computed or remembered -- which is the entire reason this page is a
+   route in the dashboard rather than a file on the apex site.
+
+   No `section` is passed, so `base.html` uses the sidebar-less `.layout.plain`
+   layout the sign-in page and the picker use. The sidebar navigates within one
+   server and this page belongs to none.
+
+   NOTHING HERE MAY NAME A GUILD OR AN ADMIN. It is product-level data -- a
+   product id and its prices -- served to anybody who asks. #}
+{% block content %}
+
+<section class="panel">
+  <h1>Pricing</h1>
+  <p class="muted blurb">
+    Verifying members is free, forever. Premium adds the automation around it,
+    per server.
+  </p>
+</section>
+
+{# FREE FIRST, AND NOT AS A LESSER TIER.
+   The product's strongest claim is that the thing it exists to do costs
+   nothing, and a pricing page that opens with what you must pay for buries it.
+   The wording matches the apex site's free card deliberately -- a prospect who
+   arrives here from vrcverify.com should not meet a different promise. #}
+<section class="panel group">
+  <h2>Free, forever</h2>
+  <p class="blurb">Everything you need to verify your members.</p>
+  <ul class="plan-list">
+    <li>Verify members as 18+</li>
+    <li>Auto-verify people who verified in another server</li>
+    <li>Members can update their own nickname</li>
+  </ul>
+</section>
+
+<section class="panel group">
+  <h2>Premium</h2>
+
+  {% if page.unavailable %}
+    {# A FAILED READ IS AN APOLOGY, NEVER "NOTHING IS FOR SALE".
+       That rule is the subscription route's and it bites harder here: an admin
+       who sees an empty list has a working bot in front of them, while a
+       stranger concludes the product is abandoned and closes the tab. #}
+    <p class="blurb">
+      We can't load prices right now. <strong>Premium is still
+      available.</strong> Try again in a moment, or subscribe inside Discord.
+    </p>
+  {% elif not page.offers_plans %}
+    <p class="blurb muted">
+      There are no plans on sale at the moment.
+    </p>
+  {% else %}
+    {# ONE PRODUCT, THREE CADENCES, SAID BEFORE ANYONE STARTS COMPARING.
+       Reused verbatim from subscription.html rather than reworded: three cards
+       at rising prices is the shape of a tier comparison, and a reader who
+       scans will take the dearest one to unlock the most. It does not unlock
+       anything more. That misreading is likelier here than on the signed-in
+       page, not less -- this audience has never seen the product. #}
+    <p class="blurb">
+      <strong>One Premium, three ways to pay for it.</strong> Every plan below
+      unlocks exactly the same features — the only difference is how long you
+      pay for at once, and how much that saves.
+    </p>
+    <p class="blurb muted">
+      Prices are in US dollars and <strong>exclude tax</strong>; any tax due
+      where you are is added at checkout. Payment is handled by Stripe — card
+      details never reach VRCVerify.
+    </p>
+
+    <div class="plans">
+      {% for plan in page.plans %}
+        {# `.plan-card`, never a bare `.plan` (#158) -- that collision rendered
+           the price as an italic grey footnote on the page that takes money.
+           Not a <form> here, unlike subscription.html: there is no guild to
+           check out for and no session to carry a CSRF token. Buying happens
+           in the dashboard, signed in, where the server is known. #}
+        <div class="plan-card{% if plan.highlight %} plan-featured{% endif %}">
+          {% if plan.highlight %}
+            <p class="plan-badge">Most popular</p>
+          {% endif %}
+          <h3>{{ plan.label }}</h3>
+          {# Omitted entirely when Stripe did not give us one -- never guessed,
+             never zero. Same rule as the subscription page. #}
+          {% if plan.amount %}
+            <p class="plan-price">
+              <span class="plan-amount">{{ plan.amount }}</span>
+              {% if plan.period %}<span class="plan-period">{{ plan.period }}</span>{% endif %}
+            </p>
+          {% endif %}
+          {% if plan.saving %}
+            <p class="plan-saving">{{ plan.saving }}</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    {# THE TRIAL, STATED WITHOUT A NUMBER, AND THAT IS DELIBERATE.
+       `trial_days_for()` is the one place a plan's trial length meets a
+       server's eligibility, so that a card and the checkout route can never
+       disagree about whether somebody's first month is free. This page has no
+       server, so it cannot evaluate the second half -- and "14 days free"
+       shown to a reader whose server already used its trial is a promise
+       broken at the moment they hand over a card number.
+
+       So: a trial exists, the dashboard says whether yours does. #}
+    {% if page.mentions_a_trial %}
+      <p class="blurb muted">
+        Some plans start with a free trial. Whether a particular server
+        qualifies depends on whether it has had one before — the dashboard
+        tells you before you pay.
+      </p>
+    {% endif %}
+  {% endif %}
+
+  <h3>What Premium adds</h3>
+  {# A SECOND COPY OF THE FEATURE LIST, and the first is in site/index.html on
+     the apex site. The two cannot share anything -- different origin, different
+     deploy -- so this comment is half the pair that says so, exactly as the
+     design tokens do. Change one, change the other.
+
+     This is a duplication of a feature list. It is never a duplication of a
+     price: every figure above came from Stripe on this request. #}
+  <ul class="plan-list">
+    <li>Automatic removal of an unverified role</li>
+    <li>Nickname syncing</li>
+    <li>A custom post-verification message</li>
+    <li>A verification log channel</li>
+    <li>Priority in the verification queue</li>
+    <li>A branded instructions panel</li>
+  </ul>
+
+  <p class="blurb muted">
+    Premium is bought per server. You can subscribe with a card in the
+    dashboard, or monthly through Discord.
+  </p>
+</section>
+
+<section class="panel group">
+  <h2>Ready to start?</h2>
+  <p class="blurb">
+    Add VRCVerify to your server and verification works immediately, at no
+    cost. Premium is there when you want it.
+  </p>
+  <p>
+    <a class="button" href="{{ url_for('index') }}">Open the dashboard</a>
+  </p>
+</section>
+
+{% endblock %}

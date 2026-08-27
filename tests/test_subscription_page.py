@@ -1712,3 +1712,153 @@ class TestCheckoutHonoursEligibility:
         assert response.status_code == 303
         assert stripe.checkouts[0]["price_id"] == PRICE_YEARLY
         assert stripe.checkouts[0]["trial_days"] is None
+
+
+class TestThePublicPricingPage:
+    """The first deliberately signed-out page in this app (#188).
+
+    It exists because a prospect could not see a price without signing in with
+    Discord -- and because a price on the statically-deployed apex site would
+    be a second copy of a number Stripe is the truth for.
+    """
+
+    def test_it_renders_with_no_session_at_all(self, config):
+        """The whole point. Every other page here redirects a stranger to `/`."""
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        response = app.test_client().get("/pricing")
+        assert response.status_code == 200
+
+    def test_the_figures_come_from_stripe(self, config):
+        """Not from a constant, not from a template. Change what Stripe says
+        and the page changes -- which is the entire reason this is a route
+        rather than a file on the apex site."""
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        stripe = FakeStripe()
+        stripe.prices = [dict(PRICES[1], unit_amount=1234)]
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=stripe)
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        assert "$12.34" in page
+
+    def test_it_never_calls_the_bot(self, config):
+        """It is product-level data. There is no guild to ask about, and a
+        public page reaching the bot would be a public page that can be used
+        to make the bot work."""
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        bot = FakeBotAPI()
+        app = create_app(config, store=store, client=bot, stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        called = []
+        bot.settings = lambda *a, **k: called.append(a) or payload()
+        app.test_client().get("/pricing")
+        assert called == []
+
+    def test_it_names_no_guild_and_no_admin(self, config):
+        """A public URL must not leak who is using the product."""
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        assert str(GUILD) not in page
+        assert str(ACTOR) not in page
+
+    def test_a_failed_stripe_read_is_an_apology_not_an_empty_shop(self, config):
+        """The distinction #141 established, and it matters more here.
+
+        An admin who sees "no plans" has a working bot in front of them. A
+        stranger concludes the product is dead and closes the tab.
+        """
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        stripe = FakeStripe()
+        # `price_error`, not `error` -- the latter only fires on checkout and
+        # portal creation, so setting it here would have tested nothing.
+        stripe.price_error = StripeAPIError("boom")
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=stripe)
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        assert "can't load prices" in page
+        assert "Premium is still" in page
+        assert "no plans on sale" not in page
+
+    def test_no_plans_is_not_the_same_message_as_a_failed_read(self, config):
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        stripe = FakeStripe()
+        stripe.prices = []
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=stripe)
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        assert "no plans on sale" in page
+        assert "can't load prices" not in page
+
+    def test_it_says_one_premium_three_cadences_before_the_cards(self, config):
+        """Three cards at rising prices is the shape of a tier comparison, and
+        this audience has never seen the product -- so the misreading is more
+        likely here, not less."""
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        assert "One Premium, three ways to pay for it" in page
+        assert page.index("One Premium") < page.index('class="plan-card')
+
+    def test_it_never_promises_a_number_of_trial_days(self, config):
+        """THE thing this page must be vaguer about than the private one.
+
+        `trial_days_for()` is where a plan's trial meets a server's
+        eligibility, so the card and the checkout route cannot disagree about
+        whether somebody's first month is free. This page has no server, so it
+        cannot evaluate the second half -- and "14-day free trial" shown to a
+        reader whose server already used its trial is a promise broken at the
+        moment they hand over a card number.
+        """
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        # Collapsed, because the copy wraps across source lines and the claim
+        # is about the sentence a reader sees, not about the indentation.
+        page = " ".join(app.test_client().get("/pricing").data.decode().split())
+        # The fixture's yearly price carries trial_days=14.
+        assert "14-day free trial" not in page
+        assert "14 day" not in page
+        # But it does say a trial exists, and where to find out.
+        assert "free trial" in page
+        assert "the dashboard tells you before you pay" in page
+
+    def test_it_uses_plan_card_never_a_bare_plan(self, config):
+        """#158: `.plan` collided with a footnote class and rendered the price
+        on the page that takes money as an italic grey footnote."""
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        assert 'class="plan-card' in page
+        assert 'class="plan"' not in page
+
+    def test_it_offers_no_way_to_pay_from_here(self, config):
+        """There is no guild to check out for and no session to carry a CSRF
+        token. Buying happens signed in, where the server is known."""
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        # Not "no <form> at all": base.html's theme picker is a form and it
+        # renders here on purpose. `set_theme_preference` is documented as the
+        # one POST in this app needing neither a session nor a CSRF token,
+        # precisely so the theme control works on pages nobody has signed in
+        # to. What must not exist is a way to submit a PURCHASE.
+        assert "subscription/checkout" not in page
+        assert "csrf_token" not in page
+        assert 'name="price_id"' not in page
+
+    def test_it_leads_with_free(self, config):
+        """The product's strongest claim is that the thing it exists to do
+        costs nothing. A pricing page that opens with what you must pay buries
+        it, and the wording matches the apex site's free card on purpose."""
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        assert "Everything you need to verify your members" in page
+        assert page.index("Free, forever") < page.index(">Premium<")

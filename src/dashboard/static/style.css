@@ -2517,6 +2517,36 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
 }
 
 
+/* THE FEATURE LISTS ON /pricing (#188).
+ * Deliberately the same shape and the same class name as `.plan-list` in
+ * site/style.css, so the apex site's plan cards and this page read as one
+ * product. The two files cannot share anything -- different origin, different
+ * deploy -- so this comment is half the pair that says so. Change one, change
+ * the other.
+ *
+ * The tick's empty alt string keeps it out of the accessibility tree; a
+ * screen reader should read the feature, not "check mark" six times. Behind
+ * @supports because that content syntax is recent, and where it is
+ * unsupported the whole declaration would be dropped and the ticks would
+ * vanish -- which is worse than announcing them. */
+.plan-list { list-style: none; margin: var(--space-3) 0 var(--space-4); padding: 0; }
+.plan-list li {
+  position: relative;
+  padding-left: 1.5rem;
+  margin: var(--space-2) 0;
+  color: var(--ink);
+}
+.plan-list li::before {
+  content: "\2713";
+  position: absolute;
+  left: 0;
+  color: var(--accent-text);
+  font-weight: 700;
+}
+@supports (content: "x" / "y") {
+  .plan-list li::before { content: "\2713" / ""; }
+}
+
 .plan-card .button { margin-top: auto; align-self: stretch; }
 
 /* The Discord route's command, given the weight the card route's buttons get.

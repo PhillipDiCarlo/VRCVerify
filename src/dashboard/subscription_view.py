@@ -750,3 +750,68 @@ def build(
         # which re-reads this same field -- would then refuse to honour.
         trial_eligible=bool(stripe_block.get("trial_eligible")) and stripe_on,
     )
+
+
+class PublicPricingPage:
+    """What a signed-out stranger is shown about what Premium costs (#188).
+
+    A deliberately thinner thing than `SubscriptionPage`. That page answers
+    "what is THIS server paying and what may it do next", and every one of its
+    interesting properties needs a guild. This one answers "what does the
+    product cost", which needs only the product -- so it takes prices and
+    nothing else, and there is no guild, no session and no bot call anywhere
+    behind it.
+
+    THE TRIAL IS THE ONE PLACE THIS PAGE MUST BE VAGUER THAN THE PRIVATE ONE,
+    and it is worth understanding why before making it more specific.
+
+    `trial_days_for()` is the single place a plan's trial length meets a
+    server's eligibility, precisely so the card and the checkout route cannot
+    disagree about whether somebody's first month is free. A public page has no
+    server, so it cannot evaluate the second half -- and a card promising "14
+    days free" to a reader whose server already used its trial is a promise
+    broken at the moment they hand over a card number, which is the failure
+    that comment exists to prevent.
+
+    So the public page states only that a trial EXISTS on some plan, and sends
+    the reader to the dashboard to find out whether theirs qualifies. It never
+    prints a number of days next to a price.
+    """
+
+    def __init__(self, plans=(), *, plans_unavailable: bool = False,
+                 stripe_configured: bool = True):
+        self.plans = tuple(plans)
+        # A failed read is an apology, never "nothing is for sale". The rule is
+        # the subscription route's, and it bites harder here: an admin seeing
+        # an empty list has a working bot in front of them, while a stranger
+        # concludes the product is dead and closes the tab.
+        self.plans_unavailable = bool(plans_unavailable) and stripe_configured
+        self.stripe_configured = bool(stripe_configured)
+
+    @property
+    def offers_plans(self) -> bool:
+        return bool(self.plans)
+
+    @property
+    def unavailable(self) -> bool:
+        """Stripe was asked and did not answer. Distinct from having no plans."""
+        return self.plans_unavailable and not self.plans
+
+    @property
+    def mentions_a_trial(self) -> bool:
+        """Does ANY offered plan carry a trial?
+
+        Deliberately a boolean rather than a length. See the class docstring:
+        the number of days is only true for a server this page cannot see.
+        """
+        return any(plan.trial_days for plan in self.plans)
+
+
+def build_public_pricing(plans=(), *, plans_unavailable: bool = False,
+                         stripe_configured: bool = True) -> PublicPricingPage:
+    """Pure, like everything else here: prices in, a page object out."""
+    return PublicPricingPage(
+        plans,
+        plans_unavailable=plans_unavailable,
+        stripe_configured=stripe_configured,
+    )
