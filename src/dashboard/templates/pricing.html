@@ -1,11 +1,27 @@
 {% extends "base.html" %}
 {% block title %}Pricing · VRCVerify{% endblock %}
 
-{# WHAT PREMIUM COSTS, FOR SOMEBODY WHO HAS NOT SIGNED IN (#188).
+{# WHAT PREMIUM COSTS, FOR SOMEBODY WHO HAS NOT SIGNED IN (#188, restructured
+   in #195 phase 3).
 
    Every figure on this page came from Stripe on this request. Nothing here is
    typed, computed or remembered -- which is the entire reason this page is a
    route in the dashboard rather than a file on the apex site.
+
+   THE SHAPE CHANGED IN #195 AND THE REASON IS WORTH KEEPING. The first version
+   stacked four full-width slabs of equal weight: Free in one, Premium in the
+   next, the six features in a block below the cadence cards. Three problems,
+   all of them costing conversions on the page a prospect is sent to from the
+   landing page's main button:
+
+     - Free and Premium could not be compared, being in separate slabs.
+     - The cadence cards carried a price and no features, so a reader
+       comparing them saw three numbers and no reason to pick one.
+     - The title rendered at console size, 22.4px, against 44-56px on every
+       pricing page this epic looked at.
+
+   So: two peer cards that mirror site/index.html exactly, then the cadences
+   framed as how you pay rather than what you get.
 
    No `section` is passed, so `base.html` uses the sidebar-less `.layout.plain`
    layout the sign-in page and the picker use. The sidebar navigates within one
@@ -15,37 +31,106 @@
    product id and its prices -- served to anybody who asks. #}
 {% block content %}
 
-<section class="panel">
+{# THE TITLE IS NOT IN A CARD, and it is the one centred thing in this app.
+   Both are deliberate and both are scoped to this page by `.page-head`.
+
+   Every console reference in #195 puts its page title on the page ground
+   rather than inside a panel, and every pricing reference centres it. This
+   page is the second kind. Overview and Settings must NOT copy this -- a
+   console that centres its headings reads as a brochure. #}
+<header class="page-head">
   <h1>Pricing</h1>
-  <p class="muted blurb">
-    Verifying members is free, forever. Premium adds the automation around it,
-    per server.
-  </p>
-</section>
+  <p>Verification is free, forever. Premium adds the automation around it,
+  per server.</p>
+</header>
 
-{# FREE FIRST, AND NOT AS A LESSER TIER.
-   The product's strongest claim is that the thing it exists to do costs
-   nothing, and a pricing page that opens with what you must pay for buries it.
-   The wording matches the apex site's free card deliberately -- a prospect who
-   arrives here from vrcverify.com should not meet a different promise. #}
-<section class="panel group">
-  <h2>Free, forever</h2>
-  <p class="blurb">Everything you need to verify your members.</p>
-  <ul class="plan-list">
-    <li>Verify members as 18+</li>
-    <li>Auto-verify people who verified in another server</li>
-    <li>Members can update their own nickname</li>
-  </ul>
-</section>
+{# FREE AND PREMIUM AS PEERS, and this markup mirrors the landing page's two
+   cards deliberately -- a visitor arriving from vrcverify.com's "See pricing"
+   button should meet the same comparison, not a different one. The feature
+   lists are the second copy of site/index.html's; that duplication is
+   commented in both files, exactly as the design tokens are.
+
+   It is a duplication of a FEATURE LIST. It is never a duplication of a price:
+   every figure on this page comes from the Stripe read below. #}
+<div class="tiers">
+  <div class="plan-card">
+    <h2>Free</h2>
+    {# "Free" rather than "$0" -- the same wording the landing page uses, and
+       for the same reason: a price-shaped token here invites a reader to
+       compare it against the cadence figures below, which are for the other
+       tier entirely. #}
+    <p class="plan-price">
+      <span class="plan-amount">Free</span>
+      <span class="plan-period">forever</span>
+    </p>
+    <p class="plan-blurb">Everything you need to verify your members.</p>
+    <ul class="plan-list">
+      <li>Verify members as 18+</li>
+      <li>Auto-verify people who verified in another server</li>
+      <li>Members can update their own nickname</li>
+    </ul>
+    {# THE CARDS CARRY THEIR OWN CTA, which is what every reference in #195
+       does and what fills the space Free would otherwise leave -- three
+       features against Premium's six, in a grid that stretches both to the
+       same height.
+       `margin-top: auto` in the stylesheet pins both buttons to the bottom
+       edge so they line up across the two cards regardless of that gap. #}
+    <a class="button secondary" href="{{ install_url }}" rel="noopener">Add to your server</a>
+  </div>
+
+  <div class="plan-card plan-featured">
+    <h2>Premium</h2>
+    {# NO FIGURE IN THIS CARD, and it is the one compromise in this layout.
+       The references put a price on every tier card, and this one cannot
+       honestly carry a single number: Premium has three cadences and picking
+       one to headline means either computing a per-month figure -- which this
+       repo forbids, because a second copy of a price is a second thing to be
+       wrong -- or nominating a plan the page has no basis to nominate.
+
+       So the card says what the landing page's card says, and the real
+       figures are in the section immediately below it, which is where the
+       reader is already heading. #}
+    <p class="plan-price">
+      <span class="plan-amount">Per server</span>
+      <span class="plan-period">monthly, 6 or 12 months</span>
+    </p>
+    <p class="plan-blurb">The automation around verification, for servers that
+    want it.</p>
+    <ul class="plan-list">
+      <li>Automatic removal of an unverified role</li>
+      <li>Nickname syncing</li>
+      <li>A custom post-verification message</li>
+      <li>A verification log channel</li>
+      <li>Priority in the verification queue</li>
+      <li>A branded instructions panel</li>
+    </ul>
+    {# Into the dashboard rather than into Discord: buying happens signed in,
+       where the server is known. The button below the cadence cards says the
+       same thing for a reader who scrolled past this one. #}
+    <a class="button" href="{{ url_for('index') }}">Open the dashboard</a>
+  </div>
+</div>
 
 <section class="panel group">
-  <h2>Premium</h2>
+  {# ONE PRODUCT, THREE CADENCES, SAID BEFORE ANYONE STARTS COMPARING.
+     Reused verbatim from subscription.html rather than reworded: three cards
+     at rising prices is the shape of a tier comparison, and a reader who
+     scans will take the dearest one to unlock the most. It does not unlock
+     anything more. That misreading is likelier here than on the signed-in
+     page, not less -- this audience has never seen the product.
+
+     The heading now says it too, so the claim survives a reader who skips
+     the paragraph. #}
+  <h2>One Premium, three ways to pay for it</h2>
 
   {% if page.unavailable %}
     {# A FAILED READ IS AN APOLOGY, NEVER "NOTHING IS FOR SALE".
        That rule is the subscription route's and it bites harder here: an admin
        who sees an empty list has a working bot in front of them, while a
-       stranger concludes the product is abandoned and closes the tab. #}
+       stranger concludes the product is abandoned and closes the tab.
+
+       Since #195 the tier cards above render regardless, so a Stripe outage
+       now costs the reader the figures rather than the whole page. #}
     <p class="blurb">
       We can't load prices right now. <strong>Premium is still
       available.</strong> Try again in a moment, or subscribe inside Discord.
@@ -55,21 +140,9 @@
       There are no plans on sale at the moment.
     </p>
   {% else %}
-    {# ONE PRODUCT, THREE CADENCES, SAID BEFORE ANYONE STARTS COMPARING.
-       Reused verbatim from subscription.html rather than reworded: three cards
-       at rising prices is the shape of a tier comparison, and a reader who
-       scans will take the dearest one to unlock the most. It does not unlock
-       anything more. That misreading is likelier here than on the signed-in
-       page, not less -- this audience has never seen the product. #}
     <p class="blurb">
-      <strong>One Premium, three ways to pay for it.</strong> Every plan below
-      unlocks exactly the same features — the only difference is how long you
-      pay for at once, and how much that saves.
-    </p>
-    <p class="blurb muted">
-      Prices are in US dollars and <strong>exclude tax</strong>; any tax due
-      where you are is added at checkout. Payment is handled by Stripe — card
-      details never reach VRCVerify.
+      Every plan below unlocks exactly the same features — the only difference
+      is how long you pay for at once, and how much that saves.
     </p>
 
     <div class="plans">
@@ -115,24 +188,13 @@
         tells you before you pay.
       </p>
     {% endif %}
+
+    <p class="blurb muted">
+      Prices are in US dollars and <strong>exclude tax</strong>; any tax due
+      where you are is added at checkout. Payment is handled by Stripe — card
+      details never reach VRCVerify.
+    </p>
   {% endif %}
-
-  <h3>What Premium adds</h3>
-  {# A SECOND COPY OF THE FEATURE LIST, and the first is in site/index.html on
-     the apex site. The two cannot share anything -- different origin, different
-     deploy -- so this comment is half the pair that says so, exactly as the
-     design tokens do. Change one, change the other.
-
-     This is a duplication of a feature list. It is never a duplication of a
-     price: every figure above came from Stripe on this request. #}
-  <ul class="plan-list">
-    <li>Automatic removal of an unverified role</li>
-    <li>Nickname syncing</li>
-    <li>A custom post-verification message</li>
-    <li>A verification log channel</li>
-    <li>Priority in the verification queue</li>
-    <li>A branded instructions panel</li>
-  </ul>
 
   <p class="blurb muted">
     Premium is bought per server. You can subscribe with a card in the
@@ -146,8 +208,14 @@
     Add VRCVerify to your server and verification works immediately, at no
     cost. Premium is there when you want it.
   </p>
+  {# The button matches the sentence above it. It said "Open the dashboard"
+     under copy reading "Add VRCVerify to your server", which is a different
+     action -- and it duplicated the Premium card's CTA word for word.
+     This close is for the free path: somebody who has just read that
+     verification costs nothing and wants to try it. The paid path's close is
+     the Premium card, and the cadence cards sit between the two. #}
   <p>
-    <a class="button" href="{{ url_for('index') }}">Open the dashboard</a>
+    <a class="button" href="{{ install_url }}" rel="noopener">Add to your server</a>
   </p>
 </section>
 
