@@ -447,9 +447,14 @@ def test_no_premium_amount_is_hardcoded_anywhere_on_the_site():
     that has opted out of quoting prices. Amounts live on the public pricing
     page, which is a live route reading Stripe -- so this assertion is total
     rather than carrying an exception somebody would later widen.
+
+    Comments are stripped before scanning. The rule is about what a reader is
+    shown, and the comments explaining the rule necessarily quote the figures
+    it forbids -- a check that fired on its own rationale would be noise.
     """
     for page in PAGES:
-        amounts = set(re.findall(r"\$\d+(?:\.\d{2})?", read(page)))
+        visible = re.sub(r"<!--.*?-->", "", read(page), flags=re.S)
+        amounts = set(re.findall(r"\$\d+(?:\.\d{2})?", visible))
         assert not amounts, (
             f"{page.name} names a price: {sorted(amounts)}. Amounts belong on "
             "the pricing page, read from Stripe at render time."
