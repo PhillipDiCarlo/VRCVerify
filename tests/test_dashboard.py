@@ -8104,3 +8104,63 @@ class TestThePageHeaderIsNotACard(object):
                 f"{name} renders a notice on the page ground, where --ok is "
                 "4.27:1 in light"
             )
+
+
+class TestSettingsRowsAreRows(object):
+    """Label left, control right (#195 phase 5)."""
+
+    @staticmethod
+    def _css() -> str:
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            return handle.read()
+
+    def test_the_two_column_row_is_above_the_breakpoint_only(self):
+        """Two columns on a 390px phone leaves the control about 40% of the
+        width, which is narrower than a select needs for a role name. The rows
+        stay stacked there."""
+        css = self._css()
+        grid = re.search(
+            r"@media \(min-width: 48rem\) \{\s*\.setting \{([^}]*)\}", css
+        )
+        assert grid, "the settings row grid is not behind a min-width query"
+        assert "grid-template-columns" in grid.group(1)
+
+        # And nothing outside that query turns `.setting` into a grid.
+        outside = css[: css.index("@media (min-width: 48rem)")]
+        bare = re.search(r"\n\.setting \{([^}]*)\}", outside)
+        assert bare, "the base .setting rule has gone"
+        assert "display: grid" not in bare.group(1), (
+            "the row is a grid at every width, including a phone"
+        )
+
+    def test_the_description_did_not_move_into_the_accessible_name(self):
+        """The references put the description in the left column beside the
+        label. Doing that here means putting it inside the <dt> -- and
+        `aria-labelledby` points at the <dt>, so every control's accessible
+        name would become "Verified role. Granted once a member's VRChat
+        account is confirmed as 18+."
+
+        Worth fixing properly with `aria-describedby` and a split label. Not
+        worth bundling into a layout change, where the mistake is invisible to
+        everyone who can see the page. This pins the decision so a later phase
+        does it deliberately rather than by accident.
+        """
+        import dashboard
+
+        templates = os.path.join(os.path.dirname(dashboard.__file__), "templates")
+        body = open(
+            os.path.join(templates, "settings.html"), encoding="utf-8"
+        ).read()
+        # Find the field row's <dt>...</dt> and prove the description is not in it.
+        row = re.search(r'<dt id="l-\{\{ field\.name \}\}">(.*?)</dt>', body, re.S)
+        assert row, "the field label row has changed shape"
+        assert "field.description" not in row.group(1), (
+            "the description is now inside the element aria-labelledby points "
+            "at, which folds it into every control's accessible name"
+        )
+        assert "{{ field.description }}" in body, "the description has vanished"

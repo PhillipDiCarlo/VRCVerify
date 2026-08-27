@@ -1558,6 +1558,36 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 .setting dd { margin: 0.3rem 0 0; }
 
+/* LABEL LEFT, CONTROL RIGHT (#195 phase 5).
+ *
+ * Stacked, a 148px <select> sat alone in a 900px card with its label above it
+ * and its helper line below, so a settings group read as a column of loosely
+ * related fragments rather than a list of rows. Semrush and Time2book both
+ * put the name on the left and the control on the right; that is the shape
+ * this adopts.
+ *
+ * CSS ONLY, AND DELIBERATELY SO. Moving the description into the <dt> would
+ * match the references more closely and would also fold it into every
+ * control's accessible name -- `aria-labelledby` points at the <dt>, so a
+ * screen reader would announce the whole helper sentence as the field's
+ * label. Doing that properly means splitting the label into its own element
+ * and adding `aria-describedby` to seven control types. Worth doing; not
+ * worth bundling into a layout change, where a mistake is invisible to
+ * everyone who can see the page.
+ *
+ * Above the breakpoint only. Two columns on a phone would leave the control
+ * about 40% of 390px, which is narrower than the select needs for a role name.
+ */
+@media (min-width: 48rem) {
+  .setting {
+    display: grid;
+    grid-template-columns: minmax(0, 16rem) minmax(0, 1fr);
+    gap: 0 var(--space-5);
+    align-items: start;
+  }
+  .setting dd { margin: 0; }
+}
+
 .value {
   margin: 0;
   display: flex;
