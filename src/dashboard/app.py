@@ -965,12 +965,19 @@ def _register_routes(app: Flask) -> None:
         sign-in page.
         """
         plans, plans_unavailable = _offered_plans()
+        config = _config()
         page = subscription_view.build_public_pricing(
             plans,
             plans_unavailable=plans_unavailable,
-            stripe_configured=_config().stripe_enabled,
+            stripe_configured=config.stripe_enabled,
         )
-        return render_template("pricing.html", page=page)
+        # No guild: a stranger reading a price has no server in context, so
+        # this is the generic install link rather than the picker's deep link.
+        return render_template(
+            "pricing.html",
+            page=page,
+            install_url=_invite_url(config.discord_client_id),
+        )
 
     @app.get("/login")
     def login():
@@ -2694,12 +2701,23 @@ def _optional_read(call, what: str, guild_id: int):
         return None
 
 
-def _invite_url(client_id: str, guild_id: str) -> str:
-    """Deep-link the bot's install flow at one specific server.
+def _invite_url(client_id: str, guild_id: Optional[str] = None) -> str:
+    """The bot's install flow, at one specific server or at none.
 
     `disable_guild_select` plus `guild_id` means the admin lands on the right
     server rather than a dropdown, which is the whole reason a greyed-out tile
     is worth clicking.
+
+    WITHOUT a guild it is the generic install link, which is what /pricing
+    needs: a stranger reading a price has no server in context and the whole
+    point of the page is that they have not signed in. They get the dropdown,
+    which is correct -- it is the only way to choose.
+
+    One function for both so the permissions integer below is written once.
+    The apex site hardcodes its own copy of this URL with NO permissions at
+    all, which lands the installer on a consent screen asking for nothing;
+    that is #195's business, not this function's, but it is why the number
+    living in exactly one place here matters.
 
     The permissions integer is what the bot actually needs: Manage Roles (to
     assign the verified role), and Send Messages / Embed Links / Read History
@@ -2713,14 +2731,15 @@ def _invite_url(client_id: str, guild_id: str) -> str:
         | 0x10000  # Read Message History
         | 0x400  # View Channel
     )
-    return (
+    url = (
         "https://discord.com/oauth2/authorize"
         f"?client_id={client_id}"
         f"&scope=bot+applications.commands"
         f"&permissions={permissions}"
-        f"&guild_id={guild_id}"
-        "&disable_guild_select=true"
     )
+    if guild_id is None:
+        return url
+    return f"{url}&guild_id={guild_id}&disable_guild_select=true"
 
 
 def main():  # pragma: no cover - container entrypoint

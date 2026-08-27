@@ -1801,7 +1801,13 @@ class TestThePublicPricingPage:
         app.config.update(TESTING=True)
         page = app.test_client().get("/pricing").data.decode()
         assert "One Premium, three ways to pay for it" in page
-        assert page.index("One Premium") < page.index('class="plan-card')
+        # Against the CADENCE grid specifically, not any `.plan-card`. Since
+        # #195 phase 3 the Free/Premium tier cards render above this claim and
+        # they are `.plan-card` too -- but they are not what can be misread as
+        # three tiers, so they are not what the claim has to precede.
+        assert page.index("One Premium") < page.index('class="plans"'), (
+            "the claim must land before the three cadence cards"
+        )
 
     def test_it_never_promises_a_number_of_trial_days(self, config):
         """THE thing this page must be vaguer about than the private one.
@@ -1861,7 +1867,12 @@ class TestThePublicPricingPage:
         app.config.update(TESTING=True)
         page = app.test_client().get("/pricing").data.decode()
         assert "Everything you need to verify your members" in page
-        assert page.index("Free, forever") < page.index(">Premium<")
+        # Reads the tier headings rather than a copy string: #195 phase 3 made
+        # Free and Premium peer cards, so "which comes first" is now a fact
+        # about document order and grid order rather than about wording.
+        assert page.index("<h2>Free</h2>") < page.index("<h2>Premium</h2>"), (
+            "Premium is being offered before the free tier it is an add-on to"
+        )
 
     # ----------------------------------------------------------------------
     # Cache posture and the links in (#188 phase 2).
@@ -1929,3 +1940,105 @@ class TestThePublicPricingPage:
         client, _bot, _stripe, _session = make_client(config)
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
         assert 'href="/pricing"' in page
+
+    # ----------------------------------------------------------------------
+    # The restructure (#195 phase 3).
+    # ----------------------------------------------------------------------
+
+    def test_the_two_tiers_are_comparable_side_by_side(self, config):
+        """The defect this phase exists to fix: Free and Premium were in two
+        separate full-width slabs, so a reader could not hold them against each
+        other -- on the page reached from the landing page's main button.
+
+        Peer cards in one grid, with the features INSIDE each card rather than
+        in a block below the cadence prices.
+        """
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        tiers = page[page.index('class="tiers"'):page.index('class="panel group"')]
+        assert tiers.count('class="plan-card') == 2, "the two tiers are not peers"
+        assert tiers.count('class="plan-list"') == 2, (
+            "a tier card carries no feature list, which is what left a reader "
+            "comparing prices with no reason to pick one"
+        )
+        assert "Verify members as 18+" in tiers
+        assert "Automatic removal of an unverified role" in tiers
+
+    def test_the_title_is_a_marketing_size_not_a_console_size(self, config):
+        """22.4px on a page whose whole audience is prospects, against 44-56px
+        on every pricing reference in #195. The token exists precisely so this
+        page can reach a size no console page should."""
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        assert 'class="page-head"' in page
+        head = page[page.index('class="page-head"'):]
+        assert "<h1>Pricing</h1>" in head[:200], "the title is not in the page head"
+        # And the head is NOT wrapped in a panel: the reason for moving it was
+        # that a card costs ~110px of vertical space to say one word.
+        before = page[:page.index('class="page-head"')]
+        assert 'class="panel"' not in before, "the title went back inside a card"
+
+    def test_the_tier_cards_survive_stripe_being_unreachable(self, config):
+        """A Stripe outage used to cost the reader the whole page. Now it costs
+        them the figures: what Premium *is* is static content and renders
+        regardless, so a stranger still learns what the product does."""
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        stripe = FakeStripe()
+        stripe.price_error = StripeAPIError("down")
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=stripe)
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        assert "can't load prices" in page
+        assert "Premium is still" in page
+        assert 'class="tiers"' in page, "the tier comparison vanished with Stripe"
+        assert "Automatic removal of an unverified role" in page
+        assert "A branded instructions panel" in page
+
+    def test_the_marketing_title_size_is_scoped_to_this_page(self, config):
+        """`.page-head` centres and draws at --text-display. A console that
+        centres its headings reads as a brochure, so neither may leak onto
+        Overview or Settings."""
+        client, _bot, _stripe, _session = make_client(config)
+        # The console pages this fixture can reach: the picker, and the
+        # subscription page -- which is the interesting one, because it is the
+        # closest relative of /pricing in the whole app and the likeliest to
+        # have the style leak onto it.
+        for path in ("/", f"/guild/{GUILD}/subscription", f"/guild/{GUILD}/settings"):
+            assert 'class="page-head"' not in client.get(path).data.decode(), (
+                f"{path} has picked up the pricing page's marketing header"
+            )
+
+    def test_the_install_link_asks_for_the_permissions_the_bot_needs(self, config):
+        """`_invite_url` gained an optional guild for this page. The failure it
+        guards against is subtle: dropping the guild arguments is right here,
+        but dropping the PERMISSIONS integer with them would land a stranger on
+        a consent screen asking for nothing, and the bot would install unable
+        to assign a role.
+
+        The apex site hardcodes its own copy of this URL with no permissions at
+        all, which is why the number living in exactly one place matters.
+        """
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        assert "discord.com/oauth2/authorize" in page
+        assert "permissions=" in page
+        assert "scope=bot" in page
+        # No guild in context on a signed-out page, so no deep link and no
+        # locked dropdown -- the reader has to be able to choose.
+        assert "guild_id=" not in page
+        assert "disable_guild_select" not in page
+
+    def test_the_deep_link_still_deep_links(self, config):
+        """The other half of that change: the picker's tiles must keep landing
+        an admin on the one server they clicked, rather than on a dropdown."""
+        client, _bot, _stripe, _session = make_client(config)
+        page = client.get("/").data.decode()
+        if "oauth2/authorize" in page:
+            assert "disable_guild_select=true" in page
+            assert "permissions=" in page

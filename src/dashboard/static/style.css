@@ -1002,6 +1002,33 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 .button:hover { background: var(--accent-hover); }
 
+/* THE OUTLINED BUTTON (#195 phase 3).
+ *
+ * Needed the moment two calls to action sit side by side: two filled blurple
+ * buttons in a comparison fight each other, and `.plan-featured` exists
+ * precisely to say which of the two tiers is the emphasised one.
+ *
+ * --accent-text FOR THE BORDER, NOT --accent, and this is the same measurement
+ * the apex site's `.cta.secondary` already paid for: --accent is 2.74:1
+ * against --panel, and this border is the button's ENTIRE shape, so it needs
+ * the 3:1 WCAG 1.4.11 asks of a UI component boundary. --accent-text exists
+ * for exactly this -- accent as a foreground rather than as a fill.
+ *
+ * Hover fills with --accent and flips the label to --accent-ink, so the two
+ * buttons swap emphasis on hover rather than the outlined one merely tinting.
+ * Both of those pairs are pinned in test_contrast.py. */
+.button.secondary {
+  background: transparent;
+  color: var(--accent-text);
+  border: 1px solid var(--accent-text);
+}
+.button.secondary:hover,
+.button.secondary:focus {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
 /* --- sidebar --- */
 .nav-toggle { display: flex; }
 
@@ -2454,6 +2481,88 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
  * returns, so a hardcoded three broke the layout the moment a fourth plan was
  * created -- which is the one thing the Stripe-driven plan list exists to make
  * easy. minmax lets them wrap on a phone instead of squeezing to nothing. */
+/* THE PUBLIC PRICING PAGE'S HEAD AND TIER GRID (#195 phase 3).
+ *
+ * SCOPED TO ONE PAGE ON PURPOSE. `.page-head` centres its text and draws its
+ * h1 at --text-display, and neither belongs anywhere else in this app: a
+ * console that centres its headings reads as a brochure, and 48px on Overview
+ * would shout. /pricing is the one surface here that is selling rather than
+ * administering, which is exactly why --text-display exists (see the token).
+ *
+ * On the ground rather than in a `.panel`, because every console reference in
+ * #195 puts its page title there and every pricing reference does too. Wrapping
+ * a title in a card costs ~110px of vertical space to say one word.
+ */
+.page-head {
+  margin: var(--space-5) 0 var(--space-5);
+  text-align: center;
+}
+.page-head h1 {
+  font-size: var(--text-display);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-3);
+}
+.page-head p {
+  /* Two centred lines broken at the measure land "per server." alone on the
+   * second; `balance` splits them evenly instead. Worth it on a heading block
+   * and nowhere else -- the algorithm is capped at a few lines and costs
+   * layout work, so it does not belong on body copy. */
+  text-wrap: balance;
+  /* Centred prose still takes a measure -- a centred 100-character line is
+   * harder to read than a left-aligned one, not easier, because the eye has
+   * to find a new left edge on every line. `auto` margins rather than the
+   * parent's text-align doing the work, so the block itself is centred. */
+  max-width: var(--measure);
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: var(--text-section);
+  line-height: var(--leading-body);
+}
+
+/* TWO TIERS, SIDE BY SIDE, AND THEY MUST STAY COMPARABLE.
+ *
+ * A separate grid from `.plans` rather than a reuse of it: that one is
+ * `auto-fit minmax(11rem, 1fr)`, which is right for three narrow cadence
+ * cards and wrong for two cards carrying a six-item feature list -- auto-fit
+ * would let them collapse to 11rem and wrap the features to shreds.
+ *
+ * `1fr 1fr` so the two cards are equal width whatever their content, because
+ * the whole job of this block is comparison and a wider card reads as the
+ * bigger offer before a word is read. Equal HEIGHT comes from the grid's
+ * default `stretch`, which matters because Premium lists six features and
+ * Free lists three.
+ */
+.tiers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-5);
+  align-items: stretch;
+}
+@media (max-width: 44rem) {
+  /* One column before the cards get too narrow to read a feature line in.
+   * Free stays first: the product's strongest claim is that the thing it
+   * exists to do costs nothing, and on a phone the first card is the one
+   * most people see. */
+  .tiers { grid-template-columns: 1fr; }
+}
+
+/* The tier cards head with an h2, where the cadence cards below head with an
+ * h3. Both are `.plan-card`, so the size has to be said once here rather than
+ * inherited from whichever heading level the template happened to use. */
+/* Pins both CTAs to the bottom edge so they align across the two cards --
+ * Premium lists six features and Free lists three, and a button floating
+ * mid-card next to one sitting at the foot reads as an accident. */
+.tiers .plan-card .button { margin-top: auto; align-self: stretch; }
+
+.tiers .plan-card h2 {
+  margin: 0;
+  font-size: var(--text-section);
+  font-weight: 600;
+  color: var(--muted);
+}
+
 .plans {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
