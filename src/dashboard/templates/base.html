@@ -673,8 +673,31 @@
      "What's new" is first and is the only relative link here: it is ours, it
      is the reason this row exists, and it is the one somebody comes back
      for. #}
+  {# THE FOOTER IS A BAR, like the header (#195 phase 6).
+
+     It used to be bare text on the page ground at `max-width: 78rem` while
+     `main` sat at 60rem, so it lined up with neither the content above it nor
+     the header bar -- measured at 1280px it started at x=16 while the content
+     column started at x=296. It is chrome, so it aligns with the other piece
+     of chrome: full-bleed, --chrome ground, a rule along the top, and the same
+     --space-5 inset the `.bar` uses.
+
+     LINKS FIRST, THEN WHO YOU ARE DEALING WITH -- the apex site's order, so
+     the two footers read as one product rather than two.
+
+     THE SELLER AND THE DISCLAIMER ARE NEW HERE, and they are not decoration.
+     `tests/test_site.py` requires both on every apex page because Stripe and
+     Discord both link there and a page that stops naming the seller is a
+     compliance problem rather than a cosmetic one. That reasoning did not
+     reach this host while every page here was behind OAuth. /pricing (#188)
+     is now public and quotes prices in US dollars, so the seller has to be
+     identifiable from it -- and a disclaimer that appears on one of a
+     product's two sites is a disclaimer with a hole in it.
+
+     The entity name is a second copy of the apex site's. A test compares the
+     two rather than trusting them, the same bargain as the design tokens and
+     the font. #}
   <footer>
-    <p>Core 18+ verification is free, forever.</p>
     <p class="footer-links">
       {% if csrf_token %}
         <a href="{{ url_for('whats_new') }}">What&#39;s new</a>
@@ -683,6 +706,9 @@
       <a href="https://vrcverify.com/privacy">Privacy</a>
       <a href="https://vrcverify.com/refunds">Refunds</a>
     </p>
+    <p>Core 18+ verification is free, forever.</p>
+    <p>VRCVerify is operated by Esatto Technologies, United States.<br>
+    Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord Inc.</p>
   </footer>
 </body>
 </html>

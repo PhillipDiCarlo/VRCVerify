@@ -495,6 +495,23 @@
 
 body {
   margin: 0;
+  /* A COLUMN, so the footer bar can be held to the bottom of a short page
+   * (#195 phase 6). Bare text could trail off after the content and look
+   * intentional; a bar with a ground and a rule cannot -- floating halfway up
+   * a tall viewport it reads as a rendering fault. `margin-top: auto` on the
+   * footer is what does the work, and it needs a flex parent to do it.
+   *
+   * ONE TRAP, AND IT COST A ROUND HERE. A flex item with `auto` margins on
+   * the cross axis does NOT stretch -- the auto margins win and the item is
+   * sized to fit-content instead. `.layout` carries `margin: 0 auto` to centre
+   * itself, so making body a column silently shrank it from 78rem to its
+   * content width and moved the entire app 81px to the right. Nothing failed;
+   * it just rendered narrower. `width: 100%` on `.layout` below restores the
+   * block behaviour, after which max-width caps it and the auto margins centre
+   * it, exactly as before. */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font);
@@ -1065,6 +1082,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   display: flex;
   align-items: flex-start;
   gap: 1.25rem;
+  width: 100%;
   max-width: 78rem;
   margin: 0 auto;
   padding: 0 1.25rem;
@@ -1968,25 +1986,43 @@ code {
   border-radius: 3px;
 }
 
+/* Chrome, and it aligns with the other piece of chrome (#195 phase 6).
+ *
+ * It was `max-width: 78rem` centred on the page while `main` is 60rem, so at
+ * 1280px it started at x=16 and the content column started at x=296 -- lined
+ * up with neither the cards above it nor the bar at the top. And with no
+ * ground and no rule it was not a bar at all, just text that had run out of
+ * page.
+ *
+ * Full-bleed with the `.bar`'s own inset, so the first character of the footer
+ * sits directly under the first pixel of the brand. `margin-top: auto` is what
+ * holds it to the bottom of a short page -- see the flex column on body. */
 footer {
-  max-width: 78rem;
-  margin: 0 auto;
-  padding: 0 1.25rem 2rem;
-  color: var(--faint);
-  font-size: 0.85rem;
+  margin-top: auto;
+  padding: var(--space-5);
+  background: var(--chrome);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--text-note);
 }
 
 footer p { margin: 0; }
+footer p + p { margin-top: var(--space-2); }
 
 /* Wraps rather than scrolls: four links at this size fit one line on a
  * desktop and take two on a phone, and two lines of footer is fine where a
  * sideways scrollbar under the content is not.
  *
- * These declare their own colour instead of inheriting, which is the
- * workaround #168 describes rather than the fix for it -- the stylesheet has
- * no base `a { color }` rule, so an unstyled link here would render in the
- * browser's default blue against a palette this file painted. Fixing that
- * properly changes every link in the app and belongs in its own change. */
+ * The colour is still declared rather than inherited, but the reason changed.
+ * It used to be the workaround #168 described, because there was no base
+ * `a { color }` rule and an unstyled link here would render in the browser's
+ * default blue. #168 is fixed, so the base rule now paints these --accent-text
+ * and underlines them -- which is right for a link inside a sentence and wrong
+ * for a row of five in a footer bar, where blurple would make the quietest
+ * chrome on the page the loudest.
+ *
+ * --muted rather than --faint, and underlined, so this row matches the apex
+ * site's footer links exactly. */
 .footer-links {
   display: flex;
   flex-wrap: wrap;
@@ -1994,8 +2030,9 @@ footer p { margin: 0; }
   margin-top: var(--space-2);
 }
 
-.footer-links a { color: var(--faint); text-decoration: none; }
-.footer-links a:hover { color: var(--ink); text-decoration: underline; }
+.footer-links { margin-bottom: var(--space-3); }
+.footer-links a { color: var(--muted); text-decoration: underline; }
+.footer-links a:hover { color: var(--ink-strong); }
 
 /* --- the changelog page (#136 phase 3) ---
  *

@@ -8164,3 +8164,110 @@ class TestSettingsRowsAreRows(object):
             "at, which folds it into every control's accessible name"
         )
         assert "{{ field.description }}" in body, "the description has vanished"
+
+
+class TestTheFooterIsABar(object):
+    """Chrome that aligns with the other chrome (#195 phase 6)."""
+
+    @staticmethod
+    def _repo() -> str:
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _css(self) -> str:
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            return handle.read()
+
+    def test_the_footer_has_a_ground_and_an_edge(self):
+        """It was bare text on the page ground at `max-width: 78rem` while
+        `main` sits at 60rem, so at 1280px it started at x=16 and the content
+        column started at x=296 -- aligned with neither."""
+        rule = re.search(r"\nfooter \{([^}]*)\}", self._css())
+        assert rule, "the footer rule has gone"
+        body = rule.group(1)
+        assert "background: var(--chrome)" in body, "the footer is not a bar"
+        assert "border-top" in body, "the footer has no edge"
+        assert "max-width" not in body, (
+            "the footer centres itself again, which is what made it align "
+            "with neither the content nor the header"
+        )
+
+    def test_the_layout_still_fills_its_width_now_that_body_is_a_column(self):
+        """THE TRAP THIS PHASE FELL INTO. A flex item with `auto` margins on
+        the cross axis does not stretch -- the auto margins win and it is sized
+        to fit-content. `.layout` carries `margin: 0 auto`, so making body a
+        column shrank it from 78rem to its content width and moved the whole
+        app 81px right.
+
+        Nothing failed. It just rendered narrower, which is why this is pinned
+        rather than left to be noticed.
+        """
+        css = self._css()
+        body_rule = re.search(r"\nbody \{([^}]*)\}", css)
+        assert body_rule, "the body rule has gone"
+        if "flex-direction: column" not in body_rule.group(1):
+            return  # the footer is held down some other way; the trap is moot
+        layout = re.search(r"\n\.layout \{([^}]*)\}", css)
+        assert layout, "the layout rule has gone"
+        assert "width: 100%" in layout.group(1), (
+            "body is a flex column and .layout has auto margins, so without an "
+            "explicit width it collapses to fit-content"
+        )
+
+    def test_the_dashboard_names_the_same_seller_as_the_apex_site(self):
+        """Two copies, compared rather than trusted -- the same bargain as the
+        design tokens and the vendored font.
+
+        `tests/test_site.py` requires the seller on every apex page because
+        Stripe and Discord both link there and a page that stops naming the
+        seller is a compliance problem. That reasoning did not reach this host
+        while every page was behind OAuth; /pricing is public and quotes prices
+        in US dollars, so it does now.
+        """
+        import dashboard
+
+        base = open(
+            os.path.join(os.path.dirname(dashboard.__file__), "templates", "base.html"),
+            encoding="utf-8",
+        ).read()
+        terms = open(
+            os.path.join(self._repo(), "site", "terms.html"), encoding="utf-8"
+        ).read()
+
+        entity = re.search(r"operated by ([^,]+), ([^.<]+)", terms)
+        assert entity, "the apex site no longer names its operator"
+        assert f"operated by {entity.group(1)}" in base, (
+            f"the dashboard does not name {entity.group(1)!r} as the seller"
+        )
+
+    def test_the_disclaimer_appears_on_both_hosts(self):
+        """A disclaimer that appears on one of a product's two sites is a
+        disclaimer with a hole in it -- and the hole was the host that takes
+        the money."""
+        import dashboard
+
+        base = open(
+            os.path.join(os.path.dirname(dashboard.__file__), "templates", "base.html"),
+            encoding="utf-8",
+        ).read()
+        for name in ("VRChat Inc.", "Discord Inc.", "Not affiliated with"):
+            assert name in base, f"the dashboard footer does not disclaim {name}"
+
+    def test_a_signed_out_visitor_sees_the_seller(self, config):
+        """The whole reason this moved: /pricing is public and quotes prices,
+        and the footer's legal block is CSRF-gated only for "What's new"."""
+        from dashboard.sessions import SessionStore
+
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI())
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        # Stripe is off in this config, so the page shows no plans -- which is
+        # the point: the seller has to be named even on the state of the page
+        # that has nothing to sell.
+        assert "Esatto Technologies" in page
+        assert "Not affiliated with" in page
