@@ -281,6 +281,21 @@
         <strong>The 6- and 12-month plans are card-only.</strong> Discord
         subscriptions bill monthly, so those terms can't be offered there.
       </li>
+      {# THE SHAREABLE COPY OF THIS, and the same reasoning as the changelog's
+         cross-link (#137 phase 5): the admin reading this page is not always
+         the person holding the card. Sending them a screenshot, or a link that
+         demands a Discord login and admin rights on this server, is where that
+         conversation stalls.
+
+         `/pricing` is the same three cadences from the same Stripe read, minus
+         the buttons that need a guild. It is the only thing that page does
+         which this one cannot -- so the link goes this way round, and the bell
+         and the changelog have the same shape for the same reason. #}
+      <li>
+        Need to send these prices to whoever pays? There is a
+        <a href="{{ url_for('pricing') }}">public pricing page</a> that works
+        without a Discord account.
+      </li>
     </ul>
   </section>
 {% endif %}

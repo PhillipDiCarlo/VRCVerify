@@ -890,3 +890,56 @@ def test_a_pill_that_is_only_a_border_can_actually_be_seen():
             f"{selector} draws its whole shape with --line, which is 1.05:1 "
             "on the ground in light"
         )
+
+
+# --------------------------------------------------------------------------
+# The public pricing page, linked in (#188 phase 2).
+# --------------------------------------------------------------------------
+
+PRICING_URL = "https://dashboard.vrcverify.com/pricing"
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_every_page_offers_pricing_in_the_header(page):
+    """The claim #137 phase 5 made when it put the changelog in the footer
+    instead: Pricing has a far stronger claim on the header than a changelog
+    does, so this is the link that took the contested space.
+
+    Six pages, and one of them is generated -- `changelog.html` gets its header
+    copied out of `terms.html` by `scripts/gen_changelog.py`, so this passes on
+    that page only if somebody re-ran the script after editing the others.
+    """
+    assert f'<a href="{PRICING_URL}">Pricing</a>' in read(page), (
+        f"{page.name} does not offer pricing in its header"
+    )
+
+
+def test_pricing_is_the_first_thing_in_the_nav():
+    """Ahead of the three legal links, which is the whole point of adding it.
+
+    A visitor deciding whether to install the bot is looking for a price; the
+    Terms are there for the people Stripe sends and for anyone who goes
+    looking. Putting Pricing fourth would be adding it to satisfy this issue
+    rather than to be found.
+    """
+    nav = re.search(r"<nav>(.*?)</nav>", read(SITE / "index.html"), re.S)
+    assert nav, "the landing page has no header nav"
+    hrefs = re.findall(r'<a href="([^"]+)"', nav.group(1))
+    assert hrefs and hrefs[0] == PRICING_URL, f"nav order is {hrefs}"
+
+
+def test_the_premium_card_sends_people_to_the_price_and_not_the_front_door():
+    """#137 phase 2 had to point this button at the dashboard root, because
+    there was nowhere else for it to go: the only page with a price on it was
+    behind OAuth. That was flagged in PR #187 as a likely drop-off rather than
+    fixed, and this is the fix.
+
+    A button reading "See pricing" that lands on a sign-in screen is the exact
+    bait-and-switch this epic is trying to remove.
+    """
+    text = read(SITE / "index.html")
+    card = re.search(r'<div class="plan-card plan-featured">(.*?)</div>', text, re.S)
+    assert card, "the Premium card is gone"
+    assert f'href="{PRICING_URL}"' in card.group(1), (
+        "the Premium card still points at the dashboard front door"
+    )
