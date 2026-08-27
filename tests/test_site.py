@@ -442,15 +442,17 @@ def test_no_premium_amount_is_hardcoded_anywhere_on_the_site():
     pipeline from the dashboard, so a figure typed here could disagree with
     what is actually being charged and nothing would ever catch it.
 
-    `$0` is allowed and is not an exception. It is not read from Stripe and it
-    cannot change -- "core verification is free, forever" is a standing product
-    promise, not a price.
+    NO figure at all, not even `$0`. The free card says "Free", which states
+    the same standing promise without putting a price-shaped token on a site
+    that has opted out of quoting prices. Amounts live on the public pricing
+    page, which is a live route reading Stripe -- so this assertion is total
+    rather than carrying an exception somebody would later widen.
     """
     for page in PAGES:
         amounts = set(re.findall(r"\$\d+(?:\.\d{2})?", read(page)))
-        assert amounts <= {"$0"}, (
-            f"{page.name} names a price: {sorted(amounts - {'$0'})}. "
-            "Premium's amounts belong in the dashboard, read from Stripe."
+        assert not amounts, (
+            f"{page.name} names a price: {sorted(amounts)}. Amounts belong on "
+            "the pricing page, read from Stripe at render time."
         )
 
 

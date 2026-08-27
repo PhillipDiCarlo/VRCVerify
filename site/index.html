@@ -130,11 +130,12 @@
        the same reason: no amount is ever computed, because a second copy of a
        price on a page about money is a second thing to be wrong.
 
-       $0 is not an exception to that. It is not read from Stripe and it is not
-       a price that can change -- "core verification is free, forever" is a
-       standing product promise, stated in the dashboard's own footer. The
-       asymmetry is the honest shape: one side is a commitment, the other is
-       whatever Stripe is charging today.
+       NO FIGURE AT ALL, in fact -- not even $0. Premium's amounts belong on
+       the public pricing page, which is a live route reading Stripe rather
+       than anything typed into a static file, and this page's job is to send
+       people there rather than to summarise it badly. "Free" says the same
+       thing $0 did without putting a price-shaped token on a page that has
+       deliberately opted out of quoting prices.
 
        Class names mirror the dashboard's (#141/#158): .plan-card, never a bare
        .plan, and .plan-featured for the outlined one. -->
@@ -143,7 +144,7 @@
   <div class="plans">
     <div class="plan-card">
       <h3>Free</h3>
-      <p class="plan-price">$0<span>forever</span></p>
+      <p class="plan-price">Free<span>forever</span></p>
       <p class="plan-blurb">Everything you need to verify your members.</p>
       <ul class="plan-list">
         <li>Verify members as 18+</li>
