@@ -943,3 +943,96 @@ def test_the_premium_card_sends_people_to_the_price_and_not_the_front_door():
     assert f'href="{PRICING_URL}"' in card.group(1), (
         "the Premium card still points at the dashboard front door"
     )
+
+
+# --------------------------------------------------------------------------
+# One typeface across both surfaces (#195 phase 2).
+# --------------------------------------------------------------------------
+
+FONT = SITE / "fonts" / "inter-latin-var.woff2"
+
+
+def test_the_font_is_vendored_and_not_fetched_from_anywhere():
+    """The rule this amended was "no fonts"; the rule it left standing is "no
+    third party". A font CDN would let someone else see who reads the Privacy
+    Policy, which is the same reasoning that vendored Inter into the dashboard.
+
+    So: the file exists here, and every `src` in the stylesheet is relative.
+    """
+    assert FONT.exists(), "the woff2 is not vendored into site/fonts"
+    css = STYLE.read_text(encoding="utf-8")
+    face = re.search(r"@font-face \{(.*?)\}", css, re.S)
+    assert face, "the site declares no @font-face"
+    for url in re.findall(r"url\(([^)]*)\)", face.group(1)):
+        assert "//" not in url, f"@font-face reaches off-origin: {url}"
+
+
+def test_the_font_licence_ships_beside_it():
+    """Inter is SIL OFL 1.1, which requires the licence to travel with the
+    font. Vendoring the binary and leaving the licence in the other host's
+    directory would be shipping it without terms."""
+    licence = SITE / "fonts" / "Inter-LICENSE.txt"
+    assert licence.exists(), "the font ships without its licence"
+    assert "SIL Open Font License" in licence.read_text(encoding="utf-8")
+
+
+def test_the_two_hosts_serve_the_same_font_file():
+    """Copied, not shared -- different origin, different deploy, same reasoning
+    as the colour tokens. A test rather than an import, because there is no
+    mechanism that could keep them equal on its own.
+
+    Compared by bytes: two files with the same name and different contents
+    would render the two surfaces in two subtly different typefaces, which is
+    the exact failure this phase exists to remove.
+    """
+    dashboard_font = (
+        pathlib.Path(__file__).resolve().parent.parent
+        / "src" / "dashboard" / "static" / "fonts" / "inter-latin-var.woff2"
+    )
+    assert dashboard_font.exists(), "the dashboard's font has moved"
+    assert FONT.read_bytes() == dashboard_font.read_bytes(), (
+        "the two hosts are serving different builds of Inter"
+    )
+
+
+def test_the_page_still_reads_if_the_font_never_arrives():
+    """`font-display: swap` plus a real fallback stack is what makes this safe
+    rather than merely defensible: the worst case is the system stack, which is
+    what this site looked like before the font was added.
+
+    A `block` display, or a stack of one name, would make a slow font a blank
+    page on a legal document.
+    """
+    css = STYLE.read_text(encoding="utf-8")
+    face = re.search(r"@font-face \{(.*?)\}", css, re.S)
+    assert "font-display: swap" in face.group(1), (
+        "a legal page must not block paint on a font"
+    )
+    stack = re.search(r"--font:\s*([^;]+);", css)
+    assert stack, "the site names no font stack"
+    assert "system-ui" in stack.group(1) and stack.group(1).count(",") >= 3, (
+        "the fallback stack is too thin to survive a missing woff2"
+    )
+
+
+def test_the_non_prose_rows_outrank_the_measure_that_would_wrap_them():
+    """Phase 1 shipped this override as a bare `.trust-strip, .flow-note`,
+    which is (0,1,0) against the (0,2,2) of `.home main.wrap > p`. It lost, so
+    both elements kept wrapping -- the trust strip orphaning "OVERRIDE" onto a
+    second line and the flow note orphaning "no." under its accent rule.
+
+    Nothing caught it: a characters-per-line check passes happily on a wrapped
+    strip, because its lines really are short. Only the render showed it.
+
+    So this asserts the shape of the selector rather than the declaration.
+    """
+    css = STYLE.read_text(encoding="utf-8")
+    rule = re.search(
+        r"([^\n{]*\.trust-strip[^{]*)\{\s*max-width:\s*none", css
+    )
+    assert rule, "nothing exempts the trust strip from the measure"
+    selector = rule.group(1)
+    assert "main.wrap" in selector, (
+        "the exemption is not scoped to the container whose rule it must "
+        f"outrank, so the measure wins again: {selector.strip()!r}"
+    )
