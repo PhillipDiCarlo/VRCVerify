@@ -24,10 +24,16 @@
    this site to paint. Copy one across when a rule here actually needs it,
    rather than importing a vocabulary this file does not speak.
 
-   --control-line came across that way, for the theme picker, and is the one
-   token whose light value deliberately differs from the dashboard's. The
-   reason is measured and written next to it in the light block. Everything
-   else on both sides is the same hex.
+   --control-line came across that way and is the one token whose light value
+   deliberately differs from the dashboard's. The reason is measured and
+   written next to it in the light block. Everything else on both sides is the
+   same hex.
+
+   It now draws four things, not one: the theme picker, the flow diagram's
+   number rings, the "Last updated" pill and the changelog's tags. Its light
+   value was tuned against --chrome, the surface the picker sits on; the other
+   three sit on --panel or --bg, where it measures wider still. Check the
+   surface before reaching for it on a fifth.
 
    ONE NAME CHANGED MEANING, so read this before copying a rule between files.
    This stylesheet used to define `--accent-text` as the text drawn ON the
@@ -97,11 +103,13 @@
   --accent-ink: #ffffff;
   --accent-text: #8a93f6;
 
-  /* THE ONE CONTROL ON THIS SITE NEEDS ITS OWN EDGE, and --line cannot be it.
-     --line is a separator between things that are already distinguishable; a
-     control has to be identifiable as a control, which WCAG 1.4.11 puts at
-     3:1 against what surrounds it. --line manages 1.35:1 against the header
-     bar, so the select had no visible edge at all until this was measured.
+  /* EDGES THAT HAVE TO BE SEEN, which --line cannot carry.
+     --line is a separator between things that are already distinguishable. An
+     edge that IS the element -- a control's boundary, a pill's whole shape --
+     needs 3:1 against what surrounds it (WCAG 1.4.11 for the control; simple
+     visibility for the pills). --line manages 1.35:1 against the header bar
+     and 1.62:1 on the ground, so the select had no visible edge and the pills
+     did not render as pills until this was measured.
 
      This is the dashboard's --control-line, at the dark value unchanged
      (3.68:1 on --chrome, 3.38:1 on --panel). The light value below is the one
@@ -210,6 +218,21 @@ body {
 
 .wrap { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
 
+/* THE CHROME IS ONE WIDTH ON EVERY PAGE, and this rule is what guarantees it.
+   `.wrap` wraps the header, the main content AND the footer, so any per-page
+   measure written as `.home .wrap` captures the chrome too. That shipped: the
+   header rendered at four different widths across the six pages and the brand
+   moved 144px between the landing page and Terms, while
+   test_the_header_nav_is_identical_on_every_page passed the whole time --
+   it compares markup, and the markup was identical. The divergence was
+   entirely in CSS keyed off the body class.
+
+   So the per-page rules above are scoped to `main.wrap`, and the chrome is
+   pinned here. Element+class beats the body-class selectors on specificity,
+   which is belt and braces rather than the mechanism. */
+header.site .wrap,
+footer.site .wrap { max-width: 60rem; }
+
 header.site {
   border-bottom: 1px solid var(--line);
   background: var(--chrome);
@@ -296,8 +319,30 @@ th { color: var(--muted); font-weight: 600; }
   margin: 0.35rem 0.5rem 0.35rem 0;
 }
 .cta:hover, .cta:focus { background: var(--accent-hover); }
-.cta.secondary { background: transparent; color: var(--accent-text); border: 1px solid var(--accent); }
-.cta.secondary:hover, .cta.secondary:focus { background: var(--line-soft); }
+/* THE OUTLINED BUTTON, and two contrast fixes it needed.
+   The border is --accent-text, not --accent. This button also appears inside
+   a plan card, where the fill behind it is --panel, and --accent on --panel is
+   2.74:1 in dark -- under the 3:1 a control boundary needs, and it is this
+   button's ONLY edge since the background is transparent. The token block
+   above already documents that exact number as the reason --accent-text
+   exists, and this rule was using --accent anyway. --accent-text clears it on
+   both surfaces in both themes.
+
+   Hover fills rather than tinting. It used to set `background: --line-soft`,
+   which dropped the --accent-text label to 4.30:1 in dark -- so the control
+   became LESS readable at the moment of interaction, and on keyboard focus,
+   which are the two moments it most needs to be readable. Filling with the
+   accent and switching the label to --accent-ink is 4.61:1 and unambiguous. */
+.cta.secondary {
+  background: transparent;
+  color: var(--accent-text);
+  border: 1px solid var(--accent-text);
+}
+.cta.secondary:hover, .cta.secondary:focus {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
 
 /* ==========================================================================
    THE LANDING PAGE (#137 phase 2)
@@ -308,7 +353,7 @@ th { color: var(--muted); font-weight: 600; }
    tuned for reading long-form terms; the hero and the two-card comparison
    both suffocate at 46rem, so index widens and the prose inside it keeps a
    measure of its own. */
-.home .wrap { max-width: 60rem; }
+.home main.wrap { max-width: 60rem; }
 .home main.wrap > p,
 .home main.wrap > ul,
 .home main.wrap > h2 { max-width: 46rem; }
@@ -439,14 +484,25 @@ th { color: var(--muted); font-weight: 600; }
   margin: 0.35rem 0;
   font-size: 0.9375rem;
 }
-/* A tick drawn in text rather than an image, and marked decorative so a
-   screen reader reads the feature and not "check mark" six times. */
+/* A tick drawn in text rather than an image.
+   The empty alt string is what actually keeps it out of the accessibility
+   tree, so a screen reader reads the feature and not "check mark" six times.
+   This comment used to claim that was happening while the plain `content`
+   below did nothing of the sort -- the ticks were being announced.
+
+   Guarded by @supports because the `content: x / alt` syntax is recent
+   (Chrome 77, Safari 17.4, Firefox 129); where it is unsupported the whole
+   declaration would be dropped and the ticks would vanish entirely, which is
+   worse than announcing them. So the plain form is the floor. */
 .plan-list li::before {
   content: "\2713";
   position: absolute;
   left: 0;
   color: var(--accent-text);
   font-weight: 700;
+}
+@supports (content: "x" / "y") {
+  .plan-list li::before { content: "\2713" / ""; }
 }
 .plan-card .cta { margin: auto 0 0; align-self: stretch; text-align: center; }
 
@@ -475,7 +531,7 @@ th { color: var(--muted); font-weight: 600; }
 /* A measure tuned for reading, not for fitting. 46rem at 16px is roughly 75
    characters, which is the long end of comfortable; policy prose is read under
    duress by people looking for one clause, so it gets the shorter end. */
-.policy .wrap { max-width: 42rem; }
+.policy main.wrap { max-width: 42rem; }
 .policy p,
 .policy li { line-height: 1.7; }
 
@@ -493,9 +549,14 @@ th { color: var(--muted); font-weight: 600; }
 .policy h3 { font-size: 1.05rem; margin: 2rem 0 0.5rem; }
 
 /* The first h2 needs no rule above it: the lede already separates it from the
-   title, and a line there reads as an underline for the wrong thing. */
-.policy .updated + h2,
-.policy .lede + h2 { border-top: 0; padding-top: 0; margin-top: 2rem; }
+   title, and a line there reads as an underline for the wrong thing.
+
+   MATCHED ON POSITION, not on what precedes it. This was two adjacent-sibling
+   selectors -- `.updated + h2` and `.lede + h2` -- and between them they fired
+   on Terms alone. Privacy and Refunds both put a `.note` callout before their
+   first heading, so neither matched and both drew the rule anyway, directly
+   under the note box. `.updated + h2` matched nothing on any page at all. */
+.policy main.wrap > h2:first-of-type { border-top: 0; padding-top: 0; margin-top: 2rem; }
 
 /* Jumping to #billing must not land the heading hard against the viewport
    edge with its section already scrolled past. */
@@ -526,10 +587,14 @@ th { color: var(--muted); font-weight: 600; }
   text-decoration: none;
   opacity: 0;
   font-weight: 400;
+  /* Transparent is not gone. Without this the anchor keeps a 13x24px live hit
+     box inside every heading, so a reader selecting or clicking heading text
+     can land on an invisible link and get an unexplained hash navigation. */
+  pointer-events: none;
 }
 .policy h2:hover .anchor,
 .policy h3:hover .anchor,
-.policy .anchor:focus { opacity: 1; }
+.policy .anchor:focus { opacity: 1; pointer-events: auto; }
 
 /* The date a policy was last changed is the first thing anybody checks when
    they are trying to establish what was in force on a given day, and it was
@@ -538,14 +603,18 @@ th { color: var(--muted); font-weight: 600; }
   display: inline-block;
   margin: 0 0 2rem;
   padding: 0.25rem 0.6rem;
-  border: 1px solid var(--line);
+  /* --control-line, not --line. This element's entire shape is its border, and
+     --line is 1.62:1 on the ground in dark and 1.05:1 in light -- so the pill
+     did not render as a pill at all, just small grey text where a chip was
+     drawn. --line is for separating things that are already distinguishable. */
+  border: 1px solid var(--control-line);
   border-radius: 999px;
   font-size: 0.8125rem;
   color: var(--muted);
 }
 
 .policy .lede { font-size: 1.05rem; color: var(--ink); }
-.policy ul, .policy ol { padding-left: 1.5rem; }
+.policy ul { padding-left: 1.5rem; }
 .policy li { margin: 0.5rem 0; }
 .policy .note { margin: 1.75rem 0; }
 .policy table { font-size: 0.9375rem; }
@@ -557,7 +626,7 @@ th { color: var(--muted); font-weight: 600; }
    here; never edit the markup there.
    ========================================================================== */
 
-.changelog-page .wrap { max-width: 48rem; }
+.changelog-page main.wrap { max-width: 48rem; }
 .changelog-page .lede { margin-bottom: 2.5rem; }
 
 .entries { list-style: none; padding: 0; margin: 0; }
@@ -594,9 +663,11 @@ th { color: var(--muted); font-weight: 600; }
    anybody reads as an advert, and the tag is meant to say what kind of thing
    shipped, not to sell it. */
 .entry .tag {
-  order: -1;
   padding: 0.1rem 0.45rem;
-  border: 1px solid var(--line);
+  /* Same reason as the .updated pill: the chip is its border. With --line the
+     "NEW" tag rendered as bare small-caps beside a crisp blurple "PREMIUM"
+     one, which is the opposite of the even-handedness below. */
+  border: 1px solid var(--control-line);
   border-radius: 999px;
   font-size: 0.6875rem;
   font-weight: 700;
@@ -612,6 +683,11 @@ th { color: var(--muted); font-weight: 600; }
   font-size: 1.0625rem;
   line-height: 1.35;
 }
+/* The zero-entry fallback spans both columns. As a plain .entry-body it sat
+   in column 2, indented past an empty 7.5rem date gutter with nothing in it. */
+.entry.empty { color: var(--muted); }
+.entry.empty, .entry.empty > * { grid-column: 1 / -1; }
+
 .entry-body {
   grid-column: 2;
   margin: 0.35rem 0 0;

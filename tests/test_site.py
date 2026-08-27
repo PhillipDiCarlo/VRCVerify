@@ -633,8 +633,13 @@ def test_the_anchor_links_are_decorative_and_point_at_their_own_heading(page):
 
 
 def test_only_the_policies_carry_the_policy_class():
-    """`policy` turns on the long-form reading treatment. 404 is not a policy
-    and the landing page has its own layout."""
+    """`policy` turns on the long-form reading treatment -- a 42rem measure and
+    ruled section headings. 404 is not a policy and the landing page has its
+    own, wider layout.
+
+    This checks the class is present, not the width it implies. The rendered
+    measure is not reachable from here without a browser.
+    """
     for page in PAGES:
         expected = page.name in {"terms.html", "privacy.html", "refunds.html"}
         assert ('class="policy"' in read(page)) == expected, page.name
@@ -741,7 +746,147 @@ def test_the_generator_copies_the_chrome_rather_than_retyping_it():
     assert "Esatto Technologies" not in source
 
 
-def test_the_check_flag_reports_staleness():
+def test_the_check_flag_reports_staleness(tmp_path, monkeypatch):
     """`--check` is what CI and the release routine call. If it cannot tell a
-    stale file from a fresh one it is decoration."""
-    assert gen_changelog.main(["--check"]) == 0
+    stale file from a fresh one it is decoration.
+
+    This used to assert only the fresh path -- which the drift test above
+    already covers, and which a `--check` hard-coded to `return 0` would have
+    passed. The stale case is the one worth constructing.
+    """
+    assert gen_changelog.main(["--check"]) == 0, "fresh tree should report clean"
+
+    stale = tmp_path / "changelog.html"
+    stale.write_text("<!doctype html><html><body>old</body></html>", encoding="utf-8")
+    monkeypatch.setattr(gen_changelog, "OUTPUT", stale)
+    assert gen_changelog.main(["--check"]) == 1, "a stale file must report stale"
+
+    missing = tmp_path / "gone.html"
+    monkeypatch.setattr(gen_changelog, "OUTPUT", missing)
+    assert gen_changelog.main(["--check"]) == 1, "a missing file must report stale"
+
+
+# --------------------------------------------------------------------------
+# Cross-links (#137 phase 5).
+# --------------------------------------------------------------------------
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_every_page_can_reach_the_changelog(page):
+    """Phase 4 shipped the page deliberately unlinked; this is the phase that
+    links it.
+
+    In the footer rather than the header nav: the header is the contested
+    space -- it already carries three legal links and the dashboard, and #188
+    adds Pricing, which has a far stronger claim on a visitor's attention than
+    a changelog does. A changelog in the footer is where readers look for one.
+    """
+    assert '<a href="/changelog">' in read(page), (
+        f"{page.name} cannot reach the changelog"
+    )
+
+
+def test_the_changelog_link_survives_regeneration():
+    """changelog.html is generated, and its footer is copied from a hand-written
+    page. So the footer link reaches it only if somebody re-runs the script
+    after editing the others -- which the drift test already insists on, but
+    this states the dependency where a reader will see it."""
+    assert '<a href="/changelog">' in read(CHANGELOG)
+
+
+# --------------------------------------------------------------------------
+# What an adversarial pass over all five phases of #137 found.
+# --------------------------------------------------------------------------
+
+def test_only_main_takes_its_measure_from_the_body_class():
+    """The shared chrome must be one width on every page.
+
+    `.wrap` wraps the header, the main content AND the footer, so a per-page
+    measure written as `.home .wrap` silently captures the chrome. That
+    shipped: the header rendered at four different widths across six pages and
+    the brand moved 144px between the landing page and Terms.
+
+    Nothing caught it. `test_the_header_nav_is_identical_on_every_page`
+    compares MARKUP, and the markup was identical -- the divergence was
+    entirely in CSS keyed off the body class, which no test here can see.
+
+    So this pins the shape instead: a page-scoped measure must say `main`.
+    """
+    css = STYLE.read_text(encoding="utf-8")
+    offenders = []
+    for selector, body in re.findall(r"([^{}]+)\{([^}]*)\}", css):
+        selector = selector.split("*/")[-1].strip()
+        if "max-width" not in body:
+            continue
+        for part in selector.split(","):
+            part = part.strip()
+            if not part.endswith(".wrap"):
+                continue
+            scoped_to_page = re.match(r"^\.(home|policy|changelog-page)\s", part)
+            is_chrome = part.startswith(("header.site", "footer.site"))
+            if scoped_to_page and not is_chrome and "main.wrap" not in part:
+                offenders.append(part)
+    assert not offenders, (
+        "these set a measure on the shared chrome as well as the content: "
+        f"{offenders}. Scope them to `main.wrap`."
+    )
+
+
+def test_the_chrome_pins_its_own_width():
+    """The other half of the rule above: something has to state the one width."""
+    css = STYLE.read_text(encoding="utf-8")
+    assert re.search(
+        r"header\.site \.wrap,\s*\n?footer\.site \.wrap \{[^}]*max-width", css
+    ), "no rule pins the header/footer measure"
+
+
+def test_the_outlined_button_is_readable_in_every_state():
+    """Two contrast bugs lived here at once, and both were invisible to the
+    landing-page contrast test because it only measured text against --bg and
+    --panel, never against a hover fill or a border's backdrop.
+
+    1. Hover set `background: --line-soft` under an --accent-text label, which
+       is 4.30:1 in dark -- the control became LESS readable at the moment of
+       interaction, and on keyboard focus.
+    2. The border was --accent, and this button also sits inside a plan card
+       whose fill is --panel, where --accent is 2.74:1. It is the button's only
+       edge, since the background is transparent.
+    """
+    css = STYLE.read_text(encoding="utf-8")
+    rule = re.search(r"\.cta\.secondary \{([^}]*)\}", css)
+    assert rule, ".cta.secondary has no rule"
+    assert "border: 1px solid var(--accent-text)" in rule.group(1), (
+        "the outlined button's border must be --accent-text: --accent is "
+        "2.74:1 on --panel, and this border is the button's only edge"
+    )
+
+    hover = re.search(r"\.cta\.secondary:hover[^{]*\{([^}]*)\}", css)
+    assert hover, ".cta.secondary has no hover rule"
+    assert "var(--line-soft)" not in hover.group(1), (
+        "--line-soft under an --accent-text label is 4.30:1 in dark"
+    )
+
+    # Whatever the hover fill is, the label on it must clear AA in both themes.
+    for theme, ink, fill in (
+        ("dark", _token("--accent-ink"), _token("--accent")),
+        ("light", _token("--light-accent-ink"), _token("--light-accent")),
+    ):
+        ratio = _contrast(ink, fill)
+        assert ratio >= 4.5, f"{theme}: hovered label is {ratio:.2f}:1"
+
+
+def test_a_pill_that_is_only_a_border_can_actually_be_seen():
+    """`.updated` and the changelog tag are chips whose entire shape is their
+    border. Drawn with --line they were 1.62:1 in dark and 1.05:1 in light --
+    so neither rendered as a pill at all, just text where a chip was drawn.
+
+    Not a WCAG failure (a decorative boundary is exempt), which is exactly why
+    nothing else here would ever catch it.
+    """
+    css = STYLE.read_text(encoding="utf-8")
+    for selector in (r"\.policy \.updated", r"\.entry \.tag"):
+        rule = re.search(selector + r" \{([^}]*)\}", css)
+        assert rule, f"{selector} has no rule"
+        assert "border: 1px solid var(--line)" not in rule.group(1), (
+            f"{selector} draws its whole shape with --line, which is 1.05:1 "
+            "on the ground in light"
+        )
