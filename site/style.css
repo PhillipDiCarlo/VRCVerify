@@ -302,6 +302,13 @@
   --text-note: 0.9375rem;  /*    15px the notes under a plan card */
   --text-micro: 0.9rem;    /*  14.4px the footer, the smallest thing here */
 
+  /* 1.65 HERE, 1.55 IN THE DASHBOARD, and that is the last deliberate
+     divergence between the two files -- #195's acceptance criteria asked for
+     it to agree or be explained, so: it is the same argument as the ramp
+     above. A document is read and a console is operated. Long-form prose at
+     16px wants the looser leading, a settings row three lines high does not,
+     and matching them would make one of the two worse to no one's benefit.
+     --leading-tight is identical in both, because a heading is a heading. */
   --leading-body: 1.65;
   --leading-tight: 1.25;
 
