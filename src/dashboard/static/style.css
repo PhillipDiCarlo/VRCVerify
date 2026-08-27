@@ -30,6 +30,18 @@
  * adopted component by component as each is restyled, so the conversion lands
  * in reviewable pieces rather than one commit that touches every line. Reach
  * for an existing token before adding a literal.
+ *
+ * THE COLOUR VALUES ARE DUPLICATED IN `site/style.css` (issue #137). The apex
+ * site cannot share this file -- different origin, different deploy, and the
+ * entire argument for that site being static is that it does not depend on
+ * the box this dashboard runs on. So the surface, ink, line and accent values
+ * exist twice on purpose, and this comment is half of the pair that says so.
+ * Change a colour here, change it there.
+ *
+ * The site orders its theme blocks the other way up -- dark on the bare
+ * `:root` rather than light -- because it has no server to stamp the
+ * attribute before first paint, so the default has to be the floor of its
+ * cascade. Same values, mirrored structure, and its file explains why.
  */
 
 /* Inter, vendored into static/fonts rather than loaded from a font CDN: a

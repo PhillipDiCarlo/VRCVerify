@@ -176,6 +176,20 @@ def test_nothing_is_loaded_from_a_third_party(page):
     needs to read it, and an external request from a privacy policy is its own
     small joke. `mailto:` and links to other sites are fine; *loading* from one
     is not.
+
+    THIS USED TO BAN SCRIPTS OUTRIGHT -- `assert "<script" not in text` -- and
+    #137 phase 1 narrowed it to third-party scripts, which is all this test's
+    own docstring ever claimed. The blanket version was free to be stronger
+    than its stated rule for as long as the site had no behaviour at all; the
+    theme toggle is the first script here, it is served from this origin, and
+    every page still renders completely without it.
+
+    The property being defended is "nothing on this page is fetched from
+    somebody else's server", not "this page has no behaviour". An inline
+    <script> block is still refused: same-origin is checked by reading the
+    `src`, so a script with no `src` has nothing to check, and keeping the one
+    path from repository to browser a reviewable file is worth more than the
+    convenience.
     """
     text = read(page)
     loaders = re.findall(r'(?:src|href)="(https?://[^"]+)"', text)
@@ -185,7 +199,13 @@ def test_nothing_is_loaded_from_a_third_party(page):
         if re.search(rf'<(?:link|script)[^>]*"{re.escape(url)}"', text)
     ]
     assert not stylesheets_and_scripts, f"{page.name}: {stylesheets_and_scripts}"
-    assert "<script" not in text, f"{page.name} has a script tag"
+
+    for tag in re.findall(r"<script[^>]*>", text):
+        src = re.search(r'src="([^"]+)"', tag)
+        assert src, f"{page.name} has an inline script: {tag}"
+        assert src.group(1).startswith("/"), (
+            f"{page.name} loads a script from elsewhere: {src.group(1)}"
+        )
 
 
 # index.html and 404.html are not policies; the rest are, and a policy with no
@@ -236,3 +256,171 @@ def test_the_worker_serves_assets_only():
         if line.strip().startswith("main") and "=" in line
     ]
     assert not mains, f"wrangler.toml declares a Worker script: {mains}"
+
+
+# --------------------------------------------------------------------------
+# Theming (#137 phase 1). Dark by default, with a three-way picker.
+#
+# The dashboard renders its theme attribute server-side, so a wrong first
+# paint there is a server bug. Here there is no server: the default lives in
+# the cascade, and these tests are what keep it there.
+# --------------------------------------------------------------------------
+
+STYLE = SITE / "style.css"
+THEME_JS = SITE / "theme.js"
+THEMES = {"dark", "light", "system"}
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_every_page_loads_the_theme_script(page):
+    """Blocking and in <head>, or a stored Light choice flashes dark first.
+
+    `defer` or `async` would let the body paint before the attribute is
+    stamped, which is the exact flash the script exists to prevent.
+    """
+    text = read(page)
+    head = re.search(r"<head>(.*?)</head>", text, re.S)
+    assert head, f"{page.name} has no head"
+    tag = re.search(r'<script[^>]*src="/theme\.js"[^>]*>', head.group(1))
+    assert tag, f"{page.name} does not load /theme.js in its head"
+    assert "defer" not in tag.group(0), f"{page.name} defers the theme script"
+    assert "async" not in tag.group(0), f"{page.name} loads the theme script async"
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_the_theme_picker_ships_hidden(page):
+    """A control that needs JavaScript must not be painted before it arrives.
+
+    With the script blocked the page is simply dark, which is a complete
+    experience. A visible select that did nothing would not be.
+    """
+    picker = re.search(r'<div class="theme-picker"([^>]*)>', read(page))
+    assert picker, f"{page.name} has no theme picker"
+    assert "hidden" in picker.group(1), f"{page.name}'s theme picker is not hidden"
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_the_picker_offers_exactly_the_three_themes(page):
+    """The markup and `VALID` in theme.js have to agree.
+
+    An option the script rejects would silently do nothing when chosen; a
+    theme the script accepts with no option is one nobody can reach.
+    """
+    options = set(re.findall(r'<option value="([^"]+)"', read(page)))
+    assert options == THEMES, f"{page.name}: {sorted(options)}"
+
+
+def test_the_script_accepts_exactly_the_themes_the_markup_offers():
+    valid = re.search(r'VALID = \[([^\]]+)\]', THEME_JS.read_text(encoding="utf-8"))
+    assert valid, "theme.js has no VALID list"
+    assert set(re.findall(r'"([^"]+)"', valid.group(1))) == THEMES
+
+
+def test_dark_is_the_floor_rather_than_a_media_query():
+    """The default has to survive JavaScript being off.
+
+    `:root` with no attribute is what a first visit renders, and what every
+    visit renders for a reader with scripting disabled. If dark lived only
+    behind `prefers-color-scheme: dark`, a light-OS visitor would get a light
+    page and the epic's "dark is what a first-time visitor sees" would be
+    false for them.
+    """
+    css = STYLE.read_text(encoding="utf-8")
+    floor = re.search(r"^:root,\n:root\[data-theme=\"dark\"\] \{(.*?)^\}", css, re.S | re.M)
+    assert floor, "style.css has no bare-:root dark floor"
+    assert "color-scheme: dark" in floor.group(1)
+    assert "--bg: #1e1f22" in floor.group(1), "the floor is not painting dark values"
+
+
+def test_light_is_reachable_both_explicitly_and_through_system():
+    """Three states, and `system` has to be an attribute rather than an absence.
+
+    Absence means dark here -- it is the pre-JavaScript state -- so unlike the
+    dashboard, "follow the OS" needs a value of its own to be expressible.
+    """
+    css = STYLE.read_text(encoding="utf-8")
+    assert ':root[data-theme="light"] {' in css
+    assert "@media (prefers-color-scheme: light)" in css
+    assert ':root[data-theme="system"]' in css
+
+
+def test_the_stylesheets_cross_reference_each_other():
+    """The tokens are duplicated on purpose; the comments are what keep the
+    duplication honest. Undocumented duplication is how two surfaces drift
+    into looking like two products -- see #137.
+    """
+    assert "src/dashboard/static/style.css" in STYLE.read_text(encoding="utf-8"), (
+        "site/style.css does not say where the other copy of the tokens lives"
+    )
+
+
+def test_the_site_loads_no_script_other_than_its_own():
+    """One script, and it is this one. The site's dependency-free claim is
+    only as good as the list of things it fetches."""
+    for page in PAGES:
+        srcs = re.findall(r'<script[^>]*src="([^"]+)"', read(page))
+        assert srcs == ["/theme.js"], f"{page.name}: {srcs}"
+
+
+def _luminance(hex_colour):
+    hex_colour = hex_colour.lstrip("#")
+    channels = []
+    for i in (0, 2, 4):
+        c = int(hex_colour[i:i + 2], 16) / 255
+        channels.append(c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4)
+    r, g, b = channels
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def _contrast(a, b):
+    la, lb = _luminance(a), _luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def _token(name):
+    """The value a token is declared with, read straight out of the stylesheet."""
+    match = re.search(rf"^\s*{re.escape(name)}:\s*(#[0-9a-f]{{6}});", 
+                      STYLE.read_text(encoding="utf-8"), re.M | re.I)
+    assert match, f"{name} is not declared with a literal in style.css"
+    return match.group(1)
+
+
+def test_the_theme_picker_has_a_visible_edge_in_both_themes():
+    """WCAG 1.4.11: a control has to be identifiable as a control, at 3:1
+    against what surrounds it.
+
+    This is pinned because it already failed once. The select was drawn with
+    `--line`, which is a *separator* token -- 1.35:1 against the header bar on
+    dark and 1.19:1 on light, an edge nobody could see. `--control-line` is the
+    token for the job, and on light it had to be darkened from the dashboard's
+    #8d919b (2.84:1 on this site's --chrome) because the dashboard measured it
+    against white cards rather than against a chrome bar.
+
+    Both surfaces matter: the bar the control sits ON, and the fill it
+    surrounds. An edge that vanishes into either one is not an edge.
+    """
+    for theme, edge, chrome, panel in (
+        ("dark", _token("--control-line"), _token("--chrome"), _token("--panel")),
+        ("light", _token("--light-control-line"),
+         _token("--light-chrome"), _token("--light-panel")),
+    ):
+        against_bar = _contrast(edge, chrome)
+        against_fill = _contrast(edge, panel)
+        assert against_bar >= 3.0, (
+            f"{theme}: control edge {edge} is {against_bar:.2f}:1 on the "
+            f"header bar {chrome}, under the 3:1 a UI component needs"
+        )
+        assert against_fill >= 3.0, (
+            f"{theme}: control edge {edge} is {against_fill:.2f}:1 against the "
+            f"fill it surrounds {panel}"
+        )
+
+
+def test_the_picker_label_is_readable_in_both_themes():
+    """`--faint` is the quietest thing on the page and is still text: 4.5:1."""
+    for theme, faint, chrome in (
+        ("dark", _token("--faint"), _token("--chrome")),
+        ("light", _token("--light-faint"), _token("--light-chrome")),
+    ):
+        ratio = _contrast(faint, chrome)
+        assert ratio >= 4.5, f"{theme}: label {faint} on {chrome} is {ratio:.2f}:1"

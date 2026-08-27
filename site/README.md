@@ -1,8 +1,8 @@
 # The apex site — vrcverify.com
 
-Four static pages: the landing page, Terms of Service, Privacy Policy and
-Refund Policy. Stripe, Discord and the dashboard all link here, so these pages
-need to stay up when the VPS does not.
+Five static pages: the landing page, Terms of Service, Privacy Policy, Refund
+Policy and a 404. Stripe, Discord and the dashboard all link here, so these
+pages need to stay up when the VPS does not.
 
 Deliberately static, deliberately not part of the dashboard app:
 
@@ -13,9 +13,15 @@ Deliberately static, deliberately not part of the dashboard app:
   host is compromised. Adding unauthenticated pages to the box holding the bot
   API signing key widens that surface to publish four documents that never
   change.
-- **No dependencies.** One stylesheet, no fonts, no scripts, no third-party
-  requests. A legal page that needs a CDN is a legal page that can be
-  unavailable at the moment somebody needs to read it.
+- **No dependencies.** One stylesheet, one same-origin script, no fonts, no
+  third-party requests. A legal page that needs a CDN is a legal page that can
+  be unavailable at the moment somebody needs to read it.
+
+  The script is `theme.js` and it is the theme toggle, added in #137 phase 1.
+  It is the only one, it is served from this origin, and every page renders
+  completely without it — blocked or disabled, you get the default dark theme
+  and no picker. `tests/test_site.py` refuses any script that is inline or
+  loaded from anywhere else.
 
 ## Before this goes live
 
@@ -104,10 +110,37 @@ keeps the pages themselves honest.
   route, that is worth revisiting — a person querying a VRCVerify charge should
   not land on a different company's contact form.
 
+## Theming
+
+Dark by default, with a Dark/Light/System picker in the header — the same three
+states the dashboard offers (#123), reached differently because there is no
+server here to render the choice into the first paint.
+
+The mechanism, and the one thing to keep in mind when editing:
+
+- **No `data-theme` attribute means dark.** That is the floor of the cascade in
+  `style.css`, so it is what a first visit paints, and what every visit paints
+  with JavaScript off. The dashboard can treat "no attribute" as *System*
+  because its server always knows what to stamp; here, no attribute is also the
+  pre-script state, so *System* has to be an explicit `data-theme="system"`.
+- `theme.js` reads `localStorage` and stamps the attribute from a **blocking**
+  `<script>` in `<head>`. That is deliberate: `defer` or `async` would let the
+  body paint before the attribute lands, which is a visible flash on every
+  navigation for anyone who chose Light. A test asserts neither is present.
+- The picker ships `hidden` and is revealed by the script, so a control that
+  cannot work without JavaScript is never painted before JavaScript arrives.
+
+The colour values are **copied from `src/dashboard/static/style.css`** rather
+than shared — different origin, different deploy, and the whole point of this
+site is that it does not depend on the dashboard's host. Both files carry a
+comment saying so. Change a colour in one, change it in the other.
+
 ## Editing
 
-Plain HTML, one shared `style.css`, no build step. Keep the four footers and the
-four navs in step by hand; there are only four files, and a template engine here
-would be a build step for the sake of a build step.
+Plain HTML, one shared `style.css`, no build step. Keep the five footers and
+the five navs in step by hand; there are only five files, and a template engine
+here would be a build step for the sake of a build step. `tests/test_site.py`
+fails if a header or footer drifts from the others, which is what makes that
+safe to do by hand.
 
 Update the `Last updated` date at the top of any policy you change materially.
