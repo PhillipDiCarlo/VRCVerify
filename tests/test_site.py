@@ -553,3 +553,80 @@ def test_the_number_ring_in_the_flow_is_visible():
     ):
         ratio = _contrast(edge, panel)
         assert ratio >= 3.0, f"{theme}: flow number ring is {ratio:.2f}:1"
+
+
+# --------------------------------------------------------------------------
+# The legal pages (#137 phase 3). Typography only -- plus the heading ids,
+# which are the one thing here with consequences outside this repository.
+# --------------------------------------------------------------------------
+
+POLICY_PAGES = [p for p in PAGES if p.name in {"terms.html", "privacy.html", "refunds.html"}]
+POLICY_NAMES = [p.name for p in POLICY_PAGES]
+
+
+def _headings(page):
+    """(level, id, text) for every h2/h3, with the anchor link stripped out."""
+    found = []
+    for level, attrs, inner in re.findall(r"<h([23])([^>]*)>(.*?)</h\1>", read(page), re.S):
+        ident = re.search(r'id="([^"]+)"', attrs)
+        text = re.sub(r'<a class="anchor".*?</a>', "", inner, flags=re.S)
+        found.append((level, ident.group(1) if ident else None, text.strip()))
+    return found
+
+
+@pytest.mark.parametrize("page", POLICY_PAGES, ids=POLICY_NAMES)
+def test_every_policy_heading_is_linkable(page):
+    """Stripe, Discord and support replies all hold URLs into these pages, and
+    until #137 phase 3 none of them could point at a specific clause."""
+    missing = [text for _, ident, text in _headings(page) if not ident]
+    assert not missing, f"{page.name}: headings with no id: {missing}"
+
+
+@pytest.mark.parametrize("page", POLICY_PAGES, ids=POLICY_NAMES)
+def test_heading_ids_are_unique_within_a_page(page):
+    """Two headings sharing an id means one of them is unreachable."""
+    ids = [ident for _, ident, _ in _headings(page)]
+    duplicates = {i for i in ids if ids.count(i) > 1}
+    assert not duplicates, f"{page.name}: {sorted(duplicates)}"
+
+
+@pytest.mark.parametrize("page", POLICY_PAGES, ids=POLICY_NAMES)
+def test_heading_ids_do_not_carry_the_section_number(page):
+    """`#5. Buying...` would break the moment a clause is inserted above it.
+
+    Legal documents get renumbered; that is a normal edit and it must not
+    invalidate every link anybody has saved. The id comes from the heading
+    text with the leading number stripped, so renumbering is free and only
+    a rewording costs an anchor.
+    """
+    numbered = [ident for _, ident, _ in _headings(page) if re.match(r"^\d+(-|$)", ident or "")]
+    assert not numbered, f"{page.name}: ids carrying a section number: {numbered}"
+
+
+@pytest.mark.parametrize("page", POLICY_PAGES, ids=POLICY_NAMES)
+def test_the_anchor_links_are_decorative_and_point_at_their_own_heading(page):
+    """A screen reader user navigates by heading and does not need "#"
+    announced fourteen times; a keyboard user should not tab past one before
+    every section. It is a convenience for copying a link, and only that.
+
+    It must also actually point at the heading it sits in -- an anchor whose
+    href has drifted from its parent's id is a link to nowhere.
+    """
+    for level, ident, _ in _headings(page):
+        block = re.search(
+            rf'<h{level} id="{re.escape(ident)}">(.*?)</h{level}>', read(page), re.S
+        )
+        anchor = re.search(r'<a class="anchor"([^>]*)>', block.group(1))
+        assert anchor, f"{page.name}: #{ident} has no anchor link"
+        attrs = anchor.group(1)
+        assert f'href="#{ident}"' in attrs, f"{page.name}: #{ident} anchor points elsewhere"
+        assert 'aria-hidden="true"' in attrs, f"{page.name}: #{ident} anchor is not decorative"
+        assert 'tabindex="-1"' in attrs, f"{page.name}: #{ident} anchor is in the tab order"
+
+
+def test_only_the_policies_carry_the_policy_class():
+    """`policy` turns on the long-form reading treatment. 404 is not a policy
+    and the landing page has its own layout."""
+    for page in PAGES:
+        expected = page.name in {"terms.html", "privacy.html", "refunds.html"}
+        assert ('class="policy"' in read(page)) == expected, page.name

@@ -457,6 +457,100 @@ th { color: var(--muted); font-weight: 600; }
   .flow-arrow { justify-content: center; transform: rotate(90deg); }
 }
 
+/* ==========================================================================
+   THE LEGAL PAGES (#137 phase 3)
+   Typography and layout only. No wording was touched -- the prose on Terms,
+   Privacy and Refunds is byte-identical to what it was before this phase, and
+   the only markup change is an `id` and an anchor link per heading.
+   ========================================================================== */
+
+/* THE HEADING IDS ARE A PUBLIC CONTRACT NOW.
+   They are derived from the heading text with the leading section number
+   stripped, so renumbering a clause does not break a link into it. Once one of
+   these is published -- in a support reply, a Stripe portal field, a Discord
+   message -- it lives outside this repository forever, exactly like the
+   changelog entry ids in changelog.py. Renaming a section is free; changing
+   its id silently breaks every link anybody ever saved to it. */
+
+/* A measure tuned for reading, not for fitting. 46rem at 16px is roughly 75
+   characters, which is the long end of comfortable; policy prose is read under
+   duress by people looking for one clause, so it gets the shorter end. */
+.policy .wrap { max-width: 42rem; }
+.policy p,
+.policy li { line-height: 1.7; }
+
+/* Hierarchy by size and spacing, not by colour. There is more space above a
+   heading than below it, so a heading belongs to what follows rather than
+   floating between two sections -- the single most useful thing typography can
+   do for a document somebody is scanning. */
+.policy h1 { font-size: 2rem; letter-spacing: -0.01em; margin: 2.5rem 0 0.5rem; }
+.policy h2 {
+  font-size: 1.3rem;
+  margin: 3rem 0 0.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line-soft);
+}
+.policy h3 { font-size: 1.05rem; margin: 2rem 0 0.5rem; }
+
+/* The first h2 needs no rule above it: the lede already separates it from the
+   title, and a line there reads as an underline for the wrong thing. */
+.policy .updated + h2,
+.policy .lede + h2 { border-top: 0; padding-top: 0; margin-top: 2rem; }
+
+/* Jumping to #billing must not land the heading hard against the viewport
+   edge with its section already scrolled past. */
+.policy :target { scroll-margin-top: 1.5rem; }
+.policy h2, .policy h3 { scroll-margin-top: 1.5rem; }
+
+/* A jumped-to section marks itself, so somebody arriving from a link into a
+   specific clause can see which one they were sent to rather than counting
+   headings from the top of the viewport.
+
+   THIS IS A LEGITIMATE USE OF THE ACCENT, and worth saying why given the rule
+   that it means exactly two things. "This is the page you are on" is the first
+   of the two, and a `:target` heading is the same statement at a finer grain --
+   it is where you are, stated by the navigation that brought you. It is not
+   decoration and it is not a link. */
+.policy h2:target, .policy h3:target { border-left: 3px solid var(--accent); padding-left: 0.75rem; }
+
+/* THE ANCHOR AFFORDANCE.
+   Hidden until the heading is hovered or the link itself is focused, so it
+   never competes with the text. `aria-hidden` and `tabindex="-1"` in the
+   markup: a screen reader user navigates by heading and does not need a "#"
+   announced fourteen times, and a keyboard user should not have to tab past
+   one before every section. It is a convenience for someone who wants to copy
+   a link to a clause, and it is only ever that. */
+.policy .anchor {
+  margin-left: 0.4rem;
+  color: var(--faint);
+  text-decoration: none;
+  opacity: 0;
+  font-weight: 400;
+}
+.policy h2:hover .anchor,
+.policy h3:hover .anchor,
+.policy .anchor:focus { opacity: 1; }
+
+/* The date a policy was last changed is the first thing anybody checks when
+   they are trying to establish what was in force on a given day, and it was
+   rendering as small grey text below the title like a caption. */
+.policy .updated {
+  display: inline-block;
+  margin: 0 0 2rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.policy .lede { font-size: 1.05rem; color: var(--ink); }
+.policy ul, .policy ol { padding-left: 1.5rem; }
+.policy li { margin: 0.5rem 0; }
+.policy .note { margin: 1.75rem 0; }
+.policy table { font-size: 0.9375rem; }
+.policy th, .policy td { padding: 0.7rem 0.8rem; }
+
 footer.site {
   border-top: 1px solid var(--line);
   background: var(--chrome);

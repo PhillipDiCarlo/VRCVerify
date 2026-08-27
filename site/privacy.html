@@ -10,7 +10,10 @@
      origin, ~30 lines, and nothing on this page needs it to work. -->
 <script src="/theme.js"></script>
 </head>
-<body>
+<!-- `policy` turns on the long-form reading treatment in style.css:
+     a shorter measure, looser leading, and ruled section headings. Terms,
+     Privacy and Refunds carry it; 404 and the landing page do not. -->
+<body class="policy">
 
 <header class="site">
   <div class="wrap">
@@ -49,15 +52,15 @@ else sees it.</p>
   card details. Nothing is sold, and nothing is shared for advertising.</p>
 </div>
 
-<h2>Who we are</h2>
+<h2 id="who-we-are">Who we are<a class="anchor" href="#who-we-are" aria-hidden="true" tabindex="-1">#</a></h2>
 
 <p>VRCVerify is operated by Esatto Technologies, United States. For anything in
 this policy, including a request to see or delete your data, write to
 <a href="mailto:contact@esattotech.com">contact@esattotech.com</a>.</p>
 
-<h2>What we collect</h2>
+<h2 id="what-we-collect">What we collect<a class="anchor" href="#what-we-collect" aria-hidden="true" tabindex="-1">#</a></h2>
 
-<h3>When you verify</h3>
+<h3 id="when-you-verify">When you verify<a class="anchor" href="#when-you-verify" aria-hidden="true" tabindex="-1">#</a></h3>
 
 <div class="scroll">
 <table>
@@ -74,7 +77,7 @@ this policy, including a request to see or delete your data, write to
 lets any other server running VRCVerify recognise you without repeating the
 process. That is the point of it, and it is why the record persists.</p>
 
-<h3>When a server uses the bot</h3>
+<h3 id="when-a-server-uses-the-bot">When a server uses the bot<a class="anchor" href="#when-a-server-uses-the-bot" aria-hidden="true" tabindex="-1">#</a></h3>
 
 <p>For each Discord server: the server ID, its owner's Discord ID, the role and
 channel IDs it has configured, its chosen language, its feature settings, any
@@ -82,7 +85,7 @@ custom post-verification message it has written, and a count of completed
 verifications. Where an administrator changes a setting on the dashboard, we
 record who changed what and when.</p>
 
-<h3>When a server subscribes by card</h3>
+<h3 id="when-a-server-subscribes-by-card">When a server subscribes by card<a class="anchor" href="#when-a-server-subscribes-by-card" aria-hidden="true" tabindex="-1">#</a></h3>
 
 <p>Stripe processes the payment. We receive and store the Stripe customer ID,
 subscription ID, price ID, subscription status and renewal date, so the bot
@@ -92,7 +95,7 @@ knows the server has paid.</p>
 do not store the billing email address Stripe collects. Card details are entered
 on Stripe's own pages, not ours.</p>
 
-<h3>What we deliberately do not collect</h3>
+<h3 id="what-we-deliberately-do-not-collect">What we deliberately do not collect<a class="anchor" href="#what-we-deliberately-do-not-collect" aria-hidden="true" tabindex="-1">#</a></h3>
 
 <ul>
   <li>Your VRChat display name or profile bio. Your bio is read at the moment of
@@ -104,7 +107,7 @@ on Stripe's own pages, not ours.</p>
     VRCVerify only reads the yes-or-no result.</li>
 </ul>
 
-<h2>Who else sees it</h2>
+<h2 id="who-else-sees-it">Who else sees it<a class="anchor" href="#who-else-sees-it" aria-hidden="true" tabindex="-1">#</a></h2>
 
 <p>We do not sell personal data and we do not share it for advertising. Data is
 processed by:</p>
@@ -122,13 +125,13 @@ processed by:</p>
 bot assigns, which is how the server acts on it. Your VRChat user ID is not
 shown to server administrators anywhere in the bot or the dashboard.</p>
 
-<h2>Where it is stored</h2>
+<h2 id="where-it-is-stored">Where it is stored<a class="anchor" href="#where-it-is-stored" aria-hidden="true" tabindex="-1">#</a></h2>
 
 <p>Data is stored on servers in the United States. If you are in the United
 Kingdom or the European Economic Area, using VRCVerify involves transferring
 your data to the United States.</p>
 
-<h2>How long we keep it</h2>
+<h2 id="how-long-we-keep-it">How long we keep it<a class="anchor" href="#how-long-we-keep-it" aria-hidden="true" tabindex="-1">#</a></h2>
 
 <div class="scroll">
 <table>
@@ -140,7 +143,7 @@ your data to the United States.</p>
 </table>
 </div>
 
-<h2>Your rights</h2>
+<h2 id="your-rights">Your rights<a class="anchor" href="#your-rights" aria-hidden="true" tabindex="-1">#</a></h2>
 
 <p>You can ask us to show you the data we hold about you, correct it, or delete
 it. If you are in the UK or EEA you also have the right to object to processing,
@@ -155,7 +158,7 @@ respond within 30 days.</p>
 <p>Deleting your verification record means you will need to verify again the
 next time a server asks.</p>
 
-<h2>Our legal basis, if you are in the UK or EEA</h2>
+<h2 id="our-legal-basis-if-you-are-in-the-uk-or-eea">Our legal basis, if you are in the UK or EEA<a class="anchor" href="#our-legal-basis-if-you-are-in-the-uk-or-eea" aria-hidden="true" tabindex="-1">#</a></h2>
 
 <ul>
   <li><strong>Consent</strong> for the verification itself. You start it, and you
@@ -166,21 +169,21 @@ next time a server asks.</p>
     and keeping the service working and secure.</li>
 </ul>
 
-<h2>Children</h2>
+<h2 id="children">Children<a class="anchor" href="#children" aria-hidden="true" tabindex="-1">#</a></h2>
 
 <p>Discord requires its users to be at least 13, and older in some countries.
 VRCVerify is not directed at children and we do not knowingly collect data from
 anyone below Discord's minimum age. If you believe a child's data is held here,
 email us and we will delete it.</p>
 
-<h2>Security</h2>
+<h2 id="security">Security<a class="anchor" href="#security" aria-hidden="true" tabindex="-1">#</a></h2>
 
 <p>Access to the database is limited to the operator. The dashboard holds no
 database credentials and reaches the bot only over a mutually authenticated
 private network link, so a compromise of the public website does not by itself
 expose the verification data.</p>
 
-<h2>Changes</h2>
+<h2 id="changes">Changes<a class="anchor" href="#changes" aria-hidden="true" tabindex="-1">#</a></h2>
 
 <p>If this policy changes materially we will update the date at the top and, for
 significant changes, announce it in the support channel. Continuing to use
