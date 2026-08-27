@@ -8030,3 +8030,77 @@ class TestTheSharedTypeScaleAndMeasure(object):
         assert re.search(r"\.panel \.blurb,\s*\n\.panel \.desc,\s*\n\.panel > p \{[^}]*var\(--measure\)", css), (
             "the dashboard's prose classes do not take the measure"
         )
+
+
+class TestThePageHeaderIsNotACard(object):
+    """The guild-identity slab, replaced (#195 phase 4)."""
+
+    def test_overview_no_longer_carries_its_own_copy_of_the_guild_head(self):
+        """`_guild_head.html` exists so the premium sentence has one home, and
+        Overview kept a byte-identical duplicate of it three files away -- the
+        exact thing the partial was created to prevent.
+
+        Asserted on the templates rather than the rendered page, because the
+        defect is a maintenance one: two copies render the same today and
+        diverge the day one is edited.
+        """
+        import dashboard
+
+        templates = os.path.join(os.path.dirname(dashboard.__file__), "templates")
+        overview = open(
+            os.path.join(templates, "overview.html"), encoding="utf-8"
+        ).read()
+        assert '{% include "_guild_head.html" %}' in overview
+        assert "VRCVerify Premium is active on this server" not in overview, (
+            "Overview has a second copy of the premium sentence again"
+        )
+
+    def test_the_guild_head_is_not_wrapped_in_a_card(self):
+        """A card is for content that groups; a page title is not content.
+        The slab cost ~110px above the content on every guild page."""
+        import dashboard
+
+        templates = os.path.join(os.path.dirname(dashboard.__file__), "templates")
+        for name in ("overview.html", "settings.html", "activity.html"):
+            body = open(os.path.join(templates, name), encoding="utf-8").read()
+            before = body[: body.index('{% include "_guild_head.html" %}')]
+            # The last section opened before the include must have been closed.
+            assert before.count("<section") == before.count("</section>"), (
+                f"{name} still opens a card around the page header"
+            )
+
+    def test_the_guild_head_does_not_repeat_the_sidebar_icon(self):
+        """`.side-guild` shows the same icon and name at every width -- below
+        the breakpoint the sidebar becomes a tab strip and the identity block
+        stays, shrunk to 32px. A second, larger copy was the slab's bulk."""
+        import dashboard
+
+        templates = os.path.join(os.path.dirname(dashboard.__file__), "templates")
+        head = open(
+            os.path.join(templates, "_guild_head.html"), encoding="utf-8"
+        ).read()
+        assert "guild_icon" not in head, (
+            "the page header draws the server icon a second time"
+        )
+
+    def test_the_notices_kept_the_card_the_header_gave_up(self):
+        """Measured, not inherited. `.notice.ok` draws no fill, so it takes its
+        contrast from what is behind it: --ok on --bg is 4.27:1 in the light
+        theme, under AA, against 5.39:1 on --panel.
+
+        The stylesheet already said so next to `.notice.ok` -- filling it was
+        rejected for the same reason. Letting the notices follow the header
+        onto the page ground would have reintroduced that failure in a
+        different shape.
+        """
+        import dashboard
+
+        templates = os.path.join(os.path.dirname(dashboard.__file__), "templates")
+        for name in ("settings.html", "activity.html"):
+            body = open(os.path.join(templates, name), encoding="utf-8").read()
+            first_notice = body.index('class="notice')
+            before = body[:first_notice]
+            assert before.count("<section") > before.count("</section>"), (
+                f"{name} renders a notice on the page ground, where --ok is "
+                "4.27:1 in light"
+            )

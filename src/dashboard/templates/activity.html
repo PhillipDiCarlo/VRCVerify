@@ -10,17 +10,20 @@
 
    It is also the one page here that reads the audit trail, which every group's
    page used to fetch whether or not it showed it. #}
-<section class="panel">
-  {% include "_guild_head.html" %}
+{% include "_guild_head.html" %}
 
-  {% if not names_resolved %}
-    <p class="notice">
-      Couldn't load this server's roles and channels just now, so some changes
-      below name an ID instead of a role or channel. The history itself is
-      correct.
-    </p>
-  {% endif %}
+{# The notice keeps its card while the header does not -- see the comment in
+   settings.html. `.notice` here is the filled variant, which carries its own
+   ground, but the two pages must not disagree about where a notice lives. #}
+{% if not names_resolved %}
+<section class="panel">
+  <p class="notice">
+    Couldn't load this server's roles and channels just now, so some changes
+    below name an ID instead of a role or channel. The history itself is
+    correct.
+  </p>
 </section>
+{% endif %}
 
 <section class="panel group">
     <h2>Activity</h2>

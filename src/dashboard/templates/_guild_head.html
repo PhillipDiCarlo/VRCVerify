@@ -1,28 +1,33 @@
-{# The server this page is about: icon, name, and what it is paying for.
+{# The server this page is about, and what it is paying for.
 
-   Shared by Settings and Activity (#140). Two copies of the premium sentence
-   would be two places to fix the day it changes, and the whole reason #141
-   went looking for one was a page that named a payment route without naming
-   what had been bought. #}
-<header class="guild-head">
-  <span class="icon" aria-hidden="true">
-    {% if guild_icon %}
-      <img src="{{ guild_icon }}" alt="" width="64" height="64">
+   Shared by Overview, Settings and Activity. Two copies of the premium
+   sentence would be two places to fix the day it changes, and the whole reason
+   #141 went looking for one was a page that named a payment route without
+   naming what had been bought.
+
+   OVERVIEW CARRIED A BYTE-IDENTICAL COPY OF THIS until #195 phase 4 -- the
+   exact duplication this partial exists to prevent, sitting three files away
+   from it. It now includes this like the other two.
+
+   NO ICON HERE ANY MORE, and that is the substance of phase 4 rather than a
+   trim. `.side-guild` in base.html shows the same icon and the same name two
+   inches to the left, at EVERY width: below the breakpoint the sidebar becomes
+   a tab strip and the identity block stays, shrunk to 32px. So this was a
+   second, larger copy of something already on screen, and it cost ~110px of
+   vertical space above the content on every guild page.
+
+   NOT IN A `.panel`. A card is for content that groups; a page title is not
+   content. Every console reference in #195 puts it on the page ground. #}
+<header class="page-head">
+  <h1>{{ guild_name }}</h1>
+  <p>
+    {% if premium.premium %}
+      VRCVerify Premium is active on this server.
+    {% elif premium.grandfathered %}
+      This server was set up before Premium launched, so it keeps several
+      extras free, permanently.
     {% else %}
-      <span class="initial">{{ guild_name[:1] | upper }}</span>
+      18+ verification is free on this server, and always will be.
     {% endif %}
-  </span>
-  <div>
-    <h1>{{ guild_name }}</h1>
-    <p class="muted">
-      {% if premium.premium %}
-        VRCVerify Premium is active on this server.
-      {% elif premium.grandfathered %}
-        This server was set up before Premium launched, so it keeps several
-        extras free, permanently.
-      {% else %}
-        18+ verification is free on this server, and always will be.
-      {% endif %}
-    </p>
-  </div>
+  </p>
 </header>

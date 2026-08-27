@@ -2,30 +2,7 @@
 {% block title %}{{ guild_name }} — VRCVerify{% endblock %}
 
 {% block content %}
-<section class="panel">
-  <header class="guild-head">
-    <span class="icon" aria-hidden="true">
-      {% if guild_icon %}
-        <img src="{{ guild_icon }}" alt="" width="64" height="64">
-      {% else %}
-        <span class="initial">{{ guild_name[:1] | upper }}</span>
-      {% endif %}
-    </span>
-    <div>
-      <h1>{{ guild_name }}</h1>
-      <p class="muted">
-        {% if premium.premium %}
-          VRCVerify Premium is active on this server.
-        {% elif premium.grandfathered %}
-          This server was set up before Premium launched, so it keeps several
-          extras free, permanently.
-        {% else %}
-          18+ verification is free on this server, and always will be.
-        {% endif %}
-      </p>
-    </div>
-  </header>
-</section>
+{% include "_guild_head.html" %}
 
 {# The one thing worth doing next, if there is one. Above the numbers on
    purpose: a server with no verified role has nothing to count, and burying
