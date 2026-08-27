@@ -206,6 +206,35 @@
   }
 }
 
+/* ONE TYPEFACE ACROSS BOTH SURFACES (#195 phase 2).
+   Vendored, same-origin, and the same file the dashboard serves --
+   src/dashboard/static/fonts/inter-latin-var.woff2, copied rather than linked
+   because the two hosts share no origin and no deploy. Latin subset, variable
+   100-900, 47KB.
+
+   THIS AMENDS site/README.md's "no fonts", and the reason that line gave is
+   why it could be amended: "a legal page that needs a CDN is a legal page that
+   can be unavailable at the moment somebody needs to read it." That argument
+   is about a THIRD PARTY, and it still stands -- nothing here reaches one. A
+   file served by the same Worker as the page cannot be down while the page is
+   up, so the availability risk the rule was written to prevent does not exist
+   in this shape.
+
+   `font-display: swap` is what makes it safe rather than merely defensible:
+   if the font is slow or never arrives, the page renders in the stack below,
+   which is EXACTLY WHAT THIS SITE LOOKED LIKE BEFORE THIS COMMIT. There is no
+   state this can produce that is worse than the status quo it replaces.
+
+   The stack was already the dashboard's minus its first entry, so this is one
+   name added rather than a typeface swapped. */
+@font-face {
+  font-family: "Inter var";
+  src: url("fonts/inter-latin-var.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 * { box-sizing: border-box; }
 
 /* THE TYPE SCALE, NAMED (#195 phase 1).
@@ -263,13 +292,25 @@
      files says the same word for the same idea; the dashboard needs it as a
      per-element rule because its cards, not its layout, are what run wide. */
   --measure: 52ch;
+
+  /* Named to match the dashboard's `--font`, and holding the same value. The
+     fallbacks are what this site used before #195 phase 2, so a browser that
+     refuses the woff2 lands exactly where it started. */
+  --font: "Inter var", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Longhand, not the `font` shorthand. The shorthand is legal with var()
+     but is parsed at computed-value time, so a single bad substitution drops
+     the whole declaration -- including font-family -- rather than one part of
+     it. Three lines that fail independently are worth more than one that
+     fails together. */
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: var(--leading-body);
   -webkit-text-size-adjust: 100%;
 }
 
@@ -309,8 +350,16 @@ main.wrap li { max-width: var(--measure); }
    `.flow-note` is a one-sentence callout against an accent rule; at 52ch it
    broke after "yes or a" and orphaned "no." on its own line under the rule.
    Both are short enough that no measure was protecting them anyway. */
-.trust-strip,
-.flow-note { max-width: none; }
+/* SPECIFICITY, and phase 1 shipped this rule too weak to do its job.
+   `.home main.wrap > p` is (0,2,2); a bare `.trust-strip` is (0,1,0), so the
+   measure kept winning and both elements kept wrapping -- the strip orphaning
+   "OVERRIDE" and the note orphaning "no.", which is exactly what this was
+   written to prevent. The CPL numbers looked right because a wrapped strip
+   still has short lines; only the screenshot showed it.
+   Scoped to the landing page's own container so it outranks (0,3,1 > 0,2,2)
+   rather than relying on source order. */
+.home main.wrap > .trust-strip,
+.home main.wrap > .flow-note { max-width: none; }
 
 /* THE CHROME IS ONE WIDTH ON EVERY PAGE, and this rule is what guarantees it.
    `.wrap` wraps the header, the main content AND the footer, so any per-page
@@ -361,7 +410,15 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
    regressed. Shrinking the type until they fit would trade a legible wrapped
    header for an illegible unwrapped one. */
 @media (max-width: 26rem) {
-  header.site nav { gap: 0.75rem; }
+  /* Inter runs ~5% wider than the system stack this site used before #195
+     phase 2, which pushed the nav from 319px to 331px and re-broke the 360px
+     case the gap alone had just fixed. That is a real cost of the shared
+     typeface and this is where it is paid.
+     The label shrinks rather than the gap, because 4 gaps have only ~12px
+     left to give and an 8.8px gap between links is cramped in a way 14px
+     type is not. */
+  header.site nav { gap: 0.7rem; }
+  header.site nav a { font-size: 0.875rem; }
 }
 
 /* THE THEME PICKER.

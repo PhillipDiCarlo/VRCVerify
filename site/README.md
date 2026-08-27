@@ -12,9 +12,23 @@ Deliberately static, deliberately not part of the dashboard app:
 - **No new public route on the VPS.** `SECURITY_AUDIT.md` §2 assumes the public
   host is compromised. Adding unauthenticated pages to the box holding the bot
   API signing key widens that surface to publish documents that barely change.
-- **No dependencies.** One stylesheet, one same-origin script, no fonts, no
-  third-party requests. A legal page that needs a CDN is a legal page that can
-  be unavailable at the moment somebody needs to read it.
+- **No third-party dependencies.** One stylesheet, one same-origin script, one
+  same-origin font, and no request that leaves this origin. A legal page that
+  needs a CDN is a legal page that can be unavailable at the moment somebody
+  needs to read it.
+
+  This line used to read "no fonts", and #195 phase 2 amended it rather than
+  breaking it. The rule's stated reason is about a *third party*, and that
+  reason is untouched: `fonts/inter-latin-var.woff2` is served by the same
+  Worker as the page, so it cannot be unavailable while the page is available.
+  The font is also declared `font-display: swap`, so if it is slow or never
+  arrives the page renders in the system stack — which is exactly what this
+  site looked like before it was added. There is no failure this introduces
+  that is worse than the state it replaced.
+
+  What the rule still forbids, and always will: a font CDN, which would let a
+  third party see who reads the Privacy Policy. That is the same reasoning
+  that vendored Inter into the dashboard in the first place.
 
   The script is `theme.js` and it is the theme toggle, added in #137 phase 1.
   It is the only one, it is served from this origin, and every page renders
@@ -135,6 +149,12 @@ The colour values are **copied from `src/dashboard/static/style.css`** rather
 than shared — different origin, different deploy, and the whole point of this
 site is that it does not depend on the dashboard's host. Both files carry a
 comment saying so. Change a colour in one, change it in the other.
+
+The same is now true of **the typeface and the type ramp** (#195). `Inter var`
+is copied into `fonts/` rather than fetched from the dashboard, for exactly the
+reason the colours are copied. The ramps are *not* identical — a console is
+denser than a document — but `--text-display`, the marketing size, is, and a
+test fails if the two declarations drift apart.
 
 ## The changelog is generated — do not edit it
 
