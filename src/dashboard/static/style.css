@@ -2481,29 +2481,46 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
  * returns, so a hardcoded three broke the layout the moment a fourth plan was
  * created -- which is the one thing the Stripe-driven plan list exists to make
  * easy. minmax lets them wrap on a phone instead of squeezing to nothing. */
-/* THE PUBLIC PRICING PAGE'S HEAD AND TIER GRID (#195 phase 3).
+/* THE PAGE HEADER (#195 phases 3-4).
  *
- * SCOPED TO ONE PAGE ON PURPOSE. `.page-head` centres its text and draws its
- * h1 at --text-display, and neither belongs anywhere else in this app: a
- * console that centres its headings reads as a brochure, and 48px on Overview
- * would shout. /pricing is the one surface here that is selling rather than
- * administering, which is exactly why --text-display exists (see the token).
+ * On the page ground, never inside a `.panel`. Every console reference in
+ * #195 puts its page title there and every pricing reference does too, and
+ * the slab this replaced cost ~110px of vertical space to say one word.
  *
- * On the ground rather than in a `.panel`, because every console reference in
- * #195 puts its page title there and every pricing reference does too. Wrapping
- * a title in a card costs ~110px of vertical space to say one word.
+ * THE BASE IS THE CONSOLE VERSION -- left-aligned, --text-page-title -- and
+ * that is the right way round because five pages are consoles and one is not.
+ * `.selling` is the exception, and it has to be asked for.
  */
 .page-head {
+  margin: 0 0 var(--space-5);
+}
+.page-head h1 {
+  margin: 0;
+  line-height: var(--leading-tight);
+}
+.page-head p {
+  max-width: var(--measure);
+  margin: var(--space-2) 0 0;
+  color: var(--muted);
+}
+
+/* THE ONE PAGE IN THIS APP THAT IS SELLING RATHER THAN ADMINISTERING.
+ *
+ * Centred, and drawn at --text-display, which is the size site/index.html's
+ * hero uses and the size every pricing reference in #195 uses. Neither belongs
+ * on a console page: 48px on Overview would shout, and a console that centres
+ * its headings reads as a brochure. A test asserts this class has not leaked.
+ */
+.page-head.selling {
   margin: var(--space-5) 0 var(--space-5);
   text-align: center;
 }
-.page-head h1 {
+.page-head.selling h1 {
   font-size: var(--text-display);
-  line-height: var(--leading-tight);
   letter-spacing: -0.02em;
   margin: 0 0 var(--space-3);
 }
-.page-head p {
+.page-head.selling p {
   /* Two centred lines broken at the measure land "per server." alone on the
    * second; `balance` splits them evenly instead. Worth it on a heading block
    * and nowhere else -- the algorithm is capped at a few lines and costs
@@ -2513,9 +2530,7 @@ select:focus-visible, textarea:focus-visible { outline-offset: 0; }
    * harder to read than a left-aligned one, not easier, because the eye has
    * to find a new left edge on every line. `auto` margins rather than the
    * parent's text-align doing the work, so the block itself is centred. */
-  max-width: var(--measure);
   margin: 0 auto;
-  color: var(--muted);
   font-size: var(--text-section);
   line-height: var(--leading-body);
 }

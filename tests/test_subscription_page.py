@@ -1974,12 +1974,15 @@ class TestThePublicPricingPage:
         app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
         app.config.update(TESTING=True)
         page = app.test_client().get("/pricing").data.decode()
-        assert 'class="page-head"' in page
-        head = page[page.index('class="page-head"'):]
+        # `.selling` since #195 phase 4 made the console header the base and
+        # the marketing one the modifier -- five pages are consoles and one is
+        # not, so the exception is the thing that has to be asked for.
+        assert 'class="page-head selling"' in page
+        head = page[page.index('class="page-head selling"'):]
         assert "<h1>Pricing</h1>" in head[:200], "the title is not in the page head"
         # And the head is NOT wrapped in a panel: the reason for moving it was
         # that a card costs ~110px of vertical space to say one word.
-        before = page[:page.index('class="page-head"')]
+        before = page[:page.index('class="page-head selling"')]
         assert 'class="panel"' not in before, "the title went back inside a card"
 
     def test_the_tier_cards_survive_stripe_being_unreachable(self, config):
@@ -2008,7 +2011,11 @@ class TestThePublicPricingPage:
         # closest relative of /pricing in the whole app and the likeliest to
         # have the style leak onto it.
         for path in ("/", f"/guild/{GUILD}/subscription", f"/guild/{GUILD}/settings"):
-            assert 'class="page-head"' not in client.get(path).data.decode(), (
+            body = client.get(path).data.decode()
+            # `page-head` itself is now correct on a console page -- that is
+            # phase 4. What must never appear there is `selling`, which centres
+            # the block and draws the h1 at --text-display.
+            assert "selling" not in body, (
                 f"{path} has picked up the pricing page's marketing header"
             )
 

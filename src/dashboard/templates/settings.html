@@ -27,9 +27,22 @@
    because the body is unchanged by the split, and rewriting three hundred
    lines of field rendering to address a single object would have been a large
    diff to say the same thing. #}
-<section class="panel">
-  {% include "_guild_head.html" %}
+{% include "_guild_head.html" %}
 
+{# THE NOTICES KEEP THEIR CARD, and that is measured rather than inherited.
+   #195 phase 4 lifted the page header out of this panel; the notices did not
+   follow it onto the page ground, because `.notice.ok` draws no fill and so
+   takes its contrast from whatever is behind it. --ok on --bg is 4.27:1 in
+   the light theme, under AA. On --panel it is 5.39:1 and tested.
+
+   The stylesheet already said as much next to `.notice.ok` -- "unfilled it
+   sits on --panel, where --ok is tested and passes" -- so the card is
+   load-bearing for the same reason the fill was rejected.
+
+   Conditional, so a page with nothing to announce renders no empty card. #}
+{% if saved or group_check or panel_stale or panel_result or save_error
+      or upgrade or not names_resolved or not auto_verify_column_present %}
+<section class="panel">
   {% if saved %}
     <p class="notice ok">Saved.</p>
   {% endif %}
@@ -103,6 +116,7 @@
     </p>
   {% endif %}
 </section>
+{% endif %}
 
 {% for group in groups %}
   {% set editable = group.fields | selectattr('editable') | list %}
