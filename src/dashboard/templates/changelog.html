@@ -19,6 +19,25 @@
   <h1>What's new</h1>
   <p class="muted blurb">
     Everything that has shipped in VRCVerify, newest first.
+    {# THE PUBLIC COPY, and the link goes this way round on purpose (#137
+       phase 5).
+
+       The bell still points here rather than at the apex site, and that was
+       decided rather than inherited: this page is the only surface allowed to
+       render a `public=False` entry, and sending a signed-in admin off the
+       property to read their own product's history is worse than keeping them
+       on it.
+
+       So the relationship is "here is the version you can share", not "the
+       real one is elsewhere". An admin wanting to point somebody at what
+       shipped needs a URL that works signed out; that is the only thing the
+       public page does that this one cannot.
+
+       Absolute, and no `rel` needed: `Referrer-Policy: no-referrer` is set on
+       every response here, so there is nothing to leak -- the same reasoning
+       as the footer's three legal links. #}
+    There is a <a href="https://vrcverify.com/changelog">public version of this
+    page</a> you can share with anyone.
   </p>
 </section>
 

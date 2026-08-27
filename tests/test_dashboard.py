@@ -1717,6 +1717,33 @@ class TestTheChangelogPage:
         assert response.status_code == 302
         assert response.headers["Location"] == "/"
 
+    def test_it_links_out_to_the_public_changelog(self, client, store):
+        """#137 phase 5, and the link goes this way round deliberately.
+
+        The bell still points HERE rather than at the apex site: this page is
+        the only surface allowed to render a `public=False` entry, and sending
+        a signed-in admin off the property to read their own product's history
+        is worse than keeping them on it. What the public page offers an admin
+        is a URL that works signed out -- something to share.
+        """
+        login_as(client, store)
+        page = client.get("/updates").data.decode()
+        assert "https://vrcverify.com/changelog" in page
+
+    def test_the_bell_still_points_at_this_page_not_the_public_one(self, client, store):
+        """The decision above, pinned from the other side.
+
+        #137's scope originally said to repoint the bell at the public
+        changelog. It was written before #136 phase 3 existed and following it
+        would have been a regression, so this fails if somebody later works
+        from that instruction.
+        """
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        bell = page.split('<details class="bell', 1)[1].split("</details>", 1)[0]
+        assert 'href="/updates"' in bell
+        assert "vrcverify.com/changelog" not in bell
+
     def test_it_has_no_sidebar(self, client, store):
         """It belongs to no server. The sidebar navigates WITHIN one, so
         rendering it here would make a global page look like a property of

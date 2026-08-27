@@ -745,3 +745,30 @@ def test_the_check_flag_reports_staleness():
     """`--check` is what CI and the release routine call. If it cannot tell a
     stale file from a fresh one it is decoration."""
     assert gen_changelog.main(["--check"]) == 0
+
+
+# --------------------------------------------------------------------------
+# Cross-links (#137 phase 5).
+# --------------------------------------------------------------------------
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_every_page_can_reach_the_changelog(page):
+    """Phase 4 shipped the page deliberately unlinked; this is the phase that
+    links it.
+
+    In the footer rather than the header nav: the header is the contested
+    space -- it already carries three legal links and the dashboard, and #188
+    adds Pricing, which has a far stronger claim on a visitor's attention than
+    a changelog does. A changelog in the footer is where readers look for one.
+    """
+    assert '<a href="/changelog">' in read(page), (
+        f"{page.name} cannot reach the changelog"
+    )
+
+
+def test_the_changelog_link_survives_regeneration():
+    """changelog.html is generated, and its footer is copied from a hand-written
+    page. So the footer link reaches it only if somebody re-runs the script
+    after editing the others -- which the drift test already insists on, but
+    this states the dependency where a reader will see it."""
+    assert '<a href="/changelog">' in read(CHANGELOG)
