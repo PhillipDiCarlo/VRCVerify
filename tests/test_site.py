@@ -11,6 +11,7 @@ These tests are the substitute for the template engine deliberately not used.
 
 import pathlib
 import re
+import sys
 from html.parser import HTMLParser
 
 import pytest
@@ -210,7 +211,14 @@ def test_nothing_is_loaded_from_a_third_party(page):
 
 # index.html and 404.html are not policies; the rest are, and a policy with no
 # date cannot be shown to have been in force on a given day.
-NOT_POLICIES = {"index.html", "404.html"}
+#
+# `changelog.html` joined them in #137 phase 4 and is worth a word, because
+# PAGES is a glob and every new page lands in every parametrised test here
+# automatically. That is the good half. The bad half is this set: a page that
+# is not a policy has to say so, or it is asked for a "Last updated" line it
+# has no business carrying. The changelog dates every entry individually and a
+# single date for the page would be meaningless.
+NOT_POLICIES = {"index.html", "404.html", "changelog.html"}
 POLICIES = [p for p in PAGES if p.name not in NOT_POLICIES]
 
 
@@ -630,3 +638,110 @@ def test_only_the_policies_carry_the_policy_class():
     for page in PAGES:
         expected = page.name in {"terms.html", "privacy.html", "refunds.html"}
         assert ('class="policy"' in read(page)) == expected, page.name
+
+
+# --------------------------------------------------------------------------
+# The generated changelog (#137 phase 4).
+#
+# The page is committed, so the deploy stays an asset push with no code on the
+# request path -- which is what keeps the apex site a separate failure domain
+# from the dashboard's VPS. The cost of committing generated output is that it
+# can go stale, and nothing regenerates it on push: .github/workflows/ holds
+# CodeQL and nothing else. These tests are the thing that notices.
+# --------------------------------------------------------------------------
+
+sys.path.insert(0, str(SITE.parent / "scripts"))
+sys.path.insert(0, str(SITE.parent / "src"))
+
+import gen_changelog  # noqa: E402
+from dashboard import changelog as changelog_module  # noqa: E402
+
+CHANGELOG = SITE / "changelog.html"
+
+
+def test_the_committed_changelog_matches_the_constant():
+    """The drift guard, and the reason a generated file may be committed here.
+
+    Add an entry to ENTRIES, forget to re-run the script, and the public page
+    is silently behind the product -- on the copy strangers read. Regenerating
+    in memory and comparing is the cheapest thing that catches it.
+
+    If this fails: python scripts/gen_changelog.py
+    """
+    assert CHANGELOG.exists(), "site/changelog.html has not been generated"
+    assert CHANGELOG.read_text(encoding="utf-8") == gen_changelog.render(), (
+        "site/changelog.html is out of date with changelog.ENTRIES. "
+        "Run: python scripts/gen_changelog.py"
+    )
+
+
+def test_a_private_entry_never_reaches_the_public_page():
+    """`public=False` is the one flag standing between an entry written for a
+    signed-in admin and a page read by strangers.
+
+    Every entry on `main` is public today, so nothing would exercise this if
+    it were only checked against the real constant -- which is exactly how a
+    filter rots. The entry is fabricated here so the rule is tested before the
+    first real one needs it.
+    """
+    private = changelog_module.Entry(
+        id="test-private",
+        date=changelog_module.date(2026, 1, 1),
+        title="Only makes sense signed in",
+        body="Your server's log channel is on the Settings page.",
+        public=False,
+    )
+    public = changelog_module.Entry(
+        id="test-public",
+        date=changelog_module.date(2026, 1, 2),
+        title="Safe for anybody to read",
+        body="Something shipped.",
+    )
+    rendered = gen_changelog.render(
+        changelog_module.public_entries((private, public))
+    )
+    assert "Safe for anybody to read" in rendered
+    assert "Only makes sense signed in" not in rendered
+    assert "log channel" not in rendered
+
+
+def test_entry_text_is_escaped_on_the_way_out():
+    """Bodies are plain text by contract and this is the one place on the apex
+    site where text from elsewhere becomes HTML. Jinja does this for the
+    dashboard; here it is explicit, so it is worth a test."""
+    entry = changelog_module.Entry(
+        id="test-escaping",
+        date=changelog_module.date(2026, 1, 1),
+        title="A <script> & an ampersand",
+        body='Quote " and <b>bold</b>.',
+    )
+    rendered = gen_changelog.render((entry,))
+    assert "<script>" not in rendered
+    assert "<b>bold</b>" not in rendered
+    assert "&lt;script&gt;" in rendered
+    assert "&amp;" in rendered
+
+
+def test_the_generated_page_carries_a_do_not_edit_banner():
+    """Somebody will open this file to fix a typo. It has to say where the
+    typo actually lives before they retype it and lose the change."""
+    text = read(CHANGELOG)
+    assert "DO NOT EDIT" in text
+    assert "gen_changelog.py" in text
+    assert "changelog.py" in text
+
+
+def test_the_generator_copies_the_chrome_rather_than_retyping_it():
+    """A third hand-written copy of the header and footer in a generator is
+    the drift the identical-chrome tests exist to catch. The source file is
+    read at generation time; this asserts the generator holds no literal
+    copy of its own."""
+    source = (SITE.parent / "scripts" / "gen_changelog.py").read_text(encoding="utf-8")
+    assert '<a class="brand"' not in source
+    assert "Esatto Technologies" not in source
+
+
+def test_the_check_flag_reports_staleness():
+    """`--check` is what CI and the release routine call. If it cannot tell a
+    stale file from a fresh one it is decoration."""
+    assert gen_changelog.main(["--check"]) == 0

@@ -1,8 +1,8 @@
 # The apex site — vrcverify.com
 
-Five static pages: the landing page, Terms of Service, Privacy Policy, Refund
-Policy and a 404. Stripe, Discord and the dashboard all link here, so these
-pages need to stay up when the VPS does not.
+Six static pages: the landing page, the changelog, Terms of Service, Privacy
+Policy, Refund Policy and a 404. Stripe, Discord and the dashboard all link
+here, so these pages need to stay up when the VPS does not.
 
 Deliberately static, deliberately not part of the dashboard app:
 
@@ -11,8 +11,7 @@ Deliberately static, deliberately not part of the dashboard app:
   together for no benefit.
 - **No new public route on the VPS.** `SECURITY_AUDIT.md` §2 assumes the public
   host is compromised. Adding unauthenticated pages to the box holding the bot
-  API signing key widens that surface to publish four documents that never
-  change.
+  API signing key widens that surface to publish documents that barely change.
 - **No dependencies.** One stylesheet, one same-origin script, no fonts, no
   third-party requests. A legal page that needs a CDN is a legal page that can
   be unavailable at the moment somebody needs to read it.
@@ -58,7 +57,8 @@ can show it.
    `npx wrangler deploy`. **Path** `/`.
 3. Let it create the API token. Note that the token is account-wide -- Workers
    Scripts, KV, R2, D1, Queues, Containers, and Workers Routes for every zone.
-   That is a broad grant to publish four static pages, and it is worth trimming
+   That is a broad grant to publish a handful of static pages, and it is worth
+   trimming
    in My Profile -> API Tokens once the first deploy has proved the flow.
 4. After the first deploy: the Worker -> Settings -> Domains & Routes -> add
    `vrcverify.com` and `www.vrcverify.com`.
@@ -91,6 +91,7 @@ the extension-less form, and so should anything published elsewhere:
 | Terms of Service | `https://vrcverify.com/terms` |
 | Privacy Policy | `https://vrcverify.com/privacy` |
 | Refund Policy | `https://vrcverify.com/refunds` |
+| Changelog | `https://vrcverify.com/changelog` |
 
 These go into Stripe and Discord, live outside this repository, and are the
 kind of thing nobody revisits. Point them at the address that answers rather
@@ -135,12 +136,43 @@ than shared — different origin, different deploy, and the whole point of this
 site is that it does not depend on the dashboard's host. Both files carry a
 comment saying so. Change a colour in one, change it in the other.
 
+## The changelog is generated — do not edit it
+
+`site/changelog.html` is rendered from `ENTRIES` in
+`src/dashboard/changelog.py`, filtered through `public_entries()`. It is the
+one file here that is not written by hand, and the file itself says so at the
+top.
+
+```
+python scripts/gen_changelog.py          # rewrite it
+python scripts/gen_changelog.py --check  # exit 1 if it is out of date
+```
+
+**Re-run it in the same commit as any change to `ENTRIES`.** Nothing
+regenerates it on push — `.github/workflows/` holds CodeQL and nothing else —
+so the guard is `tests/test_site.py::test_the_committed_changelog_matches_the_constant`,
+which regenerates in memory and fails if the committed file disagrees. That is
+the price of committing generated output, and it is worth paying: the page
+stays a static asset, so it is live even when the dashboard is not.
+
+The generator copies the header and footer out of an existing page rather than
+holding its own copy, for the same reason the five pages are checked against
+each other — a third hand-written copy is a third thing to drift.
+
+Entries marked `public=False` never reach this page. That flag is the only
+thing separating an entry written for a signed-in admin from one strangers
+read, so it is tested against a fabricated private entry rather than waiting
+for the first real one.
+
 ## Editing
 
-Plain HTML, one shared `style.css`, no build step. Keep the five footers and
-the five navs in step by hand; there are only five files, and a template engine
-here would be a build step for the sake of a build step. `tests/test_site.py`
-fails if a header or footer drifts from the others, which is what makes that
-safe to do by hand.
+Plain HTML, one shared `style.css`, no build step. Keep the footers and navs in
+step by hand; there are only a handful of files, and a template engine here
+would be a build step for the sake of a build step. `tests/test_site.py` fails
+if a header or footer drifts from the others, which is what makes that safe to
+do by hand.
+
+The exception is `changelog.html` — see above. Style it in `style.css` like any
+other page; never edit its markup.
 
 Update the `Last updated` date at the top of any policy you change materially.
