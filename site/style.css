@@ -158,11 +158,24 @@
      needs. The dashboard was never asked for that pairing, so its value is not
      wrong; it is measured against a surface this site does not use here.
 
-     #848892 clears both the bar it sits on (3.20:1) and the fill it surrounds
-     (3.55:1). Darkening the token is the same fix the dashboard applied to
-     --ok when the plan cards put it on a surface it had not been measured
-     against: move the token, not the element. Pinned in test_site.py. */
-  --light-control-line: #848892;
+     Darkening the token is the same fix the dashboard applied to --ok when the
+     plan cards put it on a surface it had not been measured against: move the
+     token, not the element. Pinned in test_site.py.
+
+     DARKENED AGAIN by #227, for the third time, and the same reason each time:
+     a control turned out to sit on a surface the token had never been measured
+     against. #848892 cleared the bar (3.20:1) and the fill (3.55:1), but the
+     `Last updated` pill on the legal pages is a direct child of <main> and so
+     sits on --bg, which is darker than --chrome. There it gave 2.81:1, under
+     the 3:1 WCAG 1.4.11 asks of a component boundary -- and that pill IS its
+     boundary, since its whole shape is the border. #7c7f89 clears all three:
+     --bg 3.17:1, --chrome 3.60:1, --panel 4.00:1.
+
+     The test now pins all three surfaces rather than the two that happened to
+     have controls on them, which is the actual lesson of it having moved three
+     times. The next control to land somewhere new should fail loudly instead
+     of rediscovering this. */
+  --light-control-line: #7c7f89;
 
   /* The light halves of the theme-menu tokens. --radius-* and --bar-control do
      not change with the theme, so they are declared once above. */

@@ -459,35 +459,45 @@ def _token(name):
     return match.group(1)
 
 
-def test_the_theme_picker_has_a_visible_edge_in_both_themes():
+# Every surface a bordered control can land on. Pinned as a list rather than as
+# the cases that happen to exist, because #227 is the third time --control-line
+# moved and all three times the cause was the same: a control appearing on a
+# surface nobody had measured it against.
+CONTROL_SURFACES = ("bg", "chrome", "panel")
+
+
+def test_a_bordered_control_has_a_visible_edge_on_every_surface():
     """WCAG 1.4.11: a control has to be identifiable as a control, at 3:1
     against what surrounds it.
 
-    This is pinned because it already failed once. The select was drawn with
-    `--line`, which is a *separator* token -- 1.35:1 against the header bar on
-    dark and 1.19:1 on light, an edge nobody could see. `--control-line` is the
-    token for the job, and on light it had to be darkened from the dashboard's
-    #8d919b (2.84:1 on this site's --chrome) because the dashboard measured it
-    against white cards rather than against a chrome bar.
+    This is pinned because it has already failed twice. The theme select was
+    drawn with `--line`, a *separator* token -- 1.35:1 against the header bar
+    on dark and 1.19:1 on light, an edge nobody could see. `--control-line` is
+    the token for the job, and on light it had to be darkened from the
+    dashboard's #8d919b (2.84:1 on this site's --chrome) because the dashboard
+    measured it against white cards rather than against a chrome bar.
 
-    Both surfaces matter: the bar the control sits ON, and the fill it
-    surrounds. An edge that vanishes into either one is not an edge.
+    Then #227: this test checked --chrome and --panel, the two surfaces that
+    had controls on them the day it was written. The `Last updated` pill on the
+    legal pages is a direct child of <main>, so it sits on --bg, which is
+    darker than --chrome -- and there the token gave 2.81:1, on three pages,
+    for as long as the pill has existed. The test could not see it because
+    --bg was not in the list.
+
+    So the list is now every surface, not every surface currently in use. A
+    control landing somewhere new should fail here rather than ship at 2.81.
     """
-    for theme, edge, chrome, panel in (
-        ("dark", _token("--control-line"), _token("--chrome"), _token("--panel")),
-        ("light", _token("--light-control-line"),
-         _token("--light-chrome"), _token("--light-panel")),
+    for theme, edge, prefix in (
+        ("dark", _token("--control-line"), "--"),
+        ("light", _token("--light-control-line"), "--light-"),
     ):
-        against_bar = _contrast(edge, chrome)
-        against_fill = _contrast(edge, panel)
-        assert against_bar >= 3.0, (
-            f"{theme}: control edge {edge} is {against_bar:.2f}:1 on the "
-            f"header bar {chrome}, under the 3:1 a UI component needs"
-        )
-        assert against_fill >= 3.0, (
-            f"{theme}: control edge {edge} is {against_fill:.2f}:1 against the "
-            f"fill it surrounds {panel}"
-        )
+        for surface in CONTROL_SURFACES:
+            ground = _token(f"{prefix}{surface}")
+            got = _contrast(edge, ground)
+            assert got >= 3.0, (
+                f"{theme}: control edge {edge} is {got:.2f}:1 on --{surface} "
+                f"({ground}), under the 3:1 a UI component boundary needs"
+            )
 
 
 def test_the_picker_label_is_readable_in_both_themes():
