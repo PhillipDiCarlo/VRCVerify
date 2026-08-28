@@ -1188,11 +1188,13 @@ class VerificationDaily(Base):
 
 
 class ServerMembershipDaily(Base):
-    """Daily snapshot of registered servers and current Discord access.
+    """Daily snapshot of registered servers and current Discord presence.
 
     ``Server`` rows survive removal so configuration can be restored when a
-    guild re-invites the bot. This separate table lets operations distinguish
-    those retained registrations from guilds the bot can currently access.
+    guild re-invites the bot. ``active_count`` counts every guild currently
+    exposed by Discord, including installed guilds that have not configured the
+    bot. ``inaccessible_count`` counts retained registrations absent from that
+    current guild set.
     """
 
     __tablename__ = "server_membership_daily"
@@ -5246,7 +5248,7 @@ def _record_verification_day(guild_id: str) -> None:
 
 
 def _record_server_membership_day() -> None:
-    """Snapshot registered guilds against the guilds Discord exposes to us."""
+    """Snapshot registrations against every guild Discord exposes to us."""
     today = datetime.now(timezone.utc).date()
     try:
         current_guild_ids = {str(guild.id) for guild in bot.guilds}
@@ -5256,12 +5258,12 @@ def _record_server_membership_day() -> None:
                 for (server_id,) in session.query(Server.server_id).all()
             }
             registered_count = len(registered_ids)
-            active_count = len(registered_ids & current_guild_ids)
+            active_count = len(current_guild_ids)
             snapshot = session.get(ServerMembershipDaily, today)
             values = {
                 "registered_count": registered_count,
                 "active_count": active_count,
-                "inaccessible_count": registered_count - active_count,
+                "inaccessible_count": len(registered_ids - current_guild_ids),
             }
             if snapshot is None:
                 session.add(ServerMembershipDaily(day=today, **values))

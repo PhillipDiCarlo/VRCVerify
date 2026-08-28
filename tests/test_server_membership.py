@@ -44,19 +44,25 @@ def snapshot():
         ) if row else None
 
 
-def test_snapshot_distinguishes_accessible_and_removed_registered_servers(monkeypatch):
+def test_snapshot_counts_all_active_guilds_and_removed_registrations(monkeypatch):
     add_server(100)
     add_server(200)
     add_server(300)
     monkeypatch.setattr(
         bot,
         "bot",
-        SimpleNamespace(guilds=[SimpleNamespace(id=100), SimpleNamespace(id=200)]),
+        SimpleNamespace(
+            guilds=[
+                SimpleNamespace(id=100),
+                SimpleNamespace(id=200),
+                SimpleNamespace(id=400),
+            ]
+        ),
     )
 
     bot._record_server_membership_day()
 
-    assert snapshot() == (3, 2, 1)
+    assert snapshot() == (3, 3, 1)
 
 
 def test_snapshot_refreshes_the_existing_day(monkeypatch):
