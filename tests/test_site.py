@@ -379,6 +379,55 @@ def test_the_stylesheets_cross_reference_each_other():
     )
 
 
+# Both copies of the stylesheet. A brace defect in either one is silent.
+STYLESHEETS = [STYLE, SITE.parent / "src" / "dashboard" / "static" / "style.css"]
+
+
+def _brace_depth_errors(css: str):
+    """Walk the braces, returning (line, message) for anything unbalanced."""
+    # Blank the comments out in place rather than deleting them, so the line
+    # numbers this reports are the line numbers in the file.
+    css = re.sub(
+        r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), css, flags=re.S
+    )
+    errors, depth = [], 0
+    for number, line in enumerate(css.split("\n"), start=1):
+        for char in line:
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth < 0:
+                    errors.append((number, "a closing brace with nothing open"))
+                    depth = 0
+    if depth:
+        errors.append((0, f"{depth} rule(s) left open at end of file"))
+    return errors
+
+
+@pytest.mark.parametrize("sheet", STYLESHEETS, ids=lambda s: s.name)
+def test_the_stylesheet_braces_balance(sheet):
+    """A stray `}` does not fail loudly. It eats the next rule.
+
+    #190 phase 1 shipped two extra closing braces to `main`. Every browser
+    recovers from them, so nothing looked broken and nothing failed -- but one
+    of the two started a qualified rule whose prelude ran on into the next
+    selector, and `.lede` was dropped from the parsed sheet in Chromium,
+    Firefox and WebKit alike. The changelog and 404 ledes silently lost their
+    size and their muted colour, and no test in this file could see it,
+    because every test here reads the CSS as text and the text was still
+    there.
+
+    So this is the one CSS test that checks the file is a stylesheet at all,
+    rather than checking what it says.
+    """
+    errors = _brace_depth_errors(sheet.read_text(encoding="utf-8"))
+    assert not errors, "\n".join(
+        f"{sheet.name}:{line}: {message}" if line else f"{sheet.name}: {message}"
+        for line, message in errors
+    )
+
+
 def test_the_site_loads_no_script_other_than_its_own():
     """One script, and it is this one. The site's dependency-free claim is
     only as good as the list of things it fetches."""
