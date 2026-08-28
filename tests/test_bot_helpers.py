@@ -286,3 +286,72 @@ class TestVerificationCodeGeneration:
             assert len(body) == 6
             assert all(ch in string.ascii_uppercase + string.digits for ch in body)
             assert "O" not in body and "I" not in body
+
+
+# ---------------------------------------------------------------
+# The VRCVerify Discord invite (#138)
+# ---------------------------------------------------------------
+class TestTheSupportInviteIsOptional:
+    """Unset means the feature is not provisioned, not broken.
+
+    This is what lets #138 ship its plumbing before the announcement channel
+    exists -- the same shape the invite worker uses for INVITE_VRCHAT_USERNAME.
+    """
+
+    def test_no_invite_configured_offers_none(self, monkeypatch):
+        monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", None)
+        assert bot.support_invite_url() is None
+
+    def test_an_empty_value_is_the_same_as_unset(self, monkeypatch):
+        monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", "")
+        assert bot.support_invite_url() is None
+
+    def test_a_configured_invite_is_returned(self, monkeypatch):
+        monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", "https://discord.gg/abc")
+        assert bot.support_invite_url() == "https://discord.gg/abc"
+
+    @pytest.mark.parametrize(
+        "value", ["discord.gg/abc", "www.discord.gg/abc", "ftp://discord.gg/abc"]
+    )
+    def test_a_url_without_a_usable_scheme_is_refused(self, monkeypatch, value):
+        """Discord renders a schemeless string as plain text, so the admin sees
+        something they have to retype. Costing a sentence beats that."""
+        monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", value)
+        assert bot.support_invite_url() is None
+
+    def test_a_bad_value_says_so_in_the_log(self, monkeypatch, caplog):
+        import logging
+
+        monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", "discord.gg/abc")
+        with caplog.at_level(logging.WARNING):
+            bot.support_invite_url()
+        assert "SUPPORT_INVITE_URL" in caplog.text
+
+
+class TestTheInviteSentenceIsLocalised:
+    def test_every_locale_can_render_it(self):
+        """The URL is language-neutral and comes from config, so an admin in
+        any locale gets a working link on day one -- see UNTRANSLATED in
+        tests/test_locales.py for why the carrier sentence is English."""
+        for code in bot.LANGUAGE_CODES:
+            rendered = bot.get_message(
+                "support_invite_line", ctx(code), invite="https://discord.gg/abc"
+            )
+            assert "https://discord.gg/abc" in rendered
+            assert "{invite}" not in rendered
+
+    def test_the_placeholder_is_the_only_one(self):
+        """A second placeholder would make every non-English table a KeyError
+        waiting for the one caller that forgets it."""
+        for code in bot.LANGUAGE_CODES:
+            template = localizations[code]["support_invite_line"]
+            names = {
+                f for _, f, _, _ in string.Formatter().parse(template) if f
+            }
+            assert names == {"invite"}
+
+    def test_the_url_is_not_baked_into_any_locale(self):
+        """The whole reason for the placeholder: rotating the invite must be a
+        config change, not a code change across twelve tables."""
+        for code in bot.LANGUAGE_CODES:
+            assert "discord.gg" not in localizations[code]["support_invite_line"]

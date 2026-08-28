@@ -18,6 +18,7 @@ localizations: dict[str, dict[str, str]] = {
         "setup_missing":              "This server hasn't set up a verification role yet. Please contact an admin.",
         "not_18_plus":                "You are not 18+ according to VRChat. Contact an admin if this is an error.",
         "support_info":               "Need help with verification?\n- Contact a server admin for assistance\n- Or visit our support page at https://esattotech.com/contact-us/\n\nIf this is an error, please let us know!",
+        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
         "subscription_info":          "I've decided to offer this free of charge however if you wish to still support me, you can find my Ko-fi here:{kofi_link}. Thank you for your continued support",
         "settings_saved":             "Settings saved!",
         "settings_unreadable":        "Couldn't read this server's settings just now. Try again shortly — nothing has changed.",
@@ -117,6 +118,8 @@ localizations: dict[str, dict[str, str]] = {
         "setup_missing":              "Este servidor aún no ha configurado un rol de verificación. Por favor, contacta a un administrador.",
         "not_18_plus":                "No tienes 18+ según VRChat. Contacta a un administrador si esto es un error.",
         "support_info":               "¿Necesitas ayuda con la verificación?\n- Contacta a un administrador del servidor para asistencia\n- O visita nuestra página de soporte en https://esattotech.com/contact-us/\n\n¡Si esto es un error, háznoslo saber!",
+        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
+        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
         "subscription_info":          "He decidido ofrecer esto de forma gratuita, pero si deseas apoyarme, puedes encontrar mi Ko-fi aquí:{kofi_link}. ¡Gracias por tu continuo apoyo!",
         "settings_saved":             "¡Configuración guardada!",
         "settings_unreadable":        "No se pudieron leer los ajustes de este servidor ahora mismo. Inténtalo de nuevo en un momento: no se ha cambiado nada.",
@@ -216,6 +219,8 @@ localizations: dict[str, dict[str, str]] = {
         "setup_missing":              "此服务器尚未设置验证角色。请联系管理员。",
         "not_18_plus":                "根据VRChat,您未满18岁。如果有误,请联系管理员。",
         "support_info":               "需要验证帮助？\n- 联系服务器管理员获取帮助\n- 或访问我们的支持页面:https://esattotech.com/contact-us/\n\n如果有误,请告诉我们! ",
+        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
+        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
         "subscription_info":          "我决定免费提供此功能,如果您愿意支持我,可以点击此处的我的Ko-fi:{kofi_link}。感谢您的持续支持! ",
         "settings_saved":             "设置已保存!",
         "settings_unreadable":        "暂时无法读取该服务器的设置。请稍后重试 — 任何设置都未更改。",
@@ -315,6 +320,8 @@ localizations: dict[str, dict[str, str]] = {
         "setup_missing":              "このサーバーはまだ検証ロールを設定していません。管理者に連絡してください。",
         "not_18_plus":                "VRChatによると18歳以上ではありません。エラーの場合は管理者にお問い合わせください。",
         "support_info":               "検証に関するサポートが必要ですか？\n- サーバー管理者にお問い合わせください\n- サポートページ:https://esattotech.com/contact-us/\n\nエラーの場合はお知らせください! ",
+        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
+        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
         "subscription_info":          "この機能は無料で提供していますが、サポートしていただける場合はKo-fiをご覧ください:{kofi_link}。継続的なサポートに感謝します! ",
         "settings_saved":             "設定が保存されました!",
         "settings_unreadable":        "現在、このサーバーの設定を読み取れませんでした。しばらくしてからもう一度お試しください — 設定は変更されていません。",
@@ -414,6 +421,8 @@ localizations: dict[str, dict[str, str]] = {
         "setup_missing":              "Dieser Server hat noch keine Verifizierungsrolle eingerichtet. Bitte kontaktiere einen Administrator.",
         "not_18_plus":                "Laut VRChat bist du nicht 18+. Kontaktiere einen Administrator, wenn dies ein Fehler ist.",
         "support_info":               "Brauchst du Hilfe bei der Verifizierung?\n- Kontaktiere einen Server-Administrator\n- Oder besuche unsere Support-Seite: https://esattotech.com/contact-us/\n\nWenn dies ein Fehler ist, lass es uns wissen!",
+        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
+        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
         "subscription_info":          "Ich biete dies kostenlos an, aber wenn du mich unterstützen möchtest, findest du meinen Ko-fi hier: {kofi_link}. Danke für deine Unterstützung!",
         "settings_saved":             "Einstellungen gespeichert!",
         "settings_unreadable":        "Die Einstellungen dieses Servers konnten gerade nicht gelesen werden. Bitte versuche es gleich noch einmal — es wurde nichts geändert.",
@@ -513,6 +522,8 @@ localizations: dict[str, dict[str, str]] = {
         "setup_missing":              "Deze server heeft nog geen verificatierol ingesteld. Neem contact op met een beheerder.",
         "not_18_plus":                "Volgens VRChat ben je niet 18+. Neem contact op met een beheerder als dit een fout is.",
         "support_info":               "Heb je hulp nodig bij verificatie?\n- Neem contact op met een serverbeheerder\n- Of bezoek onze ondersteuningspagina: https://esattotech.com/contact-us/\n\nLaat ons weten als dit een fout is!",
+        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
+        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
         "subscription_info":          "Ik bied dit gratis aan, maar als je me wilt ondersteunen, vind je mijn Ko-fi hier: {kofi_link}. Dank je voor je steun!",
         "settings_saved":             "Instellingen opgeslagen!",
         "settings_unreadable":        "De instellingen van deze server konden nu niet worden gelezen. Probeer het zo nog eens — er is niets gewijzigd.",
@@ -612,6 +623,8 @@ localizations: dict[str, dict[str, str]] = {
         "setup_missing":              "इस सर्वर ने अभी तक कोई सत्यापन भूमिका सेट नहीं की है। कृपया एक व्यवस्थापक से संपर्क करें।",
         "not_18_plus":                "VRChat के अनुसार आप 18+ नहीं हैं। त्रुटि होने पर एक व्यवस्थापक से संपर्क करें।",
         "support_info":               "सत्यापन में सहायता चाहिए?\n- सहायता के लिए सर्वर व्यवस्थापक से संपर्क करें\n- या हमारी सहायता पृष्ठ देखें: https://esattotech.com/contact-us/\n\nयदि यह त्रुटिपूर्ण है, तो हमें बताएं!",
+        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
+        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
         "subscription_info":          "मैं यह नि:शुल्क प्रदान कर रहा हूं, लेकिन यदि आप मेरा समर्थन करना चाहते हैं, तो मेरा Ko-fi यहाँ देखें: {kofi_link}. आपके समर्थन के लिए धन्यवाद!",
         "settings_saved":             "सेटिंग्स सहेजी गईं!",
         "settings_unreadable":        "इस सर्वर की सेटिंग्स अभी पढ़ी नहीं जा सकीं। कृपया थोड़ी देर बाद पुनः प्रयास करें — कुछ भी नहीं बदला है।",
@@ -711,6 +724,8 @@ localizations: dict[str, dict[str, str]] = {
         "setup_missing":              "لم يتم إعداد دور التحقق في هذا الخادم بعد. الرجاء الاتصال بمسؤول.",
         "not_18_plus":                "وفقًا لـ VRChat، أنت لست 18+. اتصل بمسؤول إذا كان هذا خطأً.",
         "support_info":               "تحتاج مساعدة في التحقق؟\n- اتصل بمسؤول الخادم للمساعدة\n- أو قم بزيارة صفحة الدعم: https://esattotech.com/contact-us/\n\nإذا كان هذا خطأً، فأخبرنا!",
+        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
+        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
         "subscription_info":          "أقدم هذا مجانًا، ولكن إذا كنت ترغب في دعمي، يمكنك العثور على Ko-fi الخاص بي هنا: {kofi_link}. شكرًا لدعمك المستمر!",
         "settings_saved":             "تم حفظ الإعدادات!",
         "settings_unreadable":        "تعذّرت قراءة إعدادات هذا الخادم الآن. أعد المحاولة بعد قليل — لم يتغيّر أي شيء.",
@@ -810,6 +825,8 @@ localizations: dict[str, dict[str, str]] = {
         "setup_missing":              "এই সার্ভারে এখনও যাচাইকরণ ভূমিকা সেট করা হয়নি। অনুগ্রহ করে একজন অ্যাডমিনের সাথে যোগাযোগ করুন।",
         "not_18_plus":                "VRChat অনুযায়ী আপনি 18+ নন। যদি এটি ত্রুটি হয়, একজন অ্যাডমিনের সাথে যোগাযোগ করুন।",
         "support_info":               "যাচাই নিয়ে সহায়তা প্রয়োজন?\n- সহায়তার জন্য সার্ভার অ্যাডমিনের সাথে যোগাযোগ করুন\n- অথবা আমাদের সমর্থন পৃষ্ঠা দেখুন: https://esattotech.com/contact-us/\n\nযদি এটি ত্রুটি হয়, আমাদের জানান!",
+        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
+        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
         "subscription_info":          "এটি আমি বিনামূল্যে প্রদান করছি, তবে আপনি যদি আমাকে সমর্থন করতে চান তবে আমার Ko-fi এখানে দেখুন: {kofi_link}. আপনাদের সমর্থনের জন্য ধন্যবাদ!",
         "settings_saved":             "সেটিংস সংরক্ষিত হয়েছে!",
         "settings_unreadable":        "এই সার্ভারের সেটিংস এই মুহূর্তে পড়া যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন — কিছুই পরিবর্তন হয়নি।",
@@ -909,6 +926,8 @@ localizations: dict[str, dict[str, str]] = {
         "setup_missing":              "Este servidor ainda não configurou uma função de verificação. Por favor, contate um administrador.",
         "not_18_plus":                "De acordo com o VRChat, você não tem 18+. Contate um administrador se isso for um erro.",
         "support_info":               "Precisa de ajuda com a verificação?\n- Contate um administrador do servidor\n- Ou visite nossa página de suporte: https://esattotech.com/contact-us/\n\nSe isso for um erro, por favor nos avise!",
+        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
+        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
         "subscription_info":          "Estou oferecendo isso gratuitamente, mas se quiser me apoiar, você pode encontrar meu Ko-fi aqui: {kofi_link}. Obrigado pelo apoio!",
         "settings_saved":             "Configurações salvas!",
         "settings_unreadable":        "Não foi possível ler as configurações deste servidor agora. Tente novamente em instantes — nada foi alterado.",
@@ -1008,6 +1027,8 @@ localizations: dict[str, dict[str, str]] = {
         "setup_missing":              "Этот сервер еще не настроил роль проверки. Пожалуйста, свяжитесь с администратором.",
         "not_18_plus":                "По данным VRChat вам нет 18+. Свяжитесь с администратором, если это ошибка.",
         "support_info":               "Нужна помощь с проверкой?\n- Обратитесь к администратору сервера\n- Или посетите нашу страницу поддержки: https://esattotech.com/contact-us/\n\nЕсли это ошибка, дайте нам знать!",
+        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
+        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
         "subscription_info":          "Я предоставляю это бесплатно, но если вы хотите меня поддержать, вы можете найти мой Ko-fi здесь: {kofi_link}. Спасибо за вашу поддержку!",
         "settings_saved":             "Настройки сохранены!",
         "settings_unreadable":        "Сейчас не удалось прочитать настройки этого сервера. Попробуйте ещё раз через некоторое время — ничего не изменилось.",
@@ -1107,6 +1128,8 @@ localizations: dict[str, dict[str, str]] = {
         "setup_missing":              "ਇਸ ਸਰਵਰ 'ਤੇ ਪ੍ਰਮਾਣੀਕਰਨ ਭੂਮਿਕਾ ਅਜੇ ਤੱਕ ਸੈੱਟ ਨਹੀਂ ਕੀਤੀ ਗਈ। ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
         "not_18_plus":                "VRChat ਅਨੁਸਾਰ ਤੁਹਾਡੇ ਕੋਲ 18+ ਨਹੀਂ ਹੈ। ਜੇ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਇੱਕ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
         "support_info":               "ਪ੍ਰਮਾਣੀਕਰਨ ਵਿੱਚ ਸਹਾਇਤਾ ਚਾਹੀਦੀ ਹੈ?\n- ਸਹਾਇਤਾ ਲਈ ਸਰਵਰ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ\n- ਜਾਂ ਆਪਣੀ ਸਹਾਇਤਾ ਸਫ਼ਾ ਵੇਖੋ: https://esattotech.com/contact-us/\n\nਜੇ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਸਾਨੂੰ ਦੱਸੋ!",
+        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
+        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
         "subscription_info":          "ਮੈਂ ਇਹ ਮੁਫ਼ਤ ਪ੍ਰਦਾਨ ਕਰ ਰਿਹਾ ਹਾਂ, ਪਰ ਜੇ ਤੁਸੀਂ ਮੇਰੀ ਸਹਾਇਤਾ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ, ਤਾਂ ਮੇਰਾ Ko-fi ਇਥੇ ਵੇਖੋ: {kofi_link}. ਤੁਹਾਡੇ ਸਹਿਯੋਗ ਲਈ ਧੰਨਵਾਦ!",
         "settings_saved":             "ਸੈਟਿੰਗਸ ਸੁਰੱਖਿਅਤ ਕੀਤੀਆਂ ਗਈਆਂ!",
         "settings_unreadable":        "ਇਸ ਸਰਵਰ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਇਸ ਵੇਲੇ ਪੜ੍ਹੀਆਂ ਨਹੀਂ ਜਾ ਸਕੀਆਂ। ਕਿਰਪਾ ਕਰਕੇ ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ — ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲਿਆ।",
