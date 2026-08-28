@@ -747,9 +747,23 @@ def send_group_invite(job: dict) -> dict:
     So it deliberately does not need to be known. Every authoritative answer
     comes from create_group_invite regardless -- 400 for an existing member,
     403 for a recipient who will not take invites, 404 for a group that has
-    gone or a member whose account does not resolve. The check only buys a
-    better sentence in the cases it can recognise, and buying nothing is an
-    acceptable outcome.
+    gone or a member whose account does not resolve, 409 for a banned one. The
+    check only buys a better sentence in the cases it can recognise, and buying
+    nothing is an acceptable outcome.
+
+    What that read CAN and cannot see was finally measured on 2026-08-27, in a
+    throwaway group built for the purpose:
+
+        no relationship with the group   -> None
+        banned, with no member record    -> None      (indistinguishable)
+        banned, with a member record     -> "banned"
+        unbanned (the record survives)   -> "inactive"
+        invite pending                   -> "invited"
+
+    Two things follow. The "banned" branch below is real but partial, so 409 is
+    the branch that catches the rest -- and it is not a rare path. And an unban
+    IS visible here, as "inactive", which is what lets a member a moderator has
+    forgiven be invited again.
 
     confirm_override_block is passed as False, EXPLICITLY. It exists to push an
     invite past a user who has blocked the group, which is the exact thing this
@@ -856,6 +870,26 @@ def send_group_invite(job: dict) -> dict:
             code,
             detail,
         )
+        if code == 409:
+            # "<name> is banned from this group. Do you want to unban and
+            # reinvite them?" -- VRChat naming the case in words, which is why
+            # this needs no _probe_group round trip to disambiguate the way
+            # 403 and 404 do.
+            #
+            # Reached more often than the banned branch above, not less. That
+            # check only sees a ban when the user already has a member record
+            # in the group; measured 2026-08-27, a ban against someone with no
+            # record leaves get_group_member returning None, which is
+            # indistinguishable from never having heard of them. So a pre-ban,
+            # or a ban whose record is gone, arrives HERE.
+            #
+            # Before this branch existed, 409 matched nothing in
+            # classify_api_error and came back as INVITE_VRCHAT_UNAVAILABLE --
+            # a transient state, which hands the member their button back. A
+            # banned member was told "VRChat didn't answer" and could re-press
+            # every cooldown for ever, spending a real invite call each time
+            # against a group that had banned them.
+            return _invite_result(job, INVITE_BANNED, error_message=detail)
         if code == 400:
             # "User X is already a member of this group" -- they joined in the
             # seconds since the check above. Reported as what it is.
