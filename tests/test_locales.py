@@ -28,7 +28,19 @@ from locales import localizations, LANGUAGE_CODES
 # hits it has somewhere to record an intentional exception instead of deleting
 # the assertion. `dm_unverified_failed_bot_position` sat here briefly -- it was
 # the gap that adding the check found, and it has since been translated.
-UNTRANSLATED: set[str] = set()
+UNTRANSLATED: set[str] = {
+    # support_invite_line (#138). English in the eleven non-English tables on
+    # purpose. The one thing an admin needs from it -- the invite URL -- is a
+    # {invite} placeholder filled from config, so it is language-neutral and
+    # works immediately in every locale. Waiting on eleven translations before
+    # anyone could join the Discord would have been the worse trade, and
+    # inventing them in languages nobody here reads is the failure this list
+    # exists to make visible rather than to hide.
+    #
+    # #97 owns localising this alongside the dashboard's strings. Replace the
+    # wording then, never the placeholder, and remove this entry.
+    "support_invite_line",
+}
 
 
 def placeholder_names(template: str) -> set[str]:
