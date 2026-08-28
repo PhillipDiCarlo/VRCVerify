@@ -554,3 +554,96 @@ class TestFundingFile:
     def test_funding_yml_declares_kofi(self):
         funding = (REPO_ROOT / ".github" / "FUNDING.yml").read_text(encoding="utf-8")
         assert "ko_fi: italiandogs" in funding
+
+
+# ---------------------------------------------------------------
+# /vrcverify_support offers the VRCVerify Discord, when there is one (#138)
+# ---------------------------------------------------------------
+class TestSupportCommandOffersTheInvite:
+    """The invite is appended to the support reply rather than folded into
+    `support_info`, because it is optional and because the two sentences
+    answer different questions -- "I am stuck" and "I want to know what
+    changed"."""
+
+    def reply(self, locale="en-US"):
+        sent = []
+
+        async def send_message(msg, ephemeral=False):
+            sent.append(msg)
+
+        interaction = SimpleNamespace(
+            locale=locale,
+            response=SimpleNamespace(send_message=send_message),
+        )
+        run(bot.vrcverify_support.callback(interaction))
+        assert len(sent) == 1
+        return sent[0]
+
+    def test_no_invite_configured_leaves_the_reply_untouched(self, monkeypatch):
+        """An unset invite must not change a single character of what admins
+        already get -- that is what lets the plumbing ship before the channel
+        exists."""
+        monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", None)
+        assert self.reply() == bot.get_message(
+            "support_info", SimpleNamespace(locale="en-US")
+        )
+
+    def test_a_configured_invite_is_offered(self, monkeypatch):
+        monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", "https://discord.gg/abc")
+        reply = self.reply()
+        assert "https://discord.gg/abc" in reply
+        # The help text survives; the invite is additional, not a replacement.
+        assert bot.get_message(
+            "support_info", SimpleNamespace(locale="en-US")
+        ) in reply
+
+    def test_a_malformed_invite_offers_nothing(self, monkeypatch):
+        """A schemeless value would render as text the admin has to retype.
+        Costing the sentence beats printing a broken one."""
+        monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", "discord.gg/abc")
+        assert "discord.gg/abc" not in self.reply()
+
+    def test_every_locale_gets_the_link(self, monkeypatch):
+        """The URL is language-neutral, so no admin waits on a translation."""
+        monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", "https://discord.gg/abc")
+        for code in bot.LANGUAGE_CODES:
+            assert "https://discord.gg/abc" in self.reply(code)
+
+
+class TestSetupOffersTheInviteToo:
+    """#138 phase 3. The moment an admin finishes setup is the highest-intent
+    one there is -- they have just proved they care whether this bot works."""
+
+    def reply(self, monkeypatch, invite):
+        monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", invite)
+        sent = {}
+
+        async def send_message(msg, ephemeral=False, **kwargs):
+            sent["msg"] = msg
+
+        guild = SimpleNamespace(id=1, name="S")
+        interaction = SimpleNamespace(
+            locale="en-US",
+            guild=guild,
+            guild_id=1,
+            user=SimpleNamespace(id=7),
+            response=SimpleNamespace(send_message=send_message),
+        )
+        role = SimpleNamespace(id=2, name="Verified")
+        run(bot.vrcverify_setup.callback(interaction, role, None))
+        return sent.get("msg", "")
+
+    def test_the_invite_is_offered_when_configured(self, monkeypatch):
+        assert "https://discord.gg/abc" in self.reply(
+            monkeypatch, "https://discord.gg/abc"
+        )
+
+    def test_nothing_is_added_when_it_is_not(self, monkeypatch):
+        assert "discord.gg" not in self.reply(monkeypatch, None)
+
+    def test_the_donate_hint_stays_last(self, monkeypatch):
+        """The existing comment says the donate hint reads as a footer under
+        everything else. Slipping a new line after it would quietly undo
+        that."""
+        reply = self.reply(monkeypatch, "https://discord.gg/abc")
+        assert reply.index("discord.gg/abc") < reply.index(bot.KOFI_URL)

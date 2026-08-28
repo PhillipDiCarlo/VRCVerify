@@ -1661,6 +1661,46 @@ def _dashboard_page(guild_id, page: str) -> Optional[str]:
     return f"{DASHBOARD_URL}/guild/{guild_id}/{page}"
 
 
+# The VRCVerify Discord, so admins can follow our announcement channel and get
+# update posts crossposted into their own servers (issue #138).
+#
+# ONE value, read from config, rather than the URL written into all twelve
+# locale strings. The issue's scope asked for both "invite link in config, not
+# hardcoded" and "the URL in all 12 locales", which cannot both be true -- a
+# URL repeated twelve times in locales.py is hardcoded twelve times over, and
+# rotating it would mean a code change touching every language. So the locale
+# strings carry an `{invite}` placeholder and this supplies the value.
+#
+# Unset means the feature is simply not provisioned, exactly as the invite
+# worker treats INVITE_VRCHAT_USERNAME: no sentence is appended anywhere and
+# nothing is broken. That is what lets this ship before the channel exists.
+SUPPORT_INVITE_URL = (os.getenv("SUPPORT_INVITE_URL") or "").strip() or None
+
+
+def support_invite_url() -> Optional[str]:
+    """The VRCVerify Discord invite, or None if there is no usable one.
+
+    Scheme-checked for the reason _dashboard_page gives, and then some. A bare
+    "discord.gg/vrcverify" is the shape somebody will paste, and Discord
+    renders an unlinked string rather than a link -- so the admin sees text
+    they have to retype. Worse, this string goes into a command reply, so a
+    malformed value degrades a support message rather than failing loudly.
+
+    Returning None on a bad value means "no invite line", which every caller
+    already handles, so a typo costs a sentence rather than a command.
+    """
+    if not SUPPORT_INVITE_URL:
+        return None
+    if not SUPPORT_INVITE_URL.startswith(("https://", "http://")):
+        logger.warning(
+            "SUPPORT_INVITE_URL is missing its scheme (%r); no invite will be "
+            "offered. It must start with https://",
+            SUPPORT_INVITE_URL,
+        )
+        return None
+    return SUPPORT_INVITE_URL
+
+
 def dashboard_guild_url(guild_id) -> Optional[str]:
     """Deep link straight to one server's settings page.
 
@@ -6569,6 +6609,19 @@ async def vrcverify_setup(
     else:
         extra_local = get_message("setup_unverified_missing", interaction)
     panel_nudge = "" if has_panel else get_message("setup_panel_nudge", interaction)
+    # The invite, at the one moment an admin has just proved they care whether
+    # this bot works. Reuses support_invite_line rather than inventing a second
+    # sentence saying the same thing -- #122 asks for that explicitly, and two
+    # near-duplicate strings is twelve near-duplicate translations later.
+    #
+    # Empty when no invite is configured, so an unset SUPPORT_INVITE_URL leaves
+    # this reply exactly as it was.
+    invite = support_invite_url()
+    invite_hint = (
+        "\n\n" + get_message("support_invite_line", interaction, invite=invite)
+        if invite
+        else ""
+    )
     donate_hint = get_message("setup_donate_hint", interaction, kofi_link=KOFI_URL)
     # This command survived the move to the dashboard because it is how a
     # server gets configured before anyone has heard of the website. Pointing
@@ -6580,7 +6633,9 @@ async def vrcverify_setup(
     extra = {"view": DashboardLinkView(url)} if url else {}
     # Donate hint stays last so it reads as a footer under everything else.
     await interaction.response.send_message(
-        base + extra_local + panel_nudge + donate_hint, ephemeral=True, **extra
+        base + extra_local + panel_nudge + invite_hint + donate_hint,
+        ephemeral=True,
+        **extra,
     )
 
 
@@ -6712,15 +6767,24 @@ async def vrcverify_subscription(interaction: discord.Interaction):
     description="Get help with the VRChat 18+ verification process."
 )
 async def vrcverify_support(interaction: discord.Interaction):
+    """Where to get help, plus the VRCVerify Discord if one is configured.
+
+    The invite is appended rather than folded into `support_info`, for two
+    reasons. It is optional -- an unset SUPPORT_INVITE_URL has to leave this
+    reply exactly as it was, which a single string cannot do -- and the two
+    sentences answer different questions: one is "I am stuck", the other is "I
+    want to know what changed". Anyone can run this command, so the invite is
+    the one part of #138 that is not admin-only, and that is deliberate: a
+    member who finds the server is a member who can be told to ask their admin
+    to follow the channel.
     """
-    Sends an ephemeral message to the user with instructions on how to get support,
-    whether that’s contacting an admin or visiting an external support link.
-    """
-    # Customize the text below however you like
-    # localized support info
-    await interaction.response.send_message(
-        get_message("support_info", interaction), ephemeral=True
-    )
+    message = get_message("support_info", interaction)
+    invite = support_invite_url()
+    if invite:
+        message = f"{message}\n\n" + get_message(
+            "support_invite_line", interaction, invite=invite
+        )
+    await interaction.response.send_message(message, ephemeral=True)
 
 
 # -------------------------------------------------------------------

@@ -19,6 +19,7 @@ must say exactly what the bot would:
 - a failed read shows an id or an apology, never a default nobody chose
 """
 
+import dataclasses
 import json
 import logging
 import os
@@ -1743,6 +1744,52 @@ class TestTheChangelogPage:
         bell = page.split('<details class="bell', 1)[1].split("</details>", 1)[0]
         assert 'href="/updates"' in bell
         assert "vrcverify.com/changelog" not in bell
+
+    def test_the_follow_row_is_absent_without_an_invite(self, client, store):
+        """#138. Absent rather than disabled: a dead row on the page whose job
+        is credibility is worse than no row, and the two hosts deploy
+        separately, so the dashboard will run without the value for a while."""
+        login_as(client, store)
+        page = client.get("/updates").data.decode()
+        assert "changelog-follow" not in page
+
+    def test_the_follow_row_appears_once_configured(self, client, store, app):
+        login_as(client, store)
+        app.config["DASHBOARD"] = dataclasses.replace(
+            app.config["DASHBOARD"], support_invite_url="https://discord.gg/abc"
+        )
+        page = client.get("/updates").data.decode()
+        assert "changelog-follow" in page
+        assert "https://discord.gg/abc" in page
+
+    def test_a_schemeless_invite_renders_no_row(self, client, store, app):
+        """A schemeless href resolves RELATIVE TO THIS SITE, so the row would
+        look like an ordinary link and 404 on our own domain instead of
+        reaching Discord."""
+        login_as(client, store)
+        app.config["DASHBOARD"] = dataclasses.replace(
+            app.config["DASHBOARD"], support_invite_url="discord.gg/abc"
+        )
+        page = client.get("/updates").data.decode()
+        assert "changelog-follow" not in page
+
+    def test_the_bell_carries_it_too(self, client, store, app):
+        """The slot #136 reserved, filled -- between "See all updates" and the
+        mark-as-read form, which is the order that comment specified."""
+        app.config["DASHBOARD"] = dataclasses.replace(
+            app.config["DASHBOARD"], support_invite_url="https://discord.gg/abc"
+        )
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        bell = page.split('<details class="bell', 1)[1].split("</details>", 1)[0]
+        assert "https://discord.gg/abc" in bell
+        assert bell.index('href="/updates"') < bell.index("https://discord.gg/abc")
+
+    def test_the_bell_has_no_dead_row_without_an_invite(self, client, store):
+        login_as(client, store)
+        page = client.get("/").data.decode()
+        bell = page.split('<details class="bell', 1)[1].split("</details>", 1)[0]
+        assert "discord.gg" not in bell
 
     def test_it_has_no_sidebar(self, client, store):
         """It belongs to no server. The sidebar navigates WITHIN one, so
