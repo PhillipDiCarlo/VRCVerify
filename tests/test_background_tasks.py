@@ -54,6 +54,7 @@ def stub_startup(monkeypatch):
         # does not fail a test, it hangs the whole suite.
         ("consume_group_invite_results", "group_invite_results_consumer"),
         ("expired_pending_cleanup_task", "expired_pending_cleanup"),
+        ("server_membership_snapshot_task", "server_membership_snapshot"),
         ("panel_nudge_sweep_task", "panel_nudge_sweep"),
         ("seat_sweep_task", "seat_sweep"),
         ("refresh_all_instruction_panels", "instruction_panel_refresh"),
@@ -170,6 +171,7 @@ class TestOnReadyReentry:
         "results_consumer",
         "group_invite_results_consumer",
         "expired_pending_cleanup",
+        "server_membership_snapshot",
         "panel_nudge_sweep",
         "seat_sweep",
         "instruction_panel_refresh",

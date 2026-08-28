@@ -891,6 +891,33 @@ it.
    is not a growth concern, but a deployment keeping years of it may want a
    periodic delete of rows older than ~400 days.
 
+   **Server membership history (`server_membership_daily`).** This table has
+  one UTC-day snapshot of registered servers, servers the bot can currently
+  access, and registered servers it can no longer access. The `servers` row is
+  intentionally retained after a bot removal so a re-invited server keeps its
+   configuration; this snapshot is therefore the source for distinguishing
+   active registrations from removed or kicked registrations. The snapshot is
+  written on startup and once at each UTC midnight by a supervised background
+  task. Each snapshot compares the current `bot.guilds` cache with the
+  retained registrations, so missed join or leave events do not corrupt the
+  count. The table is created automatically, with no manual migration needed.
+
+   For a Grafana PostgreSQL panel, use a time-series query such as:
+
+   ```sql
+   SELECT
+     day AS "time",
+     active_count AS "active servers",
+     inaccessible_count AS "inaccessible servers"
+   FROM server_membership_daily
+   WHERE $__timeFilter(day)
+   ORDER BY day;
+   ```
+
+  The first row is recorded after the updated bot starts. A day can be
+  refreshed more than once, so a same-day change is represented by the latest
+  observed counts rather than duplicate points.
+
 ---
 
 ## Running the Bot and Checker
