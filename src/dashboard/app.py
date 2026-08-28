@@ -700,6 +700,28 @@ def _register_assets(app: Flask) -> None:
         return _theme()
 
     @app.template_global()
+    def support_invite():
+        """The VRCVerify Discord invite, or None if this host has none (#138).
+
+        A template global for the same reason `updates()` is one: the bell
+        lives in `base.html`, which backs every page, so threading an argument
+        through every `render_template` call would mean the next page somebody
+        adds silently renders without it.
+
+        Scheme-checked, and the check is not ceremony. `discord.gg/xxxx` with
+        no scheme is the shape people paste, and a browser resolves a
+        schemeless `href` as a path RELATIVE TO THIS SITE -- so the row would
+        render as an ordinary-looking link that 404s on our own domain rather
+        than reaching Discord. Refusing it renders no row at all, which is the
+        failure everything else here degrades to anyway.
+        """
+        cfg = app.config.get("DASHBOARD")
+        raw = (getattr(cfg, "support_invite_url", "") or "").strip()
+        if not raw or not raw.startswith(("https://", "http://")):
+            return None
+        return raw
+
+    @app.template_global()
     def updates():
         """What the header's bell should render, if anything.
 

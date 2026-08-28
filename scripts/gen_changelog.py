@@ -43,6 +43,21 @@ import sys
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 SITE = REPO / "site"
+
+# The VRCVerify Discord, so a reader of the public changelog can have these
+# updates crossposted into their own server (#138).
+#
+# HARDCODED HERE, unlike the bot and the dashboard, which both read
+# SUPPORT_INVITE_URL from the environment. This site is static files behind a
+# CDN: no server renders them, so there is no environment to read at the
+# moment anyone loads the page. Injecting it at generation time would mean the
+# committed HTML depended on whose shell ran the script, and the drift test
+# regenerates in memory and compares -- so the value has to be the same for
+# everyone. A constant in the generator is that.
+#
+# It is a NON-EXPIRING invite. An expired link on a public page is a quiet,
+# embarrassing failure, and nothing here would notice.
+SUPPORT_INVITE_URL = "https://discord.gg/Vus4qxA52Q"
 OUTPUT = SITE / "changelog.html"
 # The page the chrome is lifted from. Any page would do -- the suite pins them
 # equal -- so this names one rather than picking one at random each run.
@@ -92,6 +107,7 @@ def render(entries=None) -> str:
         entries = changelog.public_entries()
     header, footer = _chrome()
     items = "\n".join(_entry_html(entry) for entry in entries)
+    invite = SUPPORT_INVITE_URL
     if not items:
         # Not expected, and not a crash either. A page that renders nothing is
         # better than a deploy that fails at the moment somebody empties the
@@ -128,6 +144,13 @@ def render(entries=None) -> str:
   <ol class="entries">
 {items}
   </ol>
+
+  <p class="entry-follow">
+    Want these in your own server?
+    <a href="{invite}" target="_blank" rel="noopener noreferrer">Join the VRCVerify Discord</a>
+    and follow the announcements channel &mdash; every update here gets posted
+    there, and Discord crossposts it to any channel you pick.
+  </p>
 
 </main>
 

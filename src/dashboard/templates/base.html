@@ -309,16 +309,15 @@
                  stops them colliding, the same trick #133 used to hand this
                  slot over intact:
 
-                   1. "See all updates" -- LANDED, phase 3. It is the first
-                      row below and it is what makes the two-line clamp on
-                      each body honest: the full text is one click away.
-                   2. #138 -- "Follow our announcement channel", once a
-                      VRCVerify Discord server exists to follow.
+                   1. "See all updates" -- LANDED. It is the first row below
+                      and it is what makes the two-line clamp on each body
+                      honest: the full text is one click away.
+                   2. #138 -- "Follow our announcement channel" -- LANDED. It
+                      is the second row, and it renders only when this host
+                      has SUPPORT_INVITE_URL set.
                    3. #139 -- "Get updates by email", once the Privacy Policy
-                      amendment that feature requires has shipped.
-
-                 Rows 2 and 3 go inside .bell-foot below, between the link and
-                 the form. #}
+                      amendment that feature requires has shipped. It goes
+                      between row 2 and the form. #}
 
               {# THE NO-JAVASCRIPT PATH.
                  prefs.js clears the dot the moment this panel opens, by
@@ -333,6 +332,17 @@
                  not prefs.js ran. #}
               <div class="bell-foot">
                 <a class="bell-all" href="{{ url_for('whats_new') }}">See all updates</a>
+                {# Row 2, the slot named above (#138). Absent rather than
+                   disabled when this host has no invite configured: a dead
+                   row in a panel whose whole job is credibility is worse than
+                   no row. rel="noopener" because it opens off-site, and the
+                   CSP has no connect-src to make anything else possible
+                   anyway. #}
+                {% set invite = support_invite() %}
+                {% if invite %}
+                  <a class="bell-all" href="{{ invite }}"
+                     target="_blank" rel="noopener noreferrer">Get these in your own server</a>
+                {% endif %}
                 <form method="post" action="{{ url_for('mark_updates_seen') }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <input type="hidden" name="return_to" value="{{ nav_return_to or 'index' }}">

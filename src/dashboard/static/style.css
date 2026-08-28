@@ -2089,6 +2089,25 @@ footer p + p { margin-top: var(--space-2); }
   color: var(--muted);
 }
 
+/* #138: "get these in your own server", under the entries.
+ *
+ * Deliberately quiet -- a rule above it and muted text, not a card and not a
+ * CTA. This page's job is credibility, and the bell panel's comment makes the
+ * same argument about the same content: a surface that reads as an advert
+ * stops being read as news, which costs more than the follow is worth.
+ *
+ * Not `.changelog-body`'s 62ch: that measure is set for entry prose, and this
+ * is one sentence under a list rather than a paragraph inside it. */
+.changelog-follow {
+  margin: var(--space-5) 0 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  max-width: 62ch;
+  font-size: var(--text-note);
+  line-height: var(--leading-body);
+  color: var(--muted);
+}
+
 /* --- overview ---
  *
  * #135 phase 5: the Featurebase/Framer shape from the issue's own reference

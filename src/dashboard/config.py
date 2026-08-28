@@ -97,6 +97,15 @@ class DashboardConfig:
     # that reaches this host before the variable does takes the whole site
     # down, which has already happened once on 2026-08-15.
     stripe_portal_configuration_id: str = ""
+    # The VRCVerify Discord, offered on the changelog page and in the bell
+    # panel so an admin can follow the announcement channel and have updates
+    # crossposted into their own server (#138).
+    #
+    # Optional, and empty means the row is simply not rendered -- the same
+    # posture bot.py takes. This host and the bot's deploy separately, so one
+    # will have the value before the other; neither is broken while they
+    # disagree, which is the point of making absence inert rather than an error.
+    support_invite_url: str = ""
 
     @classmethod
     def from_env(cls) -> "DashboardConfig":
@@ -208,6 +217,7 @@ class DashboardConfig:
             stripe_webhook_secret=stripe_webhook_secret,
             stripe_product_id=stripe_product_id,
             stripe_portal_configuration_id=stripe_portal_configuration_id,
+            support_invite_url=(os.getenv("SUPPORT_INVITE_URL") or "").strip(),
         )
 
 

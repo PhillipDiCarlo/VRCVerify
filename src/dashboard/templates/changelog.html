@@ -73,8 +73,18 @@
   {% endfor %}
 </ol>
 
-{# RESERVED, and named here for the same reason the bell's foot is:
-   #138's "follow our announcement channel" and #139's "get updates by email"
-   both want a row at the bottom of this page, and two issues editing the same
-   lines is how they collide. Both belong below, above nothing else. #}
+{# The first of the two rows reserved here. #139's "get updates by email"
+   goes below this one, above nothing else.
+
+   Rendered only when this host has SUPPORT_INVITE_URL set, so a dashboard
+   deployed before the bot's host has the value simply does not show it. #}
+{% set invite = support_invite() %}
+{% if invite %}
+  <p class="changelog-follow">
+    Want these in your own server?
+    <a href="{{ invite }}" target="_blank" rel="noopener noreferrer">Join the
+    VRCVerify Discord</a> and follow the announcements channel — every update
+    here gets posted there, and Discord crossposts it to any channel you pick.
+  </p>
+{% endif %}
 {% endblock %}
