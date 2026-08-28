@@ -786,11 +786,18 @@ def send_group_invite(job: dict) -> dict:
     The bot builds this job from the guild's stored, verified configuration --
     the group id never comes from anything a browser or a client sent.
 
-    Membership is checked first rather than inferred from create_group_invite's
-    400, because the two "nothing to do" cases need different sentences: being
-    a member is finished, and having an invite already waiting is a nudge to go
-    look at their notifications. Answering both with "already a member" would
-    send people hunting through a group they have not joined.
+    ONLY TWO ANSWERS STOP AN INVITE: they are already in the group, or the
+    group has banned them. A member who presses the button and is neither gets
+    one. `userblocked` refuses as well, but that is not a third policy -- the
+    invite would be answered 403 anyway, since confirm_override_block is always
+    False, so refusing merely saves the call.
+
+    Membership is read first so those answers can be given without spending an
+    invite, and so the two states that need ACTION rather than a sentence can
+    be recognised: a member holding an invite they cannot see needs it
+    re-issued, and a member with a pending join request needs admitting rather
+    than leaving in a queue the bot was installed to replace. Both are argued
+    at their branches below.
 
     That check is an OPTIMISATION, not a gate. Every failure of it falls
     through to the invite, and it is never reported. This is the one part of
@@ -882,10 +889,12 @@ def send_group_invite(job: dict) -> dict:
             _api_detail(e),
         )
 
+    # Only two answers stop an invite: they are already in, or the group has
+    # thrown them out. Everything else means the member asked for something
+    # they can have, and gets it. See the branches below for why each of the
+    # cases that used to refuse no longer does.
     if status == "member":
         return _invite_result(job, INVITE_ALREADY_MEMBER)
-    if status == "invited":
-        return _invite_result(job, INVITE_ALREADY_INVITED)
     if status == "banned":
         return _invite_result(job, INVITE_BANNED)
     if status == "userblocked":
@@ -893,11 +902,69 @@ def send_group_invite(job: dict) -> dict:
         # banned copy tells the member "only a group moderator can change
         # that", which for a block they placed themselves is simply untrue --
         # the blocked copy already names the case correctly.
+        #
+        # Still a refusal, unlike the two below, because the invite could not
+        # succeed anyway: confirm_override_block is always False, so VRChat
+        # would answer 403. Refusing here just saves the call.
         return _invite_result(job, INVITE_BLOCKED)
-    if status == "requested":
-        # They have asked to join under their own steam. An invite would cut
-        # across a moderator's pending decision, so leave it alone and say so.
-        return _invite_result(job, INVITE_ALREADY_INVITED)
+    if status == "invited":
+        # They already hold an invite -- and pressing the button says they
+        # cannot see it. Measured 2026-08-27: DISMISSING the notification (the
+        # x, which is not the same action as declining) deletes what the member
+        # sees and leaves the group's invite record standing, so
+        # create_group_invite answers 400 "already invited" for ever. The
+        # member is stranded with nothing to accept, while being told an invite
+        # is waiting in notifications they have already cleared.
+        #
+        # Withdrawing and re-sending is the way out, and it is not a duplicate:
+        # VRChat holds exactly one invite per member, so this is the same
+        # invite made visible again. Declining, by contrast, clears the record
+        # by itself and lands on "inactive", which never reaches this branch.
+        #
+        # Best effort, like everything else here. If the withdraw fails we fall
+        # through and let create_group_invite answer, which is what happened
+        # before this existed. If the withdraw succeeds and the re-send then
+        # fails, the member is left at "inactive" and their next press invites
+        # cleanly -- strictly better than the state this replaced.
+        try:
+            _call_with_retry(
+                groups.delete_group_invite,
+                group_id,
+                user_id,
+                _request_timeout=request_timeout(),
+            )
+            logging.info(
+                "Withdrew %s's stale invite to %s so a fresh one can be seen",
+                user_id,
+                group_id,
+            )
+        except UnauthorizedException as e:
+            # Not best effort, for the reason the precheck gives: a dead
+            # session means the invite below cannot work either, and falling
+            # through would spend a second call finding that out. Must be
+            # caught ahead of ApiException, which it subclasses.
+            vrchat_session.invalidate(classify_api_error(e))
+            return _invite_result(
+                job, INVITE_VRCHAT_UNAVAILABLE, error_message="VRChat session expired"
+            )
+        except ApiException as e:
+            logging.info(
+                "Could not withdraw %s's existing invite to %s (status=%s: %s);"
+                " attempting the invite anyway",
+                user_id,
+                group_id,
+                getattr(e, "status", None),
+                _api_detail(e),
+            )
+    # "requested" -- a pending join request -- deliberately has NO branch, and
+    # that is a decision rather than an omission. An invite against somebody
+    # who has applied admits them on the spot rather than queueing (measured
+    # 2026-08-27). This used to refuse, to avoid cutting across a moderator's
+    # pending decision; that reading had it backwards. An admin who configures
+    # this bot for their group has delegated exactly that decision to it, and a
+    # member who is verified 18+, in the Discord, and pressing the button is
+    # precisely the population it was installed to admit. Leaving them in the
+    # queue refuses somebody the bot has already vouched for.
 
     # 2) Nothing waiting for them, so send one.
     try:

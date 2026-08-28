@@ -1548,6 +1548,7 @@ class FakeGroupsApi:
         # otherwise. Consulted only to read a 403 or 404 from
         # create_group_invite -- both of which are ambiguous on their own.
         self.get_group_error = None
+        self.withdraw_error = None
         self.group_permissions = ["group-invites-manage", "group-members-viewall"]
 
     def get_group(self, group_id, **kwargs):
@@ -1573,8 +1574,17 @@ class FakeGroupsApi:
             raise self.invite_error
         return SimpleNamespace()
 
+    def delete_group_invite(self, group_id, user_id, **kwargs):
+        self.calls.append(("delete_group_invite", group_id, user_id))
+        if self.withdraw_error:
+            raise self.withdraw_error
+        return SimpleNamespace()
+
     def invites(self):
         return [c for c in self.calls if c[0] == "create_group_invite"]
+
+    def withdrawals(self):
+        return [c for c in self.calls if c[0] == "delete_group_invite"]
 
 
 # Captured before any fixture replaces it. The `api` fixture stubs the throttle
@@ -1642,19 +1652,49 @@ class TestSendingOneInvite:
         assert result["state"] == inviter.INVITE_ALREADY_MEMBER
         assert api.invites() == []
 
-    def test_a_waiting_invite_is_not_duplicated(self, api):
+    def test_a_waiting_invite_is_withdrawn_and_re_sent(self, api):
+        """Pressing the button says they cannot see the invite they hold.
+
+        Measured 2026-08-27: dismissing the notification -- the x, which is a
+        different action from declining -- deletes what the member sees and
+        leaves the group's invite record standing, so create_group_invite
+        answers 400 "already invited" for ever. Withdrawing first is the only
+        way to give them something to accept, and it is not a duplicate:
+        VRChat holds exactly one invite per member.
+        """
         api.member = member_record("invited")
         result = inviter.send_group_invite(INVITE_JOB)
-        assert result["state"] == inviter.INVITE_ALREADY_INVITED
-        assert api.invites() == []
+        assert result["state"] == inviter.INVITE_SENT
+        assert len(api.withdrawals()) == 1
+        assert len(api.invites()) == 1
+        # Order matters: re-sending before withdrawing just 400s.
+        names = [c[0] for c in api.calls]
+        assert names.index("delete_group_invite") < names.index("create_group_invite")
 
-    def test_a_pending_join_request_is_left_alone(self, api):
-        """They asked to join under their own steam. An invite would cut across
-        a moderator's pending decision."""
+    def test_a_withdraw_that_fails_still_attempts_the_invite(self, api):
+        """Best effort, like every other read here. A failed withdraw leaves
+        the member exactly where they were rather than costing them the
+        attempt."""
+        api.member = member_record("invited")
+        api.withdraw_error = FakeApiException(500, "Internal Server Error")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert len(api.invites()) == 1
+        assert result["state"] == inviter.INVITE_SENT
+
+    def test_a_pending_join_request_is_not_a_reason_to_refuse(self, api):
+        """This used to refuse, to avoid cutting across a moderator's pending
+        decision. That had it backwards.
+
+        An admin who configures this bot for their group has delegated exactly
+        that decision to it, and a member who is verified 18+, in the Discord,
+        and pressing the button is the population it was set up to admit.
+        Measured 2026-08-27: the invite admits them on the spot rather than
+        queueing, which is the outcome the admin asked for.
+        """
         api.member = member_record("requested")
         result = inviter.send_group_invite(INVITE_JOB)
-        assert result["state"] == inviter.INVITE_ALREADY_INVITED
-        assert api.invites() == []
+        assert result["state"] == inviter.INVITE_SENT
+        assert len(api.invites()) == 1
 
     def test_a_banned_member_is_not_invited(self, api):
         api.member = member_record("banned")
@@ -1808,8 +1848,14 @@ class TestThePrecheckCanNeverBlockAnInvite:
             inviter.send_group_invite(INVITE_JOB)["state"] == inviter.INVITE_SENT
         )
 
-    def test_only_a_recognised_standing_stops_it(self, api):
-        """The two cases the check is FOR, and nothing else."""
+    def test_only_membership_and_a_ban_stop_an_invite(self, api):
+        """The rule, stated as an invariant.
+
+        A member who asks gets an invite unless they are already in the group
+        or the group has thrown them out. `userblocked` refuses too, but it is
+        not a third policy -- confirm_override_block is always False, so the
+        invite would be answered 403 and refusing merely saves the call.
+        """
         stopped = []
         for status in ["member", "invited", "requested", "banned", "userblocked"]:
             api.calls.clear()
@@ -1817,7 +1863,7 @@ class TestThePrecheckCanNeverBlockAnInvite:
             inviter.send_group_invite(INVITE_JOB)
             if not api.invites():
                 stopped.append(status)
-        assert stopped == ["member", "invited", "requested", "banned", "userblocked"]
+        assert stopped == ["member", "banned", "userblocked"]
 
 
 class TestTellingTwoKindsOf404Apart:
@@ -1934,6 +1980,93 @@ class TestTellingTwoKindsOf403Apart:
         api.invite_error = FakeApiException(403, "You can't invite that user")
         state = inviter.send_group_invite(INVITE_JOB)["state"]
         assert state in bot.GROUP_INVITE_SETTLED_STATES
+
+
+class TestAMemberWhoClearedTheNotification:
+    """#215. Dismissing an invite notification is not declining it.
+
+    Measured 2026-08-27, and the two actions could not differ more:
+
+        declines  (decline_group_invite)      -> invite cleared, "inactive",
+                                                 a re-invite works
+        dismisses (DELETE /notifications/id)  -> invite RETAINED, "invited",
+                                                 notification gone, re-invite 400s
+
+    The x on the website is the dismiss, and it is what people press when they
+    are clearing a list. That left the member holding an invite they could not
+    see, with the bot refusing to send another and -- after #210 -- telling
+    them an invite was "already waiting in your VRChat notifications", which
+    they had just deleted.
+    """
+
+    def test_the_stale_invite_is_replaced_with_one_they_can_see(self, api):
+        api.member = member_record("invited")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_SENT
+        assert len(api.withdrawals()) == 1
+        assert len(api.invites()) == 1
+
+    def test_the_withdraw_comes_first(self, api):
+        """Re-sending before withdrawing is exactly the 400 this fixes."""
+        api.member = member_record("invited")
+        inviter.send_group_invite(INVITE_JOB)
+        names = [c[0] for c in api.calls]
+        assert names.index("delete_group_invite") < names.index("create_group_invite")
+
+    def test_it_is_not_a_duplicate_invite(self, api):
+        """VRChat holds exactly one invite per member, so this is the same
+        invite made visible again -- not a second one pushed at somebody."""
+        api.member = member_record("invited")
+        inviter.send_group_invite(INVITE_JOB)
+        assert len(api.invites()) == 1
+
+    def test_a_failed_withdraw_does_not_cost_them_the_attempt(self, api):
+        """Best effort, like every other read in this function."""
+        api.member = member_record("invited")
+        api.withdraw_error = FakeApiException(500, "Internal Server Error")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert len(api.invites()) == 1
+        assert result["state"] == inviter.INVITE_SENT
+
+    def test_a_declined_invite_never_reaches_this_path(self, api):
+        """Declining clears the record by itself and lands on "inactive", so
+        it is an ordinary invite with nothing to withdraw. Pinned because the
+        two actions being different is the whole point."""
+        api.member = member_record("inactive")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_SENT
+        assert api.withdrawals() == []
+
+    def test_a_member_is_still_never_re_invited(self, api):
+        """The rescue must not leak into the one state that really is
+        finished."""
+        api.member = member_record("member")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_ALREADY_MEMBER
+        assert api.withdrawals() == []
+        assert api.invites() == []
+
+    def test_a_banned_member_is_not_handed_a_fresh_invite(self, api):
+        """Nor into the other one."""
+        api.member = member_record("banned")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_BANNED
+        assert api.withdrawals() == []
+        assert api.invites() == []
+
+    def test_a_dead_session_on_the_withdraw_stops_there(self, api):
+        """Not best effort, for the reason the precheck gives: the invite
+        cannot work either, and falling through would spend a second call
+        finding that out. UnauthorizedException subclasses ApiException, so
+        this only holds while its handler sits first."""
+        from vrchatapi.exceptions import UnauthorizedException
+
+        api.member = member_record("invited")
+        api.withdraw_error = UnauthorizedException(http_resp=None)
+        api.withdraw_error.status = 401
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_VRCHAT_UNAVAILABLE
+        assert api.invites() == []
 
 
 class TestTellingTwoKindsOf400Apart:
