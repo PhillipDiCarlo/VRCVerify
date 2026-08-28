@@ -414,6 +414,55 @@ def test_the_stylesheets_cross_reference_each_other():
     )
 
 
+# Both copies of the stylesheet. A brace defect in either one is silent.
+STYLESHEETS = [STYLE, SITE.parent / "src" / "dashboard" / "static" / "style.css"]
+
+
+def _brace_depth_errors(css: str):
+    """Walk the braces, returning (line, message) for anything unbalanced."""
+    # Blank the comments out in place rather than deleting them, so the line
+    # numbers this reports are the line numbers in the file.
+    css = re.sub(
+        r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), css, flags=re.S
+    )
+    errors, depth = [], 0
+    for number, line in enumerate(css.split("\n"), start=1):
+        for char in line:
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth < 0:
+                    errors.append((number, "a closing brace with nothing open"))
+                    depth = 0
+    if depth:
+        errors.append((0, f"{depth} rule(s) left open at end of file"))
+    return errors
+
+
+@pytest.mark.parametrize("sheet", STYLESHEETS, ids=lambda s: s.name)
+def test_the_stylesheet_braces_balance(sheet):
+    """A stray `}` does not fail loudly. It eats the next rule.
+
+    #190 phase 1 shipped two extra closing braces to `main`. Every browser
+    recovers from them, so nothing looked broken and nothing failed -- but one
+    of the two started a qualified rule whose prelude ran on into the next
+    selector, and `.lede` was dropped from the parsed sheet in Chromium,
+    Firefox and WebKit alike. The changelog and 404 ledes silently lost their
+    size and their muted colour, and no test in this file could see it,
+    because every test here reads the CSS as text and the text was still
+    there.
+
+    So this is the one CSS test that checks the file is a stylesheet at all,
+    rather than checking what it says.
+    """
+    errors = _brace_depth_errors(sheet.read_text(encoding="utf-8"))
+    assert not errors, "\n".join(
+        f"{sheet.name}:{line}: {message}" if line else f"{sheet.name}: {message}"
+        for line, message in errors
+    )
+
+
 def test_the_site_loads_no_script_other_than_its_own():
     """One script, and it is this one. The site's dependency-free claim is
     only as good as the list of things it fetches."""
@@ -1170,6 +1219,126 @@ class TestTheChangelogOffersTheDiscord:
         assert "entry-follow" in page
 
 
+# ---------------------------------------------------------------
+# "On this page" contents list (#190)
+# ---------------------------------------------------------------
+PAGES_WITH_TOC = POLICY_NAMES
+
+
+@pytest.mark.parametrize("name", POLICY_NAMES)
+def test_every_policy_page_has_a_contents_list(name):
+    """Phase 2 settled this: all three agreements get one, or a reader who
+    learns the pattern on two of them reads the third as shorter than it is.
+
+    Written against POLICY_NAMES rather than PAGES_WITH_TOC on purpose. The
+    tests below all parametrize over PAGES_WITH_TOC, so shortening that list is
+    a way to make any of them stop failing without fixing anything. This one
+    does not move when that list does.
+    """
+    assert '<nav class="toc"' in read(SITE / name), (
+        f"{name} is a legal agreement with no contents list"
+    )
+
+
+def _toc_entries(page):
+    """(id, text) for every link in the page's contents list, in order."""
+    text = read(page)
+    block = re.search(r'<nav class="toc"[^>]*>(.*?)</nav>', text, re.S)
+    assert block, f"{page.name} has no contents list"
+    return re.findall(r'<a href="#([^"]+)">(.*?)</a>', block.group(1), re.S)
+
+
+@pytest.mark.parametrize("name", PAGES_WITH_TOC)
+def test_the_contents_list_matches_the_document(name):
+    """THE WHOLE REASON THIS IS A TEST.
+
+    There is no template engine here, so a hand-written contents list is a
+    second copy of every section name sitting a few hundred lines above the
+    first. Rename a heading and the list keeps the old wording, pointing at an
+    id that no longer exists, and nothing notices -- on the page a payment
+    dispute turns on.
+
+    Derived from the document rather than from a list written down twice: the
+    expectation IS the headings, so the two cannot drift by construction. This
+    also settles the copy question, because link text that must equal the
+    heading leaves no room to paraphrase, and a paraphrase is a second wording
+    of a legal section title.
+    """
+    page = SITE / name
+    expected = [(i, t) for level, i, t in _headings(page) if level == "2"]
+    assert _toc_entries(page) == expected, (
+        f"{name}: the contents list and the headings disagree. Regenerate it "
+        f"from the document rather than editing it by hand."
+    )
+
+
+@pytest.mark.parametrize("name", PAGES_WITH_TOC)
+def test_every_entry_points_at_a_heading_that_exists(name):
+    """Belt and braces against the equality above being loosened later."""
+    page = SITE / name
+    ids = {i for _, i, _ in _headings(page)}
+    dead = [i for i, _ in _toc_entries(page) if i not in ids]
+    assert not dead, f"{name}: entries pointing nowhere: {dead}"
+
+
+@pytest.mark.parametrize("name", PAGES_WITH_TOC)
+def test_no_section_is_left_out(name):
+    """A partial list is worse than none: a reader who cannot find a clause in
+    it reasonably concludes the document does not contain one."""
+    page = SITE / name
+    listed = {i for i, _ in _toc_entries(page)}
+    missing = [i for level, i, _ in _headings(page) if level == "2" and i not in listed]
+    assert not missing, f"{name}: sections missing from the contents list: {missing}"
+
+
+@pytest.mark.parametrize("name", PAGES_WITH_TOC)
+def test_it_is_announced_as_navigation(name):
+    """It must not be mistakeable for a summary of the terms. A reader who
+    believes they have read the agreement because they read the list has been
+    misled by the layout, so it is marked up and labelled as a signpost."""
+    text = read(SITE / name)
+    block = re.search(r'<nav class="toc"[^>]*>(.*?)</nav>', text, re.S).group(1)
+    assert 'aria-label="On this page"' in text
+    assert "On this page" in block
+    for word in ("summary of", "overview", "at a glance", "in short"):
+        assert word not in block.lower(), (
+            f"{name}: the contents list calls itself {word!r}, which invites "
+            f"a reader to treat it as the agreement"
+        )
+
+
+@pytest.mark.parametrize("name", PAGES_WITH_TOC)
+def test_it_carries_no_descriptions(name):
+    """The list says where things are, not what they say. Anything other than
+    a link in an <li> is prose creeping into navigation."""
+    block = re.search(
+        r'<nav class="toc"[^>]*>(.*?)</nav>', read(SITE / name), re.S
+    ).group(1)
+    for item in re.findall(r"<li>(.*?)</li>", block, re.S):
+        stripped = re.sub(r"<a href=\"#[^\"]+\">.*?</a>", "", item, flags=re.S)
+        assert not stripped.strip(), f"{name}: an entry carries more than a link"
+
+
+@pytest.mark.parametrize("name", PAGES_WITH_TOC)
+def test_it_needs_no_javascript(name):
+    """These pages must work with scripting off like every other page here.
+    There is no widget at all now, which is the strongest form of that."""
+    block = re.search(
+        r'<nav class="toc"[^>]*>(.*?)</nav>', read(SITE / name), re.S
+    ).group(1)
+    assert "<script" not in block
+    assert "onclick" not in block
+
+
+def test_the_list_adds_no_ordered_markers():
+    """Terms carries its numbering inside the heading text itself ("1. What the
+    service does"), so a marker would render it twice. Privacy and Refunds do
+    not number their sections at all, and numbering them here would invent an
+    ordering the documents do not claim. The <ol> stays on all three because
+    document order is meaningful; only the markers go."""
+    css = (SITE / "style.css").read_text()
+    block = re.search(r"\.toc-list \{[^}]*\}", css).group(0)
+    assert "list-style: none" in block
 class TestTheUpdateEmailSignup:
     """#139. The form lives here because the dashboard cannot host it.
 

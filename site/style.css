@@ -567,6 +567,114 @@ ul, ol { padding-left: 1.35rem; }
 li { margin: 0.3rem 0; }
 
 .updated { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.5rem; }
+
+/* --- "On this page" contents list on the legal pages (#190) ---
+ *
+ * IT IS NAVIGATION, NOT A SUMMARY. A tidy list at the top of a Terms of
+ * Service can be mistaken for a precis of the agreement, and a reader who
+ * believes they have read the terms because they read the list has been misled
+ * by the layout. So: announced as <nav>, labelled "On this page", drawn as a
+ * block of links, carrying no descriptions. It says where things are, never
+ * what they say.
+ *
+ * NO DISCLOSURE WIDGET, AND THAT WAS MEASURED RATHER THAN PREFERRED.
+ *
+ * The first build made it a <details>, collapsed on phones and forced open by
+ * CSS above the breakpoint. That cannot work. A closed <details> does not lay
+ * its content into the flow whatever CSS says, so the forced-open list was
+ * painted over by the document beneath it -- in Chromium, Firefox AND WebKit,
+ * both directly and via `display: contents`. It is worth knowing that
+ * `getBoundingClientRect()` still reports a box for that content, so a test
+ * asking only about height passes while the page is visibly broken; the
+ * question to ask is whether the NEXT element is pushed below it.
+ *
+ * So the list is always present, and the height problem is solved by shape
+ * instead: two columns, at every width.
+ *
+ * TWO COLUMNS EVERYWHERE, WHICH PHASE 1 GOT WRONG. Phase 1 measured the phone
+ * and stopped there, leaving `display: grid` with no track count on desktop.
+ * One column of twelve is 689px, so the agreement began below the fold on a
+ * 900px-tall screen -- the same defect the phone rule existed to prevent, just
+ * further down the viewport. There is no width at which a tall single column
+ * of links is the right answer, so the breakpoint no longer changes the shape.
+ * It only tightens the type.
+ *
+ * Multi-column rather than a grid. Grid sizes each row to its tallest item,
+ * and the longer titles wrap, so every short neighbour left a hole. Multicol
+ * packs, and it fills down then across, which reads better for a list the
+ * document order matters in: 1-6 beside 7-12 rather than odds beside evens.
+ * The DOM order is untouched either way, so a screen reader hears the sections
+ * in document order whatever the columns do.
+ *
+ * PANEL, NOT CHROME. Phase 1 filled the box with --chrome and bordered it
+ * with --line, which is the one place on the site those two are paired. --line
+ * is tuned against --panel, so in the light theme the result was a 1.05:1
+ * hairline around a fill 1.13:1 from the page: a smudge rather than a box.
+ * --panel is what every other card and note here uses, and it costs nothing in
+ * legibility -- links go 5.21 to 5.78 in light and 4.98 to 4.57 in dark, both
+ * still above AA, and both pairs are already declared in test_contrast.py.
+ *
+ * It does not thereby become the .note above it on two of these pages: .note
+ * has no border, a 3px accent bar down its left edge and square left corners,
+ * and it holds a paragraph rather than a column of links.
+ *
+ * The label is a <p>, deliberately not a heading. These pages give every
+ * heading an id and a contents entry, so a real <h2> here would have to list
+ * itself.
+ *
+ * No list markers. Terms carries its numbering in the heading text itself
+ * ("1. What the service does"), so a marker would render it twice; Privacy and
+ * Refunds do not number their sections at all. The <ol> stays on all three
+ * because the document order is meaningful. */
+.toc {
+  margin: 0 0 2.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--panel);
+}
+
+.toc-label {
+  margin: 0 0 0.6rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  columns: 2;
+  column-gap: 1.5rem;
+}
+
+/* The document sets `li { margin: 0.3rem 0 }` for prose lists. Navigation is
+ * not prose, and inheriting that spacing is half of why phase 1 ran to 689px.
+ * An entry split across the column break would read as two half-titles. */
+.toc-list li {
+  margin: 0 0 0.4rem;
+  break-inside: avoid;
+}
+
+.toc-list li:last-child { margin-bottom: 0; }
+
+.toc-list a {
+  display: inline-block;
+  padding: 0.1rem 0;
+  color: var(--accent-text);
+}
+
+@media (max-width: 46rem) {
+  /* The shape is already right. This only tightens it for a narrow column. */
+  .toc { padding: 0.85rem 1rem; }
+
+  .toc-list {
+    column-gap: 1.25rem;
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+}
+
 .lede { font-size: var(--text-blurb); color: var(--muted); }
 
 a { color: var(--accent-text); }

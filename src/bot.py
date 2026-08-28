@@ -1187,6 +1187,23 @@ class VerificationDaily(Base):
     count = Column(Integer, nullable=False, default=0)
 
 
+class ServerMembershipDaily(Base):
+    """Daily snapshot of registered servers and current Discord presence.
+
+    ``Server`` rows survive removal so configuration can be restored when a
+    guild re-invites the bot. ``active_count`` counts every guild currently
+    exposed by Discord, including installed guilds that have not configured the
+    bot. ``inaccessible_count`` counts retained registrations absent from that
+    current guild set.
+    """
+
+    __tablename__ = "server_membership_daily"
+    day = Column(Date, primary_key=True)
+    registered_count = Column(Integer, nullable=False, default=0)
+    active_count = Column(Integer, nullable=False, default=0)
+    inaccessible_count = Column(Integer, nullable=False, default=0)
+
+
 class StripeSubscription(Base):
     """One Stripe subscription, mirrored (issue #88). A guild may have several.
 
@@ -5228,6 +5245,45 @@ def _record_verification_day(guild_id: str) -> None:
             guild_id,
             exc_info=True,
         )
+
+
+def _record_server_membership_day() -> None:
+    """Snapshot registrations against every guild Discord exposes to us."""
+    today = datetime.now(timezone.utc).date()
+    try:
+        current_guild_ids = {str(guild.id) for guild in bot.guilds}
+        with session_scope() as session:
+            registered_ids = {
+                str(server_id)
+                for (server_id,) in session.query(Server.server_id).all()
+            }
+            registered_count = len(registered_ids)
+            active_count = len(current_guild_ids)
+            snapshot = session.get(ServerMembershipDaily, today)
+            values = {
+                "registered_count": registered_count,
+                "active_count": active_count,
+                "inaccessible_count": len(registered_ids - current_guild_ids),
+            }
+            if snapshot is None:
+                session.add(ServerMembershipDaily(day=today, **values))
+            else:
+                for field, value in values.items():
+                    setattr(snapshot, field, value)
+    except Exception:
+        logger.warning("Could not record the server membership snapshot.", exc_info=True)
+
+
+async def server_membership_snapshot_task() -> None:
+    """Record one server-membership snapshot at each UTC day boundary."""
+    while True:
+        now = datetime.now(timezone.utc)
+        next_day = now.date() + timedelta(days=1)
+        seconds_until_next_day = (
+            datetime.combine(next_day, datetime.min.time(), tzinfo=timezone.utc) - now
+        ).total_seconds()
+        await asyncio.sleep(max(1, seconds_until_next_day))
+        _record_server_membership_day()
 
 
 async def record_guild_verification(guild_id: str, guild: Optional[discord.Guild]):
@@ -10526,6 +10582,10 @@ def start_background_task(name: str, coro, run_once: bool = False):
 @bot.event
 async def on_ready():
     logger.info(f"Bot is ready. Logged in as {bot.user} (ID: {bot.user.id})")
+    _record_server_membership_day()
+    start_background_task(
+        "server_membership_snapshot", server_membership_snapshot_task()
+    )
     start_background_task("results_consumer", consume_results_queue())
     # The invite worker's answers. Started unconditionally: the queue is
     # declared by whichever end connects first, so a deployment without the
