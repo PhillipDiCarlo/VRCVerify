@@ -1183,7 +1183,22 @@ class TestTheChangelogOffersTheDiscord:
 # ---------------------------------------------------------------
 # "On this page" contents list (#190)
 # ---------------------------------------------------------------
-PAGES_WITH_TOC = ["terms.html"]
+PAGES_WITH_TOC = POLICY_NAMES
+
+
+@pytest.mark.parametrize("name", POLICY_NAMES)
+def test_every_policy_page_has_a_contents_list(name):
+    """Phase 2 settled this: all three agreements get one, or a reader who
+    learns the pattern on two of them reads the third as shorter than it is.
+
+    Written against POLICY_NAMES rather than PAGES_WITH_TOC on purpose. The
+    tests below all parametrize over PAGES_WITH_TOC, so shortening that list is
+    a way to make any of them stop failing without fixing anything. This one
+    does not move when that list does.
+    """
+    assert '<nav class="toc"' in read(SITE / name), (
+        f"{name} is a legal agreement with no contents list"
+    )
 
 
 def _toc_entries(page):
@@ -1277,8 +1292,11 @@ def test_it_needs_no_javascript(name):
 
 
 def test_the_list_adds_no_ordered_markers():
-    """The headings carry their own numbers ("1. What the service does"), so a
-    list marker would render them twice."""
+    """Terms carries its numbering inside the heading text itself ("1. What the
+    service does"), so a marker would render it twice. Privacy and Refunds do
+    not number their sections at all, and numbering them here would invent an
+    ordering the documents do not claim. The <ol> stays on all three because
+    document order is meaningful; only the markers go."""
     css = (SITE / "style.css").read_text()
     block = re.search(r"\.toc-list \{[^}]*\}", css).group(0)
     assert "list-style: none" in block

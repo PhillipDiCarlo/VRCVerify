@@ -565,7 +565,7 @@ li { margin: 0.3rem 0; }
  * Service can be mistaken for a precis of the agreement, and a reader who
  * believes they have read the terms because they read the list has been misled
  * by the layout. So: announced as <nav>, labelled "On this page", drawn as a
- * column of links, carrying no descriptions. It says where things are, never
+ * block of links, carrying no descriptions. It says where things are, never
  * what they say.
  *
  * NO DISCLOSURE WIDGET, AND THAT WAS MEASURED RATHER THAN PREFERRED.
@@ -579,25 +579,50 @@ li { margin: 0.3rem 0; }
  * asking only about height passes while the page is visibly broken; the
  * question to ask is whether the NEXT element is pushed below it.
  *
- * So the list is always present, and the phone problem is solved by shape
- * instead: two columns below the breakpoint, which turns twelve tall rows into
- * six short ones. That also serves a phone reader better than a closed box
- * would, since the links are simply there.
+ * So the list is always present, and the height problem is solved by shape
+ * instead: two columns, at every width.
+ *
+ * TWO COLUMNS EVERYWHERE, WHICH PHASE 1 GOT WRONG. Phase 1 measured the phone
+ * and stopped there, leaving `display: grid` with no track count on desktop.
+ * One column of twelve is 689px, so the agreement began below the fold on a
+ * 900px-tall screen -- the same defect the phone rule existed to prevent, just
+ * further down the viewport. There is no width at which a tall single column
+ * of links is the right answer, so the breakpoint no longer changes the shape.
+ * It only tightens the type.
+ *
+ * Multi-column rather than a grid. Grid sizes each row to its tallest item,
+ * and the longer titles wrap, so every short neighbour left a hole. Multicol
+ * packs, and it fills down then across, which reads better for a list the
+ * document order matters in: 1-6 beside 7-12 rather than odds beside evens.
+ * The DOM order is untouched either way, so a screen reader hears the sections
+ * in document order whatever the columns do.
+ *
+ * PANEL, NOT CHROME. Phase 1 filled the box with --chrome and bordered it
+ * with --line, which is the one place on the site those two are paired. --line
+ * is tuned against --panel, so in the light theme the result was a 1.05:1
+ * hairline around a fill 1.13:1 from the page: a smudge rather than a box.
+ * --panel is what every other card and note here uses, and it costs nothing in
+ * legibility -- links go 5.21 to 5.78 in light and 4.98 to 4.57 in dark, both
+ * still above AA, and both pairs are already declared in test_contrast.py.
+ *
+ * It does not thereby become the .note above it on two of these pages: .note
+ * has no border, a 3px accent bar down its left edge and square left corners,
+ * and it holds a paragraph rather than a column of links.
  *
  * The label is a <p>, deliberately not a heading. These pages give every
  * heading an id and a contents entry, so a real <h2> here would have to list
  * itself.
  *
- * No list markers. The headings carry their own numbering ("1. What the
- * service does"), so an ordered marker would render them twice. The <ol> stays
- * because the document order is meaningful, and the DOM order is the reading
- * order whatever the columns do visually. */
+ * No list markers. Terms carries its numbering in the heading text itself
+ * ("1. What the service does"), so a marker would render it twice; Privacy and
+ * Refunds do not number their sections at all. The <ol> stays on all three
+ * because the document order is meaningful. */
 .toc {
   margin: 0 0 2.5rem;
   padding: 1rem 1.25rem;
   border: 1px solid var(--line);
   border-radius: 0.5rem;
-  background: var(--chrome);
+  background: var(--panel);
 }
 
 .toc-label {
@@ -610,9 +635,19 @@ li { margin: 0.3rem 0; }
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: 0.35rem 1.5rem;
+  columns: 2;
+  column-gap: 1.5rem;
 }
+
+/* The document sets `li { margin: 0.3rem 0 }` for prose lists. Navigation is
+ * not prose, and inheriting that spacing is half of why phase 1 ran to 689px.
+ * An entry split across the column break would read as two half-titles. */
+.toc-list li {
+  margin: 0 0 0.4rem;
+  break-inside: avoid;
+}
+
+.toc-list li:last-child { margin-bottom: 0; }
 
 .toc-list a {
   display: inline-block;
@@ -621,29 +656,14 @@ li { margin: 0.3rem 0; }
 }
 
 @media (max-width: 46rem) {
-  /* Twelve links in one column is most of a phone screen before the agreement
-   * begins, so below this width they run in two.
-   *
-   * Multi-column rather than a two-track grid. Grid sizes each row to its
-   * tallest item, and at this width the longer titles wrap to two lines, so
-   * every short neighbour left a hole -- 478px of airy list. Multicol just
-   * packs, and it fills down then across, which for a numbered list reads
-   * better anyway: 1-6 beside 7-12 rather than odds beside evens.
-   *
-   * The DOM order is untouched either way, so a screen reader still hears
-   * 1 to 12 in order whatever the columns do. */
+  /* The shape is already right. This only tightens it for a narrow column. */
   .toc { padding: 0.85rem 1rem; }
 
   .toc-list {
-    display: block;
-    columns: 2;
     column-gap: 1.25rem;
     font-size: 0.9rem;
     line-height: 1.35;
   }
-
-  /* An entry split across the column break would read as two half-titles. */
-  .toc-list li { break-inside: avoid; margin: 0 0 0.4rem; }
 }
 
 .lede { font-size: var(--text-blurb); color: var(--muted); }
