@@ -558,6 +558,95 @@ ul, ol { padding-left: 1.35rem; }
 li { margin: 0.3rem 0; }
 
 .updated { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.5rem; }
+
+/* --- "On this page" contents list on the legal pages (#190) ---
+ *
+ * IT IS NAVIGATION, NOT A SUMMARY. A tidy list at the top of a Terms of
+ * Service can be mistaken for a precis of the agreement, and a reader who
+ * believes they have read the terms because they read the list has been misled
+ * by the layout. So: announced as <nav>, labelled "On this page", drawn as a
+ * column of links, carrying no descriptions. It says where things are, never
+ * what they say.
+ *
+ * NO DISCLOSURE WIDGET, AND THAT WAS MEASURED RATHER THAN PREFERRED.
+ *
+ * The first build made it a <details>, collapsed on phones and forced open by
+ * CSS above the breakpoint. That cannot work. A closed <details> does not lay
+ * its content into the flow whatever CSS says, so the forced-open list was
+ * painted over by the document beneath it -- in Chromium, Firefox AND WebKit,
+ * both directly and via `display: contents`. It is worth knowing that
+ * `getBoundingClientRect()` still reports a box for that content, so a test
+ * asking only about height passes while the page is visibly broken; the
+ * question to ask is whether the NEXT element is pushed below it.
+ *
+ * So the list is always present, and the phone problem is solved by shape
+ * instead: two columns below the breakpoint, which turns twelve tall rows into
+ * six short ones. That also serves a phone reader better than a closed box
+ * would, since the links are simply there.
+ *
+ * The label is a <p>, deliberately not a heading. These pages give every
+ * heading an id and a contents entry, so a real <h2> here would have to list
+ * itself.
+ *
+ * No list markers. The headings carry their own numbering ("1. What the
+ * service does"), so an ordered marker would render them twice. The <ol> stays
+ * because the document order is meaningful, and the DOM order is the reading
+ * order whatever the columns do visually. */
+.toc {
+  margin: 0 0 2.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--chrome);
+}
+
+.toc-label {
+  margin: 0 0 0.6rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem 1.5rem;
+}
+
+.toc-list a {
+  display: inline-block;
+  padding: 0.1rem 0;
+  color: var(--accent-text);
+}
+
+@media (max-width: 46rem) {
+  /* Twelve links in one column is most of a phone screen before the agreement
+   * begins, so below this width they run in two.
+   *
+   * Multi-column rather than a two-track grid. Grid sizes each row to its
+   * tallest item, and at this width the longer titles wrap to two lines, so
+   * every short neighbour left a hole -- 478px of airy list. Multicol just
+   * packs, and it fills down then across, which for a numbered list reads
+   * better anyway: 1-6 beside 7-12 rather than odds beside evens.
+   *
+   * The DOM order is untouched either way, so a screen reader still hears
+   * 1 to 12 in order whatever the columns do. */
+  .toc { padding: 0.85rem 1rem; }
+
+  .toc-list {
+    display: block;
+    columns: 2;
+    column-gap: 1.25rem;
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+
+  /* An entry split across the column break would read as two half-titles. */
+  .toc-list li { break-inside: avoid; margin: 0 0 0.4rem; }
+}
+}
+}
 .lede { font-size: var(--text-blurb); color: var(--muted); }
 
 a { color: var(--accent-text); }
