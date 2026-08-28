@@ -31,7 +31,7 @@ Deliberately static, deliberately not part of the dashboard app:
   that vendored Inter into the dashboard in the first place.
 
   **#139 amended it a second time, and the same test applies.** The update-email
-  signup posts to Buttondown, so a request does leave this origin — but only
+  signup posts to Buttondown, so a request does leave this origin, but only
   when somebody fills in the form and presses the button. Nothing is fetched on
   page load, no provider script or embed widget is included, and a reader who
   never subscribes never contacts them. The rule's reason is that a third party
@@ -235,7 +235,7 @@ verified". Different dataset, different provider, different purpose.
 This is the property that makes the Privacy Policy amendment honest. The policy
 says the address "is never linked to your verification record", and the only
 thing keeping that true is that nobody builds the join. There is no schema to
-prevent it — the list lives at Buttondown and the verification data lives in
+prevent it. The list lives at Buttondown and the verification data lives in
 Postgres, and bringing them together would be somebody's afternoon.
 
 It also means the list cannot be enriched *from* our side: no importing

@@ -195,7 +195,7 @@ def render(entries=None) -> str:
     <p class="subscribe-consent">By subscribing you agree to receive product
     update emails from VRCVerify. Unsubscribe any time with the link in any
     email. Your address is stored by Buttondown for this alone and is never
-    linked to your verification record &mdash; see the
+    linked to your verification record. See the
     <a href="/privacy#what-we-collect">Privacy Policy</a>.</p>
   </form>
 
