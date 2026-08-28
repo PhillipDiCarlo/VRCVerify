@@ -92,13 +92,48 @@ def test_internal_links_resolve(page):
     for href in parse(page).links:
         if not href.startswith("/") or href.startswith("//"):
             continue
+        # A fragment is not part of the filename. This used to reject
+        # "/privacy#what-we-collect" as a dead link, which it is not -- the
+        # anchor is checked below instead, where it can be checked properly.
+        target = href.split("#", 1)[0]
         # "/" is the landing page. Everything else is linked without the .html
         # -- see test_internal_links_are_canonical -- so both forms resolve to
         # the same file on disk.
-        target = href.lstrip("/") or "index.html"
+        target = target.lstrip("/") or "index.html"
         if target not in available and f"{target}.html" not in available:
             dead.append(href)
     assert not dead, f"{page.name}: {dead}"
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_internal_anchors_resolve(page):
+    """A link to /privacy#some-section is dead if that id is not on the page.
+
+    Worth checking separately from the filename above, because this failure is
+    silent in a way a 404 is not: the browser loads the right page and simply
+    does not move, so a reader lands at the top of a long legal document with
+    no sign they were meant to be somewhere else.
+
+    The legal pages carry heading ids deliberately -- #137 phase 3 added them
+    and #190 builds a contents list from them -- so they are load-bearing and
+    can be depended on rather than merely present.
+    """
+    dead = []
+    for href in parse(page).links:
+        if not href.startswith("/") or href.startswith("//") or "#" not in href:
+            continue
+        path, _, fragment = href.partition("#")
+        if not fragment:
+            continue
+        name = (path.lstrip("/") or "index.html")
+        if not name.endswith(".html"):
+            name = f"{name}.html"
+        target = SITE / name
+        if not target.exists():
+            continue  # the filename test above owns that failure
+        if f'id="{fragment}"' not in read(target):
+            dead.append(href)
+    assert not dead, f"{page.name}: anchors that land nowhere: {dead}"
 
 
 @pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
@@ -423,22 +458,26 @@ def test_the_theme_picker_has_a_visible_edge_in_both_themes():
 
     Both surfaces matter: the bar the control sits ON, and the fill it
     surrounds. An edge that vanishes into either one is not an edge.
+
+    EVERY SURFACE IS CHECKED, not only the ones that happen to have a control
+    on them today. #139 put the email signup's input on `--bg`, which is
+    darker than the header bar, and the token gave 2.81:1 there -- passing
+    this test while failing the page. Listing the surfaces exhaustively is
+    what stops the next control landing somewhere new and rediscovering it;
+    the token was darkened to #7c7f89 to clear all three.
     """
-    for theme, edge, chrome, panel in (
-        ("dark", _token("--control-line"), _token("--chrome"), _token("--panel")),
-        ("light", _token("--light-control-line"),
-         _token("--light-chrome"), _token("--light-panel")),
+    surfaces = ("chrome", "panel", "bg")
+    for theme, edge, prefix in (
+        ("dark", _token("--control-line"), "--"),
+        ("light", _token("--light-control-line"), "--light-"),
     ):
-        against_bar = _contrast(edge, chrome)
-        against_fill = _contrast(edge, panel)
-        assert against_bar >= 3.0, (
-            f"{theme}: control edge {edge} is {against_bar:.2f}:1 on the "
-            f"header bar {chrome}, under the 3:1 a UI component needs"
-        )
-        assert against_fill >= 3.0, (
-            f"{theme}: control edge {edge} is {against_fill:.2f}:1 against the "
-            f"fill it surrounds {panel}"
-        )
+        for surface in surfaces:
+            ground = _token(f"{prefix}{surface}")
+            got = _contrast(edge, ground)
+            assert got >= 3.0, (
+                f"{theme}: control edge {edge} is {got:.2f}:1 on --{surface} "
+                f"({ground}), under the 3:1 a UI component boundary needs"
+            )
 
 
 def test_the_picker_label_is_readable_in_both_themes():
@@ -1129,3 +1168,159 @@ class TestTheChangelogOffersTheDiscord:
         cannot pass by being self-consistent."""
         page = (SITE / "changelog.html").read_text()
         assert "entry-follow" in page
+
+
+class TestTheUpdateEmailSignup:
+    """#139. The form lives here because the dashboard cannot host it.
+
+    `form-action` in the dashboard's CSP is `'self'` plus Stripe's two hosted
+    pages, and it governs where a submission ends up INCLUDING AFTER A
+    REDIRECT -- so a form posting to a provider would be refused with no error
+    and no navigation, which is the "Subscribe does nothing" bug of
+    2026-08-15. This site sends no CSP at all (an assets-only Worker, no
+    _headers file), so the same form works here and the dashboard only links
+    to it.
+    """
+
+    PAGES_WITH_FORM = ["index.html", "changelog.html"]
+
+    def form(self, name):
+        text = read(SITE / name)
+        assert 'class="subscribe"' in text, f"{name} has no signup form"
+        return text.split('class="subscribe"', 1)[1].split("</form>", 1)[0]
+
+    @pytest.mark.parametrize("name", PAGES_WITH_FORM)
+    def test_the_form_is_present(self, name):
+        assert self.form(name)
+
+    @pytest.mark.parametrize("name", PAGES_WITH_FORM)
+    def test_it_posts_to_buttondown(self, name):
+        block = self.form(name)
+        assert 'method="post"' in block
+        # buttondown.email answers but 301s to .com, and a redirect on a form
+        # POST is the exact shape that broke Subscribe on the dashboard.
+        assert "https://buttondown.com/api/emails/embed-subscribe/" in block
+        assert "buttondown.email" not in block
+
+    @pytest.mark.parametrize("name", PAGES_WITH_FORM)
+    def test_it_asks_for_an_email_and_nothing_else(self, name):
+        """Data minimisation is the argument the Privacy Policy amendment
+        rests on. A name field would make that sentence false."""
+        block = self.form(name)
+        names = re.findall(r'<input[^>]*name="([^"]+)"', block)
+        assert names == ["email"], f"{name} collects {names}"
+
+    @pytest.mark.parametrize("name", PAGES_WITH_FORM)
+    def test_nothing_is_pre_ticked(self, name):
+        """Consent has to be a deliberate act, so there is no checkbox to
+        pre-tick -- and if one is ever added, it must not arrive checked."""
+        block = self.form(name)
+        assert "checked" not in block
+        assert 'type="checkbox"' not in block
+
+    @pytest.mark.parametrize("name", PAGES_WITH_FORM)
+    def test_the_consent_line_names_the_exit(self, name):
+        """Shopify's line is the reference: state it at the point of consent,
+        in one sentence, with the way out named."""
+        block = self.form(name).lower()
+        assert "unsubscribe" in block
+
+    @pytest.mark.parametrize("name", PAGES_WITH_FORM)
+    def test_the_privacy_policy_is_linked_under_the_input(self, name):
+        block = self.form(name)
+        assert "/privacy" in block
+
+    @pytest.mark.parametrize("name", PAGES_WITH_FORM)
+    def test_the_field_is_labelled(self, name):
+        """A placeholder is not a label -- it disappears on focus and screen
+        readers are not required to announce it."""
+        block = self.form(name)
+        assert "<label" in block and 'for="bd-email"' in block
+        assert 'id="bd-email"' in block
+
+    @pytest.mark.parametrize("name", PAGES_WITH_FORM)
+    def test_it_needs_no_javascript(self, name):
+        """The whole site's property, and this form's reason for being plain
+        HTML rather than the provider's embed widget."""
+        block = self.form(name)
+        assert "<script" not in block
+        assert "onsubmit" not in block and "onclick" not in block
+
+    def test_the_two_copies_of_the_account_name_agree(self):
+        """index.html is hand-written and changelog.html is generated, so the
+        account name exists twice. Documentation would not catch them drifting
+        apart; this does."""
+        import re as _re
+
+        def action(name):
+            m = _re.search(
+                r"embed-subscribe/([A-Za-z0-9_-]+)", read(SITE / name)
+            )
+            assert m, f"{name} has no Buttondown action"
+            return m.group(1)
+
+        assert action("index.html") == action("changelog.html")
+
+    def test_the_placeholder_is_visible_as_a_placeholder(self):
+        """Fails loudly the day somebody wires a real account, which is the
+        point: it is the reminder to update BOTH copies and the docs.
+
+        Delete this test in the same change that sets the real name.
+        """
+        from gen_changelog import BUTTONDOWN_USERNAME
+
+        assert BUTTONDOWN_USERNAME == "BUTTONDOWN_USERNAME", (
+            "The Buttondown account is now set. Update index.html to match, "
+            "then delete this test."
+        )
+
+
+class TestThePrivacyPolicyMatchesWhatWeDo:
+    """#139's hard rule: the policy and the behaviour agree on the day the
+    form goes live. A form live against a policy forbidding it is the failure
+    that issue exists to avoid."""
+
+    def test_it_no_longer_claims_we_never_store_an_email(self):
+        """The old absolute claim, which the form would have contradicted."""
+        text = read(SITE / "privacy.html")
+        assert "your profile bio, your email address" not in text
+
+    def test_the_two_strong_claims_survive(self):
+        """The valuable promises are that we never take the Discord email and
+        never keep the Stripe billing email. Both are still true, and
+        weakening them would have been the lazy way to make room."""
+        text = read(SITE / "privacy.html")
+        assert "Your Discord email address, even though Discord could provide it" in text
+        assert "do not store the billing email address Stripe collects" in text
+
+    def test_the_provider_is_named(self):
+        """A processor has to be named to be disclosed."""
+        text = read(SITE / "privacy.html")
+        who = text.split('id="who-else-sees-it"', 1)[1].split("</ul>", 1)[0]
+        assert "Buttondown" in who
+
+    def test_retention_says_when_it_goes(self):
+        text = read(SITE / "privacy.html")
+        assert "Until you unsubscribe or ask us to delete it" in text
+
+    def test_consent_for_email_is_separate_from_verification(self):
+        """Bundling the two consents is the thing the amendment must not do."""
+        text = read(SITE / "privacy.html")
+        basis = text.split("our-legal-basis", 1)[1].split("</ul>", 1)[0]
+        assert "separate" in basis.lower()
+
+    def test_a_subscriber_with_no_discord_account_has_a_path(self):
+        """The old wording told people to write from an address tied to their
+        Discord account or quote a Discord user ID. A subscriber may have
+        neither, and the 30-day commitment covers them too."""
+        text = read(SITE / "privacy.html")
+        rights = text.split('id="your-rights"', 1)[1].split("<h2", 1)[0]
+        assert "no Discord account is required" in rights
+
+    def test_the_never_join_rule_is_stated(self):
+        """Written where a reader will see it, not only in a comment."""
+        text = read(SITE / "privacy.html")
+        assert "never linked to your verification record" in text
+
+    def test_the_date_was_bumped(self):
+        assert "Last updated 28 August 2026" in read(SITE / "privacy.html")

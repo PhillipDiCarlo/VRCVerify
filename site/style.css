@@ -158,11 +158,20 @@
      needs. The dashboard was never asked for that pairing, so its value is not
      wrong; it is measured against a surface this site does not use here.
 
-     #848892 clears both the bar it sits on (3.20:1) and the fill it surrounds
-     (3.55:1). Darkening the token is the same fix the dashboard applied to
-     --ok when the plan cards put it on a surface it had not been measured
-     against: move the token, not the element. Pinned in test_site.py. */
-  --light-control-line: #848892;
+     Darkening the token is the same fix the dashboard applied to --ok when the
+     plan cards put it on a surface it had not been measured against: move the
+     token, not the element. Pinned in test_site.py.
+
+     DARKENED AGAIN by #139, for the third time this has happened and the same
+     reason each time: a control appeared on a surface the token had not been
+     measured against. #848892 cleared the bar (3.20:1) and the fill (3.55:1),
+     but the email signup's input sits on --bg, which is darker than --chrome,
+     and there it gave 2.81:1 -- under the 3:1 WCAG 1.4.11 asks of a component
+     boundary. #7c7f89 clears all three: --bg 3.17:1, --chrome 3.60:1, --panel
+     4.00:1. The test now pins all three surfaces rather than the two that
+     happened to have controls on them, so the next control to land somewhere
+     new does not have to rediscover this. */
+  --light-control-line: #7c7f89;
 
   /* The light halves of the theme-menu tokens. --radius-* and --bar-control do
      not change with the theme, so they are declared once above. */
@@ -973,6 +982,73 @@ th { color: var(--muted); font-weight: 600; }
  * page's job is credibility; a surface that reads as an advert stops being
  * read as news, which costs more than the follow is worth. The dashboard's
  * .changelog-follow makes the same argument about the same sentence. */
+/* A label that screen readers announce and sighted users do not see.
+ *
+ * A real <label> rather than aria-label on the input: it stays clickable, it
+ * survives translation tooling that ignores attributes, and it is the form
+ * every accessibility checker recognises. The clip-path pair is the standard
+ * recipe -- `display:none` and `visibility:hidden` both remove it from the
+ * accessibility tree, which is the one thing it must not do. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* #139: the update-email signup.
+ *
+ * Symbolic's shape from the issue's references -- a heading, one line saying
+ * what you get, one input, one button, nothing else. The consent sentence sits
+ * under the control rather than beside it, because it has to be read before
+ * the button is pressed and a line to the right of a button is read after. */
+.subscribe { margin: 1.5rem 0 0; max-width: var(--measure); }
+
+.subscribe-blurb { margin: 0 0 0.75rem; color: var(--muted); }
+
+.subscribe-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.subscribe-input {
+  flex: 1 1 16rem;
+  min-width: 0;
+  padding: 0.6rem 0.75rem;
+  /* --control-line, NOT --line. `--line` is the hairline that separates
+   * content; the boundary of an interactive control is what tells somebody
+   * there is a field here at all, and WCAG 1.4.11 asks 3:1 of it. Measured on
+   * the rendered page, --line gives 1.05 in light and 1.62 in dark.
+   *
+   * This input is also why --light-control-line was darkened again -- see the
+   * comment on the token. It is the first control on this site to sit on --bg
+   * rather than the header bar. */
+  border: 1px solid var(--control-line);
+  border-radius: 0.5rem;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+.subscribe-input::placeholder { color: var(--muted); }
+
+/* The focus ring is drawn, not removed. Reusing the site's accent so it reads
+ * as the same system as every other focusable thing here. */
+.subscribe-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.subscribe-consent {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
 .entry-follow {
   margin: 3rem 0 0;
   padding-top: 1.5rem;

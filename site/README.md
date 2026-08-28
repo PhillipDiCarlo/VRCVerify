@@ -30,6 +30,18 @@ Deliberately static, deliberately not part of the dashboard app:
   third party see who reads the Privacy Policy. That is the same reasoning
   that vendored Inter into the dashboard in the first place.
 
+  **#139 amended it a second time, and the same test applies.** The update-email
+  signup posts to Buttondown, so a request does leave this origin — but only
+  when somebody fills in the form and presses the button. Nothing is fetched on
+  page load, no provider script or embed widget is included, and a reader who
+  never subscribes never contacts them. The rule's reason is that a third party
+  should not see who reads these pages, and that is still true: Buttondown
+  learns about people who deliberately chose to tell them.
+
+  What this still forbids: the provider's embedded form widget, which would be
+  a third-party request on every page load and is the normal way to add a signup
+  form. The plain `<form action>` is the whole point, not a limitation.
+
   The script is `theme.js` and it is the theme toggle, added in #137 phase 1.
   It is the only one, it is served from this origin, and every page renders
   completely without it — blocked or disabled, you get the default dark theme
@@ -213,6 +225,22 @@ Posts land in **other people's servers, in front of their members** rather than
 only their admins. Keep them short, keep them useful, and assume a non-admin is
 reading. Entries marked `public=False` are for signed-in admins and must not be
 posted here at all.
+
+### The subscriber list is never joined to verification data
+
+**A hard rule, and it is easy to break later without noticing.** No Discord ID
+on a subscriber row, no enrichment, no answering "which of our subscribers is
+verified". Different dataset, different provider, different purpose.
+
+This is the property that makes the Privacy Policy amendment honest. The policy
+says the address "is never linked to your verification record", and the only
+thing keeping that true is that nobody builds the join. There is no schema to
+prevent it — the list lives at Buttondown and the verification data lives in
+Postgres, and bringing them together would be somebody's afternoon.
+
+It also means the list cannot be enriched *from* our side: no importing
+addresses from Stripe or Discord, which is why every address on it is one
+somebody typed into the form.
 
 ### Rotating the invite means changing three things
 

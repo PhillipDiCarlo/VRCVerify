@@ -65,6 +65,27 @@ SITE = REPO / "site"
 # people who have never signed in and cannot tell you. See "Rotating the
 # invite" in site/README.md.
 SUPPORT_INVITE_URL = "https://discord.gg/Vus4qxA52Q"
+
+# The Buttondown account the signup form posts to (#139).
+#
+# PLACEHOLDER until the account exists. The form is inert-but-visible while it
+# says BUTTONDOWN_USERNAME: a submission 404s, which is a bad experience but a
+# loud one, so this must not reach production unset. tests/test_site.py refuses
+# to let it disagree with the copy in index.html, which is the drift this would
+# otherwise develop -- two hand-edited copies of one account name.
+#
+# Hardcoded for the same reason SUPPORT_INVITE_URL above is: these are static
+# files behind a CDN and nothing renders them at request time.
+#
+# Canonical host is buttondown.com. buttondown.email still answers but 301s
+# there, and a redirect on a form POST is the exact shape that produced the
+# "Subscribe does nothing" bug on the dashboard -- see the form-action comment
+# in src/dashboard/app.py. Nothing here has a CSP to refuse it, but pointing at
+# the host that actually serves is free.
+BUTTONDOWN_USERNAME = "BUTTONDOWN_USERNAME"
+SUBSCRIBE_ACTION = (
+    f"https://buttondown.com/api/emails/embed-subscribe/{BUTTONDOWN_USERNAME}"
+)
 OUTPUT = SITE / "changelog.html"
 # The page the chrome is lifted from. Any page would do -- the suite pins them
 # equal -- so this names one rather than picking one at random each run.
@@ -115,6 +136,7 @@ def render(entries=None) -> str:
     header, footer = _chrome()
     items = "\n".join(_entry_html(entry) for entry in entries)
     invite = SUPPORT_INVITE_URL
+    subscribe = SUBSCRIBE_ACTION
     if not items:
         # Not expected, and not a crash either. A page that renders nothing is
         # better than a deploy that fails at the moment somebody empties the
@@ -158,6 +180,24 @@ def render(entries=None) -> str:
     and follow the announcements channel &mdash; every update here gets posted
     there, and Discord crossposts it to any channel you pick.
   </p>
+
+  <h2 id="updates">Get them by email</h2>
+
+  <form class="subscribe" method="post" action="{subscribe}">
+    <p class="subscribe-blurb">The same updates, a few times a year. No roadmap,
+    no marketing, and nothing else.</p>
+    <div class="subscribe-row">
+      <label class="visually-hidden" for="bd-email">Email address</label>
+      <input class="subscribe-input" id="bd-email" type="email" name="email"
+             required autocomplete="email" placeholder="you@example.com">
+      <button class="cta" type="submit">Subscribe</button>
+    </div>
+    <p class="subscribe-consent">By subscribing you agree to receive product
+    update emails from VRCVerify. Unsubscribe any time with the link in any
+    email. Your address is stored by Buttondown for this alone and is never
+    linked to your verification record &mdash; see the
+    <a href="/privacy#what-we-collect">Privacy Policy</a>.</p>
+  </form>
 
 </main>
 
