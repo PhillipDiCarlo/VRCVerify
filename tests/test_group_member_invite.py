@@ -13,13 +13,15 @@ neither is obvious from reading a diff:
     as a privacy one -- the Creator Guidelines treat unsolicited automation as
     abuse, and an invite nobody asked for is exactly that.
 
-  * A "no" is permanent, and it is the member's own no. Somebody who blocked
-    group invites, or who a group moderator banned, is never offered again --
-    GROUP_INVITE_FINAL_STATES. Every other outcome is offered again on a later
-    verification, because an ignored or deleted invite is not an answer; what
-    never works twice is the same button. And confirm_override_block -- the
-    parameter that exists to push an invite past someone who blocked the group
-    -- is passed as False every time.
+  * A "no" settles the BUTTON, never the member. Every settled outcome --
+    including a moderator's ban and the member's own block -- is asked about
+    again on a later verification, because none of them is our verdict: they
+    are a cache of something VRChat will answer again, and a moderator who
+    lifts a ban has changed the answer. GROUP_INVITE_FINAL_STATES is empty on
+    purpose. What never works twice is the same button. And
+    confirm_override_block -- the parameter that exists to push an invite past
+    someone who blocked the group -- is passed as False every time, so asking
+    again can never become overriding.
 
     That last one is explicit rather than omitted because vrchatapi 1.0.0
     defaults it to True. Leaving it out opts in to overriding blocks, in the
@@ -625,16 +627,35 @@ class TestTheOffer:
         set_standing(state)
         assert self.offer() == []
 
-    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_FINAL_STATES))
-    def test_a_final_outcome_is_never_offered_again(self, subscribed, state):
-        """Banned is a group moderator's decision and blocked is the member's
-        own. Neither is waiting for a better moment, so the cooldown lapsing
-        changes nothing."""
+    @pytest.mark.parametrize(
+        "state", [bot.GROUP_INVITE_BANNED, bot.GROUP_INVITE_BLOCKED]
+    )
+    def test_a_ban_or_a_block_is_asked_about_again(self, subscribed, state):
+        """These two used to be permanent, and that was the bug.
+
+        Neither is OUR verdict -- both are a cache of something VRChat will
+        answer again. A moderator who lifts a ban and a member who switches
+        group invites back on have each changed the answer, and never asking
+        again is a promise not to notice. A one-day ban cost the member the
+        feature for ever.
+
+        Named explicitly rather than left to the REOFFERABLE sweep below,
+        because these two are the decision. If somebody makes them permanent
+        again, this is the test that should say so.
+        """
         make_server()
         make_user()
         ready_group()
-        set_standing(state, age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 100)
-        assert self.offer() == []
+        set_standing(state, age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60)
+        assert len(self.offer()) == 1
+
+    def test_nothing_is_permanent(self):
+        """The empty set is load-bearing, and an empty parametrize SKIPS
+        silently rather than failing -- which is how the two tests this
+        replaced would have quietly stopped running. Asserted directly so the
+        decision cannot evaporate."""
+        assert bot.GROUP_INVITE_FINAL_STATES == frozenset()
+        assert bot.GROUP_INVITE_REOFFERABLE_STATES == bot.GROUP_INVITE_SETTLED_STATES
 
     @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_REOFFERABLE_STATES))
     def test_a_spent_outcome_is_offered_again_once_the_cooldown_lapses(
@@ -1105,8 +1126,17 @@ class TestASpentButtonStaysDead:
         assert bot.group_invite_refusal(row, GROUP_ID) == bot.INVITE_REFUSED_SETTLED
         assert bot.group_invite_refusal(row, GROUP_ID, for_offer=True) is None
 
-    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_FINAL_STATES))
-    def test_a_final_outcome_refuses_both(self, state):
+    @pytest.mark.parametrize(
+        "state", [bot.GROUP_INVITE_BANNED, bot.GROUP_INVITE_BLOCKED]
+    )
+    def test_a_ban_kills_the_button_but_not_the_member(self, state):
+        """The two halves that have to stay apart.
+
+        The PRESS still refuses: a spent button is spent, and an old DM about
+        a ban must not become another invite attempt on a whim. The OFFER does
+        not: a new verification is a fresh ask, and by then a moderator may
+        have lifted it.
+        """
         row = {
             "group_id": GROUP_ID,
             "state": state,
@@ -1114,9 +1144,24 @@ class TestASpentButtonStaysDead:
             - timedelta(seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS * 100),
         }
         assert bot.group_invite_refusal(row, GROUP_ID) == bot.INVITE_REFUSED_SETTLED
+        assert bot.group_invite_refusal(row, GROUP_ID, for_offer=True) is None
+
+    @pytest.mark.parametrize(
+        "state", [bot.GROUP_INVITE_BANNED, bot.GROUP_INVITE_BLOCKED]
+    )
+    def test_the_cooldown_still_applies_to_a_ban(self, state):
+        """Re-checkable is not unbounded. A fresh ban is not re-asked seconds
+        later, which is what keeps the refused API calls to one per cooldown
+        however hard somebody re-verifies."""
+        row = {
+            "group_id": GROUP_ID,
+            "state": state,
+            "requested_at": datetime.now(timezone.utc),
+            "settled_at": datetime.now(timezone.utc),
+        }
         assert (
             bot.group_invite_refusal(row, GROUP_ID, for_offer=True)
-            == bot.INVITE_REFUSED_SETTLED
+            == bot.INVITE_REFUSED_COOLDOWN
         )
 
     def test_a_second_invite_needs_a_new_verification(self, subscribed, pressable):
@@ -1159,6 +1204,130 @@ class TestASpentButtonStaysDead:
         self.press()
         assert len(pressable) == 2
         assert standing()["state"] == bot.GROUP_INVITE_PENDING
+
+
+class TestAModeratorCanChangeTheirMind:
+    """The whole point of #207, end to end.
+
+    A ban is a moderator's decision and it is theirs to reverse. The bot used
+    to record one and never look again, so a ban lifted after a day locked the
+    member out of the feature permanently -- while telling them, in the very
+    message that recorded it, that "only a group moderator can change that".
+    """
+
+    def press(self):
+        return run(
+            bot.handle_group_invite_press(
+                FakeInteraction(), GUILD_ID, FINGERPRINT
+            )
+        )
+
+    def settle(self, job_id, state):
+        bot.record_group_invite_result(
+            {
+                "type": inviter.JOB_SEND_INVITE,
+                "jobID": job_id,
+                "guildID": str(GUILD_ID),
+                "state": state,
+            }
+        )
+
+    def lapse_the_cooldown(self):
+        with bot.session_scope() as session:
+            row = session.query(bot.GroupInviteRequest).first()
+            lapsed = datetime.now(timezone.utc) - timedelta(
+                seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60
+            )
+            row.requested_at = lapsed
+            row.settled_at = lapsed
+
+    def test_a_ban_lifted_is_an_invite_delivered(self, subscribed, pressable):
+        make_user()
+        ready_group()
+
+        # They press, and VRChat says they are banned.
+        self.press()
+        assert len(pressable) == 1
+        self.settle(pressable[0][0]["jobID"], bot.GROUP_INVITE_BANNED)
+        assert standing()["state"] == bot.GROUP_INVITE_BANNED
+
+        # The button they used is spent, and a ban does not resurrect it.
+        self.press()
+        assert len(pressable) == 1
+
+        # A moderator lifts the ban. Nothing tells the bot -- it finds out by
+        # being asked again, which is what the next verification does.
+        self.lapse_the_cooldown()
+        member, guild = FakeMember(), FakeGuild()
+        run(bot.offer_group_invite(member, guild, "en-US", None))
+        assert len(member.sent) == 1, "a lifted ban has to be re-offerable"
+
+        # And this time the worker is actually asked.
+        self.press()
+        assert len(pressable) == 2
+        self.settle(pressable[1][0]["jobID"], bot.GROUP_INVITE_SENT)
+        assert standing()["state"] == bot.GROUP_INVITE_SENT
+
+    def test_a_block_switched_back_on_is_the_same_story(
+        self, subscribed, pressable
+    ):
+        """The member's own opt-out is theirs to reverse too, and the copy
+        already told them so: "Group invites may be switched off in your
+        VRChat settings"."""
+        make_user()
+        ready_group()
+        self.press()
+        self.settle(pressable[0][0]["jobID"], bot.GROUP_INVITE_BLOCKED)
+        self.lapse_the_cooldown()
+        member, guild = FakeMember(), FakeGuild()
+        run(bot.offer_group_invite(member, guild, "en-US", None))
+        assert len(member.sent) == 1
+
+    def test_a_ban_that_still_stands_costs_one_refused_call_per_cooldown(
+        self, subscribed, pressable
+    ):
+        """Re-checking is bounded. However hard a still-banned member
+        re-verifies, they reach the worker once per GROUP_INVITE_COOLDOWN_
+        SECONDS -- and #209 is what makes VRChat's refusal land as `banned`
+        rather than as a transient failure that hands the button straight
+        back."""
+        make_user()
+        ready_group()
+        self.press()
+        self.settle(pressable[0][0]["jobID"], bot.GROUP_INVITE_BANNED)
+
+        # Verifying in a loop inside the cooldown buys nothing.
+        member, guild = FakeMember(), FakeGuild()
+        for _ in range(5):
+            run(bot.offer_group_invite(member, guild, "en-US", None))
+        assert member.sent == []
+        self.press()
+        assert len(pressable) == 1
+
+    def test_the_member_is_never_actually_invited_while_banned(self, api):
+        """The reason re-asking is safe, and it is not our enforcement.
+
+        Pinned end to end because it is the whole licence for this change. The
+        worker refuses on the membership read when it can see the ban, and
+        create_group_invite answers 409 when it cannot (#209). Either way the
+        state that comes back is `banned` and NO INVITE IS CREATED, so asking
+        again can never deliver one to somebody a moderator threw out.
+        """
+        # The ban the read can see.
+        api.member = member_record("banned")
+        assert inviter.send_group_invite(INVITE_JOB)["state"] == inviter.INVITE_BANNED
+        assert api.invites() == [], "nothing may be sent"
+
+        # The ban it cannot -- no member record, so the read answers None.
+        api.member = None
+        api.get_member_error = None
+        api.invite_error = FakeApiException(
+            409, "ClubLA Bot is banned from this group\u2024"
+        )
+        assert inviter.send_group_invite(INVITE_JOB)["state"] == inviter.INVITE_BANNED
+
+        # And the state the worker names is the one the bot stores.
+        assert inviter.INVITE_BANNED == bot.GROUP_INVITE_BANNED
 
 
 class TestTheOfferIsStampedForOneAccount:
