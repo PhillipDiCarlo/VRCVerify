@@ -895,7 +895,6 @@ it.
   one UTC-day snapshot of registered servers, servers the bot can currently
   access, and registered servers it can no longer access. The `servers` row is
   intentionally retained after a bot removal so a re-invited server keeps its
-   intentionally retained after a bot removal so a re-invited server keeps its
    configuration; this snapshot is therefore the source for distinguishing
    active registrations from removed or kicked registrations. The snapshot is
   written on startup and once at each UTC midnight by a supervised background
