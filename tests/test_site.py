@@ -1261,18 +1261,41 @@ class TestTheUpdateEmailSignup:
 
         assert action("index.html") == action("changelog.html")
 
-    def test_the_placeholder_is_visible_as_a_placeholder(self):
-        """Fails loudly the day somebody wires a real account, which is the
-        point: it is the reminder to update BOTH copies and the docs.
+    def test_the_account_name_is_really_set(self):
+        """The placeholder guard this replaces did its job and was deleted with
+        the change that wired the real account, as its docstring instructed.
 
-        Delete this test in the same change that sets the real name.
+        What remains worth pinning is the other direction: a revert, a merge
+        that resurrects the old string, or a copy-paste of the snippet from the
+        issue would ship a form that 404s on submit. Nobody notices that until
+        somebody tries to subscribe and silently does not.
         """
         from gen_changelog import BUTTONDOWN_USERNAME
 
-        assert BUTTONDOWN_USERNAME == "BUTTONDOWN_USERNAME", (
-            "The Buttondown account is now set. Update index.html to match, "
-            "then delete this test."
+        assert BUTTONDOWN_USERNAME != "BUTTONDOWN_USERNAME", (
+            "the Buttondown account name is back to being a placeholder"
         )
+        assert BUTTONDOWN_USERNAME.isascii() and BUTTONDOWN_USERNAME.isalnum()
+
+    def test_the_html_carries_the_account_name_exactly(self):
+        """Case-sensitively, which is the point.
+
+        Measured 2026-08-28: buttondown.com/Italiandogs answers 200 and
+        buttondown.com/italiandogs answers 302 to it. A lower-cased slug is
+        therefore a redirect, and a redirect on a form POST is the exact shape
+        that produced the "Subscribe does nothing" bug on the dashboard. An
+        `.lower()` slipped in anywhere between the constant and the markup
+        would not look wrong in a diff.
+        """
+        from gen_changelog import BUTTONDOWN_USERNAME
+
+        for name in self.PAGES_WITH_FORM:
+            action = re.search(r"embed-subscribe/([^\"]+)", read(SITE / name))
+            assert action, f"{name} has no Buttondown action"
+            assert action.group(1) == BUTTONDOWN_USERNAME, (
+                f"{name} posts to {action.group(1)!r}, the generator says "
+                f"{BUTTONDOWN_USERNAME!r}"
+            )
 
 
 class TestThePrivacyPolicyMatchesWhatWeDo:

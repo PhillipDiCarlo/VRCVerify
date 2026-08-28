@@ -68,11 +68,19 @@ SUPPORT_INVITE_URL = "https://discord.gg/Vus4qxA52Q"
 
 # The Buttondown account the signup form posts to (#139).
 #
-# PLACEHOLDER until the account exists. The form is inert-but-visible while it
-# says BUTTONDOWN_USERNAME: a submission 404s, which is a bad experience but a
-# loud one, so this must not reach production unset. tests/test_site.py refuses
-# to let it disagree with the copy in index.html, which is the drift this would
-# otherwise develop -- two hand-edited copies of one account name.
+# THE CAPITAL I IS LOAD-BEARING. Measured 2026-08-28:
+#
+#   GET buttondown.com/Italiandogs   -> 200
+#   GET buttondown.com/italiandogs   -> 302 to /Italiandogs
+#
+# so the slug is case-sensitive and lowercase is a redirect. That is the same
+# shape as the host note below, and the same shape as the bug it points at: a
+# redirect on a form POST is how "Subscribe does nothing" happened on the
+# dashboard. Copy this string exactly rather than retyping it.
+#
+# tests/test_site.py refuses to let this disagree with the copy in index.html,
+# which is the drift this would otherwise develop -- two hand-edited copies of
+# one account name -- and refuses to let it go back to being a placeholder.
 #
 # Hardcoded for the same reason SUPPORT_INVITE_URL above is: these are static
 # files behind a CDN and nothing renders them at request time.
@@ -82,7 +90,7 @@ SUPPORT_INVITE_URL = "https://discord.gg/Vus4qxA52Q"
 # "Subscribe does nothing" bug on the dashboard -- see the form-action comment
 # in src/dashboard/app.py. Nothing here has a CSP to refuse it, but pointing at
 # the host that actually serves is free.
-BUTTONDOWN_USERNAME = "BUTTONDOWN_USERNAME"
+BUTTONDOWN_USERNAME = "Italiandogs"
 SUBSCRIBE_ACTION = (
     f"https://buttondown.com/api/emails/embed-subscribe/{BUTTONDOWN_USERNAME}"
 )

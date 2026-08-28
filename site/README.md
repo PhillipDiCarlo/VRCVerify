@@ -242,6 +242,22 @@ It also means the list cannot be enriched *from* our side: no importing
 addresses from Stripe or Discord, which is why every address on it is one
 somebody typed into the form.
 
+### The Buttondown account name, and its capital I
+
+The signup form posts to
+`https://buttondown.com/api/emails/embed-subscribe/Italiandogs`. Set it in
+`scripts/gen_changelog.py` and in `site/index.html`, then regenerate; never
+hand-edit `site/changelog.html`.
+
+**The casing is load-bearing.** `buttondown.com/Italiandogs` answers 200 and
+`buttondown.com/italiandogs` answers 302 to it, so a lower-cased slug is a
+redirect, and a redirect on a form POST is how "Subscribe does nothing"
+happened on the dashboard. Copy the string rather than retyping it.
+
+Unlike the invite below, this one *is* guarded: `tests/test_site.py` fails if
+the two copies disagree, if the casing drifts, or if it goes back to being a
+placeholder.
+
 ### Rotating the invite means changing three things
 
 The invite is meant to be non-expiring, so this should be rare — but if it ever
