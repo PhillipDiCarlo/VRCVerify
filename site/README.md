@@ -249,3 +249,16 @@ The exception is `changelog.html` — see above. Style it in `style.css` like an
 other page; never edit its markup.
 
 Update the `Last updated` date at the top of any policy you change materially.
+
+### Renaming a section of a legal page
+
+Terms, Privacy and Refunds each carry an "On this page" list at the top, and
+that list is a second copy of every section name. Rename a heading and the copy
+several hundred lines above it still says the old thing, pointing at an `id`
+that no longer exists.
+
+So change both, and change the `id` only if you mean to: `id`s are a public
+contract, held by Stripe, by Discord and by support replies that link into a
+specific clause. `tests/test_site.py` derives the expected list from the page's
+own headings and fails if the two disagree, so this cannot ship half done, but
+the test tells you to regenerate the list rather than doing it for you.
