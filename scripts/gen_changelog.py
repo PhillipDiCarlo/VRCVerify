@@ -57,6 +57,13 @@ SITE = REPO / "site"
 #
 # It is a NON-EXPIRING invite. An expired link on a public page is a quiet,
 # embarrassing failure, and nothing here would notice.
+#
+# THIS VALUE LIVES IN THREE PLACES -- here, the bot host's .env, and the VPS's
+# dashboard.env. Nothing detects a miss, and this is the copy that gets
+# forgotten: it is code rather than configuration, it needs a regeneration
+# afterwards, and it is the PUBLIC page, so a stale link here is broken for
+# people who have never signed in and cannot tell you. See "Rotating the
+# invite" in site/README.md.
 SUPPORT_INVITE_URL = "https://discord.gg/Vus4qxA52Q"
 OUTPUT = SITE / "changelog.html"
 # The page the chrome is lifted from. Any page would do -- the suite pins them

@@ -184,6 +184,59 @@ thing separating an entry written for a signed-in admin from one strangers
 read, so it is tested against a fabricated private entry rather than waiting
 for the first real one.
 
+## Announcing a release in Discord
+
+Admins can *follow* VRCVerify's announcement channel, which crossposts every
+post we make into their own servers (issue #138). That makes the Discord post
+a **fourth rendering of `ENTRIES`**, alongside this page, the dashboard feed
+and the in-app bell — and the only one with a human in the loop.
+
+So it belongs in the same commit-and-release habit as the generator above:
+
+1. Add the entry to `ENTRIES` in `src/dashboard/changelog.py`.
+2. `python scripts/gen_changelog.py` in the same commit.
+3. Post it in the announcement channel, **copied from the entry rather than
+   rewritten**, and publish it so followers receive it.
+
+**Do not let the Discord copy and the changelog copy drift.** Nothing enforces
+this one — the other three renderings share a constant and a test, this one
+shares a person. If it proves error-prone, that is the argument for driving it
+from `ENTRIES` with a webhook, not for accepting two versions of the same
+sentence.
+
+Two things worth knowing before automating it: the bot must be *in* that server
+and hold Manage Messages to crosspost, and crossposting is rate limited. At a
+handful of posts a year neither matters, which is exactly why it is worth
+writing down now rather than rediscovering under pressure.
+
+Posts land in **other people's servers, in front of their members** rather than
+only their admins. Keep them short, keep them useful, and assume a non-admin is
+reading. Entries marked `public=False` are for signed-in admins and must not be
+posted here at all.
+
+### Rotating the invite means changing three things
+
+The invite is meant to be non-expiring, so this should be rare — but if it ever
+does change, **nothing detects a miss.** The three live in different places on
+purpose and none of them can see the others:
+
+| where | what | who reads it |
+|---|---|---|
+| the bot host's `.env` | `SUPPORT_INVITE_URL` | `/vrcverify_support`, `/vrcverify_setup` |
+| the VPS's `dashboard.env` | `SUPPORT_INVITE_URL` | the bell panel, the dashboard changelog |
+| `scripts/gen_changelog.py` | `SUPPORT_INVITE_URL` constant | this page — **regenerate after changing it** |
+
+The third is the one that gets forgotten, because it is code rather than
+configuration and because it is the only one that needs a second step. It is
+also the worst one to get wrong: it is the **public** page, so a stale link
+there is broken for people who have never signed in and cannot tell you.
+
+It is a constant rather than an environment read for a reason — see the comment
+on it. These are static files behind a CDN, so nothing renders them at request
+time, and reading the environment at generation time would make the committed
+HTML depend on whose shell ran the script while `--check` regenerates in memory
+and compares.
+
 ## Editing
 
 Plain HTML, one shared `style.css`, no build step. Keep the footers and navs in

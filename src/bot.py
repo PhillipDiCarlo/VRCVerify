@@ -2195,15 +2195,26 @@ ROLE_FIELDS = frozenset({"role_id", "unverified_role_id"})
 
 # The log channel, which unlike a role has rules beyond existing.
 #
-# /vrcverify_logchannel refuses an announcement channel outright: other servers
-# can *follow* one, and every entry in this log pairs a Discord user with their
-# 18+ status, so a followed channel would republish an age disclosure about a
-# named member into servers they have no relationship with.
+# An announcement channel is refused outright: other servers can *follow* one,
+# and every entry in this log pairs a Discord user with their 18+ status, so a
+# followed channel would republish an age disclosure about a named member into
+# servers they have no relationship with.
 #
-# It also confirms by posting into the channel, which doubles as a permission
-# check. The dashboard refuses on `can_send` instead of posting: a settings
-# save should not put a message in a channel as a side effect, and the bot
-# already computes the same answer for the settings page.
+# The refusal lives in write_dashboard_settings, with the rest of the
+# validation, and is reached from both the website and the read-only commands.
+# It used to live in /vrcverify_logchannel, which also confirmed by posting
+# into the channel so the write doubled as a permission check; that command no
+# longer writes anything, and the permission is now computed from
+# `send_messages` rather than proved by sending. One path, checked in one
+# place.
+#
+# THE SAME PROPERTY IS USED DELIBERATELY ELSEWHERE, and the two decisions are
+# not in tension. Issue #138 has admins *follow* VRCVerify's own announcement
+# channel so update posts reach their servers. Following is the hazard here and
+# the entire mechanism there; what differs is the content. Ours is release
+# notes written to be broadcast. This log is age disclosures about named
+# members, which must never leave the server that produced them. The rule is
+# about what is in the channel, never about the channel type.
 CHANNEL_FIELDS = frozenset({"verification_log_channel_id"})
 
 
