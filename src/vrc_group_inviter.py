@@ -405,6 +405,63 @@ def _api_detail(exc) -> str:
     return str(getattr(exc, "reason", "") or "")[:300]
 
 
+# The two sentences VRChat answers 400 with, as suffixes.
+#
+# Matched at the END of the message, never as a substring, because the part in
+# front of them is the member's VRChat DISPLAY NAME -- text they choose. A
+# display name of "already invited lol" would otherwise decide the branch for
+# a member who is really already in the group.
+#
+# The trailing character VRChat uses is U+2024 ONE DOT LEADER, not an ASCII
+# full stop, so it is stripped rather than matched. Anything anchored on "."
+# would silently never fire.
+INVITE_400_ALREADY_MEMBER_SUFFIX = "is already a member of this group"
+INVITE_400_ALREADY_INVITED_SUFFIX = "is already invited"
+
+
+def _classify_invite_400(detail: str) -> str:
+    """Which "nothing to do" a 400 from create_group_invite is about.
+
+    Measured 2026-08-27:
+
+        400 "<name> is already invited․"
+        400 "<name> is already a member of this group․"
+
+    These need different sentences and the docstring on send_group_invite says
+    so: being a member is finished, while an invite already waiting is a nudge
+    to go and look at their notifications. Answering both with "already a
+    member" sends people hunting through a group they have not joined.
+
+    This is the one place in this file where the wording IS consulted. For 403
+    and 409 the status carries the whole meaning and parsing the text would be
+    a liability -- there are tests holding that line for both. Here the status
+    genuinely does not distinguish the two, and VRChat does.
+
+    An unrecognised 400 keeps the previous behaviour rather than becoming a new
+    failure mode: VRChat rewording either sentence, or _api_detail falling back
+    to a raw body it could not parse, then lands exactly where it landed
+    before this function existed.
+    """
+    text = (detail or "").strip().lower()
+    # U+2024, and the ASCII stop in case they ever switch, plus stray space.
+    text = text.rstrip("\u2024. \t")
+    if text.endswith(INVITE_400_ALREADY_INVITED_SUFFIX):
+        return INVITE_ALREADY_INVITED
+    if not text.endswith(INVITE_400_ALREADY_MEMBER_SUFFIX):
+        # Neither sentence. Logged rather than swallowed, on the same reasoning
+        # as _api_detail: what WE concluded is recorded either way, and the
+        # only way anyone finds out that VRChat reworded this -- or that a
+        # third meaning for 400 exists -- is a line saying we did not
+        # recognise it.
+        logging.warning(
+            "Unrecognised 400 from create_group_invite (%s); reporting it as "
+            "%s, which is what this status has always meant here.",
+            detail,
+            INVITE_ALREADY_MEMBER,
+        )
+    return INVITE_ALREADY_MEMBER
+
+
 # What a probe of the group found. `unknown` is a first-class answer: not
 # knowing must never be reported as either of the other two.
 GROUP_PRESENT = "present"
@@ -891,9 +948,13 @@ def send_group_invite(job: dict) -> dict:
             # against a group that had banned them.
             return _invite_result(job, INVITE_BANNED, error_message=detail)
         if code == 400:
-            # "User X is already a member of this group" -- they joined in the
-            # seconds since the check above. Reported as what it is.
-            return _invite_result(job, INVITE_ALREADY_MEMBER, error_message=detail)
+            # Two different "nothing to do" answers share this status: they
+            # joined in the seconds since the check above, or an invite was
+            # already waiting for them. See _classify_invite_400 -- the status
+            # cannot tell them apart and they need different sentences.
+            return _invite_result(
+                job, _classify_invite_400(detail), error_message=detail
+            )
         if code in {403, 404}:
             # Both are ambiguous, and both are resolved the same way: ask what
             # is actually true about the group. See _probe_group. One extra
