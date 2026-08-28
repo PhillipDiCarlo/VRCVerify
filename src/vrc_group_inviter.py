@@ -889,10 +889,10 @@ def send_group_invite(job: dict) -> dict:
             _api_detail(e),
         )
 
-    # Only two answers stop an invite: they are already in, or the group has
-    # thrown them out. Everything else means the member asked for something
-    # they can have, and gets it. See the branches below for why each of the
-    # cases that used to refuse no longer does.
+    # Two answers stop an invite as a matter of POLICY: they are already in,
+    # or the group has thrown them out. `userblocked` stops it too, but that is
+    # an optimisation rather than a third policy -- see its branch. Everything
+    # else means the member asked for something they can have, and gets it.
     if status == "member":
         return _invite_result(job, INVITE_ALREADY_MEMBER)
     if status == "banned":
@@ -956,6 +956,7 @@ def send_group_invite(job: dict) -> dict:
                 getattr(e, "status", None),
                 _api_detail(e),
             )
+
     # "requested" -- a pending join request -- deliberately has NO branch, and
     # that is a decision rather than an omission. An invite against somebody
     # who has applied admits them on the spot rather than queueing (measured
@@ -966,7 +967,8 @@ def send_group_invite(job: dict) -> dict:
     # precisely the population it was installed to admit. Leaving them in the
     # queue refuses somebody the bot has already vouched for.
 
-    # 2) Nothing waiting for them, so send one.
+    # 2) Send it. Either nothing was waiting for them, or the branch above
+    #    withdrew what was so this one can be seen.
     try:
         _call_with_retry(
             _throttled_invite,
@@ -1019,6 +1021,18 @@ def send_group_invite(job: dict) -> dict:
             # joined in the seconds since the check above, or an invite was
             # already waiting for them. See _classify_invite_400 -- the status
             # cannot tell them apart and they need different sentences.
+            #
+            # KNOWN RESIDUAL (#215): reaching `already_invited` HERE means the
+            # precheck did not report "invited", so the withdraw-and-re-send
+            # above never ran -- and if this member had dismissed their
+            # notification they are still stranded, now being told an invite
+            # is waiting in a list they cleared. Only reachable when the
+            # precheck raised, and it costs them one verification: their next
+            # press finds a precheck that works and is repaired there. Not
+            # rescued from inside this handler on purpose -- nesting a
+            # withdraw, a second invite, and its own error classification
+            # inside an error handler is exactly the shape that produced two
+            # production rewrites of this function.
             return _invite_result(
                 job, _classify_invite_400(detail), error_message=detail
             )
