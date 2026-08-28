@@ -286,3 +286,40 @@ class TestVerificationCodeGeneration:
             assert len(body) == 6
             assert all(ch in string.ascii_uppercase + string.digits for ch in body)
             assert "O" not in body and "I" not in body
+
+
+class TestTheLogChannelRuleIsStillAboutContent:
+    """#138 has admins follow OUR announcement channel while the log channel
+    refuses to BE one. The two look contradictory and are not, so the comment
+    explaining that is load-bearing -- it is the thing that stops somebody
+    later "fixing" one of the two decisions to match the other.
+    """
+
+    def test_the_refusal_still_exists(self):
+        """The acceptance criterion #138 must not weaken."""
+        import inspect
+
+        source = inspect.getsource(bot.write_dashboard_settings)
+        assert "is_news()" in source
+        assert "channel_is_announcement" in source
+
+    def test_the_comment_no_longer_credits_a_command_that_stopped_checking(self):
+        """It claimed "/vrcverify_logchannel refuses an announcement channel
+        outright" long after that command went read-only, and claimed it
+        confirms by posting into the channel long after it stopped writing at
+        all."""
+        import inspect
+
+        source = inspect.getsource(bot)
+        start = source.index("The log channel, which unlike a role")
+        comment = source[start:start + 1400]
+        assert "/vrcverify_logchannel refuses" not in comment
+        assert "write_dashboard_settings" in comment
+
+    def test_the_two_decisions_are_reconciled_in_writing(self):
+        import inspect
+
+        source = inspect.getsource(bot)
+        start = source.index("The log channel, which unlike a role")
+        comment = source[start:start + 1400]
+        assert "#138" in comment
