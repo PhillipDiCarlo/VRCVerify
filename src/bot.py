@@ -823,27 +823,39 @@ GROUP_INVITE_SETTLED_STATES = frozenset(
     }
 )
 
-# Settled for THIS button, but not for ever: a new verification offers again.
+# Outcomes this bot will never ask about again. DELIBERATELY EMPTY.
 #
-# An invite is not a one-shot entitlement. Invites get ignored, lost in a pile
-# of VRChat notifications, declined by accident, or deleted; members leave a
-# group and want back in. None of those should mean "never again" for somebody
-# who is still 18+ and still in the Discord -- the point of the feature is that
-# verified members can get into the group, not that they get exactly one
-# chance at it.
+# It used to hold BANNED and BLOCKED, on the argument that a moderator's ban
+# and a member's own opt-out are both answers we have no business re-opening.
+# That argument was wrong, and the way it was wrong is worth keeping:
 #
-# The two left out are the ones where asking again is the wrong thing to do.
-# BANNED is a group moderator's decision, and re-inviting somebody they threw
-# out is precisely the pattern VRChat's guidelines call abuse. BLOCKED is the
-# member's own: they switched group invites off, and re-offering argues with an
-# opt-out (the invite would 403 anyway, since confirm_override_block is always
-# False). Both stay permanent.
-GROUP_INVITE_FINAL_STATES = frozenset(
-    {
-        GROUP_INVITE_BLOCKED,
-        GROUP_INVITE_BANNED,
-    }
-)
+#   * Neither state is OUR verdict. Both are a cache of what VRChat told us
+#     once. A moderator who lifts a ban, and a member who switches group
+#     invites back on, have both changed the answer -- and a permanent cache
+#     is a promise never to notice. A one-day ban cost the member the feature
+#     for ever.
+#   * The member-facing copy has always described a re-checkable system.
+#     "Only a group moderator can change that" and "Group invites may be
+#     switched off in your VRChat settings" both name a fix that, under the old
+#     rule, could not possibly help. The strings were right and the state
+#     machine was wrong.
+#   * Re-checking costs almost nothing and can invite nobody. The worker asks
+#     get_group_member first, and a ban that check cannot see is refused by
+#     create_group_invite with a 409 (issue #209). VRChat enforces this, not
+#     us, so the worst case of asking again is one refused API call -- never an
+#     invite reaching somebody a moderator threw out.
+#
+# The compliance argument that motivated permanence survives intact, because it
+# was always about SENDING, not asking. What VRChat's guidelines call abuse is
+# pushing an unsolicited invite at somebody who has been thrown out. Nothing
+# here sends one: an invite exists only after the member presses a button in
+# their own DM, and confirm_override_block is still always False.
+#
+# Kept as an empty set rather than deleted so the relationship below still
+# reads as a relationship, and so a state that genuinely IS permanent has a
+# home. Adding one is a real decision: it must be an answer that no action by
+# the member or by a moderator could ever change.
+GROUP_INVITE_FINAL_STATES: frozenset = frozenset()
 GROUP_INVITE_REOFFERABLE_STATES = GROUP_INVITE_SETTLED_STATES - GROUP_INVITE_FINAL_STATES
 
 
@@ -3476,10 +3488,13 @@ def group_invite_refusal(
         this, a member holding several DMs could turn each one into another
         invite.
 
-      * The OFFER refuses only GROUP_INVITE_FINAL_STATES. A new verification is
-        a fresh ask by a member who is still 18+ and still here, so a previous
-        `sent`, `already_invited` or `already_member` is re-offered once the
-        cooldown since that outcome has lapsed.
+      * The OFFER refuses only the cooldown. A new verification is a fresh ask
+        by a member who is still 18+ and still here, so EVERY settled outcome
+        is re-offered once the cooldown since it has lapsed -- `banned` and
+        `blocked` included. GROUP_INVITE_FINAL_STATES is empty and the comment
+        on it says why: neither of those is our verdict, both are a cache of
+        something VRChat will answer again, and a member cannot be invited
+        anywhere a ban still stands because VRChat refuses it.
 
     What the cooldown bounds is INVITES, not DMs. A member who verifies over
     and over while holding an unpressed button collects more buttons -- that
@@ -5716,11 +5731,12 @@ async def offer_group_invite(
     Silent on every "no", because there is no sentence worth sending about a
     button somebody was never going to be shown.
 
-    A previous outcome is not one of those "no"s, except for
-    GROUP_INVITE_FINAL_STATES. A member who was invited and never accepted, or
-    who has since left the group, is offered again on their next verification
-    -- see group_invite_refusal, which is where the offer and the press part
-    company.
+    A previous outcome is not one of those "no"s at all. A member who was
+    invited and never accepted, who has since left the group, who was banned
+    and then unbanned, or who switched group invites off and back on, is
+    offered again on their next verification -- see group_invite_refusal,
+    which is where the offer and the press part company, and
+    GROUP_INVITE_FINAL_STATES, which is empty on purpose.
     """
     guild_id = str(guild.id)
     if premium is not None and not premium.allows(FEATURE_GROUP_INVITE):

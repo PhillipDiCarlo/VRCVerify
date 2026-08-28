@@ -61,12 +61,26 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
    claims the request and every other button then refuses against it, so the
    ceiling is one invite per `GROUP_INVITE_COOLDOWN_SECONDS`.
 
-   Two outcomes are final and are never offered again: **banned**, which is a
-   group moderator's decision and where re-inviting is exactly the pattern the
-   guidelines call abuse, and **blocked**, which is the member's own choice to
-   switch group invites off — re-offering would argue with an opt-out, and the
-   invite would be refused anyway, since `confirm_override_block` is always
-   `False`.
+   **Nothing is permanent, including a ban.** `banned` and `blocked` used to be
+   final and never offered again. They no longer are, because neither is *our*
+   verdict — both are a cache of something VRChat will answer again. A
+   moderator who lifts a ban and a member who switches group invites back on
+   have each changed the answer, and never asking again is a promise not to
+   notice: a one-day ban cost the member the feature for ever. The copy already
+   admitted as much — "only a group moderator can change that" and "group
+   invites may be switched off in your VRChat settings" both name a fix that,
+   under the old rule, could not possibly help.
+
+   Asking again is safe because the enforcement is VRChat's, not ours. The
+   worker refuses on the membership read when it can see the ban, and
+   `create_group_invite` answers **409** when it cannot, so no invite is ever
+   created for somebody a moderator threw out — the worst case of re-asking is
+   one refused API call, bounded to one per `GROUP_INVITE_COOLDOWN_SECONDS`
+   however hard a member re-verifies. The compliance argument that once
+   motivated permanence is untouched, because it was always about *sending*,
+   not about *asking*: an invite exists only after the member presses a button
+   in their own DM, and `confirm_override_block` is still always `False`, so
+   re-asking can never become overriding.
 
    **The offer is made to one VRChat account, not to a Discord account.** The
    button's `custom_id` carries a fingerprint of the account it was offered
