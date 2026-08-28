@@ -30,6 +30,7 @@ neither is obvious from reading a diff:
 
 import asyncio
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -1508,7 +1509,12 @@ class TestSendingOneInvite:
         assert result["state"] == inviter.INVITE_BLOCKED
 
     def test_joining_between_the_check_and_the_invite(self, api):
-        api.invite_error = FakeApiException(400, "already a member of this group")
+        # The real sentence, as measured 2026-08-27 -- including the U+2024 it
+        # ends with. The shortened paraphrase this used to carry no longer
+        # exercises the recognised path, since the suffix match wants the "is".
+        api.invite_error = FakeApiException(
+            400, "ClubLA Bot is already a member of this group\u2024"
+        )
         result = inviter.send_group_invite(INVITE_JOB)
         assert result["state"] == inviter.INVITE_ALREADY_MEMBER
 
@@ -1759,6 +1765,114 @@ class TestTellingTwoKindsOf403Apart:
         api.invite_error = FakeApiException(403, "You can't invite that user")
         state = inviter.send_group_invite(INVITE_JOB)["state"]
         assert state in bot.GROUP_INVITE_SETTLED_STATES
+
+
+class TestTellingTwoKindsOf400Apart:
+    """400 from create_group_invite is two different "nothing to do" answers.
+
+    Measured 2026-08-27:
+
+        400 "<name> is already invited\u2024"
+        400 "<name> is already a member of this group\u2024"
+
+    Both used to be reported as ALREADY_MEMBER, which send_group_invite's own
+    docstring rules out: "being a member is finished, and having an invite
+    already waiting is a nudge to go look at their notifications. Answering
+    both with 'already a member' would send people hunting through a group they
+    have not joined."
+
+    The status cannot separate them, so this is the one place in the worker
+    where the wording IS consulted -- see the 403 and 409 suites, which hold
+    the opposite line for statuses that carry their own meaning.
+    """
+
+    def test_an_invite_already_waiting_is_not_called_membership(self, api):
+        """The bug, named."""
+        api.invite_error = FakeApiException(
+            400, "ClubLA Bot is already invited\u2024"
+        )
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_ALREADY_INVITED
+
+    def test_actual_membership_still_reads_as_membership(self, api):
+        api.invite_error = FakeApiException(
+            400, "ClubLA Bot is already a member of this group\u2024"
+        )
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_ALREADY_MEMBER
+
+    def test_the_two_get_different_sentences(self):
+        """The whole point of separating them. If these keys were ever made
+        equal, this suite would still pass while the member-facing behaviour
+        went back to what it was."""
+        assert (
+            bot.GROUP_INVITE_MESSAGE_KEYS[bot.GROUP_INVITE_ALREADY_INVITED]
+            != bot.GROUP_INVITE_MESSAGE_KEYS[bot.GROUP_INVITE_ALREADY_MEMBER]
+        )
+
+    def test_the_terminator_is_not_an_ascii_full_stop(self):
+        """VRChat ends these with U+2024 ONE DOT LEADER. A matcher anchored on
+        "." would never fire, and would do so silently."""
+        assert "\u2024" != "."
+        for tail in ["\u2024", ".", "", " "]:
+            assert (
+                inviter._classify_invite_400(f"ClubLA Bot is already invited{tail}")
+                == inviter.INVITE_ALREADY_INVITED
+            )
+
+    def test_the_wording_is_matched_at_the_end_not_anywhere(self, api):
+        """The part in front of these sentences is the member's VRChat DISPLAY
+        NAME, which they choose. A substring match would let somebody name
+        themselves "already invited lol" and change the verdict for a member
+        who is really in the group."""
+        api.invite_error = FakeApiException(
+            400, "already invited lol is already a member of this group\u2024"
+        )
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_ALREADY_MEMBER
+
+    def test_the_forgery_does_not_work_the_other_way_either(self, api):
+        """A member named for the other sentence, who really does have an
+        invite waiting, is still reported as having one."""
+        api.invite_error = FakeApiException(
+            400,
+            "X is already a member of this group lol is already invited\u2024",
+        )
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_ALREADY_INVITED
+
+    def test_case_is_not_load_bearing(self):
+        assert (
+            inviter._classify_invite_400("ClubLA Bot IS ALREADY INVITED\u2024")
+            == inviter.INVITE_ALREADY_INVITED
+        )
+
+    @pytest.mark.parametrize(
+        "detail", ["", "Some entirely new wording", '{"unparseable', None]
+    )
+    def test_an_unrecognised_400_keeps_the_old_behaviour(self, detail):
+        """VRChat rewording either sentence, or _api_detail falling back to a
+        body it could not parse, must not become a NEW failure mode -- it lands
+        where it landed before this split existed."""
+        assert inviter._classify_invite_400(detail) == inviter.INVITE_ALREADY_MEMBER
+
+    def test_an_unrecognised_400_says_so_in_the_log(self, caplog):
+        """The only way anyone finds out VRChat reworded this. _api_detail
+        exists for the same reason, and its docstring says that absence cost
+        three deploys."""
+        with caplog.at_level(logging.WARNING):
+            inviter._classify_invite_400("Some entirely new wording")
+        assert "Unrecognised 400" in caplog.text
+
+    def test_a_recognised_400_is_quiet(self, caplog):
+        """A check that cries wolf gets filtered out of the log and stops being
+        a check."""
+        with caplog.at_level(logging.WARNING):
+            inviter._classify_invite_400("ClubLA Bot is already invited\u2024")
+            inviter._classify_invite_400(
+                "ClubLA Bot is already a member of this group\u2024"
+            )
+        assert "Unrecognised 400" not in caplog.text
 
 
 class TestABannedRecipientIsRecognised:
