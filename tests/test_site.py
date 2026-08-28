@@ -1327,9 +1327,15 @@ class TestThePrivacyPolicyMatchesWhatWeDo:
         assert "Until you unsubscribe or ask us to delete it" in text
 
     def test_consent_for_email_is_separate_from_verification(self):
-        """Bundling the two consents is the thing the amendment must not do."""
+        """Bundling the two consents is the thing the amendment must not do.
+
+        Anchored on `id="`, like its two siblings above and below, rather than
+        on the bare id. #190 gives every legal page a contents list carrying
+        `href="#our-legal-basis-..."` several hundred lines ABOVE the heading,
+        so a bare substring finds the link first and reads the wrong section.
+        """
         text = read(SITE / "privacy.html")
-        basis = text.split("our-legal-basis", 1)[1].split("</ul>", 1)[0]
+        basis = text.split('id="our-legal-basis', 1)[1].split("</ul>", 1)[0]
         assert "separate" in basis.lower()
 
     def test_a_subscriber_with_no_discord_account_has_a_path(self):
