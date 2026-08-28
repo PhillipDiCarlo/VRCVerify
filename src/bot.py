@@ -6598,6 +6598,19 @@ async def vrcverify_setup(
     else:
         extra_local = get_message("setup_unverified_missing", interaction)
     panel_nudge = "" if has_panel else get_message("setup_panel_nudge", interaction)
+    # The invite, at the one moment an admin has just proved they care whether
+    # this bot works. Reuses support_invite_line rather than inventing a second
+    # sentence saying the same thing -- #122 asks for that explicitly, and two
+    # near-duplicate strings is twelve near-duplicate translations later.
+    #
+    # Empty when no invite is configured, so an unset SUPPORT_INVITE_URL leaves
+    # this reply exactly as it was.
+    invite = support_invite_url()
+    invite_hint = (
+        "\n\n" + get_message("support_invite_line", interaction, invite=invite)
+        if invite
+        else ""
+    )
     donate_hint = get_message("setup_donate_hint", interaction, kofi_link=KOFI_URL)
     # This command survived the move to the dashboard because it is how a
     # server gets configured before anyone has heard of the website. Pointing
@@ -6609,7 +6622,9 @@ async def vrcverify_setup(
     extra = {"view": DashboardLinkView(url)} if url else {}
     # Donate hint stays last so it reads as a footer under everything else.
     await interaction.response.send_message(
-        base + extra_local + panel_nudge + donate_hint, ephemeral=True, **extra
+        base + extra_local + panel_nudge + invite_hint + donate_hint,
+        ephemeral=True,
+        **extra,
     )
 
 

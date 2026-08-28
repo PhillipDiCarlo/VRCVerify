@@ -608,3 +608,42 @@ class TestSupportCommandOffersTheInvite:
         monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", "https://discord.gg/abc")
         for code in bot.LANGUAGE_CODES:
             assert "https://discord.gg/abc" in self.reply(code)
+
+
+class TestSetupOffersTheInviteToo:
+    """#138 phase 3. The moment an admin finishes setup is the highest-intent
+    one there is -- they have just proved they care whether this bot works."""
+
+    def reply(self, monkeypatch, invite):
+        monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", invite)
+        sent = {}
+
+        async def send_message(msg, ephemeral=False, **kwargs):
+            sent["msg"] = msg
+
+        guild = SimpleNamespace(id=1, name="S")
+        interaction = SimpleNamespace(
+            locale="en-US",
+            guild=guild,
+            guild_id=1,
+            user=SimpleNamespace(id=7),
+            response=SimpleNamespace(send_message=send_message),
+        )
+        role = SimpleNamespace(id=2, name="Verified")
+        run(bot.vrcverify_setup.callback(interaction, role, None))
+        return sent.get("msg", "")
+
+    def test_the_invite_is_offered_when_configured(self, monkeypatch):
+        assert "https://discord.gg/abc" in self.reply(
+            monkeypatch, "https://discord.gg/abc"
+        )
+
+    def test_nothing_is_added_when_it_is_not(self, monkeypatch):
+        assert "discord.gg" not in self.reply(monkeypatch, None)
+
+    def test_the_donate_hint_stays_last(self, monkeypatch):
+        """The existing comment says the donate hint reads as a footer under
+        everything else. Slipping a new line after it would quietly undo
+        that."""
+        reply = self.reply(monkeypatch, "https://discord.gg/abc")
+        assert reply.index("discord.gg/abc") < reply.index(bot.KOFI_URL)

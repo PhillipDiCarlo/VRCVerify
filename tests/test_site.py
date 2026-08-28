@@ -1090,3 +1090,42 @@ def test_the_control_is_built_from_the_placeholder_the_pages_ship():
     script = THEME_JS.read_text(encoding="utf-8")
     assert ".theme-picker" in script, "theme.js no longer finds the placeholder"
     assert "hidden = false" in script, "theme.js never reveals the control"
+
+
+class TestTheChangelogOffersTheDiscord:
+    """#138: the public changelog invites the reader to follow the channel.
+
+    Hardcoded in the generator, unlike the bot and the dashboard which read
+    SUPPORT_INVITE_URL from the environment. These are static files behind a
+    CDN -- no server renders them, so there is no environment to read at the
+    moment anyone loads the page, and injecting at generation time would make
+    the committed HTML depend on whose shell ran the script.
+    """
+
+    def test_the_generated_page_offers_the_invite(self):
+        from gen_changelog import SUPPORT_INVITE_URL, render
+
+        page = render()
+        assert "entry-follow" in page
+        assert SUPPORT_INVITE_URL in page
+
+    def test_the_invite_is_a_real_url(self):
+        """A schemeless href on a static page resolves against vrcverify.com
+        and 404s there instead of reaching Discord."""
+        from gen_changelog import SUPPORT_INVITE_URL
+
+        assert SUPPORT_INVITE_URL.startswith("https://")
+
+    def test_it_opens_off_site_safely(self):
+        from gen_changelog import render
+
+        page = render()
+        row = page.split('class="entry-follow"', 1)[1].split("</p>", 1)[0]
+        assert 'rel="noopener noreferrer"' in row
+
+    def test_the_committed_page_carries_it(self):
+        """The drift test next door regenerates and compares; this one asserts
+        the committed file is the version with the row, so a stale commit
+        cannot pass by being self-consistent."""
+        page = (SITE / "changelog.html").read_text()
+        assert "entry-follow" in page

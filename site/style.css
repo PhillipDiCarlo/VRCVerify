@@ -967,6 +967,21 @@ th { color: var(--muted); font-weight: 600; }
   line-height: 1.65;
 }
 
+/* #138: "get these in your own server", under the entries.
+ *
+ * Quiet on purpose -- a rule and muted text, not a card and not a CTA. This
+ * page's job is credibility; a surface that reads as an advert stops being
+ * read as news, which costs more than the follow is worth. The dashboard's
+ * .changelog-follow makes the same argument about the same sentence. */
+.entry-follow {
+  margin: 3rem 0 0;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  max-width: var(--measure);
+  color: var(--muted);
+  line-height: 1.65;
+}
+
 @media (max-width: 34rem) {
   .entry { grid-template-columns: 1fr; gap: 0.5rem 0; }
   .entry-meta {

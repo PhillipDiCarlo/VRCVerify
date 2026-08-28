@@ -89,6 +89,14 @@ os.environ.update(
     STRIPE_SECRET_KEY="sk_test_preview_not_a_real_key",
     STRIPE_PRODUCT_ID="prod_preview",
     STRIPE_WEBHOOK_SECRET="whsec_preview",
+    # #138's rows in the bell panel and at the foot of the changelog page
+    # render only when this is set, so the preview sets it -- a preview that
+    # cannot draw the thing being reviewed is not much of a preview.
+    #
+    # Deliberately not the real invite, on this file's standing rule that every
+    # value here is fake. Only the shape matters for looking at it: the scheme
+    # check has to pass, and the link text is what is being judged.
+    SUPPORT_INVITE_URL="https://discord.gg/preview-not-a-real-invite",
 )
 
 from flask import g  # noqa: E402
