@@ -1761,6 +1761,103 @@ class TestTellingTwoKindsOf403Apart:
         assert state in bot.GROUP_INVITE_SETTLED_STATES
 
 
+class TestABannedRecipientIsRecognised:
+    """409 from create_group_invite means banned, and used to mean nothing.
+
+    Measured live on 2026-08-27 in a throwaway group:
+
+        409 {"error":{"message":"<name> is banned from this group.
+                      Do you want to unban and reinvite them?"}}
+
+    It matched no branch in send_group_invite and none in classify_api_error,
+    so it arrived as INVITE_VRCHAT_UNAVAILABLE -- a TRANSIENT state, which
+    hands the member their button back. A banned member was told "VRChat
+    didn't answer" and could re-press every cooldown for ever, spending a real
+    invite call each time against a group that had banned them.
+    """
+
+    def test_a_409_is_a_ban(self, api):
+        api.invite_error = FakeApiException(
+            409, "ClubLA Bot is banned from this group."
+        )
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_BANNED
+
+    def test_it_is_not_reported_as_a_failure_to_get_an_answer(self, api):
+        """The regression, named. VRChat answered, and clearly."""
+        api.invite_error = FakeApiException(
+            409, "ClubLA Bot is banned from this group."
+        )
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] != inviter.INVITE_VRCHAT_UNAVAILABLE
+
+    def test_the_verdict_settles_the_button(self, api):
+        """A transient state leaves the button live for another attempt. This
+        one must not, or the loop this test exists to close stays open."""
+        api.invite_error = FakeApiException(
+            409, "ClubLA Bot is banned from this group."
+        )
+        state = inviter.send_group_invite(INVITE_JOB)["state"]
+        assert state in bot.GROUP_INVITE_SETTLED_STATES
+
+    def test_a_ban_with_no_member_record_reaches_the_invite(self, api):
+        """The path that makes 409 common rather than rare.
+
+        Measured: banning somebody who has never had a member record in the
+        group leaves get_group_member returning None -- indistinguishable from
+        never having heard of them. So the "banned" branch on the precheck
+        cannot fire, and the ban is only discovered by attempting the invite.
+        """
+        api.member = None
+        api.get_member_error = None  # returns None, i.e. no member record
+        api.invite_error = FakeApiException(
+            409, "ClubLA Bot is banned from this group."
+        )
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert api.invites(), "the precheck cannot see this ban"
+        assert result["state"] == inviter.INVITE_BANNED
+
+    def test_the_group_is_not_probed(self, api):
+        """Unlike 403 and 404, this status is unambiguous -- VRChat names the
+        case in words. Probing would spend a call to learn nothing."""
+        api.invite_error = FakeApiException(
+            409, "ClubLA Bot is banned from this group."
+        )
+        inviter.send_group_invite(INVITE_JOB)
+        assert [c for c in api.calls if c[0] == "get_group"] == []
+
+    def test_the_precheck_still_catches_the_case_it_can_see(self, api):
+        """409 is the wider net, not a replacement. A ban against somebody who
+        DOES have a member record still reports "banned" on the read, and costs
+        no invite call at all."""
+        api.member = member_record("banned")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_BANNED
+        assert api.invites() == []
+
+    def test_an_unbanned_member_is_invited_again(self, api):
+        """Measured: an unban leaves the member record at "inactive", not
+        "banned". That is what lets somebody a moderator has forgiven back in
+        -- and the reason a ban must never be cached as a permanent verdict.
+        """
+        api.member = member_record("inactive")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_SENT
+        assert len(api.invites()) == 1
+
+    def test_the_wording_is_never_parsed(self, api):
+        """The status carries the meaning. VRChat has reworded these before."""
+        outcomes = set()
+        for body in [
+            "ClubLA Bot is banned from this group.",
+            '{"error":{"message":"X is banned from this group","status_code":409}}',
+            "",
+        ]:
+            api.invite_error = FakeApiException(409, body)
+            outcomes.add(inviter.send_group_invite(INVITE_JOB)["state"])
+        assert outcomes == {inviter.INVITE_BANNED}
+
+
 class TestThroughputIsSpaced:
     def test_consecutive_invites_are_spaced_apart(self, api, monkeypatch):
         """One account issues invites for every guild, so a verification rush
