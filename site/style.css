@@ -645,8 +645,7 @@ li { margin: 0.3rem 0; }
   /* An entry split across the column break would read as two half-titles. */
   .toc-list li { break-inside: avoid; margin: 0 0 0.4rem; }
 }
-}
-}
+
 .lede { font-size: var(--text-blurb); color: var(--muted); }
 
 a { color: var(--accent-text); }
