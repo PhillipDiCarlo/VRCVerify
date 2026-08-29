@@ -45,7 +45,7 @@
           {# The entry names its own button. The fallback is the wording the
              setup step and the demo have always used, so the two candidates
              that carry no label are unchanged. #}
-          {{ next_step.cta_label or 'See plans and subscribe' }}</a>
+          {{ next_step.cta_label or _('See plans and subscribe') }}</a>
       {% else %}
         <a class="button" href="{{ url_for('guild_settings', guild_id=guild_id, group=next_step.group or 'verification') }}">
           {{ next_step.cta_label or 'Go to Settings' }}</a>
@@ -62,7 +62,7 @@
           <input type="hidden" name="return_to" value="guild_overview">
           <input type="hidden" name="guild_id" value="{{ guild_id }}">
           <input type="hidden" name="entry_id" value="{{ next_step.entry_id }}">
-          <button type="submit" class="linkish">Dismiss</button>
+          <button type="submit" class="linkish">{% trans %}Dismiss{% endtrans %}</button>
         </form>
       {% endif %}
     </div>
@@ -70,14 +70,13 @@
 {% endif %}
 
 <section class="panel group">
-  <h2>Verifications</h2>
+  <h2>{% trans %}Verifications{% endtrans %}</h2>
   <p class="muted blurb">
-    How many members completed 18+ verification in this server. Counts only —
-    VRCVerify doesn't keep a record of who verified when.
+    {% trans %}How many members completed 18+ verification in this server. Counts only — VRCVerify doesn't keep a record of who verified when.{% endtrans %}
   </p>
 
   {% if not tiles %}
-    <p class="muted">Couldn't load this server's numbers just now. Try again shortly.</p>
+    <p class="muted">{% trans %}Couldn't load this server's numbers just now. Try again shortly.{% endtrans %}</p>
   {% else %}
     <ul class="tiles">
       {% for tile in tiles %}
@@ -121,10 +120,10 @@
          -- "Peak 0" on a month of gaps is a number pretending to be a
          reading. #}
       {% if chart.peak is not none %}
-        <p class="chart-scale">Peak {{ chart.peak }} a day</p>
+        <p class="chart-scale">{% trans peak=chart.peak %}Peak {{ peak }} a day{% endtrans %}</p>
       {% endif %}
       <div class="chart" role="img"
-           aria-label="Verifications per day, last {{ chart.bars|length }} days. The exact numbers follow this chart.">
+           aria-label="{% trans days=chart.bars|length %}Verifications per day, last {{ days }} days. The exact numbers follow this chart.{% endtrans %}">
         <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" aria-hidden="true"
              preserveAspectRatio="none">
           {% for bar in chart.bars %}
@@ -149,15 +148,15 @@
          where every reader who is not looking at pixels gets the real
          numbers, in the same order the bars are drawn. #}
       <table class="offscreen">
-        <caption>Verifications per day, last {{ chart.bars|length }} days</caption>
+        <caption>{% trans days=chart.bars|length %}Verifications per day, last {{ days }} days{% endtrans %}</caption>
         <thead>
-          <tr><th scope="col">Day</th><th scope="col">Verifications</th></tr>
+          <tr><th scope="col">{% trans %}Day{% endtrans %}</th><th scope="col">{% trans %}Verifications{% endtrans %}</th></tr>
         </thead>
         <tbody>
           {% for bar in chart.bars %}
             <tr>
               <td>{{ bar.day }}</td>
-              <td>{% if bar.count is none %}Not measured{% else %}{{ bar.count }}{% endif %}</td>
+              <td>{% if bar.count is none %}{% trans %}Not measured{% endtrans %}{% else %}{{ bar.count }}{% endif %}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -165,26 +164,24 @@
     {% elif chart.state == 'blank' %}
       <p class="muted chart-note">{{ chart.note }}</p>
     {% else %}
-      <p class="muted chart-note">Couldn't load the daily trend just now.</p>
+      <p class="muted chart-note">{% trans %}Couldn't load the daily trend just now.{% endtrans %}</p>
     {% endif %}
   {% endif %}
 </section>
 
 {% if setup %}
   <section class="panel group">
-    <h2>Setup</h2>
+    <h2>{% trans %}Setup{% endtrans %}</h2>
+    {% set settings_url = url_for('guild_settings', guild_id=guild_id, group='verification') %}
     <p class="muted blurb">
-      What's configured here, and whether it's actually working -- one list
-      instead of two, since "switched on" and "still works" used to be
-      answered in different places on this page. Change any of it on
-      <a href="{{ url_for('guild_settings', guild_id=guild_id, group='verification') }}">Settings</a>.
+      {% trans settings_url=settings_url %}What's configured here, and whether it's actually working -- one list instead of two, since "switched on" and "still works" used to be answered in different places on this page. Change any of it on <a href="{{ settings_url }}">Settings</a>.{% endtrans %}
     </p>
 
     {# Pipedrive's finished state, not a fourth tick among three: a fully
        configured server should read as done, not as a checklist with nothing
        left to check off. #}
     {% if setup.complete %}
-      <p class="setup-complete">Setup complete — verification is fully working here.</p>
+      <p class="setup-complete">{% trans %}Setup complete — verification is fully working here.{% endtrans %}</p>
     {% endif %}
 
     <ul class="setup">
@@ -228,10 +225,15 @@
           </span>
           <span class="setup-label">
             {{ row.label }}
+            {# Read only by a screen reader, and translated like everything
+               else -- the tick beside it is `aria-hidden`, so this string is
+               the ONLY thing that tells a non-sighted reader whether the row
+               is configured. Leaving it English would make the setup list
+               unreadable in exactly the way the visual version is not. #}
             <span class="offscreen">
-              {%- if row.state == 'done' %}: set
-              {%- elif row.state == 'broken' %}: needs attention
-              {%- else %}: not set{% endif -%}
+              {%- if row.state == 'done' %}: {% trans %}set{% endtrans %}
+              {%- elif row.state == 'broken' %}: {% trans %}needs attention{% endtrans %}
+              {%- else %}: {% trans %}not set{% endtrans %}{% endif -%}
             </span>
           </span>
           <span class="muted setup-note">{{ row.note }}</span>

@@ -1,0 +1,1649 @@
+# Japanese translations for VRCVerify.
+# Copyright (C) 2026 Esatto Technologies
+# This file is distributed under the same license as the VRCVerify project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: VRCVerify VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-08-29 10:47-0400\n"
+"PO-Revision-Date: 2026-08-29 03:27-0400\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ja\n"
+"Language-Team: ja <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Dark"
+msgstr "ダーク"
+
+msgid "Light"
+msgstr "ライト"
+
+msgid "System"
+msgstr "システム"
+
+msgid "Authorisation was declined."
+msgstr "認可が拒否されました。"
+
+msgid "That login link has expired. Please try again."
+msgstr "このログインリンクは期限切れです。もう一度お試しください。"
+
+msgid "That login could not be verified. Please try again."
+msgstr "このログインを検証できませんでした。もう一度お試しください。"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid "Discord could not complete the login. Please try again."
+msgstr "Discord がログインを完了できませんでした。もう一度お試しください。"
+
+msgid "Page not found."
+msgstr "ページが見つかりません。"
+
+msgid "Something went wrong."
+msgstr "問題が発生しました。"
+
+msgid "That setting needs VRCVerify Premium. Nothing was changed."
+msgstr "この設定には VRCVerify Premium が必要です。変更は行われませんでした。"
+
+msgid "That language isn't one VRCVerify supports. Nothing was changed."
+msgstr "その言語は VRCVerify が対応していません。変更は行われませんでした。"
+
+msgid ""
+"Run /vrcverify_setup in your server first -- VRCVerify needs a verified "
+"role before it can store anything else."
+msgstr "まずサーバーで /vrcverify_setup を実行してください。VRCVerify は認証済みロールがないと、ほかの設定を保存できません。"
+
+msgid "That setting can't be changed from the website yet. Nothing was changed."
+msgstr "この設定はまだウェブサイトからは変更できません。変更は行われませんでした。"
+
+msgid ""
+"The bot couldn't complete the save, so nothing was changed. Try again "
+"shortly."
+msgstr "Bot が保存を完了できなかったため、変更は行われませんでした。少ししてからもう一度お試しください。"
+
+msgid "That role isn't in this server any more. Reload the page and pick again."
+msgstr "そのロールはこのサーバーにもう存在しません。ページを再読み込みして選び直してください。"
+
+msgid "Pick a verified role -- verification can't run without one."
+msgstr "認証済みロールを選んでください。これがないと認証を実行できません。"
+
+msgid ""
+"Links in the custom message may only point to discord.com or vrchat.com. "
+"Nothing was changed."
+msgstr "カスタムメッセージ内のリンクは discord.com か vrchat.com にしか向けられません。変更は行われませんでした。"
+
+msgid "That custom message is too long. The limit is 1000 characters."
+msgstr "そのカスタムメッセージは長すぎます。上限は 1000 文字です。"
+
+msgid ""
+"Verification logs can't go in an announcement channel -- other servers "
+"can follow one, which would republish your members' age status."
+msgstr "認証ログをアナウンスチャンネルに置くことはできません。ほかのサーバーがフォローでき、メンバーの年齢確認状況がサーバーの外へ再公開されてしまうためです。"
+
+msgid ""
+"That channel isn't in this server any more. Reload the page and pick "
+"again."
+msgstr "そのチャンネルはこのサーバーにもう存在しません。ページを再読み込みして選び直してください。"
+
+msgid ""
+"VRCVerify can't post in that channel, so it can't log there. Check the "
+"channel's permissions and try again."
+msgstr "VRCVerify はそのチャンネルに投稿できないため、そこにログを記録できません。チャンネルの権限を確認してもう一度お試しください。"
+
+msgid ""
+"This bot's database is missing the column for that setting. Contact the "
+"bot operator."
+msgstr "この Bot のデータベースにその設定用のカラムがありません。Bot の運営者にご連絡ください。"
+
+msgid ""
+"That doesn't look like a VRChat group. Paste the group's ID (it starts "
+"with grp_) or the vrchat.com link to the group."
+msgstr ""
+"VRChat のグループではないようです。グループの ID（grp_ で始まります）か、グループの vrchat.com "
+"のリンクを貼り付けてください。"
+
+msgid ""
+"VRChat's vrc.group short links can't be looked up. Open the group on "
+"vrchat.com and paste that link instead, or the group ID starting with "
+"grp_."
+msgstr ""
+"VRChat の vrc.group 短縮リンクは参照できません。vrchat.com でグループを開いてそのリンクを貼り付けるか、grp_ "
+"で始まるグループ ID を貼り付けてください。"
+
+msgid ""
+"Another Discord server has already linked that VRChat group. A group can "
+"only belong to one server -- contact support if that's wrong."
+msgstr ""
+"その VRChat グループは、すでに別の Discord サーバーが紐づけています。1 つのグループが所属できるサーバーは 1 "
+"つだけです。誤りだと思われる場合はサポートまでご連絡ください。"
+
+msgid "Add your VRChat group first, then run the setup check."
+msgstr "先に VRChat グループを追加してから、セットアップ確認を実行してください。"
+
+msgid "That change couldn't be saved, so nothing was changed."
+msgstr "その変更を保存できなかったため、何も変更されていません。"
+
+msgid ""
+"VRCVerify can't post the panel in that channel. It needs both Send "
+"Messages and Embed Links there -- Embed Links is the one that's usually "
+"missing, because the panel is an embed."
+msgstr ""
+"VRCVerify "
+"はそのチャンネルにパネルを投稿できません。そこでは「メッセージを送信」と「埋め込みリンク」の両方が必要です。パネルは埋め込みなので、たいてい足りないのは「埋め込みリンク」のほうです。"
+
+msgid "The panel couldn't be posted just now. Try again shortly."
+msgstr "ただいまパネルを投稿できませんでした。少ししてからもう一度お試しください。"
+
+msgid "Panel posted."
+msgstr "パネルを投稿しました。"
+
+msgid ""
+"That channel already had the panel, so it was refreshed rather than "
+"posted again."
+msgstr "そのチャンネルにはすでにパネルがあったため、新たに投稿せず更新しました。"
+
+msgid ""
+"Panel posted in the new channel. The old one is still up in its previous "
+"channel -- delete it in Discord when you're ready."
+msgstr "新しいチャンネルにパネルを投稿しました。以前のチャンネルには古いパネルが残っています。よろしければ Discord で削除してください。"
+
+msgid ""
+"That panel was posted in a way Discord won't let the bot edit, so it was "
+"replaced with a fresh one. Your settings apply to it now."
+msgstr ""
+"そのパネルは Discord が Bot "
+"による編集を許可しない方法で投稿されていたため、新しいものに置き換えました。設定は新しいパネルに適用されています。"
+
+msgid ""
+"Thanks — your subscription is being set up. Premium switches on as soon "
+"as Stripe confirms the payment, usually within a few seconds."
+msgstr "ありがとうございます。サブスクリプションを設定しています。Stripe が支払いを確認しだい、通常は数秒で Premium が有効になります。"
+
+msgid "That plan isn't one we offer. Nothing has been charged."
+msgstr "そのプランは提供していません。請求は発生していません。"
+
+msgid ""
+"This server already has Premium, so there was nothing to buy. Nothing has"
+" been charged."
+msgstr "このサーバーはすでに Premium なので、購入するものはありませんでした。請求は発生していません。"
+
+msgid ""
+"We couldn't reach Stripe just now, so nothing has been charged. Try again"
+" in a moment, or subscribe inside Discord instead."
+msgstr "ただいま Stripe に接続できなかったため、請求は発生していません。少ししてからもう一度お試しいただくか、Discord 内でご登録ください。"
+
+msgid "There's no card subscription on this server to manage."
+msgstr "このサーバーには管理できるカード決済のサブスクリプションがありません。"
+
+msgid "Overview"
+msgstr "概要"
+
+# | msgid "Sections"
+msgid "Settings"
+msgstr "設定"
+
+msgid "Subscriptions"
+msgstr "サブスクリプション"
+
+msgid ""
+"That server isn't available. Either VRCVerify isn't in it, or you don't "
+"have the Administrator permission there."
+msgstr "そのサーバーは利用できません。VRCVerify が参加していないか、あなたに管理者権限がありません。"
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+msgid ""
+"Can't reach the bot right now, so this page can't be shown. Nothing has "
+"changed. Try again shortly."
+msgstr "現在 Bot に接続できないため、このページを表示できません。変更は行われていません。少ししてからもう一度お試しください。"
+
+msgid "Premium"
+msgstr "Premium"
+
+# | msgid "Renews"
+msgid "New"
+msgstr "新着"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+# | msgid "Verification log"
+msgid "See how verification is going"
+msgstr "認証の状況を見る"
+
+msgid ""
+"The Overview page now charts the last 30 days of verifications, and "
+"checks the things that quietly break a server — a verified role that was "
+"deleted, a role the bot cannot assign, an instructions panel that is no "
+"longer where it was posted."
+msgstr ""
+"概要ページで直近 30 日間の認証をグラフ表示するようになり、サーバーを静かに壊す原因も点検します。削除された認証済みロール、Bot "
+"が付与できないロール、投稿した場所から消えた案内パネルなどです。"
+
+msgid "The dashboard has been rebuilt"
+msgstr "ダッシュボードを作り直しました"
+
+msgid ""
+"A new header and sidebar, servers you can pick from cards instead of a "
+"list, switches that show you what is on at a glance, and a warning before"
+" you leave a page with unsaved changes."
+msgstr "新しいヘッダーとサイドバー、一覧ではなくカードから選べるサーバー、何が有効かひと目でわかるスイッチ、そして未保存の変更があるページを離れる前の警告を追加しました。"
+
+msgid "Dark, light, or whatever your device says"
+msgstr "ダーク、ライト、または端末の設定に合わせて"
+
+msgid ""
+"The dashboard is dark by default now, with a theme button in the header. "
+"Your choice is remembered on this browser."
+msgstr "ダッシュボードは既定でダークになり、ヘッダーにテーマボタンを置きました。選んだ設定はこのブラウザーに保存されます。"
+
+msgid "Invite verified members to your VRChat group"
+msgstr "認証済みメンバーを VRChat グループに招待"
+
+msgid ""
+"Link a private VRChat group to your server, and members who finish "
+"verification are offered an invite to it. Nothing is sent to VRChat "
+"unless the member asks for it."
+msgstr ""
+"非公開の VRChat "
+"グループをサーバーに紐づけると、認証を終えたメンバーにそのグループへの招待が案内されます。メンバーが希望しない限り、VRChat "
+"には何も送信されません。"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "Premium を見る"
+
+#, python-format
+msgid "New in your plan: %(title)s"
+msgstr "現在のプランの新機能: %(title)s"
+
+#, python-format
+msgid "%(body)s It's included in your subscription."
+msgstr "%(body)s ご契約に含まれています。"
+
+# | msgid "Setup"
+msgid "Set it up"
+msgstr "設定する"
+
+# | msgid "Your grandfathered extras stay free whatever you decide."
+#, python-format
+msgid "Your grandfathered extras stay free whatever you decide. %(body)s"
+msgstr "以前から引き継がれている特典は、どちらを選んでも無料のままです。%(body)s"
+
+#, python-format
+msgid "New in Premium: %(title)s"
+msgstr "Premium の新機能: %(title)s"
+
+msgid "Today (UTC)"
+msgstr "今日（UTC）"
+
+msgid "Last 7 days"
+msgstr "過去 7 日間"
+
+msgid "Last 30 days"
+msgstr "過去 30 日間"
+
+msgid "Couldn't check"
+msgstr "確認できませんでした"
+
+msgid "The bot didn't answer this one."
+msgstr "Bot からこの項目の応答がありませんでした。"
+
+msgid "Not collecting that far back yet."
+msgstr "そこまで前の記録はまだ取っていません。"
+
+#, python-format
+msgid "Only counting since %(date)s."
+msgstr "%(date)s からの集計です。"
+
+msgid "Members"
+msgstr "メンバー"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+msgid "Verified, all time"
+msgstr "認証済み（累計）"
+
+msgid "Counted since this server's records began."
+msgstr "このサーバーの記録開始以降の集計です。"
+
+msgid "Not collecting yet."
+msgstr "まだ記録を取っていません。"
+
+msgid "Auto-verify on join"
+msgstr "参加時に自動認証"
+
+msgid "Members are checked when they join."
+msgstr "メンバーは参加時に確認されます。"
+
+msgid "Unverified role"
+msgstr "未認証ロール"
+
+msgid "Optional. Removed once someone verifies."
+msgstr "任意。認証が済むと外れます。"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+msgid "Verification log"
+msgstr "認証ログ"
+
+msgid "Optional. Premium."
+msgstr "任意。Premium。"
+
+# | msgid "Sections"
+# | msgid "Settings"
+msgid "Go to Settings"
+msgstr "設定を開く"
+
+msgid "Verified role"
+msgstr "認証済みロール"
+
+# | msgid "Pick a verified role -- verification can't run without one."
+msgid "Required — verification can't finish without one."
+msgstr "必須です。これがないと認証を完了できません。"
+
+msgid "The role that was set has been deleted. Choose another."
+msgstr "設定されていたロールは削除されました。別のロールを選んでください。"
+
+msgid "VRCVerify's own role needs to sit above this one to grant it."
+msgstr "このロールを付与するには、VRCVerify 自身のロールがこれより上にある必要があります。"
+
+msgid "Set, and VRCVerify can grant it."
+msgstr "設定済みで、VRCVerify が付与できます。"
+
+# | msgid "A branded instructions panel"
+msgid "Instructions panel"
+msgstr "案内パネル"
+
+msgid "Members need a message to start from."
+msgstr "メンバーが認証を始めるためのメッセージが必要です。"
+
+msgid "The channel it was posted in was deleted."
+msgstr "投稿先のチャンネルが削除されました。"
+
+msgid "VRCVerify can't post there anymore — check its permissions."
+msgstr "VRCVerify はもうそこに投稿できません。権限を確認してください。"
+
+msgid "Posted, and VRCVerify can still reach it."
+msgstr "投稿済みで、VRCVerify から引き続き操作できます。"
+
+msgid "No verified role is set"
+msgstr "認証済みロールが設定されていません"
+
+msgid "The verified role needs attention"
+msgstr "認証済みロールの確認が必要です"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+msgid "No instructions panel is posted"
+msgstr "案内パネルが投稿されていません"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+msgid "The instructions panel needs attention"
+msgstr "案内パネルの確認が必要です"
+
+#, python-format
+msgid ""
+"%(count)s member verified here in the last 30 days. Premium logs each one"
+" to a channel of your choice."
+msgid_plural ""
+"%(count)s members verified here in the last 30 days. Premium logs each "
+"one to a channel of your choice."
+msgstr[0] "過去 30 日間に %(count)s 人がこのサーバーで認証しました。Premium なら、その一つひとつをお好きなチャンネルに記録できます。"
+
+msgid "Add VRCVerify Premium"
+msgstr "VRCVerify Premium を追加"
+
+msgid "Your grandfathered extras stay free whatever you decide."
+msgstr "以前から引き継がれている特典は、どちらを選んでも無料のままです。"
+
+msgid "Upgrade to VRCVerify Premium"
+msgstr "VRCVerify Premium にアップグレード"
+
+# | msgid "A verification log channel"
+msgid "Verification"
+msgstr "認証"
+
+msgid "After verifying"
+msgstr "認証後"
+
+msgid "VRChat group"
+msgstr "VRChat グループ"
+
+msgid "Logging"
+msgstr "ログ"
+
+# | msgid "Active"
+msgid "Activity"
+msgstr "アクティビティ"
+
+msgid "English"
+msgstr "英語"
+
+msgid "Spanish"
+msgstr "スペイン語"
+
+msgid "Chinese (Simplified)"
+msgstr "中国語（簡体字）"
+
+msgid "Japanese"
+msgstr "日本語"
+
+msgid "German"
+msgstr "ドイツ語"
+
+msgid "Dutch"
+msgstr "オランダ語"
+
+msgid "Hindi"
+msgstr "ヒンディー語"
+
+msgid "Arabic"
+msgstr "アラビア語"
+
+msgid "Bengali"
+msgstr "ベンガル語"
+
+msgid "Portuguese (Brazil)"
+msgstr "ポルトガル語（ブラジル）"
+
+msgid "Russian"
+msgstr "ロシア語"
+
+msgid "Punjabi"
+msgstr "パンジャブ語"
+
+msgid "Not set"
+msgstr "未設定"
+
+#, python-format
+msgid "Unknown role (%(id)s)"
+msgstr "不明なロール（%(id)s）"
+
+msgid ""
+"This role no longer exists in the server. VRCVerify will not be able to "
+"use it."
+msgstr "このロールはサーバーに存在しなくなりました。VRCVerify は使用できません。"
+
+msgid "Couldn't check whether VRCVerify can manage this role."
+msgstr "VRCVerify がこのロールを管理できるかどうかを確認できませんでした。"
+
+msgid "Granted once a member's VRChat account is confirmed as 18+."
+msgstr "メンバーの VRChat アカウントが 18+ と確認された時点で付与されます。"
+
+msgid ""
+"VRCVerify cannot grant this role. Move the VRCVerify role above it in "
+"Server Settings -> Roles, or verification will fail for every member."
+msgstr ""
+"VRCVerify はこのロールを付与できません。サーバー設定 → ロール で VRCVerify "
+"のロールをこれより上に移動してください。そうしないと、すべてのメンバーで認証が失敗します。"
+
+msgid ""
+"No verified role is set, so verification cannot complete. Members are "
+"told to contact an admin."
+msgstr "認証済みロールが設定されていないため、認証を完了できません。メンバーには管理者に連絡するよう案内されます。"
+
+msgid "Removed automatically once a member verifies."
+msgstr "メンバーが認証すると自動的に外れます。"
+
+msgid ""
+"VRCVerify cannot remove this role. Move the VRCVerify role above it in "
+"Server Settings -> Roles."
+msgstr "VRCVerify はこのロールを外せません。サーバー設定 → ロール で VRCVerify のロールをこれより上に移動してください。"
+
+msgid ""
+"Members already verified with VRCVerify elsewhere get the role as soon as"
+" they join. Free for every server, always."
+msgstr "他のサーバーで VRCVerify の認証を済ませているメンバーは、参加した時点でロールを受け取ります。すべてのサーバーで、常に無料です。"
+
+msgid "On"
+msgstr "オン"
+
+msgid "Off"
+msgstr "オフ"
+
+# | msgid "Nickname syncing"
+msgid "Nickname sync"
+msgstr "ニックネームの同期"
+
+msgid "Sets a member's server nickname to their VRChat display name."
+msgstr "メンバーのサーバー内ニックネームを VRChat の表示名に合わせます。"
+
+msgid "The core of the bot. These are free for every server."
+msgstr "Bot の中心となる機能です。すべてのサーバーで無料です。"
+
+msgid "What happens once a member is confirmed."
+msgstr "メンバーの確認が済んだあとの動作です。"
+
+msgid "The message members use to start verification."
+msgstr "メンバーが認証を始めるためのメッセージです。"
+
+msgid "Invite members to your group once they're verified."
+msgstr "認証が済んだメンバーをグループに招待します。"
+
+msgid "A record of verification activity for your moderators."
+msgstr "モデレーター向けの、認証アクティビティの記録です。"
+
+msgid "Not checked yet"
+msgstr "未確認"
+
+msgid ""
+"Put the setup code in your group's description, invite the bot to the "
+"group, then run the check."
+msgstr "グループの説明にセットアップコードを入れ、Bot をグループに招待してから、確認を実行してください。"
+
+msgid "Checking…"
+msgstr "確認中…"
+
+msgid "The bot is talking to VRChat. Reload this page in a moment."
+msgstr "Bot が VRChat と通信しています。少ししてからこのページを再読み込みしてください。"
+
+msgid "No answer from the checker"
+msgstr "確認処理から応答がありません"
+
+msgid "The check was sent but nothing came back. Try again shortly."
+msgstr "確認を送信しましたが、応答がありませんでした。少ししてからもう一度お試しください。"
+
+msgid "Couldn't start the check"
+msgstr "確認を開始できませんでした"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. Try again"
+" shortly."
+msgstr "Bot が VRChat と通信する自身の処理に接続できませんでした。少ししてからもう一度お試しください。"
+
+msgid "The bot left your group"
+msgstr "Bot がグループから退出しました"
+
+msgid ""
+"A VRChat account can only be in so many groups, so after a long time "
+"without a subscription the bot left yours to free the space. Invite the "
+"account below back and run the check again — your group and setup code "
+"are still saved, so there is nothing else to redo."
+msgstr ""
+"VRChat アカウントが参加できるグループ数には上限があるため、サブスクリプションのない状態が長く続いたことで、Bot "
+"が空きを作るためにあなたのグループから退出しました。下のアカウントを再度招待し、もう一度確認を実行してください。グループとセットアップコードは保存されたままなので、他にやり直すことはありません。"
+
+msgid "Ready"
+msgstr "準備完了"
+
+msgid "The bot is in your group and can send invites."
+msgstr "Bot はグループに参加しており、招待を送信できます。"
+
+msgid "Waiting for a moderator"
+msgstr "モデレーターの承認待ち"
+
+msgid ""
+"The bot has asked to join and a group moderator needs to approve it. Run "
+"the check again once they have."
+msgstr "Bot が参加を申請したので、グループのモデレーターによる承認が必要です。承認されたら、もう一度確認を実行してください。"
+
+msgid "The bot hasn't been invited yet"
+msgstr "Bot がまだ招待されていません"
+
+msgid ""
+"Invite the account below to your group from VRChat, then run the check "
+"again."
+msgstr "VRChat から下のアカウントをグループに招待し、もう一度確認を実行してください。"
+
+msgid "In the group, but it can't invite anyone"
+msgstr "グループにはいますが、招待できません"
+
+msgid ""
+"Give the bot's role the “Manage Group Invites” permission in VRChat. "
+"Being an admin is not enough — it is its own tick box."
+msgstr ""
+"VRChat で Bot のロールに「Manage Group "
+"Invites」権限を付与してください。管理者であるだけでは足りません。これは独立した項目です。"
+
+msgid "The setup code isn't in the group description"
+msgstr "グループの説明にセットアップコードがありません"
+
+msgid ""
+"Paste the code below anywhere in your VRChat group's description, then "
+"run the check again. You can remove it once the check passes."
+msgstr "下のコードを VRChat グループの説明のどこかに貼り付けて、もう一度確認を実行してください。確認が通れば削除して構いません。"
+
+# | msgid "VRChat group"
+msgid "No VRChat group with that ID"
+msgstr "その ID の VRChat グループはありません"
+
+msgid "Check the ID, or paste the group's vrchat.com link instead."
+msgstr "ID を確認するか、代わりにグループの vrchat.com のリンクを貼り付けてください。"
+
+msgid "The bot is banned or blocked from that group"
+msgstr "Bot はそのグループから BAN またはブロックされています"
+
+msgid "A group moderator has to lift that before setup can continue."
+msgstr "セットアップを続けるには、グループのモデレーターがそれを解除する必要があります。"
+
+msgid "That group ID wasn't usable"
+msgstr "そのグループ ID は使用できませんでした"
+
+msgid "VRChat didn't answer"
+msgstr "VRChat から応答がありませんでした"
+
+msgid "Nothing is wrong with your setup. Try the check again shortly."
+msgstr "設定に問題はありません。少ししてからもう一度確認をお試しください。"
+
+msgid "Setup couldn't be confirmed"
+msgstr "セットアップを確認できませんでした"
+
+msgid "Run the check again. If it keeps happening, contact support."
+msgstr "もう一度確認を実行してください。繰り返し起きる場合はサポートまでご連絡ください。"
+
+msgid ""
+"Group invites are part of VRCVerify Premium. Your group is kept exactly "
+"as it is, and this picks up where it left off if the subscription is "
+"renewed."
+msgstr ""
+"グループ招待は VRCVerify Premium "
+"の機能です。グループはそのまま保持され、サブスクリプションを更新すれば中断したところから再開します。"
+
+msgid ""
+"Optional: add “View All Members” to the bot's role so VRCVerify can see "
+"that a member already has an invite waiting, instead of possibly sending "
+"them a second one."
+msgstr ""
+"任意: Bot のロールに「View All Members」を付与すると、メンバーにすでに招待が届いていることを VRCVerify "
+"が確認できるようになり、二重に送ってしまうことを防げます。"
+
+msgid ""
+"No invite account is available to this VRCVerify installation right now, "
+"so the check cannot run. Contact the bot operator."
+msgstr "現在この VRCVerify には使用できる招待用アカウントがないため、確認を実行できません。Bot の運営者にご連絡ください。"
+
+# | msgid "" "That doesn't look like a VRChat group. Paste the group's ID (it
+# | starts " "with grp_) or the vrchat.com link to the group."
+msgid ""
+"The group verified members can be invited to. Paste the group's ID (it "
+"starts with grp_) or its vrchat.com link. Leave it empty to disconnect "
+"the group."
+msgstr ""
+"認証済みメンバーを招待するグループです。グループの ID（grp_ で始まります）か、その vrchat.com "
+"のリンクを貼り付けてください。空欄にするとグループの連携を解除します。"
+
+msgid "No group connected"
+msgstr "グループ未連携"
+
+msgid "Offer group invites"
+msgstr "グループ招待を表示する"
+
+msgid ""
+"Adds a button to the message a member gets after verifying, which invites"
+" them to your group. Nothing is sent unless they press it."
+msgstr "認証後にメンバーが受け取るメッセージへ、グループへ招待するボタンを追加します。メンバーが押さない限り、何も送信されません。"
+
+msgid "Using the default message"
+msgstr "既定のメッセージを使用中"
+
+# | msgid "A custom post-verification message"
+msgid "Custom verification message"
+msgstr "認証案内のカスタムメッセージ"
+
+msgid ""
+"Replaces the default DM a member gets when they start verifying. Links "
+"may only point to discord.com or vrchat.com. Leave it empty to go back to"
+" the default."
+msgstr ""
+"認証を始めたメンバーが受け取る既定の DM を置き換えます。リンクは discord.com または vrchat.com "
+"のみ指定できます。空欄にすると既定に戻ります。"
+
+msgid "Language"
+msgstr "言語"
+
+msgid "The language of the instructions panel and the bot's replies to members."
+msgstr "案内パネルと、メンバーへの Bot の返信に使う言語です。"
+
+msgid "Panel colour"
+msgstr "パネルの色"
+
+# | msgid "A branded instructions panel"
+msgid "The colour bar down the side of the instructions panel."
+msgstr "案内パネルの左側に表示される色帯です。"
+
+msgid "Default blue"
+msgstr "既定のブルー"
+
+# | msgid "A verification log channel"
+msgid "Server icon on the panel"
+msgstr "パネルにサーバーアイコンを表示"
+
+msgid "Shows your server's icon as the panel's thumbnail."
+msgstr "サーバーのアイコンをパネルのサムネイルとして表示します。"
+
+msgid "Shown"
+msgstr "表示"
+
+msgid "Hidden"
+msgstr "非表示"
+
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr "不明なチャンネル（%(id)s）"
+
+msgid "This channel no longer exists in the server."
+msgstr "このチャンネルはサーバーに存在しなくなりました。"
+
+# | msgid "" "Verification logs can't go in an announcement channel -- other
+# | servers " "can follow one, which would republish your members' age
+# status."
+msgid ""
+"This is an announcement channel. Other servers can follow it, which would"
+" republish age disclosures about your members. VRCVerify will not log "
+"here."
+msgstr ""
+"これはアナウンスチャンネルです。他のサーバーがフォローでき、メンバーの年齢確認状況が再公開されてしまうため、VRCVerify "
+"はここには記録しません。"
+
+msgid "VRCVerify cannot post in this channel."
+msgstr "VRCVerify はこのチャンネルに投稿できません。"
+
+# | msgid "A verification log channel"
+msgid "Verification log channel"
+msgstr "認証ログチャンネル"
+
+msgid "Every verification attempt, including the ones that fail silently."
+msgstr "すべての認証の試行。静かに失敗したものも含みます。"
+
+# | msgid "VRChat group"
+msgid "VRChat group invites"
+msgstr "VRChat グループ招待"
+
+# | msgid "VRChat group"
+msgid "VRChat group setup check"
+msgstr "VRChat グループ設定の確認"
+
+msgid "posted in"
+msgstr "投稿先"
+
+msgid "moved to"
+msgstr "移動先"
+
+msgid "refreshed in"
+msgstr "更新先"
+
+msgid "replaced in"
+msgstr "置き換え先"
+
+#, python-format
+msgid "ID %(id)s"
+msgstr "ID %(id)s"
+
+msgid "not set"
+msgstr "未設定"
+
+#, python-format
+msgid "role %(id)s"
+msgstr "ロール %(id)s"
+
+#, python-format
+msgid "a role that no longer exists (%(id)s)"
+msgstr "存在しなくなったロール（%(id)s）"
+
+#, python-format
+msgid "Role %(id)s"
+msgstr "ロール %(id)s"
+
+#, python-format
+msgid "channel %(id)s"
+msgstr "チャンネル %(id)s"
+
+#, python-format
+msgid "a channel that no longer exists (%(id)s)"
+msgstr "存在しなくなったチャンネル（%(id)s）"
+
+msgid "on"
+msgstr "オン"
+
+msgid "off"
+msgstr "オフ"
+
+msgid ""
+"The channel this panel was posted in no longer exists, so members have no"
+" way to start verifying."
+msgstr "このパネルを投稿したチャンネルは存在しなくなったため、メンバーが認証を始める手段がありません。"
+
+# | msgid "" "VRCVerify can't post the panel in that channel. It needs both
+# Send
+# | " "Messages and Embed Links there -- Embed Links is the one that's usually
+# "
+# | "missing, because the panel is an embed."
+msgid ""
+"VRCVerify can't post a new message in that channel — it needs both Send "
+"Messages and Embed Links there. The panel still works and can still be "
+"refreshed; it just can't be replaced."
+msgstr ""
+"VRCVerify "
+"はそのチャンネルに新しいメッセージを投稿できません。「メッセージを送信」と「埋め込みリンク」の両方が必要です。パネル自体は動作しており更新もできますが、置き換えだけができません。"
+
+msgid "Save about 10%"
+msgstr "約 10% おトク"
+
+msgid "Save about 20%"
+msgstr "約 20% おトク"
+
+msgid "Monthly"
+msgstr "月額"
+
+msgid "3 months"
+msgstr "3 か月"
+
+msgid "6 months"
+msgstr "6 か月"
+
+msgid "12 months"
+msgstr "12 か月"
+
+msgid "per month"
+msgstr "1 か月あたり"
+
+msgid "per 3 months"
+msgstr "3 か月あたり"
+
+msgid "per 6 months"
+msgstr "6 か月あたり"
+
+msgid "per 12 months"
+msgstr "12 か月あたり"
+
+msgid "per year"
+msgstr "1 年あたり"
+
+#, python-format
+msgid "%(days)s-day free trial"
+msgstr "%(days)s 日間の無料トライアル"
+
+msgid "Active"
+msgstr "有効"
+
+msgid "Payment failed"
+msgstr "支払い失敗"
+
+msgid "Charged twice"
+msgstr "二重請求"
+
+msgid "Confirming"
+msgstr "確認中"
+
+msgid "Unknown"
+msgstr "不明"
+
+msgid "Cancelled"
+msgstr "解約済み"
+
+msgid "Plan"
+msgstr "プラン"
+
+msgid "Billed through"
+msgstr "請求元"
+
+msgid "Discord"
+msgstr "Discord"
+
+msgid "Card and Discord"
+msgstr "カードと Discord"
+
+msgid "Card"
+msgstr "カード"
+
+msgid "Due to renew"
+msgstr "更新予定日"
+
+msgid "Renews"
+msgstr "更新日"
+
+msgid "Premium until"
+msgstr "Premium の期限"
+
+msgid "VRCVerify Premium is active on this server."
+msgstr "このサーバーでは VRCVerify Premium が有効です。"
+
+msgid ""
+"This server was set up before Premium launched, so it keeps several "
+"extras free, permanently."
+msgstr "このサーバーは Premium の提供開始より前に設定されたため、いくつかの特典が永続的に無料のままです。"
+
+# | msgid "Core 18+ verification is free, forever."
+msgid "18+ verification is free on this server, and always will be."
+msgstr "このサーバーの 18+ 認証は無料です。これからもずっと無料です。"
+
+msgid ""
+"Couldn't load this server's roles and channels just now, so some changes "
+"below name an ID instead of a role or channel. The history itself is "
+"correct."
+msgstr ""
+"このサーバーのロールとチャンネルをただいま読み込めなかったため、以下の変更の一部はロール名やチャンネル名ではなく ID "
+"で表示されています。履歴そのものは正確です。"
+
+msgid ""
+"Settings changed from this website. Changes made with slash commands in "
+"Discord aren't listed here."
+msgstr "このウェブサイトから変更された設定です。Discord のスラッシュコマンドで行った変更はここには表示されません。"
+
+# | msgid "The panel couldn't be posted just now. Try again shortly."
+msgid "Couldn't load the history just now. Try again shortly."
+msgstr "ただいま履歴を読み込めませんでした。少ししてからもう一度お試しください。"
+
+msgid "No changes have been made from the website yet."
+msgstr "ウェブサイトからの変更はまだありません。"
+
+msgid "Show the sidebar"
+msgstr "サイドバーを表示"
+
+msgid "Hide the sidebar"
+msgstr "サイドバーを隠す"
+
+msgid "What's new"
+msgstr "新着情報"
+
+msgid "There are updates you haven't seen."
+msgstr "まだ見ていない更新があります。"
+
+msgid "What&#39;s new"
+msgstr "新着情報"
+
+msgid "See all updates"
+msgstr "すべての更新を見る"
+
+msgid "Get these in your own server"
+msgstr "自分のサーバーでも受け取る"
+
+msgid "Mark all as read"
+msgstr "すべて既読にする"
+
+msgid "Choose a different one."
+msgstr "ほかの言語を選ぶ。"
+
+msgid "Theme"
+msgstr "テーマ"
+
+msgid "Appearance"
+msgstr "外観"
+
+msgid "Always dark."
+msgstr "常にダーク。"
+
+msgid "Always light."
+msgstr "常にライト。"
+
+msgid "Matches the theme set on your device."
+msgstr "お使いのデバイスのテーマに合わせます。"
+
+msgid "Account"
+msgstr "アカウント"
+
+msgid "Sign out"
+msgstr "ログアウト"
+
+msgid "Ends this session, on this browser."
+msgstr "このブラウザーのこのセッションを終了します。"
+
+msgid "Sign out everywhere"
+msgstr "すべての端末からログアウト"
+
+msgid "Ends every VRCVerify session signed in as you, on every device."
+msgstr "すべての端末で、あなたとしてログインしているすべての VRCVerify セッションを終了します。"
+
+msgid "Sections"
+msgstr "セクション"
+
+msgid "All servers"
+msgstr "すべてのサーバー"
+
+msgid "Settings sections"
+msgstr "設定のセクション"
+
+msgid "Terms"
+msgstr "利用規約"
+
+msgid "Privacy"
+msgstr "プライバシー"
+
+msgid "Refunds"
+msgstr "返金"
+
+msgid "Core 18+ verification is free, forever."
+msgstr "基本の 18+ 認証は無料です。これからもずっと。"
+
+msgid "VRCVerify is operated by Esatto Technologies, United States."
+msgstr "VRCVerify は Esatto Technologies（アメリカ合衆国）が運営しています。"
+
+msgid ""
+"Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord "
+"Inc."
+msgstr "VRChat Inc. および Discord Inc. とは提携しておらず、両社による承認や後援も受けていません。"
+
+# | msgid "Pricing · VRCVerify"
+msgid "What's new · VRCVerify"
+msgstr "新着情報 · VRCVerify"
+
+msgid "Everything that has shipped in VRCVerify, newest first."
+msgstr "VRCVerify でこれまでに公開されたすべて。新しい順です。"
+
+msgid ""
+"There is a <a href=\"https://vrcverify.com/changelog\">public version of "
+"this page</a> you can share with anyone."
+msgstr "どなたとでも共有できる<a href=\"https://vrcverify.com/changelog\">このページの公開版</a>があります。"
+
+#, python-format
+msgid ""
+"Want these in your own server? <a href=\"%(invite)s\" target=\"_blank\" "
+"rel=\"noopener noreferrer\">Join the VRCVerify Discord</a> and follow the"
+" announcements channel — every update here gets posted there, and Discord"
+" crossposts it to any channel you pick."
+msgstr ""
+"ご自分のサーバーでも受け取りたいですか。<a href=\"%(invite)s\" target=\"_blank\" "
+"rel=\"noopener noreferrer\">VRCVerify の Discord "
+"に参加</a>して、アナウンスチャンネルをフォローしてください。ここの更新はすべてそちらにも投稿され、Discord "
+"がお好きなチャンネルへ転送します。"
+
+msgid "Sorry"
+msgstr "申し訳ありません"
+
+# | msgid "Add to your server"
+msgid "Back to your servers"
+msgstr "サーバー一覧に戻る"
+
+msgid "Manage your VRCVerify servers"
+msgstr "VRCVerify のサーバーを管理"
+
+msgid ""
+"Set the verified role, the instructions panel and logging for any Discord"
+" server you administer."
+msgstr "あなたが管理するどの Discord サーバーでも、認証済みロール・案内パネル・ログを設定できます。"
+
+msgid ""
+"Discord tells us <strong>who you are and which servers you are "
+"in</strong>, and nothing else."
+msgstr "Discord から渡されるのは<strong>あなたが誰で、どのサーバーに参加しているか</strong>だけで、それ以外はありません。"
+
+msgid "We <strong>don't keep your Discord token</strong> after you sign in."
+msgstr "ログイン後、<strong>Discord のトークンは保持しません</strong>。"
+
+msgid ""
+"This site <strong>can't see who has verified</strong> — only your "
+"server's settings."
+msgstr "このサイトからは<strong>誰が認証したかは分かりません</strong>。分かるのはサーバーの設定だけです。"
+
+# | msgid "Buy inside Discord"
+msgid "Sign in with Discord"
+msgstr "Discord でログイン"
+
+msgid ""
+"<code>/vrcverify_setup</code> in Discord sets a server's verified role, "
+"which is enough to start verifying members, and "
+"<code>/vrcverify_settings</code> shows what's stored. Everything else is "
+"changed here."
+msgstr ""
+"Discord の <code>/vrcverify_setup</code> "
+"でサーバーの認証済みロールを設定でき、それだけでメンバーの認証を始められます。<code>/vrcverify_settings</code> "
+"は保存されている内容を表示します。それ以外はすべてここで変更します。"
+
+msgid "See plans and subscribe"
+msgstr "プランを見て登録する"
+
+msgid "Dismiss"
+msgstr "閉じる"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+msgid "Verifications"
+msgstr "認証数"
+
+msgid ""
+"How many members completed 18+ verification in this server. Counts only —"
+" VRCVerify doesn't keep a record of who verified when."
+msgstr "このサーバーで 18+ 認証を完了したメンバーの数です。件数のみで、VRCVerify は誰がいつ認証したかを保持しません。"
+
+# | msgid "The panel couldn't be posted just now. Try again shortly."
+msgid "Couldn't load this server's numbers just now. Try again shortly."
+msgstr "ただいまこのサーバーの数値を読み込めませんでした。少ししてからもう一度お試しください。"
+
+#, python-format
+msgid "Peak %(peak)s a day"
+msgstr "最大 1 日あたり %(peak)s 件"
+
+#, python-format
+msgid ""
+"Verifications per day, last %(days)s days. The exact numbers follow this "
+"chart."
+msgstr "1 日あたりの認証数、直近 %(days)s 日間。正確な数値はこのグラフの下に続きます。"
+
+#, python-format
+msgid "Verifications per day, last %(days)s days"
+msgstr "1 日あたりの認証数、直近 %(days)s 日間"
+
+msgid "Day"
+msgstr "日付"
+
+msgid "Not measured"
+msgstr "未計測"
+
+msgid "Couldn't load the daily trend just now."
+msgstr "ただいま日次の推移を読み込めませんでした。"
+
+msgid "Setup"
+msgstr "セットアップ"
+
+#, python-format
+msgid ""
+"What's configured here, and whether it's actually working -- one list "
+"instead of two, since \"switched on\" and \"still works\" used to be "
+"answered in different places on this page. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+"ここで何が設定され、それが実際に機能しているか。リストを 2 つではなく 1 "
+"つにまとめています。以前は「オンかどうか」と「今も動いているか」がこのページの別々の場所で答えられていました。いずれも<a "
+"href=\"%(settings_url)s\">設定</a>から変更できます。"
+
+msgid "Setup complete — verification is fully working here."
+msgstr "セットアップ完了。ここでは認証が完全に機能しています。"
+
+msgid "set"
+msgstr "設定済み"
+
+msgid "needs attention"
+msgstr "要確認"
+
+msgid "Your servers — VRCVerify"
+msgstr "あなたのサーバー — VRCVerify"
+
+# | msgid "Add to your server"
+msgid "Your servers"
+msgstr "あなたのサーバー"
+
+msgid ""
+"Can't reach the bot right now, so we can't tell which of these it's in. "
+"Your settings are safe — nothing here has changed. Try again shortly."
+msgstr ""
+"ただいま Bot "
+"に接続できないため、このうちどのサーバーに参加しているかをお伝えできません。設定は無事で、ここでは何も変わっていません。少ししてからもう一度お試しください。"
+
+msgid "No servers to show"
+msgstr "表示できるサーバーがありません"
+
+msgid ""
+"This page lists servers where you have the Administrator permission. "
+"Discord tells us that list when you sign in, so a permission you were "
+"given since then will not be in it yet."
+msgstr ""
+"このページには、あなたが管理者権限を持つサーバーが表示されます。Discord "
+"はログイン時にその一覧を渡すため、それ以降に付与された権限はまだ反映されていません。"
+
+msgid "Sign out and start again"
+msgstr "ログアウトしてやり直す"
+
+msgid "You'll be asked to sign in with Discord again."
+msgstr "もう一度 Discord でのログインを求められます。"
+
+msgid "Overview, settings and activity"
+msgstr "概要・設定・アクティビティ"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "ここでは未設定、またはあなたの管理対象ではありません"
+
+msgid "Can't check this server right now"
+msgstr "このサーバーは今は確認できません"
+
+# | msgid "Add to your server"
+msgid "Add to server"
+msgstr "サーバーに追加"
+
+msgid "Pricing · VRCVerify"
+msgstr "料金 · VRCVerify"
+
+msgid "Pricing"
+msgstr "料金"
+
+msgid ""
+"Verification is free, forever. Premium adds the automation around it, per"
+" server."
+msgstr "認証はずっと無料です。Premium はその周りの自動化を、サーバーごとに追加します。"
+
+msgid "Free"
+msgstr "無料"
+
+msgid "forever"
+msgstr "ずっと"
+
+msgid "Everything you need to verify your members."
+msgstr "メンバーの認証に必要なものがすべて揃っています。"
+
+msgid "Verify members as 18+"
+msgstr "メンバーを 18+ として認証"
+
+msgid "Auto-verify people who verified in another server"
+msgstr "ほかのサーバーで認証済みの人を自動で認証"
+
+msgid "Members can update their own nickname"
+msgstr "メンバーが自分のニックネームを更新できる"
+
+msgid "Add to your server"
+msgstr "サーバーに追加"
+
+msgid "Per server"
+msgstr "サーバーごと"
+
+msgid "monthly, 6 or 12 months"
+msgstr "月額、6 か月または 12 か月"
+
+msgid "The automation around verification, for servers that want it."
+msgstr "認証まわりの自動化を、必要とするサーバーに。"
+
+msgid "Automatic removal of an unverified role"
+msgstr "未認証ロールの自動削除"
+
+msgid "Nickname syncing"
+msgstr "ニックネームの同期"
+
+msgid "A custom post-verification message"
+msgstr "認証後のカスタムメッセージ"
+
+msgid "A verification log channel"
+msgstr "認証ログチャンネル"
+
+msgid "Priority in the verification queue"
+msgstr "認証キューでの優先処理"
+
+msgid "A branded instructions panel"
+msgstr "サーバーの色とアイコンを使った案内パネル"
+
+msgid "Open the dashboard"
+msgstr "ダッシュボードを開く"
+
+msgid "One Premium, three ways to pay for it"
+msgstr "Premium は 1 つ、支払い方は 3 通り"
+
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+"ただいま料金を読み込めません。<strong>Premium "
+"は引き続きご利用いただけます。</strong>少ししてからもう一度お試しいただくか、Discord 内でご登録ください。"
+
+msgid "There are no plans on sale at the moment."
+msgstr "現在販売中のプランはありません。"
+
+msgid ""
+"Every plan below unlocks exactly the same features — the only difference "
+"is how long you pay for at once, and how much that saves."
+msgstr "下のどのプランでも、使える機能はまったく同じです。違うのは一度にどれだけの期間ぶんを支払うか、そしてそれでいくら安くなるかだけです。"
+
+msgid "Most popular"
+msgstr "人気"
+
+msgid ""
+"Some plans start with a free trial. Whether a particular server qualifies"
+" depends on whether it has had one before — the dashboard tells you "
+"before you pay."
+msgstr "一部のプランには無料トライアルが付きます。特定のサーバーが対象になるかどうかは、以前に利用したことがあるかで決まります。お支払いの前にダッシュボードでお知らせします。"
+
+msgid ""
+"Prices are in US dollars and <strong>exclude tax</strong>; any tax due "
+"where you are is added at checkout. Payment is handled by Stripe — card "
+"details never reach VRCVerify."
+msgstr ""
+"料金は米ドル表示で、<strong>税抜き</strong>です。お住まいの地域で課される税は決済時に加算されます。決済は Stripe "
+"が処理し、カード情報が VRCVerify に届くことはありません。"
+
+msgid ""
+"Premium is bought per server. You can subscribe with a card in the "
+"dashboard, or monthly through Discord."
+msgstr "Premium はサーバーごとの購入です。ダッシュボードでカード決済にするか、Discord 経由の月額にできます。"
+
+msgid "Ready to start?"
+msgstr "はじめませんか？"
+
+msgid ""
+"Add VRCVerify to your server and verification works immediately, at no "
+"cost. Premium is there when you want it."
+msgstr "VRCVerify をサーバーに追加すれば、認証はすぐに無料で使えます。Premium は必要になったときにあります。"
+
+msgid "Saved."
+msgstr "保存しました。"
+
+msgid ""
+"Checking your VRChat group. Reload this page in a moment to see the "
+"result."
+msgstr "VRChat グループを確認しています。結果を見るには、少ししてからこのページを再読み込みしてください。"
+
+msgid ""
+"Your settings were saved, but the instructions panel still shows the old "
+"ones. Use <strong>Repost or move panel</strong> below to replace it."
+msgstr "設定は保存されましたが、案内パネルにはまだ以前の内容が表示されています。下の<strong>パネルを再投稿または移動</strong>から置き換えてください。"
+
+msgid ""
+"Your grandfathered extras stay free whatever you decide. Premium unlocks "
+"the settings marked below."
+msgstr "以前から引き継がれている特典は、どちらを選んでも無料のままです。Premium は下に印の付いた設定を解放します。"
+
+msgid "Unlocks the settings marked below. 18+ verification itself stays free."
+msgstr "下に印の付いた設定を解放します。18+ 認証そのものは引き続き無料です。"
+
+msgid ""
+"Couldn't load this server's roles and channels just now, so some settings"
+" below show an ID instead of a name. The values themselves are correct."
+msgstr "このサーバーのロールとチャンネルをただいま読み込めなかったため、以下の設定の一部は名前ではなく ID で表示されています。値そのものは正確です。"
+
+# | msgid "" "This bot's database is missing the column for that setting.
+# | Contact the " "bot operator."
+msgid ""
+"This bot's database is missing the auto-verify column, so that setting "
+"isn't in effect regardless of what it shows. Contact the bot operator."
+msgstr "この Bot のデータベースに自動認証用のカラムがないため、表示内容にかかわらずこの設定は反映されません。Bot の運営者にご連絡ください。"
+
+msgid "Where it's posted"
+msgstr "投稿先"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid "The bot didn't answer this one. Try again shortly."
+msgstr "Bot からこの項目の応答がありませんでした。少ししてからもう一度お試しください。"
+
+msgid "No panel found"
+msgstr "パネルが見つかりません"
+
+msgid ""
+"Post one below, or with <code>/vrcverify_instructions</code> in Discord, "
+"so members have somewhere to start."
+msgstr ""
+"下から投稿するか、Discord で <code>/vrcverify_instructions</code> "
+"を実行して、メンバーが始められる場所を用意してください。"
+
+msgid "Members use this message to begin verification."
+msgstr "メンバーはこのメッセージから認証を始めます。"
+
+#, python-format
+msgid "VRChat said: %(said)s"
+msgstr "VRChat からの応答: %(said)s"
+
+msgid "Setup code:"
+msgstr "セットアップコード:"
+
+msgid ""
+"Paste this anywhere in your VRChat group's description. It proves the "
+"group is yours, and you can remove it once the check passes."
+msgstr "これを VRChat グループの説明のどこかに貼り付けてください。そのグループがあなたのものであることの証明になり、確認が通れば削除して構いません。"
+
+#, python-format
+msgid ""
+"Invite this account to your group: <a href=\"%(account_url)s\" "
+"rel=\"noopener noreferrer\" target=\"_blank\">%(account_id)s</a> — check "
+"the ID matches, because VRChat display names are not unique."
+msgstr ""
+"このアカウントをグループに招待してください: <a href=\"%(account_url)s\" rel=\"noopener "
+"noreferrer\" target=\"_blank\">%(account_id)s</a> — VRChat "
+"の表示名は一意ではないため、ID が一致しているか確認してください。"
+
+#, python-format
+msgid ""
+"Your group: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">open it on vrchat.com</a>"
+msgstr ""
+"あなたのグループ: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">vrchat.com で開く</a>"
+
+msgid "Not applied"
+msgstr "未適用"
+
+msgid "None"
+msgstr "なし"
+
+msgid "Use the default blue"
+msgstr "既定のブルーを使う"
+
+# | msgid "Premium until"
+msgid "Premium only."
+msgstr "Premium 限定。"
+
+msgid "Your saved value is kept, and comes back if the subscription is renewed."
+msgstr "保存した値はそのまま残り、サブスクリプションを更新すると再び有効になります。"
+
+msgid ""
+"Saved, but not acted on without Premium. Anyone can set this; the bot "
+"just won't use it until the feature is active."
+msgstr "保存はされますが、Premium がないと反映されません。設定自体は誰でもできますが、機能が有効になるまで Bot はこれを使いません。"
+
+msgid ""
+"Not editable from the website yet. Nothing is wrong with it — the bot "
+"hasn't opened this setting to the dashboard."
+msgstr "ウェブサイトからはまだ変更できません。異常ではなく、Bot がこの設定をダッシュボードに開放していないだけです。"
+
+msgid "Save changes"
+msgstr "変更を保存"
+
+msgid "Unsaved changes in this group"
+msgstr "このグループに未保存の変更があります"
+
+msgid "Check group setup"
+msgstr "グループ設定を確認"
+
+msgid ""
+"Asks the bot to join your group and report what it can do there. This "
+"button doesn't save the settings above — do that first if you've just "
+"changed the group."
+msgstr ""
+"Bot "
+"にグループへの参加を依頼し、そこで何ができるかを報告させます。このボタンは上の設定を保存しません。グループを変更した直後であれば、先に保存してください。"
+
+msgid "Post the panel in"
+msgstr "パネルの投稿先"
+
+# | msgid "Post the panel in"
+msgid "Repost or move panel"
+msgstr "パネルを再投稿または移動"
+
+# | msgid "Post the panel in"
+msgid "Post panel"
+msgstr "パネルを投稿"
+
+msgid ""
+"Choosing the channel it's already in refreshes it rather than posting a "
+"second one. This button only moves the panel; saving the settings above "
+"is what changes what it says."
+msgstr "すでに設置済みのチャンネルを選ぶと、二つ目を投稿するのではなく更新されます。このボタンはパネルを移動するだけです。表示内容は上の設定を保存すると変わります。"
+
+msgid ""
+"Members use this message to start verifying. It is posted with the "
+"settings saved above."
+msgstr "メンバーはこのメッセージから認証を始めます。上で保存した設定の内容で投稿されます。"
+
+#, python-format
+msgid "Subscriptions — %(name)s — VRCVerify"
+msgstr "サブスクリプション — %(name)s — VRCVerify"
+
+msgid ""
+"We couldn't check this server's plan just now. Nothing here is missing — "
+"the page simply can't say what's true yet. Try again in a moment."
+msgstr "ただいまこのサーバーのプランを確認できませんでした。情報が欠けているわけではなく、このページがまだ事実をお伝えできないだけです。少ししてからもう一度お試しください。"
+
+msgid ""
+"Every VRCVerify feature is currently available to this server at no "
+"charge. There's nothing to subscribe to."
+msgstr "現在、VRCVerify のすべての機能をこのサーバーで無料でご利用いただけます。登録が必要なものはありません。"
+
+msgid ""
+"Waiting for Stripe to confirm. Premium switches on by itself, usually "
+"within a few seconds — reload this page in a moment."
+msgstr "Stripe の確認を待っています。Premium は自動的に、通常は数秒で有効になります。少ししてからこのページを再読み込みしてください。"
+
+msgid ""
+"If it hasn't switched on after a minute or two, nothing is lost: Stripe "
+"keeps trying to reach us for up to three days, and the subscription takes"
+" effect as soon as it gets through. Get in touch if it stays this way."
+msgstr ""
+"1〜2 分たっても有効にならなくても、失われるものはありません。Stripe は最大 3 "
+"日間こちらへの通知を試み続け、届きしだいサブスクリプションが有効になります。この状態が続く場合はご連絡ください。"
+
+#, python-format
+msgid ""
+"This server looks like it's paying for Premium on %(count)s separate card"
+" subscriptions. Premium is on and stays on; you're just being charged "
+"more than once."
+msgstr ""
+"このサーバーは Premium を %(count)s 件の別々のカード決済で支払っているようです。Premium "
+"は有効なままですが、料金が複数回請求されています。"
+
+msgid ""
+"This server looks like it's paying for Premium twice — once by card and "
+"once through Discord. Premium is on and stays on; you're just being "
+"charged more than once."
+msgstr ""
+"このサーバーは Premium を二重に支払っているようです。カードで 1 件、Discord で 1 件です。Premium "
+"は有効なままですが、料金が複数回請求されています。"
+
+msgid ""
+"We won't cancel either one for you — that's your call, and getting it "
+"wrong with someone else's money isn't a risk worth automating."
+msgstr "どちらもこちらでは解約しません。判断されるのはあなたであり、他人のお金でそれを誤ることは自動化に値するリスクではないからです。"
+
+msgid ""
+"To cancel the card subscription, use <strong>Manage billing</strong> "
+"below."
+msgstr "カード決済のサブスクリプションを解約するには、下の<strong>お支払いの管理</strong>をお使いください。"
+
+#, python-format
+msgid ""
+"To cancel the Discord one, open <strong>User Settings → "
+"Subscriptions</strong> in Discord, or run "
+"<code>/vrcverify_subscription</code> in %(name)s."
+msgstr ""
+"Discord のほうを解約するには、Discord で<strong>ユーザー設定 → "
+"サブスクリプション</strong>を開くか、%(name)s で <code>/vrcverify_subscription</code> "
+"を実行してください。"
+
+msgid ""
+"Your last payment didn't go through. Premium is still on while Stripe "
+"retries the card — update your card details under <strong>Manage "
+"billing</strong> below."
+msgstr ""
+"前回のお支払いが完了しませんでした。Stripe がカードへの請求を再試行している間も Premium "
+"は有効です。下の<strong>お支払いの管理</strong>からカード情報を更新してください。"
+
+msgid ""
+"Cancelled, and nothing changes before then — this server keeps Premium "
+"for the whole of the period it has already paid for."
+msgstr "解約済みです。それまでは何も変わりません。このサーバーは、すでに支払った期間のあいだ Premium を保持します。"
+
+msgid ""
+"Discord handles the billing, so cancelling or changing the payment method"
+" happens there — <strong>User Settings → Subscriptions</strong>. We can't"
+" manage a Discord subscription from here."
+msgstr ""
+"請求は Discord が扱うため、解約や支払い方法の変更はそちらで行います（<strong>ユーザー設定 → "
+"サブスクリプション</strong>）。Discord のサブスクリプションをここから管理することはできません。"
+
+#, python-format
+msgid ""
+"18+ verification is free and always will be. Premium unlocks the settings"
+" marked on <a href=\"%(settings_url)s\">Settings</a>, shortens the wait "
+"between verifications, and moves this server up the verification queue."
+msgstr ""
+"18+ 認証は無料で、これからもずっと無料です。Premium は<a "
+"href=\"%(settings_url)s\">設定</a>で印の付いた項目を解放し、認証と認証のあいだの待ち時間を短くし、認証キューでこのサーバーを前に進めます。"
+
+msgid ""
+"Your grandfathered extras — unverified-role removal, nickname sync and "
+"the custom verification message — stay free whatever you decide here."
+msgstr "以前から引き継がれている特典（未認証ロールの削除、ニックネームの同期、カスタム認証メッセージ）は、ここで何を選んでも無料のままです。"
+
+#, python-format
+msgid "Your Premium ended on %(when)s"
+msgstr "Premium は %(when)s に終了しました"
+
+#, python-format
+msgid ""
+"The %(plan)s plan. Subscribing again picks up where it left off — nothing"
+" was reset when it lapsed."
+msgstr "%(plan)s プランです。もう一度ご登録いただくと、途切れたところから再開します。期限切れの際に何もリセットされていません。"
+
+msgid ""
+"Subscribing again picks up where it left off — nothing was reset when it "
+"lapsed."
+msgstr "もう一度ご登録いただくと、途切れたところから再開します。期限切れの際に何もリセットされていません。"
+
+msgid "Pay by card"
+msgstr "カードで支払う"
+
+msgid ""
+"We can't load the plans right now. <strong>Nothing has changed about your"
+" subscription.</strong> Try again in a moment, or subscribe inside "
+"Discord below."
+msgstr ""
+"ただいまプランを読み込めません。<strong>お客様のサブスクリプションには何の変更もありません。</strong>少ししてからもう一度お試しいただくか、下の"
+" Discord 内でご登録ください。"
+
+msgid ""
+"<strong>One Premium, three ways to pay for it.</strong> Every plan below "
+"unlocks exactly the same features — the only difference is how long you "
+"pay for at once, and how much that saves."
+msgstr ""
+"<strong>Premium は 1 つ、支払い方は 3 "
+"通り。</strong>下のどのプランでも、使える機能はまったく同じです。違うのは一度にどれだけの期間ぶんを支払うか、そしてそれでいくら安くなるかだけです。"
+
+msgid "Subscribe"
+msgstr "登録する"
+
+msgid "All plans renew automatically. Cancel any time from this page."
+msgstr "すべてのプランは自動更新されます。このページからいつでも解約できます。"
+
+msgid ""
+"<strong>The 6- and 12-month plans are card-only.</strong> Discord "
+"subscriptions bill monthly, so those terms can't be offered there."
+msgstr ""
+"<strong>6 か月・12 か月プランはカード決済のみです。</strong>Discord "
+"のサブスクリプションは月単位の請求なので、その期間はそちらでは提供できません。"
+
+#, python-format
+msgid ""
+"Need to send these prices to whoever pays? There is a <a "
+"href=\"%(pricing_url)s\">public pricing page</a> that works without a "
+"Discord account."
+msgstr ""
+"この料金を支払う方に送りたいですか。Discord アカウントがなくても見られる<a "
+"href=\"%(pricing_url)s\">公開の料金ページ</a>があります。"
+
+msgid "Manage billing"
+msgstr "お支払いの管理"
+
+msgid ""
+"Change plan, update your card or cancel — on Stripe's own billing portal."
+" You'll come straight back here afterwards."
+msgstr "プラン変更、カードの更新、解約は Stripe 自身の請求ポータルで行えます。終わればそのままここに戻ります。"
+
+msgid "Buy inside Discord"
+msgstr "Discord 内で購入"
+
+#, python-format
+msgid ""
+"Run it in %(name)s. Discord handles the payment, and the command's button"
+" is already pointed at this server. <strong>Monthly only</strong>, at the"
+" same price as the monthly plan above."
+msgstr ""
+"%(name)s で実行してください。支払いは Discord "
+"が処理し、コマンドのボタンはすでにこのサーバーを指しています。<strong>月額のみ</strong>で、上の月額プランと同じ料金です。"
+
+#, python-format
+msgid "Run it in %(name)s to see this server's Discord subscription."
+msgstr "このサーバーの Discord サブスクリプションを見るには、%(name)s で実行してください。"
+
+#, python-format
+msgid ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">See what's included on Discord's store page</a> — it "
+"lists the price and perks, but you choose the server during checkout, so "
+"use the command above if you administer more than one."
+msgstr ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">Discord "
+"のストアページで内容を見る</a>。料金と特典が載っていますが、サーバーは購入手続きの途中で選ぶ形になるため、複数のサーバーを管理している場合は上のコマンドをお使いください。"
+

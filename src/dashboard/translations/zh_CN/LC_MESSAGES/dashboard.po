@@ -1,0 +1,1596 @@
+# Chinese (Simplified, China) translations for VRCVerify.
+# Copyright (C) 2026 Esatto Technologies
+# This file is distributed under the same license as the VRCVerify project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: VRCVerify VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-08-29 10:47-0400\n"
+"PO-Revision-Date: 2026-08-29 03:27-0400\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh_Hans_CN\n"
+"Language-Team: zh_Hans_CN <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Dark"
+msgstr "深色"
+
+msgid "Light"
+msgstr "浅色"
+
+msgid "System"
+msgstr "跟随系统"
+
+msgid "Authorisation was declined."
+msgstr "授权已被拒绝。"
+
+msgid "That login link has expired. Please try again."
+msgstr "该登录链接已过期。请重试。"
+
+msgid "That login could not be verified. Please try again."
+msgstr "无法验证该次登录。请重试。"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid "Discord could not complete the login. Please try again."
+msgstr "Discord 未能完成登录。请重试。"
+
+msgid "Page not found."
+msgstr "页面未找到。"
+
+msgid "Something went wrong."
+msgstr "出了点问题。"
+
+msgid "That setting needs VRCVerify Premium. Nothing was changed."
+msgstr "该设置需要 VRCVerify Premium。未做任何更改。"
+
+msgid "That language isn't one VRCVerify supports. Nothing was changed."
+msgstr "VRCVerify 不支持该语言。未做任何更改。"
+
+msgid ""
+"Run /vrcverify_setup in your server first -- VRCVerify needs a verified "
+"role before it can store anything else."
+msgstr "请先在你的服务器中运行 /vrcverify_setup —— VRCVerify 需要先有一个已验证身份组，才能保存其他内容。"
+
+msgid "That setting can't be changed from the website yet. Nothing was changed."
+msgstr "该设置暂时还不能从网站修改。未做任何更改。"
+
+msgid ""
+"The bot couldn't complete the save, so nothing was changed. Try again "
+"shortly."
+msgstr "机器人未能完成保存，因此未做任何更改。请稍后重试。"
+
+msgid "That role isn't in this server any more. Reload the page and pick again."
+msgstr "该身份组已不在此服务器中。请刷新页面后重新选择。"
+
+msgid "Pick a verified role -- verification can't run without one."
+msgstr "请选择一个已验证身份组 —— 没有它验证无法运行。"
+
+msgid ""
+"Links in the custom message may only point to discord.com or vrchat.com. "
+"Nothing was changed."
+msgstr "自定义消息中的链接只能指向 discord.com 或 vrchat.com。未做任何更改。"
+
+msgid "That custom message is too long. The limit is 1000 characters."
+msgstr "该自定义消息过长。上限为 1000 个字符。"
+
+msgid ""
+"Verification logs can't go in an announcement channel -- other servers "
+"can follow one, which would republish your members' age status."
+msgstr "验证日志不能放在公告频道 —— 其他服务器可以关注公告频道，这会把你成员的年龄状态转发到本服务器之外。"
+
+msgid ""
+"That channel isn't in this server any more. Reload the page and pick "
+"again."
+msgstr "该频道已不在此服务器中。请刷新页面后重新选择。"
+
+msgid ""
+"VRCVerify can't post in that channel, so it can't log there. Check the "
+"channel's permissions and try again."
+msgstr "VRCVerify 无法在该频道发言，因此无法在那里记录日志。请检查该频道的权限后重试。"
+
+msgid ""
+"This bot's database is missing the column for that setting. Contact the "
+"bot operator."
+msgstr "该机器人的数据库缺少这项设置对应的字段。请联系机器人运营者。"
+
+msgid ""
+"That doesn't look like a VRChat group. Paste the group's ID (it starts "
+"with grp_) or the vrchat.com link to the group."
+msgstr "这看起来不是一个 VRChat 群组。请粘贴群组 ID（以 grp_ 开头）或该群组的 vrchat.com 链接。"
+
+msgid ""
+"VRChat's vrc.group short links can't be looked up. Open the group on "
+"vrchat.com and paste that link instead, or the group ID starting with "
+"grp_."
+msgstr "VRChat 的 vrc.group 短链接无法解析。请在 vrchat.com 上打开该群组并粘贴那个链接，或粘贴以 grp_ 开头的群组 ID。"
+
+msgid ""
+"Another Discord server has already linked that VRChat group. A group can "
+"only belong to one server -- contact support if that's wrong."
+msgstr "另一个 Discord 服务器已经关联了该 VRChat 群组。一个群组只能属于一个服务器 —— 如果这不正确，请联系支持。"
+
+msgid "Add your VRChat group first, then run the setup check."
+msgstr "请先添加你的 VRChat 群组，然后再运行设置检查。"
+
+msgid "That change couldn't be saved, so nothing was changed."
+msgstr "该更改未能保存，因此未做任何更改。"
+
+msgid ""
+"VRCVerify can't post the panel in that channel. It needs both Send "
+"Messages and Embed Links there -- Embed Links is the one that's usually "
+"missing, because the panel is an embed."
+msgstr "VRCVerify 无法在该频道发布面板。它在那里同时需要“发送消息”和“嵌入链接”两项权限 —— 通常缺的是“嵌入链接”，因为面板是一条嵌入消息。"
+
+msgid "The panel couldn't be posted just now. Try again shortly."
+msgstr "目前无法发布面板。请稍后重试。"
+
+msgid "Panel posted."
+msgstr "面板已发布。"
+
+msgid ""
+"That channel already had the panel, so it was refreshed rather than "
+"posted again."
+msgstr "该频道已有面板，因此是刷新而不是重新发布。"
+
+msgid ""
+"Panel posted in the new channel. The old one is still up in its previous "
+"channel -- delete it in Discord when you're ready."
+msgstr "面板已发布到新频道。旧的那条仍留在原频道 —— 你方便时可以在 Discord 中删除它。"
+
+msgid ""
+"That panel was posted in a way Discord won't let the bot edit, so it was "
+"replaced with a fresh one. Your settings apply to it now."
+msgstr "该面板的发布方式使 Discord 不允许机器人编辑它，因此已替换为一条新的。你的设置现在应用在新面板上。"
+
+msgid ""
+"Thanks — your subscription is being set up. Premium switches on as soon "
+"as Stripe confirms the payment, usually within a few seconds."
+msgstr "谢谢 —— 你的订阅正在设置中。Stripe 确认付款后 Premium 就会开启，通常只需几秒。"
+
+msgid "That plan isn't one we offer. Nothing has been charged."
+msgstr "我们没有提供该套餐。未产生任何费用。"
+
+msgid ""
+"This server already has Premium, so there was nothing to buy. Nothing has"
+" been charged."
+msgstr "此服务器已有 Premium，因此没有可购买的内容。未产生任何费用。"
+
+msgid ""
+"We couldn't reach Stripe just now, so nothing has been charged. Try again"
+" in a moment, or subscribe inside Discord instead."
+msgstr "我们暂时无法连接 Stripe，因此未产生任何费用。请稍后重试，或改在 Discord 内订阅。"
+
+msgid "There's no card subscription on this server to manage."
+msgstr "此服务器没有可管理的银行卡订阅。"
+
+msgid "Overview"
+msgstr "概览"
+
+# | msgid "Sections"
+msgid "Settings"
+msgstr "设置"
+
+msgid "Subscriptions"
+msgstr "订阅"
+
+msgid ""
+"That server isn't available. Either VRCVerify isn't in it, or you don't "
+"have the Administrator permission there."
+msgstr "该服务器不可用。可能是 VRCVerify 不在其中，或者你在那里没有管理员权限。"
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+msgid ""
+"Can't reach the bot right now, so this page can't be shown. Nothing has "
+"changed. Try again shortly."
+msgstr "暂时无法连接机器人，因此无法显示此页面。没有任何改动。请稍后重试。"
+
+msgid "Premium"
+msgstr "Premium"
+
+# | msgid "Renews"
+msgid "New"
+msgstr "新"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+# | msgid "Verification log"
+msgid "See how verification is going"
+msgstr "看看验证进行得怎么样"
+
+msgid ""
+"The Overview page now charts the last 30 days of verifications, and "
+"checks the things that quietly break a server — a verified role that was "
+"deleted, a role the bot cannot assign, an instructions panel that is no "
+"longer where it was posted."
+msgstr ""
+"概览页面现在会用图表展示最近 30 "
+"天的验证，并检查那些悄悄让服务器失灵的问题：被删除的已验证身份组、机器人无法授予的身份组、已经不在发布位置的说明面板。"
+
+msgid "The dashboard has been rebuilt"
+msgstr "控制台已重建"
+
+msgid ""
+"A new header and sidebar, servers you can pick from cards instead of a "
+"list, switches that show you what is on at a glance, and a warning before"
+" you leave a page with unsaved changes."
+msgstr "全新的顶栏和侧边栏，用卡片而不是列表来挑选服务器，一眼就能看出哪些功能已开启的开关，以及在离开有未保存改动的页面前的提醒。"
+
+msgid "Dark, light, or whatever your device says"
+msgstr "深色、浅色，或跟随设备设置"
+
+msgid ""
+"The dashboard is dark by default now, with a theme button in the header. "
+"Your choice is remembered on this browser."
+msgstr "控制台现在默认为深色，顶栏里有主题按钮。你的选择会记在这个浏览器上。"
+
+msgid "Invite verified members to your VRChat group"
+msgstr "邀请已验证成员加入你的 VRChat 群组"
+
+msgid ""
+"Link a private VRChat group to your server, and members who finish "
+"verification are offered an invite to it. Nothing is sent to VRChat "
+"unless the member asks for it."
+msgstr "把一个私密的 VRChat 群组关联到你的服务器，完成验证的成员就会收到加入邀请。除非成员主动要求，否则不会向 VRChat 发送任何内容。"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "查看 Premium"
+
+#, python-format
+msgid "New in your plan: %(title)s"
+msgstr "你的套餐新增：%(title)s"
+
+#, python-format
+msgid "%(body)s It's included in your subscription."
+msgstr "%(body)s 它已包含在你的订阅中。"
+
+# | msgid "Setup"
+msgid "Set it up"
+msgstr "去设置"
+
+# | msgid "Your grandfathered extras stay free whatever you decide."
+#, python-format
+msgid "Your grandfathered extras stay free whatever you decide. %(body)s"
+msgstr "无论你如何选择，你保留的旧有权益都将继续免费。%(body)s"
+
+#, python-format
+msgid "New in Premium: %(title)s"
+msgstr "Premium 新增：%(title)s"
+
+msgid "Today (UTC)"
+msgstr "今天（UTC）"
+
+msgid "Last 7 days"
+msgstr "最近 7 天"
+
+msgid "Last 30 days"
+msgstr "最近 30 天"
+
+msgid "Couldn't check"
+msgstr "无法查看"
+
+msgid "The bot didn't answer this one."
+msgstr "机器人没有回应这一项。"
+
+msgid "Not collecting that far back yet."
+msgstr "还没有记录到那么早。"
+
+#, python-format
+msgid "Only counting since %(date)s."
+msgstr "仅统计自 %(date)s 起的数据。"
+
+msgid "Members"
+msgstr "成员"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+msgid "Verified, all time"
+msgstr "累计已验证"
+
+msgid "Counted since this server's records began."
+msgstr "自本服务器开始记录以来的统计。"
+
+msgid "Not collecting yet."
+msgstr "尚未开始记录。"
+
+msgid "Auto-verify on join"
+msgstr "加入时自动验证"
+
+msgid "Members are checked when they join."
+msgstr "成员加入时会被检查。"
+
+msgid "Unverified role"
+msgstr "未验证身份组"
+
+msgid "Optional. Removed once someone verifies."
+msgstr "可选。成员完成验证后自动移除。"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+msgid "Verification log"
+msgstr "验证日志"
+
+msgid "Optional. Premium."
+msgstr "可选。Premium。"
+
+# | msgid "Sections"
+# | msgid "Settings"
+msgid "Go to Settings"
+msgstr "前往设置"
+
+msgid "Verified role"
+msgstr "已验证身份组"
+
+# | msgid "Pick a verified role -- verification can't run without one."
+msgid "Required — verification can't finish without one."
+msgstr "必填 —— 没有它，验证无法完成。"
+
+msgid "The role that was set has been deleted. Choose another."
+msgstr "原先设置的身份组已被删除。请另选一个。"
+
+msgid "VRCVerify's own role needs to sit above this one to grant it."
+msgstr "VRCVerify 自己的身份组必须排在它上面，才能授予该身份组。"
+
+msgid "Set, and VRCVerify can grant it."
+msgstr "已设置，且 VRCVerify 可以授予。"
+
+# | msgid "A branded instructions panel"
+msgid "Instructions panel"
+msgstr "说明面板"
+
+msgid "Members need a message to start from."
+msgstr "成员需要一条消息作为起点。"
+
+msgid "The channel it was posted in was deleted."
+msgstr "发布它的频道已被删除。"
+
+msgid "VRCVerify can't post there anymore — check its permissions."
+msgstr "VRCVerify 已无法在那里发言 —— 请检查权限。"
+
+msgid "Posted, and VRCVerify can still reach it."
+msgstr "已发布，且 VRCVerify 仍能访问。"
+
+msgid "No verified role is set"
+msgstr "尚未设置已验证身份组"
+
+msgid "The verified role needs attention"
+msgstr "已验证身份组需要处理"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+msgid "No instructions panel is posted"
+msgstr "尚未发布说明面板"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+msgid "The instructions panel needs attention"
+msgstr "说明面板需要处理"
+
+#, python-format
+msgid ""
+"%(count)s member verified here in the last 30 days. Premium logs each one"
+" to a channel of your choice."
+msgid_plural ""
+"%(count)s members verified here in the last 30 days. Premium logs each "
+"one to a channel of your choice."
+msgstr[0] "最近 30 天有 %(count)s 名成员在此完成验证。Premium 会把每一次都记录到你选择的频道。"
+
+msgid "Add VRCVerify Premium"
+msgstr "添加 VRCVerify Premium"
+
+msgid "Your grandfathered extras stay free whatever you decide."
+msgstr "无论你如何选择，你保留的旧有权益都将继续免费。"
+
+msgid "Upgrade to VRCVerify Premium"
+msgstr "升级到 VRCVerify Premium"
+
+# | msgid "A verification log channel"
+msgid "Verification"
+msgstr "验证"
+
+msgid "After verifying"
+msgstr "验证之后"
+
+msgid "VRChat group"
+msgstr "VRChat 群组"
+
+msgid "Logging"
+msgstr "日志"
+
+# | msgid "Active"
+msgid "Activity"
+msgstr "动态"
+
+msgid "English"
+msgstr "英语"
+
+msgid "Spanish"
+msgstr "西班牙语"
+
+msgid "Chinese (Simplified)"
+msgstr "简体中文"
+
+msgid "Japanese"
+msgstr "日语"
+
+msgid "German"
+msgstr "德语"
+
+msgid "Dutch"
+msgstr "荷兰语"
+
+msgid "Hindi"
+msgstr "印地语"
+
+msgid "Arabic"
+msgstr "阿拉伯语"
+
+msgid "Bengali"
+msgstr "孟加拉语"
+
+msgid "Portuguese (Brazil)"
+msgstr "葡萄牙语（巴西）"
+
+msgid "Russian"
+msgstr "俄语"
+
+msgid "Punjabi"
+msgstr "旁遮普语"
+
+msgid "Not set"
+msgstr "未设置"
+
+#, python-format
+msgid "Unknown role (%(id)s)"
+msgstr "未知身份组（%(id)s）"
+
+msgid ""
+"This role no longer exists in the server. VRCVerify will not be able to "
+"use it."
+msgstr "该身份组已不在服务器中，VRCVerify 无法使用它。"
+
+msgid "Couldn't check whether VRCVerify can manage this role."
+msgstr "无法确认 VRCVerify 是否能管理该身份组。"
+
+msgid "Granted once a member's VRChat account is confirmed as 18+."
+msgstr "成员的 VRChat 账号被确认为 18+ 后授予。"
+
+msgid ""
+"VRCVerify cannot grant this role. Move the VRCVerify role above it in "
+"Server Settings -> Roles, or verification will fail for every member."
+msgstr "VRCVerify 无法授予该身份组。请在服务器设置 -> 身份组中把 VRCVerify 的身份组移到它上面，否则所有成员的验证都会失败。"
+
+msgid ""
+"No verified role is set, so verification cannot complete. Members are "
+"told to contact an admin."
+msgstr "尚未设置已验证身份组，因此验证无法完成。成员会被告知联系管理员。"
+
+msgid "Removed automatically once a member verifies."
+msgstr "成员完成验证后自动移除。"
+
+msgid ""
+"VRCVerify cannot remove this role. Move the VRCVerify role above it in "
+"Server Settings -> Roles."
+msgstr "VRCVerify 无法移除该身份组。请在服务器设置 -> 身份组中把 VRCVerify 的身份组移到它上面。"
+
+msgid ""
+"Members already verified with VRCVerify elsewhere get the role as soon as"
+" they join. Free for every server, always."
+msgstr "已在其他服务器通过 VRCVerify 验证的成员，一加入就会获得该身份组。对所有服务器永久免费。"
+
+msgid "On"
+msgstr "开启"
+
+msgid "Off"
+msgstr "关闭"
+
+# | msgid "Nickname syncing"
+msgid "Nickname sync"
+msgstr "昵称同步"
+
+msgid "Sets a member's server nickname to their VRChat display name."
+msgstr "把成员在服务器中的昵称设为其 VRChat 显示名。"
+
+msgid "The core of the bot. These are free for every server."
+msgstr "机器人的核心功能。对所有服务器免费。"
+
+msgid "What happens once a member is confirmed."
+msgstr "成员通过确认之后会发生什么。"
+
+msgid "The message members use to start verification."
+msgstr "成员用来开始验证的那条消息。"
+
+msgid "Invite members to your group once they're verified."
+msgstr "成员验证通过后，邀请他们加入你的群组。"
+
+msgid "A record of verification activity for your moderators."
+msgstr "给你的管理员看的验证活动记录。"
+
+msgid "Not checked yet"
+msgstr "尚未检查"
+
+msgid ""
+"Put the setup code in your group's description, invite the bot to the "
+"group, then run the check."
+msgstr "把设置码放进群组简介，邀请机器人加入群组，然后运行检查。"
+
+msgid "Checking…"
+msgstr "正在检查…"
+
+msgid "The bot is talking to VRChat. Reload this page in a moment."
+msgstr "机器人正在与 VRChat 通信。请稍后刷新本页。"
+
+msgid "No answer from the checker"
+msgstr "检查程序没有回应"
+
+msgid "The check was sent but nothing came back. Try again shortly."
+msgstr "检查已发送，但没有任何返回。请稍后重试。"
+
+msgid "Couldn't start the check"
+msgstr "无法启动检查"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. Try again"
+" shortly."
+msgstr "机器人无法联系到自身负责与 VRChat 通信的部分。请稍后重试。"
+
+msgid "The bot left your group"
+msgstr "机器人已退出你的群组"
+
+msgid ""
+"A VRChat account can only be in so many groups, so after a long time "
+"without a subscription the bot left yours to free the space. Invite the "
+"account below back and run the check again — your group and setup code "
+"are still saved, so there is nothing else to redo."
+msgstr ""
+"一个 VRChat 账号能加入的群组数量有限，因此在长时间没有订阅之后，机器人退出了你的群组以腾出名额。请重新邀请下面的账号并再次运行检查 —— "
+"你的群组和设置码仍然保存着，没有别的需要重做。"
+
+msgid "Ready"
+msgstr "就绪"
+
+msgid "The bot is in your group and can send invites."
+msgstr "机器人已在你的群组中，可以发送邀请。"
+
+msgid "Waiting for a moderator"
+msgstr "等待管理员批准"
+
+msgid ""
+"The bot has asked to join and a group moderator needs to approve it. Run "
+"the check again once they have."
+msgstr "机器人已申请加入，需要群组管理员批准。批准后请再次运行检查。"
+
+msgid "The bot hasn't been invited yet"
+msgstr "机器人尚未被邀请"
+
+msgid ""
+"Invite the account below to your group from VRChat, then run the check "
+"again."
+msgstr "请在 VRChat 中把下面的账号邀请进你的群组，然后再次运行检查。"
+
+msgid "In the group, but it can't invite anyone"
+msgstr "已在群组中，但无法邀请任何人"
+
+msgid ""
+"Give the bot's role the “Manage Group Invites” permission in VRChat. "
+"Being an admin is not enough — it is its own tick box."
+msgstr "请在 VRChat 中给机器人的角色授予“Manage Group Invites”权限。仅仅是管理员还不够 —— 这是一个单独的勾选项。"
+
+msgid "The setup code isn't in the group description"
+msgstr "群组简介中没有设置码"
+
+msgid ""
+"Paste the code below anywhere in your VRChat group's description, then "
+"run the check again. You can remove it once the check passes."
+msgstr "把下面的代码贴到你 VRChat 群组简介的任意位置，然后再次运行检查。检查通过后即可删除。"
+
+# | msgid "VRChat group"
+msgid "No VRChat group with that ID"
+msgstr "没有该 ID 对应的 VRChat 群组"
+
+msgid "Check the ID, or paste the group's vrchat.com link instead."
+msgstr "请核对 ID，或改为粘贴该群组的 vrchat.com 链接。"
+
+msgid "The bot is banned or blocked from that group"
+msgstr "机器人被该群组封禁或屏蔽"
+
+msgid "A group moderator has to lift that before setup can continue."
+msgstr "需要群组管理员解除之后，设置才能继续。"
+
+msgid "That group ID wasn't usable"
+msgstr "该群组 ID 无法使用"
+
+msgid "VRChat didn't answer"
+msgstr "VRChat 没有回应"
+
+msgid "Nothing is wrong with your setup. Try the check again shortly."
+msgstr "你的设置没有问题。请稍后再试一次检查。"
+
+msgid "Setup couldn't be confirmed"
+msgstr "无法确认设置"
+
+msgid "Run the check again. If it keeps happening, contact support."
+msgstr "请再次运行检查。如果一直如此，请联系支持。"
+
+msgid ""
+"Group invites are part of VRCVerify Premium. Your group is kept exactly "
+"as it is, and this picks up where it left off if the subscription is "
+"renewed."
+msgstr "群组邀请是 VRCVerify Premium 的功能。你的群组会原样保留，续订后会从中断处继续。"
+
+msgid ""
+"Optional: add “View All Members” to the bot's role so VRCVerify can see "
+"that a member already has an invite waiting, instead of possibly sending "
+"them a second one."
+msgstr "可选：给机器人的角色加上“View All Members”，这样 VRCVerify 就能看出某位成员已有一份待处理的邀请，而不会可能再发一份。"
+
+msgid ""
+"No invite account is available to this VRCVerify installation right now, "
+"so the check cannot run. Contact the bot operator."
+msgstr "目前本 VRCVerify 没有可用的邀请账号，因此检查无法运行。请联系机器人运营者。"
+
+# | msgid "" "That doesn't look like a VRChat group. Paste the group's ID (it
+# | starts " "with grp_) or the vrchat.com link to the group."
+msgid ""
+"The group verified members can be invited to. Paste the group's ID (it "
+"starts with grp_) or its vrchat.com link. Leave it empty to disconnect "
+"the group."
+msgstr "已验证成员可被邀请加入的群组。请粘贴群组 ID（以 grp_ 开头）或其 vrchat.com 链接。留空则断开该群组。"
+
+msgid "No group connected"
+msgstr "未连接群组"
+
+msgid "Offer group invites"
+msgstr "提供群组邀请"
+
+msgid ""
+"Adds a button to the message a member gets after verifying, which invites"
+" them to your group. Nothing is sent unless they press it."
+msgstr "在成员验证通过后收到的消息中加入一个按钮，邀请他们加入你的群组。除非他们按下，否则不会发送任何内容。"
+
+msgid "Using the default message"
+msgstr "正在使用默认消息"
+
+# | msgid "A custom post-verification message"
+msgid "Custom verification message"
+msgstr "自定义验证消息"
+
+msgid ""
+"Replaces the default DM a member gets when they start verifying. Links "
+"may only point to discord.com or vrchat.com. Leave it empty to go back to"
+" the default."
+msgstr "替换成员开始验证时收到的默认私信。链接只能指向 discord.com 或 vrchat.com。留空则恢复默认。"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "The language of the instructions panel and the bot's replies to members."
+msgstr "说明面板以及机器人回复成员时使用的语言。"
+
+msgid "Panel colour"
+msgstr "面板颜色"
+
+# | msgid "A branded instructions panel"
+msgid "The colour bar down the side of the instructions panel."
+msgstr "说明面板侧边的色条。"
+
+msgid "Default blue"
+msgstr "默认蓝色"
+
+# | msgid "A verification log channel"
+msgid "Server icon on the panel"
+msgstr "在面板上显示服务器图标"
+
+msgid "Shows your server's icon as the panel's thumbnail."
+msgstr "将你的服务器图标显示为面板的缩略图。"
+
+msgid "Shown"
+msgstr "显示"
+
+msgid "Hidden"
+msgstr "隐藏"
+
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr "未知频道（%(id)s）"
+
+msgid "This channel no longer exists in the server."
+msgstr "该频道已不在服务器中。"
+
+# | msgid "" "Verification logs can't go in an announcement channel -- other
+# | servers " "can follow one, which would republish your members' age
+# status."
+msgid ""
+"This is an announcement channel. Other servers can follow it, which would"
+" republish age disclosures about your members. VRCVerify will not log "
+"here."
+msgstr "这是一个公告频道。其他服务器可以关注它，从而把你成员的年龄状态转发出去，因此 VRCVerify 不会在这里记录。"
+
+msgid "VRCVerify cannot post in this channel."
+msgstr "VRCVerify 无法在此频道发言。"
+
+# | msgid "A verification log channel"
+msgid "Verification log channel"
+msgstr "验证日志频道"
+
+msgid "Every verification attempt, including the ones that fail silently."
+msgstr "每一次验证尝试，包括那些静默失败的。"
+
+# | msgid "VRChat group"
+msgid "VRChat group invites"
+msgstr "VRChat 群组邀请"
+
+# | msgid "VRChat group"
+msgid "VRChat group setup check"
+msgstr "VRChat 群组设置检查"
+
+msgid "posted in"
+msgstr "发布于"
+
+msgid "moved to"
+msgstr "移动到"
+
+msgid "refreshed in"
+msgstr "已刷新于"
+
+msgid "replaced in"
+msgstr "已替换于"
+
+#, python-format
+msgid "ID %(id)s"
+msgstr "ID %(id)s"
+
+msgid "not set"
+msgstr "未设置"
+
+#, python-format
+msgid "role %(id)s"
+msgstr "身份组 %(id)s"
+
+#, python-format
+msgid "a role that no longer exists (%(id)s)"
+msgstr "一个已不存在的身份组（%(id)s）"
+
+#, python-format
+msgid "Role %(id)s"
+msgstr "身份组 %(id)s"
+
+#, python-format
+msgid "channel %(id)s"
+msgstr "频道 %(id)s"
+
+#, python-format
+msgid "a channel that no longer exists (%(id)s)"
+msgstr "一个已不存在的频道（%(id)s）"
+
+msgid "on"
+msgstr "开"
+
+msgid "off"
+msgstr "关"
+
+msgid ""
+"The channel this panel was posted in no longer exists, so members have no"
+" way to start verifying."
+msgstr "发布该面板的频道已不存在，因此成员无从开始验证。"
+
+# | msgid "" "VRCVerify can't post the panel in that channel. It needs both
+# Send
+# | " "Messages and Embed Links there -- Embed Links is the one that's usually
+# "
+# | "missing, because the panel is an embed."
+msgid ""
+"VRCVerify can't post a new message in that channel — it needs both Send "
+"Messages and Embed Links there. The panel still works and can still be "
+"refreshed; it just can't be replaced."
+msgstr "VRCVerify 无法在该频道发布新消息 —— 它在那里同时需要“发送消息”和“嵌入链接”。面板仍然可用，也仍可刷新，只是无法被替换。"
+
+msgid "Save about 10%"
+msgstr "约省 10%"
+
+msgid "Save about 20%"
+msgstr "约省 20%"
+
+msgid "Monthly"
+msgstr "按月"
+
+msgid "3 months"
+msgstr "3 个月"
+
+msgid "6 months"
+msgstr "6 个月"
+
+msgid "12 months"
+msgstr "12 个月"
+
+msgid "per month"
+msgstr "每月"
+
+msgid "per 3 months"
+msgstr "每 3 个月"
+
+msgid "per 6 months"
+msgstr "每 6 个月"
+
+msgid "per 12 months"
+msgstr "每 12 个月"
+
+msgid "per year"
+msgstr "每年"
+
+#, python-format
+msgid "%(days)s-day free trial"
+msgstr "%(days)s 天免费试用"
+
+msgid "Active"
+msgstr "生效中"
+
+msgid "Payment failed"
+msgstr "付款失败"
+
+msgid "Charged twice"
+msgstr "重复扣费"
+
+msgid "Confirming"
+msgstr "确认中"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "Cancelled"
+msgstr "已取消"
+
+msgid "Plan"
+msgstr "套餐"
+
+msgid "Billed through"
+msgstr "付费渠道"
+
+msgid "Discord"
+msgstr "Discord"
+
+msgid "Card and Discord"
+msgstr "银行卡和 Discord"
+
+msgid "Card"
+msgstr "银行卡"
+
+msgid "Due to renew"
+msgstr "预计续费"
+
+msgid "Renews"
+msgstr "续费日期"
+
+msgid "Premium until"
+msgstr "Premium 有效期至"
+
+msgid "VRCVerify Premium is active on this server."
+msgstr "本服务器已启用 VRCVerify Premium。"
+
+msgid ""
+"This server was set up before Premium launched, so it keeps several "
+"extras free, permanently."
+msgstr "本服务器在 Premium 推出之前就已设置，因此可永久免费保留若干额外功能。"
+
+# | msgid "Core 18+ verification is free, forever."
+msgid "18+ verification is free on this server, and always will be."
+msgstr "本服务器的 18+ 验证免费，并将一直免费。"
+
+msgid ""
+"Couldn't load this server's roles and channels just now, so some changes "
+"below name an ID instead of a role or channel. The history itself is "
+"correct."
+msgstr "暂时无法加载本服务器的身份组和频道，因此下面部分变更显示的是 ID 而不是身份组或频道名。记录本身是准确的。"
+
+msgid ""
+"Settings changed from this website. Changes made with slash commands in "
+"Discord aren't listed here."
+msgstr "通过本网站更改的设置。在 Discord 中用斜杠命令所做的更改不会列在这里。"
+
+# | msgid "The panel couldn't be posted just now. Try again shortly."
+msgid "Couldn't load the history just now. Try again shortly."
+msgstr "暂时无法加载历史记录。请稍后重试。"
+
+msgid "No changes have been made from the website yet."
+msgstr "目前还没有通过本网站做过任何更改。"
+
+msgid "Show the sidebar"
+msgstr "显示侧边栏"
+
+msgid "Hide the sidebar"
+msgstr "隐藏侧边栏"
+
+msgid "What's new"
+msgstr "新功能"
+
+msgid "There are updates you haven't seen."
+msgstr "有你还没看过的更新。"
+
+msgid "What&#39;s new"
+msgstr "新功能"
+
+msgid "See all updates"
+msgstr "查看全部更新"
+
+msgid "Get these in your own server"
+msgstr "在你自己的服务器接收这些更新"
+
+msgid "Mark all as read"
+msgstr "全部标为已读"
+
+msgid "Choose a different one."
+msgstr "换一种语言。"
+
+msgid "Theme"
+msgstr "主题"
+
+msgid "Appearance"
+msgstr "外观"
+
+msgid "Always dark."
+msgstr "始终深色。"
+
+msgid "Always light."
+msgstr "始终浅色。"
+
+msgid "Matches the theme set on your device."
+msgstr "跟随你设备上的主题。"
+
+msgid "Account"
+msgstr "账户"
+
+msgid "Sign out"
+msgstr "退出登录"
+
+msgid "Ends this session, on this browser."
+msgstr "结束当前浏览器上的这个会话。"
+
+msgid "Sign out everywhere"
+msgstr "在所有设备上退出登录"
+
+msgid "Ends every VRCVerify session signed in as you, on every device."
+msgstr "结束所有设备上以你身份登录的每一个 VRCVerify 会话。"
+
+msgid "Sections"
+msgstr "版块"
+
+msgid "All servers"
+msgstr "全部服务器"
+
+msgid "Settings sections"
+msgstr "设置版块"
+
+msgid "Terms"
+msgstr "条款"
+
+msgid "Privacy"
+msgstr "隐私"
+
+msgid "Refunds"
+msgstr "退款"
+
+msgid "Core 18+ verification is free, forever."
+msgstr "基础的 18+ 验证永久免费。"
+
+msgid "VRCVerify is operated by Esatto Technologies, United States."
+msgstr "VRCVerify 由美国的 Esatto Technologies 运营。"
+
+msgid ""
+"Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord "
+"Inc."
+msgstr "与 VRChat Inc. 和 Discord Inc. 无关联，也未获其认可或赞助。"
+
+# | msgid "Pricing · VRCVerify"
+msgid "What's new · VRCVerify"
+msgstr "新功能 · VRCVerify"
+
+msgid "Everything that has shipped in VRCVerify, newest first."
+msgstr "VRCVerify 已发布的全部内容，最新的在前。"
+
+msgid ""
+"There is a <a href=\"https://vrcverify.com/changelog\">public version of "
+"this page</a> you can share with anyone."
+msgstr "还有一个可以分享给任何人的<a href=\"https://vrcverify.com/changelog\">本页公开版本</a>。"
+
+#, python-format
+msgid ""
+"Want these in your own server? <a href=\"%(invite)s\" target=\"_blank\" "
+"rel=\"noopener noreferrer\">Join the VRCVerify Discord</a> and follow the"
+" announcements channel — every update here gets posted there, and Discord"
+" crossposts it to any channel you pick."
+msgstr ""
+"想在自己的服务器接收这些吗？<a href=\"%(invite)s\" target=\"_blank\" rel=\"noopener "
+"noreferrer\">加入 VRCVerify 的 Discord</a> 并关注公告频道 —— 这里的每条更新都会发布到那里，Discord"
+" 会把它转发到你选择的任意频道。"
+
+msgid "Sorry"
+msgstr "抱歉"
+
+# | msgid "Add to your server"
+msgid "Back to your servers"
+msgstr "返回你的服务器"
+
+msgid "Manage your VRCVerify servers"
+msgstr "管理你的 VRCVerify 服务器"
+
+msgid ""
+"Set the verified role, the instructions panel and logging for any Discord"
+" server you administer."
+msgstr "为你管理的任何 Discord 服务器设置已验证身份组、说明面板和日志。"
+
+msgid ""
+"Discord tells us <strong>who you are and which servers you are "
+"in</strong>, and nothing else."
+msgstr "Discord 只告诉我们<strong>你是谁，以及你在哪些服务器里</strong>，除此之外没有别的。"
+
+msgid "We <strong>don't keep your Discord token</strong> after you sign in."
+msgstr "登录之后我们<strong>不会保留你的 Discord 令牌</strong>。"
+
+msgid ""
+"This site <strong>can't see who has verified</strong> — only your "
+"server's settings."
+msgstr "本站<strong>看不到谁通过了验证</strong> —— 只能看到你服务器的设置。"
+
+# | msgid "Buy inside Discord"
+msgid "Sign in with Discord"
+msgstr "使用 Discord 登录"
+
+msgid ""
+"<code>/vrcverify_setup</code> in Discord sets a server's verified role, "
+"which is enough to start verifying members, and "
+"<code>/vrcverify_settings</code> shows what's stored. Everything else is "
+"changed here."
+msgstr ""
+"在 Discord 中使用 <code>/vrcverify_setup</code> "
+"设置服务器的已验证身份组，这就足以开始验证成员；<code>/vrcverify_settings</code> "
+"显示已保存的内容。其余一切都在这里更改。"
+
+msgid "See plans and subscribe"
+msgstr "查看套餐并订阅"
+
+msgid "Dismiss"
+msgstr "忽略"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+msgid "Verifications"
+msgstr "验证次数"
+
+msgid ""
+"How many members completed 18+ verification in this server. Counts only —"
+" VRCVerify doesn't keep a record of who verified when."
+msgstr "本服务器中完成 18+ 验证的成员数量。只有计数 —— VRCVerify 不会记录谁在何时通过了验证。"
+
+# | msgid "The panel couldn't be posted just now. Try again shortly."
+msgid "Couldn't load this server's numbers just now. Try again shortly."
+msgstr "暂时无法加载本服务器的数据。请稍后重试。"
+
+#, python-format
+msgid "Peak %(peak)s a day"
+msgstr "峰值每天 %(peak)s 次"
+
+#, python-format
+msgid ""
+"Verifications per day, last %(days)s days. The exact numbers follow this "
+"chart."
+msgstr "每日验证次数，最近 %(days)s 天。确切数字紧随此图之后。"
+
+#, python-format
+msgid "Verifications per day, last %(days)s days"
+msgstr "每日验证次数，最近 %(days)s 天"
+
+msgid "Day"
+msgstr "日期"
+
+msgid "Not measured"
+msgstr "未记录"
+
+msgid "Couldn't load the daily trend just now."
+msgstr "暂时无法加载每日趋势。"
+
+msgid "Setup"
+msgstr "设置"
+
+#, python-format
+msgid ""
+"What's configured here, and whether it's actually working -- one list "
+"instead of two, since \"switched on\" and \"still works\" used to be "
+"answered in different places on this page. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+"这里配置了什么，以及它是否真的在工作 —— 一份列表而不是两份，因为“是否开启”和“是否仍然可用”过去在本页的不同位置分别作答。你可以在<a "
+"href=\"%(settings_url)s\">设置</a>中更改其中任何一项。"
+
+msgid "Setup complete — verification is fully working here."
+msgstr "设置已完成 —— 验证在这里完全可用。"
+
+msgid "set"
+msgstr "已设置"
+
+msgid "needs attention"
+msgstr "需要处理"
+
+msgid "Your servers — VRCVerify"
+msgstr "你的服务器 — VRCVerify"
+
+# | msgid "Add to your server"
+msgid "Your servers"
+msgstr "你的服务器"
+
+msgid ""
+"Can't reach the bot right now, so we can't tell which of these it's in. "
+"Your settings are safe — nothing here has changed. Try again shortly."
+msgstr "目前无法连接机器人，因此无法确定它在其中哪些服务器里。你的设置很安全 —— 这里没有任何改动。请稍后重试。"
+
+msgid "No servers to show"
+msgstr "没有可显示的服务器"
+
+msgid ""
+"This page lists servers where you have the Administrator permission. "
+"Discord tells us that list when you sign in, so a permission you were "
+"given since then will not be in it yet."
+msgstr "本页列出你拥有管理员权限的服务器。Discord 在你登录时把这份名单告诉我们，因此此后才获得的权限还不会出现在里面。"
+
+msgid "Sign out and start again"
+msgstr "退出登录并重新开始"
+
+msgid "You'll be asked to sign in with Discord again."
+msgstr "系统会再次要求你使用 Discord 登录。"
+
+msgid "Overview, settings and activity"
+msgstr "概览、设置与活动"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "这里尚未设置，或不归你管理"
+
+msgid "Can't check this server right now"
+msgstr "暂时无法检查此服务器"
+
+# | msgid "Add to your server"
+msgid "Add to server"
+msgstr "添加到服务器"
+
+msgid "Pricing · VRCVerify"
+msgstr "价格 · VRCVerify"
+
+msgid "Pricing"
+msgstr "价格"
+
+msgid ""
+"Verification is free, forever. Premium adds the automation around it, per"
+" server."
+msgstr "验证永久免费。Premium 按服务器计费，为验证补上周边的自动化。"
+
+msgid "Free"
+msgstr "免费"
+
+msgid "forever"
+msgstr "永久"
+
+msgid "Everything you need to verify your members."
+msgstr "验证成员所需的一切。"
+
+msgid "Verify members as 18+"
+msgstr "将成员验证为 18+"
+
+msgid "Auto-verify people who verified in another server"
+msgstr "自动验证已在其他服务器完成验证的人"
+
+msgid "Members can update their own nickname"
+msgstr "成员可以更新自己的昵称"
+
+msgid "Add to your server"
+msgstr "添加到你的服务器"
+
+msgid "Per server"
+msgstr "按服务器"
+
+msgid "monthly, 6 or 12 months"
+msgstr "按月、6 个月或 12 个月"
+
+msgid "The automation around verification, for servers that want it."
+msgstr "围绕验证的自动化，给需要它的服务器。"
+
+msgid "Automatic removal of an unverified role"
+msgstr "自动移除未验证身份组"
+
+msgid "Nickname syncing"
+msgstr "昵称同步"
+
+msgid "A custom post-verification message"
+msgstr "验证后的自定义消息"
+
+msgid "A verification log channel"
+msgstr "验证日志频道"
+
+msgid "Priority in the verification queue"
+msgstr "验证队列中的优先处理"
+
+msgid "A branded instructions panel"
+msgstr "带有你服务器色彩与图标的说明面板"
+
+msgid "Open the dashboard"
+msgstr "打开控制台"
+
+msgid "One Premium, three ways to pay for it"
+msgstr "同一个 Premium，三种付费方式"
+
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr "我们暂时无法加载价格。<strong>Premium 仍然可用。</strong>请稍后重试，或改在 Discord 内订阅。"
+
+msgid "There are no plans on sale at the moment."
+msgstr "目前没有在售的套餐。"
+
+msgid ""
+"Every plan below unlocks exactly the same features — the only difference "
+"is how long you pay for at once, and how much that saves."
+msgstr "下面每个套餐解锁的功能完全相同 —— 唯一的区别是你一次付多长时间的费用，以及因此省下多少。"
+
+msgid "Most popular"
+msgstr "最受欢迎"
+
+msgid ""
+"Some plans start with a free trial. Whether a particular server qualifies"
+" depends on whether it has had one before — the dashboard tells you "
+"before you pay."
+msgstr "部分套餐附带免费试用。某个服务器是否符合条件，取决于它此前是否已经用过 —— 在你付款之前，控制台会告诉你。"
+
+msgid ""
+"Prices are in US dollars and <strong>exclude tax</strong>; any tax due "
+"where you are is added at checkout. Payment is handled by Stripe — card "
+"details never reach VRCVerify."
+msgstr ""
+"价格以美元计算且<strong>不含税</strong>；你所在地区应缴的税会在结账时另行计算。付款由 Stripe 处理 —— "
+"银行卡信息不会到达 VRCVerify。"
+
+msgid ""
+"Premium is bought per server. You can subscribe with a card in the "
+"dashboard, or monthly through Discord."
+msgstr "Premium 按服务器购买。你可以在控制台用银行卡订阅，也可以通过 Discord 按月订阅。"
+
+msgid "Ready to start?"
+msgstr "准备好开始了吗？"
+
+msgid ""
+"Add VRCVerify to your server and verification works immediately, at no "
+"cost. Premium is there when you want it."
+msgstr "把 VRCVerify 添加到你的服务器，验证立即可用，且不收费。需要时随时可以启用 Premium。"
+
+msgid "Saved."
+msgstr "已保存。"
+
+msgid ""
+"Checking your VRChat group. Reload this page in a moment to see the "
+"result."
+msgstr "正在检查你的 VRChat 群组。请稍后刷新本页查看结果。"
+
+msgid ""
+"Your settings were saved, but the instructions panel still shows the old "
+"ones. Use <strong>Repost or move panel</strong> below to replace it."
+msgstr "你的设置已保存，但说明面板显示的仍是旧内容。请使用下面的<strong>重新发布或移动面板</strong>来替换它。"
+
+msgid ""
+"Your grandfathered extras stay free whatever you decide. Premium unlocks "
+"the settings marked below."
+msgstr "无论你如何选择，你保留的旧有权益都将继续免费。Premium 会解锁下面标记的设置。"
+
+msgid "Unlocks the settings marked below. 18+ verification itself stays free."
+msgstr "解锁下面标记的设置。18+ 验证本身仍然免费。"
+
+msgid ""
+"Couldn't load this server's roles and channels just now, so some settings"
+" below show an ID instead of a name. The values themselves are correct."
+msgstr "暂时无法加载本服务器的身份组和频道，因此下面部分设置显示的是 ID 而不是名称。数值本身是准确的。"
+
+# | msgid "" "This bot's database is missing the column for that setting.
+# | Contact the " "bot operator."
+msgid ""
+"This bot's database is missing the auto-verify column, so that setting "
+"isn't in effect regardless of what it shows. Contact the bot operator."
+msgstr "该机器人的数据库缺少自动验证字段，因此无论显示为何，该设置都不会生效。请联系机器人运营者。"
+
+msgid "Where it's posted"
+msgstr "发布位置"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid "The bot didn't answer this one. Try again shortly."
+msgstr "机器人没有回应这一项。请稍后重试。"
+
+msgid "No panel found"
+msgstr "未找到面板"
+
+msgid ""
+"Post one below, or with <code>/vrcverify_instructions</code> in Discord, "
+"so members have somewhere to start."
+msgstr "在下面发布一个，或在 Discord 中使用 <code>/vrcverify_instructions</code>，好让成员有个起点。"
+
+msgid "Members use this message to begin verification."
+msgstr "成员通过这条消息开始验证。"
+
+#, python-format
+msgid "VRChat said: %(said)s"
+msgstr "VRChat 返回：%(said)s"
+
+msgid "Setup code:"
+msgstr "设置码："
+
+msgid ""
+"Paste this anywhere in your VRChat group's description. It proves the "
+"group is yours, and you can remove it once the check passes."
+msgstr "把它贴到你 VRChat 群组简介的任意位置。它用来证明该群组属于你，检查通过后即可删除。"
+
+#, python-format
+msgid ""
+"Invite this account to your group: <a href=\"%(account_url)s\" "
+"rel=\"noopener noreferrer\" target=\"_blank\">%(account_id)s</a> — check "
+"the ID matches, because VRChat display names are not unique."
+msgstr ""
+"把这个账号邀请进你的群组：<a href=\"%(account_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">%(account_id)s</a> —— 请核对 ID 是否一致，因为 VRChat 显示名并不唯一。"
+
+#, python-format
+msgid ""
+"Your group: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">open it on vrchat.com</a>"
+msgstr ""
+"你的群组：<a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">在 vrchat.com 上打开</a>"
+
+msgid "Not applied"
+msgstr "未生效"
+
+msgid "None"
+msgstr "无"
+
+msgid "Use the default blue"
+msgstr "使用默认蓝色"
+
+# | msgid "Premium until"
+msgid "Premium only."
+msgstr "仅限 Premium。"
+
+msgid "Your saved value is kept, and comes back if the subscription is renewed."
+msgstr "你保存的值会保留，续订后会恢复。"
+
+msgid ""
+"Saved, but not acted on without Premium. Anyone can set this; the bot "
+"just won't use it until the feature is active."
+msgstr "已保存，但没有 Premium 就不会生效。任何人都可以设置；只是在功能启用之前机器人不会使用它。"
+
+msgid ""
+"Not editable from the website yet. Nothing is wrong with it — the bot "
+"hasn't opened this setting to the dashboard."
+msgstr "暂时还不能从网站修改。这没有出问题 —— 只是机器人尚未把该设置开放给控制台。"
+
+msgid "Save changes"
+msgstr "保存更改"
+
+msgid "Unsaved changes in this group"
+msgstr "该分组中有未保存的更改"
+
+msgid "Check group setup"
+msgstr "检查群组设置"
+
+msgid ""
+"Asks the bot to join your group and report what it can do there. This "
+"button doesn't save the settings above — do that first if you've just "
+"changed the group."
+msgstr "请求机器人加入你的群组并报告它在那里能做什么。此按钮不会保存上面的设置 —— 如果你刚改过群组，请先保存。"
+
+msgid "Post the panel in"
+msgstr "把面板发布到"
+
+# | msgid "Post the panel in"
+msgid "Repost or move panel"
+msgstr "重新发布或移动面板"
+
+# | msgid "Post the panel in"
+msgid "Post panel"
+msgstr "发布面板"
+
+msgid ""
+"Choosing the channel it's already in refreshes it rather than posting a "
+"second one. This button only moves the panel; saving the settings above "
+"is what changes what it says."
+msgstr "选择它已经所在的频道会刷新面板，而不是再发一个。此按钮只移动面板；面板的内容由保存上面的设置来改变。"
+
+msgid ""
+"Members use this message to start verifying. It is posted with the "
+"settings saved above."
+msgstr "成员通过这条消息开始验证。它会按上面已保存的设置发布。"
+
+#, python-format
+msgid "Subscriptions — %(name)s — VRCVerify"
+msgstr "订阅 — %(name)s — VRCVerify"
+
+msgid ""
+"We couldn't check this server's plan just now. Nothing here is missing — "
+"the page simply can't say what's true yet. Try again in a moment."
+msgstr "我们暂时无法查看此服务器的套餐。这里并没有缺少内容 —— 只是页面还无法确认实际情况。请稍后重试。"
+
+msgid ""
+"Every VRCVerify feature is currently available to this server at no "
+"charge. There's nothing to subscribe to."
+msgstr "目前此服务器可以免费使用 VRCVerify 的全部功能。没有需要订阅的内容。"
+
+msgid ""
+"Waiting for Stripe to confirm. Premium switches on by itself, usually "
+"within a few seconds — reload this page in a moment."
+msgstr "正在等待 Stripe 确认。Premium 会自行开启，通常只需几秒 —— 请稍后刷新本页。"
+
+msgid ""
+"If it hasn't switched on after a minute or two, nothing is lost: Stripe "
+"keeps trying to reach us for up to three days, and the subscription takes"
+" effect as soon as it gets through. Get in touch if it stays this way."
+msgstr "如果一两分钟后仍未开启，也不会有任何损失：Stripe 会在最多三天内持续尝试联系我们，一旦成功，订阅即刻生效。如果一直是这样，请与我们联系。"
+
+#, python-format
+msgid ""
+"This server looks like it's paying for Premium on %(count)s separate card"
+" subscriptions. Premium is on and stays on; you're just being charged "
+"more than once."
+msgstr "此服务器似乎通过 %(count)s 笔独立的银行卡订阅在为 Premium 付费。Premium 已开启并会保持开启 —— 只是你被重复扣费了。"
+
+msgid ""
+"This server looks like it's paying for Premium twice — once by card and "
+"once through Discord. Premium is on and stays on; you're just being "
+"charged more than once."
+msgstr ""
+"此服务器似乎在为 Premium 重复付费 —— 一次通过银行卡，一次通过 Discord。Premium 已开启并会保持开启 —— "
+"只是你被重复扣费了。"
+
+msgid ""
+"We won't cancel either one for you — that's your call, and getting it "
+"wrong with someone else's money isn't a risk worth automating."
+msgstr "我们不会替你取消其中任何一个 —— 这该由你决定，而拿别人的钱去做错这个决定，不是值得自动化的风险。"
+
+msgid ""
+"To cancel the card subscription, use <strong>Manage billing</strong> "
+"below."
+msgstr "要取消银行卡订阅，请使用下方的<strong>管理账单</strong>。"
+
+#, python-format
+msgid ""
+"To cancel the Discord one, open <strong>User Settings → "
+"Subscriptions</strong> in Discord, or run "
+"<code>/vrcverify_subscription</code> in %(name)s."
+msgstr ""
+"要取消 Discord 那一个，请在 Discord 中打开<strong>用户设置 → 订阅</strong>，或在 %(name)s 中运行 "
+"<code>/vrcverify_subscription</code>。"
+
+msgid ""
+"Your last payment didn't go through. Premium is still on while Stripe "
+"retries the card — update your card details under <strong>Manage "
+"billing</strong> below."
+msgstr ""
+"你上一次付款未能完成。在 Stripe 重试扣款期间 Premium 仍然开启 —— "
+"请在下方的<strong>管理账单</strong>中更新你的银行卡信息。"
+
+msgid ""
+"Cancelled, and nothing changes before then — this server keeps Premium "
+"for the whole of the period it has already paid for."
+msgstr "已取消，在此之前不会有任何变化 —— 此服务器会在已付费的整个周期内保留 Premium。"
+
+msgid ""
+"Discord handles the billing, so cancelling or changing the payment method"
+" happens there — <strong>User Settings → Subscriptions</strong>. We can't"
+" manage a Discord subscription from here."
+msgstr ""
+"账单由 Discord 处理，因此取消或更改付款方式需要在那里进行 —— <strong>用户设置 → 订阅</strong>。我们无法从这里管理"
+" Discord 的订阅。"
+
+#, python-format
+msgid ""
+"18+ verification is free and always will be. Premium unlocks the settings"
+" marked on <a href=\"%(settings_url)s\">Settings</a>, shortens the wait "
+"between verifications, and moves this server up the verification queue."
+msgstr ""
+"18+ 验证是免费的，并且永远都会是。Premium 会解锁<a "
+"href=\"%(settings_url)s\">设置</a>中标记的项目，缩短两次验证之间的等待时间，并让此服务器在验证队列中靠前。"
+
+msgid ""
+"Your grandfathered extras — unverified-role removal, nickname sync and "
+"the custom verification message — stay free whatever you decide here."
+msgstr "你保留的旧有权益 —— 移除未验证身份组、昵称同步和自定义验证消息 —— 无论你在这里作何选择，都将继续免费。"
+
+#, python-format
+msgid "Your Premium ended on %(when)s"
+msgstr "你的 Premium 已于 %(when)s 结束"
+
+#, python-format
+msgid ""
+"The %(plan)s plan. Subscribing again picks up where it left off — nothing"
+" was reset when it lapsed."
+msgstr "%(plan)s 套餐。重新订阅会从中断处继续 —— 到期时没有任何内容被重置。"
+
+msgid ""
+"Subscribing again picks up where it left off — nothing was reset when it "
+"lapsed."
+msgstr "重新订阅会从中断处继续 —— 到期时没有任何内容被重置。"
+
+msgid "Pay by card"
+msgstr "用银行卡付款"
+
+msgid ""
+"We can't load the plans right now. <strong>Nothing has changed about your"
+" subscription.</strong> Try again in a moment, or subscribe inside "
+"Discord below."
+msgstr "我们暂时无法加载套餐。<strong>你的订阅没有任何变化。</strong>请稍后重试，或在下方于 Discord 内订阅。"
+
+msgid ""
+"<strong>One Premium, three ways to pay for it.</strong> Every plan below "
+"unlocks exactly the same features — the only difference is how long you "
+"pay for at once, and how much that saves."
+msgstr ""
+"<strong>同一个 Premium，三种付费方式。</strong>下面每个套餐解锁的功能完全相同 —— "
+"唯一的区别是你一次付多长时间的费用，以及因此省下多少。"
+
+msgid "Subscribe"
+msgstr "订阅"
+
+msgid "All plans renew automatically. Cancel any time from this page."
+msgstr "所有套餐都会自动续费。你可以随时在本页取消。"
+
+msgid ""
+"<strong>The 6- and 12-month plans are card-only.</strong> Discord "
+"subscriptions bill monthly, so those terms can't be offered there."
+msgstr "<strong>6 个月和 12 个月的套餐仅限银行卡。</strong>Discord 的订阅按月计费，因此那边无法提供这些时长。"
+
+#, python-format
+msgid ""
+"Need to send these prices to whoever pays? There is a <a "
+"href=\"%(pricing_url)s\">public pricing page</a> that works without a "
+"Discord account."
+msgstr ""
+"需要把这些价格发给付款的人吗？我们有一个无需 Discord 账户即可查看的<a "
+"href=\"%(pricing_url)s\">公开价格页面</a>。"
+
+msgid "Manage billing"
+msgstr "管理账单"
+
+msgid ""
+"Change plan, update your card or cancel — on Stripe's own billing portal."
+" You'll come straight back here afterwards."
+msgstr "更换套餐、更新银行卡或取消 —— 都在 Stripe 自己的账单门户中完成。结束后你会直接回到这里。"
+
+msgid "Buy inside Discord"
+msgstr "在 Discord 内购买"
+
+#, python-format
+msgid ""
+"Run it in %(name)s. Discord handles the payment, and the command's button"
+" is already pointed at this server. <strong>Monthly only</strong>, at the"
+" same price as the monthly plan above."
+msgstr ""
+"请在 %(name)s 中运行它。付款由 Discord "
+"处理，命令中的按钮已经指向此服务器。<strong>仅限按月</strong>，价格与上面的月付套餐相同。"
+
+#, python-format
+msgid "Run it in %(name)s to see this server's Discord subscription."
+msgstr "在 %(name)s 中运行它，即可查看此服务器的 Discord 订阅。"
+
+#, python-format
+msgid ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">See what's included on Discord's store page</a> — it "
+"lists the price and perks, but you choose the server during checkout, so "
+"use the command above if you administer more than one."
+msgstr ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" target=\"_blank\">在"
+" Discord 商店页面查看包含哪些内容</a> —— "
+"那里列出了价格和权益，但服务器要在结账过程中选择，所以如果你管理不止一个服务器，请使用上面的命令。"
+

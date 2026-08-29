@@ -18,24 +18,21 @@
 {% if not names_resolved %}
 <section class="panel">
   <p class="notice">
-    Couldn't load this server's roles and channels just now, so some changes
-    below name an ID instead of a role or channel. The history itself is
-    correct.
+    {% trans %}Couldn't load this server's roles and channels just now, so some changes below name an ID instead of a role or channel. The history itself is correct.{% endtrans %}
   </p>
 </section>
 {% endif %}
 
 <section class="panel group">
-    <h2>Activity</h2>
+    <h2>{% trans %}Activity{% endtrans %}</h2>
     <p class="muted blurb">
-      Settings changed from this website. Changes made with slash commands in
-      Discord aren't listed here.
+      {% trans %}Settings changed from this website. Changes made with slash commands in Discord aren't listed here.{% endtrans %}
     </p>
 
     {% if audit is none %}
-      <p class="muted">Couldn't load the history just now. Try again shortly.</p>
+      <p class="muted">{% trans %}Couldn't load the history just now. Try again shortly.{% endtrans %}</p>
     {% elif not audit %}
-      <p class="muted">No changes have been made from the website yet.</p>
+      <p class="muted">{% trans %}No changes have been made from the website yet.{% endtrans %}</p>
     {% else %}
       <ul class="audit">
         {% for entry in audit %}

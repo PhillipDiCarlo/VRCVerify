@@ -71,6 +71,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from dashboard import (
     changelog,
+    i18n,
     oauth,
     overview_view,
     settings_view,
@@ -78,6 +79,11 @@ from dashboard import (
     subscription_view,
 )
 from dashboard.botapi import BotAPIClient, BotAPIError
+# The no-op translation marker (#97). The refusal and notice tables below are
+# built at import, so they hold msgids; `_save_error_message` and
+# `_subscription_notice` do the lookup, in the language of the request that
+# needs one. See the docstring on `N_`.
+from dashboard.i18n import N_
 from dashboard.config import DashboardConfig
 from dashboard.sessions import SessionStore
 from dashboard.stripe_api import StripeAPIError, StripeClient
@@ -415,6 +421,26 @@ THEME_COOKIE = "vrcverify_theme"
 # nothing about it worth expiring.
 THEME_COOKIE_MAX_AGE = 31536000
 
+# Which language to render the dashboard in (issue #97). The same class of
+# thing as THEME_COOKIE, with the same attributes and for the same reasons: a
+# display preference, read by no authorisation decision, naming no guild, and
+# worth forging only to read your own page in a language you did not pick.
+# `i18n.is_supported` reduces it to one of twelve known codes before it reaches
+# a `lang` attribute or a catalogue path, so a hand-edited value renders
+# English rather than reaching either.
+#
+# Not httponly, like the theme, so the picker can be made instant later without
+# a round trip the CSP has no `connect-src` to allow.
+#
+# ALSO WRITTEN BY THE SERVER, unlike the theme, and that is the one interesting
+# thing about it. A guild's `instructions_locale` arrives in the settings
+# payload, and when this browser has expressed no preference of its own that
+# language is the best guess available -- so `_remember_language` stores it,
+# once, and every page after it agrees. See `_language` for why that is a seed
+# and not a second source of truth.
+LANG_COOKIE = "vrcverify_lang"
+LANG_COOKIE_MAX_AGE = 31536000
+
 # Which changelog entry this browser has already seen (issue #136). The same
 # class of thing again -- a display preference forgeable only to change what
 # your own bell looks like -- and the same reasoning for every attribute:
@@ -700,6 +726,171 @@ def _register_assets(app: Flask) -> None:
         return _theme()
 
     @app.template_global()
+    def theme_name(chosen: str) -> str:
+        """"Dark", "Light" or "System", in the language in force (#97).
+
+        The picker's `title` and `aria-label` used to interpolate the raw
+        `current_theme()` word, which read "Theme: dark" -- lowercase, and in
+        English on a page rendered in Japanese. The three labels already exist,
+        translated, in the list the picker's buttons are built from; this makes
+        the same three available to the summary above them so the two cannot
+        drift into saying different words for the same setting.
+        """
+        gettext = _translator()
+        return {
+            "dark": gettext("Dark"),
+            "light": gettext("Light"),
+            "system": gettext("System"),
+        }.get(chosen, chosen)
+
+    # Jinja's own i18n extension, not flask-babel's (issue #97).
+    #
+    # This is what turns `{{ _("Renews on %(date)s", date=when) }}` in a
+    # template into a catalogue lookup, and -- more usefully -- what lets
+    # `pybabel extract` find those strings by parsing the templates rather
+    # than trusting somebody to have listed them.
+    #
+    # `newstyle` because the alternative is the C-style one, where `_()` takes
+    # no keyword arguments and every interpolation has to happen outside the
+    # call. That would put the variable outside the translatable string, and a
+    # translator who cannot move the date within the sentence cannot translate
+    # the sentence into a language that orders it differently.
+    app.jinja_env.add_extension("jinja2.ext.i18n")
+    app.jinja_env.policies["ext.i18n.trimmed"] = True
+
+    # INSTALLED ONCE, HERE, AND NEVER AGAIN. Not per request, which is what
+    # this did first and which was a real bug rather than an untidiness.
+    #
+    # `install_gettext_translations` writes into `jinja_env.globals`, a plain
+    # dict shared by the whole process, and a Jinja template resolves `gettext`
+    # out of those globals when a render STARTS. The image runs
+    # `gunicorn --threads 4` (docker/Dockerfile-dashboard), so four requests
+    # share that dict.
+    #
+    # The window is not "mid-render", which is what made the per-request
+    # version look defensible. It is everything between the hook that installs
+    # and the `render_template` that reads -- and on a guild page that gap
+    # contains the round trip to the bot API. A German admin waiting on that
+    # call, while a Japanese admin's request arrived, was served
+    # `<html lang="de">` with 630 Japanese characters inside it.
+    #
+    # `TestTwoLanguagesAtOnce` in tests/test_dashboard.py holds this down: it
+    # makes the bot call slow, fires two requests in two languages from two
+    # threads, and reads the pages that come back.
+    #
+    # These callables carry no language of their own. They ask, at the moment
+    # `_()` runs, which language THIS request is in -- and `g` is per-request,
+    # so two threads calling the same callable get two answers. There is
+    # nothing to race over because nothing is written.
+    app.jinja_env.install_gettext_callables(
+        lambda string: _translator()(string),
+        lambda singular, plural, number: _ngettext()(singular, plural, number),
+        newstyle=True,
+    )
+
+    @app.before_request
+    def _resolve_language():
+        """Work out which language this request renders in.
+
+        Installs nothing -- see the comment above `install_gettext_callables`.
+        All this does is put the answer on `g`, which is where the template
+        globals and the view modules both read it from.
+
+        Runs before every request, including the ones that go on to learn a
+        guild's configured language. Those call `_apply_language` again once
+        they have the payload, which is why the work lives in a function
+        rather than inline here.
+        """
+        _apply_language()
+
+    @app.after_request
+    def _remember_language(response):
+        """Persist a language this browser did not ask for, once.
+
+        Only fires when `_language()` learned the code from a guild's
+        `instructions_locale` and there was no cookie to begin with. Overview
+        reads a different bot endpoint from Settings and Subscriptions and does
+        not receive that field, so without this an admin whose server is
+        configured in German would get German on two of their three pages and
+        English on the third. One language per browser, decided the first time
+        we are in a position to decide it.
+
+        Not written for the Accept-Language case. That header arrives on every
+        request and gives the same answer each time, so storing it would buy
+        nothing and would quietly freeze a preference the reader never
+        expressed -- they change their browser's language and the dashboard
+        would keep speaking the old one, with no obvious way to connect the
+        two. The picker writes this cookie; the browser's own setting should
+        stay live.
+        """
+        seed = getattr(g, "language_seed", None)
+        if seed is not None:
+            response.set_cookie(
+                LANG_COOKIE,
+                seed,
+                max_age=LANG_COOKIE_MAX_AGE,
+                secure=True,
+                # NOT httponly, like the theme cookie. See LANG_COOKIE.
+                httponly=False,
+                samesite="Lax",
+                path="/",
+            )
+        return response
+
+    @app.template_global()
+    def lang_attrs() -> Markup:
+        """The `lang` and `dir` attributes for `<html>`.
+
+        A template global for the same reason `theme_attr()` is one: the
+        sign-in page renders with no arguments at all, and a language threaded
+        through every `render_template` call is a language the next page added
+        forgets to pass.
+
+        `dir` is emitted from the first day, before the stylesheet has been
+        taught to mirror. The two are not the same job: `dir` decides which end
+        of the line a sentence starts at and how "VRCVerify Premium" is ordered
+        inside an Arabic one, and getting that wrong makes the text itself
+        unreadable. An unmirrored sidebar is merely wrong-looking.
+
+        Nothing from the request reaches this: `_language()` has already
+        reduced every input to one of twelve known codes.
+        """
+        code = current_language()
+        return Markup(' lang="%s" dir="%s"') % (code, i18n.direction(code))
+
+    @app.template_global()
+    def current_language() -> str:
+        """Which language is in force, as a code. Always one of the twelve."""
+        return getattr(g, "language", None) or i18n.DEFAULT_LANGUAGE
+
+    @app.template_global()
+    def language_choices() -> list:
+        """`(code, endonym)` pairs for the picker, in the bot's order."""
+        return i18n.choices()
+
+    @app.template_global()
+    def tag_label(entry) -> str:
+        """"Premium" or "New" beside a changelog entry, translated.
+
+        A global rather than `{{ _(entry.tag) }}` in the template, for the
+        reason `changelog._localised` gives: `_()` is newstyle here and
+        returns Markup, so applying it to a value skips the escaping that
+        element relies on. This returns a plain str.
+        """
+        return _translator()(entry.tag)
+
+    @app.template_global()
+    def language_endonym() -> str:
+        """The language in force, named in itself: "Deutsch", not "German".
+
+        For the picker's `title` and `aria-label`. Falls back to the code,
+        which is what an unnamed language should show rather than nothing --
+        the same degradation `settings_view.locale_label` chose.
+        """
+        code = current_language()
+        return i18n.ENDONYMS.get(code, code)
+
+    @app.template_global()
     def support_invite():
         """The VRCVerify Discord invite, or None if this host has none (#138).
 
@@ -744,7 +935,7 @@ def _register_assets(app: Flask) -> None:
         seen = getattr(g, "changelog_seen", None)
         if seen is None:
             seen = changelog.read_seen(request.cookies.get(SEEN_COOKIE))
-        return changelog.build_bell(seen)
+        return changelog.build_bell(seen, t=_translator())
 
 
 # -------------------------------------------------------------------
@@ -797,7 +988,12 @@ def _offered_plans():
     except StripeAPIError as error:
         logger.warning("could not list plans: %s", error)
         return (), True
-    return subscription_view.plans_from_prices(prices), False
+    # This request's language (#97). The plan cards' cadence labels -- and the
+    # "per month" under each amount -- are built here, so they have to be built
+    # in the language the page will render in. The AMOUNT is not: it is
+    # Stripe's own formatted figure, and this app holds no second opinion about
+    # what a price says.
+    return subscription_view.plans_from_prices(prices, _translator()), False
 
 
 def _stripe() -> StripeClient:
@@ -844,7 +1040,17 @@ def _register_hooks(app: Flask) -> None:
             # (NAV_COOKIE does not vary this page, and that is worth stating
             # because it looks like it should: `nav_collapsed` comes from
             # `_page_context()`, which only guild pages call, so it is simply
-            # undefined here. The theme cookie alone is enough.)
+            # undefined here.)
+            #
+            # LANG_COOKIE varies it too, since #97 -- every string on the page
+            # comes from a catalogue chosen by that cookie, and by
+            # `Accept-Language` when there is no cookie. That widens what
+            # `private` is protecting without changing the conclusion: private
+            # scopes the cache to the one browser, and both of those inputs
+            # belong to that browser. It does rule out `public` twice over
+            # now, so if a later change makes the theme client-side and this
+            # comment looks stale, the language is the reason it still cannot
+            # go into a shared cache.
             #
             # So the response varies by cookie, and a shared cache that ignored
             # that would hand one reader's light page to the next reader who
@@ -992,6 +1198,7 @@ def _register_routes(app: Flask) -> None:
             plans,
             plans_unavailable=plans_unavailable,
             stripe_configured=config.stripe_enabled,
+            t=_translator(),
         )
         # No guild: a stranger reading a price has no server in context, so
         # this is the generic install link rather than the picker's deep link.
@@ -1025,19 +1232,32 @@ def _register_routes(app: Flask) -> None:
         if error:
             # User clicked Cancel, or Discord refused. Not an error condition
             # worth a stack trace.
-            return render_template("error.html", message="Authorisation was declined."), 400
+            return render_template(
+                "error.html",
+                message=_translator()(N_("Authorisation was declined.")),
+            ), 400
 
         code = request.args.get("code")
         state = request.args.get("state")
         if pending is None or not pending.oauth_state or not code or not state:
-            return render_template("error.html", message="That login link has expired. Please try again."), 400
+            return render_template(
+                "error.html",
+                message=_translator()(
+                    N_("That login link has expired. Please try again.")
+                ),
+            ), 400
 
         # The check that makes CSRF against the login flow impossible: the
         # state came from us, in this browser, for this attempt.
         if not _same_secret(pending.oauth_state, state):
             logger.warning("OAuth state mismatch; refusing the callback.")
             store.destroy(pending.sid)
-            return render_template("error.html", message="That login could not be verified. Please try again."), 400
+            return render_template(
+                "error.html",
+                message=_translator()(
+                    N_("That login could not be verified. Please try again.")
+                ),
+            ), 400
 
         try:
             discord_id, guilds = oauth.login(
@@ -1050,7 +1270,12 @@ def _register_routes(app: Flask) -> None:
         except oauth.OAuthError as failure:
             logger.warning("OAuth login failed: %s", failure)
             store.destroy(pending.sid)
-            return render_template("error.html", message="Discord could not complete the login. Please try again."), 502
+            return render_template(
+                "error.html",
+                message=_translator()(
+                    N_("Discord could not complete the login. Please try again.")
+                ),
+            ), 502
 
         # New session id at the moment privilege is granted; the pre-auth row
         # is deleted. See SessionStore.complete_login.
@@ -1090,14 +1315,17 @@ def _register_routes(app: Flask) -> None:
             dismissed=_dismissed(),
             premium=bool(premium.get("premium")),
             grandfathered=bool(premium.get("grandfathered")),
+            t=_translator(),
         )
 
         return render_template(
             "overview.html",
-            tiles=overview_view.build_tiles(overview),
-            chart=overview_view.build_chart(overview),
-            next_step=overview_view.build_next_step(overview, changelog_entry),
-            setup=overview_view.build_setup(overview),
+            tiles=overview_view.build_tiles(overview, _translator()),
+            chart=overview_view.build_chart(overview, _translator()),
+            next_step=overview_view.build_next_step(
+                overview, changelog_entry, _translator(), _ngettext()
+            ),
+            setup=overview_view.build_setup(overview, _translator()),
             premium=premium,
             **_guild_chrome(session, guild_id, "overview"),
         )
@@ -1127,6 +1355,12 @@ def _register_routes(app: Flask) -> None:
         except BotAPIError as error:
             return _guild_page_unavailable(error, guild_id, session, "subscription")
 
+        # The language this server is configured in, taken from the payload
+        # already in hand (#97). It matters most on this page of the three:
+        # "excludes tax", "renews on" and the double-billing warning are the
+        # sentences where a misunderstanding costs somebody money.
+        _note_guild_locale(settings)
+
         # Stripe bounces the browser back here after a completed checkout.
         # A hint, never evidence of payment -- the webhook is what makes a
         # subscription real and may not have landed yet -- but the page must
@@ -1140,10 +1374,16 @@ def _register_routes(app: Flask) -> None:
             plans_unavailable=plans_unavailable,
             stripe_configured=config.stripe_enabled,
             just_bought=just_bought,
+            t=_translator(),
         )
         notice, notice_kind = _subscription_notice(session)
         if notice is None and just_bought and page.state == "pending":
+            # Through `_translator()` like every other lookup in this table:
+            # this is the one branch that reads it directly rather than through
+            # `_subscription_notice`, and it is the one an admin sees seconds
+            # after handing over a card number.
             notice, notice_kind = SUBSCRIPTION_NOTICES["bought"]
+            notice = _translator()(notice)
         # csrf_token comes from _guild_chrome, like every other page here.
         return render_template(
             "subscription.html",
@@ -1205,6 +1445,12 @@ def _register_routes(app: Flask) -> None:
         except BotAPIError as error:
             return _guild_page_unavailable(error, guild_id, session, "subscription")
 
+        # NO `t` HERE, deliberately (#97). This page object is never rendered
+        # -- it is built to ask one question, `offers_card`, and a decision
+        # about whether somebody may be charged must not vary with the language
+        # their browser asked for. Leaving the default identity in place is
+        # what keeps that decision language-blind rather than merely
+        # language-agnostic by luck.
         page = subscription_view.build(
             settings,
             application_id=config.discord_client_id,
@@ -1349,6 +1595,12 @@ def _register_routes(app: Flask) -> None:
         except BotAPIError as error:
             return _guild_page_unavailable(error, guild_id, session, "settings")
 
+        # The language this server is configured in (#97), from the payload
+        # this route was already fetching. Also the page that holds the control
+        # which sets it, so choosing a language for your members and having the
+        # site answer in it is one round trip rather than two.
+        _note_guild_locale(settings)
+
         # Only what this group renders. The single page had to read everything
         # because it showed everything; a page per group can ask for less, so
         # splitting Settings costs fewer bot calls per view rather than more,
@@ -1392,7 +1644,9 @@ def _register_routes(app: Flask) -> None:
         if group == settings_view.ACTIVITY_SLUG:
             return render_template(
                 "activity.html",
-                audit=settings_view.build_audit(audit, roles, channels),
+                audit=settings_view.build_audit(
+                    audit, roles, channels, _translator()
+                ),
                 # The shared header says what this server is paying for, so
                 # this page needs it too -- one sentence, one place, rather
                 # than a second copy that can disagree with Settings'.
@@ -1401,7 +1655,9 @@ def _register_routes(app: Flask) -> None:
                 **_guild_chrome(session, guild_id, "settings", group),
             )
 
-        groups = settings_view.build_groups(settings, roles, channels, panel)
+        groups = settings_view.build_groups(
+            settings, roles, channels, panel, _translator()
+        )
         current = next(one for one in groups if one["slug"] == group)
 
         return render_template(
@@ -1421,7 +1677,7 @@ def _register_routes(app: Flask) -> None:
             # is not in this response. Saying it succeeded would be a claim
             # this page cannot make yet.
             group_check=notice == "group_check",
-            panel_result=PANEL_RESULTS.get(_notice_arg(notice, "panel")),
+            panel_result=_panel_result_message(_notice_arg(notice, "panel")),
             panel_stale=notice == "stale",
             save_error=(
                 _save_error_message(_notice_arg(notice, "error"))
@@ -1470,7 +1726,15 @@ def _register_routes(app: Flask) -> None:
         response = make_response(
             render_template(
                 "changelog.html",
-                entries=changelog.ENTRIES,
+                # Translated here rather than in the template: see
+                # `changelog._localised` for why `_()` on a runtime value is
+                # an escaping hole rather than a shortcut. This page renders
+                # every entry, not only the public ones, which is the one
+                # thing it does that the apex site's copy cannot.
+                entries=tuple(
+                    changelog._localised(entry, _translator())
+                    for entry in changelog.ENTRIES
+                ),
                 csrf_token=session.csrf_token,
                 nav_return_to="whats_new",
             )
@@ -1698,6 +1962,61 @@ def _register_routes(app: Flask) -> None:
             # NOT httponly: phase 4 has the button write this from a script so
             # the switch is instant, and the CSP has no `connect-src`, so a
             # script cannot ask the server to set it instead. See THEME_COOKIE.
+            httponly=False,
+            samesite="Lax",
+            path="/",
+        )
+        return response
+
+    @app.post("/prefs/lang")
+    def set_language_preference():
+        """Which of the twelve to render in. Writes one cookie and nothing else.
+
+        **Requires neither a session nor a CSRF token, exactly like
+        `set_theme_preference` above, and for a reason that is stronger here.**
+
+        The theme argument was that the sign-in page carries one of these
+        controls and there is no session behind it yet. That holds for this
+        one too, and then goes further: the person this feature exists for
+        cannot read the sign-in page. Putting the language picker behind a
+        session would mean the dashboard only offers to speak your language
+        after you have navigated a page you cannot read, which is most of the
+        way to not having the feature.
+
+        Safe for the same reasons the theme route is: it reads nothing, stores
+        nothing server-side, never touches the bot, and the entire consequence
+        of a forged request is that somebody's own next page renders in a
+        language they did not pick. `i18n.is_supported` reduces the submitted
+        value to one of twelve known codes before it can reach a `lang`
+        attribute or a catalogue path.
+
+        Not rate-limited, also for the same reason: it does strictly less work
+        than the render it redirects to.
+
+        WHY THIS ONE STORES ITS DEFAULT, where the theme and the sidebar
+        deliberately do not. Those two treat "the default" as the absence of a
+        cookie, so one state has one representation. English cannot: absent
+        means "nobody has chosen", which is what lets the guild's configured
+        language and then `Accept-Language` have their say. A German admin who
+        looks at their German dashboard and deliberately picks English is
+        expressing a preference, and deleting the cookie would hand them German
+        again on the next page.
+        """
+        chosen = request.form.get("lang") or ""
+        response = redirect(_preference_return_url())
+        if not i18n.is_supported(chosen):
+            # A form that submitted nothing recognisable changes nothing. No
+            # error page: the picker only ever offers the twelve, so the only
+            # reachable cause is a hand-built request, and the honest answer to
+            # one of those is the page they asked to go back to.
+            return response
+
+        response.set_cookie(
+            LANG_COOKIE,
+            chosen,
+            max_age=LANG_COOKIE_MAX_AGE,
+            secure=True,
+            # NOT httponly, like the theme cookie. See LANG_COOKIE.
             httponly=False,
             samesite="Lax",
             path="/",
@@ -2012,13 +2331,17 @@ def _register_routes(app: Flask) -> None:
     @app.errorhandler(404)
     def not_found(_error):
         return render_template(
-            "error.html", message="Page not found.", **_chrome_for_error()
+            "error.html",
+            message=_translator()(N_("Page not found.")),
+            **_chrome_for_error(),
         ), 404
 
     @app.errorhandler(500)
     def server_error(_error):  # pragma: no cover - defensive
         return render_template(
-            "error.html", message="Something went wrong.", **_chrome_for_error()
+            "error.html",
+            message=_translator()(N_("Something went wrong.")),
+            **_chrome_for_error(),
         ), 500
 
 
@@ -2027,14 +2350,14 @@ def _register_routes(app: Flask) -> None:
 # can never reach the page as text.
 SAVE_ERRORS = {
     "requires_premium": (
-        "That setting needs VRCVerify Premium. Nothing was changed."
+        N_("That setting needs VRCVerify Premium. Nothing was changed.")
     ),
     "unsupported_language": (
-        "That language isn't one VRCVerify supports. Nothing was changed."
+        N_("That language isn't one VRCVerify supports. Nothing was changed.")
     ),
     "server_not_set_up": (
-        "Run /vrcverify_setup in your server first -- VRCVerify needs a "
-        "verified role before it can store anything else."
+        N_("Run /vrcverify_setup in your server first -- VRCVerify needs a "
+        "verified role before it can store anything else.")
     ),
     # No "use /vrcverify_settings instead". That command stopped being an
     # editor when configuration moved here -- it shows what is stored and links
@@ -2043,43 +2366,43 @@ SAVE_ERRORS = {
     # worst place to do it, too: this string is read by an admin whose save was
     # just refused, who is looking for the thing that will work.
     "not_writable_yet": (
-        "That setting can't be changed from the website yet. Nothing was "
-        "changed."
+        N_("That setting can't be changed from the website yet. Nothing was "
+        "changed.")
     ),
     "unavailable": (
-        "The bot couldn't complete the save, so nothing was changed. Try again "
-        "shortly."
+        N_("The bot couldn't complete the save, so nothing was changed. Try again "
+        "shortly.")
     ),
     "role_not_in_guild": (
-        "That role isn't in this server any more. Reload the page and pick "
-        "again."
+        N_("That role isn't in this server any more. Reload the page and pick "
+        "again.")
     ),
-    "role_required": "Pick a verified role -- verification can't run without one.",
+    "role_required": N_("Pick a verified role -- verification can't run without one."),
     # The offending links are deliberately not echoed back. The rule is short
     # enough to state, the admin is looking at their own message, and the page
     # stays free of text that came from a request.
     "message_links_not_allowed": (
-        "Links in the custom message may only point to discord.com or "
-        "vrchat.com. Nothing was changed."
+        N_("Links in the custom message may only point to discord.com or "
+        "vrchat.com. Nothing was changed.")
     ),
     "message_too_long": (
-        "That custom message is too long. The limit is 1000 characters."
+        N_("That custom message is too long. The limit is 1000 characters.")
     ),
     "channel_is_announcement": (
-        "Verification logs can't go in an announcement channel -- other servers "
-        "can follow one, which would republish your members' age status."
+        N_("Verification logs can't go in an announcement channel -- other servers "
+        "can follow one, which would republish your members' age status.")
     ),
     "channel_not_in_guild": (
-        "That channel isn't in this server any more. Reload the page and pick "
-        "again."
+        N_("That channel isn't in this server any more. Reload the page and pick "
+        "again.")
     ),
     "channel_not_writable": (
-        "VRCVerify can't post in that channel, so it can't log there. Check the "
-        "channel's permissions and try again."
+        N_("VRCVerify can't post in that channel, so it can't log there. Check the "
+        "channel's permissions and try again.")
     ),
     "column_missing": (
-        "This bot's database is missing the column for that setting. Contact "
-        "the bot operator."
+        N_("This bot's database is missing the column for that setting. Contact "
+        "the bot operator.")
     ),
     # The VRChat group (issue #49). The controls that submit these arrive with
     # the settings section; the copy is here first because the alternative --
@@ -2087,26 +2410,26 @@ SAVE_ERRORS = {
     # is "another server already has that group" -- is a support ticket that
     # nobody can resolve from the page.
     "not_a_group": (
-        "That doesn't look like a VRChat group. Paste the group's ID (it "
-        "starts with grp_) or the vrchat.com link to the group."
+        N_("That doesn't look like a VRChat group. Paste the group's ID (it "
+        "starts with grp_) or the vrchat.com link to the group.")
     ),
     "group_shortlink_unsupported": (
-        "VRChat's vrc.group short links can't be looked up. Open the group on "
+        N_("VRChat's vrc.group short links can't be looked up. Open the group on "
         "vrchat.com and paste that link instead, or the group ID starting "
-        "with grp_."
+        "with grp_.")
     ),
     # Deliberately does not say which server holds it. That is another
     # customer's guild, and naming it here would turn a group ID into a way to
     # find out who else uses this bot.
     "group_claimed_elsewhere": (
-        "Another Discord server has already linked that VRChat group. A group "
-        "can only belong to one server -- contact support if that's wrong."
+        N_("Another Discord server has already linked that VRChat group. A group "
+        "can only belong to one server -- contact support if that's wrong.")
     ),
     "no_group_configured": (
-        "Add your VRChat group first, then run the setup check."
+        N_("Add your VRChat group first, then run the setup check.")
     ),
 }
-GENERIC_SAVE_ERROR = "That change couldn't be saved, so nothing was changed."
+GENERIC_SAVE_ERROR = N_("That change couldn't be saved, so nothing was changed.")
 
 # The panel button shares reason codes with the settings saves, but not their
 # wording. "so it can't log there" is the log channel's sentence and says
@@ -2116,29 +2439,29 @@ PANEL_ERRORS = {
     # Plain text: this is rendered into a web page, not sent to Discord, so
     # markdown asterisks would show up literally.
     "channel_not_writable": (
-        "VRCVerify can't post the panel in that channel. It needs both Send "
+        N_("VRCVerify can't post the panel in that channel. It needs both Send "
         "Messages and Embed Links there -- Embed Links is the one that's "
-        "usually missing, because the panel is an embed."
+        "usually missing, because the panel is an embed.")
     ),
     "channel_not_in_guild": (
-        "That channel isn't in this server any more. Reload the page and pick "
-        "again."
+        N_("That channel isn't in this server any more. Reload the page and pick "
+        "again.")
     ),
 }
-GENERIC_PANEL_ERROR = (
+GENERIC_PANEL_ERROR = N_(
     "The panel couldn't be posted just now. Try again shortly."
 )
 
 # Same treatment as the refusals: a code chosen by the bot, copy chosen here.
 PANEL_RESULTS = {
-    "posted": "Panel posted.",
+    "posted": N_("Panel posted."),
     "refreshed": (
-        "That channel already had the panel, so it was refreshed rather than "
-        "posted again."
+        N_("That channel already had the panel, so it was refreshed rather than "
+        "posted again.")
     ),
     "moved": (
-        "Panel posted in the new channel. The old one is still up in its "
-        "previous channel -- delete it in Discord when you're ready."
+        N_("Panel posted in the new channel. The old one is still up in its "
+        "previous channel -- delete it in Discord when you're ready.")
     ),
     # Panels posted by /vrcverify_instructions before it stopped replying with
     # them belong to a webhook, and Discord quietly ignores embed edits on those
@@ -2146,8 +2469,8 @@ PANEL_RESULTS = {
     # repair is a new message, which is why this reads as an explanation rather
     # than as a plain success.
     "replaced": (
-        "That panel was posted in a way Discord won't let the bot edit, so it "
-        "was replaced with a fresh one. Your settings apply to it now."
+        N_("That panel was posted in a way Discord won't let the bot edit, so it "
+        "was replaced with a fresh one. Your settings apply to it now.")
     ),
 }
 
@@ -2415,23 +2738,23 @@ def _save(guild_id: int, session, changes: dict, group: str):
 # as the panel results: a message is chosen from this table or not shown.
 SUBSCRIPTION_NOTICES = {
     "bought": (
-        "Thanks — your subscription is being set up. Premium switches on as "
-        "soon as Stripe confirms the payment, usually within a few seconds.",
+        N_("Thanks — your subscription is being set up. Premium switches on as "
+        "soon as Stripe confirms the payment, usually within a few seconds."),
         "ok",
     ),
-    "plan": ("That plan isn't one we offer. Nothing has been charged.", "error"),
+    "plan": (N_("That plan isn't one we offer. Nothing has been charged."), "error"),
     "already": (
-        "This server already has Premium, so there was nothing to buy. "
-        "Nothing has been charged.",
+        N_("This server already has Premium, so there was nothing to buy. "
+        "Nothing has been charged."),
         "error",
     ),
     "stripe": (
-        "We couldn't reach Stripe just now, so nothing has been charged. "
-        "Try again in a moment, or subscribe inside Discord instead.",
+        N_("We couldn't reach Stripe just now, so nothing has been charged. "
+        "Try again in a moment, or subscribe inside Discord instead."),
         "error",
     ),
     "portal": (
-        "There's no card subscription on this server to manage.",
+        N_("There's no card subscription on this server to manage."),
         "error",
     ),
 }
@@ -2452,7 +2775,12 @@ def _subscription_notice(session):
     # `error:stripe` arrives as `error:stripe`; take the last segment.
     key = key.rpartition(":")[2] or key
     message = SUBSCRIPTION_NOTICES.get(key)
-    return message if message else (None, None)
+    if not message:
+        return None, None
+    # The tone is a class name and stays English; only the sentence is looked
+    # up. Translated here for the reason `_save_error_message` gives.
+    text, kind = message
+    return _translator()(text), kind
 
 
 def _notice_arg(notice: Optional[str], kind: str) -> Optional[str]:
@@ -2469,10 +2797,16 @@ def _save_error_code(error: BotAPIError) -> str:
 
 
 def _save_error_message(code: Optional[str]) -> Optional[str]:
-    """Copy for a refusal, chosen by us -- the code is only ever a lookup key."""
+    """Copy for a refusal, chosen by us -- the code is only ever a lookup key.
+
+    Translated here rather than in the table, which is the whole point of the
+    `N_` markers on it: the table is built once at import and this runs per
+    request, so the admin reading "nothing was changed" reads it in the
+    language the rest of the page is in.
+    """
     if not code:
         return None
-    return SAVE_ERRORS.get(code, GENERIC_SAVE_ERROR)
+    return _translator()(SAVE_ERRORS.get(code, GENERIC_SAVE_ERROR))
 
 
 def _panel_error_code(error: BotAPIError) -> str:
@@ -2480,10 +2814,19 @@ def _panel_error_code(error: BotAPIError) -> str:
     return reason if reason in PANEL_ERRORS else "unknown"
 
 
-def _panel_error_message(code: Optional[str]) -> Optional[str]:
+def _panel_result_message(code: Optional[str]) -> Optional[str]:
+    """Copy for a panel that WAS posted. Translated at lookup, like the rest."""
     if not code:
         return None
-    return PANEL_ERRORS.get(code, GENERIC_PANEL_ERROR)
+    found = PANEL_RESULTS.get(code)
+    return _translator()(found) if found else None
+
+
+def _panel_error_message(code: Optional[str]) -> Optional[str]:
+    """Copy for a failed panel post. Translated at lookup, like the saves."""
+    if not code:
+        return None
+    return _translator()(PANEL_ERRORS.get(code, GENERIC_PANEL_ERROR))
 
 
 def _colour_to_int(raw: Optional[str]) -> Optional[int]:
@@ -2519,13 +2862,47 @@ def _session_guild(session, guild_id: int) -> Optional[dict]:
 # The sidebar, in order. Kept here rather than in the template so the section
 # list is one thing in one place -- a nav that disagrees with the routes is a
 # link to a 404, and a route with no nav entry is a page nobody can reach.
+# The three sections in the sidebar. Labels are msgids (#97), looked up per
+# request by `_sections()` -- this tuple is built at import, before any request
+# has said which language it wants.
+#
+# Found by looking at the rendered page rather than at the diff: the sidebar
+# said "Overview / Settings / Subscriptions" in English beside a Japanese
+# payment page, because these three labels are the only page furniture that
+# lives in Python rather than in a template.
 SECTIONS = (
-    ("overview", "Overview", "guild_overview"),
-    ("settings", "Settings", "guild_settings"),
-    ("subscription", "Subscriptions", "guild_subscription"),
+    ("overview", N_("Overview"), "guild_overview"),
+    ("settings", N_("Settings"), "guild_settings"),
+    ("subscription", N_("Subscriptions"), "guild_subscription"),
 )
 
 SECTION_ENDPOINTS = {key: endpoint for key, _label, endpoint in SECTIONS}
+
+
+def _settings_subnav() -> tuple:
+    """The Settings sub-nav, slugs and labels, in this request's language.
+
+    Activity is appended rather than listed in `SETTINGS_GROUPS` because it is
+    not a settings group -- `build_groups()` does not return it -- which was
+    already true before the labels became translatable.
+    """
+    gettext = _translator()
+    rows = settings_view.SETTINGS_GROUPS + (
+        (settings_view.ACTIVITY_SLUG, settings_view.ACTIVITY_TITLE),
+    )
+    return tuple((slug, gettext(label)) for slug, label in rows)
+
+
+def _sections() -> tuple:
+    """`SECTIONS` with its labels in this request's language.
+
+    A function rather than a template filter so the sidebar's markup does not
+    have to know that one of the three values in each row is translatable.
+    """
+    gettext = _translator()
+    return tuple(
+        (key, gettext(label), endpoint) for key, label, endpoint in SECTIONS
+    )
 
 
 def _guild_chrome(
@@ -2550,7 +2927,7 @@ def _guild_chrome(
         "guild_icon": oauth.icon_url(guild) if guild else None,
         "guild_id": str(guild_id),
         "section": section,
-        "sections": SECTIONS,
+        "sections": _sections(),
         "nav_collapsed": _nav_collapsed(),
         # Which page the hamburger should return to. A key from our own table,
         # so the form carries a name we recognise rather than a path it chose.
@@ -2564,8 +2941,7 @@ def _guild_chrome(
         # table the routes read, so the nav cannot offer a page that does not
         # exist. Activity is appended rather than listed there because it is
         # not a settings group: `build_groups()` does not return it.
-        "settings_subnav": settings_view.SETTINGS_GROUPS
-        + ((settings_view.ACTIVITY_SLUG, settings_view.ACTIVITY_TITLE),),
+        "settings_subnav": _settings_subnav(),
         "settings_group": group or "",
         "csrf_token": session.csrf_token,
     }
@@ -2596,6 +2972,111 @@ def _theme() -> str:
     """
     chosen = request.cookies.get(THEME_COOKIE)
     return chosen if chosen in THEMES else THEME_DEFAULT
+
+
+def _apply_language() -> str:
+    """Resolve this request's language and record it on `g`.
+
+    Called twice on the two routes that learn a guild's configured language,
+    and that is the point of it being a function. `before_request` runs before
+    any route has spoken to the bot, so the first call can only see the cookie
+    and the header; `_note_guild_locale` calls it again the moment the settings
+    payload is in hand, which is still before `render_template`.
+
+    Writes to `g` and to nothing else. The Jinja environment is set up once in
+    `create_app`, with callables that read this attribute when a template
+    actually calls `_()`, so a second call here costs one assignment and
+    changes nothing another thread can see.
+    """
+    code = _language()
+    g.language = code
+    return code
+
+
+def _language() -> str:
+    """Which language to render this request in (issue #97).
+
+    The precedence itself lives in `i18n.negotiate`, which is pure and takes
+    the three inputs as arguments so the order can be asserted without a test
+    client. This function's whole job is finding those three in a request.
+
+    The guild's language is the interesting one. It arrives in the settings
+    payload, which means it is known on Settings and on Subscriptions and not
+    on Overview -- so it is read here from `g`, stashed by whichever route
+    already had the payload in its hands. **This is not a new lookup.** #97 is
+    explicit that whatever supplies the locale arrives in a payload the
+    dashboard already receives or in the request, and a route calling the bot
+    a second time to find out what language to say "Renews on" in would be
+    exactly the thing it rules out.
+
+    When that guild language is what decides, the code is left on
+    `g.language_seed` for `_remember_language` to store, so the pages that
+    never see the payload agree with the ones that do.
+    """
+    cookie = request.cookies.get(LANG_COOKIE)
+    guild_locale = getattr(g, "guild_locale", None)
+    chosen = i18n.negotiate(
+        cookie=cookie,
+        guild_locale=guild_locale,
+        accept_language=request.headers.get("Accept-Language"),
+    )
+    # Seed the cookie only where the guild's setting is what answered: a
+    # cookie already present needs no writing, and Accept-Language is
+    # deliberately re-read every request. See `_remember_language`.
+    if not i18n.is_supported(cookie) and chosen == guild_locale:
+        g.language_seed = chosen
+    return chosen
+
+
+def _ngettext():
+    """This request's `ngettext`, for the one string that counts things.
+
+    Separate from `_translator` because plural selection is a different call:
+    it takes two msgids and a number, and the catalogue's own Plural-Forms rule
+    decides which form comes back. Russian has three, Arabic six, Japanese one
+    -- so an English `"s" if n != 1` is correct in exactly one of the twelve.
+    """
+    return i18n.catalogue(
+        getattr(g, "language", None) or i18n.DEFAULT_LANGUAGE
+    ).ngettext
+
+
+def _translator():
+    """This request's `gettext`, for handing to the pure view modules.
+
+    They take it as an argument because they may not read a request -- see the
+    module docstring in i18n.py. This is the one place that turns "which
+    language is this request" into "the callable those modules were written to
+    accept".
+    """
+    return i18n.translator(getattr(g, "language", None) or i18n.DEFAULT_LANGUAGE)
+
+
+def _note_guild_locale(settings: Optional[dict]) -> None:
+    """Remember the language this guild configured, from a payload in hand.
+
+    Called by the routes that already fetched settings. Deliberately silent
+    about anything it does not recognise: the bot's list of languages and this
+    image's list of catalogues are pinned equal by a test, but a bot running
+    ahead of a dashboard deploy is a normal state on two hosts, and the honest
+    response to a language we cannot render is to render the next choice down.
+    """
+    # Under `fields`, not at the top level. The settings payload reports each
+    # field as a state object -- value, feature, active, locked, writable --
+    # and `settings_view._state` is the reader for it. Reaching for
+    # `settings["instructions_locale"]` finds nothing and fails silently as
+    # "this server has no configured language", which is indistinguishable
+    # from the feature not being wired up at all.
+    code = ((settings or {}).get("fields") or {}).get("instructions_locale") or {}
+    code = code.get("value")
+    if not i18n.is_supported(code):
+        return
+    g.guild_locale = code
+    # Re-resolve now that there is a third input. `before_request` decided from
+    # the cookie and the header alone, because no route had asked the bot
+    # anything yet; this is still ahead of every `render_template` on the two
+    # routes that call it.
+    _apply_language()
 
 
 def _preference_return_url() -> str:
@@ -2684,9 +3165,10 @@ def _guild_page_unavailable(
         return (
             render_template(
                 "error.html",
-                message=(
-                    "That server isn't available. Either VRCVerify isn't in it, "
-                    "or you don't have the Administrator permission there."
+                message=_translator()(
+                    N_("That server isn't available. Either VRCVerify isn't "
+                       "in it, or you don't have the Administrator permission "
+                       "there.")
                 ),
                 csrf_token=session.csrf_token,
             ),
@@ -2699,14 +3181,14 @@ def _guild_page_unavailable(
     return (
         render_template(
             "error.html",
-            message=(
+            message=_translator()(
                 # Section-neutral, because all three land here. It used to name
                 # settings, which on the Overview would have been telling an
                 # admin the wrong thing was unavailable. "Nothing has changed"
                 # stays: it is the sentence that matters after a failed save,
                 # and it is true on a page with no save in it.
-                "Can't reach the bot right now, so this page can't be shown. "
-                "Nothing has changed. Try again shortly."
+                N_("Can't reach the bot right now, so this page can't be "
+                   "shown. Nothing has changed. Try again shortly.")
             ),
             csrf_token=session.csrf_token,
         ),

@@ -1,0 +1,1896 @@
+# German translations for VRCVerify.
+# Copyright (C) 2026 Esatto Technologies
+# This file is distributed under the same license as the VRCVerify project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: VRCVerify VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-08-29 10:47-0400\n"
+"PO-Revision-Date: 2026-08-29 03:27-0400\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: de\n"
+"Language-Team: de <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Dark"
+msgstr "Dunkel"
+
+msgid "Light"
+msgstr "Hell"
+
+msgid "System"
+msgstr "System"
+
+msgid "Authorisation was declined."
+msgstr "Die Autorisierung wurde abgelehnt."
+
+msgid "That login link has expired. Please try again."
+msgstr "Dieser Anmeldelink ist abgelaufen. Bitte versuche es noch einmal."
+
+msgid "That login could not be verified. Please try again."
+msgstr ""
+"Diese Anmeldung konnte nicht überprüft werden. Bitte versuche es noch "
+"einmal."
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid "Discord could not complete the login. Please try again."
+msgstr ""
+"Discord konnte die Anmeldung nicht abschließen. Bitte versuche es noch "
+"einmal."
+
+msgid "Page not found."
+msgstr "Seite nicht gefunden."
+
+msgid "Something went wrong."
+msgstr "Etwas ist schiefgelaufen."
+
+msgid "That setting needs VRCVerify Premium. Nothing was changed."
+msgstr "Diese Einstellung erfordert VRCVerify Premium. Es wurde nichts geändert."
+
+msgid "That language isn't one VRCVerify supports. Nothing was changed."
+msgstr ""
+"Diese Sprache wird von VRCVerify nicht unterstützt. Es wurde nichts "
+"geändert."
+
+msgid ""
+"Run /vrcverify_setup in your server first -- VRCVerify needs a verified "
+"role before it can store anything else."
+msgstr ""
+"Führe zuerst /vrcverify_setup auf deinem Server aus – VRCVerify braucht "
+"eine Verifiziert-Rolle, bevor es irgendetwas anderes speichern kann."
+
+msgid "That setting can't be changed from the website yet. Nothing was changed."
+msgstr ""
+"Diese Einstellung lässt sich noch nicht über die Website ändern. Es wurde"
+" nichts geändert."
+
+msgid ""
+"The bot couldn't complete the save, so nothing was changed. Try again "
+"shortly."
+msgstr ""
+"Der Bot konnte das Speichern nicht abschließen, es wurde also nichts "
+"geändert. Versuche es gleich noch einmal."
+
+msgid "That role isn't in this server any more. Reload the page and pick again."
+msgstr ""
+"Diese Rolle gibt es auf diesem Server nicht mehr. Lade die Seite neu und "
+"wähle erneut."
+
+msgid "Pick a verified role -- verification can't run without one."
+msgstr ""
+"Wähle eine Verifiziert-Rolle – ohne sie kann die Verifizierung nicht "
+"laufen."
+
+msgid ""
+"Links in the custom message may only point to discord.com or vrchat.com. "
+"Nothing was changed."
+msgstr ""
+"Links in der eigenen Nachricht dürfen nur auf discord.com oder vrchat.com"
+" zeigen. Es wurde nichts geändert."
+
+msgid "That custom message is too long. The limit is 1000 characters."
+msgstr "Diese eigene Nachricht ist zu lang. Das Limit liegt bei 1000 Zeichen."
+
+msgid ""
+"Verification logs can't go in an announcement channel -- other servers "
+"can follow one, which would republish your members' age status."
+msgstr ""
+"Verifizierungsprotokolle dürfen nicht in einen Ankündigungskanal – andere"
+" Server können ihm folgen, wodurch der Altersstatus deiner Mitglieder "
+"erneut veröffentlicht würde."
+
+msgid ""
+"That channel isn't in this server any more. Reload the page and pick "
+"again."
+msgstr ""
+"Diesen Kanal gibt es auf diesem Server nicht mehr. Lade die Seite neu und"
+" wähle erneut."
+
+msgid ""
+"VRCVerify can't post in that channel, so it can't log there. Check the "
+"channel's permissions and try again."
+msgstr ""
+"VRCVerify kann in diesem Kanal nicht schreiben und dort deshalb nichts "
+"protokollieren. Prüfe die Berechtigungen des Kanals und versuche es "
+"erneut."
+
+msgid ""
+"This bot's database is missing the column for that setting. Contact the "
+"bot operator."
+msgstr ""
+"In der Datenbank dieses Bots fehlt die Spalte für diese Einstellung. "
+"Wende dich an den Bot-Betreiber."
+
+msgid ""
+"That doesn't look like a VRChat group. Paste the group's ID (it starts "
+"with grp_) or the vrchat.com link to the group."
+msgstr ""
+"Das sieht nicht nach einer VRChat-Gruppe aus. Füge die ID der Gruppe ein "
+"(sie beginnt mit grp_) oder den vrchat.com-Link zur Gruppe."
+
+msgid ""
+"VRChat's vrc.group short links can't be looked up. Open the group on "
+"vrchat.com and paste that link instead, or the group ID starting with "
+"grp_."
+msgstr ""
+"VRChats vrc.group-Kurzlinks lassen sich nicht auflösen. Öffne die Gruppe "
+"auf vrchat.com und füge stattdessen diesen Link ein, oder die Gruppen-ID,"
+" die mit grp_ beginnt."
+
+msgid ""
+"Another Discord server has already linked that VRChat group. A group can "
+"only belong to one server -- contact support if that's wrong."
+msgstr ""
+"Ein anderer Discord-Server hat diese VRChat-Gruppe bereits verknüpft. "
+"Eine Gruppe kann nur zu einem Server gehören – wende dich an den Support,"
+" falls das nicht stimmt."
+
+msgid "Add your VRChat group first, then run the setup check."
+msgstr ""
+"Füge zuerst deine VRChat-Gruppe hinzu und führe dann die "
+"Einrichtungsprüfung aus."
+
+msgid "That change couldn't be saved, so nothing was changed."
+msgstr ""
+"Diese Änderung konnte nicht gespeichert werden, es wurde also nichts "
+"geändert."
+
+msgid ""
+"VRCVerify can't post the panel in that channel. It needs both Send "
+"Messages and Embed Links there -- Embed Links is the one that's usually "
+"missing, because the panel is an embed."
+msgstr ""
+"VRCVerify kann das Panel in diesem Kanal nicht posten. Es braucht dort "
+"sowohl „Nachrichten senden“ als auch „Links einbetten“ – „Links "
+"einbetten“ fehlt meistens, weil das Panel ein Embed ist."
+
+msgid "The panel couldn't be posted just now. Try again shortly."
+msgstr ""
+"Das Panel konnte gerade nicht gepostet werden. Versuche es gleich noch "
+"einmal."
+
+msgid "Panel posted."
+msgstr "Panel gepostet."
+
+msgid ""
+"That channel already had the panel, so it was refreshed rather than "
+"posted again."
+msgstr ""
+"In diesem Kanal gab es das Panel bereits, es wurde also aktualisiert "
+"statt erneut gepostet."
+
+msgid ""
+"Panel posted in the new channel. The old one is still up in its previous "
+"channel -- delete it in Discord when you're ready."
+msgstr ""
+"Panel im neuen Kanal gepostet. Das alte steht noch im vorherigen Kanal – "
+"lösche es in Discord, wenn du so weit bist."
+
+msgid ""
+"That panel was posted in a way Discord won't let the bot edit, so it was "
+"replaced with a fresh one. Your settings apply to it now."
+msgstr ""
+"Dieses Panel wurde so gepostet, dass Discord dem Bot das Bearbeiten nicht"
+" erlaubt, deshalb wurde es durch ein neues ersetzt. Deine Einstellungen "
+"gelten jetzt dafür."
+
+msgid ""
+"Thanks — your subscription is being set up. Premium switches on as soon "
+"as Stripe confirms the payment, usually within a few seconds."
+msgstr ""
+"Danke – dein Abonnement wird gerade eingerichtet. Premium schaltet sich "
+"frei, sobald Stripe die Zahlung bestätigt, normalerweise innerhalb "
+"weniger Sekunden."
+
+msgid "That plan isn't one we offer. Nothing has been charged."
+msgstr "Diesen Tarif bieten wir nicht an. Es wurde nichts berechnet."
+
+msgid ""
+"This server already has Premium, so there was nothing to buy. Nothing has"
+" been charged."
+msgstr ""
+"Dieser Server hat bereits Premium, es gab also nichts zu kaufen. Es wurde"
+" nichts berechnet."
+
+msgid ""
+"We couldn't reach Stripe just now, so nothing has been charged. Try again"
+" in a moment, or subscribe inside Discord instead."
+msgstr ""
+"Wir konnten Stripe gerade nicht erreichen, es wurde also nichts "
+"berechnet. Versuche es gleich noch einmal oder abonniere stattdessen in "
+"Discord."
+
+msgid "There's no card subscription on this server to manage."
+msgstr "Auf diesem Server gibt es kein Kartenabonnement zu verwalten."
+
+msgid "Overview"
+msgstr "Übersicht"
+
+# | msgid "Sections"
+msgid "Settings"
+msgstr "Einstellungen"
+
+msgid "Subscriptions"
+msgstr "Abonnements"
+
+msgid ""
+"That server isn't available. Either VRCVerify isn't in it, or you don't "
+"have the Administrator permission there."
+msgstr ""
+"Dieser Server ist nicht verfügbar. Entweder ist VRCVerify nicht darauf, "
+"oder du hast dort keine Administrator-Berechtigung."
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+msgid ""
+"Can't reach the bot right now, so this page can't be shown. Nothing has "
+"changed. Try again shortly."
+msgstr ""
+"Der Bot ist gerade nicht erreichbar, deshalb kann diese Seite nicht "
+"angezeigt werden. Es hat sich nichts geändert. Versuche es gleich noch "
+"einmal."
+
+msgid "Premium"
+msgstr "Premium"
+
+# | msgid "Renews"
+msgid "New"
+msgstr "Neu"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+# | msgid "Verification log"
+msgid "See how verification is going"
+msgstr "Sieh dir an, wie die Verifizierung läuft"
+
+msgid ""
+"The Overview page now charts the last 30 days of verifications, and "
+"checks the things that quietly break a server — a verified role that was "
+"deleted, a role the bot cannot assign, an instructions panel that is no "
+"longer where it was posted."
+msgstr ""
+"Die Übersicht zeigt jetzt die Verifizierungen der letzten 30 Tage als "
+"Diagramm und prüft die Dinge, die einen Server unbemerkt lahmlegen: eine "
+"gelöschte Verifiziert-Rolle, eine Rolle, die der Bot nicht vergeben kann,"
+" ein Anleitungs-Panel, das nicht mehr dort steht, wo es gepostet wurde."
+
+msgid "The dashboard has been rebuilt"
+msgstr "Das Dashboard wurde neu gebaut"
+
+msgid ""
+"A new header and sidebar, servers you can pick from cards instead of a "
+"list, switches that show you what is on at a glance, and a warning before"
+" you leave a page with unsaved changes."
+msgstr ""
+"Ein neuer Kopfbereich und eine neue Seitenleiste, Server, die du aus "
+"Karten statt aus einer Liste auswählst, Schalter, die dir auf einen Blick"
+" zeigen, was an ist, und eine Warnung, bevor du eine Seite mit "
+"ungespeicherten Änderungen verlässt."
+
+msgid "Dark, light, or whatever your device says"
+msgstr "Dunkel, hell oder was dein Gerät sagt"
+
+msgid ""
+"The dashboard is dark by default now, with a theme button in the header. "
+"Your choice is remembered on this browser."
+msgstr ""
+"Das Dashboard ist jetzt standardmäßig dunkel, mit einer Design-"
+"Schaltfläche im Kopfbereich. Deine Wahl wird in diesem Browser "
+"gespeichert."
+
+msgid "Invite verified members to your VRChat group"
+msgstr "Lade verifizierte Mitglieder in deine VRChat-Gruppe ein"
+
+msgid ""
+"Link a private VRChat group to your server, and members who finish "
+"verification are offered an invite to it. Nothing is sent to VRChat "
+"unless the member asks for it."
+msgstr ""
+"Verknüpfe eine private VRChat-Gruppe mit deinem Server, dann wird "
+"Mitgliedern nach der Verifizierung eine Einladung dazu angeboten. An "
+"VRChat wird nichts gesendet, solange das Mitglied nicht darum bittet."
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "Premium ansehen"
+
+#, python-format
+msgid "New in your plan: %(title)s"
+msgstr "Neu in deinem Tarif: %(title)s"
+
+#, python-format
+msgid "%(body)s It's included in your subscription."
+msgstr "%(body)s Es ist in deinem Abo enthalten."
+
+# | msgid "Setup"
+msgid "Set it up"
+msgstr "Jetzt einrichten"
+
+# | msgid "Your grandfathered extras stay free whatever you decide."
+#, python-format
+msgid "Your grandfathered extras stay free whatever you decide. %(body)s"
+msgstr ""
+"Deine Bestandsvorteile bleiben kostenlos, wie du dich auch entscheidest. "
+"%(body)s"
+
+#, python-format
+msgid "New in Premium: %(title)s"
+msgstr "Neu in Premium: %(title)s"
+
+msgid "Today (UTC)"
+msgstr "Heute (UTC)"
+
+msgid "Last 7 days"
+msgstr "Letzte 7 Tage"
+
+msgid "Last 30 days"
+msgstr "Letzte 30 Tage"
+
+msgid "Couldn't check"
+msgstr "Konnte nicht geprüft werden"
+
+msgid "The bot didn't answer this one."
+msgstr "Der Bot hat darauf nicht geantwortet."
+
+msgid "Not collecting that far back yet."
+msgstr "So weit zurück wird noch nicht erfasst."
+
+#, python-format
+msgid "Only counting since %(date)s."
+msgstr "Erst seit %(date)s erfasst."
+
+msgid "Members"
+msgstr "Mitglieder"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+msgid "Verified, all time"
+msgstr "Verifiziert, insgesamt"
+
+msgid "Counted since this server's records began."
+msgstr "Gezählt seit Beginn der Aufzeichnungen dieses Servers."
+
+msgid "Not collecting yet."
+msgstr "Wird noch nicht erfasst."
+
+msgid "Auto-verify on join"
+msgstr "Automatisch beim Beitritt verifizieren"
+
+msgid "Members are checked when they join."
+msgstr "Mitglieder werden beim Beitritt geprüft."
+
+msgid "Unverified role"
+msgstr "Unverifiziert-Rolle"
+
+msgid "Optional. Removed once someone verifies."
+msgstr "Optional. Wird entfernt, sobald jemand verifiziert ist."
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+msgid "Verification log"
+msgstr "Verifizierungsprotokoll"
+
+msgid "Optional. Premium."
+msgstr "Optional. Premium."
+
+# | msgid "Sections"
+# | msgid "Settings"
+msgid "Go to Settings"
+msgstr "Zu den Einstellungen"
+
+msgid "Verified role"
+msgstr "Verifiziert-Rolle"
+
+# | msgid "Pick a verified role -- verification can't run without one."
+msgid "Required — verification can't finish without one."
+msgstr "Erforderlich – ohne sie kann die Verifizierung nicht abgeschlossen werden."
+
+msgid "The role that was set has been deleted. Choose another."
+msgstr "Die eingestellte Rolle wurde gelöscht. Wähle eine andere."
+
+msgid "VRCVerify's own role needs to sit above this one to grant it."
+msgstr ""
+"Die eigene Rolle von VRCVerify muss über dieser stehen, um sie vergeben "
+"zu können."
+
+msgid "Set, and VRCVerify can grant it."
+msgstr "Gesetzt, und VRCVerify kann sie vergeben."
+
+# | msgid "A branded instructions panel"
+msgid "Instructions panel"
+msgstr "Anleitungs-Panel"
+
+msgid "Members need a message to start from."
+msgstr "Mitglieder brauchen eine Nachricht, von der aus sie starten können."
+
+msgid "The channel it was posted in was deleted."
+msgstr "Der Kanal, in dem es gepostet wurde, wurde gelöscht."
+
+msgid "VRCVerify can't post there anymore — check its permissions."
+msgstr "VRCVerify kann dort nicht mehr posten – prüfe die Berechtigungen."
+
+msgid "Posted, and VRCVerify can still reach it."
+msgstr "Gepostet, und VRCVerify kann es weiterhin erreichen."
+
+msgid "No verified role is set"
+msgstr "Es ist keine Verifiziert-Rolle gesetzt"
+
+msgid "The verified role needs attention"
+msgstr "Die Verifiziert-Rolle braucht Aufmerksamkeit"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+msgid "No instructions panel is posted"
+msgstr "Es ist kein Anleitungs-Panel gepostet"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+msgid "The instructions panel needs attention"
+msgstr "Das Anleitungs-Panel braucht Aufmerksamkeit"
+
+#, python-format
+msgid ""
+"%(count)s member verified here in the last 30 days. Premium logs each one"
+" to a channel of your choice."
+msgid_plural ""
+"%(count)s members verified here in the last 30 days. Premium logs each "
+"one to a channel of your choice."
+msgstr[0] ""
+"%(count)s Mitglied hat sich hier in den letzten 30 Tagen verifiziert. "
+"Premium protokolliert jede Verifizierung in einem Kanal deiner Wahl."
+msgstr[1] ""
+"%(count)s Mitglieder haben sich hier in den letzten 30 Tagen verifiziert."
+" Premium protokolliert jede Verifizierung in einem Kanal deiner Wahl."
+
+msgid "Add VRCVerify Premium"
+msgstr "VRCVerify Premium hinzufügen"
+
+msgid "Your grandfathered extras stay free whatever you decide."
+msgstr "Deine Bestandsvorteile bleiben kostenlos, wie du dich auch entscheidest."
+
+msgid "Upgrade to VRCVerify Premium"
+msgstr "Auf VRCVerify Premium upgraden"
+
+# | msgid "A verification log channel"
+msgid "Verification"
+msgstr "Verifizierung"
+
+msgid "After verifying"
+msgstr "Nach der Verifizierung"
+
+msgid "VRChat group"
+msgstr "VRChat-Gruppe"
+
+msgid "Logging"
+msgstr "Protokollierung"
+
+# | msgid "Active"
+msgid "Activity"
+msgstr "Aktivität"
+
+msgid "English"
+msgstr "Englisch"
+
+msgid "Spanish"
+msgstr "Spanisch"
+
+msgid "Chinese (Simplified)"
+msgstr "Chinesisch (vereinfacht)"
+
+msgid "Japanese"
+msgstr "Japanisch"
+
+msgid "German"
+msgstr "Deutsch"
+
+msgid "Dutch"
+msgstr "Niederländisch"
+
+msgid "Hindi"
+msgstr "Hindi"
+
+msgid "Arabic"
+msgstr "Arabisch"
+
+msgid "Bengali"
+msgstr "Bengalisch"
+
+msgid "Portuguese (Brazil)"
+msgstr "Portugiesisch (Brasilien)"
+
+msgid "Russian"
+msgstr "Russisch"
+
+msgid "Punjabi"
+msgstr "Punjabi"
+
+msgid "Not set"
+msgstr "Nicht gesetzt"
+
+#, python-format
+msgid "Unknown role (%(id)s)"
+msgstr "Unbekannte Rolle (%(id)s)"
+
+msgid ""
+"This role no longer exists in the server. VRCVerify will not be able to "
+"use it."
+msgstr ""
+"Diese Rolle gibt es auf dem Server nicht mehr. VRCVerify kann sie nicht "
+"verwenden."
+
+msgid "Couldn't check whether VRCVerify can manage this role."
+msgstr "Konnte nicht prüfen, ob VRCVerify diese Rolle verwalten kann."
+
+msgid "Granted once a member's VRChat account is confirmed as 18+."
+msgstr ""
+"Wird vergeben, sobald das VRChat-Konto eines Mitglieds als 18+ bestätigt "
+"ist."
+
+msgid ""
+"VRCVerify cannot grant this role. Move the VRCVerify role above it in "
+"Server Settings -> Roles, or verification will fail for every member."
+msgstr ""
+"VRCVerify kann diese Rolle nicht vergeben. Verschiebe die VRCVerify-Rolle"
+" in den Servereinstellungen -> Rollen darüber, sonst schlägt die "
+"Verifizierung für jedes Mitglied fehl."
+
+msgid ""
+"No verified role is set, so verification cannot complete. Members are "
+"told to contact an admin."
+msgstr ""
+"Es ist keine Verifiziert-Rolle gesetzt, deshalb kann die Verifizierung "
+"nicht abgeschlossen werden. Mitgliedern wird gesagt, sie sollen sich an "
+"einen Admin wenden."
+
+msgid "Removed automatically once a member verifies."
+msgstr "Wird automatisch entfernt, sobald ein Mitglied verifiziert ist."
+
+msgid ""
+"VRCVerify cannot remove this role. Move the VRCVerify role above it in "
+"Server Settings -> Roles."
+msgstr ""
+"VRCVerify kann diese Rolle nicht entfernen. Verschiebe die VRCVerify-"
+"Rolle in den Servereinstellungen -> Rollen darüber."
+
+msgid ""
+"Members already verified with VRCVerify elsewhere get the role as soon as"
+" they join. Free for every server, always."
+msgstr ""
+"Mitglieder, die anderswo bereits mit VRCVerify verifiziert wurden, "
+"erhalten die Rolle direkt beim Beitritt. Für jeden Server kostenlos, "
+"immer."
+
+msgid "On"
+msgstr "An"
+
+msgid "Off"
+msgstr "Aus"
+
+# | msgid "Nickname syncing"
+msgid "Nickname sync"
+msgstr "Nicknamen-Abgleich"
+
+msgid "Sets a member's server nickname to their VRChat display name."
+msgstr "Setzt den Servernamen eines Mitglieds auf seinen VRChat-Anzeigenamen."
+
+msgid "The core of the bot. These are free for every server."
+msgstr "Der Kern des Bots. Diese Funktionen sind für jeden Server kostenlos."
+
+msgid "What happens once a member is confirmed."
+msgstr "Was passiert, sobald ein Mitglied bestätigt ist."
+
+msgid "The message members use to start verification."
+msgstr "Die Nachricht, über die Mitglieder die Verifizierung starten."
+
+msgid "Invite members to your group once they're verified."
+msgstr "Lade Mitglieder in deine Gruppe ein, sobald sie verifiziert sind."
+
+msgid "A record of verification activity for your moderators."
+msgstr "Ein Protokoll der Verifizierungsaktivität für deine Moderatoren."
+
+msgid "Not checked yet"
+msgstr "Noch nicht geprüft"
+
+msgid ""
+"Put the setup code in your group's description, invite the bot to the "
+"group, then run the check."
+msgstr ""
+"Trage den Einrichtungscode in die Beschreibung deiner Gruppe ein, lade "
+"den Bot in die Gruppe ein und führe dann die Prüfung aus."
+
+msgid "Checking…"
+msgstr "Wird geprüft…"
+
+msgid "The bot is talking to VRChat. Reload this page in a moment."
+msgstr "Der Bot spricht gerade mit VRChat. Lade diese Seite gleich neu."
+
+msgid "No answer from the checker"
+msgstr "Keine Antwort vom Prüfer"
+
+msgid "The check was sent but nothing came back. Try again shortly."
+msgstr ""
+"Die Prüfung wurde gesendet, aber es kam nichts zurück. Versuche es gleich"
+" noch einmal."
+
+msgid "Couldn't start the check"
+msgstr "Prüfung konnte nicht gestartet werden"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. Try again"
+" shortly."
+msgstr ""
+"Der Bot konnte den Teil von sich selbst nicht erreichen, der mit VRChat "
+"spricht. Versuche es gleich noch einmal."
+
+msgid "The bot left your group"
+msgstr "Der Bot hat deine Gruppe verlassen"
+
+msgid ""
+"A VRChat account can only be in so many groups, so after a long time "
+"without a subscription the bot left yours to free the space. Invite the "
+"account below back and run the check again — your group and setup code "
+"are still saved, so there is nothing else to redo."
+msgstr ""
+"Ein VRChat-Konto kann nur in einer begrenzten Zahl von Gruppen sein, "
+"deshalb hat der Bot deine nach längerer Zeit ohne Abonnement verlassen, "
+"um Platz zu schaffen. Lade das Konto unten wieder ein und führe die "
+"Prüfung erneut aus – deine Gruppe und dein Einrichtungscode sind "
+"weiterhin gespeichert, es gibt also sonst nichts nachzuholen."
+
+msgid "Ready"
+msgstr "Bereit"
+
+msgid "The bot is in your group and can send invites."
+msgstr "Der Bot ist in deiner Gruppe und kann Einladungen verschicken."
+
+msgid "Waiting for a moderator"
+msgstr "Warten auf einen Moderator"
+
+msgid ""
+"The bot has asked to join and a group moderator needs to approve it. Run "
+"the check again once they have."
+msgstr ""
+"Der Bot hat um Beitritt gebeten und ein Gruppenmoderator muss das "
+"genehmigen. Führe die Prüfung erneut aus, sobald das passiert ist."
+
+msgid "The bot hasn't been invited yet"
+msgstr "Der Bot wurde noch nicht eingeladen"
+
+msgid ""
+"Invite the account below to your group from VRChat, then run the check "
+"again."
+msgstr ""
+"Lade das Konto unten in VRChat in deine Gruppe ein und führe die Prüfung "
+"dann erneut aus."
+
+msgid "In the group, but it can't invite anyone"
+msgstr "In der Gruppe, aber ohne Einladungsrecht"
+
+msgid ""
+"Give the bot's role the “Manage Group Invites” permission in VRChat. "
+"Being an admin is not enough — it is its own tick box."
+msgstr ""
+"Gib der Rolle des Bots in VRChat die Berechtigung „Manage Group Invites“."
+" Admin zu sein reicht nicht – das ist ein eigenes Häkchen."
+
+msgid "The setup code isn't in the group description"
+msgstr "Der Einrichtungscode steht nicht in der Gruppenbeschreibung"
+
+msgid ""
+"Paste the code below anywhere in your VRChat group's description, then "
+"run the check again. You can remove it once the check passes."
+msgstr ""
+"Füge den Code unten irgendwo in die Beschreibung deiner VRChat-Gruppe ein"
+" und führe die Prüfung dann erneut aus. Sobald sie bestanden ist, kannst "
+"du ihn wieder entfernen."
+
+# | msgid "VRChat group"
+msgid "No VRChat group with that ID"
+msgstr "Keine VRChat-Gruppe mit dieser ID"
+
+msgid "Check the ID, or paste the group's vrchat.com link instead."
+msgstr "Prüfe die ID, oder füge stattdessen den vrchat.com-Link der Gruppe ein."
+
+msgid "The bot is banned or blocked from that group"
+msgstr "Der Bot ist aus dieser Gruppe verbannt oder blockiert"
+
+msgid "A group moderator has to lift that before setup can continue."
+msgstr ""
+"Ein Gruppenmoderator muss das aufheben, bevor die Einrichtung weitergehen"
+" kann."
+
+msgid "That group ID wasn't usable"
+msgstr "Diese Gruppen-ID war nicht verwendbar"
+
+msgid "VRChat didn't answer"
+msgstr "VRChat hat nicht geantwortet"
+
+msgid "Nothing is wrong with your setup. Try the check again shortly."
+msgstr ""
+"Mit deiner Einrichtung ist nichts falsch. Versuche die Prüfung gleich "
+"noch einmal."
+
+msgid "Setup couldn't be confirmed"
+msgstr "Einrichtung konnte nicht bestätigt werden"
+
+msgid "Run the check again. If it keeps happening, contact support."
+msgstr ""
+"Führe die Prüfung erneut aus. Wenn es weiterhin passiert, wende dich an "
+"den Support."
+
+msgid ""
+"Group invites are part of VRCVerify Premium. Your group is kept exactly "
+"as it is, and this picks up where it left off if the subscription is "
+"renewed."
+msgstr ""
+"Gruppeneinladungen sind Teil von VRCVerify Premium. Deine Gruppe bleibt "
+"genau so, wie sie ist, und das hier macht dort weiter, wo es aufgehört "
+"hat, wenn das Abonnement erneuert wird."
+
+msgid ""
+"Optional: add “View All Members” to the bot's role so VRCVerify can see "
+"that a member already has an invite waiting, instead of possibly sending "
+"them a second one."
+msgstr ""
+"Optional: Gib der Rolle des Bots „View All Members“, damit VRCVerify "
+"sehen kann, dass für ein Mitglied bereits eine Einladung offen ist, statt"
+" ihm möglicherweise eine zweite zu schicken."
+
+msgid ""
+"No invite account is available to this VRCVerify installation right now, "
+"so the check cannot run. Contact the bot operator."
+msgstr ""
+"Dieser VRCVerify-Installation steht gerade kein Einladungskonto zur "
+"Verfügung, deshalb kann die Prüfung nicht laufen. Wende dich an den Bot-"
+"Betreiber."
+
+# | msgid "" "That doesn't look like a VRChat group. Paste the group's ID (it
+# | starts " "with grp_) or the vrchat.com link to the group."
+msgid ""
+"The group verified members can be invited to. Paste the group's ID (it "
+"starts with grp_) or its vrchat.com link. Leave it empty to disconnect "
+"the group."
+msgstr ""
+"Die Gruppe, in die verifizierte Mitglieder eingeladen werden können. Füge"
+" die ID der Gruppe ein (sie beginnt mit grp_) oder ihren vrchat.com-Link."
+" Lass das Feld leer, um die Gruppe zu trennen."
+
+msgid "No group connected"
+msgstr "Keine Gruppe verbunden"
+
+msgid "Offer group invites"
+msgstr "Gruppeneinladungen anbieten"
+
+msgid ""
+"Adds a button to the message a member gets after verifying, which invites"
+" them to your group. Nothing is sent unless they press it."
+msgstr ""
+"Fügt der Nachricht, die ein Mitglied nach der Verifizierung erhält, einen"
+" Button hinzu, der es in deine Gruppe einlädt. Es wird nichts gesendet, "
+"solange es ihn nicht drückt."
+
+msgid "Using the default message"
+msgstr "Standardnachricht wird verwendet"
+
+# | msgid "A custom post-verification message"
+msgid "Custom verification message"
+msgstr "Eigene Verifizierungsnachricht"
+
+msgid ""
+"Replaces the default DM a member gets when they start verifying. Links "
+"may only point to discord.com or vrchat.com. Leave it empty to go back to"
+" the default."
+msgstr ""
+"Ersetzt die Standard-DM, die ein Mitglied beim Start der Verifizierung "
+"erhält. Links dürfen nur auf discord.com oder vrchat.com zeigen. Lass das"
+" Feld leer, um zur Standardnachricht zurückzukehren."
+
+msgid "Language"
+msgstr "Sprache"
+
+msgid "The language of the instructions panel and the bot's replies to members."
+msgstr ""
+"Die Sprache des Anleitungs-Panels und der Antworten des Bots an "
+"Mitglieder."
+
+msgid "Panel colour"
+msgstr "Panel-Farbe"
+
+# | msgid "A branded instructions panel"
+msgid "The colour bar down the side of the instructions panel."
+msgstr "Der Farbbalken an der Seite des Anleitungs-Panels."
+
+msgid "Default blue"
+msgstr "Standardblau"
+
+# | msgid "A verification log channel"
+msgid "Server icon on the panel"
+msgstr "Server-Icon auf dem Panel"
+
+msgid "Shows your server's icon as the panel's thumbnail."
+msgstr "Zeigt das Icon deines Servers als Vorschaubild des Panels."
+
+msgid "Shown"
+msgstr "Wird gezeigt"
+
+msgid "Hidden"
+msgstr "Ausgeblendet"
+
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr "Unbekannter Kanal (%(id)s)"
+
+msgid "This channel no longer exists in the server."
+msgstr "Diesen Kanal gibt es auf dem Server nicht mehr."
+
+# | msgid "" "Verification logs can't go in an announcement channel -- other
+# | servers " "can follow one, which would republish your members' age
+# status."
+msgid ""
+"This is an announcement channel. Other servers can follow it, which would"
+" republish age disclosures about your members. VRCVerify will not log "
+"here."
+msgstr ""
+"Das ist ein Ankündigungskanal. Andere Server können ihm folgen, wodurch "
+"Altersangaben über deine Mitglieder erneut veröffentlicht würden. "
+"VRCVerify wird hier nicht protokollieren."
+
+msgid "VRCVerify cannot post in this channel."
+msgstr "VRCVerify kann in diesem Kanal nicht posten."
+
+# | msgid "A verification log channel"
+msgid "Verification log channel"
+msgstr "Protokollkanal für Verifizierungen"
+
+msgid "Every verification attempt, including the ones that fail silently."
+msgstr "Jeder Verifizierungsversuch, auch die still fehlschlagenden."
+
+# | msgid "VRChat group"
+msgid "VRChat group invites"
+msgstr "VRChat-Gruppeneinladungen"
+
+# | msgid "VRChat group"
+msgid "VRChat group setup check"
+msgstr "Prüfung der VRChat-Gruppeneinrichtung"
+
+msgid "posted in"
+msgstr "gepostet in"
+
+msgid "moved to"
+msgstr "verschoben nach"
+
+msgid "refreshed in"
+msgstr "aktualisiert in"
+
+msgid "replaced in"
+msgstr "ersetzt in"
+
+#, python-format
+msgid "ID %(id)s"
+msgstr "ID %(id)s"
+
+msgid "not set"
+msgstr "nicht gesetzt"
+
+#, python-format
+msgid "role %(id)s"
+msgstr "Rolle %(id)s"
+
+#, python-format
+msgid "a role that no longer exists (%(id)s)"
+msgstr "eine Rolle, die es nicht mehr gibt (%(id)s)"
+
+#, python-format
+msgid "Role %(id)s"
+msgstr "Rolle %(id)s"
+
+#, python-format
+msgid "channel %(id)s"
+msgstr "Kanal %(id)s"
+
+#, python-format
+msgid "a channel that no longer exists (%(id)s)"
+msgstr "ein Kanal, den es nicht mehr gibt (%(id)s)"
+
+msgid "on"
+msgstr "an"
+
+msgid "off"
+msgstr "aus"
+
+msgid ""
+"The channel this panel was posted in no longer exists, so members have no"
+" way to start verifying."
+msgstr ""
+"Den Kanal, in dem dieses Panel gepostet wurde, gibt es nicht mehr, "
+"deshalb haben Mitglieder keine Möglichkeit, mit der Verifizierung zu "
+"beginnen."
+
+# | msgid "" "VRCVerify can't post the panel in that channel. It needs both
+# Send
+# | " "Messages and Embed Links there -- Embed Links is the one that's usually
+# "
+# | "missing, because the panel is an embed."
+msgid ""
+"VRCVerify can't post a new message in that channel — it needs both Send "
+"Messages and Embed Links there. The panel still works and can still be "
+"refreshed; it just can't be replaced."
+msgstr ""
+"VRCVerify kann in diesem Kanal keine neue Nachricht posten – dort werden "
+"sowohl „Nachrichten senden“ als auch „Links einbetten“ gebraucht. Das "
+"Panel funktioniert weiterhin und kann aktualisiert werden; es lässt sich "
+"nur nicht ersetzen."
+
+msgid "Save about 10%"
+msgstr "Etwa 10 % sparen"
+
+msgid "Save about 20%"
+msgstr "Etwa 20 % sparen"
+
+msgid "Monthly"
+msgstr "Monatlich"
+
+msgid "3 months"
+msgstr "3 Monate"
+
+msgid "6 months"
+msgstr "6 Monate"
+
+msgid "12 months"
+msgstr "12 Monate"
+
+msgid "per month"
+msgstr "pro Monat"
+
+msgid "per 3 months"
+msgstr "pro 3 Monate"
+
+msgid "per 6 months"
+msgstr "pro 6 Monate"
+
+msgid "per 12 months"
+msgstr "pro 12 Monate"
+
+msgid "per year"
+msgstr "pro Jahr"
+
+#, python-format
+msgid "%(days)s-day free trial"
+msgstr "%(days)s Tage kostenlos testen"
+
+msgid "Active"
+msgstr "Aktiv"
+
+msgid "Payment failed"
+msgstr "Zahlung fehlgeschlagen"
+
+msgid "Charged twice"
+msgstr "Doppelt berechnet"
+
+msgid "Confirming"
+msgstr "Wird bestätigt"
+
+msgid "Unknown"
+msgstr "Unbekannt"
+
+msgid "Cancelled"
+msgstr "Gekündigt"
+
+msgid "Plan"
+msgstr "Tarif"
+
+msgid "Billed through"
+msgstr "Abgerechnet über"
+
+msgid "Discord"
+msgstr "Discord"
+
+msgid "Card and Discord"
+msgstr "Karte und Discord"
+
+msgid "Card"
+msgstr "Karte"
+
+msgid "Due to renew"
+msgstr "Verlängerung fällig"
+
+msgid "Renews"
+msgstr "Verlängert sich am"
+
+msgid "Premium until"
+msgstr "Premium bis"
+
+msgid "VRCVerify Premium is active on this server."
+msgstr "VRCVerify Premium ist auf diesem Server aktiv."
+
+msgid ""
+"This server was set up before Premium launched, so it keeps several "
+"extras free, permanently."
+msgstr ""
+"Dieser Server wurde vor dem Start von Premium eingerichtet und behält "
+"deshalb mehrere Extras dauerhaft kostenlos."
+
+# | msgid "Core 18+ verification is free, forever."
+msgid "18+ verification is free on this server, and always will be."
+msgstr "Die 18+-Verifizierung ist auf diesem Server kostenlos und bleibt es auch."
+
+msgid ""
+"Couldn't load this server's roles and channels just now, so some changes "
+"below name an ID instead of a role or channel. The history itself is "
+"correct."
+msgstr ""
+"Konnte die Rollen und Kanäle dieses Servers gerade nicht laden, deshalb "
+"nennen einige Änderungen unten eine ID statt einer Rolle oder eines "
+"Kanals. Der Verlauf selbst stimmt."
+
+msgid ""
+"Settings changed from this website. Changes made with slash commands in "
+"Discord aren't listed here."
+msgstr ""
+"Einstellungen, die über diese Website geändert wurden. Änderungen per "
+"Slash-Befehl in Discord stehen hier nicht."
+
+# | msgid "The panel couldn't be posted just now. Try again shortly."
+msgid "Couldn't load the history just now. Try again shortly."
+msgstr "Konnte den Verlauf gerade nicht laden. Versuche es gleich noch einmal."
+
+msgid "No changes have been made from the website yet."
+msgstr "Über die Website wurde noch nichts geändert."
+
+msgid "Show the sidebar"
+msgstr "Seitenleiste einblenden"
+
+msgid "Hide the sidebar"
+msgstr "Seitenleiste ausblenden"
+
+msgid "What's new"
+msgstr "Neuigkeiten"
+
+msgid "There are updates you haven't seen."
+msgstr "Es gibt Neuigkeiten, die du noch nicht gesehen hast."
+
+msgid "What&#39;s new"
+msgstr "Neuigkeiten"
+
+msgid "See all updates"
+msgstr "Alle Neuigkeiten ansehen"
+
+msgid "Get these in your own server"
+msgstr "Diese auf deinem eigenen Server erhalten"
+
+msgid "Mark all as read"
+msgstr "Alle als gelesen markieren"
+
+msgid "Choose a different one."
+msgstr "Wähle eine andere."
+
+msgid "Theme"
+msgstr "Design"
+
+msgid "Appearance"
+msgstr "Darstellung"
+
+msgid "Always dark."
+msgstr "Immer dunkel."
+
+msgid "Always light."
+msgstr "Immer hell."
+
+msgid "Matches the theme set on your device."
+msgstr "Passt sich dem Design deines Geräts an."
+
+msgid "Account"
+msgstr "Konto"
+
+msgid "Sign out"
+msgstr "Abmelden"
+
+msgid "Ends this session, on this browser."
+msgstr "Beendet diese Sitzung, in diesem Browser."
+
+msgid "Sign out everywhere"
+msgstr "Überall abmelden"
+
+msgid "Ends every VRCVerify session signed in as you, on every device."
+msgstr ""
+"Beendet jede VRCVerify-Sitzung, die als du angemeldet ist, auf allen "
+"Geräten."
+
+msgid "Sections"
+msgstr "Bereiche"
+
+msgid "All servers"
+msgstr "Alle Server"
+
+msgid "Settings sections"
+msgstr "Einstellungsbereiche"
+
+msgid "Terms"
+msgstr "AGB"
+
+msgid "Privacy"
+msgstr "Datenschutz"
+
+msgid "Refunds"
+msgstr "Erstattungen"
+
+msgid "Core 18+ verification is free, forever."
+msgstr "Die grundlegende 18+-Verifizierung ist kostenlos, für immer."
+
+msgid "VRCVerify is operated by Esatto Technologies, United States."
+msgstr "VRCVerify wird betrieben von Esatto Technologies, Vereinigte Staaten."
+
+msgid ""
+"Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord "
+"Inc."
+msgstr ""
+"Nicht verbunden mit, unterstützt von oder gesponsert durch VRChat Inc. "
+"oder Discord Inc."
+
+# | msgid "Pricing · VRCVerify"
+msgid "What's new · VRCVerify"
+msgstr "Neuigkeiten · VRCVerify"
+
+msgid "Everything that has shipped in VRCVerify, newest first."
+msgstr "Alles, was in VRCVerify erschienen ist, das Neueste zuerst."
+
+msgid ""
+"There is a <a href=\"https://vrcverify.com/changelog\">public version of "
+"this page</a> you can share with anyone."
+msgstr ""
+"Es gibt eine <a href=\"https://vrcverify.com/changelog\">öffentliche "
+"Version dieser Seite</a>, die du mit anderen teilen kannst."
+
+#, python-format
+msgid ""
+"Want these in your own server? <a href=\"%(invite)s\" target=\"_blank\" "
+"rel=\"noopener noreferrer\">Join the VRCVerify Discord</a> and follow the"
+" announcements channel — every update here gets posted there, and Discord"
+" crossposts it to any channel you pick."
+msgstr ""
+"Willst du das in deinem eigenen Server? <a href=\"%(invite)s\" "
+"target=\"_blank\" rel=\"noopener noreferrer\">Tritt dem VRCVerify-Discord"
+" bei</a> und folge dem Ankündigungskanal – jede Neuigkeit von hier wird "
+"dort gepostet, und Discord verteilt sie in jeden Kanal, den du auswählst."
+
+msgid "Sorry"
+msgstr "Entschuldigung"
+
+# | msgid "Add to your server"
+msgid "Back to your servers"
+msgstr "Zurück zu deinen Servern"
+
+msgid "Manage your VRCVerify servers"
+msgstr "Verwalte deine VRCVerify-Server"
+
+msgid ""
+"Set the verified role, the instructions panel and logging for any Discord"
+" server you administer."
+msgstr ""
+"Lege für jeden Discord-Server, den du verwaltest, die Verifiziert-Rolle, "
+"das Anleitungs-Panel und die Protokollierung fest."
+
+msgid ""
+"Discord tells us <strong>who you are and which servers you are "
+"in</strong>, and nothing else."
+msgstr ""
+"Discord teilt uns mit, <strong>wer du bist und in welchen Servern du "
+"bist</strong>, und sonst nichts."
+
+msgid "We <strong>don't keep your Discord token</strong> after you sign in."
+msgstr ""
+"Wir <strong>behalten deinen Discord-Token nicht</strong>, nachdem du dich"
+" angemeldet hast."
+
+msgid ""
+"This site <strong>can't see who has verified</strong> — only your "
+"server's settings."
+msgstr ""
+"Diese Seite <strong>kann nicht sehen, wer verifiziert ist</strong> – nur "
+"die Einstellungen deines Servers."
+
+# | msgid "Buy inside Discord"
+msgid "Sign in with Discord"
+msgstr "Mit Discord anmelden"
+
+msgid ""
+"<code>/vrcverify_setup</code> in Discord sets a server's verified role, "
+"which is enough to start verifying members, and "
+"<code>/vrcverify_settings</code> shows what's stored. Everything else is "
+"changed here."
+msgstr ""
+"<code>/vrcverify_setup</code> in Discord legt die Verifiziert-Rolle eines"
+" Servers fest, was reicht, um mit der Verifizierung von Mitgliedern zu "
+"beginnen, und <code>/vrcverify_settings</code> zeigt, was gespeichert "
+"ist. Alles Weitere wird hier geändert."
+
+msgid "See plans and subscribe"
+msgstr "Tarife ansehen und abonnieren"
+
+msgid "Dismiss"
+msgstr "Ausblenden"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+msgid "Verifications"
+msgstr "Verifizierungen"
+
+msgid ""
+"How many members completed 18+ verification in this server. Counts only —"
+" VRCVerify doesn't keep a record of who verified when."
+msgstr ""
+"Wie viele Mitglieder die 18+-Verifizierung auf diesem Server "
+"abgeschlossen haben. Nur Zahlen – VRCVerify speichert nicht, wer wann "
+"verifiziert wurde."
+
+# | msgid "The panel couldn't be posted just now. Try again shortly."
+msgid "Couldn't load this server's numbers just now. Try again shortly."
+msgstr ""
+"Konnte die Zahlen dieses Servers gerade nicht laden. Versuche es gleich "
+"noch einmal."
+
+#, python-format
+msgid "Peak %(peak)s a day"
+msgstr "Spitzenwert %(peak)s pro Tag"
+
+#, python-format
+msgid ""
+"Verifications per day, last %(days)s days. The exact numbers follow this "
+"chart."
+msgstr ""
+"Verifizierungen pro Tag, letzte %(days)s Tage. Die genauen Zahlen folgen "
+"unter diesem Diagramm."
+
+#, python-format
+msgid "Verifications per day, last %(days)s days"
+msgstr "Verifizierungen pro Tag, letzte %(days)s Tage"
+
+msgid "Day"
+msgstr "Tag"
+
+msgid "Not measured"
+msgstr "Nicht gemessen"
+
+msgid "Couldn't load the daily trend just now."
+msgstr "Konnte den Tagesverlauf gerade nicht laden."
+
+msgid "Setup"
+msgstr "Einrichtung"
+
+#, python-format
+msgid ""
+"What's configured here, and whether it's actually working -- one list "
+"instead of two, since \"switched on\" and \"still works\" used to be "
+"answered in different places on this page. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+"Was hier eingerichtet ist und ob es tatsächlich funktioniert -- eine "
+"Liste statt zwei, denn „eingeschaltet“ und „funktioniert noch“ wurden auf"
+" dieser Seite früher an verschiedenen Stellen beantwortet. Ändern kannst "
+"du all das unter <a href=\"%(settings_url)s\">Einstellungen</a>."
+
+msgid "Setup complete — verification is fully working here."
+msgstr ""
+"Einrichtung abgeschlossen – die Verifizierung funktioniert hier "
+"vollständig."
+
+msgid "set"
+msgstr "gesetzt"
+
+msgid "needs attention"
+msgstr "braucht Aufmerksamkeit"
+
+msgid "Your servers — VRCVerify"
+msgstr "Deine Server — VRCVerify"
+
+# | msgid "Add to your server"
+msgid "Your servers"
+msgstr "Deine Server"
+
+msgid ""
+"Can't reach the bot right now, so we can't tell which of these it's in. "
+"Your settings are safe — nothing here has changed. Try again shortly."
+msgstr ""
+"Der Bot ist gerade nicht erreichbar, deshalb können wir nicht sagen, in "
+"welchen davon er ist. Deine Einstellungen sind sicher – hier hat sich "
+"nichts geändert. Versuche es gleich noch einmal."
+
+msgid "No servers to show"
+msgstr "Keine Server anzuzeigen"
+
+msgid ""
+"This page lists servers where you have the Administrator permission. "
+"Discord tells us that list when you sign in, so a permission you were "
+"given since then will not be in it yet."
+msgstr ""
+"Diese Seite listet Server auf, auf denen du die Administrator-"
+"Berechtigung hast. Discord teilt uns diese Liste mit, wenn du dich "
+"anmeldest, eine seither erteilte Berechtigung ist also noch nicht dabei."
+
+msgid "Sign out and start again"
+msgstr "Abmelden und neu beginnen"
+
+msgid "You'll be asked to sign in with Discord again."
+msgstr "Du wirst gebeten, dich erneut mit Discord anzumelden."
+
+msgid "Overview, settings and activity"
+msgstr "Übersicht, Einstellungen und Aktivität"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "Hier nicht eingerichtet, oder nicht von dir verwaltet"
+
+msgid "Can't check this server right now"
+msgstr "Dieser Server lässt sich gerade nicht prüfen"
+
+# | msgid "Add to your server"
+msgid "Add to server"
+msgstr "Zum Server hinzufügen"
+
+msgid "Pricing · VRCVerify"
+msgstr "Preise · VRCVerify"
+
+msgid "Pricing"
+msgstr "Preise"
+
+msgid ""
+"Verification is free, forever. Premium adds the automation around it, per"
+" server."
+msgstr ""
+"Verifizierung ist kostenlos, für immer. Premium ergänzt die "
+"Automatisierung drumherum, pro Server."
+
+msgid "Free"
+msgstr "Kostenlos"
+
+msgid "forever"
+msgstr "für immer"
+
+msgid "Everything you need to verify your members."
+msgstr "Alles, was du brauchst, um deine Mitglieder zu verifizieren."
+
+msgid "Verify members as 18+"
+msgstr "Mitglieder als 18+ verifizieren"
+
+msgid "Auto-verify people who verified in another server"
+msgstr ""
+"Personen automatisch verifizieren, die sich auf einem anderen Server "
+"verifiziert haben"
+
+msgid "Members can update their own nickname"
+msgstr "Mitglieder können ihren eigenen Nicknamen aktualisieren"
+
+msgid "Add to your server"
+msgstr "Zu deinem Server hinzufügen"
+
+msgid "Per server"
+msgstr "Pro Server"
+
+msgid "monthly, 6 or 12 months"
+msgstr "monatlich, 6 oder 12 Monate"
+
+msgid "The automation around verification, for servers that want it."
+msgstr "Die Automatisierung rund um die Verifizierung, für Server, die sie wollen."
+
+msgid "Automatic removal of an unverified role"
+msgstr "Automatisches Entfernen einer Unverifiziert-Rolle"
+
+msgid "Nickname syncing"
+msgstr "Nicknamen-Abgleich"
+
+msgid "A custom post-verification message"
+msgstr "Eine eigene Nachricht nach der Verifizierung"
+
+msgid "A verification log channel"
+msgstr "Ein Protokollkanal für Verifizierungen"
+
+msgid "Priority in the verification queue"
+msgstr "Vorrang in der Verifizierungswarteschlange"
+
+msgid "A branded instructions panel"
+msgstr "Ein Anleitungs-Panel im eigenen Design"
+
+msgid "Open the dashboard"
+msgstr "Dashboard öffnen"
+
+msgid "One Premium, three ways to pay for it"
+msgstr "Ein Premium, drei Wege, dafür zu bezahlen"
+
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+"Wir können die Preise gerade nicht laden. <strong>Premium ist weiterhin "
+"verfügbar.</strong> Versuche es gleich noch einmal oder abonniere in "
+"Discord."
+
+msgid "There are no plans on sale at the moment."
+msgstr "Zurzeit sind keine Tarife im Angebot."
+
+msgid ""
+"Every plan below unlocks exactly the same features — the only difference "
+"is how long you pay for at once, and how much that saves."
+msgstr ""
+"Jeder Tarif unten schaltet genau dieselben Funktionen frei – der einzige "
+"Unterschied ist, für wie lange du auf einmal bezahlst und wie viel das "
+"spart."
+
+msgid "Most popular"
+msgstr "Am beliebtesten"
+
+msgid ""
+"Some plans start with a free trial. Whether a particular server qualifies"
+" depends on whether it has had one before — the dashboard tells you "
+"before you pay."
+msgstr ""
+"Manche Tarife beginnen mit einer kostenlosen Testphase. Ob ein bestimmter"
+" Server dafür infrage kommt, hängt davon ab, ob er schon einmal eine "
+"hatte – das Dashboard sagt es dir, bevor du bezahlst."
+
+msgid ""
+"Prices are in US dollars and <strong>exclude tax</strong>; any tax due "
+"where you are is added at checkout. Payment is handled by Stripe — card "
+"details never reach VRCVerify."
+msgstr ""
+"Die Preise sind in US-Dollar und <strong>verstehen sich zzgl. "
+"Steuern</strong>; die bei dir anfallende Steuer wird an der Kasse "
+"hinzugerechnet. Die Zahlung wickelt Stripe ab – Kartendaten erreichen "
+"VRCVerify nie."
+
+msgid ""
+"Premium is bought per server. You can subscribe with a card in the "
+"dashboard, or monthly through Discord."
+msgstr ""
+"Premium wird pro Server gekauft. Du kannst mit Karte im Dashboard "
+"abonnieren oder monatlich über Discord."
+
+msgid "Ready to start?"
+msgstr "Bereit loszulegen?"
+
+msgid ""
+"Add VRCVerify to your server and verification works immediately, at no "
+"cost. Premium is there when you want it."
+msgstr ""
+"Füge VRCVerify zu deinem Server hinzu und die Verifizierung läuft sofort,"
+" kostenlos. Premium ist da, wenn du es willst."
+
+msgid "Saved."
+msgstr "Gespeichert."
+
+msgid ""
+"Checking your VRChat group. Reload this page in a moment to see the "
+"result."
+msgstr ""
+"Deine VRChat-Gruppe wird geprüft. Lade diese Seite gleich neu, um das "
+"Ergebnis zu sehen."
+
+msgid ""
+"Your settings were saved, but the instructions panel still shows the old "
+"ones. Use <strong>Repost or move panel</strong> below to replace it."
+msgstr ""
+"Deine Einstellungen wurden gespeichert, aber das Anleitungs-Panel zeigt "
+"noch die alten. Nutze unten <strong>Panel neu posten oder "
+"verschieben</strong>, um es zu ersetzen."
+
+msgid ""
+"Your grandfathered extras stay free whatever you decide. Premium unlocks "
+"the settings marked below."
+msgstr ""
+"Deine Bestandsvorteile bleiben kostenlos, wie du dich auch entscheidest. "
+"Premium schaltet die unten markierten Einstellungen frei."
+
+msgid "Unlocks the settings marked below. 18+ verification itself stays free."
+msgstr ""
+"Schaltet die unten markierten Einstellungen frei. Die 18+-Verifizierung "
+"selbst bleibt kostenlos."
+
+msgid ""
+"Couldn't load this server's roles and channels just now, so some settings"
+" below show an ID instead of a name. The values themselves are correct."
+msgstr ""
+"Konnte die Rollen und Kanäle dieses Servers gerade nicht laden, deshalb "
+"zeigen einige Einstellungen unten eine ID statt eines Namens. Die Werte "
+"selbst stimmen."
+
+# | msgid "" "This bot's database is missing the column for that setting.
+# | Contact the " "bot operator."
+msgid ""
+"This bot's database is missing the auto-verify column, so that setting "
+"isn't in effect regardless of what it shows. Contact the bot operator."
+msgstr ""
+"In der Datenbank dieses Bots fehlt die Auto-Verify-Spalte, deshalb ist "
+"diese Einstellung unabhängig von der Anzeige nicht wirksam. Wende dich an"
+" den Bot-Betreiber."
+
+msgid "Where it's posted"
+msgstr "Wo es gepostet ist"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid "The bot didn't answer this one. Try again shortly."
+msgstr "Der Bot hat darauf nicht geantwortet. Versuche es gleich noch einmal."
+
+msgid "No panel found"
+msgstr "Kein Panel gefunden"
+
+msgid ""
+"Post one below, or with <code>/vrcverify_instructions</code> in Discord, "
+"so members have somewhere to start."
+msgstr ""
+"Poste eines unten oder mit <code>/vrcverify_instructions</code> in "
+"Discord, damit Mitglieder einen Startpunkt haben."
+
+msgid "Members use this message to begin verification."
+msgstr "Über diese Nachricht starten Mitglieder die Verifizierung."
+
+#, python-format
+msgid "VRChat said: %(said)s"
+msgstr "VRChat sagte: %(said)s"
+
+msgid "Setup code:"
+msgstr "Einrichtungscode:"
+
+msgid ""
+"Paste this anywhere in your VRChat group's description. It proves the "
+"group is yours, and you can remove it once the check passes."
+msgstr ""
+"Füge das irgendwo in die Beschreibung deiner VRChat-Gruppe ein. Es "
+"belegt, dass die Gruppe dir gehört, und du kannst es entfernen, sobald "
+"die Prüfung bestanden ist."
+
+#, python-format
+msgid ""
+"Invite this account to your group: <a href=\"%(account_url)s\" "
+"rel=\"noopener noreferrer\" target=\"_blank\">%(account_id)s</a> — check "
+"the ID matches, because VRChat display names are not unique."
+msgstr ""
+"Lade dieses Konto in deine Gruppe ein: <a href=\"%(account_url)s\" "
+"rel=\"noopener noreferrer\" target=\"_blank\">%(account_id)s</a> – prüfe,"
+" ob die ID übereinstimmt, denn VRChat-Anzeigenamen sind nicht eindeutig."
+
+#, python-format
+msgid ""
+"Your group: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">open it on vrchat.com</a>"
+msgstr ""
+"Deine Gruppe: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">auf vrchat.com öffnen</a>"
+
+msgid "Not applied"
+msgstr "Nicht angewendet"
+
+msgid "None"
+msgstr "Keine"
+
+msgid "Use the default blue"
+msgstr "Standardblau verwenden"
+
+# | msgid "Premium until"
+msgid "Premium only."
+msgstr "Nur mit Premium."
+
+msgid "Your saved value is kept, and comes back if the subscription is renewed."
+msgstr ""
+"Dein gespeicherter Wert bleibt erhalten und kommt zurück, wenn das "
+"Abonnement erneuert wird."
+
+msgid ""
+"Saved, but not acted on without Premium. Anyone can set this; the bot "
+"just won't use it until the feature is active."
+msgstr ""
+"Gespeichert, aber ohne Premium wirkungslos. Einstellen kann das jeder; "
+"der Bot nutzt es nur nicht, solange die Funktion nicht aktiv ist."
+
+msgid ""
+"Not editable from the website yet. Nothing is wrong with it — the bot "
+"hasn't opened this setting to the dashboard."
+msgstr ""
+"Über die Website noch nicht änderbar. Damit ist nichts falsch – der Bot "
+"hat diese Einstellung dem Dashboard noch nicht geöffnet."
+
+msgid "Save changes"
+msgstr "Änderungen speichern"
+
+msgid "Unsaved changes in this group"
+msgstr "Ungespeicherte Änderungen in dieser Gruppe"
+
+msgid "Check group setup"
+msgstr "Gruppeneinrichtung prüfen"
+
+msgid ""
+"Asks the bot to join your group and report what it can do there. This "
+"button doesn't save the settings above — do that first if you've just "
+"changed the group."
+msgstr ""
+"Bittet den Bot, deiner Gruppe beizutreten und zu melden, was er dort tun "
+"kann. Dieser Button speichert die Einstellungen oben nicht – tu das "
+"zuerst, wenn du gerade die Gruppe geändert hast."
+
+msgid "Post the panel in"
+msgstr "Panel posten in"
+
+# | msgid "Post the panel in"
+msgid "Repost or move panel"
+msgstr "Panel neu posten oder verschieben"
+
+# | msgid "Post the panel in"
+msgid "Post panel"
+msgstr "Panel posten"
+
+msgid ""
+"Choosing the channel it's already in refreshes it rather than posting a "
+"second one. This button only moves the panel; saving the settings above "
+"is what changes what it says."
+msgstr ""
+"Wenn du den Kanal wählst, in dem es schon steht, wird es aufgefrischt "
+"statt ein zweites Mal gepostet. Diese Schaltfläche verschiebt nur das "
+"Panel; was darin steht, ändert das Speichern der Einstellungen darüber."
+
+msgid ""
+"Members use this message to start verifying. It is posted with the "
+"settings saved above."
+msgstr ""
+"Mitglieder starten die Verifizierung über diese Nachricht. Sie wird mit "
+"den oben gespeicherten Einstellungen gepostet."
+
+#, python-format
+msgid "Subscriptions — %(name)s — VRCVerify"
+msgstr "Abonnements — %(name)s — VRCVerify"
+
+msgid ""
+"We couldn't check this server's plan just now. Nothing here is missing — "
+"the page simply can't say what's true yet. Try again in a moment."
+msgstr ""
+"Wir konnten den Tarif dieses Servers gerade nicht prüfen. Hier fehlt "
+"nichts – die Seite kann nur noch nicht sagen, was zutrifft. Versuche es "
+"gleich noch einmal."
+
+msgid ""
+"Every VRCVerify feature is currently available to this server at no "
+"charge. There's nothing to subscribe to."
+msgstr ""
+"Alle VRCVerify-Funktionen stehen diesem Server derzeit kostenlos zur "
+"Verfügung. Es gibt nichts zu abonnieren."
+
+msgid ""
+"Waiting for Stripe to confirm. Premium switches on by itself, usually "
+"within a few seconds — reload this page in a moment."
+msgstr ""
+"Warten auf die Bestätigung von Stripe. Premium schaltet sich von selbst "
+"frei, meist innerhalb weniger Sekunden – lade diese Seite gleich neu."
+
+msgid ""
+"If it hasn't switched on after a minute or two, nothing is lost: Stripe "
+"keeps trying to reach us for up to three days, and the subscription takes"
+" effect as soon as it gets through. Get in touch if it stays this way."
+msgstr ""
+"Falls es nach ein oder zwei Minuten nicht freigeschaltet ist, ist nichts "
+"verloren: Stripe versucht bis zu drei Tage lang, uns zu erreichen, und "
+"das Abonnement wird wirksam, sobald es durchkommt. Melde dich, wenn es so"
+" bleibt."
+
+#, python-format
+msgid ""
+"This server looks like it's paying for Premium on %(count)s separate card"
+" subscriptions. Premium is on and stays on; you're just being charged "
+"more than once."
+msgstr ""
+"Dieser Server scheint Premium über %(count)s getrennte Kartenabonnements "
+"zu bezahlen. Premium ist an und bleibt an; dir wird nur mehr als einmal "
+"berechnet."
+
+msgid ""
+"This server looks like it's paying for Premium twice — once by card and "
+"once through Discord. Premium is on and stays on; you're just being "
+"charged more than once."
+msgstr ""
+"Dieser Server scheint Premium doppelt zu bezahlen – einmal per Karte und "
+"einmal über Discord. Premium ist an und bleibt an; dir wird nur mehr als "
+"einmal berechnet."
+
+msgid ""
+"We won't cancel either one for you — that's your call, and getting it "
+"wrong with someone else's money isn't a risk worth automating."
+msgstr ""
+"Wir kündigen keines von beiden für dich – das ist deine Entscheidung, und"
+" sie mit dem Geld eines anderen falsch zu treffen ist kein Risiko, das "
+"man automatisieren sollte."
+
+msgid ""
+"To cancel the card subscription, use <strong>Manage billing</strong> "
+"below."
+msgstr ""
+"Um das Kartenabonnement zu kündigen, nutze unten <strong>Abrechnung "
+"verwalten</strong>."
+
+#, python-format
+msgid ""
+"To cancel the Discord one, open <strong>User Settings → "
+"Subscriptions</strong> in Discord, or run "
+"<code>/vrcverify_subscription</code> in %(name)s."
+msgstr ""
+"Um das über Discord zu kündigen, öffne <strong>Benutzereinstellungen → "
+"Abonnements</strong> in Discord oder führe "
+"<code>/vrcverify_subscription</code> in %(name)s aus."
+
+msgid ""
+"Your last payment didn't go through. Premium is still on while Stripe "
+"retries the card — update your card details under <strong>Manage "
+"billing</strong> below."
+msgstr ""
+"Deine letzte Zahlung ist fehlgeschlagen. Premium bleibt an, während "
+"Stripe die Karte erneut belastet – aktualisiere deine Kartendaten unten "
+"unter <strong>Abrechnung verwalten</strong>."
+
+msgid ""
+"Cancelled, and nothing changes before then — this server keeps Premium "
+"for the whole of the period it has already paid for."
+msgstr ""
+"Gekündigt, und bis dahin ändert sich nichts – dieser Server behält "
+"Premium für den gesamten Zeitraum, den er bereits bezahlt hat."
+
+msgid ""
+"Discord handles the billing, so cancelling or changing the payment method"
+" happens there — <strong>User Settings → Subscriptions</strong>. We can't"
+" manage a Discord subscription from here."
+msgstr ""
+"Discord übernimmt die Abrechnung, deshalb passiert das Kündigen oder "
+"Ändern der Zahlungsmethode dort – <strong>Benutzereinstellungen → "
+"Abonnements</strong>. Ein Discord-Abonnement können wir von hier aus "
+"nicht verwalten."
+
+#, python-format
+msgid ""
+"18+ verification is free and always will be. Premium unlocks the settings"
+" marked on <a href=\"%(settings_url)s\">Settings</a>, shortens the wait "
+"between verifications, and moves this server up the verification queue."
+msgstr ""
+"Die 18+-Verifizierung ist kostenlos und bleibt es. Premium schaltet die "
+"auf <a href=\"%(settings_url)s\">Einstellungen</a> markierten Optionen "
+"frei, verkürzt die Wartezeit zwischen Verifizierungen und rückt diesen "
+"Server in der Verifizierungswarteschlange nach vorn."
+
+msgid ""
+"Your grandfathered extras — unverified-role removal, nickname sync and "
+"the custom verification message — stay free whatever you decide here."
+msgstr ""
+"Deine Bestandsvorteile – das Entfernen der Unverifiziert-Rolle, der "
+"Nicknamen-Abgleich und die eigene Verifizierungsnachricht – bleiben "
+"kostenlos, wie du dich hier auch entscheidest."
+
+#, python-format
+msgid "Your Premium ended on %(when)s"
+msgstr "Dein Premium endete am %(when)s"
+
+#, python-format
+msgid ""
+"The %(plan)s plan. Subscribing again picks up where it left off — nothing"
+" was reset when it lapsed."
+msgstr ""
+"Der Tarif %(plan)s. Ein erneutes Abonnement macht dort weiter, wo es "
+"aufgehört hat – beim Auslaufen wurde nichts zurückgesetzt."
+
+msgid ""
+"Subscribing again picks up where it left off — nothing was reset when it "
+"lapsed."
+msgstr ""
+"Ein erneutes Abonnement macht dort weiter, wo es aufgehört hat – beim "
+"Auslaufen wurde nichts zurückgesetzt."
+
+msgid "Pay by card"
+msgstr "Mit Karte bezahlen"
+
+msgid ""
+"We can't load the plans right now. <strong>Nothing has changed about your"
+" subscription.</strong> Try again in a moment, or subscribe inside "
+"Discord below."
+msgstr ""
+"Wir können die Tarife gerade nicht laden. <strong>An deinem Abonnement "
+"hat sich nichts geändert.</strong> Versuche es gleich noch einmal oder "
+"abonniere unten in Discord."
+
+msgid ""
+"<strong>One Premium, three ways to pay for it.</strong> Every plan below "
+"unlocks exactly the same features — the only difference is how long you "
+"pay for at once, and how much that saves."
+msgstr ""
+"<strong>Ein Premium, drei Wege, dafür zu bezahlen.</strong> Jeder Tarif "
+"unten schaltet genau dieselben Funktionen frei – der einzige Unterschied "
+"ist, für wie lange du auf einmal bezahlst und wie viel das spart."
+
+msgid "Subscribe"
+msgstr "Abonnieren"
+
+msgid "All plans renew automatically. Cancel any time from this page."
+msgstr ""
+"Alle Tarife verlängern sich automatisch. Du kannst jederzeit auf dieser "
+"Seite kündigen."
+
+msgid ""
+"<strong>The 6- and 12-month plans are card-only.</strong> Discord "
+"subscriptions bill monthly, so those terms can't be offered there."
+msgstr ""
+"<strong>Die 6- und 12-Monats-Tarife gibt es nur per Karte.</strong> "
+"Discord-Abonnements rechnen monatlich ab, deshalb lassen sich diese "
+"Laufzeiten dort nicht anbieten."
+
+#, python-format
+msgid ""
+"Need to send these prices to whoever pays? There is a <a "
+"href=\"%(pricing_url)s\">public pricing page</a> that works without a "
+"Discord account."
+msgstr ""
+"Musst du diese Preise an die Person schicken, die bezahlt? Es gibt eine "
+"<a href=\"%(pricing_url)s\">öffentliche Preisseite</a>, die ohne Discord-"
+"Konto funktioniert."
+
+msgid "Manage billing"
+msgstr "Abrechnung verwalten"
+
+msgid ""
+"Change plan, update your card or cancel — on Stripe's own billing portal."
+" You'll come straight back here afterwards."
+msgstr ""
+"Tarif wechseln, Karte aktualisieren oder kündigen – im Abrechnungsportal "
+"von Stripe. Danach kommst du direkt hierher zurück."
+
+msgid "Buy inside Discord"
+msgstr "In Discord kaufen"
+
+#, python-format
+msgid ""
+"Run it in %(name)s. Discord handles the payment, and the command's button"
+" is already pointed at this server. <strong>Monthly only</strong>, at the"
+" same price as the monthly plan above."
+msgstr ""
+"Führe ihn in %(name)s aus. Discord wickelt die Zahlung ab, und der Button"
+" des Befehls zeigt bereits auf diesen Server. <strong>Nur "
+"monatlich</strong>, zum selben Preis wie der Monatstarif oben."
+
+#, python-format
+msgid "Run it in %(name)s to see this server's Discord subscription."
+msgstr ""
+"Führe ihn in %(name)s aus, um das Discord-Abonnement dieses Servers zu "
+"sehen."
+
+#, python-format
+msgid ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">See what's included on Discord's store page</a> — it "
+"lists the price and perks, but you choose the server during checkout, so "
+"use the command above if you administer more than one."
+msgstr ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">Sieh dir auf Discords Store-Seite an, was enthalten "
+"ist</a> – dort stehen Preis und Vorteile, aber den Server wählst du beim "
+"Bezahlen, nutze also den Befehl oben, wenn du mehr als einen verwaltest."
+

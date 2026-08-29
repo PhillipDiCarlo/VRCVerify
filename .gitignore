@@ -55,6 +55,25 @@ cover/
 *.mo
 *.pot
 
+# ...EXCEPT the dashboard's, which are build output that has to ship (#97).
+#
+# The stock Python ignore above is right for a project that compiles its
+# catalogues at build or install time. This one cannot: Dockerfile-dashboard
+# copies src/dashboard/ and installs no toolchain, because Babel is a dev
+# dependency and requirements-dashboard.txt argues that every package on the
+# internet-facing host is something an attacker gets to probe.
+#
+# So the .mo files are the artefact that gets deployed, and an ignored .mo is
+# a dashboard that serves English in every language while every .po in the
+# tree says otherwise -- with nothing to indicate it, because gettext falls
+# back silently. tests/test_i18n.py asserts each one is present for exactly
+# that reason.
+#
+# The .pot rides along so `pybabel update` has a baseline in a fresh clone
+# rather than regenerating one and marking the whole catalogue changed.
+!src/dashboard/translations/**/*.mo
+!src/dashboard/translations/*.pot
+
 # Django stuff:
 *.log
 local_settings.py

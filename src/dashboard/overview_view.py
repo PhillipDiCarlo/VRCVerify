@@ -28,16 +28,32 @@ change here rather than a new branch scattered through the HTML.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Callable, Optional
+
+# The no-op translation marker (#97). Tables here are built at import, so they
+# hold msgids and the lookup happens per request against the callable passed
+# in. This module is pure -- no Flask, no network, no clock -- and i18n.py is
+# too, so importing `N_` costs it nothing it promises.
+from dashboard.i18n import N_
+
+
+def _untranslated(text: str) -> str:
+    """The default `t`: hand back the English, unchanged.
+
+    Keeps every entry point below callable with no request in sight, which is
+    what the tests asserting a zero-count tile is not a blank one rely on.
+    """
+    return text
+
 
 # How each window is labelled. "Today (UTC)" rather than "last 24 hours"
 # because the rollup stores days, not moments -- see `_verification_windows` in
 # bot.py. A tile promising a rolling day and delivering a calendar one is a
 # small lie that gets noticed at midnight.
 WINDOWS = (
-    ("today", "Today (UTC)"),
-    ("last_7_days", "Last 7 days"),
-    ("last_30_days", "Last 30 days"),
+    ("today", N_("Today (UTC)")),
+    ("last_7_days", N_("Last 7 days")),
+    ("last_30_days", N_("Last 30 days")),
 )
 
 
@@ -51,7 +67,12 @@ class Tile:
         *,
         state: str = "value",
         note: Optional[str] = None,
+        t: Callable[[str], str] = _untranslated,
     ):
+        # Kept for `display`, which is a property and so runs after this
+        # object is built. Underscored: it is machinery, and everything else
+        # here is something Jinja reads.
+        self._t = t
         self.label = label
         # None unless `state` is "value". The template never formats this
         # itself, so a None can't reach the page as the word "None".
@@ -69,25 +90,35 @@ class Tile:
         afford.
         """
         if self.state == "unknown":
-            return "Couldn't check"
+            return self._t(N_("Couldn't check"))
         if self.state == "blank" or self.value is None:
             return "—"
         return f"{self.value:,}"
 
 
-def _window_tile(label: str, count, known: bool, collecting_since: Optional[str]) -> Tile:
+def _window_tile(
+    label: str,
+    count,
+    known: bool,
+    collecting_since: Optional[str],
+    t: Callable[[str], str] = _untranslated,
+) -> Tile:
     """One window's tile, in whichever of the three states applies."""
     if not known:
-        return Tile(label, state="unknown", note="The bot didn't answer this one.")
+        return Tile(
+            t(label), state="unknown", note=t(N_("The bot didn't answer this one.")), t=t
+        )
     if count is None:
-        note = "Not collecting that far back yet."
+        note = t(N_("Not collecting that far back yet."))
         if collecting_since:
-            note = f"Only counting since {collecting_since}."
-        return Tile(label, state="blank", note=note)
-    return Tile(label, count)
+            note = t(N_("Only counting since %(date)s.")) % {"date": collecting_since}
+        return Tile(t(label), state="blank", note=note, t=t)
+    return Tile(t(label), count, t=t)
 
 
-def build_tiles(overview: Optional[dict]) -> list:
+def build_tiles(
+    overview: Optional[dict], t: Callable[[str], str] = _untranslated
+) -> list:
     """The stat row: members, then one tile per window.
 
     An all-time total is included only when the bot reported one. It is None
@@ -106,21 +137,22 @@ def build_tiles(overview: Optional[dict]) -> list:
 
     members = overview.get("member_count")
     tiles.append(
-        Tile("Members", members)
+        Tile(t(N_("Members")), members, t=t)
         if isinstance(members, int)
-        else Tile("Members", state="unknown")
+        else Tile(t(N_("Members")), state="unknown", t=t)
     )
 
     for key, label in WINDOWS:
-        tiles.append(_window_tile(label, counts.get(key), known, since))
+        tiles.append(_window_tile(label, counts.get(key), known, since, t))
 
     total = counts.get("total")
     if isinstance(total, int):
         tiles.append(
             Tile(
-                "Verified, all time",
+                t(N_("Verified, all time")),
                 total,
-                note="Counted since this server's records began.",
+                note=t(N_("Counted since this server's records began.")),
+                t=t,
             )
         )
 
@@ -209,7 +241,9 @@ class Chart:
         return max(counts) if counts else None
 
 
-def build_chart(overview: Optional[dict]) -> Chart:
+def build_chart(
+    overview: Optional[dict], t: Callable[[str], str] = _untranslated
+) -> Chart:
     """The verification trend chart, ready for the template to draw.
 
     Mirrors `_window_tile`'s three-way split rather than inventing a fourth
@@ -229,7 +263,7 @@ def build_chart(overview: Optional[dict]) -> Chart:
       itself succeeded.
     """
     if not overview:
-        return Chart(state="unknown", note="The bot didn't answer this one.")
+        return Chart(state="unknown", note=t(N_("The bot didn't answer this one.")))
 
     counts = overview.get("verifications") or {}
     known = bool(counts.get("known", True))
@@ -237,10 +271,14 @@ def build_chart(overview: Optional[dict]) -> Chart:
     since = counts.get("collecting_since")
 
     if not known or daily is None:
-        return Chart(state="unknown", note="The bot didn't answer this one.")
+        return Chart(state="unknown", note=t(N_("The bot didn't answer this one.")))
 
     if not any(entry.get("count") is not None for entry in daily):
-        note = f"Only counting since {since}." if since else "Not collecting yet."
+        note = (
+            t(N_("Only counting since %(date)s.")) % {"date": since}
+            if since
+            else t(N_("Not collecting yet."))
+        )
         return Chart(state="blank", note=note)
 
     day_count = len(daily)
@@ -280,9 +318,17 @@ def build_chart(overview: Optional[dict]) -> Chart:
 # ordinary choices, and marking one red for being off would tell an admin
 # their working server is broken.
 OPTIONAL_ROWS = (
-    ("auto_verify", "Auto-verify on join", "Members are checked when they join."),
-    ("unverified_role", "Unverified role", "Optional. Removed once someone verifies."),
-    ("log_channel", "Verification log", "Optional. Premium."),
+    (
+        "auto_verify",
+        N_("Auto-verify on join"),
+        N_("Members are checked when they join."),
+    ),
+    (
+        "unverified_role",
+        N_("Unverified role"),
+        N_("Optional. Removed once someone verifies."),
+    ),
+    ("log_channel", N_("Verification log"), N_("Optional. Premium.")),
 )
 
 # Where each fixable row's action points: which settings group, and which field
@@ -302,13 +348,17 @@ _SETTINGS_ANCHOR = {
 }
 
 
-def _settings_action(key: str, label: str = "Go to Settings") -> dict:
+def _settings_action(
+    key: str,
+    label: str = N_("Go to Settings"),
+    t: Callable[[str], str] = _untranslated,
+) -> dict:
     """A "fix it here" button, aimed at the field rather than at the page."""
     group, anchor = _SETTINGS_ANCHOR[key]
-    return {"label": label, "group": group, "anchor": anchor}
+    return {"label": t(label), "group": group, "anchor": anchor}
 
 
-def _role_row(configured: dict) -> dict:
+def _role_row(configured: dict, t: Callable[[str], str] = _untranslated) -> dict:
     """Verified role: set, still exists, and the bot can actually grant it.
 
     All three ways this can be unfinished point at the same fix -- the role
@@ -316,26 +366,35 @@ def _role_row(configured: dict) -> dict:
     `read_dashboard_roles`'s `assignable`) when choosing one -- so every
     non-done state gets the same action rather than three different ones.
     """
-    action = _settings_action("verified_role")
+    action = _settings_action("verified_role", t=t)
+    label = t(N_("Verified role"))
+    # `key` rather than the label is what `_setup_step` looks this row up by.
+    # The label is translated; the key is not, and must not be.
+    key = "verified_role"
     if not configured.get("verified_role"):
         return {
-            "label": "Verified role",
+            "key": key,
+            "label": label,
             "state": "todo",
-            "note": "Required — verification can't finish without one.",
+            "note": t(N_("Required — verification can't finish without one.")),
             "action": action,
         }
     if configured.get("verified_role_exists") is False:
         return {
-            "label": "Verified role",
+            "key": key,
+            "label": label,
             "state": "broken",
-            "note": "The role that was set has been deleted. Choose another.",
+            "note": t(N_("The role that was set has been deleted. Choose another.")),
             "action": action,
         }
     if configured.get("verified_role_assignable") is False:
         return {
-            "label": "Verified role",
+            "key": key,
+            "label": label,
             "state": "broken",
-            "note": "VRCVerify's own role needs to sit above this one to grant it.",
+            "note": t(N_(
+                "VRCVerify's own role needs to sit above this one to grant it."
+            )),
             "action": action,
         }
     # `verified_role_assignable` of None means the hierarchy could not be
@@ -343,49 +402,62 @@ def _role_row(configured: dict) -> dict:
     # crying wolf on a working server. Same restraint `read_dashboard_panel`
     # takes with a channel it cannot confirm is postable.
     return {
-        "label": "Verified role",
+        "key": key,
+        "label": label,
         "state": "done",
-        "note": "Set, and VRCVerify can grant it.",
+        "note": t(N_("Set, and VRCVerify can grant it.")),
         "action": None,
     }
 
 
-def _panel_row(panel: Optional[dict]) -> dict:
+def _panel_row(
+    panel: Optional[dict], t: Callable[[str], str] = _untranslated
+) -> dict:
     """Instructions panel: posted, in a channel that still exists, and one the
     bot can still post to. Mirrors `_role_row`'s three-way split for the same
     reason -- "not set up" and "set up and now broken" need different notes
     even though both need the same fix."""
-    action = _settings_action("panel")
+    action = _settings_action("panel", t=t)
+    label = t(N_("Instructions panel"))
+    key = "panel"
     if not panel or not panel.get("posted"):
         return {
-            "label": "Instructions panel",
+            "key": key,
+            "label": label,
             "state": "todo",
-            "note": "Members need a message to start from.",
+            "note": t(N_("Members need a message to start from.")),
             "action": action,
         }
     if panel.get("channel_exists") is False:
         return {
-            "label": "Instructions panel",
+            "key": key,
+            "label": label,
             "state": "broken",
-            "note": "The channel it was posted in was deleted.",
+            "note": t(N_("The channel it was posted in was deleted.")),
             "action": action,
         }
     if panel.get("channel_postable") is False:
         return {
-            "label": "Instructions panel",
+            "key": key,
+            "label": label,
             "state": "broken",
-            "note": "VRCVerify can't post there anymore — check its permissions.",
+            "note": t(N_(
+                "VRCVerify can't post there anymore — check its permissions."
+            )),
             "action": action,
         }
     return {
-        "label": "Instructions panel",
+        "key": key,
+        "label": label,
         "state": "done",
-        "note": "Posted, and VRCVerify can still reach it.",
+        "note": t(N_("Posted, and VRCVerify can still reach it.")),
         "action": None,
     }
 
 
-def build_setup(overview: Optional[dict]) -> Optional[dict]:
+def build_setup(
+    overview: Optional[dict], t: Callable[[str], str] = _untranslated
+) -> Optional[dict]:
     """The Apollo-pattern list: setup and health merged into one, each row
     carrying its own state and its own fix.
 
@@ -413,14 +485,15 @@ def build_setup(overview: Optional[dict]) -> Optional[dict]:
         # reporting every row as switched off.
         return None
 
-    role = _role_row(configured)
-    panel = _panel_row(overview.get("panel"))
+    role = _role_row(configured, t)
+    panel = _panel_row(overview.get("panel"), t)
 
     rows = [role, panel] + [
         {
-            "label": label,
+            "key": key,
+            "label": t(label),
             "state": "done" if configured.get(key) else "off",
-            "note": note,
+            "note": t(note),
             "action": None,
         }
         for key, label, note in OPTIONAL_ROWS
@@ -432,7 +505,7 @@ def build_setup(overview: Optional[dict]) -> Optional[dict]:
     }
 
 
-def _setup_step(setup: dict) -> dict:
+def _setup_step(setup: dict, t: Callable[[str], str] = _untranslated) -> dict:
     """The single most useful setup row to surface at the top of the page,
     for whichever of the two required rows isn't done.
 
@@ -442,12 +515,21 @@ def _setup_step(setup: dict) -> dict:
     "broken" already have distinct, accurate notes from #135 phase 3 and
     duplicating that wording here is how the two drift.
     """
-    by_label = {row["label"]: row for row in setup["rows"]}
+    # BY `key`, NEVER BY `label` (#97). `label` is translated now, so
+    # `by_label["Verified role"]` is a KeyError the moment somebody reads this
+    # page in German -- and the label is the one thing about a row that is
+    # guaranteed to change. `key` is the stable identifier the rows have
+    # always carried for the optional three; the two required rows now carry
+    # it too, for exactly this lookup.
+    by_key = {row["key"]: row for row in setup["rows"]}
 
-    role = by_label["Verified role"]
+    role = by_key["verified_role"]
     if role["state"] != "done":
-        title = "No verified role is set" if role["state"] == "todo" \
-            else "The verified role needs attention"
+        title = (
+            t(N_("No verified role is set"))
+            if role["state"] == "todo"
+            else t(N_("The verified role needs attention"))
+        )
         # Named, not left to the template's fallback: this is the one
         # candidate whose button already knew which field it was about, and
         # after the split (#140) "Settings" is five pages, only one of which
@@ -459,9 +541,12 @@ def _setup_step(setup: dict) -> dict:
             "group": _SETTINGS_ANCHOR["verified_role"][0],
         }
 
-    panel = by_label["Instructions panel"]
-    title = "No instructions panel is posted" if panel["state"] == "todo" \
-        else "The instructions panel needs attention"
+    panel = by_key["panel"]
+    title = (
+        t(N_("No instructions panel is posted"))
+        if panel["state"] == "todo"
+        else t(N_("The instructions panel needs attention"))
+    )
     return {
         "title": title,
         "body": panel["note"],
@@ -470,7 +555,11 @@ def _setup_step(setup: dict) -> dict:
     }
 
 
-def _demo_step(overview: dict) -> Optional[dict]:
+def _demo_step(
+    overview: dict,
+    t: Callable[[str], str] = _untranslated,
+    ngettext: Optional[Callable] = None,
+) -> Optional[dict]:
     """The data-backed pitch: a real number this server produced, paired with
     what Premium would do with it. The lock reads as a loss instead of an
     abstract paywall specifically because the number is theirs.
@@ -482,6 +571,12 @@ def _demo_step(overview: dict) -> Optional[dict]:
     it), and an already-premium server sees nothing here at all -- there is
     nothing left to sell it.
     """
+    if ngettext is None:
+        # The English rule, for a caller that passed no catalogue: one form for
+        # 1 and one for everything else.
+        def ngettext(one, many, n):
+            return one if n == 1 else many
+
     premium = overview.get("premium") or {}
     if premium.get("premium"):
         return None
@@ -493,10 +588,18 @@ def _demo_step(overview: dict) -> Optional[dict]:
     if not isinstance(count, int) or count <= 0:
         return None
 
-    pitch = (
-        f"{count:,} member{'' if count == 1 else 's'} verified here in the "
-        "last 30 days. Premium logs each one to a channel of your choice."
-    )
+    # `ngettext`, not an English `'' if count == 1 else 's'`. Plural rules are
+    # a property of the language, not of the number: Russian has three forms,
+    # Japanese and Chinese have one, and Arabic has six. Appending an "s" is
+    # correct for exactly one of the twelve, so the whole sentence is a plural
+    # msgid and gettext picks the form from the catalogue's own rule.
+    pitch = ngettext(
+        "%(count)s member verified here in the last 30 days. Premium logs each "
+        "one to a channel of your choice.",
+        "%(count)s members verified here in the last 30 days. Premium logs each "
+        "one to a channel of your choice.",
+        count,
+    ) % {"count": f"{count:,}"}
     if premium.get("grandfathered"):
         # Leads with what stays free, per the issue's own rule -- the model
         # is settings.html's upgrade card, which makes the same two-sentence
@@ -506,19 +609,24 @@ def _demo_step(overview: dict) -> Optional[dict]:
         # buying something new, not being asked to pay for what it already
         # has.
         return {
-            "title": "Add VRCVerify Premium",
-            "body": f"Your grandfathered extras stay free whatever you decide. {pitch}",
+            "title": t(N_("Add VRCVerify Premium")),
+            "body": t(N_("Your grandfathered extras stay free whatever you decide."))
+            + " "
+            + pitch,
             "action": "subscription",
         }
     return {
-        "title": "Upgrade to VRCVerify Premium",
+        "title": t(N_("Upgrade to VRCVerify Premium")),
         "body": pitch,
         "action": "subscription",
     }
 
 
 def build_next_step(
-    overview: Optional[dict], changelog_entry: Optional[dict] = None
+    overview: Optional[dict],
+    changelog_entry: Optional[dict] = None,
+    t: Callable[[str], str] = _untranslated,
+    ngettext: Optional[Callable] = None,
 ) -> Optional[dict]:
     """The single most useful thing to put in the best attention slot on the
     page, if anything. At most one item, ranked:
@@ -550,16 +658,16 @@ def build_next_step(
     if not overview:
         return None
 
-    setup = build_setup(overview)
+    setup = build_setup(overview, t)
     if setup is None:
         # The settings read failed behind the overview -- build_setup already
         # says nothing rather than guess, and repeating half its checks here
         # with the other half missing would be worse than matching it.
         return None
     if not setup["complete"]:
-        return _setup_step(setup)
+        return _setup_step(setup, t)
 
     if changelog_entry:
         return changelog_entry
 
-    return _demo_step(overview)
+    return _demo_step(overview, t, ngettext)

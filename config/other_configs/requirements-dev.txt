@@ -7,3 +7,13 @@ pytest-cov==7.1.0
 # suite green without them -- but a skipped security test is not a passed one,
 # so they belong here.
 -r requirements-dashboard.txt
+
+# The gettext toolchain for the dashboard's translations (issue #97).
+#
+# DEV ONLY, and deliberately not in requirements-dashboard.txt. `pybabel`
+# extracts the strings, merges them into the twelve catalogues and compiles the
+# .mo files that get committed; the running site reads those with the standard
+# library's `gettext` and never imports Babel at all. The internet-facing image
+# does not grow a dependency to gain a feature -- see the note at the top of
+# requirements-dashboard.txt.
+Babel==2.18.0

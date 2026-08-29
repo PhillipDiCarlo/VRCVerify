@@ -1,0 +1,1783 @@
+# Arabic translations for VRCVerify.
+# Copyright (C) 2026 Esatto Technologies
+# This file is distributed under the same license as the VRCVerify project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: VRCVerify VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-08-29 10:47-0400\n"
+"PO-Revision-Date: 2026-08-29 03:27-0400\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ar\n"
+"Language-Team: ar <LL@li.org>\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : "
+"n%100>=3 && n%100<=10 ? 3 : n%100>=0 && n%100<=2 ? 4 : 5);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Dark"
+msgstr "داكن"
+
+msgid "Light"
+msgstr "فاتح"
+
+msgid "System"
+msgstr "حسب النظام"
+
+msgid "Authorisation was declined."
+msgstr "رُفض التخويل."
+
+msgid "That login link has expired. Please try again."
+msgstr "انتهت صلاحية رابط تسجيل الدخول هذا. حاول مرة أخرى."
+
+msgid "That login could not be verified. Please try again."
+msgstr "تعذّر التحقّق من تسجيل الدخول هذا. حاول مرة أخرى."
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid "Discord could not complete the login. Please try again."
+msgstr "لم يتمكّن Discord من إتمام تسجيل الدخول. حاول مرة أخرى."
+
+msgid "Page not found."
+msgstr "الصفحة غير موجودة."
+
+msgid "Something went wrong."
+msgstr "حدث خطأ ما."
+
+msgid "That setting needs VRCVerify Premium. Nothing was changed."
+msgstr "هذا الإعداد يتطلّب VRCVerify Premium. لم يتغيّر شيء."
+
+msgid "That language isn't one VRCVerify supports. Nothing was changed."
+msgstr "هذه اللغة ليست من اللغات التي يدعمها VRCVerify. لم يتغيّر شيء."
+
+msgid ""
+"Run /vrcverify_setup in your server first -- VRCVerify needs a verified "
+"role before it can store anything else."
+msgstr ""
+"شغّل ‏/vrcverify_setup‏ في خادمك أولًا، فـ VRCVerify يحتاج إلى رتبة "
+"«موثَّق» قبل أن يتمكّن من حفظ أي شيء آخر."
+
+msgid "That setting can't be changed from the website yet. Nothing was changed."
+msgstr "لا يمكن تغيير هذا الإعداد من الموقع بعد. لم يتغيّر شيء."
+
+msgid ""
+"The bot couldn't complete the save, so nothing was changed. Try again "
+"shortly."
+msgstr ""
+"لم يتمكّن البوت من إتمام الحفظ، لذلك لم يتغيّر شيء. حاول مرة أخرى بعد "
+"قليل."
+
+msgid "That role isn't in this server any more. Reload the page and pick again."
+msgstr "لم تعد هذه الرتبة موجودة في هذا الخادم. أعد تحميل الصفحة واختر من جديد."
+
+msgid "Pick a verified role -- verification can't run without one."
+msgstr "اختر رتبة «موثَّق»؛ فبدونها لا يمكن للتوثيق أن يعمل."
+
+msgid ""
+"Links in the custom message may only point to discord.com or vrchat.com. "
+"Nothing was changed."
+msgstr ""
+"روابط الرسالة المخصّصة لا يمكن أن تشير إلا إلى discord.com أو vrchat.com."
+" لم يتغيّر شيء."
+
+msgid "That custom message is too long. The limit is 1000 characters."
+msgstr "هذه الرسالة المخصّصة طويلة جدًا. الحد الأقصى 1000 حرف."
+
+msgid ""
+"Verification logs can't go in an announcement channel -- other servers "
+"can follow one, which would republish your members' age status."
+msgstr ""
+"لا يمكن وضع سجلّات التوثيق في قناة إعلانات، فالخوادم الأخرى قادرة على "
+"متابعتها، ما يعيد نشر حالة أعمار أعضائك خارج هذا الخادم."
+
+msgid ""
+"That channel isn't in this server any more. Reload the page and pick "
+"again."
+msgstr "لم تعد هذه القناة موجودة في هذا الخادم. أعد تحميل الصفحة واختر من جديد."
+
+msgid ""
+"VRCVerify can't post in that channel, so it can't log there. Check the "
+"channel's permissions and try again."
+msgstr ""
+"لا يستطيع VRCVerify النشر في تلك القناة، ولذلك لا يستطيع التسجيل فيها. "
+"تحقّق من صلاحيات القناة وحاول مرة أخرى."
+
+msgid ""
+"This bot's database is missing the column for that setting. Contact the "
+"bot operator."
+msgstr ""
+"قاعدة بيانات هذا البوت ينقصها العمود الخاص بهذا الإعداد. تواصل مع مشغّل "
+"البوت."
+
+msgid ""
+"That doesn't look like a VRChat group. Paste the group's ID (it starts "
+"with grp_) or the vrchat.com link to the group."
+msgstr ""
+"هذا لا يبدو مجموعة VRChat. الصق معرّف المجموعة (يبدأ بـ grp_) أو رابط "
+"المجموعة على vrchat.com."
+
+msgid ""
+"VRChat's vrc.group short links can't be looked up. Open the group on "
+"vrchat.com and paste that link instead, or the group ID starting with "
+"grp_."
+msgstr ""
+"روابط vrc.group المختصرة من VRChat لا يمكن الاستعلام عنها. افتح المجموعة "
+"على vrchat.com والصق ذلك الرابط بدلًا منه، أو معرّف المجموعة الذي يبدأ بـ"
+" grp_."
+
+msgid ""
+"Another Discord server has already linked that VRChat group. A group can "
+"only belong to one server -- contact support if that's wrong."
+msgstr ""
+"هناك خادم Discord آخر ربط مجموعة VRChat هذه بالفعل. المجموعة الواحدة لا "
+"تنتمي إلا إلى خادم واحد؛ تواصل مع الدعم إن كان ذلك خطأ."
+
+msgid "Add your VRChat group first, then run the setup check."
+msgstr "أضف مجموعة VRChat أولًا، ثم شغّل فحص الإعداد."
+
+msgid "That change couldn't be saved, so nothing was changed."
+msgstr "تعذّر حفظ هذا التغيير، لذلك لم يتغيّر شيء."
+
+msgid ""
+"VRCVerify can't post the panel in that channel. It needs both Send "
+"Messages and Embed Links there -- Embed Links is the one that's usually "
+"missing, because the panel is an embed."
+msgstr ""
+"لا يستطيع VRCVerify نشر اللوحة في تلك القناة. فهو يحتاج فيها إلى صلاحيتَي"
+" «إرسال الرسائل» و«تضمين الروابط» معًا، وعادةً ما تكون «تضمين الروابط» هي"
+" الناقصة، لأن اللوحة رسالة مضمَّنة."
+
+msgid "The panel couldn't be posted just now. Try again shortly."
+msgstr "تعذّر نشر اللوحة الآن. حاول مرة أخرى بعد قليل."
+
+msgid "Panel posted."
+msgstr "تم نشر اللوحة."
+
+msgid ""
+"That channel already had the panel, so it was refreshed rather than "
+"posted again."
+msgstr "كانت اللوحة موجودة في تلك القناة بالفعل، فتم تحديثها بدل نشرها من جديد."
+
+msgid ""
+"Panel posted in the new channel. The old one is still up in its previous "
+"channel -- delete it in Discord when you're ready."
+msgstr ""
+"تم نشر اللوحة في القناة الجديدة. اللوحة القديمة ما زالت في قناتها "
+"السابقة؛ احذفها من Discord متى شئت."
+
+msgid ""
+"That panel was posted in a way Discord won't let the bot edit, so it was "
+"replaced with a fresh one. Your settings apply to it now."
+msgstr ""
+"نُشرت تلك اللوحة بطريقة لا يسمح Discord للبوت بتعديلها، فاستُبدلت بأخرى "
+"جديدة. إعداداتك تنطبق عليها الآن."
+
+msgid ""
+"Thanks — your subscription is being set up. Premium switches on as soon "
+"as Stripe confirms the payment, usually within a few seconds."
+msgstr ""
+"شكرًا لك، يجري الآن إعداد اشتراكك. سيُفعَّل Premium بمجرّد تأكيد Stripe "
+"للدفع، وذلك عادةً خلال ثوانٍ."
+
+msgid "That plan isn't one we offer. Nothing has been charged."
+msgstr "هذه الخطة ليست من الخطط التي نقدّمها. لم يُخصم أي مبلغ."
+
+msgid ""
+"This server already has Premium, so there was nothing to buy. Nothing has"
+" been charged."
+msgstr "هذا الخادم لديه Premium بالفعل، فلم يكن هناك ما يُشترى. لم يُخصم أي مبلغ."
+
+msgid ""
+"We couldn't reach Stripe just now, so nothing has been charged. Try again"
+" in a moment, or subscribe inside Discord instead."
+msgstr ""
+"تعذّر الوصول إلى Stripe الآن، ولذلك لم يُخصم أي مبلغ. حاول مرة أخرى بعد "
+"قليل، أو اشترك من داخل Discord."
+
+msgid "There's no card subscription on this server to manage."
+msgstr "لا يوجد في هذا الخادم اشتراك بالبطاقة لإدارته."
+
+msgid "Overview"
+msgstr "نظرة عامة"
+
+# | msgid "Sections"
+msgid "Settings"
+msgstr "الإعدادات"
+
+msgid "Subscriptions"
+msgstr "الاشتراكات"
+
+msgid ""
+"That server isn't available. Either VRCVerify isn't in it, or you don't "
+"have the Administrator permission there."
+msgstr ""
+"هذا الخادم غير متاح. فإمّا أن VRCVerify ليس فيه، وإمّا أنك لا تملك صلاحية"
+" المشرف هناك."
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+msgid ""
+"Can't reach the bot right now, so this page can't be shown. Nothing has "
+"changed. Try again shortly."
+msgstr ""
+"تعذّر الوصول إلى البوت الآن، لذا لا يمكن عرض هذه الصفحة. ولم يتغيّر شيء. "
+"حاول مرة أخرى بعد قليل."
+
+msgid "Premium"
+msgstr "Premium"
+
+# | msgid "Renews"
+msgid "New"
+msgstr "جديد"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+# | msgid "Verification log"
+msgid "See how verification is going"
+msgstr "اطّلع على سير التوثيق"
+
+msgid ""
+"The Overview page now charts the last 30 days of verifications, and "
+"checks the things that quietly break a server — a verified role that was "
+"deleted, a role the bot cannot assign, an instructions panel that is no "
+"longer where it was posted."
+msgstr ""
+"صفحة النظرة العامة صارت ترسم توثيقات آخر 30 يومًا، وتفحص الأمور التي "
+"تعطّل الخادم بصمت: رتبة «موثَّق» محذوفة، أو رتبة لا يستطيع البوت منحها، "
+"أو لوحة إرشادات لم تعد حيث نُشرت."
+
+msgid "The dashboard has been rebuilt"
+msgstr "أُعيد بناء لوحة التحكّم"
+
+msgid ""
+"A new header and sidebar, servers you can pick from cards instead of a "
+"list, switches that show you what is on at a glance, and a warning before"
+" you leave a page with unsaved changes."
+msgstr ""
+"شريط علوي وشريط جانبي جديدان، وخوادم تختارها من بطاقات بدل قائمة، ومفاتيح"
+" تُظهر لك ما هو مفعّل بنظرة واحدة، وتحذير قبل أن تغادر صفحة فيها تغييرات "
+"غير محفوظة."
+
+msgid "Dark, light, or whatever your device says"
+msgstr "داكن أو فاتح أو ما يقوله جهازك"
+
+msgid ""
+"The dashboard is dark by default now, with a theme button in the header. "
+"Your choice is remembered on this browser."
+msgstr ""
+"لوحة التحكّم صارت داكنة افتراضيًا، مع زر للمظهر في الشريط العلوي. ويُحفظ "
+"اختيارك في هذا المتصفّح."
+
+msgid "Invite verified members to your VRChat group"
+msgstr "ادعُ الأعضاء الموثَّقين إلى مجموعتك في VRChat"
+
+msgid ""
+"Link a private VRChat group to your server, and members who finish "
+"verification are offered an invite to it. Nothing is sent to VRChat "
+"unless the member asks for it."
+msgstr ""
+"اربط مجموعة VRChat خاصة بخادمك، فيُعرض على الأعضاء الذين يُنهون التوثيق "
+"دعوةٌ إليها. ولا يُرسَل شيء إلى VRChat ما لم يطلبه العضو."
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "استعرض Premium"
+
+#, python-format
+msgid "New in your plan: %(title)s"
+msgstr "جديد في خطتك: %(title)s"
+
+#, python-format
+msgid "%(body)s It's included in your subscription."
+msgstr "%(body)s وهو مشمول في اشتراكك."
+
+# | msgid "Setup"
+msgid "Set it up"
+msgstr "اضبطه الآن"
+
+# | msgid "Your grandfathered extras stay free whatever you decide."
+#, python-format
+msgid "Your grandfathered extras stay free whatever you decide. %(body)s"
+msgstr "مزاياك المكتسبة سابقًا تبقى مجانية مهما قرّرت. %(body)s"
+
+#, python-format
+msgid "New in Premium: %(title)s"
+msgstr "جديد في Premium: %(title)s"
+
+msgid "Today (UTC)"
+msgstr "اليوم (بالتوقيت العالمي)"
+
+msgid "Last 7 days"
+msgstr "آخر 7 أيام"
+
+msgid "Last 30 days"
+msgstr "آخر 30 يومًا"
+
+msgid "Couldn't check"
+msgstr "تعذّر التحقّق"
+
+msgid "The bot didn't answer this one."
+msgstr "لم يردّ البوت على هذا."
+
+msgid "Not collecting that far back yet."
+msgstr "لا يجري بعد جمع البيانات إلى هذا الحد من الماضي."
+
+#, python-format
+msgid "Only counting since %(date)s."
+msgstr "يُحتسب فقط منذ %(date)s."
+
+msgid "Members"
+msgstr "الأعضاء"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+msgid "Verified, all time"
+msgstr "موثَّقون، منذ البداية"
+
+msgid "Counted since this server's records began."
+msgstr "محسوبة منذ بدء سجلّات هذا الخادم."
+
+msgid "Not collecting yet."
+msgstr "لم يبدأ جمع البيانات بعد."
+
+msgid "Auto-verify on join"
+msgstr "توثيق تلقائي عند الانضمام"
+
+msgid "Members are checked when they join."
+msgstr "يُفحص الأعضاء عند انضمامهم."
+
+msgid "Unverified role"
+msgstr "رتبة «غير موثَّق»"
+
+msgid "Optional. Removed once someone verifies."
+msgstr "اختياري. تُزال بمجرّد أن يوثّق أحدهم نفسه."
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+msgid "Verification log"
+msgstr "سجلّ التوثيق"
+
+msgid "Optional. Premium."
+msgstr "اختياري. Premium."
+
+# | msgid "Sections"
+# | msgid "Settings"
+msgid "Go to Settings"
+msgstr "الانتقال إلى الإعدادات"
+
+msgid "Verified role"
+msgstr "رتبة «موثَّق»"
+
+# | msgid "Pick a verified role -- verification can't run without one."
+msgid "Required — verification can't finish without one."
+msgstr "مطلوبة؛ فمن دونها لا يمكن إتمام التوثيق."
+
+msgid "The role that was set has been deleted. Choose another."
+msgstr "الرتبة التي كانت محدَّدة قد حُذفت. اختر غيرها."
+
+msgid "VRCVerify's own role needs to sit above this one to grant it."
+msgstr "يجب أن تكون رتبة VRCVerify نفسها أعلى من هذه حتى يتمكّن من منحها."
+
+msgid "Set, and VRCVerify can grant it."
+msgstr "محدَّدة، وVRCVerify قادر على منحها."
+
+# | msgid "A branded instructions panel"
+msgid "Instructions panel"
+msgstr "لوحة الإرشادات"
+
+msgid "Members need a message to start from."
+msgstr "يحتاج الأعضاء إلى رسالة يبدأون منها."
+
+msgid "The channel it was posted in was deleted."
+msgstr "القناة التي نُشرت فيها قد حُذفت."
+
+msgid "VRCVerify can't post there anymore — check its permissions."
+msgstr "لم يعد VRCVerify قادرًا على النشر هناك؛ تحقّق من صلاحياته."
+
+msgid "Posted, and VRCVerify can still reach it."
+msgstr "منشورة، وما زال VRCVerify قادرًا على الوصول إليها."
+
+msgid "No verified role is set"
+msgstr "لم تُحدَّد رتبة «موثَّق»"
+
+msgid "The verified role needs attention"
+msgstr "رتبة «موثَّق» تحتاج إلى انتباه"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+msgid "No instructions panel is posted"
+msgstr "لم تُنشَر لوحة إرشادات"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+msgid "The instructions panel needs attention"
+msgstr "لوحة الإرشادات تحتاج إلى انتباه"
+
+#, python-format
+msgid ""
+"%(count)s member verified here in the last 30 days. Premium logs each one"
+" to a channel of your choice."
+msgid_plural ""
+"%(count)s members verified here in the last 30 days. Premium logs each "
+"one to a channel of your choice."
+msgstr[0] ""
+"لم يوثّق أحد نفسه هنا خلال الثلاثين يومًا الماضية. ويسجّل Premium كل "
+"عملية توثيق في قناة تختارها."
+msgstr[1] ""
+"وثّق عضو واحد نفسه هنا خلال الثلاثين يومًا الماضية. ويسجّل Premium كل "
+"عملية توثيق في قناة تختارها."
+msgstr[2] ""
+"وثّق عضوان نفسيهما هنا خلال الثلاثين يومًا الماضية. ويسجّل Premium كل "
+"عملية توثيق في قناة تختارها."
+msgstr[3] ""
+"وثّق %(count)s أعضاء أنفسهم هنا خلال الثلاثين يومًا الماضية. ويسجّل "
+"Premium كل عملية توثيق في قناة تختارها."
+msgstr[4] ""
+"وثّق %(count)s عضوًا أنفسهم هنا خلال الثلاثين يومًا الماضية. ويسجّل "
+"Premium كل عملية توثيق في قناة تختارها."
+msgstr[5] ""
+"وثّق %(count)s عضو أنفسهم هنا خلال الثلاثين يومًا الماضية. ويسجّل Premium"
+" كل عملية توثيق في قناة تختارها."
+
+msgid "Add VRCVerify Premium"
+msgstr "إضافة VRCVerify Premium"
+
+msgid "Your grandfathered extras stay free whatever you decide."
+msgstr "مزاياك المكتسبة سابقًا تبقى مجانية مهما قرّرت."
+
+msgid "Upgrade to VRCVerify Premium"
+msgstr "الترقية إلى VRCVerify Premium"
+
+# | msgid "A verification log channel"
+msgid "Verification"
+msgstr "التوثيق"
+
+msgid "After verifying"
+msgstr "بعد التوثيق"
+
+msgid "VRChat group"
+msgstr "مجموعة VRChat"
+
+msgid "Logging"
+msgstr "السجلّات"
+
+# | msgid "Active"
+msgid "Activity"
+msgstr "النشاط"
+
+msgid "English"
+msgstr "الإنجليزية"
+
+msgid "Spanish"
+msgstr "الإسبانية"
+
+msgid "Chinese (Simplified)"
+msgstr "الصينية (المبسّطة)"
+
+msgid "Japanese"
+msgstr "اليابانية"
+
+msgid "German"
+msgstr "الألمانية"
+
+msgid "Dutch"
+msgstr "الهولندية"
+
+msgid "Hindi"
+msgstr "الهندية"
+
+msgid "Arabic"
+msgstr "العربية"
+
+msgid "Bengali"
+msgstr "البنغالية"
+
+msgid "Portuguese (Brazil)"
+msgstr "البرتغالية (البرازيل)"
+
+msgid "Russian"
+msgstr "الروسية"
+
+msgid "Punjabi"
+msgstr "البنجابية"
+
+msgid "Not set"
+msgstr "غير محدَّد"
+
+#, python-format
+msgid "Unknown role (%(id)s)"
+msgstr "رتبة غير معروفة (%(id)s)"
+
+msgid ""
+"This role no longer exists in the server. VRCVerify will not be able to "
+"use it."
+msgstr "لم تعد هذه الرتبة موجودة في الخادم، ولن يتمكّن VRCVerify من استخدامها."
+
+msgid "Couldn't check whether VRCVerify can manage this role."
+msgstr "تعذّر التحقّق مما إذا كان VRCVerify قادرًا على إدارة هذه الرتبة."
+
+msgid "Granted once a member's VRChat account is confirmed as 18+."
+msgstr "تُمنح بمجرّد تأكيد أن حساب العضو في VRChat عمره 18+."
+
+msgid ""
+"VRCVerify cannot grant this role. Move the VRCVerify role above it in "
+"Server Settings -> Roles, or verification will fail for every member."
+msgstr ""
+"لا يستطيع VRCVerify منح هذه الرتبة. انقل رتبة VRCVerify فوقها من «إعدادات"
+" الخادم ← الرتب»، وإلا سيفشل التوثيق مع كل عضو."
+
+msgid ""
+"No verified role is set, so verification cannot complete. Members are "
+"told to contact an admin."
+msgstr ""
+"لم تُحدَّد رتبة «موثَّق»، ولذلك لا يمكن إتمام التوثيق. ويُطلب من الأعضاء "
+"التواصل مع أحد المشرفين."
+
+msgid "Removed automatically once a member verifies."
+msgstr "تُزال تلقائيًا بمجرّد أن يوثّق العضو نفسه."
+
+msgid ""
+"VRCVerify cannot remove this role. Move the VRCVerify role above it in "
+"Server Settings -> Roles."
+msgstr ""
+"لا يستطيع VRCVerify إزالة هذه الرتبة. انقل رتبة VRCVerify فوقها من "
+"«إعدادات الخادم ← الرتب»."
+
+msgid ""
+"Members already verified with VRCVerify elsewhere get the role as soon as"
+" they join. Free for every server, always."
+msgstr ""
+"الأعضاء الذين وثّقوا أنفسهم عبر VRCVerify في مكان آخر يحصلون على الرتبة "
+"فور انضمامهم. مجانًا لكل خادم، دائمًا."
+
+msgid "On"
+msgstr "مفعَّل"
+
+msgid "Off"
+msgstr "معطَّل"
+
+# | msgid "Nickname syncing"
+msgid "Nickname sync"
+msgstr "مزامنة الألقاب"
+
+msgid "Sets a member's server nickname to their VRChat display name."
+msgstr "يجعل لقب العضو في الخادم مطابقًا لاسمه الظاهر في VRChat."
+
+msgid "The core of the bot. These are free for every server."
+msgstr "جوهر البوت. هذه مجانية لكل خادم."
+
+msgid "What happens once a member is confirmed."
+msgstr "ما يحدث بعد تأكيد العضو."
+
+msgid "The message members use to start verification."
+msgstr "الرسالة التي يبدأ منها الأعضاء التوثيق."
+
+msgid "Invite members to your group once they're verified."
+msgstr "ادعُ الأعضاء إلى مجموعتك بمجرّد توثيقهم."
+
+msgid "A record of verification activity for your moderators."
+msgstr "سجلّ بنشاط التوثيق لمشرفيك."
+
+msgid "Not checked yet"
+msgstr "لم يُفحص بعد"
+
+msgid ""
+"Put the setup code in your group's description, invite the bot to the "
+"group, then run the check."
+msgstr "ضع رمز الإعداد في وصف مجموعتك، وادعُ البوت إلى المجموعة، ثم شغّل الفحص."
+
+msgid "Checking…"
+msgstr "جارٍ الفحص…"
+
+msgid "The bot is talking to VRChat. Reload this page in a moment."
+msgstr "البوت يتواصل مع VRChat الآن. أعد تحميل هذه الصفحة بعد قليل."
+
+msgid "No answer from the checker"
+msgstr "لا ردّ من أداة الفحص"
+
+msgid "The check was sent but nothing came back. Try again shortly."
+msgstr "أُرسل الفحص لكن لم يعد شيء. حاول مرة أخرى بعد قليل."
+
+msgid "Couldn't start the check"
+msgstr "تعذّر بدء الفحص"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. Try again"
+" shortly."
+msgstr ""
+"لم يتمكّن البوت من الوصول إلى الجزء الذي يتواصل مع VRChat. حاول مرة أخرى "
+"بعد قليل."
+
+msgid "The bot left your group"
+msgstr "غادر البوت مجموعتك"
+
+msgid ""
+"A VRChat account can only be in so many groups, so after a long time "
+"without a subscription the bot left yours to free the space. Invite the "
+"account below back and run the check again — your group and setup code "
+"are still saved, so there is nothing else to redo."
+msgstr ""
+"لا يمكن لحساب VRChat أن يكون في أكثر من عدد محدود من المجموعات، ولذلك "
+"غادر البوت مجموعتك بعد فترة طويلة بلا اشتراك ليوفّر مكانًا. ادعُ الحساب "
+"أدناه من جديد وشغّل الفحص مرة أخرى؛ فمجموعتك ورمز الإعداد ما زالا "
+"محفوظين، ولا شيء آخر يحتاج إلى إعادة."
+
+msgid "Ready"
+msgstr "جاهز"
+
+msgid "The bot is in your group and can send invites."
+msgstr "البوت في مجموعتك ويستطيع إرسال الدعوات."
+
+msgid "Waiting for a moderator"
+msgstr "في انتظار مشرف"
+
+msgid ""
+"The bot has asked to join and a group moderator needs to approve it. Run "
+"the check again once they have."
+msgstr ""
+"طلب البوت الانضمام، ويحتاج ذلك إلى موافقة أحد مشرفي المجموعة. شغّل الفحص "
+"مرة أخرى بعد موافقته."
+
+msgid "The bot hasn't been invited yet"
+msgstr "لم تتم دعوة البوت بعد"
+
+msgid ""
+"Invite the account below to your group from VRChat, then run the check "
+"again."
+msgstr "ادعُ الحساب أدناه إلى مجموعتك من VRChat، ثم شغّل الفحص مرة أخرى."
+
+msgid "In the group, but it can't invite anyone"
+msgstr "داخل المجموعة، لكنه لا يستطيع دعوة أحد"
+
+msgid ""
+"Give the bot's role the “Manage Group Invites” permission in VRChat. "
+"Being an admin is not enough — it is its own tick box."
+msgstr ""
+"امنح رتبة البوت في VRChat صلاحية «Manage Group Invites». كونه مشرفًا لا "
+"يكفي؛ فهي خانة مستقلّة."
+
+msgid "The setup code isn't in the group description"
+msgstr "رمز الإعداد غير موجود في وصف المجموعة"
+
+msgid ""
+"Paste the code below anywhere in your VRChat group's description, then "
+"run the check again. You can remove it once the check passes."
+msgstr ""
+"الصق الرمز أدناه في أي موضع من وصف مجموعتك في VRChat، ثم شغّل الفحص مرة "
+"أخرى. ويمكنك إزالته بمجرّد نجاح الفحص."
+
+# | msgid "VRChat group"
+msgid "No VRChat group with that ID"
+msgstr "لا توجد مجموعة VRChat بهذا المعرّف"
+
+msgid "Check the ID, or paste the group's vrchat.com link instead."
+msgstr "تحقّق من المعرّف، أو الصق بدلًا منه رابط المجموعة على vrchat.com."
+
+msgid "The bot is banned or blocked from that group"
+msgstr "البوت محظور أو مُقيَّد في تلك المجموعة"
+
+msgid "A group moderator has to lift that before setup can continue."
+msgstr "على أحد مشرفي المجموعة رفع ذلك قبل أن يستمرّ الإعداد."
+
+msgid "That group ID wasn't usable"
+msgstr "لم يكن معرّف المجموعة صالحًا للاستخدام"
+
+msgid "VRChat didn't answer"
+msgstr "لم يردّ VRChat"
+
+msgid "Nothing is wrong with your setup. Try the check again shortly."
+msgstr "لا خطأ في إعدادك. جرّب الفحص مرة أخرى بعد قليل."
+
+msgid "Setup couldn't be confirmed"
+msgstr "تعذّر تأكيد الإعداد"
+
+msgid "Run the check again. If it keeps happening, contact support."
+msgstr "شغّل الفحص مرة أخرى. وإن تكرّر الأمر، تواصل مع الدعم."
+
+msgid ""
+"Group invites are part of VRCVerify Premium. Your group is kept exactly "
+"as it is, and this picks up where it left off if the subscription is "
+"renewed."
+msgstr ""
+"دعوات المجموعة جزء من VRCVerify Premium. تبقى مجموعتك كما هي تمامًا، "
+"ويُستأنف هذا من حيث توقّف إن جُدّد الاشتراك."
+
+msgid ""
+"Optional: add “View All Members” to the bot's role so VRCVerify can see "
+"that a member already has an invite waiting, instead of possibly sending "
+"them a second one."
+msgstr ""
+"اختياري: أضف «View All Members» إلى رتبة البوت ليتمكّن VRCVerify من معرفة"
+" أن لدى العضو دعوة معلّقة بالفعل، بدل أن يرسل له دعوة ثانية."
+
+msgid ""
+"No invite account is available to this VRCVerify installation right now, "
+"so the check cannot run. Contact the bot operator."
+msgstr ""
+"لا يتوفّر لهذا التثبيت من VRCVerify أي حساب دعوات في الوقت الحالي، ولذلك "
+"لا يمكن تشغيل الفحص. تواصل مع مشغّل البوت."
+
+# | msgid "" "That doesn't look like a VRChat group. Paste the group's ID (it
+# | starts " "with grp_) or the vrchat.com link to the group."
+msgid ""
+"The group verified members can be invited to. Paste the group's ID (it "
+"starts with grp_) or its vrchat.com link. Leave it empty to disconnect "
+"the group."
+msgstr ""
+"المجموعة التي يمكن دعوة الأعضاء الموثَّقين إليها. الصق معرّف المجموعة "
+"(يبدأ بـ grp_) أو رابطها على vrchat.com. اتركه فارغًا لفصل المجموعة."
+
+msgid "No group connected"
+msgstr "لا توجد مجموعة متّصلة"
+
+msgid "Offer group invites"
+msgstr "عرض دعوات المجموعة"
+
+msgid ""
+"Adds a button to the message a member gets after verifying, which invites"
+" them to your group. Nothing is sent unless they press it."
+msgstr ""
+"يضيف زرًّا إلى الرسالة التي يتلقّاها العضو بعد التوثيق، يدعوه إلى "
+"مجموعتك. ولا يُرسل شيء ما لم يضغط عليه."
+
+msgid "Using the default message"
+msgstr "تُستخدم الرسالة الافتراضية"
+
+# | msgid "A custom post-verification message"
+msgid "Custom verification message"
+msgstr "رسالة توثيق مخصّصة"
+
+msgid ""
+"Replaces the default DM a member gets when they start verifying. Links "
+"may only point to discord.com or vrchat.com. Leave it empty to go back to"
+" the default."
+msgstr ""
+"تحلّ محلّ الرسالة الخاصة الافتراضية التي يتلقّاها العضو عند بدء التوثيق. "
+"ولا يمكن أن تشير الروابط إلا إلى discord.com أو vrchat.com. اتركها فارغة "
+"للعودة إلى الافتراضية."
+
+msgid "Language"
+msgstr "اللغة"
+
+msgid "The language of the instructions panel and the bot's replies to members."
+msgstr "لغة لوحة الإرشادات وردود البوت على الأعضاء."
+
+msgid "Panel colour"
+msgstr "لون اللوحة"
+
+# | msgid "A branded instructions panel"
+msgid "The colour bar down the side of the instructions panel."
+msgstr "الشريط الملوّن على جانب لوحة الإرشادات."
+
+msgid "Default blue"
+msgstr "الأزرق الافتراضي"
+
+# | msgid "A verification log channel"
+msgid "Server icon on the panel"
+msgstr "أيقونة الخادم على اللوحة"
+
+msgid "Shows your server's icon as the panel's thumbnail."
+msgstr "تعرض أيقونة خادمك كصورة مصغّرة للوحة."
+
+msgid "Shown"
+msgstr "ظاهرة"
+
+msgid "Hidden"
+msgstr "مخفيّة"
+
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr "قناة غير معروفة (%(id)s)"
+
+msgid "This channel no longer exists in the server."
+msgstr "لم تعد هذه القناة موجودة في الخادم."
+
+# | msgid "" "Verification logs can't go in an announcement channel -- other
+# | servers " "can follow one, which would republish your members' age
+# status."
+msgid ""
+"This is an announcement channel. Other servers can follow it, which would"
+" republish age disclosures about your members. VRCVerify will not log "
+"here."
+msgstr ""
+"هذه قناة إعلانات. يمكن للخوادم الأخرى متابعتها، ما يعيد نشر حالة أعمار "
+"أعضائك، ولذلك لن يسجّل VRCVerify هنا."
+
+msgid "VRCVerify cannot post in this channel."
+msgstr "لا يستطيع VRCVerify النشر في هذه القناة."
+
+# | msgid "A verification log channel"
+msgid "Verification log channel"
+msgstr "قناة سجلّ التوثيق"
+
+msgid "Every verification attempt, including the ones that fail silently."
+msgstr "كل محاولة توثيق، بما فيها تلك التي تفشل بصمت."
+
+# | msgid "VRChat group"
+msgid "VRChat group invites"
+msgstr "دعوات مجموعة VRChat"
+
+# | msgid "VRChat group"
+msgid "VRChat group setup check"
+msgstr "فحص إعداد مجموعة VRChat"
+
+msgid "posted in"
+msgstr "نُشرت في"
+
+msgid "moved to"
+msgstr "نُقلت إلى"
+
+msgid "refreshed in"
+msgstr "حُدِّثت في"
+
+msgid "replaced in"
+msgstr "استُبدلت في"
+
+#, python-format
+msgid "ID %(id)s"
+msgstr "المعرّف %(id)s"
+
+msgid "not set"
+msgstr "غير محدَّد"
+
+#, python-format
+msgid "role %(id)s"
+msgstr "رتبة %(id)s"
+
+#, python-format
+msgid "a role that no longer exists (%(id)s)"
+msgstr "رتبة لم تعد موجودة (%(id)s)"
+
+#, python-format
+msgid "Role %(id)s"
+msgstr "رتبة %(id)s"
+
+#, python-format
+msgid "channel %(id)s"
+msgstr "قناة %(id)s"
+
+#, python-format
+msgid "a channel that no longer exists (%(id)s)"
+msgstr "قناة لم تعد موجودة (%(id)s)"
+
+msgid "on"
+msgstr "مفعَّل"
+
+msgid "off"
+msgstr "معطَّل"
+
+msgid ""
+"The channel this panel was posted in no longer exists, so members have no"
+" way to start verifying."
+msgstr ""
+"لم تعد القناة التي نُشرت فيها هذه اللوحة موجودة، فلم يعد لدى الأعضاء "
+"طريقة لبدء التوثيق."
+
+# | msgid "" "VRCVerify can't post the panel in that channel. It needs both
+# Send
+# | " "Messages and Embed Links there -- Embed Links is the one that's usually
+# "
+# | "missing, because the panel is an embed."
+msgid ""
+"VRCVerify can't post a new message in that channel — it needs both Send "
+"Messages and Embed Links there. The panel still works and can still be "
+"refreshed; it just can't be replaced."
+msgstr ""
+"لا يستطيع VRCVerify نشر رسالة جديدة في تلك القناة؛ فهو يحتاج فيها إلى "
+"«إرسال الرسائل» و«تضمين الروابط» معًا. اللوحة ما زالت تعمل ويمكن تحديثها،"
+" غير أنه لا يمكن استبدالها."
+
+msgid "Save about 10%"
+msgstr "وفّر نحو 10%"
+
+msgid "Save about 20%"
+msgstr "وفّر نحو 20%"
+
+msgid "Monthly"
+msgstr "شهريًا"
+
+msgid "3 months"
+msgstr "3 أشهر"
+
+msgid "6 months"
+msgstr "6 أشهر"
+
+msgid "12 months"
+msgstr "12 شهرًا"
+
+msgid "per month"
+msgstr "شهريًا"
+
+msgid "per 3 months"
+msgstr "كل 3 أشهر"
+
+msgid "per 6 months"
+msgstr "كل 6 أشهر"
+
+msgid "per 12 months"
+msgstr "كل 12 شهرًا"
+
+msgid "per year"
+msgstr "سنويًا"
+
+#, python-format
+msgid "%(days)s-day free trial"
+msgstr "تجربة مجانية %(days)s يومًا"
+
+msgid "Active"
+msgstr "نشِط"
+
+msgid "Payment failed"
+msgstr "فشل الدفع"
+
+msgid "Charged twice"
+msgstr "خُصم مرتين"
+
+msgid "Confirming"
+msgstr "قيد التأكيد"
+
+msgid "Unknown"
+msgstr "غير معروف"
+
+msgid "Cancelled"
+msgstr "مُلغى"
+
+msgid "Plan"
+msgstr "الخطة"
+
+msgid "Billed through"
+msgstr "الدفع عبر"
+
+msgid "Discord"
+msgstr "Discord"
+
+msgid "Card and Discord"
+msgstr "البطاقة وDiscord"
+
+msgid "Card"
+msgstr "البطاقة"
+
+msgid "Due to renew"
+msgstr "التجديد المتوقَّع"
+
+msgid "Renews"
+msgstr "يتجدّد في"
+
+msgid "Premium until"
+msgstr "Premium حتى"
+
+msgid "VRCVerify Premium is active on this server."
+msgstr "‏VRCVerify Premium مفعّل على هذا الخادم."
+
+msgid ""
+"This server was set up before Premium launched, so it keeps several "
+"extras free, permanently."
+msgstr ""
+"أُعِدّ هذا الخادم قبل إطلاق Premium، لذا يحتفظ بعدة مزايا مجانية بشكل "
+"دائم."
+
+# | msgid "Core 18+ verification is free, forever."
+msgid "18+ verification is free on this server, and always will be."
+msgstr "توثيق 18+ مجاني على هذا الخادم، وسيبقى كذلك دائمًا."
+
+msgid ""
+"Couldn't load this server's roles and channels just now, so some changes "
+"below name an ID instead of a role or channel. The history itself is "
+"correct."
+msgstr ""
+"تعذّر تحميل رتب هذا الخادم وقنواته الآن، ولذلك تذكر بعض التغييرات أدناه "
+"معرّفًا بدل اسم الرتبة أو القناة. أما السجلّ نفسه فصحيح."
+
+msgid ""
+"Settings changed from this website. Changes made with slash commands in "
+"Discord aren't listed here."
+msgstr ""
+"الإعدادات التي غُيّرت من هذا الموقع. أما التغييرات التي تمت بأوامر "
+"Discord فلا تُدرج هنا."
+
+# | msgid "The panel couldn't be posted just now. Try again shortly."
+msgid "Couldn't load the history just now. Try again shortly."
+msgstr "تعذّر تحميل السجلّ الآن. حاول مرة أخرى بعد قليل."
+
+msgid "No changes have been made from the website yet."
+msgstr "لم يُغيَّر أي شيء من الموقع بعد."
+
+msgid "Show the sidebar"
+msgstr "إظهار الشريط الجانبي"
+
+msgid "Hide the sidebar"
+msgstr "إخفاء الشريط الجانبي"
+
+msgid "What's new"
+msgstr "ما الجديد"
+
+msgid "There are updates you haven't seen."
+msgstr "هناك تحديثات لم تطّلع عليها بعد."
+
+msgid "What&#39;s new"
+msgstr "ما الجديد"
+
+msgid "See all updates"
+msgstr "عرض كل التحديثات"
+
+msgid "Get these in your own server"
+msgstr "احصل عليها في خادمك أنت"
+
+msgid "Mark all as read"
+msgstr "تعليم الكل كمقروء"
+
+msgid "Choose a different one."
+msgstr "اختر لغة أخرى."
+
+msgid "Theme"
+msgstr "المظهر"
+
+msgid "Appearance"
+msgstr "الشكل"
+
+msgid "Always dark."
+msgstr "داكن دائمًا."
+
+msgid "Always light."
+msgstr "فاتح دائمًا."
+
+msgid "Matches the theme set on your device."
+msgstr "يتبع المظهر المحدَّد على جهازك."
+
+msgid "Account"
+msgstr "الحساب"
+
+msgid "Sign out"
+msgstr "تسجيل الخروج"
+
+msgid "Ends this session, on this browser."
+msgstr "ينهي هذه الجلسة، على هذا المتصفّح."
+
+msgid "Sign out everywhere"
+msgstr "تسجيل الخروج من كل الأجهزة"
+
+msgid "Ends every VRCVerify session signed in as you, on every device."
+msgstr "ينهي كل جلسة VRCVerify مسجَّلة باسمك، على كل الأجهزة."
+
+msgid "Sections"
+msgstr "الأقسام"
+
+msgid "All servers"
+msgstr "كل الخوادم"
+
+msgid "Settings sections"
+msgstr "أقسام الإعدادات"
+
+msgid "Terms"
+msgstr "الشروط"
+
+msgid "Privacy"
+msgstr "الخصوصية"
+
+msgid "Refunds"
+msgstr "الاسترداد"
+
+msgid "Core 18+ verification is free, forever."
+msgstr "توثيق 18+ الأساسي مجاني، إلى الأبد."
+
+msgid "VRCVerify is operated by Esatto Technologies, United States."
+msgstr "يُشغَّل VRCVerify من قِبل Esatto Technologies، الولايات المتحدة."
+
+msgid ""
+"Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord "
+"Inc."
+msgstr "لا يرتبط بـ VRChat Inc. أو Discord Inc.، ولا يحظى بموافقتهما أو رعايتهما."
+
+# | msgid "Pricing · VRCVerify"
+msgid "What's new · VRCVerify"
+msgstr "ما الجديد · VRCVerify"
+
+msgid "Everything that has shipped in VRCVerify, newest first."
+msgstr "كل ما صدر في VRCVerify، الأحدث أولًا."
+
+msgid ""
+"There is a <a href=\"https://vrcverify.com/changelog\">public version of "
+"this page</a> you can share with anyone."
+msgstr ""
+"هناك <a href=\"https://vrcverify.com/changelog\">نسخة عامة من هذه "
+"الصفحة</a> يمكنك مشاركتها مع أي شخص."
+
+#, python-format
+msgid ""
+"Want these in your own server? <a href=\"%(invite)s\" target=\"_blank\" "
+"rel=\"noopener noreferrer\">Join the VRCVerify Discord</a> and follow the"
+" announcements channel — every update here gets posted there, and Discord"
+" crossposts it to any channel you pick."
+msgstr ""
+"أتريد هذه في خادمك أنت؟ <a href=\"%(invite)s\" target=\"_blank\" "
+"rel=\"noopener noreferrer\">انضمّ إلى Discord الخاص بـ VRCVerify</a> "
+"وتابع قناة الإعلانات؛ فكل تحديث هنا يُنشر هناك، وDiscord ينقله إلى أي "
+"قناة تختارها."
+
+msgid "Sorry"
+msgstr "عذرًا"
+
+# | msgid "Add to your server"
+msgid "Back to your servers"
+msgstr "العودة إلى خوادمك"
+
+msgid "Manage your VRCVerify servers"
+msgstr "أدِر خوادم VRCVerify الخاصة بك"
+
+msgid ""
+"Set the verified role, the instructions panel and logging for any Discord"
+" server you administer."
+msgstr "اضبط رتبة «موثَّق» ولوحة الإرشادات والتسجيل لأي خادم Discord تديره."
+
+msgid ""
+"Discord tells us <strong>who you are and which servers you are "
+"in</strong>, and nothing else."
+msgstr "يخبرنا Discord <strong>من أنت وفي أي خوادم أنت</strong>، ولا شيء غير ذلك."
+
+msgid "We <strong>don't keep your Discord token</strong> after you sign in."
+msgstr "نحن <strong>لا نحتفظ برمز Discord الخاص بك</strong> بعد تسجيل دخولك."
+
+msgid ""
+"This site <strong>can't see who has verified</strong> — only your "
+"server's settings."
+msgstr ""
+"هذا الموقع <strong>لا يستطيع معرفة من وثّق نفسه</strong>؛ إنما يرى "
+"إعدادات خادمك فقط."
+
+# | msgid "Buy inside Discord"
+msgid "Sign in with Discord"
+msgstr "تسجيل الدخول عبر Discord"
+
+msgid ""
+"<code>/vrcverify_setup</code> in Discord sets a server's verified role, "
+"which is enough to start verifying members, and "
+"<code>/vrcverify_settings</code> shows what's stored. Everything else is "
+"changed here."
+msgstr ""
+"الأمر <code>/vrcverify_setup</code> في Discord يضبط رتبة «موثَّق» للخادم،"
+" وهذا يكفي للبدء بتوثيق الأعضاء، بينما يعرض "
+"<code>/vrcverify_settings</code> ما هو محفوظ. أما كل ما عدا ذلك فيُغيَّر "
+"من هنا."
+
+msgid "See plans and subscribe"
+msgstr "عرض الخطط والاشتراك"
+
+msgid "Dismiss"
+msgstr "إخفاء"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+msgid "Verifications"
+msgstr "عمليات التوثيق"
+
+msgid ""
+"How many members completed 18+ verification in this server. Counts only —"
+" VRCVerify doesn't keep a record of who verified when."
+msgstr ""
+"عدد الأعضاء الذين أتمّوا توثيق 18+ في هذا الخادم. أعداد فقط؛ فـ VRCVerify"
+" لا يحتفظ بسجلّ لمن وثّق نفسه ومتى."
+
+# | msgid "The panel couldn't be posted just now. Try again shortly."
+msgid "Couldn't load this server's numbers just now. Try again shortly."
+msgstr "تعذّر تحميل أرقام هذا الخادم الآن. حاول مرة أخرى بعد قليل."
+
+#, python-format
+msgid "Peak %(peak)s a day"
+msgstr "الذروة %(peak)s في اليوم"
+
+#, python-format
+msgid ""
+"Verifications per day, last %(days)s days. The exact numbers follow this "
+"chart."
+msgstr ""
+"عمليات التوثيق يوميًا، آخر %(days)s يومًا. وتأتي الأرقام الدقيقة بعد هذا "
+"الرسم."
+
+#, python-format
+msgid "Verifications per day, last %(days)s days"
+msgstr "عمليات التوثيق يوميًا، آخر %(days)s يومًا"
+
+msgid "Day"
+msgstr "اليوم"
+
+msgid "Not measured"
+msgstr "غير مقيس"
+
+msgid "Couldn't load the daily trend just now."
+msgstr "تعذّر تحميل الاتجاه اليومي الآن."
+
+msgid "Setup"
+msgstr "الإعداد"
+
+#, python-format
+msgid ""
+"What's configured here, and whether it's actually working -- one list "
+"instead of two, since \"switched on\" and \"still works\" used to be "
+"answered in different places on this page. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+"ما الذي أُعدّ هنا، وهل يعمل فعلًا -- قائمة واحدة بدل اثنتين، إذ كان "
+"«مفعَّل» و«ما زال يعمل» يُجابان في موضعين مختلفين من هذه الصفحة. ويمكنك "
+"تغيير أي منها من <a href=\"%(settings_url)s\">الإعدادات</a>."
+
+msgid "Setup complete — verification is fully working here."
+msgstr "اكتمل الإعداد؛ التوثيق يعمل هنا بالكامل."
+
+msgid "set"
+msgstr "محدَّد"
+
+msgid "needs attention"
+msgstr "يحتاج إلى انتباه"
+
+msgid "Your servers — VRCVerify"
+msgstr "خوادمك — VRCVerify"
+
+# | msgid "Add to your server"
+msgid "Your servers"
+msgstr "خوادمك"
+
+msgid ""
+"Can't reach the bot right now, so we can't tell which of these it's in. "
+"Your settings are safe — nothing here has changed. Try again shortly."
+msgstr ""
+"تعذّر الوصول إلى البوت الآن، فلا يمكننا معرفة أي من هذه الخوادم هو فيها. "
+"إعداداتك بأمان ولم يتغيّر شيء هنا. حاول مرة أخرى بعد قليل."
+
+msgid "No servers to show"
+msgstr "لا خوادم لعرضها"
+
+msgid ""
+"This page lists servers where you have the Administrator permission. "
+"Discord tells us that list when you sign in, so a permission you were "
+"given since then will not be in it yet."
+msgstr ""
+"تعرض هذه الصفحة الخوادم التي تملك فيها صلاحية المشرف. ويخبرنا Discord "
+"بهذه القائمة عند تسجيل دخولك، فأي صلاحية مُنحت لك بعد ذلك لن تكون فيها "
+"بعد."
+
+msgid "Sign out and start again"
+msgstr "تسجيل الخروج والبدء من جديد"
+
+msgid "You'll be asked to sign in with Discord again."
+msgstr "سيُطلب منك تسجيل الدخول عبر Discord مرة أخرى."
+
+msgid "Overview, settings and activity"
+msgstr "نظرة عامة وإعدادات ونشاط"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "غير مُعدّ هنا، أو ليس من إدارتك"
+
+msgid "Can't check this server right now"
+msgstr "لا يمكن فحص هذا الخادم الآن"
+
+# | msgid "Add to your server"
+msgid "Add to server"
+msgstr "الإضافة إلى الخادم"
+
+msgid "Pricing · VRCVerify"
+msgstr "الأسعار · VRCVerify"
+
+msgid "Pricing"
+msgstr "الأسعار"
+
+msgid ""
+"Verification is free, forever. Premium adds the automation around it, per"
+" server."
+msgstr ""
+"التوثيق مجاني إلى الأبد. أما Premium فيضيف الأتمتة المحيطة به، لكل خادم "
+"على حدة."
+
+msgid "Free"
+msgstr "مجاني"
+
+msgid "forever"
+msgstr "إلى الأبد"
+
+msgid "Everything you need to verify your members."
+msgstr "كل ما تحتاجه لتوثيق أعضائك."
+
+msgid "Verify members as 18+"
+msgstr "توثيق الأعضاء كـ 18+"
+
+msgid "Auto-verify people who verified in another server"
+msgstr "توثيق تلقائي لمن سبق أن وثّقوا أنفسهم في خادم آخر"
+
+msgid "Members can update their own nickname"
+msgstr "يستطيع الأعضاء تحديث ألقابهم بأنفسهم"
+
+msgid "Add to your server"
+msgstr "أضفه إلى خادمك"
+
+msgid "Per server"
+msgstr "لكل خادم"
+
+msgid "monthly, 6 or 12 months"
+msgstr "شهريًا أو 6 أو 12 شهرًا"
+
+msgid "The automation around verification, for servers that want it."
+msgstr "الأتمتة المحيطة بالتوثيق، للخوادم التي تريدها."
+
+msgid "Automatic removal of an unverified role"
+msgstr "إزالة تلقائية لرتبة «غير موثَّق»"
+
+msgid "Nickname syncing"
+msgstr "مزامنة الألقاب"
+
+msgid "A custom post-verification message"
+msgstr "رسالة مخصّصة بعد التوثيق"
+
+msgid "A verification log channel"
+msgstr "قناة لسجلّ التوثيق"
+
+msgid "Priority in the verification queue"
+msgstr "أولوية في طابور التوثيق"
+
+msgid "A branded instructions panel"
+msgstr "لوحة إرشادات بلون خادمك وأيقونته"
+
+msgid "Open the dashboard"
+msgstr "افتح لوحة التحكّم"
+
+msgid "One Premium, three ways to pay for it"
+msgstr "‏Premium واحد، وثلاث طرق للدفع مقابله"
+
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+"لا نستطيع تحميل الأسعار الآن. <strong>‏Premium ما زال متاحًا.</strong> "
+"حاول مرة أخرى بعد قليل، أو اشترك من داخل Discord."
+
+msgid "There are no plans on sale at the moment."
+msgstr "لا توجد خطط معروضة للبيع في الوقت الحالي."
+
+msgid ""
+"Every plan below unlocks exactly the same features — the only difference "
+"is how long you pay for at once, and how much that saves."
+msgstr ""
+"كل خطة في الأسفل تفتح الميزات نفسها تمامًا؛ والفرق الوحيد هو المدة التي "
+"تدفع عنها دفعةً واحدة، وكم يوفّر لك ذلك."
+
+msgid "Most popular"
+msgstr "الأكثر شيوعًا"
+
+msgid ""
+"Some plans start with a free trial. Whether a particular server qualifies"
+" depends on whether it has had one before — the dashboard tells you "
+"before you pay."
+msgstr ""
+"بعض الخطط تبدأ بتجربة مجانية. أما استحقاق خادم بعينه لها فيتوقّف على ما "
+"إذا كان قد حصل عليها من قبل، ولوحة التحكّم تخبرك بذلك قبل أن تدفع."
+
+msgid ""
+"Prices are in US dollars and <strong>exclude tax</strong>; any tax due "
+"where you are is added at checkout. Payment is handled by Stripe — card "
+"details never reach VRCVerify."
+msgstr ""
+"الأسعار بالدولار الأمريكي و<strong>لا تشمل الضريبة</strong>؛ وتُضاف "
+"الضريبة المستحقّة في بلدك عند الدفع. تتولّى Stripe عملية الدفع، ولا تصل "
+"بيانات بطاقتك إلى VRCVerify أبدًا."
+
+msgid ""
+"Premium is bought per server. You can subscribe with a card in the "
+"dashboard, or monthly through Discord."
+msgstr ""
+"يُشترى Premium لكل خادم على حدة. يمكنك الاشتراك بالبطاقة من لوحة التحكّم،"
+" أو شهريًا عبر Discord."
+
+msgid "Ready to start?"
+msgstr "جاهز للبدء؟"
+
+msgid ""
+"Add VRCVerify to your server and verification works immediately, at no "
+"cost. Premium is there when you want it."
+msgstr ""
+"أضف VRCVerify إلى خادمك ليعمل التوثيق فورًا وبلا تكلفة. وسيكون Premium في"
+" انتظارك متى أردته."
+
+msgid "Saved."
+msgstr "تم الحفظ."
+
+msgid ""
+"Checking your VRChat group. Reload this page in a moment to see the "
+"result."
+msgstr "جارٍ فحص مجموعتك في VRChat. أعد تحميل هذه الصفحة بعد قليل لترى النتيجة."
+
+msgid ""
+"Your settings were saved, but the instructions panel still shows the old "
+"ones. Use <strong>Repost or move panel</strong> below to replace it."
+msgstr ""
+"حُفظت إعداداتك، لكن لوحة الإرشادات ما زالت تعرض القديمة. استخدم "
+"<strong>إعادة نشر اللوحة أو نقلها</strong> في الأسفل لاستبدالها."
+
+msgid ""
+"Your grandfathered extras stay free whatever you decide. Premium unlocks "
+"the settings marked below."
+msgstr ""
+"مزاياك المكتسبة سابقًا تبقى مجانية مهما قرّرت. ويفتح Premium الإعدادات "
+"المؤشَّر عليها أدناه."
+
+msgid "Unlocks the settings marked below. 18+ verification itself stays free."
+msgstr "يفتح الإعدادات المؤشَّر عليها أدناه. أما توثيق 18+ نفسه فيبقى مجانيًا."
+
+msgid ""
+"Couldn't load this server's roles and channels just now, so some settings"
+" below show an ID instead of a name. The values themselves are correct."
+msgstr ""
+"تعذّر تحميل رتب هذا الخادم وقنواته الآن، ولذلك تعرض بعض الإعدادات أدناه "
+"معرّفًا بدل الاسم. أما القيم نفسها فصحيحة."
+
+# | msgid "" "This bot's database is missing the column for that setting.
+# | Contact the " "bot operator."
+msgid ""
+"This bot's database is missing the auto-verify column, so that setting "
+"isn't in effect regardless of what it shows. Contact the bot operator."
+msgstr ""
+"قاعدة بيانات هذا البوت ينقصها عمود التوثيق التلقائي، ولذلك لا يسري هذا "
+"الإعداد مهما بدا عليه. تواصل مع مشغّل البوت."
+
+msgid "Where it's posted"
+msgstr "أين نُشرت"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid "The bot didn't answer this one. Try again shortly."
+msgstr "لم يردّ البوت على هذا. حاول مرة أخرى بعد قليل."
+
+msgid "No panel found"
+msgstr "لم يُعثر على لوحة"
+
+msgid ""
+"Post one below, or with <code>/vrcverify_instructions</code> in Discord, "
+"so members have somewhere to start."
+msgstr ""
+"انشر واحدة من الأسفل، أو عبر <code>/vrcverify_instructions</code> في "
+"Discord، ليكون لدى الأعضاء موضع يبدأون منه."
+
+msgid "Members use this message to begin verification."
+msgstr "يستخدم الأعضاء هذه الرسالة لبدء التوثيق."
+
+#, python-format
+msgid "VRChat said: %(said)s"
+msgstr "قال VRChat: %(said)s"
+
+msgid "Setup code:"
+msgstr "رمز الإعداد:"
+
+msgid ""
+"Paste this anywhere in your VRChat group's description. It proves the "
+"group is yours, and you can remove it once the check passes."
+msgstr ""
+"الصق هذا في أي موضع من وصف مجموعتك في VRChat. فهو يثبت أن المجموعة لك، "
+"ويمكنك إزالته بمجرّد نجاح الفحص."
+
+#, python-format
+msgid ""
+"Invite this account to your group: <a href=\"%(account_url)s\" "
+"rel=\"noopener noreferrer\" target=\"_blank\">%(account_id)s</a> — check "
+"the ID matches, because VRChat display names are not unique."
+msgstr ""
+"ادعُ هذا الحساب إلى مجموعتك: <a href=\"%(account_url)s\" rel=\"noopener "
+"noreferrer\" target=\"_blank\">%(account_id)s</a> — وتحقّق من تطابق "
+"المعرّف، فالأسماء الظاهرة في VRChat ليست فريدة."
+
+#, python-format
+msgid ""
+"Your group: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">open it on vrchat.com</a>"
+msgstr ""
+"مجموعتك: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">افتحها على vrchat.com</a>"
+
+msgid "Not applied"
+msgstr "غير مطبَّق"
+
+msgid "None"
+msgstr "بلا"
+
+msgid "Use the default blue"
+msgstr "استخدام الأزرق الافتراضي"
+
+# | msgid "Premium until"
+msgid "Premium only."
+msgstr "لمشتركي Premium فقط."
+
+msgid "Your saved value is kept, and comes back if the subscription is renewed."
+msgstr "تبقى قيمتك المحفوظة، وتعود إن جُدّد الاشتراك."
+
+msgid ""
+"Saved, but not acted on without Premium. Anyone can set this; the bot "
+"just won't use it until the feature is active."
+msgstr ""
+"يُحفظ، لكنه لا يُطبَّق دون Premium. يستطيع أي شخص ضبطه؛ غير أن البوت لن "
+"يستعمله ما لم تكن الميزة مفعَّلة."
+
+msgid ""
+"Not editable from the website yet. Nothing is wrong with it — the bot "
+"hasn't opened this setting to the dashboard."
+msgstr ""
+"لا يمكن تعديله من الموقع بعد. ولا خطأ فيه؛ إنما لم يفتح البوت هذا الإعداد"
+" للوحة التحكّم بعد."
+
+msgid "Save changes"
+msgstr "حفظ التغييرات"
+
+msgid "Unsaved changes in this group"
+msgstr "تغييرات غير محفوظة في هذه المجموعة"
+
+msgid "Check group setup"
+msgstr "فحص إعداد المجموعة"
+
+msgid ""
+"Asks the bot to join your group and report what it can do there. This "
+"button doesn't save the settings above — do that first if you've just "
+"changed the group."
+msgstr ""
+"يطلب من البوت الانضمام إلى مجموعتك والإبلاغ بما يستطيع فعله هناك. ولا "
+"يحفظ هذا الزر الإعدادات أعلاه؛ فاحفظها أولًا إن كنت قد غيّرت المجموعة "
+"للتو."
+
+msgid "Post the panel in"
+msgstr "انشر اللوحة في"
+
+# | msgid "Post the panel in"
+msgid "Repost or move panel"
+msgstr "إعادة نشر اللوحة أو نقلها"
+
+# | msgid "Post the panel in"
+msgid "Post panel"
+msgstr "نشر اللوحة"
+
+msgid ""
+"Choosing the channel it's already in refreshes it rather than posting a "
+"second one. This button only moves the panel; saving the settings above "
+"is what changes what it says."
+msgstr ""
+"اختيار القناة التي هي فيها بالفعل يُحدّثها بدل نشر لوحة ثانية. وهذا الزر "
+"ينقل اللوحة فقط؛ أمّا ما تقوله فيتغيّر بحفظ الإعدادات أعلاه."
+
+msgid ""
+"Members use this message to start verifying. It is posted with the "
+"settings saved above."
+msgstr "يبدأ الأعضاء التوثيق من هذه الرسالة. وتُنشر بالإعدادات المحفوظة أعلاه."
+
+#, python-format
+msgid "Subscriptions — %(name)s — VRCVerify"
+msgstr "الاشتراكات — %(name)s — VRCVerify"
+
+msgid ""
+"We couldn't check this server's plan just now. Nothing here is missing — "
+"the page simply can't say what's true yet. Try again in a moment."
+msgstr ""
+"لم نتمكّن من التحقّق من خطة هذا الخادم الآن. لا ينقص شيء هنا، لكن الصفحة "
+"لا تستطيع بعد أن تقول ما هو صحيح. حاول مرة أخرى بعد قليل."
+
+msgid ""
+"Every VRCVerify feature is currently available to this server at no "
+"charge. There's nothing to subscribe to."
+msgstr ""
+"كل ميزات VRCVerify متاحة حاليًا لهذا الخادم بلا مقابل. لا يوجد ما تشترك "
+"فيه."
+
+msgid ""
+"Waiting for Stripe to confirm. Premium switches on by itself, usually "
+"within a few seconds — reload this page in a moment."
+msgstr ""
+"في انتظار تأكيد Stripe. سيُفعَّل Premium من تلقاء نفسه، عادةً خلال ثوانٍ؛"
+" أعد تحميل هذه الصفحة بعد قليل."
+
+msgid ""
+"If it hasn't switched on after a minute or two, nothing is lost: Stripe "
+"keeps trying to reach us for up to three days, and the subscription takes"
+" effect as soon as it gets through. Get in touch if it stays this way."
+msgstr ""
+"إن لم يُفعَّل بعد دقيقة أو دقيقتين فلن يضيع شيء: تواصل Stripe محاولة "
+"الوصول إلينا لمدة تصل إلى ثلاثة أيام، ويسري الاشتراك فور نجاحها. تواصل "
+"معنا إن بقي الحال على ذلك."
+
+#, python-format
+msgid ""
+"This server looks like it's paying for Premium on %(count)s separate card"
+" subscriptions. Premium is on and stays on; you're just being charged "
+"more than once."
+msgstr ""
+"يبدو أن هذا الخادم يدفع مقابل Premium عبر %(count)s اشتراكات بطاقة "
+"منفصلة. ‏Premium مفعَّل وسيبقى كذلك؛ غير أنه يُخصم منك أكثر من مرة."
+
+msgid ""
+"This server looks like it's paying for Premium twice — once by card and "
+"once through Discord. Premium is on and stays on; you're just being "
+"charged more than once."
+msgstr ""
+"يبدو أن هذا الخادم يدفع مقابل Premium مرتين، مرة بالبطاقة ومرة عبر "
+"Discord. ‏Premium مفعَّل وسيبقى كذلك؛ غير أنه يُخصم منك أكثر من مرة."
+
+msgid ""
+"We won't cancel either one for you — that's your call, and getting it "
+"wrong with someone else's money isn't a risk worth automating."
+msgstr ""
+"لن نلغي أيًّا منهما نيابةً عنك؛ فهذا قرارك أنت، والخطأ فيه بمال شخص آخر "
+"ليس مخاطرة تستحقّ الأتمتة."
+
+msgid ""
+"To cancel the card subscription, use <strong>Manage billing</strong> "
+"below."
+msgstr "لإلغاء الاشتراك بالبطاقة، استخدم <strong>إدارة الفوترة</strong> في الأسفل."
+
+#, python-format
+msgid ""
+"To cancel the Discord one, open <strong>User Settings → "
+"Subscriptions</strong> in Discord, or run "
+"<code>/vrcverify_subscription</code> in %(name)s."
+msgstr ""
+"ولإلغاء اشتراك Discord، افتح <strong>إعدادات المستخدم ← "
+"الاشتراكات</strong> في Discord، أو شغّل "
+"<code>/vrcverify_subscription</code> في %(name)s."
+
+msgid ""
+"Your last payment didn't go through. Premium is still on while Stripe "
+"retries the card — update your card details under <strong>Manage "
+"billing</strong> below."
+msgstr ""
+"لم تنجح آخر عملية دفع. ‏Premium ما زال مفعَّلًا بينما تعيد Stripe محاولة "
+"الخصم من البطاقة؛ حدِّث بيانات بطاقتك من <strong>إدارة الفوترة</strong> "
+"في الأسفل."
+
+msgid ""
+"Cancelled, and nothing changes before then — this server keeps Premium "
+"for the whole of the period it has already paid for."
+msgstr ""
+"مُلغى، ولن يتغيّر شيء قبل ذلك الموعد؛ فهذا الخادم يحتفظ بـ Premium طوال "
+"المدة التي دفع مقابلها بالفعل."
+
+msgid ""
+"Discord handles the billing, so cancelling or changing the payment method"
+" happens there — <strong>User Settings → Subscriptions</strong>. We can't"
+" manage a Discord subscription from here."
+msgstr ""
+"تتولّى Discord الفوترة، ولذلك يتم الإلغاء أو تغيير طريقة الدفع هناك: "
+"<strong>إعدادات المستخدم ← الاشتراكات</strong>. ولا يمكننا إدارة اشتراك "
+"Discord من هنا."
+
+#, python-format
+msgid ""
+"18+ verification is free and always will be. Premium unlocks the settings"
+" marked on <a href=\"%(settings_url)s\">Settings</a>, shortens the wait "
+"between verifications, and moves this server up the verification queue."
+msgstr ""
+"توثيق 18+ مجاني وسيبقى كذلك دائمًا. يفتح Premium الإعدادات المؤشَّر عليها"
+" في <a href=\"%(settings_url)s\">الإعدادات</a>، ويقصّر مدة الانتظار بين "
+"عمليات التوثيق، ويقدّم هذا الخادم في طابور التوثيق."
+
+msgid ""
+"Your grandfathered extras — unverified-role removal, nickname sync and "
+"the custom verification message — stay free whatever you decide here."
+msgstr ""
+"مزاياك المكتسبة سابقًا، وهي إزالة رتبة «غير موثَّق» ومزامنة الألقاب "
+"ورسالة التوثيق المخصّصة، تبقى مجانية مهما قرّرت هنا."
+
+#, python-format
+msgid "Your Premium ended on %(when)s"
+msgstr "انتهى Premium الخاص بك في %(when)s"
+
+#, python-format
+msgid ""
+"The %(plan)s plan. Subscribing again picks up where it left off — nothing"
+" was reset when it lapsed."
+msgstr ""
+"خطة %(plan)s. الاشتراك من جديد يكمل من حيث توقّف؛ فلم يُعَد ضبط شيء عند "
+"انتهائه."
+
+msgid ""
+"Subscribing again picks up where it left off — nothing was reset when it "
+"lapsed."
+msgstr "الاشتراك من جديد يكمل من حيث توقّف؛ فلم يُعَد ضبط شيء عند انتهائه."
+
+msgid "Pay by card"
+msgstr "الدفع بالبطاقة"
+
+msgid ""
+"We can't load the plans right now. <strong>Nothing has changed about your"
+" subscription.</strong> Try again in a moment, or subscribe inside "
+"Discord below."
+msgstr ""
+"لا نستطيع تحميل الخطط الآن. <strong>لم يتغيّر أي شيء في اشتراكك.</strong>"
+" حاول مرة أخرى بعد قليل، أو اشترك من داخل Discord في الأسفل."
+
+msgid ""
+"<strong>One Premium, three ways to pay for it.</strong> Every plan below "
+"unlocks exactly the same features — the only difference is how long you "
+"pay for at once, and how much that saves."
+msgstr ""
+"<strong>‏Premium واحد، وثلاث طرق للدفع مقابله.</strong> كل خطة في الأسفل "
+"تفتح الميزات نفسها تمامًا؛ والفرق الوحيد هو المدة التي تدفع عنها دفعةً "
+"واحدة، وكم يوفّر لك ذلك."
+
+msgid "Subscribe"
+msgstr "اشترك"
+
+msgid "All plans renew automatically. Cancel any time from this page."
+msgstr "كل الخطط تتجدّد تلقائيًا. ويمكنك الإلغاء في أي وقت من هذه الصفحة."
+
+msgid ""
+"<strong>The 6- and 12-month plans are card-only.</strong> Discord "
+"subscriptions bill monthly, so those terms can't be offered there."
+msgstr ""
+"<strong>خطتا 6 و12 شهرًا متاحتان بالبطاقة فقط.</strong> اشتراكات Discord "
+"تُفوتر شهريًا، ولذلك لا يمكن تقديم هاتين المدتين هناك."
+
+#, python-format
+msgid ""
+"Need to send these prices to whoever pays? There is a <a "
+"href=\"%(pricing_url)s\">public pricing page</a> that works without a "
+"Discord account."
+msgstr ""
+"أتحتاج إلى إرسال هذه الأسعار إلى من سيدفع؟ هناك <a "
+"href=\"%(pricing_url)s\">صفحة أسعار عامة</a> تعمل من دون حساب Discord."
+
+msgid "Manage billing"
+msgstr "إدارة الفوترة"
+
+msgid ""
+"Change plan, update your card or cancel — on Stripe's own billing portal."
+" You'll come straight back here afterwards."
+msgstr ""
+"تغيير الخطة أو تحديث البطاقة أو الإلغاء، كل ذلك في بوابة الفوترة الخاصة "
+"بـ Stripe. وستعود إلى هنا مباشرةً بعدها."
+
+msgid "Buy inside Discord"
+msgstr "الشراء من داخل Discord"
+
+#, python-format
+msgid ""
+"Run it in %(name)s. Discord handles the payment, and the command's button"
+" is already pointed at this server. <strong>Monthly only</strong>, at the"
+" same price as the monthly plan above."
+msgstr ""
+"شغّله في %(name)s. تتولّى Discord عملية الدفع، وزر الأمر موجَّه إلى هذا "
+"الخادم بالفعل. <strong>شهريًا فقط</strong>، وبالسعر نفسه المذكور للخطة "
+"الشهرية أعلاه."
+
+#, python-format
+msgid "Run it in %(name)s to see this server's Discord subscription."
+msgstr "شغّله في %(name)s لعرض اشتراك هذا الخادم في Discord."
+
+#, python-format
+msgid ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">See what's included on Discord's store page</a> — it "
+"lists the price and perks, but you choose the server during checkout, so "
+"use the command above if you administer more than one."
+msgstr ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">اطّلع على ما هو مشمول في صفحة متجر Discord</a>؛ فهي "
+"تعرض السعر والمزايا، لكنك تختار الخادم أثناء الدفع، فاستخدم الأمر أعلاه "
+"إن كنت تدير أكثر من خادم."
+
