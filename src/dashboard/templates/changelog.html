@@ -58,7 +58,7 @@
            reachable from every server, including a premium one, so the tag
            has to be plan-neutral here too -- there is no guild in context to
            be neutral about. #}
-        <span class="bell-tag{% if item.premium %} premium{% endif %}">{{ item.tag }}</span>
+        <span class="bell-tag{% if item.premium %} premium{% endif %}">{{ tag_label(item) }}</span>
         <time datetime="{{ item.date.isoformat() }}">{{ item.display_date }}</time>
       </p>
       <h2>{{ item.title }}</h2>
@@ -67,6 +67,20 @@
          `validate_entries`, which fails the build on an entry containing
          any. Keeping the one path from that constant to this element boring
          is worth more than a link inside a sentence. #}
+      {# `{{ item.body }}`, NEVER `{{ _(item.body) }}` (#97).
+
+         Jinja's i18n extension is installed `newstyle`, which means `_()`
+         returns Markup -- deliberately, so that a msgid containing <strong>
+         renders as markup rather than as visible tags. That is right for a
+         literal written in this file and WRONG for a runtime value: a msgid
+         that misses the catalogue comes straight back, now marked safe, and
+         the escaping this element depends on is gone.
+
+         `TestTheChangelogPage::test_no_entry_body_reaches_the_page_as_markup`
+         renders a hostile entry through this template and caught exactly
+         that. Entries are translated in `build_bell` and `public_entries`
+         instead, in Python, where the result is a plain str that Jinja
+         escapes like any other value. #}
       <p class="changelog-body">{{ item.body }}</p>
     </li>
   {% endfor %}

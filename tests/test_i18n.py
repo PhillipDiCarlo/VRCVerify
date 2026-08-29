@@ -163,6 +163,36 @@ class TestEveryCatalogueIsCompiledAndLoadable:
         for message in catalog:
             if not message.id or not message.string:
                 continue
+
+            # A PLURAL ENTRY IS A TUPLE ON BOTH SIDES, and the rule for it is
+            # looser in one direction on purpose.
+            #
+            # Its msgid is (singular, plural); its msgstr has one form per the
+            # language's nplurals -- one for Japanese, three for Russian, six
+            # for Arabic. A form is allowed to OMIT `%(count)s`: Arabic's zero
+            # and one forms read "no member verified" and "one member
+            # verified", where spelling the digit out again would be wrong.
+            # That is safe at runtime, because `%`-formatting with a dict
+            # ignores keys the string does not use.
+            #
+            # What is never allowed is a form INTRODUCING a placeholder the
+            # English does not define. That is a KeyError at render time, on
+            # the Overview page.
+            if isinstance(message.id, (list, tuple)):
+                english_forms = list(message.id)
+                allowed = set()
+                for form in english_forms:
+                    allowed |= set(placeholder.findall(form))
+                for form in message.string:
+                    if not form:
+                        continue
+                    unknown = set(placeholder.findall(form)) - allowed
+                    assert not unknown, (
+                        f"{code}: plural form introduces {sorted(unknown)}, "
+                        f"which the English never defines"
+                    )
+                continue
+
             english, translated = message.id, message.string
             assert set(placeholder.findall(english)) == set(
                 placeholder.findall(translated)

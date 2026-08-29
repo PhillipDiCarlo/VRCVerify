@@ -320,7 +320,7 @@
                          is credibility -- the thing that makes phase 4's
                          Overview card land as news rather than as an advert
                          -- and a column of coloured chips spends exactly that. #}
-                      <span class="bell-tag{% if item.premium %} premium{% endif %}">{{ item.tag }}</span>
+                      <span class="bell-tag{% if item.premium %} premium{% endif %}">{{ tag_label(item) }}</span>
                       {# The ISO form for machines, the readable one for
                          people. `display_date` builds "24 Aug 2026" without
                          `%-d`, which is not portable. #}

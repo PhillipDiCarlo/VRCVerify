@@ -99,11 +99,11 @@
              at the width of a card. #}
           <p class="server-state">
             {% if state == 'ready' %}
-              Overview, settings and activity
+              {% trans %}Overview, settings and activity{% endtrans %}
             {% elif state == 'absent' %}
-              Not set up here, or not yours to manage
+              {% trans %}Not set up here, or not yours to manage{% endtrans %}
             {% else %}
-              Can't check this server right now
+              {% trans %}Can't check this server right now{% endtrans %}
             {% endif %}
           </p>
 

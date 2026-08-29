@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-29 04:54-0400\n"
+"POT-Creation-Date: 2026-08-29 10:47-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: hi_IN\n"
@@ -26,6 +26,26 @@ msgstr "लाइट"
 
 msgid "System"
 msgstr "सिस्टम के अनुसार"
+
+msgid "Authorisation was declined."
+msgstr "अनुमति अस्वीकार कर दी गई।"
+
+msgid "That login link has expired. Please try again."
+msgstr "यह साइन-इन लिंक समाप्त हो चुका है। फिर से कोशिश करें।"
+
+msgid "That login could not be verified. Please try again."
+msgstr "इस साइन-इन को सत्यापित नहीं किया जा सका। फिर से कोशिश करें।"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+msgid "Discord could not complete the login. Please try again."
+msgstr "Discord साइन-इन पूरा नहीं कर सका। फिर से कोशिश करें।"
+
+msgid "Page not found."
+msgstr "पेज नहीं मिला।"
+
+msgid "Something went wrong."
+msgstr "कुछ गड़बड़ हो गई।"
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "इस सेटिंग के लिए VRCVerify Premium चाहिए। कुछ भी नहीं बदला गया।"
@@ -196,117 +216,214 @@ msgstr "सेटिंग्स"
 msgid "Subscriptions"
 msgstr "सदस्यताएँ"
 
-msgid "Today (UTC)"
+msgid ""
+"That server isn't available. Either VRCVerify isn't in it, or you don't "
+"have the Administrator permission there."
 msgstr ""
+"वह सर्वर उपलब्ध नहीं है। या तो VRCVerify उसमें नहीं है, या वहाँ आपके पास "
+"Administrator अनुमति नहीं है।"
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+msgid ""
+"Can't reach the bot right now, so this page can't be shown. Nothing has "
+"changed. Try again shortly."
+msgstr ""
+"अभी बॉट से संपर्क नहीं हो पा रहा, इसलिए यह पेज नहीं दिखाया जा सकता। कुछ "
+"भी नहीं बदला है। थोड़ी देर में फिर कोशिश करें।"
+
+msgid "Premium"
+msgstr "Premium"
+
+# | msgid "Renews"
+msgid "New"
+msgstr "नया"
+
+# | msgid "A verification log channel"
+# | msgid "Verification"
+# | msgid "Verification log"
+msgid "See how verification is going"
+msgstr "देखें कि वेरिफ़िकेशन कैसा चल रहा है"
+
+msgid ""
+"The Overview page now charts the last 30 days of verifications, and "
+"checks the things that quietly break a server — a verified role that was "
+"deleted, a role the bot cannot assign, an instructions panel that is no "
+"longer where it was posted."
+msgstr ""
+"अवलोकन पेज अब पिछले 30 दिनों के वेरिफ़िकेशन का चार्ट दिखाता है, और उन "
+"चीज़ों की जाँच भी करता है जो चुपचाप सर्वर को ख़राब कर देती हैं: मिटा दी "
+"गई वेरिफ़ाइड भूमिका, ऐसी भूमिका जो बॉट दे नहीं सकता, या ऐसा निर्देश पैनल "
+"जो अब वहाँ नहीं है जहाँ पोस्ट किया गया था।"
+
+msgid "The dashboard has been rebuilt"
+msgstr "डैशबोर्ड नए सिरे से बनाया गया है"
+
+msgid ""
+"A new header and sidebar, servers you can pick from cards instead of a "
+"list, switches that show you what is on at a glance, and a warning before"
+" you leave a page with unsaved changes."
+msgstr ""
+"नया हेडर और साइडबार, सूची के बजाय कार्ड से चुने जाने वाले सर्वर, ऐसे "
+"स्विच जो एक नज़र में बता दें कि क्या चालू है, और बिना सहेजे बदलावों वाला "
+"पेज छोड़ने से पहले एक चेतावनी।"
+
+msgid "Dark, light, or whatever your device says"
+msgstr "डार्क, लाइट, या जो आपका डिवाइस कहे"
+
+msgid ""
+"The dashboard is dark by default now, with a theme button in the header. "
+"Your choice is remembered on this browser."
+msgstr ""
+"डैशबोर्ड अब डिफ़ॉल्ट रूप से डार्क है, और हेडर में थीम बटन है। आपकी पसंद "
+"इसी ब्राउज़र में याद रखी जाती है।"
+
+msgid "Invite verified members to your VRChat group"
+msgstr "वेरिफ़ाइड सदस्यों को अपने VRChat ग्रुप में बुलाएँ"
+
+msgid ""
+"Link a private VRChat group to your server, and members who finish "
+"verification are offered an invite to it. Nothing is sent to VRChat "
+"unless the member asks for it."
+msgstr ""
+"एक निजी VRChat ग्रुप को अपने सर्वर से जोड़ें, और जो सदस्य वेरिफ़िकेशन "
+"पूरा करते हैं उन्हें उसका न्योता दिया जाता है। जब तक सदस्य ख़ुद न कहे, "
+"VRChat को कुछ नहीं भेजा जाता।"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "Premium देखें"
+
+#, python-format
+msgid "New in your plan: %(title)s"
+msgstr "आपके प्लान में नया: %(title)s"
+
+#, python-format
+msgid "%(body)s It's included in your subscription."
+msgstr "%(body)s यह आपकी सदस्यता में शामिल है।"
+
+# | msgid "Setup"
+msgid "Set it up"
+msgstr "इसे सेट करें"
+
+# | msgid "Your grandfathered extras stay free whatever you decide."
+#, python-format
+msgid "Your grandfathered extras stay free whatever you decide. %(body)s"
+msgstr "आपकी पुरानी सुविधाएँ मुफ़्त ही रहेंगी, आप जो भी तय करें। %(body)s"
+
+#, python-format
+msgid "New in Premium: %(title)s"
+msgstr "Premium में नया: %(title)s"
+
+msgid "Today (UTC)"
+msgstr "आज (UTC)"
 
 msgid "Last 7 days"
-msgstr ""
+msgstr "पिछले 7 दिन"
 
 msgid "Last 30 days"
-msgstr ""
+msgstr "पिछले 30 दिन"
 
 msgid "Couldn't check"
-msgstr ""
+msgstr "जाँचा नहीं जा सका"
 
 msgid "The bot didn't answer this one."
-msgstr ""
+msgstr "बॉट ने इसका जवाब नहीं दिया।"
 
 msgid "Not collecting that far back yet."
-msgstr ""
+msgstr "इतना पीछे का रिकॉर्ड अभी नहीं रखा जाता।"
 
 #, python-format
 msgid "Only counting since %(date)s."
-msgstr ""
+msgstr "केवल %(date)s से गिना जा रहा है।"
+
+msgid "Members"
+msgstr "सदस्य"
 
 # | msgid "A verification log channel"
-#, fuzzy
-#| msgid "Verification"
+# | msgid "Verification"
 msgid "Verified, all time"
-msgstr "वेरिफ़िकेशन"
+msgstr "कुल वेरिफ़ाइड"
 
 msgid "Counted since this server's records began."
-msgstr ""
+msgstr "इस सर्वर का रिकॉर्ड शुरू होने के बाद से गिना गया।"
 
 msgid "Not collecting yet."
-msgstr ""
+msgstr "अभी रिकॉर्ड रखना शुरू नहीं हुआ।"
 
 msgid "Auto-verify on join"
-msgstr ""
+msgstr "जुड़ते ही अपने आप वेरिफ़ाई"
 
 msgid "Members are checked when they join."
-msgstr ""
+msgstr "सदस्यों की जाँच तब होती है जब वे जुड़ते हैं।"
 
 msgid "Unverified role"
-msgstr ""
+msgstr "अन-वेरिफ़ाइड भूमिका"
 
 msgid "Optional. Removed once someone verifies."
-msgstr ""
+msgstr "वैकल्पिक। कोई वेरिफ़ाई होते ही हट जाती है।"
 
 # | msgid "A verification log channel"
-#, fuzzy
-#| msgid "Verification"
+# | msgid "Verification"
 msgid "Verification log"
-msgstr "वेरिफ़िकेशन"
+msgstr "वेरिफ़िकेशन लॉग"
 
 msgid "Optional. Premium."
-msgstr ""
+msgstr "वैकल्पिक। Premium।"
 
 # | msgid "Sections"
-#, fuzzy
-#| msgid "Settings"
+# | msgid "Settings"
 msgid "Go to Settings"
-msgstr "सेटिंग्स"
+msgstr "सेटिंग्स पर जाएँ"
 
 msgid "Verified role"
-msgstr ""
+msgstr "वेरिफ़ाइड भूमिका"
 
-#, fuzzy
-#| msgid "Pick a verified role -- verification can't run without one."
+# | msgid "Pick a verified role -- verification can't run without one."
 msgid "Required — verification can't finish without one."
-msgstr "एक वेरिफ़ाइड भूमिका चुनें — इसके बिना वेरिफ़िकेशन चल ही नहीं सकता।"
+msgstr "ज़रूरी — इसके बिना वेरिफ़िकेशन पूरा नहीं हो सकता।"
 
 msgid "The role that was set has been deleted. Choose another."
-msgstr ""
+msgstr "जो भूमिका सेट थी वह हटा दी गई है। कोई दूसरी चुनें।"
 
 msgid "VRCVerify's own role needs to sit above this one to grant it."
-msgstr ""
+msgstr "इसे देने के लिए VRCVerify की अपनी भूमिका इससे ऊपर होनी चाहिए।"
 
 msgid "Set, and VRCVerify can grant it."
-msgstr ""
+msgstr "सेट है, और VRCVerify इसे दे सकता है।"
 
 # | msgid "A branded instructions panel"
 msgid "Instructions panel"
 msgstr "निर्देश पैनल"
 
 msgid "Members need a message to start from."
-msgstr ""
+msgstr "सदस्यों को शुरू करने के लिए एक संदेश चाहिए।"
 
 msgid "The channel it was posted in was deleted."
-msgstr ""
+msgstr "जिस चैनल में यह पोस्ट हुआ था वह हटा दिया गया।"
 
 msgid "VRCVerify can't post there anymore — check its permissions."
-msgstr ""
+msgstr "VRCVerify अब वहाँ पोस्ट नहीं कर सकता — इसकी अनुमतियाँ जाँचें।"
 
 msgid "Posted, and VRCVerify can still reach it."
-msgstr ""
+msgstr "पोस्ट है, और VRCVerify अब भी इस तक पहुँच सकता है।"
 
 msgid "No verified role is set"
-msgstr ""
+msgstr "कोई वेरिफ़ाइड भूमिका सेट नहीं है"
 
 msgid "The verified role needs attention"
-msgstr ""
+msgstr "वेरिफ़ाइड भूमिका पर ध्यान देने की ज़रूरत है"
 
 # | msgid "A branded instructions panel"
-#, fuzzy
-#| msgid "Instructions panel"
+# | msgid "Instructions panel"
 msgid "No instructions panel is posted"
-msgstr "निर्देश पैनल"
+msgstr "कोई निर्देश पैनल पोस्ट नहीं है"
 
 # | msgid "A branded instructions panel"
-#, fuzzy
-#| msgid "Instructions panel"
+# | msgid "Instructions panel"
 msgid "The instructions panel needs attention"
-msgstr "निर्देश पैनल"
+msgstr "निर्देश पैनल पर ध्यान देने की ज़रूरत है"
 
 #, python-format
 msgid ""
@@ -316,16 +433,20 @@ msgid_plural ""
 "%(count)s members verified here in the last 30 days. Premium logs each "
 "one to a channel of your choice."
 msgstr[0] ""
+"पिछले 30 दिनों में यहाँ %(count)s सदस्य ने वेरिफ़ाई किया। Premium हर एक "
+"को आपकी चुनी हुई चैनल में दर्ज करता है।"
 msgstr[1] ""
+"पिछले 30 दिनों में यहाँ %(count)s सदस्यों ने वेरिफ़ाई किया। Premium हर एक"
+" को आपकी चुनी हुई चैनल में दर्ज करता है।"
 
 msgid "Add VRCVerify Premium"
-msgstr ""
+msgstr "VRCVerify Premium जोड़ें"
 
 msgid "Your grandfathered extras stay free whatever you decide."
-msgstr ""
+msgstr "आपकी पुरानी सुविधाएँ मुफ़्त ही रहेंगी, आप जो भी तय करें।"
 
 msgid "Upgrade to VRCVerify Premium"
-msgstr ""
+msgstr "VRCVerify Premium में अपग्रेड करें"
 
 # | msgid "A verification log channel"
 msgid "Verification"
@@ -345,146 +466,157 @@ msgid "Activity"
 msgstr "गतिविधि"
 
 msgid "English"
-msgstr ""
+msgstr "अंग्रेज़ी"
 
 msgid "Spanish"
-msgstr ""
+msgstr "स्पैनिश"
 
 msgid "Chinese (Simplified)"
-msgstr ""
+msgstr "चीनी (सरलीकृत)"
 
 msgid "Japanese"
-msgstr ""
+msgstr "जापानी"
 
 msgid "German"
-msgstr ""
+msgstr "जर्मन"
 
 msgid "Dutch"
-msgstr ""
+msgstr "डच"
 
 msgid "Hindi"
-msgstr ""
+msgstr "हिन्दी"
 
 msgid "Arabic"
-msgstr ""
+msgstr "अरबी"
 
 msgid "Bengali"
-msgstr ""
+msgstr "बंगाली"
 
 msgid "Portuguese (Brazil)"
-msgstr ""
+msgstr "पुर्तगाली (ब्राज़ील)"
 
 msgid "Russian"
-msgstr ""
+msgstr "रूसी"
 
 msgid "Punjabi"
-msgstr ""
+msgstr "पंजाबी"
 
 msgid "Not set"
-msgstr ""
+msgstr "सेट नहीं है"
 
 #, python-format
 msgid "Unknown role (%(id)s)"
-msgstr ""
+msgstr "अज्ञात भूमिका (%(id)s)"
 
 msgid ""
 "This role no longer exists in the server. VRCVerify will not be able to "
 "use it."
-msgstr ""
+msgstr "यह भूमिका अब सर्वर में नहीं है। VRCVerify इसका उपयोग नहीं कर पाएगा।"
 
 msgid "Couldn't check whether VRCVerify can manage this role."
-msgstr ""
+msgstr "यह नहीं जाँचा जा सका कि VRCVerify इस भूमिका को संभाल सकता है या नहीं।"
 
 msgid "Granted once a member's VRChat account is confirmed as 18+."
 msgstr ""
+"जैसे ही किसी सदस्य का VRChat खाता 18+ के रूप में पुष्ट होता है, यह दे दी "
+"जाती है।"
 
 msgid ""
 "VRCVerify cannot grant this role. Move the VRCVerify role above it in "
 "Server Settings -> Roles, or verification will fail for every member."
 msgstr ""
+"VRCVerify यह भूमिका नहीं दे सकता। सर्वर सेटिंग्स -> भूमिकाएँ में "
+"VRCVerify की भूमिका को इससे ऊपर ले जाएँ, वरना हर सदस्य का वेरिफ़िकेशन "
+"विफल होगा।"
 
 msgid ""
 "No verified role is set, so verification cannot complete. Members are "
 "told to contact an admin."
 msgstr ""
+"कोई वेरिफ़ाइड भूमिका सेट नहीं है, इसलिए वेरिफ़िकेशन पूरा नहीं हो सकता। "
+"सदस्यों से कहा जाता है कि वे किसी एडमिन से संपर्क करें।"
 
 msgid "Removed automatically once a member verifies."
-msgstr ""
+msgstr "सदस्य के वेरिफ़ाई होते ही अपने आप हट जाती है।"
 
 msgid ""
 "VRCVerify cannot remove this role. Move the VRCVerify role above it in "
 "Server Settings -> Roles."
 msgstr ""
+"VRCVerify यह भूमिका नहीं हटा सकता। सर्वर सेटिंग्स -> भूमिकाएँ में "
+"VRCVerify की भूमिका को इससे ऊपर ले जाएँ।"
 
 msgid ""
 "Members already verified with VRCVerify elsewhere get the role as soon as"
 " they join. Free for every server, always."
 msgstr ""
+"जो सदस्य कहीं और VRCVerify से वेरिफ़ाई हो चुके हैं, उन्हें जुड़ते ही यह "
+"भूमिका मिल जाती है। हर सर्वर के लिए, हमेशा मुफ़्त।"
 
 msgid "On"
-msgstr ""
+msgstr "चालू"
 
 msgid "Off"
-msgstr ""
+msgstr "बंद"
 
-#, fuzzy
-#| msgid "Nickname syncing"
+# | msgid "Nickname syncing"
 msgid "Nickname sync"
-msgstr "उपनाम का सिंक"
+msgstr "उपनाम सिंक"
 
 msgid "Sets a member's server nickname to their VRChat display name."
-msgstr ""
+msgstr "सदस्य के सर्वर उपनाम को उसके VRChat प्रदर्शित नाम जैसा कर देता है।"
 
 msgid "The core of the bot. These are free for every server."
-msgstr ""
+msgstr "बॉट का मूल हिस्सा। ये हर सर्वर के लिए मुफ़्त हैं।"
 
 msgid "What happens once a member is confirmed."
-msgstr ""
+msgstr "किसी सदस्य के पुष्ट होने के बाद क्या होता है।"
 
 msgid "The message members use to start verification."
-msgstr ""
+msgstr "वह संदेश जिससे सदस्य वेरिफ़िकेशन शुरू करते हैं।"
 
 msgid "Invite members to your group once they're verified."
-msgstr ""
+msgstr "सदस्यों के वेरिफ़ाई होते ही उन्हें अपने ग्रुप में बुलाएँ।"
 
 msgid "A record of verification activity for your moderators."
-msgstr ""
+msgstr "आपके मॉडरेटर के लिए वेरिफ़िकेशन गतिविधि का रिकॉर्ड।"
 
 msgid "Not checked yet"
-msgstr ""
+msgstr "अभी जाँचा नहीं गया"
 
 msgid ""
 "Put the setup code in your group's description, invite the bot to the "
 "group, then run the check."
 msgstr ""
+"अपने ग्रुप के विवरण में सेटअप कोड डालें, बॉट को ग्रुप में बुलाएँ, फिर "
+"जाँच चलाएँ।"
 
 msgid "Checking…"
-msgstr ""
+msgstr "जाँच हो रही है…"
 
 msgid "The bot is talking to VRChat. Reload this page in a moment."
-msgstr ""
+msgstr "बॉट अभी VRChat से बात कर रहा है। थोड़ी देर बाद यह पेज दोबारा लोड करें।"
 
 msgid "No answer from the checker"
-msgstr ""
+msgstr "जाँचकर्ता से कोई जवाब नहीं"
 
 msgid "The check was sent but nothing came back. Try again shortly."
-msgstr ""
+msgstr "जाँच भेजी गई थी पर कुछ वापस नहीं आया। थोड़ी देर बाद फिर कोशिश करें।"
 
 msgid "Couldn't start the check"
-msgstr ""
+msgstr "जाँच शुरू नहीं हो सकी"
 
-#, fuzzy
-#| msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-#| again " "shortly."
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
 msgid ""
 "The bot couldn't reach the part of itself that talks to VRChat. Try again"
 " shortly."
 msgstr ""
-"बॉट सहेजने का काम पूरा नहीं कर सका, इसलिए कुछ भी नहीं बदला गया। थोड़ी देर"
-" बाद फिर कोशिश करें।"
+"बॉट अपने उस हिस्से तक नहीं पहुँच सका जो VRChat से बात करता है। थोड़ी देर "
+"बाद फिर कोशिश करें।"
 
 msgid "The bot left your group"
-msgstr ""
+msgstr "बॉट आपके ग्रुप से निकल गया"
 
 msgid ""
 "A VRChat account can only be in so many groups, so after a long time "
@@ -492,260 +624,283 @@ msgid ""
 "account below back and run the check again — your group and setup code "
 "are still saved, so there is nothing else to redo."
 msgstr ""
+"एक VRChat खाता सीमित संख्या में ही ग्रुप में रह सकता है, इसलिए लंबे समय "
+"तक सदस्यता न होने पर बॉट जगह खाली करने के लिए आपके ग्रुप से निकल गया। "
+"नीचे दिए खाते को दोबारा बुलाएँ और जाँच फिर चलाएँ — आपका ग्रुप और सेटअप "
+"कोड अब भी सहेजे हुए हैं, इसलिए और कुछ दोहराने की ज़रूरत नहीं।"
 
 msgid "Ready"
-msgstr ""
+msgstr "तैयार"
 
 msgid "The bot is in your group and can send invites."
-msgstr ""
+msgstr "बॉट आपके ग्रुप में है और निमंत्रण भेज सकता है।"
 
 msgid "Waiting for a moderator"
-msgstr ""
+msgstr "किसी मॉडरेटर की प्रतीक्षा"
 
 msgid ""
 "The bot has asked to join and a group moderator needs to approve it. Run "
 "the check again once they have."
 msgstr ""
+"बॉट ने शामिल होने का अनुरोध किया है और ग्रुप के किसी मॉडरेटर को उसे "
+"मंज़ूर करना होगा। मंज़ूरी के बाद जाँच फिर चलाएँ।"
 
 msgid "The bot hasn't been invited yet"
-msgstr ""
+msgstr "बॉट को अभी बुलाया नहीं गया"
 
 msgid ""
 "Invite the account below to your group from VRChat, then run the check "
 "again."
-msgstr ""
+msgstr "VRChat से नीचे दिए खाते को अपने ग्रुप में बुलाएँ, फिर जाँच दोबारा चलाएँ।"
 
 msgid "In the group, but it can't invite anyone"
-msgstr ""
+msgstr "ग्रुप में है, पर किसी को बुला नहीं सकता"
 
 msgid ""
 "Give the bot's role the “Manage Group Invites” permission in VRChat. "
 "Being an admin is not enough — it is its own tick box."
 msgstr ""
+"VRChat में बॉट की भूमिका को “Manage Group Invites” अनुमति दें। एडमिन होना"
+" काफ़ी नहीं — यह अपना अलग टिक बॉक्स है।"
 
 msgid "The setup code isn't in the group description"
-msgstr ""
+msgstr "सेटअप कोड ग्रुप विवरण में नहीं है"
 
 msgid ""
 "Paste the code below anywhere in your VRChat group's description, then "
 "run the check again. You can remove it once the check passes."
 msgstr ""
+"नीचे दिया कोड अपने VRChat ग्रुप के विवरण में कहीं भी चिपकाएँ, फिर जाँच "
+"दोबारा चलाएँ। जाँच पास होते ही आप इसे हटा सकते हैं।"
 
-#, fuzzy
-#| msgid "VRChat group"
+# | msgid "VRChat group"
 msgid "No VRChat group with that ID"
-msgstr "VRChat ग्रुप"
+msgstr "उस ID वाला कोई VRChat ग्रुप नहीं है"
 
 msgid "Check the ID, or paste the group's vrchat.com link instead."
-msgstr ""
+msgstr "ID जाँचें, या उसके बदले ग्रुप का vrchat.com लिंक चिपकाएँ।"
 
 msgid "The bot is banned or blocked from that group"
-msgstr ""
+msgstr "बॉट उस ग्रुप में प्रतिबंधित या ब्लॉक है"
 
 msgid "A group moderator has to lift that before setup can continue."
-msgstr ""
+msgstr "सेटअप आगे बढ़ने से पहले ग्रुप के किसी मॉडरेटर को यह हटाना होगा।"
 
 msgid "That group ID wasn't usable"
-msgstr ""
+msgstr "वह ग्रुप ID काम की नहीं थी"
 
 msgid "VRChat didn't answer"
-msgstr ""
+msgstr "VRChat ने जवाब नहीं दिया"
 
 msgid "Nothing is wrong with your setup. Try the check again shortly."
-msgstr ""
+msgstr "आपके सेटअप में कुछ गड़बड़ नहीं है। थोड़ी देर बाद जाँच फिर आज़माएँ।"
 
 msgid "Setup couldn't be confirmed"
-msgstr ""
+msgstr "सेटअप की पुष्टि नहीं हो सकी"
 
 msgid "Run the check again. If it keeps happening, contact support."
-msgstr ""
+msgstr "जाँच दोबारा चलाएँ। अगर यह बार-बार हो, तो सपोर्ट से संपर्क करें।"
 
 msgid ""
 "Group invites are part of VRCVerify Premium. Your group is kept exactly "
 "as it is, and this picks up where it left off if the subscription is "
 "renewed."
 msgstr ""
+"ग्रुप निमंत्रण VRCVerify Premium का हिस्सा हैं। आपका ग्रुप बिलकुल वैसा ही"
+" रहेगा, और सदस्यता नवीनीकृत होने पर यह वहीं से आगे बढ़ेगा जहाँ छूटा था।"
 
 msgid ""
 "Optional: add “View All Members” to the bot's role so VRCVerify can see "
 "that a member already has an invite waiting, instead of possibly sending "
 "them a second one."
 msgstr ""
+"वैकल्पिक: बॉट की भूमिका में “View All Members” जोड़ें ताकि VRCVerify देख "
+"सके कि किसी सदस्य का निमंत्रण पहले से लंबित है, और शायद दूसरा न भेज दे।"
 
 msgid ""
 "No invite account is available to this VRCVerify installation right now, "
 "so the check cannot run. Contact the bot operator."
 msgstr ""
+"इस VRCVerify इंस्टॉलेशन के पास अभी कोई निमंत्रण खाता उपलब्ध नहीं है, "
+"इसलिए जाँच नहीं चल सकती। बॉट संचालक से संपर्क करें।"
 
-#, fuzzy
-#| msgid "" "That doesn't look like a VRChat group. Paste the group's ID (it
-#| starts " "with grp_) or the vrchat.com link to the group."
+# | msgid "" "That doesn't look like a VRChat group. Paste the group's ID (it
+# | starts " "with grp_) or the vrchat.com link to the group."
 msgid ""
 "The group verified members can be invited to. Paste the group's ID (it "
 "starts with grp_) or its vrchat.com link. Leave it empty to disconnect "
 "the group."
 msgstr ""
-"यह VRChat ग्रुप जैसा नहीं लगता। ग्रुप की ID (जो grp_ से शुरू होती है) या "
-"ग्रुप का vrchat.com लिंक चिपकाएँ।"
+"वह ग्रुप जिसमें वेरिफ़ाइड सदस्यों को बुलाया जा सकता है। ग्रुप की ID (जो "
+"grp_ से शुरू होती है) या उसका vrchat.com लिंक चिपकाएँ। ग्रुप हटाने के लिए"
+" इसे खाली छोड़ें।"
 
 msgid "No group connected"
-msgstr ""
+msgstr "कोई ग्रुप जुड़ा नहीं है"
 
 msgid "Offer group invites"
-msgstr ""
+msgstr "ग्रुप निमंत्रण दें"
 
 msgid ""
 "Adds a button to the message a member gets after verifying, which invites"
 " them to your group. Nothing is sent unless they press it."
 msgstr ""
+"वेरिफ़ाई होने के बाद सदस्य को मिलने वाले संदेश में एक बटन जोड़ता है, जो "
+"उसे आपके ग्रुप में बुलाता है। जब तक वह दबाए नहीं, कुछ नहीं भेजा जाता।"
 
 msgid "Using the default message"
-msgstr ""
+msgstr "डिफ़ॉल्ट संदेश इस्तेमाल हो रहा है"
 
-#, fuzzy
-#| msgid "A custom post-verification message"
+# | msgid "A custom post-verification message"
 msgid "Custom verification message"
-msgstr "वेरिफ़िकेशन के बाद अपना संदेश"
+msgstr "अपना वेरिफ़िकेशन संदेश"
 
 msgid ""
 "Replaces the default DM a member gets when they start verifying. Links "
 "may only point to discord.com or vrchat.com. Leave it empty to go back to"
 " the default."
 msgstr ""
+"वेरिफ़िकेशन शुरू करते समय सदस्य को मिलने वाले डिफ़ॉल्ट DM की जगह लेता है।"
+" लिंक सिर्फ़ discord.com या vrchat.com की ओर जा सकते हैं। डिफ़ॉल्ट पर "
+"लौटने के लिए इसे खाली छोड़ें।"
 
 msgid "Language"
 msgstr "भाषा"
 
 msgid "The language of the instructions panel and the bot's replies to members."
-msgstr ""
+msgstr "निर्देश पैनल और सदस्यों को दिए जाने वाले बॉट के जवाबों की भाषा।"
 
 msgid "Panel colour"
-msgstr ""
+msgstr "पैनल का रंग"
 
-#, fuzzy
-#| msgid "A branded instructions panel"
+# | msgid "A branded instructions panel"
 msgid "The colour bar down the side of the instructions panel."
-msgstr "आपके सर्वर के रंग और आइकन वाला निर्देश पैनल"
+msgstr "निर्देश पैनल के किनारे की रंगीन पट्टी।"
 
 msgid "Default blue"
-msgstr ""
+msgstr "डिफ़ॉल्ट नीला"
 
-#, fuzzy
-#| msgid "A verification log channel"
+# | msgid "A verification log channel"
 msgid "Server icon on the panel"
-msgstr "वेरिफ़िकेशन लॉग चैनल"
+msgstr "पैनल पर सर्वर आइकन"
 
 msgid "Shows your server's icon as the panel's thumbnail."
-msgstr ""
+msgstr "आपके सर्वर के आइकन को पैनल की थंबनेल के रूप में दिखाता है।"
 
 msgid "Shown"
-msgstr ""
+msgstr "दिखाया गया"
 
 msgid "Hidden"
-msgstr ""
+msgstr "छिपाया गया"
 
 #, python-format
 msgid "Unknown channel (%(id)s)"
-msgstr ""
+msgstr "अज्ञात चैनल (%(id)s)"
 
 msgid "This channel no longer exists in the server."
-msgstr ""
+msgstr "यह चैनल अब सर्वर में नहीं है।"
 
-#, fuzzy
-#| msgid "" "Verification logs can't go in an announcement channel -- other
-#| servers " "can follow one, which would republish your members' age status."
+# | msgid "" "Verification logs can't go in an announcement channel -- other
+# | servers " "can follow one, which would republish your members' age
+# status."
 msgid ""
 "This is an announcement channel. Other servers can follow it, which would"
 " republish age disclosures about your members. VRCVerify will not log "
 "here."
 msgstr ""
-"वेरिफ़िकेशन लॉग किसी अनाउंसमेंट चैनल में नहीं रखे जा सकते — दूसरे सर्वर "
-"उसे फ़ॉलो कर सकते हैं, जिससे आपके सदस्यों की आयु-स्थिति इस सर्वर के बाहर "
-"दोबारा प्रकाशित हो जाएगी।"
+"यह एक अनाउंसमेंट चैनल है। दूसरे सर्वर इसे फ़ॉलो कर सकते हैं, जिससे आपके "
+"सदस्यों की आयु-स्थिति दोबारा प्रकाशित हो जाएगी। VRCVerify यहाँ लॉग नहीं "
+"करेगा।"
 
 msgid "VRCVerify cannot post in this channel."
-msgstr ""
+msgstr "VRCVerify इस चैनल में पोस्ट नहीं कर सकता।"
 
-#, fuzzy
-#| msgid "A verification log channel"
+# | msgid "A verification log channel"
 msgid "Verification log channel"
 msgstr "वेरिफ़िकेशन लॉग चैनल"
 
 msgid "Every verification attempt, including the ones that fail silently."
-msgstr ""
+msgstr "हर वेरिफ़िकेशन प्रयास, वे भी जो चुपचाप विफल होते हैं।"
 
-#, fuzzy
-#| msgid "VRChat group"
+# | msgid "VRChat group"
 msgid "VRChat group invites"
-msgstr "VRChat ग्रुप"
+msgstr "VRChat ग्रुप निमंत्रण"
 
-#, fuzzy
-#| msgid "VRChat group"
+# | msgid "VRChat group"
 msgid "VRChat group setup check"
-msgstr "VRChat ग्रुप"
+msgstr "VRChat ग्रुप सेटअप जाँच"
 
 msgid "posted in"
-msgstr ""
+msgstr "यहाँ पोस्ट हुआ"
 
 msgid "moved to"
-msgstr ""
+msgstr "यहाँ ले जाया गया"
 
 msgid "refreshed in"
-msgstr ""
+msgstr "यहाँ ताज़ा किया गया"
 
 msgid "replaced in"
-msgstr ""
+msgstr "यहाँ बदला गया"
 
 #, python-format
 msgid "ID %(id)s"
-msgstr ""
+msgstr "ID %(id)s"
 
 msgid "not set"
-msgstr ""
+msgstr "सेट नहीं है"
 
 #, python-format
 msgid "role %(id)s"
-msgstr ""
+msgstr "भूमिका %(id)s"
 
 #, python-format
 msgid "a role that no longer exists (%(id)s)"
-msgstr ""
+msgstr "एक भूमिका जो अब मौजूद नहीं (%(id)s)"
 
 #, python-format
 msgid "Role %(id)s"
-msgstr ""
+msgstr "भूमिका %(id)s"
 
 #, python-format
 msgid "channel %(id)s"
-msgstr ""
+msgstr "चैनल %(id)s"
 
 #, python-format
 msgid "a channel that no longer exists (%(id)s)"
-msgstr ""
+msgstr "एक चैनल जो अब मौजूद नहीं (%(id)s)"
 
 msgid "on"
-msgstr ""
+msgstr "चालू"
 
 msgid "off"
-msgstr ""
+msgstr "बंद"
 
 msgid ""
 "The channel this panel was posted in no longer exists, so members have no"
 " way to start verifying."
 msgstr ""
+"जिस चैनल में यह पैनल पोस्ट हुआ था वह अब मौजूद नहीं है, इसलिए सदस्यों के "
+"पास वेरिफ़ाई शुरू करने का कोई रास्ता नहीं है।"
 
-#, fuzzy
-#| msgid "" "VRCVerify can't post the panel in that channel. It needs both Send
-#| " "Messages and Embed Links there -- Embed Links is the one that's usually "
-#| "missing, because the panel is an embed."
+# | msgid "" "VRCVerify can't post the panel in that channel. It needs both
+# Send
+# | " "Messages and Embed Links there -- Embed Links is the one that's usually
+# "
+# | "missing, because the panel is an embed."
 msgid ""
 "VRCVerify can't post a new message in that channel — it needs both Send "
 "Messages and Embed Links there. The panel still works and can still be "
 "refreshed; it just can't be replaced."
 msgstr ""
-"VRCVerify उस चैनल में पैनल पोस्ट नहीं कर सकता। वहाँ उसे Send Messages और "
-"Embed Links दोनों चाहिए — आम तौर पर Embed Links ही नहीं होती, क्योंकि "
-"पैनल एक एम्बेड है।"
+"VRCVerify उस चैनल में नया संदेश पोस्ट नहीं कर सकता — वहाँ उसे Send "
+"Messages और Embed Links दोनों चाहिए। पैनल अब भी काम करता है और ताज़ा किया"
+" जा सकता है; बस बदला नहीं जा सकता।"
+
+msgid "Save about 10%"
+msgstr "लगभग 10% बचाएँ"
+
+msgid "Save about 20%"
+msgstr "लगभग 20% बचाएँ"
 
 msgid "Monthly"
 msgstr "मासिक"
@@ -773,9 +928,6 @@ msgstr "प्रति 12 महीने"
 
 msgid "per year"
 msgstr "प्रति वर्ष"
-
-msgid "Premium"
-msgstr "Premium"
 
 #, python-format
 msgid "%(days)s-day free trial"
@@ -823,24 +975,41 @@ msgstr "नवीनीकरण की तारीख़"
 msgid "Premium until"
 msgstr "Premium इस तारीख़ तक"
 
+msgid "VRCVerify Premium is active on this server."
+msgstr "इस सर्वर पर VRCVerify Premium चालू है।"
+
+msgid ""
+"This server was set up before Premium launched, so it keeps several "
+"extras free, permanently."
+msgstr ""
+"यह सर्वर Premium शुरू होने से पहले सेट किया गया था, इसलिए इसे कई सुविधाएँ"
+" हमेशा के लिए मुफ़्त मिलती रहती हैं।"
+
+# | msgid "Core 18+ verification is free, forever."
+msgid "18+ verification is free on this server, and always will be."
+msgstr "इस सर्वर पर 18+ वेरिफ़िकेशन मुफ़्त है, और हमेशा रहेगा।"
+
 msgid ""
 "Couldn't load this server's roles and channels just now, so some changes "
 "below name an ID instead of a role or channel. The history itself is "
 "correct."
 msgstr ""
+"इस सर्वर की भूमिकाएँ और चैनल अभी लोड नहीं हो सके, इसलिए नीचे के कुछ बदलाव"
+" भूमिका या चैनल के बजाय ID दिखा रहे हैं। इतिहास ख़ुद सही है।"
 
 msgid ""
 "Settings changed from this website. Changes made with slash commands in "
 "Discord aren't listed here."
 msgstr ""
+"इस वेबसाइट से बदली गई सेटिंग्स। Discord में स्लैश कमांड से किए गए बदलाव "
+"यहाँ नहीं दिखते।"
 
-#, fuzzy
-#| msgid "The panel couldn't be posted just now. Try again shortly."
+# | msgid "The panel couldn't be posted just now. Try again shortly."
 msgid "Couldn't load the history just now. Try again shortly."
-msgstr "अभी पैनल पोस्ट नहीं हो सका। थोड़ी देर बाद फिर कोशिश करें।"
+msgstr "इतिहास अभी लोड नहीं हो सका। थोड़ी देर बाद फिर कोशिश करें।"
 
 msgid "No changes have been made from the website yet."
-msgstr ""
+msgstr "वेबसाइट से अभी तक कोई बदलाव नहीं हुआ है।"
 
 msgid "Show the sidebar"
 msgstr "साइडबार दिखाएँ"
@@ -891,13 +1060,13 @@ msgid "Sign out"
 msgstr "साइन आउट"
 
 msgid "Ends this session, on this browser."
-msgstr ""
+msgstr "इस ब्राउज़र पर यह सत्र समाप्त करता है।"
 
 msgid "Sign out everywhere"
 msgstr "सभी डिवाइस से साइन आउट"
 
 msgid "Ends every VRCVerify session signed in as you, on every device."
-msgstr ""
+msgstr "हर डिवाइस पर, आपके नाम से चल रहे हर VRCVerify सत्र को समाप्त करता है।"
 
 msgid "Sections"
 msgstr "अनुभाग"
@@ -930,18 +1099,19 @@ msgid ""
 "Inc."
 msgstr "VRChat Inc. या Discord Inc. से न कोई संबंध है, न उनका समर्थन या प्रायोजन।"
 
-#, fuzzy
-#| msgid "Pricing · VRCVerify"
+# | msgid "Pricing · VRCVerify"
 msgid "What's new · VRCVerify"
-msgstr "क़ीमतें · VRCVerify"
+msgstr "नया क्या है · VRCVerify"
 
 msgid "Everything that has shipped in VRCVerify, newest first."
-msgstr ""
+msgstr "VRCVerify में अब तक आया सब कुछ, नया सबसे पहले।"
 
 msgid ""
 "There is a <a href=\"https://vrcverify.com/changelog\">public version of "
 "this page</a> you can share with anyone."
 msgstr ""
+"इस पेज का एक <a href=\"https://vrcverify.com/changelog\">सार्वजनिक "
+"रूप</a> भी है, जिसे आप किसी के साथ साझा कर सकते हैं।"
 
 #, python-format
 msgid ""
@@ -950,40 +1120,48 @@ msgid ""
 " announcements channel — every update here gets posted there, and Discord"
 " crossposts it to any channel you pick."
 msgstr ""
+"ये अपने सर्वर में चाहिए? <a href=\"%(invite)s\" target=\"_blank\" "
+"rel=\"noopener noreferrer\">VRCVerify के Discord से जुड़ें</a> और "
+"अनाउंसमेंट चैनल फ़ॉलो करें — यहाँ का हर अपडेट वहाँ पोस्ट होता है, और "
+"Discord उसे आपकी चुनी किसी भी चैनल में भेज देता है।"
 
 msgid "Sorry"
-msgstr ""
+msgstr "माफ़ कीजिए"
 
-#, fuzzy
-#| msgid "Add to your server"
+# | msgid "Add to your server"
 msgid "Back to your servers"
-msgstr "अपने सर्वर में जोड़ें"
+msgstr "अपने सर्वरों पर वापस"
 
 msgid "Manage your VRCVerify servers"
-msgstr ""
+msgstr "अपने VRCVerify सर्वर संभालें"
 
 msgid ""
 "Set the verified role, the instructions panel and logging for any Discord"
 " server you administer."
 msgstr ""
+"आप जिस भी Discord सर्वर के एडमिन हैं, उसके लिए वेरिफ़ाइड भूमिका, निर्देश "
+"पैनल और लॉगिंग सेट करें।"
 
 msgid ""
 "Discord tells us <strong>who you are and which servers you are "
 "in</strong>, and nothing else."
 msgstr ""
+"Discord हमें सिर्फ़ यह बताता है कि <strong>आप कौन हैं और किन सर्वरों में "
+"हैं</strong>, इसके अलावा कुछ नहीं।"
 
 msgid "We <strong>don't keep your Discord token</strong> after you sign in."
-msgstr ""
+msgstr "साइन इन के बाद हम <strong>आपका Discord टोकन नहीं रखते</strong>।"
 
 msgid ""
 "This site <strong>can't see who has verified</strong> — only your "
 "server's settings."
 msgstr ""
+"यह साइट <strong>यह नहीं देख सकती कि किसने वेरिफ़ाई किया</strong> — सिर्फ़"
+" आपके सर्वर की सेटिंग्स देख सकती है।"
 
-#, fuzzy
-#| msgid "Buy inside Discord"
+# | msgid "Buy inside Discord"
 msgid "Sign in with Discord"
-msgstr "Discord के भीतर ख़रीदें"
+msgstr "Discord से साइन इन करें"
 
 msgid ""
 "<code>/vrcverify_setup</code> in Discord sets a server's verified role, "
@@ -991,16 +1169,19 @@ msgid ""
 "<code>/vrcverify_settings</code> shows what's stored. Everything else is "
 "changed here."
 msgstr ""
+"Discord में <code>/vrcverify_setup</code> किसी सर्वर की वेरिफ़ाइड भूमिका "
+"सेट करता है, जो सदस्यों को वेरिफ़ाई करना शुरू करने के लिए काफ़ी है, और "
+"<code>/vrcverify_settings</code> दिखाता है कि क्या सहेजा गया है। बाकी सब "
+"कुछ यहीं बदला जाता है।"
 
 msgid "See plans and subscribe"
-msgstr ""
+msgstr "प्लान देखें और सदस्यता लें"
 
 msgid "Dismiss"
-msgstr ""
+msgstr "हटाएँ"
 
 # | msgid "A verification log channel"
-#, fuzzy
-#| msgid "Verification"
+# | msgid "Verification"
 msgid "Verifications"
 msgstr "वेरिफ़िकेशन"
 
@@ -1008,37 +1189,40 @@ msgid ""
 "How many members completed 18+ verification in this server. Counts only —"
 " VRCVerify doesn't keep a record of who verified when."
 msgstr ""
+"इस सर्वर में कितने सदस्यों ने 18+ वेरिफ़िकेशन पूरा किया। सिर्फ़ गिनती — "
+"VRCVerify यह रिकॉर्ड नहीं रखता कि किसने कब वेरिफ़ाई किया।"
 
-#, fuzzy
-#| msgid "The panel couldn't be posted just now. Try again shortly."
+# | msgid "The panel couldn't be posted just now. Try again shortly."
 msgid "Couldn't load this server's numbers just now. Try again shortly."
-msgstr "अभी पैनल पोस्ट नहीं हो सका। थोड़ी देर बाद फिर कोशिश करें।"
+msgstr "इस सर्वर के आँकड़े अभी लोड नहीं हो सके। थोड़ी देर बाद फिर कोशिश करें।"
 
 #, python-format
 msgid "Peak %(peak)s a day"
-msgstr ""
+msgstr "अधिकतम %(peak)s प्रतिदिन"
 
 #, python-format
 msgid ""
 "Verifications per day, last %(days)s days. The exact numbers follow this "
 "chart."
 msgstr ""
+"प्रतिदिन वेरिफ़िकेशन, पिछले %(days)s दिन। सटीक आँकड़े इस चार्ट के नीचे "
+"हैं।"
 
 #, python-format
 msgid "Verifications per day, last %(days)s days"
-msgstr ""
+msgstr "प्रतिदिन वेरिफ़िकेशन, पिछले %(days)s दिन"
 
 msgid "Day"
-msgstr ""
+msgstr "दिन"
 
 msgid "Not measured"
-msgstr ""
+msgstr "मापा नहीं गया"
 
 msgid "Couldn't load the daily trend just now."
-msgstr ""
+msgstr "दैनिक रुझान अभी लोड नहीं हो सका।"
 
 msgid "Setup"
-msgstr ""
+msgstr "सेटअप"
 
 #, python-format
 msgid ""
@@ -1047,48 +1231,65 @@ msgid ""
 "answered in different places on this page. Change any of it on <a "
 "href=\"%(settings_url)s\">Settings</a>."
 msgstr ""
+"यहाँ क्या सेट है, और क्या वह सचमुच काम कर रहा है -- दो के बजाय एक सूची, "
+"क्योंकि पहले “चालू है” और “अब भी काम करता है” इस पेज पर अलग-अलग जगह बताए "
+"जाते थे। इनमें से कुछ भी आप <a href=\"%(settings_url)s\">सेटिंग्स</a> में"
+" बदल सकते हैं।"
 
 msgid "Setup complete — verification is fully working here."
-msgstr ""
+msgstr "सेटअप पूरा — यहाँ वेरिफ़िकेशन पूरी तरह काम कर रहा है।"
 
 msgid "set"
-msgstr ""
+msgstr "सेट है"
 
 msgid "needs attention"
-msgstr ""
+msgstr "ध्यान चाहिए"
 
 msgid "Your servers — VRCVerify"
-msgstr ""
+msgstr "आपके सर्वर — VRCVerify"
 
-#, fuzzy
-#| msgid "Add to your server"
+# | msgid "Add to your server"
 msgid "Your servers"
-msgstr "अपने सर्वर में जोड़ें"
+msgstr "आपके सर्वर"
 
 msgid ""
 "Can't reach the bot right now, so we can't tell which of these it's in. "
 "Your settings are safe — nothing here has changed. Try again shortly."
 msgstr ""
+"बॉट से अभी संपर्क नहीं हो पा रहा, इसलिए हम नहीं बता सकते कि वह इनमें से "
+"किन सर्वरों में है। आपकी सेटिंग्स सुरक्षित हैं — यहाँ कुछ नहीं बदला। "
+"थोड़ी देर बाद फिर कोशिश करें।"
 
 msgid "No servers to show"
-msgstr ""
+msgstr "दिखाने को कोई सर्वर नहीं"
 
 msgid ""
 "This page lists servers where you have the Administrator permission. "
 "Discord tells us that list when you sign in, so a permission you were "
 "given since then will not be in it yet."
 msgstr ""
+"यह पेज उन सर्वरों को दिखाता है जहाँ आपके पास एडमिनिस्ट्रेटर अनुमति है। "
+"Discord यह सूची तब बताता है जब आप साइन इन करते हैं, इसलिए उसके बाद मिली "
+"कोई अनुमति अभी इसमें नहीं होगी।"
 
 msgid "Sign out and start again"
-msgstr ""
+msgstr "साइन आउट करके फिर से शुरू करें"
 
 msgid "You'll be asked to sign in with Discord again."
-msgstr ""
+msgstr "आपसे दोबारा Discord से साइन इन करने को कहा जाएगा।"
 
-#, fuzzy
-#| msgid "Add to your server"
+msgid "Overview, settings and activity"
+msgstr "अवलोकन, सेटिंग्स और गतिविधि"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "यहाँ सेट नहीं है, या आपके प्रबंधन में नहीं है"
+
+msgid "Can't check this server right now"
+msgstr "अभी इस सर्वर की जाँच नहीं हो सकती"
+
+# | msgid "Add to your server"
 msgid "Add to server"
-msgstr "अपने सर्वर में जोड़ें"
+msgstr "सर्वर में जोड़ें"
 
 msgid "Pricing · VRCVerify"
 msgstr "क़ीमतें · VRCVerify"
@@ -1216,74 +1417,84 @@ msgstr ""
 "के काम करने लगेगा। Premium तब मौजूद है जब आप उसे चाहें।"
 
 msgid "Saved."
-msgstr ""
+msgstr "सहेज लिया गया।"
 
 msgid ""
 "Checking your VRChat group. Reload this page in a moment to see the "
 "result."
 msgstr ""
+"आपके VRChat ग्रुप की जाँच हो रही है। नतीजा देखने के लिए थोड़ी देर बाद यह "
+"पेज दोबारा लोड करें।"
 
 msgid ""
 "Your settings were saved, but the instructions panel still shows the old "
 "ones. Use <strong>Repost or move panel</strong> below to replace it."
 msgstr ""
+"आपकी सेटिंग्स सहेज ली गईं, पर निर्देश पैनल अब भी पुरानी दिखा रहा है। उसे "
+"बदलने के लिए नीचे <strong>पैनल दोबारा पोस्ट करें या हटाएँ</strong> का "
+"उपयोग करें।"
 
 msgid ""
 "Your grandfathered extras stay free whatever you decide. Premium unlocks "
 "the settings marked below."
 msgstr ""
+"आपकी पुरानी सुविधाएँ मुफ़्त ही रहेंगी, आप जो भी तय करें। Premium नीचे "
+"चिह्नित सेटिंग्स खोल देता है।"
 
 msgid "Unlocks the settings marked below. 18+ verification itself stays free."
-msgstr ""
+msgstr "नीचे चिह्नित सेटिंग्स खोल देता है। 18+ वेरिफ़िकेशन ख़ुद मुफ़्त ही रहता है।"
 
 msgid ""
 "Couldn't load this server's roles and channels just now, so some settings"
 " below show an ID instead of a name. The values themselves are correct."
 msgstr ""
+"इस सर्वर की भूमिकाएँ और चैनल अभी लोड नहीं हो सके, इसलिए नीचे कुछ सेटिंग्स"
+" नाम के बजाय ID दिखा रही हैं। मान ख़ुद सही हैं।"
 
-#, fuzzy
-#| msgid "" "This bot's database is missing the column for that setting.
-#| Contact the " "bot operator."
+# | msgid "" "This bot's database is missing the column for that setting.
+# | Contact the " "bot operator."
 msgid ""
 "This bot's database is missing the auto-verify column, so that setting "
 "isn't in effect regardless of what it shows. Contact the bot operator."
 msgstr ""
-"इस बॉट के डेटाबेस में उस सेटिंग का कॉलम मौजूद नहीं है। बॉट संचालक से "
-"संपर्क करें।"
+"इस बॉट के डेटाबेस में ऑटो-वेरिफ़ाई कॉलम नहीं है, इसलिए यह सेटिंग जो भी "
+"दिखे, लागू नहीं होती। बॉट संचालक से संपर्क करें।"
 
 msgid "Where it's posted"
-msgstr ""
+msgstr "कहाँ पोस्ट है"
 
-#, fuzzy
-#| msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-#| again " "shortly."
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
 msgid "The bot didn't answer this one. Try again shortly."
-msgstr ""
-"बॉट सहेजने का काम पूरा नहीं कर सका, इसलिए कुछ भी नहीं बदला गया। थोड़ी देर"
-" बाद फिर कोशिश करें।"
+msgstr "बॉट ने इसका जवाब नहीं दिया। थोड़ी देर बाद फिर कोशिश करें।"
 
 msgid "No panel found"
-msgstr ""
+msgstr "कोई पैनल नहीं मिला"
 
 msgid ""
 "Post one below, or with <code>/vrcverify_instructions</code> in Discord, "
 "so members have somewhere to start."
 msgstr ""
+"नीचे से एक पोस्ट करें, या Discord में "
+"<code>/vrcverify_instructions</code> से, ताकि सदस्यों के पास शुरू करने की"
+" जगह हो।"
 
 msgid "Members use this message to begin verification."
-msgstr ""
+msgstr "सदस्य इसी संदेश से वेरिफ़िकेशन शुरू करते हैं।"
 
 #, python-format
 msgid "VRChat said: %(said)s"
-msgstr ""
+msgstr "VRChat ने कहा: %(said)s"
 
 msgid "Setup code:"
-msgstr ""
+msgstr "सेटअप कोड:"
 
 msgid ""
 "Paste this anywhere in your VRChat group's description. It proves the "
 "group is yours, and you can remove it once the check passes."
 msgstr ""
+"इसे अपने VRChat ग्रुप के विवरण में कहीं भी चिपकाएँ। यह साबित करता है कि "
+"ग्रुप आपका है, और जाँच पास होते ही आप इसे हटा सकते हैं।"
 
 #, python-format
 msgid ""
@@ -1291,57 +1502,92 @@ msgid ""
 "rel=\"noopener noreferrer\" target=\"_blank\">%(account_id)s</a> — check "
 "the ID matches, because VRChat display names are not unique."
 msgstr ""
+"इस खाते को अपने ग्रुप में बुलाएँ: <a href=\"%(account_url)s\" "
+"rel=\"noopener noreferrer\" target=\"_blank\">%(account_id)s</a> — जाँच "
+"लें कि ID मेल खाती है, क्योंकि VRChat के प्रदर्शित नाम अनोखे नहीं होते।"
 
 #, python-format
 msgid ""
 "Your group: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
 "target=\"_blank\">open it on vrchat.com</a>"
 msgstr ""
+"आपका ग्रुप: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">इसे vrchat.com पर खोलें</a>"
 
 msgid "Not applied"
-msgstr ""
+msgstr "लागू नहीं"
 
 msgid "None"
-msgstr ""
+msgstr "कोई नहीं"
 
 msgid "Use the default blue"
-msgstr ""
+msgstr "डिफ़ॉल्ट नीला इस्तेमाल करें"
 
-#, fuzzy
-#| msgid "Premium until"
+# | msgid "Premium until"
 msgid "Premium only."
-msgstr "Premium इस तारीख़ तक"
+msgstr "सिर्फ़ Premium में।"
 
 msgid "Your saved value is kept, and comes back if the subscription is renewed."
-msgstr ""
+msgstr "आपका सहेजा हुआ मान बना रहता है, और सदस्यता नवीनीकृत होने पर लौट आता है।"
 
 msgid ""
 "Saved, but not acted on without Premium. Anyone can set this; the bot "
 "just won't use it until the feature is active."
 msgstr ""
+"सहेजा जाता है, पर Premium के बिना लागू नहीं होता। इसे कोई भी सेट कर सकता "
+"है; बॉट बस तब तक इसका उपयोग नहीं करेगा जब तक सुविधा सक्रिय न हो।"
 
 msgid ""
 "Not editable from the website yet. Nothing is wrong with it — the bot "
 "hasn't opened this setting to the dashboard."
 msgstr ""
+"वेबसाइट से अभी बदला नहीं जा सकता। इसमें कुछ गड़बड़ नहीं है — बॉट ने यह "
+"सेटिंग अभी डैशबोर्ड के लिए नहीं खोली है।"
 
 msgid "Save changes"
-msgstr ""
+msgstr "बदलाव सहेजें"
 
 msgid "Unsaved changes in this group"
-msgstr ""
+msgstr "इस समूह में बिना सहेजे बदलाव हैं"
 
 msgid "Check group setup"
-msgstr ""
+msgstr "ग्रुप सेटअप जाँचें"
 
 msgid ""
 "Asks the bot to join your group and report what it can do there. This "
 "button doesn't save the settings above — do that first if you've just "
 "changed the group."
 msgstr ""
+"बॉट से कहता है कि वह आपके ग्रुप में शामिल हो और बताए कि वह वहाँ क्या कर "
+"सकता है। यह बटन ऊपर की सेटिंग्स नहीं सहेजता — अगर आपने अभी ग्रुप बदला है "
+"तो पहले वह सहेज लें।"
 
 msgid "Post the panel in"
+msgstr "पैनल यहाँ पोस्ट करें"
+
+# | msgid "Post the panel in"
+msgid "Repost or move panel"
+msgstr "पैनल दोबारा पोस्ट करें या हटाएँ"
+
+# | msgid "Post the panel in"
+msgid "Post panel"
+msgstr "पैनल पोस्ट करें"
+
+msgid ""
+"Choosing the channel it's already in refreshes it rather than posting a "
+"second one. This button only moves the panel; saving the settings above "
+"is what changes what it says."
 msgstr ""
+"जिस चैनल में यह पहले से है उसे चुनने पर यह दोबारा पोस्ट नहीं होता, बस "
+"ताज़ा हो जाता है। यह बटन सिर्फ़ पैनल हटाता है; उसमें क्या लिखा है, वह ऊपर"
+" की सेटिंग्स सहेजने से बदलता है।"
+
+msgid ""
+"Members use this message to start verifying. It is posted with the "
+"settings saved above."
+msgstr ""
+"सदस्य इसी संदेश से वेरिफ़िकेशन शुरू करते हैं। यह ऊपर सहेजी गई सेटिंग्स के"
+" साथ पोस्ट होता है।"
 
 #, python-format
 msgid "Subscriptions — %(name)s — VRCVerify"

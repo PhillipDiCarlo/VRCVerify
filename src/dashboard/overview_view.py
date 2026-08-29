@@ -137,9 +137,9 @@ def build_tiles(
 
     members = overview.get("member_count")
     tiles.append(
-        Tile("Members", members)
+        Tile(t(N_("Members")), members, t=t)
         if isinstance(members, int)
-        else Tile("Members", state="unknown")
+        else Tile(t(N_("Members")), state="unknown", t=t)
     )
 
     for key, label in WINDOWS:

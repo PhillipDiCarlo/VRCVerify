@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-29 04:54-0400\n"
+"POT-Creation-Date: 2026-08-29 10:47-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -24,6 +24,24 @@ msgid "Light"
 msgstr ""
 
 msgid "System"
+msgstr ""
+
+msgid "Authorisation was declined."
+msgstr ""
+
+msgid "That login link has expired. Please try again."
+msgstr ""
+
+msgid "That login could not be verified. Please try again."
+msgstr ""
+
+msgid "Discord could not complete the login. Please try again."
+msgstr ""
+
+msgid "Page not found."
+msgstr ""
+
+msgid "Something went wrong."
 msgstr ""
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
@@ -158,6 +176,80 @@ msgstr ""
 msgid "Subscriptions"
 msgstr ""
 
+msgid ""
+"That server isn't available. Either VRCVerify isn't in it, or you don't "
+"have the Administrator permission there."
+msgstr ""
+
+msgid ""
+"Can't reach the bot right now, so this page can't be shown. Nothing has "
+"changed. Try again shortly."
+msgstr ""
+
+msgid "Premium"
+msgstr ""
+
+msgid "New"
+msgstr ""
+
+msgid "See how verification is going"
+msgstr ""
+
+msgid ""
+"The Overview page now charts the last 30 days of verifications, and "
+"checks the things that quietly break a server — a verified role that was "
+"deleted, a role the bot cannot assign, an instructions panel that is no "
+"longer where it was posted."
+msgstr ""
+
+msgid "The dashboard has been rebuilt"
+msgstr ""
+
+msgid ""
+"A new header and sidebar, servers you can pick from cards instead of a "
+"list, switches that show you what is on at a glance, and a warning before"
+" you leave a page with unsaved changes."
+msgstr ""
+
+msgid "Dark, light, or whatever your device says"
+msgstr ""
+
+msgid ""
+"The dashboard is dark by default now, with a theme button in the header. "
+"Your choice is remembered on this browser."
+msgstr ""
+
+msgid "Invite verified members to your VRChat group"
+msgstr ""
+
+msgid ""
+"Link a private VRChat group to your server, and members who finish "
+"verification are offered an invite to it. Nothing is sent to VRChat "
+"unless the member asks for it."
+msgstr ""
+
+msgid "See Premium"
+msgstr ""
+
+#, python-format
+msgid "New in your plan: %(title)s"
+msgstr ""
+
+#, python-format
+msgid "%(body)s It's included in your subscription."
+msgstr ""
+
+msgid "Set it up"
+msgstr ""
+
+#, python-format
+msgid "Your grandfathered extras stay free whatever you decide. %(body)s"
+msgstr ""
+
+#, python-format
+msgid "New in Premium: %(title)s"
+msgstr ""
+
 msgid "Today (UTC)"
 msgstr ""
 
@@ -178,6 +270,9 @@ msgstr ""
 
 #, python-format
 msgid "Only counting since %(date)s."
+msgstr ""
+
+msgid "Members"
 msgstr ""
 
 msgid "Verified, all time"
@@ -650,6 +745,12 @@ msgid ""
 "refreshed; it just can't be replaced."
 msgstr ""
 
+msgid "Save about 10%"
+msgstr ""
+
+msgid "Save about 20%"
+msgstr ""
+
 msgid "Monthly"
 msgstr ""
 
@@ -675,9 +776,6 @@ msgid "per 12 months"
 msgstr ""
 
 msgid "per year"
-msgstr ""
-
-msgid "Premium"
 msgstr ""
 
 #, python-format
@@ -724,6 +822,17 @@ msgid "Renews"
 msgstr ""
 
 msgid "Premium until"
+msgstr ""
+
+msgid "VRCVerify Premium is active on this server."
+msgstr ""
+
+msgid ""
+"This server was set up before Premium launched, so it keeps several "
+"extras free, permanently."
+msgstr ""
+
+msgid "18+ verification is free on this server, and always will be."
 msgstr ""
 
 msgid ""
@@ -971,6 +1080,15 @@ msgstr ""
 msgid "You'll be asked to sign in with Discord again."
 msgstr ""
 
+msgid "Overview, settings and activity"
+msgstr ""
+
+msgid "Not set up here, or not yours to manage"
+msgstr ""
+
+msgid "Can't check this server right now"
+msgstr ""
+
 msgid "Add to server"
 msgstr ""
 
@@ -1194,6 +1312,23 @@ msgid ""
 msgstr ""
 
 msgid "Post the panel in"
+msgstr ""
+
+msgid "Repost or move panel"
+msgstr ""
+
+msgid "Post panel"
+msgstr ""
+
+msgid ""
+"Choosing the channel it's already in refreshes it rather than posting a "
+"second one. This button only moves the panel; saving the settings above "
+"is what changes what it says."
+msgstr ""
+
+msgid ""
+"Members use this message to start verifying. It is posted with the "
+"settings saved above."
 msgstr ""
 
 #, python-format

@@ -79,10 +79,23 @@ channel and getting ignored:
 
 from __future__ import annotations
 
+# The no-op translation marker (#97). `ENTRIES` is built at import, so its
+# titles and bodies are msgids; `build_premium_card` looks them up per request.
+#
+# TRANSLATING THE ENTRIES THEMSELVES IS AN ONGOING COMMITMENT, and a small
+# deliberate one. Every future release note needs twelve translations or it
+# renders in English. The alternative -- translating only the frame and leaving
+# the news English -- produces a card reading "Neu in deinem Tarif:" above an
+# English sentence, which looks broken rather than partial. `scripts/i18n.sh`
+# reports an untranslated entry, and an untranslated one degrades to English
+# rather than to nothing, so the cost is visible and the failure is graceful.
+
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from typing import Optional
+
+from dashboard.i18n import N_
 
 
 @dataclass(frozen=True)
@@ -109,17 +122,18 @@ class Entry:
     @property
     def tag(self) -> str:
         """The badge the bell and the changelog page put beside the title."""
-        return "Premium" if self.premium else "New"
+        return N_("Premium") if self.premium else N_("New")
 
     @property
     def display_date(self) -> str:
         """"24 Aug 2026". Built without `%-d`, which is a glibc/BSD extension
         the standard does not promise -- this renders the same everywhere.
 
-        English, like every other string here, and one more for #97 to catch
-        when the dashboard learns the twelve languages the bot already speaks.
-        The `<time datetime>` beside it carries the ISO form, so the machine
-        readable half never depends on this.
+        Still English-shaped after #97: the month name is built here rather
+        than looked up, so this is a DATE FORMATTING problem, not a string
+        one. Tracked separately -- the twelve catalogues cannot fix a
+        formatter. The `<time datetime>` beside it carries the ISO form, so
+        the machine readable half never depends on this.
         """
         return f"{self.date.day} {self.date:%b %Y}"
 
@@ -182,42 +196,42 @@ ENTRIES = (
     Entry(
         id="2026-08-overview-trends",
         date=date(2026, 8, 24),
-        title="See how verification is going",
+        title=N_("See how verification is going"),
         body=(
-            "The Overview page now charts the last 30 days of verifications, "
+            N_("The Overview page now charts the last 30 days of verifications, "
             "and checks the things that quietly break a server \u2014 a verified "
             "role that was deleted, a role the bot cannot assign, an "
-            "instructions panel that is no longer where it was posted."
+            "instructions panel that is no longer where it was posted.")
         ),
     ),
     Entry(
         id="2026-08-dashboard-redesign",
         date=date(2026, 8, 24),
-        title="The dashboard has been rebuilt",
+        title=N_("The dashboard has been rebuilt"),
         body=(
-            "A new header and sidebar, servers you can pick from cards "
+            N_("A new header and sidebar, servers you can pick from cards "
             "instead of a list, switches that show you what is on at a "
             "glance, and a warning before you leave a page with unsaved "
-            "changes."
+            "changes.")
         ),
     ),
     Entry(
         id="2026-08-theme-choice",
         date=date(2026, 8, 23),
-        title="Dark, light, or whatever your device says",
+        title=N_("Dark, light, or whatever your device says"),
         body=(
-            "The dashboard is dark by default now, with a theme button in the "
-            "header. Your choice is remembered on this browser."
+            N_("The dashboard is dark by default now, with a theme button in the "
+            "header. Your choice is remembered on this browser.")
         ),
     ),
     Entry(
         id="2026-08-group-invite",
         date=date(2026, 8, 20),
-        title="Invite verified members to your VRChat group",
+        title=N_("Invite verified members to your VRChat group"),
         body=(
-            "Link a private VRChat group to your server, and members who "
+            N_("Link a private VRChat group to your server, and members who "
             "finish verification are offered an invite to it. Nothing is sent "
-            "to VRChat unless the member asks for it."
+            "to VRChat unless the member asks for it.")
         ),
         premium=True,
         # Named rather than left to the default, so the entry says where its
@@ -225,7 +239,7 @@ ENTRIES = (
         # grandfathered framings use it -- a server already on Premium is sent
         # to Settings, because it has nothing left to buy.
         cta_endpoint="guild_subscription",
-        cta_label="See Premium",
+        cta_label=N_("See Premium"),
     ),
 )
 
@@ -334,19 +348,42 @@ class Bell:
         return bool(self.entries)
 
 
-def build_bell(seen_id: Optional[str], entries=ENTRIES) -> Bell:
+def _localised(entry, t):
+    """One entry with its title and body looked up, still an Entry.
+
+    IN PYTHON, NOT IN THE TEMPLATE, and that is a security property rather
+    than a preference. Jinja's i18n extension is installed `newstyle`, so
+    `_()` in a template returns Markup -- correct for a literal written in a
+    template, and wrong for a value: a msgid that misses the catalogue comes
+    back unchanged and now marked safe to render as HTML.
+
+    `t` here is a plain `gettext` and returns a plain `str`, so the template
+    escapes the result like any other value. `validate_entries` already keeps
+    markup out of the constant; this keeps the second line of that defence
+    intact for whatever a catalogue might one day contain.
+    """
+    return replace(entry, title=t(entry.title), body=t(entry.body))
+
+
+def build_bell(seen_id: Optional[str], entries=ENTRIES, t=None) -> Bell:
     """The most recent handful, and whether any of them is new to this browser."""
-    return Bell(entries=tuple(entries[:BELL_LIMIT]), unread=has_unread(seen_id, entries))
+    shown = tuple(entries[:BELL_LIMIT])
+    if t is not None:
+        shown = tuple(_localised(entry, t) for entry in shown)
+    return Bell(entries=shown, unread=has_unread(seen_id, entries))
 
 
-def public_entries(entries=ENTRIES) -> tuple:
+def public_entries(entries=ENTRIES, t=None) -> tuple:
     """Everything a stranger may read: the changelog page (#137), the
     announcement channel (#138) and the update emails (#139) all start here.
 
     One flag, one filter, three surfaces -- rather than each of those issues
     deciding for itself what "safe to publish" means.
     """
-    return tuple(entry for entry in entries if entry.public)
+    public = tuple(entry for entry in entries if entry.public)
+    if t is None:
+        return public
+    return tuple(_localised(entry, t) for entry in public)
 
 
 def build_premium_card(
@@ -356,6 +393,7 @@ def build_premium_card(
     premium: bool = False,
     grandfathered: bool = False,
     entries=ENTRIES,
+    t=None,
 ) -> Optional[dict]:
     """The newest undismissed premium entry, phrased for this server's plan --
     or None, which is the common case.
@@ -381,6 +419,13 @@ def build_premium_card(
       rule it encodes -- never imply a grandfathered server could lose what it
       has -- is easier to keep when there is one string to check.
     """
+    if t is None:
+        # Callable with no request in sight, like every other pure builder
+        # here: the tests that pin WHICH entry is chosen need a dismissal set
+        # and a plan, not a language.
+        def t(text):
+            return text
+
     candidates = [entry for entry in entries if entry.premium]
     for entry in candidates:
         if is_dismissed(dismissed, guild_id, entry.id):
@@ -388,12 +433,17 @@ def build_premium_card(
 
         if premium:
             return {
-                "title": f"New in your plan: {entry.title}",
-                "body": f"{entry.body} It's included in your subscription.",
+                # The frame is one msgid with the title interpolated, not two
+                # halves glued with an f-string: several of the twelve put the
+                # colon, or the whole clause, somewhere English does not.
+                "title": t(N_("New in your plan: %(title)s"))
+                % {"title": t(entry.title)},
+                "body": t(N_("%(body)s It's included in your subscription."))
+                % {"body": t(entry.body)},
                 "action": "settings",
                 # Not the entry's own label: that one sells, and this server
                 # has already bought. The button goes to the thing itself.
-                "cta_label": "Set it up",
+                "cta_label": t(N_("Set it up")),
                 "entry_id": entry.id,
             }
 
@@ -408,14 +458,16 @@ def build_premium_card(
             # nothing rather than to a broken button.
             continue
 
-        body = entry.body
+        body = t(entry.body)
         if grandfathered:
-            body = f"Your grandfathered extras stay free whatever you decide. {body}"
+            body = t(
+                N_("Your grandfathered extras stay free whatever you decide. %(body)s")
+            ) % {"body": body}
         return {
-            "title": f"New in Premium: {entry.title}",
+            "title": t(N_("New in Premium: %(title)s")) % {"title": t(entry.title)},
             "body": body,
             "action": action,
-            "cta_label": entry.cta_label or "See Premium",
+            "cta_label": t(entry.cta_label) if entry.cta_label else t(N_("See Premium")),
             "entry_id": entry.id,
         }
     return None

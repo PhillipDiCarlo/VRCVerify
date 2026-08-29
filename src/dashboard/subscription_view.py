@@ -90,6 +90,12 @@ def _untranslated(text: str) -> str:
 # than configuration the page cannot work without.
 PLAN_METADATA = ("label", "order", "saving", "trial_days")
 
+# The `saving` strings this repository knows about, listed so `pybabel` finds
+# them. Nothing reads this tuple: the values arrive from Stripe metadata and
+# are looked up in `plan_from_price`. It exists so the catalogue HAS an entry
+# for them -- a msgid nobody marked is a msgid nobody can translate.
+KNOWN_SAVINGS = (N_("Save about 10%"), N_("Save about 20%"))
+
 # Labels for the intervals worth naming specially. Anything else is described
 # generically from its own interval, which is correct if unlovely -- and being
 # unlovely in the Stripe dashboard is a much cheaper problem than a plan that
@@ -577,20 +583,25 @@ def plan_from_price(price: dict, t: Callable[[str], str] = _untranslated) -> Opt
     # bespoke -- comes back exactly as typed. The only strings this can change
     # are ones we already chose the wording of.
     #
-    # It does NOT extend to `saving`: those carry a percentage the operator
-    # computed, so there is no fixed msgid to match and no honest way to
-    # translate one from here.
     label = metadata.get("label")
     if not isinstance(label, str) or not label.strip():
         label = _interval_label(price, t)
     else:
         label = t(label.strip())
 
+    # `saving` goes through the same lookup, with a caveat worth stating: it
+    # carries a percentage the operator computed, so a msgid can only match the
+    # exact wording currently in Stripe. The two below are the ones this
+    # repository knows about; change the discount and the msgid misses and the
+    # operator's own text renders, which is what happens today for every one of
+    # them. So this can improve a pricing page and cannot break one -- but a
+    # translated pricing page CAN still show an English saving, and the fix for
+    # that is to add the new wording here, not to guess at the number.
     saving = metadata.get("saving")
     if not isinstance(saving, str) or not saving.strip():
         saving = None
     else:
-        saving = saving.strip()
+        saving = t(saving.strip())
 
     order = _positive_int(metadata.get("order"))
     highlight = str(metadata.get("highlight") or "").strip().lower()

@@ -856,6 +856,17 @@ def _register_assets(app: Flask) -> None:
         return i18n.choices()
 
     @app.template_global()
+    def tag_label(entry) -> str:
+        """"Premium" or "New" beside a changelog entry, translated.
+
+        A global rather than `{{ _(entry.tag) }}` in the template, for the
+        reason `changelog._localised` gives: `_()` is newstyle here and
+        returns Markup, so applying it to a value skips the escaping that
+        element relies on. This returns a plain str.
+        """
+        return _translator()(entry.tag)
+
+    @app.template_global()
     def language_endonym() -> str:
         """The language in force, named in itself: "Deutsch", not "German".
 
@@ -911,7 +922,7 @@ def _register_assets(app: Flask) -> None:
         seen = getattr(g, "changelog_seen", None)
         if seen is None:
             seen = changelog.read_seen(request.cookies.get(SEEN_COOKIE))
-        return changelog.build_bell(seen)
+        return changelog.build_bell(seen, t=_translator())
 
 
 # -------------------------------------------------------------------
@@ -1198,19 +1209,32 @@ def _register_routes(app: Flask) -> None:
         if error:
             # User clicked Cancel, or Discord refused. Not an error condition
             # worth a stack trace.
-            return render_template("error.html", message="Authorisation was declined."), 400
+            return render_template(
+                "error.html",
+                message=_translator()(N_("Authorisation was declined.")),
+            ), 400
 
         code = request.args.get("code")
         state = request.args.get("state")
         if pending is None or not pending.oauth_state or not code or not state:
-            return render_template("error.html", message="That login link has expired. Please try again."), 400
+            return render_template(
+                "error.html",
+                message=_translator()(
+                    N_("That login link has expired. Please try again.")
+                ),
+            ), 400
 
         # The check that makes CSRF against the login flow impossible: the
         # state came from us, in this browser, for this attempt.
         if not _same_secret(pending.oauth_state, state):
             logger.warning("OAuth state mismatch; refusing the callback.")
             store.destroy(pending.sid)
-            return render_template("error.html", message="That login could not be verified. Please try again."), 400
+            return render_template(
+                "error.html",
+                message=_translator()(
+                    N_("That login could not be verified. Please try again.")
+                ),
+            ), 400
 
         try:
             discord_id, guilds = oauth.login(
@@ -1223,7 +1247,12 @@ def _register_routes(app: Flask) -> None:
         except oauth.OAuthError as failure:
             logger.warning("OAuth login failed: %s", failure)
             store.destroy(pending.sid)
-            return render_template("error.html", message="Discord could not complete the login. Please try again."), 502
+            return render_template(
+                "error.html",
+                message=_translator()(
+                    N_("Discord could not complete the login. Please try again.")
+                ),
+            ), 502
 
         # New session id at the moment privilege is granted; the pre-auth row
         # is deleted. See SessionStore.complete_login.
@@ -1263,6 +1292,7 @@ def _register_routes(app: Flask) -> None:
             dismissed=_dismissed(),
             premium=bool(premium.get("premium")),
             grandfathered=bool(premium.get("grandfathered")),
+            t=_translator(),
         )
 
         return render_template(
@@ -1673,7 +1703,15 @@ def _register_routes(app: Flask) -> None:
         response = make_response(
             render_template(
                 "changelog.html",
-                entries=changelog.ENTRIES,
+                # Translated here rather than in the template: see
+                # `changelog._localised` for why `_()` on a runtime value is
+                # an escaping hole rather than a shortcut. This page renders
+                # every entry, not only the public ones, which is the one
+                # thing it does that the apex site's copy cannot.
+                entries=tuple(
+                    changelog._localised(entry, _translator())
+                    for entry in changelog.ENTRIES
+                ),
                 csrf_token=session.csrf_token,
                 nav_return_to="whats_new",
             )
@@ -2270,13 +2308,17 @@ def _register_routes(app: Flask) -> None:
     @app.errorhandler(404)
     def not_found(_error):
         return render_template(
-            "error.html", message="Page not found.", **_chrome_for_error()
+            "error.html",
+            message=_translator()(N_("Page not found.")),
+            **_chrome_for_error(),
         ), 404
 
     @app.errorhandler(500)
     def server_error(_error):  # pragma: no cover - defensive
         return render_template(
-            "error.html", message="Something went wrong.", **_chrome_for_error()
+            "error.html",
+            message=_translator()(N_("Something went wrong.")),
+            **_chrome_for_error(),
         ), 500
 
 
@@ -3105,9 +3147,10 @@ def _guild_page_unavailable(
         return (
             render_template(
                 "error.html",
-                message=(
-                    "That server isn't available. Either VRCVerify isn't in it, "
-                    "or you don't have the Administrator permission there."
+                message=_translator()(
+                    N_("That server isn't available. Either VRCVerify isn't "
+                       "in it, or you don't have the Administrator permission "
+                       "there.")
                 ),
                 csrf_token=session.csrf_token,
             ),
@@ -3120,14 +3163,14 @@ def _guild_page_unavailable(
     return (
         render_template(
             "error.html",
-            message=(
+            message=_translator()(
                 # Section-neutral, because all three land here. It used to name
                 # settings, which on the Overview would have been telling an
                 # admin the wrong thing was unavailable. "Nothing has changed"
                 # stays: it is the sentence that matters after a failed save,
                 # and it is true on a page with no save in it.
-                "Can't reach the bot right now, so this page can't be shown. "
-                "Nothing has changed. Try again shortly."
+                N_("Can't reach the bot right now, so this page can't be "
+                   "shown. Nothing has changed. Try again shortly.")
             ),
             csrf_token=session.csrf_token,
         ),

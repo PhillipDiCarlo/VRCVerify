@@ -22,12 +22,11 @@
   <h1>{{ guild_name }}</h1>
   <p>
     {% if premium.premium %}
-      VRCVerify Premium is active on this server.
+      {% trans %}VRCVerify Premium is active on this server.{% endtrans %}
     {% elif premium.grandfathered %}
-      This server was set up before Premium launched, so it keeps several
-      extras free, permanently.
+      {% trans %}This server was set up before Premium launched, so it keeps several extras free, permanently.{% endtrans %}
     {% else %}
-      18+ verification is free on this server, and always will be.
+      {% trans %}18+ verification is free on this server, and always will be.{% endtrans %}
     {% endif %}
   </p>
 </header>
