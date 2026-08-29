@@ -705,6 +705,24 @@ p { text-wrap: pretty; }
   box-shadow: var(--shadow-overlay);
 }
 
+/* The language picker's panel (#97). Twelve rows where the other three menus
+ * have three or four, so it is the one panel that can outgrow the viewport --
+ * on a phone in landscape it would run off the bottom of the screen with no
+ * way to reach the last few languages.
+ *
+ * A capped height and its own scroll rather than a shorter list: every one of
+ * the twelve has to be reachable, because the reader who needs the twelfth is
+ * exactly the reader this feature is for. `overscroll-behavior` stops the page
+ * behind it scrolling on when the list hits its end.
+ *
+ * The cap is in `rem`, so it grows with the reader's font size instead of
+ * cutting more rows off the bottom the larger they set it. */
+.bar-panel-tall {
+  max-height: min(24rem, 60vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .bar-panel ul { list-style: none; margin: 0; padding: 0; }
 
 .menu-label {
@@ -2002,6 +2020,25 @@ code {
   background: var(--inset);
   padding: 0.1rem 0.3rem;
   border-radius: 3px;
+  /* Left-to-right even inside an Arabic sentence (#97).
+   *
+   * Every `<code>` on this site holds a slash command, an id or a URL -- a
+   * string somebody has to type or paste EXACTLY. In an RTL paragraph the
+   * bidi algorithm moves the leading "/" of `/vrcverify_subscription` to the
+   * far end, because a slash is neutral and takes the direction of what
+   * surrounds it. The command then reads `vrcverify_subscription/`, which is
+   * not the command.
+   *
+   * `unicode-bidi: isolate` is what stops the surrounding paragraph's
+   * direction leaking in, and `direction: ltr` is what fixes this run's own.
+   * Both are needed: the first without the second still resolves to RTL.
+   *
+   * This is the one piece of RTL work that belongs with the strings rather
+   * than with the layout: it is a correctness bug about what the text SAYS,
+   * not about which side of the page a sidebar sits on. Mirroring the layout
+   * is tracked separately. */
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 /* Chrome, and it aligns with the other piece of chrome (#195 phase 6).

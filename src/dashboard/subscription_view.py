@@ -47,7 +47,28 @@ WHAT THIS MODULE MAY NOT DO
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Callable, Optional
+
+# `N_` marks a string for translation without looking it up (issue #97). The
+# tables below are built at import, before any request has said which language
+# it wants, so they hold msgids and the lookup happens at the point of use
+# against the callable the caller passed in.
+#
+# THE ONLY IMPORT THIS MODULE HAS GAINED, and it costs nothing this module
+# promises: i18n.py is pure too -- no Flask, no network, no clock -- and `N_`
+# in particular returns its argument.
+from dashboard.i18n import N_
+
+
+def _untranslated(text: str) -> str:
+    """The default `t`: hand back the English, unchanged.
+
+    Every entry point here takes `t` as a keyword defaulting to this, which is
+    what keeps the module's promise intact. It stays callable with no request
+    in sight -- a test asserting that a past-due server is told "Due to renew"
+    rather than "Renews" needs a plan payload and a clock, not a language.
+    """
+    return text
 
 # Plans come from Stripe now, not from here.
 #
@@ -74,11 +95,27 @@ PLAN_METADATA = ("label", "order", "saving", "trial_days")
 # unlovely in the Stripe dashboard is a much cheaper problem than a plan that
 # cannot be sold until someone deploys.
 _INTERVAL_LABELS = {
-    ("month", 1): "Monthly",
-    ("month", 3): "3 months",
-    ("month", 6): "6 months",
-    ("month", 12): "12 months",
-    ("year", 1): "12 months",
+    ("month", 1): N_("Monthly"),
+    ("month", 3): N_("3 months"),
+    ("month", 6): N_("6 months"),
+    ("month", 12): N_("12 months"),
+    ("year", 1): N_("12 months"),
+}
+
+# The denominator under the amount, for the cadences worth naming. Keyed the
+# same way as _INTERVAL_LABELS and translated at the point of use.
+#
+# Only the named cases translate. A price configured in Stripe as "every 5
+# weeks" falls through to an English "per 5 weeks", which is the same bargain
+# _INTERVAL_LABELS already struck: being unlovely for an exotic cadence is a
+# far cheaper problem than a plan that cannot be sold until somebody deploys a
+# new msgid for it.
+_PERIOD_LABELS = {
+    ("month", 1): N_("per month"),
+    ("month", 3): N_("per 3 months"),
+    ("month", 6): N_("per 6 months"),
+    ("month", 12): N_("per 12 months"),
+    ("year", 1): N_("per year"),
 }
 
 # Where a price with no `order` metadata sorts. Longer terms last, which is the
@@ -130,7 +167,7 @@ def _format_amount(unit_amount, currency) -> Optional[str]:
     return f"{figure} {code.upper()}"
 
 
-def _billing_period(price: dict) -> Optional[str]:
+def _billing_period(price: dict, t: Callable[[str], str] = _untranslated) -> Optional[str]:
     """"per month", "per 6 months" -- the denominator under the amount."""
     recurring = price.get("recurring")
     if not isinstance(recurring, dict):
@@ -141,6 +178,9 @@ def _billing_period(price: dict) -> Optional[str]:
     count = recurring.get("interval_count") or 1
     if not isinstance(count, int) or count < 1:
         count = 1
+    named = _PERIOD_LABELS.get((interval, count))
+    if named:
+        return t(named)
     if count == 1:
         return f"per {interval}"
     return f"per {count} {interval}s"
@@ -152,7 +192,7 @@ def _billing_period(price: dict) -> Optional[str]:
 # subscription is real and paid for and only the *label* is unknown, so it
 # degrades to this and never to "not subscribed" — which would switch off a
 # paying customer over a missing environment variable.
-UNKNOWN_PLAN_LABEL = "Premium"
+UNKNOWN_PLAN_LABEL = N_("Premium")
 
 STORE_URL = "https://discord.com/application-directory/{app_id}/store/{sku_id}"
 
@@ -176,7 +216,13 @@ class Plan:
         amount: Optional[str] = None,
         period: Optional[str] = None,
         highlight: bool = False,
+        t: Callable[[str], str] = _untranslated,
     ):
+        # Kept so `trial_note` -- a property, read by the template after this
+        # object is built -- can say "7-day free trial" in the same language as
+        # the card it sits on. Underscored: it is machinery, and every other
+        # attribute here is something Jinja reads.
+        self._t = t
         self.price_id = price_id
         self.label = label
         self.saving = saving
@@ -197,8 +243,17 @@ class Plan:
         if not self.trial_days:
             return None
         # "7-day free trial", not "7-days" -- a hyphenated compound adjective
-        # takes the singular however many days it names.
-        return f"{self.trial_days}-day free trial"
+        # takes the singular however many days it names. That rule is English
+        # grammar and not every language's, which is exactly why the whole
+        # sentence is one msgid with the number interpolated rather than a
+        # number glued to a translated phrase: a translator who cannot move
+        # the digit cannot apply their own language's rule to it.
+        # `N_` around the literal even though `_t` is right there. The
+        # extractor matches on the NAME at the call site and does not know
+        # what `self._t` is, so a bare literal here is a msgid that never
+        # reaches the .pot -- and the only symptom would be a trial note that
+        # stays in English on an otherwise translated card.
+        return self._t(N_("%(days)s-day free trial")) % {"days": self.trial_days}
 
 
 class SubscriptionPage:
@@ -220,7 +275,13 @@ class SubscriptionPage:
         last_plan_label: Optional[str] = None,
         plans_unavailable: bool = False,
         trial_eligible: bool = False,
+        t: Callable[[str], str] = _untranslated,
     ):
+        # This request's `gettext`, for the properties below. Everything on
+        # this page that is a WORD rather than a figure or a name is looked up
+        # through it: the chip, the fact-list labels, and the two payment
+        # routes. Underscored, like Plan's, because Jinja reads the rest.
+        self._t = t
         self.state = state
         self.grandfathered = grandfathered
         self.premium = premium
@@ -268,12 +329,12 @@ class SubscriptionPage:
     #: owns which token each tone resolves to, and `test_contrast.py` owns
     #: whether that token is legible where it is drawn.
     _CHIP = {
-        "stripe": ("Active", "ok"),
-        "discord": ("Active", "ok"),
-        "past_due": ("Payment failed", "warn"),
-        "both": ("Charged twice", "warn"),
-        "pending": ("Confirming", "muted"),
-        "unavailable": ("Unknown", "muted"),
+        "stripe": (N_("Active"), "ok"),
+        "discord": (N_("Active"), "ok"),
+        "past_due": (N_("Payment failed"), "warn"),
+        "both": (N_("Charged twice"), "warn"),
+        "pending": (N_("Confirming"), "muted"),
+        "unavailable": (N_("Unknown"), "muted"),
     }
 
     @property
@@ -291,13 +352,13 @@ class SubscriptionPage:
         # fact list underneath says "Premium until" rather than "Renews" for
         # exactly the same reason.
         if self.state == "stripe" and self.ends_on:
-            return {"label": "Cancelled", "tone": "muted"}
+            return {"label": self._t(N_("Cancelled")), "tone": "muted"}
 
         found = self._CHIP.get(self.state)
         if found is None:
             return None
         label, tone = found
-        return {"label": label, "tone": tone}
+        return {"label": self._t(label), "tone": tone}
 
     @property
     def facts(self) -> tuple:
@@ -326,18 +387,28 @@ class SubscriptionPage:
             # a regression this issue introduced: the sentence "This server
             # has VRCVerify Premium, bought through Discord" was deleted on
             # the assumption the fact list carried it, and it did not.
-            rows.append(("Plan", self.plan_label or UNKNOWN_PLAN_LABEL))
+            # `plan_label` is a plan name from Stripe when there is one, so it
+            # is NOT translated here -- it was already built in this request's
+            # language by `plans_from_prices`, or it is an operator's own words
+            # typed into a price's metadata. Only the fallback is a msgid.
+            rows.append((self._t(N_("Plan")), self.plan_label or self._t(UNKNOWN_PLAN_LABEL)))
         elif self.plan_label:
-            rows.append(("Plan", self.plan_label))
+            rows.append((self._t(N_("Plan")), self.plan_label))
 
         if self.state == "discord":
-            rows.append(("Billed through", "Discord"))
+            # "Discord" and "Card" are values, not labels, and both are
+            # translatable: "Card" is the English word for the payment method
+            # and has an equivalent everywhere. "Discord" is a product name and
+            # its msgid will be left as-is in most catalogues -- but not all,
+            # since a few of these scripts transliterate product names, and
+            # that is the translator's call to make rather than this file's.
+            rows.append((self._t(N_("Billed through")), self._t(N_("Discord"))))
         elif self.state == "both":
             # Named rather than implied. An admin cannot go and cancel the
             # right one without being told there are two.
-            rows.append(("Billed through", "Card and Discord"))
+            rows.append((self._t(N_("Billed through")), self._t(N_("Card and Discord"))))
         elif self.state in ("stripe", "past_due"):
-            rows.append(("Billed through", "Card"))
+            rows.append((self._t(N_("Billed through")), self._t(N_("Card"))))
 
         if self.renews_on:
             # "Due to renew" while a payment is failing, not "Renews". Stripe
@@ -346,10 +417,10 @@ class SubscriptionPage:
             # saying the last payment did not go through. The prose this
             # replaced hedged with the same three words; dropping the hedge
             # was an accident of compressing it into a label.
-            label = "Due to renew" if self.state == "past_due" else "Renews"
-            rows.append((label, self.renews_on))
+            label = N_("Due to renew") if self.state == "past_due" else N_("Renews")
+            rows.append((self._t(label), self.renews_on))
         elif self.ends_on:
-            rows.append(("Premium until", self.ends_on))
+            rows.append((self._t(N_("Premium until")), self.ends_on))
         return tuple(rows)
 
     @property
@@ -448,20 +519,20 @@ def _positive_int(raw) -> Optional[int]:
     return value if value > 0 else None
 
 
-def _interval_label(price: dict) -> str:
+def _interval_label(price: dict, t: Callable[[str], str] = _untranslated) -> str:
     """What to call a price that did not name itself."""
     recurring = price.get("recurring")
     if not isinstance(recurring, dict):
-        return UNKNOWN_PLAN_LABEL
+        return t(UNKNOWN_PLAN_LABEL)
     interval = recurring.get("interval")
     count = recurring.get("interval_count") or 1
     if not isinstance(count, int) or count < 1:
         count = 1
     named = _INTERVAL_LABELS.get((interval, count))
     if named:
-        return named
+        return t(named)
     if not isinstance(interval, str) or not interval:
-        return UNKNOWN_PLAN_LABEL
+        return t(UNKNOWN_PLAN_LABEL)
     if count == 1:
         return f"Every {interval}"
     return f"Every {count} {interval}s"
@@ -478,7 +549,7 @@ def _interval_rank(price: dict) -> int:
     return _INTERVAL_MONTHS.get(recurring.get("interval"), 0) * count
 
 
-def plan_from_price(price: dict) -> Optional[Plan]:
+def plan_from_price(price: dict, t: Callable[[str], str] = _untranslated) -> Optional[Plan]:
     """One Stripe price as a plan card, or None if it cannot be sold.
 
     None for a price with no id: everything else about a price degrades to a
@@ -492,9 +563,28 @@ def plan_from_price(price: dict) -> Optional[Plan]:
     if not isinstance(metadata, dict):
         metadata = {}
 
+    # The operator's own words, typed into the price's metadata in Stripe --
+    # and still offered to the catalogue, which is worth explaining.
+    #
+    # In practice these labels ARE our own English: a price is called
+    # "Monthly" or "6 months" because that is what the cards have always said,
+    # and `_INTERVAL_LABELS` below carries a translation for each. Passing the
+    # metadata through `t` means a Japanese pricing page reads "月額" instead
+    # of an English "Monthly" sitting above a translated "1 か月あたり".
+    #
+    # Safe because a gettext lookup that misses returns its argument. A label
+    # nobody wrote a msgid for -- "Founder's rate", a seasonal name, anything
+    # bespoke -- comes back exactly as typed. The only strings this can change
+    # are ones we already chose the wording of.
+    #
+    # It does NOT extend to `saving`: those carry a percentage the operator
+    # computed, so there is no fixed msgid to match and no honest way to
+    # translate one from here.
     label = metadata.get("label")
     if not isinstance(label, str) or not label.strip():
-        label = _interval_label(price)
+        label = _interval_label(price, t)
+    else:
+        label = t(label.strip())
 
     saving = metadata.get("saving")
     if not isinstance(saving, str) or not saving.strip():
@@ -506,17 +596,18 @@ def plan_from_price(price: dict) -> Optional[Plan]:
     highlight = str(metadata.get("highlight") or "").strip().lower()
     return Plan(
         price_id=price_id,
-        label=label.strip(),
+        label=label,
         saving=saving,
         trial_days=_positive_int(metadata.get("trial_days")),
         order=order if order is not None else _interval_rank(price),
         amount=_format_amount(price.get("unit_amount"), price.get("currency")),
-        period=_billing_period(price),
+        period=_billing_period(price, t),
         highlight=highlight in {"1", "true", "yes"},
+        t=t,
     )
 
 
-def plans_from_prices(prices) -> tuple:
+def plans_from_prices(prices, t: Callable[[str], str] = _untranslated) -> tuple:
     """The plan cards for a product's active prices, in the order to show them.
 
     Sorted by `order` metadata where set and by term length otherwise, with the
@@ -531,14 +622,16 @@ def plans_from_prices(prices) -> tuple:
     for price in prices:
         if not isinstance(price, dict):
             continue
-        plan = plan_from_price(price)
+        plan = plan_from_price(price, t)
         if plan is not None:
             plans.append(plan)
     plans.sort(key=lambda plan: (plan.order, plan.price_id))
     return tuple(plans)
 
 
-def plan_label_for(price_id: Optional[str], plans=()) -> str:
+def plan_label_for(
+    price_id: Optional[str], plans=(), t: Callable[[str], str] = _untranslated
+) -> str:
     """The words for a price id, degrading to a generic label.
 
     Looked up against the plans currently on offer. A miss is ordinary rather
@@ -549,11 +642,11 @@ def plan_label_for(price_id: Optional[str], plans=()) -> str:
     lands here. Their subscription is real; only the label is unknown.
     """
     if not price_id:
-        return UNKNOWN_PLAN_LABEL
+        return t(UNKNOWN_PLAN_LABEL)
     for plan in plans:
         if plan.price_id == price_id:
             return plan.label
-    return UNKNOWN_PLAN_LABEL
+    return t(UNKNOWN_PLAN_LABEL)
 
 
 def build(
@@ -565,6 +658,7 @@ def build(
     stripe_configured: bool = True,
     just_bought: bool = False,
     now: Optional[datetime] = None,
+    t: Callable[[str], str] = _untranslated,
 ) -> SubscriptionPage:
     """The whole page, from the bot's settings payload.
 
@@ -601,7 +695,7 @@ def build(
     separate switches on separate hosts on purpose.
     """
     if settings is None:
-        return SubscriptionPage("unavailable")
+        return SubscriptionPage("unavailable", t=t)
 
     premium_block = settings.get("premium")
     if not isinstance(premium_block, dict) or "enforced" not in premium_block:
@@ -610,7 +704,7 @@ def build(
         # falsy would render "every feature is available at no charge" to a
         # server that may well be paying, which is the same class of lie as
         # rendering a failed read as "not subscribed".
-        return SubscriptionPage("unavailable")
+        return SubscriptionPage("unavailable", t=t)
     stripe_block = settings.get("stripe") or {}
 
     enforced = bool(premium_block.get("enforced"))
@@ -628,7 +722,7 @@ def build(
     # is nothing to sell and a page offering to sell it would be selling
     # something already free.
     if not enforced:
-        return SubscriptionPage("off", premium=True, grandfathered=grandfathered)
+        return SubscriptionPage("off", premium=True, grandfathered=grandfathered, t=t)
 
     # Two switches on two hosts, and both must be on. The bot's says whether it
     # would record a purchase; the dashboard's says whether it can take one.
@@ -666,7 +760,7 @@ def build(
     # (`_stripe_row_is_paid` admits `canceled` while the period is unexpired),
     # so this changes the words and not the entitlement.
     cancelling = bool(stripe_block.get("cancel_at_period_end")) or status == "canceled"
-    label = plan_label_for(stripe_block.get("price_id"), plans)
+    label = plan_label_for(stripe_block.get("price_id"), plans, t)
 
     # Exactly one of these is ever set, and they are different promises.
     renews_on = None if cancelling else period_end
@@ -689,6 +783,7 @@ def build(
             discord_command=True,
             on_discord=discord,
             card_count=card_count,
+            t=t,
         )
 
     if stripe_active:
@@ -699,6 +794,7 @@ def build(
             plan_label=label,
             renews_on=renews_on,
             ends_on=ends_on,
+            t=t,
         )
 
     if premium:
@@ -712,6 +808,7 @@ def build(
             store_url=store_url,
             discord_command=True,
             on_discord=True,
+            t=t,
         )
 
     if just_bought:
@@ -723,6 +820,7 @@ def build(
             "pending",
             grandfathered=grandfathered,
             store_url=store_url,
+            t=t,
         )
 
     return SubscriptionPage(
@@ -749,6 +847,7 @@ def build(
         # switched off cannot advertise a trial that the checkout route --
         # which re-reads this same field -- would then refuse to honour.
         trial_eligible=bool(stripe_block.get("trial_eligible")) and stripe_on,
+        t=t,
     )
 
 
@@ -808,7 +907,8 @@ class PublicPricingPage:
 
 
 def build_public_pricing(plans=(), *, plans_unavailable: bool = False,
-                         stripe_configured: bool = True) -> PublicPricingPage:
+                         stripe_configured: bool = True,
+                         t: Callable[[str], str] = _untranslated) -> PublicPricingPage:
     """Pure, like everything else here: prices in, a page object out."""
     return PublicPricingPage(
         plans,

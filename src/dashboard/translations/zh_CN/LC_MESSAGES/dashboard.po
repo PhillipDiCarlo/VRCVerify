@@ -1,0 +1,631 @@
+# Chinese (Simplified, China) translations for VRCVerify.
+# Copyright (C) 2026 Esatto Technologies
+# This file is distributed under the same license as the VRCVerify project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: VRCVerify VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-08-29 03:54-0400\n"
+"PO-Revision-Date: 2026-08-29 03:27-0400\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh_Hans_CN\n"
+"Language-Team: zh_Hans_CN <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Dark"
+msgstr "深色"
+
+msgid "Light"
+msgstr "浅色"
+
+msgid "System"
+msgstr "跟随系统"
+
+msgid "That setting needs VRCVerify Premium. Nothing was changed."
+msgstr "该设置需要 VRCVerify Premium。未做任何更改。"
+
+msgid "That language isn't one VRCVerify supports. Nothing was changed."
+msgstr "VRCVerify 不支持该语言。未做任何更改。"
+
+msgid ""
+"Run /vrcverify_setup in your server first -- VRCVerify needs a verified "
+"role before it can store anything else."
+msgstr "请先在你的服务器中运行 /vrcverify_setup —— VRCVerify 需要先有一个已验证身份组，才能保存其他内容。"
+
+msgid "That setting can't be changed from the website yet. Nothing was changed."
+msgstr "该设置暂时还不能从网站修改。未做任何更改。"
+
+msgid ""
+"The bot couldn't complete the save, so nothing was changed. Try again "
+"shortly."
+msgstr "机器人未能完成保存，因此未做任何更改。请稍后重试。"
+
+msgid "That role isn't in this server any more. Reload the page and pick again."
+msgstr "该身份组已不在此服务器中。请刷新页面后重新选择。"
+
+msgid "Pick a verified role -- verification can't run without one."
+msgstr "请选择一个已验证身份组 —— 没有它验证无法运行。"
+
+msgid ""
+"Links in the custom message may only point to discord.com or vrchat.com. "
+"Nothing was changed."
+msgstr "自定义消息中的链接只能指向 discord.com 或 vrchat.com。未做任何更改。"
+
+msgid "That custom message is too long. The limit is 1000 characters."
+msgstr "该自定义消息过长。上限为 1000 个字符。"
+
+msgid ""
+"Verification logs can't go in an announcement channel -- other servers "
+"can follow one, which would republish your members' age status."
+msgstr "验证日志不能放在公告频道 —— 其他服务器可以关注公告频道，这会把你成员的年龄状态转发到本服务器之外。"
+
+msgid ""
+"That channel isn't in this server any more. Reload the page and pick "
+"again."
+msgstr "该频道已不在此服务器中。请刷新页面后重新选择。"
+
+msgid ""
+"VRCVerify can't post in that channel, so it can't log there. Check the "
+"channel's permissions and try again."
+msgstr "VRCVerify 无法在该频道发言，因此无法在那里记录日志。请检查该频道的权限后重试。"
+
+msgid ""
+"This bot's database is missing the column for that setting. Contact the "
+"bot operator."
+msgstr "该机器人的数据库缺少这项设置对应的字段。请联系机器人运营者。"
+
+msgid ""
+"That doesn't look like a VRChat group. Paste the group's ID (it starts "
+"with grp_) or the vrchat.com link to the group."
+msgstr "这看起来不是一个 VRChat 群组。请粘贴群组 ID（以 grp_ 开头）或该群组的 vrchat.com 链接。"
+
+msgid ""
+"VRChat's vrc.group short links can't be looked up. Open the group on "
+"vrchat.com and paste that link instead, or the group ID starting with "
+"grp_."
+msgstr "VRChat 的 vrc.group 短链接无法解析。请在 vrchat.com 上打开该群组并粘贴那个链接，或粘贴以 grp_ 开头的群组 ID。"
+
+msgid ""
+"Another Discord server has already linked that VRChat group. A group can "
+"only belong to one server -- contact support if that's wrong."
+msgstr "另一个 Discord 服务器已经关联了该 VRChat 群组。一个群组只能属于一个服务器 —— 如果这不正确，请联系支持。"
+
+msgid "Add your VRChat group first, then run the setup check."
+msgstr "请先添加你的 VRChat 群组，然后再运行设置检查。"
+
+msgid "That change couldn't be saved, so nothing was changed."
+msgstr "该更改未能保存，因此未做任何更改。"
+
+msgid ""
+"VRCVerify can't post the panel in that channel. It needs both Send "
+"Messages and Embed Links there -- Embed Links is the one that's usually "
+"missing, because the panel is an embed."
+msgstr "VRCVerify 无法在该频道发布面板。它在那里同时需要“发送消息”和“嵌入链接”两项权限 —— 通常缺的是“嵌入链接”，因为面板是一条嵌入消息。"
+
+msgid "The panel couldn't be posted just now. Try again shortly."
+msgstr "目前无法发布面板。请稍后重试。"
+
+msgid "Panel posted."
+msgstr "面板已发布。"
+
+msgid ""
+"That channel already had the panel, so it was refreshed rather than "
+"posted again."
+msgstr "该频道已有面板，因此是刷新而不是重新发布。"
+
+msgid ""
+"Panel posted in the new channel. The old one is still up in its previous "
+"channel -- delete it in Discord when you're ready."
+msgstr "面板已发布到新频道。旧的那条仍留在原频道 —— 你方便时可以在 Discord 中删除它。"
+
+msgid ""
+"That panel was posted in a way Discord won't let the bot edit, so it was "
+"replaced with a fresh one. Your settings apply to it now."
+msgstr "该面板的发布方式使 Discord 不允许机器人编辑它，因此已替换为一条新的。你的设置现在应用在新面板上。"
+
+msgid ""
+"Thanks — your subscription is being set up. Premium switches on as soon "
+"as Stripe confirms the payment, usually within a few seconds."
+msgstr "谢谢 —— 你的订阅正在设置中。Stripe 确认付款后 Premium 就会开启，通常只需几秒。"
+
+msgid "That plan isn't one we offer. Nothing has been charged."
+msgstr "我们没有提供该套餐。未产生任何费用。"
+
+msgid ""
+"This server already has Premium, so there was nothing to buy. Nothing has"
+" been charged."
+msgstr "此服务器已有 Premium，因此没有可购买的内容。未产生任何费用。"
+
+msgid ""
+"We couldn't reach Stripe just now, so nothing has been charged. Try again"
+" in a moment, or subscribe inside Discord instead."
+msgstr "我们暂时无法连接 Stripe，因此未产生任何费用。请稍后重试，或改在 Discord 内订阅。"
+
+msgid "There's no card subscription on this server to manage."
+msgstr "此服务器没有可管理的银行卡订阅。"
+
+msgid "Overview"
+msgstr "概览"
+
+# | msgid "Sections"
+msgid "Settings"
+msgstr "设置"
+
+msgid "Subscriptions"
+msgstr "订阅"
+
+# | msgid "A verification log channel"
+msgid "Verification"
+msgstr "验证"
+
+msgid "After verifying"
+msgstr "验证之后"
+
+# | msgid "A branded instructions panel"
+msgid "Instructions panel"
+msgstr "说明面板"
+
+msgid "VRChat group"
+msgstr "VRChat 群组"
+
+msgid "Logging"
+msgstr "日志"
+
+# | msgid "Active"
+msgid "Activity"
+msgstr "动态"
+
+msgid "Monthly"
+msgstr "按月"
+
+msgid "3 months"
+msgstr "3 个月"
+
+msgid "6 months"
+msgstr "6 个月"
+
+msgid "12 months"
+msgstr "12 个月"
+
+msgid "per month"
+msgstr "每月"
+
+msgid "per 3 months"
+msgstr "每 3 个月"
+
+msgid "per 6 months"
+msgstr "每 6 个月"
+
+msgid "per 12 months"
+msgstr "每 12 个月"
+
+msgid "per year"
+msgstr "每年"
+
+msgid "Premium"
+msgstr "Premium"
+
+#, python-format
+msgid "%(days)s-day free trial"
+msgstr "%(days)s 天免费试用"
+
+msgid "Active"
+msgstr "生效中"
+
+msgid "Payment failed"
+msgstr "付款失败"
+
+msgid "Charged twice"
+msgstr "重复扣费"
+
+msgid "Confirming"
+msgstr "确认中"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "Cancelled"
+msgstr "已取消"
+
+msgid "Plan"
+msgstr "套餐"
+
+msgid "Billed through"
+msgstr "付费渠道"
+
+msgid "Discord"
+msgstr "Discord"
+
+msgid "Card and Discord"
+msgstr "银行卡和 Discord"
+
+msgid "Card"
+msgstr "银行卡"
+
+msgid "Due to renew"
+msgstr "预计续费"
+
+msgid "Renews"
+msgstr "续费日期"
+
+msgid "Premium until"
+msgstr "Premium 有效期至"
+
+msgid "Show the sidebar"
+msgstr "显示侧边栏"
+
+msgid "Hide the sidebar"
+msgstr "隐藏侧边栏"
+
+msgid "What's new"
+msgstr "新功能"
+
+msgid "There are updates you haven't seen."
+msgstr "有你还没看过的更新。"
+
+msgid "What&#39;s new"
+msgstr "新功能"
+
+msgid "See all updates"
+msgstr "查看全部更新"
+
+msgid "Get these in your own server"
+msgstr "在你自己的服务器接收这些更新"
+
+msgid "Mark all as read"
+msgstr "全部标为已读"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Choose a different one."
+msgstr "换一种语言。"
+
+msgid "Theme"
+msgstr "主题"
+
+msgid "Appearance"
+msgstr "外观"
+
+msgid "Always dark."
+msgstr "始终深色。"
+
+msgid "Always light."
+msgstr "始终浅色。"
+
+msgid "Matches the theme set on your device."
+msgstr "跟随你设备上的主题。"
+
+msgid "Account"
+msgstr "账户"
+
+msgid "Sign out"
+msgstr "退出登录"
+
+msgid "Sign out everywhere"
+msgstr "在所有设备上退出登录"
+
+msgid "Sections"
+msgstr "版块"
+
+msgid "All servers"
+msgstr "全部服务器"
+
+msgid "Settings sections"
+msgstr "设置版块"
+
+msgid "Terms"
+msgstr "条款"
+
+msgid "Privacy"
+msgstr "隐私"
+
+msgid "Refunds"
+msgstr "退款"
+
+msgid "Core 18+ verification is free, forever."
+msgstr "基础的 18+ 验证永久免费。"
+
+msgid "VRCVerify is operated by Esatto Technologies, United States."
+msgstr "VRCVerify 由美国的 Esatto Technologies 运营。"
+
+msgid ""
+"Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord "
+"Inc."
+msgstr "与 VRChat Inc. 和 Discord Inc. 无关联，也未获其认可或赞助。"
+
+msgid "Pricing · VRCVerify"
+msgstr "价格 · VRCVerify"
+
+msgid "Pricing"
+msgstr "价格"
+
+msgid ""
+"Verification is free, forever. Premium adds the automation around it, per"
+" server."
+msgstr "验证永久免费。Premium 按服务器计费，为验证补上周边的自动化。"
+
+msgid "Free"
+msgstr "免费"
+
+msgid "forever"
+msgstr "永久"
+
+msgid "Everything you need to verify your members."
+msgstr "验证成员所需的一切。"
+
+msgid "Verify members as 18+"
+msgstr "将成员验证为 18+"
+
+msgid "Auto-verify people who verified in another server"
+msgstr "自动验证已在其他服务器完成验证的人"
+
+msgid "Members can update their own nickname"
+msgstr "成员可以更新自己的昵称"
+
+msgid "Add to your server"
+msgstr "添加到你的服务器"
+
+msgid "Per server"
+msgstr "按服务器"
+
+msgid "monthly, 6 or 12 months"
+msgstr "按月、6 个月或 12 个月"
+
+msgid "The automation around verification, for servers that want it."
+msgstr "围绕验证的自动化，给需要它的服务器。"
+
+msgid "Automatic removal of an unverified role"
+msgstr "自动移除未验证身份组"
+
+msgid "Nickname syncing"
+msgstr "昵称同步"
+
+msgid "A custom post-verification message"
+msgstr "验证后的自定义消息"
+
+msgid "A verification log channel"
+msgstr "验证日志频道"
+
+msgid "Priority in the verification queue"
+msgstr "验证队列中的优先处理"
+
+msgid "A branded instructions panel"
+msgstr "带有你服务器色彩与图标的说明面板"
+
+msgid "Open the dashboard"
+msgstr "打开控制台"
+
+msgid "One Premium, three ways to pay for it"
+msgstr "同一个 Premium，三种付费方式"
+
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr "我们暂时无法加载价格。<strong>Premium 仍然可用。</strong>请稍后重试，或改在 Discord 内订阅。"
+
+msgid "There are no plans on sale at the moment."
+msgstr "目前没有在售的套餐。"
+
+msgid ""
+"Every plan below unlocks exactly the same features — the only difference "
+"is how long you pay for at once, and how much that saves."
+msgstr "下面每个套餐解锁的功能完全相同 —— 唯一的区别是你一次付多长时间的费用，以及因此省下多少。"
+
+msgid "Most popular"
+msgstr "最受欢迎"
+
+msgid ""
+"Some plans start with a free trial. Whether a particular server qualifies"
+" depends on whether it has had one before — the dashboard tells you "
+"before you pay."
+msgstr "部分套餐附带免费试用。某个服务器是否符合条件，取决于它此前是否已经用过 —— 在你付款之前，控制台会告诉你。"
+
+msgid ""
+"Prices are in US dollars and <strong>exclude tax</strong>; any tax due "
+"where you are is added at checkout. Payment is handled by Stripe — card "
+"details never reach VRCVerify."
+msgstr ""
+"价格以美元计算且<strong>不含税</strong>；你所在地区应缴的税会在结账时另行计算。付款由 Stripe 处理 —— "
+"银行卡信息不会到达 VRCVerify。"
+
+msgid ""
+"Premium is bought per server. You can subscribe with a card in the "
+"dashboard, or monthly through Discord."
+msgstr "Premium 按服务器购买。你可以在控制台用银行卡订阅，也可以通过 Discord 按月订阅。"
+
+msgid "Ready to start?"
+msgstr "准备好开始了吗？"
+
+msgid ""
+"Add VRCVerify to your server and verification works immediately, at no "
+"cost. Premium is there when you want it."
+msgstr "把 VRCVerify 添加到你的服务器，验证立即可用，且不收费。需要时随时可以启用 Premium。"
+
+#, python-format
+msgid "Subscriptions — %(name)s — VRCVerify"
+msgstr "订阅 — %(name)s — VRCVerify"
+
+msgid ""
+"We couldn't check this server's plan just now. Nothing here is missing — "
+"the page simply can't say what's true yet. Try again in a moment."
+msgstr "我们暂时无法查看此服务器的套餐。这里并没有缺少内容 —— 只是页面还无法确认实际情况。请稍后重试。"
+
+msgid ""
+"Every VRCVerify feature is currently available to this server at no "
+"charge. There's nothing to subscribe to."
+msgstr "目前此服务器可以免费使用 VRCVerify 的全部功能。没有需要订阅的内容。"
+
+msgid ""
+"Waiting for Stripe to confirm. Premium switches on by itself, usually "
+"within a few seconds — reload this page in a moment."
+msgstr "正在等待 Stripe 确认。Premium 会自行开启，通常只需几秒 —— 请稍后刷新本页。"
+
+msgid ""
+"If it hasn't switched on after a minute or two, nothing is lost: Stripe "
+"keeps trying to reach us for up to three days, and the subscription takes"
+" effect as soon as it gets through. Get in touch if it stays this way."
+msgstr "如果一两分钟后仍未开启，也不会有任何损失：Stripe 会在最多三天内持续尝试联系我们，一旦成功，订阅即刻生效。如果一直是这样，请与我们联系。"
+
+#, python-format
+msgid ""
+"This server looks like it's paying for Premium on %(count)s separate card"
+" subscriptions. Premium is on and stays on; you're just being charged "
+"more than once."
+msgstr "此服务器似乎通过 %(count)s 笔独立的银行卡订阅在为 Premium 付费。Premium 已开启并会保持开启 —— 只是你被重复扣费了。"
+
+msgid ""
+"This server looks like it's paying for Premium twice — once by card and "
+"once through Discord. Premium is on and stays on; you're just being "
+"charged more than once."
+msgstr ""
+"此服务器似乎在为 Premium 重复付费 —— 一次通过银行卡，一次通过 Discord。Premium 已开启并会保持开启 —— "
+"只是你被重复扣费了。"
+
+msgid ""
+"We won't cancel either one for you — that's your call, and getting it "
+"wrong with someone else's money isn't a risk worth automating."
+msgstr "我们不会替你取消其中任何一个 —— 这该由你决定，而拿别人的钱去做错这个决定，不是值得自动化的风险。"
+
+msgid ""
+"To cancel the card subscription, use <strong>Manage billing</strong> "
+"below."
+msgstr "要取消银行卡订阅，请使用下方的<strong>管理账单</strong>。"
+
+#, python-format
+msgid ""
+"To cancel the Discord one, open <strong>User Settings → "
+"Subscriptions</strong> in Discord, or run "
+"<code>/vrcverify_subscription</code> in %(name)s."
+msgstr ""
+"要取消 Discord 那一个，请在 Discord 中打开<strong>用户设置 → 订阅</strong>，或在 %(name)s 中运行 "
+"<code>/vrcverify_subscription</code>。"
+
+msgid ""
+"Your last payment didn't go through. Premium is still on while Stripe "
+"retries the card — update your card details under <strong>Manage "
+"billing</strong> below."
+msgstr ""
+"你上一次付款未能完成。在 Stripe 重试扣款期间 Premium 仍然开启 —— "
+"请在下方的<strong>管理账单</strong>中更新你的银行卡信息。"
+
+msgid ""
+"Cancelled, and nothing changes before then — this server keeps Premium "
+"for the whole of the period it has already paid for."
+msgstr "已取消，在此之前不会有任何变化 —— 此服务器会在已付费的整个周期内保留 Premium。"
+
+msgid ""
+"Discord handles the billing, so cancelling or changing the payment method"
+" happens there — <strong>User Settings → Subscriptions</strong>. We can't"
+" manage a Discord subscription from here."
+msgstr ""
+"账单由 Discord 处理，因此取消或更改付款方式需要在那里进行 —— <strong>用户设置 → 订阅</strong>。我们无法从这里管理"
+" Discord 的订阅。"
+
+#, python-format
+msgid ""
+"18+ verification is free and always will be. Premium unlocks the settings"
+" marked on <a href=\"%(settings_url)s\">Settings</a>, shortens the wait "
+"between verifications, and moves this server up the verification queue."
+msgstr ""
+"18+ 验证是免费的，并且永远都会是。Premium 会解锁<a "
+"href=\"%(settings_url)s\">设置</a>中标记的项目，缩短两次验证之间的等待时间，并让此服务器在验证队列中靠前。"
+
+msgid ""
+"Your grandfathered extras — unverified-role removal, nickname sync and "
+"the custom verification message — stay free whatever you decide here."
+msgstr "你保留的旧有权益 —— 移除未验证身份组、昵称同步和自定义验证消息 —— 无论你在这里作何选择，都将继续免费。"
+
+#, python-format
+msgid "Your Premium ended on %(when)s"
+msgstr "你的 Premium 已于 %(when)s 结束"
+
+#, python-format
+msgid ""
+"The %(plan)s plan. Subscribing again picks up where it left off — nothing"
+" was reset when it lapsed."
+msgstr "%(plan)s 套餐。重新订阅会从中断处继续 —— 到期时没有任何内容被重置。"
+
+msgid ""
+"Subscribing again picks up where it left off — nothing was reset when it "
+"lapsed."
+msgstr "重新订阅会从中断处继续 —— 到期时没有任何内容被重置。"
+
+msgid "Pay by card"
+msgstr "用银行卡付款"
+
+msgid ""
+"We can't load the plans right now. <strong>Nothing has changed about your"
+" subscription.</strong> Try again in a moment, or subscribe inside "
+"Discord below."
+msgstr "我们暂时无法加载套餐。<strong>你的订阅没有任何变化。</strong>请稍后重试，或在下方于 Discord 内订阅。"
+
+msgid ""
+"<strong>One Premium, three ways to pay for it.</strong> Every plan below "
+"unlocks exactly the same features — the only difference is how long you "
+"pay for at once, and how much that saves."
+msgstr ""
+"<strong>同一个 Premium，三种付费方式。</strong>下面每个套餐解锁的功能完全相同 —— "
+"唯一的区别是你一次付多长时间的费用，以及因此省下多少。"
+
+msgid "Subscribe"
+msgstr "订阅"
+
+msgid "All plans renew automatically. Cancel any time from this page."
+msgstr "所有套餐都会自动续费。你可以随时在本页取消。"
+
+msgid ""
+"<strong>The 6- and 12-month plans are card-only.</strong> Discord "
+"subscriptions bill monthly, so those terms can't be offered there."
+msgstr "<strong>6 个月和 12 个月的套餐仅限银行卡。</strong>Discord 的订阅按月计费，因此那边无法提供这些时长。"
+
+#, python-format
+msgid ""
+"Need to send these prices to whoever pays? There is a <a "
+"href=\"%(pricing_url)s\">public pricing page</a> that works without a "
+"Discord account."
+msgstr ""
+"需要把这些价格发给付款的人吗？我们有一个无需 Discord 账户即可查看的<a "
+"href=\"%(pricing_url)s\">公开价格页面</a>。"
+
+msgid "Manage billing"
+msgstr "管理账单"
+
+msgid ""
+"Change plan, update your card or cancel — on Stripe's own billing portal."
+" You'll come straight back here afterwards."
+msgstr "更换套餐、更新银行卡或取消 —— 都在 Stripe 自己的账单门户中完成。结束后你会直接回到这里。"
+
+msgid "Buy inside Discord"
+msgstr "在 Discord 内购买"
+
+#, python-format
+msgid ""
+"Run it in %(name)s. Discord handles the payment, and the command's button"
+" is already pointed at this server. <strong>Monthly only</strong>, at the"
+" same price as the monthly plan above."
+msgstr ""
+"请在 %(name)s 中运行它。付款由 Discord "
+"处理，命令中的按钮已经指向此服务器。<strong>仅限按月</strong>，价格与上面的月付套餐相同。"
+
+#, python-format
+msgid "Run it in %(name)s to see this server's Discord subscription."
+msgstr "在 %(name)s 中运行它，即可查看此服务器的 Discord 订阅。"
+
+#, python-format
+msgid ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">See what's included on Discord's store page</a> — it "
+"lists the price and perks, but you choose the server during checkout, so "
+"use the command above if you administer more than one."
+msgstr ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" target=\"_blank\">在"
+" Discord 商店页面查看包含哪些内容</a> —— "
+"那里列出了价格和权益，但服务器要在结账过程中选择，所以如果你管理不止一个服务器，请使用上面的命令。"
+

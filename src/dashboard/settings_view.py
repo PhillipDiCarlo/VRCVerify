@@ -28,6 +28,11 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+# The no-op translation marker (#97). The group names below are built at
+# import, so they hold msgids; `app._settings_subnav` looks them up in the
+# language of the request that needs them.
+from dashboard.i18n import N_
+
 # Display names only. The authoritative list is locales.LANGUAGE_CODES in the
 # bot, which this image deliberately does not carry -- it ships api_tokens.py
 # and this package, nothing else. An unrecognised code renders as itself, so
@@ -67,11 +72,11 @@ GROUP_INPUT_MAXLEN = 120
 # bookmarks /settings/vrchat-group keeps that link, so renaming one later is a
 # redirect to add, not a string to edit.
 SETTINGS_GROUPS = (
-    ("verification", "Verification"),
-    ("after-verifying", "After verifying"),
-    ("panel", "Instructions panel"),
-    ("vrchat-group", "VRChat group"),
-    ("logging", "Logging"),
+    ("verification", N_("Verification")),
+    ("after-verifying", N_("After verifying")),
+    ("panel", N_("Instructions panel")),
+    ("vrchat-group", N_("VRChat group")),
+    ("logging", N_("Logging")),
 )
 
 # The names, not a second copy of them. `build_groups()` titles its cards from
@@ -92,7 +97,7 @@ SETTINGS_DEFAULT_SLUG = SETTINGS_SLUGS[0]
 # top of the page: a reader who taps "Activity" and lands on something headed
 # differently has to stop and check they got where they meant to.
 ACTIVITY_SLUG = "activity"
-ACTIVITY_TITLE = "Activity"
+ACTIVITY_TITLE = N_("Activity")
 
 LOCALE_NAMES = {
     "en-US": "English",

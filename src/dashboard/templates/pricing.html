@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Pricing · VRCVerify{% endblock %}
+{% block title %}{% trans %}Pricing · VRCVerify{% endtrans %}{% endblock %}
 
 {# WHAT PREMIUM COSTS, FOR SOMEBODY WHO HAS NOT SIGNED IN (#188, restructured
    in #195 phase 3).
@@ -39,9 +39,8 @@
    page is the second kind. Overview and Settings must NOT copy this -- a
    console that centres its headings reads as a brochure. #}
 <header class="page-head selling">
-  <h1>Pricing</h1>
-  <p>Verification is free, forever. Premium adds the automation around it,
-  per server.</p>
+  <h1>{% trans %}Pricing{% endtrans %}</h1>
+  <p>{% trans %}Verification is free, forever. Premium adds the automation around it, per server.{% endtrans %}</p>
 </header>
 
 {# FREE AND PREMIUM AS PEERS, and this markup mirrors the landing page's two
@@ -54,20 +53,20 @@
    every figure on this page comes from the Stripe read below. #}
 <div class="tiers">
   <div class="plan-card">
-    <h2>Free</h2>
+    <h2>{% trans %}Free{% endtrans %}</h2>
     {# "Free" rather than "$0" -- the same wording the landing page uses, and
        for the same reason: a price-shaped token here invites a reader to
        compare it against the cadence figures below, which are for the other
        tier entirely. #}
     <p class="plan-price">
-      <span class="plan-amount">Free</span>
-      <span class="plan-period">forever</span>
+      <span class="plan-amount">{% trans %}Free{% endtrans %}</span>
+      <span class="plan-period">{% trans %}forever{% endtrans %}</span>
     </p>
-    <p class="plan-blurb">Everything you need to verify your members.</p>
+    <p class="plan-blurb">{% trans %}Everything you need to verify your members.{% endtrans %}</p>
     <ul class="plan-list">
-      <li>Verify members as 18+</li>
-      <li>Auto-verify people who verified in another server</li>
-      <li>Members can update their own nickname</li>
+      <li>{% trans %}Verify members as 18+{% endtrans %}</li>
+      <li>{% trans %}Auto-verify people who verified in another server{% endtrans %}</li>
+      <li>{% trans %}Members can update their own nickname{% endtrans %}</li>
     </ul>
     {# THE CARDS CARRY THEIR OWN CTA, which is what every reference in #195
        does and what fills the space Free would otherwise leave -- three
@@ -75,11 +74,11 @@
        same height.
        `margin-top: auto` in the stylesheet pins both buttons to the bottom
        edge so they line up across the two cards regardless of that gap. #}
-    <a class="button secondary" href="{{ install_url }}" rel="noopener">Add to your server</a>
+    <a class="button secondary" href="{{ install_url }}" rel="noopener">{% trans %}Add to your server{% endtrans %}</a>
   </div>
 
   <div class="plan-card plan-featured">
-    <h2>Premium</h2>
+    <h2>{% trans %}Premium{% endtrans %}</h2>
     {# NO FIGURE IN THIS CARD, and it is the one compromise in this layout.
        The references put a price on every tier card, and this one cannot
        honestly carry a single number: Premium has three cadences and picking
@@ -91,23 +90,22 @@
        figures are in the section immediately below it, which is where the
        reader is already heading. #}
     <p class="plan-price">
-      <span class="plan-amount">Per server</span>
-      <span class="plan-period">monthly, 6 or 12 months</span>
+      <span class="plan-amount">{% trans %}Per server{% endtrans %}</span>
+      <span class="plan-period">{% trans %}monthly, 6 or 12 months{% endtrans %}</span>
     </p>
-    <p class="plan-blurb">The automation around verification, for servers that
-    want it.</p>
+    <p class="plan-blurb">{% trans %}The automation around verification, for servers that want it.{% endtrans %}</p>
     <ul class="plan-list">
-      <li>Automatic removal of an unverified role</li>
-      <li>Nickname syncing</li>
-      <li>A custom post-verification message</li>
-      <li>A verification log channel</li>
-      <li>Priority in the verification queue</li>
-      <li>A branded instructions panel</li>
+      <li>{% trans %}Automatic removal of an unverified role{% endtrans %}</li>
+      <li>{% trans %}Nickname syncing{% endtrans %}</li>
+      <li>{% trans %}A custom post-verification message{% endtrans %}</li>
+      <li>{% trans %}A verification log channel{% endtrans %}</li>
+      <li>{% trans %}Priority in the verification queue{% endtrans %}</li>
+      <li>{% trans %}A branded instructions panel{% endtrans %}</li>
     </ul>
     {# Into the dashboard rather than into Discord: buying happens signed in,
        where the server is known. The button below the cadence cards says the
        same thing for a reader who scrolled past this one. #}
-    <a class="button" href="{{ url_for('index') }}">Open the dashboard</a>
+    <a class="button" href="{{ url_for('index') }}">{% trans %}Open the dashboard{% endtrans %}</a>
   </div>
 </div>
 
@@ -121,7 +119,7 @@
 
      The heading now says it too, so the claim survives a reader who skips
      the paragraph. #}
-  <h2>One Premium, three ways to pay for it</h2>
+  <h2>{% trans %}One Premium, three ways to pay for it{% endtrans %}</h2>
 
   {% if page.unavailable %}
     {# A FAILED READ IS AN APOLOGY, NEVER "NOTHING IS FOR SALE".
@@ -132,17 +130,15 @@
        Since #195 the tier cards above render regardless, so a Stripe outage
        now costs the reader the figures rather than the whole page. #}
     <p class="blurb">
-      We can't load prices right now. <strong>Premium is still
-      available.</strong> Try again in a moment, or subscribe inside Discord.
+      {% trans %}We can't load prices right now. <strong>Premium is still available.</strong> Try again in a moment, or subscribe inside Discord.{% endtrans %}
     </p>
   {% elif not page.offers_plans %}
     <p class="blurb muted">
-      There are no plans on sale at the moment.
+      {% trans %}There are no plans on sale at the moment.{% endtrans %}
     </p>
   {% else %}
     <p class="blurb">
-      Every plan below unlocks exactly the same features — the only difference
-      is how long you pay for at once, and how much that saves.
+      {% trans %}Every plan below unlocks exactly the same features — the only difference is how long you pay for at once, and how much that saves.{% endtrans %}
     </p>
 
     <div class="plans">
@@ -154,7 +150,7 @@
            in the dashboard, signed in, where the server is known. #}
         <div class="plan-card{% if plan.highlight %} plan-featured{% endif %}">
           {% if plan.highlight %}
-            <p class="plan-badge">Most popular</p>
+            <p class="plan-badge">{% trans %}Most popular{% endtrans %}</p>
           {% endif %}
           <h3>{{ plan.label }}</h3>
           {# Omitted entirely when Stripe did not give us one -- never guessed,
@@ -183,30 +179,28 @@
        So: a trial exists, the dashboard says whether yours does. #}
     {% if page.mentions_a_trial %}
       <p class="blurb muted">
-        Some plans start with a free trial. Whether a particular server
-        qualifies depends on whether it has had one before — the dashboard
-        tells you before you pay.
+        {% trans %}Some plans start with a free trial. Whether a particular server qualifies depends on whether it has had one before — the dashboard tells you before you pay.{% endtrans %}
       </p>
     {% endif %}
 
+    {# The same tax sentence as subscription.html, and deliberately the SAME
+       msgid: one string, one translation, one meaning of "excludes tax" across
+       both pages that quote a price. Two near-identical msgids is how the
+       signed-in and signed-out pages end up disagreeing in Japanese. #}
     <p class="blurb muted">
-      Prices are in US dollars and <strong>exclude tax</strong>; any tax due
-      where you are is added at checkout. Payment is handled by Stripe — card
-      details never reach VRCVerify.
+      {% trans %}Prices are in US dollars and <strong>exclude tax</strong>; any tax due where you are is added at checkout. Payment is handled by Stripe — card details never reach VRCVerify.{% endtrans %}
     </p>
   {% endif %}
 
   <p class="blurb muted">
-    Premium is bought per server. You can subscribe with a card in the
-    dashboard, or monthly through Discord.
+    {% trans %}Premium is bought per server. You can subscribe with a card in the dashboard, or monthly through Discord.{% endtrans %}
   </p>
 </section>
 
 <section class="panel group">
-  <h2>Ready to start?</h2>
+  <h2>{% trans %}Ready to start?{% endtrans %}</h2>
   <p class="blurb">
-    Add VRCVerify to your server and verification works immediately, at no
-    cost. Premium is there when you want it.
+    {% trans %}Add VRCVerify to your server and verification works immediately, at no cost. Premium is there when you want it.{% endtrans %}
   </p>
   {# The button matches the sentence above it. It said "Open the dashboard"
      under copy reading "Add VRCVerify to your server", which is a different
@@ -215,7 +209,7 @@
      verification costs nothing and wants to try it. The paid path's close is
      the Premium card, and the cadence cards sit between the two. #}
   <p>
-    <a class="button" href="{{ install_url }}" rel="noopener">Add to your server</a>
+    <a class="button" href="{{ install_url }}" rel="noopener">{% trans %}Add to your server{% endtrans %}</a>
   </p>
 </section>
 

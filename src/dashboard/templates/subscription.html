@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Subscriptions — {{ guild_name }} — VRCVerify{% endblock %}
+{% block title %}{% trans name=guild_name %}Subscriptions — {{ name }} — VRCVerify{% endtrans %}{% endblock %}
 
 {# Every branch below switches on `page.state`, which subscription_view builds.
    Adding a state is a change there and then here, rather than a condition
@@ -9,7 +9,20 @@
 
    No inline styles anywhere. `style-src 'self'` drops them SILENTLY, so a
    colour written as style="" would simply not apply and nothing would say so.
-   Everything visual is a class in style.css. #}
+   Everything visual is a class in style.css.
+
+   TRANSLATED FIRST OF EVERY PAGE HERE (#97). "Excludes tax", "renews on",
+   "ends on" and the double-billing warning are the sentences where a
+   misunderstanding does not produce a confused admin but a chargeback, so this
+   page and /pricing were the two the twelve catalogues were filled in for
+   before anything else.
+
+   WHOLE SENTENCES IN ONE `{% raw %}{% trans %}{% endraw %}` BLOCK, never a sentence assembled from
+   fragments across an `{% raw %}{% if %}{% endraw %}`. A translator can reorder words inside a
+   msgid and cannot reorder them across a template tag, and the languages here
+   include several that put the verb somewhere English does not. Where that
+   meant saying "This server looks like it's paying for Premium" twice, once
+   per branch, it is said twice. #}
 
 {% block content %}
 {% if notice %}
@@ -17,7 +30,7 @@
 {% endif %}
 
 <section class="panel group">
-  <h2>Subscriptions</h2>
+  <h2>{% trans %}Subscriptions{% endtrans %}</h2>
 
   {# THE STATUS, BEFORE THE EXPLANATION (#141 phase 1).
      Eight of this page's states used to open with a paragraph, so "you are
@@ -30,7 +43,11 @@
      Both come from subscription_view, not from conditions grown here. This is
      the page that takes money, and two template branches disagreeing about
      whether somebody has paid is the failure this page's own header warns
-     about. #}
+     about.
+
+     Their text is translated in that module rather than here, because the
+     module is what chooses the words. It takes a `gettext` callable as an
+     argument -- see the note on purity in i18n.py. #}
   {% if page.chip %}
     <p class="sub-status">
       {# Deliberately NOT `.badge.premium`. That chip means "your plan cannot
@@ -59,14 +76,12 @@
     {# Never "not subscribed". A failed read rendered as "you have no plan",
        next to a Buy button, is how a paying customer buys a second one. #}
     <p class="blurb">
-      We couldn't check this server's plan just now. Nothing here is missing —
-      the page simply can't say what's true yet. Try again in a moment.
+      {% trans %}We couldn't check this server's plan just now. Nothing here is missing — the page simply can't say what's true yet. Try again in a moment.{% endtrans %}
     </p>
 
   {% elif page.state == 'off' %}
     <p class="blurb">
-      Every VRCVerify feature is currently available to this server at no
-      charge. There's nothing to subscribe to.
+      {% trans %}Every VRCVerify feature is currently available to this server at no charge. There's nothing to subscribe to.{% endtrans %}
     </p>
 
   {% elif page.state == 'pending' %}
@@ -76,42 +91,38 @@
        rendered three Buy buttons directly under the thank-you message, at the
        one moment somebody has demonstrably just paid. #}
     <p class="blurb">
-      Waiting for Stripe to confirm. Premium switches on by itself, usually
-      within a few seconds — reload this page in a moment.
+      {% trans %}Waiting for Stripe to confirm. Premium switches on by itself, usually within a few seconds — reload this page in a moment.{% endtrans %}
     </p>
     <p class="muted">
-      If it hasn't switched on after a minute or two, nothing is lost: Stripe
-      keeps trying to reach us for up to three days, and the subscription takes
-      effect as soon as it gets through. Get in touch if it stays this way.
+      {% trans %}If it hasn't switched on after a minute or two, nothing is lost: Stripe keeps trying to reach us for up to three days, and the subscription takes effect as soon as it gets through. Get in touch if it stays this way.{% endtrans %}
     </p>
 
   {% elif page.state == 'both' %}
     {# Detected and warned, never auto-cancelled. Code that cancels a
        subscription and issues a refund without a human deciding is a category
-       of bug that costs real money in the wrong direction. #}
+       of bug that costs real money in the wrong direction.
+
+       The two branches carry a whole sentence each. They used to share an
+       opening clause and a closing one with only the middle switched, which
+       reads fine in English and cannot be translated into a language that
+       orders the sentence differently. #}
     <p class="notice">
-      This server looks like it's paying for Premium
       {% if page.card_count > 1 %}
-        on {{ page.card_count }} separate card subscriptions.
+        {% trans count=page.card_count %}This server looks like it's paying for Premium on {{ count }} separate card subscriptions. Premium is on and stays on; you're just being charged more than once.{% endtrans %}
       {% else %}
-        twice — once by card and once through Discord.
+        {% trans %}This server looks like it's paying for Premium twice — once by card and once through Discord. Premium is on and stays on; you're just being charged more than once.{% endtrans %}
       {% endif %}
-      Premium is on and stays on; you're just being charged more than once.
     </p>
     <p class="blurb">
-      We won't cancel either one for you — that's your call, and getting it
-      wrong with someone else's money isn't a risk worth automating.
+      {% trans %}We won't cancel either one for you — that's your call, and getting it wrong with someone else's money isn't a risk worth automating.{% endtrans %}
     </p>
     <ul class="plan-notes">
       <li>
-        To cancel the card subscription, use <strong>Manage billing</strong>
-        below.
+        {% trans %}To cancel the card subscription, use <strong>Manage billing</strong> below.{% endtrans %}
       </li>
       {% if page.on_discord %}
         <li>
-          To cancel the Discord one, open <strong>User Settings →
-          Subscriptions</strong> in Discord, or run
-          <code>/vrcverify_subscription</code> in {{ guild_name }}.
+          {% trans name=guild_name %}To cancel the Discord one, open <strong>User Settings → Subscriptions</strong> in Discord, or run <code>/vrcverify_subscription</code> in {{ name }}.{% endtrans %}
         </li>
       {% endif %}
     </ul>
@@ -123,9 +134,7 @@
   {% elif page.state == 'past_due' %}
     {# An honest banner. Not an error, and not silence. #}
     <p class="notice">
-      Your last payment didn't go through. Premium is still on while Stripe
-      retries the card — update your card details under
-      <strong>Manage billing</strong> below.
+      {% trans %}Your last payment didn't go through. Premium is still on while Stripe retries the card — update your card details under <strong>Manage billing</strong> below.{% endtrans %}
     </p>
     {# Plan and renewal date: see the fact list above. #}
 
@@ -136,31 +145,30 @@
        period it has already paid for. #}
     {% if page.ends_on %}
       <p class="blurb">
-        Cancelled, and nothing changes before then — this server keeps Premium
-        for the whole of the period it has already paid for.
+        {% trans %}Cancelled, and nothing changes before then — this server keeps Premium for the whole of the period it has already paid for.{% endtrans %}
       </p>
     {% endif %}
 
   {% elif page.state == 'discord' %}
     <p class="blurb">
-      Discord handles the billing, so cancelling or changing the payment method
-      happens there — <strong>User Settings → Subscriptions</strong>. We can't
-      manage a Discord subscription from here.
+      {% trans %}Discord handles the billing, so cancelling or changing the payment method happens there — <strong>User Settings → Subscriptions</strong>. We can't manage a Discord subscription from here.{% endtrans %}
     </p>
     {# Deliberately no card buttons. Offering one to a server that already pays
        is precisely how it ends up paying twice. #}
 
   {% else %}
+    {# `{% raw %}{% set %}{% endraw %}` first, because a `{% raw %}{% trans %}{% endraw %}` block takes plain variables
+       and not expressions -- `url_for` cannot be called inside one. The link
+       stays INSIDE the msgid rather than being split into "…marked on" and
+       "Settings" and ", shortens…": a translator who cannot move the link
+       within the sentence cannot translate the sentence. #}
+    {% set settings_url = url_for('guild_settings', guild_id=guild_id, group='verification') %}
     <p class="blurb">
-      18+ verification is free and always will be. Premium unlocks the settings
-      marked on <a href="{{ url_for('guild_settings', guild_id=guild_id, group='verification') }}">Settings</a>,
-      shortens the wait between verifications, and moves this server up the
-      verification queue.
+      {% trans settings_url=settings_url %}18+ verification is free and always will be. Premium unlocks the settings marked on <a href="{{ settings_url }}">Settings</a>, shortens the wait between verifications, and moves this server up the verification queue.{% endtrans %}
     </p>
     {% if page.grandfathered %}
       <p class="muted">
-        Your grandfathered extras — unverified-role removal, nickname sync and
-        the custom verification message — stay free whatever you decide here.
+        {% trans %}Your grandfathered extras — unverified-role removal, nickname sync and the custom verification message — stay free whatever you decide here.{% endtrans %}
       </p>
     {% endif %}
     {% if page.winback %}
@@ -169,14 +177,14 @@
          decided to pay once before, and it was being reported more quietly
          than the sentence above it explaining that verification is free. #}
       <div class="sub-winback">
-        <p class="sub-winback-head">Your Premium ended on {{ page.winback.when }}</p>
+        <p class="sub-winback-head">
+          {% trans when=page.winback.when %}Your Premium ended on {{ when }}{% endtrans %}
+        </p>
         <p class="sub-winback-body">
           {% if page.winback.plan %}
-            The {{ page.winback.plan }} plan. Subscribing again picks up where
-            it left off — nothing was reset when it lapsed.
+            {% trans plan=page.winback.plan %}The {{ plan }} plan. Subscribing again picks up where it left off — nothing was reset when it lapsed.{% endtrans %}
           {% else %}
-            Subscribing again picks up where it left off — nothing was reset
-            when it lapsed.
+            {% trans %}Subscribing again picks up where it left off — nothing was reset when it lapsed.{% endtrans %}
           {% endif %}
         </p>
       </div>
@@ -190,18 +198,16 @@
      true above -- and offers no way to buy, because we cannot currently tell
      what is for sale or at what price. #}
   <section class="panel group">
-    <h2>Pay by card</h2>
+    <h2>{% trans %}Pay by card{% endtrans %}</h2>
     <p class="blurb">
-      We can't load the plans right now. <strong>Nothing has changed about
-      your subscription.</strong> Try again in a moment, or subscribe inside
-      Discord below.
+      {% trans %}We can't load the plans right now. <strong>Nothing has changed about your subscription.</strong> Try again in a moment, or subscribe inside Discord below.{% endtrans %}
     </p>
   </section>
 {% endif %}
 
 {% if page.offers_card %}
   <section class="panel group">
-    <h2>Pay by card</h2>
+    <h2>{% trans %}Pay by card{% endtrans %}</h2>
     {# ONE PRODUCT, THREE CADENCES, SAID OUTRIGHT.
        Three cards at rising prices is the shape of a tier comparison, and a
        reader who scans rather than reads will take the $47.99 card to unlock
@@ -219,14 +225,13 @@
        So the claim is stated in words instead, above the cards, before anyone
        starts comparing them. #}
     <p class="blurb">
-      <strong>One Premium, three ways to pay for it.</strong> Every plan below
-      unlocks exactly the same features — the only difference is how long you
-      pay for at once, and how much that saves.
+      {% trans %}<strong>One Premium, three ways to pay for it.</strong> Every plan below unlocks exactly the same features — the only difference is how long you pay for at once, and how much that saves.{% endtrans %}
     </p>
+    {# THE TAX SENTENCE, and the reason #97 put this page first. "Excludes tax"
+       misunderstood is a customer who believes the total at checkout is wrong,
+       which is a support ticket at best and a chargeback at worst. #}
     <p class="blurb muted">
-      Prices are in US dollars and <strong>exclude tax</strong>; any tax due
-      where you are is added at checkout. Payment is handled by Stripe — card
-      details never reach VRCVerify.
+      {% trans %}Prices are in US dollars and <strong>exclude tax</strong>; any tax due where you are is added at checkout. Payment is handled by Stripe — card details never reach VRCVerify.{% endtrans %}
     </p>
     <div class="plans">
       {% for plan in page.plans %}
@@ -245,12 +250,15 @@
              instruction -- see the checkout route. #}
           <input type="hidden" name="price_id" value="{{ plan.price_id }}">
           {% if plan.highlight %}
-            <p class="plan-badge">Most popular</p>
+            <p class="plan-badge">{% trans %}Most popular{% endtrans %}</p>
           {% endif %}
+          {# `plan.label`, `plan.amount`, `plan.period` and `plan.saving` are
+             built in subscription_view from Stripe's own price objects and
+             translated there. The AMOUNT is deliberately not translated at
+             all: it is a figure Stripe formatted, and a second opinion about
+             what a price says is the one thing this page has always refused
+             to hold. #}
           <h3>{{ plan.label }}</h3>
-          {# The figure and the charge come from the same Stripe read, so this
-             is not a second copy of a price. Omitted entirely when it could
-             not be read -- never guessed, never zero. #}
           {% if plan.amount %}
             <p class="plan-price">
               <span class="plan-amount">{{ plan.amount }}</span>
@@ -271,15 +279,14 @@
           {% if trial_note %}
             <p class="plan-trial">{{ trial_note }}</p>
           {% endif %}
-          <button class="button" type="submit">Subscribe</button>
+          <button class="button" type="submit">{% trans %}Subscribe{% endtrans %}</button>
         </form>
       {% endfor %}
     </div>
     <ul class="plan-notes">
-      <li>All plans renew automatically. Cancel any time from this page.</li>
+      <li>{% trans %}All plans renew automatically. Cancel any time from this page.{% endtrans %}</li>
       <li>
-        <strong>The 6- and 12-month plans are card-only.</strong> Discord
-        subscriptions bill monthly, so those terms can't be offered there.
+        {% trans %}<strong>The 6- and 12-month plans are card-only.</strong> Discord subscriptions bill monthly, so those terms can't be offered there.{% endtrans %}
       </li>
       {# THE SHAREABLE COPY OF THIS, and the same reasoning as the changelog's
          cross-link (#137 phase 5): the admin reading this page is not always
@@ -291,10 +298,9 @@
          the buttons that need a guild. It is the only thing that page does
          which this one cannot -- so the link goes this way round, and the bell
          and the changelog have the same shape for the same reason. #}
+      {% set pricing_url = url_for('pricing') %}
       <li>
-        Need to send these prices to whoever pays? There is a
-        <a href="{{ url_for('pricing') }}">public pricing page</a> that works
-        without a Discord account.
+        {% trans pricing_url=pricing_url %}Need to send these prices to whoever pays? There is a <a href="{{ pricing_url }}">public pricing page</a> that works without a Discord account.{% endtrans %}
       </li>
     </ul>
   </section>
@@ -302,22 +308,21 @@
 
 {% if page.offers_portal %}
   <section class="panel group">
-    <h2>Manage billing</h2>
+    <h2>{% trans %}Manage billing{% endtrans %}</h2>
     <p class="blurb muted">
-      Change plan, update your card or cancel — on Stripe's own billing portal.
-      You'll come straight back here afterwards.
+      {% trans %}Change plan, update your card or cancel — on Stripe's own billing portal. You'll come straight back here afterwards.{% endtrans %}
     </p>
     <form method="post"
           action="{{ url_for('subscription_portal', guild_id=guild_id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button class="button" type="submit">Manage billing</button>
+      <button class="button" type="submit">{% trans %}Manage billing{% endtrans %}</button>
     </form>
   </section>
 {% endif %}
 
 {% if page.discord_command %}
   <section class="panel group">
-    <h2>Buy inside Discord</h2>
+    <h2>{% trans %}Buy inside Discord{% endtrans %}</h2>
     {# THE SECOND ROUTE, AND IT HAS TO READ AS ONE.
        The card route above gets three laid-out cards with prices and buttons;
        this one was a paragraph with the command buried mid-sentence. That is
@@ -328,26 +333,24 @@
        So the command gets the weight a button would get on the other route.
        It is not a button: nothing here can run it, and a control that looks
        clickable and is not is worse than text. It is the thing to copy, so it
-       is presented as the thing to copy. #}
+       is presented as the thing to copy.
+
+       The command itself is NOT translated, here or anywhere. It is what the
+       reader has to type into Discord, and a translated slash command is a
+       command that does not exist. #}
     <p class="buy-command"><code>/vrcverify_subscription</code></p>
     {% if page.state == 'none' %}
       <p class="blurb">
-        Run it in {{ guild_name }}. Discord handles the payment, and the
-        command's button is already pointed at this server.
-        <strong>Monthly only</strong>, at the same price as the monthly plan
-        above.
+        {% trans name=guild_name %}Run it in {{ name }}. Discord handles the payment, and the command's button is already pointed at this server. <strong>Monthly only</strong>, at the same price as the monthly plan above.{% endtrans %}
       </p>
     {% else %}
       <p class="blurb">
-        Run it in {{ guild_name }} to see this server's Discord subscription.
+        {% trans name=guild_name %}Run it in {{ name }} to see this server's Discord subscription.{% endtrans %}
       </p>
     {% endif %}
     {% if page.store_url %}
       <p class="muted">
-        <a href="{{ page.store_url }}" rel="noopener noreferrer" target="_blank">
-          See what's included on Discord's store page</a> — it lists the price
-        and perks, but you choose the server during checkout, so use the command
-        above if you administer more than one.
+        {% trans store_url=page.store_url %}<a href="{{ store_url }}" rel="noopener noreferrer" target="_blank">See what's included on Discord's store page</a> — it lists the price and perks, but you choose the server during checkout, so use the command above if you administer more than one.{% endtrans %}
       </p>
     {% endif %}
   </section>

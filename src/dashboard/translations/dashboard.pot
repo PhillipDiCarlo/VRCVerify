@@ -1,0 +1,605 @@
+# Translations template for VRCVerify.
+# Copyright (C) 2026 Esatto Technologies
+# This file is distributed under the same license as the VRCVerify project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: VRCVerify VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-08-29 03:54-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Dark"
+msgstr ""
+
+msgid "Light"
+msgstr ""
+
+msgid "System"
+msgstr ""
+
+msgid "That setting needs VRCVerify Premium. Nothing was changed."
+msgstr ""
+
+msgid "That language isn't one VRCVerify supports. Nothing was changed."
+msgstr ""
+
+msgid ""
+"Run /vrcverify_setup in your server first -- VRCVerify needs a verified "
+"role before it can store anything else."
+msgstr ""
+
+msgid "That setting can't be changed from the website yet. Nothing was changed."
+msgstr ""
+
+msgid ""
+"The bot couldn't complete the save, so nothing was changed. Try again "
+"shortly."
+msgstr ""
+
+msgid "That role isn't in this server any more. Reload the page and pick again."
+msgstr ""
+
+msgid "Pick a verified role -- verification can't run without one."
+msgstr ""
+
+msgid ""
+"Links in the custom message may only point to discord.com or vrchat.com. "
+"Nothing was changed."
+msgstr ""
+
+msgid "That custom message is too long. The limit is 1000 characters."
+msgstr ""
+
+msgid ""
+"Verification logs can't go in an announcement channel -- other servers "
+"can follow one, which would republish your members' age status."
+msgstr ""
+
+msgid ""
+"That channel isn't in this server any more. Reload the page and pick "
+"again."
+msgstr ""
+
+msgid ""
+"VRCVerify can't post in that channel, so it can't log there. Check the "
+"channel's permissions and try again."
+msgstr ""
+
+msgid ""
+"This bot's database is missing the column for that setting. Contact the "
+"bot operator."
+msgstr ""
+
+msgid ""
+"That doesn't look like a VRChat group. Paste the group's ID (it starts "
+"with grp_) or the vrchat.com link to the group."
+msgstr ""
+
+msgid ""
+"VRChat's vrc.group short links can't be looked up. Open the group on "
+"vrchat.com and paste that link instead, or the group ID starting with "
+"grp_."
+msgstr ""
+
+msgid ""
+"Another Discord server has already linked that VRChat group. A group can "
+"only belong to one server -- contact support if that's wrong."
+msgstr ""
+
+msgid "Add your VRChat group first, then run the setup check."
+msgstr ""
+
+msgid "That change couldn't be saved, so nothing was changed."
+msgstr ""
+
+msgid ""
+"VRCVerify can't post the panel in that channel. It needs both Send "
+"Messages and Embed Links there -- Embed Links is the one that's usually "
+"missing, because the panel is an embed."
+msgstr ""
+
+msgid "The panel couldn't be posted just now. Try again shortly."
+msgstr ""
+
+msgid "Panel posted."
+msgstr ""
+
+msgid ""
+"That channel already had the panel, so it was refreshed rather than "
+"posted again."
+msgstr ""
+
+msgid ""
+"Panel posted in the new channel. The old one is still up in its previous "
+"channel -- delete it in Discord when you're ready."
+msgstr ""
+
+msgid ""
+"That panel was posted in a way Discord won't let the bot edit, so it was "
+"replaced with a fresh one. Your settings apply to it now."
+msgstr ""
+
+msgid ""
+"Thanks — your subscription is being set up. Premium switches on as soon "
+"as Stripe confirms the payment, usually within a few seconds."
+msgstr ""
+
+msgid "That plan isn't one we offer. Nothing has been charged."
+msgstr ""
+
+msgid ""
+"This server already has Premium, so there was nothing to buy. Nothing has"
+" been charged."
+msgstr ""
+
+msgid ""
+"We couldn't reach Stripe just now, so nothing has been charged. Try again"
+" in a moment, or subscribe inside Discord instead."
+msgstr ""
+
+msgid "There's no card subscription on this server to manage."
+msgstr ""
+
+msgid "Overview"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Subscriptions"
+msgstr ""
+
+msgid "Verification"
+msgstr ""
+
+msgid "After verifying"
+msgstr ""
+
+msgid "Instructions panel"
+msgstr ""
+
+msgid "VRChat group"
+msgstr ""
+
+msgid "Logging"
+msgstr ""
+
+msgid "Activity"
+msgstr ""
+
+msgid "Monthly"
+msgstr ""
+
+msgid "3 months"
+msgstr ""
+
+msgid "6 months"
+msgstr ""
+
+msgid "12 months"
+msgstr ""
+
+msgid "per month"
+msgstr ""
+
+msgid "per 3 months"
+msgstr ""
+
+msgid "per 6 months"
+msgstr ""
+
+msgid "per 12 months"
+msgstr ""
+
+msgid "per year"
+msgstr ""
+
+msgid "Premium"
+msgstr ""
+
+#, python-format
+msgid "%(days)s-day free trial"
+msgstr ""
+
+msgid "Active"
+msgstr ""
+
+msgid "Payment failed"
+msgstr ""
+
+msgid "Charged twice"
+msgstr ""
+
+msgid "Confirming"
+msgstr ""
+
+msgid "Unknown"
+msgstr ""
+
+msgid "Cancelled"
+msgstr ""
+
+msgid "Plan"
+msgstr ""
+
+msgid "Billed through"
+msgstr ""
+
+msgid "Discord"
+msgstr ""
+
+msgid "Card and Discord"
+msgstr ""
+
+msgid "Card"
+msgstr ""
+
+msgid "Due to renew"
+msgstr ""
+
+msgid "Renews"
+msgstr ""
+
+msgid "Premium until"
+msgstr ""
+
+msgid "Show the sidebar"
+msgstr ""
+
+msgid "Hide the sidebar"
+msgstr ""
+
+msgid "What's new"
+msgstr ""
+
+msgid "There are updates you haven't seen."
+msgstr ""
+
+msgid "What&#39;s new"
+msgstr ""
+
+msgid "See all updates"
+msgstr ""
+
+msgid "Get these in your own server"
+msgstr ""
+
+msgid "Mark all as read"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "Choose a different one."
+msgstr ""
+
+msgid "Theme"
+msgstr ""
+
+msgid "Appearance"
+msgstr ""
+
+msgid "Always dark."
+msgstr ""
+
+msgid "Always light."
+msgstr ""
+
+msgid "Matches the theme set on your device."
+msgstr ""
+
+msgid "Account"
+msgstr ""
+
+msgid "Sign out"
+msgstr ""
+
+msgid "Sign out everywhere"
+msgstr ""
+
+msgid "Sections"
+msgstr ""
+
+msgid "All servers"
+msgstr ""
+
+msgid "Settings sections"
+msgstr ""
+
+msgid "Terms"
+msgstr ""
+
+msgid "Privacy"
+msgstr ""
+
+msgid "Refunds"
+msgstr ""
+
+msgid "Core 18+ verification is free, forever."
+msgstr ""
+
+msgid "VRCVerify is operated by Esatto Technologies, United States."
+msgstr ""
+
+msgid ""
+"Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord "
+"Inc."
+msgstr ""
+
+msgid "Pricing · VRCVerify"
+msgstr ""
+
+msgid "Pricing"
+msgstr ""
+
+msgid ""
+"Verification is free, forever. Premium adds the automation around it, per"
+" server."
+msgstr ""
+
+msgid "Free"
+msgstr ""
+
+msgid "forever"
+msgstr ""
+
+msgid "Everything you need to verify your members."
+msgstr ""
+
+msgid "Verify members as 18+"
+msgstr ""
+
+msgid "Auto-verify people who verified in another server"
+msgstr ""
+
+msgid "Members can update their own nickname"
+msgstr ""
+
+msgid "Add to your server"
+msgstr ""
+
+msgid "Per server"
+msgstr ""
+
+msgid "monthly, 6 or 12 months"
+msgstr ""
+
+msgid "The automation around verification, for servers that want it."
+msgstr ""
+
+msgid "Automatic removal of an unverified role"
+msgstr ""
+
+msgid "Nickname syncing"
+msgstr ""
+
+msgid "A custom post-verification message"
+msgstr ""
+
+msgid "A verification log channel"
+msgstr ""
+
+msgid "Priority in the verification queue"
+msgstr ""
+
+msgid "A branded instructions panel"
+msgstr ""
+
+msgid "Open the dashboard"
+msgstr ""
+
+msgid "One Premium, three ways to pay for it"
+msgstr ""
+
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+
+msgid "There are no plans on sale at the moment."
+msgstr ""
+
+msgid ""
+"Every plan below unlocks exactly the same features — the only difference "
+"is how long you pay for at once, and how much that saves."
+msgstr ""
+
+msgid "Most popular"
+msgstr ""
+
+msgid ""
+"Some plans start with a free trial. Whether a particular server qualifies"
+" depends on whether it has had one before — the dashboard tells you "
+"before you pay."
+msgstr ""
+
+msgid ""
+"Prices are in US dollars and <strong>exclude tax</strong>; any tax due "
+"where you are is added at checkout. Payment is handled by Stripe — card "
+"details never reach VRCVerify."
+msgstr ""
+
+msgid ""
+"Premium is bought per server. You can subscribe with a card in the "
+"dashboard, or monthly through Discord."
+msgstr ""
+
+msgid "Ready to start?"
+msgstr ""
+
+msgid ""
+"Add VRCVerify to your server and verification works immediately, at no "
+"cost. Premium is there when you want it."
+msgstr ""
+
+#, python-format
+msgid "Subscriptions — %(name)s — VRCVerify"
+msgstr ""
+
+msgid ""
+"We couldn't check this server's plan just now. Nothing here is missing — "
+"the page simply can't say what's true yet. Try again in a moment."
+msgstr ""
+
+msgid ""
+"Every VRCVerify feature is currently available to this server at no "
+"charge. There's nothing to subscribe to."
+msgstr ""
+
+msgid ""
+"Waiting for Stripe to confirm. Premium switches on by itself, usually "
+"within a few seconds — reload this page in a moment."
+msgstr ""
+
+msgid ""
+"If it hasn't switched on after a minute or two, nothing is lost: Stripe "
+"keeps trying to reach us for up to three days, and the subscription takes"
+" effect as soon as it gets through. Get in touch if it stays this way."
+msgstr ""
+
+#, python-format
+msgid ""
+"This server looks like it's paying for Premium on %(count)s separate card"
+" subscriptions. Premium is on and stays on; you're just being charged "
+"more than once."
+msgstr ""
+
+msgid ""
+"This server looks like it's paying for Premium twice — once by card and "
+"once through Discord. Premium is on and stays on; you're just being "
+"charged more than once."
+msgstr ""
+
+msgid ""
+"We won't cancel either one for you — that's your call, and getting it "
+"wrong with someone else's money isn't a risk worth automating."
+msgstr ""
+
+msgid ""
+"To cancel the card subscription, use <strong>Manage billing</strong> "
+"below."
+msgstr ""
+
+#, python-format
+msgid ""
+"To cancel the Discord one, open <strong>User Settings → "
+"Subscriptions</strong> in Discord, or run "
+"<code>/vrcverify_subscription</code> in %(name)s."
+msgstr ""
+
+msgid ""
+"Your last payment didn't go through. Premium is still on while Stripe "
+"retries the card — update your card details under <strong>Manage "
+"billing</strong> below."
+msgstr ""
+
+msgid ""
+"Cancelled, and nothing changes before then — this server keeps Premium "
+"for the whole of the period it has already paid for."
+msgstr ""
+
+msgid ""
+"Discord handles the billing, so cancelling or changing the payment method"
+" happens there — <strong>User Settings → Subscriptions</strong>. We can't"
+" manage a Discord subscription from here."
+msgstr ""
+
+#, python-format
+msgid ""
+"18+ verification is free and always will be. Premium unlocks the settings"
+" marked on <a href=\"%(settings_url)s\">Settings</a>, shortens the wait "
+"between verifications, and moves this server up the verification queue."
+msgstr ""
+
+msgid ""
+"Your grandfathered extras — unverified-role removal, nickname sync and "
+"the custom verification message — stay free whatever you decide here."
+msgstr ""
+
+#, python-format
+msgid "Your Premium ended on %(when)s"
+msgstr ""
+
+#, python-format
+msgid ""
+"The %(plan)s plan. Subscribing again picks up where it left off — nothing"
+" was reset when it lapsed."
+msgstr ""
+
+msgid ""
+"Subscribing again picks up where it left off — nothing was reset when it "
+"lapsed."
+msgstr ""
+
+msgid "Pay by card"
+msgstr ""
+
+msgid ""
+"We can't load the plans right now. <strong>Nothing has changed about your"
+" subscription.</strong> Try again in a moment, or subscribe inside "
+"Discord below."
+msgstr ""
+
+msgid ""
+"<strong>One Premium, three ways to pay for it.</strong> Every plan below "
+"unlocks exactly the same features — the only difference is how long you "
+"pay for at once, and how much that saves."
+msgstr ""
+
+msgid "Subscribe"
+msgstr ""
+
+msgid "All plans renew automatically. Cancel any time from this page."
+msgstr ""
+
+msgid ""
+"<strong>The 6- and 12-month plans are card-only.</strong> Discord "
+"subscriptions bill monthly, so those terms can't be offered there."
+msgstr ""
+
+#, python-format
+msgid ""
+"Need to send these prices to whoever pays? There is a <a "
+"href=\"%(pricing_url)s\">public pricing page</a> that works without a "
+"Discord account."
+msgstr ""
+
+msgid "Manage billing"
+msgstr ""
+
+msgid ""
+"Change plan, update your card or cancel — on Stripe's own billing portal."
+" You'll come straight back here afterwards."
+msgstr ""
+
+msgid "Buy inside Discord"
+msgstr ""
+
+#, python-format
+msgid ""
+"Run it in %(name)s. Discord handles the payment, and the command's button"
+" is already pointed at this server. <strong>Monthly only</strong>, at the"
+" same price as the monthly plan above."
+msgstr ""
+
+#, python-format
+msgid "Run it in %(name)s to see this server's Discord subscription."
+msgstr ""
+
+#, python-format
+msgid ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">See what's included on Discord's store page</a> — it "
+"lists the price and perks, but you choose the server during checkout, so "
+"use the command above if you administer more than one."
+msgstr ""
+

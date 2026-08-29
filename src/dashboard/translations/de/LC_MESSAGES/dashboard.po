@@ -1,0 +1,759 @@
+# German translations for VRCVerify.
+# Copyright (C) 2026 Esatto Technologies
+# This file is distributed under the same license as the VRCVerify project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: VRCVerify VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-08-29 03:54-0400\n"
+"PO-Revision-Date: 2026-08-29 03:27-0400\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: de\n"
+"Language-Team: de <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Dark"
+msgstr "Dunkel"
+
+msgid "Light"
+msgstr "Hell"
+
+msgid "System"
+msgstr "System"
+
+msgid "That setting needs VRCVerify Premium. Nothing was changed."
+msgstr "Diese Einstellung erfordert VRCVerify Premium. Es wurde nichts geändert."
+
+msgid "That language isn't one VRCVerify supports. Nothing was changed."
+msgstr ""
+"Diese Sprache wird von VRCVerify nicht unterstützt. Es wurde nichts "
+"geändert."
+
+msgid ""
+"Run /vrcverify_setup in your server first -- VRCVerify needs a verified "
+"role before it can store anything else."
+msgstr ""
+"Führe zuerst /vrcverify_setup auf deinem Server aus – VRCVerify braucht "
+"eine Verifiziert-Rolle, bevor es irgendetwas anderes speichern kann."
+
+msgid "That setting can't be changed from the website yet. Nothing was changed."
+msgstr ""
+"Diese Einstellung lässt sich noch nicht über die Website ändern. Es wurde"
+" nichts geändert."
+
+msgid ""
+"The bot couldn't complete the save, so nothing was changed. Try again "
+"shortly."
+msgstr ""
+"Der Bot konnte das Speichern nicht abschließen, es wurde also nichts "
+"geändert. Versuche es gleich noch einmal."
+
+msgid "That role isn't in this server any more. Reload the page and pick again."
+msgstr ""
+"Diese Rolle gibt es auf diesem Server nicht mehr. Lade die Seite neu und "
+"wähle erneut."
+
+msgid "Pick a verified role -- verification can't run without one."
+msgstr ""
+"Wähle eine Verifiziert-Rolle – ohne sie kann die Verifizierung nicht "
+"laufen."
+
+msgid ""
+"Links in the custom message may only point to discord.com or vrchat.com. "
+"Nothing was changed."
+msgstr ""
+"Links in der eigenen Nachricht dürfen nur auf discord.com oder vrchat.com"
+" zeigen. Es wurde nichts geändert."
+
+msgid "That custom message is too long. The limit is 1000 characters."
+msgstr "Diese eigene Nachricht ist zu lang. Das Limit liegt bei 1000 Zeichen."
+
+msgid ""
+"Verification logs can't go in an announcement channel -- other servers "
+"can follow one, which would republish your members' age status."
+msgstr ""
+"Verifizierungsprotokolle dürfen nicht in einen Ankündigungskanal – andere"
+" Server können ihm folgen, wodurch der Altersstatus deiner Mitglieder "
+"erneut veröffentlicht würde."
+
+msgid ""
+"That channel isn't in this server any more. Reload the page and pick "
+"again."
+msgstr ""
+"Diesen Kanal gibt es auf diesem Server nicht mehr. Lade die Seite neu und"
+" wähle erneut."
+
+msgid ""
+"VRCVerify can't post in that channel, so it can't log there. Check the "
+"channel's permissions and try again."
+msgstr ""
+"VRCVerify kann in diesem Kanal nicht schreiben und dort deshalb nichts "
+"protokollieren. Prüfe die Berechtigungen des Kanals und versuche es "
+"erneut."
+
+msgid ""
+"This bot's database is missing the column for that setting. Contact the "
+"bot operator."
+msgstr ""
+"In der Datenbank dieses Bots fehlt die Spalte für diese Einstellung. "
+"Wende dich an den Bot-Betreiber."
+
+msgid ""
+"That doesn't look like a VRChat group. Paste the group's ID (it starts "
+"with grp_) or the vrchat.com link to the group."
+msgstr ""
+"Das sieht nicht nach einer VRChat-Gruppe aus. Füge die ID der Gruppe ein "
+"(sie beginnt mit grp_) oder den vrchat.com-Link zur Gruppe."
+
+msgid ""
+"VRChat's vrc.group short links can't be looked up. Open the group on "
+"vrchat.com and paste that link instead, or the group ID starting with "
+"grp_."
+msgstr ""
+"VRChats vrc.group-Kurzlinks lassen sich nicht auflösen. Öffne die Gruppe "
+"auf vrchat.com und füge stattdessen diesen Link ein, oder die Gruppen-ID,"
+" die mit grp_ beginnt."
+
+msgid ""
+"Another Discord server has already linked that VRChat group. A group can "
+"only belong to one server -- contact support if that's wrong."
+msgstr ""
+"Ein anderer Discord-Server hat diese VRChat-Gruppe bereits verknüpft. "
+"Eine Gruppe kann nur zu einem Server gehören – wende dich an den Support,"
+" falls das nicht stimmt."
+
+msgid "Add your VRChat group first, then run the setup check."
+msgstr ""
+"Füge zuerst deine VRChat-Gruppe hinzu und führe dann die "
+"Einrichtungsprüfung aus."
+
+msgid "That change couldn't be saved, so nothing was changed."
+msgstr ""
+"Diese Änderung konnte nicht gespeichert werden, es wurde also nichts "
+"geändert."
+
+msgid ""
+"VRCVerify can't post the panel in that channel. It needs both Send "
+"Messages and Embed Links there -- Embed Links is the one that's usually "
+"missing, because the panel is an embed."
+msgstr ""
+"VRCVerify kann das Panel in diesem Kanal nicht posten. Es braucht dort "
+"sowohl „Nachrichten senden“ als auch „Links einbetten“ – „Links "
+"einbetten“ fehlt meistens, weil das Panel ein Embed ist."
+
+msgid "The panel couldn't be posted just now. Try again shortly."
+msgstr ""
+"Das Panel konnte gerade nicht gepostet werden. Versuche es gleich noch "
+"einmal."
+
+msgid "Panel posted."
+msgstr "Panel gepostet."
+
+msgid ""
+"That channel already had the panel, so it was refreshed rather than "
+"posted again."
+msgstr ""
+"In diesem Kanal gab es das Panel bereits, es wurde also aktualisiert "
+"statt erneut gepostet."
+
+msgid ""
+"Panel posted in the new channel. The old one is still up in its previous "
+"channel -- delete it in Discord when you're ready."
+msgstr ""
+"Panel im neuen Kanal gepostet. Das alte steht noch im vorherigen Kanal – "
+"lösche es in Discord, wenn du so weit bist."
+
+msgid ""
+"That panel was posted in a way Discord won't let the bot edit, so it was "
+"replaced with a fresh one. Your settings apply to it now."
+msgstr ""
+"Dieses Panel wurde so gepostet, dass Discord dem Bot das Bearbeiten nicht"
+" erlaubt, deshalb wurde es durch ein neues ersetzt. Deine Einstellungen "
+"gelten jetzt dafür."
+
+msgid ""
+"Thanks — your subscription is being set up. Premium switches on as soon "
+"as Stripe confirms the payment, usually within a few seconds."
+msgstr ""
+"Danke – dein Abonnement wird gerade eingerichtet. Premium schaltet sich "
+"frei, sobald Stripe die Zahlung bestätigt, normalerweise innerhalb "
+"weniger Sekunden."
+
+msgid "That plan isn't one we offer. Nothing has been charged."
+msgstr "Diesen Tarif bieten wir nicht an. Es wurde nichts berechnet."
+
+msgid ""
+"This server already has Premium, so there was nothing to buy. Nothing has"
+" been charged."
+msgstr ""
+"Dieser Server hat bereits Premium, es gab also nichts zu kaufen. Es wurde"
+" nichts berechnet."
+
+msgid ""
+"We couldn't reach Stripe just now, so nothing has been charged. Try again"
+" in a moment, or subscribe inside Discord instead."
+msgstr ""
+"Wir konnten Stripe gerade nicht erreichen, es wurde also nichts "
+"berechnet. Versuche es gleich noch einmal oder abonniere stattdessen in "
+"Discord."
+
+msgid "There's no card subscription on this server to manage."
+msgstr "Auf diesem Server gibt es kein Kartenabonnement zu verwalten."
+
+msgid "Overview"
+msgstr "Übersicht"
+
+# | msgid "Sections"
+msgid "Settings"
+msgstr "Einstellungen"
+
+msgid "Subscriptions"
+msgstr "Abonnements"
+
+# | msgid "A verification log channel"
+msgid "Verification"
+msgstr "Verifizierung"
+
+msgid "After verifying"
+msgstr "Nach der Verifizierung"
+
+# | msgid "A branded instructions panel"
+msgid "Instructions panel"
+msgstr "Anleitungs-Panel"
+
+msgid "VRChat group"
+msgstr "VRChat-Gruppe"
+
+msgid "Logging"
+msgstr "Protokollierung"
+
+# | msgid "Active"
+msgid "Activity"
+msgstr "Aktivität"
+
+msgid "Monthly"
+msgstr "Monatlich"
+
+msgid "3 months"
+msgstr "3 Monate"
+
+msgid "6 months"
+msgstr "6 Monate"
+
+msgid "12 months"
+msgstr "12 Monate"
+
+msgid "per month"
+msgstr "pro Monat"
+
+msgid "per 3 months"
+msgstr "pro 3 Monate"
+
+msgid "per 6 months"
+msgstr "pro 6 Monate"
+
+msgid "per 12 months"
+msgstr "pro 12 Monate"
+
+msgid "per year"
+msgstr "pro Jahr"
+
+msgid "Premium"
+msgstr "Premium"
+
+#, python-format
+msgid "%(days)s-day free trial"
+msgstr "%(days)s Tage kostenlos testen"
+
+msgid "Active"
+msgstr "Aktiv"
+
+msgid "Payment failed"
+msgstr "Zahlung fehlgeschlagen"
+
+msgid "Charged twice"
+msgstr "Doppelt berechnet"
+
+msgid "Confirming"
+msgstr "Wird bestätigt"
+
+msgid "Unknown"
+msgstr "Unbekannt"
+
+msgid "Cancelled"
+msgstr "Gekündigt"
+
+msgid "Plan"
+msgstr "Tarif"
+
+msgid "Billed through"
+msgstr "Abgerechnet über"
+
+msgid "Discord"
+msgstr "Discord"
+
+msgid "Card and Discord"
+msgstr "Karte und Discord"
+
+msgid "Card"
+msgstr "Karte"
+
+msgid "Due to renew"
+msgstr "Verlängerung fällig"
+
+msgid "Renews"
+msgstr "Verlängert sich am"
+
+msgid "Premium until"
+msgstr "Premium bis"
+
+msgid "Show the sidebar"
+msgstr "Seitenleiste einblenden"
+
+msgid "Hide the sidebar"
+msgstr "Seitenleiste ausblenden"
+
+msgid "What's new"
+msgstr "Neuigkeiten"
+
+msgid "There are updates you haven't seen."
+msgstr "Es gibt Neuigkeiten, die du noch nicht gesehen hast."
+
+msgid "What&#39;s new"
+msgstr "Neuigkeiten"
+
+msgid "See all updates"
+msgstr "Alle Neuigkeiten ansehen"
+
+msgid "Get these in your own server"
+msgstr "Diese auf deinem eigenen Server erhalten"
+
+msgid "Mark all as read"
+msgstr "Alle als gelesen markieren"
+
+msgid "Language"
+msgstr "Sprache"
+
+msgid "Choose a different one."
+msgstr "Wähle eine andere."
+
+msgid "Theme"
+msgstr "Design"
+
+msgid "Appearance"
+msgstr "Darstellung"
+
+msgid "Always dark."
+msgstr "Immer dunkel."
+
+msgid "Always light."
+msgstr "Immer hell."
+
+msgid "Matches the theme set on your device."
+msgstr "Passt sich dem Design deines Geräts an."
+
+msgid "Account"
+msgstr "Konto"
+
+msgid "Sign out"
+msgstr "Abmelden"
+
+msgid "Sign out everywhere"
+msgstr "Überall abmelden"
+
+msgid "Sections"
+msgstr "Bereiche"
+
+msgid "All servers"
+msgstr "Alle Server"
+
+msgid "Settings sections"
+msgstr "Einstellungsbereiche"
+
+msgid "Terms"
+msgstr "AGB"
+
+msgid "Privacy"
+msgstr "Datenschutz"
+
+msgid "Refunds"
+msgstr "Erstattungen"
+
+msgid "Core 18+ verification is free, forever."
+msgstr "Die grundlegende 18+-Verifizierung ist kostenlos, für immer."
+
+msgid "VRCVerify is operated by Esatto Technologies, United States."
+msgstr "VRCVerify wird betrieben von Esatto Technologies, Vereinigte Staaten."
+
+msgid ""
+"Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord "
+"Inc."
+msgstr ""
+"Nicht verbunden mit, unterstützt von oder gesponsert durch VRChat Inc. "
+"oder Discord Inc."
+
+msgid "Pricing · VRCVerify"
+msgstr "Preise · VRCVerify"
+
+msgid "Pricing"
+msgstr "Preise"
+
+msgid ""
+"Verification is free, forever. Premium adds the automation around it, per"
+" server."
+msgstr ""
+"Verifizierung ist kostenlos, für immer. Premium ergänzt die "
+"Automatisierung drumherum, pro Server."
+
+msgid "Free"
+msgstr "Kostenlos"
+
+msgid "forever"
+msgstr "für immer"
+
+msgid "Everything you need to verify your members."
+msgstr "Alles, was du brauchst, um deine Mitglieder zu verifizieren."
+
+msgid "Verify members as 18+"
+msgstr "Mitglieder als 18+ verifizieren"
+
+msgid "Auto-verify people who verified in another server"
+msgstr ""
+"Personen automatisch verifizieren, die sich auf einem anderen Server "
+"verifiziert haben"
+
+msgid "Members can update their own nickname"
+msgstr "Mitglieder können ihren eigenen Nicknamen aktualisieren"
+
+msgid "Add to your server"
+msgstr "Zu deinem Server hinzufügen"
+
+msgid "Per server"
+msgstr "Pro Server"
+
+msgid "monthly, 6 or 12 months"
+msgstr "monatlich, 6 oder 12 Monate"
+
+msgid "The automation around verification, for servers that want it."
+msgstr "Die Automatisierung rund um die Verifizierung, für Server, die sie wollen."
+
+msgid "Automatic removal of an unverified role"
+msgstr "Automatisches Entfernen einer Unverifiziert-Rolle"
+
+msgid "Nickname syncing"
+msgstr "Nicknamen-Abgleich"
+
+msgid "A custom post-verification message"
+msgstr "Eine eigene Nachricht nach der Verifizierung"
+
+msgid "A verification log channel"
+msgstr "Ein Protokollkanal für Verifizierungen"
+
+msgid "Priority in the verification queue"
+msgstr "Vorrang in der Verifizierungswarteschlange"
+
+msgid "A branded instructions panel"
+msgstr "Ein Anleitungs-Panel im eigenen Design"
+
+msgid "Open the dashboard"
+msgstr "Dashboard öffnen"
+
+msgid "One Premium, three ways to pay for it"
+msgstr "Ein Premium, drei Wege, dafür zu bezahlen"
+
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+"Wir können die Preise gerade nicht laden. <strong>Premium ist weiterhin "
+"verfügbar.</strong> Versuche es gleich noch einmal oder abonniere in "
+"Discord."
+
+msgid "There are no plans on sale at the moment."
+msgstr "Zurzeit sind keine Tarife im Angebot."
+
+msgid ""
+"Every plan below unlocks exactly the same features — the only difference "
+"is how long you pay for at once, and how much that saves."
+msgstr ""
+"Jeder Tarif unten schaltet genau dieselben Funktionen frei – der einzige "
+"Unterschied ist, für wie lange du auf einmal bezahlst und wie viel das "
+"spart."
+
+msgid "Most popular"
+msgstr "Am beliebtesten"
+
+msgid ""
+"Some plans start with a free trial. Whether a particular server qualifies"
+" depends on whether it has had one before — the dashboard tells you "
+"before you pay."
+msgstr ""
+"Manche Tarife beginnen mit einer kostenlosen Testphase. Ob ein bestimmter"
+" Server dafür infrage kommt, hängt davon ab, ob er schon einmal eine "
+"hatte – das Dashboard sagt es dir, bevor du bezahlst."
+
+msgid ""
+"Prices are in US dollars and <strong>exclude tax</strong>; any tax due "
+"where you are is added at checkout. Payment is handled by Stripe — card "
+"details never reach VRCVerify."
+msgstr ""
+"Die Preise sind in US-Dollar und <strong>verstehen sich zzgl. "
+"Steuern</strong>; die bei dir anfallende Steuer wird an der Kasse "
+"hinzugerechnet. Die Zahlung wickelt Stripe ab – Kartendaten erreichen "
+"VRCVerify nie."
+
+msgid ""
+"Premium is bought per server. You can subscribe with a card in the "
+"dashboard, or monthly through Discord."
+msgstr ""
+"Premium wird pro Server gekauft. Du kannst mit Karte im Dashboard "
+"abonnieren oder monatlich über Discord."
+
+msgid "Ready to start?"
+msgstr "Bereit loszulegen?"
+
+msgid ""
+"Add VRCVerify to your server and verification works immediately, at no "
+"cost. Premium is there when you want it."
+msgstr ""
+"Füge VRCVerify zu deinem Server hinzu und die Verifizierung läuft sofort,"
+" kostenlos. Premium ist da, wenn du es willst."
+
+#, python-format
+msgid "Subscriptions — %(name)s — VRCVerify"
+msgstr "Abonnements — %(name)s — VRCVerify"
+
+msgid ""
+"We couldn't check this server's plan just now. Nothing here is missing — "
+"the page simply can't say what's true yet. Try again in a moment."
+msgstr ""
+"Wir konnten den Tarif dieses Servers gerade nicht prüfen. Hier fehlt "
+"nichts – die Seite kann nur noch nicht sagen, was zutrifft. Versuche es "
+"gleich noch einmal."
+
+msgid ""
+"Every VRCVerify feature is currently available to this server at no "
+"charge. There's nothing to subscribe to."
+msgstr ""
+"Alle VRCVerify-Funktionen stehen diesem Server derzeit kostenlos zur "
+"Verfügung. Es gibt nichts zu abonnieren."
+
+msgid ""
+"Waiting for Stripe to confirm. Premium switches on by itself, usually "
+"within a few seconds — reload this page in a moment."
+msgstr ""
+"Warten auf die Bestätigung von Stripe. Premium schaltet sich von selbst "
+"frei, meist innerhalb weniger Sekunden – lade diese Seite gleich neu."
+
+msgid ""
+"If it hasn't switched on after a minute or two, nothing is lost: Stripe "
+"keeps trying to reach us for up to three days, and the subscription takes"
+" effect as soon as it gets through. Get in touch if it stays this way."
+msgstr ""
+"Falls es nach ein oder zwei Minuten nicht freigeschaltet ist, ist nichts "
+"verloren: Stripe versucht bis zu drei Tage lang, uns zu erreichen, und "
+"das Abonnement wird wirksam, sobald es durchkommt. Melde dich, wenn es so"
+" bleibt."
+
+#, python-format
+msgid ""
+"This server looks like it's paying for Premium on %(count)s separate card"
+" subscriptions. Premium is on and stays on; you're just being charged "
+"more than once."
+msgstr ""
+"Dieser Server scheint Premium über %(count)s getrennte Kartenabonnements "
+"zu bezahlen. Premium ist an und bleibt an; dir wird nur mehr als einmal "
+"berechnet."
+
+msgid ""
+"This server looks like it's paying for Premium twice — once by card and "
+"once through Discord. Premium is on and stays on; you're just being "
+"charged more than once."
+msgstr ""
+"Dieser Server scheint Premium doppelt zu bezahlen – einmal per Karte und "
+"einmal über Discord. Premium ist an und bleibt an; dir wird nur mehr als "
+"einmal berechnet."
+
+msgid ""
+"We won't cancel either one for you — that's your call, and getting it "
+"wrong with someone else's money isn't a risk worth automating."
+msgstr ""
+"Wir kündigen keines von beiden für dich – das ist deine Entscheidung, und"
+" sie mit dem Geld eines anderen falsch zu treffen ist kein Risiko, das "
+"man automatisieren sollte."
+
+msgid ""
+"To cancel the card subscription, use <strong>Manage billing</strong> "
+"below."
+msgstr ""
+"Um das Kartenabonnement zu kündigen, nutze unten <strong>Abrechnung "
+"verwalten</strong>."
+
+#, python-format
+msgid ""
+"To cancel the Discord one, open <strong>User Settings → "
+"Subscriptions</strong> in Discord, or run "
+"<code>/vrcverify_subscription</code> in %(name)s."
+msgstr ""
+"Um das über Discord zu kündigen, öffne <strong>Benutzereinstellungen → "
+"Abonnements</strong> in Discord oder führe "
+"<code>/vrcverify_subscription</code> in %(name)s aus."
+
+msgid ""
+"Your last payment didn't go through. Premium is still on while Stripe "
+"retries the card — update your card details under <strong>Manage "
+"billing</strong> below."
+msgstr ""
+"Deine letzte Zahlung ist fehlgeschlagen. Premium bleibt an, während "
+"Stripe die Karte erneut belastet – aktualisiere deine Kartendaten unten "
+"unter <strong>Abrechnung verwalten</strong>."
+
+msgid ""
+"Cancelled, and nothing changes before then — this server keeps Premium "
+"for the whole of the period it has already paid for."
+msgstr ""
+"Gekündigt, und bis dahin ändert sich nichts – dieser Server behält "
+"Premium für den gesamten Zeitraum, den er bereits bezahlt hat."
+
+msgid ""
+"Discord handles the billing, so cancelling or changing the payment method"
+" happens there — <strong>User Settings → Subscriptions</strong>. We can't"
+" manage a Discord subscription from here."
+msgstr ""
+"Discord übernimmt die Abrechnung, deshalb passiert das Kündigen oder "
+"Ändern der Zahlungsmethode dort – <strong>Benutzereinstellungen → "
+"Abonnements</strong>. Ein Discord-Abonnement können wir von hier aus "
+"nicht verwalten."
+
+#, python-format
+msgid ""
+"18+ verification is free and always will be. Premium unlocks the settings"
+" marked on <a href=\"%(settings_url)s\">Settings</a>, shortens the wait "
+"between verifications, and moves this server up the verification queue."
+msgstr ""
+"Die 18+-Verifizierung ist kostenlos und bleibt es. Premium schaltet die "
+"auf <a href=\"%(settings_url)s\">Einstellungen</a> markierten Optionen "
+"frei, verkürzt die Wartezeit zwischen Verifizierungen und rückt diesen "
+"Server in der Verifizierungswarteschlange nach vorn."
+
+msgid ""
+"Your grandfathered extras — unverified-role removal, nickname sync and "
+"the custom verification message — stay free whatever you decide here."
+msgstr ""
+"Deine Bestandsvorteile – das Entfernen der Unverifiziert-Rolle, der "
+"Nicknamen-Abgleich und die eigene Verifizierungsnachricht – bleiben "
+"kostenlos, wie du dich hier auch entscheidest."
+
+#, python-format
+msgid "Your Premium ended on %(when)s"
+msgstr "Dein Premium endete am %(when)s"
+
+#, python-format
+msgid ""
+"The %(plan)s plan. Subscribing again picks up where it left off — nothing"
+" was reset when it lapsed."
+msgstr ""
+"Der Tarif %(plan)s. Ein erneutes Abonnement macht dort weiter, wo es "
+"aufgehört hat – beim Auslaufen wurde nichts zurückgesetzt."
+
+msgid ""
+"Subscribing again picks up where it left off — nothing was reset when it "
+"lapsed."
+msgstr ""
+"Ein erneutes Abonnement macht dort weiter, wo es aufgehört hat – beim "
+"Auslaufen wurde nichts zurückgesetzt."
+
+msgid "Pay by card"
+msgstr "Mit Karte bezahlen"
+
+msgid ""
+"We can't load the plans right now. <strong>Nothing has changed about your"
+" subscription.</strong> Try again in a moment, or subscribe inside "
+"Discord below."
+msgstr ""
+"Wir können die Tarife gerade nicht laden. <strong>An deinem Abonnement "
+"hat sich nichts geändert.</strong> Versuche es gleich noch einmal oder "
+"abonniere unten in Discord."
+
+msgid ""
+"<strong>One Premium, three ways to pay for it.</strong> Every plan below "
+"unlocks exactly the same features — the only difference is how long you "
+"pay for at once, and how much that saves."
+msgstr ""
+"<strong>Ein Premium, drei Wege, dafür zu bezahlen.</strong> Jeder Tarif "
+"unten schaltet genau dieselben Funktionen frei – der einzige Unterschied "
+"ist, für wie lange du auf einmal bezahlst und wie viel das spart."
+
+msgid "Subscribe"
+msgstr "Abonnieren"
+
+msgid "All plans renew automatically. Cancel any time from this page."
+msgstr ""
+"Alle Tarife verlängern sich automatisch. Du kannst jederzeit auf dieser "
+"Seite kündigen."
+
+msgid ""
+"<strong>The 6- and 12-month plans are card-only.</strong> Discord "
+"subscriptions bill monthly, so those terms can't be offered there."
+msgstr ""
+"<strong>Die 6- und 12-Monats-Tarife gibt es nur per Karte.</strong> "
+"Discord-Abonnements rechnen monatlich ab, deshalb lassen sich diese "
+"Laufzeiten dort nicht anbieten."
+
+#, python-format
+msgid ""
+"Need to send these prices to whoever pays? There is a <a "
+"href=\"%(pricing_url)s\">public pricing page</a> that works without a "
+"Discord account."
+msgstr ""
+"Musst du diese Preise an die Person schicken, die bezahlt? Es gibt eine "
+"<a href=\"%(pricing_url)s\">öffentliche Preisseite</a>, die ohne Discord-"
+"Konto funktioniert."
+
+msgid "Manage billing"
+msgstr "Abrechnung verwalten"
+
+msgid ""
+"Change plan, update your card or cancel — on Stripe's own billing portal."
+" You'll come straight back here afterwards."
+msgstr ""
+"Tarif wechseln, Karte aktualisieren oder kündigen – im Abrechnungsportal "
+"von Stripe. Danach kommst du direkt hierher zurück."
+
+msgid "Buy inside Discord"
+msgstr "In Discord kaufen"
+
+#, python-format
+msgid ""
+"Run it in %(name)s. Discord handles the payment, and the command's button"
+" is already pointed at this server. <strong>Monthly only</strong>, at the"
+" same price as the monthly plan above."
+msgstr ""
+"Führe ihn in %(name)s aus. Discord wickelt die Zahlung ab, und der Button"
+" des Befehls zeigt bereits auf diesen Server. <strong>Nur "
+"monatlich</strong>, zum selben Preis wie der Monatstarif oben."
+
+#, python-format
+msgid "Run it in %(name)s to see this server's Discord subscription."
+msgstr ""
+"Führe ihn in %(name)s aus, um das Discord-Abonnement dieses Servers zu "
+"sehen."
+
+#, python-format
+msgid ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">See what's included on Discord's store page</a> — it "
+"lists the price and perks, but you choose the server during checkout, so "
+"use the command above if you administer more than one."
+msgstr ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">Sieh dir auf Discords Store-Seite an, was enthalten "
+"ist</a> – dort stehen Preis und Vorteile, aber den Server wählst du beim "
+"Bezahlen, nutze also den Befehl oben, wenn du mehr als einen verwaltest."
+

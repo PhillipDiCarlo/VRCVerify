@@ -84,6 +84,30 @@
   </svg>
 {%- endmacro %}
 
+{# The language picker's marker (#97): a globe with a meridian and a parallel.
+   Deliberately NOT a flag, and not the current language's first letter.
+
+   Flags are countries, and the twelve here are languages: Spanish is not
+   Spain's to the larger number of people who speak it, and Arabic has no flag
+   at all without picking a side. A letter is worse -- it is a letter from the
+   alphabet of whichever language is in force, so the control announcing "you
+   can change this" would be rendered in the script somebody cannot read.
+
+   A globe is the convention for exactly this reason, and it means the same
+   thing to a reader of every one of the twelve. #}
+{% macro globe_icon() -%}
+  <svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16"
+       aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="8" cy="8" r="6.2"></circle>
+    {# The parallel: a straight line, because a circle seen edge-on is one. #}
+    <path d="M1.8 8h12.4"></path>
+    {# The meridian: an ellipse drawn as two arcs, so it reads as curving away
+       rather than as a second circle sitting on top. #}
+    <path d="M8 1.8a9.2 9.2 0 0 1 0 12.4a9.2 9.2 0 0 1 0-12.4z"></path>
+  </svg>
+{%- endmacro %}
+
 {# The account menu's three glyphs, drawn the same way as every other icon in
    this file: inline SVG, presentation attributes only, no character that would
    have to exist in the vendored Inter subset.
@@ -122,8 +146,13 @@
    every cold load, and that flash is the single most visible way a theme
    feature goes wrong.
 
-   Absent means "follow the OS": see theme_attr() in app.py. #}
-<html lang="en"{{ theme_attr() }}>
+   Absent means "follow the OS": see theme_attr() in app.py.
+
+   `lang` and `dir` are stamped the same way and for the same reason (#97).
+   `lang="en"` was a lie on a page rendered in Japanese, and not a harmless
+   one: it is what a screen reader picks a voice from and what the browser
+   picks hyphenation and quote marks from. See lang_attrs() in app.py. #}
+<html{{ lang_attrs() }}{{ theme_attr() }}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -173,11 +202,11 @@
         {# Sends the state it moves you TO. Absent means expanded, which is why
            the expand button carries no value at all. #}
         {% if nav_collapsed %}
-          <button type="submit" class="hamburger" aria-label="Show the sidebar"
-                  title="Show the sidebar">{{ hamburger() }}</button>
+          <button type="submit" class="hamburger" aria-label="{{ _('Show the sidebar') }}"
+                  title="{{ _('Show the sidebar') }}">{{ hamburger() }}</button>
         {% else %}
           <button type="submit" name="collapsed" value="1" class="hamburger"
-                  aria-label="Hide the sidebar" title="Hide the sidebar">
+                  aria-label="{{ _('Hide the sidebar') }}" title="{{ _('Hide the sidebar') }}">
             {{ hamburger() }}</button>
         {% endif %}
       </form>
@@ -242,8 +271,8 @@
              the shipped ids anyway, so the script cannot invent one. #}
           <details class="bell bar-menu" data-newest="{{ feed.entries[0].id }}">
             <summary class="bar-button"
-                     title="What's new"
-                     aria-label="What's new{% if feed.unread %}. There are updates you haven't seen.{% endif %}">
+                     title="{{ _("What's new") }}"
+                     aria-label="{{ _("What's new") }}{% if feed.unread %}. {{ _("There are updates you haven't seen.") }}{% endif %}">
               {# A bell, drawn the same way as every other glyph in this file:
                  inline SVG, presentation attributes only, nothing that has to
                  exist in the vendored Inter subset. #}
@@ -263,7 +292,7 @@
             </summary>
 
             <div class="bar-panel bell-panel" aria-labelledby="bell-menu-label">
-              <p class="menu-label" id="bell-menu-label">What&#39;s new</p>
+              <p class="menu-label" id="bell-menu-label">{% trans %}What&#39;s new{% endtrans %}</p>
 
               <ul class="bell-list">
                 {% for item in feed.entries %}
@@ -331,7 +360,7 @@
                  panel has this control, and it does the same thing whether or
                  not prefs.js ran. #}
               <div class="bell-foot">
-                <a class="bell-all" href="{{ url_for('whats_new') }}">See all updates</a>
+                <a class="bell-all" href="{{ url_for('whats_new') }}">{% trans %}See all updates{% endtrans %}</a>
                 {# Row 2, the slot named above (#138). Absent rather than
                    disabled when this host has no invite configured: a dead
                    row in a panel whose whole job is credibility is worse than
@@ -341,7 +370,7 @@
                 {% set invite = support_invite() %}
                 {% if invite %}
                   <a class="bell-all" href="{{ invite }}"
-                     target="_blank" rel="noopener noreferrer">Get these in your own server</a>
+                     target="_blank" rel="noopener noreferrer">{% trans %}Get these in your own server{% endtrans %}</a>
                 {% endif %}
                 <form method="post" action="{{ url_for('mark_updates_seen') }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -352,13 +381,97 @@
                   {% if nav_return_group %}
                     <input type="hidden" name="group" value="{{ nav_return_group }}">
                   {% endif %}
-                  <button type="submit" class="bell-read">Mark all as read</button>
+                  <button type="submit" class="bell-read">{% trans %}Mark all as read{% endtrans %}</button>
                 </form>
               </div>
             </div>
           </details>
         {% endif %}
       {% endif %}
+
+      {# THE LANGUAGE PICKER (#97)
+         -------------------------
+         The same <details> disclosure as the theme picker below, built the
+         same way and for the same reasons: it opens with no JavaScript, each
+         option is its own submit button, and one click is the whole
+         interaction.
+
+         BEFORE the theme picker in the bar, and that ordering is the point.
+         This is the control that makes the rest of the page readable, so it is
+         the one a reader who cannot read the page should reach first. In an
+         RTL rendering `dir="rtl"` on <html> flips the bar, which puts it
+         first from that reader's side too, at no cost here.
+
+         On EVERY page including the sign-in one -- outside the `{% if section %}`
+         guard, like the theme picker. `set_language_preference` requires
+         neither a session nor a CSRF token for a reason the route spells out:
+         a picker you can only reach after navigating a page you cannot read is
+         most of the way to not having one.
+
+         The endonyms are the option labels: 日本語, not "Japanese". The
+         vendored Inter subset is Latin-only, so most of them paint in a system
+         face -- which is correct rather than unfortunate. A CJK or Devanagari
+         name has to render in a font that has those glyphs, and shipping four
+         more subsets to style a twelve-item menu would cost every visitor
+         bandwidth to make a list prettier for one visit. #}
+      <details class="langpick bar-menu">
+        {# The summary shows the language in force, in its own name. `title`
+           and `aria-label` name it too: the globe alone says "language" but
+           not "which", and the endonym alone is a word with no verb. #}
+        <summary class="bar-button"
+                 title="{{ _('Language') }}: {{ language_endonym() }}"
+                 aria-label="{{ _('Language') }}: {{ language_endonym() }}. {{ _('Choose a different one.') }}">
+          {{ globe_icon() }}
+        </summary>
+
+        <form method="post" action="{{ url_for('set_language_preference') }}"
+              class="bar-panel bar-panel-tall">
+          {# Where to come back to. An endpoint NAME from a fixed table, never
+             a path -- the same rule every other form in this bar follows. #}
+          <input type="hidden" name="return_to" value="{{ nav_return_to or 'index' }}">
+          {% if guild_id %}
+            <input type="hidden" name="guild_id" value="{{ guild_id }}">
+          {% endif %}
+          {% if nav_return_group %}
+            <input type="hidden" name="group" value="{{ nav_return_group }}">
+          {% endif %}
+
+          {# NOT translated, deliberately, and the one string on the site that
+             is not. This label sits above a list somebody is reading *because*
+             the page is in a language they do not want -- so rendering it in
+             that language explains the menu to everyone except the person who
+             opened it. "Language" in English is the closest thing to a word
+             this menu's readers share. #}
+          <p class="menu-label" id="lang-menu-label">Language</p>
+          <ul aria-labelledby="lang-menu-label">
+            {% for code, endonym in language_choices() %}
+              <li>
+                {# `lang` on the button, not just on <html>: this is a list of
+                   twelve languages rendered inside one page, and it is the
+                   attribute that tells a screen reader to say 日本語 in
+                   Japanese rather than spelling it out in the page's voice. #}
+                <button type="submit" name="lang" value="{{ code }}" lang="{{ code }}"
+                        class="menu-item{% if code == current_language() %} current{% endif %}"
+                        {% if code == current_language() %}aria-current="true"{% endif %}>
+                  <span class="menu-item-text">
+                    <span class="menu-item-label">{{ endonym }}</span>
+                  </span>
+                  {% if code == current_language() %}
+                    {# Inline SVG rather than a tick character, for the reason
+                       the theme picker gives below: no U+2713 in the subset. #}
+                    <svg class="menu-tick" viewBox="0 0 16 16" width="13" height="13"
+                         aria-hidden="true" fill="none" stroke="currentColor"
+                         stroke-width="2.2" stroke-linecap="round"
+                         stroke-linejoin="round">
+                      <path d="M3 8.5l3.5 3.5L13 4.5"></path>
+                    </svg>
+                  {% endif %}
+                </button>
+              </li>
+            {% endfor %}
+          </ul>
+        </form>
+      </details>
 
       {# THE THEME PICKER
          ----------------
@@ -380,8 +493,8 @@
         {# The summary shows the theme in force. `list-style: none` in the
            stylesheet removes the default triangle -- the icon is the marker. #}
         <summary class="bar-button"
-                 title="Theme: {{ current_theme() }}"
-                 aria-label="Theme: {{ current_theme() }}. Choose a different one.">
+                 title="{{ _('Theme') }}: {{ theme_name(current_theme()) }}"
+                 aria-label="{{ _('Theme') }}: {{ theme_name(current_theme()) }}. {{ _('Choose a different one.') }}">
           {{ theme_icon(current_theme()) }}
         </summary>
 
@@ -399,12 +512,12 @@
             <input type="hidden" name="group" value="{{ nav_return_group }}">
           {% endif %}
 
-          <p class="menu-label" id="theme-menu-label">Appearance</p>
+          <p class="menu-label" id="theme-menu-label">{% trans %}Appearance{% endtrans %}</p>
           <ul aria-labelledby="theme-menu-label">
             {% for key, label, hint in [
-                ('dark',   'Dark',   'Always dark.'),
-                ('light',  'Light',  'Always light.'),
-                ('system', 'System', 'Matches the theme set on your device.')
+                ('dark',   _('Dark'),   _('Always dark.')),
+                ('light',  _('Light'),  _('Always light.')),
+                ('system', _('System'), _('Matches the theme set on your device.'))
             ] %}
               <li>
                 {# aria-current is the accessible half of the tick: the class
@@ -459,12 +572,12 @@
          deliberately nothing else; see the sign-in page's promise. #}
       {% if csrf_token %}
         <details class="account bar-menu">
-          <summary class="bar-button" title="Account" aria-label="Account">
+          <summary class="bar-button" title="{{ _('Account') }}" aria-label="{{ _('Account') }}">
             {{ account_icon('person') }}
           </summary>
 
           <nav class="bar-panel account-menu" aria-labelledby="account-menu-label">
-            <p class="menu-label" id="account-menu-label">Account</p>
+            <p class="menu-label" id="account-menu-label">{% trans %}Account{% endtrans %}</p>
             <ul>
               <li>
                 <form method="post" action="{{ url_for('logout') }}">
@@ -472,7 +585,7 @@
                   <button type="submit" class="menu-item">
                     {{ account_icon('out') }}
                     <span class="menu-item-text">
-                      <span class="menu-item-label">Sign out</span>
+                      <span class="menu-item-label">{% trans %}Sign out{% endtrans %}</span>
                       <span class="menu-item-hint">Ends this session, on this
                         browser.</span>
                     </span>
@@ -485,7 +598,7 @@
                   <button type="submit" class="menu-item">
                     {{ account_icon('everywhere') }}
                     <span class="menu-item-text">
-                      <span class="menu-item-label">Sign out everywhere</span>
+                      <span class="menu-item-label">{% trans %}Sign out everywhere{% endtrans %}</span>
                       <span class="menu-item-hint">Ends every VRCVerify session
                         signed in as you, on every device.</span>
                     </span>
@@ -506,7 +619,7 @@
       {# aria-label rather than a visible heading: the sidebar's identity is
          obvious to anyone who can see it, and a screen reader needs the name
          more than the page needs the pixels. #}
-      <nav class="sidebar" aria-label="Sections">
+      <nav class="sidebar" aria-label="{{ _('Sections') }}">
         {# UP ONE LEVEL, AND ABOVE EVERYTHING ELSE.
            This used to sit at the foot of the sidebar under a hairline, where
            it read as a fourth section rather than a way out of this server --
@@ -520,7 +633,7 @@
           {# Inline SVG for the same reason the ticks are: U+2190 is not in the
              vendored Inter subset, so an arrow character would fall back to
              another family mid-line. #}
-          <a href="{{ url_for('index') }}" title="All servers">
+          <a href="{{ url_for('index') }}" title="{{ _('All servers') }}">
             <span class="side-up-mark" aria-hidden="true">
               <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
                    stroke="currentColor" stroke-width="1.8"
@@ -528,7 +641,7 @@
                 <path d="M13 8H3M6.5 4.5L3 8l3.5 3.5"></path>
               </svg>
             </span>
-            <span class="side-text">All servers</span>
+            <span class="side-text">{% trans %}All servers{% endtrans %}</span>
           </a>
         </p>
 
@@ -626,7 +739,7 @@
                    flex strip without `display: contents`, and that is the rule
                    Chromium mis-sizes. #}
                 <li class="side-branch">
-                  <ul class="side-sub" aria-label="Settings sections">
+                  <ul class="side-sub" aria-label="{{ _('Settings sections') }}">
                     {% for slug, sub_label in settings_subnav %}
                       <li>
                         {# aria-current goes here, never on the section above:
@@ -710,15 +823,15 @@
   <footer>
     <p class="footer-links">
       {% if csrf_token %}
-        <a href="{{ url_for('whats_new') }}">What&#39;s new</a>
+        <a href="{{ url_for('whats_new') }}">{% trans %}What&#39;s new{% endtrans %}</a>
       {% endif %}
-      <a href="https://vrcverify.com/terms">Terms</a>
-      <a href="https://vrcverify.com/privacy">Privacy</a>
-      <a href="https://vrcverify.com/refunds">Refunds</a>
+      <a href="https://vrcverify.com/terms">{% trans %}Terms{% endtrans %}</a>
+      <a href="https://vrcverify.com/privacy">{% trans %}Privacy{% endtrans %}</a>
+      <a href="https://vrcverify.com/refunds">{% trans %}Refunds{% endtrans %}</a>
     </p>
-    <p>Core 18+ verification is free, forever.</p>
-    <p>VRCVerify is operated by Esatto Technologies, United States.<br>
-    Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord Inc.</p>
+    <p>{% trans %}Core 18+ verification is free, forever.{% endtrans %}</p>
+    <p>{% trans %}VRCVerify is operated by Esatto Technologies, United States.{% endtrans %}<br>
+    {% trans %}Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord Inc.{% endtrans %}</p>
   </footer>
 </body>
 </html>

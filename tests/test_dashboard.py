@@ -36,7 +36,7 @@ import pytest
 
 pytest.importorskip("flask")
 
-from dashboard import changelog, oauth, overview_view, settings_view  # noqa: E402
+from dashboard import changelog, i18n, oauth, overview_view, settings_view  # noqa: E402
 from dashboard.app import CSP, SESSION_COOKIE, create_app  # noqa: E402
 from dashboard import app as app_module  # noqa: E402
 from dashboard.botapi import BotAPIError  # noqa: E402
@@ -1319,7 +1319,13 @@ class TestSettingsDoesNotLeakWhichServersRunTheBot:
 
     def test_a_failed_settings_read_never_renders_defaults(self, config, store):
         page = self._response(config, store, 503).data.decode()
-        for never in ("Not set", "Default blue", "en-US"):
+        # "English (en-US)" rather than the bare code, because since #97 the
+        # page legitimately carries `lang="en-US"` on <html> -- that attribute
+        # is the language this reader is being answered in and has nothing to
+        # do with the guild whose settings could not be read. What must never
+        # appear is the locale FIELD's default, and `locale_label` is what
+        # renders it.
+        for never in ("Not set", "Default blue", "English (en-US)"):
             assert never not in page
 
 
@@ -3125,10 +3131,25 @@ class TestTheFormMatchesWhatTheBotAccepts:
             settings=make_settings(premium=True),
         )
         page = every_settings_page(test_client)
+        # Scoped to the `instructions_locale` <select>, not to the whole page.
+        #
+        # Since #97 the header bar carries a language picker of its own, and it
+        # offers all twelve -- correctly, because it is a different question.
+        # This select is "which language should the bot speak to my members
+        # in", and only the bot can answer which those are. The picker in the
+        # bar is "which language should this website answer *me* in", and the
+        # answer to that is which catalogues this image was built with. Two
+        # lists, two sources, and an unscoped substring search cannot tell the
+        # difference between them.
+        select = re.search(
+            r'<select[^>]*name="instructions_locale".*?</select>', page, re.S
+        )
+        assert select, "the locale select should be on the page"
+        options = select.group(0)
         for code in LOCALES:
-            assert f'value="{code}"' in page
+            assert f'value="{code}"' in options
         # Present in LOCALE_NAMES, absent from what the bot offered.
-        assert 'value="pa-IN"' not in page
+        assert 'value="pa-IN"' not in options
 
     def test_announcement_channels_are_not_offered_at_all(self, config, store):
         """Unlike an unassignable role, the bot refuses these outright.
@@ -3176,12 +3197,19 @@ class TestTheFormMatchesWhatTheBotAccepts:
         page = every_settings_page(test_client)
         assert 'maxlength="1000"' in page
 
-    # The theme picker is the one form in the app with no CSRF token, and the
-    # exception is deliberate: it posts to /prefs/theme, which is reachable
-    # signed out -- the sign-in page carries the control and has no token to
-    # give it. Named here rather than subtracted silently, so a *second*
-    # tokenless form still fails this test.
-    CSRF_EXEMPT_FORMS = 1
+    # The theme picker and the language picker are the only forms in the app
+    # with no CSRF token, and both exceptions are deliberate: they post to
+    # /prefs/theme and /prefs/lang, which are reachable signed out -- the
+    # sign-in page carries both controls and has no token to give either.
+    #
+    # The language picker's case is the stronger of the two: #97 exists for
+    # people who cannot read English, and a picker reachable only after
+    # navigating a page you cannot read is most of the way to not having one.
+    #
+    # Named here rather than subtracted silently, so a *third* tokenless form
+    # still fails this test.
+    CSRF_EXEMPT_FORMS = 2
+    CSRF_EXEMPT_ACTIONS = {"/prefs/theme", "/prefs/lang"}
 
     def test_every_form_carries_a_csrf_token(self, config, store):
         test_client, _api = settings_client(
@@ -3196,8 +3224,8 @@ class TestTheFormMatchesWhatTheBotAccepts:
                 >= page.count("<form") - self.CSRF_EXEMPT_FORMS
             ), group
 
-    def test_the_only_tokenless_form_is_the_theme_picker(self, config, store):
-        """Pins *which* form the exemption above is spending itself on.
+    def test_the_only_tokenless_forms_are_the_two_prefs_pickers(self, config, store):
+        """Pins *which* forms the exemption above is spending itself on.
 
         Without this, the allowance is a hole any future form could fall into
         by accident -- the count would still pass and nobody would look.
@@ -3213,7 +3241,10 @@ class TestTheFormMatchesWhatTheBotAccepts:
                 if 'name="csrf_token"' not in form
             ]
             assert len(tokenless) == self.CSRF_EXEMPT_FORMS, group
-            assert 'action="/prefs/theme"' in tokenless[0]
+            actions = {
+                re.search(r'action="([^"]+)"', form).group(1) for form in tokenless
+            }
+            assert actions == self.CSRF_EXEMPT_ACTIONS, group
 
 
 # -------------------------------------------------------------------
@@ -4798,20 +4829,25 @@ class TestTheSignedOutPageHasNoTokenToGive(object):
     POST would be refused, and no test would have anything to say about it.
     """
 
-    def test_the_only_form_here_is_the_one_that_needs_no_token(self, client):
+    def test_the_only_forms_here_are_the_ones_that_need_no_token(self, client):
         """The signed-out counterpart of the settings-page invariant.
 
-        `/prefs/theme` is exempt on purpose: this page carries the control and
-        has nothing to sign it with, which is the whole reason #123 made that
-        route session-free and CSRF-free. The exemption is spent, once, here.
+        `/prefs/theme` and `/prefs/lang` are exempt on purpose: this page
+        carries both controls and has nothing to sign either with, which is the
+        whole reason #123 made the first route session-free and CSRF-free and
+        #97 made the second one. The exemption is spent, twice, here.
+
+        The language picker's case for being on this page in particular is the
+        strongest one either control has. Somebody who cannot read English
+        arrives here first, and "Sign in with Discord" is not a sentence they
+        should have to parse before the site will offer to speak to them.
         """
         page = client.get("/").data.decode()
         forms = re.findall(r"<form\b.*?</form>", page, re.S)
-        assert len(forms) == 1, [
-            re.search(r'action="([^"]*)"', form) for form in forms
-        ]
-        assert 'action="/prefs/theme"' in forms[0]
-        assert 'name="csrf_token"' not in forms[0]
+        actions = {re.search(r'action="([^"]*)"', form).group(1) for form in forms}
+        assert actions == {"/prefs/theme", "/prefs/lang"}, actions
+        for form in forms:
+            assert 'name="csrf_token"' not in form
 
     def test_nothing_here_renders_an_empty_token(self, client):
         """The failure this page invites, and it fails silently.
@@ -6218,6 +6254,230 @@ class TestTheThemeAttribute:
         ) == baseline
 
 
+class TestTheGuildsOwnLanguage:
+    """The dashboard answering in the language the admin chose for the bot.
+
+    #97 offers three ways to pick a language and calls this one "the most
+    consistent with the bot and the least discoverable if it is wrong". Both
+    halves are honoured: it decides when nobody has picked, and the picker in
+    the bar always beats it.
+
+    The constraint that shaped the implementation is in the issue too -- the
+    dashboard holds no database credential, so the locale has to arrive in a
+    payload it already receives. Settings and Subscriptions both fetch
+    `settings`, which carries `instructions_locale`. Overview fetches a
+    different endpoint and does not.
+    """
+
+    def _german(self):
+        return make_settings(values={"instructions_locale": "de"})
+
+    def test_the_settings_page_answers_in_the_servers_language(self, config, store):
+        test_client, _api = settings_client(config, store, settings=self._german())
+        page = settings_page(test_client).data.decode()
+        assert 'lang="de"' in page
+
+    def test_the_subscription_page_answers_in_it_too(self, config, store):
+        """The page #97 cares about most: "excludes tax" and "renews on" are
+        where a misunderstanding turns into a chargeback."""
+        test_client, _api = settings_client(config, store, settings=self._german())
+        page = test_client.get(f"/guild/{GUILD_IN}/subscription").data.decode()
+        assert 'lang="de"' in page
+        assert "Abonnements" in page
+
+    def test_it_is_remembered_so_overview_agrees_with_the_other_two(self, config, store):
+        """Overview reads a different bot endpoint and never sees the field.
+
+        Without the cookie an admin whose server is configured in German would
+        get German on two of their three pages and English on the third. One
+        language per browser, decided the first time we are in a position to
+        decide it.
+        """
+        test_client, _api = settings_client(config, store, settings=self._german())
+        response = settings_page(test_client)
+        assert "vrcverify_lang=de" in response.headers.get("Set-Cookie", "")
+        # The cookie is now on the client, so Overview renders from it.
+        assert 'lang="de"' in test_client.get(f"/guild/{GUILD_IN}").data.decode()
+
+    def test_the_picker_beats_the_servers_language(self, config, store):
+        """An explicit choice always wins. This is #97's own answer to the
+        discoverability objection it raises against this mechanism."""
+        test_client, _api = settings_client(config, store, settings=self._german())
+        test_client.set_cookie("vrcverify_lang", "ja")
+        assert 'lang="ja"' in settings_page(test_client).data.decode()
+
+    def test_a_language_the_dashboard_cannot_render_falls_through(self, config, store):
+        """Two hosts, two deploys: a bot running ahead of the dashboard is a
+        normal state, and the honest answer to a language we have no catalogue
+        for is the next choice down, not an error."""
+        test_client, _api = settings_client(
+            config, store, settings=make_settings(values={"instructions_locale": "xx-XX"})
+        )
+        response = settings_page(test_client)
+        assert response.status_code == 200
+        assert 'lang="en-US"' in response.data.decode()
+        assert "vrcverify_lang" not in response.headers.get("Set-Cookie", "")
+
+    def test_it_costs_no_extra_bot_call(self, config, store):
+        """#97: the locale arrives in a payload the dashboard already
+        receives, and is never a new lookup it performs for itself. A route
+        asking the bot a second time to find out what language to say "Renews
+        on" in is exactly what the issue rules out."""
+        test_client, api = settings_client(config, store, settings=self._german())
+        before = len(api.reads)
+        settings_page(test_client)
+        after_localised = len(api.reads) - before
+
+        plain_client, plain_api = settings_client(config, store, settings=make_settings())
+        before = len(plain_api.reads)
+        settings_page(plain_client)
+        assert len(plain_api.reads) - before == after_localised
+
+
+class TestTheLanguagePicker:
+    """`/prefs/lang`, and the control that posts to it (issue #97).
+
+    The dashboard spoke English while the bot spoke twelve languages. Since
+    #65 moved configuration here and #88 put a payment page here, the two
+    things a non-English-speaking admin has to do were both done in English.
+
+    The route is the SECOND POST in this app requiring neither a session nor a
+    CSRF token, and the case is stronger than the theme picker's: a picker you
+    can only reach after navigating a page you cannot read is most of the way
+    to not having one. The tests below pin both halves -- that it works
+    without them, and that dropping them bought nothing an attacker wants.
+    """
+
+    @staticmethod
+    def _current(page: str):
+        """Which language the picker marks as in force, by aria-current.
+
+        Scoped to `name="lang"`: the theme picker in the same bar marks its
+        current option the same way.
+        """
+        match = re.search(
+            r'<button[^>]*name="lang"[^>]*aria-current="true"[^>]*>', page
+        )
+        return re.search(r'value="([\w-]+)"', match.group(0)).group(1) if match else None
+
+    # --- the control itself ---
+
+    def test_it_offers_all_twelve_and_needs_no_session(self, client):
+        page = client.get("/").data.decode()
+        for code in i18n.UI_LANGUAGES:
+            assert f'name="lang" value="{code}"' in page
+
+    def test_it_is_on_the_signed_out_page(self, client):
+        """The page this feature exists for. Somebody who cannot read English
+        arrives here first, and "Sign in with Discord" is not a sentence they
+        should have to parse before the site offers to speak to them."""
+        page = client.get("/").data.decode()
+        assert "Sign in with Discord" in page
+        assert 'action="/prefs/lang"' in page
+
+    def test_each_option_is_named_in_its_own_language(self):
+        """A menu labelled "Japanese" is no use to somebody looking for the
+        word they would recognise."""
+        assert i18n.ENDONYMS["ja"] == "\u65e5\u672c\u8a9e"
+        assert i18n.ENDONYMS["de"] == "Deutsch"
+
+    def test_each_option_carries_its_own_lang_attribute(self, client):
+        """Twelve languages rendered inside one page. Without this a screen
+        reader announces every one of them in the page's own voice."""
+        page = client.get("/").data.decode()
+        assert 'name="lang" value="ja" lang="ja"' in page
+
+    def test_it_needs_no_javascript(self, client):
+        """A <details> opens it, a submit button applies it -- the same
+        bargain every other control in this bar strikes."""
+        page = client.get("/").data.decode()
+        form = re.search(
+            r'<form[^>]*action="/prefs/lang".*?</form>', page, re.S
+        ).group(0)
+        assert "onclick" not in form and "javascript:" not in form
+
+    # --- the route ---
+
+    def test_choosing_a_language_sets_the_cookie_with_no_session(self, client):
+        response = client.post("/prefs/lang", data={"lang": "ja"})
+        assert response.status_code == 302
+        assert "vrcverify_lang=ja" in response.headers["Set-Cookie"]
+
+    def test_the_cookie_is_secure_and_same_site_but_not_httponly(self, client):
+        """Not httponly, like the theme cookie: the CSP has no `connect-src`,
+        so a future instant picker cannot ask the server to write it."""
+        header = client.post("/prefs/lang", data={"lang": "de"}).headers["Set-Cookie"]
+        assert "Secure" in header
+        assert "SameSite=Lax" in header
+        assert "HttpOnly" not in header
+
+    def test_an_unrecognised_language_changes_nothing(self, client):
+        """The picker only ever offers the twelve, so the only reachable cause
+        is a hand-built request. The honest answer to one of those is the page
+        they asked to go back to -- not an error page."""
+        response = client.post("/prefs/lang", data={"lang": "../../etc/passwd"})
+        assert response.status_code == 302
+        assert "vrcverify_lang" not in response.headers.get("Set-Cookie", "")
+
+    def test_english_IS_stored_unlike_the_theme_default(self, client):
+        """The one place this diverges from the theme and sidebar cookies, and
+        deliberately. For them "default" is the absence of a cookie, so one
+        state has one representation. Here absent means "nobody has chosen",
+        which is what lets the guild's language have its say -- so a German
+        admin who deliberately picks English has to be able to say so."""
+        header = client.post("/prefs/lang", data={"lang": "en-US"}).headers["Set-Cookie"]
+        assert "vrcverify_lang=en-US" in header
+
+    def test_it_never_reaches_the_bot(self, app, client):
+        """A preference toggle that could be pointed at the bot API would be
+        an unauthenticated way to spend its rate limit."""
+        api = app.config["BOT_API"]
+        before = (len(api.reads), len(api.calls), len(api.saves))
+        client.post("/prefs/lang", data={"lang": "ja"})
+        assert (len(api.reads), len(api.calls), len(api.saves)) == before
+
+    # --- what the page then renders ---
+
+    def test_the_chosen_language_reaches_the_html_tag(self, client):
+        """`lang="en"` was a lie on a page rendered in Japanese, and not a
+        harmless one: it is what a screen reader picks a voice from."""
+        client.set_cookie("vrcverify_lang", "ja")
+        page = client.get("/").data.decode()
+        assert 'lang="ja"' in page
+        assert self._current(page) == "ja"
+
+    def test_arabic_sets_dir_rtl_and_the_rest_do_not(self, client):
+        """Shipped before the stylesheet mirrors, on purpose: `dir` governs
+        the reading order of the text itself, which is a different job from
+        the layout. Tracked separately."""
+        client.set_cookie("vrcverify_lang", "ar")
+        assert 'dir="rtl"' in client.get("/").data.decode()
+        client.set_cookie("vrcverify_lang", "ja")
+        assert 'dir="ltr"' in client.get("/").data.decode()
+
+    def test_the_page_is_actually_translated_not_merely_labelled(self, client):
+        """The failure this whole feature could have: a catalogue that loads,
+        reports success and serves the English for everything."""
+        client.set_cookie("vrcverify_lang", "de")
+        page = client.get("/").data.decode()
+        assert "Darstellung" in page  # the theme menu's label
+        assert "Appearance" not in page
+
+    def test_a_hand_edited_cookie_cannot_reach_the_lang_attribute(self, client):
+        """The chosen code ends up in an attribute and in a filesystem path,
+        so nothing reaches either without being found in UI_LANGUAGES."""
+        client.set_cookie("vrcverify_lang", '"><script>alert(1)</script>')
+        page = client.get("/").data.decode()
+        assert 'lang="en-US"' in page
+        assert "<script>alert(1)</script>" not in page
+
+    def test_accept_language_is_honoured_with_no_cookie_at_all(self, client):
+        """The sign-in page has no guild and no cookie, and is the first page
+        anybody sees."""
+        page = client.get("/", headers={"Accept-Language": "de-DE,de;q=0.9"}).data.decode()
+        assert 'lang="de"' in page
+
+
 class TestTheThemePicker:
     """`/prefs/theme`, and the control that posts to it (issue #123 phase 3).
 
@@ -6234,8 +6494,16 @@ class TestTheThemePicker:
 
     @staticmethod
     def _current_option(page: str):
-        """Which option the page marks as in force, by aria-current."""
-        match = re.search(r'<button[^>]*aria-current="true"[^>]*>', page)
+        """Which option the THEME picker marks as in force, by aria-current.
+
+        Scoped to `name="theme"` since #97. The language picker in the same bar
+        also marks its current option with `aria-current`, and it renders first
+        -- so an unscoped search for the attribute finds the language, not the
+        theme, and reports whichever of the twelve is in force.
+        """
+        match = re.search(
+            r'<button[^>]*name="theme"[^>]*aria-current="true"[^>]*>', page
+        )
         return re.search(r'value="([a-z]+)"', match.group(0)).group(1) if match else None
 
     # --- the control itself ---
@@ -6446,18 +6714,22 @@ class TestTheHeaderBar:
         assert actions < page.index('<details class="theme bar-menu">')
 
     def test_the_menus_share_one_pattern(self, client, store):
-        """All three wear .bar-menu, which is what prefs.js dismisses. Two
-        menus styled two ways is how a bar ends up with three popovers that
+        """All four wear .bar-menu, which is what prefs.js dismisses. Two
+        menus styled two ways is how a bar ends up with four popovers that
         each close differently -- so #136's bell joined the pattern rather
-        than bringing a fourth.
+        than bringing a fifth, and #97's language picker joined it rather
+        than bringing a fifth of its own.
 
-        Three since #136 phase 2: the bell, the theme picker, the account
-        menu, in that order left to right.
+        Four since #97: the bell, the language picker, the theme picker, the
+        account menu, in that order left to right.
         """
         login_as(client, store)
         page = client.get("/").data.decode()
-        assert page.count("bar-menu") == 3
-        assert page.count("bar-panel") == 3
+        assert page.count("bar-menu") == 4
+        # One more `bar-panel` than `bar-menu`, because the language picker's
+        # panel carries `bar-panel-tall` as well: twelve rows is past the
+        # height the other three were sized for. Same pattern, one modifier.
+        assert page.count("bar-panel") == 5
 
     # --- the logo ---
 
@@ -7054,6 +7326,15 @@ class TestWriteSurface:
             # Stripe's hosted pages allow.
             "/guild/<int:guild_id>/subscription/checkout",
             "/guild/<int:guild_id>/subscription/portal",
+            # Which of the twelve languages to render in (#97). One cookie,
+            # nothing else, and the second route here to require neither a
+            # session nor a CSRF token -- for a stronger version of the theme
+            # picker's reason. This feature exists for people who cannot read
+            # English, so a picker reachable only from behind a sign-in page
+            # they cannot read would be most of the way to not existing. The
+            # submitted value is checked against the twelve before it can reach
+            # a `lang` attribute or a catalogue path.
+            "/prefs/lang",
         }, f"an unexpected write route appeared: {posts}"
 
     def test_the_stripe_webhook_is_not_in_that_list_unless_switched_on(self, app):

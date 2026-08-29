@@ -1,0 +1,734 @@
+# Punjabi (Gurmukhi, India) translations for VRCVerify.
+# Copyright (C) 2026 Esatto Technologies
+# This file is distributed under the same license as the VRCVerify project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: VRCVerify VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-08-29 03:54-0400\n"
+"PO-Revision-Date: 2026-08-29 03:27-0400\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: pa_Guru_IN\n"
+"Language-Team: pa_Guru_IN <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Dark"
+msgstr "ਗੂੜ੍ਹਾ"
+
+msgid "Light"
+msgstr "ਹਲਕਾ"
+
+msgid "System"
+msgstr "ਸਿਸਟਮ ਮੁਤਾਬਕ"
+
+msgid "That setting needs VRCVerify Premium. Nothing was changed."
+msgstr "ਇਸ ਸੈਟਿੰਗ ਲਈ VRCVerify Premium ਚਾਹੀਦਾ ਹੈ। ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲਿਆ ਗਿਆ।"
+
+msgid "That language isn't one VRCVerify supports. Nothing was changed."
+msgstr "ਇਹ ਭਾਸ਼ਾ VRCVerify ਸਮਰਥਿਤ ਭਾਸ਼ਾਵਾਂ ਵਿੱਚ ਨਹੀਂ ਹੈ। ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲਿਆ ਗਿਆ।"
+
+msgid ""
+"Run /vrcverify_setup in your server first -- VRCVerify needs a verified "
+"role before it can store anything else."
+msgstr ""
+"ਪਹਿਲਾਂ ਆਪਣੇ ਸਰਵਰ ਵਿੱਚ /vrcverify_setup ਚਲਾਓ — ਹੋਰ ਕੁਝ ਵੀ ਸੰਭਾਲਣ ਤੋਂ "
+"ਪਹਿਲਾਂ VRCVerify ਨੂੰ ਇੱਕ ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਚਾਹੀਦੀ ਹੈ।"
+
+msgid "That setting can't be changed from the website yet. Nothing was changed."
+msgstr "ਇਹ ਸੈਟਿੰਗ ਹਾਲੇ ਵੈੱਬਸਾਈਟ ਤੋਂ ਨਹੀਂ ਬਦਲੀ ਜਾ ਸਕਦੀ। ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲਿਆ ਗਿਆ।"
+
+msgid ""
+"The bot couldn't complete the save, so nothing was changed. Try again "
+"shortly."
+msgstr ""
+"ਬੌਟ ਸੰਭਾਲਣ ਦਾ ਕੰਮ ਪੂਰਾ ਨਹੀਂ ਕਰ ਸਕਿਆ, ਇਸ ਲਈ ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲਿਆ ਗਿਆ। ਥੋੜ੍ਹੀ "
+"ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+
+msgid "That role isn't in this server any more. Reload the page and pick again."
+msgstr "ਉਹ ਭੂਮਿਕਾ ਹੁਣ ਇਸ ਸਰਵਰ ਵਿੱਚ ਨਹੀਂ ਹੈ। ਪੰਨਾ ਦੁਬਾਰਾ ਲੋਡ ਕਰ ਕੇ ਫਿਰ ਚੁਣੋ।"
+
+msgid "Pick a verified role -- verification can't run without one."
+msgstr "ਇੱਕ ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਚੁਣੋ — ਇਸ ਤੋਂ ਬਿਨਾਂ ਤਸਦੀਕ ਚੱਲ ਹੀ ਨਹੀਂ ਸਕਦੀ।"
+
+msgid ""
+"Links in the custom message may only point to discord.com or vrchat.com. "
+"Nothing was changed."
+msgstr ""
+"ਆਪਣੇ ਸੁਨੇਹੇ ਵਿਚਲੇ ਲਿੰਕ ਸਿਰਫ਼ discord.com ਜਾਂ vrchat.com ਵੱਲ ਹੀ ਜਾ ਸਕਦੇ "
+"ਹਨ। ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲਿਆ ਗਿਆ।"
+
+msgid "That custom message is too long. The limit is 1000 characters."
+msgstr "ਇਹ ਸੁਨੇਹਾ ਬਹੁਤ ਲੰਮਾ ਹੈ। ਹੱਦ 1000 ਅੱਖਰ ਹੈ।"
+
+msgid ""
+"Verification logs can't go in an announcement channel -- other servers "
+"can follow one, which would republish your members' age status."
+msgstr ""
+"ਤਸਦੀਕ ਲਾਗ ਕਿਸੇ ਐਲਾਨ ਚੈਨਲ ਵਿੱਚ ਨਹੀਂ ਰੱਖੇ ਜਾ ਸਕਦੇ — ਹੋਰ ਸਰਵਰ ਉਸਨੂੰ ਫਾਲੋ ਕਰ "
+"ਸਕਦੇ ਹਨ, ਜਿਸ ਨਾਲ ਤੁਹਾਡੇ ਮੈਂਬਰਾਂ ਦੀ ਉਮਰ ਦੀ ਸਥਿਤੀ ਇਸ ਸਰਵਰ ਤੋਂ ਬਾਹਰ ਦੁਬਾਰਾ "
+"ਪ੍ਰਕਾਸ਼ਿਤ ਹੋ ਜਾਵੇਗੀ।"
+
+msgid ""
+"That channel isn't in this server any more. Reload the page and pick "
+"again."
+msgstr "ਉਹ ਚੈਨਲ ਹੁਣ ਇਸ ਸਰਵਰ ਵਿੱਚ ਨਹੀਂ ਹੈ। ਪੰਨਾ ਦੁਬਾਰਾ ਲੋਡ ਕਰ ਕੇ ਫਿਰ ਚੁਣੋ।"
+
+msgid ""
+"VRCVerify can't post in that channel, so it can't log there. Check the "
+"channel's permissions and try again."
+msgstr ""
+"VRCVerify ਉਸ ਚੈਨਲ ਵਿੱਚ ਪੋਸਟ ਨਹੀਂ ਕਰ ਸਕਦਾ, ਇਸ ਲਈ ਉੱਥੇ ਲਾਗ ਵੀ ਨਹੀਂ ਰੱਖ "
+"ਸਕਦਾ। ਚੈਨਲ ਦੀਆਂ ਇਜਾਜ਼ਤਾਂ ਜਾਂਚੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+
+msgid ""
+"This bot's database is missing the column for that setting. Contact the "
+"bot operator."
+msgstr ""
+"ਇਸ ਬੌਟ ਦੇ ਡਾਟਾਬੇਸ ਵਿੱਚ ਉਸ ਸੈਟਿੰਗ ਲਈ ਕਾਲਮ ਮੌਜੂਦ ਨਹੀਂ ਹੈ। ਬੌਟ ਚਲਾਉਣ ਵਾਲੇ "
+"ਨਾਲ ਸੰਪਰਕ ਕਰੋ।"
+
+msgid ""
+"That doesn't look like a VRChat group. Paste the group's ID (it starts "
+"with grp_) or the vrchat.com link to the group."
+msgstr ""
+"ਇਹ VRChat ਗਰੁੱਪ ਨਹੀਂ ਲੱਗਦਾ। ਗਰੁੱਪ ਦੀ ID (ਜੋ grp_ ਨਾਲ ਸ਼ੁਰੂ ਹੁੰਦੀ ਹੈ) ਜਾਂ "
+"ਗਰੁੱਪ ਦਾ vrchat.com ਲਿੰਕ ਪੇਸਟ ਕਰੋ।"
+
+msgid ""
+"VRChat's vrc.group short links can't be looked up. Open the group on "
+"vrchat.com and paste that link instead, or the group ID starting with "
+"grp_."
+msgstr ""
+"VRChat ਦੇ vrc.group ਛੋਟੇ ਲਿੰਕ ਪੜ੍ਹੇ ਨਹੀਂ ਜਾ ਸਕਦੇ। ਗਰੁੱਪ ਨੂੰ vrchat.com "
+"ਉੱਤੇ ਖੋਲ੍ਹ ਕੇ ਉਹੀ ਲਿੰਕ ਪੇਸਟ ਕਰੋ, ਜਾਂ grp_ ਨਾਲ ਸ਼ੁਰੂ ਹੋਣ ਵਾਲੀ ਗਰੁੱਪ ID "
+"ਦਿਓ।"
+
+msgid ""
+"Another Discord server has already linked that VRChat group. A group can "
+"only belong to one server -- contact support if that's wrong."
+msgstr ""
+"ਕਿਸੇ ਹੋਰ Discord ਸਰਵਰ ਨੇ ਉਹ VRChat ਗਰੁੱਪ ਪਹਿਲਾਂ ਹੀ ਜੋੜਿਆ ਹੋਇਆ ਹੈ। ਇੱਕ "
+"ਗਰੁੱਪ ਸਿਰਫ਼ ਇੱਕ ਹੀ ਸਰਵਰ ਦਾ ਹੋ ਸਕਦਾ ਹੈ — ਜੇ ਇਹ ਗਲਤ ਹੈ ਤਾਂ ਸਹਾਇਤਾ ਨਾਲ ਸੰਪਰਕ"
+" ਕਰੋ।"
+
+msgid "Add your VRChat group first, then run the setup check."
+msgstr "ਪਹਿਲਾਂ ਆਪਣਾ VRChat ਗਰੁੱਪ ਜੋੜੋ, ਫਿਰ ਸੈੱਟਅੱਪ ਜਾਂਚ ਚਲਾਓ।"
+
+msgid "That change couldn't be saved, so nothing was changed."
+msgstr "ਉਹ ਤਬਦੀਲੀ ਸੰਭਾਲੀ ਨਹੀਂ ਜਾ ਸਕੀ, ਇਸ ਲਈ ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲਿਆ ਗਿਆ।"
+
+msgid ""
+"VRCVerify can't post the panel in that channel. It needs both Send "
+"Messages and Embed Links there -- Embed Links is the one that's usually "
+"missing, because the panel is an embed."
+msgstr ""
+"VRCVerify ਉਸ ਚੈਨਲ ਵਿੱਚ ਪੈਨਲ ਪੋਸਟ ਨਹੀਂ ਕਰ ਸਕਦਾ। ਉੱਥੇ ਇਸਨੂੰ Send Messages "
+"ਅਤੇ Embed Links ਦੋਵੇਂ ਚਾਹੀਦੀਆਂ ਹਨ — ਆਮ ਤੌਰ 'ਤੇ Embed Links ਹੀ ਨਹੀਂ ਹੁੰਦੀ,"
+" ਕਿਉਂਕਿ ਪੈਨਲ ਇੱਕ ਏਮਬੈੱਡ ਹੈ।"
+
+msgid "The panel couldn't be posted just now. Try again shortly."
+msgstr "ਇਸ ਵੇਲੇ ਪੈਨਲ ਪੋਸਟ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+
+msgid "Panel posted."
+msgstr "ਪੈਨਲ ਪੋਸਟ ਹੋ ਗਿਆ।"
+
+msgid ""
+"That channel already had the panel, so it was refreshed rather than "
+"posted again."
+msgstr ""
+"ਉਸ ਚੈਨਲ ਵਿੱਚ ਪੈਨਲ ਪਹਿਲਾਂ ਹੀ ਸੀ, ਇਸ ਲਈ ਨਵਾਂ ਪੋਸਟ ਕਰਨ ਦੀ ਥਾਂ ਉਸਨੂੰ ਤਾਜ਼ਾ ਕਰ"
+" ਦਿੱਤਾ ਗਿਆ।"
+
+msgid ""
+"Panel posted in the new channel. The old one is still up in its previous "
+"channel -- delete it in Discord when you're ready."
+msgstr ""
+"ਪੈਨਲ ਨਵੇਂ ਚੈਨਲ ਵਿੱਚ ਪੋਸਟ ਹੋ ਗਿਆ। ਪੁਰਾਣਾ ਹਾਲੇ ਵੀ ਆਪਣੇ ਪਿਛਲੇ ਚੈਨਲ ਵਿੱਚ ਹੈ —"
+" ਜਦੋਂ ਸੌਖ ਹੋਵੇ, ਉਸਨੂੰ Discord ਵਿੱਚ ਮਿਟਾ ਦਿਓ।"
+
+msgid ""
+"That panel was posted in a way Discord won't let the bot edit, so it was "
+"replaced with a fresh one. Your settings apply to it now."
+msgstr ""
+"ਉਹ ਪੈਨਲ ਇਸ ਤਰ੍ਹਾਂ ਪੋਸਟ ਹੋਇਆ ਸੀ ਕਿ Discord ਬੌਟ ਨੂੰ ਉਸਨੂੰ ਸੋਧਣ ਨਹੀਂ ਦਿੰਦਾ, "
+"ਇਸ ਲਈ ਉਸਦੀ ਥਾਂ ਨਵਾਂ ਲਗਾ ਦਿੱਤਾ ਗਿਆ। ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਹੁਣ ਉਸੇ ਉੱਤੇ ਲਾਗੂ "
+"ਹੁੰਦੀਆਂ ਹਨ।"
+
+msgid ""
+"Thanks — your subscription is being set up. Premium switches on as soon "
+"as Stripe confirms the payment, usually within a few seconds."
+msgstr ""
+"ਧੰਨਵਾਦ — ਤੁਹਾਡੀ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਤਿਆਰ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ। Stripe ਵੱਲੋਂ ਭੁਗਤਾਨ ਦੀ "
+"ਪੁਸ਼ਟੀ ਹੁੰਦੇ ਹੀ Premium ਚਾਲੂ ਹੋ ਜਾਵੇਗਾ, ਆਮ ਤੌਰ 'ਤੇ ਕੁਝ ਸਕਿੰਟਾਂ ਵਿੱਚ।"
+
+msgid "That plan isn't one we offer. Nothing has been charged."
+msgstr "ਉਹ ਪਲਾਨ ਅਸੀਂ ਨਹੀਂ ਦਿੰਦੇ। ਕੋਈ ਪੈਸਾ ਨਹੀਂ ਲਿਆ ਗਿਆ।"
+
+msgid ""
+"This server already has Premium, so there was nothing to buy. Nothing has"
+" been charged."
+msgstr ""
+"ਇਸ ਸਰਵਰ ਕੋਲ ਪਹਿਲਾਂ ਹੀ Premium ਹੈ, ਇਸ ਲਈ ਖਰੀਦਣ ਨੂੰ ਕੁਝ ਸੀ ਹੀ ਨਹੀਂ। ਕੋਈ "
+"ਪੈਸਾ ਨਹੀਂ ਲਿਆ ਗਿਆ।"
+
+msgid ""
+"We couldn't reach Stripe just now, so nothing has been charged. Try again"
+" in a moment, or subscribe inside Discord instead."
+msgstr ""
+"ਇਸ ਵੇਲੇ Stripe ਨਾਲ ਸੰਪਰਕ ਨਹੀਂ ਹੋ ਸਕਿਆ, ਇਸ ਲਈ ਕੋਈ ਪੈਸਾ ਨਹੀਂ ਲਿਆ ਗਿਆ। "
+"ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਕੋਸ਼ਿਸ਼ ਕਰੋ, ਜਾਂ Discord ਦੇ ਅੰਦਰੋਂ ਸਬਸਕ੍ਰਾਈਬ ਕਰੋ।"
+
+msgid "There's no card subscription on this server to manage."
+msgstr "ਇਸ ਸਰਵਰ ਉੱਤੇ ਸੰਭਾਲਣ ਲਈ ਕੋਈ ਕਾਰਡ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਨਹੀਂ ਹੈ।"
+
+msgid "Overview"
+msgstr "ਸੰਖੇਪ"
+
+# | msgid "Sections"
+msgid "Settings"
+msgstr "ਸੈਟਿੰਗਾਂ"
+
+msgid "Subscriptions"
+msgstr "ਸਬਸਕ੍ਰਿਪਸ਼ਨਾਂ"
+
+# | msgid "A verification log channel"
+msgid "Verification"
+msgstr "ਤਸਦੀਕ"
+
+msgid "After verifying"
+msgstr "ਤਸਦੀਕ ਤੋਂ ਬਾਅਦ"
+
+# | msgid "A branded instructions panel"
+msgid "Instructions panel"
+msgstr "ਹਦਾਇਤ ਪੈਨਲ"
+
+msgid "VRChat group"
+msgstr "VRChat ਗਰੁੱਪ"
+
+msgid "Logging"
+msgstr "ਲਾਗਿੰਗ"
+
+# | msgid "Active"
+msgid "Activity"
+msgstr "ਸਰਗਰਮੀ"
+
+msgid "Monthly"
+msgstr "ਮਹੀਨਾਵਾਰ"
+
+msgid "3 months"
+msgstr "3 ਮਹੀਨੇ"
+
+msgid "6 months"
+msgstr "6 ਮਹੀਨੇ"
+
+msgid "12 months"
+msgstr "12 ਮਹੀਨੇ"
+
+msgid "per month"
+msgstr "ਪ੍ਰਤੀ ਮਹੀਨਾ"
+
+msgid "per 3 months"
+msgstr "ਹਰ 3 ਮਹੀਨੇ"
+
+msgid "per 6 months"
+msgstr "ਹਰ 6 ਮਹੀਨੇ"
+
+msgid "per 12 months"
+msgstr "ਹਰ 12 ਮਹੀਨੇ"
+
+msgid "per year"
+msgstr "ਪ੍ਰਤੀ ਸਾਲ"
+
+msgid "Premium"
+msgstr "Premium"
+
+#, python-format
+msgid "%(days)s-day free trial"
+msgstr "%(days)s ਦਿਨ ਦੀ ਮੁਫ਼ਤ ਅਜ਼ਮਾਇਸ਼"
+
+msgid "Active"
+msgstr "ਚਾਲੂ"
+
+msgid "Payment failed"
+msgstr "ਭੁਗਤਾਨ ਅਸਫਲ"
+
+msgid "Charged twice"
+msgstr "ਦੋ ਵਾਰ ਪੈਸੇ ਲਏ"
+
+msgid "Confirming"
+msgstr "ਪੁਸ਼ਟੀ ਹੋ ਰਹੀ ਹੈ"
+
+msgid "Unknown"
+msgstr "ਅਣਜਾਣ"
+
+msgid "Cancelled"
+msgstr "ਰੱਦ"
+
+msgid "Plan"
+msgstr "ਪਲਾਨ"
+
+msgid "Billed through"
+msgstr "ਭੁਗਤਾਨ ਦਾ ਜ਼ਰੀਆ"
+
+msgid "Discord"
+msgstr "Discord"
+
+msgid "Card and Discord"
+msgstr "ਕਾਰਡ ਅਤੇ Discord"
+
+msgid "Card"
+msgstr "ਕਾਰਡ"
+
+msgid "Due to renew"
+msgstr "ਨਵਿਆਉਣਾ ਹੋਣਾ ਹੈ"
+
+msgid "Renews"
+msgstr "ਨਵਿਆਉਣ ਦੀ ਤਾਰੀਖ਼"
+
+msgid "Premium until"
+msgstr "Premium ਇਸ ਤਾਰੀਖ਼ ਤੱਕ"
+
+msgid "Show the sidebar"
+msgstr "ਸਾਈਡਬਾਰ ਵਿਖਾਓ"
+
+msgid "Hide the sidebar"
+msgstr "ਸਾਈਡਬਾਰ ਲੁਕਾਓ"
+
+msgid "What's new"
+msgstr "ਨਵਾਂ ਕੀ ਹੈ"
+
+msgid "There are updates you haven't seen."
+msgstr "ਕੁਝ ਅੱਪਡੇਟ ਹਨ ਜੋ ਤੁਸੀਂ ਹਾਲੇ ਨਹੀਂ ਵੇਖੇ।"
+
+msgid "What&#39;s new"
+msgstr "ਨਵਾਂ ਕੀ ਹੈ"
+
+msgid "See all updates"
+msgstr "ਸਾਰੇ ਅੱਪਡੇਟ ਵੇਖੋ"
+
+msgid "Get these in your own server"
+msgstr "ਇਹ ਆਪਣੇ ਸਰਵਰ ਵਿੱਚ ਪ੍ਰਾਪਤ ਕਰੋ"
+
+msgid "Mark all as read"
+msgstr "ਸਭ ਨੂੰ ਪੜ੍ਹਿਆ ਹੋਇਆ ਨਿਸ਼ਾਨਬੱਧ ਕਰੋ"
+
+msgid "Language"
+msgstr "ਭਾਸ਼ਾ"
+
+msgid "Choose a different one."
+msgstr "ਕੋਈ ਹੋਰ ਚੁਣੋ।"
+
+msgid "Theme"
+msgstr "ਥੀਮ"
+
+msgid "Appearance"
+msgstr "ਦਿੱਖ"
+
+msgid "Always dark."
+msgstr "ਹਮੇਸ਼ਾ ਗੂੜ੍ਹਾ।"
+
+msgid "Always light."
+msgstr "ਹਮੇਸ਼ਾ ਹਲਕਾ।"
+
+msgid "Matches the theme set on your device."
+msgstr "ਤੁਹਾਡੇ ਡਿਵਾਈਸ ਉੱਤੇ ਸੈੱਟ ਥੀਮ ਮੁਤਾਬਕ।"
+
+msgid "Account"
+msgstr "ਖਾਤਾ"
+
+msgid "Sign out"
+msgstr "ਸਾਈਨ ਆਉਟ"
+
+msgid "Sign out everywhere"
+msgstr "ਸਾਰੇ ਡਿਵਾਈਸਾਂ ਤੋਂ ਸਾਈਨ ਆਉਟ"
+
+msgid "Sections"
+msgstr "ਭਾਗ"
+
+msgid "All servers"
+msgstr "ਸਾਰੇ ਸਰਵਰ"
+
+msgid "Settings sections"
+msgstr "ਸੈਟਿੰਗਾਂ ਦੇ ਭਾਗ"
+
+msgid "Terms"
+msgstr "ਸ਼ਰਤਾਂ"
+
+msgid "Privacy"
+msgstr "ਨਿੱਜਤਾ"
+
+msgid "Refunds"
+msgstr "ਵਾਪਸੀ"
+
+msgid "Core 18+ verification is free, forever."
+msgstr "ਬੁਨਿਆਦੀ 18+ ਤਸਦੀਕ ਹਮੇਸ਼ਾ ਲਈ ਮੁਫ਼ਤ ਹੈ।"
+
+msgid "VRCVerify is operated by Esatto Technologies, United States."
+msgstr "VRCVerify ਨੂੰ Esatto Technologies, ਸੰਯੁਕਤ ਰਾਜ ਅਮਰੀਕਾ ਚਲਾਉਂਦੀ ਹੈ।"
+
+msgid ""
+"Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord "
+"Inc."
+msgstr ""
+"VRChat Inc. ਜਾਂ Discord Inc. ਨਾਲ ਨਾ ਕੋਈ ਸੰਬੰਧ ਹੈ, ਨਾ ਉਹਨਾਂ ਦੀ ਪ੍ਰਵਾਨਗੀ "
+"ਜਾਂ ਸਪਾਂਸਰਸ਼ਿਪ।"
+
+msgid "Pricing · VRCVerify"
+msgstr "ਕੀਮਤਾਂ · VRCVerify"
+
+msgid "Pricing"
+msgstr "ਕੀਮਤਾਂ"
+
+msgid ""
+"Verification is free, forever. Premium adds the automation around it, per"
+" server."
+msgstr ""
+"ਤਸਦੀਕ ਹਮੇਸ਼ਾ ਲਈ ਮੁਫ਼ਤ ਹੈ। Premium ਇਸਦੇ ਆਲੇ-ਦੁਆਲੇ ਦਾ ਸਵੈਚਾਲਨ ਜੋੜਦਾ ਹੈ, ਹਰ "
+"ਸਰਵਰ ਲਈ ਵੱਖਰਾ।"
+
+msgid "Free"
+msgstr "ਮੁਫ਼ਤ"
+
+msgid "forever"
+msgstr "ਹਮੇਸ਼ਾ ਲਈ"
+
+msgid "Everything you need to verify your members."
+msgstr "ਆਪਣੇ ਮੈਂਬਰਾਂ ਦੀ ਤਸਦੀਕ ਲਈ ਲੋੜੀਂਦਾ ਸਭ ਕੁਝ।"
+
+msgid "Verify members as 18+"
+msgstr "ਮੈਂਬਰਾਂ ਦੀ 18+ ਵਜੋਂ ਤਸਦੀਕ"
+
+msgid "Auto-verify people who verified in another server"
+msgstr "ਜਿਹੜੇ ਲੋਕ ਕਿਸੇ ਹੋਰ ਸਰਵਰ ਵਿੱਚ ਤਸਦੀਕ ਹੋ ਚੁੱਕੇ ਹਨ, ਉਹਨਾਂ ਦੀ ਆਪਣੇ-ਆਪ ਤਸਦੀਕ"
+
+msgid "Members can update their own nickname"
+msgstr "ਮੈਂਬਰ ਆਪਣਾ ਉਪਨਾਮ ਆਪ ਬਦਲ ਸਕਦੇ ਹਨ"
+
+msgid "Add to your server"
+msgstr "ਆਪਣੇ ਸਰਵਰ ਵਿੱਚ ਜੋੜੋ"
+
+msgid "Per server"
+msgstr "ਪ੍ਰਤੀ ਸਰਵਰ"
+
+msgid "monthly, 6 or 12 months"
+msgstr "ਮਹੀਨਾਵਾਰ, 6 ਜਾਂ 12 ਮਹੀਨੇ"
+
+msgid "The automation around verification, for servers that want it."
+msgstr "ਤਸਦੀਕ ਦੇ ਆਲੇ-ਦੁਆਲੇ ਦਾ ਸਵੈਚਾਲਨ, ਉਹਨਾਂ ਸਰਵਰਾਂ ਲਈ ਜਿਨ੍ਹਾਂ ਨੂੰ ਇਹ ਚਾਹੀਦਾ ਹੈ।"
+
+msgid "Automatic removal of an unverified role"
+msgstr "ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਦਾ ਆਪਣੇ-ਆਪ ਹਟਣਾ"
+
+msgid "Nickname syncing"
+msgstr "ਉਪਨਾਮ ਦਾ ਮੇਲ"
+
+msgid "A custom post-verification message"
+msgstr "ਤਸਦੀਕ ਤੋਂ ਬਾਅਦ ਆਪਣਾ ਸੁਨੇਹਾ"
+
+msgid "A verification log channel"
+msgstr "ਤਸਦੀਕ ਲਾਗ ਚੈਨਲ"
+
+msgid "Priority in the verification queue"
+msgstr "ਤਸਦੀਕ ਕਤਾਰ ਵਿੱਚ ਪਹਿਲ"
+
+msgid "A branded instructions panel"
+msgstr "ਤੁਹਾਡੇ ਸਰਵਰ ਦੇ ਰੰਗ ਅਤੇ ਆਈਕਨ ਵਾਲਾ ਹਦਾਇਤ ਪੈਨਲ"
+
+msgid "Open the dashboard"
+msgstr "ਡੈਸ਼ਬੋਰਡ ਖੋਲ੍ਹੋ"
+
+msgid "One Premium, three ways to pay for it"
+msgstr "ਇੱਕੋ Premium, ਭੁਗਤਾਨ ਦੇ ਤਿੰਨ ਤਰੀਕੇ"
+
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+"ਅਸੀਂ ਇਸ ਵੇਲੇ ਕੀਮਤਾਂ ਲੋਡ ਨਹੀਂ ਕਰ ਸਕਦੇ। <strong>Premium ਹਾਲੇ ਵੀ ਉਪਲਬਧ "
+"ਹੈ।</strong> ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਕੋਸ਼ਿਸ਼ ਕਰੋ, ਜਾਂ Discord ਦੇ ਅੰਦਰੋਂ ਸਬਸਕ੍ਰਾਈਬ"
+" ਕਰੋ।"
+
+msgid "There are no plans on sale at the moment."
+msgstr "ਇਸ ਵੇਲੇ ਵਿਕਰੀ ਲਈ ਕੋਈ ਪਲਾਨ ਨਹੀਂ ਹੈ।"
+
+msgid ""
+"Every plan below unlocks exactly the same features — the only difference "
+"is how long you pay for at once, and how much that saves."
+msgstr ""
+"ਹੇਠਾਂ ਦਿੱਤਾ ਹਰ ਪਲਾਨ ਬਿਲਕੁਲ ਇੱਕੋ ਜਿਹੀਆਂ ਸਹੂਲਤਾਂ ਖੋਲ੍ਹਦਾ ਹੈ — ਫ਼ਰਕ ਸਿਰਫ਼ ਇਹ"
+" ਹੈ ਕਿ ਤੁਸੀਂ ਇੱਕੋ ਵਾਰ ਕਿੰਨੇ ਸਮੇਂ ਦਾ ਭੁਗਤਾਨ ਕਰਦੇ ਹੋ, ਅਤੇ ਉਸ ਨਾਲ ਕਿੰਨੀ ਬੱਚਤ"
+" ਹੁੰਦੀ ਹੈ।"
+
+msgid "Most popular"
+msgstr "ਸਭ ਤੋਂ ਵੱਧ ਪ੍ਰਸਿੱਧ"
+
+msgid ""
+"Some plans start with a free trial. Whether a particular server qualifies"
+" depends on whether it has had one before — the dashboard tells you "
+"before you pay."
+msgstr ""
+"ਕੁਝ ਪਲਾਨ ਮੁਫ਼ਤ ਅਜ਼ਮਾਇਸ਼ ਨਾਲ ਸ਼ੁਰੂ ਹੁੰਦੇ ਹਨ। ਕੋਈ ਖ਼ਾਸ ਸਰਵਰ ਇਸਦੇ ਯੋਗ ਹੈ ਜਾਂ"
+" ਨਹੀਂ, ਇਹ ਇਸ ਗੱਲ ਉੱਤੇ ਨਿਰਭਰ ਕਰਦਾ ਹੈ ਕਿ ਉਸਨੇ ਪਹਿਲਾਂ ਅਜ਼ਮਾਇਸ਼ ਲਈ ਸੀ ਜਾਂ "
+"ਨਹੀਂ — ਭੁਗਤਾਨ ਤੋਂ ਪਹਿਲਾਂ ਡੈਸ਼ਬੋਰਡ ਤੁਹਾਨੂੰ ਦੱਸ ਦਿੰਦਾ ਹੈ।"
+
+msgid ""
+"Prices are in US dollars and <strong>exclude tax</strong>; any tax due "
+"where you are is added at checkout. Payment is handled by Stripe — card "
+"details never reach VRCVerify."
+msgstr ""
+"ਕੀਮਤਾਂ ਅਮਰੀਕੀ ਡਾਲਰਾਂ ਵਿੱਚ ਹਨ ਅਤੇ <strong>ਟੈਕਸ ਸ਼ਾਮਲ ਨਹੀਂ</strong>; ਤੁਹਾਡੇ"
+" ਇਲਾਕੇ ਵਿੱਚ ਬਣਦਾ ਟੈਕਸ ਭੁਗਤਾਨ ਵੇਲੇ ਜੋੜਿਆ ਜਾਂਦਾ ਹੈ। ਭੁਗਤਾਨ Stripe ਸੰਭਾਲਦਾ "
+"ਹੈ — ਕਾਰਡ ਦੀ ਜਾਣਕਾਰੀ ਕਦੇ VRCVerify ਤੱਕ ਨਹੀਂ ਪਹੁੰਚਦੀ।"
+
+msgid ""
+"Premium is bought per server. You can subscribe with a card in the "
+"dashboard, or monthly through Discord."
+msgstr ""
+"Premium ਹਰ ਸਰਵਰ ਲਈ ਵੱਖਰਾ ਖਰੀਦਿਆ ਜਾਂਦਾ ਹੈ। ਤੁਸੀਂ ਡੈਸ਼ਬੋਰਡ ਵਿੱਚ ਕਾਰਡ ਨਾਲ "
+"ਸਬਸਕ੍ਰਾਈਬ ਕਰ ਸਕਦੇ ਹੋ, ਜਾਂ Discord ਰਾਹੀਂ ਮਹੀਨਾਵਾਰ।"
+
+msgid "Ready to start?"
+msgstr "ਸ਼ੁਰੂ ਕਰਨ ਲਈ ਤਿਆਰ ਹੋ?"
+
+msgid ""
+"Add VRCVerify to your server and verification works immediately, at no "
+"cost. Premium is there when you want it."
+msgstr ""
+"VRCVerify ਨੂੰ ਆਪਣੇ ਸਰਵਰ ਵਿੱਚ ਜੋੜੋ ਅਤੇ ਤਸਦੀਕ ਤੁਰੰਤ, ਬਿਨਾਂ ਕਿਸੇ ਖ਼ਰਚੇ ਦੇ "
+"ਕੰਮ ਕਰਨ ਲੱਗ ਪਵੇਗੀ। Premium ਉਦੋਂ ਮੌਜੂਦ ਹੈ ਜਦੋਂ ਤੁਸੀਂ ਉਸਨੂੰ ਚਾਹੋ।"
+
+#, python-format
+msgid "Subscriptions — %(name)s — VRCVerify"
+msgstr "ਸਬਸਕ੍ਰਿਪਸ਼ਨਾਂ — %(name)s — VRCVerify"
+
+msgid ""
+"We couldn't check this server's plan just now. Nothing here is missing — "
+"the page simply can't say what's true yet. Try again in a moment."
+msgstr ""
+"ਅਸੀਂ ਇਸ ਵੇਲੇ ਇਸ ਸਰਵਰ ਦਾ ਪਲਾਨ ਨਹੀਂ ਜਾਂਚ ਸਕੇ। ਇੱਥੇ ਕੁਝ ਗੁੰਮ ਨਹੀਂ ਹੈ — ਬੱਸ "
+"ਇਹ ਪੰਨਾ ਹਾਲੇ ਇਹ ਨਹੀਂ ਦੱਸ ਸਕਦਾ ਕਿ ਸੱਚ ਕੀ ਹੈ। ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ "
+"ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+
+msgid ""
+"Every VRCVerify feature is currently available to this server at no "
+"charge. There's nothing to subscribe to."
+msgstr ""
+"ਇਸ ਵੇਲੇ VRCVerify ਦੀਆਂ ਸਾਰੀਆਂ ਸਹੂਲਤਾਂ ਇਸ ਸਰਵਰ ਲਈ ਮੁਫ਼ਤ ਉਪਲਬਧ ਹਨ। "
+"ਸਬਸਕ੍ਰਾਈਬ ਕਰਨ ਨੂੰ ਕੁਝ ਨਹੀਂ ਹੈ।"
+
+msgid ""
+"Waiting for Stripe to confirm. Premium switches on by itself, usually "
+"within a few seconds — reload this page in a moment."
+msgstr ""
+"Stripe ਦੀ ਪੁਸ਼ਟੀ ਦੀ ਉਡੀਕ ਹੈ। Premium ਆਪਣੇ-ਆਪ ਚਾਲੂ ਹੋ ਜਾਂਦਾ ਹੈ, ਆਮ ਤੌਰ 'ਤੇ"
+" ਕੁਝ ਸਕਿੰਟਾਂ ਵਿੱਚ — ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਇਹ ਪੰਨਾ ਦੁਬਾਰਾ ਲੋਡ ਕਰੋ।"
+
+msgid ""
+"If it hasn't switched on after a minute or two, nothing is lost: Stripe "
+"keeps trying to reach us for up to three days, and the subscription takes"
+" effect as soon as it gets through. Get in touch if it stays this way."
+msgstr ""
+"ਜੇ ਇੱਕ-ਦੋ ਮਿੰਟ ਬਾਅਦ ਵੀ ਚਾਲੂ ਨਾ ਹੋਵੇ ਤਾਂ ਕੁਝ ਨਹੀਂ ਗੁਆਚਦਾ: Stripe ਤਿੰਨ "
+"ਦਿਨਾਂ ਤੱਕ ਸਾਡੇ ਤੱਕ ਪਹੁੰਚਣ ਦੀ ਕੋਸ਼ਿਸ਼ ਕਰਦਾ ਰਹਿੰਦਾ ਹੈ, ਅਤੇ ਪਹੁੰਚਦੇ ਹੀ "
+"ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਲਾਗੂ ਹੋ ਜਾਂਦੀ ਹੈ। ਜੇ ਇਹੀ ਹਾਲ ਰਹੇ ਤਾਂ ਸਾਡੇ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।"
+
+#, python-format
+msgid ""
+"This server looks like it's paying for Premium on %(count)s separate card"
+" subscriptions. Premium is on and stays on; you're just being charged "
+"more than once."
+msgstr ""
+"ਲੱਗਦਾ ਹੈ ਕਿ ਇਹ ਸਰਵਰ Premium ਲਈ %(count)s ਵੱਖ-ਵੱਖ ਕਾਰਡ ਸਬਸਕ੍ਰਿਪਸ਼ਨਾਂ ਰਾਹੀਂ"
+" ਭੁਗਤਾਨ ਕਰ ਰਿਹਾ ਹੈ। Premium ਚਾਲੂ ਹੈ ਅਤੇ ਚਾਲੂ ਹੀ ਰਹੇਗਾ; ਬੱਸ ਤੁਹਾਡੇ ਤੋਂ ਇੱਕ"
+" ਤੋਂ ਵੱਧ ਵਾਰ ਪੈਸੇ ਲਏ ਜਾ ਰਹੇ ਹਨ।"
+
+msgid ""
+"This server looks like it's paying for Premium twice — once by card and "
+"once through Discord. Premium is on and stays on; you're just being "
+"charged more than once."
+msgstr ""
+"ਲੱਗਦਾ ਹੈ ਕਿ ਇਹ ਸਰਵਰ Premium ਲਈ ਦੋ ਵਾਰ ਭੁਗਤਾਨ ਕਰ ਰਿਹਾ ਹੈ — ਇੱਕ ਵਾਰ ਕਾਰਡ "
+"ਨਾਲ ਅਤੇ ਇੱਕ ਵਾਰ Discord ਰਾਹੀਂ। Premium ਚਾਲੂ ਹੈ ਅਤੇ ਚਾਲੂ ਹੀ ਰਹੇਗਾ; ਬੱਸ "
+"ਤੁਹਾਡੇ ਤੋਂ ਇੱਕ ਤੋਂ ਵੱਧ ਵਾਰ ਪੈਸੇ ਲਏ ਜਾ ਰਹੇ ਹਨ।"
+
+msgid ""
+"We won't cancel either one for you — that's your call, and getting it "
+"wrong with someone else's money isn't a risk worth automating."
+msgstr ""
+"ਅਸੀਂ ਤੁਹਾਡੇ ਲਈ ਇਹਨਾਂ ਵਿੱਚੋਂ ਕੋਈ ਵੀ ਰੱਦ ਨਹੀਂ ਕਰਾਂਗੇ — ਇਹ ਫ਼ੈਸਲਾ ਤੁਹਾਡਾ ਹੈ,"
+" ਅਤੇ ਕਿਸੇ ਹੋਰ ਦੇ ਪੈਸੇ ਨਾਲ ਇਸ ਵਿੱਚ ਗਲਤੀ ਕਰਨਾ ਅਜਿਹਾ ਜੋਖਮ ਨਹੀਂ ਜਿਸਨੂੰ "
+"ਸਵੈਚਾਲਿਤ ਕੀਤਾ ਜਾਵੇ।"
+
+msgid ""
+"To cancel the card subscription, use <strong>Manage billing</strong> "
+"below."
+msgstr ""
+"ਕਾਰਡ ਵਾਲੀ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਰੱਦ ਕਰਨ ਲਈ ਹੇਠਾਂ <strong>ਬਿਲਿੰਗ ਸੰਭਾਲੋ</strong> "
+"ਵਰਤੋ।"
+
+#, python-format
+msgid ""
+"To cancel the Discord one, open <strong>User Settings → "
+"Subscriptions</strong> in Discord, or run "
+"<code>/vrcverify_subscription</code> in %(name)s."
+msgstr ""
+"Discord ਵਾਲੀ ਰੱਦ ਕਰਨ ਲਈ Discord ਵਿੱਚ <strong>User Settings → "
+"Subscriptions</strong> ਖੋਲ੍ਹੋ, ਜਾਂ %(name)s ਵਿੱਚ "
+"<code>/vrcverify_subscription</code> ਚਲਾਓ।"
+
+msgid ""
+"Your last payment didn't go through. Premium is still on while Stripe "
+"retries the card — update your card details under <strong>Manage "
+"billing</strong> below."
+msgstr ""
+"ਤੁਹਾਡਾ ਪਿਛਲਾ ਭੁਗਤਾਨ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਜਦੋਂ ਤੱਕ Stripe ਕਾਰਡ ਉੱਤੇ ਦੁਬਾਰਾ "
+"ਕੋਸ਼ਿਸ਼ ਕਰ ਰਿਹਾ ਹੈ, Premium ਚਾਲੂ ਰਹੇਗਾ — ਹੇਠਾਂ <strong>ਬਿਲਿੰਗ "
+"ਸੰਭਾਲੋ</strong> ਵਿੱਚ ਜਾ ਕੇ ਆਪਣੇ ਕਾਰਡ ਦੀ ਜਾਣਕਾਰੀ ਅੱਪਡੇਟ ਕਰੋ।"
+
+msgid ""
+"Cancelled, and nothing changes before then — this server keeps Premium "
+"for the whole of the period it has already paid for."
+msgstr ""
+"ਰੱਦ ਕਰ ਦਿੱਤੀ ਗਈ ਹੈ, ਅਤੇ ਉਸ ਤੋਂ ਪਹਿਲਾਂ ਕੁਝ ਨਹੀਂ ਬਦਲੇਗਾ — ਜਿਸ ਸਮੇਂ ਦਾ "
+"ਭੁਗਤਾਨ ਇਹ ਸਰਵਰ ਪਹਿਲਾਂ ਹੀ ਕਰ ਚੁੱਕਾ ਹੈ, ਪੂਰੇ ਉਸ ਸਮੇਂ ਲਈ ਇਸ ਕੋਲ Premium "
+"ਰਹੇਗਾ।"
+
+msgid ""
+"Discord handles the billing, so cancelling or changing the payment method"
+" happens there — <strong>User Settings → Subscriptions</strong>. We can't"
+" manage a Discord subscription from here."
+msgstr ""
+"ਬਿਲਿੰਗ Discord ਸੰਭਾਲਦਾ ਹੈ, ਇਸ ਲਈ ਰੱਦ ਕਰਨਾ ਜਾਂ ਭੁਗਤਾਨ ਦਾ ਤਰੀਕਾ ਬਦਲਣਾ ਉੱਥੇ "
+"ਹੀ ਹੁੰਦਾ ਹੈ — <strong>User Settings → Subscriptions</strong>। Discord ਦੀ "
+"ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਅਸੀਂ ਇੱਥੋਂ ਨਹੀਂ ਸੰਭਾਲ ਸਕਦੇ।"
+
+#, python-format
+msgid ""
+"18+ verification is free and always will be. Premium unlocks the settings"
+" marked on <a href=\"%(settings_url)s\">Settings</a>, shortens the wait "
+"between verifications, and moves this server up the verification queue."
+msgstr ""
+"18+ ਤਸਦੀਕ ਮੁਫ਼ਤ ਹੈ ਅਤੇ ਹਮੇਸ਼ਾ ਰਹੇਗੀ। Premium <a "
+"href=\"%(settings_url)s\">ਸੈਟਿੰਗਾਂ</a> ਉੱਤੇ ਨਿਸ਼ਾਨਬੱਧ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹਦਾ "
+"ਹੈ, ਦੋ ਤਸਦੀਕਾਂ ਵਿਚਲੀ ਉਡੀਕ ਘਟਾਉਂਦਾ ਹੈ, ਅਤੇ ਇਸ ਸਰਵਰ ਨੂੰ ਤਸਦੀਕ ਕਤਾਰ ਵਿੱਚ "
+"ਅੱਗੇ ਲੈ ਜਾਂਦਾ ਹੈ।"
+
+msgid ""
+"Your grandfathered extras — unverified-role removal, nickname sync and "
+"the custom verification message — stay free whatever you decide here."
+msgstr ""
+"ਤੁਹਾਡੀਆਂ ਪੁਰਾਣੀਆਂ ਸਹੂਲਤਾਂ — ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਦਾ ਹਟਣਾ, ਉਪਨਾਮ ਦਾ ਮੇਲ "
+"ਅਤੇ ਆਪਣਾ ਤਸਦੀਕ ਸੁਨੇਹਾ — ਇੱਥੇ ਤੁਸੀਂ ਜੋ ਵੀ ਫ਼ੈਸਲਾ ਕਰੋ, ਮੁਫ਼ਤ ਹੀ ਰਹਿਣਗੀਆਂ।"
+
+#, python-format
+msgid "Your Premium ended on %(when)s"
+msgstr "ਤੁਹਾਡਾ Premium %(when)s ਨੂੰ ਖ਼ਤਮ ਹੋਇਆ"
+
+#, python-format
+msgid ""
+"The %(plan)s plan. Subscribing again picks up where it left off — nothing"
+" was reset when it lapsed."
+msgstr ""
+"%(plan)s ਪਲਾਨ। ਦੁਬਾਰਾ ਸਬਸਕ੍ਰਾਈਬ ਕਰਨ 'ਤੇ ਉੱਥੋਂ ਹੀ ਅੱਗੇ ਚੱਲੇਗਾ ਜਿੱਥੇ ਛੁੱਟਿਆ"
+" ਸੀ — ਖ਼ਤਮ ਹੋਣ ਵੇਲੇ ਕੁਝ ਵੀ ਰੀਸੈੱਟ ਨਹੀਂ ਹੋਇਆ ਸੀ।"
+
+msgid ""
+"Subscribing again picks up where it left off — nothing was reset when it "
+"lapsed."
+msgstr ""
+"ਦੁਬਾਰਾ ਸਬਸਕ੍ਰਾਈਬ ਕਰਨ 'ਤੇ ਉੱਥੋਂ ਹੀ ਅੱਗੇ ਚੱਲੇਗਾ ਜਿੱਥੇ ਛੁੱਟਿਆ ਸੀ — ਖ਼ਤਮ ਹੋਣ "
+"ਵੇਲੇ ਕੁਝ ਵੀ ਰੀਸੈੱਟ ਨਹੀਂ ਹੋਇਆ ਸੀ।"
+
+msgid "Pay by card"
+msgstr "ਕਾਰਡ ਨਾਲ ਭੁਗਤਾਨ ਕਰੋ"
+
+msgid ""
+"We can't load the plans right now. <strong>Nothing has changed about your"
+" subscription.</strong> Try again in a moment, or subscribe inside "
+"Discord below."
+msgstr ""
+"ਅਸੀਂ ਇਸ ਵੇਲੇ ਪਲਾਨ ਲੋਡ ਨਹੀਂ ਕਰ ਸਕਦੇ। <strong>ਤੁਹਾਡੀ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਵਿੱਚ ਕੁਝ "
+"ਨਹੀਂ ਬਦਲਿਆ।</strong> ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਕੋਸ਼ਿਸ਼ ਕਰੋ, ਜਾਂ ਹੇਠਾਂ Discord ਦੇ "
+"ਅੰਦਰੋਂ ਸਬਸਕ੍ਰਾਈਬ ਕਰੋ।"
+
+msgid ""
+"<strong>One Premium, three ways to pay for it.</strong> Every plan below "
+"unlocks exactly the same features — the only difference is how long you "
+"pay for at once, and how much that saves."
+msgstr ""
+"<strong>ਇੱਕੋ Premium, ਭੁਗਤਾਨ ਦੇ ਤਿੰਨ ਤਰੀਕੇ।</strong> ਹੇਠਾਂ ਦਿੱਤਾ ਹਰ ਪਲਾਨ "
+"ਬਿਲਕੁਲ ਇੱਕੋ ਜਿਹੀਆਂ ਸਹੂਲਤਾਂ ਖੋਲ੍ਹਦਾ ਹੈ — ਫ਼ਰਕ ਸਿਰਫ਼ ਇਹ ਹੈ ਕਿ ਤੁਸੀਂ ਇੱਕੋ "
+"ਵਾਰ ਕਿੰਨੇ ਸਮੇਂ ਦਾ ਭੁਗਤਾਨ ਕਰਦੇ ਹੋ, ਅਤੇ ਉਸ ਨਾਲ ਕਿੰਨੀ ਬੱਚਤ ਹੁੰਦੀ ਹੈ।"
+
+msgid "Subscribe"
+msgstr "ਸਬਸਕ੍ਰਾਈਬ ਕਰੋ"
+
+msgid "All plans renew automatically. Cancel any time from this page."
+msgstr ""
+"ਸਾਰੇ ਪਲਾਨ ਆਪਣੇ-ਆਪ ਨਵਿਆਏ ਜਾਂਦੇ ਹਨ। ਤੁਸੀਂ ਇਸੇ ਪੰਨੇ ਤੋਂ ਕਦੇ ਵੀ ਰੱਦ ਕਰ ਸਕਦੇ "
+"ਹੋ।"
+
+msgid ""
+"<strong>The 6- and 12-month plans are card-only.</strong> Discord "
+"subscriptions bill monthly, so those terms can't be offered there."
+msgstr ""
+"<strong>6 ਅਤੇ 12 ਮਹੀਨਿਆਂ ਦੇ ਪਲਾਨ ਸਿਰਫ਼ ਕਾਰਡ ਨਾਲ ਹਨ।</strong> Discord ਦੀਆਂ"
+" ਸਬਸਕ੍ਰਿਪਸ਼ਨਾਂ ਮਹੀਨਾਵਾਰ ਬਿਲ ਕਰਦੀਆਂ ਹਨ, ਇਸ ਲਈ ਉਹ ਮਿਆਦਾਂ ਉੱਥੇ ਨਹੀਂ ਦਿੱਤੀਆਂ "
+"ਜਾ ਸਕਦੀਆਂ।"
+
+#, python-format
+msgid ""
+"Need to send these prices to whoever pays? There is a <a "
+"href=\"%(pricing_url)s\">public pricing page</a> that works without a "
+"Discord account."
+msgstr ""
+"ਕੀ ਇਹ ਕੀਮਤਾਂ ਉਸ ਬੰਦੇ ਨੂੰ ਭੇਜਣੀਆਂ ਹਨ ਜੋ ਭੁਗਤਾਨ ਕਰਦਾ ਹੈ? ਇੱਕ <a "
+"href=\"%(pricing_url)s\">ਜਨਤਕ ਕੀਮਤ ਪੰਨਾ</a> ਹੈ ਜੋ Discord ਖਾਤੇ ਤੋਂ ਬਿਨਾਂ "
+"ਵੀ ਕੰਮ ਕਰਦਾ ਹੈ।"
+
+msgid "Manage billing"
+msgstr "ਬਿਲਿੰਗ ਸੰਭਾਲੋ"
+
+msgid ""
+"Change plan, update your card or cancel — on Stripe's own billing portal."
+" You'll come straight back here afterwards."
+msgstr ""
+"ਪਲਾਨ ਬਦਲਣਾ, ਕਾਰਡ ਅੱਪਡੇਟ ਕਰਨਾ ਜਾਂ ਰੱਦ ਕਰਨਾ — ਸਭ Stripe ਦੇ ਆਪਣੇ ਬਿਲਿੰਗ "
+"ਪੋਰਟਲ ਵਿੱਚ। ਉਸ ਤੋਂ ਬਾਅਦ ਤੁਸੀਂ ਸਿੱਧੇ ਇੱਥੇ ਹੀ ਵਾਪਸ ਆ ਜਾਓਗੇ।"
+
+msgid "Buy inside Discord"
+msgstr "Discord ਦੇ ਅੰਦਰ ਖਰੀਦੋ"
+
+#, python-format
+msgid ""
+"Run it in %(name)s. Discord handles the payment, and the command's button"
+" is already pointed at this server. <strong>Monthly only</strong>, at the"
+" same price as the monthly plan above."
+msgstr ""
+"ਇਸਨੂੰ %(name)s ਵਿੱਚ ਚਲਾਓ। ਭੁਗਤਾਨ Discord ਸੰਭਾਲਦਾ ਹੈ, ਅਤੇ ਕਮਾਂਡ ਦਾ ਬਟਨ "
+"ਪਹਿਲਾਂ ਹੀ ਇਸੇ ਸਰਵਰ ਵੱਲ ਹੈ। <strong>ਸਿਰਫ਼ ਮਹੀਨਾਵਾਰ</strong>, ਉੱਪਰ ਦਿੱਤੇ "
+"ਮਹੀਨਾਵਾਰ ਪਲਾਨ ਦੀ ਹੀ ਕੀਮਤ ਉੱਤੇ।"
+
+#, python-format
+msgid "Run it in %(name)s to see this server's Discord subscription."
+msgstr "ਇਸ ਸਰਵਰ ਦੀ Discord ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਵੇਖਣ ਲਈ ਇਸਨੂੰ %(name)s ਵਿੱਚ ਚਲਾਓ।"
+
+#, python-format
+msgid ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">See what's included on Discord's store page</a> — it "
+"lists the price and perks, but you choose the server during checkout, so "
+"use the command above if you administer more than one."
+msgstr ""
+"<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">Discord ਦੇ ਸਟੋਰ ਪੰਨੇ ਉੱਤੇ ਵੇਖੋ ਕਿ ਇਸ ਵਿੱਚ ਕੀ ਸ਼ਾਮਲ "
+"ਹੈ</a> — ਉੱਥੇ ਕੀਮਤ ਅਤੇ ਸਹੂਲਤਾਂ ਦਿੱਤੀਆਂ ਹਨ, ਪਰ ਸਰਵਰ ਤੁਸੀਂ ਭੁਗਤਾਨ ਦੌਰਾਨ "
+"ਚੁਣਦੇ ਹੋ, ਇਸ ਲਈ ਜੇ ਤੁਸੀਂ ਇੱਕ ਤੋਂ ਵੱਧ ਸਰਵਰ ਸੰਭਾਲਦੇ ਹੋ ਤਾਂ ਉੱਪਰ ਵਾਲੀ ਕਮਾਂਡ "
+"ਵਰਤੋ।"
+
