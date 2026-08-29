@@ -124,6 +124,56 @@ class TestEveryCatalogueIsCompiledAndLoadable:
         assert not fuzzy, f"{code}: fuzzy entries render English: {fuzzy}"
         assert not untranslated, f"{code}: untranslated: {untranslated}"
 
+    @pytest.mark.parametrize(
+        "code", [c for c in i18n.UI_LANGUAGES if c != i18n.DEFAULT_LANGUAGE]
+    )
+    def test_every_translation_keeps_its_placeholders_and_markup(self, code):
+        """The one class of translation error that is not a matter of taste.
+
+        A msgstr that drops `%(name)s` renders a sentence with a hole in it; one
+        that renames it to `%(nombre)s` raises KeyError at render time, on the
+        page that takes money. A dropped `</strong>` leaks bold through the rest
+        of the card, and a mangled `href` produces a link that goes nowhere.
+
+        None of these is something a native reviewer is looking for -- they are
+        reading the words -- and all of them are mechanically checkable, so they
+        are checked here rather than hoped about. This matters most for the
+        languages whose script makes an unbalanced tag hard to spot by eye.
+
+        Compared as SETS and multisets rather than in order: a translator
+        moving `%(days)s` to the front of the sentence, or the `<strong>` run
+        to a different clause, is doing their job. Only losing or inventing one
+        is an error.
+        """
+        pytest.importorskip("babel", reason="Babel is a dev-only dependency")
+        import re
+
+        from babel.messages.pofile import read_po
+
+        placeholder = re.compile(r"%\([a-z_]+\)s")
+        tag = re.compile(r"</?([a-z]+)(?:\s[^>]*)?>")
+        href = re.compile(r'href="([^"]*)"')
+
+        path = os.path.join(
+            i18n.LOCALE_DIR, code.replace("-", "_"), "LC_MESSAGES", "dashboard.po"
+        )
+        with open(path, "rb") as handle:
+            catalog = read_po(handle)
+
+        for message in catalog:
+            if not message.id or not message.string:
+                continue
+            english, translated = message.id, message.string
+            assert set(placeholder.findall(english)) == set(
+                placeholder.findall(translated)
+            ), f"{code}: placeholders differ in {english[:60]!r}"
+            assert sorted(tag.findall(english)) == sorted(
+                tag.findall(translated)
+            ), f"{code}: markup differs in {english[:60]!r}"
+            assert sorted(href.findall(english)) == sorted(
+                href.findall(translated)
+            ), f"{code}: link target differs in {english[:60]!r}"
+
     def test_english_hands_back_the_msgid(self):
         gettext = i18n.translator("en-US")
         assert gettext("Renews") == "Renews"
