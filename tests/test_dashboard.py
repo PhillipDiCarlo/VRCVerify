@@ -27,6 +27,7 @@ import re
 import sqlite3
 import stat
 import struct
+import threading
 import time
 from datetime import date
 from html.parser import HTMLParser
@@ -8756,3 +8757,92 @@ def test_the_two_stylesheets_agree_on_tight_leading_and_explain_the_body_one():
             f"{name}'s --leading-body differs from the other host's with no "
             "reason written beside it"
         )
+
+
+class TestTwoLanguagesAtOnce:
+    """A request in one language must not change the page another is being
+    served (#97).
+
+    THIS IS ABOUT `gunicorn --threads 4`, which is what the image runs. Four
+    requests share one Flask app, and therefore one Jinja Environment, whose
+    `globals` dict is where `_()` is looked up when a render starts.
+
+    The first version of #97 bound the catalogue in `before_request` with
+    `install_gettext_translations`, which writes into exactly that dict. The
+    window looked small enough to argue away and was not: between the hook and
+    the `render_template` in the same request sits the round trip to the bot
+    API. A German admin waiting on that call, while a Japanese admin's request
+    arrived, was served `<html lang="de">` with 630 Japanese characters in it.
+
+    The fix was to stop writing per request -- the environment gets callables
+    once, at `create_app`, that ask `g` which language THIS request is in. See
+    the comment above `install_gettext_callables`.
+
+    Overview and the picker are the subjects because they are the routes with
+    the gap: Settings and Subscription happen to re-resolve the language after
+    the bot answers, which closed the window there and hid the bug.
+    """
+
+    def _race(self, app, store, bot_api, slow_method, path):
+        german = app.test_client()
+        login_as(german, store)
+        german.set_cookie("vrcverify_lang", "de")
+
+        japanese = app.test_client()
+        login_as(japanese, store)
+        japanese.set_cookie("vrcverify_lang", "ja")
+
+        # Stand in for the network. Without a real delay the two requests do
+        # not overlap and this test passes against the broken code.
+        original = getattr(bot_api, slow_method)
+
+        def slow(*args, **kwargs):
+            time.sleep(0.05)
+            return original(*args, **kwargs)
+
+        setattr(bot_api, slow_method, slow)
+
+        pages = {}
+
+        def fetch(name, test_client):
+            pages[name] = test_client.get(path).get_data(as_text=True)
+
+        first = threading.Thread(target=fetch, args=("de", german))
+        second = threading.Thread(target=fetch, args=("ja", japanese))
+        first.start()
+        time.sleep(0.02)  # the Japanese request arrives mid-call
+        second.start()
+        first.join()
+        second.join()
+        return pages
+
+    @staticmethod
+    def _japanese_characters(page: str) -> int:
+        """How much of this page is not in the language it claims.
+
+        Not zero: the language picker lists every language in its own script,
+        so a German page legitimately carries 日本語 and 简体中文. Seven
+        characters. Anything past that is the bug.
+        """
+        body = page[page.index("<body"):] if "<body" in page else page
+        return sum(1 for c in body if 0x3000 < ord(c) < 0xA000)
+
+    def test_the_overview_keeps_its_language(self, app, store, bot_api):
+        pages = self._race(app, store, bot_api, "overview", "/guild/1")
+        assert 'lang="de"' in pages["de"]
+        leaked = self._japanese_characters(pages["de"])
+        assert leaked <= 12, (
+            f"the German admin's Overview carried {leaked} Japanese "
+            "characters: another request swapped the shared catalogue"
+        )
+        # The other side of it, so a fix that simply broke Japanese fails too.
+        assert self._japanese_characters(pages["ja"]) > 50
+
+    def test_the_picker_keeps_its_language(self, app, store, bot_api):
+        pages = self._race(app, store, bot_api, "admin_guild_ids", "/")
+        assert 'lang="de"' in pages["de"]
+        leaked = self._japanese_characters(pages["de"])
+        assert leaked <= 12, (
+            f"the German picker carried {leaked} Japanese characters"
+        )
+        assert self._japanese_characters(pages["ja"]) > 50

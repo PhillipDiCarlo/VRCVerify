@@ -58,7 +58,6 @@ from typing import Optional
 from flask import (
     Flask,
     abort,
-    current_app,
     g,
     make_response,
     redirect,
@@ -759,29 +758,43 @@ def _register_assets(app: Flask) -> None:
     app.jinja_env.add_extension("jinja2.ext.i18n")
     app.jinja_env.policies["ext.i18n.trimmed"] = True
 
+    # INSTALLED ONCE, HERE, AND NEVER AGAIN. Not per request, which is what
+    # this did first and which was a real bug rather than an untidiness.
+    #
+    # `install_gettext_translations` writes into `jinja_env.globals`, a plain
+    # dict shared by the whole process, and a Jinja template resolves `gettext`
+    # out of those globals when a render STARTS. The image runs
+    # `gunicorn --threads 4` (docker/Dockerfile-dashboard), so four requests
+    # share that dict.
+    #
+    # The window is not "mid-render", which is what made the per-request
+    # version look defensible. It is everything between the hook that installs
+    # and the `render_template` that reads -- and on a guild page that gap
+    # contains the round trip to the bot API. A German admin waiting on that
+    # call, while a Japanese admin's request arrived, was served
+    # `<html lang="de">` with 630 Japanese characters inside it.
+    #
+    # `TestTwoLanguagesAtOnce` in tests/test_dashboard.py holds this down: it
+    # makes the bot call slow, fires two requests in two languages from two
+    # threads, and reads the pages that come back.
+    #
+    # These callables carry no language of their own. They ask, at the moment
+    # `_()` runs, which language THIS request is in -- and `g` is per-request,
+    # so two threads calling the same callable get two answers. There is
+    # nothing to race over because nothing is written.
+    app.jinja_env.install_gettext_callables(
+        lambda string: _translator()(string),
+        lambda singular, plural, number: _ngettext()(singular, plural, number),
+        newstyle=True,
+    )
+
     @app.before_request
-    def _install_translations():
-        """Bind this request's catalogue to the template environment.
+    def _resolve_language():
+        """Work out which language this request renders in.
 
-        THE ONE PIECE OF GLOBAL STATE IN THIS FEATURE, and it is worth being
-        explicit about why it is tolerable here and refused in the view
-        modules. `install_gettext_translations` sets a callable on the Jinja
-        *environment*, which is shared by every worker thread in this process
-        -- so two requests in different languages are, for a moment, racing to
-        say what `_()` means.
-
-        It is safe because of what the callable is: `i18n.translator(code)`
-        returns a bound method of a catalogue object that is read once and then
-        never mutated, and rendering is synchronous within a request. The
-        window in which a thread could pick up another's callable is between
-        this hook and the `render_template` in the same request, and nothing in
-        between yields. A template rendering one string from the wrong
-        catalogue is the worst available outcome, not a corrupted anything.
-
-        It is also the reason the *view modules* do not use this mechanism.
-        They are pure by policy, and reaching a global from inside them would
-        make their tests depend on which request ran last. They take the same
-        callable as an argument instead -- see `_translator()`.
+        Installs nothing -- see the comment above `install_gettext_callables`.
+        All this does is put the answer on `g`, which is where the template
+        globals and the view modules both read it from.
 
         Runs before every request, including the ones that go on to learn a
         guild's configured language. Those call `_apply_language` again once
@@ -1027,7 +1040,17 @@ def _register_hooks(app: Flask) -> None:
             # (NAV_COOKIE does not vary this page, and that is worth stating
             # because it looks like it should: `nav_collapsed` comes from
             # `_page_context()`, which only guild pages call, so it is simply
-            # undefined here. The theme cookie alone is enough.)
+            # undefined here.)
+            #
+            # LANG_COOKIE varies it too, since #97 -- every string on the page
+            # comes from a catalogue chosen by that cookie, and by
+            # `Accept-Language` when there is no cookie. That widens what
+            # `private` is protecting without changing the conclusion: private
+            # scopes the cache to the one browser, and both of those inputs
+            # belong to that browser. It does rule out `public` twice over
+            # now, so if a later change makes the theme client-side and this
+            # comment looks stale, the language is the reason it still cannot
+            # go into a shared cache.
             #
             # So the response varies by cookie, and a shared cache that ignored
             # that would hand one reader's light page to the next reader who
@@ -2952,7 +2975,7 @@ def _theme() -> str:
 
 
 def _apply_language() -> str:
-    """Resolve this request's language and bind its catalogue to Jinja.
+    """Resolve this request's language and record it on `g`.
 
     Called twice on the two routes that learn a guild's configured language,
     and that is the point of it being a function. `before_request` runs before
@@ -2960,18 +2983,13 @@ def _apply_language() -> str:
     and the header; `_note_guild_locale` calls it again the moment the settings
     payload is in hand, which is still before `render_template`.
 
-    Re-installing is cheap -- `i18n.catalogue` reads each file once per process
-    and hands back the same object afterwards -- so the second call costs an
-    attribute assignment, not a second parse of a `.mo`.
+    Writes to `g` and to nothing else. The Jinja environment is set up once in
+    `create_app`, with callables that read this attribute when a template
+    actually calls `_()`, so a second call here costs one assignment and
+    changes nothing another thread can see.
     """
     code = _language()
     g.language = code
-    # The catalogue object itself: `gettext.NullTranslations` and its GNU
-    # subclass already expose `gettext` and `ngettext`, which is the whole of
-    # what Jinja asks for. No adapter class in between.
-    current_app.jinja_env.install_gettext_translations(
-        i18n.catalogue(code), newstyle=True
-    )
     return code
 
 

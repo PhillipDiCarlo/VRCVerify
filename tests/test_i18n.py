@@ -301,3 +301,71 @@ class TestTheNoOpMarker:
         so that a table built at import can hold msgids and be looked up per
         request."""
         assert i18n.N_("Renews") == "Renews"
+
+
+class TestNoTranslationBreaksItsOwnFormatting:
+    """A translation that survives the placeholder check can still raise.
+
+    `test_every_translation_keeps_its_placeholders_and_markup` compares the SET
+    of `%(name)s` placeholders on each side, which catches a translation that
+    invents one or drops one. It does not catch a stray `%`: "Neu in deinem
+    Tarif: %(title)s, 50% mehr" has exactly the right placeholder set and
+    raises ValueError the moment anything formats it.
+
+    That failure lands at render time, on one page, in one language -- the
+    hardest kind of bug to notice from an English desk. So this does the
+    formatting rather than reasoning about it.
+    """
+
+    @pytest.mark.parametrize(
+        "code", [c for c in i18n.UI_LANGUAGES if c != i18n.DEFAULT_LANGUAGE]
+    )
+    def test_every_translation_formats(self, code):
+        pytest.importorskip("babel", reason="Babel is a dev-only dependency")
+        import re
+
+        from babel.messages.pofile import read_po
+
+        placeholder = re.compile(r"%\((\w+)\)[sdif]")
+
+        path = os.path.join(
+            i18n.LOCALE_DIR, code.replace("-", "_"), "LC_MESSAGES", "dashboard.po"
+        )
+        with open(path, "rb") as handle:
+            catalog = read_po(handle)
+
+        for message in catalog:
+            if not message.id or not message.string:
+                continue
+            ids = (
+                message.id
+                if isinstance(message.id, (list, tuple))
+                else [message.id]
+            )
+            forms = (
+                message.string
+                if isinstance(message.string, (list, tuple))
+                else [message.string]
+            )
+
+            keys = set()
+            for english in ids:
+                keys |= set(placeholder.findall(english))
+            if not keys:
+                # Nothing formats this one, so a bare `%` in it is just a per
+                # cent sign. "Save about 10%" is exactly that, in twelve
+                # languages.
+                continue
+
+            arguments = {key: "x" for key in keys}
+            for form in forms:
+                if not form:
+                    continue
+                try:
+                    form % arguments
+                except Exception as error:  # noqa: BLE001 -- reporting it
+                    raise AssertionError(
+                        f"{code}: {type(error).__name__} formatting "
+                        f"{form[:70]!r} -- this is a 500 on the page that "
+                        f"uses it, in one language only"
+                    ) from error
