@@ -26,12 +26,23 @@ failure this module exists to avoid.
 from __future__ import annotations
 
 import re
-from typing import Optional
+from typing import Callable, Optional
 
-# The no-op translation marker (#97). The group names below are built at
-# import, so they hold msgids; `app._settings_subnav` looks them up in the
-# language of the request that needs them.
+# The no-op translation marker (#97). Tables in this module are built at
+# import, so they hold msgids; the lookup happens per request against the
+# `gettext` callable the caller passes in.
 from dashboard.i18n import N_
+
+
+def _untranslated(text: str) -> str:
+    """The default `t`: hand back the English, unchanged.
+
+    Every entry point here takes `t` as a keyword defaulting to this, which is
+    what keeps this module's promise. It stays callable with no request in
+    sight -- the tests that assert which fields a lapsed plan renders read-only
+    need a settings payload, not a language.
+    """
+    return text
 
 # Display names only. The authoritative list is locales.LANGUAGE_CODES in the
 # bot, which this image deliberately does not carry -- it ships api_tokens.py
@@ -100,18 +111,18 @@ ACTIVITY_SLUG = "activity"
 ACTIVITY_TITLE = N_("Activity")
 
 LOCALE_NAMES = {
-    "en-US": "English",
-    "es-ES": "Spanish",
-    "zh-CN": "Chinese (Simplified)",
-    "ja": "Japanese",
-    "de": "German",
-    "nl": "Dutch",
-    "hi-IN": "Hindi",
-    "ar": "Arabic",
-    "bn": "Bengali",
-    "pt-BR": "Portuguese (Brazil)",
-    "ru": "Russian",
-    "pa-IN": "Punjabi",
+    "en-US": N_("English"),
+    "es-ES": N_("Spanish"),
+    "zh-CN": N_("Chinese (Simplified)"),
+    "ja": N_("Japanese"),
+    "de": N_("German"),
+    "nl": N_("Dutch"),
+    "hi-IN": N_("Hindi"),
+    "ar": N_("Arabic"),
+    "bn": N_("Bengali"),
+    "pt-BR": N_("Portuguese (Brazil)"),
+    "ru": N_("Russian"),
+    "pa-IN": N_("Punjabi"),
 }
 
 
@@ -215,7 +226,11 @@ def _role_field(
     unassignable_hint: str,
     empty_warning: Optional[str] = None,
     required: bool = False,
+    t: Callable[[str], str] = _untranslated,
 ) -> Field:
+    """`label`, `description`, `unassignable_hint` and `empty_warning` arrive
+    as msgids from `build_groups` and are looked up here, so a caller never has
+    to remember which of its four strings need translating."""
     state = _state(settings, name)
     raw = state.get("value")
     warnings = []
@@ -230,21 +245,21 @@ def _role_field(
     ]
 
     if raw is None or str(raw) == "":
-        display, empty = "Not set", True
+        display, empty = t(N_("Not set")), True
         if empty_warning:
-            warnings.append(empty_warning)
+            warnings.append(t(empty_warning))
     else:
         empty = False
         role = _lookup(roles, raw)
         if role is None:
             # roles is None when the read failed; that is "we could not check",
             # which is a different claim from "this role is gone".
-            display = f"Unknown role ({raw})"
+            display = t(N_("Unknown role (%(id)s)")) % {"id": raw}
             if roles is not None:
-                warnings.append(
+                warnings.append(t(N_(
                     "This role no longer exists in the server. VRCVerify will "
                     "not be able to use it."
-                )
+                )))
         else:
             display = role.get("name") or f"Role {raw}"
             # Colour 0 is Discord's "no colour", which renders as default grey.
@@ -252,16 +267,16 @@ def _role_field(
                 swatch = _hex(role["color"])
             assignable = role.get("assignable")
             if assignable is False:
-                warnings.append(unassignable_hint)
+                warnings.append(t(unassignable_hint))
             elif assignable is None and roles is not None:
-                warnings.append(
+                warnings.append(t(N_(
                     "Couldn't check whether VRCVerify can manage this role."
-                )
+                )))
 
     return Field(
         name,
-        label,
-        description,
+        t(label),
+        t(description),
         "role" if required else "role_optional",
         display,
         empty=empty,
@@ -297,12 +312,25 @@ def _hex(color) -> Optional[str]:
 
 
 def _bool_field(
-    settings: dict, name: str, label: str, description: str, *, on: str, off: str
+    settings: dict,
+    name: str,
+    label: str,
+    description: str,
+    *,
+    on: str,
+    off: str,
+    t: Callable[[str], str] = _untranslated,
 ) -> Field:
     state = _state(settings, name)
     value = bool(state.get("value"))
     return Field(
-        name, label, description, "bool", on if value else off, value=value, **_plan(state)
+        name,
+        t(label),
+        t(description),
+        "bool",
+        t(on) if value else t(off),
+        value=value,
+        **_plan(state),
     )
 
 
@@ -311,6 +339,7 @@ def build_groups(
     roles: Optional[list],
     channels: Optional[list],
     panel: Optional[dict] = None,
+    t: Callable[[str], str] = _untranslated,
 ) -> list:
     """The settings page, grouped the way an admin thinks about them.
 
@@ -328,78 +357,84 @@ def build_groups(
         settings,
         roles,
         "role_id",
-        "Verified role",
-        "Granted once a member's VRChat account is confirmed as 18+.",
-        unassignable_hint=(
+        N_("Verified role"),
+        N_("Granted once a member's VRChat account is confirmed as 18+."),
+        unassignable_hint=N_(
             "VRCVerify cannot grant this role. Move the VRCVerify role above it "
             "in Server Settings -> Roles, or verification will fail for every "
             "member."
         ),
-        empty_warning=(
+        empty_warning=N_(
             "No verified role is set, so verification cannot complete. Members "
             "are told to contact an admin."
         ),
         required=True,
+        t=t,
     )
 
     unverified = _role_field(
         settings,
         roles,
         "unverified_role_id",
-        "Unverified role",
-        "Removed automatically once a member verifies.",
-        unassignable_hint=(
+        N_("Unverified role"),
+        N_("Removed automatically once a member verifies."),
+        unassignable_hint=N_(
             "VRCVerify cannot remove this role. Move the VRCVerify role above "
             "it in Server Settings -> Roles."
         ),
+        t=t,
     )
 
     auto_verify = _bool_field(
         settings,
         "auto_verify_new_members",
-        "Auto-verify on join",
-        "Members already verified with VRCVerify elsewhere get the role as soon "
-        "as they join. Free for every server, always.",
-        on="On",
-        off="Off",
+        N_("Auto-verify on join"),
+        N_(
+            "Members already verified with VRCVerify elsewhere get the role as "
+            "soon as they join. Free for every server, always."
+        ),
+        on=N_("On"),
+        off=N_("Off"),
+        t=t,
     )
 
     nickname = _bool_field(
         settings,
         "auto_nickname_change",
-        "Nickname sync",
-        "Sets a member's server nickname to their VRChat display name.",
-        on="On",
-        off="Off",
+        N_("Nickname sync"),
+        N_("Sets a member's server nickname to their VRChat display name."),
+        on=N_("On"),
+        off=N_("Off"),
+        t=t,
     )
 
-    custom_dm = _custom_dm_field(settings)
-    locale = _locale_field(settings)
-    log_channel = _log_channel_field(settings, channels)
-    color, icon = _panel_fields(settings)
-    vrchat_group, group_enabled = _group_invite_fields(settings)
+    custom_dm = _custom_dm_field(settings, t)
+    locale = _locale_field(settings, t)
+    log_channel = _log_channel_field(settings, channels, t)
+    color, icon = _panel_fields(settings, t)
+    vrchat_group, group_enabled = _group_invite_fields(settings, t)
 
     return [
         {
-            "title": SETTINGS_TITLES["verification"],
+            "title": t(SETTINGS_TITLES["verification"]),
             "slug": "verification",
-            "blurb": "The core of the bot. These are free for every server.",
+            "blurb": t(N_("The core of the bot. These are free for every server.")),
             "fields": [verified, unverified, auto_verify],
             "save_endpoint": "save_verification_settings",
         },
         {
-            "title": SETTINGS_TITLES["after-verifying"],
+            "title": t(SETTINGS_TITLES["after-verifying"]),
             "slug": "after-verifying",
-            "blurb": "What happens once a member is confirmed.",
+            "blurb": t(N_("What happens once a member is confirmed.")),
             "fields": [nickname, custom_dm],
             "save_endpoint": "save_member_settings",
         },
         {
-            "title": SETTINGS_TITLES["panel"],
+            "title": t(SETTINGS_TITLES["panel"]),
             "slug": "panel",
-            "blurb": "The message members use to start verification.",
+            "blurb": t(N_("The message members use to start verification.")),
             "fields": [locale, color, icon],
-            "panel": panel_summary(panel),
+            "panel": panel_summary(panel, t),
             # Where the panel may be posted. Announcement channels are NOT
             # filtered out, unlike the log channel's picker: the panel is public
             # instructions, and /vrcverify_instructions can be run in one, so
@@ -417,17 +452,17 @@ def build_groups(
             "save_endpoint": "save_panel_settings",
         },
         {
-            "title": SETTINGS_TITLES["vrchat-group"],
+            "title": t(SETTINGS_TITLES["vrchat-group"]),
             "slug": "vrchat-group",
-            "blurb": "Invite members to your group once they're verified.",
+            "blurb": t(N_("Invite members to your group once they're verified.")),
             "fields": [vrchat_group, group_enabled],
-            "group_setup": group_setup_summary(settings),
+            "group_setup": group_setup_summary(settings, t),
             "save_endpoint": "save_group_settings",
         },
         {
-            "title": SETTINGS_TITLES["logging"],
+            "title": t(SETTINGS_TITLES["logging"]),
             "slug": "logging",
-            "blurb": "A record of verification activity for your moderators.",
+            "blurb": t(N_("A record of verification activity for your moderators.")),
             "fields": [log_channel],
             "save_endpoint": "save_logging_settings",
         },
@@ -445,82 +480,82 @@ def build_groups(
 GROUP_SETUP_COPY = {
     "unverified": (
         "pending",
-        "Not checked yet",
-        "Put the setup code in your group's description, invite the bot to the "
-        "group, then run the check.",
+        N_("Not checked yet"),
+        N_("Put the setup code in your group's description, invite the bot to the "
+        "group, then run the check."),
     ),
     "checking": (
         "pending",
-        "Checking\u2026",
-        "The bot is talking to VRChat. Reload this page in a moment.",
+        N_("Checking\u2026"),
+        N_("The bot is talking to VRChat. Reload this page in a moment."),
     ),
     "timed_out": (
         "warn",
-        "No answer from the checker",
-        "The check was sent but nothing came back. Try again shortly.",
+        N_("No answer from the checker"),
+        N_("The check was sent but nothing came back. Try again shortly."),
     ),
     "worker_unreachable": (
         "warn",
-        "Couldn't start the check",
-        "The bot couldn't reach the part of itself that talks to VRChat. Try "
-        "again shortly.",
+        N_("Couldn't start the check"),
+        N_("The bot couldn't reach the part of itself that talks to VRChat. Try "
+        "again shortly."),
     ),
     "seat_released": (
         "warn",
-        "The bot left your group",
-        "A VRChat account can only be in so many groups, so after a long time "
+        N_("The bot left your group"),
+        N_("A VRChat account can only be in so many groups, so after a long time "
         "without a subscription the bot left yours to free the space. Invite "
         "the account below back and run the check again \u2014 your group and "
-        "setup code are still saved, so there is nothing else to redo.",
+        "setup code are still saved, so there is nothing else to redo."),
     ),
     "ready": (
         "ok",
-        "Ready",
-        "The bot is in your group and can send invites.",
+        N_("Ready"),
+        N_("The bot is in your group and can send invites."),
     ),
     "join_requested": (
         "pending",
-        "Waiting for a moderator",
-        "The bot has asked to join and a group moderator needs to approve it. "
-        "Run the check again once they have.",
+        N_("Waiting for a moderator"),
+        N_("The bot has asked to join and a group moderator needs to approve it. "
+        "Run the check again once they have."),
     ),
     "not_invited": (
         "warn",
-        "The bot hasn't been invited yet",
-        "Invite the account below to your group from VRChat, then run the "
-        "check again.",
+        N_("The bot hasn't been invited yet"),
+        N_("Invite the account below to your group from VRChat, then run the "
+        "check again."),
     ),
     "no_invite_permission": (
         "warn",
-        "In the group, but it can't invite anyone",
-        "Give the bot's role the \u201cManage Group Invites\u201d permission in "
-        "VRChat. Being an admin is not enough \u2014 it is its own tick box.",
+        N_("In the group, but it can't invite anyone"),
+        N_("Give the bot's role the \u201cManage Group Invites\u201d permission in "
+        "VRChat. Being an admin is not enough \u2014 it is its own tick box."),
     ),
     "code_missing": (
         "warn",
-        "The setup code isn't in the group description",
-        "Paste the code below anywhere in your VRChat group's description, "
-        "then run the check again. You can remove it once the check passes.",
+        N_("The setup code isn't in the group description"),
+        N_("Paste the code below anywhere in your VRChat group's description, "
+        "then run the check again. You can remove it once the check passes."),
     ),
     "group_not_found": (
         "warn",
-        "No VRChat group with that ID",
-        "Check the ID, or paste the group's vrchat.com link instead.",
+        N_("No VRChat group with that ID"),
+        N_("Check the ID, or paste the group's vrchat.com link instead."),
     ),
     "banned": (
         "warn",
-        "The bot is banned or blocked from that group",
-        "A group moderator has to lift that before setup can continue.",
+        N_("The bot is banned or blocked from that group"),
+        N_("A group moderator has to lift that before setup can continue."),
     ),
     "bad_job": (
         "warn",
-        "That group ID wasn't usable",
-        "Check the ID, or paste the group's vrchat.com link instead.",
+        N_("That group ID wasn't usable"),
+        N_("Check the ID, or paste the group's vrchat.com link instead."),
     ),
     "vrchat_unavailable": (
         "warn",
-        "VRChat didn't answer",
-        "Nothing is wrong with your setup. Try the check again shortly.",
+        N_("VRChat didn't answer"),
+        N_("Nothing is wrong with your setup. Try the check again shortly."),
     ),
 }
 
@@ -538,12 +573,14 @@ GROUP_STATES_ALREADY_IN = frozenset({"ready", "no_invite_permission"})
 
 GROUP_SETUP_FALLBACK = (
     "warn",
-    "Setup couldn't be confirmed",
-    "Run the check again. If it keeps happening, contact support.",
+    N_("Setup couldn't be confirmed"),
+    N_("Run the check again. If it keeps happening, contact support."),
 )
 
 
-def group_setup_summary(settings: dict) -> dict:
+def group_setup_summary(
+    settings: dict, t: Callable[[str], str] = _untranslated
+) -> dict:
     """How far this guild's VRChat group setup has got, ready to render.
 
     A status rather than a setting: nothing here is ever saved, and the bot is
@@ -554,6 +591,7 @@ def group_setup_summary(settings: dict) -> dict:
     block = settings.get("group_invite") or {}
     state = str(block.get("state") or "unverified")
     tone, headline, detail = GROUP_SETUP_COPY.get(state, GROUP_SETUP_FALLBACK)
+    headline, detail = t(headline), t(detail)
 
     group_id = _value(settings, "vrchat_group_id")
     account = block.get("account_to_invite")
@@ -569,11 +607,11 @@ def group_setup_summary(settings: dict) -> dict:
     # Only the next step changes, to the same promise the locked fields make.
     locked = bool(_state(settings, "vrchat_group_id").get("locked"))
     if locked:
-        detail = (
+        detail = t(N_(
             "Group invites are part of VRCVerify Premium. Your group is kept "
             "exactly as it is, and this picks up where it left off if the "
             "subscription is renewed."
-        )
+        ))
 
     warnings = []
     if locked:
@@ -589,21 +627,21 @@ def group_setup_summary(settings: dict) -> dict:
         # member who already has an invite waiting in VRChat. Without this the
         # bot may send them a second one, which is the thing the opt-in design
         # exists to avoid.
-        warnings.append(
+        warnings.append(t(N_(
             "Optional: add \u201cView All Members\u201d to the bot's role so "
             "VRCVerify can see that a member already has an invite waiting, "
             "instead of possibly sending them a second one."
-        )
+        )))
     if group_id and not account and not locked:
         # Two operator problems reach here and neither is the admin's doing:
         # no invite account is provisioned at all, or every one of them has
         # used up its group slots. Deliberately one sentence for both -- the
         # admin's next step is identical, and naming the difference would only
         # invite them to try to work around a capacity limit they cannot see.
-        warnings.append(
+        warnings.append(t(N_(
             "No invite account is available to this VRCVerify installation "
             "right now, so the check cannot run. Contact the bot operator."
-        )
+        )))
 
     return {
         "state": state,
@@ -712,17 +750,19 @@ def _clip(text, limit: int):
     return text if len(text) <= limit else text[: limit - 1] + "\u2026"
 
 
-def _group_invite_fields(settings: dict):
+def _group_invite_fields(settings: dict, t: Callable[[str], str] = _untranslated):
     group_state = _state(settings, "vrchat_group_id")
     raw = group_state.get("value")
     group = Field(
         "vrchat_group_id",
-        "VRChat group",
-        "The group verified members can be invited to. Paste the group's ID "
-        "(it starts with grp_) or its vrchat.com link. Leave it empty to "
-        "disconnect the group.",
+        t(N_("VRChat group")),
+        t(N_(
+            "The group verified members can be invited to. Paste the group's ID "
+            "(it starts with grp_) or its vrchat.com link. Leave it empty to "
+            "disconnect the group."
+        )),
         "line",
-        str(raw) if raw else "No group connected",
+        str(raw) if raw else t(N_("No group connected")),
         empty=not raw,
         value="" if raw is None else str(raw),
         maxlength=GROUP_INPUT_MAXLEN,
@@ -732,28 +772,33 @@ def _group_invite_fields(settings: dict):
     enabled = _bool_field(
         settings,
         "vrchat_group_invite_enabled",
-        "Offer group invites",
-        "Adds a button to the message a member gets after verifying, which "
-        "invites them to your group. Nothing is sent unless they press it.",
-        on="On",
-        off="Off",
+        N_("Offer group invites"),
+        N_(
+            "Adds a button to the message a member gets after verifying, which "
+            "invites them to your group. Nothing is sent unless they press it."
+        ),
+        on=N_("On"),
+        off=N_("Off"),
+        t=t,
     )
     return group, enabled
 
 
-def _custom_dm_field(settings: dict) -> Field:
+def _custom_dm_field(settings: dict, t: Callable[[str], str] = _untranslated) -> Field:
     state = _state(settings, "custom_verification_requested_message")
     raw = state.get("value")
     if raw:
         display, empty = str(raw), False
     else:
-        display, empty = "Using the default message", True
+        display, empty = t(N_("Using the default message")), True
     return Field(
         "custom_verification_requested_message",
-        "Custom verification message",
-        "Replaces the default DM a member gets when they start verifying. "
-        "Links may only point to discord.com or vrchat.com. Leave it empty to "
-        "go back to the default.",
+        t(N_("Custom verification message")),
+        t(N_(
+            "Replaces the default DM a member gets when they start verifying. "
+            "Links may only point to discord.com or vrchat.com. Leave it empty "
+            "to go back to the default."
+        )),
         "text",
         display,
         empty=empty,
@@ -763,12 +808,23 @@ def _custom_dm_field(settings: dict) -> Field:
     )
 
 
-def locale_label(code: str) -> str:
+def locale_label(code: str, t: Callable[[str], str] = _untranslated) -> str:
+    """"German (de)", in the language the reader is reading the page in.
+
+    Not the endonym, unlike the header bar's picker (see `i18n.ENDONYMS`).
+    That control is read BY the person who cannot read the page, so it has to
+    name each language in itself. This one is a setting an admin is choosing
+    FOR their members, described in the language they are already reading --
+    so a German admin picking Japanese for their server sees "Japanisch (ja)".
+
+    The code rides along in both cases: it is what the bot stores, and it is
+    the thing to quote in a support message.
+    """
     name = LOCALE_NAMES.get(code)
-    return f"{name} ({code})" if name else str(code)
+    return f"{t(name)} ({code})" if name else str(code)
 
 
-def _locale_field(settings: dict) -> Field:
+def _locale_field(settings: dict, t: Callable[[str], str] = _untranslated) -> Field:
     state = _state(settings, "instructions_locale")
     code = state.get("value") or "en-US"
     # The options come from the bot, never from LOCALE_NAMES above -- that dict
@@ -777,25 +833,28 @@ def _locale_field(settings: dict) -> Field:
     codes = (settings.get("choices") or {}).get("instructions_locale") or []
     return Field(
         "instructions_locale",
-        "Language",
-        "The language of the instructions panel and the bot's replies to members.",
+        t(N_("Language")),
+        t(N_(
+            "The language of the instructions panel and the bot's replies to "
+            "members."
+        )),
         "locale",
-        locale_label(code),
-        choices=[(one, locale_label(one)) for one in codes],
+        locale_label(code, t),
+        choices=[(one, locale_label(one, t)) for one in codes],
         value=code,
         **_plan(state),
     )
 
 
-def _panel_fields(settings: dict):
+def _panel_fields(settings: dict, t: Callable[[str], str] = _untranslated):
     color_state = _state(settings, "panel_embed_color")
     swatch = _hex(color_state.get("value"))
     color = Field(
         "panel_embed_color",
-        "Panel colour",
-        "The colour bar down the side of the instructions panel.",
+        t(N_("Panel colour")),
+        t(N_("The colour bar down the side of the instructions panel.")),
         "color",
-        swatch or "Default blue",
+        swatch or t(N_("Default blue")),
         empty=swatch is None,
         swatch=swatch,
         # A colour input cannot be empty, so it needs something to show while
@@ -807,28 +866,35 @@ def _panel_fields(settings: dict):
     icon = _bool_field(
         settings,
         "panel_show_icon",
-        "Server icon on the panel",
-        "Shows your server's icon as the panel's thumbnail.",
-        on="Shown",
-        off="Hidden",
+        N_("Server icon on the panel"),
+        N_("Shows your server's icon as the panel's thumbnail."),
+        on=N_("Shown"),
+        off=N_("Hidden"),
+        t=t,
     )
     return color, icon
 
 
-def _log_channel_field(settings: dict, channels: Optional[list]) -> Field:
+def _log_channel_field(
+    settings: dict,
+    channels: Optional[list],
+    t: Callable[[str], str] = _untranslated,
+) -> Field:
     state = _state(settings, "verification_log_channel_id")
     raw = state.get("value")
     warnings = []
 
     if raw is None or str(raw) == "":
-        display, empty = "Not set", True
+        display, empty = t(N_("Not set")), True
     else:
         empty = False
         channel = _lookup(channels, raw)
         if channel is None:
-            display = f"Unknown channel ({raw})"
+            display = t(N_("Unknown channel (%(id)s)")) % {"id": raw}
             if channels is not None:
-                warnings.append("This channel no longer exists in the server.")
+                warnings.append(
+                    t(N_("This channel no longer exists in the server."))
+                )
         else:
             display = f"#{channel.get('name') or raw}"
             if channel.get("is_news"):
@@ -836,13 +902,13 @@ def _log_channel_field(settings: dict, channels: Optional[list]) -> Field:
                 # announcement channel, which would republish an age disclosure
                 # about a named member into servers they have no relationship
                 # with.
-                warnings.append(
+                warnings.append(t(N_(
                     "This is an announcement channel. Other servers can follow "
                     "it, which would republish age disclosures about your "
                     "members. VRCVerify will not log here."
-                )
+                )))
             if channel.get("can_send") is False:
-                warnings.append("VRCVerify cannot post in this channel.")
+                warnings.append(t(N_("VRCVerify cannot post in this channel.")))
 
     # Announcement channels are left out of the picker rather than offered and
     # refused. Unlike an unassignable role -- which /vrcverify_setup accepts and
@@ -856,8 +922,8 @@ def _log_channel_field(settings: dict, channels: Optional[list]) -> Field:
 
     return Field(
         "verification_log_channel_id",
-        "Verification log channel",
-        "Every verification attempt, including the ones that fail silently.",
+        t(N_("Verification log channel")),
+        t(N_("Every verification attempt, including the ones that fail silently.")),
         "channel",
         display,
         empty=empty,
@@ -915,34 +981,34 @@ def build_upgrade(settings: dict, application_id: Optional[str]) -> Optional[dic
 # Labels for the audit list. Deliberately the same words the settings above
 # use, so a line of history is recognisably about a control on this page.
 AUDIT_LABELS = {
-    "role_id": "Verified role",
-    "unverified_role_id": "Unverified role",
-    "auto_verify_new_members": "Auto-verify on join",
-    "auto_nickname_change": "Nickname sync",
-    "custom_verification_requested_message": "Custom verification message",
-    "instructions_locale": "Language",
-    "panel_embed_color": "Panel colour",
-    "panel_show_icon": "Server icon on the panel",
-    "verification_log_channel_id": "Verification log channel",
-    "vrchat_group_id": "VRChat group",
-    "vrchat_group_invite_enabled": "VRChat group invites",
+    "role_id": N_("Verified role"),
+    "unverified_role_id": N_("Unverified role"),
+    "auto_verify_new_members": N_("Auto-verify on join"),
+    "auto_nickname_change": N_("Nickname sync"),
+    "custom_verification_requested_message": N_("Custom verification message"),
+    "instructions_locale": N_("Language"),
+    "panel_embed_color": N_("Panel colour"),
+    "panel_show_icon": N_("Server icon on the panel"),
+    "verification_log_channel_id": N_("Verification log channel"),
+    "vrchat_group_id": N_("VRChat group"),
+    "vrchat_group_invite_enabled": N_("VRChat group invites"),
     # An action rather than a setting, like instructions_panel above: the
     # bot stores (what it did, which group), not (old value, new value).
-    "group_verify": "VRChat group setup check",
+    "group_verify": N_("VRChat group setup check"),
     # Not a setting but an action, and the only row here whose pair is not
     # (old value, new value) -- the bot stores (what it did, where). Without
     # this entry the branch's own headline feature rendered its history as the
     # raw column name and a bare channel id.
-    "instructions_panel": "Instructions panel",
+    "instructions_panel": N_("Instructions panel"),
 }
 
 # What the bot writes into old_value for an instructions_panel row, as a phrase
 # rather than a state it moved out of.
 PANEL_ACTIONS = {
-    "posted": "posted in",
-    "moved": "moved to",
-    "refreshed": "refreshed in",
-    "replaced": "replaced in",
+    "posted": N_("posted in"),
+    "moved": N_("moved to"),
+    "refreshed": N_("refreshed in"),
+    "replaced": N_("replaced in"),
 }
 
 # Long enough to recognise a message, short enough that one entry cannot push
@@ -954,6 +1020,7 @@ def build_audit(
     entries: Optional[list],
     roles: Optional[list],
     channels: Optional[list],
+    t: Callable[[str], str] = _untranslated,
 ) -> Optional[list]:
     """The change history, with ids resolved and values fit to read.
 
@@ -973,10 +1040,13 @@ def build_audit(
         new_field = "instructions_panel_channel" if field == "instructions_panel" else field
         rows.append(
             {
-                "label": AUDIT_LABELS.get(field, field),
-                "actor": entry.get("actor_name") or f"ID {entry.get('actor_id')}",
-                "old": _audit_value(field, entry.get("old_value"), roles, channels),
-                "new": _audit_value(new_field, entry.get("new_value"), roles, channels),
+                "label": t(AUDIT_LABELS[field]) if field in AUDIT_LABELS else field,
+                "actor": entry.get("actor_name")
+                or t(N_("ID %(id)s")) % {"id": entry.get("actor_id")},
+                "old": _audit_value(field, entry.get("old_value"), roles, channels, t),
+                "new": _audit_value(
+                    new_field, entry.get("new_value"), roles, channels, t
+                ),
                 "when": entry.get("changed_at"),
                 # Formatted here, not in the template. The template used to slice
                 # this string, which is the one place bot data was subscripted
@@ -994,7 +1064,9 @@ def _audit_when(raw) -> str:
     return raw[:16].replace("T", " ") + " UTC"
 
 
-def _audit_value(field, raw, roles, channels) -> str:
+def _audit_value(
+    field, raw, roles, channels, t: Callable[[str], str] = _untranslated
+) -> str:
     """One stored value, as something an admin can read.
 
     `roles`/`channels` are None when that read failed, which is "we could not
@@ -1004,29 +1076,30 @@ def _audit_value(field, raw, roles, channels) -> str:
     of this module is written to avoid.
     """
     if raw is None or raw == "":
-        return "not set"
+        return t(N_("not set"))
     if field == "instructions_panel":
-        return PANEL_ACTIONS.get(str(raw), str(raw))
+        key = str(raw)
+        return t(PANEL_ACTIONS[key]) if key in PANEL_ACTIONS else key
     if field in {"role_id", "unverified_role_id"}:
         if roles is None:
-            return f"role {raw}"
+            return t(N_("role %(id)s")) % {"id": raw}
         role = _lookup(roles, raw)
         if role is None:
-            return f"a role that no longer exists ({raw})"
-        return role.get("name") or f"Role {raw}"
+            return t(N_("a role that no longer exists (%(id)s)")) % {"id": raw}
+        return role.get("name") or t(N_("Role %(id)s")) % {"id": raw}
     if field in {"verification_log_channel_id", "instructions_panel_channel"}:
         if channels is None:
-            return f"channel {raw}"
+            return t(N_("channel %(id)s")) % {"id": raw}
         channel = _lookup(channels, raw)
         if channel is None:
-            return f"a channel that no longer exists ({raw})"
+            return t(N_("a channel that no longer exists (%(id)s)")) % {"id": raw}
         return f"#{channel.get('name') or raw}"
     if field == "panel_embed_color":
         return _hex(raw) or str(raw)
     if field == "instructions_locale":
-        return locale_label(str(raw))
+        return locale_label(str(raw), t)
     if raw in {"True", "False"}:
-        return "on" if raw == "True" else "off"
+        return t(N_("on")) if raw == "True" else t(N_("off"))
     text = str(raw)
     return text if len(text) <= AUDIT_VALUE_MAX else text[: AUDIT_VALUE_MAX - 1] + "…"
 
@@ -1052,7 +1125,9 @@ def _panel_channels(channels: Optional[list], panel: Optional[dict]) -> list:
     ]
 
 
-def panel_summary(panel: Optional[dict]) -> dict:
+def panel_summary(
+    panel: Optional[dict], t: Callable[[str], str] = _untranslated
+) -> dict:
     """The instructions panel's whereabouts, as a template-ready dict.
 
     `posted: false` is not proof there is no panel -- load_instruction_panel in
@@ -1067,26 +1142,30 @@ def panel_summary(panel: Optional[dict]) -> dict:
 
     warnings = []
     if panel.get("channel_exists") is False:
-        warnings.append(
+        warnings.append(t(N_(
             "The channel this panel was posted in no longer exists, so members "
             "have no way to start verifying."
-        )
+        )))
     elif panel.get("channel_postable") is False:
         # Deliberately narrow. The panel itself is fine: buttons are
         # interactions, and refreshing it edits a message VRCVerify already
         # owns, neither of which needs Send Messages. Only replacing it does.
         # Both permissions are named because the panel is an embed, so Embed
         # Links alone being off produces this with no other symptom.
-        warnings.append(
+        warnings.append(t(N_(
             "VRCVerify can't post a new message in that channel — it needs "
             "both Send Messages and Embed Links there. The panel still works "
             "and can still be refreshed; it just can't be replaced."
-        )
+        )))
 
     name = panel.get("channel_name")
     return {
         "known": True,
         "posted": True,
-        "channel": f"#{name}" if name else f"channel {panel.get('channel_id')}",
+        "channel": (
+            f"#{name}"
+            if name
+            else t(N_("channel %(id)s")) % {"id": panel.get("channel_id")}
+        ),
         "warnings": warnings,
     }

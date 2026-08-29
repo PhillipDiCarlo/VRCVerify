@@ -25,10 +25,10 @@
       <path d="M12 10v4.2M12 17.4h.01"></path>
     </svg>
   </p>
-  <h1>Sorry</h1>
+  <h1>{% trans %}Sorry{% endtrans %}</h1>
   <p>{{ message }}</p>
   <p class="actions">
-    <a class="button" href="{{ url_for('index') }}">Back to your servers</a>
+    <a class="button" href="{{ url_for('index') }}">{% trans %}Back to your servers{% endtrans %}</a>
   </p>
 </section>
 {% endblock %}

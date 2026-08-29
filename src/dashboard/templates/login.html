@@ -74,10 +74,9 @@
   <img class="signin-mark" src="{{ asset('logo.png') }}" alt=""
        width="128" height="99">
 
-  <h1>Manage your VRCVerify servers</h1>
+  <h1>{% trans %}Manage your VRCVerify servers{% endtrans %}</h1>
   <p class="signin-lede">
-    Set the verified role, the instructions panel and logging for any Discord
-    server you administer.
+    {% trans %}Set the verified role, the instructions panel and logging for any Discord server you administer.{% endtrans %}
   </p>
 
   {# THE MOST VALUABLE THING ON THIS PAGE, AND IT USED TO BE THE QUIETEST.
@@ -93,24 +92,21 @@
   <ul class="signin-grants">
     <li>
       {{ grant_mark('asks') }}
-      <span>Discord tells us <strong>who you are and which servers you are
-        in</strong>, and nothing else.</span>
+      <span>{% trans %}Discord tells us <strong>who you are and which servers you are in</strong>, and nothing else.{% endtrans %}</span>
     </li>
     <li>
       {{ grant_mark('token') }}
-      <span>We <strong>don't keep your Discord token</strong> after you sign
-        in.</span>
+      <span>{% trans %}We <strong>don't keep your Discord token</strong> after you sign in.{% endtrans %}</span>
     </li>
     <li>
       {{ grant_mark('eye') }}
-      <span>This site <strong>can't see who has verified</strong> — only your
-        server's settings.</span>
+      <span>{% trans %}This site <strong>can't see who has verified</strong> — only your server's settings.{% endtrans %}</span>
     </li>
   </ul>
 
   <p class="signin-go">
     <a class="button" href="{{ url_for('login') }}">
-      {{ discord_mark() }} Sign in with Discord</a>
+      {{ discord_mark() }} {% trans %}Sign in with Discord{% endtrans %}</a>
   </p>
 
   {# What Discord can and cannot do, stated accurately.
@@ -125,11 +121,11 @@
      page somebody reads while deciding whether to sign in at all, and the
      command it named would have appeared to work, since it does render a
      settings summary. #}
+  {# The two slash commands stay untranslated inside the sentence: they are
+     what the reader types into Discord, and a translated command is a command
+     that does not exist. #}
   <p class="signin-note">
-    <code>/vrcverify_setup</code> in Discord sets a server's verified role,
-    which is enough to start verifying members, and
-    <code>/vrcverify_settings</code> shows what's stored. Everything else is
-    changed here.
+    {% trans %}<code>/vrcverify_setup</code> in Discord sets a server's verified role, which is enough to start verifying members, and <code>/vrcverify_settings</code> shows what's stored. Everything else is changed here.{% endtrans %}
   </p>
 
   {# Absolute, because these live on the apex site rather than in this app.
@@ -137,9 +133,9 @@
      response, so there is nothing to leak, and there is nothing on this page
      to lose your place in. #}
   <p class="signin-legal">
-    <a href="https://vrcverify.com/terms">Terms</a>
-    <a href="https://vrcverify.com/privacy">Privacy</a>
-    <a href="https://vrcverify.com/refunds">Refunds</a>
+    <a href="https://vrcverify.com/terms">{% trans %}Terms{% endtrans %}</a>
+    <a href="https://vrcverify.com/privacy">{% trans %}Privacy{% endtrans %}</a>
+    <a href="https://vrcverify.com/refunds">{% trans %}Refunds{% endtrans %}</a>
   </p>
 </section>
 {% endblock %}

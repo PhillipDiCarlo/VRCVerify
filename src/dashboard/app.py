@@ -1267,10 +1267,12 @@ def _register_routes(app: Flask) -> None:
 
         return render_template(
             "overview.html",
-            tiles=overview_view.build_tiles(overview),
-            chart=overview_view.build_chart(overview),
-            next_step=overview_view.build_next_step(overview, changelog_entry),
-            setup=overview_view.build_setup(overview),
+            tiles=overview_view.build_tiles(overview, _translator()),
+            chart=overview_view.build_chart(overview, _translator()),
+            next_step=overview_view.build_next_step(
+                overview, changelog_entry, _translator(), _ngettext()
+            ),
+            setup=overview_view.build_setup(overview, _translator()),
             premium=premium,
             **_guild_chrome(session, guild_id, "overview"),
         )
@@ -1589,7 +1591,9 @@ def _register_routes(app: Flask) -> None:
         if group == settings_view.ACTIVITY_SLUG:
             return render_template(
                 "activity.html",
-                audit=settings_view.build_audit(audit, roles, channels),
+                audit=settings_view.build_audit(
+                    audit, roles, channels, _translator()
+                ),
                 # The shared header says what this server is paying for, so
                 # this page needs it too -- one sentence, one place, rather
                 # than a second copy that can disagree with Settings'.
@@ -1598,7 +1602,9 @@ def _register_routes(app: Flask) -> None:
                 **_guild_chrome(session, guild_id, "settings", group),
             )
 
-        groups = settings_view.build_groups(settings, roles, channels, panel)
+        groups = settings_view.build_groups(
+            settings, roles, channels, panel, _translator()
+        )
         current = next(one for one in groups if one["slug"] == group)
 
         return render_template(
@@ -2960,6 +2966,19 @@ def _language() -> str:
     if not i18n.is_supported(cookie) and chosen == guild_locale:
         g.language_seed = chosen
     return chosen
+
+
+def _ngettext():
+    """This request's `ngettext`, for the one string that counts things.
+
+    Separate from `_translator` because plural selection is a different call:
+    it takes two msgids and a number, and the catalogue's own Plural-Forms rule
+    decides which form comes back. Russian has three, Arabic six, Japanese one
+    -- so an English `"s" if n != 1` is correct in exactly one of the twelve.
+    """
+    return i18n.catalogue(
+        getattr(g, "language", None) or i18n.DEFAULT_LANGUAGE
+    ).ngettext
 
 
 def _translator():

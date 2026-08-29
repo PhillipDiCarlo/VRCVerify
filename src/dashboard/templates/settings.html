@@ -44,13 +44,13 @@
       or upgrade or not names_resolved or not auto_verify_column_present %}
 <section class="panel">
   {% if saved %}
-    <p class="notice ok">Saved.</p>
+    <p class="notice ok">{% trans %}Saved.{% endtrans %}</p>
   {% endif %}
   {# Not "checked" -- the answer comes back over a queue, so it is not in this
      response. Claiming success here would be a claim the page cannot make. #}
   {% if group_check %}
     <p class="notice ok">
-      Checking your VRChat group. Reload this page in a moment to see the result.
+      {% trans %}Checking your VRChat group. Reload this page in a moment to see the result.{% endtrans %}
     </p>
   {% endif %}
   {# Saved, but the live panel did not take it. Almost always a panel posted by
@@ -58,8 +58,7 @@
      -- so the only repair is the replace the panel button below performs. #}
   {% if panel_stale %}
     <p class="notice">
-      Your settings were saved, but the instructions panel still shows the old
-      ones. Use <strong>Repost or move panel</strong> below to replace it.
+      {% trans %}Your settings were saved, but the instructions panel still shows the old ones. Use <strong>Repost or move panel</strong> below to replace it.{% endtrans %}
     </p>
   {% endif %}
   {% if panel_result %}
@@ -82,37 +81,34 @@
     <section class="upgrade">
       <h2>
         {% if upgrade.grandfathered %}
-          Add VRCVerify Premium
+          {% trans %}Add VRCVerify Premium{% endtrans %}
         {% else %}
-          Upgrade to VRCVerify Premium
+          {% trans %}Upgrade to VRCVerify Premium{% endtrans %}
         {% endif %}
       </h2>
       <p>
         {% if upgrade.grandfathered %}
-          Your grandfathered extras stay free whatever you decide. Premium
-          unlocks the settings marked below.
+          {% trans %}Your grandfathered extras stay free whatever you decide. Premium unlocks the settings marked below.{% endtrans %}
         {% else %}
-          Unlocks the settings marked below. 18+ verification itself stays free.
+          {% trans %}Unlocks the settings marked below. 18+ verification itself stays free.{% endtrans %}
         {% endif %}
       </p>
       <p>
         <a href="{{ url_for('guild_subscription', guild_id=guild_id) }}">
-          See plans and subscribe</a>
+          {% trans %}See plans and subscribe{% endtrans %}</a>
       </p>
     </section>
   {% endif %}
 
   {% if not names_resolved %}
     <p class="notice">
-      Couldn't load this server's roles and channels just now, so some settings
-      below show an ID instead of a name. The values themselves are correct.
+      {% trans %}Couldn't load this server's roles and channels just now, so some settings below show an ID instead of a name. The values themselves are correct.{% endtrans %}
     </p>
   {% endif %}
 
   {% if not auto_verify_column_present %}
     <p class="notice">
-      This bot's database is missing the auto-verify column, so that setting
-      isn't in effect regardless of what it shows. Contact the bot operator.
+      {% trans %}This bot's database is missing the auto-verify column, so that setting isn't in effect regardless of what it shows. Contact the bot operator.{% endtrans %}
     </p>
   {% endif %}
 </section>
@@ -137,13 +133,13 @@
       <dl class="settings">
         {% if group.panel %}
           <div class="setting">
-            <dt>Where it's posted</dt>
+            <dt>{% trans %}Where it's posted{% endtrans %}</dt>
             <dd>
               {% if not group.panel.known %}
-                <p class="value empty">Couldn't check</p>
-                <p class="muted desc">The bot didn't answer this one. Try again shortly.</p>
+                <p class="value empty">{% trans %}Couldn't check{% endtrans %}</p>
+                <p class="muted desc">{% trans %}The bot didn't answer this one. Try again shortly.{% endtrans %}</p>
               {% elif not group.panel.posted %}
-                <p class="value empty">No panel found</p>
+                <p class="value empty">{% trans %}No panel found{% endtrans %}</p>
                 {# Named the wrong command: /vrcverify_panel has never
                    existed. The one that posts a panel is
                    /vrcverify_instructions -- and this page has a button that
@@ -153,12 +149,11 @@
                    Found by the drift test in tests/test_dashboard.py, not by
                    anyone reading it, which is the argument for that test. #}
                 <p class="muted desc">
-                  Post one below, or with <code>/vrcverify_instructions</code>
-                  in Discord, so members have somewhere to start.
+                  {% trans %}Post one below, or with <code>/vrcverify_instructions</code> in Discord, so members have somewhere to start.{% endtrans %}
                 </p>
               {% else %}
                 <p class="value">{{ group.panel.channel }}</p>
-                <p class="muted desc">Members use this message to begin verification.</p>
+                <p class="muted desc">{% trans %}Members use this message to begin verification.{% endtrans %}</p>
                 {% for warning in group.panel.warnings %}
                   <p class="warn">{{ warning }}</p>
                 {% endfor %}
@@ -168,7 +163,7 @@
         {% endif %}
         {% if group.group_setup and group.group_setup.configured %}
           <div class="setting">
-            <dt>Setup</dt>
+            <dt>{% trans %}Setup{% endtrans %}</dt>
             <dd>
               {% if group.group_setup.icon_url %}
                 {# The group's icon, not its banner: the banner is a wide
@@ -187,30 +182,29 @@
                  instead of it: one says what to do, the other says what VRChat
                  actually replied. #}
               {% if group.group_setup.error and group.group_setup.tone != 'ok' %}
-                <p class="muted desc">VRChat said: {{ group.group_setup.error }}</p>
+                {# VRChat's own words, passed through. Only the framing is translated:
+                 the message itself came from VRChat's API in English and this
+                 app has no catalogue for it. #}
+              <p class="muted desc">{% trans said=group.group_setup.error %}VRChat said: {{ said }}{% endtrans %}</p>
               {% endif %}
               {% if group.group_setup.show_claim_code %}
-                <p class="value">{{- "Setup code:" }} <code>{{ group.group_setup.claim_code }}</code></p>
+                <p class="value">{% trans %}Setup code:{% endtrans %} <code>{{ group.group_setup.claim_code }}</code></p>
                 <p class="muted desc">
-                  Paste this anywhere in your VRChat group's description. It
-                  proves the group is yours, and you can remove it once the
-                  check passes.
+                  {% trans %}Paste this anywhere in your VRChat group's description. It proves the group is yours, and you can remove it once the check passes.{% endtrans %}
                 </p>
               {% endif %}
               {% if group.group_setup.show_account %}
+                {# The account id stays outside the msgid: it is data from the
+                   bot, not a word. The sentence around it is one string so a
+                   translator can put the link wherever their language wants
+                   it. #}
                 <p class="muted desc">
-                  Invite this account to your group:
-                  <a href="{{ group.group_setup.account_url }}" rel="noopener noreferrer"
-                     target="_blank">{{ group.group_setup.account_id }}</a>
-                  — check the ID matches, because VRChat display names are not
-                  unique.
+                  {% trans account_url=group.group_setup.account_url, account_id=group.group_setup.account_id %}Invite this account to your group: <a href="{{ account_url }}" rel="noopener noreferrer" target="_blank">{{ account_id }}</a> — check the ID matches, because VRChat display names are not unique.{% endtrans %}
                 </p>
               {% endif %}
               {% if group.group_setup.group_url %}
                 <p class="muted desc">
-                  Your group:
-                  <a href="{{ group.group_setup.group_url }}" rel="noopener noreferrer"
-                     target="_blank">open it on vrchat.com</a>
+                  {% trans group_url=group.group_setup.group_url %}Your group: <a href="{{ group_url }}" rel="noopener noreferrer" target="_blank">open it on vrchat.com</a>{% endtrans %}
                 </p>
               {% endif %}
               {% for warning in group.group_setup.warnings %}
@@ -243,9 +237,9 @@
                 {{ field.label }}
               {% endif %}
               {% if field.badge == 'premium' %}
-                <span class="badge premium">Premium</span>
+                <span class="badge premium">{% trans %}Premium{% endtrans %}</span>
               {% elif field.badge == 'inactive' %}
-                <span class="badge inactive">Not applied</span>
+                <span class="badge inactive">{% trans %}Not applied{% endtrans %}</span>
               {% endif %}
             </dt>
             <dd>
@@ -266,7 +260,7 @@
                   <select name="{{ field.name }}"
                           aria-labelledby="l-{{ field.name }}"
                           id="f-{{ field.name }}">
-                    <option value="" {% if field.empty %}selected{% endif %}>Off</option>
+                    <option value="" {% if field.empty %}selected{% endif %}>{% trans %}Off{% endtrans %}</option>
                     {% for channel_id, label in field.choices %}
                       <option value="{{ channel_id }}"
                         {%- if channel_id == field.value %} selected{% endif %}>{{ label }}</option>
@@ -277,7 +271,7 @@
                           aria-labelledby="l-{{ field.name }}"
                           id="f-{{ field.name }}">
                     {% if field.kind == 'role_optional' %}
-                      <option value="" {% if field.empty %}selected{% endif %}>None</option>
+                      <option value="" {% if field.empty %}selected{% endif %}>{% trans %}None{% endtrans %}</option>
                     {% endif %}
                     {% for role_id, label in field.choices %}
                       <option value="{{ role_id }}"
@@ -300,7 +294,7 @@
                   <label class="check">
                     <input type="checkbox" name="panel_color_default"
                            {%- if field.empty %} checked{% endif %}>
-                    Use the default blue
+                    {% trans %}Use the default blue{% endtrans %}
                   </label>
                   <input type="color" name="{{ field.name }}"
                          value="{{ field.value }}"
@@ -362,11 +356,13 @@
               <p class="muted desc">{{ field.description }}</p>
 
               {% if field.badge == 'premium' %}
+                {# Two sentences, two msgids, because the second is
+                   conditional. Split at the sentence boundary rather than
+                   mid-clause, so each half is translatable on its own. #}
                 <p class="muted plan">
-                  Premium only.
+                  {% trans %}Premium only.{% endtrans %}
                   {%- if not field.empty %}
-                    Your saved value is kept, and comes back if the
-                    subscription is renewed.
+                    {% trans %}Your saved value is kept, and comes back if the subscription is renewed.{% endtrans %}
                   {%- endif %}
                 </p>
               {% elif field.badge == 'inactive' %}
@@ -374,8 +370,7 @@
                    than the slash commands: saved by anyone, acted on only
                    with the feature. #}
                 <p class="muted plan">
-                  Saved, but not acted on without Premium. Anyone can set this;
-                  the bot just won't use it until the feature is active.
+                  {% trans %}Saved, but not acted on without Premium. Anyone can set this; the bot just won't use it until the feature is active.{% endtrans %}
                 </p>
               {% elif not field.writable %}
                 {# The fourth state, and the one with nothing to do with the
@@ -389,8 +384,7 @@
                    became a read-only summary when editing moved here, so that
                    would send somebody to a command that cannot do it. #}
                 <p class="muted plan">
-                  Not editable from the website yet. Nothing is wrong with it —
-                  the bot hasn't opened this setting to the dashboard.
+                  {% trans %}Not editable from the website yet. Nothing is wrong with it — the bot hasn't opened this setting to the dashboard.{% endtrans %}
                 </p>
               {% endif %}
 
@@ -409,7 +403,7 @@
            than the few bytes this costs on a clean page. With no JavaScript it
            never shows, which is exactly how this page behaved before. #}
         <p class="actions">
-          <button type="submit" class="button">Save changes</button>
+          <button type="submit" class="button">{% trans %}Save changes{% endtrans %}</button>
           {# `role="status"` because CSS revealing a static node fires no
              accessibility event at all -- app.js adds a class, `display` goes
              from none to inline-flex, and a screen reader is told nothing.
@@ -421,7 +415,7 @@
              correction. #}
           <span class="unsaved" role="status">
             <span class="unsaved-dot" aria-hidden="true"></span>
-            Unsaved changes in this group
+            {% trans %}Unsaved changes in this group{% endtrans %}
           </span>
         </p>
         </form>
@@ -433,11 +427,9 @@
         <form method="post" action="{{ url_for('verify_group', guild_id=guild_id) }}"
               class="panel-post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button type="submit" class="button">Check group setup</button>
+          <button type="submit" class="button">{% trans %}Check group setup{% endtrans %}</button>
           <span class="muted desc">
-            Asks the bot to join your group and report what it can do there.
-            This button doesn't save the settings above — do that first if
-            you've just changed the group.
+            {% trans %}Asks the bot to join your group and report what it can do there. This button doesn't save the settings above — do that first if you've just changed the group.{% endtrans %}
           </span>
         </form>
       {% endif %}
@@ -448,7 +440,7 @@
         <form method="post" action="{{ url_for('post_panel', guild_id=guild_id) }}"
               class="panel-post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <label for="panel_channel_id">Post the panel in</label>
+          <label for="panel_channel_id">{% trans %}Post the panel in{% endtrans %}</label>
           <select name="panel_channel_id" id="panel_channel_id">
             {% for channel_id, label in group.panel_channels %}
               <option value="{{ channel_id }}"

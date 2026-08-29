@@ -1,14 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Your servers — VRCVerify{% endblock %}
+{% block title %}{% trans %}Your servers — VRCVerify{% endtrans %}{% endblock %}
 
 {% block content %}
 <section class="panel">
-  <h1>Your servers</h1>
+  <h1>{% trans %}Your servers{% endtrans %}</h1>
 
   {% if not reachable %}
     <p class="notice">
-      Can't reach the bot right now, so we can't tell which of these it's in.
-      Your settings are safe — nothing here has changed. Try again shortly.
+      {% trans %}Can't reach the bot right now, so we can't tell which of these it's in. Your settings are safe — nothing here has changed. Try again shortly.{% endtrans %}
     </p>
   {% endif %}
 
@@ -19,17 +18,15 @@
        in again -- which makes this an empty state with something to do, rather
        than a sentence apologising. #}
     <div class="empty-state">
-      <p class="empty-title">No servers to show</p>
+      <p class="empty-title">{% trans %}No servers to show{% endtrans %}</p>
       <p class="empty-body">
-        This page lists servers where you have the Administrator permission.
-        Discord tells us that list when you sign in, so a permission you were
-        given since then will not be in it yet.
+        {% trans %}This page lists servers where you have the Administrator permission. Discord tells us that list when you sign in, so a permission you were given since then will not be in it yet.{% endtrans %}
       </p>
       <form method="post" action="{{ url_for('logout') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit" class="button">Sign out and start again</button>
+        <button type="submit" class="button">{% trans %}Sign out and start again{% endtrans %}</button>
       </form>
-      <p class="empty-note">You'll be asked to sign in with Discord again.</p>
+      <p class="empty-note">{% trans %}You'll be asked to sign in with Discord again.{% endtrans %}</p>
     </div>
   {% else %}
     <ul class="servers">
@@ -119,7 +116,7 @@
                right under one of the two. #}
             <p class="server-action">
               <a class="button" href="{{ server.invite_url }}" rel="noopener">
-                Add to server</a>
+                {% trans %}Add to server{% endtrans %}</a>
             </p>
           {% endif %}
         </li>

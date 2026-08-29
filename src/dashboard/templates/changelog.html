@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}What's new · VRCVerify{% endblock %}
+{% block title %}{% trans %}What's new · VRCVerify{% endtrans %}{% endblock %}
 
 {# THE FULL LIST, where the bell is a summary.
 
@@ -16,9 +16,9 @@
 {# The picker's shape: an <h1> and a line of context, both inside the first
    card rather than floating on the page ground above it. #}
 <section class="panel">
-  <h1>What's new</h1>
+  <h1>{% trans %}What's new{% endtrans %}</h1>
   <p class="muted blurb">
-    Everything that has shipped in VRCVerify, newest first.
+    {% trans %}Everything that has shipped in VRCVerify, newest first.{% endtrans %}
     {# THE PUBLIC COPY, and the link goes this way round on purpose (#137
        phase 5).
 
@@ -36,8 +36,7 @@
        Absolute, and no `rel` needed: `Referrer-Policy: no-referrer` is set on
        every response here, so there is nothing to leak -- the same reasoning
        as the footer's three legal links. #}
-    There is a <a href="https://vrcverify.com/changelog">public version of this
-    page</a> you can share with anyone.
+    {% trans %}There is a <a href="https://vrcverify.com/changelog">public version of this page</a> you can share with anyone.{% endtrans %}
   </p>
 </section>
 
@@ -81,10 +80,7 @@
 {% set invite = support_invite() %}
 {% if invite %}
   <p class="changelog-follow">
-    Want these in your own server?
-    <a href="{{ invite }}" target="_blank" rel="noopener noreferrer">Join the
-    VRCVerify Discord</a> and follow the announcements channel — every update
-    here gets posted there, and Discord crossposts it to any channel you pick.
+    {% trans invite=invite %}Want these in your own server? <a href="{{ invite }}" target="_blank" rel="noopener noreferrer">Join the VRCVerify Discord</a> and follow the announcements channel — every update here gets posted there, and Discord crossposts it to any channel you pick.{% endtrans %}
   </p>
 {% endif %}
 {% endblock %}
