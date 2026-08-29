@@ -27,6 +27,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from dashboard import i18n  # noqa: E402
 
 
+def _elapsed(call) -> float:
+    """Seconds one call took. Used only by the backtracking guard below."""
+    import time
+
+    start = time.perf_counter()
+    call()
+    return time.perf_counter() - start
+
+
 class TestTheLanguageListMatchesTheBot:
     """#97's first constraint, and the one a second system can violate.
 
@@ -249,6 +258,41 @@ class TestAcceptLanguage:
     """Parsed here rather than taken from Werkzeug, so it can be asserted
     without a request -- and because this header is attacker-controlled and
     arrives on every single request."""
+
+    def test_whitespace_is_stripped_not_backtracked_over(self):
+        """The tag pattern must stay linear in the length of its input.
+
+        CodeQL flagged the first version of `_TAG` as a polynomial regular
+        expression on uncontrolled data, and it was right. Anchored
+        `^\\s*...\\s*$`, an input like `"en" + " " * n + "!"` made the trailing
+        `\\s*` hand its spaces back one at a time, rescanning the rest on every
+        attempt: 7us at 50 spaces, 562us at 500. `MAX_ACCEPT_LANGUAGE` bounded
+        that at roughly half a millisecond per request and never removed it,
+        and this endpoint needs no session, so an attacker multiplies it by
+        their request rate.
+
+        The bound below is three orders of magnitude above what the current
+        pattern needs (about 5us) and three below what the old one needed
+        (about 5.5ms), so it separates the two without being a benchmark.
+        """
+        import time
+
+        hostile = "en" + " " * 1600 + "!"
+
+        best = min(
+            _elapsed(lambda: i18n._TAG.match(hostile)) for _ in range(15)
+        )
+        assert best < 0.002, (
+            f"matching one Accept-Language tag took {best * 1e6:.0f}us; the "
+            "pattern has picked up an ambiguity and is backtracking again"
+        )
+
+    def test_surrounding_whitespace_is_still_accepted(self):
+        """Stripping replaced the `\\s*` anchors and must not have narrowed
+        what a real browser can send."""
+        assert i18n.parse_accept_language("  de  ") == ["de"]
+        assert i18n.parse_accept_language("ja , de") == ["ja", "de"]
+        assert i18n.parse_accept_language("de ; q = 0.9 , ja") == ["ja", "de"]
 
     def test_quality_values_order_the_result(self):
         assert i18n.parse_accept_language("en;q=0.2, ja;q=0.9, de") == ["de", "ja", "en-US"]
