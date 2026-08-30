@@ -31,7 +31,7 @@ from typing import Callable, Optional
 # The no-op translation marker (#97). Tables in this module are built at
 # import, so they hold msgids; the lookup happens per request against the
 # `gettext` callable the caller passes in.
-from dashboard.i18n import N_
+from dashboard.i18n import DEFAULT_LANGUAGE, N_, format_timestamp
 
 
 def _untranslated(text: str) -> str:
@@ -1021,6 +1021,7 @@ def build_audit(
     roles: Optional[list],
     channels: Optional[list],
     t: Callable[[str], str] = _untranslated,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> Optional[list]:
     """The change history, with ids resolved and values fit to read.
 
@@ -1051,17 +1052,26 @@ def build_audit(
                 # Formatted here, not in the template. The template used to slice
                 # this string, which is the one place bot data was subscripted
                 # rather than printed -- a non-string would have 500'd the page.
-                "when_text": _audit_when(entry.get("changed_at")),
+                "when_text": _audit_when(entry.get("changed_at"), lang),
             }
         )
     return rows
 
 
-def _audit_when(raw) -> str:
-    """`2026-08-11T07:11:36...` as `2026-08-11 07:11 UTC`, defensively."""
-    if not isinstance(raw, str) or len(raw) < 16:
-        return ""
-    return raw[:16].replace("T", " ") + " UTC"
+def _audit_when(raw, lang: str = DEFAULT_LANGUAGE) -> str:
+    """`2026-08-11T07:11:36...` as the date and time `lang` writes, marked UTC.
+
+    Was a string slice: `raw[:16].replace("T", " ") + " UTC"`, which never
+    parsed anything and so never had a day or a month to put in the wrong
+    order. That made it the least wrong of the dashboard's dates when #230
+    went looking -- ISO is at least unambiguous -- and still the only one on a
+    translated page written in a shape no reader of it chose.
+
+    The parse is `i18n.format_timestamp`'s and it is as defensive as the slice
+    was: anything that is not an instant returns "", and the template already
+    renders no timestamp for an empty string.
+    """
+    return format_timestamp(raw, lang) or ""
 
 
 def _audit_value(

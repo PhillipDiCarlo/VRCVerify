@@ -861,7 +861,7 @@ def _register_assets(app: Flask) -> None:
     @app.template_global()
     def current_language() -> str:
         """Which language is in force, as a code. Always one of the twelve."""
-        return getattr(g, "language", None) or i18n.DEFAULT_LANGUAGE
+        return _lang()
 
     @app.template_global()
     def language_choices() -> list:
@@ -935,7 +935,7 @@ def _register_assets(app: Flask) -> None:
         seen = getattr(g, "changelog_seen", None)
         if seen is None:
             seen = changelog.read_seen(request.cookies.get(SEEN_COOKIE))
-        return changelog.build_bell(seen, t=_translator())
+        return changelog.build_bell(seen, t=_translator(), lang=_lang())
 
 
 # -------------------------------------------------------------------
@@ -1320,10 +1320,10 @@ def _register_routes(app: Flask) -> None:
 
         return render_template(
             "overview.html",
-            tiles=overview_view.build_tiles(overview, _translator()),
-            chart=overview_view.build_chart(overview, _translator()),
+            tiles=overview_view.build_tiles(overview, _translator(), _lang()),
+            chart=overview_view.build_chart(overview, _translator(), _lang()),
             next_step=overview_view.build_next_step(
-                overview, changelog_entry, _translator(), _ngettext()
+                overview, changelog_entry, _translator(), _ngettext(), _lang()
             ),
             setup=overview_view.build_setup(overview, _translator()),
             premium=premium,
@@ -1375,6 +1375,7 @@ def _register_routes(app: Flask) -> None:
             stripe_configured=config.stripe_enabled,
             just_bought=just_bought,
             t=_translator(),
+            lang=_lang(),
         )
         notice, notice_kind = _subscription_notice(session)
         if notice is None and just_bought and page.state == "pending":
@@ -1645,7 +1646,7 @@ def _register_routes(app: Flask) -> None:
             return render_template(
                 "activity.html",
                 audit=settings_view.build_audit(
-                    audit, roles, channels, _translator()
+                    audit, roles, channels, _translator(), _lang()
                 ),
                 # The shared header says what this server is paying for, so
                 # this page needs it too -- one sentence, one place, rather
@@ -1732,7 +1733,7 @@ def _register_routes(app: Flask) -> None:
                 # every entry, not only the public ones, which is the one
                 # thing it does that the apex site's copy cannot.
                 entries=tuple(
-                    changelog._localised(entry, _translator())
+                    changelog._localised(entry, _translator(), _lang())
                     for entry in changelog.ENTRIES
                 ),
                 csrf_token=session.csrf_token,
@@ -3039,6 +3040,21 @@ def _ngettext():
     return i18n.catalogue(
         getattr(g, "language", None) or i18n.DEFAULT_LANGUAGE
     ).ngettext
+
+
+def _lang() -> str:
+    """This request's language code, for handing to the pure view modules.
+
+    The other half of `_translator()`, and module-level for the same reason it
+    is: the routes are not inside `create_app`, so the `current_language()`
+    template global is not in scope here. That one is for templates; this is
+    for the view modules, and both read the single answer `_resolve_language`
+    put on `g`.
+
+    A date needs this and cannot get it from `t` -- see `subscription_view`'s
+    `build` on why the language travels as its own argument (#230).
+    """
+    return getattr(g, "language", None) or i18n.DEFAULT_LANGUAGE
 
 
 def _translator():

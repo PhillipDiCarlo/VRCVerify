@@ -46,7 +46,9 @@ WHAT THIS MODULE MAY NOT DO
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+# `timezone` went with the parsing when #230 moved it to `i18n.to_date`.
+# `datetime` stays for the `now` parameter's annotation.
+from datetime import datetime
 from typing import Callable, Optional
 
 # `N_` marks a string for translation without looking it up (issue #97). The
@@ -54,10 +56,11 @@ from typing import Callable, Optional
 # it wants, so they hold msgids and the lookup happens at the point of use
 # against the callable the caller passed in.
 #
-# THE ONLY IMPORT THIS MODULE HAS GAINED, and it costs nothing this module
-# promises: i18n.py is pure too -- no Flask, no network, no clock -- and `N_`
-# in particular returns its argument.
-from dashboard.i18n import N_
+# THE ONLY MODULE THIS ONE HAS GAINED, and it costs nothing this module
+# promises: i18n.py is pure too -- no Flask, no network, no clock. `N_` returns
+# its argument, and `format_date` (#230) takes the language as a value rather
+# than reading a request, which is what lets it be called from here at all.
+from dashboard.i18n import DEFAULT_LANGUAGE, N_, format_date
 
 
 def _untranslated(text: str) -> str:
@@ -485,26 +488,28 @@ class SubscriptionPage:
         return self.state in {"stripe", "past_due", "both"}
 
 
-def _format_date(raw: Optional[str]) -> Optional[str]:
-    """An ISO instant as `3 February 2026`, or None.
+def _format_date(raw: Optional[str], lang: str = DEFAULT_LANGUAGE) -> Optional[str]:
+    """An ISO instant as the date `lang` writes: `February 3, 2026`,
+    `2026年2月3日`, `3 февраля 2026 г.` -- or None.
 
     Deliberately a date and not a time. Stripe's period end is a moment, but an
     admin reading "renews on 3 February" and being charged a few hours either
     side of midnight in their own timezone has been told the truth; rendering
     an exact UTC timestamp would be precision the reader cannot use and would
     invite "but it says 00:41" support questions.
+
+    #230 MADE THE DATE FOLLOW THE LABEL. #97 translated "Renews" into twelve
+    languages and this function kept answering in English underneath it, so a
+    Japanese renewal row read `更新日 3 February 2027`. The formatting is
+    Babel's now -- see `i18n.format_date` for why that dependency was worth it
+    and what it does that a pattern of ours could not.
+
+    Still pure, and that is not incidental: this takes a language as an
+    argument for exactly the reason the module takes `t` as one. Reading the
+    request here would cost the property that lets every state of the page that
+    takes money be built in a test with no request and no clock.
     """
-    if not raw:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-    except (TypeError, ValueError):
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    # %-d is not portable to Windows, and this runs on Linux in production and
-    # under tests on Windows, so the day is trimmed by hand.
-    return f"{parsed.day} {parsed.strftime('%B %Y')}"
+    return format_date(raw, lang, form="long")
 
 
 def _positive_int(raw) -> Optional[int]:
@@ -670,8 +675,15 @@ def build(
     just_bought: bool = False,
     now: Optional[datetime] = None,
     t: Callable[[str], str] = _untranslated,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> SubscriptionPage:
     """The whole page, from the bot's settings payload.
+
+    `lang` is beside `t` and not folded into it (#230). `t` answers "what does
+    this label say"; `lang` answers "how does this reader write a date", and
+    the second question has no msgid to hang off -- the date is a value the bot
+    sent, not a string in a catalogue. Both are arguments for the same reason:
+    nothing in this module may read a request.
 
     `settings` is None when the bot could not answer. That is its own state and
     is never collapsed into "not subscribed" — the rule the settings page
@@ -749,7 +761,7 @@ def build(
     # is exactly the kind of second opinion that drifts.
     discord = bool(premium_block.get("discord"))
 
-    period_end = _format_date(stripe_block.get("current_period_end"))
+    period_end = _format_date(stripe_block.get("current_period_end"), lang)
     # Two different ways a subscription stops renewing, and only one of them
     # sets `cancel_at_period_end`.
     #

@@ -120,7 +120,7 @@
          -- "Peak 0" on a month of gaps is a number pretending to be a
          reading. #}
       {% if chart.peak is not none %}
-        <p class="chart-scale">{% trans peak=chart.peak %}Peak {{ peak }} a day{% endtrans %}</p>
+        <p class="chart-scale">{% trans peak=chart.peak_label %}Peak {{ peak }} a day{% endtrans %}</p>
       {% endif %}
       <div class="chart" role="img"
            aria-label="{% trans days=chart.bars|length %}Verifications per day, last {{ days }} days. The exact numbers follow this chart.{% endtrans %}">
@@ -155,8 +155,11 @@
         <tbody>
           {% for bar in chart.bars %}
             <tr>
-              <td>{{ bar.day }}</td>
-              <td>{% if bar.count is none %}{% trans %}Not measured{% endtrans %}{% else %}{{ bar.count }}{% endif %}</td>
+              {# `day_label`/`count_label`, not `day`/`count`: those two are the
+                 machine-readable values and this table is read by a person.
+                 See ChartBar in overview_view.py (#230). #}
+              <td>{{ bar.day_label }}</td>
+              <td>{% if bar.count is none %}{% trans %}Not measured{% endtrans %}{% else %}{{ bar.count_label }}{% endif %}</td>
             </tr>
           {% endfor %}
         </tbody>
