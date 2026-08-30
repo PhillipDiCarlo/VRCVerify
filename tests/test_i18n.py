@@ -505,6 +505,25 @@ class TestDatesAndNumbersFollowTheLanguage:
         assert i18n.format_date("2027-02-03", "xx-YY") == "February 3, 2027"
         assert i18n.format_number(1000, "xx-YY") == "1,000"
 
+    def test_the_floor_holds_for_a_value_that_cannot_even_be_hashed(self):
+        """`_locale` gates on `is_supported` rather than `_LOCALES.get` for
+        this: `.get` hashes, so a list or a dict raised `TypeError` out of the
+        very helper meant to absorb a bad language. Nothing can reach it with
+        one today -- `negotiate()` only ever returns a supported code -- and
+        that is an argument about every caller rather than a property of this
+        function."""
+        for code in (None, "", 1, [], {}, set(), object(), b"ja", "../../etc"):
+            assert i18n.format_date("2027-02-03", code) == "February 3, 2027"
+            assert i18n.format_number(1000, code) == "1,000"
+            assert i18n.format_day("2027-02-03", code)
+            assert i18n.format_timestamp("2027-02-03T07:11:00Z", code)
+
+    def test_a_language_is_matched_exactly_and_not_by_case(self):
+        """`UI_LANGUAGES` is the spelling, and "JA" is not in it. Falling back
+        to English is the honest answer -- `negotiate()` is where case folding
+        belongs, and it already does it before anything reaches here."""
+        assert i18n.format_date("2027-02-03", "JA") == "February 3, 2027"
+
     def test_every_language_in_the_list_can_actually_format(self):
         """The list and Babel's data are two sources of truth about which
         languages exist, and a thirteenth added to `UI_LANGUAGES` without a

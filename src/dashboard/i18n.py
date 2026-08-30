@@ -395,8 +395,20 @@ def _locale(code: Optional[str]):
     The same floor `catalogue()` puts under itself, for the same reason: the
     callers have all validated, and a formatting helper is the wrong place to
     raise on a language that should never have got this far.
+
+    GATED THROUGH `is_supported` RATHER THAN `_LOCALES.get`, which is the same
+    check `catalogue()` makes and is not the same thing. `.get` hashes its
+    argument, so an unhashable one -- a list, a dict -- raises `TypeError`
+    from inside the floor that exists to stop exactly that. `is_supported`
+    tests membership of a tuple by equality and has no such edge.
+
+    Nothing can currently reach here with one: `negotiate()` returns a string
+    from `UI_LANGUAGES` or the default. That is an argument about every
+    caller, and this is the line that means nobody has to make it.
     """
-    return _LOCALES.get(code) or _LOCALES[DEFAULT_LANGUAGE]
+    if not is_supported(code):
+        return _LOCALES[DEFAULT_LANGUAGE]
+    return _LOCALES[code]
 
 
 def to_date(value) -> Optional[_date]:
