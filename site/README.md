@@ -248,6 +248,13 @@ do by hand.
 The exception is `changelog.html` — see above. Style it in `style.css` like any
 other page; never edit its markup.
 
+**The legal links live in the footer, not the header** (#200). The header nav
+is Pricing, What's new, Dashboard — the three things a visitor deciding whether
+to install the bot is looking for. Terms, Privacy and Refunds are in the footer
+of every page, and the 404 page lists them in its body as well. Do not add them
+back to the header; `tests/test_site.py::test_the_header_carries_no_legal_links`
+fails if you do.
+
 Update the `Last updated` date at the top of any policy you change materially.
 
 ### Renaming a section of a legal page
