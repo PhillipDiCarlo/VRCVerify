@@ -95,7 +95,7 @@ from dataclasses import dataclass, replace
 from datetime import date
 from typing import Optional
 
-from dashboard.i18n import N_
+from dashboard.i18n import DEFAULT_LANGUAGE, N_, format_date
 
 
 @dataclass(frozen=True)
@@ -118,6 +118,16 @@ class Entry:
     # surface that renders a CTA.
     cta_endpoint: Optional[str] = None
     cta_label: Optional[str] = None
+    # Which language `display_date` renders in (#230).
+    #
+    # A FIELD, AND ON THE COPY RATHER THAN ON THE CONSTANT. `ENTRIES` is
+    # module-level and shared by every request in the process, so the entry a
+    # German reader is looking at cannot be the object a Japanese reader's
+    # thread is about to render. `_localised()` already solved this for the
+    # title and the body by returning a `replace()` copy; the date rides along
+    # on the same copy, which is why this is a field and not an argument to the
+    # property. The constant keeps the default and is never written to.
+    locale: str = DEFAULT_LANGUAGE
 
     @property
     def tag(self) -> str:
@@ -126,16 +136,24 @@ class Entry:
 
     @property
     def display_date(self) -> str:
-        """"24 Aug 2026". Built without `%-d`, which is a glibc/BSD extension
-        the standard does not promise -- this renders the same everywhere.
+        """"Aug 24, 2026" in English, "2026/08/24" in Japanese, "24.08.2026"
+        in German -- the compact date `self.locale` writes.
 
-        Still English-shaped after #97: the month name is built here rather
-        than looked up, so this is a DATE FORMATTING problem, not a string
-        one. Tracked separately -- the twelve catalogues cannot fix a
-        formatter. The `<time datetime>` beside it carries the ISO form, so
-        the machine readable half never depends on this.
+        `medium` and not `long`, because this is a badge beside a title and not
+        a sentence. Several of the twelve write a medium date in digits, which
+        is the right answer for a list scanned down a column: the year beside
+        it is doing the work a month name would, and the entries are in order.
+
+        WAS ENGLISH-SHAPED UNTIL #230. #97 translated the titles and bodies
+        around this and left `f"{day} {date:%b %Y}"` underneath them, which
+        made a Japanese changelog read `24 Aug 2026`. The old form also existed
+        to dodge `%-d`, a glibc extension the standard does not promise; Babel
+        has that property too and orders the fields per locale besides.
+
+        The `<time datetime>` beside it in the template carries the ISO form,
+        so the machine readable half never depended on this and still does not.
         """
-        return f"{self.date.day} {self.date:%b %Y}"
+        return format_date(self.date, self.locale, form="medium") or ""
 
 
 # The fixed table. A `cta_endpoint` not named here is not renderable, and
@@ -348,8 +366,9 @@ class Bell:
         return bool(self.entries)
 
 
-def _localised(entry, t):
-    """One entry with its title and body looked up, still an Entry.
+def _localised(entry, t, lang: str = DEFAULT_LANGUAGE):
+    """One entry with its title, body and date in the reader's language, still
+    an Entry.
 
     IN PYTHON, NOT IN THE TEMPLATE, and that is a security property rather
     than a preference. Jinja's i18n extension is installed `newstyle`, so
@@ -361,19 +380,27 @@ def _localised(entry, t):
     escapes the result like any other value. `validate_entries` already keeps
     markup out of the constant; this keeps the second line of that defence
     intact for whatever a catalogue might one day contain.
+
+    `lang` rides on the copy for the same reason the title does -- see the
+    `locale` field on `Entry`. It is a separate argument from `t` because a
+    date is not a msgid: there is nothing for a catalogue to look up.
     """
-    return replace(entry, title=t(entry.title), body=t(entry.body))
+    return replace(
+        entry, title=t(entry.title), body=t(entry.body), locale=lang
+    )
 
 
-def build_bell(seen_id: Optional[str], entries=ENTRIES, t=None) -> Bell:
+def build_bell(
+    seen_id: Optional[str], entries=ENTRIES, t=None, lang: str = DEFAULT_LANGUAGE
+) -> Bell:
     """The most recent handful, and whether any of them is new to this browser."""
     shown = tuple(entries[:BELL_LIMIT])
     if t is not None:
-        shown = tuple(_localised(entry, t) for entry in shown)
+        shown = tuple(_localised(entry, t, lang) for entry in shown)
     return Bell(entries=shown, unread=has_unread(seen_id, entries))
 
 
-def public_entries(entries=ENTRIES, t=None) -> tuple:
+def public_entries(entries=ENTRIES, t=None, lang: str = DEFAULT_LANGUAGE) -> tuple:
     """Everything a stranger may read: the changelog page (#137), the
     announcement channel (#138) and the update emails (#139) all start here.
 
@@ -383,7 +410,7 @@ def public_entries(entries=ENTRIES, t=None) -> tuple:
     public = tuple(entry for entry in entries if entry.public)
     if t is None:
         return public
-    return tuple(_localised(entry, t) for entry in public)
+    return tuple(_localised(entry, t, lang) for entry in public)
 
 
 def build_premium_card(

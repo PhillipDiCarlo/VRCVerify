@@ -413,3 +413,192 @@ class TestNoTranslationBreaksItsOwnFormatting:
                         f"{form[:70]!r} -- this is a 500 on the page that "
                         f"uses it, in one language only"
                     ) from error
+
+
+class TestDatesAndNumbersFollowTheLanguage:
+    """#230: the labels were translated and the values under them were not.
+
+    Asserted against `i18n` directly, because these four functions are the only
+    place the dashboard calls Babel and every surface that formats anything
+    goes through one of them. A regression here is a regression on all of them.
+    """
+
+    def test_a_date_is_written_the_way_each_language_writes_it(self):
+        """The bug in one line: twelve languages, twelve renderings, and no
+        two of the interesting ones alike.
+
+        Not an exhaustive table -- these are CLDR's answers and pinning all
+        twelve would be asserting Babel's data rather than our use of it. These
+        four differ from English in a different way each: field order, script,
+        separator, and a genitive month.
+        """
+        iso = "2027-02-03T00:41:00Z"
+        assert i18n.format_date(iso, "en-US") == "February 3, 2027"
+        assert i18n.format_date(iso, "ja") == "2027年2月3日"
+        assert i18n.format_date(iso, "de") == "3. Februar 2027"
+        # The case that decided against a month-name table of our own: Russian
+        # needs "февраля" here and not the nominative "февраль", and knowing
+        # that is exactly what a hand-rolled table would not have known.
+        assert i18n.format_date(iso, "ru").startswith("3 февраля 2027")
+
+    def test_the_day_the_bot_sent_is_the_day_that_is_shown(self):
+        """An instant just before midnight UTC is still that day.
+
+        `to_date` applies UTC before taking the date rather than after. If it
+        did not, a period ending at 23:41Z would render as the following day
+        for anyone whose string carried an offset, and two admins on one
+        server would read two different renewal dates.
+        """
+        assert i18n.format_date("2027-02-03T23:41:00Z", "en-US") == "February 3, 2027"
+        assert i18n.format_date("2027-02-03T00:41:00+00:00", "en-US") == (
+            "February 3, 2027"
+        )
+        # Naive: treated as UTC, which is what the bot means by it.
+        assert i18n.format_date("2027-02-03T00:41:00", "en-US") == "February 3, 2027"
+
+    def test_a_bare_iso_day_formats_too(self):
+        """`collecting_since` and the daily series send `2026-08-24`, not an
+        instant. Both shapes arrive from the same bot and both must render."""
+        assert i18n.format_date("2026-08-24", "en-US") == "August 24, 2026"
+        assert i18n.format_day("2026-08-24", "ja") == "8月24日"
+
+    def test_nothing_the_bot_could_send_raises(self):
+        """These format values that arrived over the wire, on pages that must
+        not 500. Every one of these is None rather than an exception."""
+        for bad in (None, "", "not a date", "2026-13-45", 17, [], {}, True):
+            assert i18n.format_date(bad, "de") is None
+            assert i18n.format_day(bad, "de") is None
+            assert i18n.format_timestamp(bad, "de") is None
+
+    def test_thousands_are_not_always_a_comma_every_three(self):
+        """The other half of #230, and the one that is easy to assume away.
+
+        Five of the twelve disagree with `f"{n:,}"`, and Hindi disagrees about
+        the grouping itself rather than about the character: 1234567 is seven
+        digits split 2-2-3, not 1-3-3.
+        """
+        assert i18n.format_number(1234567, "en-US") == "1,234,567"
+        assert i18n.format_number(1234567, "hi-IN") == "12,34,567"
+        assert i18n.format_number(1234567, "de") == "1.234.567"
+        # Zero is a real number and must not become blank -- the falsy-zero
+        # rule `Tile.display` is built around, at the formatting layer.
+        assert i18n.format_number(0, "de") == "0"
+        # ...and a missing one is blank, never the word "None". Every caller
+        # guards before it reaches here; this is the floor under them.
+        assert i18n.format_number(None, "de") == ""
+
+    def test_a_timestamp_always_says_utc(self):
+        """The audit trail's instants are UTC and the marker is not optional.
+
+        The shape around it is the locale's; those three letters are not, in
+        any of the twelve. A reader who subtracts their own offset from a time
+        that never had one added gets a wrong answer about who changed what.
+        """
+        stamp = "2026-08-11T07:11:36+00:00"
+        for code in i18n.UI_LANGUAGES:
+            assert i18n.format_timestamp(stamp, code).endswith(" UTC"), code
+        assert i18n.format_timestamp(stamp, "de").startswith("11.08.2026")
+
+    def test_an_unsupported_language_falls_back_rather_than_raising(self):
+        """The same floor `catalogue()` puts under itself. Callers have all
+        validated; this is not the check, it is what happens if one is missed."""
+        assert i18n.format_date("2027-02-03", "xx-YY") == "February 3, 2027"
+        assert i18n.format_number(1000, "xx-YY") == "1,000"
+
+    def test_the_floor_holds_for_a_value_that_cannot_even_be_hashed(self):
+        """`_locale` gates on `is_supported` rather than `_LOCALES.get` for
+        this: `.get` hashes, so a list or a dict raised `TypeError` out of the
+        very helper meant to absorb a bad language. Nothing can reach it with
+        one today -- `negotiate()` only ever returns a supported code -- and
+        that is an argument about every caller rather than a property of this
+        function."""
+        for code in (None, "", 1, [], {}, set(), object(), b"ja", "../../etc"):
+            assert i18n.format_date("2027-02-03", code) == "February 3, 2027"
+            assert i18n.format_number(1000, code) == "1,000"
+            assert i18n.format_day("2027-02-03", code)
+            assert i18n.format_timestamp("2027-02-03T07:11:00Z", code)
+
+    def test_a_language_is_matched_exactly_and_not_by_case(self):
+        """`UI_LANGUAGES` is the spelling, and "JA" is not in it. Falling back
+        to English is the honest answer -- `negotiate()` is where case folding
+        belongs, and it already does it before anything reaches here."""
+        assert i18n.format_date("2027-02-03", "JA") == "February 3, 2027"
+
+    def test_every_language_in_the_list_can_actually_format(self):
+        """The list and Babel's data are two sources of truth about which
+        languages exist, and a thirteenth added to `UI_LANGUAGES` without a
+        CLDR locale behind it would be a 500 on one page in one language.
+
+        `_LOCALES` is built at import, so this mostly asserts the import
+        succeeded -- which is the point: it fails on deploy, not on a render.
+        """
+        for code in i18n.UI_LANGUAGES:
+            assert i18n.format_date("2027-02-03", code), code
+            assert i18n.format_date("2027-02-03", code, form="medium"), code
+            assert i18n.format_day("2027-02-03", code), code
+            assert i18n.format_number(1234, code), code
+            assert i18n.format_timestamp("2027-02-03T07:11:00Z", code), code
+
+
+class TestFormattingIsSafeOnFourThreads:
+    """The image runs `gunicorn --threads 4`, and this module now holds shared
+    Babel locale objects that the formatters read on every request.
+
+    The sibling of `TestTwoLanguagesAtOnce` in test_dashboard.py, one layer
+    down. That one proved a request in one language could not change the page
+    another was being served; this proves the same for the values, which
+    arrived with #230 and go through data structures Babel resolves lazily.
+    """
+
+    def test_twelve_languages_at_once_all_get_their_own_answer(self):
+        import threading
+
+        results = {}
+        errors = []
+        start = threading.Barrier(len(i18n.UI_LANGUAGES))
+
+        def render(code):
+            try:
+                # Every thread waits, then they all hit the formatters at once.
+                start.wait(timeout=5)
+                results[code] = (
+                    i18n.format_date("2027-02-03T00:41:00Z", code),
+                    i18n.format_day("2027-02-03", code),
+                    i18n.format_number(1234567, code),
+                    i18n.format_timestamp("2027-02-03T07:11:00Z", code),
+                )
+            except Exception as error:  # noqa: BLE001 -- reporting it
+                errors.append((code, error))
+
+        threads = [
+            threading.Thread(target=render, args=(code,))
+            for code in i18n.UI_LANGUAGES
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        assert not errors, errors
+        assert len(results) == len(i18n.UI_LANGUAGES)
+
+        # Each answer is the one that language gives on its own, with nothing
+        # else running -- which is the whole claim.
+        for code, concurrent in results.items():
+            alone = (
+                i18n.format_date("2027-02-03T00:41:00Z", code),
+                i18n.format_day("2027-02-03", code),
+                i18n.format_number(1234567, code),
+                i18n.format_timestamp("2027-02-03T07:11:00Z", code),
+            )
+            assert concurrent == alone, code
+
+    def test_the_warm_up_really_did_run_at_import(self):
+        """`_warm()` is called at module import and takes the lazy resolution
+        off the threaded request path. If it were removed, the test above would
+        still pass -- the race it guards is benign -- so this asserts the thing
+        itself rather than its effect."""
+        locale = i18n._LOCALES["ja"]
+        # Resolved data, not an Alias waiting to be resolved on first read.
+        assert locale.date_formats["long"]
+        assert locale.datetime_skeletons["MMMd"]

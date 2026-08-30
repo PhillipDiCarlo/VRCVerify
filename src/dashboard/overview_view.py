@@ -34,7 +34,7 @@ from typing import Callable, Optional
 # hold msgids and the lookup happens per request against the callable passed
 # in. This module is pure -- no Flask, no network, no clock -- and i18n.py is
 # too, so importing `N_` costs it nothing it promises.
-from dashboard.i18n import N_
+from dashboard.i18n import DEFAULT_LANGUAGE, N_, format_date, format_day, format_number
 
 
 def _untranslated(text: str) -> str:
@@ -68,11 +68,13 @@ class Tile:
         state: str = "value",
         note: Optional[str] = None,
         t: Callable[[str], str] = _untranslated,
+        lang: str = DEFAULT_LANGUAGE,
     ):
         # Kept for `display`, which is a property and so runs after this
         # object is built. Underscored: it is machinery, and everything else
         # here is something Jinja reads.
         self._t = t
+        self._lang = lang
         self.label = label
         # None unless `state` is "value". The template never formats this
         # itself, so a None can't reach the page as the word "None".
@@ -88,12 +90,18 @@ class Tile:
         Zero prints as "0". That is the whole reason this is a method and not
         `value or "-"`, which is exactly the falsy-zero bug this page cannot
         afford.
+
+        Grouped the way `self._lang` groups digits (#230), which is not
+        always a comma every three. `f"{value:,}"` stood here and was wrong in
+        five of the twelve: German and Spanish separate with a full stop,
+        Russian with a non-breaking space, and Hindi, Bengali and Punjabi group
+        by lakh, so 1234567 reads "12,34,567" rather than "1,234,567".
         """
         if self.state == "unknown":
             return self._t(N_("Couldn't check"))
         if self.state == "blank" or self.value is None:
             return "—"
-        return f"{self.value:,}"
+        return format_number(self.value, self._lang)
 
 
 def _window_tile(
@@ -102,22 +110,35 @@ def _window_tile(
     known: bool,
     collecting_since: Optional[str],
     t: Callable[[str], str] = _untranslated,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> Tile:
     """One window's tile, in whichever of the three states applies."""
     if not known:
         return Tile(
-            t(label), state="unknown", note=t(N_("The bot didn't answer this one.")), t=t
+            t(label),
+            state="unknown",
+            note=t(N_("The bot didn't answer this one.")),
+            t=t,
+            lang=lang,
         )
     if count is None:
         note = t(N_("Not collecting that far back yet."))
-        if collecting_since:
-            note = t(N_("Only counting since %(date)s.")) % {"date": collecting_since}
-        return Tile(t(label), state="blank", note=note, t=t)
-    return Tile(t(label), count, t=t)
+        # `collecting_since` arrives from the bot as a bare ISO day. It used to
+        # go into the sentence exactly as it came, so a German reader was told
+        # "Zähle erst seit 2026-08-24." -- a machine's date in the middle of a
+        # human sentence, and the one date on this page nobody had formatted at
+        # all. #230 was where that got noticed.
+        shown = format_date(collecting_since, lang)
+        if shown:
+            note = t(N_("Only counting since %(date)s.")) % {"date": shown}
+        return Tile(t(label), state="blank", note=note, t=t, lang=lang)
+    return Tile(t(label), count, t=t, lang=lang)
 
 
 def build_tiles(
-    overview: Optional[dict], t: Callable[[str], str] = _untranslated
+    overview: Optional[dict],
+    t: Callable[[str], str] = _untranslated,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> list:
     """The stat row: members, then one tile per window.
 
@@ -137,13 +158,13 @@ def build_tiles(
 
     members = overview.get("member_count")
     tiles.append(
-        Tile(t(N_("Members")), members, t=t)
+        Tile(t(N_("Members")), members, t=t, lang=lang)
         if isinstance(members, int)
-        else Tile(t(N_("Members")), state="unknown", t=t)
+        else Tile(t(N_("Members")), state="unknown", t=t, lang=lang)
     )
 
     for key, label in WINDOWS:
-        tiles.append(_window_tile(label, counts.get(key), known, since, t))
+        tiles.append(_window_tile(label, counts.get(key), known, since, t, lang))
 
     total = counts.get("total")
     if isinstance(total, int):
@@ -153,6 +174,7 @@ def build_tiles(
                 total,
                 note=t(N_("Counted since this server's records began.")),
                 t=t,
+                lang=lang,
             )
         )
 
@@ -183,11 +205,47 @@ class ChartBar:
     about. A bar chart can represent "nothing here" natively; a line cannot.
     """
 
-    def __init__(self, day: str, count: Optional[int], x: float, height: Optional[float]):
+    def __init__(
+        self,
+        day: str,
+        count: Optional[int],
+        x: float,
+        height: Optional[float],
+        lang: str = DEFAULT_LANGUAGE,
+    ):
+        # The ISO day, kept as it arrived. This is the machine-readable half
+        # and nothing locale-shaped is allowed to overwrite it.
         self.day = day
         self.count = count
         self.x = x
         self.height = height
+        self._lang = lang
+
+    @property
+    def day_label(self) -> str:
+        """The day as a reader of this language writes it: "Aug 24", "8月24日".
+
+        SEPARATE FROM `day` ON PURPOSE. The accessible table under the chart
+        was printing the raw `2026-08-24` the bot sent, in every language --
+        thirty rows of it, read out by a screen reader as the one part of this
+        page written for machines. `day` stays ISO for anything that wants to
+        sort or compare; this is what gets rendered.
+
+        No year, because the column heading and the thirty rows around it have
+        already established it -- see `i18n.format_day`.
+        """
+        return format_day(self.day, self._lang) or self.day
+
+    @property
+    def count_label(self) -> str:
+        """The count, grouped the way this language groups digits.
+
+        Same reasoning as `Tile.display`, and here for the same reason: a busy
+        day in a large server is a four-figure number, and the table under the
+        chart should not be the one place on the page that writes it with a
+        comma while the tile above it writes it with a full stop.
+        """
+        return format_number(self.count, self._lang)
 
     @property
     def y(self) -> float:
@@ -214,7 +272,8 @@ class Chart:
     """
 
     def __init__(self, bars=None, *, state: str = "value", note: Optional[str] = None,
-                 bar_width: float = 0.0):
+                 bar_width: float = 0.0, lang: str = DEFAULT_LANGUAGE):
+        self._lang = lang
         self.bars = bars or []
         self.state = state
         self.note = note
@@ -240,9 +299,22 @@ class Chart:
         counts = [bar.count for bar in self.bars if bar.count is not None]
         return max(counts) if counts else None
 
+    @property
+    def peak_label(self) -> str:
+        """`peak`, grouped for this language. "" when there is no peak.
+
+        The template still tests `peak is not none` to decide whether to draw
+        the line at all -- that is a question about the data and it wants the
+        number. This is only what gets printed once that question is answered.
+        """
+        peak = self.peak
+        return "" if peak is None else format_number(peak, self._lang)
+
 
 def build_chart(
-    overview: Optional[dict], t: Callable[[str], str] = _untranslated
+    overview: Optional[dict],
+    t: Callable[[str], str] = _untranslated,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> Chart:
     """The verification trend chart, ready for the template to draw.
 
@@ -263,7 +335,11 @@ def build_chart(
       itself succeeded.
     """
     if not overview:
-        return Chart(state="unknown", note=t(N_("The bot didn't answer this one.")))
+        return Chart(
+            state="unknown",
+            note=t(N_("The bot didn't answer this one.")),
+            lang=lang,
+        )
 
     counts = overview.get("verifications") or {}
     known = bool(counts.get("known", True))
@@ -271,15 +347,22 @@ def build_chart(
     since = counts.get("collecting_since")
 
     if not known or daily is None:
-        return Chart(state="unknown", note=t(N_("The bot didn't answer this one.")))
+        return Chart(
+            state="unknown",
+            note=t(N_("The bot didn't answer this one.")),
+            lang=lang,
+        )
 
     if not any(entry.get("count") is not None for entry in daily):
+        # Formatted, not interpolated raw -- the same ISO-in-a-sentence bug
+        # `_window_tile` had, in the other place that writes this sentence.
+        shown = format_date(since, lang)
         note = (
-            t(N_("Only counting since %(date)s.")) % {"date": since}
-            if since
+            t(N_("Only counting since %(date)s.")) % {"date": shown}
+            if shown
             else t(N_("Not collecting yet."))
         )
-        return Chart(state="blank", note=note)
+        return Chart(state="blank", note=note, lang=lang)
 
     day_count = len(daily)
     bar_width = (
@@ -296,7 +379,7 @@ def build_chart(
         x = index * (bar_width + CHART_BAR_GAP)
         count = entry.get("count")
         if count is None:
-            bars.append(ChartBar(entry["day"], None, x, None))
+            bars.append(ChartBar(entry["day"], None, x, None, lang))
             continue
         if peak > 0:
             # Floored rather than left to round to nothing: a small count
@@ -308,9 +391,9 @@ def build_chart(
             # so every bar sits at the floor -- visibly present, at the
             # baseline, which is exactly what "measured and quiet" looks like.
             height = CHART_MIN_BAR_HEIGHT
-        bars.append(ChartBar(entry["day"], count, x, height))
+        bars.append(ChartBar(entry["day"], count, x, height, lang))
 
-    return Chart(bars, state="value", bar_width=bar_width)
+    return Chart(bars, state="value", bar_width=bar_width, lang=lang)
 
 
 # The optional toggles: on/off only, no health question behind either state.
@@ -559,6 +642,7 @@ def _demo_step(
     overview: dict,
     t: Callable[[str], str] = _untranslated,
     ngettext: Optional[Callable] = None,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> Optional[dict]:
     """The data-backed pitch: a real number this server produced, paired with
     what Premium would do with it. The lock reads as a loss instead of an
@@ -593,13 +677,20 @@ def _demo_step(
     # Japanese and Chinese have one, and Arabic has six. Appending an "s" is
     # correct for exactly one of the twelve, so the whole sentence is a plural
     # msgid and gettext picks the form from the catalogue's own rule.
+    #
+    # The FORM comes from `ngettext` above; the DIGITS are grouped separately,
+    # because they are not a property of the sentence (#230). This one was the
+    # easiest of the page's figures to miss: the plural rule was already being
+    # chosen correctly per language and then handed a number written the way
+    # only English writes it.
+    shown = format_number(count, lang)
     pitch = ngettext(
         "%(count)s member verified here in the last 30 days. Premium logs each "
         "one to a channel of your choice.",
         "%(count)s members verified here in the last 30 days. Premium logs each "
         "one to a channel of your choice.",
         count,
-    ) % {"count": f"{count:,}"}
+    ) % {"count": shown}
     if premium.get("grandfathered"):
         # Leads with what stays free, per the issue's own rule -- the model
         # is settings.html's upgrade card, which makes the same two-sentence
@@ -627,6 +718,7 @@ def build_next_step(
     changelog_entry: Optional[dict] = None,
     t: Callable[[str], str] = _untranslated,
     ngettext: Optional[Callable] = None,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> Optional[dict]:
     """The single most useful thing to put in the best attention slot on the
     page, if anything. At most one item, ranked:
@@ -670,4 +762,4 @@ def build_next_step(
     if changelog_entry:
         return changelog_entry
 
-    return _demo_step(overview, t, ngettext)
+    return _demo_step(overview, t, ngettext, lang)

@@ -4245,7 +4245,7 @@ class TestZeroAndBlankAreDifferentAnswers:
     def test_a_window_with_no_data_is_blank_not_zero(self, config, store):
         page = self._page(config, store, last_30_days=None)
         assert self.BLANK in page
-        assert "Only counting since 2026-06-01" in page
+        assert "Only counting since June 1, 2026" in page
 
     def test_the_windows_are_always_labelled_even_when_blank(self, config, store):
         """The tiles stay in place. A missing tile looks like a broken page."""
@@ -6839,7 +6839,10 @@ class TestTheChartGeometry:
     def test_the_blank_note_names_the_collection_start_when_known(self):
         overview = self._overview(self._series([None] * 30))
         chart = overview_view.build_chart(overview)
-        assert "2026-07-01" in chart.note
+        # Formatted, not the raw ISO the bot sent -- see the tile version of
+        # this assertion in TestOverviewViewModel (#230).
+        assert "July 1, 2026" in chart.note
+        assert "2026-07-01" not in chart.note
 
     # --- the issue's named edge cases ---
 
@@ -6988,7 +6991,11 @@ class TestOverviewViewModel:
         )
         blanks = [tile for tile in tiles if tile.state == "blank"]
         assert len(blanks) == 2
-        assert all("2026-08-14" in tile.note for tile in blanks)
+        # Named as a reader writes a date, not as the bot sent it. This used to
+        # assert the raw "2026-08-14" was in the sentence, which is what #230
+        # found: an ISO day interpolated into translated prose.
+        assert all("August 14, 2026" in tile.note for tile in blanks)
+        assert not any("2026-08-14" in tile.note for tile in blanks)
 
     def test_an_unknown_rollup_marks_every_window_unknown_not_blank(self):
         tiles = overview_view.build_tiles(
@@ -8846,3 +8853,139 @@ class TestTwoLanguagesAtOnce:
             f"the German picker carried {leaked} Japanese characters"
         )
         assert self._japanese_characters(pages["ja"]) > 50
+
+
+class TestNumbersAndDaysFollowTheLanguage:
+    """#230's other half. The Overview is the page with the figures on it, and
+    every one of them was written the way American English writes a number."""
+
+    @staticmethod
+    def _overview(**counts):
+        base = {
+            "total": 1234567,
+            "today": 1,
+            "last_7_days": 12,
+            "last_30_days": 1234,
+            "known": True,
+        }
+        base.update(counts)
+        return {"member_count": 1234567, "verifications": base}
+
+    def _tile_values(self, lang):
+        tiles = overview_view.build_tiles(self._overview(), lang=lang)
+        return [tile.display for tile in tiles if tile.state == "value"]
+
+    def test_a_tile_groups_digits_the_way_the_reader_does(self):
+        assert "1,234,567" in self._tile_values("en-US")
+        assert "1.234.567" in self._tile_values("de")
+        # Not a different separator -- a different grouping. Two, then two,
+        # then three. `f"{n:,}"` cannot produce this at all.
+        assert "12,34,567" in self._tile_values("hi-IN")
+
+    def test_zero_is_still_a_number_and_not_a_blank(self):
+        """The falsy-zero rule `Tile.display` is built around, re-checked at
+        the formatting layer: a locale-aware formatter must not be the thing
+        that turns a real 0 into an empty tile."""
+        tiles = overview_view.build_tiles(self._overview(today=0), lang="de")
+        assert "0" in [tile.display for tile in tiles if tile.state == "value"]
+
+    def test_the_unknown_and_blank_states_are_untouched(self):
+        """Formatting applies to values. The other two states say words, and
+        those come from the catalogue like every other word on the page."""
+        tiles = overview_view.build_tiles(
+            self._overview(known=False), t=lambda s: s, lang="de"
+        )
+        unknown = [tile for tile in tiles if tile.state == "unknown"]
+        # The three windows. `Members` and the all-time total come from other
+        # fields and are unaffected by the rollup read failing.
+        assert len(unknown) == 3
+        assert all(tile.display == "Couldn't check" for tile in unknown)
+
+    def test_the_chart_table_shows_a_day_and_not_an_iso_string(self):
+        """Thirty rows of `2026-08-24` were the machine-readable value being
+        read out to a person by a screen reader. `day` keeps the ISO form for
+        anything that sorts; `day_label` is what gets rendered."""
+        daily = [{"day": "2026-08-24", "count": 3}]
+        chart = overview_view.build_chart(
+            {"verifications": {"known": True, "daily": daily}}, lang="ja"
+        )
+        bar = chart.bars[0]
+        assert bar.day == "2026-08-24"
+        assert bar.day_label == "8月24日"
+
+    def test_the_chart_table_groups_its_counts_too(self):
+        """The table under the chart and the tile above it must not write the
+        same number two different ways on one page."""
+        daily = [{"day": "2026-08-24", "count": 1234}]
+        chart = overview_view.build_chart(
+            {"verifications": {"known": True, "daily": daily}}, lang="de"
+        )
+        assert chart.bars[0].count_label == "1.234"
+        assert chart.peak_label == "1.234"
+
+    def test_the_peak_is_still_none_when_nothing_was_measured(self):
+        """`peak` answers a question about the data and the template branches
+        on it, so it stays a number or None. `peak_label` is only the printing.
+        """
+        chart = overview_view.build_chart(
+            {"verifications": {"known": True, "daily": [{"day": "2026-08-24",
+                                                        "count": None}]}},
+            lang="de",
+        )
+        assert chart.peak is None
+        assert chart.peak_label == ""
+
+
+    def test_the_pitch_sentence_groups_its_figure_too(self):
+        """The figure inside the premium pitch, which is the one that is not in
+        a tile. `ngettext` was already choosing the plural form per language
+        and then interpolating an English-shaped number into it."""
+        overview = make_overview(panel={"posted": True}, last_30_days=1234)
+        step = overview_view.build_next_step(
+            overview, None, lambda s: s, None, "de"
+        )
+        assert "1.234" in step["body"]
+        assert "1,234" not in step["body"]
+
+
+class TestTheAuditTrailsTimestamps:
+    """#230, the mildest of the four surfaces and still worth doing: the
+    Activity page's instants were ISO-shaped for every reader."""
+
+    ENTRY = {
+        "field": "role_id",
+        "actor_name": "Ada",
+        "old_value": "1",
+        "new_value": "2",
+        "changed_at": "2026-08-11T07:11:36+00:00",
+    }
+
+    def _when(self, lang):
+        rows = settings_view.build_audit([dict(self.ENTRY)], None, None,
+                                         lambda s: s, lang)
+        return rows[0]["when_text"]
+
+    def test_the_shape_is_the_readers_and_the_zone_never_is(self):
+        assert self._when("de").startswith("11.08.2026")
+        assert self._when("en-US").startswith("Aug 11, 2026")
+        # UTC in every language. The bot records these in UTC and a reader who
+        # subtracts their own offset from an unmarked time gets a wrong answer
+        # about who changed what.
+        for code in i18n.UI_LANGUAGES:
+            assert self._when(code).endswith(" UTC"), code
+
+    def test_the_machine_readable_half_is_still_iso(self):
+        """`when` feeds the `<time datetime>` attribute and must stay ISO --
+        only `when_text` is for a person."""
+        rows = settings_view.build_audit([dict(self.ENTRY)], None, None,
+                                         lambda s: s, "ja")
+        assert rows[0]["when"] == "2026-08-11T07:11:36+00:00"
+
+    def test_an_unparseable_instant_renders_nothing_rather_than_raising(self):
+        """It was a defensive string slice before. It parses now, and it has to
+        stay just as hard to break with whatever the bot sends."""
+        for bad in (None, "", "yesterday", 17, {}):
+            rows = settings_view.build_audit(
+                [{**self.ENTRY, "changed_at": bad}], None, None, lambda s: s, "de"
+            )
+            assert rows[0]["when_text"] == ""

@@ -10,3 +10,26 @@
 Flask==3.1.3
 requests==2.34.2
 gunicorn==26.1.0
+
+# Dates and numbers in twelve languages (issue #230).
+#
+# THIS FILE ARGUED AGAINST THIS PACKAGE AND THE ARGUMENT CHANGED. Babel was
+# deliberately dev-only for #97: the catalogues are read with the standard
+# library's `gettext`, so translating the dashboard's *strings* cost nothing
+# here. Formatting its dates and numbers is a different problem and the
+# standard library cannot do it -- `strftime('%B')` reads the process-global C
+# locale, which `gunicorn --threads 4` makes unsafe to set per request.
+#
+# The alternative was a month-name table and a per-language pattern of our own.
+# That is a second copy of CLDR, maintained by people who cannot read most of
+# what it says: Russian needs the genitive "3 февраля" and not the nominative
+# "февраль", and Hindi, Bengali and Punjabi group digits by lakh (12,34,567)
+# rather than in threes. Shipping those wrong is a worse outcome than shipping
+# this dependency.
+#
+# It is also an unusually mild one against the rule at the top of this file.
+# Babel is pure Python -- no C extension, no compiler in the image -- and what
+# we call is a lookup in a bundled data table. It opens no socket, and it
+# parses nothing an attacker sends: every value reaching it is a `date` or an
+# `int` this code already built, and the locale is one of twelve constants.
+Babel==2.18.0

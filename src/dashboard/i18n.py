@@ -22,18 +22,24 @@ test (see tests/test_i18n.py), so the two can never drift apart on which
 languages exist. What they say inside a language is reviewed by the same
 person either way.
 
-NOTHING FROM BABEL RUNS IN THE IMAGE
-------------------------------------
-`pybabel` extracts, updates and compiles, and it is a *dev* dependency: see
-requirements-dev.txt. What ships is the compiled `.mo`, read by `gettext` from
-the standard library. requirements-dashboard.txt argues that every dependency
-on this host is something an attacker gets to probe, and that argument does not
-stop being true because a feature would find a library convenient. So the
-runtime cost of this whole module is zero new packages.
+THE STRINGS NEED NOTHING FROM BABEL. THE DATES DO
+-------------------------------------------------
+`pybabel` extracts, updates and compiles; what ships is the compiled `.mo`,
+read by `gettext` from the standard library. That is why the `.mo` files are
+committed rather than built in the image -- no compiler is installed for them,
+and copying `src/dashboard/` is the whole of what it takes. None of that
+changed, and translating a *string* still costs this host no dependency.
 
-That is also why the `.mo` files are committed rather than compiled at build
-time. The image installs no compiler for them and copying `src/dashboard/`
-is the whole of what it takes.
+Formatting a *date* does, and #230 paid it. `strftime('%B')` answers from the
+process-global C locale, which four gunicorn threads cannot each set to a
+different language; the only other option was our own month-name table, which
+means our own copy of CLDR, wrong in the genitive in Russian and wrong about
+lakh grouping in three of the twelve. `Babel` is in requirements-dashboard.txt
+now and the note there argues the reversal properly.
+
+So: `gettext` decides what a label says, Babel decides what a date and a
+number look like, and `format_date`/`format_number` below are the only two
+places in the dashboard that call it.
 
 WHY THE VIEW MODULES ARE NOT TOUCHED BY THIS
 --------------------------------------------
@@ -54,7 +60,16 @@ from __future__ import annotations
 import gettext as _gettext
 import os
 import re
+from datetime import date as _date, datetime as _datetime, timezone as _timezone
 from typing import Callable, Iterable, Optional
+
+from babel import Locale as _Locale
+from babel.dates import (
+    format_date as _babel_format_date,
+    format_skeleton,
+    format_time as _babel_format_time,
+)
+from babel.numbers import format_decimal as _babel_format_decimal
 
 # The languages this dashboard has catalogues for.
 #
@@ -361,3 +376,214 @@ def choices() -> list:
     chose, and English first matches the fallback.
     """
     return [(code, ENDONYMS.get(code, code)) for code in UI_LANGUAGES]
+
+
+# Our language codes to Babel's. Same twelve, hyphen to underscore -- but
+# resolved once at import and held, because `Locale.parse` reads and validates
+# CLDR data and there is no reason to do that again on every render.
+#
+# Built from `UI_LANGUAGES` rather than written out, so a thirteenth language
+# cannot be added to the list above and forgotten here. If Babel does not know
+# a code, that is a real problem with the language being added and it should
+# surface at import on the next deploy rather than as a 500 on one page.
+_LOCALES = {code: _Locale.parse(code.replace("-", "_")) for code in UI_LANGUAGES}
+
+
+def _locale(code: Optional[str]):
+    """The Babel locale for one of our codes, English for anything else.
+
+    The same floor `catalogue()` puts under itself, for the same reason: the
+    callers have all validated, and a formatting helper is the wrong place to
+    raise on a language that should never have got this far.
+
+    GATED THROUGH `is_supported` RATHER THAN `_LOCALES.get`, which is the same
+    check `catalogue()` makes and is not the same thing. `.get` hashes its
+    argument, so an unhashable one -- a list, a dict -- raises `TypeError`
+    from inside the floor that exists to stop exactly that. `is_supported`
+    tests membership of a tuple by equality and has no such edge.
+
+    Nothing can currently reach here with one: `negotiate()` returns a string
+    from `UI_LANGUAGES` or the default. That is an argument about every
+    caller, and this is the line that means nobody has to make it.
+    """
+    if not is_supported(code):
+        return _LOCALES[DEFAULT_LANGUAGE]
+    return _LOCALES[code]
+
+
+def to_date(value) -> Optional[_date]:
+    """A `date`, an ISO string or an ISO instant as a plain `date` -- or None.
+
+    The one place the dashboard turns what the bot sent into something to
+    format. Everything here arrives over the wire as a string, so nothing
+    raises: a field the bot has never sent, or has started sending in a shape
+    this image does not know, renders as an absent date rather than as a 500 on
+    the page that takes money.
+
+    UTC IS APPLIED BEFORE THE DATE IS TAKEN, not after. Stripe's period end is
+    an instant, and `datetime.date()` on it would silently use whatever offset
+    the string carried; two readers would then see two different days for one
+    renewal. The bot decides what day it is and it decides in UTC.
+    """
+    if isinstance(value, _datetime):
+        parsed = value
+    elif isinstance(value, _date):
+        return value
+    elif isinstance(value, str) and value:
+        try:
+            parsed = _datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            try:
+                # A bare `2026-08-24`, which is what the daily series and
+                # `collecting_since` send. `fromisoformat` handles this on its
+                # own; the branch exists for the value that is neither.
+                return _date.fromisoformat(value)
+            except (TypeError, ValueError):
+                return None
+    else:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=_timezone.utc)
+    return parsed.astimezone(_timezone.utc).date()
+
+
+def format_date(value, code: str, *, form: str = "long") -> Optional[str]:
+    """One date, written the way `code` writes dates. None if there isn't one.
+
+    `form` is Babel's, and the two the dashboard uses mean different things:
+
+    * **`long`** -- "3 February 2027", "2027年2月3日", "3 февраля 2027 г.". The
+      month is a word, so there is no chance of a reader taking 3/2 for the
+      second of March. Everything about money uses this.
+    * **`medium`** -- "24 Aug 2026", and fully numeric in the locales that
+      write a compact date that way. For the changelog's date badge, where the
+      surrounding context already says what it is and the space is a line.
+
+    NOT `%-d` AND NOT A PATTERN OF OURS. The old code built "3 February 2026"
+    by hand to dodge `%-d`, which is a glibc extension the standard does not
+    promise -- see the git history of `subscription_view._format_date`. This
+    has the same property and one more: the field ORDER is the locale's, so
+    Japanese gets year-first and American English gets the month first,
+    neither of which a single hand-written pattern can do.
+    """
+    parsed = to_date(value)
+    if parsed is None:
+        return None
+    return _babel_format_date(parsed, format=form, locale=_locale(code))
+
+
+def format_day(value, code: str) -> Optional[str]:
+    """A day and month with no year: "Aug 24", "8月24日", "24 авг.".
+
+    For the chart's per-day rows, where thirty of these are read down a column
+    and every one of them is in the same year the heading already gave.
+
+    A skeleton rather than a pattern, which is the whole reason this is a
+    separate function: `"MMM d"` written out would put the month first in
+    Japanese too. `format_skeleton` asks CLDR which order this locale actually
+    uses for those two fields and returns that.
+    """
+    parsed = to_date(value)
+    if parsed is None:
+        return None
+    return format_skeleton("MMMd", parsed, locale=_locale(code))
+
+
+def format_number(value, code: str) -> str:
+    """An integer with the group separators `code` uses.
+
+    Not everywhere is a comma every three digits. German and Spanish group with
+    a full stop, Russian with a non-breaking space, and Hindi, Bengali and
+    Punjabi group by lakh -- 1234567 is "12,34,567", which is not a rounding of
+    the same shape but a different shape. A hardcoded `f"{n:,}"` is wrong in
+    five of the twelve languages this dashboard speaks.
+
+    None is "", never the word "None". Every caller guards a missing count
+    before it gets here -- a tile checks its state, the chart's table checks
+    `bar.count is none` -- so this is the floor under those guards and not a
+    substitute for them. It exists because the failure it prevents is the
+    string `None` appearing on the page, which is the one wrong answer worse
+    than a blank.
+
+    Anything else that is not an int comes back as `str(value)`, so a tile
+    renders an odd value rather than failing.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, bool) or not isinstance(value, int):
+        return str(value)
+    return _babel_format_decimal(value, locale=_locale(code))
+
+
+def format_timestamp(value, code: str) -> Optional[str]:
+    """An ISO instant as a date and a time in `code`, always marked UTC.
+
+    "Aug 11, 2026 7:11 AM UTC", "11.08.2026 07:11 UTC", "2026/08/11 7:11 UTC".
+
+    THE "UTC" IS NOT DECORATION AND IS NOT LOCALISED. The audit trail is what
+    an admin reads to work out who changed what and when, and the bot records
+    those instants in UTC. Rendering the clock time without naming the zone
+    would invite every reader to subtract their own offset from a number that
+    had not had it added -- so the marker stays, in the one form that is the
+    same three letters on every one of these twelve pages.
+
+    Only the *shape* is the locale's: whether the day or the month leads, and
+    whether 07:11 is written that way or as 7:11 AM. Both are genuine
+    differences between readers and neither changes the instant.
+
+    None for anything unparseable, which the caller renders as no timestamp at
+    all. The value comes from the bot over the wire.
+    """
+    if isinstance(value, _datetime):
+        parsed = value
+    elif isinstance(value, str) and value:
+        try:
+            parsed = _datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return None
+    else:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=_timezone.utc)
+    parsed = parsed.astimezone(_timezone.utc)
+    locale = _locale(code)
+    day = _babel_format_date(parsed.date(), format="medium", locale=locale)
+    clock = _babel_format_time(parsed.timetz(), format="short", locale=locale)
+    return f"{day} {clock} UTC"
+
+
+def _warm() -> None:
+    """Resolve every format this module uses, for all twelve, at import.
+
+    NOT A CACHE FOR SPEED. Babel's locale data is lazy in a way that matters
+    here: `LocaleDataDict.__getitem__` resolves aliases on first read and
+    WRITES THE RESULT BACK into a dict shared by every thread that asked for
+    the same locale. The image runs `gunicorn --threads 4`.
+
+    That particular write is benign -- the value each thread computes is
+    equivalent, and storing it is atomic under the GIL -- so this is not the
+    bug `install_gettext_callables` in app.py was written to fix, where two
+    threads wrote *different* languages into one dict. It is the same shape
+    though, and the cost of never having to make that argument again at a
+    later reading is 23 milliseconds of worker startup, measured.
+
+    It also flattens the first request. Without it the first person to load a
+    page in a given language pays that language's resolution; with it, every
+    request is the warm path, which is about 1.6 microseconds a call.
+
+    Failures are deliberately not caught. A locale in `UI_LANGUAGES` that
+    Babel cannot format is a broken deploy, and it should be broken at import
+    on the host rather than on one page in one language that nobody tests in.
+    """
+    sample_date = _date(2027, 2, 3)
+    sample_time = _datetime(2027, 2, 3, 7, 11, tzinfo=_timezone.utc)
+    for code in UI_LANGUAGES:
+        locale = _LOCALES[code]
+        _babel_format_date(sample_date, format="long", locale=locale)
+        _babel_format_date(sample_date, format="medium", locale=locale)
+        format_skeleton("MMMd", sample_date, locale=locale)
+        _babel_format_time(sample_time.timetz(), format="short", locale=locale)
+        _babel_format_decimal(1234567, locale=locale)
+
+
+_warm()

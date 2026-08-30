@@ -174,7 +174,7 @@ class TestTheStates:
         )
         assert page.state == "stripe"
         assert page.plan_label == "6 months"
-        assert page.renews_on == "3 November 2026"
+        assert page.renews_on == "November 3, 2026"
         assert page.ends_on is None
         assert page.offers_portal is True
         assert page.offers_card is False
@@ -317,13 +317,69 @@ class TestTheKillSwitches:
         assert page.offers_card is False
 
 
+class TestTheDateFollowsTheLanguage:
+    """#230. #97 translated "Renews" into twelve languages and left the date
+    beside it in English, so a Japanese renewal row read `更新日 3 February 2027`.
+
+    The unit half is here; `tests/test_i18n.py` pins what each language does
+    with a date, and this pins that the page actually asks it.
+    """
+
+    def test_the_renewal_date_is_written_in_the_reader_s_language(self):
+        for lang, expected in (
+            ("en-US", "November 3, 2026"),
+            ("ja", "2026年11月3日"),
+            ("de", "3. November 2026"),
+        ):
+            page = build(
+                payload(premium=True, active=True, status="active"), lang=lang
+            )
+            assert page.renews_on == expected, lang
+
+    def test_the_end_date_and_the_lapsed_date_follow_it_too(self):
+        """All three of the page's dates, not just the one in the title of the
+        issue -- they come off one `_format_date` call and a fix that reached
+        only `renews_on` would be a page contradicting itself."""
+        cancelled = build(
+            payload(premium=True, active=True, status="active", cancel=True),
+            lang="ja",
+        )
+        assert cancelled.ends_on == "2026年11月3日"
+
+        lapsed = build(
+            payload(premium=False, active=False, status="canceled",
+                    period_end=PAST),
+            lang="ja",
+        )
+        assert lapsed.ended_on == "2026年2月3日"
+
+    def test_the_module_still_needs_no_request_to_do_it(self):
+        """The property the whole module is built on, restated for the thing
+        #230 added. `lang` is an argument exactly like `t` is: if formatting a
+        date had reached for a request context, every state of the page that
+        takes money would have stopped being testable without one.
+
+        These calls happen outside any app or request context, and this test is
+        meaningful only because of that.
+        """
+        page = build(payload(premium=True, active=True, status="active"),
+                     lang="ar")
+        assert page.renews_on and "2026" in page.renews_on
+
+    def test_an_unset_language_still_renders_english(self):
+        """Every caller passes one, but the default is what a new call site
+        that forgets gets -- and it must be a date, not a crash."""
+        page = build(payload(premium=True, active=True, status="active"))
+        assert page.renews_on == "November 3, 2026"
+
+
 class TestDatesAndLabels:
     def test_cancelled_says_ends_on_not_renews_on(self):
         """Different promises. Saying the wrong one is lying about money."""
         page = build(
             payload(premium=True, active=True, status="active", cancel=True),
         )
-        assert page.ends_on == "3 November 2026"
+        assert page.ends_on == "November 3, 2026"
         assert page.renews_on is None
 
     def test_cancelled_outright_also_says_ends_on(self):
@@ -341,14 +397,14 @@ class TestDatesAndLabels:
         page = build(
             payload(premium=True, active=True, status="canceled", cancel=False),
         )
-        assert page.ends_on == "3 November 2026"
+        assert page.ends_on == "November 3, 2026"
         assert page.renews_on is None
 
     def test_an_ordinary_active_subscription_still_says_renews(self):
         """The other side of the fix. Widening `cancelling` must not make every
         subscription look cancelled."""
         page = build(payload(premium=True, active=True, status="active"))
-        assert page.renews_on == "3 November 2026"
+        assert page.renews_on == "November 3, 2026"
         assert page.ends_on is None
 
     def test_past_due_still_says_renews_rather_than_ends(self):
@@ -356,7 +412,7 @@ class TestDatesAndLabels:
         someone it ends on a date invites them to stop paying attention to a
         payment that can still succeed."""
         page = build(payload(premium=True, active=True, status="past_due"))
-        assert page.renews_on == "3 November 2026"
+        assert page.renews_on == "November 3, 2026"
         assert page.ends_on is None
 
     def test_a_lapsed_subscription_says_when_it_ended(self):
@@ -366,7 +422,7 @@ class TestDatesAndLabels:
             payload(status="canceled", period_end=PAST, price_id=PRICE_YEARLY),
         )
         assert page.state == "none"
-        assert page.ended_on == "3 February 2026"
+        assert page.ended_on == "February 3, 2026"
         assert page.last_plan_label == "12 months"
 
     def test_an_unknown_price_still_reads_as_premium(self):
@@ -509,6 +565,39 @@ def make_client(config, settings=None):
     )
     client.set_cookie(SESSION_COOKIE, session.sid, domain="localhost")
     return client, bot_api, stripe, session
+
+
+class TestTheRenderedPageCarriesTheLanguagesDate:
+    """The wiring, which is the half a unit test cannot reach (#230).
+
+    `TestTheDateFollowsTheLanguage` passes `lang=` straight to `build()`, so it
+    would keep passing if `app.py` never handed the language over -- which is
+    the whole of what this feature is on a real request. These go through the
+    route.
+    """
+
+    def _page(self, config, lang):
+        client, _bot, _stripe, _session = make_client(
+            config, settings=payload(premium=True, active=True, status="active")
+        )
+        client.set_cookie("vrcverify_lang", lang, domain="localhost")
+        return client.get(f"/guild/{GUILD}/subscription").data.decode()
+
+    def test_a_japanese_reader_gets_a_japanese_date(self, config):
+        page = self._page(config, "ja")
+        assert "2026年11月3日" in page
+        # The exact string from the issue title, and the thing that must not
+        # come back: an English-shaped date under a translated label.
+        assert "3 November 2026" not in page
+        assert "November 3, 2026" not in page
+
+    def test_a_german_reader_gets_a_german_date(self, config):
+        page = self._page(config, "de")
+        assert "3. November 2026" in page
+
+    def test_english_is_unchanged_by_any_of_this(self, config):
+        page = self._page(config, "en-US")
+        assert "November 3, 2026" in page
 
 
 class TestCheckout:
@@ -990,7 +1079,7 @@ class TestThePageRenders:
         )
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
         main = page.split("<main>", 1)[1].split("</main>", 1)[0]
-        assert main.count("3 November 2026") == 1
+        assert main.count("November 3, 2026") == 1
 
     def test_a_lapsed_server_gets_a_winback_not_a_muted_line(self, config):
         client, _bot, _stripe, _session = make_client(

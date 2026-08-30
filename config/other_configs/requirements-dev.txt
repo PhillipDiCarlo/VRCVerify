@@ -10,10 +10,12 @@ pytest-cov==7.1.0
 
 # The gettext toolchain for the dashboard's translations (issue #97).
 #
-# DEV ONLY, and deliberately not in requirements-dashboard.txt. `pybabel`
-# extracts the strings, merges them into the twelve catalogues and compiles the
-# .mo files that get committed; the running site reads those with the standard
-# library's `gettext` and never imports Babel at all. The internet-facing image
-# does not grow a dependency to gain a feature -- see the note at the top of
-# requirements-dashboard.txt.
+# NO LONGER DEV ONLY. `pybabel` still extracts the strings, merges them into
+# the twelve catalogues and compiles the committed .mo files, and the running
+# site still reads those with the standard library's `gettext` -- but #230 gave
+# Babel a job at runtime too, formatting dates and numbers per locale. It is in
+# requirements-dashboard.txt now, with the reasoning for the reversal.
+#
+# Kept listed here as well, at the same pin, so that this file still describes
+# a complete test environment on its own and so the two versions cannot drift.
 Babel==2.18.0
