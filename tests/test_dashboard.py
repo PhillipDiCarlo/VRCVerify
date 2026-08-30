@@ -9109,3 +9109,130 @@ class TestTheFocusRingDoesNotRestyleTheElement(object):
         )
         assert rule, "the four controls are no longer styled by one rule"
         assert "border-radius: var(--radius-control)" in rule.group(1)
+
+
+class TestEveryNoticeLivesInACard(object):
+    """`.notice.ok` has no fill, so whatever is behind it IS its background.
+
+    That is a deliberate choice -- a success message is the only kind a reader
+    does not have to act on, and the fill is what makes the warning hard to
+    skip. The cost is that this element has no ground of its own, so where it
+    sits decides whether it is legible.
+
+    On `--panel` it is 5.39:1. As a direct child of `<main>` it lands on `--bg`
+    at 4.27:1, under AA -- and that is exactly what #159 found on the
+    subscription page, on the one sentence telling somebody their payment went
+    through. `settings.html`, `activity.html` and `picker.html` all wrapped
+    theirs; `activity.html` says in as many words that the pages must not
+    disagree about where a notice lives. The subscription page was the one that
+    did.
+
+    This is the guard rather than a `("ok", "bg")` entry in test_contrast.py.
+    Pinning the pairing would assert a combination nothing renders, which that
+    file's docstring refuses to do -- and it would pin the wrong thing anyway.
+    The defect was never a colour. It was an element in the wrong place.
+    """
+
+    @staticmethod
+    def _templates():
+        import dashboard
+
+        return os.path.join(os.path.dirname(dashboard.__file__), "templates")
+
+    def _offenders(self, body: str):
+        """Every `.notice` in `body` with no `.panel` among its ancestors.
+
+        A text scan rather than a parse: these templates are Jinja, so an HTML
+        parser sees `{% if %}` as text and the two branches of an `{% if %}` as
+        unbalanced tags. Only `<section>` nesting has to be right, and every
+        panel in this app is a `<section class="panel">` whose `{% if %}`, where
+        it has one, wraps the whole element.
+
+        A STACK, NOT A DEPTH COUNTER. The first version of this counted only
+        panel opens but every `</section>` close, so `<section class="upgrade">`
+        inside a panel -- which is a section and is not a panel -- decremented a
+        depth it had never incremented, and the two real notices after it in
+        settings.html were reported as bare. Sections that are not panels have
+        to be pushed too, or closing one pops the panel around it.
+        """
+        stack, bad = [], []
+        for match in re.finditer(
+            r'<section\b[^>]*>|</section>|class="[^"]*\bnotice\b[^"]*"',
+            body,
+        ):
+            token = match.group(0)
+            if token.startswith("<section"):
+                stack.append(bool(re.search(r'class="[^"]*\bpanel\b[^"]*"', token)))
+            elif token == "</section>":
+                if stack:
+                    stack.pop()
+            elif not any(stack):
+                bad.append(body[: match.start()].count("\n") + 1)
+        return bad
+
+    def test_no_notice_is_a_direct_child_of_main(self):
+        directory = self._templates()
+        offenders = {}
+        for name in os.listdir(directory):
+            if not name.endswith(".html"):
+                continue
+            with open(os.path.join(directory, name), encoding="utf-8") as handle:
+                lines = self._offenders(handle.read())
+            if lines:
+                offenders[name] = lines
+        assert not offenders, (
+            f"a .notice sits outside a .panel at {offenders} -- it has no fill "
+            f"of its own, so on the page ground --ok is 4.27:1, under AA"
+        )
+
+    def test_the_scan_would_catch_the_regression(self):
+        """The check is only worth having if it fails on the shape it exists
+        for. This is #159's defect exactly: the notice before the panel."""
+        regressed = (
+            '{% block content %}\n'
+            '{% if notice %}\n'
+            '  <p class="notice ok">{{ notice }}</p>\n'
+            '{% endif %}\n'
+            '<section class="panel">\n'
+            '  <h2>Subscriptions</h2>\n'
+            '</section>\n'
+        )
+        assert self._offenders(regressed) == [3]
+
+    def test_the_scan_accepts_a_notice_inside_a_card(self):
+        fixed = (
+            '{% if notice %}\n'
+            '  <section class="panel">\n'
+            '    <p class="notice ok">{{ notice }}</p>\n'
+            '  </section>\n'
+            '{% endif %}\n'
+        )
+        assert self._offenders(fixed) == []
+
+    def test_a_notice_nested_deeper_than_one_section_still_counts(self):
+        """`.panel` is not always the immediate parent -- settings.html puts
+        notices inside a panel that also holds a form."""
+        nested = (
+            '<section class="panel">\n'
+            '  <form>\n'
+            '    <p class="notice ok">Saved.</p>\n'
+            '  </form>\n'
+            '</section>\n'
+            '<p class="notice">out here, though</p>\n'
+        )
+        assert nested.count("notice") == 2
+        assert self._offenders(nested) == [6]
+
+    def test_a_section_that_is_not_a_panel_does_not_pop_the_panel(self):
+        """settings.html's real shape, and what the first version of this scan
+        got wrong: `<section class="upgrade">` sits inside the panel, and the
+        notices come after it closes. They are still inside the card."""
+        real = (
+            '<section class="panel">\n'
+            '  <section class="upgrade">\n'
+            '    <h2>Upgrade</h2>\n'
+            '  </section>\n'
+            '  <p class="notice">still in the card</p>\n'
+            '</section>\n'
+        )
+        assert self._offenders(real) == []
