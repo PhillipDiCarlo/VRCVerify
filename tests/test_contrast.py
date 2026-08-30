@@ -61,7 +61,6 @@ PAIRS = [
     ("accent-text", "chrome", "the current section in the sidebar"),
     ("accent-text", "bg", "an accent stripe on the ground"),
     ("ok", "panel", '"Saved."'),
-    ("danger", "panel", "an error an admin has to act on"),
     ("notice", "notice-bg", "a warning in its own box"),
     # Unboxed, straight on the card -- the Setup list's "todo" and "broken"
     # rows (#135 phase 3). Used since #123's setup checklist for a missing
@@ -96,7 +95,45 @@ PAIRS = [
     # and was never on this list. Adding a second, smaller use of it is the
     # cheapest moment to find out whether the first one was ever legible.
     ("ink-strong", "selected", "the current section and group in the sidebar"),
+    # #159: surfaces this list said it covered and did not. The claim at the top
+    # is "every colour pair the dashboard actually renders", and --hover had no
+    # entries at all -- a whole surface, three foregrounds, never measured. It
+    # is the fill every row in the bell panel, the account menu and the sidebar
+    # takes under the pointer.
+    #
+    # THESE WERE READ OFF THE RENDERED PAGE, not off the rules. Reasoning from
+    # the stylesheet alone gets this wrong: `.bell-all:hover` sets a background
+    # and no colour, which looks like an accent link sitting on --hover at
+    # 4.30:1 in dark, under AA. It is not. The global `a:hover` rule takes it to
+    # --ink-strong at the same moment, and measuring in a browser says 10.73.
+    # Every number below came from computed styles under a real pointer.
+    ("ink", "hover", "a menu row, bar button or bell button under the pointer"),
+    ("ink-strong", "hover", "a link or sidebar row under the pointer"),
+    ("muted", "hover", "the second line of a menu row under the pointer"),
+    ("ink-strong", "chrome", "the wordmark and the guild name in the bar"),
+    ("accent-ink", "accent-hover", "a button's label while the pointer is on it"),
 ]
+
+# NOT here, though it is drawn: --accent-text on --hover.
+#
+# The two things wearing it are the bell's unread dot and the tick beside the
+# current row in the language and theme menus. Both are shapes, so both belong
+# at the 3:1 floor in UI_PAIRS, where the first already was. It is 4.30:1 in
+# dark -- fine for a glyph, and it would fail here. That is the distinction
+# this file's two lists exist to make, so the entry goes in one and not both.
+
+# Deliberately NOT here: --ok on --bg, and --notice on --bg.
+#
+# Both were real when #159 was written -- the subscription page's confirmation
+# was a direct child of <main> and landed on the page ground at 4.27:1. The fix
+# was to put it in a card like every other notice in the app, not to pin the
+# pairing, and pinning it now would assert a combination nothing renders. That
+# is the thing this file's docstring says it will not do.
+#
+# What stops it coming back is not here. It is
+# TestEveryNoticeLivesInACard in test_dashboard.py, which walks the templates
+# instead of the palette -- because the defect was never a colour, it was an
+# element in the wrong place.
 
 # Deliberately NOT here: a control's edge against its OWN fill. It was added
 # and then removed -- --control-line on --inset is 2.69:1 in light, and the
@@ -121,7 +158,12 @@ UI_PAIRS = [
     # legible at rest and vanishes the moment you reach for it is the one
     # failure a notification indicator cannot have.
     ("accent-text", "chrome", "the bell's unread dot at rest"),
-    ("accent-text", "hover", "the bell's unread dot while its panel is open"),
+    # The same pairing carries a second shape found while auditing the pair
+    # list for #159: `.menu-tick`, the mark beside the current row in the
+    # language and theme menus, which sits on --hover whenever that row is
+    # under the pointer. 4.58:1 light, 4.30:1 dark -- clear of the 3:1 a glyph
+    # needs and under the 4.5:1 it would need if it were ever words.
+    ("accent-text", "hover", "the bell's dot, and a menu's tick, on a hovered row"),
     ("switch-knob", "control-line", "the knob on an off switch"),
     ("switch-on", "panel", "an on switch against the card"),
     ("switch-knob", "switch-on", "the knob on an on switch"),

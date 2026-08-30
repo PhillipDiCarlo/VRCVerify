@@ -25,8 +25,20 @@
    per branch, it is said twice. #}
 
 {% block content %}
+{# IN A CARD, like every other notice in the app (#159).
+   Bare here, this was a direct child of <main> and landed on --bg, where --ok
+   is 4.27:1 -- under AA, on the one sentence telling somebody their payment
+   went through. `.notice.ok` carries no fill of its own by design (see the
+   comment on that rule), so whatever is behind it IS its background, and on
+   this page that was the page ground rather than a card.
+
+   settings.html, activity.html and picker.html all wrap theirs; activity.html
+   says in as many words that the pages must not disagree about where a notice
+   lives. This was the one that did. On --panel the same text is 5.39:1. #}
 {% if notice %}
-  <p class="notice{% if notice_kind == 'ok' %} ok{% endif %}">{{ notice }}</p>
+  <section class="panel">
+    <p class="notice{% if notice_kind == 'ok' %} ok{% endif %}">{{ notice }}</p>
+  </section>
 {% endif %}
 
 <section class="panel group">

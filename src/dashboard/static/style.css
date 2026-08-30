@@ -151,7 +151,17 @@
    * 4.59:1 on --inset, 5.39:1 on --panel, 4.85:1 on --bg. Every pair using it
    * is pinned in test_contrast.py, --inset included now. */
   --ok: #177a41;
-  --danger: #d83c3e;
+  /* NO --danger. It was declared, themed in both palettes and pinned in
+   * test_contrast.py, and `grep -rn 'var(--danger)' src/` returned nothing --
+   * no rule has ever used it. There is no destructive control anywhere in this
+   * dashboard: no delete, no cancel, no remove, no disconnect. Errors are drawn
+   * with --notice via `.notice` and `.warn`, which is a deliberate choice the
+   * refusal page's comment argues for.
+   *
+   * Removed with #159 rather than left as reserved palette, because the test
+   * asserting it cleared AA on a card was asserting something no reader has
+   * ever seen -- exactly what that suite's docstring says it will not do. It
+   * comes back, with its pair, on the day something destructive ships. */
   --notice: #8a5300;
   --notice-bg: #fdf3e0;
   --notice-line: #f0c98a;
@@ -235,11 +245,12 @@
   --dark-accent-ink: #ffffff;
   --dark-accent-text: #8a93f6;   /* 4.6:1 on panel, 5.0:1 on chrome */
 
-  /* Both lifted to clear 4.5:1 on --panel. Discord's own values are 4.0:1 and
-   * 3.4:1 there, which is fine for a status dot and not for the word "Saved"
-   * or an error an admin has to act on. */
+  /* Lifted to clear 4.5:1 on --panel. Discord's own value is 4.0:1 there,
+   * which is fine for a status dot and not for the word "Saved".
+   *
+   * --dark-danger sat here beside it and went with --danger in #159; see the
+   * note in the light block. */
   --dark-ok: #26b261;
-  --dark-danger: #f57174;
   --dark-notice: #f0b232;
   --dark-notice-bg: #3a2f13;
   --dark-notice-line: #5c4a1c;
@@ -302,7 +313,6 @@
   --accent-text: var(--dark-accent-text);
 
   --ok: var(--dark-ok);
-  --danger: var(--dark-danger);
   --notice: var(--dark-notice);
   --notice-bg: var(--dark-notice-bg);
   --notice-line: var(--dark-notice-line);
@@ -342,7 +352,6 @@
     --accent-text: var(--dark-accent-text);
 
     --ok: var(--dark-ok);
-    --danger: var(--dark-danger);
     --notice: var(--dark-notice);
     --notice-bg: var(--dark-notice-bg);
     --notice-line: var(--dark-notice-line);
@@ -991,11 +1000,14 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 .centered { max-width: 34rem; margin: 3rem auto; }
 
-/* The mark on the refusal page. --notice rather than --danger: the bot being
+/* The mark on the refusal page. Amber rather than red: the bot being
  * unreachable, or a server not being yours, is a situation rather than a
  * fault, and nothing has been lost. Red would say something went wrong with
  * the thing the reader was doing, which is exactly what the copy is at pains
- * to deny. */
+ * to deny.
+ *
+ * This choice, and the one on .setup-row-todo below, are why there was never
+ * a red token to reach for -- and why #159 removed the unused one. */
 .error-mark {
   margin: 0 0 var(--space-2);
   color: var(--notice);
@@ -1026,15 +1038,32 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 /* The one notice with no fill behind it, and that asymmetry is load-bearing.
  *
- * Filling it to match the warning was tried: --ok on --inset is 4.14:1 in the
- * light theme, under AA. Unfilled it sits on --panel, where --ok is tested and
- * passes. Consistency here would have been a contrast failure wearing a tidier
- * shape. */
+ * Filling it to match the warning was tried and rejected: --ok on --inset was
+ * 4.14:1 in the light theme, under AA. That number belonged to the older
+ * #1a8245; the #141 pass darkened the token and it is 4.59:1 now, so the
+ * original objection no longer holds on its own numbers.
+ *
+ * It stays unfilled anyway, for the reason the fill was reached for in the
+ * first place being the weaker one. A success notice is the only kind a reader
+ * does not have to act on, and the fill is what makes the warning hard to skip
+ * past. Two filled boxes of different colours read as two alerts.
+ *
+ * WHAT THIS DOES MEAN is that whatever sits behind this element IS its
+ * background. On --panel that is 5.39:1. As a direct child of <main> it would
+ * be --bg at 4.27:1, under AA -- which is what #159 found on the subscription
+ * page and why every notice in this app is inside a card. */
 .notice.ok {
   background: none;
   border-color: var(--ok);
   color: var(--ok);
 }
+
+/* The margin separates stacked notices; the last one in a card has nothing to
+ * be separated from, and the card's own padding is already there. Without this
+ * a panel holding a single notice -- which is what settings.html renders after
+ * a save, and what the subscription page renders since #159 moved its notice
+ * into a card -- carries 20px of dead space along its bottom edge. */
+.panel > .notice:last-child { margin-bottom: 0; }
 
 .button {
   display: inline-flex;
@@ -2297,7 +2326,7 @@ footer p + p { margin-top: var(--space-2); }
 .setup-row-off .setup-state { color: var(--faint); }
 
 /* Not configured, and configured-but-broken, share the amber "needs
- * attention" colour -- neither is --danger, because a server missing its
+ * attention" colour -- neither is red, because a server missing its
  * verified role is not an error state, it is one step from finished.
  * "Broken" additionally colours its note: an admin who thought this was
  * already working needs that sentence to stand out more than "not set yet"
@@ -2315,10 +2344,11 @@ footer p + p { margin-top: var(--space-2); }
  * would be the first thing to undo it. */
 .setup-action { padding: 0.4rem 0.9rem; font-size: 0.85rem; }
 
-/* No fill, same reason .notice.ok has none: --ok on --inset is 4.14:1 in the
- * light theme, under AA -- measured once already for that rule (see the
- * comment above .notice.ok) and true here too, since it's the same two
- * tokens. Unfilled it sits on --panel, where --ok passes at 4.86:1. */
+/* No fill, same reason .notice.ok has none -- see the comment on that rule,
+ * which carries the argument and the current numbers. The 4.14:1 figure that
+ * used to be quoted here belonged to --ok's older #1a8245 and is 4.59:1 since
+ * the #141 pass darkened it; the reason this is unfilled is no longer that
+ * number. Unfilled it sits on --panel, where --ok is 5.39:1. */
 .setup-complete {
   margin: 0 0 var(--space-3);
   padding: 0.6rem 0.85rem;
