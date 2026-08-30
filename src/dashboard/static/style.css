@@ -106,6 +106,22 @@
   --chrome: #f2f3f5;      /* header bar and sidebar */
   --panel: #ffffff;       /* cards */
   --inset: #ebedef;       /* inputs: pressed into the card, not raised */
+
+  /* The server card's edge, and ONLY that -- not a general hairline.
+   *
+   * `.server-card.ready` is a whole-card click target: the stretched link on
+   * `.server-name a::after` makes the entire card the thing you press. So the
+   * bounds of a UI component are the bounds of that card, and SC 1.4.11 asks
+   * for 3:1 against what is adjacent and outside it. On --line it was 1.32:1
+   * light and 1.24:1 dark, and the fill was 1.17:1 -- a control with no
+   * perceivable boundary at all (#163).
+   *
+   * Its own token rather than darkening --line, which draws every hairline in
+   * the app: the rule between a panel's heading and its body, the sidebar's
+   * divider, an input's edge. None of those bound a control, and taking them
+   * all to 3:1 would turn a quiet console into a wireframe. 3.37:1 on --panel.
+   */
+  --card-line: #8a8c90;
   --hover: #e3e5e8;
   --selected: #d4d7dc;
 
@@ -213,7 +229,27 @@
   --dark-bg: #1e1f22;
   --dark-chrome: #2b2d31;
   --dark-panel: #313338;
-  --dark-inset: #1e1f22;
+  /* Darkened from #1e1f22 by the pass over #163, where it was byte-identical
+   * to --dark-bg: ratio 1.000, so any inset surface landing on the page ground
+   * rather than on a card was invisible in the dark theme. Nothing showed it,
+   * because everything inset today happens to sit inside a `.panel` -- true by
+   * luck of composition rather than by design, and one page that puts a plan
+   * card or an `.upgrade` block straight on the ground away from it.
+   *
+   * DARKER, not lighter, and that is the opposite of what mirroring the light
+   * theme would suggest. There --inset sits between --bg and --panel. Doing the
+   * same here means moving toward --panel, which would take the shipped case --
+   * an input, a plan card, a server card, all of them on a card -- from 1.30:1
+   * against that card down to 1.18:1. That trades the arrangement that exists
+   * for the one that does not.
+   *
+   * Going down instead improves both: 1.38:1 against --panel, and 1.06:1
+   * against --bg where it was 1.000. It also reads correctly, since --inset is
+   * darker than the surface it is pressed into in the light theme too. Every
+   * foreground on it gains: ink 12.88, muted 8.91, faint 6.20, ok 6.32,
+   * accent-text 6.28. */
+  --dark-inset: #191a1d;
+  --dark-card-line: #7c7f87;   /* 3.16:1 on --dark-panel; see --card-line */
   --dark-hover: #35373c;
   --dark-selected: #404249;
 
@@ -296,6 +332,7 @@
   --chrome: var(--dark-chrome);
   --panel: var(--dark-panel);
   --inset: var(--dark-inset);
+  --card-line: var(--dark-card-line);
   --hover: var(--dark-hover);
   --selected: var(--dark-selected);
 
@@ -335,6 +372,7 @@
     --chrome: var(--dark-chrome);
     --panel: var(--dark-panel);
     --inset: var(--dark-inset);
+    --card-line: var(--dark-card-line);
     --hover: var(--dark-hover);
     --selected: var(--dark-selected);
 
@@ -1349,7 +1387,11 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   gap: var(--space-2);
   padding: var(--space-5) var(--space-4) var(--space-4);
   background: var(--inset);
-  border: 1px solid var(--line);
+  /* --card-line, not --line: a `.ready` card is a whole-card click target and
+     this edge is the only thing bounding it. See the token. `.empty-state`
+     carries the same fill and keeps --line, because it is a message, not a
+     control, and nothing about it is pressable. */
+  border: 1px solid var(--card-line);
   border-radius: var(--radius-card);
   text-align: center;
 }
@@ -1581,16 +1623,10 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 .signin-legal a:hover { color: var(--ink); text-decoration: underline; }
 
 /* --- one server's pages --- */
-.guild-head {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-}
-
-.guild-head .icon { margin: 0; flex: 0 0 auto; }
-.guild-head h1 { margin: 0; }
-.guild-head p { margin: 0.15rem 0 0; }
+/* NO .guild-head. #195 phase 4 replaced it with `.page-head` in the new
+ * `_guild_head.html` partial and deleted the 64px icon it was a flex row for;
+ * these four rules matched nothing in any template afterwards and are removed
+ * here (#163). `.page-head` is further down, beside the rest of phase 4. */
 
 /* The upgrade offer. Bordered rather than filled: it sits above settings an
  * admin came here to change, and a block loud enough to compete with them
@@ -2033,7 +2069,28 @@ textarea {
   border-radius: var(--radius-control);
 }
 
-.badge.premium { background: var(--accent); color: var(--accent-ink); }
+/* THE RING IS DOING THE 1.4.11 WORK, not the fill (#163).
+ *
+ * --accent on a dark --panel is 2.74:1, under the 3:1 a component needs
+ * against its surroundings -- the same number --dark-accent-text's comment
+ * calls out while reasoning about this exact hex on this exact surface.
+ *
+ * The fill cannot be the fix. Lightening it to clear 3:1 there takes the white
+ * label on it below 4.5:1 -- #666ff4 is 3.10 on the card and 4.08 under the
+ * word, and this label is 11px bold, which is not large text. The two
+ * requirements move in opposite directions on one shape, so a second edge is
+ * the only thing that satisfies both.
+ *
+ * An inset ring rather than a border, so the badge does not change size and
+ * the row it sits in does not reflow. `.sub-chip` already draws its edge this
+ * way. --accent-text is 5.78:1 on a light card and 4.57:1 on a dark one, both
+ * well past 3:1, and it is the token that exists for exactly this -- blurple
+ * that stays legible as a foreground on either card. */
+.badge.premium {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: inset 0 0 0 1px var(--accent-text);
+}
 .badge.inactive { background: var(--inset); color: var(--muted); }
 
 .warn {
@@ -2453,6 +2510,14 @@ footer p + p { margin-top: var(--space-2); }
   .switch { width: 2.75rem; height: 1.75rem; }
   .switch::before { width: 1.375rem; height: 1.375rem; }
 
+  /* "Use the default blue" -- the last interactive thing on the page this
+     block forgot (#163). It is a bare flex row, so its height was the text
+     line box: 15px x 1.55 = 23.25px, under the 24x24 of SC 2.5.8, and it sits
+     directly beneath a switch this block deliberately grew to 44x28.
+     `min-height` on the label rather than the checkbox, because the whole row
+     is the target -- the <label> wraps the input and the words. */
+  .check { min-height: 44px; }
+
   /* The one interactive sidebar row this rule forgot when it shipped (#140).
    * The sub-nav is built for exactly the touch-width case this block exists
    * for, and every other row in the sidebar gets bumped here -- this one has
@@ -2538,7 +2603,26 @@ footer p + p { margin-top: var(--space-2); }
      both sides of the screen, on the first page anybody sees after signing in.
      Every other page keeps 0 from `.layout:not(.plain) main`, which is more
      specific than this rule and wins. */
-  main { padding: 1rem 0.75rem 2rem; }
+  main {
+    padding: 1rem 0.75rem 2rem;
+    /* STRETCHED, not content-sized (#163).
+       `align-items: flex-start` on .layout is a CROSS-axis declaration, and the
+       line above turns the cross axis horizontal -- so every child sizes to
+       fit-content rather than filling the width. `.sidebar` was given
+       `width: 100%` explicitly when it became a tab strip here; `main` never
+       was, and `flex: 1 1 auto` on it is main-axis and does nothing in a
+       column.
+
+       Latent until now only because every page happens to hold a paragraph
+       whose max-content is wider than a phone, so `main` filled anyway. A page
+       whose longest line was shorter would have hugged its own text under a
+       full-width sidebar strip.
+
+       On `.layout.plain` this is what a block-level `main` already does, so it
+       changes nothing there. `border-box` is global, so the padding above
+       stays inside the 100%. */
+    width: 100%;
+  }
 
   /* Two rows, not three. Grid rather than the flex column it inherits: the way
      out and the server it leaves read as a breadcrumb at this width, and the
@@ -2604,6 +2688,12 @@ footer p + p { margin-top: var(--space-2); }
   .side-link { justify-content: center; }
   .layout.collapsed .side-link { justify-content: center; }
   .layout.collapsed .side-guild { justify-content: flex-start; }
+  /* The third of the trio `.layout.collapsed` centres, and the one this block
+     forgot to put back (#163). No effect today because `.side-up` lands in the
+     grid's `auto` track and is content-sized -- but the rail's centring makes
+     no sense at a width where the labels are back, and the other two are
+     reset right here. */
+  .layout.collapsed .side-up a { justify-content: flex-start; }
 
   /* THE SUB-NAV IS A SECOND TAB STRIP HERE, NOT AN INDENTED LIST (#140).
    *
@@ -2738,6 +2828,14 @@ footer p + p { margin-top: var(--space-2); }
 .page-head h1 {
   margin: 0;
   line-height: var(--leading-tight);
+  /* The guild name is user-supplied and unbounded, and this is the largest
+     text on the page. Every other place the same string is drawn has the
+     mitigation -- `.sidebar`, `.server-name`, `.value`, `.audit li` -- and the
+     one drawn at 22.4px bold did not (#163).
+     #195 phase 4 changed the mechanism, not the exposure: the old `.guild-head`
+     was a flex row missing `min-width: 0` beside a 64px icon; `.page-head` is a
+     plain block, so this is ordinary overflow of an unbreakable word. */
+  overflow-wrap: anywhere;
 }
 .page-head p {
   max-width: var(--measure);
@@ -2871,9 +2969,13 @@ footer p + p { margin-top: var(--space-2); }
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: #fff;
+  /* --accent-ink, not #fff, and --radius-pill, not 999px. These were the only
+     raw colour literal outside the token blocks and a hardcoded radius beside
+     a token holding the same value (#163). --accent-ink is #ffffff in both
+     themes, so this is the same pixels by a name that survives a retheme. */
+  color: var(--accent-ink);
   background: var(--accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .plan-card h3 {
