@@ -438,27 +438,21 @@ header.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; }
 header.site nav a { color: var(--muted); text-decoration: none; font-size: 0.94rem; }
 header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); text-decoration: underline; }
 
-/* FIVE LINKS ON A PHONE (#188 phase 2).
-   Adding Pricing pushed the nav to a second line on every common phone width,
-   and it wrapped as a single orphaned "Dashboard" -- which reads as a broken
-   header rather than a wrapped one. Tightening the gap below 26rem puts all
-   five back on one line at 360px and up.
+/* THREE LINKS ON A PHONE (#200).
+   A `@media (max-width: 26rem)` block used to live here, tightening the gap
+   and shrinking the label so that Pricing, three legal links and Dashboard
+   fitted on one line at 360px. It said outright that it did not fix 320px,
+   because five links do not fit there.
 
-   It does NOT fix 320px, and deliberately so: five links do not fit there and
-   the nav already wrapped at that width before Pricing existed, so nothing
-   regressed. Shrinking the type until they fit would trade a legible wrapped
-   header for an illegible unwrapped one. */
-@media (max-width: 26rem) {
-  /* Inter runs ~5% wider than the system stack this site used before #195
-     phase 2, which pushed the nav from 319px to 331px and re-broke the 360px
-     case the gap alone had just fixed. That is a real cost of the shared
-     typeface and this is where it is paid.
-     The label shrinks rather than the gap, because 4 gaps have only ~12px
-     left to give and an 8.8px gap between links is cramped in a way 14px
-     type is not. */
-  header.site nav { gap: 0.7rem; }
-  header.site nav a { font-size: 0.875rem; }
-}
+   #200 took the legal links out of the header. The nav is now 250px wide
+   against 280px of content box at 320px, so it holds one line at every width
+   with no override at all -- including the 320px case the tightening could
+   not reach. The block went with the links it was written for.
+
+   What is unchanged: below ~500px the brand, the nav and the theme picker
+   still stack into three rows, because `.wrap` is a wrapping flex row and the
+   three together need ~416px. That was true before this change and is not
+   what the media query was fixing. */
 
 /* THE THEME MENU (#195 phase 7).
 

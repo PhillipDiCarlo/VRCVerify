@@ -851,13 +851,30 @@ def test_every_page_can_reach_the_changelog(page):
     """Phase 4 shipped the page deliberately unlinked; this is the phase that
     links it.
 
-    In the footer rather than the header nav: the header is the contested
-    space -- it already carries three legal links and the dashboard, and #188
-    adds Pricing, which has a far stronger claim on a visitor's attention than
-    a changelog does. A changelog in the footer is where readers look for one.
+    Originally in the footer rather than the header nav, because the header
+    was the contested space: three legal links plus the dashboard, and #188
+    adding Pricing. #200 took the legal links out of the header, which is what
+    freed the room, and the changelog moved up into it. The footer link stays
+    -- the footer is the index of everything, and losing it there would make
+    the changelog reachable only from a row a reader has to scan for.
+
+    So this passes on both surfaces now. The header-specific claim is
+    `test_the_changelog_is_offered_in_the_header`.
     """
     assert '<a href="/changelog">' in read(page), (
         f"{page.name} cannot reach the changelog"
+    )
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_the_changelog_is_offered_in_the_header(page):
+    """The slot #200 freed. Asserted separately from the footer link above,
+    because that one passes on a page that only has the footer copy and this
+    is the half that is easy to lose when somebody edits the chrome."""
+    header = re.search(r'<header class="site">(.*?)</header>', read(page), re.S)
+    assert header, f"{page.name} has no site header"
+    assert '<a href="/changelog">' in header.group(1), (
+        f"{page.name} does not offer the changelog in its header"
     )
 
 
@@ -1310,3 +1327,59 @@ def test_the_list_adds_no_ordered_markers():
     css = (SITE / "style.css").read_text()
     block = re.search(r"\.toc-list \{[^}]*\}", css).group(0)
     assert "list-style: none" in block
+
+
+# --------------------------------------------------------------------------
+# The header stops carrying the legal links (#200).
+# --------------------------------------------------------------------------
+
+LEGAL_HREFS = ("/terms", "/privacy", "/refunds")
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_the_header_carries_no_legal_links(page):
+    """The ask in #200. Terms, Privacy and Refunds sat in the top nav on every
+    page, above the fold, competing with the two links a visitor is actually
+    looking for.
+
+    Asserted per page rather than once on index.html even though the chrome is
+    byte-identical, because `changelog.html` is generated: it gets its header
+    copied out of `terms.html` by `scripts/gen_changelog.py` and only picks
+    this up if somebody re-ran the script.
+    """
+    header = re.search(r'<header class="site">(.*?)</header>', read(page), re.S)
+    assert header, f"{page.name} has no site header"
+    hrefs = re.findall(r'<a href="([^"]+)"', header.group(1))
+    assert not [h for h in hrefs if h in LEGAL_HREFS], (
+        f"{page.name} still links a policy from its header: {hrefs}"
+    )
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_the_footer_still_carries_all_three(page):
+    """The other half of #200, and the half that matters more. Removing the
+    links from the header is only acceptable while the footer keeps them --
+    Stripe and Discord both send people here expecting to find a policy, and
+    `REQUIRED_PAGES` above records that an external configuration nothing in
+    this repo can see points at these paths."""
+    footer = re.search(r'<footer class="site">(.*?)</footer>', read(page), re.S)
+    assert footer, f"{page.name} has no site footer"
+    for href in LEGAL_HREFS:
+        assert f'<a href="{href}">' in footer.group(1), (
+            f"{page.name} lost {href} from its footer"
+        )
+
+
+def test_the_nav_is_down_to_three_links():
+    """The claim the CSS makes where the 26rem override used to be: three
+    links, so the phone-width special case has nothing left to fix. If a
+    fourth is ever added back, that comment is wrong and the 360px case needs
+    re-measuring rather than assuming."""
+    nav = re.search(r"<nav>(.*?)</nav>", read(SITE / "index.html"), re.S)
+    assert nav, "the landing page has no header nav"
+    assert len(re.findall(r'<a href="', nav.group(1))) == 3
+
+    css = (SITE / "style.css").read_text(encoding="utf-8")
+    assert "FIVE LINKS ON A PHONE" not in css, (
+        "the removed override's comment is back without the links it describes"
+    )

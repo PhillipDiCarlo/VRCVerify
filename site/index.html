@@ -27,9 +27,18 @@
            request path. A price typed here would keep quoting the old number
            after a price change, on the same domain the Terms live on. -->
       <a href="https://dashboard.vrcverify.com/pricing">Pricing</a>
-      <a href="/terms">Terms</a>
-      <a href="/privacy">Privacy</a>
-      <a href="/refunds">Refunds</a>
+      <!-- Terms, Privacy and Refunds were here and are not any more (#200).
+           Every page still carries all three in its footer, which is where a
+           reader goes looking for a policy, and the 404 page lists them in its
+           body. Nothing became unreachable; they stopped taking the most
+           valuable row on the page to say something a visitor deciding whether
+           to install the bot is not asking.
+
+           The changelog takes one of the freed slots and moves up out of the
+           footer. #137 phase 5 put it there because the header "already
+           carries three legal links and the dashboard" and there was no room;
+           that sentence is what just stopped being true. -->
+      <a href="/changelog">What&#39;s new</a>
       <a href="https://dashboard.vrcverify.com">Dashboard</a>
     </nav>
     <!-- The theme control is built by /theme.js into this placeholder (#195
