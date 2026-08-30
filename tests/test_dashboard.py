@@ -8989,3 +8989,123 @@ class TestTheAuditTrailsTimestamps:
                 [{**self.ENTRY, "changed_at": bad}], None, None, lambda s: s, "de"
             )
             assert rows[0]["when_text"] == ""
+
+
+class TestTheFocusRingDoesNotRestyleTheElement(object):
+    """The focus ring decorates; it must not redraw what it decorates (#160).
+
+    `:focus-visible` used to carry `border-radius: 2px`. There is no such thing
+    as an outline radius -- that declaration rounds the ELEMENT, for as long as
+    it holds keyboard focus. The rule is (0,1,0) and lives at the foot of the
+    file, so it matched or beat every class-based control rule above it and won
+    on order. Tabbing onto the settings toggle squared off a 999px pill; every
+    Tab through the header did the same to the icon buttons.
+
+    The failure is invisible in a diff and invisible to anybody using a mouse,
+    which is why it survived two passes over this stylesheet. It is pinned
+    rather than merely deleted.
+    """
+
+    @staticmethod
+    def _css() -> str:
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            return handle.read()
+
+    @staticmethod
+    def _focus_block(css: str) -> str:
+        block = re.search(r"(?m)^:focus-visible \{([^}]*)\}", css)
+        assert block, "the :focus-visible rule has gone"
+        return block.group(1)
+
+    def test_the_ring_is_still_drawn(self):
+        """Deleting the radius must not have taken the outline with it. This is
+        the one style on the page that may never be subtle."""
+        body = self._focus_block(self._css())
+        assert "outline:" in body
+        assert "none" not in body, "the focus ring has been switched off"
+        assert "outline-offset:" in body
+
+    def test_it_sets_no_geometry_of_its_own(self):
+        """Anything here that is not the ring is a property of the element,
+        applied only while focused -- which is a state change nobody asked
+        for.
+
+        Declaration NAMES only, not a substring search over the block: the
+        ring's own `var(--focus-width)` contains "width", and a test that
+        cannot tell a property from a token would fail on the correct file.
+        """
+        body = self._focus_block(self._css())
+        declared = {
+            name.strip()
+            for name, _ in re.findall(r"([a-z-]+)\s*:\s*([^;]+);", body)
+        }
+        allowed = {"outline", "outline-offset", "outline-color", "outline-width"}
+        assert declared <= allowed, (
+            f"{sorted(declared - allowed)} in the :focus-visible block restyle "
+            f"the element itself on focus, not the ring around it"
+        )
+
+    def test_the_controls_keep_their_own_corners(self):
+        """The specific regression: a pill, a control and an input all keep the
+        radius their own rule gave them while focused."""
+        css = self._css()
+        for selector, expected in (
+            (r"\.switch \{", "var(--radius-pill)"),
+            (r"\.button \{", "var(--radius-control)"),
+            (r"\.menu-item \{", "var(--radius-control)"),
+        ):
+            rule = re.search(r"(?m)^" + selector + r"([^}]*)\}", css)
+            assert rule, f"the rule for {selector} has gone"
+            assert expected in rule.group(1), (
+                f"{selector} no longer sets {expected}"
+            )
+
+    def test_the_four_controls_share_one_focus_ring(self):
+        """The other half of the row #160 called out.
+
+        `select:focus-visible, textarea:focus-visible { outline-offset: 0 }`
+        was written while `select:focus { outline: none }` meant no ring was
+        drawn at all -- the comment above `select:focus` names it as the
+        giveaway for that bug. Phase 5 restored the ring and left this behind,
+        so a focused select sat 2px tighter than the text input beside it.
+
+        Nothing may re-narrow the ring for part of the group. If one of these
+        four ever needs a different offset, that is a decision to argue for,
+        not a leftover.
+        """
+        css = self._css()
+        stray = re.search(
+            r"(?m)^(select|textarea|input)[^{\n]*:focus-visible[^{]*\{([^}]*)\}",
+            css,
+        )
+        assert not stray, (
+            f"a control re-styles its own focus ring: {stray.group(0)!r} -- "
+            f"the four grouped controls must share one ring"
+        )
+
+    def test_the_grouped_control_rule_is_not_split_by_specificity(self):
+        """Why the old declaration was worse than it looked.
+
+        `select`, `textarea` and the text inputs are styled by ONE grouped rule
+        so they read as one control at one height (#133 phase 5). Specificity
+        is computed per selector in that list, not for the list: `select` is
+        (0,0,1) and lost to `:focus-visible`, while `input[type="text"]` is
+        (0,1,1) and did not. The agreement held at rest and broke on focus, for
+        half the group.
+
+        So this asserts the shared rule is still shared -- if it is ever split
+        so the elements can diverge, that is the moment to notice.
+        """
+        css = self._css()
+        rule = re.search(
+            r"(?m)^select,\s*\ntextarea,\s*\ninput\[type=\"text\"\],\s*\n"
+            r"input\[type=\"color\"\] \{([^}]*)\}",
+            css,
+        )
+        assert rule, "the four controls are no longer styled by one rule"
+        assert "border-radius: var(--radius-control)" in rule.group(1)

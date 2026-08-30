@@ -1845,9 +1845,12 @@ input[type="text"]:hover { border-color: var(--ink); }
  * This rule used to end with it, replacing the ring with a 1px border colour.
  * `select:focus` is more specific than the `:focus-visible` rule at the foot
  * of this file, so it won every time -- these two controls had no focus ring
- * at all, for anybody, including somebody navigating by keyboard. The
- * `select:focus-visible { outline-offset: 0 }` rule further down is the
- * giveaway: it adjusts an outline that was never being drawn.
+ * at all, for anybody, including somebody navigating by keyboard. A
+ * `select:focus-visible { outline-offset: 0 }` rule used to sit further down
+ * and was the giveaway: it adjusted an outline that was never being drawn.
+ * That rule is gone as of #160 -- once the ring came back it was no longer
+ * compensating for anything, it was just making a focused select sit 2px
+ * tighter than the input beside it.
  *
  * The border still moves on focus. It is now the second signal rather than
  * the only one. */
@@ -2367,14 +2370,37 @@ footer p + p { margin-top: var(--space-2); }
 /* --- accessibility and input --- */
 
 /* The browser default focus ring disappears against several of the surfaces
- * above. This is the one style on the page that must never be subtle. */
+ * above. This is the one style on the page that must never be subtle.
+ *
+ * NO `border-radius` HERE, and that is the whole of #160.
+ *
+ * This block used to end with `border-radius: 2px`. That is not the outline's
+ * radius -- there is no such property -- it is the ELEMENT's, applied for as
+ * long as the element holds keyboard focus. `:focus-visible` is (0,1,0) and
+ * sits at the foot of this file, so it matched or beat every class-based
+ * control rule above it and won on order: `.switch` snapped from a 999px pill
+ * to a near-rectangle on Tab, and `.button`, `.bar-button`, `.menu-item`,
+ * `.side-link`, `.side-up a`, `.side-sub-link`, `.hamburger`, `.bell-all` and
+ * `.bell-read` all dropped from 4px to 2px and back.
+ *
+ * It also broke the one-control agreement phase 5 established, and only for
+ * the half that loses: `select` and `textarea` are (0,0,1) and were overridden,
+ * while `input[type="text"]` and `input[type="color"]` are (0,1,1) and kept
+ * their 4px -- so a focused select and the text input beside it disagreed
+ * about their corners.
+ *
+ * The outline follows each element's own radius on its own, which is what was
+ * wanted. Nothing needed it: an element with no radius and no fill -- a text
+ * link, a bare checkbox -- has no painted box to round either.
+ *
+ * Same shape of accident as `select:focus { outline: none }`, which #133 phase
+ * 5 fixed and left a comment about above `select:focus`. If a square-cornered
+ * element ever needs a rounded ring, give the radius to that element. */
 :focus-visible {
   outline: var(--focus-width) solid var(--accent-text);
   outline-offset: var(--focus-offset);
-  border-radius: 2px;
 }
 
-select:focus-visible, textarea:focus-visible { outline-offset: 0; }
 
 /* Touch. 44px is the smallest target a finger hits reliably, and it applies
  * only to coarse pointers so a mouse still gets the tighter rhythm. */
