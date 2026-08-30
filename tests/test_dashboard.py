@@ -9236,3 +9236,183 @@ class TestEveryNoticeLivesInACard(object):
             '</section>\n'
         )
         assert self._offenders(real) == []
+
+
+class TestTheSmallDefectsFoundAlongsideTheThemingWork(object):
+    """#163. Eight unrelated findings, each too small for its own issue, all of
+    them the kind that survive review because a hex or a missing declaration
+    looks like every other hex or missing declaration."""
+
+    @staticmethod
+    def _css() -> str:
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            return handle.read()
+
+    @staticmethod
+    def _rule(css: str, selector: str) -> str:
+        found = re.search(
+            r"(?<![\w.:>-])" + re.escape(selector) + r"\s*\{([^}]*)\}", css
+        )
+        assert found, f"no rule for {selector}"
+        return found.group(1)
+
+    def _coarse(self, css: str) -> str:
+        block = re.search(r"@media \(pointer: coarse\) \{(.*?)\n\}", css, re.S)
+        assert block, "the touch block has gone"
+        return block.group(1)
+
+    def test_the_default_blue_checkbox_meets_the_touch_floor(self):
+        """It was the only interactive thing on the page the touch block
+        forgot. A bare flex row with no min-height is as tall as its text --
+        15px x 1.55 = 23.25px, under the 24x24 of SC 2.5.8 -- and it sits
+        directly under a switch this block grew to 44x28."""
+        assert "min-height: 44px" in self._rule(self._coarse(self._css()), ".check")
+
+    def test_the_dark_inset_is_not_the_dark_page_ground(self):
+        """They were the same hex, `#1e1f22`, ratio 1.000 -- so any inset
+        surface landing on the ground rather than on a card was invisible in
+        the dark theme. Nothing showed it only because everything inset happens
+        to sit inside a `.panel` today, which is composition, not design."""
+        import sys
+
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from test_contrast import _palettes, contrast
+
+        dark = _palettes()["dark"]
+        assert dark["inset"] != dark["bg"], (
+            "--dark-inset and --dark-bg are the same colour again"
+        )
+        # Not an accessibility floor -- SC 1.4.11 is about components, not
+        # decorative surfaces. The light theme separates the same two by
+        # 1.075:1, and this asks the dark theme to do as much.
+        assert contrast(dark["inset"], dark["bg"]) >= 1.05
+
+    def test_the_inset_still_reads_as_recessed_against_a_card(self):
+        """The reason it went darker rather than lighter. Mirroring the light
+        theme -- where --inset sits between --bg and --panel -- would have
+        moved it toward --panel and made the shipped case worse: every inset
+        surface in this app is currently drawn on a card."""
+        import sys
+
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from test_contrast import _palettes, contrast
+
+        dark = _palettes()["dark"]
+        assert contrast(dark["inset"], dark["panel"]) >= 1.30, (
+            "the inset surface has drifted toward the card it sits in"
+        )
+
+    def test_the_clickable_server_card_has_a_boundary(self):
+        """`.server-card.ready` is a whole-card target via the stretched link,
+        so its edge is the bounds of a UI component: SC 1.4.11, 3:1. It was
+        1.32:1 light and 1.24:1 dark, with a 1.17:1 fill behind it."""
+        import sys
+
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from test_contrast import _palettes, contrast
+
+        assert "var(--card-line)" in self._rule(self._css(), ".server-card")
+        for theme, palette in _palettes().items():
+            ratio = contrast(palette["card-line"], palette["panel"])
+            assert ratio >= 3.0, f"{theme}: the card's edge is {ratio:.2f}:1"
+
+    def test_the_general_hairline_was_not_dragged_up_with_it(self):
+        """--card-line is its own token for a reason. --line draws the rule
+        under a panel heading, the sidebar's divider and an input's edge --
+        none of which bound a control, and all of which would read as a
+        wireframe at 3:1."""
+        import sys
+
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from test_contrast import _palettes, contrast
+
+        for theme, palette in _palettes().items():
+            assert contrast(palette["line"], palette["panel"]) < 2.0, (
+                f"{theme}: --line has been darkened into a border"
+            )
+        # And the element that shares the card's fill but is not a control
+        # keeps the quiet edge.
+        assert "var(--line)" in self._rule(self._css(), ".empty-state")
+
+    def test_the_premium_badge_has_an_edge_the_fill_cannot_give_it(self):
+        """--accent on a dark --panel is 2.74:1. The fill cannot be the fix:
+        lightening it to clear 3:1 takes the white label below 4.5:1, and the
+        label is 11px bold, which is not large text."""
+        import sys
+
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from test_contrast import _palettes, contrast
+
+        rule = self._rule(self._css(), ".badge.premium")
+        assert "box-shadow: inset 0 0 0 1px var(--accent-text)" in rule
+        for theme, palette in _palettes().items():
+            ring = contrast(palette["accent-text"], palette["panel"])
+            assert ring >= 3.0, f"{theme}: the badge's ring is {ring:.2f}:1"
+            label = contrast(palette["accent-ink"], palette["accent"])
+            assert label >= 4.5, f"{theme}: the badge's label is {label:.2f}:1"
+
+    def test_the_page_title_can_break_a_long_server_name(self):
+        """The largest text on the page, holding a user-supplied string, was
+        the one place the mitigation applied everywhere else was missing."""
+        assert "overflow-wrap: anywhere" in self._rule(self._css(), ".page-head h1")
+
+    def test_main_is_stretched_below_the_breakpoint(self):
+        """`align-items: flex-start` becomes a cross-axis declaration when the
+        narrow block flips `.layout` to a column, so children take fit-content.
+        `.sidebar` was given `width: 100%`; `main` was not."""
+        narrow = re.search(r"@media \(max-width: 48rem\)(.*)", self._css(), re.S)
+        assert narrow, "the narrow block's query has changed shape"
+        assert "width: 100%" in self._rule(narrow.group(1), "main")
+
+    def test_the_plan_badge_uses_tokens_not_literals(self):
+        """It was the only raw colour literal outside the token blocks, and a
+        hardcoded radius beside a token holding the same value."""
+        # Comments stripped first: the rule carries a note naming the two
+        # literals it replaced, and a test that cannot tell a declaration from
+        # a comment about a declaration would fail on the fixed file.
+        rule = re.sub(r"/\*.*?\*/", "", self._rule(self._css(), ".plan-badge"), flags=re.S)
+        assert "var(--accent-ink)" in rule and "#fff" not in rule
+        assert "var(--radius-pill)" in rule and "999px" not in rule
+
+    def test_no_raw_colour_literal_survives_outside_the_token_blocks(self):
+        """The general form of the finding above. Every hex in this file should
+        be a token declaration; a colour written into a rule is a colour that
+        cannot be rethemed."""
+        css = re.sub(r"/\*.*?\*/", "", self._css(), flags=re.S)
+        # Drop every `--foo: #hex;` declaration, then look for what is left.
+        without_tokens = re.sub(r"--[a-z0-9-]+\s*:\s*#[0-9a-fA-F]{3,8}\s*;", "", css)
+        leftovers = re.findall(r"#[0-9a-fA-F]{3,8}\b", without_tokens)
+        assert not leftovers, f"raw colour literals in rules: {leftovers}"
+
+    def test_the_collapsed_side_up_is_reset_with_its_siblings(self):
+        """`.layout.collapsed` centres `.side-guild`, `.side-up a` and
+        `.side-link`. The narrow block put two of the three back."""
+        narrow = re.search(r"@media \(max-width: 48rem\)(.*)", self._css(), re.S)
+        assert narrow, "the narrow block's query has changed shape"
+        body = narrow.group(1)
+        for selector in (
+            ".layout.collapsed .side-guild",
+            ".layout.collapsed .side-up a",
+        ):
+            assert "justify-content: flex-start" in self._rule(body, selector), (
+                f"{selector} still wears the rail's centring at phone width"
+            )
+
+    def test_the_dead_guild_head_rules_are_gone(self):
+        """#195 phase 4 replaced `.guild-head` with `.page-head` and deleted the
+        icon it was a flex row for. The rules matched nothing afterwards."""
+        import dashboard
+
+        css = self._css()
+        assert ".guild-head" not in re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+        templates = os.path.join(os.path.dirname(dashboard.__file__), "templates")
+        for name in os.listdir(templates):
+            if name.endswith(".html"):
+                with open(os.path.join(templates, name), encoding="utf-8") as handle:
+                    assert "guild-head" not in handle.read(), name
