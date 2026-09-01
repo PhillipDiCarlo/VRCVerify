@@ -75,10 +75,31 @@ def _read_heartbeats(directory: pathlib.Path, now: int) -> dict[str, dict[str, A
     """Every part any service claims, with stale files answered as down.
 
     A part reported by more than one service (the queue, which both workers
-    watch) is resolved to the WORST answer. One worker still holding a broker
-    connection does not make the other one's dropped connection acceptable,
-    and taking the best answer would hide exactly the half-broken state that is
-    hardest to notice from outside.
+    watch) is resolved to the WORST answer among the services STILL SPEAKING.
+    One worker holding a broker connection does not make the other one's
+    dropped connection acceptable, and taking the best answer would hide
+    exactly the half-broken state that is hardest to notice from outside.
+
+    SILENCE IS NOT AN OBSERVATION, which is the distinction this function got
+    wrong until it was caught in production. A heartbeat file speaks about two
+    different kinds of thing:
+
+      its own service   authoritatively. The file going quiet IS the outage,
+                        and is the only way this host can report one.
+      shared parts      observationally. It watches the broker; so does the
+                        other worker.
+
+    When a file goes stale, only the first kind survives. Stopping
+    vrc-online-checker used to mark `queue` down on its behalf -- while
+    vrc-group-inviter was still running and still reporting that same queue as
+    open -- and because the worst answer wins, the dead observer's invented
+    "down" beat the live observer's measured "up". Group invites went red on a
+    public page over a service that was working perfectly, for the sole reason
+    that a DIFFERENT service had stopped watching it.
+
+    We did not learn the queue was down. We learned we had one fewer pair of
+    eyes on it. So the stale file's opinions about shared parts are withdrawn
+    rather than inverted, and whoever is still watching gets the last word.
     """
     parts: dict[str, dict[str, Any]] = {}
 
@@ -102,8 +123,12 @@ def _read_heartbeats(directory: pathlib.Path, now: int) -> dict[str, dict[str, A
             continue
 
         if age > STALE_AFTER:
-            for name in written or {service: None}:
-                record(name, False, f"no heartbeat from {service} for {age}s")
+            # Its own name only. Everything else this file used to say about
+            # shared infrastructure is withdrawn, not inverted -- see the
+            # docstring. If nobody else is watching that part either, it simply
+            # stops being reported, and the status page's own staleness rule
+            # takes it from there.
+            record(service, False, f"no heartbeat from {service} for {age}s")
             continue
 
         for name, answer in written.items():
