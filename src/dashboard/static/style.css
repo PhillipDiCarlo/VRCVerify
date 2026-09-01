@@ -676,7 +676,7 @@ p { text-wrap: pretty; }
   color: var(--ink-strong);
   text-decoration: none;
   letter-spacing: -0.01em;
-  margin-right: auto;
+  margin-inline-end: auto;
 }
 
 /* Sized by height, not width: the mark is wider than it is tall, and matching
@@ -735,14 +735,15 @@ p { text-wrap: pretty; }
  * panel now covering part of the page. */
 .bar-menu[open] .bar-button { background: var(--hover); color: var(--ink); }
 
-/* Anchored to its own right edge rather than its left, so a panel wider than
+/* Anchored to its own end edge rather than its start, so a panel wider than
  * the button it hangs from opens inwards and never off the side of the
- * window. Every menu in this bar is near the right edge, so this is the only
- * direction that works for all of them. */
+ * window. Every menu in this bar sits near the end of the row -- the right in
+ * LTR, the left once `dir="rtl"` flips the row -- so `inset-inline-end`
+ * follows it there with no separate rule (#229). */
 .bar-panel {
   position: absolute;
   top: calc(100% + var(--space-2));
-  right: 0;
+  inset-inline-end: 0;
   z-index: 20;
   min-width: 15rem;
   padding: var(--space-2);
@@ -795,7 +796,7 @@ p { text-wrap: pretty; }
   background: none;
   font: inherit;
   color: var(--ink);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -824,6 +825,13 @@ p { text-wrap: pretty; }
 
 .menu-tick { flex: 0 0 auto; color: var(--accent-text); }
 
+/* The sign-out door draws its arrow leaving to the right, which in RTL reads
+ * as walking in rather than out. Same reasoning as `.side-up-mark`: the shape
+ * itself has to flip, and only a `dir` selector reaches inside an SVG (#229).
+ * `.menu-mark-door` singles it out from `person` and `everywhere`, which are
+ * symmetric and stay put. */
+[dir="rtl"] .menu-mark-door { transform: scaleX(-1); }
+
 /* --- the notification bell (#136) ---
  *
  * A <details> like the two menus above, so it opens with no JavaScript at all
@@ -835,11 +843,13 @@ p { text-wrap: pretty; }
  * sentences. */
 .bell-dot {
   position: absolute;
-  /* Pinned to the glyph's upper right rather than the button's corner. The
+  /* Pinned to the glyph's upper end corner rather than the button's. The
    * button is a 34px target around a 16px icon, so the corner is empty space
-   * and a dot there reads as belonging to the bar, not to the bell. */
+   * and a dot there reads as belonging to the bar, not to the bell.
+   * `inset-inline-end` so the corner it hugs is still the icon's, once the
+   * bell itself moves side under `dir="rtl"` (#229). */
   top: 0.4rem;
-  right: 0.4rem;
+  inset-inline-end: 0.4rem;
   width: 0.3rem;
   height: 0.3rem;
   border-radius: 50%;
@@ -1202,8 +1212,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   min-width: 0;
   max-width: 60rem;
   margin: 0;
-  padding-left: 0;
-  padding-right: 0;
+  padding-inline: 0;
 }
 
 /* 15rem expanded, 4rem collapsed: the settled convention, and wide enough that
@@ -1255,6 +1264,12 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 .side-up a:hover { background: var(--hover); color: var(--ink-strong); }
 .side-up-mark { flex: 0 0 auto; display: flex; }
+
+/* The arrow itself points left, drawn that way because the row it sits in
+ * reads left-to-right. Mirroring the row (#229) does not mirror the path data
+ * inside the SVG, so the shape needs its own flip: a logical property has
+ * nothing to attach to here, only a `dir` selector does. */
+[dir="rtl"] .side-up-mark svg { transform: scaleX(-1); }
 
 /* The server everything below belongs to.
  *
@@ -1562,7 +1577,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   padding: var(--space-4);
   background: var(--inset);
   border-radius: var(--radius-control);
-  text-align: left;
+  text-align: start;
 }
 
 .signin-grants li {
@@ -1601,7 +1616,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 .signin-note {
   margin: 0 0 var(--space-4);
-  text-align: left;
+  text-align: start;
   font-size: var(--text-note);
   color: var(--muted);
 }
@@ -1635,7 +1650,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   margin: 1.25rem 0 0;
   padding: 0.9rem 1rem;
   background: var(--inset);
-  border-left: 3px solid var(--accent-text);
+  border-inline-start: 3px solid var(--accent-text);
   border-radius: var(--radius-control);
 }
 
@@ -1804,7 +1819,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   content: "";
   position: absolute;
   top: 0.1875rem;
-  left: 0.1875rem;
+  inset-inline-start: 0.1875rem;
   width: 1.125rem;
   height: 1.125rem;
   border-radius: 50%;
@@ -1812,7 +1827,12 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 }
 
 .switch:checked { background: var(--switch-on); }
+/* `translate` moves along the physical X axis regardless of `dir`, unlike the
+ * `inset-inline-start` above -- so the RTL flip needs its own line rather than
+ * following for free (#229). Off is the inline-start side either way; this is
+ * only the one axis a logical property can't reach. */
 .switch:checked::before { translate: 1rem 0; }
+[dir="rtl"] .switch:checked::before { translate: -1rem 0; }
 
 /* Disabled covers two different situations that must not be confused -- the
  * plan refuses the save (`locked`) and the bot's write path has not opened
@@ -2042,7 +2062,7 @@ textarea {
   margin: var(--space-4) 0 0;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent-text);
+  border-inline-start: 3px solid var(--accent-text);
   border-radius: var(--radius-card);
   background: var(--inset);
 }
@@ -2292,7 +2312,7 @@ footer p + p { margin-top: var(--space-2); }
 
 /* The one suggested action. Accented like the upgrade box, because it is the
  * same kind of thing: a prompt on a page you came to read. */
-.next-step { border-left: 3px solid var(--accent-text); }
+.next-step { border-inline-start: 3px solid var(--accent-text); }
 
 /* --- the trend chart ---
  *
@@ -2329,7 +2349,14 @@ footer p + p { margin-top: var(--space-2); }
 .chart { border-bottom: 1px solid var(--line); }
 
 /* Right-aligned, so it sits over the end of the series rather than over the
- * start, where it would compete with the first bars for the same corner. */
+ * start, where it would compete with the first bars for the same corner.
+ *
+ * PHYSICAL on purpose, unlike most of this file (#229): the bars beside it
+ * are placed by `x` coordinates `overview_view.build_chart` computes once,
+ * oldest at 0 and newest at the viewBox's right edge, with no `dir` check
+ * anywhere in that arithmetic. The series does not mirror in RTL, so a label
+ * meant to sit over its newest end cannot follow `dir` either without
+ * drifting away from the bars it is labelling. */
 .chart-scale {
   margin: var(--space-5) 0 var(--space-1);
   text-align: right;
@@ -2425,7 +2452,7 @@ footer p + p { margin-top: var(--space-2); }
   overflow-wrap: anywhere;
 }
 
-.audit-what { font-weight: 600; color: var(--ink-strong); margin-right: 0.4rem; }
+.audit-what { font-weight: 600; color: var(--ink-strong); margin-inline-end: 0.4rem; }
 .audit-who { display: block; font-size: 0.825rem; color: var(--faint); }
 
 .panel-post {
@@ -2590,8 +2617,7 @@ footer p + p { margin-top: var(--space-2); }
   .bell-panel {
     position: fixed;
     top: calc(var(--bar-h) + var(--space-2));
-    left: var(--space-3);
-    right: var(--space-3);
+    inset-inline: var(--space-3);
     width: auto;
   }
 
@@ -2636,9 +2662,9 @@ footer p + p { margin-top: var(--space-2); }
     width: 100%;
     position: static;
     margin-top: 1rem;
-    text-align: left;
+    text-align: start;
   }
-  .layout.collapsed .sidebar { flex-basis: auto; text-align: left; }
+  .layout.collapsed .sidebar { flex-basis: auto; text-align: start; }
 
   /* The rail makes no sense as a horizontal strip -- labels come back, whatever
    * the cookie says. The icons stay: they are shown in both states now, and a
@@ -2962,7 +2988,7 @@ footer p + p { margin-top: var(--space-2); }
 .plan-badge {
   position: absolute;
   top: -0.6rem;
-  left: 1.15rem;
+  inset-inline-start: 1.15rem;
   margin: 0;
   padding: 0.1rem 0.5rem;
   font-size: 0.6875rem;
@@ -3059,14 +3085,14 @@ footer p + p { margin-top: var(--space-2); }
 .plan-list { list-style: none; margin: var(--space-3) 0 var(--space-4); padding: 0; }
 .plan-list li {
   position: relative;
-  padding-left: 1.5rem;
+  padding-inline-start: 1.5rem;
   margin: var(--space-2) 0;
   color: var(--ink);
 }
 .plan-list li::before {
   content: "\2713";
   position: absolute;
-  left: 0;
+  inset-inline-start: 0;
   color: var(--accent-text);
   font-weight: 700;
 }
@@ -3098,7 +3124,7 @@ footer p + p { margin-top: var(--space-2); }
 
 .plan-notes {
   margin: 1rem 0 0;
-  padding-left: 1.1rem;
+  padding-inline-start: 1.1rem;
   color: var(--muted);
   font-size: 0.9375rem;
 }
