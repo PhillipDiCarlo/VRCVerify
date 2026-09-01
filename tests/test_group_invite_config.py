@@ -629,6 +629,21 @@ class TestTheVocabularyMatchesTheWorker:
     def test_ready_means_the_same_thing_on_both_sides(self):
         assert bot.GROUP_SETUP_READY == inviter.STATE_READY
 
+    def test_every_state_the_bot_can_send_has_copy_on_the_page(self):
+        """A raw state code reaching the page would be gibberish to an admin.
+
+        Derived from the bot's own vocabulary, so a state added there fails
+        here until somebody writes the sentence for it.
+
+        HERE RATHER THAN IN test_dashboard.py, where it used to live behind a
+        lazy `import bot`. This module already holds both sides at module
+        scope; test_dashboard.py is imported by scripts/preview_bot.py, and
+        anything that puts `bot` in that file's import graph puts
+        `load_dotenv()` one call away from the local preview. See #162.
+        """
+        for state in bot.GROUP_SETUP_STATES:
+            assert state in settings_view.GROUP_SETUP_COPY, state
+
     def test_the_states_the_bot_adds_are_only_the_ones_the_worker_cannot_know(self):
         """"Never checked", "a job is in flight" and "nothing came back" are
         this side's business: the worker only ever reports what it found, and

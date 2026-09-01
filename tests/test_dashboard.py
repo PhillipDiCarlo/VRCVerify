@@ -7476,17 +7476,6 @@ class TestGroupSetupSummary:
         assert summary["configured"] is False
         assert summary["group_url"] is None
 
-    def test_every_state_the_bot_can_send_has_copy(self):
-        """A raw state code reaching the page would be gibberish to an admin.
-
-        Derived from the bot's own vocabulary, so a state added there fails
-        here until somebody writes the sentence for it.
-        """
-        import bot as bot_module
-
-        for state in bot_module.GROUP_SETUP_STATES:
-            assert state in settings_view.GROUP_SETUP_COPY, state
-
     def test_an_unknown_state_falls_back_rather_than_leaking(self):
         summary = self.summary(state="something_new")
         assert summary["headline"] == settings_view.GROUP_SETUP_FALLBACK[1]

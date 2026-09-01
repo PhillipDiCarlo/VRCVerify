@@ -35,6 +35,11 @@ browser as a cookie, so signing out does nothing here. That is the trade for
 not having to walk the OAuth flow against a Discord that would refuse these
 credentials anyway. To look at the signed-out pages, use the other entry.
 
+The signed-in preview is held behind a token printed in the banner, because
+the bind is loopback and loopback is not the same as private -- see
+PREVIEW_TOKEN below. Run and Debug opens the URL with the token in it, so
+this costs a click to nobody.
+
 **This file never reads .env.** The repository root has one, it holds real
 credentials, and loading it would silently turn a preview into a client of
 production Discord and the live bot API. If you need to exercise a signed-in
@@ -47,6 +52,7 @@ from __future__ import annotations
 import errno
 import os
 import pathlib
+import secrets
 import socket
 import subprocess
 import sys
@@ -99,12 +105,47 @@ os.environ.update(
     SUPPORT_INVITE_URL="https://discord.gg/preview-not-a-real-invite",
 )
 
-from flask import g  # noqa: E402
+from flask import g, request  # noqa: E402
 from dashboard.app import create_app  # noqa: E402  (after os.environ is set)
 
 # Signed in unless told otherwise: the sign-in page is one of the few surfaces
 # that renders without a session, and everything else needs one.
 PREVIEW_SIGNED_IN = os.environ.get("PREVIEW_SIGNED_IN", "1") != "0"
+
+# WHO MAY USE THE SIGNED-IN PREVIEW. Whoever knows this run's token (#162).
+#
+# Binding to loopback keeps the network out and does nothing about the host.
+# On a shared machine every local account can open a socket to 127.0.0.1:5001,
+# and while the session below was injected unconditionally, every one of them
+# arrived at a fully signed-in dashboard. Nothing behind it is real and CSRF
+# still refuses cross-origin writes, so this was never much of a breach -- it
+# was that "less able to reach production, not more" was true on the network
+# axis and silent about the other one.
+#
+# The token is real randomness rather than a fake value like everything above
+# it, and that is not an exception to this file's rule: it authorises nothing
+# anywhere, it is minted fresh per run, and the whole point is that it cannot
+# be guessed by the next account over. Nothing outside this process has ever
+# seen it.
+#
+# Taken from the environment when given, so a script driving the preview can
+# choose it up front instead of scraping the banner -- scripts/shoot_pages.py
+# does exactly that, and sends the server's output to /dev/null.
+#
+# That is also the escape hatch for restarting from a terminal all afternoon:
+# a fresh token every run means a fresh URL to copy every run, so
+#
+#     export PREVIEW_TOKEN=whatever-you-like
+#
+# once in that shell keeps one bookmark working across restarts. It is a
+# choice to make per shell rather than the default, because the default has to
+# be the safe one on a machine with other people on it.
+PREVIEW_TOKEN = os.environ.get("PREVIEW_TOKEN") or secrets.token_urlsafe(16)
+
+# Named once each because three things have to agree: the banner, the gate,
+# and shoot_pages.py.
+PREVIEW_TOKEN_PARAM = "preview"
+PREVIEW_TOKEN_COOKIE = "vrcverify_preview"
 
 if PREVIEW_SIGNED_IN:
     from preview_bot import ACTOR, GUILDS, PreviewBotAPI  # noqa: E402
@@ -203,6 +244,22 @@ if PREVIEW_SIGNED_IN:
         _store.begin_login("preview-not-a-real-oauth-state").sid, ACTOR, GUILDS
     )
 
+    _hinted = []
+
+    def _holds_the_token() -> bool:
+        """Whether this request may have the preview session.
+
+        Two ways in, and the query string is only the first of them: the token
+        is presented once in the URL from the banner and kept as a cookie
+        afterwards, so every link on every page works without carrying it. A
+        token pinned into every href instead would end up in the Referer of
+        anything the pages link out to.
+        """
+        return PREVIEW_TOKEN in (
+            request.args.get(PREVIEW_TOKEN_PARAM),
+            request.cookies.get(PREVIEW_TOKEN_COOKIE),
+        )
+
     @app.before_request
     def _sign_in():
         """Put the session on `g` directly, without a cookie.
@@ -216,8 +273,54 @@ if PREVIEW_SIGNED_IN:
         cannot be renewed without an OAuth round trip Discord would refuse. A
         preview that logs you out after an hour of styling is worse than one
         where the sign-out button is inert.
+
+        Without the token this does nothing at all, which leaves `g.session`
+        as `load_session` left it -- None -- and the caller gets the ordinary
+        signed-out dashboard rather than an error. That is the right refusal:
+        somebody else on this host finding port 5001 should see what a
+        stranger sees, not a message telling them there is a token to find.
         """
-        g.session = _preview_session
+        if _holds_the_token():
+            g.session = _preview_session
+        elif not _hinted:
+            # Once per run, and to the terminal rather than the browser. Nearly
+            # always this is the developer who opened http://127.0.0.1:5001/
+            # from a bookmark rather than from the banner, and the fix is one
+            # line away in the terminal they started it from.
+            _hinted.append(True)
+            print(
+                "\n  A request arrived without this run's token, so it was"
+                " served signed out.\n  Open the preview at:\n\n"
+                f"    http://{HOST}:{PORT}/?{PREVIEW_TOKEN_PARAM}={PREVIEW_TOKEN}\n",
+                file=sys.stderr,
+            )
+
+    @app.after_request
+    def _remember_the_token(response):
+        """Trade the token in the URL for a cookie, once.
+
+        Set here rather than by redirecting to a clean URL, because a redirect
+        would have to reconstruct the request and this hook does not care what
+        the request was -- the token works on any page, including the deep
+        links `scripts/shoot_pages.py` opens directly.
+
+        Not `Secure`: this is plain HTTP on loopback and a browser may decline
+        to store a Secure cookie over http, which is the whole subject of
+        `_drop_secure_from_cookies` below. Nothing is riding on it that is not
+        already invented.
+        """
+        if (
+            request.args.get(PREVIEW_TOKEN_PARAM) == PREVIEW_TOKEN
+            and request.cookies.get(PREVIEW_TOKEN_COOKIE) != PREVIEW_TOKEN
+        ):
+            response.set_cookie(
+                PREVIEW_TOKEN_COOKIE,
+                PREVIEW_TOKEN,
+                httponly=True,
+                samesite="Lax",
+                path="/",
+            )
+        return response
 
 
 # A deliberately BROKEN policy, for one purpose: proving that the check which
@@ -389,11 +492,19 @@ if __name__ == "__main__":
         _explain_port_in_use(PORT)
         raise SystemExit(1)
 
-    print(f"\n  Dashboard preview: http://{HOST}:{PORT}/")
+    # The token goes in the first URL printed, because `serverReadyAction` in
+    # launch.json opens that one -- so Run and Debug lands signed in with no
+    # step to remember. A run started from a terminal needs this line copied.
+    home = f"http://{HOST}:{PORT}/"
+    if PREVIEW_SIGNED_IN:
+        home += f"?{PREVIEW_TOKEN_PARAM}={PREVIEW_TOKEN}"
+    print(f"\n  Dashboard preview: {home}")
     if PREVIEW_SIGNED_IN:
         from preview_bot import FREE, PREMIUM, UNREACHABLE
 
         print("  Signed in against a stub. Every server below is invented.\n")
+        print("  Open the URL above first -- the token in it is what signs you")
+        print("  in, and it becomes a cookie so the paths below then work.\n")
         print(f"    premium      /guild/{PREMIUM}/settings")
         print(f"    free         /guild/{FREE}/settings")
         print(f"    always down  /guild/{UNREACHABLE}         (error.html)")
