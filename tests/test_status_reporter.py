@@ -89,13 +89,58 @@ class TestReadingHeartbeats:
         _write(tmp_path, "vrc-group-inviter", {"vrc-group-inviter": {"up": True, "detail": None}})
         parts = reporter._read_heartbeats(tmp_path, int(time.time()))
         assert parts["vrc-online-checker"]["up"] is False
-        # Every part that file spoke for goes with it, including the queue --
-        # we have not learned the queue is down, we have learned we no longer
-        # have anybody watching it from that side.
-        assert parts["queue"]["up"] is False
         assert "no heartbeat" in parts["vrc-online-checker"]["detail"]
         # And the services still writing are untouched.
         assert parts["discord-bot"]["up"] is True
+
+    def test_a_silent_file_does_not_condemn_what_others_still_watch(self, tmp_path):
+        """The production bug, in one test.
+
+        Stopping vrc-online-checker put Group invites in red on the public page
+        -- a service that was running perfectly, whose own broker connection
+        was open, and which had nothing to do with the container that stopped.
+        The stale checker was marking `queue` down on its way out, and because
+        the worst answer wins, that invented "down" beat the live inviter's
+        measured "up".
+
+        A file going quiet means we lost an observer, not that the thing it
+        observed failed.
+        """
+        _write(tmp_path, "vrc-online-checker",
+               {"vrc-online-checker": {"up": True, "detail": "consuming"},
+                "queue": {"up": True, "detail": None}}, age=reporter.STALE_AFTER + 30)
+        _write(tmp_path, "vrc-group-inviter",
+               {"vrc-group-inviter": {"up": True, "detail": "consuming"},
+                "queue": {"up": True, "detail": None}})
+        _write(tmp_path, "discord-bot", {"discord-bot": {"up": True, "detail": None}})
+
+        parts = reporter._read_heartbeats(tmp_path, int(time.time()))
+
+        assert parts["vrc-online-checker"]["up"] is False, "the stopped one is still down"
+        # The whole point: the live worker still watching the queue gets the
+        # last word on it.
+        assert parts["queue"]["up"] is True
+        assert parts["vrc-group-inviter"]["up"] is True
+
+    def test_a_shared_part_nobody_is_left_watching_stops_being_reported(self, tmp_path):
+        """Withdrawn, not inverted, even when there is no second observer.
+
+        With both workers silent, nothing on this host can see the broker at
+        all. Reporting it down would be inventing a measurement; the status
+        page has its own staleness rule for the parts that stop arriving.
+        """
+        for service in ("vrc-online-checker", "vrc-group-inviter"):
+            _write(tmp_path, service,
+                   {service: {"up": True, "detail": None},
+                    "queue": {"up": True, "detail": None}},
+                   age=reporter.STALE_AFTER + 30)
+        _write(tmp_path, "discord-bot", {"discord-bot": {"up": True, "detail": None}})
+
+        parts = reporter._read_heartbeats(tmp_path, int(time.time()))
+
+        assert parts["vrc-online-checker"]["up"] is False
+        assert parts["vrc-group-inviter"]["up"] is False
+        assert "queue" not in parts, "nothing is left that can honestly speak for it"
 
     def test_an_unreadable_heartbeat_is_not_a_healthy_service(self, tmp_path):
         (tmp_path / "discord-bot.json").write_text("{ this is not json")
