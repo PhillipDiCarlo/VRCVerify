@@ -824,6 +824,11 @@
       {% if csrf_token %}
         <a href="{{ url_for('whats_new') }}">{% trans %}What&#39;s new{% endtrans %}</a>
       {% endif %}
+      {# Whether anything is working, on a host that is deliberately not this
+         one (issue #170). An absolute URL for the same reason the legal links
+         are absolute: it is a different origin, and the whole argument for
+         that page is that it stays up when this one does not. #}
+      <a href="https://status.vrcverify.com/">{% trans %}Status{% endtrans %}</a>
       <a href="https://vrcverify.com/terms">{% trans %}Terms{% endtrans %}</a>
       <a href="https://vrcverify.com/privacy">{% trans %}Privacy{% endtrans %}</a>
       <a href="https://vrcverify.com/refunds">{% trans %}Refunds{% endtrans %}</a>

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-29 10:47-0400\n"
+"POT-Creation-Date: 2026-09-01 00:13-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -1074,6 +1074,9 @@ msgstr "كل الخوادم"
 
 msgid "Settings sections"
 msgstr "أقسام الإعدادات"
+
+msgid "Status"
+msgstr "الحالة"
 
 msgid "Terms"
 msgstr "الشروط"
