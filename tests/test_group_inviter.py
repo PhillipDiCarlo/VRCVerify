@@ -563,3 +563,36 @@ class TestTheGroupsOwnPicture:
         assert result["state"] == inviter.STATE_BANNED
         assert result["group_name"] == "Club LA"
         assert result["icon_url"] == ICON_URL
+
+
+class TestStatusProbe:
+    """The heartbeat the status page reads (issue #170 phase 2).
+
+    Mirrors test_checker.py's TestStatusProbe: the same bug existed here from
+    the same template, and the same fix applies.
+    """
+
+    def test_open_connection_reports_up_on_both_keys(self, monkeypatch):
+        monkeypatch.setattr(inviter, "_live_connection", SimpleNamespace(is_open=True))
+        parts = inviter._status_probe()
+        assert parts["vrc-group-inviter"] == (True, None)
+        assert parts["queue"] == (True, None)
+
+    def test_a_dropped_connection_is_reported_honestly_under_its_own_name(self, monkeypatch):
+        """The bug: this service's name used to say "up" no matter what.
+
+        A broker link dropping while the process keeps running is exactly the
+        failure this heartbeat exists to catch, and it must not be reported as
+        "vrc-group-inviter: up (no broker connection)" -- true and false in
+        the same sentence, in the text an alert relies on being honest.
+        """
+        monkeypatch.setattr(inviter, "_live_connection", SimpleNamespace(is_open=False))
+        parts = inviter._status_probe()
+        assert parts["vrc-group-inviter"] == (False, "no broker connection")
+        assert parts["queue"] == (False, "consumer connection closed")
+
+    def test_no_connection_at_all_is_the_same_as_a_closed_one(self, monkeypatch):
+        monkeypatch.setattr(inviter, "_live_connection", None)
+        parts = inviter._status_probe()
+        assert parts["vrc-group-inviter"][0] is False
+        assert parts["queue"][0] is False

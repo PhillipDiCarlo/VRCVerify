@@ -1366,11 +1366,20 @@ def _status_probe() -> dict[str, tuple[bool, str | None]]:
     The queue is reported by BOTH workers. The status page takes the worst
     answer, so one of them losing its connection is not hidden by the other
     still having one.
+
+    BOTH KEYS FOLLOW THE SAME CONNECTION CHECK. The first version reported this
+    service's own name as unconditionally up, with only "queue" reflecting
+    whether the connection was actually open -- so a broker link dropping while
+    this process kept running looked, in this service's own words, like "up
+    (no broker connection)": true and false in the same sentence. The public
+    row still ended up correct, because "queue" contributes to it too, but the
+    private detail text -- the thing an alert exists to be honest in -- carried
+    a claim this process had no basis for.
     """
     connection = _live_connection
     open_now = bool(connection is not None and connection.is_open)
     return {
-        "vrc-group-inviter": (True, "consuming" if open_now else "no broker connection"),
+        "vrc-group-inviter": (open_now, None if open_now else "no broker connection"),
         "queue": (open_now, None if open_now else "consumer connection closed"),
     }
 
