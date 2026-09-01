@@ -188,8 +188,47 @@ own failure. That is an impressive way to turn "Discord is slow" into "the
 status page is broken". `wrangler tail` is the third channel and the only one
 with no moving parts.
 
-Phase 5 adds the Cloudflare Access policy on `/admin`, documented here as it
-lands rather than in advance.
+## Posting an incident by hand (phase 5)
+
+`/admin` is three fields and a button, no JavaScript, sized for a phone held
+one-handed by somebody who has just been woken up. Posting is immediately
+public, and the page says so above the form.
+
+**With no Access policy configured, the route does not exist.** Not a 403: a
+404, because a form that publishes announcements should not advertise itself
+to somebody who cannot open it. That means the correct order is to set Access
+up first and switch the route on second.
+
+1. **Create the Access application.** In Zero Trust, a self-hosted application
+   covering `status.vrcverify.com/admin` and nothing else. The public page must
+   stay public: an Access policy over `/` would put a login in front of the one
+   page that has to load during an outage.
+
+2. **Add a policy.** One-time PIN to your email is the one to use here. No
+   password to type on a phone at 3am, and no credential to lose.
+
+3. **Tell the Worker what to expect.** From the application's overview, take
+   the Application Audience (AUD) tag and your team domain:
+
+       npx wrangler secret put ACCESS_AUD --config status/wrangler.toml
+       npx wrangler secret put ACCESS_TEAM_DOMAIN --config status/wrangler.toml
+       # e.g. yourteam.cloudflareaccess.com
+
+**The Worker verifies the Access token itself**, against the team's published
+keys, rather than trusting that the edge did. Access is the control; this is
+the second one, and it exists because the first is a setting in a dashboard.
+It can be scoped to the wrong path, switched off by somebody tidying up, or
+silently fail to cover a route added later, and none of that is visible in a
+diff. The failure would not be an error page. It would be a world-writable
+form that posts announcements to a page people trust, and somebody would find
+it.
+
+To check it: open `/admin` in a browser signed out of Access and expect a 404,
+then sign in and expect the form.
+
+An open incident caps the headline at its impact, so the page stops saying all
+is well. It can never make the page look BETTER than what was measured: the
+rows come from evidence and the incident comes from a keyboard.
 
 ## The rules this thing holds
 

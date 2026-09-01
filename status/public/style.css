@@ -826,3 +826,124 @@ main.wrap { max-width: 48rem; }
   white-space: nowrap;
   border: 0;
 }
+
+/* AN INCIDENT, on the public page. The card takes a tint of the state so it
+   reads as a banner rather than as another section, and the left edge carries
+   the colour at full strength -- a shape that survives being the third card
+   down on a phone. */
+.incident {
+  border-color: currentColor;
+  background: color-mix(in srgb, currentColor 7%, var(--panel));
+}
+
+.incident h2 { color: var(--ink-strong); }
+
+.incident-meta {
+  margin: 0;
+  padding: 0 1.15rem 0.9rem;
+  color: var(--muted);
+  font-size: var(--text-note);
+}
+
+.updates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.update {
+  margin: 0;
+  padding: 0.9rem 1.15rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.update:last-child { border-bottom: 0; }
+.update p { margin: 0.35rem 0 0; color: var(--ink); }
+
+.update-status {
+  color: var(--ink-strong);
+  font-weight: 600;
+  font-size: var(--text-note);
+  text-transform: capitalize;
+  margin-right: 0.6rem;
+}
+
+.update time { color: var(--faint); font-size: var(--text-micro); }
+
+/* THE ADMIN FORM. Controls are deliberately large: this is used one-handed, on
+   a phone, by somebody who has just been woken up. 44px is the smallest touch
+   target anybody should be asked to hit in that state. */
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1.15rem;
+}
+
+.admin-form label {
+  color: var(--muted);
+  font-size: var(--text-note);
+  margin-top: 0.5rem;
+}
+
+.admin-form input,
+.admin-form select,
+.admin-form textarea {
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius-control);
+  padding: 0.6rem 0.7rem;
+  min-height: 2.75rem;
+  width: 100%;
+}
+
+.admin-form textarea { min-height: 5rem; resize: vertical; }
+
+.admin-form button {
+  margin-top: 1rem;
+  min-height: 2.75rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 0;
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-form button:hover { background: var(--accent-hover); }
+
+.admin-form input:focus-visible,
+.admin-form select:focus-visible,
+.admin-form textarea:focus-visible,
+.admin-form button:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.admin-note {
+  margin: 0.75rem 0 0;
+  color: var(--faint);
+  font-size: var(--text-note);
+}
+
+/* A finished incident. Neutral: the state colours belong to things that are
+   happening now, and a red card for something fixed three hours ago is
+   alarming at a glance and wrong as soon as anybody reads the date. */
+.incident.is-resolved {
+  border-color: var(--line);
+  background: var(--panel);
+  color: var(--faint);
+}
+
+/* The heading over the history, which is a list of cards rather than one card
+   holding cards -- nesting them put a bordered box inside a bordered box for
+   no gain. */
+.section-heading {
+  margin: 2.5rem 0 0.75rem;
+  font-size: var(--text-subhead);
+  color: var(--ink-strong);
+}

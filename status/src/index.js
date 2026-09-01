@@ -32,7 +32,13 @@ import {
   readStripe,
   worst,
 } from "./logic.js";
-import { renderPage } from "./render.js";
+import {
+  readIncidentForm,
+  readUpdateForm,
+  verdictWithIncidents,
+} from "./logic.js";
+import { verifyAccessToken } from "./access.js";
+import { renderAdmin, renderPage } from "./render.js";
 
 /** Every id the cron writes a row for: the five public ones and the four upstreams. */
 const ALL_IDS = [...COMPONENT_IDS, ...UPSTREAMS.map((u) => u.id)];
@@ -309,6 +315,40 @@ async function runCheck(env, now) {
  * One query for every component rather than one per row: D1 charges per
  * statement and the whole table is at most nine components times ninety days.
  */
+/**
+ * Open incidents first, then recently resolved ones, each with its updates.
+ *
+ * Two queries rather than a join: D1 charges per statement, and stitching two
+ * small result sets in JavaScript is clearer than reading a flattened join
+ * back apart.
+ */
+async function loadIncidents(db, now) {
+  const { results: incidents } = await db
+    .prepare(
+      `SELECT id, title, impact, started_at, resolved_at FROM incidents
+       WHERE resolved_at IS NULL OR resolved_at > ?1
+       ORDER BY started_at DESC LIMIT 20`,
+    )
+    .bind(now - HISTORY_DAYS * 86400)
+    .all();
+  if (!incidents?.length) return [];
+
+  const { results: updates } = await db
+    .prepare(
+      `SELECT incident_id, at, status, body FROM incident_updates
+       WHERE incident_id IN (${incidents.map((_, i) => `?${i + 1}`).join(", ")})
+       ORDER BY at DESC`,
+    )
+    .bind(...incidents.map((incident) => incident.id))
+    .all();
+
+  const byIncident = {};
+  for (const update of updates ?? []) {
+    (byIncident[update.incident_id] ??= []).push(update);
+  }
+  return incidents.map((incident) => ({ ...incident, updates: byIncident[incident.id] ?? [] }));
+}
+
 async function loadHistory(db, now) {
   const days = recentDays(now, HISTORY_DAYS);
   const { results } = await db
@@ -351,6 +391,95 @@ function pruneStatements(env, now, prunedAt) {
 async function readMeta(db, key) {
   const row = await db.prepare("SELECT value FROM meta WHERE key = ?1").bind(key).first();
   return row?.value ?? null;
+}
+
+/**
+ * The one page a person may write from, and the gate in front of it.
+ *
+ * Everything here is deliberately small. This exists to be usable on a phone,
+ * one-handed, by somebody who has just been woken up: three fields and a
+ * button, no JavaScript, no client-side anything. The elaborate version of
+ * this feature is the version that does not work at 3am.
+ */
+async function handleAdmin(request, env, now) {
+  // NO ACCESS POLICY, NO ROUTE. Not a 403: a 404, because a form that posts
+  // announcements to a page people trust should not advertise its own
+  // existence to somebody who cannot open it.
+  if (!env.ACCESS_AUD || !env.ACCESS_TEAM_DOMAIN) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  const who = await verifyAccessToken(request.headers.get("cf-access-jwt-assertion"), {
+    teamDomain: env.ACCESS_TEAM_DOMAIN,
+    audience: env.ACCESS_AUD,
+    now,
+  });
+  if (!who) {
+    console.log("admin rejected: no valid Access assertion");
+    return new Response("Not found", { status: 404 });
+  }
+
+  if (request.method === "GET") {
+    const incidents = await loadIncidents(env.DB, now);
+    return new Response(renderAdmin({ incidents, who, now }), {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        // Never cached, anywhere. It is per-person and it is a control panel.
+        "cache-control": "no-store, private",
+        ...SECURITY_HEADERS,
+        // The public page posts nowhere; this page posts to itself.
+        "content-security-policy": SECURITY_HEADERS["content-security-policy"].replace(
+          "form-action \'none\'",
+          "form-action \'self\'",
+        ),
+      },
+    });
+  }
+
+  const form = Object.fromEntries(await request.formData());
+  const action = form.action;
+
+  if (action === "open") {
+    const incident = readIncidentForm(form);
+    if (!incident) return new Response("Bad request", { status: 400 });
+    const inserted = await env.DB.prepare(
+      "INSERT INTO incidents (title, impact, started_at) VALUES (?1, ?2, ?3) RETURNING id",
+    )
+      .bind(incident.title, incident.impact, now)
+      .first();
+    await env.DB.prepare(
+      "INSERT INTO incident_updates (incident_id, at, status, body) VALUES (?1, ?2, 'investigating', ?3)",
+    )
+      .bind(inserted.id, now, incident.body)
+      .run();
+    console.log(`incident ${inserted.id} opened by ${who}: ${incident.title}`);
+  } else if (action === "update") {
+    const update = readUpdateForm(form);
+    if (!update) return new Response("Bad request", { status: 400 });
+    const statements = [
+      env.DB.prepare(
+        "INSERT INTO incident_updates (incident_id, at, status, body) VALUES (?1, ?2, ?3, ?4)",
+      ).bind(update.incidentId, now, update.status, update.body),
+    ];
+    // "resolved" is the status AND the act. Two controls for one thing is how
+    // an incident ends up resolved with no closing word on it, or closed in
+    // the database while the banner insists it is ongoing.
+    if (update.status === "resolved") {
+      statements.push(
+        env.DB.prepare(
+          "UPDATE incidents SET resolved_at = ?2 WHERE id = ?1 AND resolved_at IS NULL",
+        ).bind(update.incidentId, now),
+      );
+    }
+    await env.DB.batch(statements);
+    console.log(`incident ${update.incidentId} updated by ${who}: ${update.status}`);
+  } else {
+    return new Response("Bad request", { status: 400 });
+  }
+
+  // POST then redirect, so a refresh cannot post the same update twice. On a
+  // phone, on a bad connection, a double-tap is the normal case.
+  return new Response(null, { status: 303, headers: { location: "/admin" } });
 }
 
 /**
@@ -532,7 +661,11 @@ const SECURITY_HEADERS = {
 /** What both surfaces read, with the freshness rule applied once, here. */
 async function present(env, now) {
   try {
-    const [rows, history] = await Promise.all([loadState(env.DB), loadHistory(env.DB, now)]);
+    const [rows, history, incidents] = await Promise.all([
+      loadState(env.DB),
+      loadHistory(env.DB, now),
+      loadIncidents(env.DB, now),
+    ]);
     const observedAts = Object.values(rows)
       .map((r) => r.observedAt)
       .filter((v) => typeof v === "number");
@@ -551,6 +684,7 @@ async function present(env, now) {
       components,
       upstreams,
       history,
+      incidents,
       checkedAt,
       freshness: dataFreshness(checkedAt, now),
     };
@@ -562,6 +696,7 @@ async function present(env, now) {
       components: {},
       upstreams: {},
       history: { days: [], byComponent: {} },
+      incidents: [],
       checkedAt: null,
       freshness: "unavailable",
     };
@@ -575,6 +710,10 @@ export default {
 
     if (request.method === "POST" && url.pathname === "/report") {
       return handleReport(request, env, now);
+    }
+
+    if (url.pathname === "/admin" && (request.method === "GET" || request.method === "POST")) {
+      return handleAdmin(request, env, now);
     }
 
     if (request.method !== "GET" && request.method !== "HEAD") {

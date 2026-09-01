@@ -12,7 +12,13 @@
  */
 
 import { COMPONENTS, UPSTREAMS } from "./config.js";
-import { dayUptime, humanDuration, uptimeOverDays, verdict } from "./logic.js";
+import {
+  UPDATE_STATUSES,
+  dayUptime,
+  humanDuration,
+  uptimeOverDays,
+  verdictWithIncidents,
+} from "./logic.js";
 
 const STATE_LABEL = {
   up: "Operational",
@@ -167,6 +173,50 @@ function upstreamRow(upstream, entry) {
   );
 }
 
+const IMPACT_STATE = { maintenance: "degraded", degraded: "degraded", down: "down" };
+
+/**
+ * The banner, following the incident.io reference: what is wrong, how long it
+ * has been wrong, and the latest thing anybody said about it.
+ *
+ * The updates read newest first. Somebody arriving mid-incident wants the
+ * current position, not the archaeology, and a reverse-chronological list is
+ * the only arrangement where the useful line is above the fold on a phone.
+ */
+function incidentBanner(incident, now) {
+  // A FINISHED INCIDENT IS DRAWN NEUTRAL, not in the colour of the trouble it
+  // used to be. The history section was shipping a red-bordered, red-tinted
+  // card for something that had been fixed hours earlier -- alarming at a
+  // glance, and wrong the moment anybody read the date. The state colour is
+  // for things that are happening now; what a closed one needs to say is how
+  // long it lasted.
+  const done = Boolean(incident.resolved_at);
+  const state = done ? "resolved" : (IMPACT_STATE[incident.impact] ?? "degraded");
+  const running = done
+    ? `Resolved after ${escapeHtml(humanDuration(incident.resolved_at - incident.started_at))}`
+    : `Ongoing for ${escapeHtml(humanDuration(now - incident.started_at))}`;
+  const updates = incident.updates
+    .map(
+      (update) =>
+        '<li class="update">' +
+        `<span class="update-status">${escapeHtml(update.status)}</span>` +
+        `<time datetime="${new Date(update.at * 1000).toISOString()}">${utcStamp(update.at)}</time>` +
+        `<p>${escapeHtml(update.body)}</p></li>`,
+    )
+    .join("");
+  return (
+    `<section class="card incident is-${state}">` +
+    '<div class="card-head">' +
+    `<h2>${escapeHtml(incident.title)}</h2>` +
+    `<span class="pill">${done ? "Resolved" : (STATE_LABEL[state] ?? "Degraded")}</span></div>` +
+    `<p class="incident-meta">${running}. Started ` +
+    `<time datetime="${new Date(incident.started_at * 1000).toISOString()}">` +
+    `${utcStamp(incident.started_at)}</time>.</p>` +
+    `<ol class="updates">${updates}</ol>` +
+    "</section>"
+  );
+}
+
 /**
  * @param components  {id: {state, since}} for the five capabilities. PRIVATE
  *                    detail fields are not read here and must not be passed.
@@ -174,7 +224,15 @@ function upstreamRow(upstream, entry) {
  * @param checkedAt   unix seconds of the last completed check, or null.
  * @param freshness   "fresh" | "stale" | "missing", from logic.dataFreshness.
  */
-export function renderPage({ components, upstreams, history, checkedAt, now, freshness }) {
+export function renderPage({
+  components,
+  upstreams,
+  history,
+  incidents,
+  checkedAt,
+  now,
+  freshness,
+}) {
   // THE RULE, applied at the last possible moment so nothing can route around
   // it: if the data is not fresh, no component is drawn as up. A page that
   // shows green because the checker stopped running is the exact failure this
@@ -196,8 +254,12 @@ export function renderPage({ components, upstreams, history, checkedAt, now, fre
     shownUpstreams[upstream.id] = trusted ? upstreams[upstream.id] : { state: "unknown" };
   }
 
+  const open = (incidents ?? []).filter((incident) => !incident.resolved_at);
   const overall = trusted
-    ? verdict(COMPONENTS.map((c) => shown[c.id]?.state ?? "unknown"))
+    ? verdictWithIncidents(
+        COMPONENTS.map((c) => shown[c.id]?.state ?? "unknown"),
+        incidents ?? [],
+      )
     : {
         level: "unknown",
         headline:
@@ -265,6 +327,8 @@ export function renderPage({ components, upstreams, history, checkedAt, now, fre
     <p class="hero-checked">${checkedLine}</p>
   </div>
 
+  ${open.map((incident) => incidentBanner(incident, now)).join("\n  ")}
+
   <section class="card">
     <div class="card-head">
       <h2>VRCVerify</h2>
@@ -282,6 +346,14 @@ export function renderPage({ components, upstreams, history, checkedAt, now, fre
     <p class="card-note">Read from each company's own status feed. VRCVerify cannot
     fix these, and when one of them is down the rows above will usually follow.</p>
   </section>
+
+  ${(incidents ?? []).some((incident) => incident.resolved_at)
+    ? '<h2 class="section-heading">Recent incidents</h2>' +
+      (incidents ?? [])
+        .filter((incident) => incident.resolved_at)
+        .map((incident) => incidentBanner(incident, now))
+        .join("")
+    : ""}
 
   <p class="caveat">Times are UTC. Every service is checked once a minute, so a
   problem can be up to a minute old before it appears here. This page runs on
@@ -303,6 +375,107 @@ export function renderPage({ components, upstreams, history, checkedAt, now, fre
     Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord Inc.</p>
   </div>
 </footer>
+
+</body>
+</html>
+`;
+}
+
+/**
+ * The admin form. Three fields and a button, and no JavaScript at all.
+ *
+ * WHAT IT IS FOR: somebody who has just been woken up, holding a phone, on a
+ * connection they do not trust, who needs the page to stop saying everything
+ * is fine. Every decision below follows from that and from nothing else.
+ * There is no rich text, no preview, no incident templates and no attachment.
+ * The elaborate version of this feature is the version that does not work at
+ * the hour it exists for.
+ *
+ * It reuses the public stylesheet rather than carrying its own, so it inherits
+ * the theme, the type scale and the focus rings, and so that changing a colour
+ * on the status page cannot leave this one looking like a different product's
+ * admin panel.
+ */
+export function renderAdmin({ incidents, who, now }) {
+  const open = incidents.filter((incident) => !incident.resolved_at);
+
+  const openForms = open
+    .map(
+      (incident) => `
+    <section class="card">
+      <div class="card-head"><h2>${escapeHtml(incident.title)}</h2>
+      <span class="row-since">${escapeHtml(humanDuration(now - incident.started_at))} old</span></div>
+      <form method="post" class="admin-form">
+        <input type="hidden" name="action" value="update">
+        <input type="hidden" name="incident_id" value="${incident.id}">
+        <label for="status-${incident.id}">Status</label>
+        <select id="status-${incident.id}" name="status">
+          ${UPDATE_STATUSES.map(
+            (status) => `<option value="${status}">${escapeHtml(status)}</option>`,
+          ).join("")}
+        </select>
+        <label for="body-${incident.id}">What is happening</label>
+        <textarea id="body-${incident.id}" name="body" rows="3" required maxlength="2000"></textarea>
+        <button type="submit">Post update</button>
+        <p class="admin-note">Choosing <strong>resolved</strong> closes the incident and
+        clears the banner. There is no separate resolve button on purpose: an incident
+        closed by a button nobody typed into ends with no last word on it.</p>
+      </form>
+    </section>`,
+    )
+    .join("");
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Post an incident</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/style.css">
+<script src="/theme.js"></script>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="/">VRCVerify Status</a>
+    <nav><a href="/">Public page</a></nav>
+    <div class="theme-picker" hidden></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>Post an incident</h1>
+  <p class="lede">Signed in as ${escapeHtml(who)}. Anything posted here is public
+  immediately, on the page anybody can read.</p>
+
+  ${openForms}
+
+  <section class="card">
+    <div class="card-head"><h2>New incident</h2></div>
+    <form method="post" class="admin-form">
+      <input type="hidden" name="action" value="open">
+      <label for="title">Title</label>
+      <input id="title" name="title" required maxlength="120"
+             placeholder="Verification is slow">
+      <label for="impact">Impact</label>
+      <select id="impact" name="impact">
+        <option value="degraded">Degraded, it partly works</option>
+        <option value="down">Down, it does not work</option>
+        <option value="maintenance">Maintenance, this is planned</option>
+      </select>
+      <label for="new-body">First update</label>
+      <textarea id="new-body" name="body" rows="4" required maxlength="2000"
+                placeholder="We are looking into it."></textarea>
+      <button type="submit">Post incident</button>
+    </form>
+  </section>
+
+  <p class="caveat">An open incident stops the page saying all is well: the headline
+  drops to the impact chosen above. It cannot make the page look better than what was
+  measured, so a real outage keeps showing through a "degraded" incident.</p>
+</main>
 
 </body>
 </html>
