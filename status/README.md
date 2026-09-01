@@ -72,8 +72,20 @@ need to be one. Both of these run in a container with the repository mounted:
         wrangler dev --local --ip 0.0.0.0 --port 8787 --test-scheduled'
 
 `--test-scheduled` exposes the cron at `/__scheduled?cron=*+*+*+*+*`; fetch it
-once and the page has real data in it. Use `node:22-bookworm-slim` and not
-`alpine`: `workerd` is built against glibc.
+once and the page has real data in it.
+
+Two things that will waste an hour otherwise:
+
+  * Use `node:22-bookworm-slim`, not `alpine`. `workerd` is built against
+    glibc and will not run on musl.
+  * `apt-get install -y ca-certificates` in that container before starting.
+    The slim image ships no CA bundle, so every HTTPS probe fails with
+    `TLS peer's certificate is not trusted` -- and the page then shows
+    everything as down, which looks exactly like a bug in this code. It is
+    not; it is the container.
+  * `wrangler dev` ignores a scheduled time supplied on the query string and
+    always uses the clock, so the duplicate-delivery guard cannot be exercised
+    through it. That one is unit tested instead.
 
 ## First deploy
 
