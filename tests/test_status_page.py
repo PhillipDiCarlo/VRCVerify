@@ -205,6 +205,43 @@ class TestPublicCopy:
             assert "gmail" not in text.lower()
 
 
+class TestTheBuildScriptsKnowAboutEveryImage:
+    """A Dockerfile nothing builds is a service nobody can deploy.
+
+    Written after adding the status reporter to both scripts and leaving the
+    PowerShell one with two branches numbered "5": the second was unreachable,
+    so "All" would have published four images and silently skipped the fifth.
+    Nothing about that is visible in a diff, and the failure appears on a deploy
+    host as an image tag that does not exist.
+    """
+
+    SCRIPTS = ("tag_and_push_images.sh", "tag_and_push_images.ps1")
+
+    @pytest.mark.parametrize("script", SCRIPTS)
+    def test_every_dockerfile_is_reachable_from_the_script(self, script):
+        text = (ROOT / script).read_text(encoding="utf-8")
+        for dockerfile in sorted((ROOT / "docker").glob("Dockerfile-*")):
+            assert f"docker/{dockerfile.name}" in text, f"{script} cannot build {dockerfile.name}"
+
+    @pytest.mark.parametrize("script", SCRIPTS)
+    def test_the_all_option_builds_all_of_them(self, script):
+        """"All" is the option that gets used, so it is the one that must be complete."""
+        text = (ROOT / script).read_text(encoding="utf-8")
+        images = re.findall(r'(?:build_and_push|Publish-Image) "([a-z-]+)"', text)
+        every = {name for name in images}
+        # The last block in each script is the "all" branch; every image named
+        # anywhere in the script has to appear in it.
+        tail = text[text.rindex("status-reporter") - 2000 :]
+        for image in sorted(every):
+            assert image in tail, f"{script}: '{image}' is missing from the all-images branch"
+
+    @pytest.mark.parametrize("script", SCRIPTS)
+    def test_no_menu_number_is_used_twice(self, script):
+        text = (ROOT / script).read_text(encoding="utf-8")
+        chosen = re.findall(r'(?m)^\s*"?(\d)"?[\)]?\s*[\){]', text)
+        assert len(chosen) == len(set(chosen)), f"{script} reuses a menu number: {chosen}"
+
+
 class TestItIsItsOwnDeploy:
     def test_the_status_worker_is_not_the_apex_worker(self):
         """The whole argument for this page is the failures it does not share."""

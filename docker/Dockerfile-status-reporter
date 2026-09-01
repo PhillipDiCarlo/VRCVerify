@@ -1,0 +1,32 @@
+# Dockerfile-status-reporter (issue #170 phase 2)
+#
+# The homelab's one voice to the outside world. It reads heartbeat files from a
+# shared volume and posts one signed summary a minute to status.vrcverify.com.
+#
+# NO REQUIREMENTS FILE, and that is the point rather than an omission. This
+# image installs nothing: src/status_reporter.py imports hashlib, hmac, json,
+# logging, os, pathlib, sys, time and urllib, all of which ship with Python.
+# The container that is allowed to talk to the public internet on a timer is
+# the one with no third-party code in it at all, which also means it has no
+# dependency that can need a security update at an awkward moment.
+
+FROM python:3.14.7-slim AS runtime
+
+ENV PIP_NO_CACHE_DIR=1 \
+	PIP_DISABLE_PIP_VERSION_CHECK=1 \
+	PYTHONDONTWRITEBYTECODE=1 \
+	PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN useradd --create-home --uid 10001 appuser
+
+# The heartbeat volume is mounted here READ ONLY by compose. This container
+# reports on the other services; it must never be able to write a heartbeat and
+# so must never be able to invent one.
+RUN mkdir -p /heartbeats && chown appuser:appuser /heartbeats
+
+COPY --chown=appuser:appuser src/status_reporter.py ./src/status_reporter.py
+USER appuser
+
+CMD ["python", "src/status_reporter.py"]

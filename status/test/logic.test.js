@@ -178,6 +178,27 @@ test("one broken part shows up as every capability a reader would notice", () =>
   assert.match(result.verification.detail, /queue/);
 });
 
+test("the homelab going quiet degrades the dashboard rather than downing it", () => {
+  // Both facts are true at once: dashboard.vrcverify.com answers 200, and
+  // every page needing the bot behind it fails. A reader watching the site
+  // load while this page calls it Down stops believing the rows that are
+  // right, so the public probe stays the authority on reachability and the
+  // homelab can only pull the row to degraded.
+  const now = 1_700_000_000;
+  const dead = now - (HEARTBEAT_STALE_SECONDS + 100);
+  const result = capabilitiesFromParts(
+    { "bot-api": { at: dead, up: true }, database: { at: dead, up: true } },
+    PART_CAPABILITIES,
+    now,
+    HEARTBEAT_STALE_SECONDS,
+  );
+  assert.equal(result.dashboard.state, "degraded");
+  // The rows with nothing else speaking for them are still down, because for
+  // those the homelab IS the only authority.
+  assert.equal(result.verification.state, "down");
+  assert.equal(result.bot.state, "down");
+});
+
 test("the headline never says everything is fine when something is unknown", () => {
   assert.equal(verdict(["up", "up", "up"]).headline, "All systems operational");
   assert.equal(verdict(["up", "unknown"]).level, "unknown");

@@ -166,9 +166,18 @@ export function capabilitiesFromParts(heartbeats, mapping, now, staleSeconds) {
   const out = {};
   for (const [part, capabilities] of Object.entries(mapping)) {
     if (!partState[part]) continue;
-    for (const capability of capabilities) {
+    for (const entry of capabilities) {
+      // A plain string means "this part's state IS this capability's state".
+      // An object may cap how bad it is allowed to make the row -- see the
+      // dashboard's entry in config.js for the case that needs it.
+      const capability = typeof entry === "string" ? entry : entry.capability;
+      const ceiling = typeof entry === "string" ? null : entry.as;
+      let state = partState[part].state;
+      if (ceiling && SEVERITY.indexOf(state) < SEVERITY.indexOf(ceiling)) {
+        state = ceiling;
+      }
       const bucket = (out[capability] ??= { states: [], details: [] });
-      bucket.states.push(partState[part].state);
+      bucket.states.push(state);
       if (partState[part].state !== "up") {
         // The detail is PRIVATE and exists for the alert. It names the part on
         // purpose, which is exactly why it must not reach the page.
@@ -289,4 +298,60 @@ export function humanDuration(seconds) {
 export function dataFreshness(checkedAt, now, { staleAfter = 300 } = {}) {
   if (checkedAt === null || checkedAt === undefined) return "missing";
   return now - checkedAt > staleAfter ? "stale" : "fresh";
+}
+
+/**
+ * `t=1788233609,v1=<hex>`, which is Stripe's scheme and therefore the one this
+ * project already reasons about (see src/dashboard/stripe_events.py).
+ *
+ * Returns null for anything it does not fully understand. A signature header
+ * that is nearly right is not nearly authentic.
+ */
+export function parseSignatureHeader(header) {
+  if (typeof header !== "string") return null;
+  const fields = {};
+  for (const piece of header.split(",")) {
+    const [key, value] = piece.split("=", 2);
+    if (key && value !== undefined) fields[key.trim()] = value.trim();
+  }
+  const timestamp = Number(fields.t);
+  const signature = fields.v1;
+  if (!Number.isInteger(timestamp) || !/^[0-9a-f]{64}$/.test(signature ?? "")) return null;
+  return { timestamp, signature };
+}
+
+/**
+ * A signature is only good for five minutes either way.
+ *
+ * Without this a captured report is replayable forever, and for this endpoint
+ * that means pinning the page at "everything is fine" while the homelab is
+ * dark -- the exact lie the whole design exists to prevent. The future half of
+ * the window exists because the homelab's clock is not ours to trust; five
+ * minutes of skew is generous and still far short of useful to an attacker.
+ */
+export function signatureIsTimely(timestamp, now, { tolerance = 300 } = {}) {
+  return Math.abs(now - timestamp) <= tolerance;
+}
+
+/**
+ * Validate a report body against the parts we are willing to hear about.
+ *
+ * An unrecognised part name is DROPPED rather than rejected or stored. Stored,
+ * it would let whatever holds the signing key invent rows on a public page.
+ * Rejecting the whole report would mean a newer reporter, deployed before this
+ * Worker knows about its new part, silently stops reporting the parts this
+ * Worker does understand -- which is an outage in the reporting caused by an
+ * upgrade, and those are the worst kind to diagnose.
+ */
+export function readReport(body, allowedParts, { maxDetail = 200 } = {}) {
+  const parts = body?.parts;
+  if (!parts || typeof parts !== "object") return null;
+  const clean = [];
+  for (const [name, value] of Object.entries(parts)) {
+    if (!allowedParts.includes(name)) continue;
+    if (!value || typeof value !== "object" || typeof value.up !== "boolean") continue;
+    const detail = typeof value.detail === "string" ? value.detail.slice(0, maxDetail) : null;
+    clean.push({ part: name, up: value.up, detail });
+  }
+  return clean.length ? clean : null;
 }

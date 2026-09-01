@@ -111,6 +111,10 @@ services:
       SEAT_SWEEP_INTERVAL: ${SEAT_SWEEP_INTERVAL:-21600}
       SEAT_SWEEP_MAX_PER_PASS: ${SEAT_SWEEP_MAX_PER_PASS:-25}
       SEAT_SWEEP_SPACING: ${SEAT_SWEEP_SPACING:-2}
+      # Heartbeats for the status page (issue #170). Unset by default, so no
+      # thread starts and no file is written. Set it here and mount the volume
+      # below on a deployment that runs status-reporter.
+      HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
     restart: unless-stopped
     # Docker's json-file driver does not rotate by default, so container logs
     # grow without bound until the disk does. Especially worth having here:
@@ -158,6 +162,10 @@ services:
       # costs nothing, and a missing directory is created empty rather than
       # failing the start. That is cheaper than a line someone has to remember.
       - ${BOT_API_CERT_DIR:-./certs}:/certs:ro
+      # Where this service drops its heartbeat, read by status-reporter. It is
+      # the only one of the three that can speak for the database and for the
+      # bot API, because it is the only one holding either.
+      - status-heartbeats:/heartbeats
 
   vrc-online-checker:
     image: italiandogs/vrcverify-vrc-online-checker:${VRCVERIFY_VERSION:?Set VRCVERIFY_VERSION to a pushed version tag (never latest)}
@@ -181,8 +189,13 @@ services:
       # Reuse the VRChat session across restarts so redeploys don't burn a
       # 2FA email (and risk a 429 lockout). Unset to disable.
       VRCHAT_SESSION_FILE: ${VRCHAT_SESSION_FILE-/data/vrchat_session.txt}
+      # Heartbeats for the status page (issue #170). Unset by default, so no
+      # thread starts and no file is written. Set it here and mount the volume
+      # below on a deployment that runs status-reporter.
+      HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
     volumes:
       - vrchat-session:/data
+      - status-heartbeats:/heartbeats
     restart: unless-stopped
     # This is the service that logs bios at DEBUG. Rotation matters most here.
     logging:
@@ -230,8 +243,13 @@ services:
       INVITE_GMAIL_USER: ${INVITE_GMAIL_USER:-}
       INVITE_GMAIL_APP_PASSWORD: ${INVITE_GMAIL_APP_PASSWORD:-}
       INVITE_VRCHAT_SESSION_FILE: ${INVITE_VRCHAT_SESSION_FILE-/data/vrchat_invite_session.txt}
+      # Heartbeats for the status page (issue #170). Unset by default, so no
+      # thread starts and no file is written. Set it here and mount the volume
+      # below on a deployment that runs status-reporter.
+      HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
     volumes:
       - vrchat-invite-session:/data
+      - status-heartbeats:/heartbeats
     restart: on-failure
     logging:
       driver: json-file
@@ -285,6 +303,55 @@ services:
   #       max-size: "10m"
   #       max-file: "3"
 
+  # The homelab's one voice to the outside world (issue #170 phase 2).
+  #
+  # Reads the heartbeat files the three services above drop into the shared
+  # volume and posts one signed summary a minute to status.vrcverify.com.
+  # Nothing on this host is reachable from the internet, by design, so this is
+  # the only way the status page can say anything at all about the bot.
+  #
+  # WHAT IT DOES NOT HAVE, and none of it is an oversight:
+  #
+  #   * no DATABASE_URL, no RABBITMQ_*, no DISCORD_BOT_TOKEN. Every fact it
+  #     reports was established by a process that already had the right to
+  #     establish it. The container permitted to talk to the public internet on
+  #     a timer is the one holding nothing worth stealing.
+  #   * no docker socket. "Is the container running" is answered by the
+  #     heartbeat file going stale, which needs no privilege at all. A socket
+  #     here would be root on this host, for a status page.
+  #   * no published port. It only ever makes outbound requests.
+  #
+  # The volume is READ ONLY. This service reports on the others; it must never
+  # be able to write a heartbeat, and therefore never be able to invent one.
+  #
+  # restart: on-failure, matching vrc-group-inviter: with STATUS_REPORT_URL or
+  # STATUS_REPORT_SECRET unset it exits 0, because a feature that has not been
+  # switched on is not a crash and must not restart-loop.
+  status-reporter:
+    image: italiandogs/vrcverify-status-reporter:${VRCVERIFY_VERSION:?Set VRCVERIFY_VERSION to a pushed version tag (never latest)}
+    env_file:
+      - .env
+    environment:
+      STATUS_REPORT_URL: ${STATUS_REPORT_URL:-}
+      STATUS_REPORT_SECRET: ${STATUS_REPORT_SECRET:-}
+      STATUS_REPORT_INTERVAL: ${STATUS_REPORT_INTERVAL:-60}
+      HEARTBEAT_DIR: /heartbeats
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - status-heartbeats:/heartbeats:ro
+    restart: on-failure
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
 volumes:
   # Persists the VRChat auth cookie so restarts skip re-authentication.
   vrchat-session:
@@ -292,3 +359,7 @@ volumes:
   vrchat-invite-session:
   # For a second invite account; uncomment alongside its service above.
   # vrchat-invite-session-2:
+  # Heartbeat files (issue #170). Written by the three services, read only by
+  # status-reporter. Small, and deliberately not a bind mount: nothing outside
+  # these containers has any reason to read them.
+  status-heartbeats:

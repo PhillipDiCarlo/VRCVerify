@@ -40,6 +40,7 @@ from datetime import date, datetime, timezone, timedelta
 from dotenv import load_dotenv
 from locales import localizations, LANGUAGE_CODES
 import bot_api
+import heartbeat
 from log_safety import install_log_scrubbing
 
 
@@ -10829,7 +10830,59 @@ async def on_member_join(member: discord.Member):
 # -------------------------------------------------------------------
 # Main
 # -------------------------------------------------------------------
+def _status_probe() -> dict[str, tuple[bool, str | None]]:
+    """What this process can honestly answer for (issue #170 phase 2).
+
+    Three parts, and the bot is the only one of the three services that can
+    speak for two of them:
+
+      discord-bot  ready, not merely running. A process holding a bad token
+                   sits in a reconnect loop forever looking perfectly alive,
+                   which is precisely the outage a heartbeat based on "the
+                   interpreter is still executing" would miss.
+      database     a real SELECT. The checker and the inviter never touch the
+                   database, and the dashboard deliberately holds no credential
+                   for it, so if this process does not ask, nothing does.
+      bot-api      whether the listener the dashboard talks to actually came
+                   up. It is allowed to fail without stopping the bot, which
+                   makes it exactly the kind of thing that fails quietly.
+
+    Never raises: every answer is a state, including "the check itself broke".
+    The detail strings name internals on purpose. They are private, and reach
+    the status page's alerting rather than its public page.
+    """
+    parts: dict[str, tuple[bool, str | None]] = {}
+
+    latency = bot.latency
+    if bot.is_ready() and latency == latency and latency != float("inf"):
+        parts["discord-bot"] = (True, f"gateway ready, {int(latency * 1000)}ms")
+    else:
+        parts["discord-bot"] = (False, "gateway not ready")
+
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        parts["database"] = (True, None)
+    except Exception as error:
+        parts["database"] = (False, type(error).__name__)
+
+    if os.getenv("BOT_API_ENABLED", "").strip():
+        parts["bot-api"] = (
+            _bot_api_server is not None,
+            None if _bot_api_server is not None else "enabled but not listening",
+        )
+
+    return parts
+
+
 if __name__ == "__main__":
+    # Started before bot.run rather than in on_ready, so that a bot which never
+    # becomes ready -- a revoked token, a Discord outage -- is reported as down
+    # instead of reported as nothing at all. The status page needs two consecutive
+    # bad reports before it publishes an outage, so an ordinary restart passes
+    # through this state without ever appearing on the page.
+    heartbeat.start_heartbeat("discord-bot", _status_probe)
+
     # log_handler=None or discord.py calls its own setup_logging, which adds
     # a SECOND StreamHandler to the root logger -- after install_log_scrubbing
     # ran, so without this filter. Every discord.* record then goes out

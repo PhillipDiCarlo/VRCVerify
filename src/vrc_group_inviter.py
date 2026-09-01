@@ -31,6 +31,7 @@ import os
 import random
 import time
 
+import heartbeat
 import pika
 from dotenv import load_dotenv
 from pika.exceptions import AMQPError
@@ -1345,12 +1346,43 @@ def process_job(ch, method, properties, body):
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=not already_retried)
 
 
+# The consumer's live connection, so the heartbeat can report whether the
+# broker link is actually open rather than whether this process is executing
+# (issue #170 phase 2). Written by the consume loop, read by a daemon thread;
+# a plain attribute assignment, which CPython makes atomic, and a stale read
+# costs one heartbeat's worth of accuracy rather than correctness.
+_live_connection = None
+
+
+def _status_probe() -> dict[str, tuple[bool, str | None]]:
+    """This worker, and the broker it consumes from.
+
+    THE HONEST LIMIT: a heartbeat thread keeps writing while the consume
+    callback is wedged, so "up" here means the process is running and its
+    broker connection is open, not that jobs are moving. The connection check
+    is what makes it more than a liveness ping -- a dropped broker link is the
+    failure this service actually has, and it is invisible from outside.
+
+    The queue is reported by BOTH workers. The status page takes the worst
+    answer, so one of them losing its connection is not hidden by the other
+    still having one.
+    """
+    connection = _live_connection
+    open_now = bool(connection is not None and connection.is_open)
+    return {
+        "vrc-group-inviter": (True, "consuming" if open_now else "no broker connection"),
+        "queue": (open_now, None if open_now else "consumer connection closed"),
+    }
+
+
 def listen_for_jobs():
     """Blocking consume loop, reconnecting on broker failures."""
+    global _live_connection
     while True:
         connection = None
         try:
             connection = _rabbitmq_connect_with_retry(max_tries=0)
+            _live_connection = connection
             channel = connection.channel()
             channel.queue_declare(queue=REQUEST_QUEUE_NAME, durable=True)
             channel.basic_qos(prefetch_count=1)
@@ -1391,5 +1423,7 @@ if __name__ == "__main__":
         logging.error("Initial VRChat login failed. Jobs will report vrchat_unavailable until it recovers.")
 
     vrchat_session.start_relogin_thread()
+
+    heartbeat.start_heartbeat("vrc-group-inviter", _status_probe)
 
     listen_for_jobs()

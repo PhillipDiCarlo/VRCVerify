@@ -36,6 +36,7 @@ dockerfile_for() {
         vrc-online-checker) echo "docker/Dockerfile-online-checker" ;;
         dashboard)          echo "docker/Dockerfile-dashboard" ;;
         vrc-group-inviter)  echo "docker/Dockerfile-invite-worker" ;;
+        status-reporter)    echo "docker/Dockerfile-status-reporter" ;;
         *) echo "No Dockerfile known for image '$1'" >&2; return 1 ;;
     esac
 }
@@ -89,9 +90,10 @@ echo "1. Bot"
 echo "2. VRC Online Checker"
 echo "3. Dashboard (runs on the VPS, not the homelab)"
 echo "4. VRChat Group Inviter"
-echo "5. All"
+echo "5. Status Reporter (homelab; reports to status.vrcverify.com)"
+echo "6. All"
 echo "0. Exit"
-read -r -p "Enter your choice (0-5): " choice
+read -r -p "Enter your choice (0-6): " choice
 
 if [[ "$choice" == "0" ]]; then
     echo "Exiting script."
@@ -99,7 +101,7 @@ if [[ "$choice" == "0" ]]; then
 fi
 
 case "$choice" in
-    1|2|3|4|5) ;;
+    1|2|3|4|5|6) ;;
     *) echo "Invalid choice. Exiting script."; exit 1 ;;
 esac
 
@@ -111,11 +113,13 @@ case "$choice" in
     2) build_and_push "vrc-online-checker" "$version" ;;
     3) build_and_push "dashboard" "$version" ;;
     4) build_and_push "vrc-group-inviter" "$version" ;;
-    5)
+    5) build_and_push "status-reporter" "$version" ;;
+    6)
         build_and_push "discord-bot" "$version"
         build_and_push "vrc-online-checker" "$version"
         build_and_push "dashboard" "$version"
         build_and_push "vrc-group-inviter" "$version"
+        build_and_push "status-reporter" "$version"
         ;;
 esac
 

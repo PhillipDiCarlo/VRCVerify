@@ -234,3 +234,7 @@ cookies.txt
 # of production's guarantees.
 status/node_modules/
 status/.wrangler/
+
+# wrangler reads local secrets from here. Never committed: it is the file
+# that holds the status reporter's signing key on a development machine.
+status/.dev.vars

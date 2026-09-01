@@ -1,4 +1,4 @@
-# Local build compose. Produces all four images; three are meant to run here
+# Local build compose. Produces all five images; four are meant to run here
 # (see the dashboard service at the bottom).
 #
 # No `version:` key: Compose v2 ignores it and warns that it is obsolete on
@@ -70,6 +70,10 @@ services:
       SEAT_SWEEP_INTERVAL: ${SEAT_SWEEP_INTERVAL:-21600}
       SEAT_SWEEP_MAX_PER_PASS: ${SEAT_SWEEP_MAX_PER_PASS:-25}
       SEAT_SWEEP_SPACING: ${SEAT_SWEEP_SPACING:-2}
+      HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
+    volumes:
+      # Where the bot drops its heartbeat for the status page (issue #170).
+      - status-heartbeats:/heartbeats
     restart: unless-stopped
 
   vrc-online-checker:
@@ -100,8 +104,10 @@ services:
       # Reuse the VRChat session across restarts so redeploys don't burn a
       # 2FA email (and risk a 429 lockout). Unset to disable.
       VRCHAT_SESSION_FILE: ${VRCHAT_SESSION_FILE-/data/vrchat_session.txt}
+      HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
     volumes:
       - vrchat-session:/data
+      - status-heartbeats:/heartbeats
     restart: unless-stopped
 
   # Group-invite worker (issue #49). Runs the SECOND VRChat account, which
@@ -145,8 +151,10 @@ services:
       INVITE_GMAIL_USER: ${INVITE_GMAIL_USER:-}
       INVITE_GMAIL_APP_PASSWORD: ${INVITE_GMAIL_APP_PASSWORD:-}
       INVITE_VRCHAT_SESSION_FILE: ${INVITE_VRCHAT_SESSION_FILE-/data/vrchat_invite_session.txt}
+      HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
     volumes:
       - vrchat-invite-session:/data
+      - status-heartbeats:/heartbeats
     restart: on-failure
 
   # BUILD TARGET ONLY -- do not `up` this here.
@@ -211,6 +219,28 @@ services:
   #       max-size: "10m"
   #       max-file: "3"
 
+  # The status page's reporter (issue #170 phase 2). Builds here so the image
+  # exists; it does nothing at all unless STATUS_REPORT_URL and
+  # STATUS_REPORT_SECRET are set, and exits 0 when they are not.
+  status-reporter:
+    build:
+      context: ../../
+      dockerfile: docker/Dockerfile-status-reporter
+    image: status-reporter
+    env_file:
+      - .env
+    environment:
+      STATUS_REPORT_URL: ${STATUS_REPORT_URL:-}
+      STATUS_REPORT_SECRET: ${STATUS_REPORT_SECRET:-}
+      STATUS_REPORT_INTERVAL: ${STATUS_REPORT_INTERVAL:-60}
+      HEARTBEAT_DIR: /heartbeats
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      # Read only, like the deployment: this service reports on the others and
+      # must never be able to invent a heartbeat.
+      - status-heartbeats:/heartbeats:ro
+    restart: on-failure
+
 volumes:
   # Persists the VRChat auth cookie so restarts skip re-authentication.
   vrchat-session:
@@ -218,3 +248,5 @@ volumes:
   vrchat-invite-session:
   # For a second invite account; uncomment alongside its service above.
   # vrchat-invite-session-2:
+  # Heartbeat files for the status page (issue #170).
+  status-heartbeats:

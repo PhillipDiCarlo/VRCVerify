@@ -69,8 +69,22 @@ export const PART_CAPABILITIES = {
   "discord-bot": ["bot", "verification", "invites"],
   "vrc-online-checker": ["verification"],
   "vrc-group-inviter": ["invites"],
-  "bot-api": ["dashboard"],
-  database: ["verification", "bot", "invites", "dashboard"],
+  // NOT "down". A capability may be listed as `{ capability, as: "degraded" }`,
+  // meaning this part failing caps that row at degraded however badly the part
+  // itself is doing.
+  //
+  // The dashboard is the case that needs it, and the first version got it
+  // wrong. When the homelab went quiet the dashboard row went red -- while a
+  // live probe of dashboard.vrcverify.com was answering 200 in the same
+  // minute. Both facts were true: the site loads, signing in works, and every
+  // page that needs the bot behind it fails. "Down" is the wrong word for
+  // that, because a reader who can see the page loading will simply conclude
+  // the status page is broken, and stop believing the rows that are right.
+  //
+  // The public probe stays the authority on whether the dashboard is
+  // reachable. What the homelab can do is pull it down to degraded.
+  "bot-api": [{ capability: "dashboard", as: "degraded" }],
+  database: ["verification", "bot", "invites", { capability: "dashboard", as: "degraded" }],
   queue: ["verification", "invites"],
 };
 

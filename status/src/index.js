@@ -16,6 +16,9 @@ import {
 } from "./config.js";
 import {
   capabilitiesFromParts,
+  parseSignatureHeader,
+  readReport,
+  signatureIsTimely,
   classifyHttp,
   dataFreshness,
   dayKey,
@@ -276,6 +279,85 @@ async function readMeta(db, key) {
   return row?.value ?? null;
 }
 
+/**
+ * The homelab's report, and the only route on this Worker that writes.
+ *
+ * Authenticated by an HMAC over the timestamp AND the body, verified with
+ * crypto.subtle.verify rather than by comparing strings -- a `===` on a
+ * signature leaks its prefix through timing, and this is the one place an
+ * attacker gets unlimited attempts.
+ *
+ * Every failure answers with the same shape and says as little as possible.
+ * "Bad signature" and "stale timestamp" are the same 401 to a caller: telling
+ * someone which half of the check they failed is telling them how to pass it.
+ * The log says which, because the operator is not the attacker.
+ */
+async function handleReport(request, env, now) {
+  const secret = env.REPORT_SECRET;
+  if (!secret) {
+    console.log("report rejected: REPORT_SECRET is not configured on this Worker");
+    return new Response("Not configured", { status: 503 });
+  }
+
+  const raw = await request.text();
+  if (raw.length > 8192) return new Response("Too large", { status: 413 });
+
+  const parsed = parseSignatureHeader(request.headers.get("x-vrcverify-signature"));
+  if (!parsed) {
+    console.log("report rejected: unparseable signature header");
+    return new Response("Unauthorized", { status: 401 });
+  }
+  if (!signatureIsTimely(parsed.timestamp, now)) {
+    console.log(`report rejected: timestamp ${parsed.timestamp} is outside the window at ${now}`);
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["verify"],
+  );
+  const signature = Uint8Array.from(
+    parsed.signature.match(/../g).map((byte) => parseInt(byte, 16)),
+  );
+  const valid = await crypto.subtle.verify(
+    "HMAC",
+    key,
+    signature,
+    encoder.encode(`${parsed.timestamp}.${raw}`),
+  );
+  if (!valid) {
+    console.log("report rejected: signature does not match");
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  let body;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    return new Response("Bad request", { status: 400 });
+  }
+
+  const rows = readReport(body, Object.keys(PART_CAPABILITIES));
+  if (!rows) return new Response("Bad request", { status: 400 });
+
+  await env.DB.batch(
+    rows.map((row) =>
+      env.DB.prepare(
+        `INSERT INTO heartbeat (part, at, up, detail) VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT (part) DO UPDATE SET at = ?2, up = ?3, detail = ?4`,
+      ).bind(row.part, now, row.up ? 1 : 0, row.detail),
+    ),
+  );
+
+  // 204: there is nothing useful to say back, and a body here would only be
+  // something for a reporter to start depending on.
+  return new Response(null, { status: 204 });
+}
+
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body, null, 2), {
     status,
@@ -332,6 +414,10 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const now = Math.floor(Date.now() / 1000);
+
+    if (request.method === "POST" && url.pathname === "/report") {
+      return handleReport(request, env, now);
+    }
 
     if (request.method !== "GET" && request.method !== "HEAD") {
       return new Response("Method not allowed", { status: 405 });

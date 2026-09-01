@@ -112,9 +112,46 @@ to be worth meeting one at a time.
    rather than continuing to show the last green it saw. A status page is
    worth exactly what its worst case is worth.
 
-Phases 2, 4 and 5 add secrets (the reporter's signing key, the Discord webhook)
-and a Cloudflare Access policy on `/admin`. Each is documented in this file as
-it lands, rather than in advance.
+## Turning on the homelab's reporting (phase 2)
+
+**Order matters, and getting it backwards is worse than not doing it.** A
+reporter posting to a Worker that does not know the key yet is answered 401
+every minute, and the page then shows the entire homelab as down while it is
+running perfectly. Somebody will believe it.
+
+1. **Generate a key.** `openssl rand -hex 32`. It is not a credential for
+   anything else: the worst a stolen copy can do is lie to a status page.
+
+2. **Give it to the Worker first.**
+
+       npx wrangler secret put REPORT_SECRET --config status/wrangler.toml
+
+3. **Then the homelab.** In the `.env` beside `docker-compose.deploy.yml`:
+
+       HEARTBEAT_DIR=/heartbeats
+       STATUS_REPORT_URL=https://status.vrcverify.com/report
+       STATUS_REPORT_SECRET=<the same key>
+
+4. **Deploy the homelab**, which needs a new image tag: the three services now
+   write heartbeats, and `status-reporter` is a fourth container.
+
+       ./tag_and_push_images.sh      # option 6, all of them
+       VRCVERIFY_VERSION=x.y.z docker compose -f docker-compose.deploy.yml up -d
+
+5. **Watch one report land.** `docker compose logs -f status-reporter` should
+   say `Reported 6 parts` every minute. A 401 there means the keys differ; a
+   connection error means this host cannot reach Cloudflare, which is worth
+   knowing on its own.
+
+6. **Prove the silence works.** `docker compose stop vrc-online-checker` and
+   watch Verification go down within about three minutes: one report to notice
+   the heartbeat is stale, and two runs of the page's cron to confirm it. Start
+   it again and the row recovers on the next run, because recovery is published
+   immediately and only failure needs confirming. This is the single most
+   important behaviour in the whole system and it takes four minutes to check.
+
+Phases 4 and 5 add the Discord webhook and a Cloudflare Access policy on
+`/admin`. Each is documented here as it lands, rather than in advance.
 
 ## The rules this thing holds
 
