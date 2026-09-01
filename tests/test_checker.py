@@ -360,3 +360,40 @@ class TestVerifyAndBuildResult:
         result = checker.verify_and_build_result("d1", "usr_nonebio", "g1", "VRC-ABC123")
         assert result["is_18_plus"] is True
         assert result["code_found"] is False
+
+
+class TestStatusProbe:
+    """The heartbeat the status page reads (issue #170 phase 2).
+
+    Found by the adversarial pass turning into a live incident: stopping this
+    container went through the STALE path (both keys correctly forced down by
+    status_reporter.py once the file goes quiet) and never exercised the case
+    this class is actually about -- the broker connection dropping while the
+    process keeps running and keeps writing.
+    """
+
+    def test_open_connection_reports_up_on_both_keys(self, monkeypatch):
+        monkeypatch.setattr(checker, "_live_connection", SimpleNamespace(is_open=True))
+        parts = checker._status_probe()
+        assert parts["vrc-online-checker"] == (True, None)
+        assert parts["queue"] == (True, None)
+
+    def test_a_dropped_connection_is_reported_honestly_under_its_own_name(self, monkeypatch):
+        """The bug: this service's name used to say "up" no matter what.
+
+        A broker link dropping while the process keeps running is exactly the
+        failure this heartbeat exists to catch, and it must not be reported as
+        "vrc-online-checker: up (no broker connection)" -- true and false in
+        the same sentence, in the text an alert relies on being honest.
+        """
+        monkeypatch.setattr(checker, "_live_connection", SimpleNamespace(is_open=False))
+        parts = checker._status_probe()
+        assert parts["vrc-online-checker"] == (False, "no broker connection")
+        assert parts["queue"] == (False, "consumer connection closed")
+
+    def test_no_connection_at_all_is_the_same_as_a_closed_one(self, monkeypatch):
+        """Before the first successful connect, not merely after one drops."""
+        monkeypatch.setattr(checker, "_live_connection", None)
+        parts = checker._status_probe()
+        assert parts["vrc-online-checker"][0] is False
+        assert parts["queue"][0] is False
