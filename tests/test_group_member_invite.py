@@ -1544,6 +1544,10 @@ class FakeGroupsApi:
         self.member = None
         self.get_member_error = FakeApiException(404, "Not Found")
         self.invite_error = None
+        # Popped one per call, ahead of the sticky invite_error above. The
+        # #217 rescue makes two create_group_invite calls in one job, so its
+        # tests need the two answers to differ.
+        self.invite_errors = []
         # The group exists, and we can still invite into it, unless a test says
         # otherwise. Consulted only to read a 403 or 404 from
         # create_group_invite -- both of which are ambiguous on their own.
@@ -1570,8 +1574,9 @@ class FakeGroupsApi:
 
     def create_group_invite(self, group_id, request, **kwargs):
         self.calls.append(("create_group_invite", group_id, request))
-        if self.invite_error:
-            raise self.invite_error
+        error = self.invite_errors.pop(0) if self.invite_errors else self.invite_error
+        if error:
+            raise error
         return SimpleNamespace()
 
     def delete_group_invite(self, group_id, user_id, **kwargs):
@@ -2067,6 +2072,207 @@ class TestAMemberWhoClearedTheNotification:
         result = inviter.send_group_invite(INVITE_JOB)
         assert result["state"] == inviter.INVITE_VRCHAT_UNAVAILABLE
         assert api.invites() == []
+
+
+ALREADY_INVITED_400 = "ClubLA Bot is already invited\u2024"
+
+
+class TestAStaleInviteTheCheckCouldNotSee:
+    """Issue #217. The corner the rescue in #216 does not reach.
+
+    That rescue fires on the PRECHECK reporting "invited". The precheck is
+    best effort, though, so when get_group_member raises -- a 5xx or a 429
+    surviving the retries, or the still-unmeasured 403 -- status is None and
+    the branch never runs. The member is a dismissed notification away from
+    being stranded, and VRChat is the only thing that knows:
+
+        400 "<name> is already invited\u2024"
+
+    Reported as `already_invited`, that told them an invite was waiting in a
+    list they had already cleared, and `already_invited` is settled, so the
+    button died and only a fresh verification would let them try again.
+
+    So the 400 is now treated as the standing the precheck could not read,
+    and both routes run the ONE withdraw-and-re-send in send_group_invite
+    rather than a second implementation of it inside an error handler.
+    """
+
+    def test_the_member_is_rescued_when_the_check_could_not_answer(self, api):
+        """The bug, named."""
+        api.get_member_error = FakeApiException(500, "Internal Server Error")
+        api.invite_errors = [FakeApiException(400, ALREADY_INVITED_400)]
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_SENT
+        assert len(api.withdrawals()) == 1
+        assert len(api.invites()) == 2
+
+    def test_the_withdraw_lands_between_the_two_invites(self, api):
+        """Withdrawing before the first would cancel an invite the member can
+        very likely see; withdrawing after the second undoes the rescue."""
+        api.get_member_error = FakeApiException(500, "Internal Server Error")
+        api.invite_errors = [FakeApiException(400, ALREADY_INVITED_400)]
+        inviter.send_group_invite(INVITE_JOB)
+        names = [c[0] for c in api.calls]
+        first, withdraw = names.index("create_group_invite"), names.index(
+            "delete_group_invite"
+        )
+        last = len(names) - 1 - names[::-1].index("create_group_invite")
+        assert first < withdraw < last
+
+    def test_it_is_bounded_to_one_re_attempt(self, api):
+        """A group that answers "already invited" for ever must not loop. The
+        second 400 is reported, and the member is left exactly where the old
+        code left them -- never worse."""
+        api.get_member_error = FakeApiException(500, "Internal Server Error")
+        api.invite_error = FakeApiException(400, ALREADY_INVITED_400)
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_ALREADY_INVITED
+        assert len(api.invites()) == 2
+        assert len(api.withdrawals()) == 1
+
+    def test_a_check_that_already_withdrew_does_not_withdraw_again(self, api):
+        """The two routes are the same rescue, not two of them. A precheck
+        that saw "invited" has already spent the withdraw, so a 400 after it
+        is VRChat's answer rather than a fresh case to rescue."""
+        api.member = member_record("invited")
+        api.invite_error = FakeApiException(400, ALREADY_INVITED_400)
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_ALREADY_INVITED
+        assert len(api.withdrawals()) == 1
+        assert len(api.invites()) == 1
+
+    def test_a_withdraw_that_failed_still_counts_as_spent(self, api):
+        """It is "attempted", not "done", deliberately: re-running a withdraw
+        that just failed would fail the same way and cost another round of
+        calls for nothing.
+
+        Counted as "no withdrawing AFTER the invite" rather than as one call,
+        because _call_with_retry makes several of them out of a single 500.
+        """
+        api.member = member_record("invited")
+        api.withdraw_error = FakeApiException(500, "Internal Server Error")
+        api.invite_error = FakeApiException(400, ALREADY_INVITED_400)
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_ALREADY_INVITED
+        assert len(api.invites()) == 1
+        names = [c[0] for c in api.calls]
+        assert names.index("create_group_invite") > max(
+            i for i, n in enumerate(names) if n == "delete_group_invite"
+        )
+
+    def test_a_failed_rescue_withdraw_does_not_cost_the_second_attempt(self, api):
+        """Best effort, exactly like the precheck's own withdraw."""
+        api.get_member_error = FakeApiException(500, "Internal Server Error")
+        api.withdraw_error = FakeApiException(500, "Internal Server Error")
+        api.invite_errors = [FakeApiException(400, ALREADY_INVITED_400)]
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_SENT
+        assert len(api.invites()) == 2
+
+    def test_membership_is_never_rescued(self, api):
+        """The other 400 is finished, and re-sending against it would be the
+        unsolicited invite this feature must never send."""
+        api.get_member_error = FakeApiException(500, "Internal Server Error")
+        api.invite_error = FakeApiException(
+            400, "ClubLA Bot is already a member of this group\u2024"
+        )
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_ALREADY_MEMBER
+        assert api.withdrawals() == []
+        assert len(api.invites()) == 1
+
+    def test_an_unrecognised_400_is_never_rescued(self, api):
+        """VRChat rewording the sentence must not start withdrawing invites on
+        a 400 nobody has read. It lands where it landed before, unchanged."""
+        api.get_member_error = FakeApiException(500, "Internal Server Error")
+        api.invite_error = FakeApiException(400, "Some entirely new wording")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_ALREADY_MEMBER
+        assert api.withdrawals() == []
+        assert len(api.invites()) == 1
+
+    def test_the_second_answer_is_classified_and_not_flattened(self, api):
+        """The reason this is a loop rather than a rescue nested in the error
+        handler: the second attempt runs through the SAME classification as
+        the first, so a ban that turns up on it is reported as a ban."""
+        api.get_member_error = FakeApiException(500, "Internal Server Error")
+        api.invite_errors = [
+            FakeApiException(400, ALREADY_INVITED_400),
+            FakeApiException(409, "ClubLA Bot is banned from this group."),
+        ]
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_BANNED
+
+    def test_the_second_invite_never_overrides_a_block_either(self, api):
+        """The compliance argument for the whole feature. It has to hold on
+        every create_group_invite this function makes, not just the first."""
+        api.get_member_error = FakeApiException(500, "Internal Server Error")
+        api.invite_errors = [FakeApiException(400, ALREADY_INVITED_400)]
+        inviter.send_group_invite(INVITE_JOB)
+        assert len(api.invites()) == 2
+        for _, _, request in api.invites():
+            assert request.confirm_override_block is False
+            assert request.user_id == VRC_USER_ID
+
+    def test_a_dead_session_on_the_rescue_withdraw_stops_there(self, api):
+        """Same reasoning as everywhere else: the second invite cannot work
+        either, so spending the call to find that out is waste. Holds only
+        while the UnauthorizedException handler sits ahead of ApiException,
+        which it subclasses -- and _withdraw_stale_invite re-raises it rather
+        than swallowing it with the rest."""
+        from vrchatapi.exceptions import UnauthorizedException
+
+        api.get_member_error = FakeApiException(500, "Internal Server Error")
+        api.invite_errors = [FakeApiException(400, ALREADY_INVITED_400)]
+        api.withdraw_error = UnauthorizedException(http_resp=None)
+        api.withdraw_error.status = 401
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_VRCHAT_UNAVAILABLE
+        assert len(api.invites()) == 1
+
+    def test_the_second_invite_is_throttled_like_the_first(self, api, monkeypatch):
+        """It goes out on the shared budget the same way. Rescuing a member
+        must not be a way round the spacing every other invite obeys."""
+        slept = []
+        monkeypatch.setattr(inviter.time, "sleep", slept.append)
+        monkeypatch.setattr(inviter, "INVITE_MIN_SPACING_SECONDS", 3.0)
+        monkeypatch.setattr(inviter, "_last_invite_call", 0.0)
+        monkeypatch.setattr(inviter, "_space_invite_calls", REAL_SPACE_INVITE_CALLS)
+        monkeypatch.setattr(inviter.time, "monotonic", lambda: 1000.0)
+        api.get_member_error = FakeApiException(500, "Internal Server Error")
+        api.invite_errors = [FakeApiException(400, ALREADY_INVITED_400)]
+        inviter.send_group_invite(INVITE_JOB)
+        assert len(api.invites()) == 2
+        assert slept and slept[-1] >= 3.0
+
+    def test_a_check_that_answered_nothing_reaches_the_rescue_too(self, api):
+        """status is None from two routes, not one: get_group_member RAISING,
+        which is what #217 was filed about, and it returning None. Both mean
+        "we could not read their standing", so both are rescued -- the fix is
+        keyed on not knowing, not on how we came not to know."""
+        api.member = None
+        api.get_member_error = None
+        api.invite_errors = [FakeApiException(400, ALREADY_INVITED_400)]
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_SENT
+        assert len(api.invites()) == 2
+
+    def test_a_transient_failure_is_not_mistaken_for_a_stale_invite(self, api):
+        """Only a 400 the wording identifies starts a rescue. A 429 or a 500
+        must still be reported as "ask again later" on one attempt."""
+        api.get_member_error = FakeApiException(500, "Internal Server Error")
+        api.invite_error = FakeApiException(429, "Too Many Requests")
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_VRCHAT_UNAVAILABLE
+        assert api.withdrawals() == []
+
+    def test_a_stranger_is_still_invited_in_one_call(self, api):
+        """The rescue must stay on the path it was built for. Nothing about
+        an ordinary invite changed."""
+        result = inviter.send_group_invite(INVITE_JOB)
+        assert result["state"] == inviter.INVITE_SENT
+        assert len(api.invites()) == 1
+        assert api.withdrawals() == []
 
 
 class TestTellingTwoKindsOf400Apart:

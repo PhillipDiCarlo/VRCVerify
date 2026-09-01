@@ -230,7 +230,10 @@ VRCHAT_CALL_RETRIES = _int_env("INVITE_CALL_RETRIES", 3)
 # Capped as well as floored. time.sleep(inf) raises OverflowError inside the
 # consumer callback, and any value past the broker heartbeat drops the
 # connection mid-job -- so a mistyped setting must degrade to "slow", never to
-# "the worker stops answering".
+# "the worker stops answering". The cap is what one JOB may spend twice over,
+# not once: since #217 a stale-invite rescue sends a second invite, and that
+# one is spaced like every other. 2x60s still sits well inside the inviter's
+# 300s heartbeat.
 INVITE_MIN_SPACING_SECONDS = min(
     60.0, _float_env("INVITE_MIN_SPACING_SECONDS", 3.0)
 )
@@ -779,6 +782,53 @@ def _throttled_invite(groups, group_id, request):
         _last_invite_call = time.monotonic()
 
 
+def _withdraw_stale_invite(groups, group_id: str, user_id: str) -> None:
+    """Cancel the invite record VRChat is still holding for this member.
+
+    Measured 2026-08-27: DISMISSING an invite notification -- the x, which is
+    a different action from declining -- deletes what the member can see and
+    leaves the group's invite record standing, so create_group_invite answers
+    400 "already invited" for ever. The member is stranded with nothing to
+    accept. Withdrawing is the only way back, and re-inviting afterwards is
+    not a duplicate: VRChat holds exactly one invite per member, so it is that
+    same invite made visible again. Declining, by contrast, clears the record
+    by itself and lands on "inactive", which never needs this.
+
+    Best effort. Every failure is logged and swallowed so the caller goes on
+    to the invite exactly as it did before this existed -- a withdraw that
+    does not work must not cost the member their attempt.
+
+    UnauthorizedException is the one exception, and it is re-raised rather
+    than swallowed: a dead session means the invite cannot work either, so
+    the caller's handler turns it into a session error instead of spending a
+    second call to find that out. It must be caught ahead of ApiException,
+    which it subclasses.
+    """
+    try:
+        _call_with_retry(
+            groups.delete_group_invite,
+            group_id,
+            user_id,
+            _request_timeout=request_timeout(),
+        )
+        logging.info(
+            "Withdrew %s's stale invite to %s so a fresh one can be seen",
+            user_id,
+            group_id,
+        )
+    except UnauthorizedException:
+        raise
+    except ApiException as e:
+        logging.info(
+            "Could not withdraw %s's existing invite to %s (status=%s: %s);"
+            " attempting the invite anyway",
+            user_id,
+            group_id,
+            getattr(e, "status", None),
+            _api_detail(e),
+        )
+
+
 def send_group_invite(job: dict) -> dict:
     """Invite one member to one group, if they are not already in it.
 
@@ -797,16 +847,21 @@ def send_group_invite(job: dict) -> dict:
     be recognised: a member holding an invite they cannot see needs it
     re-issued, and a member with a pending join request needs admitting rather
     than leaving in a queue the bot was installed to replace. Both are argued
-    at their branches below.
+    where they take effect below.
 
     That check is an OPTIMISATION, not a gate. Every failure of it falls
-    through to the invite, and it is never reported. This is the one part of
-    this function that was rewritten twice in production, both times because a
-    fix gave get_group_member's 403 a precise meaning from a single
-    observation -- first "the target is not in the group", then "the bot is not
-    in the group". Neither held: the 403 that prompted them came from a userId
-    that resolved to no VRChat account at all, and what else it means is still
-    unmeasured.
+    through to the invite, and it is never reported. Since #217 that costs the
+    member nothing even in the case where it used to: a stale invite the check
+    could not see is recognised from VRChat's own 400 and rescued on a second
+    pass, so the withdraw-and-re-send no longer depends on the check having
+    worked.
+
+    That check is also the one part of this function that was rewritten twice
+    in production, both times because a fix gave get_group_member's 403 a
+    precise meaning from a single observation -- first "the target is not in
+    the group", then "the bot is not in the group". Neither held: the 403 that
+    prompted them came from a userId that resolved to no VRChat account at
+    all, and what else it means is still unmeasured.
 
     So it deliberately does not need to be known. Every authoritative answer
     comes from create_group_invite regardless -- 400 for an existing member,
@@ -903,59 +958,11 @@ def send_group_invite(job: dict) -> dict:
         # that", which for a block they placed themselves is simply untrue --
         # the blocked copy already names the case correctly.
         #
-        # Still a refusal, unlike the two below, because the invite could not
-        # succeed anyway: confirm_override_block is always False, so VRChat
-        # would answer 403. Refusing here just saves the call.
+        # Still a refusal, unlike the states that reach the send below,
+        # because the invite could not succeed anyway: confirm_override_block
+        # is always False, so VRChat would answer 403. Refusing here just
+        # saves the call.
         return _invite_result(job, INVITE_BLOCKED)
-    if status == "invited":
-        # They already hold an invite -- and pressing the button says they
-        # cannot see it. Measured 2026-08-27: DISMISSING the notification (the
-        # x, which is not the same action as declining) deletes what the member
-        # sees and leaves the group's invite record standing, so
-        # create_group_invite answers 400 "already invited" for ever. The
-        # member is stranded with nothing to accept, while being told an invite
-        # is waiting in notifications they have already cleared.
-        #
-        # Withdrawing and re-sending is the way out, and it is not a duplicate:
-        # VRChat holds exactly one invite per member, so this is the same
-        # invite made visible again. Declining, by contrast, clears the record
-        # by itself and lands on "inactive", which never reaches this branch.
-        #
-        # Best effort, like everything else here. If the withdraw fails we fall
-        # through and let create_group_invite answer, which is what happened
-        # before this existed. If the withdraw succeeds and the re-send then
-        # fails, the member is left at "inactive" and their next press invites
-        # cleanly -- strictly better than the state this replaced.
-        try:
-            _call_with_retry(
-                groups.delete_group_invite,
-                group_id,
-                user_id,
-                _request_timeout=request_timeout(),
-            )
-            logging.info(
-                "Withdrew %s's stale invite to %s so a fresh one can be seen",
-                user_id,
-                group_id,
-            )
-        except UnauthorizedException as e:
-            # Not best effort, for the reason the precheck gives: a dead
-            # session means the invite below cannot work either, and falling
-            # through would spend a second call finding that out. Must be
-            # caught ahead of ApiException, which it subclasses.
-            vrchat_session.invalidate(classify_api_error(e))
-            return _invite_result(
-                job, INVITE_VRCHAT_UNAVAILABLE, error_message="VRChat session expired"
-            )
-        except ApiException as e:
-            logging.info(
-                "Could not withdraw %s's existing invite to %s (status=%s: %s);"
-                " attempting the invite anyway",
-                user_id,
-                group_id,
-                getattr(e, "status", None),
-                _api_detail(e),
-            )
 
     # "requested" -- a pending join request -- deliberately has NO branch, and
     # that is a decision rather than an omission. An invite against somebody
@@ -967,115 +974,155 @@ def send_group_invite(job: dict) -> dict:
     # precisely the population it was installed to admit. Leaving them in the
     # queue refuses somebody the bot has already vouched for.
 
-    # 2) Send it. Either nothing was waiting for them, or the branch above
-    #    withdrew what was so this one can be seen.
-    try:
-        _call_with_retry(
-            _throttled_invite,
-            groups,
-            group_id,
-            # See the docstring: False is NOT this field's default.
-            CreateGroupInviteRequest(user_id=user_id, confirm_override_block=False),
-        )
-    except UnauthorizedException as e:
-        vrchat_session.invalidate(classify_api_error(e))
-        return _invite_result(
-            job, INVITE_VRCHAT_UNAVAILABLE, error_message="VRChat session expired"
-        )
-    except ApiException as e:
-        code = getattr(e, "status", None)
-        detail = _api_detail(e)
-        # Logged before it is classified, and at WARNING, because every state
-        # below is OUR reading of somebody else's error. When the reading is
-        # wrong -- and it has been, twice -- this line is the only record of
-        # what VRChat actually said.
-        logging.warning(
-            "create_group_invite for %s into %s failed (status=%s: %s)",
-            user_id,
-            group_id,
-            code,
-            detail,
-        )
-        if code == 409:
-            # "<name> is banned from this group. Do you want to unban and
-            # reinvite them?" -- VRChat naming the case in words, which is why
-            # this needs no _probe_group round trip to disambiguate the way
-            # 403 and 404 do.
-            #
-            # Reached more often than the banned branch above, not less. That
-            # check only sees a ban when the user already has a member record
-            # in the group; measured 2026-08-27, a ban against someone with no
-            # record leaves get_group_member returning None, which is
-            # indistinguishable from never having heard of them. So a pre-ban,
-            # or a ban whose record is gone, arrives HERE.
-            #
-            # Before this branch existed, 409 matched nothing in
-            # classify_api_error and came back as INVITE_VRCHAT_UNAVAILABLE --
-            # a transient state, which hands the member their button back. A
-            # banned member was told "VRChat didn't answer" and could re-press
-            # every cooldown for ever, spending a real invite call each time
-            # against a group that had banned them.
-            return _invite_result(job, INVITE_BANNED, error_message=detail)
-        if code == 400:
-            # Two different "nothing to do" answers share this status: they
-            # joined in the seconds since the check above, or an invite was
-            # already waiting for them. See _classify_invite_400 -- the status
-            # cannot tell them apart and they need different sentences.
-            #
-            # KNOWN RESIDUAL (#215): reaching `already_invited` HERE means the
-            # precheck did not report "invited", so the withdraw-and-re-send
-            # above never ran -- and if this member had dismissed their
-            # notification they are still stranded, now being told an invite
-            # is waiting in a list they cleared. Only reachable when the
-            # precheck raised, and it costs them one verification: their next
-            # press finds a precheck that works and is repaired there. Not
-            # rescued from inside this handler on purpose -- nesting a
-            # withdraw, a second invite, and its own error classification
-            # inside an error handler is exactly the shape that produced two
-            # production rewrites of this function.
-            return _invite_result(
-                job, _classify_invite_400(detail), error_message=detail
+    # 2) Send it -- at most twice.
+    #
+    # A member standing at "invited" holds an invite that pressing the button
+    # says they cannot see, so the first pass withdraws it and re-sends. See
+    # _withdraw_stale_invite for what dismissing a notification does and why
+    # the re-send is not a duplicate.
+    #
+    # The SECOND pass exists for #217: the precheck is best effort, and when
+    # it raised we reach here with status None, so a member in exactly that
+    # state is not recognised until VRChat answers 400 "already invited" --
+    # at which point the same withdraw-and-re-send is what they need. Both
+    # routes run the one code path below rather than a second implementation
+    # of it, which is why this is a loop and not a nested rescue inside the
+    # error handler.
+    #
+    # It is bounded to one re-attempt, and by construction rather than by a
+    # counter: `continue` is reached only while withdraw_attempted is False,
+    # and the pass it starts sets withdraw_attempted True before it calls
+    # anything. A second 400 "already invited" is therefore reported, not
+    # retried. It also costs the member an extra INVITE_MIN_SPACING_SECONDS,
+    # which is the throttle working as intended on a path this rare.
+    withdraw_first = status == "invited"
+    # "Attempted", not "done": a withdraw that failed is swallowed by design,
+    # and re-running it would only fail the same way.
+    withdraw_attempted = False
+    while True:
+        try:
+            if withdraw_first:
+                withdraw_attempted = True
+                _withdraw_stale_invite(groups, group_id, user_id)
+            _call_with_retry(
+                _throttled_invite,
+                groups,
+                group_id,
+                # See the docstring: False is NOT this field's default.
+                CreateGroupInviteRequest(
+                    user_id=user_id, confirm_override_block=False
+                ),
             )
-        if code in {403, 404}:
-            # Both are ambiguous, and both are resolved the same way: ask what
-            # is actually true about the group. See _probe_group. One extra
-            # call, only on a path that has already failed, and only where the
-            # readings need opposite advice -- "re-verify" versus "go and find
-            # an admin" -- or differ in whether they are permanent.
-            presence, can_invite = _probe_group(groups, group_id)
-            if presence == GROUP_UNKNOWN:
-                # Not knowing is reported as not knowing. Every other answer
-                # here blames somebody, and two of them stick.
-                return _invite_result(
-                    job, INVITE_VRCHAT_UNAVAILABLE, error_message=detail
-                )
-            if presence == GROUP_GONE:
-                return _invite_result(
-                    job, INVITE_GROUP_NOT_FOUND, error_message=detail
-                )
-            # The group is there and we can see it.
-            if code == 404:
-                # So the thing that could not be found is the member.
-                return _invite_result(
-                    job, INVITE_USER_NOT_FOUND, error_message=detail
-                )
-            if can_invite:
-                # We still hold the permission, so the refusal is about the
-                # recipient: they have group invites off, or have blocked us.
-                # Their answer, recorded, never retried and never overridden.
-                return _invite_result(job, INVITE_BLOCKED, error_message=detail)
+        except UnauthorizedException as e:
+            # Covers the withdraw as well as the invite -- it re-raises this
+            # one for exactly that reason. Both mean the same thing and need
+            # the same answer.
+            vrchat_session.invalidate(classify_api_error(e))
             return _invite_result(
-                job,
-                INVITE_NO_PERMISSION,
-                error_message=detail
-                or "The bot is not allowed to invite people to this group",
+                job, INVITE_VRCHAT_UNAVAILABLE, error_message="VRChat session expired"
             )
-        meta = classify_api_error(e)
-        return _invite_result(
-            job, INVITE_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message")
-        )
+        except ApiException as e:
+            code = getattr(e, "status", None)
+            detail = _api_detail(e)
+            # Logged before it is classified, and at WARNING, because every
+            # state below is OUR reading of somebody else's error. When the
+            # reading is wrong -- and it has been, twice -- this line is the
+            # only record of what VRChat actually said.
+            logging.warning(
+                "create_group_invite for %s into %s failed (status=%s: %s)",
+                user_id,
+                group_id,
+                code,
+                detail,
+            )
+            if code == 409:
+                # "<name> is banned from this group. Do you want to unban and
+                # reinvite them?" -- VRChat naming the case in words, which is
+                # why this needs no _probe_group round trip to disambiguate
+                # the way 403 and 404 do.
+                #
+                # Reached more often than the banned branch above, not less.
+                # That check only sees a ban when the user already has a
+                # member record in the group; measured 2026-08-27, a ban
+                # against someone with no record leaves get_group_member
+                # returning None, which is indistinguishable from never having
+                # heard of them. So a pre-ban, or a ban whose record is gone,
+                # arrives HERE.
+                #
+                # Before this branch existed, 409 matched nothing in
+                # classify_api_error and came back as
+                # INVITE_VRCHAT_UNAVAILABLE -- a transient state, which hands
+                # the member their button back. A banned member was told
+                # "VRChat didn't answer" and could re-press every cooldown for
+                # ever, spending a real invite call each time against a group
+                # that had banned them.
+                return _invite_result(job, INVITE_BANNED, error_message=detail)
+            if code == 400:
+                # Two different "nothing to do" answers share this status:
+                # they joined in the seconds since the check above, or an
+                # invite was already waiting for them. See
+                # _classify_invite_400 -- the status cannot tell them apart
+                # and they need different sentences.
+                state = _classify_invite_400(detail)
+                if state == INVITE_ALREADY_INVITED and not withdraw_attempted:
+                    # #217. The precheck did not report "invited" -- it
+                    # raised, or it could not see the record -- so the
+                    # withdraw never ran, and this is a member who may have
+                    # dismissed their notification. Telling them an invite is
+                    # waiting in a list they have already cleared strands
+                    # them behind a settled state, so give them the same
+                    # rescue the precheck would have.
+                    logging.info(
+                        "VRChat says %s is already invited to %s but the check "
+                        "did not; withdrawing and re-sending once",
+                        user_id,
+                        group_id,
+                    )
+                    withdraw_first = True
+                    continue
+                return _invite_result(job, state, error_message=detail)
+            if code in {403, 404}:
+                # Both are ambiguous, and both are resolved the same way: ask
+                # what is actually true about the group. See _probe_group. One
+                # extra call, only on a path that has already failed, and only
+                # where the readings need opposite advice -- "re-verify"
+                # versus "go and find an admin" -- or differ in whether they
+                # are permanent.
+                presence, can_invite = _probe_group(groups, group_id)
+                if presence == GROUP_UNKNOWN:
+                    # Not knowing is reported as not knowing. Every other
+                    # answer here blames somebody, and two of them stick.
+                    return _invite_result(
+                        job, INVITE_VRCHAT_UNAVAILABLE, error_message=detail
+                    )
+                if presence == GROUP_GONE:
+                    return _invite_result(
+                        job, INVITE_GROUP_NOT_FOUND, error_message=detail
+                    )
+                # The group is there and we can see it.
+                if code == 404:
+                    # So the thing that could not be found is the member.
+                    return _invite_result(
+                        job, INVITE_USER_NOT_FOUND, error_message=detail
+                    )
+                if can_invite:
+                    # We still hold the permission, so the refusal is about
+                    # the recipient: they have group invites off, or have
+                    # blocked us. Their answer, recorded, never retried and
+                    # never overridden.
+                    return _invite_result(job, INVITE_BLOCKED, error_message=detail)
+                return _invite_result(
+                    job,
+                    INVITE_NO_PERMISSION,
+                    error_message=detail
+                    or "The bot is not allowed to invite people to this group",
+                )
+            meta = classify_api_error(e)
+            return _invite_result(
+                job, INVITE_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message")
+            )
 
-    return _invite_result(job, INVITE_SENT)
+        return _invite_result(job, INVITE_SENT)
 
 
 def leave_group(job: dict) -> dict:
