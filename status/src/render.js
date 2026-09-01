@@ -355,10 +355,14 @@ export function renderPage({
         .join("")
     : ""}
 
-  <p class="caveat">Times are UTC. Every service is checked once a minute, so a
-  problem can be up to a minute old before it appears here. This page runs on
-  Cloudflare, separately from everything it reports on, so that it stays up when
-  they do not. Machine readable: <a href="/api/status.json">/api/status.json</a>.</p>
+  <p class="caveat">Times are UTC. Everything is checked once a minute, and a
+  problem has to show up twice in a row before it is published here, so a fault
+  takes about two minutes to appear. Verification, the Discord bot and group
+  invites report in on their own schedule rather than being reached directly,
+  which can take about four. Recoveries are published as soon as they are seen.
+  This page runs on Cloudflare, separately from everything it reports on, so
+  that it stays up when they do not. Machine readable:
+  <a href="/api/status.json">/api/status.json</a>.</p>
 
 </main>
 
