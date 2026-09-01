@@ -65,6 +65,15 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
    claims the request and every other button then refuses against it, so the
    ceiling is one invite per `GROUP_INVITE_COOLDOWN_SECONDS`.
 
+   That ceiling holds across a change of group. The *verdict* about a group is
+   discarded the moment an admin points the server somewhere else — a member
+   who already belonged to the old group is told nothing about the new one —
+   but the *clock* is not, because the attempt behind it spent an invite budget
+   shared with every other server. Keying the cooldown on the group as well
+   meant alternating between two of them cost nothing at all (#208). Nothing
+   rate-limits how often the group may be changed, and nothing needs to: each
+   change already costs a full worker re-verification with a fresh claim code.
+
    **Nothing is permanent, including a ban.** `banned` and `blocked` used to be
    final and never offered again. They no longer are, because neither is *our*
    verdict — both are a cache of something VRChat will answer again. A

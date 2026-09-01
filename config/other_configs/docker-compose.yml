@@ -39,9 +39,10 @@ services:
       # The same, for ONE member's invite: how long they watch "asking
       # VRChat" before being told it did not work.
       GROUP_INVITE_TIMEOUT_SECONDS: ${GROUP_INVITE_TIMEOUT_SECONDS:-90}
-      # Minimum gap between two invite attempts by the same member. Bounds
-      # retries after a transient failure, where the member gets their button
-      # back; the settled outcomes need no timer.
+      # Minimum gap between two invite attempts by the same member in the
+      # same server -- not per group, so changing the group does not reset it
+      # (#208). Bounds retries after a transient failure, and the re-offer of
+      # a settled outcome once it has lapsed.
       GROUP_INVITE_COOLDOWN_SECONDS: ${GROUP_INVITE_COOLDOWN_SECONDS:-300}
       # Issue #49 phase 6 -- seats. A VRChat account can be in 100 groups (200
       # with VRC+), and that cap is the scarcest thing this feature has.

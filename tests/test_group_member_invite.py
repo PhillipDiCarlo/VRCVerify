@@ -290,9 +290,53 @@ class TestTheGate:
         """An admin who changes the server's group has invalidated everything
         learned about the old one. Without this, a member who already belonged
         to the group the server USED to use would be silently locked out of
-        the one it uses now, for ever."""
-        set_standing(bot.GROUP_INVITE_ALREADY_MEMBER, group_id=OTHER_GROUP_ID)
+        the one it uses now, for ever.
+
+        Aged past the cooldown deliberately: the verdict is what does not
+        cross a group change, and the clock is what does. The test below is
+        the other half of that pair."""
+        set_standing(
+            bot.GROUP_INVITE_ALREADY_MEMBER,
+            group_id=OTHER_GROUP_ID,
+            age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60,
+        )
         assert bot.group_invite_refusal(standing(), GROUP_ID) is None
+
+    @pytest.mark.parametrize("state", sorted(bot.GROUP_INVITE_SETTLED_STATES))
+    def test_the_cooldown_does_apply_across_a_group_change(self, state):
+        """Issue #208. The verdict about the old group is withheld, but the
+        ATTEMPT that produced it spent the invite account's shared budget --
+        and that budget is shared across every guild, not just this one. When
+        the clock was keyed on the group too, an admin alternating between two
+        of them reset it on every flip and their members paid nothing."""
+        set_standing(state, group_id=OTHER_GROUP_ID, age_seconds=1)
+        assert (
+            bot.group_invite_refusal(standing(), GROUP_ID)
+            == bot.INVITE_REFUSED_COOLDOWN
+        )
+        assert (
+            bot.group_invite_refusal(standing(), GROUP_ID, for_offer=True)
+            == bot.INVITE_REFUSED_COOLDOWN
+        )
+
+    def test_a_request_in_flight_for_the_old_group_still_blocks(self):
+        """A pending request is not a cached verdict, it is a call that is
+        happening right now. Letting a new group walk past it would publish a
+        second job and overwrite the row the first one's answer is matched
+        against. Refused on its own line rather than left to the cooldown,
+        which the shipped defaults would happen to catch it with."""
+        set_standing(
+            bot.GROUP_INVITE_PENDING, group_id=OTHER_GROUP_ID, age_seconds=1
+        )
+        assert (
+            bot.group_invite_refusal(standing(), GROUP_ID)
+            == bot.INVITE_REFUSED_PENDING
+        )
+
+    def test_a_member_who_never_asked_is_unaffected_by_a_group_change(self):
+        """The cooldown crossing a group change must not become a cooldown on
+        somebody with nothing to cool down from."""
+        assert bot.group_invite_refusal(None, OTHER_GROUP_ID) is None
 
 
 class TestPendingExpiresOnRead:
@@ -452,6 +496,48 @@ class TestBeginningARequest:
         self.build()
         bot.abandon_group_invite(GUILD_ID, MEMBER_ID, "some-older-job")
         assert standing()["state"] == bot.GROUP_INVITE_PENDING
+
+    def test_alternating_groups_does_not_buy_a_second_job(self):
+        """The measurement issue #208 was opened on, kept as a test.
+
+        Ten presses alternating between two groups, no elapsed time, and the
+        old rule produced ten jobs -- every one of them an invite API call
+        against a budget shared with every other guild. The group change is
+        still not rate-limited and does not need to be; the cooldown on the
+        member's own row is what makes the alternation pointless.
+        """
+        def press(group_id):
+            return bot.begin_group_invite(
+                GUILD_ID,
+                MEMBER_ID,
+                group_id=group_id,
+                vrc_user_id=VRC_USER_ID,
+                channel_id=CHANNEL_ID,
+                message_id=MESSAGE_ID,
+            )
+
+        groups = [GROUP_ID, OTHER_GROUP_ID] * 5
+        jobs = [press(group) for group in groups]
+        assert jobs[0] is not None
+        assert all(job is None for job in jobs[1:])
+
+        # And the row still belongs to the request that actually went out, so
+        # the worker's answer has something to land on.
+        row = standing()
+        assert row["group_id"] == GROUP_ID
+        assert row["job_id"] == jobs[0]["jobID"]
+
+    def test_the_new_group_is_askable_once_the_cooldown_has_lapsed(self):
+        """The other side of it: the limit is a delay, not a lockout. An admin
+        with a real reason to move groups is not stopping anyone."""
+        set_standing(
+            bot.GROUP_INVITE_SENT,
+            group_id=OTHER_GROUP_ID,
+            age_seconds=bot.GROUP_INVITE_COOLDOWN_SECONDS + 60,
+        )
+        job = self.build()
+        assert job is not None
+        assert standing()["group_id"] == GROUP_ID
 
 
 # -------------------------------------------------------------------

@@ -200,17 +200,22 @@ GROUP_VERIFY_TIMEOUT_SECONDS = _int_env("GROUP_VERIFY_TIMEOUT_SECONDS", 120)
 # behind a join and two get_group calls, while an invite is two calls at most.
 GROUP_INVITE_TIMEOUT_SECONDS = _int_env("GROUP_INVITE_TIMEOUT_SECONDS", 90)
 
-# Minimum gap between two invite ATTEMPTS by the same member for the same
-# group. It has nothing to say about the settled outcomes -- being a member,
-# or having said no, is permanent and needs no timer.
+# Minimum gap between two invite ATTEMPTS by the same member in the same
+# server. Deliberately NOT "for the same group" (issue #208): an attempt spent
+# the invite account's shared budget whichever group it was about, so keying
+# the clock on the group let an admin alternate between two of them and their
+# members pay no cooldown at all. See group_invite_refusal, which is where the
+# distinction between a verdict (group-specific) and this clock (not) is made.
 #
 # What it bounds is retries. A member whose invite failed transiently (VRChat
 # down, the server's permission broken) gets the button back so they can try
 # again, and this is what stops that becoming a tight loop against the invite
-# account's shared rate budget. Five minutes, because it is measured against a
-# human deciding to press a button again rather than against a machine: long
-# enough that mashing achieves nothing, short enough that someone who hit a
-# blip is not locked out of a feature they are paying for.
+# account's shared rate budget. It bounds the re-OFFER of a settled outcome
+# too, since GROUP_INVITE_FINAL_STATES is empty and every settled state is
+# asked again once this has lapsed. Five minutes, because it is measured
+# against a human deciding to press a button again rather than against a
+# machine: long enough that mashing achieves nothing, short enough that someone
+# who hit a blip is not locked out of a feature they are paying for.
 GROUP_INVITE_COOLDOWN_SECONDS = _int_env("GROUP_INVITE_COOLDOWN_SECONDS", 300)
 
 INSTRUCTIONS_REFRESH_CONCURRENCY = _int_env("INSTRUCTIONS_REFRESH_CONCURRENCY", 10)
@@ -3571,22 +3576,47 @@ def group_invite_refusal(
     other button then refuses against. So the ceiling stays one invite per
     GROUP_INVITE_COOLDOWN_SECONDS, which is the number VRChat cares about.
 
-    A request about a DIFFERENT group is no reason to refuse. An admin who
-    changes the server's group has invalidated everything learned about the old
-    one, and a member who already belongs to the group this server used to use
-    knows nothing about the one it uses now.
+    A request about a DIFFERENT group withholds every VERDICT but still spends
+    the COOLDOWN, and that split is issue #208. An admin who changes the
+    server's group has invalidated everything learned about the old one -- a
+    member who already belongs to the group this server used to use knows
+    nothing about the one it uses now -- so none of the settled-state refusals
+    survive a group change.
+
+    The clock is not a verdict, though. An ATTEMPT spent the invite account's
+    shared budget whichever group it was about, and that budget is shared
+    across every guild (INVITE_MIN_SPACING_SECONDS). Keying the cooldown on the
+    group as well meant an admin alternating between two of them reset it on
+    every flip and their members paid nothing: ten attempts, no elapsed time,
+    ten jobs. So the cooldown reads the member's request row without comparing
+    the group in it.
+
+    Nothing rate-limits the group change itself, and this is why that is not
+    the fix. Each flip already costs the admin a full worker verify round trip
+    with a fresh claim code (see save_group_invite_config), a limit there would
+    constrain an admin with a legitimate reason to move groups twice in a day,
+    and it would still leave the per-member attempt rate bounded by nothing but
+    a value that admin controls. Bounding the thing being protected needs no
+    new clock at all.
+
+    A PENDING request refuses across a group change too, and for a different
+    reason from the cooldown: it is not a cached outcome, it is a call that is
+    in flight right now. Letting it through would publish a second job and
+    overwrite the row the first one's answer will be matched against, orphaning
+    it. Not left to the cooldown to catch, even though the shipped defaults
+    have it inside that window -- both are env-configurable and this must not
+    depend on which way round they are set.
     """
     if not request:
         return None
-    if request.get("group_id") != group_id:
-        return None
     state = effective_group_invite_state(request)
-    if state in GROUP_INVITE_FINAL_STATES:
-        return INVITE_REFUSED_SETTLED
-    if state in GROUP_INVITE_SETTLED_STATES and not for_offer:
-        return INVITE_REFUSED_SETTLED
     if state == GROUP_INVITE_PENDING:
         return INVITE_REFUSED_PENDING
+    if request.get("group_id") == group_id:
+        if state in GROUP_INVITE_FINAL_STATES:
+            return INVITE_REFUSED_SETTLED
+        if state in GROUP_INVITE_SETTLED_STATES and not for_offer:
+            return INVITE_REFUSED_SETTLED
     # What is left may be asked again -- a transient failure the member can
     # retry, or (for an offer) an outcome they are allowed a second run at --
     # but not immediately. See GROUP_INVITE_COOLDOWN_SECONDS.
