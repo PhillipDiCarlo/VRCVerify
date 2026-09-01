@@ -1,0 +1,9 @@
+{
+  "name": "vrcverify-status",
+  "private": true,
+  "type": "module",
+  "description": "status.vrcverify.com. Deliberately has no dependencies: see status/README.md.",
+  "scripts": {
+    "test": "node --test test"
+  }
+}

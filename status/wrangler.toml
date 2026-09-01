@@ -1,0 +1,67 @@
+# status.vrcverify.com (issue #170).
+#
+# A SECOND Worker, deliberately not the apex one in ../wrangler.toml. The whole
+# argument for this page is that it stays up when the things it reports on are
+# down, and that argument is only worth as much as the number of failures it
+# does not share with them. So:
+#
+#   * It is not on the VPS, so a dead tunnel or a stopped container cannot take
+#     it with them. That failure has happened twice, for 17h43m and 11h00m.
+#   * It is not on the homelab, so it survives the bot host entirely.
+#   * It is not the apex Worker either. Same account and same platform, which
+#     is a shared fate we accept, but a separate script and a separate deploy:
+#     publishing the marketing site must not be able to break the page that
+#     says whether anything is working, and vice versa.
+#
+# Deploy from the repository root:
+#
+#   npx wrangler deploy --config status/wrangler.toml
+#
+# See status/README.md for the D1 database, the secrets and the DNS record.
+# Nothing here works until those exist, and the errors when they do not are
+# unhelpful enough to be worth reading about first.
+
+name = "vrcverify-status"
+main = "src/index.js"
+compatibility_date = "2026-08-18"
+
+# The page is server rendered by the Worker, so status is visible with no
+# JavaScript at all. These two files are the only assets, and they are served
+# straight from the edge rather than through the script: a stylesheet that
+# needs the Worker to run is a stylesheet that goes missing in the one moment
+# the page matters. Paths that match nothing here fall through to `main`,
+# which is how `/` reaches the renderer.
+[assets]
+directory = "./public"
+
+# The hostname, bound here rather than clicked into the Cloudflare dashboard.
+# Same argument the apex config makes for its assets directory: what is
+# published, and where, should be reviewable in a diff. `custom_domain = true`
+# creates and maintains the DNS record for this name on deploy, so there is no
+# second place holding half the answer.
+[[routes]]
+pattern = "status.vrcverify.com"
+custom_domain = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vrcverify-status"
+# Filled in by `wrangler d1 create vrcverify-status`. It is an identifier and
+# not a credential: it names a database that only this Worker is bound to.
+database_id = "REPLACE_ME"
+
+# Every minute. The unit of the whole page is one minute of observation, which
+# sets the resolution of the uptime figures and the floor on how long an
+# outage can run before the page knows. Cloudflare's minimum is also one
+# minute, so this is as good as it gets without a second mechanism.
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+# Public, and safe to read in a diff. The endpoints being probed are the two
+# public hostnames this project already advertises.
+DASHBOARD_HEALTH_URL = "https://dashboard.vrcverify.com/healthz"
+WEBSITE_URL = "https://vrcverify.com/"
+
+[observability]
+enabled = true

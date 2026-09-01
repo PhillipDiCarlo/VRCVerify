@@ -227,3 +227,10 @@ vrchat_session.txt.tmp
 *session*.txt
 cookies.txt
 *cookiejar*
+
+# The status Worker (issue #170). Both are produced by running wrangler and
+# neither belongs in the repository: .wrangler holds the LOCAL D1 database that
+# `wrangler dev` writes, which is a scratch copy of production data with none
+# of production's guarantees.
+status/node_modules/
+status/.wrangler/

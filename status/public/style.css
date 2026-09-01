@@ -1,0 +1,737 @@
+/* status.vrcverify.com (issue #170).
+
+   A THIRD COPY OF THE TOKENS, and the third copy needs its reason stated as
+   plainly as the other two do.
+
+   `site/style.css` says the values below are duplicated from
+   `src/dashboard/static/style.css` because the two cannot share a stylesheet:
+   different origins, different deploy pipelines. This file is a third origin
+   with a third pipeline, and it exists specifically so that this page keeps
+   working when the other two are down. Importing either of their stylesheets
+   would hand this page the failure it was built to survive.
+
+   So: change a colour in one, change it in all three. tests/test_status_page.py
+   pins the values against site/style.css so a drift fails a test rather than
+   shipping two products.
+
+   WHAT WAS COPIED: the four theme blocks, the type scale, the font face, the
+   header and footer chrome, and the theme menu, all byte for byte. A reader
+   crossing from vrcverify.com to status.vrcverify.com should not be able to
+   tell that they changed hosts.
+
+   WHAT IS NEW, and lives at the bottom of this file rather than woven through
+   the copy: three status colours and the components that use them. Keeping the
+   new work in one block is what makes the copied part diffable against its
+   source.
+
+   THEMING works exactly as it does on the apex site, and the block order below
+   is that file's, unchanged: dark is the floor, so no attribute means dark and
+   "System" is an explicit data-theme="system". */
+
+/* 1. Dark: the floor, and what an explicit Dark choice pins. */
+:root,
+:root[data-theme="dark"] {
+  /* Per-theme rather than `light dark`, so form controls and scrollbars
+     follow the theme the page actually chose rather than the one the OS
+     prefers. */
+  color-scheme: dark;
+
+  --bg: #1e1f22;          /* page ground */
+  --chrome: #2b2d31;      /* header and footer bars */
+  --panel: #313338;       /* cards and call-out notes */
+
+  --ink: #dbdee1;         /* body text */
+  --ink-strong: #f2f3f5;  /* headings, anything you scan for */
+  --muted: #b5bac1;       /* ledes, descriptions, footer text */
+  --faint: #949ba4;       /* the least important thing that is still text */
+
+  --line: #3f4147;
+  --line-soft: #35373c;
+
+  /* Blurple means exactly two things, here as in the dashboard: "this is the
+     button that does the thing", and a link. Never a border for decoration,
+     never a heading.
+
+     Two tokens because one value cannot do both jobs on a dark surface. As a
+     button background --accent must stay dark enough for white --accent-ink
+     to read on it (4.6:1). As a foreground it must be light enough to read
+     against the panel, which #5865f2 is not (2.7:1) -- hence --accent-text. */
+  --accent: #5865f2;
+  --accent-hover: #4752c4;
+  --accent-ink: #ffffff;
+  --accent-text: #8a93f6;
+
+  /* EDGES THAT HAVE TO BE SEEN, which --line cannot carry.
+     --line is a separator between things that are already distinguishable. An
+     edge that IS the element -- a control's boundary, a pill's whole shape --
+     needs 3:1 against what surrounds it (WCAG 1.4.11 for the control; simple
+     visibility for the pills). --line manages 1.35:1 against the header bar
+     and 1.62:1 on the ground, so the select had no visible edge and the pills
+     did not render as pills until this was measured.
+
+     This is the dashboard's --control-line, at the dark value unchanged
+     (3.68:1 on --chrome, 3.38:1 on --panel). The light value below is the one
+     that diverges -- see the light block. */
+  --control-line: #80848e;
+
+  /* COPIED ACROSS FOR THE THEME MENU (#195 phase 7), following the rule this
+     file's header states: take a dashboard component token when a rule here
+     actually needs it, rather than importing a vocabulary this site does not
+     speak. These five are what a popover needs and nothing else here uses. */
+  --hover: #35373c;
+  --radius-control: 4px;
+  --radius-card: 8px;
+  --bar-control: 2rem;
+  --shadow-overlay: 0 4px 12px rgb(0 0 0 / 0.40), 0 12px 32px rgb(0 0 0 / 0.36);
+}
+
+/* 2. The light values, named once and painted by nothing.
+      Kept on `:root` so both light selectors can reference them, rather than
+      the same hexes typed twice with no mechanism to keep them equal. */
+:root {
+  --light-bg: #e3e5e8;
+  --light-chrome: #f2f3f5;
+  --light-panel: #ffffff;
+
+  --light-ink: #313338;
+  --light-ink-strong: #060607;
+  --light-muted: #5c5e66;
+  --light-faint: #63666f;
+
+  --light-line: #dfe0e3;
+  --light-line-soft: #ebedef;
+
+  --light-accent: #5865f2;
+  --light-accent-hover: #4752c4;
+  --light-accent-ink: #ffffff;
+  /* Darker than --accent rather than lighter: a foreground has to move away
+     from its background, and on light the background is the pale one. */
+  --light-accent-text: #4150f0;
+
+  /* THE ONE VALUE THAT DELIBERATELY DIFFERS FROM THE DASHBOARD.
+     The dashboard's light --control-line is #8d919b, tuned against the white
+     cards its inputs sit on, where it gives 3.16:1. This site's only control
+     sits on the header bar -- --chrome, #f2f3f5, which is darker than white --
+     and against that the same grey gives 2.84:1, under the 3:1 a UI component
+     needs. The dashboard was never asked for that pairing, so its value is not
+     wrong; it is measured against a surface this site does not use here.
+
+     Darkening the token is the same fix the dashboard applied to --ok when the
+     plan cards put it on a surface it had not been measured against: move the
+     token, not the element. Pinned in test_site.py.
+
+     DARKENED AGAIN by #227, for the third time, and the same reason each time:
+     a control turned out to sit on a surface the token had never been measured
+     against. #848892 cleared the bar (3.20:1) and the fill (3.55:1), but the
+     `Last updated` pill on the legal pages is a direct child of <main> and so
+     sits on --bg, which is darker than --chrome. There it gave 2.81:1, under
+     the 3:1 WCAG 1.4.11 asks of a component boundary -- and that pill IS its
+     boundary, since its whole shape is the border. #7c7f89 clears all three:
+     --bg 3.17:1, --chrome 3.60:1, --panel 4.00:1.
+
+     The test now pins all three surfaces rather than the two that happened to
+     have controls on them, which is the actual lesson of it having moved three
+     times. The next control to land somewhere new should fail loudly instead
+     of rediscovering this. */
+  --light-control-line: #7c7f89;
+
+  /* The light halves of the theme-menu tokens. --radius-* and --bar-control do
+     not change with the theme, so they are declared once above. */
+  --light-hover: #e3e5e8;
+  --light-shadow-overlay: 0 4px 12px rgb(0 0 0 / 0.12), 0 12px 32px rgb(0 0 0 / 0.10);
+}
+
+/* 3. Light, chosen explicitly. Unaffected by what the OS prefers, which is
+      the point of choosing. */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: var(--light-bg);
+  --chrome: var(--light-chrome);
+  --panel: var(--light-panel);
+
+  --ink: var(--light-ink);
+  --ink-strong: var(--light-ink-strong);
+  --muted: var(--light-muted);
+  --faint: var(--light-faint);
+
+  --line: var(--light-line);
+  --line-soft: var(--light-line-soft);
+
+  --accent: var(--light-accent);
+  --accent-hover: var(--light-accent-hover);
+  --accent-ink: var(--light-accent-ink);
+  --accent-text: var(--light-accent-text);
+  --control-line: var(--light-control-line);
+  --hover: var(--light-hover);
+  --shadow-overlay: var(--light-shadow-overlay);
+}
+
+/* 4. Light, because the OS asked and the reader chose to follow it.
+      The whole of "System" mode -- the dark half needs no block, because dark
+      is the floor. */
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    color-scheme: light;
+
+    --bg: var(--light-bg);
+    --chrome: var(--light-chrome);
+    --panel: var(--light-panel);
+
+    --ink: var(--light-ink);
+    --ink-strong: var(--light-ink-strong);
+    --muted: var(--light-muted);
+    --faint: var(--light-faint);
+
+    --line: var(--light-line);
+    --line-soft: var(--light-line-soft);
+
+    --accent: var(--light-accent);
+    --accent-hover: var(--light-accent-hover);
+    --accent-ink: var(--light-accent-ink);
+    --accent-text: var(--light-accent-text);
+    --control-line: var(--light-control-line);
+    --hover: var(--light-hover);
+    --shadow-overlay: var(--light-shadow-overlay);
+  }
+}
+
+/* ONE TYPEFACE ACROSS BOTH SURFACES (#195 phase 2).
+   Vendored, same-origin, and the same file the dashboard serves --
+   src/dashboard/static/fonts/inter-latin-var.woff2, copied rather than linked
+   because the two hosts share no origin and no deploy. Latin subset, variable
+   100-900, 47KB.
+
+   THIS AMENDS site/README.md's "no fonts", and the reason that line gave is
+   why it could be amended: "a legal page that needs a CDN is a legal page that
+   can be unavailable at the moment somebody needs to read it." That argument
+   is about a THIRD PARTY, and it still stands -- nothing here reaches one. A
+   file served by the same Worker as the page cannot be down while the page is
+   up, so the availability risk the rule was written to prevent does not exist
+   in this shape.
+
+   `font-display: swap` is what makes it safe rather than merely defensible:
+   if the font is slow or never arrives, the page renders in the stack below,
+   which is EXACTLY WHAT THIS SITE LOOKED LIKE BEFORE THIS COMMIT. There is no
+   state this can produce that is worse than the status quo it replaces.
+
+   The stack was already the dashboard's minus its first entry, so this is one
+   name added rather than a typeface swapped. */
+@font-face {
+  font-family: "Inter var";
+  src: url("fonts/inter-latin-var.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+* { box-sizing: border-box; }
+
+
+/* THE TYPE SCALE, NAMED (#195 phase 1).
+   Every value below is what this file already used; nothing here changes how
+   a byte of this site renders. What changes is that the ramp -- the heading
+   and prose ladder every page walks -- stops being magic numbers and gains a
+   role per step.
+
+   THIS NAMES THE RAMP, NOT YET EVERY SIZE IN THE FILE. Component sizes are
+   still literals: the nav's 0.94rem, the flow diagram's 0.9375rem, the plan
+   card's 1.5rem, and the `.policy` overrides that deliberately run a step
+   larger than the shared ramp for long-form reading. Each is adopted as its
+   component is restyled in a later phase, which is the same bargain the
+   dashboard's token block struck for the same reason -- converting a whole
+   stylesheet in one commit is a large diff in which a single mistyped digit
+   changes the layout and nothing catches it.
+
+   THE OTHER HALF OF THIS PAIR IS IN src/dashboard/static/style.css, exactly
+   as the colour tokens are, and for the same reason -- two origins, two
+   deploys, no shared stylesheet possible. Read that file's block before
+   changing anything here.
+
+   The two ramps are NOT identical, and that is deliberate rather than drift:
+
+     --text-display   IS identical, and is the only step that is. It is the
+                      marketing size. This site's hero already used it, and
+                      the dashboard now declares the same clamp so /pricing
+                      can reach it -- which is what makes a visitor crossing
+                      from the landing page to the price meet one product.
+
+     everything else  differs, because a console is denser than a document on
+                      purpose. The dashboard's largest step is 22.4px and
+                      belongs on Overview; this site's h1 is 30.4px and
+                      belongs on Terms. Forcing one number on both would make
+                      the legal pages smaller to no one's benefit.
+
+   So: shared vocabulary, shared display size, different density. A step that
+   means the same thing in both files carries the same name. */
+:root {
+  --text-display: clamp(2rem, 1.3rem + 2.6vw, 3rem); /* 32-48px, the hero */
+  --text-title: 1.9rem;    /* 30.4px  h1 on a document page */
+  --text-section: 1.2rem;  /* 19.2px  h2 */
+  --text-lede: 1.15rem;    /* 18.4px  the sentence under a hero */
+  --text-blurb: 1.08rem;   /*  17.3px the sentence under a document title */
+  --text-subhead: 1rem;    /*    16px h3, and body */
+  --text-note: 0.9375rem;  /*    15px the notes under a plan card */
+  --text-micro: 0.9rem;    /*  14.4px the footer, the smallest thing here */
+
+  /* 1.65 HERE, 1.55 IN THE DASHBOARD, and that is the last deliberate
+     divergence between the two files -- #195's acceptance criteria asked for
+     it to agree or be explained, so: it is the same argument as the ramp
+     above. A document is read and a console is operated. Long-form prose at
+     16px wants the looser leading, a settings row three lines high does not,
+     and matching them would make one of the two worse to no one's benefit.
+     --leading-tight is identical in both, because a heading is a heading. */
+  --leading-body: 1.65;
+  --leading-tight: 1.25;
+
+  /* A MEASURE. This site already held one at the layout level -- `main.wrap`
+     caps at 42-60rem depending on the page -- which is why its longest line
+     is 78 characters against the dashboard's 120. Named here so the pair of
+     files says the same word for the same idea; the dashboard needs it as a
+     per-element rule because its cards, not its layout, are what run wide. */
+  --measure: 52ch;
+
+  /* Named to match the dashboard's `--font`, and holding the same value. The
+     fallbacks are what this site used before #195 phase 2, so a browser that
+     refuses the woff2 lands exactly where it started. */
+  --font: "Inter var", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  /* Longhand, not the `font` shorthand. The shorthand is legal with var()
+     but is parsed at computed-value time, so a single bad substitution drops
+     the whole declaration -- including font-family -- rather than one part of
+     it. Three lines that fail independently are worth more than one that
+     fails together. */
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: var(--leading-body);
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+
+/* THE CHROME IS ONE WIDTH ON EVERY PAGE, and this rule is what guarantees it.
+   `.wrap` wraps the header, the main content AND the footer, so any per-page
+   measure written as `.home .wrap` captures the chrome too. That shipped: the
+   header rendered at four different widths across the six pages and the brand
+   moved 144px between the landing page and Terms, while
+   test_the_header_nav_is_identical_on_every_page passed the whole time --
+   it compares markup, and the markup was identical. The divergence was
+   entirely in CSS keyed off the body class.
+
+   So the per-page rules above are scoped to `main.wrap`, and the chrome is
+   pinned here. Element+class beats the body-class selectors on specificity,
+   which is belt and braces rather than the mechanism. */
+header.site .wrap,
+footer.site .wrap { max-width: 60rem; }
+
+header.site {
+  border-bottom: 1px solid var(--line);
+  background: var(--chrome);
+}
+header.site .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  align-items: baseline;
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+}
+header.site a.brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ink-strong);
+  text-decoration: none;
+  margin-right: auto;
+}
+header.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+header.site nav a { color: var(--muted); text-decoration: none; font-size: 0.94rem; }
+header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); text-decoration: underline; }
+
+/* THE THEME MENU (#195 phase 7).
+
+   ONE AFFORDANCE ACROSS BOTH HOSTS. This was a labelled <select> while the
+   dashboard used an icon opening a popover -- two controls for the same
+   three-way choice, met by the same person within one click of each other.
+   The dashboard's is the model because it is the one that works with
+   JavaScript off; this site's never did, and could not, because there is no
+   server here to post to.
+
+   That is also why the markup for this is BUILT BY theme.js rather than
+   written into the six pages. The control is JavaScript-only either way, so
+   markup describing it would be markup describing something that may never
+   exist -- and the header is byte-identical across six hand-maintained files,
+   one of them generated, so every line of it is a line to keep in step six
+   times. The <div class="theme-picker" hidden> placeholder is all the markup
+   needs to carry.
+
+   The class names and the shape follow the dashboard's `.bar-menu` /
+   `.menu-item`, so the two read as one control. The tokens it needs were
+   copied across at the top of this file. */
+.theme-menu { position: relative; }
+.theme-menu[hidden] { display: none; }
+
+/* The default disclosure triangle has to go from both engines: `list-style`
+   covers Firefox and current Chrome, the pseudo-element covers older WebKit.
+   The icon is the marker. */
+.theme-button { list-style: none; }
+.theme-button::-webkit-details-marker { display: none; }
+
+.theme-button {
+  display: grid;
+  place-items: center;
+  width: var(--bar-control);
+  height: var(--bar-control);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  cursor: pointer;
+}
+.theme-button:hover { background: var(--hover); color: var(--ink-strong); }
+/* Stays lit while its menu is open, so it is obvious which control produced
+   the panel now covering part of the page. */
+.theme-menu[open] .theme-button { background: var(--hover); color: var(--ink-strong); }
+
+/* Anchored to its own right edge, so a panel wider than the button it hangs
+   from opens inwards and never off the side of the window. */
+.theme-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 20;
+  min-width: 15rem;
+  padding: 0.5rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-overlay);
+  text-align: left;
+}
+.theme-panel ul { list-style: none; margin: 0; padding: 0; }
+
+.theme-panel-label {
+  margin: 0.25rem 0.5rem 0.5rem;
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Always a button, never a radio: a theme is a one-click decision, and a
+   picker needing a second click to confirm is a worse control than the select
+   it replaced. */
+.theme-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.theme-item:hover { background: var(--hover); }
+.theme-item.current { color: var(--ink-strong); }
+
+/* The icon keeps its column when the tick is absent, so the three rows do not
+   shift depending on which one is current. */
+.theme-item .theme-mark { flex: 0 0 auto; color: var(--muted); }
+.theme-item.current .theme-mark { color: var(--accent-text); }
+
+.theme-item-text { display: flex; flex-direction: column; flex: 1 1 auto; }
+.theme-item-label { font-size: var(--text-subhead); line-height: var(--leading-tight); }
+.theme-item-hint {
+  font-size: var(--text-micro);
+  color: var(--faint);
+  line-height: var(--leading-tight);
+}
+.theme-tick { flex: 0 0 auto; color: var(--accent-text); }
+
+
+h1 { font-size: var(--text-title); line-height: var(--leading-tight); margin: 2rem 0 0.35rem; text-wrap: balance; color: var(--ink-strong); }
+h2 { font-size: var(--text-section); margin: 2.25rem 0 0.5rem; text-wrap: balance; color: var(--ink-strong); }
+h3 { font-size: var(--text-subhead); margin: 1.5rem 0 0.35rem; color: var(--ink-strong); }
+p, li { color: var(--ink); }
+ul, ol { padding-left: 1.35rem; }
+li { margin: 0.3rem 0; }
+
+.lede { font-size: var(--text-blurb); color: var(--muted); }
+
+a { color: var(--accent-text); }
+
+
+.note {
+  background: var(--panel);
+  border-left: 3px solid var(--accent);
+  padding: 0.9rem 1.1rem;
+  margin: 1.25rem 0;
+  border-radius: 0 6px 6px 0;
+}
+.note p:first-child { margin-top: 0; }
+.note p:last-child { margin-bottom: 0; }
+
+footer.site {
+  border-top: 1px solid var(--line);
+  background: var(--chrome);
+  margin-top: 3rem;
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+footer.site .wrap { padding-top: 1.5rem; padding-bottom: 2.5rem; }
+footer.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 0.75rem; }
+footer.site a { color: var(--muted); }
+
+a:focus-visible, .cta:focus-visible,
+.theme-button:focus-visible, .theme-item:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------
+   THE STATUS PAGE ITSELF. Everything above this line is copied from
+   site/style.css; everything below is new with issue #170.
+   ------------------------------------------------------------------ */
+
+/* THREE STATUS COLOURS, in the same four-block order the theme uses above.
+
+   --ok and --notice are the dashboard's, at its values unchanged, so a green
+   here and a green there are the same green. --down is new to this project.
+
+   The dashboard deliberately has NO red: it declared --danger, never drew it,
+   and removed it in #159 with a comment saying it comes back on the day
+   something needs it. A row that says a service is down is that day. It is not
+   the destructive-action red that comment was imagining, so it is named for
+   what it paints rather than inheriting a name for what it warns about.
+
+   MEASURED, not chosen by eye, on all three surfaces this page draws them on
+   (--bg, --chrome, --panel), because --ok has now been moved twice by exactly
+   the mistake of measuring a token against one surface and then using it on
+   another:
+
+     dark   #f4787a   6.13:1 on --bg   5.13:1 on --chrome   4.70:1 on --panel
+     light  #c0272b   4.67:1 on --bg   5.30:1 on --chrome   5.89:1 on --panel
+
+   Discord's own #ed4245 was the obvious candidate and fails: 3.29:1 on a dark
+   panel, which is the surface every status row sits on. Pinned in
+   tests/test_status_page.py against all three surfaces from the start. */
+:root,
+:root[data-theme="dark"] {
+  --ok: #26b261;
+  --notice: #f0b232;
+  --down: #f4787a;
+}
+
+:root {
+  /* DARKENED FROM THE DASHBOARD'S #177a41, and this is the fourth time a token
+     has moved in this project for the same reason: it was measured against the
+     surfaces one product draws it on, and then drawn on another.
+
+     The dashboard's value is not wrong. Green there lives on cards and insets,
+     where it measures 5.39:1 and 4.59:1. It is never drawn on the page ground,
+     because nothing on the dashboard puts a status colour there. This page
+     does -- the hero glyph sits directly on --bg, and on the day everything is
+     working that glyph IS the page. At #177a41 it was 4.27:1, below AA, in the
+     state a reader sees every time but one.
+
+     #15703b: 4.88:1 on --bg, 6.15:1 on --panel. Both pinned in
+     tests/test_status_page.py, which is the test that caught this. */
+  --light-ok: #15703b;
+  --light-notice: #8a5300;
+  --light-down: #c0272b;
+}
+
+:root[data-theme="light"] {
+  --ok: var(--light-ok);
+  --notice: var(--light-notice);
+  --down: var(--light-down);
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    --ok: var(--light-ok);
+    --notice: var(--light-notice);
+    --down: var(--light-down);
+  }
+}
+
+/* A state's colour is set once, here, and inherited by everything inside the
+   row through `currentColor` -- the glyph, the pill's border, the bars. That
+   is what stops a row from being drawn half green and half red when a later
+   component forgets to be told which state it is in.
+
+   COLOUR IS NEVER THE ONLY CHANNEL. Every state carries a glyph and a word as
+   well, because roughly one in twelve men cannot separate the green from the
+   red and a page whose entire content is "green or red" would be telling them
+   nothing. */
+.is-up { color: var(--ok); }
+.is-degraded { color: var(--notice); }
+.is-down { color: var(--down); }
+.is-unknown { color: var(--faint); }
+
+main.wrap { max-width: 48rem; }
+
+/* THE HERO, following the Better Stack and incident.io status pages: one
+   glyph, one sentence, and when it was last checked. Nothing else competes
+   with the verdict, because the verdict is the whole reason anybody opened
+   this page. */
+.hero {
+  text-align: center;
+  padding: 2.5rem 0 2rem;
+}
+
+.hero-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  /* The fill is the state colour at low alpha, so the ring reads as tinted
+     rather than as a second element. `color-mix` degrades to nothing on
+     browsers without it, leaving a plain glyph on the page ground, which is
+     legible and unremarkable rather than broken. */
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.hero-glyph svg { width: 1.6rem; height: 1.6rem; }
+
+.hero h1 {
+  font-size: var(--text-display);
+  line-height: var(--leading-tight);
+  margin: 1rem 0 0.4rem;
+  color: var(--ink-strong);
+  text-wrap: balance;
+}
+
+.hero-checked {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-note);
+}
+
+/* A CARD, which is the dashboard's `--radius-card` on `--panel` inside
+   `--line`. Two of them: our services, and the ones we depend on. */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  margin: 0 0 1.5rem;
+}
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.card-head h2 {
+  margin: 0;
+  font-size: var(--text-subhead);
+  color: var(--ink-strong);
+}
+
+.card-note {
+  margin: 0;
+  padding: 0.9rem 1.15rem;
+  color: var(--faint);
+  font-size: var(--text-note);
+  border-top: 1px solid var(--line-soft);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.row:last-child { border-bottom: 0; }
+
+.row-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+/* The glyph inherits the row's state colour; the name does not. A row whose
+   label is painted red is a row that shouts at the reader before they have
+   read which service it is. */
+.row-name .glyph { flex: 0 0 auto; }
+.row-name .glyph svg { display: block; width: 1.05rem; height: 1.05rem; }
+
+.row-desc {
+  flex: 1 1 100%;
+  order: 3;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-note);
+}
+
+/* THE PILL IS ITS OWN BOUNDARY, so its border has to clear 3:1 against the
+   card the way `--control-line` does on the apex site. Here the border is
+   `currentColor` -- the state colour, every one of which was measured against
+   --panel above -- so the pill inherits a boundary that has already been
+   proven rather than needing a token of its own. */
+.pill {
+  flex: 0 0 auto;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: var(--text-micro);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dep-link {
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+
+/* The honesty note at the bottom: what this page cannot see. Deliberately
+   drawn quietly, in --faint on the page ground, because it is the thing a
+   reader consults after the answer rather than before it. */
+.caveat {
+  margin: 2rem 0 0;
+  color: var(--faint);
+  font-size: var(--text-note);
+}
+
+.caveat a { color: var(--accent-text); }
+
+@media (max-width: 30rem) {
+  .row { padding: 0.85rem 0.9rem; }
+  .card-head { padding: 0.85rem 0.9rem; }
+}
+
+/* The pill and, when a service is not up, how long it has been that way. Kept
+   in one flex box so the row stays a two-column layout however many pieces
+   the right-hand side happens to hold. */
+.row-state {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.row-since {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
