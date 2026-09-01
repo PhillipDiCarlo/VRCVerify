@@ -150,8 +150,46 @@ running perfectly. Somebody will believe it.
    immediately and only failure needs confirming. This is the single most
    important behaviour in the whole system and it takes four minutes to check.
 
-Phases 4 and 5 add the Discord webhook and a Cloudflare Access policy on
-`/admin`. Each is documented here as it lands, rather than in advance.
+## Alerting (phase 4)
+
+The page closes the "nobody is watching" gap only if somebody is told. Two
+channels, and the second exists because the first shares a failure with the
+thing it reports on.
+
+    npx wrangler secret put DISCORD_WEBHOOK_URL --config status/wrangler.toml
+
+A webhook for a PRIVATE channel. The alert body carries the infrastructure
+detail the public page refuses to print -- which part, and why -- because that
+is the half that saves a login at 3am. Anyone who can read that channel can
+read the shape of the estate.
+
+For the second channel, see the commented `[[send_email]]` block in
+`wrangler.toml`. Email Routing has to be enabled on the zone and the
+destination address verified; Cloudflare will not deliver to an unverified
+address and this Worker cannot tell that it did not.
+
+What it will and will not send:
+
+  * Our own five rows: every change, in both directions. An alert that only
+    fires on the way down leaves you refreshing a page to find out when it is
+    over.
+  * Somebody else's status page: only into and out of `down`. Cloudflare sits
+    at "minor" for hours over things that never touch us, and an alert that
+    fires for those is an alert that gets muted, which costs the ones that
+    matter.
+  * `unknown` never alerts. It means the checker could not look.
+  * One message per cron run, not one per row. A database outage moves four
+    rows, and four alerts for one event is how somebody learns to ignore the
+    fourth.
+
+Both channels are wrapped: an alert that throws would stop the checking, which
+would leave the page stale, which the page would then honestly report as its
+own failure. That is an impressive way to turn "Discord is slow" into "the
+status page is broken". `wrangler tail` is the third channel and the only one
+with no moving parts.
+
+Phase 5 adds the Cloudflare Access policy on `/admin`, documented here as it
+lands rather than in advance.
 
 ## The rules this thing holds
 

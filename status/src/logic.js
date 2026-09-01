@@ -355,3 +355,67 @@ export function readReport(body, allowedParts, { maxDetail = 200 } = {}) {
   }
   return clean.length ? clean : null;
 }
+
+/**
+ * Which state changes are worth waking somebody for.
+ *
+ * OUR OWN SERVICES: every change, in both directions. Recovery matters as much
+ * as failure -- an alert that only ever fires on the way down leaves you
+ * refreshing a page to find out whether it is over.
+ *
+ * SOMEBODY ELSE'S: only `down`, and only on the way in and out of it.
+ * Cloudflare's status page sits at `minor` for hours at a time over things
+ * that never touch us, and an alert that fires for those is an alert that gets
+ * muted, which costs the ones that matter.
+ *
+ * `unknown` never alerts on its own. It means the checker could not look, and
+ * a page that pages you because it briefly could not see is a page you turn
+ * off. The exception is the whole-checker case, which the freshness rule
+ * covers on the page itself.
+ */
+export function isAlertable(change, ownIds) {
+  if (change.state === "unknown") return false;
+  if (ownIds.includes(change.component)) return true;
+  return change.state === "down" || change.from === "down";
+}
+
+/**
+ * One message for a whole cron run, not one per row.
+ *
+ * The database going down takes four capabilities with it, and four separate
+ * alerts for one event is how a person learns to ignore the fourth. The title
+ * names the worst thing that happened; the body lists everything.
+ */
+export function composeAlert(changes, names, now) {
+  if (changes.length === 0) return null;
+  const severity = worst(changes.map((c) => c.state));
+  const recovered = changes.filter((c) => c.state === "up");
+  const broken = changes.filter((c) => c.state !== "up");
+
+  const label = (change) => names[change.component] ?? change.component;
+
+  // THE TITLE NAMES ONLY WHAT MATCHES THE WORD IT USES. The first version read
+  // "Down: Verification, Discord bot, Group invites, Dashboard and sign-in"
+  // when the dashboard was merely degraded -- the title asserted an outage for
+  // a service that was still serving pages. Anything at a lesser severity is
+  // counted rather than named, and the body still lists all of it.
+  const atWorst = broken.filter((change) => change.state === severity);
+  const lesser = broken.length - atWorst.length;
+
+  const title =
+    broken.length === 0
+      ? `Recovered: ${recovered.map(label).join(", ")}`
+      : `${severity === "down" ? "Down" : "Degraded"}: ${atWorst.map(label).join(", ")}` +
+        (lesser ? ` (+${lesser} degraded)` : "");
+
+  const lines = changes.map((change) => {
+    const name = names[change.component] ?? change.component;
+    // The detail names infrastructure, which is the entire reason this goes to
+    // a private channel and the page does not. It is also the only part of
+    // this message that saves anybody a login.
+    const detail = change.detail ? ` -- ${change.detail}` : "";
+    return `${name}: ${change.from ?? "unknown"} -> ${change.state}${detail}`;
+  });
+
+  return { title, lines, severity, at: now };
+}

@@ -14,9 +14,12 @@ import {
   HEARTBEAT_STALE_SECONDS,
   PAGE_CACHE_SECONDS,
   HISTORY_DAYS,
+  ALERT_COLOURS,
 } from "./config.js";
 import {
   capabilitiesFromParts,
+  composeAlert,
+  isAlertable,
   recentDays,
   parseSignatureHeader,
   readReport,
@@ -222,6 +225,7 @@ async function runCheck(env, now) {
 
   const day = dayKey(now);
   const statements = [];
+  const changes = [];
   for (const id of ALL_IDS) {
     const decided = nextState(current[id], observed[id].state, now);
     statements.push(
@@ -262,6 +266,12 @@ async function runCheck(env, now) {
           "INSERT INTO transitions (component, state, at, detail) VALUES (?1, ?2, ?3, ?4)",
         ).bind(id, decided.state, now, observed[id].detail),
       );
+      changes.push({
+        component: id,
+        from: current[id]?.state ?? null,
+        state: decided.state,
+        detail: observed[id].detail,
+      });
     }
   }
 
@@ -277,6 +287,20 @@ async function runCheck(env, now) {
   statements.push(...pruneStatements(env, now, prunedAt));
 
   await env.DB.batch(statements);
+
+  // AFTER the write, never before. An alert about a state that failed to
+  // persist would be an alert the page then contradicts, and the person
+  // reading both is left trusting neither.
+  const alertable = changes.filter((change) => isAlertable(change, COMPONENT_IDS));
+  const alert = composeAlert(
+    alertable,
+    Object.fromEntries([
+      ...COMPONENTS.map((c) => [c.id, c.name]),
+      ...UPSTREAMS.map((u) => [u.id, u.name]),
+    ]),
+    now,
+  );
+  if (alert) await sendAlerts(env, alert);
 }
 
 /**
@@ -327,6 +351,78 @@ function pruneStatements(env, now, prunedAt) {
 async function readMeta(db, key) {
   const row = await db.prepare("SELECT value FROM meta WHERE key = ?1").bind(key).first();
   return row?.value ?? null;
+}
+
+/**
+ * Tell somebody. Two channels, and the second one is the point.
+ *
+ * A Discord webhook is the obvious place for this project's alerts and it is
+ * also the one that goes silent in a Discord outage -- which is the case where
+ * an alert matters most, because that is when everything else is on fire too.
+ * So there is a second path that does not touch Discord at all: Cloudflare
+ * Email Routing, sent from this Worker.
+ *
+ * NEITHER CHANNEL MAY BREAK THE CRON. An alert that throws would take down the
+ * checking, which would leave the page stale, which the page would then
+ * correctly report as its own failure -- an impressive way to turn "Discord is
+ * slow" into "the status page is broken". Both are wrapped, both log, and the
+ * run continues either way.
+ */
+async function sendAlerts(env, alert) {
+  const summary = `${alert.title}\n${alert.lines.join("\n")}`;
+
+  if (env.DISCORD_WEBHOOK_URL) {
+    try {
+      await fetch(env.DISCORD_WEBHOOK_URL, {
+        method: "POST",
+        signal: AbortSignal.timeout(8000),
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          username: "VRCVerify Status",
+          embeds: [
+            {
+              title: alert.title,
+              description: alert.lines.join("\n"),
+              color: ALERT_COLOURS[alert.severity] ?? ALERT_COLOURS.unknown,
+              url: "https://status.vrcverify.com/",
+              timestamp: new Date(alert.at * 1000).toISOString(),
+            },
+          ],
+        }),
+      });
+    } catch (error) {
+      console.log(`discord alert failed: ${error?.name}: ${error?.message}`);
+    }
+  }
+
+  if (env.ALERT_EMAIL && env.ALERT_FROM && env.ALERT_TO) {
+    try {
+      // Imported here rather than at the top of the file: the module only
+      // exists when the binding does, and a Worker deployed without email
+      // configured must still boot.
+      const { EmailMessage } = await import("cloudflare:email");
+      const message = [
+        `From: VRCVerify Status <${env.ALERT_FROM}>`,
+        `To: <${env.ALERT_TO}>`,
+        `Subject: [VRCVerify] ${alert.title}`,
+        "Content-Type: text/plain; charset=utf-8",
+        "MIME-Version: 1.0",
+        `Message-ID: <${crypto.randomUUID()}@status.vrcverify.com>`,
+        `Date: ${new Date(alert.at * 1000).toUTCString()}`,
+        "",
+        summary,
+        "",
+        "https://status.vrcverify.com/",
+      ].join("\r\n");
+      await env.ALERT_EMAIL.send(new EmailMessage(env.ALERT_FROM, env.ALERT_TO, message));
+    } catch (error) {
+      console.log(`email alert failed: ${error?.name}: ${error?.message}`);
+    }
+  }
+
+  // Always logged, whatever the channels did. `wrangler tail` is the third
+  // channel, and the only one with no moving parts.
+  console.log(`ALERT ${alert.severity}: ${summary}`);
 }
 
 /**

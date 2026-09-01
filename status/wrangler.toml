@@ -63,5 +63,31 @@ crons = ["* * * * *"]
 DASHBOARD_HEALTH_URL = "https://dashboard.vrcverify.com/healthz"
 WEBSITE_URL = "https://vrcverify.com/"
 
+# THE SECOND ALERT CHANNEL, and the reason there is one.
+#
+# The Discord webhook is the obvious place for this project's alerts, and it is
+# also the channel that goes quiet in a Discord outage -- which is exactly when
+# an alert matters most, because that is the morning everything else is on fire
+# too. Cloudflare Email Routing sends from this Worker and touches nothing
+# Discord owns.
+#
+# COMMENTED OUT ON PURPOSE. Unset means off, the same convention the rest of
+# this project uses, so a first deploy works with no mailbox configured and
+# nothing fails at boot. To switch it on:
+#
+#   1. Enable Email Routing on the zone and verify the destination address.
+#      Cloudflare will not deliver to an unverified one, and the failure is
+#      silent from in here.
+#   2. Uncomment the three lines below, with your address.
+#   3. Set ALERT_FROM and ALERT_TO to that address as well:
+#        npx wrangler secret put ALERT_FROM --config status/wrangler.toml
+#        npx wrangler secret put ALERT_TO --config status/wrangler.toml
+#      They are secrets rather than vars only because they are a personal
+#      mailbox, not because they protect anything.
+#
+# [[send_email]]
+# name = "ALERT_EMAIL"
+# destination_address = "you@example.com"
+
 [observability]
 enabled = true

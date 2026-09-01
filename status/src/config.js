@@ -158,6 +158,23 @@ export const UPSTREAMS = [
   },
 ];
 
+/**
+ * Colours for the Discord embed, one per severity.
+ *
+ * Deliberately NOT the page's tokens. Those were measured against this
+ * project's own surfaces in two themes; a Discord embed's stripe sits on
+ * Discord's background, in a client whose theme we do not control, and reusing
+ * a token measured somewhere else is the mistake this project has already made
+ * four times. These are chosen for one job, which is being recognisable at a
+ * glance in a channel.
+ */
+export const ALERT_COLOURS = {
+  down: 0xed4245,
+  degraded: 0xf0b232,
+  up: 0x26b261,
+  unknown: 0x949ba4,
+};
+
 /** How long the rendered page may be cached at the edge, in seconds. */
 export const PAGE_CACHE_SECONDS = 30;
 
