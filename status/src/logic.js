@@ -478,3 +478,51 @@ export function readUpdateForm(fields) {
   if (!UPDATE_STATUSES.includes(status)) return null;
   return { incidentId, body, status };
 }
+
+/**
+ * Is this POST from our own page, or from somebody else's?
+ *
+ * THE HOLE THIS CLOSES. Cloudflare Access authenticates by a cookie and
+ * injects its JWT header on every request that cookie authenticates. A form on
+ * an attacker's page, submitted by a browser that still holds that cookie,
+ * arrives here carrying a perfectly valid assertion -- so the assertion proves
+ * who the browser belongs to and says nothing about whether that person meant
+ * to submit anything. On this endpoint the payload is an announcement on a
+ * page people trust, and the interesting one is not vandalism, it is "we have
+ * been breached, sign in again at ...".
+ *
+ * Origin is the answer, and it needs no token, no session and no state:
+ * browsers attach it to form POSTs and a page cannot forge its own. Referer is
+ * the fallback for a client that omits Origin. Neither header present is
+ * refused rather than assumed friendly -- this endpoint is used by one person,
+ * from a browser, a handful of times a year, so there is no compatibility to
+ * buy by being generous.
+ */
+export function isSameOriginPost({ origin, referer, url }) {
+  const self = new URL(url).origin;
+  if (origin) return origin === self;
+  if (referer) return referer.startsWith(`${self}/`);
+  return false;
+}
+
+/**
+ * Has this scheduled minute already been counted?
+ *
+ * Cloudflare's cron delivery is AT LEAST once. The same scheduled time
+ * arriving twice would count that minute twice in the uptime figures and could
+ * send the same alert twice, and an alert that sometimes arrives in pairs is
+ * one people stop reading carefully. The scheduled time IS the identity of the
+ * run, so a second delivery of it is a no-op.
+ *
+ * This does not, and cannot, make the whole run atomic. Two deliveries with
+ * DIFFERENT scheduled times that overlap in flight would both read the state
+ * and both write, and the day's counters would gain two minutes for one. The
+ * counters measure completed runs rather than wall-clock minutes, so a
+ * percentage stays internally consistent either way -- up over observed, both
+ * moving together. A run takes well under a second against a cron that fires
+ * every sixty, so the overlap window is theoretical; the duplicate delivery is
+ * the case Cloudflare documents, and it is the one closed here.
+ */
+export function isDuplicateRun(lastRun, now) {
+  return lastRun !== null && lastRun !== undefined && Number(lastRun) === now;
+}

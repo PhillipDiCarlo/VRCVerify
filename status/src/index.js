@@ -20,6 +20,8 @@ import {
   capabilitiesFromParts,
   composeAlert,
   isAlertable,
+  isDuplicateRun,
+  isSameOriginPost,
   recentDays,
   parseSignatureHeader,
   readReport,
@@ -28,14 +30,12 @@ import {
   dataFreshness,
   dayKey,
   nextState,
+  readIncidentForm,
   readStatuspage,
   readStripe,
-  worst,
-} from "./logic.js";
-import {
-  readIncidentForm,
   readUpdateForm,
   verdictWithIncidents,
+  worst,
 } from "./logic.js";
 import { verifyAccessToken } from "./access.js";
 import { renderAdmin, renderPage } from "./render.js";
@@ -216,11 +216,18 @@ async function observe(env, previousUpstreams, now, lastUpstreamCheck) {
  * describing another.
  */
 async function runCheck(env, now) {
-  const [current, lastUpstreamCheck, prunedAt] = await Promise.all([
+  const [current, lastUpstreamCheck, prunedAt, lastRun] = await Promise.all([
     loadState(env.DB),
     readMeta(env.DB, "upstreams_checked_at"),
     readMeta(env.DB, "pruned_at"),
+    readMeta(env.DB, "cron_ran_at"),
   ]);
+
+  // See logic.isDuplicateRun for what this does and does not protect.
+  if (isDuplicateRun(lastRun, now)) {
+    console.log(`duplicate delivery of the ${now} run; ignoring`);
+    return;
+  }
 
   const { observed, polledUpstreams } = await observe(
     env,
@@ -290,6 +297,12 @@ async function runCheck(env, now) {
     );
   }
 
+  statements.push(
+    env.DB.prepare(
+      "INSERT INTO meta (key, value) VALUES ('cron_ran_at', ?1) " +
+        "ON CONFLICT (key) DO UPDATE SET value = ?1",
+    ).bind(String(now)),
+  );
   statements.push(...pruneStatements(env, now, prunedAt));
 
   await env.DB.batch(statements);
@@ -426,14 +439,31 @@ async function handleAdmin(request, env, now) {
         "content-type": "text/html; charset=utf-8",
         // Never cached, anywhere. It is per-person and it is a control panel.
         "cache-control": "no-store, private",
-        ...SECURITY_HEADERS,
         // The public page posts nowhere; this page posts to itself.
-        "content-security-policy": SECURITY_HEADERS["content-security-policy"].replace(
-          "form-action \'none\'",
-          "form-action \'self\'",
-        ),
+        ...securityHeaders({ forms: true }),
       },
     });
+  }
+
+  // AN ACCESS ASSERTION IS NOT CONSENT, and this is the hole the adversarial
+  // pass found. Access authenticates by a cookie and injects the JWT header on
+  // every request that cookie authenticates -- INCLUDING a POST submitted by a
+  // form on somebody else's page, if the browser sends the cookie
+  // cross-site. Nothing else here distinguishes "the operator pressed the
+  // button" from "the operator had a tab open on a hostile page", so an
+  // attacker could publish an announcement on a page people trust. The
+  // interesting payload is not vandalism, it is "we have been breached, sign
+  // in again at ...".
+  //
+  // The Origin header is the fix, and it needs no token, no session and no
+  // state: browsers send it on every form POST, and they will not let a page
+  // forge it. Referer is the fallback for a client that omits Origin; a
+  // request carrying neither is refused rather than assumed friendly.
+  const origin = request.headers.get("origin");
+  const referer = request.headers.get("referer");
+  if (!isSameOriginPost({ origin, referer, url: request.url })) {
+    console.log(`admin POST refused: cross-origin submission from ${origin ?? referer ?? "nowhere"}`);
+    return new Response("Forbidden", { status: 403 });
   }
 
   const form = Object.fromEntries(await request.formData());
@@ -567,7 +597,7 @@ async function sendAlerts(env, alert) {
  * someone which half of the check they failed is telling them how to pass it.
  * The log says which, because the operator is not the attacker.
  */
-async function handleReport(request, env, now) {
+async function handleReport(request, env, now, ctx) {
   const secret = env.REPORT_SECRET;
   if (!secret) {
     console.log("report rejected: REPORT_SECRET is not configured on this Worker");
@@ -628,9 +658,71 @@ async function handleReport(request, env, now) {
     ),
   );
 
+  // WHO WATCHES THIS? Nothing did, and the adversarial pass is where that
+  // turned up: every alert in the system is produced BY the cron, so the one
+  // failure that silences all of them is the cron itself not running. The page
+  // would correctly go grey and say its data was stale, and not one person
+  // would be told, which is the 17h43m outage's exact shape rebuilt inside the
+  // thing built to prevent it.
+  //
+  // The homelab is already calling this endpoint every minute, from outside
+  // Cloudflare, for its own reasons. That makes it the one piece of traffic
+  // positioned to notice, so it is asked on its way past. The two halves now
+  // watch each other: the cron reports silence from the homelab, and the
+  // homelab's own report notices silence from the cron.
+  ctx.waitUntil(checkTheCheckerIsRunning(env, now));
+
   // 204: there is nothing useful to say back, and a body here would only be
   // something for a reporter to start depending on.
   return new Response(null, { status: 204 });
+}
+
+/**
+ * Ten minutes of no cron is an outage of the monitoring itself.
+ *
+ * Ten rather than five: the page calls its data stale at five, and alerting a
+ * minute after the page starts hedging would fire on a single slow run. Ten is
+ * unambiguous -- Cloudflare has missed ten consecutive minutes.
+ *
+ * Alerts at most once an hour. A dead cron does not become more dead, and an
+ * hourly reminder is the most that can be said without becoming the noise that
+ * gets the channel muted.
+ */
+async function checkTheCheckerIsRunning(env, now) {
+  try {
+    const [ranAt, alertedAt] = await Promise.all([
+      readMeta(env.DB, "cron_ran_at"),
+      readMeta(env.DB, "cron_alert_at"),
+    ]);
+    // Never run at all is a deployment that has not had its first minute yet,
+    // not an outage. There is nothing to compare against.
+    if (ranAt === null) return;
+    const silence = now - Number(ranAt);
+    if (silence < 600) return;
+    if (alertedAt !== null && now - Number(alertedAt) < 3600) return;
+
+    await sendAlerts(env, {
+      title: "The status checker has stopped",
+      lines: [
+        `No scheduled run for ${Math.floor(silence / 60)} minutes.`,
+        "The page is showing everything as unknown, which is correct and is not",
+        "a statement about the services. Nothing else in this system can raise",
+        "an alert while this is true.",
+      ],
+      severity: "down",
+      at: now,
+    });
+    await env.DB.prepare(
+      "INSERT INTO meta (key, value) VALUES ('cron_alert_at', ?1) " +
+        "ON CONFLICT (key) DO UPDATE SET value = ?1",
+    )
+      .bind(String(now))
+      .run();
+  } catch (error) {
+    // Belt and braces on the watchdog: this must never be the reason a
+    // perfectly good report is rejected.
+    console.log(`checker watchdog failed: ${error?.name}: ${error?.message}`);
+  }
 }
 
 function jsonResponse(body, status = 200) {
@@ -642,21 +734,43 @@ function jsonResponse(body, status = 200) {
       // Anyone may read this. It is the same information as the page, and a
       // dashboard somewhere else showing our status is a good outcome.
       "access-control-allow-origin": "*",
+      // The headers that are not about HTML. The first version put the whole
+      // security set on the page and nothing at all on the JSON or the 404 --
+      // a content type that can be sniffed into something else, on the two
+      // responses nobody was looking at.
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
     },
   });
 }
 
-const SECURITY_HEADERS = {
-  // Same posture as the dashboard's: nothing loads from anywhere but here.
-  // The page has no inline script and no third party anything, so this is the
-  // strictest policy it can hold rather than the strictest it can tolerate.
-  "content-security-policy":
-    "default-src 'none'; style-src 'self'; script-src 'self'; font-src 'self'; " +
-    "img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-  "referrer-policy": "no-referrer",
-  "x-content-type-options": "nosniff",
-  "strict-transport-security": "max-age=31536000; includeSubDomains",
-};
+/**
+ * Same posture as the dashboard's: nothing loads from anywhere but here. The
+ * page has no inline script and no third party anything, so this is the
+ * strictest policy it can hold rather than the strictest it can tolerate.
+ *
+ * `forms` is the ONE axis that varies, and it is a function argument rather
+ * than a string replacement on the finished header. The first version built
+ * the admin page's policy by calling .replace() on the public one, matching a
+ * quoted substring -- so a later edit to the wording would have silently
+ * stopped matching, left form-action at 'none', and the admin form would have
+ * been blocked by the browser with no error anywhere on this side. A control
+ * whose failure mode is "the feature quietly stops working" should not depend
+ * on two strings staying spelled the same.
+ */
+function securityHeaders({ forms = false } = {}) {
+  return {
+    "content-security-policy":
+      "default-src 'none'; style-src 'self'; script-src 'self'; font-src 'self'; " +
+      `img-src 'self'; base-uri 'none'; form-action ${forms ? "'self'" : "'none'"}; ` +
+      "frame-ancestors 'none'",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "strict-transport-security": "max-age=31536000; includeSubDomains",
+  };
+}
+
+const SECURITY_HEADERS = securityHeaders();
 
 /** What both surfaces read, with the freshness rule applied once, here. */
 async function present(env, now) {
@@ -704,12 +818,12 @@ async function present(env, now) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const now = Math.floor(Date.now() / 1000);
 
     if (request.method === "POST" && url.pathname === "/report") {
-      return handleReport(request, env, now);
+      return handleReport(request, env, now, ctx);
     }
 
     if (url.pathname === "/admin" && (request.method === "GET" || request.method === "POST")) {
@@ -759,7 +873,11 @@ export default {
 
     return new Response("Not found", {
       status: 404,
-      headers: { "content-type": "text/plain; charset=utf-8" },
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "no-referrer",
+      },
     });
   },
 
