@@ -233,7 +233,15 @@ cookies.txt
 # `wrangler dev` writes, which is a scratch copy of production data with none
 # of production's guarantees.
 status/node_modules/
-status/.wrangler/
+
+# ANY .wrangler, at any depth, not just the one under status/. Running wrangler
+# from the repository ROOT -- which is what the deploy commands in
+# status/README.md do -- writes .wrangler/cache/wrangler-account.json here
+# instead, and the narrower rule below let a `git add -A` commit it. It carries
+# the Cloudflare account id and the account's display name, which is an email
+# address. Neither is a credential and both are noise that belongs to a machine
+# rather than to the project.
+.wrangler/
 
 # wrangler reads local secrets from here. Never committed: it is the file
 # that holds the status reporter's signing key on a development machine.
