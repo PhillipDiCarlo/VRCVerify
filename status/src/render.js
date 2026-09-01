@@ -12,7 +12,7 @@
  */
 
 import { COMPONENTS, UPSTREAMS } from "./config.js";
-import { verdict, humanDuration } from "./logic.js";
+import { dayUptime, humanDuration, uptimeOverDays, verdict } from "./logic.js";
 
 const STATE_LABEL = {
   up: "Operational",
@@ -70,11 +70,60 @@ export function utcStamp(unixSeconds) {
   return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 }
 
+/**
+ * Ninety days, one bar each, oldest on the left.
+ *
+ * THE BARS ARE NOT THE ACCESSIBLE VERSION OF ANYTHING. They are a shape, and a
+ * shape is exactly what a reader wants at a glance: is this a wall of green
+ * with one notch in it, or a mess. The facts underneath -- the percentage, and
+ * how many days had trouble -- are written out in text beside them, and the
+ * strip itself is hidden from assistive technology rather than being narrated
+ * as ninety anonymous list items.
+ *
+ * A day with no observations is drawn in the track colour, distinct from both
+ * green and red. It has to be: this page will have exactly that for its first
+ * eighty-nine days, and drawing "we did not exist yet" as either health or
+ * failure would be inventing history.
+ */
+function historyStrip(days, rows) {
+  const bars = days
+    .map((day) => {
+      const { percent, state } = dayUptime(rows?.[day]);
+      const label =
+        percent === null
+          ? `${day}: no data`
+          : `${day}: ${percent.toFixed(percent === 100 ? 0 : 2)}% up`;
+      return `<span class="bar is-${state}" title="${escapeHtml(label)}"></span>`;
+    })
+    .join("");
+  return `<div class="bars" aria-hidden="true">${bars}</div>`;
+}
+
+/** "99.98% over 90 days", or an honest sentence when there is nothing to average. */
+function uptimeLine(days, rows) {
+  const present = days.map((day) => rows?.[day]).filter(Boolean);
+  const percent = uptimeOverDays(present);
+  const troubled = present.filter((row) => (row.down ?? 0) + (row.degraded ?? 0) > 0).length;
+  if (percent === null) {
+    return `<span class="row-uptime">No history yet</span>`;
+  }
+  // Two decimals, and never rounded UP to 100. A page that says 100% on a day
+  // it was down for four minutes is a page that has started lying politely.
+  const shown = percent >= 99.995 && percent < 100 ? "99.99" : percent.toFixed(2);
+  const summary =
+    troubled === 0
+      ? `${shown}% uptime over the last ${days.length} days, with no incidents`
+      : `${shown}% uptime over the last ${days.length} days, with ${troubled} ` +
+        `${troubled === 1 ? "day" : "days"} affected`;
+  return `<span class="row-uptime" title="${escapeHtml(summary)}">${shown}%</span>` +
+    `<span class="visually-hidden">${escapeHtml(summary)}</span>`;
+}
+
 function pill(state) {
   return `<span class="pill">${STATE_LABEL[state] ?? STATE_LABEL.unknown}</span>`;
 }
 
-function componentRow(component, entry, now) {
+function componentRow(component, entry, now, history) {
   const state = entry?.state ?? "unknown";
   // "Down for 3 hours" is the question a reader has after "Down", and it is
   // the one thing a status page can answer that a refresh cannot.
@@ -92,8 +141,15 @@ function componentRow(component, entry, now) {
   return (
     `<div class="row is-${state}">` +
     `<span class="row-name">${glyph(state)}<span>${escapeHtml(component.name)}</span></span>` +
-    `<span class="row-state">${duration}${pill(state)}</span>` +
+    `<span class="row-state">${duration}` +
+    (history ? uptimeLine(history.days, history.byComponent[component.id]) : "") +
+    `${pill(state)}</span>` +
     `<p class="row-desc">${escapeHtml(component.description)}</p>` +
+    (history
+      ? historyStrip(history.days, history.byComponent[component.id]) +
+        '<div class="bars-scale" aria-hidden="true">' +
+        `<span>${history.days.length} days ago</span><span>Today</span></div>`
+      : "") +
     "</div>"
   );
 }
@@ -118,7 +174,7 @@ function upstreamRow(upstream, entry) {
  * @param checkedAt   unix seconds of the last completed check, or null.
  * @param freshness   "fresh" | "stale" | "missing", from logic.dataFreshness.
  */
-export function renderPage({ components, upstreams, checkedAt, now, freshness }) {
+export function renderPage({ components, upstreams, history, checkedAt, now, freshness }) {
   // THE RULE, applied at the last possible moment so nothing can route around
   // it: if the data is not fresh, no component is drawn as up. A page that
   // shows green because the checker stopped running is the exact failure this
@@ -214,7 +270,7 @@ export function renderPage({ components, upstreams, checkedAt, now, freshness })
       <h2>VRCVerify</h2>
       <span class="is-${overall.level} pill">${STATE_LABEL[overall.level]}</span>
     </div>
-    ${COMPONENTS.map((c) => componentRow(c, shown[c.id], now)).join("\n    ")}
+    ${COMPONENTS.map((c) => componentRow(c, shown[c.id], now, history)).join("\n    ")}
     ${staleWarning}
   </section>
 

@@ -528,6 +528,23 @@ a:focus-visible, .cta:focus-visible,
   --ok: #26b261;
   --notice: #f0b232;
   --down: #f4787a;
+  /* THE SAME STATE, A DIFFERENT JOB, AND IT NEEDED A DIFFERENT VALUE.
+
+     --down is a foreground: a word, a ring, a 17px glyph, all of which have to
+     clear 4.5:1 as text on a dark card, which forces it pale. Fill a 6px bar
+     with that pale pink and it reads as LESS severe than the amber beside it,
+     because amber is saturated and the pink is not. On the history strip that
+     inverts the whole point: the worst day of the quarter looked gentler than
+     a wobble. Only visible in a screenshot of ninety real bars; invisible in
+     any amount of reading.
+
+     A filled bar is a graphical object, not text, so the bar it has to clear
+     is WCAG 1.4.11's 3:1 rather than 4.5:1 -- which is exactly the headroom
+     that buys back the saturation. Discord's own red at 3.29:1 on --panel.
+
+     Light needs no equivalent: there the foreground red is already a deep
+     saturated one, because on a pale card a foreground moves DOWN. */
+  --down-fill: #ed4245;
 }
 
 :root {
@@ -547,12 +564,14 @@ a:focus-visible, .cta:focus-visible,
   --light-ok: #15703b;
   --light-notice: #8a5300;
   --light-down: #c0272b;
+  --light-down-fill: #c0272b;
 }
 
 :root[data-theme="light"] {
   --ok: var(--light-ok);
   --notice: var(--light-notice);
   --down: var(--light-down);
+  --down-fill: var(--light-down-fill);
 }
 
 @media (prefers-color-scheme: light) {
@@ -560,6 +579,7 @@ a:focus-visible, .cta:focus-visible,
     --ok: var(--light-ok);
     --notice: var(--light-notice);
     --down: var(--light-down);
+    --down-fill: var(--light-down-fill);
   }
 }
 
@@ -734,4 +754,75 @@ main.wrap { max-width: 48rem; }
 .row-since {
   color: var(--muted);
   font-size: var(--text-micro);
+}
+
+/* NINETY DAYS OF HISTORY, one bar a day, oldest on the left.
+
+   The strip is a SHAPE, not a data table: what a reader takes from it in half
+   a second is "a wall of green with one notch" or "a mess". The facts are
+   written beside it in text -- the percentage, and how many days were affected
+   -- and the strip carries aria-hidden, because ninety anonymous elements
+   narrated one after another is not access, it is an obstacle.
+
+   Bars flex rather than being sized, so ninety of them fit whatever the
+   viewport is. At 320px they land near 2px wide, which is still a legible
+   texture, and the percentage beside them is where the number lives anyway. */
+.bars {
+  display: flex;
+  gap: 1px;
+  margin: 0.7rem 0 0.25rem;
+  flex: 1 1 100%;
+  order: 4;
+}
+
+.bar {
+  flex: 1 1 0;
+  min-width: 2px;
+  height: 1.6rem;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+/* A day nobody observed is drawn in --control-line, which is this project's
+   token for "an edge that IS the element" and clears 3:1 on every surface.
+   It has to be visible: this page's first eighty-nine days are entirely made
+   of these, and a no-data day that fades into the card would be dangerously
+   close to drawing "we did not exist yet" as health.
+
+   Deliberately NOT --line. That is a separator between things already
+   distinguishable, measures 1.2:1 on a card, and would have made the whole
+   strip look empty rather than unknown. */
+.bar.is-unknown { color: var(--control-line); }
+
+/* See --down-fill: the bar is a shape, not a word, and the pale foreground red
+   read as gentler than amber at this size. */
+.bar.is-down { color: var(--down-fill); }
+
+.bars-scale {
+  display: flex;
+  justify-content: space-between;
+  flex: 1 1 100%;
+  order: 5;
+  color: var(--faint);
+  font-size: var(--text-micro);
+}
+
+.row-uptime {
+  color: var(--muted);
+  font-size: var(--text-micro);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Available to a screen reader, invisible on screen. The strip's real content
+   goes here rather than being left implicit in the colours. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }

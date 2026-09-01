@@ -114,6 +114,34 @@ class TestStatusColours:
         ratio = contrast(palette[f"--light-{token}"], palette[f"--light-{surface}"])
         assert ratio >= 4.5, f"--light-{token} on --light-{surface} is {ratio:.2f}:1 on light"
 
+    @pytest.mark.parametrize("theme", ["", "light-"])
+    def test_the_bar_fills_clear_the_graphical_floor(self, theme):
+        """A filled bar is a graphical object: WCAG 1.4.11 asks 3:1, not 4.5:1.
+
+        The history strip is the one place this project draws a state as a
+        shape rather than as a word, and the foreground red was too pale to
+        work there -- it made the worst day of the quarter look gentler than a
+        wobble. The fill is measured against the card it sits on, at the floor
+        that actually applies to it.
+        """
+        palette = _tokens(STATUS_CSS)
+        surface = palette[f"--{theme}panel"]
+        for token in (f"--{theme}down-fill", f"--{theme}ok", f"--{theme}notice"):
+            ratio = contrast(palette[token], surface)
+            assert ratio >= 3.0, f"{token} fills at {ratio:.2f}:1 on the card"
+
+    def test_the_no_data_bar_is_visible_rather_than_a_gap(self):
+        """The page's first eighty-nine days are entirely made of these.
+
+        A no-data bar that fades into the card would draw "we did not exist
+        yet" as health. --control-line is this project's token for an edge that
+        IS the element, at the 3:1 that asks for.
+        """
+        palette = _tokens(STATUS_CSS)
+        for prefix, surface in (("--", "--panel"), ("--light-", "--light-panel")):
+            ratio = contrast(palette[f"{prefix}control-line"], palette[surface])
+            assert ratio >= 3.0
+
     def test_discords_own_red_is_still_not_good_enough(self):
         """Pinned so the obvious candidate is not quietly adopted later.
 
@@ -123,6 +151,7 @@ class TestStatusColours:
         """
         palette = _tokens(STATUS_CSS)
         assert contrast("#ed4245", palette["--panel"]) < 4.5
+        assert palette["--down"] != "#ed4245", "the foreground red must not be Discord's"
 
     @pytest.mark.parametrize("surface", SURFACES)
     def test_the_unknown_state_is_legible_too(self, surface):

@@ -27,6 +27,7 @@ function page(overrides = {}) {
   return renderPage({
     components,
     upstreams,
+    history: { days: [], byComponent: {} },
     checkedAt: NOW - 20,
     now: NOW,
     freshness: "fresh",
@@ -190,6 +191,70 @@ test("the page needs no JavaScript to say anything", () => {
   assert.ok(html.includes('<script src="/theme.js"></script>'));
   const withoutScripts = html.replace(/<script[\s\S]*?<\/script>/g, "");
   assert.ok(withoutScripts.includes("All systems operational"));
+});
+
+test("history draws one bar a day, and no-data days are their own state", () => {
+  const days = ["2026-08-29", "2026-08-30", "2026-08-31"];
+  const rows = {
+    "2026-08-29": { up: 1440, degraded: 0, down: 0, unknown: 0 },
+    // 2026-08-30 is deliberately absent: the page has to survive a day the
+    // checker never ran at all, which is every day before it was deployed.
+    "2026-08-31": { up: 1400, degraded: 0, down: 40, unknown: 0 },
+  };
+  const history = { days, byComponent: { verification: rows } };
+  const html = page({ history });
+  assert.ok(html.includes('title="2026-08-29: 100% up"'));
+  assert.ok(html.includes('title="2026-08-30: no data"'));
+  assert.ok(html.includes('class="bar is-unknown"'), "a day nobody observed is not green");
+  assert.ok(html.includes('class="bar is-down"'));
+  assert.ok(html.includes("3 days ago"));
+});
+
+test("the uptime figure is never rounded up to a clean 100%", () => {
+  // 99.9965% is not 100%, and a status page that says it is has started lying
+  // politely -- on the exact figure people quote at each other.
+  const days = ["2026-08-31"];
+  const history = {
+    days,
+    byComponent: {
+      verification: { "2026-08-31": { up: 143995, degraded: 0, down: 5, unknown: 0 } },
+    },
+  };
+  const html = page({ history });
+  assert.ok(html.includes("99.99%"));
+  assert.ok(!html.includes(">100%<"));
+});
+
+test("a perfect record is allowed to say 100%", () => {
+  const days = ["2026-08-31"];
+  const history = {
+    days,
+    byComponent: { verification: { "2026-08-31": { up: 1440, degraded: 0, down: 0, unknown: 0 } } },
+  };
+  assert.ok(page({ history }).includes("100.00%"));
+});
+
+test("with no history at all the page says so instead of showing a zero", () => {
+  const html = page({ history: { days: ["2026-08-31"], byComponent: {} } });
+  assert.ok(html.includes("No history yet"));
+  assert.ok(!html.includes("0.00%"), "no history is not zero uptime");
+});
+
+test("the bars are hidden from assistive technology, and the facts are not", () => {
+  const days = ["2026-08-30", "2026-08-31"];
+  const history = {
+    days,
+    byComponent: {
+      verification: {
+        "2026-08-30": { up: 1440, degraded: 0, down: 0, unknown: 0 },
+        "2026-08-31": { up: 1400, degraded: 0, down: 40, unknown: 0 },
+      },
+    },
+  };
+  const html = page({ history });
+  assert.ok(html.includes('<div class="bars" aria-hidden="true">'));
+  // The same information, in a sentence, for anyone the shape is useless to.
+  assert.match(html, /visually-hidden">[^<]*uptime over the last 2 days, with 1 day affected/);
 });
 
 test("escaping", () => {

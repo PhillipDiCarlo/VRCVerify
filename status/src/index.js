@@ -13,9 +13,11 @@ import {
   PART_CAPABILITIES,
   HEARTBEAT_STALE_SECONDS,
   PAGE_CACHE_SECONDS,
+  HISTORY_DAYS,
 } from "./config.js";
 import {
   capabilitiesFromParts,
+  recentDays,
   parseSignatureHeader,
   readReport,
   signatureIsTimely,
@@ -205,9 +207,10 @@ async function observe(env, previousUpstreams, now, lastUpstreamCheck) {
  * describing another.
  */
 async function runCheck(env, now) {
-  const [current, lastUpstreamCheck] = await Promise.all([
+  const [current, lastUpstreamCheck, prunedAt] = await Promise.all([
     loadState(env.DB),
     readMeta(env.DB, "upstreams_checked_at"),
+    readMeta(env.DB, "pruned_at"),
   ]);
 
   const { observed, polledUpstreams } = await observe(
@@ -271,7 +274,54 @@ async function runCheck(env, now) {
     );
   }
 
+  statements.push(...pruneStatements(env, now, prunedAt));
+
   await env.DB.batch(statements);
+}
+
+/**
+ * The daily counters for the window the page draws, as {component: {day: row}}.
+ *
+ * One query for every component rather than one per row: D1 charges per
+ * statement and the whole table is at most nine components times ninety days.
+ */
+async function loadHistory(db, now) {
+  const days = recentDays(now, HISTORY_DAYS);
+  const { results } = await db
+    .prepare(
+      "SELECT component, day, up, degraded, down, unknown FROM daily WHERE day >= ?1",
+    )
+    .bind(days[0])
+    .all();
+  const byComponent = {};
+  for (const row of results ?? []) {
+    (byComponent[row.component] ??= {})[row.day] = row;
+  }
+  return { days, byComponent };
+}
+
+/**
+ * Drop anything past the window, once a day.
+ *
+ * Not every minute: it is a table scan to delete nothing, 1439 times out of
+ * 1440. The marker is in `meta` for the same reason the upstream poll's is --
+ * `observed_at` cannot answer a question about the checker rather than about a
+ * service.
+ */
+function pruneStatements(env, now, prunedAt) {
+  if (prunedAt !== null && now - Number(prunedAt) < 86400) return [];
+  const oldest = recentDays(now, HISTORY_DAYS)[0];
+  return [
+    env.DB.prepare("DELETE FROM daily WHERE day < ?1").bind(oldest),
+    // Transitions are the audit trail behind the bars, so they go when the
+    // bars they explain go. Keeping them forever would grow without bound to
+    // answer questions about days the page no longer draws.
+    env.DB.prepare("DELETE FROM transitions WHERE at < ?1").bind(now - HISTORY_DAYS * 86400),
+    env.DB.prepare(
+      "INSERT INTO meta (key, value) VALUES ('pruned_at', ?1) " +
+        "ON CONFLICT (key) DO UPDATE SET value = ?1",
+    ).bind(String(now)),
+  ];
 }
 
 async function readMeta(db, key) {
@@ -386,7 +436,7 @@ const SECURITY_HEADERS = {
 /** What both surfaces read, with the freshness rule applied once, here. */
 async function present(env, now) {
   try {
-    const rows = await loadState(env.DB);
+    const [rows, history] = await Promise.all([loadState(env.DB), loadHistory(env.DB, now)]);
     const observedAts = Object.values(rows)
       .map((r) => r.observedAt)
       .filter((v) => typeof v === "number");
@@ -401,12 +451,24 @@ async function present(env, now) {
         ? { state: rows[upstream.id].state }
         : undefined;
     }
-    return { components, upstreams, checkedAt, freshness: dataFreshness(checkedAt, now) };
+    return {
+      components,
+      upstreams,
+      history,
+      checkedAt,
+      freshness: dataFreshness(checkedAt, now),
+    };
   } catch {
     // D1 unreachable. The page still renders and says so. Returning a 500 here
     // would be the status page taking itself down, which is a poor answer to
     // "is anything working".
-    return { components: {}, upstreams: {}, checkedAt: null, freshness: "unavailable" };
+    return {
+      components: {},
+      upstreams: {},
+      history: { days: [], byComponent: {} },
+      checkedAt: null,
+      freshness: "unavailable",
+    };
   }
 }
 
