@@ -46,9 +46,10 @@ custom_domain = true
 [[d1_databases]]
 binding = "DB"
 database_name = "vrcverify-status"
-# Filled in by `wrangler d1 create vrcverify-status`. It is an identifier and
-# not a credential: it names a database that only this Worker is bound to.
-database_id = "REPLACE_ME"
+# Filled in by `wrangler d1 create vrcverify-status` on 2026-09-01. It is an
+# identifier and not a credential: it names a database that only this Worker is
+# bound to, and reaching it still needs an API token for this account.
+database_id = "0d0fa6c0-4330-44a3-82fc-39d0d3f0589d"
 
 # Every minute. The unit of the whole page is one minute of observation, which
 # sets the resolution of the uptime figures and the floor on how long an
