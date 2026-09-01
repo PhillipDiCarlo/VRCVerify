@@ -28,6 +28,7 @@ function Get-Dockerfile($imageName) {
         "vrc-online-checker" { return "docker/Dockerfile-online-checker" }
         "dashboard"          { return "docker/Dockerfile-dashboard" }
         "vrc-group-inviter"  { return "docker/Dockerfile-invite-worker" }
+        "status-reporter"    { return "docker/Dockerfile-status-reporter" }
         default { throw "No Dockerfile known for image '$imageName'" }
     }
 }
@@ -81,19 +82,20 @@ $menu = @"
 2. VRC Online Checker
 3. Dashboard (runs on the VPS, not the homelab)
 4. VRChat Group Inviter
-5. All
+5. Status Reporter (homelab; reports to status.vrcverify.com)
+6. All
 0. Exit
 "@
 
 Write-Host "Select an option to build and publish:"
 Write-Host $menu
-$choice = Read-Host "Enter your choice (0-5)"
+$choice = Read-Host "Enter your choice (0-6)"
 
 if ($choice -eq "0") {
     Write-Host "Exiting script."
     exit 0
 }
-if ($choice -notin @("1", "2", "3", "4", "5")) {
+if ($choice -notin @("1", "2", "3", "4", "5", "6")) {
     Write-Host "Invalid choice. Exiting script."
     exit 1
 }
@@ -106,11 +108,13 @@ switch ($choice) {
     "2" { Publish-Image "vrc-online-checker" $version }
     "3" { Publish-Image "dashboard" $version }
     "4" { Publish-Image "vrc-group-inviter" $version }
-    "5" {
+    "5" { Publish-Image "status-reporter" $version }
+    "6" {
         Publish-Image "discord-bot" $version
         Publish-Image "vrc-online-checker" $version
         Publish-Image "dashboard" $version
         Publish-Image "vrc-group-inviter" $version
+        Publish-Image "status-reporter" $version
     }
 }
 

@@ -18,6 +18,12 @@
 
    Change a colour in one, change it in the other.
 
+   THERE IS NOW A THIRD COPY: status/public/style.css, the status page (issue
+   #170). Same argument again, one step further -- that Worker exists to keep
+   serving when this one is not, so it cannot fetch a stylesheet from here.
+   Change a colour in one, change it in all three. tests/test_status_page.py
+   compares its tokens against this file and fails on drift.
+
    WHAT WAS NOT COPIED, and where to find it if a later phase needs it: the
    toggle-switch tokens, --control-h, --logo-filter, the --notice-* set and
    --ok / --danger. Those are dashboard *component* tokens with nothing on

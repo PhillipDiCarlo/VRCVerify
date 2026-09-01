@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-29 10:47-0400\n"
+"POT-Creation-Date: 2026-09-01 00:13-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pa_Guru_IN\n"
@@ -1085,6 +1085,9 @@ msgstr "ਸਾਰੇ ਸਰਵਰ"
 
 msgid "Settings sections"
 msgstr "ਸੈਟਿੰਗਾਂ ਦੇ ਭਾਗ"
+
+msgid "Status"
+msgstr "ਸਥਿਤੀ"
 
 msgid "Terms"
 msgstr "ਸ਼ਰਤਾਂ"

@@ -1,6 +1,7 @@
 import time
 import os
 import json
+import heartbeat
 import pika
 import logging
 from dotenv import load_dotenv
@@ -548,14 +549,45 @@ def send_verification_result(result: dict):
     logging.error("RabbitMQ result publish failed after retries; giving up", exc_info=last_exc)
 
 
+# The consumer's live connection, so the heartbeat can report whether the
+# broker link is actually open rather than whether this process is executing
+# (issue #170 phase 2). Written by the consume loop, read by a daemon thread;
+# a plain attribute assignment, which CPython makes atomic, and a stale read
+# costs one heartbeat's worth of accuracy rather than correctness.
+_live_connection = None
+
+
+def _status_probe() -> dict[str, tuple[bool, str | None]]:
+    """This worker, and the broker it consumes from.
+
+    THE HONEST LIMIT: a heartbeat thread keeps writing while the consume
+    callback is wedged, so "up" here means the process is running and its
+    broker connection is open, not that jobs are moving. The connection check
+    is what makes it more than a liveness ping -- a dropped broker link is the
+    failure this service actually has, and it is invisible from outside.
+
+    The queue is reported by BOTH workers. The status page takes the worst
+    answer, so one of them losing its connection is not hidden by the other
+    still having one.
+    """
+    connection = _live_connection
+    open_now = bool(connection is not None and connection.is_open)
+    return {
+        "vrc-online-checker": (True, "consuming" if open_now else "no broker connection"),
+        "queue": (open_now, None if open_now else "consumer connection closed"),
+    }
+
+
 def listen_for_verifications():
     """Blocking function that listens for new requests from the bot."""
+    global _live_connection
     if not vrchat_session.client:
         logging.warning("VRChat login was not successful. We might fail all requests.")
     while True:
         connection = None
         try:
             connection = _rabbitmq_connect_with_retry(max_tries=0)
+            _live_connection = connection
             channel = connection.channel()
             channel.queue_declare(
                 queue=RABBITMQ_QUEUE_NAME,
@@ -614,5 +646,7 @@ if __name__ == "__main__":
         logging.error("Initial VRChat login failed. Continuing to serve queue with outage-aware responses.")
 
     vrchat_session.start_relogin_thread()
+
+    heartbeat.start_heartbeat("vrc-online-checker", _status_probe)
 
     listen_for_verifications()
