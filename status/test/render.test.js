@@ -257,6 +257,22 @@ test("the bars are hidden from assistive technology, and the facts are not", () 
   assert.match(html, /visually-hidden">[^<]*uptime over the last 2 days, with 1 day affected/);
 });
 
+test("the page does not understate how long a fault takes to appear", () => {
+  // It claimed "up to a minute", which was wrong for every row on the page.
+  // Nothing is published without two consecutive bad checks, and the rows that
+  // report in on their own schedule are slower still -- which is exactly the
+  // gap that makes someone stop a service, watch for a minute, see green, and
+  // conclude the page is broken.
+  const html = page();
+  assert.ok(!html.includes("up to a minute old"));
+  assert.ok(html.includes("twice in a row"));
+  assert.ok(html.includes("about two minutes"));
+  assert.ok(html.includes("about four"));
+  // And that recovery is not subject to the same wait, because a reader
+  // staring at a fixed service wants to know the page is not just slow.
+  assert.ok(html.includes("Recoveries are published as soon as they are seen"));
+});
+
 test("escaping", () => {
   assert.equal(escapeHtml('<a href="x">&</a>'), "&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;");
 });
