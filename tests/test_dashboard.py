@@ -5368,10 +5368,13 @@ class TestNarrowScreens(object):
         """The pairing that makes the rule above safe. A page WITH a sidebar
         gets its inset from `.layout`, and `main` adding its own would inset
         the content twice -- so the more specific rule zeroing it has to stay
-        or the fix above becomes a different bug."""
+        or the fix above becomes a different bug.
+
+        `padding-inline: 0` rather than the left/right pair (#229): a logical
+        shorthand zeroes both sides in either writing direction, which a
+        physical pair would not once Arabic's `dir="rtl"` is in play."""
         rule = self._rule(self._css(), ".layout:not(.plain) main")
-        assert "padding-left: 0" in rule
-        assert "padding-right: 0" in rule
+        assert "padding-inline: 0" in rule
 
     def test_the_chrome_and_the_content_share_one_left_edge(self):
         """The bar was inset 1.5rem while the content it sits over was inset
@@ -5412,14 +5415,22 @@ class TestNarrowScreens(object):
         `translate` serves both. The base size satisfied it before this phase
         by luck of the original numbers; the touch size did not exist. It is
         here so that a future resize cannot quietly leave the knob overhanging
-        the end of its track -- nothing else in the suite would notice."""
+        the end of its track -- nothing else in the suite would notice.
+
+        The rest position is `inset-inline-start`, not `left` (#229): it has
+        to be the inline-start side in both directions, and only the logical
+        property gives that for free under `dir="rtl"`. The math here stays
+        LTR-only -- `translate` does not mirror on its own, so RTL gets its
+        own checked-knob rule, asserted separately below rather than here."""
         css = self._css()
         travel = self._px(
             re.search(r"\.switch:checked::before\s*\{[^}]*translate:\s*(\S+)\s", css)
             .group(1)
         )
         inset = self._px(
-            re.search(r"\.switch::before\s*\{[^}]*left:\s*(\S+);", css, re.S).group(1)
+            re.search(
+                r"\.switch::before\s*\{[^}]*inset-inline-start:\s*(\S+);", css, re.S
+            ).group(1)
         )
 
         for scope, knob_rule in (
@@ -5433,6 +5444,25 @@ class TestNarrowScreens(object):
                 re.search(knob_rule + r"[^}]*width:\s*(\S+);", scope, re.S).group(1)
             )
             assert track - knob - 2 * inset == travel, (track, knob, travel)
+
+    def test_the_rtl_knob_travels_the_same_distance_the_other_way(self):
+        """`translate` moves along the physical X axis regardless of `dir`,
+        so mirroring the rest position with `inset-inline-start` above is not
+        enough on its own -- a `[dir="rtl"]` override has to send the checked
+        knob the other way by the same distance, or it either overhangs the
+        track or falls short of it (#229)."""
+        css = self._css()
+        travel = self._px(
+            re.search(r"\.switch:checked::before\s*\{[^}]*translate:\s*(\S+)\s", css)
+            .group(1)
+        )
+        rtl_travel = self._px(
+            re.search(
+                r'\[dir="rtl"\]\s*\.switch:checked::before\s*\{[^}]*translate:\s*(\S+)\s',
+                css,
+            ).group(1)
+        )
+        assert rtl_travel == -travel
 
     # --- one word, two meanings ---
 
