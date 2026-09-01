@@ -39,6 +39,12 @@ BASE = f"http://{HOST}:{PORT}"
 PREMIUM = "700000000000000001"
 FREE = "700000000000000002"
 
+# The signed-in preview is held behind a per-run token (#162), and this script
+# sends the server's banner to /dev/null -- so it chooses the token instead of
+# reading it. Fixed rather than random on purpose: nothing here is a secret
+# from anybody, and a constant keeps a failed run reproducible by hand.
+PREVIEW_TOKEN = "shoot-pages-not-a-real-token"
+
 # What to shoot, and which preview mode reaches it. A page nobody can see is a
 # page nobody has checked, so the outage and signed-out states are in here on
 # the same footing as the ordinary ones.
@@ -92,7 +98,7 @@ def main() -> None:
 
     shot_count = 0
     for env_key in {tuple(sorted(env.items())) for _n, _p, env in PAGES}:
-        env = dict(os.environ, **dict(env_key))
+        env = dict(os.environ, PREVIEW_TOKEN=PREVIEW_TOKEN, **dict(env_key))
         here = [(n, p) for n, p, e in PAGES if tuple(sorted(e.items())) == env_key]
         server = subprocess.Popen(
             [sys.executable, str(REPO / "scripts" / "dev_dashboard.py")],
@@ -110,11 +116,21 @@ def main() -> None:
                                 device_scale_factor=2,
                                 color_scheme=scheme,
                             )
+                            # Every context is a fresh cookie jar, so the
+                            # preview token goes in each one rather than being
+                            # exchanged once through the query string -- these
+                            # pages are opened as deep links, not walked to.
+                            jar = [{
+                                "name": "vrcverify_preview",
+                                "value": PREVIEW_TOKEN,
+                                "domain": HOST, "path": "/",
+                            }]
                             if cookie:
-                                context.add_cookies([{
+                                jar.append({
                                     "name": "vrcverify_theme", "value": cookie,
                                     "domain": HOST, "path": "/",
-                                }])
+                                })
+                            context.add_cookies(jar)
                             page = context.new_page()
                             page.goto(BASE + path, wait_until="networkidle")
                             page.screenshot(
