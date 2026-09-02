@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-01 00:13-0400\n"
+"POT-Creation-Date: 2026-09-02 13:28-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -190,6 +190,16 @@ msgid "Premium"
 msgstr ""
 
 msgid "New"
+msgstr ""
+
+msgid "Check whether VRCVerify is working"
+msgstr ""
+
+msgid ""
+"There is now a status page at status.vrcverify.com. It shows whether "
+"verification, the Discord bot, group invites, the dashboard and the "
+"website are working, with 90 days of history, and it says so even when "
+"everything else is down. Look for the status link in the header."
 msgstr ""
 
 msgid "See how verification is going"
@@ -858,6 +868,9 @@ msgstr ""
 msgid "Hide the sidebar"
 msgstr ""
 
+msgid "Status"
+msgstr ""
+
 msgid "What's new"
 msgstr ""
 
@@ -916,9 +929,6 @@ msgid "All servers"
 msgstr ""
 
 msgid "Settings sections"
-msgstr ""
-
-msgid "Status"
 msgstr ""
 
 msgid "Terms"
