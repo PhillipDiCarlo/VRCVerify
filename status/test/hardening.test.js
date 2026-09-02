@@ -74,11 +74,20 @@ test("a form on a page that forbids the browser's own submission", () => {
     !isSameOriginPost({ origin: "null", referer: null, url: URL_HERE }),
     'a literal Origin: "null" is what "no-referrer" produces on a same-origin POST -- treating it as same-origin would undo the CSRF check for an attacker under the same policy',
   );
-  assert.notEqual(
-    securityHeaders({ forms: true })["referrer-policy"],
-    "no-referrer",
-    "a page with a form must not ask for a policy that turns its own submissions into Origin: null",
+  // Pinned as an allowlist rather than as "not no-referrer", because that
+  // weaker assertion passes for a typo ("same-orgin"), which browsers ignore
+  // in favour of their default, and for "unsafe-url", which would fix the form
+  // by leaking every admin URL to every third party. The set below is the
+  // policies that provably leave Origin intact on a same-origin POST.
+  assert.ok(
+    ["same-origin", "strict-origin-when-cross-origin", "origin-when-cross-origin"].includes(
+      securityHeaders({ forms: true })["referrer-policy"],
+    ),
+    "a page with a form needs a policy that leaves its own submission's Origin intact",
   );
+  // And the relaxation stays on the one response that needs it. Everything
+  // else -- the public page, the JSON, the 404 -- keeps the strict policy.
+  assert.equal(securityHeaders()["referrer-policy"], "no-referrer");
 });
 
 test("the same scheduled minute delivered twice is counted once", () => {
