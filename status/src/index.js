@@ -758,13 +758,19 @@ function jsonResponse(body, status = 200) {
  * whose failure mode is "the feature quietly stops working" should not depend
  * on two strings staying spelled the same.
  */
-function securityHeaders({ forms = false } = {}) {
+export function securityHeaders({ forms = false } = {}) {
   return {
     "content-security-policy":
       "default-src 'none'; style-src 'self'; script-src 'self'; font-src 'self'; " +
       `img-src 'self'; base-uri 'none'; form-action ${forms ? "'self'" : "'none'"}; ` +
       "frame-ancestors 'none'",
-    "referrer-policy": "no-referrer",
+    // "no-referrer" everywhere except a page with a form. Per the Fetch spec, a
+    // POST from a "no-referrer" page sends Origin as the literal string "null"
+    // rather than omitting it, which is indistinguishable from an attacker's
+    // page to isSameOriginPost() -- so the admin form's own submission would
+    // fail the same check that exists to protect it. "same-origin" still sends
+    // nothing on a cross-origin request, which is the property this page needs.
+    "referrer-policy": forms ? "same-origin" : "no-referrer",
     "x-content-type-options": "nosniff",
     "strict-transport-security": "max-age=31536000; includeSubDomains",
   };

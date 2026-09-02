@@ -10,6 +10,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { isDuplicateRun, isSameOriginPost } from "../src/logic.js";
+import { securityHeaders } from "../src/index.js";
 
 const URL_HERE = "https://status.vrcverify.com/admin";
 
@@ -61,6 +62,23 @@ test("a request carrying neither header is refused rather than assumed friendly"
   // One person uses this endpoint, from a browser, a few times a year. There
   // is no compatibility worth buying by being generous here.
   assert.ok(!isSameOriginPost({ origin: null, referer: null, url: URL_HERE }));
+});
+
+test("a form on a page that forbids the browser's own submission", () => {
+  // The bug this pins: per the Fetch spec, a POST from a page whose
+  // referrer-policy is "no-referrer" carries Origin as the literal string
+  // "null", not the page's real origin -- so the admin page could never pass
+  // its own CSRF check while it asked for that policy. Every submission was
+  // refused as "cross-origin", including legitimate ones, on every browser.
+  assert.ok(
+    !isSameOriginPost({ origin: "null", referer: null, url: URL_HERE }),
+    'a literal Origin: "null" is what "no-referrer" produces on a same-origin POST -- treating it as same-origin would undo the CSRF check for an attacker under the same policy',
+  );
+  assert.notEqual(
+    securityHeaders({ forms: true })["referrer-policy"],
+    "no-referrer",
+    "a page with a form must not ask for a policy that turns its own submissions into Origin: null",
+  );
 });
 
 test("the same scheduled minute delivered twice is counted once", () => {
