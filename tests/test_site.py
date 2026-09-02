@@ -1553,3 +1553,39 @@ def test_the_site_is_published_at_one_url():
     assert re.search(r"^workers_dev\s*=\s*false", config, re.M), (
         "workers.dev is not switched off, so this site has a second public URL"
     )
+
+
+def _apex_config():
+    import tomllib
+    return tomllib.loads((SITE.parent / "wrangler.toml").read_text(encoding="utf-8"))
+
+
+def test_the_config_records_where_the_site_is_published():
+    """#259. These hostnames were Custom Domains created by hand, and nothing
+    in the repository said so, while this file's preamble claimed what is
+    published at vrcverify.com is reviewable in a diff.
+
+    `www` is here for a reason that reads as redundant and is not: a redirect
+    rule sends it to the apex, so the Worker never serves a www request, but
+    this binding is what makes www RESOLVE. Remove it and the redirect never
+    runs, because nothing reaches the edge to be redirected.
+    """
+    patterns = {r["pattern"] for r in _apex_config().get("routes", [])}
+    assert patterns == {"vrcverify.com", "www.vrcverify.com"}, patterns
+
+
+def test_the_404_setting_did_not_fall_into_a_route():
+    """A TOML shape error with a quiet failure, met while writing #259.
+
+    `[[routes]]` is a table array: every key after it belongs to the last
+    table. Written between `directory` and `not_found_handling`, it swallowed
+    the 404 setting. Wrangler happened to reject that, which was luck rather
+    than design -- the failure it saved was the 404 page quietly not being
+    served on the URLs Stripe and Discord hold.
+    """
+    config = _apex_config()
+    assert config["assets"]["not_found_handling"] == "404-page"
+    for route in config.get("routes", []):
+        assert set(route) == {"pattern", "custom_domain"}, (
+            f"a stray key landed in a route table: {route}"
+        )

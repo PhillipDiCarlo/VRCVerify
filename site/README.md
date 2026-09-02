@@ -77,6 +77,32 @@ can show it.
 4. After the first deploy: the Worker -> Settings -> Domains & Routes -> add
    `vrcverify.com` and `www.vrcverify.com`.
 
+   Both hostnames are now declared in `wrangler.toml` as well (#259), so a
+   rebuild of this project from scratch gets them from the config rather than
+   from this step. They are left written down here because that is the order
+   they actually happened in, and because the config adopted bindings that
+   already existed rather than creating them.
+
+## Pushing to `main` deploys this site
+
+**Step 1 above is not only an import. It is a build integration, and it
+deploys on every push to `main`.** Nobody has to run `wrangler deploy`.
+
+That went unwritten for weeks and was found by accident: a changelog entry
+appeared at `vrcverify.com/changelog` minutes after a pull request merged, at a
+point when the only API token had already been revoked and verified dead. It
+was not a mystery worth an afternoon, but it was one.
+
+Two things follow from it, and both matter more than the fact itself:
+
+  * **A merge is a deploy of this site.** There is no separate moment where
+    somebody decides to publish, so anything that would be risky to publish is
+    risky to merge.
+  * **Running `npx wrangler deploy` by hand still works** and is what the
+    commands below assume. It is occasionally useful -- deploying a branch to
+    check something -- and it is worth knowing that it publishes to the live
+    domain immediately, with no relationship to what is on `main`.
+
 `dashboard.vrcverify.com` is untouched by any of this and must stay that way.
 It is the Flask app on the VPS behind the cloudflared tunnel, and the whole
 argument for a separate apex is that the two do not share a failure domain.
