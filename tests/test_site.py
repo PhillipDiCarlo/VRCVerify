@@ -1537,3 +1537,19 @@ def test_the_pill_ships_a_mark_that_claims_nothing():
             assert verdict not in pill.group(0), (
                 f"{page.name} ships a verdict glyph before anything has been read"
             )
+
+
+def test_the_site_is_published_at_one_url():
+    """No workers.dev twin (#170).
+
+    Unset, Cloudflare serves this Worker at `vrcverify.<subdomain>.workers.dev`
+    as well as the real domain, and it was doing exactly that: 200, the whole
+    site. Harmless for secrets, since these are public files, and not harmless
+    for search -- there is no canonical tag, no robots meta and no robots.txt
+    on this site, so it was an indexable duplicate competing with the domain
+    the brand is on.
+    """
+    config = (SITE.parent / "wrangler.toml").read_text(encoding="utf-8")
+    assert re.search(r"^workers_dev\s*=\s*false", config, re.M), (
+        "workers.dev is not switched off, so this site has a second public URL"
+    )
