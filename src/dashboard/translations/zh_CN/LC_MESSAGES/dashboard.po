@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-01 00:13-0400\n"
+"POT-Creation-Date: 2026-09-02 13:28-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -199,6 +199,19 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "新"
+
+# | msgid "Couldn't check whether VRCVerify can manage this role."
+msgid "Check whether VRCVerify is working"
+msgstr "查看 VRCVerify 是否正常"
+
+msgid ""
+"There is now a status page at status.vrcverify.com. It shows whether "
+"verification, the Discord bot, group invites, the dashboard and the "
+"website are working, with 90 days of history, and it says so even when "
+"everything else is down. Look for the status link in the header."
+msgstr ""
+"现在 status.vrcverify.com 上有了状态页面。它会显示验证、Discord 机器人、群组邀请、控制面板和网站是否正常，并提供 "
+"90 天的历史记录，即使其他一切都无法访问时也能告诉你。状态链接就在页眉里。"
 
 # | msgid "A verification log channel"
 # | msgid "Verification"
@@ -911,6 +924,9 @@ msgstr "显示侧边栏"
 msgid "Hide the sidebar"
 msgstr "隐藏侧边栏"
 
+msgid "Status"
+msgstr "服务状态"
+
 msgid "What's new"
 msgstr "新功能"
 
@@ -970,9 +986,6 @@ msgstr "全部服务器"
 
 msgid "Settings sections"
 msgstr "设置版块"
-
-msgid "Status"
-msgstr "服务状态"
 
 msgid "Terms"
 msgstr "条款"

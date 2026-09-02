@@ -211,6 +211,22 @@ _FIELD_SEPARATOR = ":"
 # usable rather than when the issue was filed. The other four had been
 # reachable for three weeks by then.
 ENTRIES = (
+    # Dated when the page became findable rather than when it went live. The
+    # status page itself had been serving for a day already, and the rows on it
+    # were real, but nothing linked to it from anywhere a member would look. A
+    # status page nobody can find during an outage is not a status page.
+    Entry(
+        id="2026-09-status-page",
+        date=date(2026, 9, 2),
+        title=N_("Check whether VRCVerify is working"),
+        body=(
+            N_("There is now a status page at status.vrcverify.com. It shows "
+            "whether verification, the Discord bot, group invites, the "
+            "dashboard and the website are working, with 90 days of history, "
+            "and it says so even when everything else is down. Look for the "
+            "status link in the header.")
+        ),
+    ),
     Entry(
         id="2026-08-overview-trends",
         date=date(2026, 8, 24),
