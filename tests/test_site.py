@@ -16,9 +16,24 @@ from html.parser import HTMLParser
 
 import pytest
 
-SITE = pathlib.Path(__file__).resolve().parent.parent / "site"
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+SITE = ROOT / "site"
 PAGES = sorted(SITE.glob("*.html"))
 PAGE_NAMES = [p.name for p in PAGES]
+
+def _status_tokens(path: pathlib.Path) -> dict[str, str]:
+    """Every `--name: #hex;` declaration in a file, as a flat mapping.
+
+    The same parser test_status_page.py uses, and flat for the same reason: a
+    token declared twice with two different literals is precisely the drift
+    being looked for, so the last one wins and the comparison fails rather
+    than silently reading the first.
+    """
+    css = re.sub(r"/\*.*?\*/", "", path.read_text(encoding="utf-8"), flags=re.S)
+    return {
+        name: value.strip()
+        for name, value in re.findall(r"(--[a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;", css)
+    }
 
 CONTACT = "contact@esattotech.com"
 ENTITY = "Esatto Technologies"
@@ -429,11 +444,18 @@ def test_the_stylesheet_braces_balance(sheet):
 
 
 def test_the_site_loads_no_script_other_than_its_own():
-    """One script, and it is this one. The site's dependency-free claim is
-    only as good as the list of things it fetches."""
+    """Two scripts now, and both are ours. The site's dependency-free claim is
+    only as good as the list of things it fetches, so this is an exact list
+    rather than a rule about prefixes: a same-origin path is easy to write and
+    this test is the place a third one has to be argued for.
+
+    /status.js joined in #170. It is the first script here that opens a
+    connection at runtime, which no markup test can see, so the host it may
+    reach is pinned separately in test_the_status_script_talks_to_exactly_one_host.
+    """
     for page in PAGES:
         srcs = re.findall(r'<script[^>]*src="([^"]+)"', read(page))
-        assert srcs == ["/theme.js"], f"{page.name}: {srcs}"
+        assert srcs == ["/theme.js", "/status.js"], f"{page.name}: {srcs}"
 
 
 def _luminance(hex_colour):
@@ -1383,3 +1405,135 @@ def test_the_nav_is_down_to_three_links():
     assert "FIVE LINKS ON A PHONE" not in css, (
         "the removed override's comment is back without the links it describes"
     )
+
+
+# ---------------------------------------------------------------------------
+# The header's status dot (#170).
+#
+# It is a link that happens to know something, not a widget. Everything below
+# is about keeping it in that order: the link works with no script, the dot
+# never claims health it did not read, and the colours are the status page's
+# own rather than a second green that drifts from it.
+# ---------------------------------------------------------------------------
+
+STATUS_ORIGIN = "https://status.vrcverify.com"
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_every_page_carries_the_status_pill(page):
+    """Identical on every page, which test_the_header_nav_is_identical_on_every_page
+    already enforces -- this says it must be there at all."""
+    text = read(page)
+    pill = re.search(r'<a class="status-pill"([^>]*)>', text)
+    assert pill, f"{page.name} has no status pill"
+    assert f'href="{STATUS_ORIGIN}/"' in pill.group(1), f"{page.name}'s pill does not link to the status page"
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_the_pill_ships_neutral_and_is_not_hidden(page):
+    """The two halves of "never green from missing data", at the markup level.
+
+    Ships `unknown`, so a reader whose script never runs is told nothing
+    rather than told everything is fine. And ships VISIBLE, unlike the theme
+    picker: that control cannot work without JavaScript, this one is a plain
+    link that works perfectly without it.
+    """
+    pill = re.search(r'<a class="status-pill"([^>]*)>', read(page))
+    assert 'data-state="unknown"' in pill.group(1), f"{page.name}'s pill does not ship neutral"
+    assert "hidden" not in pill.group(1), f"{page.name}'s pill ships hidden, but it works without a script"
+
+
+@pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
+def test_every_page_loads_the_status_script_deferred(page):
+    """Deferred, unlike the theme script, and for the opposite reason.
+
+    theme.js must block: it stamps an attribute before the first paint or a
+    stored Light choice flashes dark. Nothing paints differently while this
+    one is in flight -- the pill is already drawn, already neutral, already a
+    working link -- so blocking on it would buy nothing and cost the render.
+    """
+    tag = re.search(r'<script[^>]*src="/status\.js"[^>]*>', read(page))
+    assert tag, f"{page.name} does not load /status.js"
+    assert "defer" in tag.group(0), f"{page.name} loads the status script blocking"
+
+
+def test_the_status_script_talks_to_exactly_one_host():
+    """The site's own rule is that nothing is loaded from a third party, and
+    this script is the first thing here that opens a connection at runtime,
+    where no markup test can see it. So the host is pinned: the status origin,
+    which is ours, and nothing else. A second one has to come through here."""
+    js = (SITE / "status.js").read_text(encoding="utf-8")
+    hosts = set(re.findall(r"https?://[a-z0-9.-]+", js))
+    assert hosts == {STATUS_ORIGIN}, f"status.js reaches for {sorted(hosts)}"
+
+
+def test_the_status_script_sends_nothing_about_the_reader():
+    """A public document read publicly. Credentials would make a request that
+    identifies this reader to another origin, out of a page that otherwise
+    has no idea who is looking at it."""
+    js = (SITE / "status.js").read_text(encoding="utf-8")
+    assert 'credentials: "omit"' in js
+
+
+def test_the_status_colours_are_the_status_pages_own():
+    """One product, one green. The dot and the page it opens are read within a
+    click of each other, and two greens that nearly match look like a bug in
+    whichever one the reader sees second."""
+    site = _status_tokens(SITE / "style.css")
+    status = _status_tokens(ROOT / "status" / "public" / "style.css")
+    for token in ("--ok", "--notice", "--down", "--light-ok", "--light-notice", "--light-down"):
+        assert site[token] == status[token], (
+            f"{token} is {site[token]} on the site and {status[token]} on the status page"
+        )
+
+
+@pytest.mark.parametrize("token", ["ok", "notice", "down"])
+@pytest.mark.parametrize("theme", ["", "light-"])
+def test_the_dot_clears_the_graphical_floor_on_the_header_bar(token, theme):
+    """--chrome is a surface the status page's own suite deliberately does not
+    check, because nothing there draws a status colour on it. Here something
+    does, and it is exactly the "measured on one surface, drawn on another"
+    mistake that has moved --ok three times in this project.
+
+    A dot is a graphical object: WCAG 1.4.11 asks 3:1. All six clear 4.5:1 as
+    well, so the label beside it could take the colour without another pass.
+    """
+    palette = _status_tokens(SITE / "style.css")
+    ratio = _contrast(palette[f"--{theme}{token}"], palette[f"--{theme}chrome"])
+    assert ratio >= 3.0, f"--{theme}{token} on --{theme}chrome is {ratio:.2f}:1"
+
+
+def test_state_is_not_carried_by_colour_alone():
+    """The fix for a real defect, pinned so it cannot come back as a tidy-up.
+
+    The first version of this pill was a coloured dot. --ok and --down have
+    relative luminance 0.3312 and 0.3407 -- 0.01 apart -- so "everything is
+    working" and "something is down" were the same grey dot to a red-green
+    colourblind reader, in the two states where being wrong costs most. The
+    tick, the exclamation and the cross are what actually tell them apart, and
+    they are the status page's own glyphs so both surfaces draw one mark.
+    """
+    js = (SITE / "status.js").read_text(encoding="utf-8")
+    glyphs = dict(re.findall(r"^\s+(up|degraded|down):\s+'([^']+)'", js, re.M))
+    assert set(glyphs) == {"up", "degraded", "down"}, f"missing a glyph: {sorted(glyphs)}"
+    assert len(set(glyphs.values())) == 3, "two states are drawn with the same shape"
+
+    status_render = (ROOT / "status" / "src" / "render.js").read_text(encoding="utf-8")
+    for state, shape in glyphs.items():
+        assert shape in status_render, (
+            f"the {state} glyph has drifted from the status page's own"
+        )
+
+
+def test_the_pill_ships_a_mark_that_claims_nothing():
+    """Before any reading arrives -- and forever, with no script -- the mark is
+    a plain dot rather than a tick. A tick that means "not checked yet" is the
+    same lie as a green row drawn from missing data."""
+    for page in PAGES:
+        pill = re.search(r'<a class="status-pill".*?</a>', read(page), re.S)
+        assert pill, f"{page.name} has no status pill"
+        assert "<circle" in pill.group(0), f"{page.name} ships no neutral mark"
+        for verdict in ("M6.2 10.4", "M6.5 6.5"):
+            assert verdict not in pill.group(0), (
+                f"{page.name} ships a verdict glyph before anything has been read"
+            )

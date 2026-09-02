@@ -9,6 +9,7 @@
      first frame rather than flashing dark and correcting itself. Same
      origin, ~30 lines, and nothing on this page needs it to work. -->
 <script src="/theme.js"></script>
+<script src="/status.js" defer></script>
 </head>
 <body>
 
@@ -36,6 +37,34 @@
       <a href="/changelog">What&#39;s new</a>
       <a href="https://dashboard.vrcverify.com">Dashboard</a>
     </nav>
+    <!-- THE STATUS DOT (#170). Deliberately not a fourth nav link: #200 held
+         the nav to three items so it holds one line at 320px, and a fourth
+         entry wraps it to three lines and grows the header by 44px there.
+         This sits with the theme picker instead, in the control cluster,
+         where the row it takes was never the nav's.
+
+         Ships as a working link with a neutral dot, and stays exactly that
+         with JavaScript off. /status.js colours the dot from the real
+         verdict and never paints green from a reading it did not get. -->
+    <a class="status-pill" href="https://status.vrcverify.com/" data-state="unknown">
+      <!-- SHAPE AS WELL AS COLOUR, which is the status page's rule and matters
+           most here: --ok and --down have relative luminance 0.331 and 0.341,
+           so as two plain dots the "working" and "down" states are the same
+           dot to a red-green colourblind reader. These are that page's own
+           glyphs, so the mark here and the mark one click away agree. -->
+      <svg class="status-glyph" viewBox="0 0 20 20" width="14" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <!-- A dot claims nothing, which is the right mark before a reading
+             arrives and the only one shipped without a script to change it. -->
+        <circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"></circle>
+      </svg>
+      <span class="status-label">Status</span>
+      <!-- Written by /status.js once a verdict is in, so the state is spoken
+           and not only coloured. Empty until then, because "unknown" is what
+           the dot already says to somebody who can see it. -->
+      <span class="status-said visually-hidden"></span>
+    </a>
     <!-- The theme control is built by /theme.js into this placeholder (#195
          phase 7). It is JavaScript-only either way -- there is no server here
          to post a preference to -- so markup describing it would describe
