@@ -32,16 +32,9 @@ compatibility_date = "2026-08-18"
 # workers.dev off by itself when routes are configured. This file declares no
 # routes, so it got the default.
 #
-# WHICH IS THE OTHER HALF OF THIS NOTE. The comment above says "only the apex
-# and www are bound here". They are not bound here at all: there is no routes
-# block in this file, and vrcverify.com reaches this Worker through a route
-# configured in the Cloudflare dashboard. That is worth knowing before an
-# incident rather than during one, because the file's own preamble argues that
-# what is published, and from where, should be reviewable in a diff -- and for
-# the hostname it currently is not. Moving the route in here would make that
-# true, and is deliberately NOT bundled into this change: it would take the
-# live domain through a rebind to fix a comment, which is the wrong risk for
-# the wrong reason on the site that takes the signups.
+# Kept explicit even though the routes below would switch it off anyway. The
+# default is the thing that bit us, and a reader deleting a route block should
+# not silently republish the site at a second address as a side effect.
 workers_dev = false
 
 [assets]
@@ -50,4 +43,41 @@ directory = "./site"
 # A mistyped or rotted legal URL should land somewhere that says where to go
 # instead. Stripe and Discord both hold links into this site, and neither will
 # tell us if one stops resolving.
+#
+# KEEP THIS INSIDE [assets], which is less obvious than it looks. The first
+# draft of the routes below was written between these two keys, and TOML read
+# this line as part of the last [[routes]] table instead. Wrangler refused it,
+# which was luck rather than design: the failure it saved was a 404 page that
+# quietly stopped being served on the URLs Stripe holds.
 not_found_handling = "404-page"
+
+# WHERE THIS SITE IS ACTUALLY PUBLISHED (#259).
+#
+# Last in the file, because [[routes]] is a table array and everything after it
+# belongs to it. See the note above.
+#
+# These two hostnames existed for weeks before this block did, as Custom
+# Domains created by hand in Workers -> Settings -> Domains & Routes, exactly
+# as site/README.md step 4 says to. Nothing in the repository recorded that,
+# while the preamble above claimed what is published at vrcverify.com "is
+# reviewable in a diff". It was not. Now it is.
+#
+# Declaring them changed nothing at the edge: both already pointed at THIS
+# script, so wrangler adopts them rather than rebinding anything. Verified with
+# `wrangler deploy --dry-run` before it was merged, because the warning in
+# status/README.md -- that wrangler refuses a hostname that already exists --
+# is about a hostname belonging to somebody ELSE, and it would have been easy
+# to read it as forbidding this.
+#
+# WWW IS NOT REDUNDANT, WHICH IS THE TRAP HERE. A redirect rule sends
+# www.vrcverify.com to the apex, so this Worker never serves a www request and
+# the binding looks like dead weight. It is what makes www RESOLVE. Delete it
+# and www stops existing, the redirect rule never runs because nothing reaches
+# the edge, and every www link ever posted breaks. It stays.
+[[routes]]
+pattern = "vrcverify.com"
+custom_domain = true
+
+[[routes]]
+pattern = "www.vrcverify.com"
+custom_domain = true
