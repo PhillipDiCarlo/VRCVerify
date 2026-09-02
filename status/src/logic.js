@@ -223,6 +223,33 @@ export function verdict(states) {
 }
 
 /**
+ * Stop the all-clear headline shouting over an open incident.
+ *
+ * THE LEVEL IS NEVER TOUCHED HERE. Not the hero colour, not one pill, not one
+ * row. An earlier version let an incident's stated impact override the
+ * measured verdict outright, which painted five working capabilities red on
+ * one person's say-so -- that was wrong and stays fixed. But swinging fully
+ * the other way left the page rendering "All systems operational", in the
+ * largest text it has, directly above a red banner a person had just written
+ * to say otherwise. Only visible in a screenshot, and obviously wrong once
+ * seen.
+ *
+ * So: the colour is measurement, and it does not move. The sentence stops
+ * making a claim the banner underneath it contradicts.
+ *
+ * ONLY the all-clear sentence is replaced. "Some services are down" already
+ * agrees with the banner, and is a stronger and more useful statement than a
+ * count of incidents, so a real outage keeps its own words.
+ */
+export function headlineWithOpenIncidents(measured, openCount) {
+  if (openCount <= 0 || measured.level !== "up") return measured;
+  return {
+    level: measured.level,
+    headline: openCount === 1 ? "1 open incident" : `${openCount} open incidents`,
+  };
+}
+
+/**
  * A day's worth of counters, as a percentage and a colour.
  *
  * Minutes we could not observe are excluded from the denominator rather than
