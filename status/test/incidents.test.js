@@ -40,9 +40,35 @@ function pageWith(incidents) {
 
 test("an open 'down' incident does not turn five working services red", () => {
   const html = pageWith([{ id: 1, title: "Slow for some", impact: "down", started_at: NOW - 60, resolved_at: null, updates: [] }]);
-  assert.ok(html.includes("All systems operational"), "the headline reports what was measured");
-  assert.ok(html.includes('class="hero is-up"'), "the hero stays green");
+  assert.ok(html.includes('class="hero is-up"'), "the hero colour is measured, and nothing was measured down");
+  // Every row still reads as measured. This is the whole point: one person's
+  // word does not repaint working services.
+  assert.equal(
+    (html.match(/class="row is-up"/g) ?? []).length,
+    COMPONENTS.length + UPSTREAMS.length,
+    "every capability and dependency row stays as it was measured",
+  );
+  assert.ok(!html.includes('class="row is-down"'), "no row is repainted by prose");
+  assert.ok(!html.includes('class="row is-degraded"'));
   assert.ok(html.includes("Slow for some"), "the incident is still shown, as information");
+});
+
+test("but the headline stops claiming all-clear over an open incident", () => {
+  // A green "All systems operational" set directly above a red banner someone
+  // wrote to say otherwise is a page arguing with itself, and the largest text
+  // on it wins. Found in a screenshot, not in a test.
+  const html = pageWith([{ id: 1, title: "Slow for some", impact: "down", started_at: NOW - 60, resolved_at: null, updates: [] }]);
+  assert.ok(!html.includes("All systems operational"));
+  assert.ok(html.includes("1 open incident"));
+});
+
+test("two open incidents are counted, not listed, in the headline", () => {
+  const html = pageWith([
+    { id: 1, title: "One", impact: "degraded", started_at: NOW - 60, resolved_at: null, updates: [] },
+    { id: 2, title: "Two", impact: "down", started_at: NOW - 30, resolved_at: null, updates: [] },
+  ]);
+  assert.ok(html.includes("2 open incidents"));
+  assert.ok(html.includes('class="hero is-up"'), "still measured, still green");
 });
 
 test("an open 'degraded' incident is informational only", () => {
@@ -57,7 +83,12 @@ test("planned maintenance is informational only", () => {
   assert.ok(html.includes("Scheduled window"));
 });
 
-test("a real outage still shows, regardless of what any incident claims", () => {
+test("with nothing open, the page says so plainly", () => {
+  const html = pageWith([]);
+  assert.ok(html.includes("All systems operational"));
+});
+
+test("a real outage keeps its own words rather than an incident count", () => {
   const components = {};
   COMPONENTS.forEach((c, i) => {
     components[c.id] = { state: i === 0 ? "down" : "up", since: NOW - 86400 };

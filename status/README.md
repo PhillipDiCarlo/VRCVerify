@@ -238,13 +238,21 @@ it.
 To check it: open `/admin` in a browser signed out of Access and expect a 404,
 then sign in and expect the form.
 
-An open incident is shown in its own banner, as information. It never moves
-the headline, the hero colour or the pills, in either direction: not better
-than what was measured (a "resolved" incident cannot paper over a real
-outage) and not worse either (an operator opening a "down" incident must not
-paint five working capabilities red for everyone reading the page). The rows
-come from evidence; the incident comes from a keyboard, and the two are shown
-side by side rather than merged.
+An open incident is shown in its own banner, as information.
+
+**It never moves a colour.** Not the hero, not one pill, not one row. Not
+better than what was measured, and not worse either: an operator opening a
+"down" incident must not paint five working capabilities red for everyone
+reading the page. State is measured; prose is written; the two are shown side
+by side rather than merged.
+
+The one thing an open incident does change is the *sentence* at the top,
+which becomes "1 open incident" rather than "All systems operational" while
+one is open. A green all-clear set in the largest text on the page, directly
+above a red banner somebody wrote to say otherwise, is a page arguing with
+itself -- and the all-clear wins, because it is bigger. A real measured
+outage keeps its own headline, which already agrees with the banner and says
+more than a count does.
 
 ## The rules this thing holds
 

@@ -15,6 +15,7 @@ import { COMPONENTS, UPSTREAMS } from "./config.js";
 import {
   UPDATE_STATUSES,
   dayUptime,
+  headlineWithOpenIncidents,
   humanDuration,
   uptimeOverDays,
   verdict,
@@ -255,15 +256,21 @@ export function renderPage({
   }
 
   const open = (incidents ?? []).filter((incident) => !incident.resolved_at);
-  // THE HEADLINE IS MEASURED, NEVER TYPED. An incident is a person's words,
-  // shown in its own banner below, and it must never move the hero or the
-  // pills either direction: not better than the rows say (that was always
-  // true) and not worse either (an operator who opens a "down" incident by
-  // habit, or over-states one to be safe, must not paint five working
-  // capabilities red for everyone reading the page). Prose informs; only
-  // the checks vote.
+  // THE COLOUR IS MEASURED, NEVER TYPED. An incident is a person's words, and
+  // it must not move the hero's state or one pill in either direction: not
+  // better than the rows say (that was always true) and not worse either -- an
+  // operator opening a "down" incident by habit, or over-stating one to be
+  // safe, must not paint five working capabilities red for everyone reading
+  // the page. Only the checks vote on state.
+  //
+  // The SENTENCE is allowed to acknowledge that the banner exists, because a
+  // green "All systems operational" set directly above an open incident is a
+  // page arguing with itself and winning in the wrong direction.
   const overall = trusted
-    ? verdict(COMPONENTS.map((c) => shown[c.id]?.state ?? "unknown"))
+    ? headlineWithOpenIncidents(
+        verdict(COMPONENTS.map((c) => shown[c.id]?.state ?? "unknown")),
+        open.length,
+      )
     : {
         level: "unknown",
         headline:
@@ -481,8 +488,9 @@ export function renderAdmin({ incidents, who, now }) {
   </section>
 
   <p class="caveat">An open incident shows as its own banner on the public page, as
-  information. It never changes the headline or the status of any service above: those
-  come only from what was actually measured, in either direction.</p>
+  information. It never changes the status of any service, or the colour of anything:
+  those come only from what was measured. While one is open the headline says how many
+  there are, instead of claiming all is well above your own banner.</p>
 </main>
 
 </body>
