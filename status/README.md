@@ -238,9 +238,13 @@ it.
 To check it: open `/admin` in a browser signed out of Access and expect a 404,
 then sign in and expect the form.
 
-An open incident caps the headline at its impact, so the page stops saying all
-is well. It can never make the page look BETTER than what was measured: the
-rows come from evidence and the incident comes from a keyboard.
+An open incident is shown in its own banner, as information. It never moves
+the headline, the hero colour or the pills, in either direction: not better
+than what was measured (a "resolved" incident cannot paper over a real
+outage) and not worse either (an operator opening a "down" incident must not
+paint five working capabilities red for everyone reading the page). The rows
+come from evidence; the incident comes from a keyboard, and the two are shown
+side by side rather than merged.
 
 ## The rules this thing holds
 

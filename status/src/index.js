@@ -34,7 +34,6 @@ import {
   readStatuspage,
   readStripe,
   readUpdateForm,
-  verdictWithIncidents,
   worst,
 } from "./logic.js";
 import { verifyAccessToken } from "./access.js";
