@@ -17,7 +17,7 @@ import {
   dayUptime,
   humanDuration,
   uptimeOverDays,
-  verdictWithIncidents,
+  verdict,
 } from "./logic.js";
 
 const STATE_LABEL = {
@@ -255,11 +255,15 @@ export function renderPage({
   }
 
   const open = (incidents ?? []).filter((incident) => !incident.resolved_at);
+  // THE HEADLINE IS MEASURED, NEVER TYPED. An incident is a person's words,
+  // shown in its own banner below, and it must never move the hero or the
+  // pills either direction: not better than the rows say (that was always
+  // true) and not worse either (an operator who opens a "down" incident by
+  // habit, or over-states one to be safe, must not paint five working
+  // capabilities red for everyone reading the page). Prose informs; only
+  // the checks vote.
   const overall = trusted
-    ? verdictWithIncidents(
-        COMPONENTS.map((c) => shown[c.id]?.state ?? "unknown"),
-        incidents ?? [],
-      )
+    ? verdict(COMPONENTS.map((c) => shown[c.id]?.state ?? "unknown"))
     : {
         level: "unknown",
         headline:
@@ -476,9 +480,9 @@ export function renderAdmin({ incidents, who, now }) {
     </form>
   </section>
 
-  <p class="caveat">An open incident stops the page saying all is well: the headline
-  drops to the impact chosen above. It cannot make the page look better than what was
-  measured, so a real outage keeps showing through a "degraded" incident.</p>
+  <p class="caveat">An open incident shows as its own banner on the public page, as
+  information. It never changes the headline or the status of any service above: those
+  come only from what was actually measured, in either direction.</p>
 </main>
 
 </body>

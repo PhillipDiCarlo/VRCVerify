@@ -2,25 +2,25 @@
  * Hand-written incidents (issue #170 phase 5).
  *
  * This is the one place a person can put words on a page that is otherwise
- * entirely measured. The rules below are about keeping those two things in the
- * right relationship: prose may make the page look WORSE than the
- * measurements, because a person can see things the probes cannot, and it may
- * never make it look better.
+ * entirely measured. THE HEADLINE, THE HERO COLOUR AND THE PILLS ARE NEVER
+ * TYPED -- an incident is prose, shown in its own banner, and it must not move
+ * any of those either direction. Not better than the rows say (a "resolved"
+ * incident cannot paper over a real outage) and not worse either (an
+ * operator who opens a "down" incident, out of habit or caution, must not
+ * paint five working capabilities red for everyone reading the page). Found
+ * by using the feature: the first version let an open incident's impact
+ * override the headline, which turned "Verification is slow for some users"
+ * into a page-wide red banner over four services that were fine.
  */
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  readIncidentForm,
-  readUpdateForm,
-  verdictWithIncidents,
-} from "../src/logic.js";
+import { readIncidentForm, readUpdateForm } from "../src/logic.js";
 import { renderAdmin, renderPage } from "../src/render.js";
 import { COMPONENTS, UPSTREAMS } from "../src/config.js";
 
 const NOW = Date.UTC(2026, 8, 1, 12, 0, 0) / 1000;
-const ALL_UP = COMPONENTS.map(() => "up");
 
 function pageWith(incidents) {
   const components = {};
@@ -38,35 +38,42 @@ function pageWith(incidents) {
   });
 }
 
-test("an open incident stops the page claiming everything is fine", () => {
-  // "Verification is slow for European members" is true, invisible from here,
-  // and exactly what somebody types in at 3am.
-  const result = verdictWithIncidents(ALL_UP, [
-    { impact: "degraded", resolved_at: null },
-  ]);
-  assert.equal(result.level, "degraded");
-  assert.notEqual(result.headline, "All systems operational");
+test("an open 'down' incident does not turn five working services red", () => {
+  const html = pageWith([{ id: 1, title: "Slow for some", impact: "down", started_at: NOW - 60, resolved_at: null, updates: [] }]);
+  assert.ok(html.includes("All systems operational"), "the headline reports what was measured");
+  assert.ok(html.includes('class="hero is-up"'), "the hero stays green");
+  assert.ok(html.includes("Slow for some"), "the incident is still shown, as information");
 });
 
-test("prose cannot make the page look better than the measurements", () => {
-  // A "degraded" incident during a real outage leaves the outage showing. The
-  // rows came from evidence; the incident came from a keyboard.
-  const measured = ["down", "up", "up", "up", "up"];
-  const result = verdictWithIncidents(measured, [{ impact: "degraded", resolved_at: null }]);
-  assert.equal(result.level, "down");
+test("an open 'degraded' incident is informational only", () => {
+  const html = pageWith([{ id: 1, title: "EU latency", impact: "degraded", started_at: NOW - 60, resolved_at: null, updates: [] }]);
+  assert.ok(html.includes('class="hero is-up"'));
+  assert.ok(html.includes("EU latency"));
 });
 
-test("a resolved incident stops affecting the headline", () => {
-  const result = verdictWithIncidents(ALL_UP, [
-    { impact: "down", resolved_at: NOW - 3600 },
-  ]);
-  assert.equal(result.headline, "All systems operational");
+test("planned maintenance is informational only", () => {
+  const html = pageWith([{ id: 1, title: "Scheduled window", impact: "maintenance", started_at: NOW - 60, resolved_at: null, updates: [] }]);
+  assert.ok(html.includes('class="hero is-up"'));
+  assert.ok(html.includes("Scheduled window"));
 });
 
-test("planned maintenance says maintenance rather than implying a fault", () => {
-  const result = verdictWithIncidents(ALL_UP, [{ impact: "maintenance", resolved_at: null }]);
-  assert.equal(result.headline, "Maintenance in progress");
-  assert.equal(result.level, "degraded");
+test("a real outage still shows, regardless of what any incident claims", () => {
+  const components = {};
+  COMPONENTS.forEach((c, i) => {
+    components[c.id] = { state: i === 0 ? "down" : "up", since: NOW - 86400 };
+  });
+  const upstreams = {};
+  for (const upstream of UPSTREAMS) upstreams[upstream.id] = { state: "up" };
+  const html = renderPage({
+    components,
+    upstreams,
+    history: { days: [], byComponent: {} },
+    incidents: [{ id: 1, title: "Minor blip", impact: "degraded", started_at: NOW - 60, resolved_at: null, updates: [] }],
+    checkedAt: NOW - 20,
+    now: NOW,
+    freshness: "fresh",
+  });
+  assert.ok(html.includes("Some services are down"), "the rows came from evidence, not from a keyboard");
 });
 
 test("the banner shows the newest update first and says how long it has run", () => {

@@ -421,37 +421,6 @@ export function composeAlert(changes, names, now) {
 }
 
 /**
- * An open incident outranks the measurements, but only downwards.
- *
- * The probes can only see what they can reach. "Verification is slow for
- * European members" is true, invisible from here, and exactly the thing
- * somebody types in at 3am -- so an unresolved incident caps the headline at
- * its impact and the page stops claiming all is well.
- *
- * It cannot make the page LOOK BETTER than what was measured. A `degraded`
- * incident during a real outage leaves the outage showing, because the rows
- * came from evidence and the incident came from a keyboard.
- */
-export function verdictWithIncidents(states, incidents) {
-  const measured = verdict(states);
-  const open = incidents.filter((incident) => !incident.resolved_at);
-  if (open.length === 0) return measured;
-
-  const claimed = worst(
-    open.map((incident) => (incident.impact === "maintenance" ? "degraded" : incident.impact)),
-  );
-  if (SEVERITY.indexOf(claimed) >= SEVERITY.indexOf(measured.level)) return measured;
-
-  const onlyMaintenance = open.every((incident) => incident.impact === "maintenance");
-  if (onlyMaintenance) {
-    return { level: "degraded", headline: "Maintenance in progress" };
-  }
-  return claimed === "down"
-    ? { level: "down", headline: "Some services are down" }
-    : { level: "degraded", headline: "Some services are degraded" };
-}
-
-/**
  * The states an incident update may carry, in the order they normally happen.
  * Statuspage's vocabulary, because it is the one anybody reading a status page
  * has already learned.
