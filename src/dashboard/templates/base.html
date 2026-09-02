@@ -95,6 +95,25 @@
 
    A globe is the convention for exactly this reason, and it means the same
    thing to a reader of every one of the twelve. #}
+{# A pulse line, which is the convention for service status and reads as one
+   thing at 16px (#170). Deliberately not a tick or a shield: a tick is a
+   verdict, and this icon has none to give. THIS BUTTON DOES NOT KNOW WHETHER
+   ANYTHING IS UP -- the apex site's dot does, because it can fetch, and this
+   page cannot. The dashboard's CSP is `default-src 'none'` with no
+   `connect-src`, deliberately: the bell, the theme picker and the language
+   menu are all built as <details> disclosures precisely because a control
+   needing a fetch could not work here at all. A coloured dot would mean
+   widening that policy for decoration, on the one origin in this project that
+   holds a session. So this is a signpost, and the page it points at is the
+   thing that knows. #}
+{% macro status_icon() -%}
+  <svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16"
+       aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1.5 8h3l2-4 2.5 8 2-4h3.5"></path>
+  </svg>
+{%- endmacro %}
+
 {% macro globe_icon() -%}
   <svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16"
        aria-hidden="true" fill="none" stroke="currentColor"
@@ -244,6 +263,24 @@
        then the account -- account last, because that is the corner people
        already look in for it. #}
     <div class="bar-actions">
+
+      {# THE STATUS LINK (#170), FIRST IN THE CLUSTER.
+         First so the documented order below survives: notifications, then
+         preferences, then the account last. This is none of those three -- it
+         is about the service rather than about you -- so it goes ahead of
+         them rather than in the middle of them.
+
+         Not gated on `csrf_token`, unlike the bell. "Is it me or is it them"
+         is a question somebody has most sharply when they cannot sign in, and
+         a status link that appears only after signing in has hidden itself
+         during the outage it exists for.
+
+         The word is already translated in all eleven catalogues -- the footer
+         link shipped it -- so this reuses the string rather than adding one. #}
+      <a class="bar-button" href="https://status.vrcverify.com/"
+         title="{{ _('Status') }}" aria-label="{{ _('Status') }}">
+        {{ status_icon() }}
+      </a>
 
       {# THE NOTIFICATION BELL (#136 phase 2), IN THE SLOT #133 RESERVED.
          Everything that comment promised held: this is a <details

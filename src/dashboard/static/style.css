@@ -730,6 +730,11 @@ p { text-wrap: pretty; }
   cursor: pointer;
 }
 
+/* Every other .bar-button is a <summary>. The status link (#170) is an anchor,
+   which arrives underlined and blue-by-default, and neither belongs on a 32px
+   icon control sitting in a row of three that are neither. */
+a.bar-button { text-decoration: none; }
+
 .bar-button:hover { background: var(--hover); color: var(--ink); }
 /* Stays lit while its menu is open, so it is obvious which button produced the
  * panel now covering part of the page. */

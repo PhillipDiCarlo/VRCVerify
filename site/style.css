@@ -122,6 +122,30 @@
      that diverges -- see the light block. */
   --control-line: #80848e;
 
+  /* THREE STATUS COLOURS, for the header's status dot (#170).
+
+     Taken from status/public/style.css at the values it measured, unchanged,
+     because a green here and a green there have to be the same green -- the
+     dot and the page it links to are read within one click of each other.
+
+     NO NEW MEASUREMENT WAS NEEDED, which is worth saying rather than assuming.
+     That file measured these against --bg, --chrome and --panel, and all six
+     of those surfaces are byte-identical between the two stylesheets, so the
+     ratios carry over rather than being re-derived on a fourth surface. That
+     is the mistake its own comment records --ok having been moved twice by.
+
+     The dot sits on --chrome, which was one of the three measured:
+
+       dark   --ok 5.01:1   --notice 7.30:1   --down 5.13:1
+       light  --ok 5.54:1   --notice 5.70:1   --down 5.30:1
+
+     A dot is a graphical object and owes 3:1 (WCAG 1.4.11). All six clear
+     4.5:1 as well, so the label beside it may take the colour later without
+     another pass. Pinned in tests/test_site.py. */
+  --ok: #26b261;
+  --notice: #f0b232;
+  --down: #f4787a;
+
   /* COPIED ACROSS FOR THE THEME MENU (#195 phase 7), following the rule this
      file's header states: take a dashboard component token when a rule here
      actually needs it, rather than importing a vocabulary this site does not
@@ -148,6 +172,11 @@
 
   --light-line: #dfe0e3;
   --light-line-soft: #ebedef;
+
+  /* The status dot's light values, from status/public/style.css unchanged. */
+  --light-ok: #15703b;
+  --light-notice: #8a5300;
+  --light-down: #c0272b;
 
   --light-accent: #5865f2;
   --light-accent-hover: #4752c4;
@@ -206,6 +235,10 @@
   --line: var(--light-line);
   --line-soft: var(--light-line-soft);
 
+  --ok: var(--light-ok);
+  --notice: var(--light-notice);
+  --down: var(--light-down);
+
   --accent: var(--light-accent);
   --accent-hover: var(--light-accent-hover);
   --accent-ink: var(--light-accent-ink);
@@ -233,6 +266,10 @@
 
     --line: var(--light-line);
     --line-soft: var(--light-line-soft);
+
+    --ok: var(--light-ok);
+    --notice: var(--light-notice);
+    --down: var(--light-down);
 
     --accent: var(--light-accent);
     --accent-hover: var(--light-accent-hover);
@@ -444,7 +481,145 @@ header.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; }
 header.site nav a { color: var(--muted); text-decoration: none; font-size: 0.94rem; }
 header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); text-decoration: underline; }
 
+/* THE STATUS DOT (#170).
+
+   WHY IT IS NOT A FOURTH NAV LINK, which is the obvious way to build it and
+   was measured before being rejected. #200 held this nav to three items and
+   bought a specific thing with the space: at 320px the nav is 250px inside a
+   280px content box, so it holds one line at every supported width with no
+   media query. A fourth text link takes it to 280px, wraps it to three lines
+   and grows the header from 142px to 186px on the narrowest phone. The pill
+   sits in the control cluster with the theme picker instead, where it costs
+   the nav nothing and the row it takes was never the nav's.
+
+   IT IS A LINK FIRST AND AN INDICATOR SECOND. It ships as a working link to
+   the status page with a neutral dot, which is the whole feature for anybody
+   with JavaScript off or blocked. /status.js then colours the dot from the
+   real verdict. Nothing here is hidden pending a script, unlike the theme
+   picker: that control cannot work without JavaScript, and this one can. */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.55rem;
+  height: var(--bar-control);
+  border: 1px solid var(--control-line);
+  border-radius: 999px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+.status-pill:hover, .status-pill:focus { color: var(--ink-strong); border-color: var(--ink-strong); }
+
+/* NEVER GREEN FROM MISSING DATA, which is the status page's first rule and
+   has to hold on the surface that quotes it. The mark ships as a neutral dot
+   in the faint colour, and every path that does not end in a confirmed
+   reading leaves it exactly there: no script, blocked script, failed fetch,
+   stale data, a shape this code does not recognise. Green is only ever
+   written by a successful read.
+
+   AND STATE IS NEVER COLOUR ALONE, which is the same page's other rule, and
+   the reason this is a glyph slot rather than a coloured dot. Measured:
+   --ok and --down have relative luminance 0.3312 and 0.3407 -- a difference
+   of 0.01 -- so "everything is working" and "something is down" were the same
+   grey dot to a red-green colourblind reader, in the two states where being
+   wrong costs the most. /status.js swaps in a tick, an exclamation or a
+   cross, which are the status page's own glyphs at its own proportions. */
+.status-glyph { flex: none; color: var(--faint); }
+.status-pill[data-state="up"] .status-glyph { color: var(--ok); }
+.status-pill[data-state="degraded"] .status-glyph { color: var(--notice); }
+.status-pill[data-state="down"] .status-glyph { color: var(--down); }
+
+/* THE WORD GOES BEFORE THE ROW DOES (#170).
+
+   Measured, not guessed. At 390px -- the commonest phone width there is -- the
+   header's four children need 443px of a 390px row, so something wraps and the
+   header grows from 109px to 149px. The word "Status" is 51px of that. Below
+   26rem it is taken out of the picture and left in the accessibility tree, so
+   the pill is a dot, the row fits, and a screen reader still reads "Status".
+
+   26rem is the width #200's own media query used before it was deleted, kept
+   here so this site has one narrow breakpoint rather than two. */
+@media (max-width: 26rem) {
+  .status-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  /* AND THE BORDER GOES WITH THE WORD, which is a better control rather than
+     a smaller one. What sits beside it at this width is the theme picker: a
+     borderless icon in a 2rem box. A bordered pill next to it read as two
+     different kinds of control doing the same kind of job, and it cost 8px
+     the row did not have -- see the gap note below.
+
+     24px is the floor for a tap target (WCAG 2.5.8) and min-width pins it, so
+     trimming padding here can never quietly take it under. The height is
+     already 2rem from --bar-control, as the picker's is. */
+  .status-pill {
+    padding: 0;
+    gap: 0;
+    min-width: 1.5rem;
+    justify-content: center;
+    border-color: transparent;
+  }
+
+  /* AND THE ROW COMES BACK. Even as a bare dot the pill left the header's
+     second row needing 353px of a 350px content box, so the theme picker fell
+     to a third row and the header grew 40px on every phone. That is three
+     pixels, and shaving three pixels off a padding is a fix that the next
+     font change undoes silently. Narrowing the column gap here buys the room
+     back, so the row holds with margin rather than by luck: nav, dot and
+     picker sit together and the header keeps the height it had before.
+
+     0.75rem rather than 1rem because of one device. The second row needs
+     250 + 26 + 32 = 308px plus two gaps, against a content box of 335px at
+     375px wide -- an iPhone SE or 8. At 1rem that is 340px and the picker
+     falls to a third row; at 0.75rem it is 332px and it does not.
+
+     360px is left alone deliberately. Its content box is 320px, which would
+     need a 6px gap, and buying one more device with a header that cramped is
+     a worse trade than letting the picker have its own row there. It is the
+     one width in the range that pays for this feature, and it pays 40px. */
+  header.site .wrap { column-gap: 0.75rem; }
+}
+
+/* STATE IS NEVER CARRIED BY COLOUR ALONE, which is the same rule the status
+   page follows by drawing four glyphs rather than four colours. Here the
+   verdict goes in text only a screen reader meets, because the visible pill
+   has room for one word and "Status" is the word that says where it goes.
+   Identical to status/public/style.css, which needed it for the same job. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* THREE LINKS ON A PHONE (#200).
+
+   STILL THREE. #170 added a status dot to this header and deliberately did
+   not add it here: it is a fourth CONTROL, in the cluster with the theme
+   picker, not a fourth LINK in this nav. Measured before it was placed -- as
+   a nav item it takes the nav to 280px, wraps it to three lines at 320px and
+   grows the header 44px. The nav below is untouched and still holds one line
+   at every supported width.
+
+   A `@media (max-width: 26rem)` block has come back, further down, and it is
+   not this one returning: it collapses the status pill to its dot and
+   narrows the header's column gap, and it touches no nav rule at all.
+
    A `@media (max-width: 26rem)` block used to live here, tightening the gap
    and shrinking the label so that Pricing, three legal links and Dashboard
    fitted on one line at 360px. It said outright that it did not fix 320px,
