@@ -17,6 +17,33 @@
 name = "vrcverify"
 compatibility_date = "2026-08-18"
 
+# NO SECOND COPY OF THIS SITE ON THE INTERNET (#170).
+#
+# Left unset, Cloudflare also serves this Worker at
+# `vrcverify.<subdomain>.workers.dev`, and it did: that hostname answered 200
+# with the whole marketing site, pill and all. Nothing secret is exposed -- it
+# is the same public files -- but with no canonical tag, no robots meta and no
+# robots.txt anywhere on this site, it was a fully indexable duplicate. Two
+# URLs serving identical pages split ranking signals between them, and the one
+# a search result shows might not be the one with the brand on it.
+#
+# The status Worker never had this problem, which is the tell: `status/
+# wrangler.toml` declares its hostname in `[[routes]]`, and wrangler turns
+# workers.dev off by itself when routes are configured. This file declares no
+# routes, so it got the default.
+#
+# WHICH IS THE OTHER HALF OF THIS NOTE. The comment above says "only the apex
+# and www are bound here". They are not bound here at all: there is no routes
+# block in this file, and vrcverify.com reaches this Worker through a route
+# configured in the Cloudflare dashboard. That is worth knowing before an
+# incident rather than during one, because the file's own preamble argues that
+# what is published, and from where, should be reviewable in a diff -- and for
+# the hostname it currently is not. Moving the route in here would make that
+# true, and is deliberately NOT bundled into this change: it would take the
+# live domain through a rebind to fix a comment, which is the wrong risk for
+# the wrong reason on the site that takes the signups.
+workers_dev = false
+
 [assets]
 directory = "./site"
 
