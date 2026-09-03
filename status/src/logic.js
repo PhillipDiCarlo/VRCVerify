@@ -256,12 +256,65 @@ export function headlineWithOpenIncidents(measured, openCount) {
  * counted as downtime. A day with nothing but `unknown` has no percentage at
  * all -- `null`, drawn as a gap -- because averaging over no observations
  * produces a number that looks like measurement and is not.
+ *
+ * The COLOUR IS SCALED BY HOW MUCH OF THE DAY WAS LOST, not by whether
+ * anything was. This function used to read `row.down > 0 ? "down" : ...`,
+ * which painted a day containing one bad minute exactly as red as a day that
+ * was down from midnight to midnight -- so a deploy and a real outage were
+ * indistinguishable, and the strip stopped carrying information.
+ *
+ * Two rules keep the scaling honest:
+ *
+ * Anything short of a perfect day is drawn as *something*. A day with real
+ * downtime in it is never green, however brief, because green here is a
+ * checkable claim and one that quietly rounds off a reader's bad afternoon is
+ * worth less than no claim at all. The blips too short to matter never arrive
+ * in the first place: the counters follow the published state, and `nextState`
+ * holds a fault back until it has been seen twice, so a restart that finished
+ * inside a minute is already a clean day without any help from here.
+ *
+ * A day that was only ever degraded stays amber no matter how long it lasted.
+ * Degraded is not a lesser shade of down, it is a different claim -- the thing
+ * answered, slowly or partially -- and letting a long slow day cross into red
+ * would report an outage that did not happen.
  */
-export function dayUptime(row) {
+export function dayUptime(row, { redBelowPercent = 99 } = {}) {
   const observed = (row?.up ?? 0) + (row?.degraded ?? 0) + (row?.down ?? 0);
-  if (observed === 0) return { percent: null, state: "unknown" };
-  const state = row.down > 0 ? "down" : row.degraded > 0 ? "degraded" : "up";
-  return { percent: (row.up / observed) * 100, state };
+  if (observed === 0) {
+    // A day made entirely of declared maintenance is not a day nobody looked
+    // at, and drawing it in the no-data colour would say the wrong thing about
+    // the one kind of downtime this page announced in advance.
+    return { percent: null, state: (row?.maintenance ?? 0) > 0 ? "maintenance" : "unknown" };
+  }
+  const percent = (row.up / observed) * 100;
+  let state;
+  if (percent === 100) state = "up";
+  else if (percent >= redBelowPercent) state = "degraded";
+  else state = (row.down ?? 0) > 0 ? "down" : "degraded";
+  return { percent, state };
+}
+
+/**
+ * Which `daily` column a minute belongs in.
+ *
+ * Normally the published state names its own column. The exception is a
+ * declared maintenance window, which moves the BAD minutes -- and only the bad
+ * minutes -- into `maintenance`, where they sit outside the uptime percentage
+ * the way `unknown` already does.
+ *
+ * `up` deliberately still counts as `up` inside a window. Excluding the whole
+ * window is what most status pages do, and it is the more dangerous shape here:
+ * a window left open by accident would quietly stop measuring a service that
+ * was working fine, and the page would have less to say the longer the mistake
+ * lasted. Moving only the failures means a forgotten window costs nothing until
+ * something actually breaks, and `up` minutes keep accruing honestly throughout.
+ *
+ * `unknown` stays `unknown` for the same reason it always did: "we could not
+ * check" is not something a maintenance window explains or excuses.
+ */
+export function dailyCounterFor(state, { maintenance = false } = {}) {
+  if (maintenance && (state === "down" || state === "degraded")) return "maintenance";
+  return state;
 }
 
 /** The same, across a run of days. Days with no observations are skipped. */

@@ -50,13 +50,26 @@ CREATE TABLE IF NOT EXISTS component_state (
 -- rather than counted against it. A minute we could not observe is not a
 -- minute the service was down, and reporting it as one would make the page
 -- lie in the direction that looks worst.
+--
+-- `maintenance` is excluded from the percentage for a different reason: those
+-- are minutes somebody DECLARED, in public, before they happened. An open
+-- incident with impact 'maintenance' redirects the bad minutes here instead of
+-- into `down`, so a deploy does not read as a reliability failure.
+--
+-- This is the one counter an operator can influence, and it is worth being
+-- clear-eyed about that. It stays honest only because the window is public,
+-- timestamped and permanent in `incidents` -- the downtime is categorised in
+-- the open, not erased. Only the bad minutes move: `up` still counts as `up`
+-- during a window, so forgetting to resolve one masks nothing that was working
+-- and cannot quietly delete a day.
 CREATE TABLE IF NOT EXISTS daily (
-  component TEXT NOT NULL,
-  day       TEXT NOT NULL,
-  up        INTEGER NOT NULL DEFAULT 0,
-  degraded  INTEGER NOT NULL DEFAULT 0,
-  down      INTEGER NOT NULL DEFAULT 0,
-  unknown   INTEGER NOT NULL DEFAULT 0,
+  component   TEXT NOT NULL,
+  day         TEXT NOT NULL,
+  up          INTEGER NOT NULL DEFAULT 0,
+  degraded    INTEGER NOT NULL DEFAULT 0,
+  down        INTEGER NOT NULL DEFAULT 0,
+  unknown     INTEGER NOT NULL DEFAULT 0,
+  maintenance INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (component, day)
 );
 

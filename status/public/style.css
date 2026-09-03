@@ -528,6 +528,12 @@ a:focus-visible, .cta:focus-visible,
   --ok: #26b261;
   --notice: #f0b232;
   --down: #f4787a;
+  /* Maintenance. Blue because every status page a reader has already seen uses
+     blue for planned work, and because it is the one status colour that carries
+     no alarm -- which is the whole claim being made. Discord's blurple #5865f2
+     was the obvious pick and fails at 2.74:1 on --panel; this is the same hue
+     lifted until it clears AA on both surfaces. */
+  --planned: #7aa2f7;
   /* THE SAME STATE, A DIFFERENT JOB, AND IT NEEDED A DIFFERENT VALUE.
 
      --down is a foreground: a word, a ring, a 17px glyph, all of which have to
@@ -565,6 +571,7 @@ a:focus-visible, .cta:focus-visible,
   --light-notice: #8a5300;
   --light-down: #c0272b;
   --light-down-fill: #c0272b;
+  --light-planned: #1d4ed8;
 }
 
 :root[data-theme="light"] {
@@ -572,6 +579,7 @@ a:focus-visible, .cta:focus-visible,
   --notice: var(--light-notice);
   --down: var(--light-down);
   --down-fill: var(--light-down-fill);
+  --planned: var(--light-planned);
 }
 
 @media (prefers-color-scheme: light) {
@@ -580,6 +588,7 @@ a:focus-visible, .cta:focus-visible,
     --notice: var(--light-notice);
     --down: var(--light-down);
     --down-fill: var(--light-down-fill);
+    --planned: var(--light-planned);
   }
 }
 
@@ -594,6 +603,7 @@ a:focus-visible, .cta:focus-visible,
    nothing. */
 .is-up { color: var(--ok); }
 .is-degraded { color: var(--notice); }
+.is-maintenance { color: var(--planned); }
 .is-down { color: var(--down); }
 .is-unknown { color: var(--faint); }
 

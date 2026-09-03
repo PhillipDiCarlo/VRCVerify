@@ -180,3 +180,27 @@ export const PAGE_CACHE_SECONDS = 30;
 
 /** Days of history the page draws and the pruner keeps. */
 export const HISTORY_DAYS = 90;
+
+/**
+ * The uptime percentage at or above which a day with trouble in it is drawn
+ * amber rather than red.
+ *
+ * The cron observes once a minute, so a full day is ~1440 observations and this
+ * works out to roughly seventy minutes. Below it, the day is red.
+ *
+ * Deploys are not what this number is for. A declared maintenance window keeps
+ * its minutes out of the percentage entirely, so this line only ever has to
+ * describe unplanned trouble: an hour of it is a rough patch, more than that is
+ * a bad day.
+ *
+ * The number exists because the first version of the history strip had no such
+ * threshold: any down minute at all painted the whole day red, so a two-minute
+ * deploy and a two-hour outage were the same colour. That is not a scale, it is
+ * a boolean wearing one, and it made the strip useless for the thing a reader
+ * actually wants from it -- telling a bad day from a busy one at a glance.
+ *
+ * `logic.dayUptime` carries the same number as its default, the way the other
+ * pure decisions there do. This is the copy to edit; it is the one the page
+ * actually renders with.
+ */
+export const DAY_RED_BELOW_PERCENT = 95;

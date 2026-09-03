@@ -27,6 +27,7 @@ import {
   readReport,
   signatureIsTimely,
   classifyHttp,
+  dailyCounterFor,
   dataFreshness,
   dayKey,
   nextState,
@@ -42,7 +43,7 @@ import { renderAdmin, renderPage } from "./render.js";
 /** Every id the cron writes a row for: the five public ones and the four upstreams. */
 const ALL_IDS = [...COMPONENT_IDS, ...UPSTREAMS.map((u) => u.id)];
 
-/** One statement per state, so no state name is ever pasted into SQL. */
+/** One statement per counter, so no column name is ever pasted into SQL. */
 const DAILY_INCREMENTS = {
   up: "INSERT INTO daily (component, day, up) VALUES (?1, ?2, 1) ON CONFLICT (component, day) DO UPDATE SET up = up + 1",
   degraded:
@@ -50,7 +51,25 @@ const DAILY_INCREMENTS = {
   down: "INSERT INTO daily (component, day, down) VALUES (?1, ?2, 1) ON CONFLICT (component, day) DO UPDATE SET down = down + 1",
   unknown:
     "INSERT INTO daily (component, day, unknown) VALUES (?1, ?2, 1) ON CONFLICT (component, day) DO UPDATE SET unknown = unknown + 1",
+  maintenance:
+    "INSERT INTO daily (component, day, maintenance) VALUES (?1, ?2, 1) ON CONFLICT (component, day) DO UPDATE SET maintenance = maintenance + 1",
 };
+
+/**
+ * Is somebody holding a maintenance window open right now?
+ *
+ * Deliberately the narrowest question the cron can ask: one unresolved incident
+ * that a person typed 'maintenance' on. Incidents carry no component, so a
+ * window covers everything -- which is the honest reading of a table that has
+ * no way to say otherwise, and worth remembering when reading a day that had
+ * both a deploy and an unrelated fault in it.
+ */
+async function maintenanceIsOpen(db) {
+  const row = await db
+    .prepare("SELECT 1 FROM incidents WHERE impact = 'maintenance' AND resolved_at IS NULL LIMIT 1")
+    .first();
+  return row !== null;
+}
 
 /**
  * A fetch that cannot hang the whole run.
@@ -215,11 +234,12 @@ async function observe(env, previousUpstreams, now, lastUpstreamCheck) {
  * describing another.
  */
 async function runCheck(env, now) {
-  const [current, lastUpstreamCheck, prunedAt, lastRun] = await Promise.all([
+  const [current, lastUpstreamCheck, prunedAt, lastRun, underMaintenance] = await Promise.all([
     loadState(env.DB),
     readMeta(env.DB, "upstreams_checked_at"),
     readMeta(env.DB, "pruned_at"),
     readMeta(env.DB, "cron_ran_at"),
+    maintenanceIsOpen(env.DB),
   ]);
 
   // See logic.isDuplicateRun for what this does and does not protect.
@@ -263,13 +283,20 @@ async function runCheck(env, now) {
     // the same events. A held-back flap never reached a reader and does not
     // belong in their number.
     //
-    // The state names a COLUMN, which is the one thing D1's placeholders
-    // cannot stand in for, so the four statements are written out and chosen
-    // from rather than the name being pasted into SQL. `decided.state` comes
-    // from our own logic and not from a request, so this is not fixing a live
-    // injection -- it is refusing to leave one string away from being one.
-    const counter = DAILY_INCREMENTS[decided.state];
-    if (!counter) throw new Error(`unknown state ${decided.state}`);
+    // ...except during a declared maintenance window, where the bad minutes go
+    // to their own counter instead. See logic.dailyCounterFor for why only the
+    // bad ones move.
+    //
+    // The counter names a COLUMN, which is the one thing D1's placeholders
+    // cannot stand in for, so the statements are written out and chosen from
+    // rather than the name being pasted into SQL. The name comes from our own
+    // logic and not from a request, so this is not fixing a live injection --
+    // it is refusing to leave one string away from being one. `underMaintenance`
+    // is a boolean from a `SELECT 1`, so the operator's typed title never gets
+    // anywhere near this.
+    const column = dailyCounterFor(decided.state, { maintenance: underMaintenance });
+    const counter = DAILY_INCREMENTS[column];
+    if (!counter) throw new Error(`unknown daily counter ${column}`);
     statements.push(env.DB.prepare(counter).bind(id, day));
 
     if (decided.changed) {
@@ -365,7 +392,7 @@ async function loadHistory(db, now) {
   const days = recentDays(now, HISTORY_DAYS);
   const { results } = await db
     .prepare(
-      "SELECT component, day, up, degraded, down, unknown FROM daily WHERE day >= ?1",
+      "SELECT component, day, up, degraded, down, unknown, maintenance FROM daily WHERE day >= ?1",
     )
     .bind(days[0])
     .all();

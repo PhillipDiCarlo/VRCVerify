@@ -100,14 +100,14 @@ SURFACES = ("bg", "panel")
 
 
 class TestStatusColours:
-    @pytest.mark.parametrize("token", ["ok", "notice", "down"])
+    @pytest.mark.parametrize("token", ["ok", "notice", "down", "planned"])
     @pytest.mark.parametrize("surface", SURFACES)
     def test_dark_clears_aa(self, token, surface):
         palette = _tokens(STATUS_CSS)
         ratio = contrast(palette[f"--{token}"], palette[f"--{surface}"])
         assert ratio >= 4.5, f"--{token} on --{surface} is {ratio:.2f}:1 on dark"
 
-    @pytest.mark.parametrize("token", ["ok", "notice", "down"])
+    @pytest.mark.parametrize("token", ["ok", "notice", "down", "planned"])
     @pytest.mark.parametrize("surface", SURFACES)
     def test_light_clears_aa(self, token, surface):
         palette = _tokens(STATUS_CSS)
@@ -126,7 +126,12 @@ class TestStatusColours:
         """
         palette = _tokens(STATUS_CSS)
         surface = palette[f"--{theme}panel"]
-        for token in (f"--{theme}down-fill", f"--{theme}ok", f"--{theme}notice"):
+        for token in (
+            f"--{theme}down-fill",
+            f"--{theme}ok",
+            f"--{theme}notice",
+            f"--{theme}planned",
+        ):
             ratio = contrast(palette[token], surface)
             assert ratio >= 3.0, f"{token} fills at {ratio:.2f}:1 on the card"
 

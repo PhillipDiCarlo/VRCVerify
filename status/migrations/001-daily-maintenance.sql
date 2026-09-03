@@ -1,0 +1,18 @@
+-- Adds `daily.maintenance` to a database that already exists.
+--
+-- schema.sql is written entirely in CREATE TABLE IF NOT EXISTS so that running
+-- it against a live database is a no-op. That property does not extend to a new
+-- column: SQLite has no ADD COLUMN IF NOT EXISTS, so the column lives in
+-- schema.sql for databases created from now on, and in here for the one already
+-- running.
+--
+-- RUN THIS ONCE, and only against a database created before the maintenance
+-- counter existed. A second run fails with "duplicate column name: maintenance",
+-- which is the safe direction to fail in -- nothing is written twice.
+--
+--   npx wrangler d1 execute vrcverify-status --remote \
+--     --file status/migrations/001-daily-maintenance.sql
+--
+-- Existing rows get 0, which is the truth about them: no maintenance window has
+-- ever been counted, because until now nothing counted one.
+ALTER TABLE daily ADD COLUMN maintenance INTEGER NOT NULL DEFAULT 0;

@@ -23,6 +23,7 @@ import {
   classifyHttp,
   dataFreshness,
   dayKey,
+  dailyCounterFor,
   dayUptime,
   humanDuration,
   nextState,
@@ -229,6 +230,98 @@ test("minutes we could not observe are not counted as downtime", () => {
   assert.equal(dayUptime(undefined).state, "unknown");
   assert.equal(dayUptime({ up: 1400, degraded: 0, down: 40, unknown: 0 }).state, "down");
   assert.equal(dayUptime({ up: 1400, degraded: 40, down: 0, unknown: 0 }).state, "degraded");
+});
+
+test("a day's colour scales with how much of it was lost", () => {
+  // The bug this replaced: one bad minute in 1440 painted the day the same red
+  // as a day that was down from midnight to midnight. A deploy is not an
+  // outage, and the strip has to be able to say so.
+  assert.equal(dayUptime({ up: 1438, degraded: 0, down: 2, unknown: 0 }).state, "degraded");
+  assert.equal(dayUptime({ up: 0, degraded: 0, down: 1440, unknown: 0 }).state, "down");
+
+  // ...but a day with real downtime in it is never green. Green is a claim, and
+  // the blips too short to be worth a colour never reach these counters at all:
+  // they follow the published state, which `nextState` holds back until a fault
+  // has been seen twice.
+  assert.equal(dayUptime({ up: 1439, degraded: 0, down: 1, unknown: 0 }).state, "degraded");
+  assert.equal(dayUptime({ up: 1440, degraded: 0, down: 0, unknown: 0 }).state, "up");
+
+  // The threshold is a boundary, not a range: exactly at it is still amber.
+  assert.equal(dayUptime({ up: 99, degraded: 0, down: 1, unknown: 0 }).state, "degraded");
+  assert.equal(dayUptime({ up: 98, degraded: 0, down: 2, unknown: 0 }).state, "down");
+  assert.equal(
+    dayUptime({ up: 90, degraded: 0, down: 10, unknown: 0 }, { redBelowPercent: 50 }).state,
+    "degraded",
+  );
+
+  // A day that was only ever degraded stays amber however long it ran. Degraded
+  // is a different claim from down, not a milder one, and promoting a slow day
+  // to red would report an outage that did not happen.
+  assert.equal(dayUptime({ up: 0, degraded: 1440, down: 0, unknown: 0 }).state, "degraded");
+  assert.equal(dayUptime({ up: 200, degraded: 1240, down: 0, unknown: 0 }).state, "degraded");
+
+  // Mixed, and mostly bad: the down minutes are what make it red.
+  assert.equal(dayUptime({ up: 200, degraded: 1200, down: 40, unknown: 0 }).state, "down");
+
+  // Unobserved minutes stay out of the denominator here too, so a mostly-silent
+  // day is judged on the minutes somebody actually looked at.
+  assert.deepEqual(dayUptime({ up: 99, degraded: 0, down: 1, unknown: 1340 }), {
+    percent: 99,
+    state: "degraded",
+  });
+});
+
+test("declared maintenance moves the bad minutes and nothing else", () => {
+  // The whole point: a window is open, so a failing minute is not counted
+  // against uptime. A working minute still is, and silence is still silence.
+  assert.equal(dailyCounterFor("down", { maintenance: true }), "maintenance");
+  assert.equal(dailyCounterFor("degraded", { maintenance: true }), "maintenance");
+  assert.equal(dailyCounterFor("up", { maintenance: true }), "up");
+  assert.equal(dailyCounterFor("unknown", { maintenance: true }), "unknown");
+
+  // A window left open by accident must not stop the page measuring a service
+  // that is working. This is why `up` is not redirected: the cost of forgetting
+  // is zero until something actually breaks.
+  assert.equal(dailyCounterFor("up", { maintenance: true }), "up");
+
+  // With no window open, the state names its own column, as it always did.
+  for (const state of ["up", "degraded", "down", "unknown"]) {
+    assert.equal(dailyCounterFor(state), state);
+    assert.equal(dailyCounterFor(state, { maintenance: false }), state);
+  }
+});
+
+test("maintenance minutes are excluded from uptime rather than counted against it", () => {
+  // Fifteen minutes of declared deploy on an otherwise clean day: the day is
+  // 100%, because those minutes were announced and are not a reliability claim.
+  assert.deepEqual(dayUptime({ up: 1425, degraded: 0, down: 0, unknown: 0, maintenance: 15 }), {
+    percent: 100,
+    state: "up",
+  });
+
+  // A window does not launder an unrelated fault. These down minutes happened
+  // outside it -- the cron would have written them to `down`, not `maintenance`
+  // -- and they still colour the day.
+  assert.equal(
+    dayUptime({ up: 1000, degraded: 0, down: 425, unknown: 0, maintenance: 15 }).state,
+    "down",
+  );
+
+  // A day that was nothing but declared maintenance is not a day nobody looked
+  // at. It gets its own colour rather than the no-data grey.
+  assert.deepEqual(dayUptime({ up: 0, degraded: 0, down: 0, unknown: 0, maintenance: 1440 }), {
+    percent: null,
+    state: "maintenance",
+  });
+
+  // ...but genuine silence still reads as silence, with or without the column.
+  assert.equal(dayUptime({ up: 0, degraded: 0, down: 0, unknown: 1440, maintenance: 0 }).state, "unknown");
+
+  // A row from before the column existed reads as zero maintenance, not NaN.
+  assert.deepEqual(dayUptime({ up: 1440, degraded: 0, down: 0, unknown: 0 }), {
+    percent: 100,
+    state: "up",
+  });
 });
 
 test("uptime across days skips the days with no observations", () => {
