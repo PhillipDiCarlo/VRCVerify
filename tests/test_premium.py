@@ -23,6 +23,8 @@ import discord
 import pytest
 
 import bot
+import locales
+from i18n_support import template
 
 GUILD_ID = "987654321"
 OWNER_ID = "77"
@@ -514,7 +516,7 @@ class TestAssignRoleGating:
         assert events.removed == []  # unverified-role removal is gated
         assert events.nicks == []  # nickname sync is gated
         assert events.dms == []  # no custom DM...
-        assert "dm_role_success" in events.localized  # ...but still told they passed
+        assert locales.DM_ROLE_SUCCESS in events.localized  # ...but still told they passed
 
     def test_grandfathered_server_keeps_all_three(
         self, enforced, monkeypatch, assign_role_harness
@@ -567,7 +569,7 @@ class TestAssignRoleSkipsNeedlessLookups:
         run_and_drain(bot.assign_role("42", False, GUILD_ID))
 
         assert calls == []
-        assert assign_role_harness.localized == ["not_18_plus"]
+        assert assign_role_harness.localized == [locales.NOT_18_PLUS]
 
     def test_a_departed_member_never_consults_entitlements(
         self, enforced, monkeypatch, assign_role_harness
@@ -964,11 +966,11 @@ class TestPremiumStatusCopy:
     """
 
     KEYS = (
-        "premium_status_active",
-        "premium_status_active_card",
-        "premium_status_active_both",
-        "premium_status_inactive",
-        "premium_status_grandfathered",
+        locales.PREMIUM_STATUS_ACTIVE,
+        locales.PREMIUM_STATUS_ACTIVE_CARD,
+        locales.PREMIUM_STATUS_ACTIVE_BOTH,
+        locales.PREMIUM_STATUS_INACTIVE,
+        locales.PREMIUM_STATUS_GRANDFATHERED,
     )
 
     # The messages that end on "here is how to buy it". Their final paragraph
@@ -976,23 +978,23 @@ class TestPremiumStatusCopy:
     # two together would report nine features and be wrong in the direction
     # that matters -- these assertions exist to catch the feature list going
     # stale, which is a thing that has already happened twice.
-    OFFERS_PURCHASE = ("premium_status_inactive", "premium_status_grandfathered")
+    OFFERS_PURCHASE = (locales.PREMIUM_STATUS_INACTIVE, locales.PREMIUM_STATUS_GRANDFATHERED)
 
     def bullets(self, locale, key):
         """The feature bullets, excluding any purchase options below them."""
-        text = bot.localizations[locale][key]
+        text = template(key, locale)
         if key in self.OFFERS_PURCHASE:
             text = "\n\n".join(text.split("\n\n")[:-1])
         return [line for line in text.split("\n") if line.startswith("•")]
 
     def purchase_options(self, locale, key):
-        paragraph = bot.localizations[locale][key].split("\n\n")[-1]
+        paragraph = template(key, locale).split("\n\n")[-1]
         return [line for line in paragraph.split("\n") if line.startswith("•")]
 
     def bulleted_paragraphs(self, locale, key):
         """Each paragraph's bullets, in order, skipping the prose ones."""
         groups = []
-        for paragraph in bot.localizations[locale][key].split("\n\n"):
+        for paragraph in template(key, locale).split("\n\n"):
             bullets = [l for l in paragraph.split("\n") if l.startswith("•")]
             if bullets:
                 groups.append(bullets)
@@ -1030,8 +1032,8 @@ class TestPremiumStatusCopy:
 
     @pytest.mark.parametrize(
         "key",
-        ("premium_status_active", "premium_status_active_card",
-         "premium_status_inactive"),
+        (locales.PREMIUM_STATUS_ACTIVE, locales.PREMIUM_STATUS_ACTIVE_CARD,
+         locales.PREMIUM_STATUS_INACTIVE),
     )
     def test_the_copy_lists_every_feature_the_code_gates(self, key):
         """Anchored to the FEATURE_ constants rather than to a typed number."""
@@ -1047,7 +1049,7 @@ class TestPremiumStatusCopy:
         tells those servers what they keep has been updated too.
         """
         kept, added = self.bulleted_paragraphs("en-US",
-                                               "premium_status_grandfathered")[:2]
+                                               locales.PREMIUM_STATUS_GRANDFATHERED)[:2]
         assert len(kept) == len(bot.GRANDFATHERED_FEATURES)
         assert len(added) == len(self.gated_features()) - len(
             bot.GRANDFATHERED_FEATURES
@@ -1056,13 +1058,13 @@ class TestPremiumStatusCopy:
     @pytest.mark.parametrize("key", KEYS)
     def test_the_server_placeholder_survives_translation(self, key):
         for locale in bot.LANGUAGE_CODES:
-            assert "{server}" in bot.localizations[locale][key], (locale, key)
+            assert "{server}" in template(key, locale), (locale, key)
 
     @pytest.mark.parametrize("key", KEYS)
     def test_it_formats_without_stray_placeholders(self, key):
         for locale in bot.LANGUAGE_CODES:
             # Any other {token} would raise KeyError here.
-            bot.localizations[locale][key].format(server="Test Server")
+            template(key, locale).format(server="Test Server")
 
     def test_auto_verify_is_named_as_free_never_as_a_benefit(self):
         """It is free for everyone, so selling it would be a lie.
@@ -1070,18 +1072,18 @@ class TestPremiumStatusCopy:
         It is still worth naming above the bullets: it is the feature people
         assume is paid, and saying nothing reads as it being missing.
         """
-        pitch = bot.localizations["en-US"]["premium_status_inactive"]
+        pitch = locales.PREMIUM_STATUS_INACTIVE
         assert "auto-verifying" in pitch
         assert not any(
             "auto-verif" in line.lower()
-            for line in self.bullets("en-US", "premium_status_inactive")
+            for line in self.bullets("en-US", locales.PREMIUM_STATUS_INACTIVE)
         )
 
     def test_the_commands_are_not_translated(self):
         """Slash command names are literal; a translated one would not work."""
         for locale in bot.LANGUAGE_CODES:
-            for key in ("premium_status_active", "premium_status_active_card"):
-                message = bot.localizations[locale][key]
+            for key in (locales.PREMIUM_STATUS_ACTIVE, locales.PREMIUM_STATUS_ACTIVE_CARD):
+                message = template(key, locale)
                 assert "/vrcverify_logchannel" in message, (locale, key)
                 assert "/vrcverify_settings" in message, (locale, key)
 
@@ -1107,8 +1109,8 @@ class TestPremiumStatusCopy:
         """
         for locale in bot.LANGUAGE_CODES:
             assert (
-                self.bullets(locale, "premium_status_active_card")
-                == self.bullets(locale, "premium_status_active")
+                self.bullets(locale, locales.PREMIUM_STATUS_ACTIVE_CARD)
+                == self.bullets(locale, locales.PREMIUM_STATUS_ACTIVE)
             ), locale
 
     def test_a_card_subscriber_is_never_sent_to_discords_settings(self):
@@ -1119,12 +1121,11 @@ class TestPremiumStatusCopy:
         that is not there, and the support ticket that follows is "your bot is
         broken", not "your copy is wrong".
         """
-        english = bot.localizations["en-US"]
-        assert "User Settings" in english["premium_status_active"]
-        assert "User Settings" not in english["premium_status_active_card"]
+        assert "User Settings" in locales.PREMIUM_STATUS_ACTIVE
+        assert "User Settings" not in locales.PREMIUM_STATUS_ACTIVE_CARD
         # The double-billed message names both, because that reader has to
         # cancel one of them and needs to be told where each one lives.
-        assert "User Settings" in english["premium_status_active_both"]
+        assert "User Settings" in locales.PREMIUM_STATUS_ACTIVE_BOTH
 
 
 class TestCutoverCompletionWarning:

@@ -1141,17 +1141,17 @@
     },
     "support_invite_line": {
       "en-US": "Get VRCVerify updates in your own server: join https://discord.gg/snapshot and follow the announcements channel.",
-      "es-ES": "Get VRCVerify updates in your own server: join https://discord.gg/snapshot and follow the announcements channel.",
-      "zh-CN": "Get VRCVerify updates in your own server: join https://discord.gg/snapshot and follow the announcements channel.",
-      "ja": "Get VRCVerify updates in your own server: join https://discord.gg/snapshot and follow the announcements channel.",
-      "de": "Get VRCVerify updates in your own server: join https://discord.gg/snapshot and follow the announcements channel.",
-      "nl": "Get VRCVerify updates in your own server: join https://discord.gg/snapshot and follow the announcements channel.",
-      "hi-IN": "Get VRCVerify updates in your own server: join https://discord.gg/snapshot and follow the announcements channel.",
-      "ar": "Get VRCVerify updates in your own server: join https://discord.gg/snapshot and follow the announcements channel.",
-      "bn": "Get VRCVerify updates in your own server: join https://discord.gg/snapshot and follow the announcements channel.",
-      "pt-BR": "Get VRCVerify updates in your own server: join https://discord.gg/snapshot and follow the announcements channel.",
-      "ru": "Get VRCVerify updates in your own server: join https://discord.gg/snapshot and follow the announcements channel.",
-      "pa-IN": "Get VRCVerify updates in your own server: join https://discord.gg/snapshot and follow the announcements channel."
+      "es-ES": "Recibe novedades de VRCVerify en tu propio servidor: únete a https://discord.gg/snapshot y sigue el canal de anuncios.",
+      "zh-CN": "在您自己的服务器中获取 VRCVerify 更新：加入 https://discord.gg/snapshot 并关注公告频道。",
+      "ja": "VRCVerify の最新情報をご自身のサーバーで受け取れます。https://discord.gg/snapshot に参加して、アナウンスチャンネルをフォローしてください。",
+      "de": "Hol dir VRCVerify-Neuigkeiten in deinen eigenen Server: Tritt https://discord.gg/snapshot bei und folge dem Ankündigungskanal.",
+      "nl": "Ontvang VRCVerify-updates in je eigen server: word lid van https://discord.gg/snapshot en volg het aankondigingskanaal.",
+      "hi-IN": "अपने सर्वर में VRCVerify के अपडेट पाएं: https://discord.gg/snapshot से जुड़ें और घोषणा चैनल को फ़ॉलो करें।",
+      "ar": "احصل على تحديثات VRCVerify في خادمك الخاص: انضم إلى https://discord.gg/snapshot وتابع قناة الإعلانات.",
+      "bn": "আপনার নিজের সার্ভারে VRCVerify-এর আপডেট পান: https://discord.gg/snapshot-এ যোগ দিন এবং ঘোষণা চ্যানেল ফলো করুন।",
+      "pt-BR": "Receba novidades do VRCVerify no seu próprio servidor: entre em https://discord.gg/snapshot e siga o canal de anúncios.",
+      "ru": "Получайте новости VRCVerify на своём сервере: присоединяйтесь к https://discord.gg/snapshot и подпишитесь на канал объявлений.",
+      "pa-IN": "ਆਪਣੇ ਸਰਵਰ ਵਿੱਚ VRCVerify ਦੇ ਅਪਡੇਟ ਪ੍ਰਾਪਤ ਕਰੋ: https://discord.gg/snapshot ਵਿੱਚ ਸ਼ਾਮਲ ਹੋਵੋ ਅਤੇ ਐਲਾਨ ਚੈਨਲ ਨੂੰ ਫ਼ਾਲੋ ਕਰੋ।"
     },
     "verification_requested": {
       "en-US": "Verification request received! We'll DM you with the results. Please make sure your DMs for this server are open so you can receive the message.",
