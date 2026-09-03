@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-03 02:38-0400\n"
+"POT-Creation-Date: 2026-09-03 02:52-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -18,656 +18,52 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#. key: already_verified
+msgid "You haven't verified yet. Please click **Begin Verification** first."
+msgstr ""
+"Du bist noch nicht verifiziert. Bitte klicke zuerst auf **Verifizierung "
+"starten**."
+
 msgid "You're already verified! Role assigned (or re-assigned)."
 msgstr "Du bist bereits verifiziert! Rolle zugewiesen (oder erneut zugewiesen)."
 
-#. key: bio_verify_instructions1
-msgid "**1)** Add the code to your VRChat bio on its own line."
-msgstr "**1)** Füge den Code in deine VRChat-Biografie in einer eigenen Zeile ein."
-
-#. key: bio_verify_instructions2
-msgid "**2)** Once your bio is updated, click **Verify** in Discord (within 10 minutes)."
-msgstr "**2)** Sobald deine Biografie aktualisiert ist, klicke in Discord auf **Überprüfen** (innerhalb von 10 Minuten)."
-
-#. key: btn_begin_verification
-msgid "Begin Verification"
-msgstr "Verifizierung starten"
-
-#. key: btn_donate
-msgid "Donate"
-msgstr "Spenden"
-
-#. key: btn_group_invite
-msgid "Send me an invite"
-msgstr "Schick mir eine Einladung"
-
-#. key: btn_update_nickname
-msgid "Update Nickname"
-msgstr "Spitznamen aktualisieren"
-
-#. key: code_not_found
 msgid ""
-"We couldn't find your code in your VRChat bio. Please try again. \n"
-"**Double check that the code is on its own line.**"
+"We're re-checking your VRChat 18+ status. If you've updated your VRChat "
+"age verification, you'll get a DM soon!"
 msgstr ""
-"Wir konnten deinen Code nicht in deiner VRChat-Biografie finden. Bitte versuche es erneut.\n"
-"**Überprüfe, dass der Code in einer eigenen Zeile steht.**"
+"Wir prüfen deinen 18+ Status erneut. Wenn du deine Altersverifizierung "
+"aktualisiert hast, erhältst du bald eine DM!"
 
-#. key: cooldown_active
-#, python-brace-format
-msgid "You're doing that too fast. Please wait {seconds} seconds and try again."
-msgstr "Das ging zu schnell. Bitte warte {seconds} Sekunden und versuche es erneut."
-
-#. key: custom_msg_cleared
-msgid "Custom verification request message cleared. Default will be used."
-msgstr "Benutzerdefinierte Verifizierungsanfrage-Nachricht gelöscht. Standard wird verwendet."
-
-#. key: custom_msg_invalid_links
-#, python-brace-format
-msgid ""
-"Blocked: Only discord.com or vrchat.com links allowed. Invalid link(s):\n"
-"{invalid_list}"
-msgstr ""
-"Blockiert: Nur Links zu discord.com oder vrchat.com erlaubt. Ungültige Links:\n"
-"{invalid_list}"
-
-#. key: custom_msg_saved
-msgid "Custom verification request message saved."
-msgstr "Benutzerdefinierte Verifizierungsanfrage-Nachricht gespeichert."
-
-#. key: custom_msg_too_long
-msgid "Message too long (max 1000 characters)."
-msgstr "Nachricht zu lang (max. 1000 Zeichen)."
-
-#. key: dm_group_invite_offer
-#, python-brace-format
-msgid ""
-"You're verified in **{server}**! Would you like an invite to their VRChat group, **{group}**?\n"
-"\n"
-"Nothing is sent to VRChat unless you press the button."
-msgstr ""
-"Du bist in **{server}** verifiziert! Möchtest du eine Einladung zur VRChat-Gruppe **{group}**?\n"
-"\n"
-"An VRChat wird nichts gesendet, solange du den Button nicht drückst."
-
-#. key: dm_role_failed_bot_position
-#, python-brace-format
-msgid "I couldn't assign the '{role}' role in {server}. This usually happens when the VRCVerify bot's role is not above the verified (and unverified) roles in the server's role list. Please ask a server admin to move the VRCVerify bot role above those roles and try again."
-msgstr "Ich konnte die Rolle „{role}“ in {server} nicht zuweisen. Das passiert meist, wenn die Rolle des VRCVerify-Bots nicht über den Rollen „Verified“ (und „Unverified“) in der Server-Rollenliste steht. Bitte bitte einen Administrator, die Bot-Rolle über diese Rollen zu verschieben, und versuche es erneut。"
-
-#. key: dm_role_success
 #, python-brace-format
 msgid "You've been verified and given **{role}** in **{server}**!"
-msgstr "Du wurdest verifiziert und hast die Rolle **{role}** auf **{server}** erhalten!"
-
-#. key: dm_unverified_failed_bot_position
-#, python-brace-format
-msgid "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable)."
-msgstr "Die Rolle {role} konnte auf {server} nicht entfernt werden. Das passiert meistens, wenn die Rolle des VRCVerify-Bots nicht über der Unverifiziert-Rolle steht. Bitte einen Server-Administrator zu prüfen, ob die Rolle des VRCVerify-Bots über der verifizierten und der unverifizierten Rolle (falls vorhanden) steht."
-
-#. key: group_invite_account_changed
-msgid "This offer was for a different VRChat account than the one you have linked now. Verify again to get a new invite offer for your current account."
-msgstr "Diese Einladung galt für ein anderes VRChat-Konto als das, das du jetzt verknüpft hast. Verifiziere dich erneut, um eine neue Einladung für dein aktuelles Konto zu erhalten."
-
-#. key: group_invite_account_missing
-msgid "VRChat didn't recognise the account you verified with, so the invite couldn't be sent. Try verifying again to relink your VRChat account."
-msgstr "VRChat hat das Konto, mit dem du dich verifiziert hast, nicht erkannt, daher konnte die Einladung nicht gesendet werden. Verifiziere dich erneut, um dein VRChat-Konto neu zu verknüpfen."
-
-#. key: group_invite_already_invited
-#, python-brace-format
-msgid "An invite to **{group}** is already waiting in your VRChat notifications."
-msgstr "Eine Einladung zu **{group}** wartet bereits in deinen VRChat-Benachrichtigungen."
-
-#. key: group_invite_already_member
-#, python-brace-format
-msgid "You're already in **{group}**, so there's nothing to send."
-msgstr "Du bist bereits in **{group}**, es gibt also nichts zu senden."
-
-#. key: group_invite_banned
-#, python-brace-format
-msgid "You can't be invited to **{group}**. Only a group moderator can change that."
-msgstr "Du kannst nicht zu **{group}** eingeladen werden. Das kann nur ein Gruppen-Moderator ändern."
-
-#. key: group_invite_blocked
-msgid "VRChat wouldn't deliver the invite. Group invites may be switched off in your VRChat settings, or the group may be blocked on your account."
-msgstr "VRChat konnte die Einladung nicht zustellen. Möglicherweise sind Gruppeneinladungen in deinen VRChat-Einstellungen deaktiviert oder die Gruppe ist auf deinem Konto blockiert."
-
-#. key: group_invite_not_a_member
-#, python-brace-format
-msgid "This invite was for **{server}**, and you're no longer a member there. Join the server and verify again if you'd still like an invite."
-msgstr "Diese Einladung galt für **{server}**, und du bist dort kein Mitglied mehr. Tritt dem Server wieder bei und verifiziere dich erneut, wenn du noch eine Einladung möchtest."
-
-#. key: group_invite_not_verified
-#, python-brace-format
-msgid "You're not currently verified as 18+ in **{server}**, so the invite couldn't be sent. Verify again to get a new invite offer."
-msgstr "Du bist derzeit auf **{server}** nicht als 18+ verifiziert, daher konnte die Einladung nicht gesendet werden. Verifiziere dich erneut, um eine neue Einladung zu erhalten."
-
-#. key: group_invite_sent
-#, python-brace-format
-msgid "Invite sent! Open your VRChat notifications to join **{group}**."
-msgstr "Einladung verschickt! Öffne deine VRChat-Benachrichtigungen, um **{group}** beizutreten."
-
-#. key: group_invite_setup_problem
-#, python-brace-format
-msgid "**{server}**'s VRChat group isn't set up correctly right now, so the invite couldn't be sent. Please let the server's admins know."
-msgstr "Die VRChat-Gruppe von **{server}** ist derzeit nicht korrekt eingerichtet, daher konnte die Einladung nicht gesendet werden. Bitte sag den Admins des Servers Bescheid."
-
-#. key: group_invite_too_soon
-msgid "You've already asked for an invite. Please give it a few minutes before trying again."
-msgstr "Du hast bereits eine Einladung angefragt. Bitte warte ein paar Minuten, bevor du es erneut versuchst."
-
-#. key: group_invite_unavailable
-msgid "VRChat didn't answer, so the invite couldn't be sent. Please try again in a few minutes."
-msgstr "VRChat hat nicht geantwortet, daher konnte die Einladung nicht gesendet werden. Bitte versuche es in ein paar Minuten erneut."
-
-#. key: group_invite_working
-msgid "Asking VRChat for your invite..."
-msgstr "Deine Einladung wird bei VRChat angefragt..."
-
-#. key: guild_join_welcome_dm
-#, python-brace-format
-msgid ""
-"👋 Thanks for adding VRCVerify to **{server}**!\n"
-"\n"
-"To get set up:\n"
-"1. Run `/vrcverify_setup` to choose the role members get once verified.\n"
-"2. Run `/vrcverify_instructions` in the channel you want members to verify from — use a normal text channel everyone can see, not a thread, since threads auto-archive and quietly break the panel.\n"
-"\n"
-"Need a hand? `/vrcverify_support` has you covered."
 msgstr ""
-"👋 Danke, dass du VRCVerify zu **{server}** hinzugefügt hast!\n"
-"\n"
-"So richtest du es ein:\n"
-"1. Führe `/vrcverify_setup` aus, um die Rolle zu wählen, die verifizierte Mitglieder erhalten.\n"
-"2. Führe `/vrcverify_instructions` in dem Kanal aus, in dem sich Mitglieder verifizieren sollen – nutze einen normalen Textkanal, den alle sehen können, keinen Thread, da Threads automatisch archiviert werden und das Panel stillschweigend kaputtgeht.\n"
-"\n"
-"Brauchst du Hilfe? `/vrcverify_support` hilft dir weiter."
+"Du wurdest verifiziert und hast die Rolle **{role}** auf **{server}** "
+"erhalten!"
 
-#. key: instructions_desc
-msgid ""
-"**Follow these steps** to verify your 18+ status:\n"
-"\n"
-"1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
-"2. If you're new, you'll be asked for your VRChat username\n"
-"3. The bot will give you a unique code - put this in your VRChat bio **ON ITS OWN LINE**\n"
-"4. Press **Verify** in Discord once your bio is updated\n"
-"\n"
-"If you need additional help, contact an admin or type `/vrcverify_support`."
-msgstr ""
-"**Befolgen Sie diese Schritte**, um Ihren 18+-Status zu überprüfen:\n"
-"\n"
-"1. Klicken Sie auf die Schaltfläche **Verifizierung starten** (falls angezeigt) oder geben Sie `/vrcverify` überall ein.\n"
-"2. Wenn Sie neu sind, werden Sie nach Ihrem VRChat-Benutzernamen gefragt.\n"
-"3. Der Bot gibt Ihnen einen eindeutigen Code - fügen Sie diesen in Ihre VRChat-Biografie **in einer eigenen Zeile** ein。\n"
-"4. Drücken Sie **Überprüfen** in Discord, sobald Ihre Biografie aktualisiert wurde。\n"
-"\n"
-"Wenn Sie zusätzliche Hilfe benötigen, wenden Sie sich an einen Administrator oder geben Sie `/vrcverify_support` ein。"
-
-#. key: instructions_title
-msgid "How to Use the VRChat Verification Bot"
-msgstr "So verwenden Sie den VRChat-Verifizierungsbot"
-
-#. key: invalid_vrc_id_input
-msgid ""
-"It looks like you entered your display name instead of your VRChat userID.\n"
-"Please enter either the full profile URL or your userID (which always starts with `usr_`).\n"
-"https://imgur.com/a/EEl6ekH"
-msgstr ""
-"Du hast offenbar deinen Anzeigenamen statt deiner VRChat-Benutzer-ID eingegeben.\n"
-"Bitte gib die vollständige Profil-URL oder deine Benutzer-ID (beginnt immer mit `usr_`) ein.\n"
-"https://imgur.com/a/EEl6ekH"
-
-#. key: log_channel_announcement
-#, python-brace-format
-msgid "{channel} is an announcement channel. Other servers can follow it, which would republish your members' 18+ status outside this server, so it can't be used as a verification log. Please pick a normal text channel."
-msgstr "{channel} ist ein Ankündigungskanal. Andere Server können ihm folgen, wodurch der 18+-Status deiner Mitglieder außerhalb dieses Servers erneut veröffentlicht würde. Er kann daher nicht als Verifizierungsprotokoll dienen. Bitte wähle einen normalen Textkanal."
-
-#. key: log_channel_cleared
-msgid "Verification activity logging is now off."
-msgstr "Die Protokollierung der Verifizierungsaktivität ist jetzt aus."
-
-#. key: log_channel_no_permission
-#, python-brace-format
-msgid "I can't post in {channel}. Give the bot **View Channel** and **Send Messages** there, then run this command again."
-msgstr "Ich kann in {channel} nichts posten. Gib dem Bot dort **Kanal ansehen** und **Nachrichten senden** und führe den Befehl erneut aus."
-
-#. key: log_channel_premium_only
-msgid "The verification activity log is a VRCVerify Premium feature. Core 18+ verification stays free for everyone."
-msgstr "Das Verifizierungsprotokoll ist eine Funktion von VRCVerify Premium. Die eigentliche 18+-Verifizierung bleibt für alle kostenlos."
-
-#. key: log_channel_ready
-msgid ""
-"📋 Verification activity will be logged here from now on.\n"
-"Entries show the member, the result and the time — never their VRChat name or ID."
-msgstr ""
-"📋 Ab jetzt wird die Verifizierungsaktivität hier protokolliert.\n"
-"Einträge zeigen Mitglied, Ergebnis und Zeit — niemals den VRChat-Namen oder die ID."
-
-#. key: log_channel_set
-#, python-brace-format
-msgid "Verification activity will be logged in {channel}."
-msgstr "Die Verifizierungsaktivität wird in {channel} protokolliert."
-
-#. key: log_entries_dropped
-#, python-brace-format
-msgid "…{count} earlier entries could not be recorded."
-msgstr "…{count} frühere Einträge konnten nicht aufgezeichnet werden."
-
-#. key: log_not_18
-#, python-brace-format
-msgid "❌ {user} — not 18+ according to VRChat · {when}"
-msgstr "❌ {user} — laut VRChat nicht 18+ · {when}"
-
-#. key: log_role_failed
-#, python-brace-format
-msgid "⚠️ {user} — verified 18+, but the role could not be assigned. Check that the VRCVerify bot's role sits above the verified role. · {when}"
-msgstr "⚠️ {user} — als 18+ verifiziert, aber die Rolle konnte nicht vergeben werden. Prüfe, ob die Rolle des VRCVerify-Bots über der verifizierten Rolle steht. · {when}"
-
-#. key: log_verified
-#, python-brace-format
-msgid "✅ {user} — verified 18+ · {when}"
-msgstr "✅ {user} — als 18+ verifiziert · {when}"
-
-#. key: milestone_owner_dm
-#, python-brace-format
-msgid ""
-"🎉 **{server}** has reached {count} completed verifications with VRCVerify!\n"
-"The bot is free and runs on donations — if it's been useful to your community, you can support it here: {kofi_link}\n"
-"(This is a one-time message.)"
-msgstr ""
-"🎉 **{server}** hat {count} abgeschlossene Verifizierungen mit VRCVerify erreicht!\n"
-"Der Bot ist kostenlos und wird durch Spenden finanziert – wenn er deiner Community geholfen hat, kannst du ihn hier unterstützen: {kofi_link}\n"
-"(Dies ist eine einmalige Nachricht.)"
-
-#. key: nickname_update_failed
-msgid "We could not update your nickname."
-msgstr "Wir konnten deinen Spitznamen nicht aktualisieren."
-
-#. key: nickname_update_requested
 msgid "Nickname update requested. I'll DM you once it's done!"
-msgstr "Anfrage zur Spitznamenaktualisierung gesendet. Ich werde dich per DM benachrichtigen, sobald es fertig ist!"
+msgstr ""
+"Anfrage zur Spitznamenaktualisierung gesendet. Ich werde dich per DM "
+"benachrichtigen, sobald es fertig ist!"
 
-#. key: nickname_updated
-#, python-brace-format
-msgid "Your nickname was updated to {display_name}."
-msgstr "Dein Spitzname wurde auf {display_name} aktualisiert."
+msgid ""
+"Verification request received! We'll DM you with the results. Please make"
+" sure your DMs for this server are open so you can receive the message."
+msgstr ""
+"Verifizierungsanfrage erhalten! Wir senden dir eine DM mit den "
+"Ergebnissen. Bitte stelle sicher, dass deine DMs für diesen Server offen "
+"sind."
 
-#. key: not_18_plus
+msgid ""
+"This server hasn't set up a verification role yet. Please contact an "
+"admin."
+msgstr ""
+"Dieser Server hat noch keine Verifizierungsrolle eingerichtet. Bitte "
+"kontaktiere einen Administrator."
+
 msgid "You are not 18+ according to VRChat. Contact an admin if this is an error."
-msgstr "Laut VRChat bist du nicht 18+. Kontaktiere einen Administrator, wenn dies ein Fehler ist."
-
-#. key: not_verified
-msgid "You haven't verified yet. Please click **Begin Verification** first."
-msgstr "Du bist noch nicht verifiziert. Bitte klicke zuerst auf **Verifizierung starten**."
-
-#. key: panel_color_invalid
-msgid "That doesn't look like a hex colour. Use something like `#5865F2` (or `#58F` for short)."
-msgstr "Das sieht nicht nach einer Hex-Farbe aus. Verwende etwas wie `#5865F2` (oder kurz `#58F`)."
-
-#. key: panel_nudge_dm
-#, python-brace-format
-msgid ""
-"👋 You set up VRCVerify in **{server}**, but no instructions panel has been posted yet — so members there still have no way to start verifying.\n"
-"\n"
-"Run `/vrcverify_instructions` in the channel you want them to verify from. Use a normal text channel everyone can see rather than a thread, since threads auto-archive and quietly break the panel.\n"
-"\n"
-"Run `/vrcverify_status` in your server for a quick health check.\n"
-"(This is a one-time message.)"
 msgstr ""
-"👋 Du hast VRCVerify in **{server}** eingerichtet, aber es wurde noch kein Anleitungs-Panel gepostet – Mitglieder haben dort also weiterhin keine Möglichkeit, mit der Verifizierung zu beginnen.\n"
-"\n"
-"Führe `/vrcverify_instructions` in dem Kanal aus, in dem sie sich verifizieren sollen. Nutze einen normalen Textkanal, den alle sehen können, statt eines Threads, da Threads automatisch archiviert werden und das Panel stillschweigend kaputtgeht.\n"
-"\n"
-"Führe `/vrcverify_status` in deinem Server aus, um alles kurz zu prüfen.\n"
-"(Dies ist eine einmalige Nachricht.)"
+"Laut VRChat bist du nicht 18+. Kontaktiere einen Administrator, wenn dies"
+" ein Fehler ist."
 
-#. key: premium_cutover_dm
-#, python-brace-format
-msgid ""
-"👋 A quick heads-up about VRCVerify in **{server}**.\n"
-"\n"
-"VRCVerify now has an optional Premium tier — and to be clear up front, **nothing about your server changes.**\n"
-"\n"
-"18+ verification is free and staying free, permanently, for everyone. So is auto-verifying members who are already verified when they join.\n"
-"\n"
-"And because **{server}** was set up before Premium launched, it keeps these too, at no cost, permanently:\n"
-"• Automatic removal of the unverified role\n"
-"• Automatic nickname sync with VRChat\n"
-"• Custom post-verification message\n"
-"\n"
-"So there is nothing you need to do. If you're ever curious what Premium adds, run `/vrcverify_subscription` in your server.\n"
-"(This is a one-time message.)"
-msgstr ""
-"👋 Kurze Info zu VRCVerify auf **{server}**.\n"
-"\n"
-"VRCVerify hat jetzt eine optionale Premium-Stufe. Damit das gleich klar ist: **An deinem Server ändert sich nichts.**\n"
-"\n"
-"Die 18+-Verifizierung ist kostenlos und bleibt dauerhaft für alle kostenlos. Das automatische Verifizieren bereits verifizierter Mitglieder beim Beitritt ebenfalls.\n"
-"\n"
-"Und da **{server}** schon vor dem Start von Premium eingerichtet wurde, behält der Server auch diese Funktionen dauerhaft und ohne Kosten:\n"
-"• Automatisches Entfernen der Unverifiziert-Rolle\n"
-"• Automatischer Nicknamen-Abgleich mit VRChat\n"
-"• Eigene Nachricht nach der Verifizierung\n"
-"\n"
-"Du musst also nichts tun. Falls dich irgendwann interessiert, was Premium ergänzt, führe `/vrcverify_subscription` auf deinem Server aus.\n"
-"(Das ist eine einmalige Nachricht.)"
-
-#. key: premium_status_active
-#, python-brace-format
-msgid ""
-"✅ **VRCVerify Premium is active on {server}.**\n"
-"\n"
-"Unlocked here:\n"
-"• Verification activity log — set it up with `/vrcverify_logchannel`\n"
-"• Priority in the verification queue when there's a backlog\n"
-"• Automatic removal of the unverified role\n"
-"• Automatic nickname sync with VRChat\n"
-"• Custom post-verification message\n"
-"• Your colour and server icon on the instructions panel\n"
-"• Reduced verification cooldown\n"
-"• Invite verified members straight into your server's VRChat group\n"
-"\n"
-"Appearance and automation settings live in `/vrcverify_settings`.\n"
-"\n"
-"You can manage or cancel this any time from Discord's **User Settings → Subscriptions**.\n"
-"Thank you for supporting VRCVerify. 💜"
-msgstr ""
-"✅ **VRCVerify Premium ist auf {server} aktiv.**\n"
-"\n"
-"Hier freigeschaltet:\n"
-"• Protokoll der Verifizierungsaktivität — mit `/vrcverify_logchannel` einrichten\n"
-"• Vorrang in der Verifizierungs-Warteschlange, wenn sich etwas staut\n"
-"• Automatisches Entfernen der Unverifiziert-Rolle\n"
-"• Automatischer Nicknamen-Abgleich mit VRChat\n"
-"• Eigene Nachricht nach der Verifizierung\n"
-"• Deine eigene Farbe und dein Server-Icon auf der Anleitungs-Nachricht\n"
-"• Verkürzte Verifizierungs-Wartezeit\n"
-"• Verifizierte Mitglieder direkt in die VRChat-Gruppe deines Servers einladen\n"
-"\n"
-"Aussehen und Automatisierung stellst du in `/vrcverify_settings` ein.\n"
-"\n"
-"Du kannst das jederzeit unter **Benutzereinstellungen → Abonnements** in Discord verwalten oder kündigen.\n"
-"Danke, dass du VRCVerify unterstützt. 💜"
-
-#. key: premium_status_active_both
-#, python-brace-format
-msgid ""
-"⚠️ **{server} is paying for VRCVerify Premium twice.**\n"
-"\n"
-"There's an active **Discord** subscription and an active **card** subscription for this server. Premium is on and stays on — but you're being charged for both.\n"
-"\n"
-"Nothing has been cancelled for you, deliberately: cancelling a subscription and issuing a refund without a person deciding is not something this bot should do on its own.\n"
-"\n"
-"Keep whichever suits you and cancel the other:\n"
-"• **Discord** — User Settings → Subscriptions\n"
-"• **Card** — the Subscriptions page on the website\n"
-"\n"
-"If you're unsure: the website has 6- and 12-month plans that work out cheaper, and Discord can only bill monthly."
-msgstr ""
-"⚠️ **{server} bezahlt VRCVerify Premium doppelt.**\n"
-"\n"
-"Für diesen Server laufen ein aktives **Discord**-Abo und ein aktives **Karten**-Abo. Premium bleibt aktiv — aber es wird doppelt abgebucht.\n"
-"\n"
-"Es wurde bewusst nichts für dich gekündigt: ein Abo zu kündigen und eine Rückerstattung auszulösen, ohne dass ein Mensch das entscheidet, sollte dieser Bot nicht von sich aus tun.\n"
-"\n"
-"Behalte das Abo, das dir lieber ist, und kündige das andere:\n"
-"• **Discord** — Benutzereinstellungen → Abonnements\n"
-"• **Karte** — die Abo-Seite auf der Website\n"
-"\n"
-"Falls du unsicher bist: Auf der Website sind die 6- und 12-Monats-Pakete günstiger, und Discord kann nur monatlich abrechnen."
-
-#. key: premium_status_active_card
-#, python-brace-format
-msgid ""
-"✅ **VRCVerify Premium is active on {server}.**\n"
-"\n"
-"Unlocked here:\n"
-"• Verification activity log — set it up with `/vrcverify_logchannel`\n"
-"• Priority in the verification queue when there's a backlog\n"
-"• Automatic removal of the unverified role\n"
-"• Automatic nickname sync with VRChat\n"
-"• Custom post-verification message\n"
-"• Your colour and server icon on the instructions panel\n"
-"• Reduced verification cooldown\n"
-"• Invite verified members straight into your server's VRChat group\n"
-"\n"
-"Appearance and automation settings live in `/vrcverify_settings`.\n"
-"\n"
-"This server pays by card, so manage or cancel it on the **VRCVerify website** — it won't appear in Discord's subscription settings.\n"
-"Thank you for supporting VRCVerify. 💜"
-msgstr ""
-"✅ **VRCVerify Premium ist auf {server} aktiv.**\n"
-"\n"
-"Hier freigeschaltet:\n"
-"• Protokoll der Verifizierungsaktivität — mit `/vrcverify_logchannel` einrichten\n"
-"• Vorrang in der Verifizierungs-Warteschlange, wenn sich etwas staut\n"
-"• Automatisches Entfernen der Unverifiziert-Rolle\n"
-"• Automatischer Nicknamen-Abgleich mit VRChat\n"
-"• Eigene Nachricht nach der Verifizierung\n"
-"• Deine eigene Farbe und dein Server-Icon auf der Anleitungs-Nachricht\n"
-"• Verkürzte Verifizierungs-Wartezeit\n"
-"• Verifizierte Mitglieder direkt in die VRChat-Gruppe deines Servers einladen\n"
-"\n"
-"Aussehen und Automatisierung stellst du in `/vrcverify_settings` ein.\n"
-"\n"
-"Dieser Server zahlt per Karte — verwalte oder kündige das Abo daher auf der **VRCVerify-Website**. In Discords Abo-Einstellungen taucht es nicht auf.\n"
-"Danke, dass du VRCVerify unterstützt. 💜"
-
-#. key: premium_status_grandfathered
-#, python-brace-format
-msgid ""
-"**18+ verification is free on {server}, and always will be.** So is auto-verifying members who are already verified when they join.\n"
-"\n"
-"Because this server was set up before Premium launched, it also keeps these for free, permanently:\n"
-"• Automatic removal of the unverified role\n"
-"• Automatic nickname sync with VRChat\n"
-"• Custom post-verification message\n"
-"\n"
-"Premium adds these on top:\n"
-"• Verification activity log — every verification in a channel you choose, including the ones that fail silently\n"
-"• Priority in the verification queue when there's a backlog\n"
-"• Your colour and server icon on the instructions panel\n"
-"• Reduced verification cooldown\n"
-"• Invite verified members straight into your server's VRChat group\n"
-"\n"
-"**Premium is available two ways:**\n"
-"• **In Discord** — the button below. Billed monthly.\n"
-"• **By card on the website** — the same Premium, plus 6- and 12-month plans that work out cheaper. Discord can only bill monthly, so the longer plans are website-only."
-msgstr ""
-"**Die 18+-Verifizierung ist auf {server} kostenlos und bleibt es auch.** Das automatische Verifizieren bereits verifizierter Mitglieder beim Beitritt ebenfalls.\n"
-"\n"
-"Da dieser Server schon vor dem Start von Premium eingerichtet wurde, behält er zusätzlich diese Funktionen dauerhaft kostenlos:\n"
-"• Automatisches Entfernen der Unverifiziert-Rolle\n"
-"• Automatischer Nicknamen-Abgleich mit VRChat\n"
-"• Eigene Nachricht nach der Verifizierung\n"
-"\n"
-"Premium ergänzt obendrauf:\n"
-"• Protokoll der Verifizierungsaktivität: jede Verifizierung in einem Kanal deiner Wahl, auch die, die still fehlschlagen\n"
-"• Vorrang in der Verifizierungs-Warteschlange, wenn sich etwas staut\n"
-"• Deine eigene Farbe und dein Server-Icon auf der Anleitungs-Nachricht\n"
-"• Verkürzte Verifizierungs-Wartezeit\n"
-"• Verifizierte Mitglieder direkt in die VRChat-Gruppe deines Servers einladen\n"
-"\n"
-"**Premium gibt es auf zwei Wegen:**\n"
-"• **In Discord** — der Button unten. Monatliche Abrechnung.\n"
-"• **Per Karte auf der Website** — dasselbe Premium, dazu 6- und 12-Monats-Pakete, die günstiger kommen. Discord kann nur monatlich abrechnen, die längeren Laufzeiten gibt es also nur auf der Website."
-
-#. key: premium_status_inactive
-#, python-brace-format
-msgid ""
-"**18+ verification is free on {server}, and always will be.** So is auto-verifying members who are already verified when they join.\n"
-"\n"
-"VRCVerify Premium adds these optional extras for this server:\n"
-"• Verification activity log — every verification in a channel you choose, including the ones that fail silently\n"
-"• Priority in the verification queue when there's a backlog\n"
-"• Automatic removal of the unverified role\n"
-"• Automatic nickname sync with VRChat\n"
-"• Custom post-verification message\n"
-"• Your colour and server icon on the instructions panel\n"
-"• Reduced verification cooldown\n"
-"• Invite verified members straight into your server's VRChat group\n"
-"\n"
-"One subscription covers the whole server, and there are two ways to buy it:\n"
-"• **In Discord** — the button below. Billed monthly.\n"
-"• **By card on the website** — the same Premium, plus 6- and 12-month plans that work out cheaper. Discord can only bill monthly, so the longer plans are website-only."
-msgstr ""
-"**Die 18+-Verifizierung ist auf {server} kostenlos und bleibt es auch.** Das automatische Verifizieren bereits verifizierter Mitglieder beim Beitritt ebenfalls.\n"
-"\n"
-"VRCVerify Premium ergänzt diese optionalen Extras für diesen Server:\n"
-"• Protokoll der Verifizierungsaktivität: jede Verifizierung in einem Kanal deiner Wahl, auch die, die still fehlschlagen\n"
-"• Vorrang in der Verifizierungs-Warteschlange, wenn sich etwas staut\n"
-"• Automatisches Entfernen der Unverifiziert-Rolle\n"
-"• Automatischer Nicknamen-Abgleich mit VRChat\n"
-"• Eigene Nachricht nach der Verifizierung\n"
-"• Deine eigene Farbe und dein Server-Icon auf der Anleitungs-Nachricht\n"
-"• Verkürzte Verifizierungs-Wartezeit\n"
-"• Verifizierte Mitglieder direkt in die VRChat-Gruppe deines Servers einladen\n"
-"\n"
-"Ein Abo deckt den ganzen Server ab, und es gibt zwei Wege dorthin:\n"
-"• **In Discord** — der Button unten. Monatliche Abrechnung.\n"
-"• **Per Karte auf der Website** — dasselbe Premium, dazu 6- und 12-Monats-Pakete, die günstiger kommen. Discord kann nur monatlich abrechnen, die längeren Laufzeiten gibt es also nur auf der Website."
-
-#. key: recheck_started
-msgid "We're re-checking your VRChat 18+ status. If you've updated your VRChat age verification, you'll get a DM soon!"
-msgstr "Wir prüfen deinen 18+ Status erneut. Wenn du deine Altersverifizierung aktualisiert hast, erhältst du bald eine DM!"
-
-#. key: settings_intro
-#, python-brace-format
-msgid ""
-"**VRChat Verify Settings**\n"
-"\n"
-"1.) **Enable auto nickname change**\n"
-"   Automatically update users' Discord nicknames to match their VRChat display names.\n"
-"   Current: **{current}**"
-msgstr ""
-"**VRChat-Verifizierungseinstellungen**\n"
-"\n"
-"1.) **Automatische Änderung des Spitznamens aktivieren**\n"
-"   Aktualisieren Sie automatisch die Discord-Spitznamen der Benutzer, um mit ihren VRChat-Anzeigenamen übereinzustimmen。\n"
-"   Aktuell: **{current}**"
-
-#. key: settings_saved
-msgid "Settings saved!"
-msgstr "Einstellungen gespeichert!"
-
-#. key: settings_unreadable
-msgid "Couldn't read this server's settings just now. Try again shortly — nothing has changed."
-msgstr "Die Einstellungen dieses Servers konnten gerade nicht gelesen werden. Bitte versuche es gleich noch einmal — es wurde nichts geändert."
-
-#. key: setup_donate_hint
-#, python-brace-format
-msgid ""
-"\n"
-"\n"
-"☕ VRCVerify is free thanks to donations. If it helps your community, you can support it here: {kofi_link}"
-msgstr ""
-"\n"
-"\n"
-"☕ VRCVerify ist dank Spenden kostenlos. Wenn es deiner Community hilft, kannst du es hier unterstützen: {kofi_link}"
-
-#. key: setup_missing
-msgid "This server hasn't set up a verification role yet. Please contact an admin."
-msgstr "Dieser Server hat noch keine Verifizierungsrolle eingerichtet. Bitte kontaktiere einen Administrator."
-
-#. key: setup_panel_nudge
-msgid ""
-"\n"
-"\n"
-"📌 **One more step:** members can't verify until you post the instructions panel.\n"
-"Run `/vrcverify_instructions` in the channel you want them to verify from. Use a normal text channel everyone can see — not a thread, since threads auto-archive and quietly break the panel.\n"
-"You can run `/vrcverify_status` any time to check on it."
-msgstr ""
-"\n"
-"\n"
-"📌 **Noch ein Schritt:** Mitglieder können sich erst verifizieren, wenn du das Anleitungs-Panel gepostet hast.\n"
-"Führe `/vrcverify_instructions` in dem Kanal aus, in dem sie sich verifizieren sollen. Nutze einen normalen Textkanal, den alle sehen können – keinen Thread, da Threads automatisch archiviert werden und das Panel dann stillschweigend nicht mehr funktioniert.\n"
-"Mit `/vrcverify_status` kannst du das jederzeit überprüfen."
-
-#. key: setup_success
-#, python-brace-format
-msgid ""
-"Successfully {action} server config.\n"
-"Verified Role set to: `{role}` (ID={role_id})"
-msgstr ""
-"Serverkonfiguration {action}.\n"
-"Verifizierte Rolle festgelegt auf: `{role}` (ID={role_id})"
-
-#. key: setup_unverified_missing
-msgid ""
-"\n"
-"(Unverified role not set; no role will be removed on verification.)"
-msgstr ""
-"\n"
-"(Unverifizierte Rolle nicht gesetzt; es wird keine Rolle bei Verifizierung entfernt.)"
-
-#. key: setup_unverified_set
-#, python-brace-format
-msgid ""
-"\n"
-"Unverified Role to remove: `{role}` (ID={role_id})"
-msgstr ""
-"\n"
-"Zu entfernende unverifizierte Rolle: `{role}` (ID={role_id})"
-
-#. key: status_header
-#, python-brace-format
-msgid "**VRCVerify status for {server}**"
-msgstr "**VRCVerify-Status für {server}**"
-
-#. key: status_panel_archived
-msgid "⚠️ The instructions panel is in a thread that has been archived, so the bot can't update it. Un-archive the thread, or post a fresh panel in a normal text channel."
-msgstr "⚠️ Das Anleitungs-Panel liegt in einem archivierten Thread, deshalb kann der Bot es nicht aktualisieren. Hebe die Archivierung auf oder poste ein neues Panel in einem normalen Textkanal."
-
-#. key: status_panel_gone
-msgid "❌ The saved instructions panel no longer exists — it or its channel was deleted. Run `/vrcverify_instructions` again to post a new one."
-msgstr "❌ Das gespeicherte Anleitungs-Panel existiert nicht mehr – es oder sein Kanal wurde gelöscht. Führe `/vrcverify_instructions` erneut aus, um ein neues zu posten."
-
-#. key: status_panel_missing
-msgid "❌ No instructions panel posted — run `/vrcverify_instructions` in the channel members should verify from."
-msgstr "❌ Kein Anleitungs-Panel gepostet – führe `/vrcverify_instructions` in dem Kanal aus, in dem sich Mitglieder verifizieren sollen."
-
-#. key: status_panel_ok
-msgid "✅ Instructions panel is posted and the bot can still update it."
-msgstr "✅ Das Anleitungs-Panel ist gepostet und der Bot kann es weiterhin aktualisieren."
-
-#. key: status_panel_unreachable
-msgid "⚠️ The instructions panel exists but the bot can't update it. Check that it still has **View Channel**, **Send Messages** and **Embed Links** in that channel."
-msgstr "⚠️ Das Anleitungs-Panel existiert, aber der Bot kann es nicht aktualisieren. Prüfe, ob er in diesem Kanal noch **Kanal ansehen**, **Nachrichten senden** und **Links einbetten** hat."
-
-#. key: status_role_deleted
-msgid "❌ The configured verified role no longer exists — run `/vrcverify_setup` to pick a new one."
-msgstr "❌ Die eingestellte Verifiziert-Rolle existiert nicht mehr – führe `/vrcverify_setup` aus, um eine neue auszuwählen."
-
-#. key: status_role_missing
-msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
-msgstr "❌ Keine Verifiziert-Rolle festgelegt – führe `/vrcverify_setup` aus, um eine auszuwählen."
-
-#. key: status_role_ok
-#, python-brace-format
-msgid "✅ Verified role: **{role}**"
-msgstr "✅ Verifiziert-Rolle: **{role}**"
-
-#. key: status_tips
-msgid ""
-"\n"
-"**Tips**\n"
-"• Post the panel in a normal text channel everyone can see — threads auto-archive and silently break it.\n"
-"• Keep the bot's **View Channel**, **Send Messages** and **Embed Links** permissions in that channel.\n"
-"• If you delete or recreate that channel, run `/vrcverify_instructions` again."
-msgstr ""
-"\n"
-"**Tipps**\n"
-"• Poste das Panel in einem normalen Textkanal, den alle sehen können – Threads werden automatisch archiviert und machen es stillschweigend kaputt.\n"
-"• Behalte die Rechte **Kanal ansehen**, **Nachrichten senden** und **Links einbetten** für den Bot in diesem Kanal bei.\n"
-"• Wenn du diesen Kanal löschst oder neu erstellst, führe `/vrcverify_instructions` erneut aus."
-
-#. key: subscription_info
-#, python-brace-format
-msgid "I've decided to offer this free of charge however if you wish to still support me, you can find my Ko-fi here:{kofi_link}. Thank you for your continued support"
-msgstr "Ich biete dies kostenlos an, aber wenn du mich unterstützen möchtest, findest du meinen Ko-fi hier: {kofi_link}. Danke für deine Unterstützung!"
-
-#. key: support_info
 msgid ""
 "Need help with verification?\n"
 "- Contact a server admin for assistance\n"
@@ -681,73 +77,886 @@ msgstr ""
 "\n"
 "Wenn dies ein Fehler ist, lass es uns wissen!"
 
-#. key: support_invite_line
-#, python-brace-format
-msgid "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel."
-msgstr "Hol dir VRCVerify-Neuigkeiten in deinen eigenen Server: Tritt {invite} bei und folge dem Ankündigungskanal."
-
-#. key: verification_requested
-msgid "Verification request received! We'll DM you with the results. Please make sure your DMs for this server are open so you can receive the message."
-msgstr "Verifizierungsanfrage erhalten! Wir senden dir eine DM mit den Ergebnissen. Bitte stelle sicher, dass deine DMs für diesen Server offen sind."
-
-#. key: verify_button_expired
-msgid "This verification link has expired or was replaced by a newer one. Please run `/vrcverify` again to get a fresh code."
-msgstr "Dieser Verifizierungslink ist abgelaufen oder wurde durch einen neueren ersetzt. Bitte führe `/vrcverify` erneut aus, um einen neuen Code zu erhalten."
-
-#. key: vrc_id_already_linked
-msgid "The VRChat profile you tried to use is already registered to a different Discord account. If you believe this is a mistake, please contact a server admin."
-msgstr "Das VRChat-Profil, das du verwenden wolltest, ist bereits mit einem anderen Discord-Konto verknüpft. Wenn du glaubst, dass dies ein Fehler ist, wende dich bitte an einen Server-Administrator."
-
-#. key: vrchat_issue_outage_confirmed
 #, python-brace-format
 msgid ""
-"VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n"
+"Get VRCVerify updates in your own server: join {invite} and follow the "
+"announcements channel."
+msgstr ""
+"Hol dir VRCVerify-Neuigkeiten in deinen eigenen Server: Tritt {invite} "
+"bei und folge dem Ankündigungskanal."
+
+#, python-brace-format
+msgid ""
+"I've decided to offer this free of charge however if you wish to still "
+"support me, you can find my Ko-fi here:{kofi_link}. Thank you for your "
+"continued support"
+msgstr ""
+"Ich biete dies kostenlos an, aber wenn du mich unterstützen möchtest, "
+"findest du meinen Ko-fi hier: {kofi_link}. Danke für deine Unterstützung!"
+
+msgid "Settings saved!"
+msgstr "Einstellungen gespeichert!"
+
+msgid ""
+"Couldn't read this server's settings just now. Try again shortly — "
+"nothing has changed."
+msgstr ""
+"Die Einstellungen dieses Servers konnten gerade nicht gelesen werden. "
+"Bitte versuche es gleich noch einmal — es wurde nichts geändert."
+
+msgid ""
+"It looks like you entered your display name instead of your VRChat "
+"userID.\n"
+"Please enter either the full profile URL or your userID (which always "
+"starts with `usr_`).\n"
+"https://imgur.com/a/EEl6ekH"
+msgstr ""
+"Du hast offenbar deinen Anzeigenamen statt deiner VRChat-Benutzer-ID "
+"eingegeben.\n"
+"Bitte gib die vollständige Profil-URL oder deine Benutzer-ID (beginnt "
+"immer mit `usr_`) ein.\n"
+"https://imgur.com/a/EEl6ekH"
+
+msgid ""
+"We couldn't find your code in your VRChat bio. Please try again. \n"
+"**Double check that the code is on its own line.**"
+msgstr ""
+"Wir konnten deinen Code nicht in deiner VRChat-Biografie finden. Bitte "
+"versuche es erneut.\n"
+"**Überprüfe, dass der Code in einer eigenen Zeile steht.**"
+
+msgid ""
+"This verification link has expired or was replaced by a newer one. Please"
+" run `/vrcverify` again to get a fresh code."
+msgstr ""
+"Dieser Verifizierungslink ist abgelaufen oder wurde durch einen neueren "
+"ersetzt. Bitte führe `/vrcverify` erneut aus, um einen neuen Code zu "
+"erhalten."
+
+#, python-brace-format
+msgid "Your nickname was updated to {display_name}."
+msgstr "Dein Spitzname wurde auf {display_name} aktualisiert."
+
+msgid "We could not update your nickname."
+msgstr "Wir konnten deinen Spitznamen nicht aktualisieren."
+
+#, python-brace-format
+msgid ""
+"Successfully {action} server config.\n"
+"Verified Role set to: `{role}` (ID={role_id})"
+msgstr ""
+"Serverkonfiguration {action}.\n"
+"Verifizierte Rolle festgelegt auf: `{role}` (ID={role_id})"
+
+#, python-brace-format
+msgid ""
+"\n"
+"Unverified Role to remove: `{role}` (ID={role_id})"
+msgstr ""
+"\n"
+"Zu entfernende unverifizierte Rolle: `{role}` (ID={role_id})"
+
+msgid ""
+"\n"
+"(Unverified role not set; no role will be removed on verification.)"
+msgstr ""
+"\n"
+"(Unverifizierte Rolle nicht gesetzt; es wird keine Rolle bei "
+"Verifizierung entfernt.)"
+
+msgid "How to Use the VRChat Verification Bot"
+msgstr "So verwenden Sie den VRChat-Verifizierungsbot"
+
+msgid ""
+"**Follow these steps** to verify your 18+ status:\n"
+"\n"
+"1. Click the **Begin Verification** button (if shown) or type "
+"`/vrcverify` anywhere.\n"
+"2. If you're new, you'll be asked for your VRChat username\n"
+"3. The bot will give you a unique code - put this in your VRChat bio **ON"
+" ITS OWN LINE**\n"
+"4. Press **Verify** in Discord once your bio is updated\n"
+"\n"
+"If you need additional help, contact an admin or type "
+"`/vrcverify_support`."
+msgstr ""
+"**Befolgen Sie diese Schritte**, um Ihren 18+-Status zu überprüfen:\n"
+"\n"
+"1. Klicken Sie auf die Schaltfläche **Verifizierung starten** (falls "
+"angezeigt) oder geben Sie `/vrcverify` überall ein.\n"
+"2. Wenn Sie neu sind, werden Sie nach Ihrem VRChat-Benutzernamen gefragt."
+"\n"
+"3. Der Bot gibt Ihnen einen eindeutigen Code - fügen Sie diesen in Ihre "
+"VRChat-Biografie **in einer eigenen Zeile** ein。\n"
+"4. Drücken Sie **Überprüfen** in Discord, sobald Ihre Biografie "
+"aktualisiert wurde。\n"
+"\n"
+"Wenn Sie zusätzliche Hilfe benötigen, wenden Sie sich an einen "
+"Administrator oder geben Sie `/vrcverify_support` ein。"
+
+msgid "**1)** Add the code to your VRChat bio on its own line."
+msgstr "**1)** Füge den Code in deine VRChat-Biografie in einer eigenen Zeile ein."
+
+msgid ""
+"**2)** Once your bio is updated, click **Verify** in Discord (within 10 "
+"minutes)."
+msgstr ""
+"**2)** Sobald deine Biografie aktualisiert ist, klicke in Discord auf "
+"**Überprüfen** (innerhalb von 10 Minuten)."
+
+msgid "Begin Verification"
+msgstr "Verifizierung starten"
+
+msgid "Update Nickname"
+msgstr "Spitznamen aktualisieren"
+
+#, python-brace-format
+msgid ""
+"**VRChat Verify Settings**\n"
+"\n"
+"1.) **Enable auto nickname change**\n"
+"   Automatically update users' Discord nicknames to match their VRChat "
+"display names.\n"
+"   Current: **{current}**"
+msgstr ""
+"**VRChat-Verifizierungseinstellungen**\n"
+"\n"
+"1.) **Automatische Änderung des Spitznamens aktivieren**\n"
+"   Aktualisieren Sie automatisch die Discord-Spitznamen der Benutzer, um "
+"mit ihren VRChat-Anzeigenamen übereinzustimmen。\n"
+"   Aktuell: **{current}**"
+
+#, python-brace-format
+msgid ""
+"I couldn't assign the '{role}' role in {server}. This usually happens "
+"when the VRCVerify bot's role is not above the verified (and unverified) "
+"roles in the server's role list. Please ask a server admin to move the "
+"VRCVerify bot role above those roles and try again."
+msgstr ""
+"Ich konnte die Rolle „{role}“ in {server} nicht zuweisen. Das passiert "
+"meist, wenn die Rolle des VRCVerify-Bots nicht über den Rollen „Verified“"
+" (und „Unverified“) in der Server-Rollenliste steht. Bitte bitte einen "
+"Administrator, die Bot-Rolle über diese Rollen zu verschieben, und "
+"versuche es erneut。"
+
+#, python-brace-format
+msgid ""
+"Could not remove the {role} role in {server}. This usually happens when "
+"the VRCVerify bot's role is not above the unverified role. Ask a server "
+"admin to verify that the VRCVerify bot's role is above both the verified "
+"and unverified (if applicable)."
+msgstr ""
+"Die Rolle {role} konnte auf {server} nicht entfernt werden. Das passiert "
+"meistens, wenn die Rolle des VRCVerify-Bots nicht über der Unverifiziert-"
+"Rolle steht. Bitte einen Server-Administrator zu prüfen, ob die Rolle des"
+" VRCVerify-Bots über der verifizierten und der unverifizierten Rolle "
+"(falls vorhanden) steht."
+
+msgid "Custom verification request message cleared. Default will be used."
+msgstr ""
+"Benutzerdefinierte Verifizierungsanfrage-Nachricht gelöscht. Standard "
+"wird verwendet."
+
+msgid "Custom verification request message saved."
+msgstr "Benutzerdefinierte Verifizierungsanfrage-Nachricht gespeichert."
+
+msgid "Message too long (max 1000 characters)."
+msgstr "Nachricht zu lang (max. 1000 Zeichen)."
+
+#, python-brace-format
+msgid ""
+"Blocked: Only discord.com or vrchat.com links allowed. Invalid link(s):\n"
+"{invalid_list}"
+msgstr ""
+"Blockiert: Nur Links zu discord.com oder vrchat.com erlaubt. Ungültige "
+"Links:\n"
+"{invalid_list}"
+
+msgid ""
+"The VRChat profile you tried to use is already registered to a different "
+"Discord account. If you believe this is a mistake, please contact a "
+"server admin."
+msgstr ""
+"Das VRChat-Profil, das du verwenden wolltest, ist bereits mit einem "
+"anderen Discord-Konto verknüpft. Wenn du glaubst, dass dies ein Fehler "
+"ist, wende dich bitte an einen Server-Administrator."
+
+msgid ""
+"We could not find that VRChat account. Please double-check that you "
+"pasted your VRChat profile URL or `usr_...` user ID correctly."
+msgstr ""
+"Wir konnten dieses VRChat-Konto nicht finden. Bitte prüfe, ob du die "
+"VRChat-Profil-URL oder die `usr_...`-Benutzer-ID korrekt eingefügt hast."
+
+msgid ""
+"VRChat is rate limiting verification lookups right now. Please wait a "
+"minute and try again."
+msgstr ""
+"VRChat begrenzt derzeit Verifizierungsabfragen. Bitte warte eine Minute "
+"und versuche es dann erneut."
+
+msgid ""
+"VRCVerify is temporarily unable to talk to VRChat right now. Please try "
+"again in a little while."
+msgstr ""
+"VRCVerify kann derzeit vorübergehend nicht mit VRChat kommunizieren. "
+"Bitte versuche es in kurzer Zeit erneut."
+
+#, python-brace-format
+msgid ""
+"VRChat is currently reporting a service issue that is affecting "
+"verification. Please try again later.\n"
 "\n"
 "Status page: {status_page}"
 msgstr ""
-"VRChat meldet derzeit eine Dienststörung, die die Verifizierung beeinträchtigt. Bitte versuche es später erneut.\n"
+"VRChat meldet derzeit eine Dienststörung, die die Verifizierung "
+"beeinträchtigt. Bitte versuche es später erneut.\n"
 "\n"
 "Statusseite: {status_page}"
 
-#. key: vrchat_issue_outage_confirmed_with_status
 #, python-brace-format
 msgid ""
-"VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n"
+"VRChat is currently reporting a service issue that is affecting "
+"verification. Please try again later.\n"
 "\n"
 "Status page: {status_page}\n"
 "\n"
 "Reported status: {status_message}"
 msgstr ""
-"VRChat meldet derzeit eine Dienststörung, die die Verifizierung beeinträchtigt. Bitte versuche es später erneut.\n"
+"VRChat meldet derzeit eine Dienststörung, die die Verifizierung "
+"beeinträchtigt. Bitte versuche es später erneut.\n"
 "\n"
 "Statusseite: {status_page}\n"
 "\n"
 "Gemeldeter Status: {status_message}"
 
-#. key: vrchat_issue_outage_suspected
 #, python-brace-format
 msgid ""
-"VRChat appears to be having temporary API issues, so verification could not be completed right now. Please try again later.\n"
+"VRChat appears to be having temporary API issues, so verification could "
+"not be completed right now. Please try again later.\n"
 "\n"
 "Status page: {status_page}"
 msgstr ""
-"VRChat scheint vorübergehende API-Probleme zu haben, daher konnte die Verifizierung derzeit nicht abgeschlossen werden. Bitte versuche es später erneut.\n"
+"VRChat scheint vorübergehende API-Probleme zu haben, daher konnte die "
+"Verifizierung derzeit nicht abgeschlossen werden. Bitte versuche es "
+"später erneut.\n"
 "\n"
 "Statusseite: {status_page}"
 
-#. key: vrchat_issue_rate_limited
-msgid "VRChat is rate limiting verification lookups right now. Please wait a minute and try again."
-msgstr "VRChat begrenzt derzeit Verifizierungsabfragen. Bitte warte eine Minute und versuche es dann erneut."
+msgid ""
+"Verification could not be completed because VRChat returned an unexpected"
+" error. Please try again later."
+msgstr ""
+"Die Verifizierung konnte nicht abgeschlossen werden, weil VRChat einen "
+"unerwarteten Fehler zurückgegeben hat. Bitte versuche es später erneut."
 
-#. key: vrchat_issue_temp_unavailable
-msgid "VRCVerify is temporarily unable to talk to VRChat right now. Please try again in a little while."
-msgstr "VRCVerify kann derzeit vorübergehend nicht mit VRChat kommunizieren. Bitte versuche es in kurzer Zeit erneut."
+#, python-brace-format
+msgid "You're doing that too fast. Please wait {seconds} seconds and try again."
+msgstr ""
+"Das ging zu schnell. Bitte warte {seconds} Sekunden und versuche es "
+"erneut."
 
-#. key: vrchat_issue_unexpected
-msgid "Verification could not be completed because VRChat returned an unexpected error. Please try again later."
-msgstr "Die Verifizierung konnte nicht abgeschlossen werden, weil VRChat einen unerwarteten Fehler zurückgegeben hat. Bitte versuche es später erneut."
+msgid "Donate"
+msgstr "Spenden"
 
-#. key: vrchat_issue_user_not_found
-msgid "We could not find that VRChat account. Please double-check that you pasted your VRChat profile URL or `usr_...` user ID correctly."
-msgstr "Wir konnten dieses VRChat-Konto nicht finden. Bitte prüfe, ob du die VRChat-Profil-URL oder die `usr_...`-Benutzer-ID korrekt eingefügt hast."
+#, python-brace-format
+msgid ""
+"\n"
+"\n"
+"☕ VRCVerify is free thanks to donations. If it helps your community, you "
+"can support it here: {kofi_link}"
+msgstr ""
+"\n"
+"\n"
+"☕ VRCVerify ist dank Spenden kostenlos. Wenn es deiner Community hilft, "
+"kannst du es hier unterstützen: {kofi_link}"
+
+#, python-brace-format
+msgid ""
+"🎉 **{server}** has reached {count} completed verifications with "
+"VRCVerify!\n"
+"The bot is free and runs on donations — if it's been useful to your "
+"community, you can support it here: {kofi_link}\n"
+"(This is a one-time message.)"
+msgstr ""
+"🎉 **{server}** hat {count} abgeschlossene Verifizierungen mit VRCVerify "
+"erreicht!\n"
+"Der Bot ist kostenlos und wird durch Spenden finanziert – wenn er deiner "
+"Community geholfen hat, kannst du ihn hier unterstützen: {kofi_link}\n"
+"(Dies ist eine einmalige Nachricht.)"
+
+msgid ""
+"\n"
+"\n"
+"📌 **One more step:** members can't verify until you post the instructions"
+" panel.\n"
+"Run `/vrcverify_instructions` in the channel you want them to verify "
+"from. Use a normal text channel everyone can see — not a thread, since "
+"threads auto-archive and quietly break the panel.\n"
+"You can run `/vrcverify_status` any time to check on it."
+msgstr ""
+"\n"
+"\n"
+"📌 **Noch ein Schritt:** Mitglieder können sich erst verifizieren, wenn du"
+" das Anleitungs-Panel gepostet hast.\n"
+"Führe `/vrcverify_instructions` in dem Kanal aus, in dem sie sich "
+"verifizieren sollen. Nutze einen normalen Textkanal, den alle sehen "
+"können – keinen Thread, da Threads automatisch archiviert werden und das "
+"Panel dann stillschweigend nicht mehr funktioniert.\n"
+"Mit `/vrcverify_status` kannst du das jederzeit überprüfen."
+
+#, python-brace-format
+msgid ""
+"👋 You set up VRCVerify in **{server}**, but no instructions panel has "
+"been posted yet — so members there still have no way to start verifying."
+"\n"
+"\n"
+"Run `/vrcverify_instructions` in the channel you want them to verify "
+"from. Use a normal text channel everyone can see rather than a thread, "
+"since threads auto-archive and quietly break the panel.\n"
+"\n"
+"Run `/vrcverify_status` in your server for a quick health check.\n"
+"(This is a one-time message.)"
+msgstr ""
+"👋 Du hast VRCVerify in **{server}** eingerichtet, aber es wurde noch kein"
+" Anleitungs-Panel gepostet – Mitglieder haben dort also weiterhin keine "
+"Möglichkeit, mit der Verifizierung zu beginnen.\n"
+"\n"
+"Führe `/vrcverify_instructions` in dem Kanal aus, in dem sie sich "
+"verifizieren sollen. Nutze einen normalen Textkanal, den alle sehen "
+"können, statt eines Threads, da Threads automatisch archiviert werden und"
+" das Panel stillschweigend kaputtgeht.\n"
+"\n"
+"Führe `/vrcverify_status` in deinem Server aus, um alles kurz zu prüfen.\n"
+"(Dies ist eine einmalige Nachricht.)"
+
+#, python-brace-format
+msgid "**VRCVerify status for {server}**"
+msgstr "**VRCVerify-Status für {server}**"
+
+#, python-brace-format
+msgid "✅ Verified role: **{role}**"
+msgstr "✅ Verifiziert-Rolle: **{role}**"
+
+msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
+msgstr ""
+"❌ Keine Verifiziert-Rolle festgelegt – führe `/vrcverify_setup` aus, um "
+"eine auszuwählen."
+
+msgid ""
+"❌ The configured verified role no longer exists — run `/vrcverify_setup` "
+"to pick a new one."
+msgstr ""
+"❌ Die eingestellte Verifiziert-Rolle existiert nicht mehr – führe "
+"`/vrcverify_setup` aus, um eine neue auszuwählen."
+
+msgid "✅ Instructions panel is posted and the bot can still update it."
+msgstr ""
+"✅ Das Anleitungs-Panel ist gepostet und der Bot kann es weiterhin "
+"aktualisieren."
+
+msgid ""
+"❌ No instructions panel posted — run `/vrcverify_instructions` in the "
+"channel members should verify from."
+msgstr ""
+"❌ Kein Anleitungs-Panel gepostet – führe `/vrcverify_instructions` in dem"
+" Kanal aus, in dem sich Mitglieder verifizieren sollen."
+
+msgid ""
+"⚠️ The instructions panel exists but the bot can't update it. Check that "
+"it still has **View Channel**, **Send Messages** and **Embed Links** in "
+"that channel."
+msgstr ""
+"⚠️ Das Anleitungs-Panel existiert, aber der Bot kann es nicht "
+"aktualisieren. Prüfe, ob er in diesem Kanal noch **Kanal ansehen**, "
+"**Nachrichten senden** und **Links einbetten** hat."
+
+msgid ""
+"⚠️ The instructions panel is in a thread that has been archived, so the "
+"bot can't update it. Un-archive the thread, or post a fresh panel in a "
+"normal text channel."
+msgstr ""
+"⚠️ Das Anleitungs-Panel liegt in einem archivierten Thread, deshalb kann "
+"der Bot es nicht aktualisieren. Hebe die Archivierung auf oder poste ein "
+"neues Panel in einem normalen Textkanal."
+
+msgid ""
+"❌ The saved instructions panel no longer exists — it or its channel was "
+"deleted. Run `/vrcverify_instructions` again to post a new one."
+msgstr ""
+"❌ Das gespeicherte Anleitungs-Panel existiert nicht mehr – es oder sein "
+"Kanal wurde gelöscht. Führe `/vrcverify_instructions` erneut aus, um ein "
+"neues zu posten."
+
+msgid ""
+"\n"
+"**Tips**\n"
+"• Post the panel in a normal text channel everyone can see — threads "
+"auto-archive and silently break it.\n"
+"• Keep the bot's **View Channel**, **Send Messages** and **Embed Links** "
+"permissions in that channel.\n"
+"• If you delete or recreate that channel, run `/vrcverify_instructions` "
+"again."
+msgstr ""
+"\n"
+"**Tipps**\n"
+"• Poste das Panel in einem normalen Textkanal, den alle sehen können – "
+"Threads werden automatisch archiviert und machen es stillschweigend "
+"kaputt.\n"
+"• Behalte die Rechte **Kanal ansehen**, **Nachrichten senden** und "
+"**Links einbetten** für den Bot in diesem Kanal bei.\n"
+"• Wenn du diesen Kanal löschst oder neu erstellst, führe "
+"`/vrcverify_instructions` erneut aus."
+
+#, python-brace-format
+msgid ""
+"👋 Thanks for adding VRCVerify to **{server}**!\n"
+"\n"
+"To get set up:\n"
+"1. Run `/vrcverify_setup` to choose the role members get once verified.\n"
+"2. Run `/vrcverify_instructions` in the channel you want members to "
+"verify from — use a normal text channel everyone can see, not a thread, "
+"since threads auto-archive and quietly break the panel.\n"
+"\n"
+"Need a hand? `/vrcverify_support` has you covered."
+msgstr ""
+"👋 Danke, dass du VRCVerify zu **{server}** hinzugefügt hast!\n"
+"\n"
+"So richtest du es ein:\n"
+"1. Führe `/vrcverify_setup` aus, um die Rolle zu wählen, die verifizierte"
+" Mitglieder erhalten.\n"
+"2. Führe `/vrcverify_instructions` in dem Kanal aus, in dem sich "
+"Mitglieder verifizieren sollen – nutze einen normalen Textkanal, den alle"
+" sehen können, keinen Thread, da Threads automatisch archiviert werden "
+"und das Panel stillschweigend kaputtgeht.\n"
+"\n"
+"Brauchst du Hilfe? `/vrcverify_support` hilft dir weiter."
+
+#, python-brace-format
+msgid ""
+"✅ **VRCVerify Premium is active on {server}.**\n"
+"\n"
+"Unlocked here:\n"
+"• Verification activity log — set it up with `/vrcverify_logchannel`\n"
+"• Priority in the verification queue when there's a backlog\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"• Your colour and server icon on the instructions panel\n"
+"• Reduced verification cooldown\n"
+"• Invite verified members straight into your server's VRChat group\n"
+"\n"
+"Appearance and automation settings live in `/vrcverify_settings`.\n"
+"\n"
+"You can manage or cancel this any time from Discord's **User Settings → "
+"Subscriptions**.\n"
+"Thank you for supporting VRCVerify. 💜"
+msgstr ""
+"✅ **VRCVerify Premium ist auf {server} aktiv.**\n"
+"\n"
+"Hier freigeschaltet:\n"
+"• Protokoll der Verifizierungsaktivität — mit `/vrcverify_logchannel` "
+"einrichten\n"
+"• Vorrang in der Verifizierungs-Warteschlange, wenn sich etwas staut\n"
+"• Automatisches Entfernen der Unverifiziert-Rolle\n"
+"• Automatischer Nicknamen-Abgleich mit VRChat\n"
+"• Eigene Nachricht nach der Verifizierung\n"
+"• Deine eigene Farbe und dein Server-Icon auf der Anleitungs-Nachricht\n"
+"• Verkürzte Verifizierungs-Wartezeit\n"
+"• Verifizierte Mitglieder direkt in die VRChat-Gruppe deines Servers "
+"einladen\n"
+"\n"
+"Aussehen und Automatisierung stellst du in `/vrcverify_settings` ein.\n"
+"\n"
+"Du kannst das jederzeit unter **Benutzereinstellungen → Abonnements** in "
+"Discord verwalten oder kündigen.\n"
+"Danke, dass du VRCVerify unterstützt. 💜"
+
+#, python-brace-format
+msgid ""
+"✅ **VRCVerify Premium is active on {server}.**\n"
+"\n"
+"Unlocked here:\n"
+"• Verification activity log — set it up with `/vrcverify_logchannel`\n"
+"• Priority in the verification queue when there's a backlog\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"• Your colour and server icon on the instructions panel\n"
+"• Reduced verification cooldown\n"
+"• Invite verified members straight into your server's VRChat group\n"
+"\n"
+"Appearance and automation settings live in `/vrcverify_settings`.\n"
+"\n"
+"This server pays by card, so manage or cancel it on the **VRCVerify "
+"website** — it won't appear in Discord's subscription settings.\n"
+"Thank you for supporting VRCVerify. 💜"
+msgstr ""
+"✅ **VRCVerify Premium ist auf {server} aktiv.**\n"
+"\n"
+"Hier freigeschaltet:\n"
+"• Protokoll der Verifizierungsaktivität — mit `/vrcverify_logchannel` "
+"einrichten\n"
+"• Vorrang in der Verifizierungs-Warteschlange, wenn sich etwas staut\n"
+"• Automatisches Entfernen der Unverifiziert-Rolle\n"
+"• Automatischer Nicknamen-Abgleich mit VRChat\n"
+"• Eigene Nachricht nach der Verifizierung\n"
+"• Deine eigene Farbe und dein Server-Icon auf der Anleitungs-Nachricht\n"
+"• Verkürzte Verifizierungs-Wartezeit\n"
+"• Verifizierte Mitglieder direkt in die VRChat-Gruppe deines Servers "
+"einladen\n"
+"\n"
+"Aussehen und Automatisierung stellst du in `/vrcverify_settings` ein.\n"
+"\n"
+"Dieser Server zahlt per Karte — verwalte oder kündige das Abo daher auf "
+"der **VRCVerify-Website**. In Discords Abo-Einstellungen taucht es nicht "
+"auf.\n"
+"Danke, dass du VRCVerify unterstützt. 💜"
+
+#, python-brace-format
+msgid ""
+"⚠️ **{server} is paying for VRCVerify Premium twice.**\n"
+"\n"
+"There's an active **Discord** subscription and an active **card** "
+"subscription for this server. Premium is on and stays on — but you're "
+"being charged for both.\n"
+"\n"
+"Nothing has been cancelled for you, deliberately: cancelling a "
+"subscription and issuing a refund without a person deciding is not "
+"something this bot should do on its own.\n"
+"\n"
+"Keep whichever suits you and cancel the other:\n"
+"• **Discord** — User Settings → Subscriptions\n"
+"• **Card** — the Subscriptions page on the website\n"
+"\n"
+"If you're unsure: the website has 6- and 12-month plans that work out "
+"cheaper, and Discord can only bill monthly."
+msgstr ""
+"⚠️ **{server} bezahlt VRCVerify Premium doppelt.**\n"
+"\n"
+"Für diesen Server laufen ein aktives **Discord**-Abo und ein aktives "
+"**Karten**-Abo. Premium bleibt aktiv — aber es wird doppelt abgebucht.\n"
+"\n"
+"Es wurde bewusst nichts für dich gekündigt: ein Abo zu kündigen und eine "
+"Rückerstattung auszulösen, ohne dass ein Mensch das entscheidet, sollte "
+"dieser Bot nicht von sich aus tun.\n"
+"\n"
+"Behalte das Abo, das dir lieber ist, und kündige das andere:\n"
+"• **Discord** — Benutzereinstellungen → Abonnements\n"
+"• **Karte** — die Abo-Seite auf der Website\n"
+"\n"
+"Falls du unsicher bist: Auf der Website sind die 6- und 12-Monats-Pakete "
+"günstiger, und Discord kann nur monatlich abrechnen."
+
+#, python-brace-format
+msgid ""
+"**18+ verification is free on {server}, and always will be.** So is auto-"
+"verifying members who are already verified when they join.\n"
+"\n"
+"VRCVerify Premium adds these optional extras for this server:\n"
+"• Verification activity log — every verification in a channel you choose,"
+" including the ones that fail silently\n"
+"• Priority in the verification queue when there's a backlog\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"• Your colour and server icon on the instructions panel\n"
+"• Reduced verification cooldown\n"
+"• Invite verified members straight into your server's VRChat group\n"
+"\n"
+"One subscription covers the whole server, and there are two ways to buy "
+"it:\n"
+"• **In Discord** — the button below. Billed monthly.\n"
+"• **By card on the website** — the same Premium, plus 6- and 12-month "
+"plans that work out cheaper. Discord can only bill monthly, so the longer"
+" plans are website-only."
+msgstr ""
+"**Die 18+-Verifizierung ist auf {server} kostenlos und bleibt es auch.** "
+"Das automatische Verifizieren bereits verifizierter Mitglieder beim "
+"Beitritt ebenfalls.\n"
+"\n"
+"VRCVerify Premium ergänzt diese optionalen Extras für diesen Server:\n"
+"• Protokoll der Verifizierungsaktivität: jede Verifizierung in einem "
+"Kanal deiner Wahl, auch die, die still fehlschlagen\n"
+"• Vorrang in der Verifizierungs-Warteschlange, wenn sich etwas staut\n"
+"• Automatisches Entfernen der Unverifiziert-Rolle\n"
+"• Automatischer Nicknamen-Abgleich mit VRChat\n"
+"• Eigene Nachricht nach der Verifizierung\n"
+"• Deine eigene Farbe und dein Server-Icon auf der Anleitungs-Nachricht\n"
+"• Verkürzte Verifizierungs-Wartezeit\n"
+"• Verifizierte Mitglieder direkt in die VRChat-Gruppe deines Servers "
+"einladen\n"
+"\n"
+"Ein Abo deckt den ganzen Server ab, und es gibt zwei Wege dorthin:\n"
+"• **In Discord** — der Button unten. Monatliche Abrechnung.\n"
+"• **Per Karte auf der Website** — dasselbe Premium, dazu 6- und 12"
+"-Monats-Pakete, die günstiger kommen. Discord kann nur monatlich "
+"abrechnen, die längeren Laufzeiten gibt es also nur auf der Website."
+
+#, python-brace-format
+msgid ""
+"**18+ verification is free on {server}, and always will be.** So is auto-"
+"verifying members who are already verified when they join.\n"
+"\n"
+"Because this server was set up before Premium launched, it also keeps "
+"these for free, permanently:\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"\n"
+"Premium adds these on top:\n"
+"• Verification activity log — every verification in a channel you choose,"
+" including the ones that fail silently\n"
+"• Priority in the verification queue when there's a backlog\n"
+"• Your colour and server icon on the instructions panel\n"
+"• Reduced verification cooldown\n"
+"• Invite verified members straight into your server's VRChat group\n"
+"\n"
+"**Premium is available two ways:**\n"
+"• **In Discord** — the button below. Billed monthly.\n"
+"• **By card on the website** — the same Premium, plus 6- and 12-month "
+"plans that work out cheaper. Discord can only bill monthly, so the longer"
+" plans are website-only."
+msgstr ""
+"**Die 18+-Verifizierung ist auf {server} kostenlos und bleibt es auch.** "
+"Das automatische Verifizieren bereits verifizierter Mitglieder beim "
+"Beitritt ebenfalls.\n"
+"\n"
+"Da dieser Server schon vor dem Start von Premium eingerichtet wurde, "
+"behält er zusätzlich diese Funktionen dauerhaft kostenlos:\n"
+"• Automatisches Entfernen der Unverifiziert-Rolle\n"
+"• Automatischer Nicknamen-Abgleich mit VRChat\n"
+"• Eigene Nachricht nach der Verifizierung\n"
+"\n"
+"Premium ergänzt obendrauf:\n"
+"• Protokoll der Verifizierungsaktivität: jede Verifizierung in einem "
+"Kanal deiner Wahl, auch die, die still fehlschlagen\n"
+"• Vorrang in der Verifizierungs-Warteschlange, wenn sich etwas staut\n"
+"• Deine eigene Farbe und dein Server-Icon auf der Anleitungs-Nachricht\n"
+"• Verkürzte Verifizierungs-Wartezeit\n"
+"• Verifizierte Mitglieder direkt in die VRChat-Gruppe deines Servers "
+"einladen\n"
+"\n"
+"**Premium gibt es auf zwei Wegen:**\n"
+"• **In Discord** — der Button unten. Monatliche Abrechnung.\n"
+"• **Per Karte auf der Website** — dasselbe Premium, dazu 6- und 12"
+"-Monats-Pakete, die günstiger kommen. Discord kann nur monatlich "
+"abrechnen, die längeren Laufzeiten gibt es also nur auf der Website."
+
+#, python-brace-format
+msgid ""
+"👋 A quick heads-up about VRCVerify in **{server}**.\n"
+"\n"
+"VRCVerify now has an optional Premium tier — and to be clear up front, "
+"**nothing about your server changes.**\n"
+"\n"
+"18+ verification is free and staying free, permanently, for everyone. So "
+"is auto-verifying members who are already verified when they join.\n"
+"\n"
+"And because **{server}** was set up before Premium launched, it keeps "
+"these too, at no cost, permanently:\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"\n"
+"So there is nothing you need to do. If you're ever curious what Premium "
+"adds, run `/vrcverify_subscription` in your server.\n"
+"(This is a one-time message.)"
+msgstr ""
+"👋 Kurze Info zu VRCVerify auf **{server}**.\n"
+"\n"
+"VRCVerify hat jetzt eine optionale Premium-Stufe. Damit das gleich klar "
+"ist: **An deinem Server ändert sich nichts.**\n"
+"\n"
+"Die 18+-Verifizierung ist kostenlos und bleibt dauerhaft für alle "
+"kostenlos. Das automatische Verifizieren bereits verifizierter Mitglieder"
+" beim Beitritt ebenfalls.\n"
+"\n"
+"Und da **{server}** schon vor dem Start von Premium eingerichtet wurde, "
+"behält der Server auch diese Funktionen dauerhaft und ohne Kosten:\n"
+"• Automatisches Entfernen der Unverifiziert-Rolle\n"
+"• Automatischer Nicknamen-Abgleich mit VRChat\n"
+"• Eigene Nachricht nach der Verifizierung\n"
+"\n"
+"Du musst also nichts tun. Falls dich irgendwann interessiert, was Premium"
+" ergänzt, führe `/vrcverify_subscription` auf deinem Server aus.\n"
+"(Das ist eine einmalige Nachricht.)"
+
+#, python-brace-format
+msgid "✅ {user} — verified 18+ · {when}"
+msgstr "✅ {user} — als 18+ verifiziert · {when}"
+
+#, python-brace-format
+msgid ""
+"⚠️ {user} — verified 18+, but the role could not be assigned. Check that "
+"the VRCVerify bot's role sits above the verified role. · {when}"
+msgstr ""
+"⚠️ {user} — als 18+ verifiziert, aber die Rolle konnte nicht vergeben "
+"werden. Prüfe, ob die Rolle des VRCVerify-Bots über der verifizierten "
+"Rolle steht. · {when}"
+
+#, python-brace-format
+msgid "❌ {user} — not 18+ according to VRChat · {when}"
+msgstr "❌ {user} — laut VRChat nicht 18+ · {when}"
+
+#, python-brace-format
+msgid "…{count} earlier entries could not be recorded."
+msgstr "…{count} frühere Einträge konnten nicht aufgezeichnet werden."
+
+msgid ""
+"📋 Verification activity will be logged here from now on.\n"
+"Entries show the member, the result and the time — never their VRChat "
+"name or ID."
+msgstr ""
+"📋 Ab jetzt wird die Verifizierungsaktivität hier protokolliert.\n"
+"Einträge zeigen Mitglied, Ergebnis und Zeit — niemals den VRChat-Namen "
+"oder die ID."
+
+#, python-brace-format
+msgid "Verification activity will be logged in {channel}."
+msgstr "Die Verifizierungsaktivität wird in {channel} protokolliert."
+
+msgid "Verification activity logging is now off."
+msgstr "Die Protokollierung der Verifizierungsaktivität ist jetzt aus."
+
+msgid ""
+"The verification activity log is a VRCVerify Premium feature. Core 18+ "
+"verification stays free for everyone."
+msgstr ""
+"Das Verifizierungsprotokoll ist eine Funktion von VRCVerify Premium. Die "
+"eigentliche 18+-Verifizierung bleibt für alle kostenlos."
+
+#, python-brace-format
+msgid ""
+"I can't post in {channel}. Give the bot **View Channel** and **Send "
+"Messages** there, then run this command again."
+msgstr ""
+"Ich kann in {channel} nichts posten. Gib dem Bot dort **Kanal ansehen** "
+"und **Nachrichten senden** und führe den Befehl erneut aus."
+
+#, python-brace-format
+msgid ""
+"{channel} is an announcement channel. Other servers can follow it, which "
+"would republish your members' 18+ status outside this server, so it can't"
+" be used as a verification log. Please pick a normal text channel."
+msgstr ""
+"{channel} ist ein Ankündigungskanal. Andere Server können ihm folgen, "
+"wodurch der 18+-Status deiner Mitglieder außerhalb dieses Servers erneut "
+"veröffentlicht würde. Er kann daher nicht als Verifizierungsprotokoll "
+"dienen. Bitte wähle einen normalen Textkanal."
+
+msgid ""
+"That doesn't look like a hex colour. Use something like `#5865F2` (or "
+"`#58F` for short)."
+msgstr ""
+"Das sieht nicht nach einer Hex-Farbe aus. Verwende etwas wie `#5865F2` "
+"(oder kurz `#58F`)."
+
+msgid "Send me an invite"
+msgstr "Schick mir eine Einladung"
+
+#, python-brace-format
+msgid ""
+"You're verified in **{server}**! Would you like an invite to their VRChat"
+" group, **{group}**?\n"
+"\n"
+"Nothing is sent to VRChat unless you press the button."
+msgstr ""
+"Du bist in **{server}** verifiziert! Möchtest du eine Einladung zur "
+"VRChat-Gruppe **{group}**?\n"
+"\n"
+"An VRChat wird nichts gesendet, solange du den Button nicht drückst."
+
+msgid "Asking VRChat for your invite..."
+msgstr "Deine Einladung wird bei VRChat angefragt..."
+
+#, python-brace-format
+msgid "Invite sent! Open your VRChat notifications to join **{group}**."
+msgstr ""
+"Einladung verschickt! Öffne deine VRChat-Benachrichtigungen, um "
+"**{group}** beizutreten."
+
+#, python-brace-format
+msgid "You're already in **{group}**, so there's nothing to send."
+msgstr "Du bist bereits in **{group}**, es gibt also nichts zu senden."
+
+#, python-brace-format
+msgid "An invite to **{group}** is already waiting in your VRChat notifications."
+msgstr ""
+"Eine Einladung zu **{group}** wartet bereits in deinen VRChat-"
+"Benachrichtigungen."
+
+msgid ""
+"VRChat wouldn't deliver the invite. Group invites may be switched off in "
+"your VRChat settings, or the group may be blocked on your account."
+msgstr ""
+"VRChat konnte die Einladung nicht zustellen. Möglicherweise sind "
+"Gruppeneinladungen in deinen VRChat-Einstellungen deaktiviert oder die "
+"Gruppe ist auf deinem Konto blockiert."
+
+#, python-brace-format
+msgid ""
+"You can't be invited to **{group}**. Only a group moderator can change "
+"that."
+msgstr ""
+"Du kannst nicht zu **{group}** eingeladen werden. Das kann nur ein "
+"Gruppen-Moderator ändern."
+
+#, python-brace-format
+msgid ""
+"**{server}**'s VRChat group isn't set up correctly right now, so the "
+"invite couldn't be sent. Please let the server's admins know."
+msgstr ""
+"Die VRChat-Gruppe von **{server}** ist derzeit nicht korrekt "
+"eingerichtet, daher konnte die Einladung nicht gesendet werden. Bitte sag"
+" den Admins des Servers Bescheid."
+
+msgid ""
+"VRChat didn't answer, so the invite couldn't be sent. Please try again in"
+" a few minutes."
+msgstr ""
+"VRChat hat nicht geantwortet, daher konnte die Einladung nicht gesendet "
+"werden. Bitte versuche es in ein paar Minuten erneut."
+
+msgid ""
+"You've already asked for an invite. Please give it a few minutes before "
+"trying again."
+msgstr ""
+"Du hast bereits eine Einladung angefragt. Bitte warte ein paar Minuten, "
+"bevor du es erneut versuchst."
+
+msgid ""
+"VRChat didn't recognise the account you verified with, so the invite "
+"couldn't be sent. Try verifying again to relink your VRChat account."
+msgstr ""
+"VRChat hat das Konto, mit dem du dich verifiziert hast, nicht erkannt, "
+"daher konnte die Einladung nicht gesendet werden. Verifiziere dich "
+"erneut, um dein VRChat-Konto neu zu verknüpfen."
+
+#, python-brace-format
+msgid ""
+"This invite was for **{server}**, and you're no longer a member there. "
+"Join the server and verify again if you'd still like an invite."
+msgstr ""
+"Diese Einladung galt für **{server}**, und du bist dort kein Mitglied "
+"mehr. Tritt dem Server wieder bei und verifiziere dich erneut, wenn du "
+"noch eine Einladung möchtest."
+
+#, python-brace-format
+msgid ""
+"You're not currently verified as 18+ in **{server}**, so the invite "
+"couldn't be sent. Verify again to get a new invite offer."
+msgstr ""
+"Du bist derzeit auf **{server}** nicht als 18+ verifiziert, daher konnte "
+"die Einladung nicht gesendet werden. Verifiziere dich erneut, um eine "
+"neue Einladung zu erhalten."
+
+msgid ""
+"This offer was for a different VRChat account than the one you have "
+"linked now. Verify again to get a new invite offer for your current "
+"account."
+msgstr ""
+"Diese Einladung galt für ein anderes VRChat-Konto als das, das du jetzt "
+"verknüpft hast. Verifiziere dich erneut, um eine neue Einladung für dein "
+"aktuelles Konto zu erhalten."
 
