@@ -954,7 +954,11 @@ Each component connects to RabbitMQ to exchange verification requests and result
 
   The bot supports multiple locales for user-facing content. A server admin can choose the preferred language on the dashboard (Instructions language). If a user’s Discord locale is supported, it will be used; otherwise, English (en-US) is the fallback.
 
-  Add or adjust localized strings in `src/locales.py`. The list of supported language codes is defined in `LANGUAGE_CODES`.
+  **Adding or changing a string.** Write the English in `src/locales.py` as an `N_()` constant, use it in `src/bot.py`, then run `./scripts/i18n.sh`. That extracts it into `src/translations/bot/bot.pot`, merges it into all eleven `.po` catalogues as untranslated, and compiles the `.mo` files the bot actually reads. A string nobody has translated yet renders in English rather than blank, so a new string is safe to ship before its translations land.
+
+  The translations themselves are gettext catalogues under `src/translations/bot/<lang>/LC_MESSAGES/`, which is a format Poedit, Crowdin and Weblate all open -- they do not need a Python editor. The dashboard's live alongside them in `src/dashboard/translations/` under a separate domain, and `scripts/i18n.sh` handles both. The list of supported language codes is `LANGUAGE_CODES` in `src/locales.py`, pinned by a test against the dashboard's copy so a thirteenth language cannot be half-added.
+
+  Changing the *wording* of an existing string changes its msgid and orphans all eleven translations of it. `pybabel` offers a fuzzy match; the compile step deliberately does not ship fuzzy entries, so the string reverts to English until a person confirms each one. That is the intended cost of a reword.
 
 ---
 

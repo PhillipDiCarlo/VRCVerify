@@ -55,7 +55,8 @@ cover/
 *.mo
 *.pot
 
-# ...EXCEPT the dashboard's, which are build output that has to ship (#97).
+# ...EXCEPT the ones that are build output and have to ship: the dashboard's
+# (#97) and, since #231, the bot's.
 #
 # The stock Python ignore above is right for a project that compiles its
 # catalogues at build or install time. This one cannot: Dockerfile-dashboard
@@ -73,6 +74,13 @@ cover/
 # rather than regenerating one and marking the whole catalogue changed.
 !src/dashboard/translations/**/*.mo
 !src/dashboard/translations/*.pot
+
+# Same argument, same shape, for the bot's catalogues (#231). Dockerfile-bot
+# copies src/ and installs no toolchain either, and the bot's failure mode is
+# worse than the dashboard's: these strings arrive in a DM, unprompted, to
+# somebody who may never open the website at all.
+!src/translations/bot/**/*.mo
+!src/translations/bot/*.pot
 
 # Django stuff:
 *.log

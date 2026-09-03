@@ -40,6 +40,8 @@ import discord
 import pytest
 
 import bot
+import locales
+from i18n_support import template
 import vrc_group_inviter as inviter
 
 # Captured before any fixture can replace it, so a test that needs the REAL
@@ -233,11 +235,17 @@ class TestTheVocabularyMatchesTheWorker:
         answer" the moment somebody added a state and forgot the copy."""
         assert set(bot.GROUP_INVITE_MESSAGE_KEYS) == bot.GROUP_INVITE_STATES
 
-    def test_every_message_key_exists_in_english(self):
-        from locales import localizations
+    def test_every_message_is_one_of_ours(self):
+        """The table's values are msgids since #231, not symbolic key names.
 
-        for key in bot.GROUP_INVITE_MESSAGE_KEYS.values():
-            assert key in localizations["en-US"], key
+        A typo used to surface as a KeyError against the English table. Now a
+        msgid nothing has ever extracted renders as itself -- a member would
+        see the raw English sentence, which is the one failure mode that looks
+        almost right -- so the check is against the set of strings locales.py
+        actually declares.
+        """
+        for msgid in bot.GROUP_INVITE_MESSAGE_KEYS.values():
+            assert msgid in locales.ALL_MESSAGES, msgid
 
 
 # -------------------------------------------------------------------
@@ -842,7 +850,9 @@ class TestOnlyMembersOfTheServerMayPress:
             line for line in source.splitlines() if not line.strip().startswith("#")
         )
         assert "fetch_member_cached" in code
-        assert "group_invite_not_a_member" in code
+        # The constant's NAME, not its text: since #231 the call site says
+        # locales.GROUP_INVITE_NOT_A_MEMBER and the English lives elsewhere.
+        assert "locales.GROUP_INVITE_NOT_A_MEMBER" in code
 
     def test_a_non_member_is_refused_before_anything_is_claimed(self):
         """It must sit ahead of begin_group_invite: a refusal that had already
@@ -863,8 +873,8 @@ class TestOnlyMembersOfTheServerMayPress:
         after = source[source.index("fetch_member_cached"):]
         assert "except discord.HTTPException" in after
         assert (
-            after.index("group_invite_unavailable")
-            < after.index("group_invite_not_a_member")
+            after.index("locales.GROUP_INVITE_UNAVAILABLE")
+            < after.index("locales.GROUP_INVITE_NOT_A_MEMBER")
         )
 
     def test_a_guild_the_bot_cannot_see_is_refused_not_skipped(self):
@@ -920,7 +930,7 @@ class TestOnlyMembersOfTheServerMayPress:
 
         assert pressable == []
         assert standing() is None
-        assert interaction.settled[0] == localized("group_invite_not_a_member")
+        assert interaction.settled[0] == localized(locales.GROUP_INVITE_NOT_A_MEMBER)
 
     def test_a_stale_entry_is_dropped_once_discord_says_theyre_gone(self):
         """Otherwise every other caller keeps being told they are still here
@@ -957,12 +967,9 @@ class TestOnlyMembersOfTheServerMayPress:
     def test_the_refusal_has_its_own_sentence(self):
         """Reusing the setup-problem copy would tell an ex-member their old
         server is broken, which is both wrong and unactionable."""
-        from locales import localizations
-
-        assert "group_invite_not_a_member" in localizations["en-US"]
         assert (
-            localizations["en-US"]["group_invite_not_a_member"]
-            != localizations["en-US"]["group_invite_setup_problem"]
+            locales.GROUP_INVITE_NOT_A_MEMBER
+            != locales.GROUP_INVITE_SETUP_PROBLEM
         )
 
 
@@ -1057,7 +1064,7 @@ class TestOnlyTheVerifiedAccountMayBeInvited:
         make_user(verified=False)
         interaction = self.press()
         content, view = interaction.settled
-        assert content == localized("group_invite_not_verified")
+        assert content == localized(locales.GROUP_INVITE_NOT_VERIFIED)
         assert pressable == []
 
     def test_the_refusal_claims_nothing(self, subscribed, pressable):
@@ -1083,7 +1090,7 @@ class TestOnlyTheVerifiedAccountMayBeInvited:
         make_user(vrc_user_id=OTHER_VRC_USER_ID, verified=True)
         interaction = self.press()
         content, view = interaction.settled
-        assert content == localized("group_invite_account_changed")
+        assert content == localized(locales.GROUP_INVITE_ACCOUNT_CHANGED)
         assert pressable == []
         assert standing() is None
 
@@ -1107,29 +1114,38 @@ class TestOnlyTheVerifiedAccountMayBeInvited:
         interaction = self.press(
             account=bot.group_invite_account_fingerprint(OTHER_VRC_USER_ID)
         )
-        assert interaction.settled[0] == localized("group_invite_account_changed")
+        assert interaction.settled[0] == localized(locales.GROUP_INVITE_ACCOUNT_CHANGED)
         assert pressable == []
 
     def test_the_two_refusals_read_differently(self):
         """"You are not 18+" and "that was a different account" need different
         actions from the member. Collapsing them into the generic failure
         would tell someone whose verification lapsed that VRChat is down."""
-        from locales import localizations
-
-        en = localizations["en-US"]
         assert (
-            en["group_invite_not_verified"]
-            != en["group_invite_account_changed"]
-            != en["group_invite_unavailable"]
+            locales.GROUP_INVITE_NOT_VERIFIED
+            != locales.GROUP_INVITE_ACCOUNT_CHANGED
+            != locales.GROUP_INVITE_UNAVAILABLE
         )
 
     @pytest.mark.parametrize(
-        "key", ["group_invite_not_verified", "group_invite_account_changed"]
+        "msgid",
+        [locales.GROUP_INVITE_NOT_VERIFIED, locales.GROUP_INVITE_ACCOUNT_CHANGED],
     )
-    def test_every_locale_can_say_it(self, key):
-        from locales import localizations
+    @pytest.mark.parametrize("locale", locales.LANGUAGE_CODES)
+    def test_every_locale_can_say_it(self, msgid, locale):
+        """Both refusals must actually be translated, not merely reachable.
 
-        assert all(key in strings for strings in localizations.values())
+        Before #231 this asked whether the key was in every table. gettext
+        answers an untranslated string with its English msgid instead of
+        raising, so presence is no longer the question: a member told in
+        English that their verification lapsed, inside an otherwise Japanese
+        DM, is the failure this now catches.
+        """
+        rendered = template(msgid, locale)
+        if locale == "en-US":
+            assert rendered == msgid
+        else:
+            assert rendered != msgid, f"{locale} has not translated it"
 
 
 class TestASpentButtonStaysDead:
@@ -1525,7 +1541,7 @@ class TestACooldownDoesNotStrandTheMember:
         import inspect
 
         source = inspect.getsource(bot.handle_group_invite_press)
-        branch = source[source.index("group_invite_too_soon"):]
+        branch = source[source.index("locales.GROUP_INVITE_TOO_SOON"):]
         assert "INVITE_REFUSED_COOLDOWN" in branch[:400]
 
     def test_the_two_refusals_are_not_treated_alike(self):
@@ -1594,18 +1610,14 @@ class TestTheButtonIdentifiesItsServer:
         assert bot.GroupInviteOfferView(GUILD_ID, FINGERPRINT).timeout is None
 
     def test_the_label_follows_the_servers_language(self):
-        from locales import localizations
-
         view = bot.GroupInviteOfferView(GUILD_ID, FINGERPRINT, "de")
-        assert view.children[0].item.label == localizations["de"]["btn_group_invite"]
+        assert view.children[0].item.label == template(locales.BTN_GROUP_INVITE, "de")
 
     def test_an_unknown_locale_falls_back_to_english(self):
-        from locales import localizations
-
         view = bot.GroupInviteOfferView(GUILD_ID, FINGERPRINT, "fr")
         assert (
             view.children[0].item.label
-            == localizations["en-US"]["btn_group_invite"]
+            == locales.BTN_GROUP_INVITE
         )
 
 
@@ -2991,7 +3003,7 @@ class TestAStoredVerdictAlwaysReachesSomeone:
         that cannot work."""
         assert (
             bot.GROUP_INVITE_MESSAGE_KEYS[bot.GROUP_INVITE_BAD_JOB]
-            == "group_invite_account_missing"
+            == locales.GROUP_INVITE_ACCOUNT_MISSING
         )
 
 

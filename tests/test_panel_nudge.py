@@ -23,7 +23,9 @@ import discord
 import pytest
 
 import bot
-from locales import localizations, LANGUAGE_CODES
+import locales
+from i18n_support import is_translated, template
+from locales import LANGUAGE_CODES
 
 GUILD_ID = "123456789"
 OWNER_ID = "42"
@@ -159,25 +161,25 @@ class TestSetupNudge:
     def test_nudge_included_when_no_panel_posted(self):
         interaction, sent = setup_interaction()
         run(bot.vrcverify_setup.callback(interaction, self.ROLE, None))
-        assert localizations["en-US"]["setup_panel_nudge"] in sent[0].msg
+        assert locales.SETUP_PANEL_NUDGE in sent[0].msg
 
     def test_no_nudge_when_panel_already_posted(self):
         make_server(instructions_channel_id="222", instructions_message_id="111")
         interaction, sent = setup_interaction()
         run(bot.vrcverify_setup.callback(interaction, self.ROLE, None))
-        assert localizations["en-US"]["setup_panel_nudge"] not in sent[0].msg
+        assert locales.SETUP_PANEL_NUDGE not in sent[0].msg
 
     def test_donate_hint_stays_last(self):
         # The donate hint reads as a footer; the nudge must slot in above it.
         interaction, sent = setup_interaction()
         run(bot.vrcverify_setup.callback(interaction, self.ROLE, None))
-        tail = localizations["en-US"]["setup_donate_hint"].format(kofi_link=bot.KOFI_URL)
+        tail = locales.SETUP_DONATE_HINT.format(kofi_link=bot.KOFI_URL)
         assert sent[0].msg.endswith(tail)
 
     def test_nudge_is_localized(self):
         interaction, sent = setup_interaction(locale="de")
         run(bot.vrcverify_setup.callback(interaction, self.ROLE, None))
-        assert localizations["de"]["setup_panel_nudge"] in sent[0].msg
+        assert template(locales.SETUP_PANEL_NUDGE, "de") in sent[0].msg
 
     def test_reply_stays_ephemeral(self):
         interaction, sent = setup_interaction()
@@ -396,7 +398,7 @@ class TestSendPanelNudge:
         assert run(bot.send_panel_nudge_dm(self.candidate())) is True
         assert len(dm_spy) == 1
         assert dm_spy[0].member is admin_member
-        assert dm_spy[0].key == "panel_nudge_dm"
+        assert dm_spy[0].key == locales.PANEL_NUDGE_DM
         assert dm_spy[0].kwargs == {"server": guild.name}
 
     def test_flag_is_set_before_sending(self, guilds, dm_spy, admin_member, monkeypatch):
@@ -688,18 +690,16 @@ class TestStatusCommand:
         run(bot.vrcverify_status.callback(interaction))
 
         msg = self.reply(sent)
-        en = localizations["en-US"]
-        assert en["status_tips"] in msg
+        assert locales.STATUS_TIPS in msg
         assert self.view(sent) is None
 
     def test_unconfigured_server_reports_both_gaps(self):
         interaction, sent = self.interaction()
         run(bot.vrcverify_status.callback(interaction))
         msg = self.reply(sent)
-        en = localizations["en-US"]
-        assert en["status_role_missing"] in msg
-        assert en["status_panel_missing"] in msg
-        assert en["status_tips"] in msg
+        assert locales.STATUS_ROLE_MISSING in msg
+        assert locales.STATUS_PANEL_MISSING in msg
+        assert locales.STATUS_TIPS in msg
 
     def test_reply_is_ephemeral_and_deferred(self):
         interaction, sent = self.interaction()
@@ -714,38 +714,37 @@ class TestStatusCommand:
         interaction, sent = self.interaction(role=role)
         run(bot.vrcverify_status.callback(interaction))
         msg = self.reply(sent)
-        en = localizations["en-US"]
-        assert en["status_panel_ok"] in msg
+        assert locales.STATUS_PANEL_OK in msg
         assert "Verified" in msg
-        assert en["status_tips"] not in msg
+        assert locales.STATUS_TIPS not in msg
 
     def test_deleted_role_is_reported(self, monkeypatch):
         make_server(instructions_channel_id="222", instructions_message_id="111")
         self.stub_probe(monkeypatch, "ok")
         interaction, sent = self.interaction(role=None)
         run(bot.vrcverify_status.callback(interaction))
-        assert localizations["en-US"]["status_role_deleted"] in self.reply(sent)
+        assert locales.STATUS_ROLE_DELETED in self.reply(sent)
 
     @pytest.mark.parametrize(
-        "outcome,key",
+        "outcome,msgid",
         [
-            ("forbidden", "status_panel_unreachable"),
-            ("archived", "status_panel_archived"),
-            ("gone", "status_panel_gone"),
-            ("missing_ids", "status_panel_gone"),
-            ("malformed", "status_panel_gone"),
-            ("http_error", "status_panel_unreachable"),
-            ("error", "status_panel_unreachable"),
+            ("forbidden", locales.STATUS_PANEL_UNREACHABLE),
+            ("archived", locales.STATUS_PANEL_ARCHIVED),
+            ("gone", locales.STATUS_PANEL_GONE),
+            ("missing_ids", locales.STATUS_PANEL_GONE),
+            ("malformed", locales.STATUS_PANEL_GONE),
+            ("http_error", locales.STATUS_PANEL_UNREACHABLE),
+            ("error", locales.STATUS_PANEL_UNREACHABLE),
         ],
     )
-    def test_probe_outcomes_map_to_advice(self, monkeypatch, outcome, key):
+    def test_probe_outcomes_map_to_advice(self, monkeypatch, outcome, msgid):
         make_server(instructions_channel_id="222", instructions_message_id="111")
         self.stub_probe(monkeypatch, outcome)
         interaction, sent = self.interaction(role=SimpleNamespace(id=1, name="Verified"))
         run(bot.vrcverify_status.callback(interaction))
         msg = self.reply(sent)
-        assert localizations["en-US"][key] in msg
-        assert localizations["en-US"]["status_tips"] in msg
+        assert msgid in msg
+        assert locales.STATUS_TIPS in msg
 
     def test_probe_gets_the_saved_panel_without_rebuilding_the_embed(self, monkeypatch):
         make_server(
@@ -774,7 +773,7 @@ class TestStatusCommand:
         make_server()
         interaction, sent = self.interaction(locale="es-ES")
         run(bot.vrcverify_status.callback(interaction))
-        assert localizations["es-ES"]["status_panel_missing"] in self.reply(sent)
+        assert template(locales.STATUS_PANEL_MISSING, "es-ES") in self.reply(sent)
 
     def test_status_is_admin_only(self):
         checks = getattr(bot.vrcverify_status, "checks", [])
@@ -913,7 +912,7 @@ class TestGuildJoinWelcomeDm:
         run(bot.on_guild_join(guild))
         assert len(dm_spy) == 1
         assert dm_spy[0].member is owner
-        assert dm_spy[0].key == "guild_join_welcome_dm"
+        assert dm_spy[0].key == locales.GUILD_JOIN_WELCOME_DM
         assert dm_spy[0].kwargs == {"server": guild.name}
 
     def test_falls_back_to_fetching_the_owner(self, dm_spy, monkeypatch):
@@ -967,71 +966,81 @@ class TestGuildJoinWelcomeDm:
         )
         run(bot.on_guild_join(guild))
         assert delivered == [
-            localizations["de"]["guild_join_welcome_dm"].format(server=guild.name)
+            template(locales.GUILD_JOIN_WELCOME_DM, "de").format(server=guild.name)
         ]
 
 
-NEW_KEYS = (
-    "setup_panel_nudge",
-    "panel_nudge_dm",
-    "status_header",
-    "status_role_ok",
-    "status_role_missing",
-    "status_role_deleted",
-    "status_panel_ok",
-    "status_panel_missing",
-    "status_panel_unreachable",
-    "status_panel_archived",
-    "status_panel_gone",
-    "status_tips",
-    "guild_join_welcome_dm",
+NEW_STRINGS = (
+    locales.SETUP_PANEL_NUDGE,
+    locales.PANEL_NUDGE_DM,
+    locales.STATUS_HEADER,
+    locales.STATUS_ROLE_OK,
+    locales.STATUS_ROLE_MISSING,
+    locales.STATUS_ROLE_DELETED,
+    locales.STATUS_PANEL_OK,
+    locales.STATUS_PANEL_MISSING,
+    locales.STATUS_PANEL_UNREACHABLE,
+    locales.STATUS_PANEL_ARCHIVED,
+    locales.STATUS_PANEL_GONE,
+    locales.STATUS_TIPS,
+    locales.GUILD_JOIN_WELCOME_DM,
 )
 
 
 class TestNudgeLocaleStrings:
     @pytest.mark.parametrize("locale", LANGUAGE_CODES)
-    def test_all_keys_present(self, locale):
-        for key in NEW_KEYS:
-            assert key in localizations[locale], f"{locale} missing {key}"
+    def test_all_strings_are_translated(self, locale):
+        """Was "the key is present in every table" before #231.
+
+        gettext cannot have a missing key -- an untranslated string falls back
+        to its English msgid -- so presence stopped being answerable and
+        stopped being the risk. This asks the question that replaced it.
+        """
+        for msgid in NEW_STRINGS:
+            assert is_translated(msgid, locale), (
+                f"{locale} has not translated {msgid[:45]!r}"
+            )
 
     @pytest.mark.parametrize("locale", LANGUAGE_CODES)
     def test_setup_nudge_separates_itself(self, locale):
         # It is appended mid-message, so it must open its own paragraph.
-        assert localizations[locale]["setup_panel_nudge"].startswith("\n\n")
+        assert template(locales.SETUP_PANEL_NUDGE, locale).startswith("\n\n")
 
     @pytest.mark.parametrize("locale", LANGUAGE_CODES)
     def test_templates_format_with_caller_kwargs(self, locale):
-        strings = localizations[locale]
-        assert "SrvName" in strings["panel_nudge_dm"].format(server="SrvName")
-        assert "SrvName" in strings["status_header"].format(server="SrvName")
-        assert "RoleName" in strings["status_role_ok"].format(role="RoleName")
-        assert "SrvName" in strings["guild_join_welcome_dm"].format(server="SrvName")
+        assert "SrvName" in template(locales.PANEL_NUDGE_DM, locale).format(server="SrvName")
+        assert "SrvName" in template(locales.STATUS_HEADER, locale).format(server="SrvName")
+        assert "RoleName" in template(locales.STATUS_ROLE_OK, locale).format(role="RoleName")
+        assert "SrvName" in template(locales.GUILD_JOIN_WELCOME_DM, locale).format(server="SrvName")
 
     @pytest.mark.parametrize("locale", LANGUAGE_CODES)
     def test_plain_strings_take_no_placeholders(self, locale):
-        for key in (
-            "setup_panel_nudge",
-            "status_role_missing",
-            "status_role_deleted",
-            "status_panel_ok",
-            "status_panel_missing",
-            "status_panel_unreachable",
-            "status_panel_archived",
-            "status_panel_gone",
-            "status_tips",
+        for msgid in (
+            locales.SETUP_PANEL_NUDGE,
+            locales.STATUS_ROLE_MISSING,
+            locales.STATUS_ROLE_DELETED,
+            locales.STATUS_PANEL_OK,
+            locales.STATUS_PANEL_MISSING,
+            locales.STATUS_PANEL_UNREACHABLE,
+            locales.STATUS_PANEL_ARCHIVED,
+            locales.STATUS_PANEL_GONE,
+            locales.STATUS_TIPS,
         ):
-            localizations[locale][key].format()  # must not raise
+            template(msgid, locale).format()  # must not raise
 
     @pytest.mark.parametrize("locale", LANGUAGE_CODES)
     def test_admin_facing_strings_name_the_command(self, locale):
         # The command name is the actionable part; it stays literal everywhere.
-        assert "/vrcverify_instructions" in localizations[locale]["setup_panel_nudge"]
-        assert "/vrcverify_instructions" in localizations[locale]["panel_nudge_dm"]
-        assert "/vrcverify_setup" in localizations[locale]["guild_join_welcome_dm"]
-        assert "/vrcverify_instructions" in localizations[locale]["guild_join_welcome_dm"]
+        assert "/vrcverify_instructions" in template(locales.SETUP_PANEL_NUDGE, locale)
+        assert "/vrcverify_instructions" in template(locales.PANEL_NUDGE_DM, locale)
+        assert "/vrcverify_setup" in template(locales.GUILD_JOIN_WELCOME_DM, locale)
+        assert "/vrcverify_instructions" in template(locales.GUILD_JOIN_WELCOME_DM, locale)
 
     def test_every_probe_outcome_has_a_message(self):
         outcomes = {"ok", "gone", "missing_ids", "malformed", "forbidden", "archived", "http_error", "error"}
         assert set(bot.PANEL_STATUS_MESSAGE_KEYS) == outcomes
-        for key in bot.PANEL_STATUS_MESSAGE_KEYS.values():
-            assert key in localizations["en-US"]
+        # The table's values are msgids since #231, not symbolic key names, so
+        # a typo no longer raises against the English table -- it renders as
+        # itself. Check against what locales.py actually declares.
+        for msgid in bot.PANEL_STATUS_MESSAGE_KEYS.values():
+            assert msgid in locales.ALL_MESSAGES

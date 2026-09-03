@@ -27,6 +27,11 @@ COPY --chown=appuser:appuser src/api_tokens.py ./src/api_tokens.py
 # Same deal: stdlib-only, shared with every other service so that one
 # escaping rule applies to all four sets of logs.
 COPY --chown=appuser:appuser src/log_safety.py ./src/log_safety.py
+# Reading a compiled gettext catalogue, shared with the bot since #231 for the
+# same reason as the two above: both ends must resolve a language and fall back
+# identically, and one implementation is what guarantees that. stdlib-only --
+# it imports `gettext` and nothing else.
+COPY --chown=appuser:appuser src/i18n_core.py ./src/i18n_core.py
 COPY --chown=appuser:appuser src/dashboard/ ./src/dashboard/
 
 # Sessions live here. Mount a volume over it; the image itself keeps nothing.

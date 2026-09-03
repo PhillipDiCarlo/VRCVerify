@@ -1,1221 +1,558 @@
 # locales.py
+#
+# Every string the bot says, in English, marked for translation.
+#
+# WHY THIS IS NOT A DICT OF TWELVE LANGUAGES ANY MORE
+# ---------------------------------------------------
+# It was, until #231: a 1,221-line dict-of-dicts holding all twelve. That shape
+# had one fatal property -- the translations could not be opened by a
+# translator. 24,937 words of Spanish, Japanese, Bengali and eight more sat in
+# a Python literal that cannot be loaded into Poedit, pushed to Crowdin or
+# Weblate, or handed to a volunteer from the Discord without asking that person
+# to edit Python and hoping they balance the quotes.
+#
+# The dashboard has had gettext catalogues since #97, and #97 predicted the
+# cost of running two systems for one job. #231 is the paying down. The twelve
+# languages now live in src/translations/bot/<lang>/LC_MESSAGES/bot.po, in the
+# format the translation industry actually speaks, and `pybabel update` merges
+# a new string into all eleven mechanically instead of somebody hand-writing it
+# eleven times and a test catching the one they forgot.
+#
+# WHAT IS LEFT HERE, AND WHY IT IS STILL A FILE
+# ---------------------------------------------
+# The English. gettext keys on the source text, so the English string IS the
+# msgid, and this stays the one place a bot string is written down.
+#
+# The alternative was inlining each English string at its call site, which is
+# the idiomatic gettext shape and was rejected on the 26 multi-line strings:
+# INSTRUCTIONS_DESC is a six-line block and SUPPORT_INFO carries a URL and a
+# bullet list. Putting those in bot.py at the point of use makes a 9,000-line
+# file longer and buries the control flow under prose.
+#
+# So the strings are constants marked with `N_`, the no-op the extractor keys
+# on, and the lookup happens per interaction in `get_message`. That is exactly
+# the pattern the dashboard's view modules already use for their label tables,
+# and `scripts/i18n.sh` already extracts with `-k N_` for it.
+#
+# ADDING OR CHANGING A STRING
+# ---------------------------
+# Add the constant here, use it in bot.py, then run ./scripts/i18n.sh. That
+# extracts it into bot.pot, merges it into all eleven .po files as untranslated
+# and compiles what is already there. The new string renders in English until
+# somebody translates it -- never blank, and never the bare constant name.
+#
+# Changing the *wording* of an existing string changes its msgid, which orphans
+# all eleven translations of it. pybabel will offer a fuzzy match; i18n.sh
+# deliberately does not compile fuzzy entries, so the string reverts to English
+# until a person confirms each one. That is the intended cost of a reword.
+
+from i18n_core import N_
 
 # -- list of supported language codes --
+#
+# tests/test_i18n.py pins this equal to the dashboard's UI_LANGUAGES, so a
+# thirteenth language cannot be added to one surface and forgotten on the
+# other. en-US leads and has no catalogue directory: its "translation" is the
+# msgids in this file.
 LANGUAGE_CODES = [
     "en-US", "es-ES", "zh-CN", "ja", "de", "nl",
     "hi-IN", "ar", "bn", "pt-BR", "ru", "pa-IN",
 ]
 
-# -- actual localized strings --
-localizations: dict[str, dict[str, str]] = {
-    "en-US": {
-        "not_verified":               "You haven't verified yet. Please click **Begin Verification** first.",
-        "already_verified":           "You're already verified! Role assigned (or re-assigned).",
-        "recheck_started":            "We're re-checking your VRChat 18+ status. If you've updated your VRChat age verification, you'll get a DM soon!",
-        "dm_role_success":            "You've been verified and given **{role}** in **{server}**!",
-        "nickname_update_requested":  "Nickname update requested. I'll DM you once it's done!",
-        "verification_requested":     "Verification request received! We'll DM you with the results. Please make sure your DMs for this server are open so you can receive the message.",
-        "setup_missing":              "This server hasn't set up a verification role yet. Please contact an admin.",
-        "not_18_plus":                "You are not 18+ according to VRChat. Contact an admin if this is an error.",
-        "support_info":               "Need help with verification?\n- Contact a server admin for assistance\n- Or visit our support page at https://esattotech.com/contact-us/\n\nIf this is an error, please let us know!",
-        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
-        "subscription_info":          "I've decided to offer this free of charge however if you wish to still support me, you can find my Ko-fi here:{kofi_link}. Thank you for your continued support",
-        "settings_saved":             "Settings saved!",
-        "settings_unreadable":        "Couldn't read this server's settings just now. Try again shortly — nothing has changed.",
-        "invalid_vrc_id_input":       "It looks like you entered your display name instead of your VRChat userID.\nPlease enter either the full profile URL or your userID (which always starts with `usr_`).\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "We couldn't find your code in your VRChat bio. Please try again. \n**Double check that the code is on its own line.**",
-        "verify_button_expired":      "This verification link has expired or was replaced by a newer one. Please run `/vrcverify` again to get a fresh code.",
-        "nickname_updated":           "Your nickname was updated to {display_name}.",
-        "nickname_update_failed":     "We could not update your nickname.",
-        "setup_success":              "Successfully {action} server config.\nVerified Role set to: `{role}` (ID={role_id})",
-        "setup_unverified_set":       "\nUnverified Role to remove: `{role}` (ID={role_id})",
-        "setup_unverified_missing":   "\n(Unverified role not set; no role will be removed on verification.)",
-        "instructions_title":         "How to Use the VRChat Verification Bot",
-        "instructions_desc":          "**Follow these steps** to verify your 18+ status:\n\n"
-                                      "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
-                                      "2. If you're new, you'll be asked for your VRChat username\n"
-                                      "3. The bot will give you a unique code - put this in your VRChat bio **ON ITS OWN LINE**\n"
-                                      "4. Press **Verify** in Discord once your bio is updated\n\n"
-                                      "If you need additional help, contact an admin or type `/vrcverify_support`.",
-        "bio_verify_instructions1":    "**1)** Add the code to your VRChat bio on its own line.",
-        "bio_verify_instructions2":    "**2)** Once your bio is updated, click **Verify** in Discord (within 10 minutes).",
-        "btn_begin_verification":     "Begin Verification",
-        "btn_update_nickname":        "Update Nickname",
-        "settings_intro":             "**VRChat Verify Settings**\n\n1.) **Enable auto nickname change**\n   Automatically update users' Discord nicknames to match their VRChat display names.\n   Current: **{current}**",
-        "dm_role_failed_bot_position":"I couldn't assign the '{role}' role in {server}. This usually happens when the VRCVerify bot's role is not above the verified (and unverified) roles in the server's role list. Please ask a server admin to move the VRCVerify bot role above those roles and try again.",
-        "dm_unverified_failed_bot_position": "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable).",
-        "custom_msg_cleared":         "Custom verification request message cleared. Default will be used.",
-        "custom_msg_saved":           "Custom verification request message saved.",
-        "custom_msg_too_long":        "Message too long (max 1000 characters).",
-        "custom_msg_invalid_links":   "Blocked: Only discord.com or vrchat.com links allowed. Invalid link(s):\n{invalid_list}",
-        "vrc_id_already_linked":      "The VRChat profile you tried to use is already registered to a different Discord account. If you believe this is a mistake, please contact a server admin.",
-        "vrchat_issue_user_not_found":               "We could not find that VRChat account. Please double-check that you pasted your VRChat profile URL or `usr_...` user ID correctly.",
-        "vrchat_issue_rate_limited":                "VRChat is rate limiting verification lookups right now. Please wait a minute and try again.",
-        "vrchat_issue_temp_unavailable":             "VRCVerify is temporarily unable to talk to VRChat right now. Please try again in a little while.",
-        "vrchat_issue_outage_confirmed":            "VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n\nStatus page: {status_page}",
-        "vrchat_issue_outage_confirmed_with_status": "VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n\nStatus page: {status_page}\n\nReported status: {status_message}",
-        "vrchat_issue_outage_suspected":            "VRChat appears to be having temporary API issues, so verification could not be completed right now. Please try again later.\n\nStatus page: {status_page}",
-        "vrchat_issue_unexpected":                   "Verification could not be completed because VRChat returned an unexpected error. Please try again later.",
-        "cooldown_active":            "You're doing that too fast. Please wait {seconds} seconds and try again.",
-        "btn_donate":                 "Donate",
-        "setup_donate_hint":          "\n\n☕ VRCVerify is free thanks to donations. If it helps your community, you can support it here: {kofi_link}",
-        "milestone_owner_dm":         "🎉 **{server}** has reached {count} completed verifications with VRCVerify!\nThe bot is free and runs on donations — if it's been useful to your community, you can support it here: {kofi_link}\n(This is a one-time message.)",
-        "setup_panel_nudge":          "\n\n📌 **One more step:** members can't verify until you post the instructions panel.\nRun `/vrcverify_instructions` in the channel you want them to verify from. Use a normal text channel everyone can see — not a thread, since threads auto-archive and quietly break the panel.\nYou can run `/vrcverify_status` any time to check on it.",
-        "panel_nudge_dm":             "👋 You set up VRCVerify in **{server}**, but no instructions panel has been posted yet — so members there still have no way to start verifying.\n\nRun `/vrcverify_instructions` in the channel you want them to verify from. Use a normal text channel everyone can see rather than a thread, since threads auto-archive and quietly break the panel.\n\nRun `/vrcverify_status` in your server for a quick health check.\n(This is a one-time message.)",
-        "status_header":              "**VRCVerify status for {server}**",
-        "status_role_ok":             "✅ Verified role: **{role}**",
-        "status_role_missing":        "❌ No verified role set — run `/vrcverify_setup` to choose one.",
-        "status_role_deleted":        "❌ The configured verified role no longer exists — run `/vrcverify_setup` to pick a new one.",
-        "status_panel_ok":            "✅ Instructions panel is posted and the bot can still update it.",
-        "status_panel_missing":       "❌ No instructions panel posted — run `/vrcverify_instructions` in the channel members should verify from.",
-        "status_panel_unreachable":   "⚠️ The instructions panel exists but the bot can't update it. Check that it still has **View Channel**, **Send Messages** and **Embed Links** in that channel.",
-        "status_panel_archived":      "⚠️ The instructions panel is in a thread that has been archived, so the bot can't update it. Un-archive the thread, or post a fresh panel in a normal text channel.",
-        "status_panel_gone":          "❌ The saved instructions panel no longer exists — it or its channel was deleted. Run `/vrcverify_instructions` again to post a new one.",
-        "status_tips":                "\n**Tips**\n• Post the panel in a normal text channel everyone can see — threads auto-archive and silently break it.\n• Keep the bot's **View Channel**, **Send Messages** and **Embed Links** permissions in that channel.\n• If you delete or recreate that channel, run `/vrcverify_instructions` again.",
-        "guild_join_welcome_dm":      "👋 Thanks for adding VRCVerify to **{server}**!\n\nTo get set up:\n1. Run `/vrcverify_setup` to choose the role members get once verified.\n2. Run `/vrcverify_instructions` in the channel you want members to verify from — use a normal text channel everyone can see, not a thread, since threads auto-archive and quietly break the panel.\n\nNeed a hand? `/vrcverify_support` has you covered.",
-        "premium_status_active":      "✅ **VRCVerify Premium is active on {server}.**\n\nUnlocked here:\n• Verification activity log — set it up with `/vrcverify_logchannel`\n• Priority in the verification queue when there's a backlog\n• Automatic removal of the unverified role\n• Automatic nickname sync with VRChat\n• Custom post-verification message\n• Your colour and server icon on the instructions panel\n• Reduced verification cooldown\n• Invite verified members straight into your server's VRChat group\n\nAppearance and automation settings live in `/vrcverify_settings`.\n\nYou can manage or cancel this any time from Discord's **User Settings → Subscriptions**.\nThank you for supporting VRCVerify. 💜",
-        "premium_status_active_card": "✅ **VRCVerify Premium is active on {server}.**\n\nUnlocked here:\n• Verification activity log — set it up with `/vrcverify_logchannel`\n• Priority in the verification queue when there's a backlog\n• Automatic removal of the unverified role\n• Automatic nickname sync with VRChat\n• Custom post-verification message\n• Your colour and server icon on the instructions panel\n• Reduced verification cooldown\n• Invite verified members straight into your server's VRChat group\n\nAppearance and automation settings live in `/vrcverify_settings`.\n\nThis server pays by card, so manage or cancel it on the **VRCVerify website** — it won't appear in Discord's subscription settings.\nThank you for supporting VRCVerify. 💜",
-        "premium_status_active_both": "⚠️ **{server} is paying for VRCVerify Premium twice.**\n\nThere's an active **Discord** subscription and an active **card** subscription for this server. Premium is on and stays on — but you're being charged for both.\n\nNothing has been cancelled for you, deliberately: cancelling a subscription and issuing a refund without a person deciding is not something this bot should do on its own.\n\nKeep whichever suits you and cancel the other:\n• **Discord** — User Settings → Subscriptions\n• **Card** — the Subscriptions page on the website\n\nIf you're unsure: the website has 6- and 12-month plans that work out cheaper, and Discord can only bill monthly.",
-        "premium_status_inactive":    "**18+ verification is free on {server}, and always will be.** So is auto-verifying members who are already verified when they join.\n\nVRCVerify Premium adds these optional extras for this server:\n• Verification activity log — every verification in a channel you choose, including the ones that fail silently\n• Priority in the verification queue when there's a backlog\n• Automatic removal of the unverified role\n• Automatic nickname sync with VRChat\n• Custom post-verification message\n• Your colour and server icon on the instructions panel\n• Reduced verification cooldown\n• Invite verified members straight into your server's VRChat group\n\nOne subscription covers the whole server, and there are two ways to buy it:\n• **In Discord** — the button below. Billed monthly.\n• **By card on the website** — the same Premium, plus 6- and 12-month plans that work out cheaper. Discord can only bill monthly, so the longer plans are website-only.",
-        "premium_status_grandfathered": "**18+ verification is free on {server}, and always will be.** So is auto-verifying members who are already verified when they join.\n\nBecause this server was set up before Premium launched, it also keeps these for free, permanently:\n• Automatic removal of the unverified role\n• Automatic nickname sync with VRChat\n• Custom post-verification message\n\nPremium adds these on top:\n• Verification activity log — every verification in a channel you choose, including the ones that fail silently\n• Priority in the verification queue when there's a backlog\n• Your colour and server icon on the instructions panel\n• Reduced verification cooldown\n• Invite verified members straight into your server's VRChat group\n\n**Premium is available two ways:**\n• **In Discord** — the button below. Billed monthly.\n• **By card on the website** — the same Premium, plus 6- and 12-month plans that work out cheaper. Discord can only bill monthly, so the longer plans are website-only.",
-        "premium_cutover_dm":         "👋 A quick heads-up about VRCVerify in **{server}**.\n\nVRCVerify now has an optional Premium tier — and to be clear up front, **nothing about your server changes.**\n\n18+ verification is free and staying free, permanently, for everyone. So is auto-verifying members who are already verified when they join.\n\nAnd because **{server}** was set up before Premium launched, it keeps these too, at no cost, permanently:\n• Automatic removal of the unverified role\n• Automatic nickname sync with VRChat\n• Custom post-verification message\n\nSo there is nothing you need to do. If you're ever curious what Premium adds, run `/vrcverify_subscription` in your server.\n(This is a one-time message.)",
-        "log_verified":              "✅ {user} — verified 18+ · {when}",
-        "log_role_failed":           "⚠️ {user} — verified 18+, but the role could not be assigned. Check that the VRCVerify bot's role sits above the verified role. · {when}",
-        "log_not_18":                "❌ {user} — not 18+ according to VRChat · {when}",
-        "log_entries_dropped":       "…{count} earlier entries could not be recorded.",
-        "log_channel_ready":         "📋 Verification activity will be logged here from now on.\nEntries show the member, the result and the time — never their VRChat name or ID.",
-        "log_channel_set":           "Verification activity will be logged in {channel}.",
-        "log_channel_cleared":       "Verification activity logging is now off.",
-        "log_channel_premium_only":  "The verification activity log is a VRCVerify Premium feature. Core 18+ verification stays free for everyone.",
-        "log_channel_no_permission": "I can't post in {channel}. Give the bot **View Channel** and **Send Messages** there, then run this command again.",
-        "log_channel_announcement": "{channel} is an announcement channel. Other servers can follow it, which would republish your members' 18+ status outside this server, so it can't be used as a verification log. Please pick a normal text channel.",
-        "panel_color_invalid": "That doesn't look like a hex colour. Use something like `#5865F2` (or `#58F` for short).",
-        # Issue #49 phase 5: the member-facing group invite.
-        "btn_group_invite": "Send me an invite",
-        "dm_group_invite_offer": "You're verified in **{server}**! Would you like an invite to their VRChat group, **{group}**?\n\nNothing is sent to VRChat unless you press the button.",
-        "group_invite_working": "Asking VRChat for your invite...",
-        "group_invite_sent": "Invite sent! Open your VRChat notifications to join **{group}**.",
-        "group_invite_already_member": "You're already in **{group}**, so there's nothing to send.",
-        "group_invite_already_invited": "An invite to **{group}** is already waiting in your VRChat notifications.",
-        "group_invite_blocked": "VRChat wouldn't deliver the invite. Group invites may be switched off in your VRChat settings, or the group may be blocked on your account.",
-        "group_invite_banned": "You can't be invited to **{group}**. Only a group moderator can change that.",
-        "group_invite_setup_problem": "**{server}**'s VRChat group isn't set up correctly right now, so the invite couldn't be sent. Please let the server's admins know.",
-        "group_invite_unavailable": "VRChat didn't answer, so the invite couldn't be sent. Please try again in a few minutes.",
-        "group_invite_too_soon": "You've already asked for an invite. Please give it a few minutes before trying again.",
-        "group_invite_account_missing": "VRChat didn't recognise the account you verified with, so the invite couldn't be sent. Try verifying again to relink your VRChat account.",
-        "group_invite_not_a_member": "This invite was for **{server}**, and you're no longer a member there. Join the server and verify again if you'd still like an invite.",
-        "group_invite_not_verified": "You're not currently verified as 18+ in **{server}**, so the invite couldn't be sent. Verify again to get a new invite offer.",
-        "group_invite_account_changed": "This offer was for a different VRChat account than the one you have linked now. Verify again to get a new invite offer for your current account.",
-    },
+# -- the strings --
 
-    "es-ES": {
-        "not_verified":               "Aún no estás verificado. Por favor haz clic en **Iniciar Verificación** primero.",
-        "already_verified":           "¡Ya estás verificado! Rol asignado (o reasignado).",
-        "recheck_started":            "Estamos revisando de nuevo tu estado 18+. Si has actualizado tu verificación de edad, ¡recibirás un DM pronto!",
-        "dm_role_success":            "¡Has sido verificado y se te ha asignado **{role}** en **{server}**!",
-        "nickname_update_requested":  "Solicitud de actualización de apodo enviada. ¡Te enviaré un DM cuando esté listo!",
-        "verification_requested":     "¡Solicitud de verificación recibida! Te enviaremos un DM con los resultados. Asegúrate de tener los DMs abiertos para este servidor.",
-        "setup_missing":              "Este servidor aún no ha configurado un rol de verificación. Por favor, contacta a un administrador.",
-        "not_18_plus":                "No tienes 18+ según VRChat. Contacta a un administrador si esto es un error.",
-        "support_info":               "¿Necesitas ayuda con la verificación?\n- Contacta a un administrador del servidor para asistencia\n- O visita nuestra página de soporte en https://esattotech.com/contact-us/\n\n¡Si esto es un error, háznoslo saber!",
-        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
-        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
-        "subscription_info":          "He decidido ofrecer esto de forma gratuita, pero si deseas apoyarme, puedes encontrar mi Ko-fi aquí:{kofi_link}. ¡Gracias por tu continuo apoyo!",
-        "settings_saved":             "¡Configuración guardada!",
-        "settings_unreadable":        "No se pudieron leer los ajustes de este servidor ahora mismo. Inténtalo de nuevo en un momento: no se ha cambiado nada.",
-        "invalid_vrc_id_input":       "Parece que ingresaste tu nombre para mostrar en lugar de tu ID de usuario de VRChat.\nPor favor, ingresa la URL completa del perfil o tu ID de usuario (que siempre comienza con `usr_`).\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "No pudimos encontrar tu código en tu biografía de VRChat. Inténtalo de nuevo. \n**Comprueba que el código esté en su propia línea.**",
-        "verify_button_expired":      "Este enlace de verificación ha caducado o fue reemplazado por uno más reciente. Por favor, ejecuta `/vrcverify` de nuevo para obtener un código nuevo.",
-        "nickname_updated":           "Tu apodo fue actualizado a {display_name}.",
-        "nickname_update_failed":     "No pudimos actualizar tu apodo.",
-        "setup_success":              "Configuración del servidor {action}.\nRol verificado establecido en: `{role}` (ID={role_id})",
-        "setup_unverified_set":       "\nRol no verificado a eliminar: `{role}` (ID={role_id})",
-        "setup_unverified_missing":   "\n(Rol no verificado no configurado; no se eliminará ningún rol al verificar.)",
-        "instructions_title":         "Cómo usar el bot de verificación de VRChat",
-        "instructions_desc":          "**Sigue estos pasos** para verificar tu estado 18+:\n\n"
-                                      "1. Haz clic en el botón **Iniciar Verificación** (si se muestra) o escribe `/vrcverify` en cualquier lugar.\n"
-                                      "2. Si eres nuevo, se te pedirá tu nombre de usuario de VRChat\n"
-                                      "3. El bot te dará un código único - colócalo en tu biografía de VRChat **EN SU PROPIA LÍNEA**\n"
-                                      "4. Presiona **Verificar** en Discord una vez que tu biografía esté actualizada\n\n"
-                                      "Si necesitas ayuda adicional, contacta a un admin o escribe `/vrcverify_support`.",
-        "btn_begin_verification":     "Iniciar Verificación",
-        "btn_update_nickname":        "Actualizar Apodo",
-        "settings_intro":             "**Configuración de Verificación VRChat**\n\n1.) **Habilitar cambio automático de apodo**\n   Actualiza automáticamente los apodos de Discord de los usuarios para que coincidan con sus nombres de pantalla de VRChat.\n   Actual: **{current}**",
-        "dm_role_failed_bot_position":"No pude asignar el rol '{role}' en {server}. Esto suele ocurrir cuando el rol del bot VRCVerify no está por encima de los roles verificado (y no verificado) en la lista de roles del servidor. Pide a un administrador que mueva el rol del bot VRCVerify por encima de esos roles e inténtalo de nuevo.",
-        "dm_unverified_failed_bot_position": "No se pudo quitar el rol {role} en {server}. Esto suele ocurrir cuando el rol del bot VRCVerify no está por encima del rol de no verificado. Pide a un administrador del servidor que compruebe que el rol del bot VRCVerify está por encima tanto del rol de verificado como del de no verificado (si procede).",
-        "custom_msg_cleared":         "Mensaje de solicitud de verificación personalizado borrado. Se usará el predeterminado.",
-        "custom_msg_saved":           "Mensaje de solicitud de verificación personalizado guardado.",
-        "custom_msg_too_long":        "Mensaje demasiado largo (máx. 1000 caracteres).",
-        "custom_msg_invalid_links":   "Bloqueado: Solo se permiten enlaces de discord.com o vrchat.com. Enlace(s) no válido(s):\n{invalid_list}",
-        "bio_verify_instructions1":   "**1)** Añade el código a tu biografía de VRChat en su propia línea.",
-        "bio_verify_instructions2":   "**2)** Una vez actualizada, haz clic en **Verificar** en Discord (dentro de 10 minutos).",
-        "vrc_id_already_linked":      "El perfil de VRChat que intentaste usar ya está registrado a otra cuenta de Discord. Si crees que se trata de un error, por favor contacta a un administrador del servidor.",
-        "vrchat_issue_user_not_found":               "No pudimos encontrar esa cuenta de VRChat. Comprueba que hayas pegado correctamente la URL del perfil de VRChat o el ID de usuario `usr_...`.",
-        "vrchat_issue_rate_limited":                "VRChat está limitando las consultas de verificación en este momento. Espera un minuto y vuelve a intentarlo.",
-        "vrchat_issue_temp_unavailable":             "VRCVerify no puede comunicarse con VRChat temporalmente en este momento. Inténtalo de nuevo dentro de un rato.",
-        "vrchat_issue_outage_confirmed":            "VRChat está informando actualmente de un problema de servicio que está afectando a la verificación. Inténtalo de nuevo más tarde.\n\nPágina de estado: {status_page}",
-        "vrchat_issue_outage_confirmed_with_status": "VRChat está informando actualmente de un problema de servicio que está afectando a la verificación. Inténtalo de nuevo más tarde.\n\nPágina de estado: {status_page}\n\nEstado informado: {status_message}",
-        "vrchat_issue_outage_suspected":            "Parece que VRChat está teniendo problemas temporales con la API, por lo que la verificación no pudo completarse en este momento. Inténtalo de nuevo más tarde.\n\nPágina de estado: {status_page}",
-        "vrchat_issue_unexpected":                   "La verificación no pudo completarse porque VRChat devolvió un error inesperado. Inténtalo de nuevo más tarde.",
-        "cooldown_active":            "Vas demasiado rápido. Espera {seconds} segundos e inténtalo de nuevo.",
-        "btn_donate":                 "Donar",
-        "setup_donate_hint":          "\n\n☕ VRCVerify es gratuito gracias a las donaciones. Si ayuda a tu comunidad, puedes apoyarlo aquí: {kofi_link}",
-        "milestone_owner_dm":         "🎉 ¡**{server}** ha alcanzado {count} verificaciones completadas con VRCVerify!\nEl bot es gratuito y se mantiene gracias a las donaciones. Si le ha sido útil a tu comunidad, puedes apoyarlo aquí: {kofi_link}\n(Este es un mensaje único.)",
-        "setup_panel_nudge":          "\n\n📌 **Un paso más:** los miembros no pueden verificarse hasta que publiques el panel de instrucciones.\nEjecuta `/vrcverify_instructions` en el canal desde el que quieras que se verifiquen. Usa un canal de texto normal que todos puedan ver, no un hilo, ya que los hilos se archivan solos y rompen el panel sin avisar.\nPuedes ejecutar `/vrcverify_status` cuando quieras para comprobarlo.",
-        "panel_nudge_dm":             "👋 Configuraste VRCVerify en **{server}**, pero aún no se ha publicado ningún panel de instrucciones, así que los miembros todavía no tienen forma de empezar a verificarse.\n\nEjecuta `/vrcverify_instructions` en el canal desde el que quieras que se verifiquen. Usa un canal de texto normal que todos puedan ver en lugar de un hilo, ya que los hilos se archivan solos y rompen el panel sin avisar.\n\nEjecuta `/vrcverify_status` en tu servidor para una comprobación rápida.\n(Este es un mensaje único.)",
-        "status_header":              "**Estado de VRCVerify en {server}**",
-        "status_role_ok":             "✅ Rol de verificado: **{role}**",
-        "status_role_missing":        "❌ No hay ningún rol de verificado configurado: ejecuta `/vrcverify_setup` para elegir uno.",
-        "status_role_deleted":        "❌ El rol de verificado configurado ya no existe: ejecuta `/vrcverify_setup` para elegir uno nuevo.",
-        "status_panel_ok":            "✅ El panel de instrucciones está publicado y el bot aún puede actualizarlo.",
-        "status_panel_missing":       "❌ No hay ningún panel de instrucciones publicado: ejecuta `/vrcverify_instructions` en el canal donde los miembros deban verificarse.",
-        "status_panel_unreachable":   "⚠️ El panel de instrucciones existe, pero el bot no puede actualizarlo. Comprueba que sigue teniendo **Ver canal**, **Enviar mensajes** e **Insertar enlaces** en ese canal.",
-        "status_panel_archived":      "⚠️ El panel de instrucciones está en un hilo que se ha archivado, así que el bot no puede actualizarlo. Desarchiva el hilo o publica un panel nuevo en un canal de texto normal.",
-        "status_panel_gone":          "❌ El panel de instrucciones guardado ya no existe: se eliminó él o su canal. Ejecuta `/vrcverify_instructions` de nuevo para publicar uno nuevo.",
-        "status_tips":                "\n**Consejos**\n• Publica el panel en un canal de texto normal que todos puedan ver: los hilos se archivan solos y lo rompen en silencio.\n• Mantén los permisos **Ver canal**, **Enviar mensajes** e **Insertar enlaces** del bot en ese canal.\n• Si eliminas o vuelves a crear ese canal, ejecuta `/vrcverify_instructions` otra vez.",
-        "guild_join_welcome_dm":      "👋 ¡Gracias por añadir VRCVerify a **{server}**!\n\nPara configurarlo:\n1. Ejecuta `/vrcverify_setup` para elegir el rol que reciben los miembros al verificarse.\n2. Ejecuta `/vrcverify_instructions` en el canal desde el que quieras que se verifiquen — usa un canal de texto normal que todos puedan ver, no un hilo, ya que los hilos se archivan solos y rompen el panel sin avisar.\n\n¿Necesitas ayuda? `/vrcverify_support` está para eso.",
-        "premium_status_active":      "✅ **VRCVerify Premium está activo en {server}.**\n\nDesbloqueado aquí:\n• Registro de actividad de verificación — configúralo con `/vrcverify_logchannel`\n• Prioridad en la cola de verificación cuando hay retraso\n• Eliminación automática del rol de no verificado\n• Sincronización automática del apodo con VRChat\n• Mensaje personalizado tras la verificación\n• Tu color y el icono de tu servidor en el mensaje de instrucciones\n• Tiempo de espera de verificación reducido\n• Invita a los miembros verificados directamente al grupo de VRChat de tu servidor\n\nLos ajustes de apariencia y automatización están en `/vrcverify_settings`.\n\nPuedes gestionarlo o cancelarlo cuando quieras desde **Ajustes de usuario → Suscripciones** en Discord.\nGracias por apoyar a VRCVerify. 💜",
-        "premium_status_active_card": "✅ **VRCVerify Premium está activo en {server}.**\n\nDesbloqueado aquí:\n• Registro de actividad de verificación — configúralo con `/vrcverify_logchannel`\n• Prioridad en la cola de verificación cuando hay retraso\n• Eliminación automática del rol de no verificado\n• Sincronización automática del apodo con VRChat\n• Mensaje personalizado tras la verificación\n• Tu color y el icono de tu servidor en el mensaje de instrucciones\n• Tiempo de espera de verificación reducido\n• Invita a los miembros verificados directamente al grupo de VRChat de tu servidor\n\nLos ajustes de apariencia y automatización están en `/vrcverify_settings`.\n\nEste servidor paga con tarjeta, así que gestiónalo o cancélalo en la **web de VRCVerify**: no aparecerá en los ajustes de suscripciones de Discord.\nGracias por apoyar a VRCVerify. 💜",
-        "premium_status_active_both": "⚠️ **{server} está pagando VRCVerify Premium dos veces.**\n\nHay una suscripción activa de **Discord** y otra de **tarjeta** para este servidor. Premium sigue activo — pero se te está cobrando por ambas.\n\nNo hemos cancelado nada por ti, a propósito: cancelar una suscripción y emitir un reembolso sin que lo decida una persona no es algo que este bot deba hacer por su cuenta.\n\nQuédate con la que prefieras y cancela la otra:\n• **Discord** — Ajustes de usuario → Suscripciones\n• **Tarjeta** — la página de Suscripciones en la web\n\nSi no lo tienes claro: la web tiene planes de 6 y 12 meses más baratos, y Discord solo puede facturar mensualmente.",
-        "premium_status_inactive":    "**La verificación 18+ es gratuita en {server}, y siempre lo será.** También lo es verificar automáticamente a los miembros ya verificados cuando entran.\n\nVRCVerify Premium añade estos extras opcionales para este servidor:\n• Registro de actividad de verificación: cada verificación en un canal que elijas, incluidas las que fallan en silencio\n• Prioridad en la cola de verificación cuando hay retraso\n• Eliminación automática del rol de no verificado\n• Sincronización automática del apodo con VRChat\n• Mensaje personalizado tras la verificación\n• Tu color y el icono de tu servidor en el mensaje de instrucciones\n• Tiempo de espera de verificación reducido\n• Invita a los miembros verificados directamente al grupo de VRChat de tu servidor\n\nUna sola suscripción cubre todo el servidor, y hay dos formas de contratarla:\n• **En Discord** — el botón de abajo. Facturación mensual.\n• **Con tarjeta en la web** — el mismo Premium, más planes de 6 y 12 meses que salen más baratos. Discord solo puede facturar mensualmente, así que los planes largos son exclusivos de la web.",
-        "premium_status_grandfathered": "**La verificación 18+ es gratuita en {server}, y siempre lo será.** También lo es verificar automáticamente a los miembros ya verificados cuando entran.\n\nComo este servidor se configuró antes del lanzamiento de Premium, además conserva estas funciones gratis, de forma permanente:\n• Eliminación automática del rol de no verificado\n• Sincronización automática del apodo con VRChat\n• Mensaje personalizado tras la verificación\n\nPremium añade esto por encima:\n• Registro de actividad de verificación: cada verificación en un canal que elijas, incluidas las que fallan en silencio\n• Prioridad en la cola de verificación cuando hay retraso\n• Tu color y el icono de tu servidor en el mensaje de instrucciones\n• Tiempo de espera de verificación reducido\n• Invita a los miembros verificados directamente al grupo de VRChat de tu servidor\n\n**Puedes conseguir Premium de dos formas:**\n• **En Discord** — el botón de abajo. Facturación mensual.\n• **Con tarjeta en la web** — el mismo Premium, más planes de 6 y 12 meses que salen más baratos. Discord solo puede facturar mensualmente, así que los planes largos son exclusivos de la web.",
-        "premium_cutover_dm":         "👋 Un aviso rápido sobre VRCVerify en **{server}**.\n\nVRCVerify ahora tiene un nivel Premium opcional y, para dejarlo claro desde el principio, **no cambia nada en tu servidor.**\n\nLa verificación 18+ es gratuita y seguirá siéndolo, de forma permanente, para todos. También lo es verificar automáticamente a los miembros ya verificados cuando entran.\n\nY como **{server}** se configuró antes del lanzamiento de Premium, conserva además estas funciones sin coste, de forma permanente:\n• Eliminación automática del rol de no verificado\n• Sincronización automática del apodo con VRChat\n• Mensaje personalizado tras la verificación\n\nAsí que no tienes que hacer nada. Si alguna vez te da curiosidad qué añade Premium, ejecuta `/vrcverify_subscription` en tu servidor.\n(Este es un mensaje único.)",
-        "log_verified":              "✅ {user} — verificado 18+ · {when}",
-        "log_role_failed":           "⚠️ {user} — verificado 18+, pero no se pudo asignar el rol. Comprueba que el rol del bot VRCVerify esté por encima del rol de verificado. · {when}",
-        "log_not_18":                "❌ {user} — no es 18+ según VRChat · {when}",
-        "log_entries_dropped":       "…no se pudieron registrar {count} entradas anteriores.",
-        "log_channel_ready":         "📋 A partir de ahora la actividad de verificación se registrará aquí.\nLas entradas muestran el miembro, el resultado y la hora, nunca su nombre ni su ID de VRChat.",
-        "log_channel_set":           "La actividad de verificación se registrará en {channel}.",
-        "log_channel_cleared":       "El registro de actividad de verificación está desactivado.",
-        "log_channel_premium_only":  "El registro de actividad de verificación es una función de VRCVerify Premium. La verificación 18+ sigue siendo gratuita para todos.",
-        "log_channel_no_permission": "No puedo publicar en {channel}. Dale al bot **Ver canal** y **Enviar mensajes** ahí y vuelve a ejecutar este comando.",
-        "log_channel_announcement": "{channel} es un canal de anuncios. Otros servidores pueden seguirlo, lo que republicaría el estado 18+ de tus miembros fuera de este servidor, así que no puede usarse como registro de verificación. Elige un canal de texto normal.",
-        "panel_color_invalid": "Eso no parece un color hexadecimal. Usa algo como `#5865F2` (o `#58F` en forma corta).",
-        # Issue #49 phase 5: the member-facing group invite.
-        "btn_group_invite": "Envíame una invitación",
-        "dm_group_invite_offer": "¡Estás verificado en **{server}**! ¿Quieres una invitación a su grupo de VRChat, **{group}**?\n\nNo se envía nada a VRChat a menos que pulses el botón.",
-        "group_invite_working": "Pidiendo tu invitación a VRChat...",
-        "group_invite_sent": "¡Invitación enviada! Abre tus notificaciones de VRChat para unirte a **{group}**.",
-        "group_invite_already_member": "Ya estás en **{group}**, así que no hay nada que enviar.",
-        "group_invite_already_invited": "Ya tienes una invitación a **{group}** esperando en tus notificaciones de VRChat.",
-        "group_invite_blocked": "VRChat no pudo entregar la invitación. Puede que tengas las invitaciones de grupo desactivadas en los ajustes de VRChat, o que el grupo esté bloqueado en tu cuenta.",
-        "group_invite_banned": "No puedes recibir invitaciones a **{group}**. Solo un moderador del grupo puede cambiarlo.",
-        "group_invite_setup_problem": "El grupo de VRChat de **{server}** no está configurado correctamente ahora mismo, así que no se pudo enviar la invitación. Avisa a los administradores del servidor.",
-        "group_invite_unavailable": "VRChat no respondió, así que no se pudo enviar la invitación. Inténtalo de nuevo en unos minutos.",
-        "group_invite_too_soon": "Ya has pedido una invitación. Espera unos minutos antes de volver a intentarlo.",
-        "group_invite_account_missing": "VRChat no reconoció la cuenta con la que te verificaste, así que no se pudo enviar la invitación. Vuelve a verificarte para volver a vincular tu cuenta de VRChat.",
-        "group_invite_not_a_member": "Esta invitación era para **{server}**, y ya no eres miembro de ese servidor. Únete al servidor y verifícate de nuevo si aún quieres una invitación.",
-        "group_invite_not_verified": "Actualmente no estás verificado como 18+ en **{server}**, así que no se pudo enviar la invitación. Verifícate de nuevo para recibir una nueva invitación.",
-        "group_invite_account_changed": "Esta invitación era para una cuenta de VRChat distinta a la que tienes vinculada ahora. Verifícate de nuevo para recibir una nueva invitación para tu cuenta actual.",
-    },
+NOT_VERIFIED = N_(
+    "You haven't verified yet. Please click **Begin Verification** first."
+)
 
-    "zh-CN": {
-        "not_verified":               "您尚未通过验证。请先点击 **开始验证**。",
-        "already_verified":           "您已通过验证! 角色已分配（或重新分配）。",
-        "recheck_started":            "我们正在重新检查您的 18+ 状态。如果您已更新 VRChat 年龄验证,很快就会收到私信! ",
-        "dm_role_success":            "您已验证并获得 **{role}** 角色,位于 **{server}**!",
-        "nickname_update_requested":  "已请求更新昵称。完成后我会通过私信通知您! ",
-        "verification_requested":     "验证请求已收到！完成后我们会私信通知您。请确保已开启此服务器的私信。",
-        "setup_missing":              "此服务器尚未设置验证角色。请联系管理员。",
-        "not_18_plus":                "根据VRChat,您未满18岁。如果有误,请联系管理员。",
-        "support_info":               "需要验证帮助？\n- 联系服务器管理员获取帮助\n- 或访问我们的支持页面:https://esattotech.com/contact-us/\n\n如果有误,请告诉我们! ",
-        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
-        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
-        "subscription_info":          "我决定免费提供此功能,如果您愿意支持我,可以点击此处的我的Ko-fi:{kofi_link}。感谢您的持续支持! ",
-        "settings_saved":             "设置已保存!",
-        "settings_unreadable":        "暂时无法读取该服务器的设置。请稍后重试 — 任何设置都未更改。",
-        "invalid_vrc_id_input":       "您似乎输入了显示名称而不是 VRChat 用户ID。\n请输入完整的个人资料 URL 或以 `usr_` 开头的用户ID。\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "我们未能在您的 VRChat 简介中找到该代码。请重试。\n**请确认代码位于单独一行。**",
-        "verify_button_expired":      "此验证链接已过期或已被更新的链接替换。请重新输入 `/vrcverify` 以获取新代码。",
-        "nickname_updated":           "您的昵称已更新为 {display_name}。",
-        "nickname_update_failed":     "我们无法更新您的昵称。",
-        "setup_success":              "成功{action} 服务器配置。\n已将已验证角色设置为: `{role}` (ID={role_id})",
-        "setup_unverified_set":       "\n待移除的未验证角色: `{role}` (ID={role_id})",
-        "setup_unverified_missing":   "\n（未设置未验证角色；验证后不会移除任何角色。）",
-        "instructions_title":         "如何使用 VRChat 验证机器人",
-        "instructions_desc":          "**按照这些步骤** 验证您的 18+ 状态:\n\n"
-                                      "1. 点击 **开始验证** 按钮（如果显示）或在任何地方输入 `/vrcverify`。\n"
-                                      "2. 如果您是新用户,系统会要求您提供 VRChat 用户名\n"
-                                      "3. 机器人会给您一个唯一的代码 - 将其放入您的 VRChat 个人资料中 **单独一行**\n"
-                                      "4. 更新个人资料后,在 Discord 中按 **验证**\n\n"
-                                      "如果您需要额外的帮助,请联系管理员或输入 `/vrcverify_support`。",
-        "btn_begin_verification":     "开始验证",
-        "btn_update_nickname":        "更新昵称",
-        "settings_intro":             "**VRChat 验证设置**\n\n1.) **启用自动昵称更改**\n   自动更新用户的 Discord 昵称以匹配他们的 VRChat 显示名称。\n   当前:**{current}**",
-        "dm_role_failed_bot_position":"我无法在 {server} 为你分配“{role}”角色。通常是因为 VRCVerify 机器人的角色没有位于已验证（和未验证）角色之上。请让服务器管理员将 VRCVerify 机器人的角色移动到这些角色之上，然后再试一次。",
-        "dm_unverified_failed_bot_position": "无法在 {server} 中移除 {role} 身份组。这通常是因为 VRCVerify 机器人的身份组没有排在未验证身份组之上。请让服务器管理员确认 VRCVerify 机器人的身份组位于已验证和未验证身份组（如果有）之上。",
-        "custom_msg_cleared":         "自定义验证请求消息已清除。将使用默认消息。",
-        "custom_msg_saved":           "自定义验证请求消息已保存。",
-        "custom_msg_too_long":        "消息过长（最多1000字符）。",
-        "custom_msg_invalid_links":   "已阻止：只允许 discord.com 或 vrchat.com 链接。无效链接：\n{invalid_list}",
-        "bio_verify_instructions1":   "**1)** 将代码添加到您的 VRChat 个人资料简介中的单独一行。",
-        "bio_verify_instructions2":   "**2)** 更新后，在 Discord 中点击 **验证**（在 10 分钟内）。",
-        "vrc_id_already_linked":      "您尝试使用的 VRChat 个人资料已经绑定到另一位 Discord 帐号。如果您认为这是错误的，请联系服务器管理员。",
-        "vrchat_issue_user_not_found":               "我们找不到该 VRChat 账号。请再次确认您粘贴的 VRChat 个人资料链接或 `usr_...` 用户 ID 是否正确。",
-        "vrchat_issue_rate_limited":                "VRChat 目前正在限制验证查询请求。请稍等一分钟后再试。",
-        "vrchat_issue_temp_unavailable":             "VRCVerify 目前暂时无法连接到 VRChat。请稍后再试。",
-        "vrchat_issue_outage_confirmed":            "VRChat 当前报告了影响验证流程的服务问题。请稍后再试。\n\n状态页面：{status_page}",
-        "vrchat_issue_outage_confirmed_with_status": "VRChat 当前报告了影响验证流程的服务问题。请稍后再试。\n\n状态页面：{status_page}\n\n报告状态：{status_message}",
-        "vrchat_issue_outage_suspected":            "VRChat 似乎暂时出现了 API 问题，因此目前无法完成验证。请稍后再试。\n\n状态页面：{status_page}",
-        "vrchat_issue_unexpected":                   "由于 VRChat 返回了意外错误，验证无法完成。请稍后再试。",
-        "cooldown_active":            "操作太频繁。请等待 {seconds} 秒后再试。",
-        "btn_donate":                 "捐赠",
-        "setup_donate_hint":          "\n\n☕ VRCVerify 依靠捐赠免费提供。如果它对您的社区有帮助,您可以在这里支持我们:{kofi_link}",
-        "milestone_owner_dm":         "🎉 **{server}** 已通过 VRCVerify 完成 {count} 次验证!\n本机器人免费提供,依靠捐赠维持运营。如果它对您的社区有帮助,您可以在这里支持我们:{kofi_link}\n(此消息仅发送一次。)",
-        "setup_panel_nudge":          "\n\n📌 **还差一步:** 在你发布说明面板之前,成员无法进行验证。\n请在你希望成员验证的频道中运行 `/vrcverify_instructions`。请使用所有人都能看到的普通文字频道,不要使用子区,因为子区会自动存档并悄悄使面板失效。\n你可以随时运行 `/vrcverify_status` 来检查状态。",
-        "panel_nudge_dm":             "👋 你已经在 **{server}** 中设置了 VRCVerify,但尚未发布说明面板,因此成员目前仍然无法开始验证。\n\n请在你希望成员验证的频道中运行 `/vrcverify_instructions`。请使用所有人都能看到的普通文字频道,而不是子区,因为子区会自动存档并悄悄使面板失效。\n\n在你的服务器中运行 `/vrcverify_status` 可以快速检查状态。\n(此消息仅发送一次。)",
-        "status_header":              "**{server} 的 VRCVerify 状态**",
-        "status_role_ok":             "✅ 已验证身份组:**{role}**",
-        "status_role_missing":        "❌ 尚未设置已验证身份组 — 请运行 `/vrcverify_setup` 选择一个。",
-        "status_role_deleted":        "❌ 已配置的已验证身份组不存在了 — 请运行 `/vrcverify_setup` 重新选择一个。",
-        "status_panel_ok":            "✅ 说明面板已发布,机器人仍可更新它。",
-        "status_panel_missing":       "❌ 尚未发布说明面板 — 请在成员应进行验证的频道中运行 `/vrcverify_instructions`。",
-        "status_panel_unreachable":   "⚠️ 说明面板存在,但机器人无法更新它。请检查机器人在该频道中是否仍拥有**查看频道**、**发送消息**和**嵌入链接**权限。",
-        "status_panel_archived":      "⚠️ 说明面板位于已存档的子区中,机器人无法更新它。请取消存档该子区,或在普通文字频道中重新发布面板。",
-        "status_panel_gone":          "❌ 已保存的说明面板不存在了 — 面板或其频道已被删除。请再次运行 `/vrcverify_instructions` 发布新的面板。",
-        "status_tips":                "\n**提示**\n• 请把面板发布在所有人都能看到的普通文字频道 — 子区会自动存档并悄悄使其失效。\n• 请保留机器人在该频道的**查看频道**、**发送消息**和**嵌入链接**权限。\n• 如果你删除或重建了该频道,请再次运行 `/vrcverify_instructions`。",
-        "guild_join_welcome_dm":      "👋 感谢将 VRCVerify 添加到 **{server}**!\n\n设置步骤:\n1. 运行 `/vrcverify_setup` 选择成员验证后获得的身份组。\n2. 在你希望成员进行验证的频道中运行 `/vrcverify_instructions` — 请使用所有人都能看到的普通文字频道,不要使用子区,因为子区会自动存档并悄悄使面板失效。\n\n需要帮助?可以使用 `/vrcverify_support`。",
-        "premium_status_active":      "✅ **{server} 已启用 VRCVerify 高级版。**\n\n本服务器已解锁:\n• 验证活动日志 — 使用 `/vrcverify_logchannel` 设置\n• 出现积压时，你的成员在验证队列中优先处理\n• 自动移除未验证身份组\n• 自动将昵称与 VRChat 同步\n• 自定义验证成功后的消息\n• 在说明面板上使用你自己的颜色和服务器图标\n• 更短的验证冷却时间\n• 将已验证的成员直接邀请到你服务器的 VRChat 群组\n\n外观和自动化设置位于 `/vrcverify_settings`。\n\n你可以随时在 Discord 的**用户设置 → 订阅**中管理或取消。\n感谢你对 VRCVerify 的支持。💜",
-        "premium_status_active_card": "✅ **{server} 已启用 VRCVerify 高级版。**\n\n本服务器已解锁:\n• 验证活动日志 — 使用 `/vrcverify_logchannel` 设置\n• 出现积压时，你的成员在验证队列中优先处理\n• 自动移除未验证身份组\n• 自动将昵称与 VRChat 同步\n• 自定义验证成功后的消息\n• 在说明面板上使用你自己的颜色和服务器图标\n• 更短的验证冷却时间\n• 将已验证的成员直接邀请到你服务器的 VRChat 群组\n\n外观和自动化设置位于 `/vrcverify_settings`。\n\n本服务器通过银行卡付款，请在 **VRCVerify 网站**上管理或取消 — Discord 的订阅设置中不会显示它。\n感谢你对 VRCVerify 的支持。💜",
-        "premium_status_active_both": "⚠️ **{server} 为 VRCVerify 高级版重复付费了。**\n\n本服务器同时有一个有效的 **Discord** 订阅和一个有效的**银行卡**订阅。高级版仍然可用 — 但你正在被重复扣费。\n\n我们没有替你取消任何一个，这是有意为之：在没有人做决定的情况下取消订阅并退款，不是这个机器人该自行处理的事。\n\n请保留你想要的那一个，并取消另一个：\n• **Discord** — 用户设置 → 订阅\n• **银行卡** — 网站上的订阅页面\n\n如果拿不定主意：网站上的 6 个月和 12 个月方案更划算，而 Discord 只能按月计费。",
-        "premium_status_inactive":    "**{server} 的 18+ 验证是免费的,并且永远免费。**已验证成员加入时自动验证同样免费。\n\nVRCVerify 高级版为本服务器增加以下可选功能:\n• 验证活动日志：每一次验证都记录到你选择的频道，包括那些静默失败的\n• 出现积压时，你的成员在验证队列中优先处理\n• 自动移除未验证身份组\n• 自动将昵称与 VRChat 同步\n• 自定义验证成功后的消息\n• 在说明面板上使用你自己的颜色和服务器图标\n• 更短的验证冷却时间\n• 将已验证的成员直接邀请到你服务器的 VRChat 群组\n\n一次订阅即可覆盖整个服务器，有两种购买方式：\n• **在 Discord 中** — 点击下方按钮，按月计费。\n• **在网站上用银行卡** — 同样的高级版，还有更划算的 6 个月和 12 个月方案。Discord 只能按月计费，所以长期方案仅在网站提供。",
-        "premium_status_grandfathered": "**{server} 的 18+ 验证是免费的,并且永远免费。**已验证成员加入时自动验证同样免费。\n\n由于本服务器在高级版推出之前就已完成设置,以下功能也将永久免费保留:\n• 自动移除未验证身份组\n• 自动将昵称与 VRChat 同步\n• 自定义验证成功后的消息\n\n高级版在此之上还提供：\n• 验证活动日志：每一次验证都记录到你选择的频道，包括那些静默失败的\n• 出现积压时，你的成员在验证队列中优先处理\n• 在说明面板上使用你自己的颜色和服务器图标\n• 更短的验证冷却时间\n• 将已验证的成员直接邀请到你服务器的 VRChat 群组\n\n**获取高级版有两种方式：**\n• **在 Discord 中** — 点击下方按钮，按月计费。\n• **在网站上用银行卡** — 同样的高级版，还有更划算的 6 个月和 12 个月方案。Discord 只能按月计费，所以长期方案仅在网站提供。",
-        "premium_cutover_dm":         "👋 关于 **{server}** 中 VRCVerify 的一则简短通知。\n\nVRCVerify 现在推出了可选的高级版。先说清楚:**你的服务器不会有任何变化。**\n\n18+ 验证是免费的,并且将永久对所有人免费。已验证成员加入时自动验证同样免费。\n\n而且由于 **{server}** 在高级版推出之前就已完成设置,以下功能也将永久免费保留:\n• 自动移除未验证身份组\n• 自动将昵称与 VRChat 同步\n• 自定义验证成功后的消息\n\n所以你无需做任何事。如果你想了解高级版还提供什么,可以在服务器中运行 `/vrcverify_subscription`。\n(这是一次性消息。)",
-        "log_verified":              "✅ {user} — 已验证 18+ · {when}",
-        "log_role_failed":           "⚠️ {user} — 已验证 18+，但无法分配身份组。请检查 VRCVerify 机器人的身份组是否位于已验证身份组之上。· {when}",
-        "log_not_18":                "❌ {user} — 根据 VRChat 未满 18 岁 · {when}",
-        "log_entries_dropped":       "…有 {count} 条较早的记录未能写入。",
-        "log_channel_ready":         "📋 今后验证活动将记录在此频道。\n记录仅显示成员、结果和时间，绝不会显示其 VRChat 名称或 ID。",
-        "log_channel_set":           "验证活动将记录在 {channel}。",
-        "log_channel_cleared":       "验证活动记录已关闭。",
-        "log_channel_premium_only":  "验证活动日志是 VRCVerify 高级版功能。核心的 18+ 验证对所有人始终免费。",
-        "log_channel_no_permission": "我无法在 {channel} 中发言。请授予机器人该频道的**查看频道**和**发送消息**权限，然后重新运行此命令。",
-        "log_channel_announcement": "{channel} 是公告频道。其他服务器可以关注它，这会把你成员的 18+ 状态转发到本服务器之外，因此不能用作验证日志。请选择一个普通文字频道。",
-        "panel_color_invalid": "这看起来不是十六进制颜色。请使用类似 `#5865F2` 的格式（也可以简写为 `#58F`）。",
-        # Issue #49 phase 5: the member-facing group invite.
-        "btn_group_invite": "给我发送邀请",
-        "dm_group_invite_offer": "你已在 **{server}** 完成验证！需要该服务器 VRChat 群组 **{group}** 的邀请吗？\n\n除非你点击按钮，否则不会向 VRChat 发送任何内容。",
-        "group_invite_working": "正在向 VRChat 请求你的邀请……",
-        "group_invite_sent": "邀请已发送！请打开 VRChat 通知加入 **{group}**。",
-        "group_invite_already_member": "你已经是 **{group}** 的成员，因此无需发送邀请。",
-        "group_invite_already_invited": "你的 VRChat 通知中已经有一份 **{group}** 的邀请在等待你。",
-        "group_invite_blocked": "VRChat 无法送达这份邀请。你的 VRChat 设置中可能关闭了群组邀请，或者该群组在你的账号上被屏蔽了。",
-        "group_invite_banned": "你无法被邀请加入 **{group}**。只有群组管理员才能更改这一点。",
-        "group_invite_setup_problem": "**{server}** 的 VRChat 群组目前配置不正确，因此无法发送邀请。请告知该服务器的管理员。",
-        "group_invite_unavailable": "VRChat 没有响应，因此无法发送邀请。请几分钟后再试。",
-        "group_invite_too_soon": "你已经申请过邀请了。请等几分钟再试。",
-        "group_invite_account_missing": "VRChat 无法识别你验证时使用的账号，因此邀请无法发送。请重新进行验证，以重新关联你的 VRChat 账号。",
-        "group_invite_not_a_member": "这份邀请来自 **{server}**，而你已不再是该服务器的成员。如果仍想获得邀请，请重新加入该服务器并再次进行验证。",
-        "group_invite_not_verified": "你目前在 **{server}** 中未被验证为 18+，因此无法发送邀请。请重新验证以获得新的邀请。",
-        "group_invite_account_changed": "此邀请是为另一个 VRChat 账号发出的，与你当前绑定的账号不同。请重新验证，以便为你当前的账号获得新的邀请。",
-    },
+ALREADY_VERIFIED = N_("You're already verified! Role assigned (or re-assigned).")
 
-    "ja": {
-        "not_verified":               "まだ認証されていません。最初に **認証を開始** をクリックしてください。",
-        "already_verified":           "既に認証済みです! ロールが適用されました（または再適用されました）。",
-        "recheck_started":            "VRChat の 18+ ステータスを再チェックしています。年齢認証を更新している場合は、すぐにDMが届きます!",
-        "dm_role_success":            "認証され、**{server}** の **{role}** ロールが付与されました! ",
-        "nickname_update_requested":  "ニックネーム更新をリクエストしました。完了したらDMでお知らせします!",
-        "verification_requested":     "検証リクエストを受信しました。結果はDMでお知らせします。サーバーのDMを開放していることを確認してください。",
-        "setup_missing":              "このサーバーはまだ検証ロールを設定していません。管理者に連絡してください。",
-        "not_18_plus":                "VRChatによると18歳以上ではありません。エラーの場合は管理者にお問い合わせください。",
-        "support_info":               "検証に関するサポートが必要ですか？\n- サーバー管理者にお問い合わせください\n- サポートページ:https://esattotech.com/contact-us/\n\nエラーの場合はお知らせください! ",
-        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
-        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
-        "subscription_info":          "この機能は無料で提供していますが、サポートしていただける場合はKo-fiをご覧ください:{kofi_link}。継続的なサポートに感謝します! ",
-        "settings_saved":             "設定が保存されました!",
-        "settings_unreadable":        "現在、このサーバーの設定を読み取れませんでした。しばらくしてからもう一度お試しください — 設定は変更されていません。",
-        "invalid_vrc_id_input":       "表示名ではなく VRChat のユーザーID を入力してください。\nプロフィール URL または `usr_` で始まるユーザーID を入力してください。\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "VRChat の自己紹介にコードが見つかりませんでした。もう一度お試しください。\n**コードが単独の行にあることを再確認してください。**",
-        "verify_button_expired":      "この認証リンクは期限切れか、新しいものに置き換えられました。もう一度 `/vrcverify` を実行して新しいコードを取得してください。",
-        "nickname_updated":           "ニックネームを {display_name} に更新しました。",
-        "nickname_update_failed":     "ニックネームを更新できませんでした。",
-        "setup_success":              "サーバー設定を{action}しました。\n認証済みロール: `{role}` (ID={role_id})",
-        "setup_unverified_set":       "\n削除する未認証ロール: `{role}` (ID={role_id})",
-        "setup_unverified_missing":   "\n（未認証ロールは未設定です。認証時にロールは削除されません。）",
-        "instructions_title":         "VRChat 認証ボットの使い方",
-        "instructions_desc":          "**この手順に従って** 18 歳以上であることを確認してください:\n\n"
-                                      "1. **認証を開始** ボタンをクリックするか、任意の場所に `/vrcverify` と入力します。\n"
-                                      "2. 初めての場合は、VRChat ユーザー名を求められます。\n"
-                                      "3. ボットが一意のコードを提供します。このコードを VRChat の自己紹介に **単独の行で** 入力します。\n"
-                                      "4. 自己紹介を更新したら、Discord で **確認** を押します。\n\n"
-                                      "追加のヘルプが必要な場合は、管理者に連絡するか、`/vrcverify_support` と入力してください。",
-        "btn_begin_verification":     "認証を開始",
-        "btn_update_nickname":        "ニックネームを更新",
-        "settings_intro":             "**VRChat 認証設定**\n\n1.) **自動ニックネーム変更を有効にする**\n   ユーザーの Discord ニックネームを VRChat の表示名に合わせて自動的に更新します。\n   現在: **{current}**",
-        "dm_role_failed_bot_position":"{server} で「{role}」ロールを付与できませんでした。多くの場合、VRCVerify ボットのロールが、Verified（および Unverified）ロールより上にないことが原因です。サーバー管理者に依頼して、VRCVerify ボットのロールをそれらのロールより上に移動してから、もう一度お試しください。",
-        "dm_unverified_failed_bot_position": "{server} で {role} ロールを外せませんでした。これは通常、VRCVerify Bot のロールが未認証ロールより上にない場合に起こります。VRCVerify Bot のロールが認証済みロールと未認証ロール（設定されている場合）の両方より上にあるか、サーバー管理者に確認してもらってください。",
-        "custom_msg_cleared":         "カスタム検証リクエストメッセージをクリアしました。デフォルトを使用します。",
-        "custom_msg_saved":           "カスタム検証リクエストメッセージを保存しました。",
-        "custom_msg_too_long":        "メッセージが長すぎます（最大1000文字）。",
-        "custom_msg_invalid_links":   "ブロック: discord.com または vrchat.com へのリンクのみ許可されます。無効なリンク:\n{invalid_list}",
-        "bio_verify_instructions1":   "**1)** コードを VRChat の自己紹介に単独の行として追加してください。",
-        "bio_verify_instructions2":   "**2)** 自己紹介を更新したら、Discord で **確認** をクリックしてください（10分以内）。",
-        "vrc_id_already_linked":      "使用しようとしたVRChatプロフィールは、すでに別のDiscordアカウントに登録されています。間違いだと思う場合はサーバー管理者に連絡してください。",
-        "vrchat_issue_user_not_found":               "そのVRChatアカウントが見つかりませんでした。貼り付けたVRChatプロフィールURLまたは `usr_...` のユーザーIDが正しいか確認してください。",
-        "vrchat_issue_rate_limited":                "現在、VRChat が認証確認リクエストをレート制限しています。1分ほど待ってからもう一度お試しください。",
-        "vrchat_issue_temp_unavailable":             "現在、VRCVerify は一時的に VRChat と通信できません。しばらくしてからもう一度お試しください。",
-        "vrchat_issue_outage_confirmed":            "現在、VRChat は認証に影響するサービス障害を報告しています。後でもう一度お試しください。\n\nステータスページ: {status_page}",
-        "vrchat_issue_outage_confirmed_with_status": "現在、VRChat は認証に影響するサービス障害を報告しています。後でもう一度お試しください。\n\nステータスページ: {status_page}\n\n報告された状態: {status_message}",
-        "vrchat_issue_outage_suspected":            "VRChat で一時的な API 障害が発生しているようで、現在は認証を完了できません。後でもう一度お試しください。\n\nステータスページ: {status_page}",
-        "vrchat_issue_unexpected":                   "VRChat から予期しないエラーが返されたため、認証を完了できませんでした。後でもう一度お試しください。",
-        "cooldown_active":            "操作が早すぎます。{seconds}秒待ってからもう一度お試しください。",
-        "btn_donate":                 "寄付",
-        "setup_donate_hint":          "\n\n☕ VRCVerifyは寄付のおかげで無料で提供されています。コミュニティのお役に立てましたら、こちらからご支援ください:{kofi_link}",
-        "milestone_owner_dm":         "🎉 **{server}** はVRCVerifyで{count}件の認証を達成しました!\nこのボットは無料で、寄付によって運営されています。コミュニティのお役に立てましたら、こちらからご支援ください:{kofi_link}\n(このメッセージは一度だけ送信されます。)",
-        "setup_panel_nudge":          "\n\n📌 **あと一歩:** 説明パネルを投稿するまで、メンバーは認証できません。\nメンバーに認証してほしいチャンネルで `/vrcverify_instructions` を実行してください。スレッドではなく、全員が常に見られる通常のテキストチャンネルをお使いください。スレッドは自動アーカイブされ、パネルが気づかないうちに動かなくなります。\n`/vrcverify_status` はいつでも実行して状態を確認できます。",
-        "panel_nudge_dm":             "👋 **{server}** で VRCVerify を設定していただきましたが、説明パネルがまだ投稿されていないため、メンバーは認証を開始できない状態です。\n\nメンバーに認証してほしいチャンネルで `/vrcverify_instructions` を実行してください。スレッドではなく、全員が常に見られる通常のテキストチャンネルをお使いください。スレッドは自動アーカイブされ、パネルが気づかないうちに動かなくなります。\n\nサーバー内で `/vrcverify_status` を実行すると、簡単に状態を確認できます。\n(このメッセージは一度だけ送信されます。)",
-        "status_header":              "**{server} の VRCVerify ステータス**",
-        "status_role_ok":             "✅ 認証済みロール: **{role}**",
-        "status_role_missing":        "❌ 認証済みロールが設定されていません。`/vrcverify_setup` を実行して選択してください。",
-        "status_role_deleted":        "❌ 設定されていた認証済みロールが存在しません。`/vrcverify_setup` を実行して選び直してください。",
-        "status_panel_ok":            "✅ 説明パネルは投稿済みで、ボットはまだ更新できます。",
-        "status_panel_missing":       "❌ 説明パネルが投稿されていません。メンバーが認証するチャンネルで `/vrcverify_instructions` を実行してください。",
-        "status_panel_unreachable":   "⚠️ 説明パネルはありますが、ボットが更新できません。そのチャンネルで**チャンネルを見る**、**メッセージを送信**、**埋め込みリンク**の権限が残っているか確認してください。",
-        "status_panel_archived":      "⚠️ 説明パネルがアーカイブ済みのスレッド内にあるため、ボットが更新できません。スレッドのアーカイブを解除するか、通常のテキストチャンネルにパネルを投稿し直してください。",
-        "status_panel_gone":          "❌ 保存されていた説明パネルが存在しません。パネルまたはそのチャンネルが削除されています。`/vrcverify_instructions` をもう一度実行して新しく投稿してください。",
-        "status_tips":                "\n**ヒント**\n• パネルは全員が常に見られる通常のテキストチャンネルに投稿してください。スレッドは自動アーカイブされ、静かに機能しなくなります。\n• そのチャンネルでボットの**チャンネルを見る**、**メッセージを送信**、**埋め込みリンク**の権限を維持してください。\n• そのチャンネルを削除したり作り直したりした場合は、`/vrcverify_instructions` を再実行してください。",
-        "guild_join_welcome_dm":      "👋 **{server}** に VRCVerify を追加していただきありがとうございます!\n\n設定手順:\n1. `/vrcverify_setup` を実行し、認証済みメンバーに付与するロールを選んでください。\n2. メンバーに認証してほしいチャンネルで `/vrcverify_instructions` を実行してください。スレッドではなく、全員が常に見られる通常のテキストチャンネルをお使いください。スレッドは自動アーカイブされ、パネルが気づかないうちに動かなくなります。\n\n困ったときは `/vrcverify_support` をご利用ください。",
-        "premium_status_active":      "✅ **{server} で VRCVerify Premium が有効です。**\n\nこのサーバーで利用できる機能:\n• 認証アクティビティログ — `/vrcverify_logchannel` で設定できます\n• 混み合っているときは認証キューで優先されます\n• 未認証ロールの自動削除\n• VRChat とのニックネーム自動同期\n• 認証完了後のカスタムメッセージ\n• 説明パネルに自分の色とサーバーアイコンを使えます\n• 認証クールダウンの短縮\n• 認証済みメンバーをサーバーの VRChat グループへ直接招待\n\n外観と自動化の設定は `/vrcverify_settings` にあります。\n\nDiscord の**ユーザー設定 → サブスクリプション**からいつでも管理・解約できます。\nVRCVerify をご支援いただきありがとうございます。💜",
-        "premium_status_active_card": "✅ **{server} で VRCVerify Premium が有効です。**\n\nこのサーバーで利用できる機能:\n• 認証アクティビティログ — `/vrcverify_logchannel` で設定できます\n• 混み合っているときは認証キューで優先されます\n• 未認証ロールの自動削除\n• VRChat とのニックネーム自動同期\n• 認証完了後のカスタムメッセージ\n• 説明パネルに自分の色とサーバーアイコンを使えます\n• 認証クールダウンの短縮\n• 認証済みメンバーをサーバーの VRChat グループへ直接招待\n\n外観と自動化の設定は `/vrcverify_settings` にあります。\n\nこのサーバーはカード決済です。管理・解約は **VRCVerify のウェブサイト**から行ってください。Discord のサブスクリプション設定には表示されません。\nVRCVerify をご支援いただきありがとうございます。💜",
-        "premium_status_active_both": "⚠️ **{server} は VRCVerify Premium を二重に支払っています。**\n\nこのサーバーには有効な **Discord** のサブスクリプションと、有効な**カード**のサブスクリプションの両方があります。Premium は引き続き有効ですが、二重に課金されています。\n\n意図的に、こちらでは何も解約していません。人が判断しないまま解約や返金を行うことは、このボットが独断ですべきことではないからです。\n\nお好きなほうを残し、もう一方を解約してください:\n• **Discord** — ユーザー設定 → サブスクリプション\n• **カード** — ウェブサイトのサブスクリプションページ\n\n迷う場合: ウェブサイトには割安な 6 か月・12 か月プランがあり、Discord は月額のみです。",
-        "premium_status_inactive":    "**{server} での 18+ 認証は無料であり、これからもずっと無料です。** 認証済みメンバーの参加時の自動認証も無料のままです。\n\nVRCVerify Premium は、このサーバー向けに次の任意の機能を追加します:\n• 認証アクティビティログ：選んだチャンネルにすべての認証を記録します。無言で失敗したものも含みます\n• 混み合っているときは認証キューで優先されます\n• 未認証ロールの自動削除\n• VRChat とのニックネーム自動同期\n• 認証完了後のカスタムメッセージ\n• 説明パネルに自分の色とサーバーアイコンを使えます\n• 認証クールダウンの短縮\n• 認証済みメンバーをサーバーの VRChat グループへ直接招待\n\n1 つのサブスクリプションでサーバー全体がカバーされます。登録方法は 2 つあります:\n• **Discord で** — 下のボタンから。月額課金です。\n• **ウェブサイトでカード決済** — 同じ Premium に加えて、割安な 6 か月・12 か月プランもあります。Discord は月額しか扱えないため、長期プランはウェブサイト限定です。",
-        "premium_status_grandfathered": "**{server} での 18+ 認証は無料であり、これからもずっと無料です。** 認証済みメンバーの参加時の自動認証も無料のままです。\n\nさらにこのサーバーは Premium の提供開始より前に設定されているため、以下の機能も今後ずっと無料のままです:\n• 未認証ロールの自動削除\n• VRChat とのニックネーム自動同期\n• 認証完了後のカスタムメッセージ\n\nプレミアムではさらに以下が追加されます:\n• 認証アクティビティログ：選んだチャンネルにすべての認証を記録します。無言で失敗したものも含みます\n• 混み合っているときは認証キューで優先されます\n• 説明パネルに自分の色とサーバーアイコンを使えます\n• 認証クールダウンの短縮\n• 認証済みメンバーをサーバーの VRChat グループへ直接招待\n\n**Premium の登録方法は 2 つあります:**\n• **Discord で** — 下のボタンから。月額課金です。\n• **ウェブサイトでカード決済** — 同じ Premium に加えて、割安な 6 か月・12 か月プランもあります。Discord は月額しか扱えないため、長期プランはウェブサイト限定です。",
-        "premium_cutover_dm":         "👋 **{server}** の VRCVerify について簡単なお知らせです。\n\nVRCVerify に任意の Premium プランが追加されました。先にはっきりお伝えすると、**あなたのサーバーで変わることは何もありません。**\n\n18+ 認証は無料であり、今後もずっとすべての方に無料で提供されます。認証済みメンバーの参加時の自動認証も無料のままです。\n\nさらに **{server}** は Premium の提供開始より前に設定されているため、以下の機能も無償のまま、ずっと保持されます:\n• 未認証ロールの自動削除\n• VRChat とのニックネーム自動同期\n• 認証完了後のカスタムメッセージ\n\nですので、何かしていただく必要はありません。Premium の内容が気になったときは、サーバーで `/vrcverify_subscription` を実行してください。\n(このメッセージは一度きりです。)",
-        "log_verified":              "✅ {user} — 18+ 認証済み · {when}",
-        "log_role_failed":           "⚠️ {user} — 18+ は確認できましたが、ロールを付与できませんでした。VRCVerify のロールが認証済みロールより上にあるか確認してください。· {when}",
-        "log_not_18":                "❌ {user} — VRChat では 18+ ではありません · {when}",
-        "log_entries_dropped":       "…以前の記録を {count} 件残せませんでした。",
-        "log_channel_ready":         "📋 今後、認証アクティビティはこのチャンネルに記録されます。\n記録されるのはメンバー・結果・時刻のみで、VRChat の名前や ID は記録されません。",
-        "log_channel_set":           "認証アクティビティは {channel} に記録されます。",
-        "log_channel_cleared":       "認証アクティビティの記録をオフにしました。",
-        "log_channel_premium_only":  "認証アクティビティログは VRCVerify Premium の機能です。中心となる 18+ 認証は誰でも無料のままです。",
-        "log_channel_no_permission": "{channel} に投稿できません。そのチャンネルで Bot に**チャンネルを見る**と**メッセージを送信**の権限を与えてから、もう一度実行してください。",
-        "log_channel_announcement": "{channel} はアナウンスチャンネルです。他のサーバーがフォローできるため、メンバーの 18+ 状態がこのサーバーの外に再配信されてしまいます。認証ログには使えませんので、通常のテキストチャンネルを選んでください。",
-        "panel_color_invalid": "16進数のカラーコードではないようです。`#5865F2` のような形式（短縮形は `#58F`）で入力してください。",
-        # Issue #49 phase 5: the member-facing group invite.
-        "btn_group_invite": "招待を送ってください",
-        "dm_group_invite_offer": "**{server}** で認証が完了しました！このサーバーの VRChat グループ **{group}** への招待は必要ですか？\n\nボタンを押さない限り、VRChat には何も送信されません。",
-        "group_invite_working": "VRChat に招待をリクエストしています…",
-        "group_invite_sent": "招待を送信しました！VRChat の通知を開いて **{group}** に参加してください。",
-        "group_invite_already_member": "すでに **{group}** のメンバーなので、送るものはありません。",
-        "group_invite_already_invited": "**{group}** への招待は、すでに VRChat の通知に届いています。",
-        "group_invite_blocked": "VRChat が招待を配信できませんでした。VRChat の設定でグループ招待がオフになっているか、そのグループをブロックしている可能性があります。",
-        "group_invite_banned": "**{group}** に招待することはできません。変更できるのはグループのモデレーターだけです。",
-        "group_invite_setup_problem": "現在 **{server}** の VRChat グループの設定が正しくないため、招待を送信できませんでした。サーバーの管理者にお知らせください。",
-        "group_invite_unavailable": "VRChat から応答がなかったため、招待を送信できませんでした。数分後にもう一度お試しください。",
-        "group_invite_too_soon": "すでに招待をリクエスト済みです。数分待ってからもう一度お試しください。",
-        "group_invite_account_missing": "認証に使用したアカウントを VRChat が認識できなかったため、招待を送信できませんでした。もう一度認証して VRChat アカウントを再リンクしてください。",
-        "group_invite_not_a_member": "この招待は **{server}** のものですが、あなたはもうそのサーバーのメンバーではありません。まだ招待が必要な場合は、サーバーに参加して再度認証してください。",
-        "group_invite_not_verified": "現在 **{server}** で18歳以上として認証されていないため、招待を送信できませんでした。もう一度認証すると、新しい招待が届きます。",
-        "group_invite_account_changed": "この招待は、現在リンクされているものとは別の VRChat アカウント宛てに送られたものです。現在のアカウントで新しい招待を受け取るには、もう一度認証してください。",
-    },
+RECHECK_STARTED = N_(
+    "We're re-checking your VRChat 18+ status. If you've updated your VRChat age verification, you'll get a DM soon!"
+)
 
-    "de": {
-        "not_verified":               "Du bist noch nicht verifiziert. Bitte klicke zuerst auf **Verifizierung starten**.",
-        "already_verified":           "Du bist bereits verifiziert! Rolle zugewiesen (oder erneut zugewiesen).",
-        "recheck_started":            "Wir prüfen deinen 18+ Status erneut. Wenn du deine Altersverifizierung aktualisiert hast, erhältst du bald eine DM!",
-        "dm_role_success":            "Du wurdest verifiziert und hast die Rolle **{role}** auf **{server}** erhalten!",
-        "nickname_update_requested":  "Anfrage zur Spitznamenaktualisierung gesendet. Ich werde dich per DM benachrichtigen, sobald es fertig ist!",
-        "verification_requested":     "Verifizierungsanfrage erhalten! Wir senden dir eine DM mit den Ergebnissen. Bitte stelle sicher, dass deine DMs für diesen Server offen sind.",
-        "setup_missing":              "Dieser Server hat noch keine Verifizierungsrolle eingerichtet. Bitte kontaktiere einen Administrator.",
-        "not_18_plus":                "Laut VRChat bist du nicht 18+. Kontaktiere einen Administrator, wenn dies ein Fehler ist.",
-        "support_info":               "Brauchst du Hilfe bei der Verifizierung?\n- Kontaktiere einen Server-Administrator\n- Oder besuche unsere Support-Seite: https://esattotech.com/contact-us/\n\nWenn dies ein Fehler ist, lass es uns wissen!",
-        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
-        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
-        "subscription_info":          "Ich biete dies kostenlos an, aber wenn du mich unterstützen möchtest, findest du meinen Ko-fi hier: {kofi_link}. Danke für deine Unterstützung!",
-        "settings_saved":             "Einstellungen gespeichert!",
-        "settings_unreadable":        "Die Einstellungen dieses Servers konnten gerade nicht gelesen werden. Bitte versuche es gleich noch einmal — es wurde nichts geändert.",
-        "invalid_vrc_id_input":       "Du hast offenbar deinen Anzeigenamen statt deiner VRChat-Benutzer-ID eingegeben.\nBitte gib die vollständige Profil-URL oder deine Benutzer-ID (beginnt immer mit `usr_`) ein.\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "Wir konnten deinen Code nicht in deiner VRChat-Biografie finden. Bitte versuche es erneut.\n**Überprüfe, dass der Code in einer eigenen Zeile steht.**",
-        "verify_button_expired":      "Dieser Verifizierungslink ist abgelaufen oder wurde durch einen neueren ersetzt. Bitte führe `/vrcverify` erneut aus, um einen neuen Code zu erhalten.",
-        "nickname_updated":           "Dein Spitzname wurde auf {display_name} aktualisiert.",
-        "nickname_update_failed":     "Wir konnten deinen Spitznamen nicht aktualisieren.",
-        "setup_success":              "Serverkonfiguration {action}.\nVerifizierte Rolle festgelegt auf: `{role}` (ID={role_id})",
-        "setup_unverified_set":       "\nZu entfernende unverifizierte Rolle: `{role}` (ID={role_id})",
-        "setup_unverified_missing":   "\n(Unverifizierte Rolle nicht gesetzt; es wird keine Rolle bei Verifizierung entfernt.)",
-        "instructions_title":         "So verwenden Sie den VRChat-Verifizierungsbot",
-        "instructions_desc":          "**Befolgen Sie diese Schritte**, um Ihren 18+-Status zu überprüfen:\n\n"
-                                      "1. Klicken Sie auf die Schaltfläche **Verifizierung starten** (falls angezeigt) oder geben Sie `/vrcverify` überall ein.\n"
-                                      "2. Wenn Sie neu sind, werden Sie nach Ihrem VRChat-Benutzernamen gefragt.\n"
-                                      "3. Der Bot gibt Ihnen einen eindeutigen Code - fügen Sie diesen in Ihre VRChat-Biografie **in einer eigenen Zeile** ein。\n"
-                                      "4. Drücken Sie **Überprüfen** in Discord, sobald Ihre Biografie aktualisiert wurde。\n\n"
-                                      "Wenn Sie zusätzliche Hilfe benötigen, wenden Sie sich an einen Administrator oder geben Sie `/vrcverify_support` ein。",
-        "btn_begin_verification":     "Verifizierung starten",
-        "btn_update_nickname":        "Spitznamen aktualisieren",
-        "settings_intro":             "**VRChat-Verifizierungseinstellungen**\n\n1.) **Automatische Änderung des Spitznamens aktivieren**\n   Aktualisieren Sie automatisch die Discord-Spitznamen der Benutzer, um mit ihren VRChat-Anzeigenamen übereinzustimmen。\n   Aktuell: **{current}**",
-        "dm_role_failed_bot_position":"Ich konnte die Rolle „{role}“ in {server} nicht zuweisen. Das passiert meist, wenn die Rolle des VRCVerify-Bots nicht über den Rollen „Verified“ (und „Unverified“) in der Server-Rollenliste steht. Bitte bitte einen Administrator, die Bot-Rolle über diese Rollen zu verschieben, und versuche es erneut。",
-        "dm_unverified_failed_bot_position": "Die Rolle {role} konnte auf {server} nicht entfernt werden. Das passiert meistens, wenn die Rolle des VRCVerify-Bots nicht über der Unverifiziert-Rolle steht. Bitte einen Server-Administrator zu prüfen, ob die Rolle des VRCVerify-Bots über der verifizierten und der unverifizierten Rolle (falls vorhanden) steht.",
-        "custom_msg_cleared":         "Benutzerdefinierte Verifizierungsanfrage-Nachricht gelöscht. Standard wird verwendet.",
-        "custom_msg_saved":           "Benutzerdefinierte Verifizierungsanfrage-Nachricht gespeichert.",
-        "custom_msg_too_long":        "Nachricht zu lang (max. 1000 Zeichen).",
-        "custom_msg_invalid_links":   "Blockiert: Nur Links zu discord.com oder vrchat.com erlaubt. Ungültige Links:\n{invalid_list}",
-        "bio_verify_instructions1":   "**1)** Füge den Code in deine VRChat-Biografie in einer eigenen Zeile ein.",
-        "bio_verify_instructions2":   "**2)** Sobald deine Biografie aktualisiert ist, klicke in Discord auf **Überprüfen** (innerhalb von 10 Minuten).",
-        "vrc_id_already_linked":      "Das VRChat-Profil, das du verwenden wolltest, ist bereits mit einem anderen Discord-Konto verknüpft. Wenn du glaubst, dass dies ein Fehler ist, wende dich bitte an einen Server-Administrator.",
-        "vrchat_issue_user_not_found":               "Wir konnten dieses VRChat-Konto nicht finden. Bitte prüfe, ob du die VRChat-Profil-URL oder die `usr_...`-Benutzer-ID korrekt eingefügt hast.",
-        "vrchat_issue_rate_limited":                "VRChat begrenzt derzeit Verifizierungsabfragen. Bitte warte eine Minute und versuche es dann erneut.",
-        "vrchat_issue_temp_unavailable":             "VRCVerify kann derzeit vorübergehend nicht mit VRChat kommunizieren. Bitte versuche es in kurzer Zeit erneut.",
-        "vrchat_issue_outage_confirmed":            "VRChat meldet derzeit eine Dienststörung, die die Verifizierung beeinträchtigt. Bitte versuche es später erneut.\n\nStatusseite: {status_page}",
-        "vrchat_issue_outage_confirmed_with_status": "VRChat meldet derzeit eine Dienststörung, die die Verifizierung beeinträchtigt. Bitte versuche es später erneut.\n\nStatusseite: {status_page}\n\nGemeldeter Status: {status_message}",
-        "vrchat_issue_outage_suspected":            "VRChat scheint vorübergehende API-Probleme zu haben, daher konnte die Verifizierung derzeit nicht abgeschlossen werden. Bitte versuche es später erneut.\n\nStatusseite: {status_page}",
-        "vrchat_issue_unexpected":                   "Die Verifizierung konnte nicht abgeschlossen werden, weil VRChat einen unerwarteten Fehler zurückgegeben hat. Bitte versuche es später erneut.",
-        "cooldown_active":            "Das ging zu schnell. Bitte warte {seconds} Sekunden und versuche es erneut.",
-        "btn_donate":                 "Spenden",
-        "setup_donate_hint":          "\n\n☕ VRCVerify ist dank Spenden kostenlos. Wenn es deiner Community hilft, kannst du es hier unterstützen: {kofi_link}",
-        "milestone_owner_dm":         "🎉 **{server}** hat {count} abgeschlossene Verifizierungen mit VRCVerify erreicht!\nDer Bot ist kostenlos und wird durch Spenden finanziert – wenn er deiner Community geholfen hat, kannst du ihn hier unterstützen: {kofi_link}\n(Dies ist eine einmalige Nachricht.)",
-        "setup_panel_nudge":          "\n\n📌 **Noch ein Schritt:** Mitglieder können sich erst verifizieren, wenn du das Anleitungs-Panel gepostet hast.\nFühre `/vrcverify_instructions` in dem Kanal aus, in dem sie sich verifizieren sollen. Nutze einen normalen Textkanal, den alle sehen können – keinen Thread, da Threads automatisch archiviert werden und das Panel dann stillschweigend nicht mehr funktioniert.\nMit `/vrcverify_status` kannst du das jederzeit überprüfen.",
-        "panel_nudge_dm":             "👋 Du hast VRCVerify in **{server}** eingerichtet, aber es wurde noch kein Anleitungs-Panel gepostet – Mitglieder haben dort also weiterhin keine Möglichkeit, mit der Verifizierung zu beginnen.\n\nFühre `/vrcverify_instructions` in dem Kanal aus, in dem sie sich verifizieren sollen. Nutze einen normalen Textkanal, den alle sehen können, statt eines Threads, da Threads automatisch archiviert werden und das Panel stillschweigend kaputtgeht.\n\nFühre `/vrcverify_status` in deinem Server aus, um alles kurz zu prüfen.\n(Dies ist eine einmalige Nachricht.)",
-        "status_header":              "**VRCVerify-Status für {server}**",
-        "status_role_ok":             "✅ Verifiziert-Rolle: **{role}**",
-        "status_role_missing":        "❌ Keine Verifiziert-Rolle festgelegt – führe `/vrcverify_setup` aus, um eine auszuwählen.",
-        "status_role_deleted":        "❌ Die eingestellte Verifiziert-Rolle existiert nicht mehr – führe `/vrcverify_setup` aus, um eine neue auszuwählen.",
-        "status_panel_ok":            "✅ Das Anleitungs-Panel ist gepostet und der Bot kann es weiterhin aktualisieren.",
-        "status_panel_missing":       "❌ Kein Anleitungs-Panel gepostet – führe `/vrcverify_instructions` in dem Kanal aus, in dem sich Mitglieder verifizieren sollen.",
-        "status_panel_unreachable":   "⚠️ Das Anleitungs-Panel existiert, aber der Bot kann es nicht aktualisieren. Prüfe, ob er in diesem Kanal noch **Kanal ansehen**, **Nachrichten senden** und **Links einbetten** hat.",
-        "status_panel_archived":      "⚠️ Das Anleitungs-Panel liegt in einem archivierten Thread, deshalb kann der Bot es nicht aktualisieren. Hebe die Archivierung auf oder poste ein neues Panel in einem normalen Textkanal.",
-        "status_panel_gone":          "❌ Das gespeicherte Anleitungs-Panel existiert nicht mehr – es oder sein Kanal wurde gelöscht. Führe `/vrcverify_instructions` erneut aus, um ein neues zu posten.",
-        "status_tips":                "\n**Tipps**\n• Poste das Panel in einem normalen Textkanal, den alle sehen können – Threads werden automatisch archiviert und machen es stillschweigend kaputt.\n• Behalte die Rechte **Kanal ansehen**, **Nachrichten senden** und **Links einbetten** für den Bot in diesem Kanal bei.\n• Wenn du diesen Kanal löschst oder neu erstellst, führe `/vrcverify_instructions` erneut aus.",
-        "guild_join_welcome_dm":      "👋 Danke, dass du VRCVerify zu **{server}** hinzugefügt hast!\n\nSo richtest du es ein:\n1. Führe `/vrcverify_setup` aus, um die Rolle zu wählen, die verifizierte Mitglieder erhalten.\n2. Führe `/vrcverify_instructions` in dem Kanal aus, in dem sich Mitglieder verifizieren sollen – nutze einen normalen Textkanal, den alle sehen können, keinen Thread, da Threads automatisch archiviert werden und das Panel stillschweigend kaputtgeht.\n\nBrauchst du Hilfe? `/vrcverify_support` hilft dir weiter.",
-        "premium_status_active":      "✅ **VRCVerify Premium ist auf {server} aktiv.**\n\nHier freigeschaltet:\n• Protokoll der Verifizierungsaktivität — mit `/vrcverify_logchannel` einrichten\n• Vorrang in der Verifizierungs-Warteschlange, wenn sich etwas staut\n• Automatisches Entfernen der Unverifiziert-Rolle\n• Automatischer Nicknamen-Abgleich mit VRChat\n• Eigene Nachricht nach der Verifizierung\n• Deine eigene Farbe und dein Server-Icon auf der Anleitungs-Nachricht\n• Verkürzte Verifizierungs-Wartezeit\n• Verifizierte Mitglieder direkt in die VRChat-Gruppe deines Servers einladen\n\nAussehen und Automatisierung stellst du in `/vrcverify_settings` ein.\n\nDu kannst das jederzeit unter **Benutzereinstellungen → Abonnements** in Discord verwalten oder kündigen.\nDanke, dass du VRCVerify unterstützt. 💜",
-        "premium_status_active_card": "✅ **VRCVerify Premium ist auf {server} aktiv.**\n\nHier freigeschaltet:\n• Protokoll der Verifizierungsaktivität — mit `/vrcverify_logchannel` einrichten\n• Vorrang in der Verifizierungs-Warteschlange, wenn sich etwas staut\n• Automatisches Entfernen der Unverifiziert-Rolle\n• Automatischer Nicknamen-Abgleich mit VRChat\n• Eigene Nachricht nach der Verifizierung\n• Deine eigene Farbe und dein Server-Icon auf der Anleitungs-Nachricht\n• Verkürzte Verifizierungs-Wartezeit\n• Verifizierte Mitglieder direkt in die VRChat-Gruppe deines Servers einladen\n\nAussehen und Automatisierung stellst du in `/vrcverify_settings` ein.\n\nDieser Server zahlt per Karte — verwalte oder kündige das Abo daher auf der **VRCVerify-Website**. In Discords Abo-Einstellungen taucht es nicht auf.\nDanke, dass du VRCVerify unterstützt. 💜",
-        "premium_status_active_both": "⚠️ **{server} bezahlt VRCVerify Premium doppelt.**\n\nFür diesen Server laufen ein aktives **Discord**-Abo und ein aktives **Karten**-Abo. Premium bleibt aktiv — aber es wird doppelt abgebucht.\n\nEs wurde bewusst nichts für dich gekündigt: ein Abo zu kündigen und eine Rückerstattung auszulösen, ohne dass ein Mensch das entscheidet, sollte dieser Bot nicht von sich aus tun.\n\nBehalte das Abo, das dir lieber ist, und kündige das andere:\n• **Discord** — Benutzereinstellungen → Abonnements\n• **Karte** — die Abo-Seite auf der Website\n\nFalls du unsicher bist: Auf der Website sind die 6- und 12-Monats-Pakete günstiger, und Discord kann nur monatlich abrechnen.",
-        "premium_status_inactive":    "**Die 18+-Verifizierung ist auf {server} kostenlos und bleibt es auch.** Das automatische Verifizieren bereits verifizierter Mitglieder beim Beitritt ebenfalls.\n\nVRCVerify Premium ergänzt diese optionalen Extras für diesen Server:\n• Protokoll der Verifizierungsaktivität: jede Verifizierung in einem Kanal deiner Wahl, auch die, die still fehlschlagen\n• Vorrang in der Verifizierungs-Warteschlange, wenn sich etwas staut\n• Automatisches Entfernen der Unverifiziert-Rolle\n• Automatischer Nicknamen-Abgleich mit VRChat\n• Eigene Nachricht nach der Verifizierung\n• Deine eigene Farbe und dein Server-Icon auf der Anleitungs-Nachricht\n• Verkürzte Verifizierungs-Wartezeit\n• Verifizierte Mitglieder direkt in die VRChat-Gruppe deines Servers einladen\n\nEin Abo deckt den ganzen Server ab, und es gibt zwei Wege dorthin:\n• **In Discord** — der Button unten. Monatliche Abrechnung.\n• **Per Karte auf der Website** — dasselbe Premium, dazu 6- und 12-Monats-Pakete, die günstiger kommen. Discord kann nur monatlich abrechnen, die längeren Laufzeiten gibt es also nur auf der Website.",
-        "premium_status_grandfathered": "**Die 18+-Verifizierung ist auf {server} kostenlos und bleibt es auch.** Das automatische Verifizieren bereits verifizierter Mitglieder beim Beitritt ebenfalls.\n\nDa dieser Server schon vor dem Start von Premium eingerichtet wurde, behält er zusätzlich diese Funktionen dauerhaft kostenlos:\n• Automatisches Entfernen der Unverifiziert-Rolle\n• Automatischer Nicknamen-Abgleich mit VRChat\n• Eigene Nachricht nach der Verifizierung\n\nPremium ergänzt obendrauf:\n• Protokoll der Verifizierungsaktivität: jede Verifizierung in einem Kanal deiner Wahl, auch die, die still fehlschlagen\n• Vorrang in der Verifizierungs-Warteschlange, wenn sich etwas staut\n• Deine eigene Farbe und dein Server-Icon auf der Anleitungs-Nachricht\n• Verkürzte Verifizierungs-Wartezeit\n• Verifizierte Mitglieder direkt in die VRChat-Gruppe deines Servers einladen\n\n**Premium gibt es auf zwei Wegen:**\n• **In Discord** — der Button unten. Monatliche Abrechnung.\n• **Per Karte auf der Website** — dasselbe Premium, dazu 6- und 12-Monats-Pakete, die günstiger kommen. Discord kann nur monatlich abrechnen, die längeren Laufzeiten gibt es also nur auf der Website.",
-        "premium_cutover_dm":         "👋 Kurze Info zu VRCVerify auf **{server}**.\n\nVRCVerify hat jetzt eine optionale Premium-Stufe. Damit das gleich klar ist: **An deinem Server ändert sich nichts.**\n\nDie 18+-Verifizierung ist kostenlos und bleibt dauerhaft für alle kostenlos. Das automatische Verifizieren bereits verifizierter Mitglieder beim Beitritt ebenfalls.\n\nUnd da **{server}** schon vor dem Start von Premium eingerichtet wurde, behält der Server auch diese Funktionen dauerhaft und ohne Kosten:\n• Automatisches Entfernen der Unverifiziert-Rolle\n• Automatischer Nicknamen-Abgleich mit VRChat\n• Eigene Nachricht nach der Verifizierung\n\nDu musst also nichts tun. Falls dich irgendwann interessiert, was Premium ergänzt, führe `/vrcverify_subscription` auf deinem Server aus.\n(Das ist eine einmalige Nachricht.)",
-        "log_verified":              "✅ {user} — als 18+ verifiziert · {when}",
-        "log_role_failed":           "⚠️ {user} — als 18+ verifiziert, aber die Rolle konnte nicht vergeben werden. Prüfe, ob die Rolle des VRCVerify-Bots über der verifizierten Rolle steht. · {when}",
-        "log_not_18":                "❌ {user} — laut VRChat nicht 18+ · {when}",
-        "log_entries_dropped":       "…{count} frühere Einträge konnten nicht aufgezeichnet werden.",
-        "log_channel_ready":         "📋 Ab jetzt wird die Verifizierungsaktivität hier protokolliert.\nEinträge zeigen Mitglied, Ergebnis und Zeit — niemals den VRChat-Namen oder die ID.",
-        "log_channel_set":           "Die Verifizierungsaktivität wird in {channel} protokolliert.",
-        "log_channel_cleared":       "Die Protokollierung der Verifizierungsaktivität ist jetzt aus.",
-        "log_channel_premium_only":  "Das Verifizierungsprotokoll ist eine Funktion von VRCVerify Premium. Die eigentliche 18+-Verifizierung bleibt für alle kostenlos.",
-        "log_channel_no_permission": "Ich kann in {channel} nichts posten. Gib dem Bot dort **Kanal ansehen** und **Nachrichten senden** und führe den Befehl erneut aus.",
-        "log_channel_announcement": "{channel} ist ein Ankündigungskanal. Andere Server können ihm folgen, wodurch der 18+-Status deiner Mitglieder außerhalb dieses Servers erneut veröffentlicht würde. Er kann daher nicht als Verifizierungsprotokoll dienen. Bitte wähle einen normalen Textkanal.",
-        "panel_color_invalid": "Das sieht nicht nach einer Hex-Farbe aus. Verwende etwas wie `#5865F2` (oder kurz `#58F`).",
-        # Issue #49 phase 5: the member-facing group invite.
-        "btn_group_invite": "Schick mir eine Einladung",
-        "dm_group_invite_offer": "Du bist in **{server}** verifiziert! Möchtest du eine Einladung zur VRChat-Gruppe **{group}**?\n\nAn VRChat wird nichts gesendet, solange du den Button nicht drückst.",
-        "group_invite_working": "Deine Einladung wird bei VRChat angefragt...",
-        "group_invite_sent": "Einladung verschickt! Öffne deine VRChat-Benachrichtigungen, um **{group}** beizutreten.",
-        "group_invite_already_member": "Du bist bereits in **{group}**, es gibt also nichts zu senden.",
-        "group_invite_already_invited": "Eine Einladung zu **{group}** wartet bereits in deinen VRChat-Benachrichtigungen.",
-        "group_invite_blocked": "VRChat konnte die Einladung nicht zustellen. Möglicherweise sind Gruppeneinladungen in deinen VRChat-Einstellungen deaktiviert oder die Gruppe ist auf deinem Konto blockiert.",
-        "group_invite_banned": "Du kannst nicht zu **{group}** eingeladen werden. Das kann nur ein Gruppen-Moderator ändern.",
-        "group_invite_setup_problem": "Die VRChat-Gruppe von **{server}** ist derzeit nicht korrekt eingerichtet, daher konnte die Einladung nicht gesendet werden. Bitte sag den Admins des Servers Bescheid.",
-        "group_invite_unavailable": "VRChat hat nicht geantwortet, daher konnte die Einladung nicht gesendet werden. Bitte versuche es in ein paar Minuten erneut.",
-        "group_invite_too_soon": "Du hast bereits eine Einladung angefragt. Bitte warte ein paar Minuten, bevor du es erneut versuchst.",
-        "group_invite_account_missing": "VRChat hat das Konto, mit dem du dich verifiziert hast, nicht erkannt, daher konnte die Einladung nicht gesendet werden. Verifiziere dich erneut, um dein VRChat-Konto neu zu verknüpfen.",
-        "group_invite_not_a_member": "Diese Einladung galt für **{server}**, und du bist dort kein Mitglied mehr. Tritt dem Server wieder bei und verifiziere dich erneut, wenn du noch eine Einladung möchtest.",
-        "group_invite_not_verified": "Du bist derzeit auf **{server}** nicht als 18+ verifiziert, daher konnte die Einladung nicht gesendet werden. Verifiziere dich erneut, um eine neue Einladung zu erhalten.",
-        "group_invite_account_changed": "Diese Einladung galt für ein anderes VRChat-Konto als das, das du jetzt verknüpft hast. Verifiziere dich erneut, um eine neue Einladung für dein aktuelles Konto zu erhalten.",
-    },
+DM_ROLE_SUCCESS = N_("You've been verified and given **{role}** in **{server}**!")
 
-    "nl": {
-        "not_verified":               "Je bent nog niet geverifieerd. Klik eerst op **Verificatie starten**.",
-        "already_verified":           "Je bent al geverifieerd! Rol toegewezen (of opnieuw toegewezen).",
-        "recheck_started":            "We controleren je 18+ status opnieuw. Als je je leeftijdsverificatie hebt bijgewerkt, ontvang je binnenkort een DM!",
-        "dm_role_success":            "Je bent geverifieerd en hebt de rol **{role}** in **{server}** ontvangen!",
-        "nickname_update_requested":  "Verzoek om bijnaam bij te werken verstuurd. Ik stuur je een DM zodra het klaar is!",
-        "verification_requested":     "Verificatieverzoek ontvangen! We sturen je een DM met de resultaten. Zorg dat je DM's voor deze server open staan.",
-        "setup_missing":              "Deze server heeft nog geen verificatierol ingesteld. Neem contact op met een beheerder.",
-        "not_18_plus":                "Volgens VRChat ben je niet 18+. Neem contact op met een beheerder als dit een fout is.",
-        "support_info":               "Heb je hulp nodig bij verificatie?\n- Neem contact op met een serverbeheerder\n- Of bezoek onze ondersteuningspagina: https://esattotech.com/contact-us/\n\nLaat ons weten als dit een fout is!",
-        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
-        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
-        "subscription_info":          "Ik bied dit gratis aan, maar als je me wilt ondersteunen, vind je mijn Ko-fi hier: {kofi_link}. Dank je voor je steun!",
-        "settings_saved":             "Instellingen opgeslagen!",
-        "settings_unreadable":        "De instellingen van deze server konden nu niet worden gelezen. Probeer het zo nog eens — er is niets gewijzigd.",
-        "invalid_vrc_id_input":       "Het lijkt erop dat je je weergavenaam hebt ingevoerd in plaats van je VRChat userID.\nVoer de volledige profiel-URL in of je userID (begint altijd met `usr_`).\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "We konden je code niet vinden in je VRChat-bio. Probeer het opnieuw.\n**Controleer of de code op een aparte regel staat.**",
-        "verify_button_expired":      "Deze verificatielink is verlopen of vervangen door een nieuwere. Voer `/vrcverify` opnieuw uit om een nieuwe code te krijgen.",
-        "nickname_updated":           "Je bijnaam is bijgewerkt naar {display_name}.",
-        "nickname_update_failed":     "We konden je bijnaam niet bijwerken.",
-        "setup_success":              "Serverconfiguratie {action}.\nGeverifieerde rol ingesteld op: `{role}` (ID={role_id})",
-        "setup_unverified_set":       "\nTe verwijderen niet-geverifieerde rol: `{role}` (ID={role_id})",
-        "setup_unverified_missing":   "\n(Niet-geverifieerde rol niet ingesteld; er wordt geen rol verwijderd bij verificatie.)",
-        "instructions_title":         "Hoe de VRChat-verificatiebot te gebruiken",
-        "instructions_desc":          "**Volg deze stappen** om je 18+ status te verifiëren:\n\n"
-                                      "1. Klik op de knop **Verificatie starten** (indien weergegeven) of typ `/vrcverify` ergens。\n"
-                                      "2. Als je nieuw bent, word je gevraagd naar je VRChat-gebruikersnaam。\n"
-                                      "3. De bot geeft je een unieke code - zet deze in je VRChat-bio **op een aparte regel**。\n"
-                                      "4. Druk op **Verifiëren** in Discord zodra je bio is bijgewerkt。\n\n"
-                                      "Als je extra hulp nodig hebt, neem dan contact op met een beheerder of typ `/vrcverify_support`。",
-        "btn_begin_verification":     "Verificatie starten",
-        "btn_update_nickname":        "Bijnaam bijwerken",
-        "settings_intro":             "**VRChat Verificatie-instellingen**\n\n1.) **Automatische bijnaamwijziging inschakelen**\n   Werk automatisch de Discord-bijlenamen van gebruikers bij om overeen te komen met hun VRChat-weergavenamen。\n   Huidig: **{current}**",
-        "dm_role_failed_bot_position":"Ik kon de rol '{role}' in {server} niet toekennen. Dit gebeurt meestal wanneer de rol van de VRCVerify-bot niet boven de rollen 'verified' (en 'unverified') staat in de rollenlijst. Vraag een beheerder om de VRCVerify-botrol boven die rollen te plaatsen en probeer het opnieuw。",
-        "dm_unverified_failed_bot_position": "De rol {role} kon niet worden verwijderd op {server}. Dit gebeurt meestal wanneer de rol van de VRCVerify-bot niet boven de niet-geverifieerd-rol staat. Vraag een serverbeheerder om te controleren of de rol van de VRCVerify-bot boven zowel de geverifieerde als de niet-geverifieerde rol (indien van toepassing) staat.",
-        "custom_msg_cleared":         "Aangepast verificatieverzoekbericht gewist. Standaard wordt gebruikt.",
-        "custom_msg_saved":           "Aangepast verificatieverzoekbericht opgeslagen.",
-        "custom_msg_too_long":        "Bericht te lang (max 1000 tekens).",
-        "custom_msg_invalid_links":   "Geblokkeerd: Alleen discord.com of vrchat.com links toegestaan. Ongeldige links:\n{invalid_list}",
-        "bio_verify_instructions1":   "**1)** Voeg de code toe aan je VRChat-bio op een eigen regel.",
-        "bio_verify_instructions2":   "**2)** Zodra je bio is bijgewerkt, klik op **Verifiëren** in Discord (binnen 10 minuten).",
-        "vrc_id_already_linked":      "Het VRChat-profiel dat je probeerde te gebruiken, is al geregistreerd op een ander Discord-account. Als je denkt dat dit een fout is, neem dan contact op met een serverbeheerder.",
-        "vrchat_issue_user_not_found":               "We konden dat VRChat-account niet vinden. Controleer of je de VRChat-profiel-URL of de `usr_...` gebruikers-ID correct hebt geplakt.",
-        "vrchat_issue_rate_limited":                "VRChat beperkt momenteel verificatieverzoeken. Wacht een minuut en probeer het opnieuw.",
-        "vrchat_issue_temp_unavailable":             "VRCVerify kan momenteel tijdelijk geen verbinding maken met VRChat. Probeer het over een tijdje opnieuw.",
-        "vrchat_issue_outage_confirmed":            "VRChat meldt momenteel een serviceprobleem dat verificatie beïnvloedt. Probeer het later opnieuw.\n\nStatuspagina: {status_page}",
-        "vrchat_issue_outage_confirmed_with_status": "VRChat meldt momenteel een serviceprobleem dat verificatie beïnvloedt. Probeer het later opnieuw.\n\nStatuspagina: {status_page}\n\nGemelde status: {status_message}",
-        "vrchat_issue_outage_suspected":            "VRChat lijkt tijdelijke API-problemen te hebben, waardoor verificatie nu niet kon worden voltooid. Probeer het later opnieuw.\n\nStatuspagina: {status_page}",
-        "vrchat_issue_unexpected":                   "De verificatie kon niet worden voltooid omdat VRChat een onverwachte fout teruggaf. Probeer het later opnieuw.",
-        "cooldown_active":            "Je gaat te snel. Wacht {seconds} seconden en probeer het opnieuw.",
-        "btn_donate":                 "Doneren",
-        "setup_donate_hint":          "\n\n☕ VRCVerify is gratis dankzij donaties. Als het je community helpt, kun je het hier steunen: {kofi_link}",
-        "milestone_owner_dm":         "🎉 **{server}** heeft {count} voltooide verificaties met VRCVerify bereikt!\nDe bot is gratis en draait op donaties – als hij nuttig is geweest voor je community, kun je hem hier steunen: {kofi_link}\n(Dit is een eenmalig bericht.)",
-        "setup_panel_nudge":          "\n\n📌 **Nog één stap:** leden kunnen zich pas verifiëren als je het instructiepaneel hebt geplaatst.\nVoer `/vrcverify_instructions` uit in het kanaal waar je wilt dat ze zich verifiëren. Gebruik een gewoon tekstkanaal dat iedereen kan zien – geen thread, want threads worden automatisch gearchiveerd en het paneel werkt dan ongemerkt niet meer.\nMet `/vrcverify_status` kun je dit altijd controleren.",
-        "panel_nudge_dm":             "👋 Je hebt VRCVerify ingesteld in **{server}**, maar er is nog geen instructiepaneel geplaatst – leden hebben daar dus nog steeds geen manier om met verifiëren te beginnen.\n\nVoer `/vrcverify_instructions` uit in het kanaal waar je wilt dat ze zich verifiëren. Gebruik een gewoon tekstkanaal dat iedereen kan zien in plaats van een thread, want threads worden automatisch gearchiveerd en breken het paneel ongemerkt.\n\nVoer `/vrcverify_status` uit in je server voor een snelle controle.\n(Dit is een eenmalig bericht.)",
-        "status_header":              "**VRCVerify-status voor {server}**",
-        "status_role_ok":             "✅ Geverifieerd-rol: **{role}**",
-        "status_role_missing":        "❌ Geen geverifieerd-rol ingesteld – voer `/vrcverify_setup` uit om er een te kiezen.",
-        "status_role_deleted":        "❌ De ingestelde geverifieerd-rol bestaat niet meer – voer `/vrcverify_setup` uit om een nieuwe te kiezen.",
-        "status_panel_ok":            "✅ Het instructiepaneel is geplaatst en de bot kan het nog steeds bijwerken.",
-        "status_panel_missing":       "❌ Geen instructiepaneel geplaatst – voer `/vrcverify_instructions` uit in het kanaal waar leden zich moeten verifiëren.",
-        "status_panel_unreachable":   "⚠️ Het instructiepaneel bestaat, maar de bot kan het niet bijwerken. Controleer of hij in dat kanaal nog **Kanaal bekijken**, **Berichten versturen** en **Links insluiten** heeft.",
-        "status_panel_archived":      "⚠️ Het instructiepaneel staat in een thread die is gearchiveerd, dus de bot kan het niet bijwerken. Haal de thread uit het archief of plaats een nieuw paneel in een gewoon tekstkanaal.",
-        "status_panel_gone":          "❌ Het opgeslagen instructiepaneel bestaat niet meer – het paneel of het kanaal is verwijderd. Voer `/vrcverify_instructions` opnieuw uit om een nieuw paneel te plaatsen.",
-        "status_tips":                "\n**Tips**\n• Plaats het paneel in een gewoon tekstkanaal dat iedereen kan zien – threads worden automatisch gearchiveerd en breken het stilletjes.\n• Zorg dat de bot **Kanaal bekijken**, **Berichten versturen** en **Links insluiten** houdt in dat kanaal.\n• Als je dat kanaal verwijdert of opnieuw aanmaakt, voer dan `/vrcverify_instructions` opnieuw uit.",
-        "guild_join_welcome_dm":      "👋 Bedankt voor het toevoegen van VRCVerify aan **{server}**!\n\nZo stel je het in:\n1. Voer `/vrcverify_setup` uit om de rol te kiezen die geverifieerde leden krijgen.\n2. Voer `/vrcverify_instructions` uit in het kanaal waar je wilt dat leden zich verifiëren – gebruik een gewoon tekstkanaal dat iedereen kan zien, geen thread, want threads worden automatisch gearchiveerd en het paneel werkt dan ongemerkt niet meer.\n\nHulp nodig? `/vrcverify_support` staat voor je klaar.",
-        "premium_status_active":      "✅ **VRCVerify Premium is actief op {server}.**\n\nHier ontgrendeld:\n• Logboek van verificatieactiviteit — stel het in met `/vrcverify_logchannel`\n• Voorrang in de verificatiewachtrij als het druk is\n• Automatisch verwijderen van de niet-geverifieerd-rol\n• Automatische bijnaamsynchronisatie met VRChat\n• Eigen bericht na de verificatie\n• Je eigen kleur en servericoon op het instructiebericht\n• Kortere wachttijd tussen verificaties\n• Geverifieerde leden rechtstreeks uitnodigen voor de VRChat-groep van je server\n\nWeergave- en automatiseringsinstellingen staan in `/vrcverify_settings`.\n\nJe kunt dit op elk moment beheren of opzeggen via **Gebruikersinstellingen → Abonnementen** in Discord.\nBedankt dat je VRCVerify steunt. 💜",
-        "premium_status_active_card": "✅ **VRCVerify Premium is actief op {server}.**\n\nHier ontgrendeld:\n• Logboek van verificatieactiviteit — stel het in met `/vrcverify_logchannel`\n• Voorrang in de verificatiewachtrij als het druk is\n• Automatisch verwijderen van de niet-geverifieerd-rol\n• Automatische bijnaamsynchronisatie met VRChat\n• Eigen bericht na de verificatie\n• Je eigen kleur en servericoon op het instructiebericht\n• Kortere wachttijd tussen verificaties\n• Geverifieerde leden rechtstreeks uitnodigen voor de VRChat-groep van je server\n\nWeergave- en automatiseringsinstellingen staan in `/vrcverify_settings`.\n\nDeze server betaalt met een kaart, dus beheer of zeg het op via de **VRCVerify-website** — in Discords abonnementsinstellingen zie je het niet.\nBedankt dat je VRCVerify steunt. 💜",
-        "premium_status_active_both": "⚠️ **{server} betaalt twee keer voor VRCVerify Premium.**\n\nEr loopt een actief **Discord**-abonnement én een actief **kaart**-abonnement voor deze server. Premium blijft gewoon aan — maar er wordt dubbel afgeschreven.\n\nEr is met opzet niets voor je opgezegd: een abonnement opzeggen en geld terugstorten zonder dat een mens dat besluit, hoort deze bot niet uit zichzelf te doen.\n\nHoud het abonnement dat je het beste uitkomt en zeg het andere op:\n• **Discord** — Gebruikersinstellingen → Abonnementen\n• **Kaart** — de abonnementenpagina op de website\n\nTwijfel je? Op de website zijn de abonnementen van 6 en 12 maanden voordeliger, en Discord kan alleen per maand factureren.",
-        "premium_status_inactive":    "**18+-verificatie is gratis op {server}, en dat blijft zo.** Het automatisch verifiëren van al geverifieerde leden zodra ze binnenkomen ook.\n\nVRCVerify Premium voegt deze optionele extra's toe voor deze server:\n• Logboek van verificatieactiviteit: elke verificatie in een kanaal naar keuze, ook die stil mislukken\n• Voorrang in de verificatiewachtrij als het druk is\n• Automatisch verwijderen van de niet-geverifieerd-rol\n• Automatische bijnaamsynchronisatie met VRChat\n• Eigen bericht na de verificatie\n• Je eigen kleur en servericoon op het instructiebericht\n• Kortere wachttijd tussen verificaties\n• Geverifieerde leden rechtstreeks uitnodigen voor de VRChat-groep van je server\n\nÉén abonnement dekt de hele server, en er zijn twee manieren om het af te sluiten:\n• **In Discord** — de knop hieronder. Maandelijkse facturatie.\n• **Met een kaart op de website** — dezelfde Premium, plus voordeligere abonnementen van 6 en 12 maanden. Discord kan alleen per maand factureren, dus die langere termijnen zijn alleen op de website te krijgen.",
-        "premium_status_grandfathered": "**18+-verificatie is gratis op {server}, en dat blijft zo.** Het automatisch verifiëren van al geverifieerde leden zodra ze binnenkomen ook.\n\nOmdat deze server is ingesteld vóór de lancering van Premium, behoudt hij daarnaast deze functies permanent gratis:\n• Automatisch verwijderen van de niet-geverifieerd-rol\n• Automatische bijnaamsynchronisatie met VRChat\n• Eigen bericht na de verificatie\n\nPremium doet hier bovenop:\n• Logboek van verificatieactiviteit: elke verificatie in een kanaal naar keuze, ook die stil mislukken\n• Voorrang in de verificatiewachtrij als het druk is\n• Je eigen kleur en servericoon op het instructiebericht\n• Kortere wachttijd tussen verificaties\n• Geverifieerde leden rechtstreeks uitnodigen voor de VRChat-groep van je server\n\n**Premium is op twee manieren te krijgen:**\n• **In Discord** — de knop hieronder. Maandelijkse facturatie.\n• **Met een kaart op de website** — dezelfde Premium, plus voordeligere abonnementen van 6 en 12 maanden. Discord kan alleen per maand factureren, dus die langere termijnen zijn alleen op de website te krijgen.",
-        "premium_cutover_dm":         "👋 Even een kort bericht over VRCVerify in **{server}**.\n\nVRCVerify heeft nu een optioneel Premium-abonnement. Om het meteen duidelijk te zeggen: **er verandert niets aan jouw server.**\n\n18+-verificatie is gratis en blijft permanent gratis, voor iedereen. Het automatisch verifiëren van al geverifieerde leden zodra ze binnenkomen ook.\n\nEn omdat **{server}** is ingesteld vóór de lancering van Premium, behoudt de server ook deze functies permanent en kosteloos:\n• Automatisch verwijderen van de niet-geverifieerd-rol\n• Automatische bijnaamsynchronisatie met VRChat\n• Eigen bericht na de verificatie\n\nJe hoeft dus niets te doen. Ben je ooit benieuwd wat Premium toevoegt, voer dan `/vrcverify_subscription` uit in je server.\n(Dit is een eenmalig bericht.)",
-        "log_verified":              "✅ {user} — geverifieerd 18+ · {when}",
-        "log_role_failed":           "⚠️ {user} — geverifieerd 18+, maar de rol kon niet worden toegewezen. Controleer of de rol van de VRCVerify-bot boven de geverifieerd-rol staat. · {when}",
-        "log_not_18":                "❌ {user} — volgens VRChat niet 18+ · {when}",
-        "log_entries_dropped":       "…{count} eerdere vermeldingen konden niet worden vastgelegd.",
-        "log_channel_ready":         "📋 Verificatieactiviteit wordt vanaf nu hier gelogd.\nVermeldingen tonen het lid, het resultaat en de tijd — nooit hun VRChat-naam of -ID.",
-        "log_channel_set":           "Verificatieactiviteit wordt gelogd in {channel}.",
-        "log_channel_cleared":       "Het loggen van verificatieactiviteit staat nu uit.",
-        "log_channel_premium_only":  "Het verificatielogboek is een functie van VRCVerify Premium. De 18+-verificatie zelf blijft voor iedereen gratis.",
-        "log_channel_no_permission": "Ik kan niets plaatsen in {channel}. Geef de bot daar **Kanaal bekijken** en **Berichten versturen** en voer dit commando opnieuw uit.",
-        "log_channel_announcement": "{channel} is een aankondigingskanaal. Andere servers kunnen het volgen, waardoor de 18+-status van je leden buiten deze server opnieuw wordt gepubliceerd. Het kan dus niet als verificatielogboek worden gebruikt. Kies een gewoon tekstkanaal.",
-        "panel_color_invalid": "Dat lijkt geen hexkleur te zijn. Gebruik iets als `#5865F2` (of kort `#58F`).",
-        # Issue #49 phase 5: the member-facing group invite.
-        "btn_group_invite": "Stuur mij een uitnodiging",
-        "dm_group_invite_offer": "Je bent geverifieerd in **{server}**! Wil je een uitnodiging voor hun VRChat-groep, **{group}**?\n\nEr wordt niets naar VRChat gestuurd tenzij je op de knop drukt.",
-        "group_invite_working": "Je uitnodiging wordt bij VRChat aangevraagd...",
-        "group_invite_sent": "Uitnodiging verstuurd! Open je VRChat-meldingen om lid te worden van **{group}**.",
-        "group_invite_already_member": "Je zit al in **{group}**, dus er valt niets te versturen.",
-        "group_invite_already_invited": "Er wacht al een uitnodiging voor **{group}** in je VRChat-meldingen.",
-        "group_invite_blocked": "VRChat kon de uitnodiging niet bezorgen. Mogelijk staan groepsuitnodigingen uit in je VRChat-instellingen, of is de groep geblokkeerd op je account.",
-        "group_invite_banned": "Je kunt niet worden uitgenodigd voor **{group}**. Alleen een groepsmoderator kan dat veranderen.",
-        "group_invite_setup_problem": "De VRChat-groep van **{server}** is op dit moment niet goed ingesteld, dus de uitnodiging kon niet worden verstuurd. Laat het de beheerders van de server weten.",
-        "group_invite_unavailable": "VRChat gaf geen antwoord, dus de uitnodiging kon niet worden verstuurd. Probeer het over een paar minuten opnieuw.",
-        "group_invite_too_soon": "Je hebt al om een uitnodiging gevraagd. Wacht een paar minuten voordat je het opnieuw probeert.",
-        "group_invite_account_missing": "VRChat herkende het account waarmee je je hebt geverifieerd niet, dus de uitnodiging kon niet worden verstuurd. Verifieer je opnieuw om je VRChat-account opnieuw te koppelen.",
-        "group_invite_not_a_member": "Deze uitnodiging was voor **{server}**, en je bent daar geen lid meer. Word weer lid van de server en verifieer je opnieuw als je nog een uitnodiging wilt.",
-        "group_invite_not_verified": "Je bent op dit moment niet als 18+ geverifieerd in **{server}**, dus de uitnodiging kon niet worden verstuurd. Verifieer je opnieuw om een nieuwe uitnodiging te krijgen.",
-        "group_invite_account_changed": "Deze uitnodiging was voor een ander VRChat-account dan het account dat je nu gekoppeld hebt. Verifieer je opnieuw om een nieuwe uitnodiging voor je huidige account te krijgen.",
-    },
+NICKNAME_UPDATE_REQUESTED = N_("Nickname update requested. I'll DM you once it's done!")
 
-    "hi-IN": {
-        "not_verified":               "आप अभी तक सत्यापित नहीं हैं। कृपया पहले **पुष्टि शुरू करें** पर क्लिक करें।",
-        "already_verified":           "आप पहले से ही सत्यापित हैं! रोल सौंपा गया है (या पुनः सौपा गया)।",
-        "recheck_started":            "हम आपके VRChat 18+ स्थिति की पुनः जाँच कर रहे हैं। यदि आपने अपना आयु सत्यापन अपडेट किया है, तो आपको जल्द ही एक डीएम मिलेगा!",
-        "dm_role_success":            "आप सत्यापित हैं और आपको **{role}** भूमिका **{server}** में प्रदान की गई है!",
-        "nickname_update_requested":  "उपनाम अपडेट का अनुरोध भेजा गया। पूर्ण होने पर मैं आपको डीएम करूँगा!",
-        "verification_requested":     "सत्यापन अनुरोध प्राप्त हुआ! परिणाम आपको DM में भेजे जाएंगे। कृपया सुनिश्चित करें कि इस सर्वर के लिए आपके DM खुले हैं।",
-        "setup_missing":              "इस सर्वर ने अभी तक कोई सत्यापन भूमिका सेट नहीं की है। कृपया एक व्यवस्थापक से संपर्क करें।",
-        "not_18_plus":                "VRChat के अनुसार आप 18+ नहीं हैं। त्रुटि होने पर एक व्यवस्थापक से संपर्क करें।",
-        "support_info":               "सत्यापन में सहायता चाहिए?\n- सहायता के लिए सर्वर व्यवस्थापक से संपर्क करें\n- या हमारी सहायता पृष्ठ देखें: https://esattotech.com/contact-us/\n\nयदि यह त्रुटिपूर्ण है, तो हमें बताएं!",
-        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
-        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
-        "subscription_info":          "मैं यह नि:शुल्क प्रदान कर रहा हूं, लेकिन यदि आप मेरा समर्थन करना चाहते हैं, तो मेरा Ko-fi यहाँ देखें: {kofi_link}. आपके समर्थन के लिए धन्यवाद!",
-        "settings_saved":             "सेटिंग्स सहेजी गईं!",
-        "settings_unreadable":        "इस सर्वर की सेटिंग्स अभी पढ़ी नहीं जा सकीं। कृपया थोड़ी देर बाद पुनः प्रयास करें — कुछ भी नहीं बदला है।",
-        "invalid_vrc_id_input":       "ऐसा लगता है कि आपने VRChat userID के बजाय अपना display name दर्ज किया है。\nकृपया पूर्ण प्रोफ़ाइल URL या अपना userID दर्ज करें (जो हमेशा `usr_` से शुरू होता है)。\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "हमें आपकी VRChat बायो में आपका कोड नहीं मिला। कृपया फिर से प्रयास करें।\n**कृपया सुनिश्चित करें कि कोड अपनी अलग पंक्ति पर है।**",
-        "verify_button_expired":      "यह सत्यापन लिंक समाप्त हो गया है या किसी नए लिंक से बदल दिया गया है। कृपया नया कोड पाने के लिए दोबारा `/vrcverify` चलाएँ।",
-        "nickname_updated":           "आपका उपनाम {display_name} में अपडेट किया गया है।",
-        "nickname_update_failed":     "हम आपका उपनाम अपडेट नहीं कर सके।",
-        "setup_success":              "सर्वर कॉन्फ़िग {action} सफल。\nसत्यापित भूमिका सेट: `{role}` (ID={role_id})",
-        "setup_unverified_set":       "\nहटाई जाने वाली 'अनवेरिफ़ाइड' भूमिका: `{role}` (ID={role_id})",
-        "setup_unverified_missing":   "\n('अनवेरिफ़ाइड' भूमिका सेट नहीं है; सत्यापन पर कोई भूमिका नहीं हटेगी。)",
-        "instructions_title":         "VRChat सत्यापन बॉट का उपयोग कैसे करें",
-        "instructions_desc":          "**इन चरणों का पालन करें** अपने 18+ स्थिति की पुष्टि करने के लिए:\n\n"
-                                      "1. क्लिक करें **सत्यापन प्रारंभ करें** बटन (यदि दिखाया गया हो) या कहीं भी टाइप करें `/vrcverify`。\n"
-                                      "2. यदि आप नए हैं, तो आपसे आपका VRChat उपयोगकर्ता नाम पूछा जाएगा。\n"
-                                      "3. बॉट आपको एक अद्वितीय कोड देगा - इसे अपने VRChat जैव में **अपनी अलग पंक्ति में** डालें。\n"
-                                      "4. अपने जैव को अपडेट करने के बाद Discord में **सत्यापित करें** पर दबाएं。\n\n"
-                                      "यदि आपको अतिरिक्त सहायता की आवश्यकता है, तो एक व्यवस्थापक से संपर्क करें या टाइप करें `/vrcverify_support`。",
-        "btn_begin_verification":     "पुष्टि शुरू करें",
-        "btn_update_nickname":        "उपनाम अपडेट करें",
-        "settings_intro":             "**VRChat सत्यापन सेटिंग्स**\n\n1.) **स्वचालित उपनाम परिवर्तन सक्षम करें**\n   उपयोगकर्ताओं के Discord उपनामों को उनके VRChat प्रदर्शन नामों के साथ मेल खाने के लिए स्वचालित रूप से अपडेट करें。\n   वर्तमान: **{current}**",
-        "dm_role_failed_bot_position":"मैं {server} में '{role}' भूमिका असाइन नहीं कर सका। आमतौर पर ऐसा तब होता है जब VRCVerify बॉट की भूमिका सर्वर की भूमिका सूची में verified (और unverified) भूमिकाओं से ऊपर नहीं होती। कृपया किसी व्यवस्थापक से कहें कि VRCVerify बॉट की भूमिका को उन भूमिकाओं के ऊपर ले जाएँ और फिर से प्रयास करें。",
-        "dm_unverified_failed_bot_position": "{server} में {role} भूमिका हटाई नहीं जा सकी। ऐसा आमतौर पर तब होता है जब VRCVerify बॉट की भूमिका असत्यापित भूमिका से ऊपर नहीं होती। किसी सर्वर एडमिन से कहें कि वे जाँच लें कि VRCVerify बॉट की भूमिका सत्यापित और असत्यापित (यदि लागू हो) दोनों भूमिकाओं से ऊपर है।",
-        "custom_msg_cleared":         "कस्टम सत्यापन अनुरोध संदेश हटाया गया। डिफ़ॉल्ट उपयोग होगा।",
-        "custom_msg_saved":           "कस्टम सत्यापन अनुरोध संदेश सहेजा गया।",
-        "custom_msg_too_long":        "संदेश बहुत लंबा है (अधिकतम 1000 अक्षर)।",
-        "custom_msg_invalid_links":   "अवरुद्ध: केवल discord.com या vrchat.com लिंक की अनुमति है। अमान्य लिंक:\n{invalid_list}",
-        "bio_verify_instructions1":   "**1)** अपने VRChat बायो में कोड को अपनी अलग पंक्ति पर जोड़ें।",
-        "bio_verify_instructions2":   "**2)** अपडेट करने के बाद, Discord में **सत्यापित करें** पर क्लिक करें (10 मिनट के अंदर)。",
-        "vrc_id_already_linked":      "जिस VRChat प्रोफ़ाइल का आपने उपयोग करने की कोशिश की, वह पहले से किसी अन्य Discord खाते से जुड़ी हुई है। यदि आपको लगता है कि यह गलती है, तो कृपया सर्वर ऐडमिन से संपर्क करें।",
-        "vrchat_issue_user_not_found":               "हमें वह VRChat खाता नहीं मिला। कृपया दोबारा जांचें कि आपने VRChat प्रोफ़ाइल URL या `usr_...` user ID सही तरह पेस्ट की है।",
-        "vrchat_issue_rate_limited":                "VRChat इस समय सत्यापन अनुरोधों पर rate limit लगा रहा है। कृपया एक मिनट रुकें और फिर से प्रयास करें।",
-        "vrchat_issue_temp_unavailable":             "VRCVerify इस समय अस्थायी रूप से VRChat से बात नहीं कर पा रहा है। कृपया थोड़ी देर बाद फिर से प्रयास करें।",
-        "vrchat_issue_outage_confirmed":            "VRChat इस समय एक ऐसी सेवा समस्या की रिपोर्ट कर रहा है जो सत्यापन को प्रभावित कर रही है। कृपया बाद में फिर प्रयास करें।\n\nस्थिति पृष्ठ: {status_page}",
-        "vrchat_issue_outage_confirmed_with_status": "VRChat इस समय एक ऐसी सेवा समस्या की रिपोर्ट कर रहा है जो सत्यापन को प्रभावित कर रही है। कृपया बाद में फिर प्रयास करें।\n\nस्थिति पृष्ठ: {status_page}\n\nरिपोर्ट की गई स्थिति: {status_message}",
-        "vrchat_issue_outage_suspected":            "ऐसा लगता है कि VRChat को अस्थायी API समस्याएँ हो रही हैं, इसलिए अभी सत्यापन पूरा नहीं किया जा सका। कृपया बाद में फिर प्रयास करें।\n\nस्थिति पृष्ठ: {status_page}",
-        "vrchat_issue_unexpected":                   "सत्यापन पूरा नहीं हो सका क्योंकि VRChat ने एक अप्रत्याशित त्रुटि लौटाई। कृपया बाद में फिर प्रयास करें।",
-        "cooldown_active":            "आप बहुत तेज़ी से प्रयास कर रहे हैं। कृपया {seconds} सेकंड प्रतीक्षा करें और फिर से प्रयास करें।",
-        "btn_donate":                 "दान करें",
-        "setup_donate_hint":          "\n\n☕ VRCVerify दान की बदौलत मुफ़्त है। यदि यह आपके समुदाय की मदद करता है, तो आप यहाँ समर्थन कर सकते हैं: {kofi_link}",
-        "milestone_owner_dm":         "🎉 **{server}** ने VRCVerify के साथ {count} सत्यापन पूरे कर लिए हैं!\nयह बॉट मुफ़्त है और दान पर चलता है — यदि यह आपके समुदाय के लिए उपयोगी रहा है, तो आप यहाँ समर्थन कर सकते हैं: {kofi_link}\n(यह संदेश केवल एक बार भेजा जाता है।)",
-        "setup_panel_nudge":          "\n\n📌 **एक कदम और:** जब तक आप निर्देश पैनल पोस्ट नहीं करते, सदस्य सत्यापन नहीं कर सकते।\nजिस चैनल से आप उन्हें सत्यापित कराना चाहते हैं, वहाँ `/vrcverify_instructions` चलाएँ। थ्रेड के बजाय ऐसा सामान्य टेक्स्ट चैनल इस्तेमाल करें जिसे सब देख सकें, क्योंकि थ्रेड अपने आप संग्रहित हो जाते हैं और पैनल चुपचाप काम करना बंद कर देता है।\nजाँच के लिए आप कभी भी `/vrcverify_status` चला सकते हैं।",
-        "panel_nudge_dm":             "👋 आपने **{server}** में VRCVerify सेट अप किया, लेकिन अभी तक कोई निर्देश पैनल पोस्ट नहीं हुआ है — इसलिए वहाँ के सदस्य अब भी सत्यापन शुरू नहीं कर सकते।\n\nजिस चैनल से आप उन्हें सत्यापित कराना चाहते हैं, वहाँ `/vrcverify_instructions` चलाएँ। थ्रेड के बजाय ऐसा सामान्य टेक्स्ट चैनल इस्तेमाल करें जिसे सब देख सकें, क्योंकि थ्रेड अपने आप संग्रहित हो जाते हैं और पैनल चुपचाप टूट जाता है।\n\nजल्दी जाँच के लिए अपने सर्वर में `/vrcverify_status` चलाएँ।\n(यह संदेश केवल एक बार भेजा जाता है।)",
-        "status_header":              "**{server} के लिए VRCVerify स्थिति**",
-        "status_role_ok":             "✅ सत्यापित भूमिका: **{role}**",
-        "status_role_missing":        "❌ कोई सत्यापित भूमिका सेट नहीं है — चुनने के लिए `/vrcverify_setup` चलाएँ।",
-        "status_role_deleted":        "❌ सेट की गई सत्यापित भूमिका अब मौजूद नहीं है — नई चुनने के लिए `/vrcverify_setup` चलाएँ।",
-        "status_panel_ok":            "✅ निर्देश पैनल पोस्ट है और बॉट अब भी उसे अपडेट कर सकता है।",
-        "status_panel_missing":       "❌ कोई निर्देश पैनल पोस्ट नहीं है — जिस चैनल में सदस्यों को सत्यापन करना है, वहाँ `/vrcverify_instructions` चलाएँ।",
-        "status_panel_unreachable":   "⚠️ निर्देश पैनल मौजूद है, लेकिन बॉट उसे अपडेट नहीं कर पा रहा। जाँचें कि उस चैनल में उसके पास अब भी **चैनल देखें**, **संदेश भेजें** और **लिंक एम्बेड करें** अनुमतियाँ हैं।",
-        "status_panel_archived":      "⚠️ निर्देश पैनल एक ऐसे थ्रेड में है जो संग्रहित हो चुका है, इसलिए बॉट उसे अपडेट नहीं कर सकता। थ्रेड को अनआर्काइव करें, या किसी सामान्य टेक्स्ट चैनल में नया पैनल पोस्ट करें।",
-        "status_panel_gone":          "❌ सहेजा गया निर्देश पैनल अब मौजूद नहीं है — वह या उसका चैनल हटा दिया गया है। नया पोस्ट करने के लिए `/vrcverify_instructions` फिर से चलाएँ।",
-        "status_tips":                "\n**सुझाव**\n• पैनल ऐसे सामान्य टेक्स्ट चैनल में पोस्ट करें जिसे सब देख सकें — थ्रेड अपने आप संग्रहित होकर उसे चुपचाप तोड़ देते हैं।\n• उस चैनल में बॉट की **चैनल देखें**, **संदेश भेजें** और **लिंक एम्बेड करें** अनुमतियाँ बनाए रखें।\n• अगर आप वह चैनल हटाते या दोबारा बनाते हैं, तो `/vrcverify_instructions` फिर से चलाएँ।",
-        "guild_join_welcome_dm":      "👋 **{server}** में VRCVerify जोड़ने के लिए धन्यवाद!\n\nशुरू करने के लिए:\n1. सत्यापित सदस्यों को मिलने वाली भूमिका चुनने के लिए `/vrcverify_setup` चलाएँ।\n2. जिस चैनल से आप सदस्यों की तसदीक करवाना चाहते हैं, वहाँ `/vrcverify_instructions` चलाएँ — थ्रेड के बजाय ऐसा सामान्य टेक्स्ट चैनल इस्तेमाल करें जिसे सब देख सकें, क्योंकि थ्रेड अपने आप संग्रहित हो जाते हैं और पैनल चुपचाप काम करना बंद कर देता है।\n\nमदद चाहिए? `/vrcverify_support` आज़माएँ।",
-        "premium_status_active":      "✅ **{server} पर VRCVerify Premium सक्रिय है।**\n\nयहाँ अनलॉक:\n• सत्यापन गतिविधि लॉग — `/vrcverify_logchannel` से सेट करें\n• कतार लगने पर सत्यापन कतार में प्राथमिकता\n• असत्यापित भूमिका का स्वतः हटाया जाना\n• VRChat के साथ उपनाम का स्वतः तालमेल\n• सत्यापन के बाद अपना संदेश\n• निर्देश पैनल पर आपका अपना रंग और सर्वर आइकन\n• घटा हुआ सत्यापन कूलडाउन\n• सत्यापित सदस्यों को सीधे अपने सर्वर के VRChat ग्रुप में आमंत्रित करें\n\nदिखावट और स्वचालन सेटिंग्स `/vrcverify_settings` में हैं।\n\nआप इसे कभी भी Discord की **यूज़र सेटिंग्स → सब्सक्रिप्शन** से प्रबंधित या रद्द कर सकते हैं।\nVRCVerify का समर्थन करने के लिए धन्यवाद। 💜",
-        "premium_status_active_card": "✅ **{server} पर VRCVerify Premium सक्रिय है।**\n\nयहाँ अनलॉक:\n• सत्यापन गतिविधि लॉग — `/vrcverify_logchannel` से सेट करें\n• कतार लगने पर सत्यापन कतार में प्राथमिकता\n• असत्यापित भूमिका का स्वतः हटाया जाना\n• VRChat के साथ उपनाम का स्वतः तालमेल\n• सत्यापन के बाद अपना संदेश\n• निर्देश पैनल पर आपका अपना रंग और सर्वर आइकन\n• घटा हुआ सत्यापन कूलडाउन\n• सत्यापित सदस्यों को सीधे अपने सर्वर के VRChat ग्रुप में आमंत्रित करें\n\nदिखावट और स्वचालन सेटिंग्स `/vrcverify_settings` में हैं।\n\nयह सर्वर कार्ड से भुगतान करता है, इसलिए इसे **VRCVerify की वेबसाइट** पर ही प्रबंधित या रद्द करें — Discord की सब्सक्रिप्शन सेटिंग्स में यह नहीं दिखेगा।\nVRCVerify का समर्थन करने के लिए धन्यवाद। 💜",
-        "premium_status_active_both": "⚠️ **{server} VRCVerify Premium के लिए दो बार भुगतान कर रहा है।**\n\nइस सर्वर पर एक चालू **Discord** सब्सक्रिप्शन और एक चालू **कार्ड** सब्सक्रिप्शन, दोनों हैं। Premium चालू रहेगा — लेकिन आपसे दोनों का शुल्क लिया जा रहा है।\n\nजान-बूझकर आपकी ओर से कुछ भी रद्द नहीं किया गया है: किसी इंसान के तय किए बिना सब्सक्रिप्शन रद्द करना और रिफ़ंड जारी करना, यह बॉट अपने आप नहीं करेगा।\n\nजो आपको ठीक लगे उसे रखें और दूसरा रद्द कर दें:\n• **Discord** — यूज़र सेटिंग्स → सब्सक्रिप्शन\n• **कार्ड** — वेबसाइट पर सब्सक्रिप्शन पेज\n\nअगर तय न कर पाएँ: वेबसाइट पर 6 और 12 महीने के प्लान सस्ते पड़ते हैं, और Discord सिर्फ़ मासिक बिलिंग कर सकता है।",
-        "premium_status_inactive":    "**{server} पर 18+ सत्यापन निःशुल्क है, और हमेशा रहेगा।** पहले से सत्यापित सदस्यों का शामिल होते ही स्वतः सत्यापन भी निःशुल्क है।\n\nVRCVerify Premium इस सर्वर के लिए ये वैकल्पिक सुविधाएँ जोड़ता है:\n• सत्यापन गतिविधि लॉग: आपके चुने हुए चैनल में हर सत्यापन, उन्हें भी जो चुपचाप विफल हो जाते हैं\n• कतार लगने पर सत्यापन कतार में प्राथमिकता\n• असत्यापित भूमिका का स्वतः हटाया जाना\n• VRChat के साथ उपनाम का स्वतः तालमेल\n• सत्यापन के बाद अपना संदेश\n• निर्देश पैनल पर आपका अपना रंग और सर्वर आइकन\n• घटा हुआ सत्यापन कूलडाउन\n• सत्यापित सदस्यों को सीधे अपने सर्वर के VRChat ग्रुप में आमंत्रित करें\n\nएक ही सदस्यता पूरे सर्वर को कवर करती है, और इसे लेने के दो तरीके हैं:\n• **Discord में** — नीचे दिया बटन। मासिक बिलिंग।\n• **वेबसाइट पर कार्ड से** — वही Premium, साथ में 6 और 12 महीने के प्लान जो सस्ते पड़ते हैं। Discord सिर्फ़ मासिक बिलिंग कर सकता है, इसलिए लंबे प्लान केवल वेबसाइट पर हैं।",
-        "premium_status_grandfathered": "**{server} पर 18+ सत्यापन निःशुल्क है, और हमेशा रहेगा।** पहले से सत्यापित सदस्यों का शामिल होते ही स्वतः सत्यापन भी निःशुल्क है।\n\nचूँकि यह सर्वर Premium शुरू होने से पहले सेट किया गया था, इसे ये सुविधाएँ भी स्थायी रूप से निःशुल्क मिलती रहेंगी:\n• असत्यापित भूमिका का स्वतः हटाया जाना\n• VRChat के साथ उपनाम का स्वतः तालमेल\n• सत्यापन के बाद अपना संदेश\n\nप्रीमियम इसके ऊपर ये जोड़ता है:\n• सत्यापन गतिविधि लॉग: आपके चुने हुए चैनल में हर सत्यापन, उन्हें भी जो चुपचाप विफल हो जाते हैं\n• कतार लगने पर सत्यापन कतार में प्राथमिकता\n• निर्देश पैनल पर आपका अपना रंग और सर्वर आइकन\n• घटा हुआ सत्यापन कूलडाउन\n• सत्यापित सदस्यों को सीधे अपने सर्वर के VRChat ग्रुप में आमंत्रित करें\n\n**Premium दो तरीकों से लिया जा सकता है:**\n• **Discord में** — नीचे दिया बटन। मासिक बिलिंग।\n• **वेबसाइट पर कार्ड से** — वही Premium, साथ में 6 और 12 महीने के प्लान जो सस्ते पड़ते हैं। Discord सिर्फ़ मासिक बिलिंग कर सकता है, इसलिए लंबे प्लान केवल वेबसाइट पर हैं।",
-        "premium_cutover_dm":         "👋 **{server}** में VRCVerify के बारे में एक छोटी सूचना।\n\nVRCVerify में अब एक वैकल्पिक Premium स्तर है। शुरू में ही साफ़ कर दूँ: **आपके सर्वर में कुछ भी नहीं बदल रहा।**\n\n18+ सत्यापन निःशुल्क है और सबके लिए स्थायी रूप से निःशुल्क ही रहेगा। पहले से सत्यापित सदस्यों का शामिल होते ही स्वतः सत्यापन भी निःशुल्क है।\n\nऔर चूँकि **{server}** Premium शुरू होने से पहले सेट किया गया था, इसे ये सुविधाएँ भी बिना किसी शुल्क के, स्थायी रूप से मिलती रहेंगी:\n• असत्यापित भूमिका का स्वतः हटाया जाना\n• VRChat के साथ उपनाम का स्वतः तालमेल\n• सत्यापन के बाद अपना संदेश\n\nतो आपको कुछ भी करने की ज़रूरत नहीं है। अगर कभी जानना चाहें कि Premium में और क्या है, तो अपने सर्वर में `/vrcverify_subscription` चलाएँ।\n(यह एक बार भेजा जाने वाला संदेश है।)",
-        "log_verified":              "✅ {user} — 18+ सत्यापित · {when}",
-        "log_role_failed":           "⚠️ {user} — 18+ सत्यापित, लेकिन भूमिका नहीं दी जा सकी। जाँचें कि VRCVerify बॉट की भूमिका सत्यापित भूमिका से ऊपर है। · {when}",
-        "log_not_18":                "❌ {user} — VRChat के अनुसार 18+ नहीं · {when}",
-        "log_entries_dropped":       "…{count} पुरानी प्रविष्टियाँ दर्ज नहीं की जा सकीं।",
-        "log_channel_ready":         "📋 अब से सत्यापन गतिविधि यहाँ दर्ज की जाएगी।\nप्रविष्टियों में सदस्य, परिणाम और समय दिखता है — उनका VRChat नाम या ID कभी नहीं।",
-        "log_channel_set":           "सत्यापन गतिविधि {channel} में दर्ज की जाएगी।",
-        "log_channel_cleared":       "सत्यापन गतिविधि लॉगिंग अब बंद है।",
-        "log_channel_premium_only":  "सत्यापन गतिविधि लॉग VRCVerify Premium की सुविधा है। मुख्य 18+ सत्यापन सबके लिए निःशुल्क रहता है।",
-        "log_channel_no_permission": "मैं {channel} में पोस्ट नहीं कर सकता। वहाँ बॉट को **चैनल देखें** और **संदेश भेजें** अनुमति दें, फिर यह कमांड दोबारा चलाएँ।",
-        "log_channel_announcement": "{channel} एक घोषणा चैनल है। दूसरे सर्वर इसे फ़ॉलो कर सकते हैं, जिससे आपके सदस्यों की 18+ स्थिति इस सर्वर के बाहर दोबारा प्रकाशित हो जाएगी, इसलिए इसे सत्यापन लॉग के रूप में इस्तेमाल नहीं किया जा सकता। कृपया एक सामान्य टेक्स्ट चैनल चुनें।",
-        "panel_color_invalid": "यह हेक्स रंग जैसा नहीं लगता। `#5865F2` जैसा कुछ इस्तेमाल करें (या संक्षेप में `#58F`)।",
-        # Issue #49 phase 5: the member-facing group invite.
-        "btn_group_invite": "मुझे आमंत्रण भेजें",
-        "dm_group_invite_offer": "आप **{server}** में सत्यापित हो गए हैं! क्या आप उनके VRChat समूह **{group}** का आमंत्रण चाहते हैं?\n\nजब तक आप बटन नहीं दबाते, VRChat को कुछ भी नहीं भेजा जाता।",
-        "group_invite_working": "VRChat से आपका आमंत्रण माँगा जा रहा है...",
-        "group_invite_sent": "आमंत्रण भेज दिया गया! **{group}** में शामिल होने के लिए अपनी VRChat सूचनाएँ खोलें।",
-        "group_invite_already_member": "आप पहले से ही **{group}** में हैं, इसलिए भेजने को कुछ नहीं है।",
-        "group_invite_already_invited": "**{group}** का आमंत्रण पहले से ही आपकी VRChat सूचनाओं में प्रतीक्षा कर रहा है।",
-        "group_invite_blocked": "VRChat आमंत्रण नहीं पहुँचा सका। हो सकता है आपकी VRChat सेटिंग्स में समूह आमंत्रण बंद हों, या समूह आपके खाते पर अवरुद्ध हो।",
-        "group_invite_banned": "आपको **{group}** में आमंत्रित नहीं किया जा सकता। इसे केवल समूह का मॉडरेटर बदल सकता है।",
-        "group_invite_setup_problem": "**{server}** का VRChat समूह इस समय सही ढंग से सेट नहीं है, इसलिए आमंत्रण नहीं भेजा जा सका। कृपया सर्वर के व्यवस्थापकों को बताएँ।",
-        "group_invite_unavailable": "VRChat ने उत्तर नहीं दिया, इसलिए आमंत्रण नहीं भेजा जा सका। कृपया कुछ मिनट बाद फिर कोशिश करें।",
-        "group_invite_too_soon": "आप पहले ही आमंत्रण माँग चुके हैं। दोबारा कोशिश करने से पहले कुछ मिनट रुकें।",
-        "group_invite_account_missing": "VRChat ने उस खाते को नहीं पहचाना जिससे आपने सत्यापन किया था, इसलिए आमंत्रण नहीं भेजा जा सका। अपना VRChat खाता दोबारा जोड़ने के लिए फिर से सत्यापन करें।",
-        "group_invite_not_a_member": "यह आमंत्रण **{server}** के लिए था, और अब आप उस सर्वर के सदस्य नहीं हैं। यदि आप अब भी आमंत्रण चाहते हैं, तो सर्वर में शामिल होकर दोबारा सत्यापन करें।",
-        "group_invite_not_verified": "आप इस समय **{server}** में 18+ के रूप में सत्यापित नहीं हैं, इसलिए आमंत्रण नहीं भेजा जा सका। नया आमंत्रण पाने के लिए दोबारा सत्यापन करें।",
-        "group_invite_account_changed": "यह आमंत्रण एक अलग VRChat खाते के लिए था, जो अभी आपके जुड़े हुए खाते से भिन्न है। अपने वर्तमान खाते के लिए नया आमंत्रण पाने हेतु दोबारा सत्यापन करें।",
-    },
+VERIFICATION_REQUESTED = N_(
+    "Verification request received! We'll DM you with the results. Please make sure your DMs for this server are open so you can receive the message."
+)
 
-    "ar": {
-        "not_verified":               "لم تقم بالتحقق بعد. الرجاء النقر على **بدء التحقق** أولاً.",
-        "already_verified":           "أنت مُحقق بالفعل! تم تعيين الدور (أو إعادة تعيينه).",
-        "recheck_started":            "نقوم بإعادة التحقق من حالة 18+ في VRChat الخاصة بك. إذا قمت بتحديث التحقق من العمر، ستتلقى رسالة خاصة قريبًا!",
-        "dm_role_success":            "لقد تم التحقق منك ومنحت **{role}** في **{server}**!",
-        "nickname_update_requested":  "تم إرسال طلب تحديث الاسم المستعار. سأرسل لك رسالة خاصة عند الانتهاء!",
-        "verification_requested":     "تم استلام طلب التحقق! سنرسل لك رسالة خاصة بالنتائج. تأكد من تفعيل الرسائل الخاصة لهذا الخادم.",
-        "setup_missing":              "لم يتم إعداد دور التحقق في هذا الخادم بعد. الرجاء الاتصال بمسؤول.",
-        "not_18_plus":                "وفقًا لـ VRChat، أنت لست 18+. اتصل بمسؤول إذا كان هذا خطأً.",
-        "support_info":               "تحتاج مساعدة في التحقق؟\n- اتصل بمسؤول الخادم للمساعدة\n- أو قم بزيارة صفحة الدعم: https://esattotech.com/contact-us/\n\nإذا كان هذا خطأً، فأخبرنا!",
-        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
-        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
-        "subscription_info":          "أقدم هذا مجانًا، ولكن إذا كنت ترغب في دعمي، يمكنك العثور على Ko-fi الخاص بي هنا: {kofi_link}. شكرًا لدعمك المستمر!",
-        "settings_saved":             "تم حفظ الإعدادات!",
-        "settings_unreadable":        "تعذّرت قراءة إعدادات هذا الخادم الآن. أعد المحاولة بعد قليل — لم يتغيّر أي شيء.",
-        "invalid_vrc_id_input":       "يبدو أنك أدخلت اسم العرض بدلاً من معرف مستخدم VRChat. الرجاء إدخال رابط الملف الشخصي الكامل أو معرف المستخدم الخاص بك (الذي يبدأ دائمًا بـ `usr_`).\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "لم نعثر على الرمز في سيرتك في VRChat. يرجى المحاولة مرة أخرى.\n**تحقق مزدوجًا من أن الرمز في سطر منفصل.**",
-        "verify_button_expired":      "انتهت صلاحية رابط التحقق هذا أو تم استبداله برابط أحدث. الرجاء تشغيل `/vrcverify` مرة أخرى للحصول على رمز جديد.",
-        "nickname_updated":           "تم تحديث لقبك إلى {display_name}.",
-        "nickname_update_failed":     "لم نتمكن من تحديث لقبك.",
-        "setup_success":              "تم {action} إعداد الخادم بنجاح.\nتم تعيين الدور الموثّق إلى: `{role}` (المعرف={role_id})",
-        "setup_unverified_set":       "\nالدور غير الموثّق المطلوب إزالته: `{role}` (المعرف={role_id})",
-        "setup_unverified_missing":   "\n(لم يتم تعيين دور غير موثّق؛ لن تتم إزالة أي دور عند التحقق.)",
-        "instructions_title":         "كيفية استخدام روبوت التحقق من VRChat",
-        "instructions_desc":          "**اتبع هذه الخطوات** للتحقق من حالة 18+ الخاصة بك:\n\n"
-                                      "1. انقر على زر **بدء التحقق** (إذا تم عرضه) أو اكتب `/vrcverify` في أي مكان。\n"
-                                      "2. إذا كنت جديدًا، سيُطلب منك اسم مستخدم VRChat الخاص بك。\n"
-                                      "3. سيعطيك الروبوت رمزًا فريدًا - ضع هذا في سيرتك الذاتية على VRChat **في سطر منفصل**。\n"
-                                      "4. اضغط على **تحقق** في Discord بمجرد تحديث سيرتك الذاتية。\n\n"
-                                      "إذا كنت بحاجة إلى مساعدة إضافية، فاتصل بالمسؤول أو اكتب `/vrcverify_support`。",
-        "btn_begin_verification":     "بدء التحقق",
-        "btn_update_nickname":        "تحديث الاسم المستعار",
-        "settings_intro":             "**إعدادات تحقق VRChat**\n\n1.) **تمكين تغيير اللقب التلقائي**\n   تحديث ألقاب Discord الخاصة بالمستخدمين تلقائيًا لتتوافق مع أسماء عرض VRChat الخاصة بهم。\n   الحالي: **{current}**",
-        "dm_role_failed_bot_position":"تعذّر عليّ منح دور '{role}' في {server}. يحدث هذا عادةً عندما لا تكون رتبة بوت VRCVerify أعلى من رتبتي Verified (و Unverified) في قائمة رتب الخادم. الرجاء طلب من مسؤول الخادم نقل رتبة بوت VRCVerify أعلى تلك الرتب ثم المحاولة مرة أخرى。",
-        "dm_unverified_failed_bot_position": "تعذّرت إزالة رتبة {role} في {server}. يحدث هذا عادةً عندما لا تكون رتبة بوت VRCVerify أعلى من رتبة غير المتحقق. اطلب من مسؤول السيرفر التأكد من أن رتبة بوت VRCVerify أعلى من رتبتي المتحقق وغير المتحقق (إن وُجدت).",
-        "custom_msg_cleared":         "تم مسح رسالة طلب التحقق المخصصة. سيتم استخدام الافتراضية.",
-        "custom_msg_saved":           "تم حفظ رسالة طلب التحقق المخصصة.",
-        "custom_msg_too_long":        "الرسالة طويلة جدًا (الحد الأقصى 1000 حرف).",
-        "custom_msg_invalid_links":   "تم الحظر: يُسمح فقط بروابط discord.com أو vrchat.com. الروابط غير الصالحة:\n{invalid_list}",
-        "bio_verify_instructions1":   "**1)** أضف الكود إلى سيرتك الذاتية في VRChat في سطر مستقل.",
-        "bio_verify_instructions2":   "**2)** بمجرد تحديث سيرتك الذاتية، انقر على **تحقق** في Discord (خلال 10 دقائق).",
-        "vrc_id_already_linked":      "ملف الـ VRChat الذي حاولت استخدامه مسجّل بالفعل على حساب Discord آخر. إذا كنت تعتقد أن هذا خطأ، يرجى الاتصال بمسؤول الخادم.",
-        "vrchat_issue_user_not_found":               "تعذر علينا العثور على حساب VRChat هذا. يرجى التأكد من أنك لصقت رابط ملف VRChat الشخصي أو معرّف المستخدم `usr_...` بشكل صحيح.",
-        "vrchat_issue_rate_limited":                "يقوم VRChat حاليًا بفرض حد على طلبات التحقق. يرجى الانتظار دقيقة ثم المحاولة مرة أخرى.",
-        "vrchat_issue_temp_unavailable":             "يتعذر على VRCVerify التواصل مع VRChat مؤقتًا الآن. يرجى المحاولة مرة أخرى بعد قليل.",
-        "vrchat_issue_outage_confirmed":            "يبلغ VRChat حاليًا عن مشكلة في الخدمة تؤثر على التحقق. يرجى المحاولة مرة أخرى لاحقًا.\n\nصفحة الحالة: {status_page}",
-        "vrchat_issue_outage_confirmed_with_status": "يبلغ VRChat حاليًا عن مشكلة في الخدمة تؤثر على التحقق. يرجى المحاولة مرة أخرى لاحقًا.\n\nصفحة الحالة: {status_page}\n\nالحالة المبلغ عنها: {status_message}",
-        "vrchat_issue_outage_suspected":            "يبدو أن VRChat يواجه مشكلات مؤقتة في واجهة API، لذلك تعذر إكمال التحقق الآن. يرجى المحاولة مرة أخرى لاحقًا.\n\nصفحة الحالة: {status_page}",
-        "vrchat_issue_unexpected":                   "تعذر إكمال التحقق لأن VRChat أعاد خطأ غير متوقع. يرجى المحاولة مرة أخرى لاحقًا.",
-        "cooldown_active":            "أنت تحاول بسرعة كبيرة. يرجى الانتظار {seconds} ثانية والمحاولة مرة أخرى.",
-        "btn_donate":                 "تبرع",
-        "setup_donate_hint":          "\n\n☕ VRCVerify مجاني بفضل التبرعات. إذا كان يساعد مجتمعك، يمكنك دعمه هنا: {kofi_link}",
-        "milestone_owner_dm":         "🎉 وصل **{server}** إلى {count} عملية تحقق مكتملة مع VRCVerify!\nالبوت مجاني ويعتمد على التبرعات — إذا كان مفيدًا لمجتمعك، يمكنك دعمه هنا: {kofi_link}\n(هذه رسالة تُرسل مرة واحدة فقط.)",
-        "setup_panel_nudge":          "\n\n📌 **خطوة أخيرة:** لا يمكن للأعضاء التحقق قبل أن تنشر لوحة التعليمات.\nنفّذ `/vrcverify_instructions` في القناة التي تريد أن يتحققوا منها. استخدم قناة نصية عادية يراها الجميع، وليس موضوعًا (Thread)، لأن المواضيع تُؤرشف تلقائيًا فتتوقف اللوحة عن العمل دون تنبيه.\nيمكنك تنفيذ `/vrcverify_status` في أي وقت للاطمئنان عليها.",
-        "panel_nudge_dm":             "👋 لقد أعددت VRCVerify في **{server}**، لكن لم تُنشر أي لوحة تعليمات بعد — لذا ما زال الأعضاء هناك بلا وسيلة لبدء التحقق.\n\nنفّذ `/vrcverify_instructions` في القناة التي تريد أن يتحققوا منها. استخدم قناة نصية عادية يراها الجميع بدلًا من موضوع (Thread)، لأن المواضيع تُؤرشف تلقائيًا وتُعطّل اللوحة بهدوء.\n\nنفّذ `/vrcverify_status` في خادمك لفحص سريع.\n(هذه رسالة تُرسل مرة واحدة فقط.)",
-        "status_header":              "**حالة VRCVerify في {server}**",
-        "status_role_ok":             "✅ رتبة المتحقق: **{role}**",
-        "status_role_missing":        "❌ لم يتم تعيين رتبة للمتحققين — نفّذ `/vrcverify_setup` لاختيار واحدة.",
-        "status_role_deleted":        "❌ رتبة المتحقق المُعيّنة لم تعد موجودة — نفّذ `/vrcverify_setup` لاختيار رتبة جديدة.",
-        "status_panel_ok":            "✅ لوحة التعليمات منشورة ولا يزال بإمكان البوت تحديثها.",
-        "status_panel_missing":       "❌ لم تُنشر أي لوحة تعليمات — نفّذ `/vrcverify_instructions` في القناة التي يجب أن يتحقق الأعضاء منها.",
-        "status_panel_unreachable":   "⚠️ لوحة التعليمات موجودة لكن البوت لا يستطيع تحديثها. تأكد من أنه ما زال يملك صلاحيات **عرض القناة** و**إرسال الرسائل** و**تضمين الروابط** في تلك القناة.",
-        "status_panel_archived":      "⚠️ لوحة التعليمات داخل موضوع (Thread) تمت أرشفته، لذا لا يستطيع البوت تحديثها. ألغِ أرشفة الموضوع، أو انشر لوحة جديدة في قناة نصية عادية.",
-        "status_panel_gone":          "❌ لوحة التعليمات المحفوظة لم تعد موجودة — حُذفت هي أو قناتها. نفّذ `/vrcverify_instructions` مرة أخرى لنشر لوحة جديدة.",
-        "status_tips":                "\n**نصائح**\n• انشر اللوحة في قناة نصية عادية يراها الجميع — المواضيع تُؤرشف تلقائيًا وتُعطّلها بهدوء.\n• حافظ على صلاحيات البوت **عرض القناة** و**إرسال الرسائل** و**تضمين الروابط** في تلك القناة.\n• إذا حذفت تلك القناة أو أعدت إنشاءها، فنفّذ `/vrcverify_instructions` من جديد.",
-        "guild_join_welcome_dm":      "👋 شكرًا لإضافة VRCVerify إلى **{server}**!\n\nللإعداد:\n1. نفّذ `/vrcverify_setup` لاختيار الرتبة التي يحصل عليها الأعضاء بعد التحقق.\n2. نفّذ `/vrcverify_instructions` في القناة التي تريد أن يتحقق منها الأعضاء — استخدم قناة نصية عادية يراها الجميع، وليس موضوعًا (Thread)، لأن المواضيع تُؤرشف تلقائيًا فتتوقف اللوحة عن العمل دون تنبيه.\n\nهل تحتاج مساعدة؟ جرّب `/vrcverify_support`.",
-        "premium_status_active":      "✅ **VRCVerify Premium مُفعّل في {server}.**\n\nما تم فتحه هنا:\n• سجل نشاط التحقق — اضبطه باستخدام `/vrcverify_logchannel`\n• أولوية في طابور التحقق عند وجود تراكم\n• الإزالة التلقائية لرتبة غير المتحقق\n• مزامنة تلقائية للاسم المستعار مع VRChat\n• رسالة مخصّصة بعد التحقق\n• لونك الخاص وأيقونة سيرفرك على لوحة التعليمات\n• مدة انتظار أقصر بين عمليات التحقق\n• دعوة الأعضاء الموثّقين مباشرةً إلى مجموعة VRChat الخاصة بخادمك\n\nإعدادات المظهر والأتمتة موجودة في `/vrcverify_settings`.\n\nيمكنك إدارته أو إلغاؤه في أي وقت من **إعدادات المستخدم ← الاشتراكات** في Discord.\nشكرًا لدعمك VRCVerify. 💜",
-        "premium_status_active_card": "✅ **VRCVerify Premium مُفعّل في {server}.**\n\nما تم فتحه هنا:\n• سجل نشاط التحقق — اضبطه باستخدام `/vrcverify_logchannel`\n• أولوية في طابور التحقق عند وجود تراكم\n• الإزالة التلقائية لرتبة غير المتحقق\n• مزامنة تلقائية للاسم المستعار مع VRChat\n• رسالة مخصّصة بعد التحقق\n• لونك الخاص وأيقونة سيرفرك على لوحة التعليمات\n• مدة انتظار أقصر بين عمليات التحقق\n• دعوة الأعضاء الموثّقين مباشرةً إلى مجموعة VRChat الخاصة بخادمك\n\nإعدادات المظهر والأتمتة موجودة في `/vrcverify_settings`.\n\nيدفع هذا السيرفر بالبطاقة، لذا يمكنك إدارته أو إلغاؤه من **موقع VRCVerify** — لن يظهر في إعدادات الاشتراكات داخل Discord.\nشكرًا لدعمك VRCVerify. 💜",
-        "premium_status_active_both": "⚠️ **{server} يدفع مقابل VRCVerify Premium مرتين.**\n\nيوجد اشتراك **Discord** فعّال واشتراك **بطاقة** فعّال لهذا السيرفر. Premium يبقى مُفعّلًا — لكن يجري تحصيل المبلغ مرتين.\n\nلم نُلغِ أي شيء نيابةً عنك، وهذا مقصود: إلغاء اشتراك وإصدار استرداد دون أن يقرّر ذلك إنسان ليس شيئًا يفعله هذا البوت من تلقاء نفسه.\n\nأبقِ ما يناسبك وألغِ الآخر:\n• **Discord** — إعدادات المستخدم ← الاشتراكات\n• **البطاقة** — صفحة الاشتراكات على الموقع\n\nإن كنت مترددًا: خطط 6 و12 شهرًا على الموقع أوفر، وDiscord لا يفوتر إلا شهريًا.",
-        "premium_status_inactive":    "**التحقق من عمر 18+ مجاني في {server}، وسيبقى كذلك دائمًا.** وكذلك التحقق التلقائي للأعضاء المتحققين مسبقًا عند انضمامهم.\n\nيضيف VRCVerify Premium هذه المزايا الاختيارية لهذا الخادم:\n• سجل نشاط التحقق: كل عملية تحقق في قناة تختارها، بما فيها التي تفشل بصمت\n• أولوية في طابور التحقق عند وجود تراكم\n• الإزالة التلقائية لرتبة غير المتحقق\n• مزامنة تلقائية للاسم المستعار مع VRChat\n• رسالة مخصّصة بعد التحقق\n• لونك الخاص وأيقونة سيرفرك على لوحة التعليمات\n• مدة انتظار أقصر بين عمليات التحقق\n• دعوة الأعضاء الموثّقين مباشرةً إلى مجموعة VRChat الخاصة بخادمك\n\nاشتراك واحد يغطي الخادم بأكمله، وهناك طريقتان للحصول عليه:\n• **داخل Discord** — الزر بالأسفل. الفوترة شهرية.\n• **بالبطاقة عبر الموقع** — نفس Premium، مع خطط 6 و12 شهرًا أوفر. لا يستطيع Discord سوى الفوترة الشهرية، لذا فالخطط الأطول متاحة على الموقع فقط.",
-        "premium_status_grandfathered": "**التحقق من عمر 18+ مجاني في {server}، وسيبقى كذلك دائمًا.** وكذلك التحقق التلقائي للأعضاء المتحققين مسبقًا عند انضمامهم.\n\nولأن هذا الخادم أُعدّ قبل إطلاق Premium، فإنه يحتفظ أيضًا بهذه المزايا مجانًا وبشكل دائم:\n• الإزالة التلقائية لرتبة غير المتحقق\n• مزامنة تلقائية للاسم المستعار مع VRChat\n• رسالة مخصّصة بعد التحقق\n\nيضيف Premium ما يلي فوق ذلك:\n• سجل نشاط التحقق: كل عملية تحقق في قناة تختارها، بما فيها التي تفشل بصمت\n• أولوية في طابور التحقق عند وجود تراكم\n• لونك الخاص وأيقونة سيرفرك على لوحة التعليمات\n• مدة انتظار أقصر بين عمليات التحقق\n• دعوة الأعضاء الموثّقين مباشرةً إلى مجموعة VRChat الخاصة بخادمك\n\n**يمكن الحصول على Premium بطريقتين:**\n• **داخل Discord** — الزر بالأسفل. الفوترة شهرية.\n• **بالبطاقة عبر الموقع** — نفس Premium، مع خطط 6 و12 شهرًا أوفر. لا يستطيع Discord سوى الفوترة الشهرية، لذا فالخطط الأطول متاحة على الموقع فقط.",
-        "premium_cutover_dm":         "👋 تنويه سريع بخصوص VRCVerify في **{server}**.\n\nصار لدى VRCVerify الآن مستوى Premium اختياري، ولنكن واضحين من البداية: **لن يتغيّر أي شيء في خادمك.**\n\nالتحقق من عمر 18+ مجاني وسيبقى مجانيًا للجميع بشكل دائم. وكذلك التحقق التلقائي للأعضاء المتحققين مسبقًا عند انضمامهم.\n\nولأن **{server}** أُعدّ قبل إطلاق Premium، فإنه يحتفظ أيضًا بهذه المزايا دون أي تكلفة وبشكل دائم:\n• الإزالة التلقائية لرتبة غير المتحقق\n• مزامنة تلقائية للاسم المستعار مع VRChat\n• رسالة مخصّصة بعد التحقق\n\nإذًا ليس عليك فعل أي شيء. وإن أردت يومًا معرفة ما يضيفه Premium، نفّذ `/vrcverify_subscription` في خادمك.\n(هذه رسالة تُرسل مرة واحدة.)",
-        "log_verified":              "✅ {user} — تم التحقق 18+ · {when}",
-        "log_role_failed":           "⚠️ {user} — تم التحقق 18+، لكن تعذّر منح الرتبة. تأكد أن رتبة بوت VRCVerify أعلى من رتبة المتحقق. · {when}",
-        "log_not_18":                "❌ {user} — ليس 18+ بحسب VRChat · {when}",
-        "log_entries_dropped":       "…تعذّر تسجيل {count} من الإدخالات السابقة.",
-        "log_channel_ready":         "📋 من الآن فصاعدًا سيتم تسجيل نشاط التحقق هنا.\nتعرض الإدخالات العضو والنتيجة والوقت فقط، ولا تعرض أبدًا اسمه أو معرّفه في VRChat.",
-        "log_channel_set":           "سيتم تسجيل نشاط التحقق في {channel}.",
-        "log_channel_cleared":       "تم إيقاف تسجيل نشاط التحقق.",
-        "log_channel_premium_only":  "سجل نشاط التحقق ميزة في VRCVerify Premium. أما التحقق من عمر 18+ نفسه فيبقى مجانيًا للجميع.",
-        "log_channel_no_permission": "لا أستطيع النشر في {channel}. امنح البوت صلاحيتي **عرض القناة** و**إرسال الرسائل** هناك ثم نفّذ الأمر مرة أخرى.",
-        "log_channel_announcement": "{channel} قناة إعلانات. يمكن لخوادم أخرى متابعتها، ما يعيد نشر حالة 18+ لأعضائك خارج هذا الخادم، لذا لا يمكن استخدامها كسجل تحقق. من فضلك اختر قناة نصية عادية.",
-        "panel_color_invalid": "لا يبدو هذا لونًا سِتّ عشريًا. استخدم شيئًا مثل `#5865F2` (أو `#58F` للاختصار).",
-        # Issue #49 phase 5: the member-facing group invite.
-        "btn_group_invite": "أرسل لي دعوة",
-        "dm_group_invite_offer": "تم التحقق منك في **{server}**! هل تريد دعوة إلى مجموعتهم على VRChat، **{group}**؟\n\nلن يُرسل أي شيء إلى VRChat ما لم تضغط على الزر.",
-        "group_invite_working": "جارٍ طلب دعوتك من VRChat...",
-        "group_invite_sent": "تم إرسال الدعوة! افتح إشعارات VRChat للانضمام إلى **{group}**.",
-        "group_invite_already_member": "أنت بالفعل في **{group}**، لذا لا يوجد ما يُرسل.",
-        "group_invite_already_invited": "هناك دعوة إلى **{group}** تنتظرك بالفعل في إشعارات VRChat.",
-        "group_invite_blocked": "لم يتمكن VRChat من تسليم الدعوة. قد تكون دعوات المجموعات معطّلة في إعدادات VRChat لديك، أو أن المجموعة محظورة على حسابك.",
-        "group_invite_banned": "لا يمكن دعوتك إلى **{group}**. لا يمكن تغيير ذلك إلا لمشرف المجموعة.",
-        "group_invite_setup_problem": "مجموعة **{server}** على VRChat غير مُهيّأة بشكل صحيح حاليًا، لذا تعذّر إرسال الدعوة. من فضلك أبلغ مسؤولي الخادم.",
-        "group_invite_unavailable": "لم يستجب VRChat، لذا تعذّر إرسال الدعوة. يرجى المحاولة مرة أخرى بعد بضع دقائق.",
-        "group_invite_too_soon": "لقد طلبت دعوة بالفعل. يرجى الانتظار بضع دقائق قبل المحاولة مرة أخرى.",
-        "group_invite_account_missing": "لم يتعرّف VRChat على الحساب الذي تحققت به، لذا تعذّر إرسال الدعوة. أعد التحقق لإعادة ربط حسابك على VRChat.",
-        "group_invite_not_a_member": "كانت هذه الدعوة لخادم **{server}**، ولم تعد عضوًا فيه. انضم إلى الخادم وتحقق مرة أخرى إذا كنت ما زلت ترغب في الحصول على دعوة.",
-        "group_invite_not_verified": "أنت غير مُتحقَّق حاليًا كبالغ 18+ في **{server}**، لذا تعذّر إرسال الدعوة. تحقّق مرة أخرى للحصول على دعوة جديدة.",
-        "group_invite_account_changed": "كانت هذه الدعوة لحساب VRChat مختلف عن الحساب المرتبط بك الآن. تحقّق مرة أخرى للحصول على دعوة جديدة لحسابك الحالي.",
-    },
+SETUP_MISSING = N_(
+    "This server hasn't set up a verification role yet. Please contact an admin."
+)
 
-    "bn": {
-        "not_verified":               "আপনি এখনও যাচাইপ্রক্রিয়া করেননি। অনুগ্রহ করে প্রথমে **যাচাই শুরু করুন** ক্লিক করুন।",
-        "already_verified":           "আপনি ইতিমধ্যেই যাচাই করা হয়েছে! ভূমিকা প্রদান করা হয়েছে (অথবা পুনরায় প্রদান করা হয়েছে)।",
-        "recheck_started":            "আমরা আপনার VRChat 18+ অবস্থা পুনরায় যাচাই করছি। যদি আপনি আপনার বয়স যাচাই আপডেট করে থাকেন, আপনি শীঘ্রই একটি ডিএম পাবেন!",
-        "dm_role_success":            "আপনি যাচাইপ্রক্রিয়া সম্পন্ন করেছেন এবং **{role}** ভূমিকা **{server}**-এ পেয়েছেন!",
-        "nickname_update_requested":  "ডাকনাম আপডেটের অনুরোধ পাঠানো হয়েছে। সম্পন্ন হলে আমি আপনাকে ডিএম করবো!",
-        "verification_requested":     "যাচাইকরণ অনুরোধ গৃহীত হয়েছে! ফলাফল আমরা আপনাকে DM করব। নিশ্চিত করুন এই সার্ভারের জন্য আপনার DM চালু আছে।",
-        "setup_missing":              "এই সার্ভারে এখনও যাচাইকরণ ভূমিকা সেট করা হয়নি। অনুগ্রহ করে একজন অ্যাডমিনের সাথে যোগাযোগ করুন।",
-        "not_18_plus":                "VRChat অনুযায়ী আপনি 18+ নন। যদি এটি ত্রুটি হয়, একজন অ্যাডমিনের সাথে যোগাযোগ করুন।",
-        "support_info":               "যাচাই নিয়ে সহায়তা প্রয়োজন?\n- সহায়তার জন্য সার্ভার অ্যাডমিনের সাথে যোগাযোগ করুন\n- অথবা আমাদের সমর্থন পৃষ্ঠা দেখুন: https://esattotech.com/contact-us/\n\nযদি এটি ত্রুটি হয়, আমাদের জানান!",
-        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
-        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
-        "subscription_info":          "এটি আমি বিনামূল্যে প্রদান করছি, তবে আপনি যদি আমাকে সমর্থন করতে চান তবে আমার Ko-fi এখানে দেখুন: {kofi_link}. আপনাদের সমর্থনের জন্য ধন্যবাদ!",
-        "settings_saved":             "সেটিংস সংরক্ষিত হয়েছে!",
-        "settings_unreadable":        "এই সার্ভারের সেটিংস এই মুহূর্তে পড়া যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন — কিছুই পরিবর্তন হয়নি।",
-        "invalid_vrc_id_input":       "মনে হচ্ছে আপনি VRChat userID-এর বদলে আপনার প্রদর্শন নাম লিখেছেন。\nঅনুগ্রহ করে সম্পূর্ণ প্রোফাইল URL বা আপনার userID লিখুন (যা সবসময় `usr_` দিয়ে শুরু হয়)।\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "আপনার VRChat বায়োতে আমরা কোডটি খুঁজে পাইনি। অনুগ্রহ করে আবার চেষ্টা করুন।\n**নিশ্চিত করুন যে কোডটি একটি পৃথক লাইনে আছে।**",
-        "verify_button_expired":      "এই যাচাইকরণ লিঙ্কটির মেয়াদ শেষ হয়ে গেছে অথবা এটি একটি নতুন লিঙ্ক দ্বারা প্রতিস্থাপিত হয়েছে। অনুগ্রহ করে নতুন কোড পেতে আবার `/vrcverify` চালান।",
-        "nickname_updated":           "আপনার ডাকনাম {display_name} এ আপডেট হয়েছে।",
-        "nickname_update_failed":     "আমরা আপনার ডাকনাম আপডেট করতে পারিনি।",
-        "setup_success":              "সার্ভার কনফিগ {action} সফল。\nযাচাইকৃত ভূমিকা সেট করা হয়েছে: `{role}` (ID={role_id})",
-        "setup_unverified_set":       "\nমুছে ফেলার জন্য 'অনভেরিফাইড' ভূমিকা: `{role}` (ID={role_id})",
-        "setup_unverified_missing":   "\n('অনভেরিফাইড' ভূমিকা সেট করা নেই; যাচাইয়ের সময় কোনো ভূমিকা সরানো হবে না。)",
-        "instructions_title":         "VRChat যাচাইকরণ বট ব্যবহার করার জন্য নির্দেশিকা",
-        "instructions_desc":          "**এই পদক্ষেপগুলি অনুসরণ করুন** আপনার 18+ স্থিতি যাচাই করতে:\n\n"
-                                      "1. ক্লিক করুন **যাচাই শুরু করুন** বোতামে (যদি প্রদর্শিত হয়) অথবা যেকোনো জায়গায় টাইপ করুন `/vrcverify`。\n"
-                                      "2. যদি আপনি নতুন হন, তবে আপনাকে আপনার VRChat ব্যবহারকারীর নাম দেওয়ার জন্য বলা হবে。\n"
-                                      "3. বট আপনাকে একটি অনন্য কোড দেবে - এটি আপনার VRChat জীবনীতে **একটি পৃথক লাইনে** রাখুন。\n"
-                                      "4. আপনার জীবনী আপডেট হলে Discord-এ **যাচাই করুন** এ ক্লিক করুন。\n\n"
-                                      "যদি আপনার অতিরিক্ত সহায়তার প্রয়োজন হয়, তবে একটি প্রশাসকের সাথে যোগাযোগ করুন বা টাইপ করুন `/vrcverify_support`。",
-        "btn_begin_verification":     "যাচাই শুরু করুন",
-        "btn_update_nickname":        "ডাকনাম আপডেট করুন",
-        "settings_intro":             "**VRChat যাচাইকরণ সেটিংস**\n\n1.) **স্বয়ংক্রিয় ডাকনাম পরিবর্তন সক্রিয় করুন**\n   ব্যবহারকারীদের Discord ডাকনাম স্বয়ংক্রিয়ভাবে তাদের VRChat প্রদর্শন নামের সাথে মিলিয়ে আপডেট করুন。\n   বর্তমান: **{current}**",
-        "dm_role_failed_bot_position":"আমি {server}-এ আপনাকে '{role}' ভূমিকা দিতে পারিনি। সাধারণত এটি ঘটে যখন VRCVerify বটের ভূমিকা সার্ভারের রোল তালিকায় verified (এবং unverified) ভূমিকার উপরে না থাকে। দয়া করে কোনো অ্যাডমিনকে বলুন VRCVerify বটের ভূমিকা ওই ভূমিগুলোর উপরে নিয়ে যেতে এবং আবার চেষ্টা করুন।",
-        "dm_unverified_failed_bot_position": "{server}-এ {role} রোলটি সরানো যায়নি। সাধারণত এমন হয় যখন VRCVerify বটের রোল অযাচাইকৃত রোলের উপরে থাকে না। সার্ভারের একজন অ্যাডমিনকে যাচাই করতে বলুন যে VRCVerify বটের রোল যাচাইকৃত ও অযাচাইকৃত (যদি থাকে) দুটো রোলের উপরেই আছে।",
-        "custom_msg_cleared":         "কাস্টম যাচাইকরণ অনুরোধ বার্তা মুছে ফেলা হয়েছে। ডিফল্ট ব্যবহার হবে।",
-        "custom_msg_saved":           "কাস্টম যাচাইকরণ অনুরোধ বার্তা সংরক্ষিত হয়েছে।",
-        "custom_msg_too_long":        "বার্তা অনেক বড় (সর্বোচ্চ 1000 অক্ষর)।",
-        "custom_msg_invalid_links":   "ব্লক করা হয়েছে: শুধুমাত্র discord.com বা vrchat.com লিঙ্ক অনুমোদিত। অবৈধ লিঙ্ক:\n{invalid_list}",
-        "bio_verify_instructions1":   "**1)** কোডটি আপনার VRChat বায়োতে একটি স্বতন্ত্র লাইনে যোগ করুন।",
-        "bio_verify_instructions2":   "**2)** আপডেট হওয়ার পরে, Discord-এ **যাচাই করুন** ক্লিক করুন (10 মিনিটের মধ্যে)。",
-        "vrc_id_already_linked":      "আপনি যে VRChat প্রোফাইলটি ব্যবহার করার চেষ্টা করেছেন, সেটি ইতিমধ্যেই অন্য একটি Discord অ্যাকাউন্টের সাথে নিবন্ধিত। যদি আপনি মনে করেন এটি একটি ভুল, তবে অনুগ্রহ করে সার্ভার অ্যাডমিনের সাথে যোগাযোগ করুন।",
-        "vrchat_issue_user_not_found":               "আমরা ওই VRChat অ্যাকাউন্টটি খুঁজে পাইনি। অনুগ্রহ করে আবার যাচাই করুন যে আপনি VRChat প্রোফাইল URL বা `usr_...` user ID সঠিকভাবে পেস্ট করেছেন।",
-        "vrchat_issue_rate_limited":                "VRChat এই মুহূর্তে যাচাইকরণ অনুরোধগুলিকে rate limit করছে। অনুগ্রহ করে এক মিনিট অপেক্ষা করে আবার চেষ্টা করুন।",
-        "vrchat_issue_temp_unavailable":             "VRCVerify এই মুহূর্তে সাময়িকভাবে VRChat-এর সাথে যোগাযোগ করতে পারছে না। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন।",
-        "vrchat_issue_outage_confirmed":            "VRChat বর্তমানে এমন একটি পরিষেবা সমস্যার কথা জানাচ্ছে যা যাচাইকরণকে প্রভাবিত করছে। অনুগ্রহ করে পরে আবার চেষ্টা করুন।\n\nস্ট্যাটাস পেজ: {status_page}",
-        "vrchat_issue_outage_confirmed_with_status": "VRChat বর্তমানে এমন একটি পরিষেবা সমস্যার কথা জানাচ্ছে যা যাচাইকরণকে প্রভাবিত করছে। অনুগ্রহ করে পরে আবার চেষ্টা করুন।\n\nস্ট্যাটাস পেজ: {status_page}\n\nরিপোর্ট করা অবস্থা: {status_message}",
-        "vrchat_issue_outage_suspected":            "মনে হচ্ছে VRChat-এর সাময়িক API সমস্যা হচ্ছে, তাই এই মুহূর্তে যাচাইকরণ সম্পন্ন করা যায়নি। অনুগ্রহ করে পরে আবার চেষ্টা করুন।\n\nস্ট্যাটাস পেজ: {status_page}",
-        "vrchat_issue_unexpected":                   "যাচাইকরণ সম্পন্ন করা যায়নি, কারণ VRChat একটি অপ্রত্যাশিত ত্রুটি ফিরিয়েছে। অনুগ্রহ করে পরে আবার চেষ্টা করুন।",
-        "cooldown_active":            "আপনি খুব দ্রুত চেষ্টা করছেন। অনুগ্রহ করে {seconds} সেকেন্ড অপেক্ষা করে আবার চেষ্টা করুন।",
-        "btn_donate":                 "দান করুন",
-        "setup_donate_hint":          "\n\n☕ দানের কারণে VRCVerify বিনামূল্যে। যদি এটি আপনার কমিউনিটিকে সাহায্য করে, আপনি এখানে সমর্থন করতে পারেন: {kofi_link}",
-        "milestone_owner_dm":         "🎉 **{server}** VRCVerify দিয়ে {count}টি যাচাইকরণ সম্পন্ন করেছে!\nবটটি বিনামূল্যে এবং দানের উপর চলে — যদি এটি আপনার কমিউনিটির জন্য উপযোগী হয়ে থাকে, আপনি এখানে সমর্থন করতে পারেন: {kofi_link}\n(এই বার্তাটি শুধুমাত্র একবার পাঠানো হয়।)",
-        "setup_panel_nudge":          "\n\n📌 **আর একটি ধাপ:** আপনি নির্দেশনা প্যানেল পোস্ট না করা পর্যন্ত সদস্যরা যাচাই করতে পারবেন না।\nযে চ্যানেল থেকে তাঁদের যাচাই করাতে চান, সেখানে `/vrcverify_instructions` চালান। থ্রেডের বদলে এমন একটি সাধারণ টেক্সট চ্যানেল ব্যবহার করুন যা সবাই দেখতে পায়, কারণ থ্রেড নিজে থেকেই আর্কাইভ হয়ে যায় এবং প্যানেলটি নীরবে কাজ করা বন্ধ করে দেয়।\nযেকোনো সময় `/vrcverify_status` চালিয়ে অবস্থা দেখে নিতে পারেন।",
-        "panel_nudge_dm":             "👋 আপনি **{server}**-এ VRCVerify সেট আপ করেছেন, কিন্তু এখনও কোনো নির্দেশনা প্যানেল পোস্ট করা হয়নি — তাই সেখানকার সদস্যদের এখনও যাচাই শুরু করার কোনো উপায় নেই।\n\nযে চ্যানেল থেকে তাঁদের যাচাই করাতে চান, সেখানে `/vrcverify_instructions` চালান। থ্রেডের বদলে এমন একটি সাধারণ টেক্সট চ্যানেল ব্যবহার করুন যা সবাই দেখতে পায়, কারণ থ্রেড নিজে থেকেই আর্কাইভ হয়ে যায় এবং প্যানেলটি নীরবে নষ্ট হয়ে যায়।\n\nদ্রুত পরীক্ষার জন্য আপনার সার্ভারে `/vrcverify_status` চালান।\n(এই বার্তাটি শুধুমাত্র একবার পাঠানো হয়।)",
-        "status_header":              "**{server}-এর জন্য VRCVerify অবস্থা**",
-        "status_role_ok":             "✅ যাচাইকৃত রোল: **{role}**",
-        "status_role_missing":        "❌ কোনো যাচাইকৃত রোল সেট করা নেই — একটি বেছে নিতে `/vrcverify_setup` চালান।",
-        "status_role_deleted":        "❌ সেট করা যাচাইকৃত রোলটি আর নেই — নতুন একটি বেছে নিতে `/vrcverify_setup` চালান।",
-        "status_panel_ok":            "✅ নির্দেশনা প্যানেল পোস্ট করা আছে এবং বট এখনও এটি আপডেট করতে পারে।",
-        "status_panel_missing":       "❌ কোনো নির্দেশনা প্যানেল পোস্ট করা নেই — যে চ্যানেলে সদস্যদের যাচাই করার কথা, সেখানে `/vrcverify_instructions` চালান।",
-        "status_panel_unreachable":   "⚠️ নির্দেশনা প্যানেলটি আছে, কিন্তু বট এটি আপডেট করতে পারছে না। দেখুন ওই চ্যানেলে বটের **চ্যানেল দেখুন**, **বার্তা পাঠান** এবং **লিঙ্ক এম্বেড করুন** অনুমতিগুলি এখনও আছে কি না।",
-        "status_panel_archived":      "⚠️ নির্দেশনা প্যানেলটি এমন একটি থ্রেডে আছে যা আর্কাইভ হয়ে গেছে, তাই বট এটি আপডেট করতে পারছে না। থ্রেডটি আন-আর্কাইভ করুন, অথবা একটি সাধারণ টেক্সট চ্যানেলে নতুন প্যানেল পোস্ট করুন।",
-        "status_panel_gone":          "❌ সংরক্ষিত নির্দেশনা প্যানেলটি আর নেই — প্যানেল বা তার চ্যানেল মুছে ফেলা হয়েছে। নতুন একটি পোস্ট করতে আবার `/vrcverify_instructions` চালান।",
-        "status_tips":                "\n**পরামর্শ**\n• প্যানেলটি এমন একটি সাধারণ টেক্সট চ্যানেলে পোস্ট করুন যা সবাই দেখতে পায় — থ্রেড নিজে থেকেই আর্কাইভ হয়ে নীরবে এটি নষ্ট করে দেয়।\n• ওই চ্যানেলে বটের **চ্যানেল দেখুন**, **বার্তা পাঠান** এবং **লিঙ্ক এম্বেড করুন** অনুমতিগুলি বজায় রাখুন।\n• ওই চ্যানেল মুছে ফেললে বা নতুন করে তৈরি করলে আবার `/vrcverify_instructions` চালান।",
-        "guild_join_welcome_dm":      "👋 **{server}**-এ VRCVerify যোগ করার জন্য ধন্যবাদ!\n\nসেট আপ করতে:\n1. যাচাইকৃত সদস্যরা যে রোল পাবেন তা বেছে নিতে `/vrcverify_setup` চালান।\n2. যে চ্যানেল থেকে সদস্যদের যাচাই করাতে চান, সেখানে `/vrcverify_instructions` চালান — থ্রেডের বদলে এমন একটি সাধারণ টেক্সট চ্যানেল ব্যবহার করুন যা সবাই দেখতে পায়, কারণ থ্রেড নিজে থেকেই আর্কাইভ হয়ে যায় এবং প্যানেলটি নীরবে কাজ করা বন্ধ করে দেয়।\n\nসাহায্য দরকার? `/vrcverify_support` ব্যবহার করুন।",
-        "premium_status_active":      "✅ **{server}-এ VRCVerify Premium সক্রিয় আছে।**\n\nএখানে যা আনলক হয়েছে:\n• যাচাই কার্যক্রমের লগ — `/vrcverify_logchannel` দিয়ে সেট করুন\n• চাপ বাড়লে যাচাইয়ের সারিতে অগ্রাধিকার\n• অযাচাইকৃত রোল স্বয়ংক্রিয়ভাবে সরানো\n• VRChat-এর সঙ্গে ডাকনামের স্বয়ংক্রিয় সমন্বয়\n• যাচাইয়ের পরে নিজস্ব বার্তা\n• নির্দেশনা প্যানেলে আপনার নিজের রঙ ও সার্ভার আইকন\n• যাচাইয়ের কুলডাউন কমানো\n• যাচাই হওয়া সদস্যদের সরাসরি আপনার সার্ভারের VRChat গ্রুপে আমন্ত্রণ জানান\n\nসাজসজ্জা ও স্বয়ংক্রিয়তার সেটিংস `/vrcverify_settings`-এ আছে।\n\nDiscord-এর **ইউজার সেটিংস → সাবস্ক্রিপশন** থেকে আপনি যেকোনো সময় এটি পরিচালনা বা বাতিল করতে পারেন।\nVRCVerify-কে সমর্থন করার জন্য ধন্যবাদ। 💜",
-        "premium_status_active_card": "✅ **{server}-এ VRCVerify Premium সক্রিয় আছে।**\n\nএখানে যা আনলক হয়েছে:\n• যাচাই কার্যক্রমের লগ — `/vrcverify_logchannel` দিয়ে সেট করুন\n• চাপ বাড়লে যাচাইয়ের সারিতে অগ্রাধিকার\n• অযাচাইকৃত রোল স্বয়ংক্রিয়ভাবে সরানো\n• VRChat-এর সঙ্গে ডাকনামের স্বয়ংক্রিয় সমন্বয়\n• যাচাইয়ের পরে নিজস্ব বার্তা\n• নির্দেশনা প্যানেলে আপনার নিজের রঙ ও সার্ভার আইকন\n• যাচাইয়ের কুলডাউন কমানো\n• যাচাই হওয়া সদস্যদের সরাসরি আপনার সার্ভারের VRChat গ্রুপে আমন্ত্রণ জানান\n\nসাজসজ্জা ও স্বয়ংক্রিয়তার সেটিংস `/vrcverify_settings`-এ আছে।\n\nএই সার্ভারটি কার্ডে পেমেন্ট করে, তাই **VRCVerify-এর ওয়েবসাইট** থেকেই এটি পরিচালনা বা বাতিল করুন — Discord-এর সাবস্ক্রিপশন সেটিংসে এটি দেখা যাবে না।\nVRCVerify-কে সমর্থন করার জন্য ধন্যবাদ। 💜",
-        "premium_status_active_both": "⚠️ **{server} VRCVerify Premium-এর জন্য দুইবার পেমেন্ট করছে।**\n\nএই সার্ভারে একটি সচল **Discord** সাবস্ক্রিপশন এবং একটি সচল **কার্ড** সাবস্ক্রিপশন দুটোই আছে। Premium চালু থাকবে — কিন্তু আপনার কাছ থেকে দুইবার চার্জ নেওয়া হচ্ছে।\n\nইচ্ছাকৃতভাবেই আপনার হয়ে কিছু বাতিল করা হয়নি: মানুষের সিদ্ধান্ত ছাড়া সাবস্ক্রিপশন বাতিল করা ও রিফান্ড দেওয়া এই বটের নিজে থেকে করার কাজ নয়।\n\nযেটি আপনার পছন্দ সেটি রাখুন, অন্যটি বাতিল করুন:\n• **Discord** — ইউজার সেটিংস → সাবস্ক্রিপশন\n• **কার্ড** — ওয়েবসাইটের সাবস্ক্রিপশন পেজ\n\nসিদ্ধান্ত নিতে না পারলে: ওয়েবসাইটে ৬ ও ১২ মাসের প্ল্যান সাশ্রয়ী, আর Discord কেবল মাসিক বিল করতে পারে।",
-        "premium_status_inactive":    "**{server}-এ 18+ যাচাই বিনামূল্যে, এবং সবসময়ই থাকবে।** আগে থেকে যাচাই হওয়া সদস্যরা যোগ দিলেই স্বয়ংক্রিয় যাচাইও বিনামূল্যে।\n\nVRCVerify Premium এই সার্ভারের জন্য এই ঐচ্ছিক সুবিধাগুলো যোগ করে:\n• যাচাই কার্যক্রমের লগ: আপনার পছন্দের চ্যানেলে প্রতিটি যাচাই, যেগুলো নীরবে ব্যর্থ হয় সেগুলোসহ\n• চাপ বাড়লে যাচাইয়ের সারিতে অগ্রাধিকার\n• অযাচাইকৃত রোল স্বয়ংক্রিয়ভাবে সরানো\n• VRChat-এর সঙ্গে ডাকনামের স্বয়ংক্রিয় সমন্বয়\n• যাচাইয়ের পরে নিজস্ব বার্তা\n• নির্দেশনা প্যানেলে আপনার নিজের রঙ ও সার্ভার আইকন\n• যাচাইয়ের কুলডাউন কমানো\n• যাচাই হওয়া সদস্যদের সরাসরি আপনার সার্ভারের VRChat গ্রুপে আমন্ত্রণ জানান\n\nএকটি সাবস্ক্রিপশনেই পুরো সার্ভার কভার হয়, আর এটি নেওয়ার দুটি উপায় আছে:\n• **Discord-এ** — নিচের বোতামটি। মাসিক বিলিং।\n• **ওয়েবসাইটে কার্ড দিয়ে** — একই Premium, সঙ্গে ৬ ও ১২ মাসের সাশ্রয়ী প্ল্যান। Discord কেবল মাসিক বিল করতে পারে, তাই দীর্ঘ মেয়াদের প্ল্যানগুলো শুধু ওয়েবসাইটেই আছে।",
-        "premium_status_grandfathered": "**{server}-এ 18+ যাচাই বিনামূল্যে, এবং সবসময়ই থাকবে।** আগে থেকে যাচাই হওয়া সদস্যরা যোগ দিলেই স্বয়ংক্রিয় যাচাইও বিনামূল্যে।\n\nএই সার্ভারটি Premium চালুর আগে সেট আপ হয়েছিল বলে এগুলোও স্থায়ীভাবে বিনামূল্যে থাকবে:\n• অযাচাইকৃত রোল স্বয়ংক্রিয়ভাবে সরানো\n• VRChat-এর সঙ্গে ডাকনামের স্বয়ংক্রিয় সমন্বয়\n• যাচাইয়ের পরে নিজস্ব বার্তা\n\nপ্রিমিয়াম এর উপরে যোগ করে:\n• যাচাই কার্যক্রমের লগ: আপনার পছন্দের চ্যানেলে প্রতিটি যাচাই, যেগুলো নীরবে ব্যর্থ হয় সেগুলোসহ\n• চাপ বাড়লে যাচাইয়ের সারিতে অগ্রাধিকার\n• নির্দেশনা প্যানেলে আপনার নিজের রঙ ও সার্ভার আইকন\n• যাচাইয়ের কুলডাউন কমানো\n• যাচাই হওয়া সদস্যদের সরাসরি আপনার সার্ভারের VRChat গ্রুপে আমন্ত্রণ জানান\n\n**Premium দুটি উপায়ে নেওয়া যায়:**\n• **Discord-এ** — নিচের বোতামটি। মাসিক বিলিং।\n• **ওয়েবসাইটে কার্ড দিয়ে** — একই Premium, সঙ্গে ৬ ও ১২ মাসের সাশ্রয়ী প্ল্যান। Discord কেবল মাসিক বিল করতে পারে, তাই দীর্ঘ মেয়াদের প্ল্যানগুলো শুধু ওয়েবসাইটেই আছে।",
-        "premium_cutover_dm":         "👋 **{server}**-এ VRCVerify নিয়ে একটি ছোট ঘোষণা।\n\nVRCVerify-তে এখন একটি ঐচ্ছিক Premium স্তর এসেছে। শুরুতেই পরিষ্কার করে বলি: **আপনার সার্ভারে কিছুই বদলাচ্ছে না।**\n\n18+ যাচাই বিনামূল্যে এবং সবার জন্য স্থায়ীভাবে বিনামূল্যেই থাকবে। আগে থেকে যাচাই হওয়া সদস্যরা যোগ দিলেই স্বয়ংক্রিয় যাচাইও বিনামূল্যে।\n\nআর **{server}** যেহেতু Premium চালুর আগে সেট আপ হয়েছিল, তাই এগুলোও কোনো খরচ ছাড়াই স্থায়ীভাবে থাকবে:\n• অযাচাইকৃত রোল স্বয়ংক্রিয়ভাবে সরানো\n• VRChat-এর সঙ্গে ডাকনামের স্বয়ংক্রিয় সমন্বয়\n• যাচাইয়ের পরে নিজস্ব বার্তা\n\nতাই আপনাকে কিছুই করতে হবে না। কখনও যদি জানতে চান Premium-এ আর কী আছে, আপনার সার্ভারে `/vrcverify_subscription` চালান।\n(এটি একবারই পাঠানো বার্তা।)",
-        "log_verified":              "✅ {user} — 18+ যাচাই হয়েছে · {when}",
-        "log_role_failed":           "⚠️ {user} — 18+ যাচাই হয়েছে, কিন্তু রোল দেওয়া যায়নি। দেখুন VRCVerify বটের রোল যাচাইকৃত রোলের উপরে আছে কি না। · {when}",
-        "log_not_18":                "❌ {user} — VRChat অনুযায়ী 18+ নয় · {when}",
-        "log_entries_dropped":       "…{count}টি পুরোনো এন্ট্রি রেকর্ড করা যায়নি।",
-        "log_channel_ready":         "📋 এখন থেকে যাচাই কার্যক্রম এখানে লগ করা হবে।\nএন্ট্রিতে সদস্য, ফলাফল ও সময় দেখা যায় — তাদের VRChat নাম বা আইডি কখনোই নয়।",
-        "log_channel_set":           "যাচাই কার্যক্রম {channel}-এ লগ করা হবে।",
-        "log_channel_cleared":       "যাচাই কার্যক্রমের লগিং এখন বন্ধ।",
-        "log_channel_premium_only":  "যাচাই কার্যক্রমের লগ VRCVerify Premium-এর সুবিধা। মূল 18+ যাচাই সবার জন্য বিনামূল্যেই থাকে।",
-        "log_channel_no_permission": "আমি {channel}-এ পোস্ট করতে পারছি না। সেখানে বটকে **চ্যানেল দেখুন** ও **বার্তা পাঠান** অনুমতি দিন, তারপর আবার এই কমান্ড চালান।",
-        "log_channel_announcement": "{channel} একটি ঘোষণা চ্যানেল। অন্য সার্ভার এটি ফলো করতে পারে, ফলে আপনার সদস্যদের 18+ অবস্থা এই সার্ভারের বাইরে পুনঃপ্রকাশিত হবে, তাই এটি যাচাই লগ হিসেবে ব্যবহার করা যাবে না। অনুগ্রহ করে একটি সাধারণ টেক্সট চ্যানেল বেছে নিন।",
-        "panel_color_invalid": "এটি হেক্স রঙ বলে মনে হচ্ছে না। `#5865F2` এর মতো কিছু ব্যবহার করুন (বা সংক্ষেপে `#58F`)।",
-        # Issue #49 phase 5: the member-facing group invite.
-        "btn_group_invite": "আমাকে আমন্ত্রণ পাঠান",
-        "dm_group_invite_offer": "আপনি **{server}**-এ যাচাই হয়ে গেছেন! আপনি কি তাদের VRChat গ্রুপ **{group}**-এ আমন্ত্রণ চান?\n\nআপনি বোতামে না চাপা পর্যন্ত VRChat-এ কিছুই পাঠানো হয় না।",
-        "group_invite_working": "VRChat-এর কাছে আপনার আমন্ত্রণ চাওয়া হচ্ছে...",
-        "group_invite_sent": "আমন্ত্রণ পাঠানো হয়েছে! **{group}**-এ যোগ দিতে আপনার VRChat বিজ্ঞপ্তি খুলুন।",
-        "group_invite_already_member": "আপনি ইতিমধ্যেই **{group}**-এ আছেন, তাই পাঠানোর কিছু নেই।",
-        "group_invite_already_invited": "**{group}**-এর একটি আমন্ত্রণ ইতিমধ্যেই আপনার VRChat বিজ্ঞপ্তিতে অপেক্ষা করছে।",
-        "group_invite_blocked": "VRChat আমন্ত্রণটি পৌঁছে দিতে পারেনি। আপনার VRChat সেটিংসে গ্রুপ আমন্ত্রণ বন্ধ থাকতে পারে, অথবা গ্রুপটি আপনার অ্যাকাউন্টে ব্লক করা থাকতে পারে।",
-        "group_invite_banned": "আপনাকে **{group}**-এ আমন্ত্রণ জানানো যাবে না। কেবল একজন গ্রুপ মডারেটর এটি বদলাতে পারেন।",
-        "group_invite_setup_problem": "**{server}**-এর VRChat গ্রুপ এই মুহূর্তে সঠিকভাবে সেট করা নেই, তাই আমন্ত্রণ পাঠানো যায়নি। অনুগ্রহ করে সার্ভারের অ্যাডমিনদের জানান।",
-        "group_invite_unavailable": "VRChat সাড়া দেয়নি, তাই আমন্ত্রণ পাঠানো যায়নি। কয়েক মিনিট পরে আবার চেষ্টা করুন।",
-        "group_invite_too_soon": "আপনি ইতিমধ্যেই একটি আমন্ত্রণ চেয়েছেন। আবার চেষ্টা করার আগে কয়েক মিনিট অপেক্ষা করুন।",
-        "group_invite_account_missing": "আপনি যে অ্যাকাউন্ট দিয়ে যাচাই করেছিলেন VRChat সেটি চিনতে পারেনি, তাই আমন্ত্রণ পাঠানো যায়নি। আপনার VRChat অ্যাকাউন্ট পুনরায় যুক্ত করতে আবার যাচাই করুন।",
-        "group_invite_not_a_member": "এই আমন্ত্রণটি **{server}**-এর জন্য ছিল, এবং আপনি আর সেই সার্ভারের সদস্য নন। আপনি যদি এখনও আমন্ত্রণ চান, তাহলে সার্ভারে যোগ দিয়ে আবার যাচাই করুন।",
-        "group_invite_not_verified": "আপনি বর্তমানে **{server}**-এ 18+ হিসেবে যাচাইকৃত নন, তাই আমন্ত্রণ পাঠানো যায়নি। নতুন আমন্ত্রণ পেতে আবার যাচাই করুন।",
-        "group_invite_account_changed": "এই আমন্ত্রণটি এমন একটি VRChat অ্যাকাউন্টের জন্য ছিল যা এখন আপনার সংযুক্ত অ্যাকাউন্ট থেকে ভিন্ন। আপনার বর্তমান অ্যাকাউন্টের জন্য নতুন আমন্ত্রণ পেতে আবার যাচাই করুন।",
-    },
+NOT_18_PLUS = N_(
+    "You are not 18+ according to VRChat. Contact an admin if this is an error."
+)
 
-    "pt-BR": {
-        "not_verified":               "Você ainda não está verificado. Por favor, clique em **Iniciar Verificação** primeiro.",
-        "already_verified":           "Você já está verificado! Papel atribuído (ou reatribuído).",
-        "recheck_started":            "Estamos verificando novamente seu status 18+ no VRChat. Se você atualizou sua verificação de idade, receberá uma DM em breve!",
-        "dm_role_success":            "Você foi verificado e recebeu **{role}** em **{server}**!",
-        "nickname_update_requested":  "Solicitação de atualização de apelido enviada. Te enviarei uma DM quando estiver pronto!",
-        "verification_requested":     "Solicitação de verificação recebida! Enviaremos uma DM com os resultados. Certifique-se de que suas DMs para este servidor estejam abertas.",
-        "setup_missing":              "Este servidor ainda não configurou uma função de verificação. Por favor, contate um administrador.",
-        "not_18_plus":                "De acordo com o VRChat, você não tem 18+. Contate um administrador se isso for um erro.",
-        "support_info":               "Precisa de ajuda com a verificação?\n- Contate um administrador do servidor\n- Ou visite nossa página de suporte: https://esattotech.com/contact-us/\n\nSe isso for um erro, por favor nos avise!",
-        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
-        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
-        "subscription_info":          "Estou oferecendo isso gratuitamente, mas se quiser me apoiar, você pode encontrar meu Ko-fi aqui: {kofi_link}. Obrigado pelo apoio!",
-        "settings_saved":             "Configurações salvas!",
-        "settings_unreadable":        "Não foi possível ler as configurações deste servidor agora. Tente novamente em instantes — nada foi alterado.",
-        "invalid_vrc_id_input":       "Parece que você digitou seu nome de exibição em vez do seu userID do VRChat。\nInsira a URL completa do perfil ou seu userID (que sempre começa com `usr_`)。\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "Não encontramos seu código na sua bio do VRChat. Tente novamente.\n**Verifique se o código está em sua própria linha.**",
-        "verify_button_expired":      "Este link de verificação expirou ou foi substituído por um mais novo. Execute `/vrcverify` novamente para obter um novo código.",
-        "nickname_updated":           "Seu apelido foi atualizado para {display_name}.",
-        "nickname_update_failed":     "Não foi possível atualizar seu apelido.",
-        "setup_success":              "Configuração do servidor {action}。\nFunção verificada definida como: `{role}` (ID={role_id})",
-        "setup_unverified_set":       "\nFunção não verificada a remover: `{role}` (ID={role_id})",
-        "setup_unverified_missing":   "\n(Função não verificada não definida; nenhuma função será removida na verificação。)",
-        "instructions_title":         "Como usar o bot de verificação do VRChat",
-        "instructions_desc":          "**Siga estas etapas** para verificar seu status 18+:\n\n"
-                                      "1. Clique no botão **Iniciar Verificação** (se mostrado) ou digite `/vrcverify` em qualquer lugar。\n"
-                                      "2. Se você é novo, será solicitado seu nome de usuário do VRChat。\n"
-                                      "3. O bot lhe dará um código único - coloque isso na sua biografia do VRChat **em sua própria linha**。\n"
-                                      "4. Pressione **Verificar** no Discord assim que sua biografia estiver atualizada。\n\n"
-                                      "Se você precisar de ajuda adicional, entre em contato com um administrador ou digite `/vrcverify_support`。",
-        "btn_begin_verification":     "Iniciar Verificação",
-        "btn_update_nickname":        "Atualizar Apelido",
-        "settings_intro":             "**Configurações de Verificação do VRChat**\n\n1.) **Ativar alteração automática de apelido**\n   Atualize automaticamente os apelidos do Discord dos usuários para corresponder aos seus nomes de exibição do VRChat。\n   Atual: **{current}**",
-        "dm_role_failed_bot_position":"Não consegui atribuir o cargo '{role}' em {server}. Isso geralmente acontece quando o cargo do bot VRCVerify não está acima dos cargos de verificado (e não verificado) na lista de cargos do servidor. Peça a um administrador para mover o cargo do bot VRCVerify acima desses cargos e tente novamente。",
-        "dm_unverified_failed_bot_position": "Não foi possível remover o cargo {role} em {server}. Isso costuma acontecer quando o cargo do bot VRCVerify não está acima do cargo de não verificado. Peça a um administrador do servidor para conferir se o cargo do bot VRCVerify está acima tanto do cargo de verificado quanto do de não verificado (se houver).",
-        "custom_msg_cleared":         "Mensagem de solicitação de verificação personalizada limpa. A padrão será usada.",
-        "custom_msg_saved":           "Mensagem de solicitação de verificação personalizada salva.",
-        "custom_msg_too_long":        "Mensagem muito longa (máx. 1000 caracteres).",
-        "custom_msg_invalid_links":   "Bloqueado: Apenas links discord.com ou vrchat.com permitidos. Links inválidos:\n{invalid_list}",
-        "bio_verify_instructions1":   "**1)** Adicione o código à sua bio do VRChat em sua própria linha.",
-        "bio_verify_instructions2":   "**2)** Assim que sua bio for atualizada, clique em **Verificar** no Discord (dentro de 10 minutos).",
-        "vrc_id_already_linked":      "O perfil do VRChat que você tentou usar já está registrado em outra conta do Discord. Se você acha que isso é um engano, entre em contato com um administrador do servidor.",
-        "vrchat_issue_user_not_found":               "Não conseguimos encontrar essa conta do VRChat. Verifique se você colou corretamente a URL do perfil do VRChat ou o ID de usuário `usr_...`.",
-        "vrchat_issue_rate_limited":                "O VRChat está limitando as consultas de verificação neste momento. Aguarde um minuto e tente novamente.",
-        "vrchat_issue_temp_unavailable":             "O VRCVerify está temporariamente sem conseguir se comunicar com o VRChat no momento. Tente novamente daqui a pouco.",
-        "vrchat_issue_outage_confirmed":            "O VRChat está relatando um problema de serviço que está afetando a verificação. Tente novamente mais tarde.\n\nPágina de status: {status_page}",
-        "vrchat_issue_outage_confirmed_with_status": "O VRChat está relatando um problema de serviço que está afetando a verificação. Tente novamente mais tarde.\n\nPágina de status: {status_page}\n\nStatus reportado: {status_message}",
-        "vrchat_issue_outage_suspected":            "Parece que o VRChat está enfrentando problemas temporários de API, então a verificação não pôde ser concluída agora. Tente novamente mais tarde.\n\nPágina de status: {status_page}",
-        "vrchat_issue_unexpected":                   "A verificação não pôde ser concluída porque o VRChat retornou um erro inesperado. Tente novamente mais tarde.",
-        "cooldown_active":            "Você está indo rápido demais. Aguarde {seconds} segundos e tente novamente.",
-        "btn_donate":                 "Doar",
-        "setup_donate_hint":          "\n\n☕ O VRCVerify é gratuito graças a doações. Se ele ajuda a sua comunidade, você pode apoiá-lo aqui: {kofi_link}",
-        "milestone_owner_dm":         "🎉 **{server}** alcançou {count} verificações concluídas com o VRCVerify!\nO bot é gratuito e se mantém com doações — se ele foi útil para a sua comunidade, você pode apoiá-lo aqui: {kofi_link}\n(Esta é uma mensagem única.)",
-        "setup_panel_nudge":          "\n\n📌 **Falta um passo:** os membros não conseguem se verificar até você publicar o painel de instruções.\nExecute `/vrcverify_instructions` no canal de onde quiser que eles se verifiquem. Use um canal de texto normal que todos possam ver — não um tópico, já que tópicos são arquivados sozinhos e quebram o painel silenciosamente.\nVocê pode executar `/vrcverify_status` a qualquer momento para conferir.",
-        "panel_nudge_dm":             "👋 Você configurou o VRCVerify em **{server}**, mas nenhum painel de instruções foi publicado ainda — então os membros de lá continuam sem como começar a verificação.\n\nExecute `/vrcverify_instructions` no canal de onde quiser que eles se verifiquem. Use um canal de texto normal que todos possam ver em vez de um tópico, já que tópicos são arquivados sozinhos e quebram o painel silenciosamente.\n\nExecute `/vrcverify_status` no seu servidor para uma verificação rápida.\n(Esta é uma mensagem única.)",
-        "status_header":              "**Status do VRCVerify em {server}**",
-        "status_role_ok":             "✅ Cargo de verificado: **{role}**",
-        "status_role_missing":        "❌ Nenhum cargo de verificado definido — execute `/vrcverify_setup` para escolher um.",
-        "status_role_deleted":        "❌ O cargo de verificado configurado não existe mais — execute `/vrcverify_setup` para escolher outro.",
-        "status_panel_ok":            "✅ O painel de instruções está publicado e o bot ainda consegue atualizá-lo.",
-        "status_panel_missing":       "❌ Nenhum painel de instruções publicado — execute `/vrcverify_instructions` no canal onde os membros devem se verificar.",
-        "status_panel_unreachable":   "⚠️ O painel de instruções existe, mas o bot não consegue atualizá-lo. Verifique se ele ainda tem **Ver canal**, **Enviar mensagens** e **Inserir links** nesse canal.",
-        "status_panel_archived":      "⚠️ O painel de instruções está em um tópico que foi arquivado, então o bot não consegue atualizá-lo. Desarquive o tópico ou publique um painel novo em um canal de texto normal.",
-        "status_panel_gone":          "❌ O painel de instruções salvo não existe mais — ele ou o canal dele foi excluído. Execute `/vrcverify_instructions` novamente para publicar outro.",
-        "status_tips":                "\n**Dicas**\n• Publique o painel em um canal de texto normal que todos possam ver — tópicos são arquivados sozinhos e o quebram silenciosamente.\n• Mantenha as permissões **Ver canal**, **Enviar mensagens** e **Inserir links** do bot nesse canal.\n• Se você excluir ou recriar esse canal, execute `/vrcverify_instructions` novamente.",
-        "guild_join_welcome_dm":      "👋 Obrigado por adicionar o VRCVerify a **{server}**!\n\nPara configurar:\n1. Execute `/vrcverify_setup` para escolher o cargo que os membros recebem ao se verificar.\n2. Execute `/vrcverify_instructions` no canal de onde quiser que eles se verifiquem — use um canal de texto normal que todos possam ver, não um tópico, já que tópicos são arquivados sozinhos e quebram o painel silenciosamente.\n\nPrecisa de ajuda? Use `/vrcverify_support`.",
-        "premium_status_active":      "✅ **O VRCVerify Premium está ativo em {server}.**\n\nDesbloqueado aqui:\n• Registro de atividade de verificação — configure com `/vrcverify_logchannel`\n• Prioridade na fila de verificação quando houver acúmulo\n• Remoção automática do cargo de não verificado\n• Sincronização automática do apelido com o VRChat\n• Mensagem personalizada após a verificação\n• Sua própria cor e o ícone do servidor na mensagem de instruções\n• Tempo de espera de verificação reduzido\n• Convide membros verificados direto para o grupo do VRChat do seu servidor\n\nAs configurações de aparência e automação ficam em `/vrcverify_settings`.\n\nVocê pode gerenciar ou cancelar quando quiser em **Configurações de Usuário → Assinaturas** no Discord.\nObrigado por apoiar o VRCVerify. 💜",
-        "premium_status_active_card": "✅ **O VRCVerify Premium está ativo em {server}.**\n\nDesbloqueado aqui:\n• Registro de atividade de verificação — configure com `/vrcverify_logchannel`\n• Prioridade na fila de verificação quando houver acúmulo\n• Remoção automática do cargo de não verificado\n• Sincronização automática do apelido com o VRChat\n• Mensagem personalizada após a verificação\n• Sua própria cor e o ícone do servidor na mensagem de instruções\n• Tempo de espera de verificação reduzido\n• Convide membros verificados direto para o grupo do VRChat do seu servidor\n\nAs configurações de aparência e automação ficam em `/vrcverify_settings`.\n\nEste servidor paga com cartão, então gerencie ou cancele pelo **site do VRCVerify** — nas configurações de assinatura do Discord isso não aparece.\nObrigado por apoiar o VRCVerify. 💜",
-        "premium_status_active_both": "⚠️ **{server} está pagando o VRCVerify Premium duas vezes.**\n\nHá uma assinatura ativa do **Discord** e uma assinatura ativa no **cartão** para este servidor. O Premium continua ativo — mas você está sendo cobrado duas vezes.\n\nNada foi cancelado por você, de propósito: cancelar uma assinatura e emitir reembolso sem uma pessoa decidir não é algo que este bot deva fazer por conta própria.\n\nFique com a que preferir e cancele a outra:\n• **Discord** — Configurações do Usuário → Assinaturas\n• **Cartão** — a página de Assinaturas no site\n\nNa dúvida: no site os planos de 6 e 12 meses saem mais baratos, e o Discord só cobra mensalmente.",
-        "premium_status_inactive":    "**A verificação 18+ é gratuita em {server}, e sempre será.** Verificar automaticamente membros já verificados assim que entram também é.\n\nO VRCVerify Premium adiciona estes extras opcionais para este servidor:\n• Registro de atividade de verificação: cada verificação em um canal que você escolher, incluindo as que falham em silêncio\n• Prioridade na fila de verificação quando houver acúmulo\n• Remoção automática do cargo de não verificado\n• Sincronização automática do apelido com o VRChat\n• Mensagem personalizada após a verificação\n• Sua própria cor e o ícone do servidor na mensagem de instruções\n• Tempo de espera de verificação reduzido\n• Convide membros verificados direto para o grupo do VRChat do seu servidor\n\nUma assinatura cobre o servidor inteiro, e há duas formas de contratá-la:\n• **No Discord** — o botão abaixo. Cobrança mensal.\n• **Com cartão no site** — o mesmo Premium, além de planos de 6 e 12 meses que saem mais em conta. O Discord só consegue cobrar mensalmente, então os planos mais longos são exclusivos do site.",
-        "premium_status_grandfathered": "**A verificação 18+ é gratuita em {server}, e sempre será.** Verificar automaticamente membros já verificados assim que entram também é.\n\nComo este servidor foi configurado antes do lançamento do Premium, ele também mantém estes recursos gratuitos, de forma permanente:\n• Remoção automática do cargo de não verificado\n• Sincronização automática do apelido com o VRChat\n• Mensagem personalizada após a verificação\n\nO Premium acrescenta isto por cima:\n• Registro de atividade de verificação: cada verificação em um canal que você escolher, incluindo as que falham em silêncio\n• Prioridade na fila de verificação quando houver acúmulo\n• Sua própria cor e o ícone do servidor na mensagem de instruções\n• Tempo de espera de verificação reduzido\n• Convide membros verificados direto para o grupo do VRChat do seu servidor\n\n**Dá para assinar o Premium de duas formas:**\n• **No Discord** — o botão abaixo. Cobrança mensal.\n• **Com cartão no site** — o mesmo Premium, além de planos de 6 e 12 meses que saem mais em conta. O Discord só consegue cobrar mensalmente, então os planos mais longos são exclusivos do site.",
-        "premium_cutover_dm":         "👋 Um aviso rápido sobre o VRCVerify em **{server}**.\n\nO VRCVerify agora tem um nível Premium opcional e, deixando claro de cara, **nada muda no seu servidor.**\n\nA verificação 18+ é gratuita e vai continuar gratuita, de forma permanente, para todo mundo. Verificar automaticamente membros já verificados assim que entram também.\n\nE como **{server}** foi configurado antes do lançamento do Premium, ele também mantém estes recursos sem custo, de forma permanente:\n• Remoção automática do cargo de não verificado\n• Sincronização automática do apelido com o VRChat\n• Mensagem personalizada após a verificação\n\nOu seja, você não precisa fazer nada. Se algum dia quiser ver o que o Premium acrescenta, execute `/vrcverify_subscription` no seu servidor.\n(Esta é uma mensagem única.)",
-        "log_verified":              "✅ {user} — verificado 18+ · {when}",
-        "log_role_failed":           "⚠️ {user} — verificado 18+, mas o cargo não pôde ser atribuído. Verifique se o cargo do bot VRCVerify está acima do cargo de verificado. · {when}",
-        "log_not_18":                "❌ {user} — não é 18+ segundo o VRChat · {when}",
-        "log_entries_dropped":       "…não foi possível registrar {count} entradas anteriores.",
-        "log_channel_ready":         "📋 A partir de agora a atividade de verificação será registrada aqui.\nAs entradas mostram o membro, o resultado e o horário — nunca o nome ou ID do VRChat.",
-        "log_channel_set":           "A atividade de verificação será registrada em {channel}.",
-        "log_channel_cleared":       "O registro de atividade de verificação está desativado.",
-        "log_channel_premium_only":  "O registro de atividade de verificação é um recurso do VRCVerify Premium. A verificação 18+ em si continua gratuita para todos.",
-        "log_channel_no_permission": "Não consigo publicar em {channel}. Dê ao bot **Ver canal** e **Enviar mensagens** ali e execute este comando novamente.",
-        "log_channel_announcement": "{channel} é um canal de anúncios. Outros servidores podem segui-lo, o que republicaria o status 18+ dos seus membros fora deste servidor, então ele não pode ser usado como registro de verificação. Escolha um canal de texto normal.",
-        "panel_color_invalid": "Isso não parece uma cor hexadecimal. Use algo como `#5865F2` (ou `#58F` de forma abreviada).",
-        # Issue #49 phase 5: the member-facing group invite.
-        "btn_group_invite": "Me envie um convite",
-        "dm_group_invite_offer": "Você está verificado em **{server}**! Quer um convite para o grupo de VRChat deles, **{group}**?\n\nNada é enviado ao VRChat a menos que você aperte o botão.",
-        "group_invite_working": "Pedindo seu convite ao VRChat...",
-        "group_invite_sent": "Convite enviado! Abra suas notificações do VRChat para entrar em **{group}**.",
-        "group_invite_already_member": "Você já está em **{group}**, então não há nada a enviar.",
-        "group_invite_already_invited": "Um convite para **{group}** já está esperando nas suas notificações do VRChat.",
-        "group_invite_blocked": "O VRChat não conseguiu entregar o convite. Os convites de grupo podem estar desativados nas suas configurações do VRChat, ou o grupo pode estar bloqueado na sua conta.",
-        "group_invite_banned": "Você não pode ser convidado para **{group}**. Só um moderador do grupo pode mudar isso.",
-        "group_invite_setup_problem": "O grupo de VRChat de **{server}** não está configurado corretamente no momento, então o convite não pôde ser enviado. Avise os administradores do servidor.",
-        "group_invite_unavailable": "O VRChat não respondeu, então o convite não pôde ser enviado. Tente de novo em alguns minutos.",
-        "group_invite_too_soon": "Você já pediu um convite. Espere alguns minutos antes de tentar de novo.",
-        "group_invite_account_missing": "O VRChat não reconheceu a conta com que você se verificou, então o convite não pôde ser enviado. Verifique-se de novo para revincular sua conta do VRChat.",
-        "group_invite_not_a_member": "Este convite era para **{server}**, e você não é mais membro desse servidor. Entre no servidor e verifique-se de novo se ainda quiser um convite.",
-        "group_invite_not_verified": "Você não está verificado como 18+ em **{server}** no momento, então o convite não pôde ser enviado. Verifique-se de novo para receber um novo convite.",
-        "group_invite_account_changed": "Este convite era para uma conta do VRChat diferente da que você tem vinculada agora. Verifique-se de novo para receber um novo convite para sua conta atual.",
-    },
+SUPPORT_INFO = N_(
+    "Need help with verification?\n"
+    "- Contact a server admin for assistance\n"
+    "- Or visit our support page at https://esattotech.com/contact-us/\n"
+    "\n"
+    "If this is an error, please let us know!"
+)
 
-    "ru": {
-        "not_verified":               "Вы еще не прошли проверку. Пожалуйста, сначала нажмите **Начать проверку**.",
-        "already_verified":           "Вы уже проверены! Роль назначена (или переназначена).",
-        "recheck_started":            "Мы повторно проверяем ваш статус 18+ в VRChat. Если вы обновили проверку возраста, вскоре получите личное сообщение!",
-        "dm_role_success":            "Вы прошли проверку и получили роль **{role}** на **{server}**!",
-        "nickname_update_requested":  "Запрошено обновление ника. Я отправлю вам личное сообщение, когда все будет готово!",
-        "verification_requested":     "Запрос на проверку получен! Мы пришлём вам ЛС с результатами. Убедитесь, что ЛС для этого сервера открыты.",
-        "setup_missing":              "Этот сервер еще не настроил роль проверки. Пожалуйста, свяжитесь с администратором.",
-        "not_18_plus":                "По данным VRChat вам нет 18+. Свяжитесь с администратором, если это ошибка.",
-        "support_info":               "Нужна помощь с проверкой?\n- Обратитесь к администратору сервера\n- Или посетите нашу страницу поддержки: https://esattotech.com/contact-us/\n\nЕсли это ошибка, дайте нам знать!",
-        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
-        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
-        "subscription_info":          "Я предоставляю это бесплатно, но если вы хотите меня поддержать, вы можете найти мой Ko-fi здесь: {kofi_link}. Спасибо за вашу поддержку!",
-        "settings_saved":             "Настройки сохранены!",
-        "settings_unreadable":        "Сейчас не удалось прочитать настройки этого сервера. Попробуйте ещё раз через некоторое время — ничего не изменилось.",
-        "invalid_vrc_id_input":       "Похоже, вы ввели отображаемое имя вместо идентификатора пользователя VRChat。\nВведите полный URL профиля или ваш userID (всегда начинается с `usr_`)。\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "Мы не нашли ваш код в вашей биографии VRChat. Пожалуйста, попробуйте ещё раз.\n**Проверьте, что код находится в отдельной строке.**",
-        "verify_button_expired":      "Эта ссылка для проверки истекла или была заменена более новой. Пожалуйста, запустите `/vrcverify` снова, чтобы получить новый код.",
-        "nickname_updated":           "Ваш ник обновлён на {display_name}.",
-        "nickname_update_failed":     "Не удалось обновить ваш ник.",
-        "setup_success":              "Успешно {action} конфигурацию сервера。\nУстановлена проверенная роль: `{role}` (ID={role_id})",
-        "setup_unverified_set":       "\nНепроверенная роль для удаления: `{role}` (ID={role_id})",
-        "setup_unverified_missing":   "\n(Непроверенная роль не задана; при проверке роли удаляться не будут。)",
-        "instructions_title":         "Как использовать бот проверки VRChat",
-        "instructions_desc":          "**Следуйте этим шагам**, чтобы проверить свой статус 18+:\n\n"
-                                      "1. Нажмите кнопку **Начать проверку** (если отображается) или введите `/vrcverify` в любом месте。\n"
-                                      "2. Если вы новичок, вас попросят ввести имя пользователя VRChat。\n"
-                                      "3. Бот даст вам уникальный код - поместите его в свою биографию VRChat **в отдельной строке**。\n"
-                                      "4. Нажмите **Проверить** в Discord, как только ваша биография будет обновлена。\n\n"
-                                      "Если вам нужна дополнительная помощь, свяжитесь с администратором или введите `/vrcverify_support`。",
-        "btn_begin_verification":     "Начать проверку",
-        "btn_update_nickname":        "Обновить никнейм",
-        "settings_intro":             "**Настройки проверки VRChat**\n\n1.) **Включить автоматическую смену никнейма**\n   Автоматически обновлять никнеймы пользователей Discord в соответствии с их отображаемыми именами VRChat。\n   Текущий: **{current}**",
-        "dm_role_failed_bot_position":"Мне не удалось выдать роль «{role}» на сервере {server}. Обычно это происходит, когда роль бота VRCVerify находится ниже ролей Verified (и Unverified) в списке ролей сервера. Попросите администратора переместить роль бота VRCVerify выше этих ролей и повторите попытку。",
-        "dm_unverified_failed_bot_position": "Не удалось снять роль {role} на сервере {server}. Обычно это происходит, когда роль бота VRCVerify находится не выше роли непроверенного. Попросите администратора сервера убедиться, что роль бота VRCVerify находится выше и роли проверенного, и роли непроверенного (если она используется).",
-        "custom_msg_cleared":         "Пользовательское сообщение запроса проверки очищено. Будет использовано стандартное.",
-        "custom_msg_saved":           "Пользовательское сообщение запроса проверки сохранено.",
-        "custom_msg_too_long":        "Слишком длинное сообщение (макс. 1000 символов).",
-        "custom_msg_invalid_links":   "Блокировано: Разрешены только ссылки на discord.com или vrchat.com. Неверные ссылки:\n{invalid_list}",
-        "bio_verify_instructions1":   "**1)** Добавьте код в вашу биографию VRChat в отдельной строке.",
-        "bio_verify_instructions2":   "**2)** Как только ваша биография будет обновлена, нажмите **Проверить** в Discord (в течение 10 минут).",
-        "vrc_id_already_linked":      "Профиль VRChat, который вы попытались использовать, уже привязан к другой учётной записи Discord. Если вы считаете, что это ошибка, свяжитесь с администратором сервера.",
-        "vrchat_issue_user_not_found":               "Нам не удалось найти эту учётную запись VRChat. Пожалуйста, проверьте, что вы правильно вставили ссылку на профиль VRChat или user ID `usr_...`.",
-        "vrchat_issue_rate_limited":                "VRChat сейчас ограничивает запросы на проверку. Подождите минуту и попробуйте снова.",
-        "vrchat_issue_temp_unavailable":             "VRCVerify временно не может связаться с VRChat. Пожалуйста, попробуйте немного позже.",
-        "vrchat_issue_outage_confirmed":            "VRChat сейчас сообщает о проблеме сервиса, которая влияет на проверку. Пожалуйста, попробуйте позже.\n\nСтраница статуса: {status_page}",
-        "vrchat_issue_outage_confirmed_with_status": "VRChat сейчас сообщает о проблеме сервиса, которая влияет на проверку. Пожалуйста, попробуйте позже.\n\nСтраница статуса: {status_page}\n\nСообщённый статус: {status_message}",
-        "vrchat_issue_outage_suspected":            "Похоже, у VRChat временные проблемы с API, поэтому сейчас завершить проверку не удалось. Пожалуйста, попробуйте позже.\n\nСтраница статуса: {status_page}",
-        "vrchat_issue_unexpected":                   "Проверка не может быть завершена, потому что VRChat вернул непредвиденную ошибку. Пожалуйста, попробуйте позже.",
-        "cooldown_active":            "Слишком часто. Подождите {seconds} секунд и попробуйте снова.",
-        "btn_donate":                 "Поддержать",
-        "setup_donate_hint":          "\n\n☕ VRCVerify бесплатен благодаря пожертвованиям. Если он помогает вашему сообществу, вы можете поддержать его здесь: {kofi_link}",
-        "milestone_owner_dm":         "🎉 **{server}** достиг {count} завершённых проверок с VRCVerify!\nБот бесплатный и существует на пожертвования — если он был полезен вашему сообществу, вы можете поддержать его здесь: {kofi_link}\n(Это одноразовое сообщение.)",
-        "setup_panel_nudge":          "\n\n📌 **Остался один шаг:** участники не смогут пройти проверку, пока вы не опубликуете панель инструкций.\nВыполните `/vrcverify_instructions` в канале, из которого они должны проходить проверку. Используйте обычный текстовый канал, видимый всем, а не ветку: ветки автоматически архивируются, и панель тихо перестаёт работать.\nВыполнить `/vrcverify_status` для проверки можно в любой момент.",
-        "panel_nudge_dm":             "👋 Вы настроили VRCVerify на сервере **{server}**, но панель инструкций так и не опубликована — участникам по-прежнему нечем начать проверку.\n\nВыполните `/vrcverify_instructions` в канале, из которого они должны проходить проверку. Используйте обычный текстовый канал, видимый всем, а не ветку: ветки автоматически архивируются, и панель тихо ломается.\n\nВыполните `/vrcverify_status` на сервере для быстрой проверки.\n(Это одноразовое сообщение.)",
-        "status_header":              "**Состояние VRCVerify на сервере {server}**",
-        "status_role_ok":             "✅ Роль для проверенных: **{role}**",
-        "status_role_missing":        "❌ Роль для проверенных не задана — выполните `/vrcverify_setup`, чтобы выбрать её.",
-        "status_role_deleted":        "❌ Заданной роли для проверенных больше не существует — выполните `/vrcverify_setup`, чтобы выбрать новую.",
-        "status_panel_ok":            "✅ Панель инструкций опубликована, и бот по-прежнему может её обновлять.",
-        "status_panel_missing":       "❌ Панель инструкций не опубликована — выполните `/vrcverify_instructions` в канале, где участники должны проходить проверку.",
-        "status_panel_unreachable":   "⚠️ Панель инструкций существует, но бот не может её обновить. Проверьте, что у него в этом канале остались права **Просмотр канала**, **Отправка сообщений** и **Встраивание ссылок**.",
-        "status_panel_archived":      "⚠️ Панель инструкций находится в заархивированной ветке, поэтому бот не может её обновить. Разархивируйте ветку или опубликуйте новую панель в обычном текстовом канале.",
-        "status_panel_gone":          "❌ Сохранённой панели инструкций больше не существует — удалена сама панель или её канал. Выполните `/vrcverify_instructions` ещё раз, чтобы опубликовать новую.",
-        "status_tips":                "\n**Советы**\n• Публикуйте панель в обычном текстовом канале, видимом всем: ветки автоматически архивируются и незаметно её ломают.\n• Сохраняйте у бота права **Просмотр канала**, **Отправка сообщений** и **Встраивание ссылок** в этом канале.\n• Если вы удалили или пересоздали этот канал, выполните `/vrcverify_instructions` заново.",
-        "guild_join_welcome_dm":      "👋 Спасибо, что добавили VRCVerify на сервер **{server}**!\n\nЧтобы всё настроить:\n1. Выполните `/vrcverify_setup`, чтобы выбрать роль, которую получают проверенные участники.\n2. Выполните `/vrcverify_instructions` в канале, из которого участники должны проходить проверку — используйте обычный текстовый канал, видимый всем, а не ветку: ветки автоматически архивируются, и панель тихо перестаёт работать.\n\nНужна помощь? Загляните в `/vrcverify_support`.",
-        "premium_status_active":      "✅ **VRCVerify Premium активен на сервере {server}.**\n\nЗдесь открыто:\n• Журнал активности проверок — настройте через `/vrcverify_logchannel`\n• Приоритет в очереди проверок, когда есть задержка\n• Автоматическое снятие роли непроверенного\n• Автоматическая синхронизация никнейма с VRChat\n• Своё сообщение после проверки\n• Ваш собственный цвет и иконка сервера в сообщении с инструкциями\n• Уменьшенная задержка между проверками\n• Приглашайте проверенных участников прямо в VRChat-группу вашего сервера\n\nНастройки оформления и автоматизации — в `/vrcverify_settings`.\n\nВы можете управлять подпиской или отменить её в любой момент в **Настройках пользователя → Подписки** в Discord.\nСпасибо, что поддерживаете VRCVerify. 💜",
-        "premium_status_active_card": "✅ **VRCVerify Premium активен на сервере {server}.**\n\nЗдесь открыто:\n• Журнал активности проверок — настройте через `/vrcverify_logchannel`\n• Приоритет в очереди проверок, когда есть задержка\n• Автоматическое снятие роли непроверенного\n• Автоматическая синхронизация никнейма с VRChat\n• Своё сообщение после проверки\n• Ваш собственный цвет и иконка сервера в сообщении с инструкциями\n• Уменьшенная задержка между проверками\n• Приглашайте проверенных участников прямо в VRChat-группу вашего сервера\n\nНастройки оформления и автоматизации — в `/vrcverify_settings`.\n\nЭтот сервер оплачивается картой, поэтому управляйте подпиской или отменяйте её на **сайте VRCVerify** — в настройках подписок Discord её не будет.\nСпасибо, что поддерживаете VRCVerify. 💜",
-        "premium_status_active_both": "⚠️ **{server} платит за VRCVerify Premium дважды.**\n\nДля этого сервера действуют и подписка **Discord**, и подписка по **карте**. Premium остаётся включённым — но деньги списываются дважды.\n\nМы намеренно ничего не отменили за вас: отменять подписку и оформлять возврат без решения человека — не то, что этот бот должен делать сам.\n\nОставьте ту, что удобнее, и отмените вторую:\n• **Discord** — Настройки пользователя → Подписки\n• **Карта** — страница подписок на сайте\n\nЕсли сомневаетесь: на сайте планы на 6 и 12 месяцев выгоднее, а Discord умеет только помесячную оплату.",
-        "premium_status_inactive":    "**Проверка 18+ на сервере {server} бесплатна и останется такой всегда.** Автоматическая проверка уже проверенных участников при входе тоже бесплатна.\n\nVRCVerify Premium добавляет для этого сервера следующие необязательные возможности:\n• Журнал активности проверок: каждая проверка в выбранном вами канале, включая те, что завершаются ошибкой незаметно\n• Приоритет в очереди проверок, когда есть задержка\n• Автоматическое снятие роли непроверенного\n• Автоматическая синхронизация никнейма с VRChat\n• Своё сообщение после проверки\n• Ваш собственный цвет и иконка сервера в сообщении с инструкциями\n• Уменьшенная задержка между проверками\n• Приглашайте проверенных участников прямо в VRChat-группу вашего сервера\n\nОдна подписка покрывает весь сервер, и оформить её можно двумя способами:\n• **В Discord** — кнопка ниже. Ежемесячная оплата.\n• **Картой на сайте** — тот же Premium, плюс планы на 6 и 12 месяцев, которые выходят дешевле. Discord умеет выставлять счёт только помесячно, поэтому длинные планы есть только на сайте.",
-        "premium_status_grandfathered": "**Проверка 18+ на сервере {server} бесплатна и останется такой всегда.** Автоматическая проверка уже проверенных участников при входе тоже бесплатна.\n\nПоскольку этот сервер был настроен до запуска Premium, за ним навсегда сохраняются бесплатно ещё и:\n• Автоматическое снятие роли непроверенного\n• Автоматическая синхронизация никнейма с VRChat\n• Своё сообщение после проверки\n\nPremium добавляет сверх этого:\n• Журнал активности проверок: каждая проверка в выбранном вами канале, включая те, что завершаются ошибкой незаметно\n• Приоритет в очереди проверок, когда есть задержка\n• Ваш собственный цвет и иконка сервера в сообщении с инструкциями\n• Уменьшенная задержка между проверками\n• Приглашайте проверенных участников прямо в VRChat-группу вашего сервера\n\n**Premium можно оформить двумя способами:**\n• **В Discord** — кнопка ниже. Ежемесячная оплата.\n• **Картой на сайте** — тот же Premium, плюс планы на 6 и 12 месяцев, которые выходят дешевле. Discord умеет выставлять счёт только помесячно, поэтому длинные планы есть только на сайте.",
-        "premium_cutover_dm":         "👋 Небольшое уведомление о VRCVerify на сервере **{server}**.\n\nУ VRCVerify появился необязательный уровень Premium. Сразу скажу главное: **на вашем сервере ничего не меняется.**\n\nПроверка 18+ бесплатна и навсегда останется бесплатной для всех. Автоматическая проверка уже проверенных участников при входе тоже остаётся бесплатной.\n\nА поскольку сервер **{server}** был настроен до запуска Premium, за ним навсегда и без оплаты сохраняются ещё и:\n• Автоматическое снятие роли непроверенного\n• Автоматическая синхронизация никнейма с VRChat\n• Своё сообщение после проверки\n\nТак что делать ничего не нужно. Если когда-нибудь станет интересно, что даёт Premium, выполните `/vrcverify_subscription` на своём сервере.\n(Это одноразовое сообщение.)",
-        "log_verified":              "✅ {user} — подтверждён 18+ · {when}",
-        "log_role_failed":           "⚠️ {user} — подтверждён 18+, но роль выдать не удалось. Проверьте, что роль бота VRCVerify находится выше роли проверенного. · {when}",
-        "log_not_18":                "❌ {user} — по данным VRChat не 18+ · {when}",
-        "log_entries_dropped":       "…не удалось записать {count} более ранних записей.",
-        "log_channel_ready":         "📋 Теперь активность проверок будет записываться сюда.\nВ записях указываются участник, результат и время — никогда его имя или ID в VRChat.",
-        "log_channel_set":           "Активность проверок будет записываться в {channel}.",
-        "log_channel_cleared":       "Запись активности проверок отключена.",
-        "log_channel_premium_only":  "Журнал активности проверок — возможность VRCVerify Premium. Сама проверка 18+ остаётся бесплатной для всех.",
-        "log_channel_no_permission": "Я не могу писать в {channel}. Выдайте боту там права **Просмотр канала** и **Отправка сообщений** и выполните команду ещё раз.",
-        "log_channel_announcement": "{channel} — канал объявлений. Другие серверы могут на него подписаться, и статус 18+ ваших участников будет переопубликован за пределами этого сервера, поэтому он не может служить журналом проверок. Выберите обычный текстовый канал.",
-        "panel_color_invalid": "Это не похоже на HEX-цвет. Используйте что-то вроде `#5865F2` (или `#58F` сокращённо).",
-        # Issue #49 phase 5: the member-facing group invite.
-        "btn_group_invite": "Отправьте мне приглашение",
-        "dm_group_invite_offer": "Вы прошли проверку на сервере **{server}**! Хотите получить приглашение в их группу VRChat — **{group}**?\n\nПока вы не нажмёте кнопку, в VRChat ничего не отправляется.",
-        "group_invite_working": "Запрашиваем ваше приглашение у VRChat...",
-        "group_invite_sent": "Приглашение отправлено! Откройте уведомления VRChat, чтобы вступить в **{group}**.",
-        "group_invite_already_member": "Вы уже состоите в **{group}**, так что отправлять нечего.",
-        "group_invite_already_invited": "Приглашение в **{group}** уже ждёт вас в уведомлениях VRChat.",
-        "group_invite_blocked": "VRChat не смог доставить приглашение. Возможно, в настройках VRChat у вас отключены приглашения в группы, либо группа заблокирована в вашем аккаунте.",
-        "group_invite_banned": "Вас нельзя пригласить в **{group}**. Изменить это может только модератор группы.",
-        "group_invite_setup_problem": "Группа VRChat сервера **{server}** сейчас настроена неверно, поэтому приглашение отправить не удалось. Сообщите об этом администраторам сервера.",
-        "group_invite_unavailable": "VRChat не ответил, поэтому приглашение отправить не удалось. Попробуйте ещё раз через несколько минут.",
-        "group_invite_too_soon": "Вы уже запрашивали приглашение. Подождите несколько минут, прежде чем пробовать снова.",
-        "group_invite_account_missing": "VRChat не распознал аккаунт, с которым вы проходили проверку, поэтому приглашение отправить не удалось. Пройдите проверку заново, чтобы перепривязать аккаунт VRChat.",
-        "group_invite_not_a_member": "Это приглашение было для сервера **{server}**, а вы больше не состоите в нём. Вернитесь на сервер и пройдите проверку заново, если приглашение всё ещё нужно.",
-        "group_invite_not_verified": "Сейчас вы не подтверждены как 18+ на сервере **{server}**, поэтому приглашение не отправлено. Пройдите проверку заново, чтобы получить новое приглашение.",
-        "group_invite_account_changed": "Это приглашение предназначалось для другого аккаунта VRChat, не для того, который привязан сейчас. Пройдите проверку заново, чтобы получить новое приглашение для текущего аккаунта.",
-    },
+SUPPORT_INVITE_LINE = N_(
+    "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel."
+)
 
-    "pa-IN": {
-        "not_verified":               "ਤੁਸੀਂ ਅਜੇ ਤੱਕ ਸਤਿਆਪਿਤ ਨਹੀਂ ਹੋ। ਕਿਰਪਾ ਕਰਕੇ ਪਹਿਲਾਂ **ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ** 'ਤੇ ਕਲਿੱਕ ਕਰੋ।",
-        "already_verified":           "ਤੁਸੀਂ ਪਹਿਲਾਂ ਹੀ ਸਤਿਆਪਿਤ ਹੋ! ਭੂਮਿਕਾ ਨਿਰਧਾਰਿਤ (ਜਾਂ ਦੁਬਾਰਾ ਨਿਰਧਾਰਿਤ) ਕੀਤੀ ਗਈ।",
-        "recheck_started":            "ਅਸੀਂ ਤੁਹਾਡੀ VRChat 18+ ਸਥਿਤੀ ਨੂੰ ਦੁਬਾਰਾ ਜਾਂਚ ਰਹੇ ਹਾਂ। ਜੇ ਤੁਸੀਂ ਆਪਣੀ ਉਮਰ ਸਤਿਆਪਨ ਅੱਪਡੇਟ ਕੀਤੀ ਹੈ, ਤਾਂ ਤੁਹਾਨੂੰ ਜਲਦੀ ਹੀ ਇੱਕ ਡੀਐਮ ਮਿਲੇਗੀ!",
-        "dm_role_success":            "ਤੁਹਾਨੂੰ ਸਤਿਆਪਿਤ ਕੀਤਾ ਗਿਆ ਹੈ ਅਤੇ **{role}** ਭੂਮਿਕਾ **{server}** ਵਿੱਚ ਦਿੱਤੀ ਗਈ ਹੈ!",
-        "nickname_update_requested":  "ਨਿਕਨੇਮ ਅਪਡੇਟ ਕਰਨ ਦੀ ਬੇਨਤੀ ਭੇਤੀ ਗਈ। ਜਦੋਂ ਇਹ ਹੋ ਜਾਵੇਗਾ ਤਾਂ ਮੈਂ ਤੁਹਾਨੂੰ DM ਕਰਾਂਗਾ!",
-        "verification_requested":     "ਪ੍ਰਮਾਣੀਕਰਨ ਬੇਨਤੀ ਪ੍ਰਾਪਤ ਹੋਈ! ਨਤੀਜੇ ਤੁਹਾਨੂੰ DM ਦੁਆਰਾ ਭੇਜੇ ਜਾਣਗੇ। ਯਕੀਨੀ ਬਣਾਓ ਕਿ ਇਸ ਸਰਵਰ ਲਈ ਤੁਹਾਡੇ DM ਖੁੱਲ੍ਹੇ ਹਨ।",
-        "setup_missing":              "ਇਸ ਸਰਵਰ 'ਤੇ ਪ੍ਰਮਾਣੀਕਰਨ ਭੂਮਿਕਾ ਅਜੇ ਤੱਕ ਸੈੱਟ ਨਹੀਂ ਕੀਤੀ ਗਈ। ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
-        "not_18_plus":                "VRChat ਅਨੁਸਾਰ ਤੁਹਾਡੇ ਕੋਲ 18+ ਨਹੀਂ ਹੈ। ਜੇ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਇੱਕ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
-        "support_info":               "ਪ੍ਰਮਾਣੀਕਰਨ ਵਿੱਚ ਸਹਾਇਤਾ ਚਾਹੀਦੀ ਹੈ?\n- ਸਹਾਇਤਾ ਲਈ ਸਰਵਰ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ\n- ਜਾਂ ਆਪਣੀ ਸਹਾਇਤਾ ਸਫ਼ਾ ਵੇਖੋ: https://esattotech.com/contact-us/\n\nਜੇ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਸਾਨੂੰ ਦੱਸੋ!",
-        # English on purpose -- see UNTRANSLATED in tests/test_locales.py (#97).
-        "support_invite_line":        "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel.",
-        "subscription_info":          "ਮੈਂ ਇਹ ਮੁਫ਼ਤ ਪ੍ਰਦਾਨ ਕਰ ਰਿਹਾ ਹਾਂ, ਪਰ ਜੇ ਤੁਸੀਂ ਮੇਰੀ ਸਹਾਇਤਾ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ, ਤਾਂ ਮੇਰਾ Ko-fi ਇਥੇ ਵੇਖੋ: {kofi_link}. ਤੁਹਾਡੇ ਸਹਿਯੋਗ ਲਈ ਧੰਨਵਾਦ!",
-        "settings_saved":             "ਸੈਟਿੰਗਸ ਸੁਰੱਖਿਅਤ ਕੀਤੀਆਂ ਗਈਆਂ!",
-        "settings_unreadable":        "ਇਸ ਸਰਵਰ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਇਸ ਵੇਲੇ ਪੜ੍ਹੀਆਂ ਨਹੀਂ ਜਾ ਸਕੀਆਂ। ਕਿਰਪਾ ਕਰਕੇ ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ — ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲਿਆ।",
-        "invalid_vrc_id_input":       "ਲੱਗਦਾ ਹੈ ਤੁਸੀਂ VRChat userID ਦੀ ਬਜਾਏ ਆਪਣਾ ਡਿਸਪਲੇ ਨਾਂ ਦਰਜ ਕੀਤਾ ਹੈ。\nਕਿਰਪਾ ਕਰਕੇ ਪੂਰਾ ਪ੍ਰੋਫ਼ਾਈਲ URL ਜਾਂ ਆਪਣਾ userID ਦਰਜ ਕਰੋ (ਜੋ ਹਮੇਸ਼ਾਂ `usr_` ਨਾਲ ਸ਼ੁਰੂ ਹੁੰਦਾ ਹੈ)。\nhttps://imgur.com/a/EEl6ekH",
-        "code_not_found":             "ਅਸੀਂ ਤੁਹਾਡੇ VRChat ਬਾਇਓ ਵਿੱਚ ਤੁਹਾਡਾ ਕੋਡ ਨਹੀਂ ਲੱਭ ਸਕੇ। ਕਿਰਪਾ ਕਰਕੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।\n**ਕਿਰਪਾ ਕਰਕੇ ਜਾਂਚੋ ਕਿ ਕੋਡ ਆਪਣੀ ਵੱਖਰੀ ਲਾਈਨ 'ਤੇ ਹੈ।**",
-        "verify_button_expired":      "ਇਹ ਪ੍ਰਮਾਣੀਕਰਨ ਲਿੰਕ ਦੀ ਮਿਆਦ ਖਤਮ ਹੋ ਗਈ ਹੈ ਜਾਂ ਇਸਨੂੰ ਨਵੇਂ ਲਿੰਕ ਨਾਲ ਬਦਲ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਨਵਾਂ ਕੋਡ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ ਦੁਬਾਰਾ `/vrcverify` ਚਲਾਓ।",
-        "nickname_updated":           "ਤੁਹਾਡਾ ਨਿਕਨੇਮ {display_name} ਵਿੱਚ ਅਪਡੇਟ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ।",
-        "nickname_update_failed":     "ਅਸੀਂ ਤੁਹਾਡਾ ਨਿਕਨੇਮ ਅਪਡੇਟ ਨਹੀਂ ਕਰ ਸਕੇ।",
-        "setup_success":              "ਸਰਵਰ ਕਨਫ਼ਿਗ {action} ਸਫਲ。\nਪ੍ਰਮਾਣਿਤ ਰੋਲ ਸੈੱਟ ਕੀਤਾ: `{role}` (ID={role_id})",
-        "setup_unverified_set":       "\nਹਟਾਉਣ ਲਈ 'ਅਨਵੈਰੀਫਾਇਡ' ਰੋਲ: `{role}` (ID={role_id})",
-        "setup_unverified_missing":   "\n('ਅਨਵੈਰੀਫਾਇਡ' ਰੋਲ ਸੈੱਟ ਨਹੀਂ; ਤਸਦੀਕ ਹੋਣ 'ਤੇ ਕੋਈ ਰੋਲ ਨਹੀਂ ਹਟਾਇਆ ਜਾਵੇਗਾ。)",
-        "instructions_title":         "VRChat ਪ੍ਰਮਾਣੀਕਰਨ ਬੋਟ ਦੀ ਵਰਤੋਂ ਕਰਨ ਲਈ ਹਦਾਇਤਾਂ",
-        "instructions_desc":          "**ਇਹਨਾਂ ਕਦਮਾਂ ਦੀ ਪਾਲਣਾ ਕਰੋ** ਆਪਣੇ 18+ ਸਥਿਤੀ ਦੀ ਪੁਸ਼ਟੀ ਕਰਨ ਲਈ:\n\n"
-                                      "1. 'ਤੇ ਕਲਿੱਕ ਕਰੋ **ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ** ਬਟਨ (ਜੇ ਦਿਖਾਇਆ ਗਿਆ ਹੋਵੇ) ਜਾਂ ਕਿਸੇ ਵੀ ਜਗ੍ਹਾ ਟਾਈਪ ਕਰੋ `/vrcverify`。\n"
-                                      "2. ਜੇ ਤੁਸੀਂ ਨਵੇਂ ਹੋ, ਤਾਂ ਤੁਹਾਡੇ ਤੋਂ ਤੁਹਾਡਾ VRChat ਯੂਜ਼ਰ ਨਾਮ ਪੁੱਛਿਆ ਜਾਵੇਗਾ。\n"
-                                      "3. ਬੋਟ ਤੁਹਾਨੂੰ ਇੱਕ ਵਿਲੱਖਣ ਕੋਡ ਦੇਵੇਗਾ - ਇਸਨੂੰ ਆਪਣੇ VRChat ਜੀਵਨ ਚਰਿਤ੍ਰ ਵਿੱਚ **ਇੱਕ ਵੱਖਰੀ ਲਾਈਨ 'ਤੇ** ਰੱਖੋ。\n"
-                                      "4. ਆਪਣੇ ਜੀਵਨ ਚਰਿਤ੍ਰ ਨੂੰ ਅਪਡੇਟ ਕਰਨ ਤੋਂ ਬਾਅਦ Discord ਵਿੱਚ **ਸত্যਾਪਿਤ ਕਰੋ** 'ਤੇ ਦਬਾਓ。\n\n"
-                                      "ਜੇ ਤੁਹਾਨੂੰ ਵਾਧੂ ਸਹਾਇਤਾ ਦੀ ਲੋੜ ਹੈ, ਤਾਂ ਇੱਕ ਪ੍ਰਬੰਧਕ ਨਾਲ ਸੰਪਰਕ ਕਰੋ ਜਾਂ ਟਾਈਪ ਕਰੋ `/vrcverify_support`。",
-        "btn_begin_verification":     "ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ",
-        "btn_update_nickname":        "ਨਿਕਨੇਮ ਅਪਡੇਟ ਕਰੋ",
-        "settings_intro":             "**VRChat ਪ੍ਰਮਾਣੀਕਰਨ ਸੈਟਿੰਗਸ**\n\n1.) **ਆਟੋ-ਨਿਕਨੇਮ ਬਦਲਣਾ ਯਕੀਨੀ ਬਣਾਓ**\n   ਵਰਤੋਂਕਾਰਾਂ ਦੇ Discord ਨਿਕਨੇਮਾਂ ਨੂੰ ਉਹਨਾਂ ਦੇ VRChat ਪ੍ਰਦਰਸ਼ਨ ਨਾਮਾਂ ਦੇ ਨਾਲ ਮੇਲ ਖਾਣ ਲਈ ਆਟੋਮੈਟਿਕ ਤੌਰ 'ਤੇ ਅਪਡੇਟ ਕਰੋ。\n   ਮੌਜੂਦਾ: **{current}**",
-        "dm_role_failed_bot_position":"ਮੈਂ {server} ਵਿੱਚ ਤੁਹਾਨੂੰ '{role}' ਰੋਲ ਨਹੀਂ ਦੇ ਸਕਿਆ। ਆਮ ਤੌਰ ਤੇ ਇਹ ਤਦ ਹੁੰਦਾ ਹੈ ਜਦੋਂ VRCVerify ਬੋਟ ਦਾ ਰੋਲ ਸਰਵਰ ਦੀ ਰੋਲ ਲਿਸਟ ਵਿੱਚ verified (ਅਤੇ unverified) ਰੋਲਾਂ ਤੋਂ ਉੱਪਰ ਨਹੀਂ ਹੁੰਦਾ। ਕਿਰਪਾ ਕਰਕੇ ਕਿਸੇ ਐਡਮਿਨ ਨੂੰ ਕਹੋ ਕਿ VRCVerify ਬੋਟ ਦਾ ਰੋਲ ਉਹਨਾਂ ਰੋਲਾਂ ਤੋਂ ਉੱਪਰ ਰੱਖੇ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ。",
-        "dm_unverified_failed_bot_position": "{server} ਵਿੱਚ {role} ਭੂਮਿਕਾ ਹਟਾਈ ਨਹੀਂ ਜਾ ਸਕੀ। ਇਹ ਆਮ ਤੌਰ 'ਤੇ ਉਦੋਂ ਹੁੰਦਾ ਹੈ ਜਦੋਂ VRCVerify ਬੋਟ ਦੀ ਭੂਮਿਕਾ ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਤੋਂ ਉੱਪਰ ਨਹੀਂ ਹੁੰਦੀ। ਕਿਸੇ ਸਰਵਰ ਐਡਮਿਨ ਨੂੰ ਕਹੋ ਕਿ ਉਹ ਜਾਂਚ ਕਰਨ ਕਿ VRCVerify ਬੋਟ ਦੀ ਭੂਮਿਕਾ ਤਸਦੀਕਸ਼ੁਦਾ ਅਤੇ ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ (ਜੇ ਲਾਗੂ ਹੋਵੇ) ਦੋਹਾਂ ਭੂਮਿਕਾਵਾਂ ਤੋਂ ਉੱਪਰ ਹੈ।",
-        "custom_msg_cleared":         "ਕਸਟਮ ਪ੍ਰਮਾਣੀਕਰਨ ਬੇਨਤੀ ਸੁਨੇਹਾ ਸਾਫ਼ ਕੀਤਾ ਗਿਆ। ਡਿਫਾਲਟ ਵਰਤਿਆ ਜਾਵੇਗਾ।",
-        "custom_msg_saved":           "ਕਸਟਮ ਪ੍ਰਮਾਣੀਕਰਨ ਬੇਨਤੀ ਸੁਨੇਹਾ ਸੰਭਾਲਿਆ ਗਿਆ।",
-        "custom_msg_too_long":        "ਸੁਨੇਹਾ ਬਹੁਤ ਲੰਮਾ ਹੈ (ਵੱਧ ਤੋਂ ਵੱਧ 1000 ਅੱਖਰ)।",
-        "custom_msg_invalid_links":   "ਬਲਾਕ ਕੀਤਾ: ਸਿਰਫ discord.com ਜਾਂ vrchat.com ਲਿੰਕ ਮਨਜ਼ੂਰ ਹਨ। ਗਲਤ ਲਿੰਕ:\n{invalid_list}",
-        "bio_verify_instructions1":   "**1)** ਕੋਡ ਨੂੰ ਆਪਣੇ VRChat ਬਾਇਓ ਵਿੱਚ ਇੱਕ ਅਲੱਗ ਲਾਈਨ 'ਤੇ ਸ਼ਾਮਿਲ ਕਰੋ।",
-        "bio_verify_instructions2":   "**2)** ਅਪਡੇਟ ਹੋਣ 'ਤੇ, Discord ਵਿੱਚ **ਸत्यਾਪਿਤ ਕਰੋ** 'ਤੇ ਕਲਿਕ ਕਰੋ (10 ਮਿੰਟਾਂ ਵਿੱਚ)。",
-        "vrc_id_already_linked":      "ਜਿਸ VRChat ਪ੍ਰੋਫ਼ਾਈਲ ਨੂੰ ਤੁਸੀਂ ਵਰਤਣ ਦੀ ਕੋਸ਼ਿਸ਼ ਕੀਤੀ, ਉਹ ਪਹਿਲਾਂ ਹੀ ਕਿਸੇ ਹੋਰ Discord ਖਾਤੇ ਨਾਲ ਰਜਿਸਟਰ ਹੈ। ਜੇ ਤੁਹਾਨੂੰ ਲੱਗਦਾ ਹੈ ਕਿ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਕਿਰਪਾ ਕਰਕੇ ਸਰਵਰ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
-        "vrchat_issue_user_not_found":               "ਅਸੀਂ ਉਹ VRChat ਖਾਤਾ ਨਹੀਂ ਲੱਭ ਸਕੇ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਜਾਂਚੋ ਕਿ ਤੁਸੀਂ VRChat ਪ੍ਰੋਫ਼ਾਈਲ URL ਜਾਂ `usr_...` user ID ਠੀਕ ਤਰ੍ਹਾਂ ਪੇਸਟ ਕੀਤੀ ਹੈ।",
-        "vrchat_issue_rate_limited":                "VRChat ਇਸ ਵੇਲੇ ਪ੍ਰਮਾਣਿਕਰਨ ਲੁੱਕਅੱਪਾਂ 'ਤੇ rate limit ਲਾ ਰਿਹਾ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਮਿੰਟ ਉਡੀਕੋ ਅਤੇ ਫਿਰ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
-        "vrchat_issue_temp_unavailable":             "VRCVerify ਇਸ ਵੇਲੇ ਅਸਥਾਈ ਤੌਰ 'ਤੇ VRChat ਨਾਲ ਗੱਲ ਨਹੀਂ ਕਰ ਸਕਦਾ। ਕਿਰਪਾ ਕਰਕੇ ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
-        "vrchat_issue_outage_confirmed":            "VRChat ਇਸ ਵੇਲੇ ਇੱਕ ਸਰਵਿਸ ਸਮੱਸਿਆ ਦੀ ਰਿਪੋਰਟ ਕਰ ਰਿਹਾ ਹੈ ਜੋ ਪ੍ਰਮਾਣਿਕਰਨ ਨੂੰ ਪ੍ਰਭਾਵਿਤ ਕਰ ਰਹੀ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।\n\nਸਟੇਟਸ ਪੇਜ: {status_page}",
-        "vrchat_issue_outage_confirmed_with_status": "VRChat ਇਸ ਵੇਲੇ ਇੱਕ ਸਰਵਿਸ ਸਮੱਸਿਆ ਦੀ ਰਿਪੋਰਟ ਕਰ ਰਿਹਾ ਹੈ ਜੋ ਪ੍ਰਮਾਣਿਕਰਨ ਨੂੰ ਪ੍ਰਭਾਵਿਤ ਕਰ ਰਹੀ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।\n\nਸਟੇਟਸ ਪੇਜ: {status_page}\n\nਰਿਪੋਰਟ ਕੀਤੀ ਹਾਲਤ: {status_message}",
-        "vrchat_issue_outage_suspected":            "ਇਹ ਲੱਗਦਾ ਹੈ ਕਿ VRChat ਨੂੰ ਅਸਥਾਈ API ਸਮੱਸਿਆਵਾਂ ਆ ਰਹੀਆਂ ਹਨ, ਇਸ ਕਰਕੇ ਇਸ ਵੇਲੇ ਪ੍ਰਮਾਣਿਕਰਨ ਪੂਰਾ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।\n\nਸਟੇਟਸ ਪੇਜ: {status_page}",
-        "vrchat_issue_unexpected":                   "ਪ੍ਰਮਾਣਿਕਰਨ ਪੂਰਾ ਨਹੀਂ ਹੋ ਸਕਿਆ ਕਿਉਂਕਿ VRChat ਨੇ ਇੱਕ ਅਣਉਮੀਦ ਗਲਤੀ ਵਾਪਸ ਕੀਤੀ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
-        "cooldown_active":            "ਤੁਸੀਂ ਬਹੁਤ ਤੇਜ਼ੀ ਨਾਲ ਕੋਸ਼ਿਸ਼ ਕਰ ਰਹੇ ਹੋ। ਕਿਰਪਾ ਕਰਕੇ {seconds} ਸਕਿੰਟ ਉਡੀਕ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
-        "btn_donate":                 "ਦਾਨ ਕਰੋ",
-        "setup_donate_hint":          "\n\n☕ VRCVerify ਦਾਨ ਸਦਕਾ ਮੁਫ਼ਤ ਹੈ। ਜੇ ਇਹ ਤੁਹਾਡੀ ਕਮਿਊਨਿਟੀ ਦੀ ਮਦਦ ਕਰਦਾ ਹੈ, ਤਾਂ ਤੁਸੀਂ ਇੱਥੇ ਸਮਰਥਨ ਕਰ ਸਕਦੇ ਹੋ: {kofi_link}",
-        "milestone_owner_dm":         "🎉 **{server}** ਨੇ VRCVerify ਨਾਲ {count} ਤਸਦੀਕਾਂ ਪੂਰੀਆਂ ਕਰ ਲਈਆਂ ਹਨ!\nਇਹ ਬੋਟ ਮੁਫ਼ਤ ਹੈ ਅਤੇ ਦਾਨ 'ਤੇ ਚੱਲਦਾ ਹੈ — ਜੇ ਇਹ ਤੁਹਾਡੀ ਕਮਿਊਨਿਟੀ ਲਈ ਲਾਭਦਾਇਕ ਰਿਹਾ ਹੈ, ਤਾਂ ਤੁਸੀਂ ਇੱਥੇ ਸਮਰਥਨ ਕਰ ਸਕਦੇ ਹੋ: {kofi_link}\n(ਇਹ ਸੁਨੇਹਾ ਸਿਰਫ਼ ਇੱਕ ਵਾਰ ਭੇਜਿਆ ਜਾਂਦਾ ਹੈ।)",
-        "setup_panel_nudge":          "\n\n📌 **ਇੱਕ ਹੋਰ ਕਦਮ:** ਜਦੋਂ ਤੱਕ ਤੁਸੀਂ ਹਦਾਇਤ ਪੈਨਲ ਪੋਸਟ ਨਹੀਂ ਕਰਦੇ, ਮੈਂਬਰ ਤਸਦੀਕ ਨਹੀਂ ਕਰ ਸਕਦੇ।\nਜਿਸ ਚੈਨਲ ਤੋਂ ਤੁਸੀਂ ਉਹਨਾਂ ਦੀ ਤਸਦੀਕ ਕਰਵਾਉਣੀ ਹੈ, ਉੱਥੇ `/vrcverify_instructions` ਚਲਾਓ। ਥ੍ਰੈੱਡ ਦੀ ਥਾਂ ਅਜਿਹਾ ਆਮ ਟੈਕਸਟ ਚੈਨਲ ਵਰਤੋ ਜੋ ਸਾਰਿਆਂ ਨੂੰ ਦਿਸਦਾ ਹੋਵੇ, ਕਿਉਂਕਿ ਥ੍ਰੈੱਡ ਆਪਣੇ ਆਪ ਆਰਕਾਈਵ ਹੋ ਜਾਂਦੇ ਹਨ ਅਤੇ ਪੈਨਲ ਚੁੱਪ-ਚਾਪ ਕੰਮ ਕਰਨਾ ਬੰਦ ਕਰ ਦਿੰਦਾ ਹੈ।\nਜਾਂਚ ਲਈ ਤੁਸੀਂ ਕਦੇ ਵੀ `/vrcverify_status` ਚਲਾ ਸਕਦੇ ਹੋ।",
-        "panel_nudge_dm":             "👋 ਤੁਸੀਂ **{server}** ਵਿੱਚ VRCVerify ਸੈੱਟ ਅੱਪ ਕੀਤਾ ਸੀ, ਪਰ ਹਾਲੇ ਤੱਕ ਕੋਈ ਹਦਾਇਤ ਪੈਨਲ ਪੋਸਟ ਨਹੀਂ ਹੋਇਆ — ਇਸ ਲਈ ਉੱਥੇ ਦੇ ਮੈਂਬਰਾਂ ਕੋਲ ਹਾਲੇ ਵੀ ਤਸਦੀਕ ਸ਼ੁਰੂ ਕਰਨ ਦਾ ਕੋਈ ਤਰੀਕਾ ਨਹੀਂ ਹੈ।\n\nਜਿਸ ਚੈਨਲ ਤੋਂ ਤੁਸੀਂ ਉਹਨਾਂ ਦੀ ਤਸਦੀਕ ਕਰਵਾਉਣੀ ਹੈ, ਉੱਥੇ `/vrcverify_instructions` ਚਲਾਓ। ਥ੍ਰੈੱਡ ਦੀ ਥਾਂ ਅਜਿਹਾ ਆਮ ਟੈਕਸਟ ਚੈਨਲ ਵਰਤੋ ਜੋ ਸਾਰਿਆਂ ਨੂੰ ਦਿਸਦਾ ਹੋਵੇ, ਕਿਉਂਕਿ ਥ੍ਰੈੱਡ ਆਪਣੇ ਆਪ ਆਰਕਾਈਵ ਹੋ ਜਾਂਦੇ ਹਨ ਅਤੇ ਪੈਨਲ ਚੁੱਪ-ਚਾਪ ਟੁੱਟ ਜਾਂਦਾ ਹੈ।\n\nਛੇਤੀ ਜਾਂਚ ਲਈ ਆਪਣੇ ਸਰਵਰ ਵਿੱਚ `/vrcverify_status` ਚਲਾਓ।\n(ਇਹ ਸੁਨੇਹਾ ਸਿਰਫ਼ ਇੱਕ ਵਾਰ ਭੇਜਿਆ ਜਾਂਦਾ ਹੈ।)",
-        "status_header":              "**{server} ਲਈ VRCVerify ਸਥਿਤੀ**",
-        "status_role_ok":             "✅ ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ: **{role}**",
-        "status_role_missing":        "❌ ਕੋਈ ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਸੈੱਟ ਨਹੀਂ ਹੈ — ਚੁਣਨ ਲਈ `/vrcverify_setup` ਚਲਾਓ।",
-        "status_role_deleted":        "❌ ਸੈੱਟ ਕੀਤੀ ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਹੁਣ ਮੌਜੂਦ ਨਹੀਂ ਹੈ — ਨਵੀਂ ਚੁਣਨ ਲਈ `/vrcverify_setup` ਚਲਾਓ।",
-        "status_panel_ok":            "✅ ਹਦਾਇਤ ਪੈਨਲ ਪੋਸਟ ਹੈ ਅਤੇ ਬੌਟ ਹਾਲੇ ਵੀ ਇਸਨੂੰ ਅੱਪਡੇਟ ਕਰ ਸਕਦਾ ਹੈ।",
-        "status_panel_missing":       "❌ ਕੋਈ ਹਦਾਇਤ ਪੈਨਲ ਪੋਸਟ ਨਹੀਂ ਹੈ — ਜਿਸ ਚੈਨਲ ਵਿੱਚ ਮੈਂਬਰਾਂ ਨੇ ਤਸਦੀਕ ਕਰਨੀ ਹੈ, ਉੱਥੇ `/vrcverify_instructions` ਚਲਾਓ।",
-        "status_panel_unreachable":   "⚠️ ਹਦਾਇਤ ਪੈਨਲ ਮੌਜੂਦ ਹੈ, ਪਰ ਬੌਟ ਇਸਨੂੰ ਅੱਪਡੇਟ ਨਹੀਂ ਕਰ ਸਕਦਾ। ਜਾਂਚੋ ਕਿ ਉਸ ਚੈਨਲ ਵਿੱਚ ਬੌਟ ਕੋਲ ਹਾਲੇ ਵੀ **ਚੈਨਲ ਵੇਖੋ**, **ਸੁਨੇਹੇ ਭੇਜੋ** ਅਤੇ **ਲਿੰਕ ਏਮਬੈੱਡ ਕਰੋ** ਇਜਾਜ਼ਤਾਂ ਹਨ।",
-        "status_panel_archived":      "⚠️ ਹਦਾਇਤ ਪੈਨਲ ਅਜਿਹੇ ਥ੍ਰੈੱਡ ਵਿੱਚ ਹੈ ਜੋ ਆਰਕਾਈਵ ਹੋ ਚੁੱਕਾ ਹੈ, ਇਸ ਲਈ ਬੌਟ ਇਸਨੂੰ ਅੱਪਡੇਟ ਨਹੀਂ ਕਰ ਸਕਦਾ। ਥ੍ਰੈੱਡ ਨੂੰ ਅਣ-ਆਰਕਾਈਵ ਕਰੋ, ਜਾਂ ਕਿਸੇ ਆਮ ਟੈਕਸਟ ਚੈਨਲ ਵਿੱਚ ਨਵਾਂ ਪੈਨਲ ਪੋਸਟ ਕਰੋ।",
-        "status_panel_gone":          "❌ ਸੰਭਾਲਿਆ ਹਦਾਇਤ ਪੈਨਲ ਹੁਣ ਮੌਜੂਦ ਨਹੀਂ ਹੈ — ਪੈਨਲ ਜਾਂ ਇਸਦਾ ਚੈਨਲ ਮਿਟਾ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਨਵਾਂ ਪੋਸਟ ਕਰਨ ਲਈ `/vrcverify_instructions` ਦੁਬਾਰਾ ਚਲਾਓ।",
-        "status_tips":                "\n**ਸੁਝਾਅ**\n• ਪੈਨਲ ਅਜਿਹੇ ਆਮ ਟੈਕਸਟ ਚੈਨਲ ਵਿੱਚ ਪੋਸਟ ਕਰੋ ਜੋ ਸਾਰਿਆਂ ਨੂੰ ਦਿਸਦਾ ਹੋਵੇ — ਥ੍ਰੈੱਡ ਆਪਣੇ ਆਪ ਆਰਕਾਈਵ ਹੋ ਕੇ ਇਸਨੂੰ ਚੁੱਪ-ਚਾਪ ਤੋੜ ਦਿੰਦੇ ਹਨ।\n• ਉਸ ਚੈਨਲ ਵਿੱਚ ਬੌਟ ਦੀਆਂ **ਚੈਨਲ ਵੇਖੋ**, **ਸੁਨੇਹੇ ਭੇਜੋ** ਅਤੇ **ਲਿੰਕ ਏਮਬੈੱਡ ਕਰੋ** ਇਜਾਜ਼ਤਾਂ ਬਰਕਰਾਰ ਰੱਖੋ।\n• ਜੇ ਤੁਸੀਂ ਉਹ ਚੈਨਲ ਮਿਟਾਉਂਦੇ ਜਾਂ ਦੁਬਾਰਾ ਬਣਾਉਂਦੇ ਹੋ, ਤਾਂ `/vrcverify_instructions` ਦੁਬਾਰਾ ਚਲਾਓ।",
-        "guild_join_welcome_dm":      "👋 **{server}** ਵਿੱਚ VRCVerify ਜੋੜਨ ਲਈ ਧੰਨਵਾਦ!\n\nਸ਼ੁਰੂ ਕਰਨ ਲਈ:\n1. ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਨੂੰ ਮਿਲਣ ਵਾਲੀ ਭੂਮਿਕਾ ਚੁਣਨ ਲਈ `/vrcverify_setup` ਚਲਾਓ।\n2. ਜਿਸ ਚੈਨਲ ਤੋਂ ਤੁਸੀਂ ਮੈਂਬਰਾਂ ਦੀ ਤਸਦੀਕ ਕਰਵਾਉਣੀ ਹੈ, ਉੱਥੇ `/vrcverify_instructions` ਚਲਾਓ — ਥ੍ਰੈੱਡ ਦੀ ਥਾਂ ਅਜਿਹਾ ਆਮ ਟੈਕਸਟ ਚੈਨਲ ਵਰਤੋ ਜੋ ਸਾਰਿਆਂ ਨੂੰ ਦਿਸਦਾ ਹੋਵੇ, ਕਿਉਂਕਿ ਥ੍ਰੈੱਡ ਆਪਣੇ ਆਪ ਆਰਕਾਈਵ ਹੋ ਜਾਂਦੇ ਹਨ ਅਤੇ ਪੈਨਲ ਚੁੱਪ-ਚਾਪ ਕੰਮ ਕਰਨਾ ਬੰਦ ਕਰ ਦਿੰਦਾ ਹੈ।\n\nਮਦਦ ਚਾਹੀਦੀ ਹੈ? `/vrcverify_support` ਵਰਤੋ।",
-        "premium_status_active":      "✅ **{server} ਉੱਤੇ VRCVerify Premium ਚਾਲੂ ਹੈ।**\n\nਇੱਥੇ ਅਨਲਾਕ ਹੋਇਆ:\n• ਤਸਦੀਕ ਗਤੀਵਿਧੀ ਲੌਗ — `/vrcverify_logchannel` ਨਾਲ ਸੈੱਟ ਕਰੋ\n• ਭੀੜ ਹੋਣ 'ਤੇ ਤਸਦੀਕ ਕਤਾਰ ਵਿੱਚ ਪਹਿਲ\n• ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਦਾ ਆਪਣੇ-ਆਪ ਹਟਣਾ\n• VRChat ਨਾਲ ਉਪਨਾਮ ਦਾ ਆਪਣੇ-ਆਪ ਮੇਲ\n• ਤਸਦੀਕ ਤੋਂ ਬਾਅਦ ਆਪਣਾ ਸੁਨੇਹਾ\n• ਹਦਾਇਤ ਪੈਨਲ 'ਤੇ ਤੁਹਾਡਾ ਆਪਣਾ ਰੰਗ ਅਤੇ ਸਰਵਰ ਆਈਕਨ\n• ਘਟਾਇਆ ਗਿਆ ਤਸਦੀਕ ਕੂਲਡਾਊਨ\n• ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਨੂੰ ਸਿੱਧਾ ਆਪਣੇ ਸਰਵਰ ਦੇ VRChat ਗਰੁੱਪ ਵਿੱਚ ਸੱਦੋ\n\nਦਿੱਖ ਅਤੇ ਸਵੈਚਲਿਤ ਸੈਟਿੰਗਾਂ `/vrcverify_settings` ਵਿੱਚ ਹਨ।\n\nਤੁਸੀਂ ਇਸਨੂੰ ਕਿਸੇ ਵੀ ਵੇਲੇ Discord ਦੀਆਂ **ਯੂਜ਼ਰ ਸੈਟਿੰਗਾਂ → ਸਬਸਕ੍ਰਿਪਸ਼ਨ** ਵਿੱਚੋਂ ਸੰਭਾਲ ਜਾਂ ਰੱਦ ਕਰ ਸਕਦੇ ਹੋ।\nVRCVerify ਦਾ ਸਾਥ ਦੇਣ ਲਈ ਧੰਨਵਾਦ। 💜",
-        "premium_status_active_card": "✅ **{server} ਉੱਤੇ VRCVerify Premium ਚਾਲੂ ਹੈ।**\n\nਇੱਥੇ ਅਨਲਾਕ ਹੋਇਆ:\n• ਤਸਦੀਕ ਗਤੀਵਿਧੀ ਲੌਗ — `/vrcverify_logchannel` ਨਾਲ ਸੈੱਟ ਕਰੋ\n• ਭੀੜ ਹੋਣ 'ਤੇ ਤਸਦੀਕ ਕਤਾਰ ਵਿੱਚ ਪਹਿਲ\n• ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਦਾ ਆਪਣੇ-ਆਪ ਹਟਣਾ\n• VRChat ਨਾਲ ਉਪਨਾਮ ਦਾ ਆਪਣੇ-ਆਪ ਮੇਲ\n• ਤਸਦੀਕ ਤੋਂ ਬਾਅਦ ਆਪਣਾ ਸੁਨੇਹਾ\n• ਹਦਾਇਤ ਪੈਨਲ 'ਤੇ ਤੁਹਾਡਾ ਆਪਣਾ ਰੰਗ ਅਤੇ ਸਰਵਰ ਆਈਕਨ\n• ਘਟਾਇਆ ਗਿਆ ਤਸਦੀਕ ਕੂਲਡਾਊਨ\n• ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਨੂੰ ਸਿੱਧਾ ਆਪਣੇ ਸਰਵਰ ਦੇ VRChat ਗਰੁੱਪ ਵਿੱਚ ਸੱਦੋ\n\nਦਿੱਖ ਅਤੇ ਸਵੈਚਲਿਤ ਸੈਟਿੰਗਾਂ `/vrcverify_settings` ਵਿੱਚ ਹਨ।\n\nਇਹ ਸਰਵਰ ਕਾਰਡ ਨਾਲ ਭੁਗਤਾਨ ਕਰਦਾ ਹੈ, ਇਸ ਲਈ ਇਸਨੂੰ **VRCVerify ਦੀ ਵੈੱਬਸਾਈਟ** ਤੋਂ ਹੀ ਸੰਭਾਲੋ ਜਾਂ ਰੱਦ ਕਰੋ — Discord ਦੀਆਂ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਇਹ ਨਹੀਂ ਦਿਖੇਗਾ।\nVRCVerify ਦਾ ਸਾਥ ਦੇਣ ਲਈ ਧੰਨਵਾਦ। 💜",
-        "premium_status_active_both": "⚠️ **{server} VRCVerify Premium ਲਈ ਦੋ ਵਾਰ ਭੁਗਤਾਨ ਕਰ ਰਿਹਾ ਹੈ।**\n\nਇਸ ਸਰਵਰ ਲਈ ਇੱਕ ਚਾਲੂ **Discord** ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਅਤੇ ਇੱਕ ਚਾਲੂ **ਕਾਰਡ** ਸਬਸਕ੍ਰਿਪਸ਼ਨ, ਦੋਵੇਂ ਹਨ। Premium ਚਾਲੂ ਰਹੇਗਾ — ਪਰ ਤੁਹਾਡੇ ਤੋਂ ਦੋਵਾਂ ਦਾ ਪੈਸਾ ਲਿਆ ਜਾ ਰਿਹਾ ਹੈ।\n\nਜਾਣ-ਬੁੱਝ ਕੇ ਤੁਹਾਡੇ ਵੱਲੋਂ ਕੁਝ ਵੀ ਰੱਦ ਨਹੀਂ ਕੀਤਾ ਗਿਆ: ਕਿਸੇ ਬੰਦੇ ਦੇ ਫ਼ੈਸਲੇ ਤੋਂ ਬਿਨਾਂ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਰੱਦ ਕਰਨਾ ਅਤੇ ਰਿਫ਼ੰਡ ਦੇਣਾ, ਇਹ ਬੋਟ ਆਪਣੇ ਆਪ ਨਹੀਂ ਕਰੇਗਾ।\n\nਜੋ ਤੁਹਾਨੂੰ ਠੀਕ ਲੱਗੇ ਉਹ ਰੱਖੋ ਅਤੇ ਦੂਜਾ ਰੱਦ ਕਰੋ:\n• **Discord** — ਯੂਜ਼ਰ ਸੈਟਿੰਗਾਂ → ਸਬਸਕ੍ਰਿਪਸ਼ਨ\n• **ਕਾਰਡ** — ਵੈੱਬਸਾਈਟ ਉੱਤੇ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਪੰਨਾ\n\nਜੇ ਸਮਝ ਨਾ ਆਵੇ: ਵੈੱਬਸਾਈਟ ਉੱਤੇ 6 ਅਤੇ 12 ਮਹੀਨਿਆਂ ਦੇ ਪਲਾਨ ਸਸਤੇ ਪੈਂਦੇ ਹਨ, ਅਤੇ Discord ਸਿਰਫ਼ ਮਹੀਨਾਵਾਰ ਬਿਲ ਕਰ ਸਕਦਾ ਹੈ।",
-        "premium_status_inactive":    "**{server} ਉੱਤੇ 18+ ਤਸਦੀਕ ਮੁਫ਼ਤ ਹੈ, ਅਤੇ ਹਮੇਸ਼ਾ ਰਹੇਗੀ।** ਪਹਿਲਾਂ ਤੋਂ ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਦੀ ਸ਼ਾਮਲ ਹੁੰਦੇ ਹੀ ਆਪਣੇ-ਆਪ ਤਸਦੀਕ ਵੀ ਮੁਫ਼ਤ ਹੈ।\n\nVRCVerify Premium ਇਸ ਸਰਵਰ ਲਈ ਇਹ ਚੋਣਵੀਆਂ ਸਹੂਲਤਾਂ ਜੋੜਦਾ ਹੈ:\n• ਤਸਦੀਕ ਗਤੀਵਿਧੀ ਲੌਗ: ਤੁਹਾਡੇ ਚੁਣੇ ਚੈਨਲ ਵਿੱਚ ਹਰ ਤਸਦੀਕ, ਉਹ ਵੀ ਜੋ ਚੁੱਪ-ਚਾਪ ਅਸਫਲ ਹੁੰਦੀਆਂ ਹਨ\n• ਭੀੜ ਹੋਣ 'ਤੇ ਤਸਦੀਕ ਕਤਾਰ ਵਿੱਚ ਪਹਿਲ\n• ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਦਾ ਆਪਣੇ-ਆਪ ਹਟਣਾ\n• VRChat ਨਾਲ ਉਪਨਾਮ ਦਾ ਆਪਣੇ-ਆਪ ਮੇਲ\n• ਤਸਦੀਕ ਤੋਂ ਬਾਅਦ ਆਪਣਾ ਸੁਨੇਹਾ\n• ਹਦਾਇਤ ਪੈਨਲ 'ਤੇ ਤੁਹਾਡਾ ਆਪਣਾ ਰੰਗ ਅਤੇ ਸਰਵਰ ਆਈਕਨ\n• ਘਟਾਇਆ ਗਿਆ ਤਸਦੀਕ ਕੂਲਡਾਊਨ\n• ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਨੂੰ ਸਿੱਧਾ ਆਪਣੇ ਸਰਵਰ ਦੇ VRChat ਗਰੁੱਪ ਵਿੱਚ ਸੱਦੋ\n\nਇੱਕੋ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਪੂਰੇ ਸਰਵਰ ਲਈ ਕੰਮ ਕਰਦੀ ਹੈ, ਅਤੇ ਇਸਨੂੰ ਲੈਣ ਦੇ ਦੋ ਤਰੀਕੇ ਹਨ:\n• **Discord ਵਿੱਚ** — ਹੇਠਾਂ ਦਿੱਤਾ ਬਟਨ। ਮਹੀਨਾਵਾਰ ਬਿਲਿੰਗ।\n• **ਵੈੱਬਸਾਈਟ ਉੱਤੇ ਕਾਰਡ ਨਾਲ** — ਉਹੀ Premium, ਨਾਲ ਹੀ 6 ਅਤੇ 12 ਮਹੀਨਿਆਂ ਦੇ ਸਸਤੇ ਪਲਾਨ। Discord ਸਿਰਫ਼ ਮਹੀਨਾਵਾਰ ਬਿਲ ਕਰ ਸਕਦਾ ਹੈ, ਇਸ ਲਈ ਲੰਮੇ ਪਲਾਨ ਸਿਰਫ਼ ਵੈੱਬਸਾਈਟ ਉੱਤੇ ਹਨ।",
-        "premium_status_grandfathered": "**{server} ਉੱਤੇ 18+ ਤਸਦੀਕ ਮੁਫ਼ਤ ਹੈ, ਅਤੇ ਹਮੇਸ਼ਾ ਰਹੇਗੀ।** ਪਹਿਲਾਂ ਤੋਂ ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਦੀ ਸ਼ਾਮਲ ਹੁੰਦੇ ਹੀ ਆਪਣੇ-ਆਪ ਤਸਦੀਕ ਵੀ ਮੁਫ਼ਤ ਹੈ।\n\nਕਿਉਂਕਿ ਇਹ ਸਰਵਰ Premium ਸ਼ੁਰੂ ਹੋਣ ਤੋਂ ਪਹਿਲਾਂ ਸੈੱਟ ਕੀਤਾ ਗਿਆ ਸੀ, ਇਸਨੂੰ ਇਹ ਸਹੂਲਤਾਂ ਵੀ ਪੱਕੇ ਤੌਰ 'ਤੇ ਮੁਫ਼ਤ ਮਿਲਦੀਆਂ ਰਹਿਣਗੀਆਂ:\n• ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਦਾ ਆਪਣੇ-ਆਪ ਹਟਣਾ\n• VRChat ਨਾਲ ਉਪਨਾਮ ਦਾ ਆਪਣੇ-ਆਪ ਮੇਲ\n• ਤਸਦੀਕ ਤੋਂ ਬਾਅਦ ਆਪਣਾ ਸੁਨੇਹਾ\n\nਪ੍ਰੀਮੀਅਮ ਇਸ ਤੋਂ ਉੱਪਰ ਇਹ ਜੋੜਦਾ ਹੈ:\n• ਤਸਦੀਕ ਗਤੀਵਿਧੀ ਲੌਗ: ਤੁਹਾਡੇ ਚੁਣੇ ਚੈਨਲ ਵਿੱਚ ਹਰ ਤਸਦੀਕ, ਉਹ ਵੀ ਜੋ ਚੁੱਪ-ਚਾਪ ਅਸਫਲ ਹੁੰਦੀਆਂ ਹਨ\n• ਭੀੜ ਹੋਣ 'ਤੇ ਤਸਦੀਕ ਕਤਾਰ ਵਿੱਚ ਪਹਿਲ\n• ਹਦਾਇਤ ਪੈਨਲ 'ਤੇ ਤੁਹਾਡਾ ਆਪਣਾ ਰੰਗ ਅਤੇ ਸਰਵਰ ਆਈਕਨ\n• ਘਟਾਇਆ ਗਿਆ ਤਸਦੀਕ ਕੂਲਡਾਊਨ\n• ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਨੂੰ ਸਿੱਧਾ ਆਪਣੇ ਸਰਵਰ ਦੇ VRChat ਗਰੁੱਪ ਵਿੱਚ ਸੱਦੋ\n\n**Premium ਦੋ ਤਰੀਕਿਆਂ ਨਾਲ ਲਿਆ ਜਾ ਸਕਦਾ ਹੈ:**\n• **Discord ਵਿੱਚ** — ਹੇਠਾਂ ਦਿੱਤਾ ਬਟਨ। ਮਹੀਨਾਵਾਰ ਬਿਲਿੰਗ।\n• **ਵੈੱਬਸਾਈਟ ਉੱਤੇ ਕਾਰਡ ਨਾਲ** — ਉਹੀ Premium, ਨਾਲ ਹੀ 6 ਅਤੇ 12 ਮਹੀਨਿਆਂ ਦੇ ਸਸਤੇ ਪਲਾਨ। Discord ਸਿਰਫ਼ ਮਹੀਨਾਵਾਰ ਬਿਲ ਕਰ ਸਕਦਾ ਹੈ, ਇਸ ਲਈ ਲੰਮੇ ਪਲਾਨ ਸਿਰਫ਼ ਵੈੱਬਸਾਈਟ ਉੱਤੇ ਹਨ।",
-        "premium_cutover_dm":         "👋 **{server}** ਵਿੱਚ VRCVerify ਬਾਰੇ ਇੱਕ ਛੋਟੀ ਸੂਚਨਾ।\n\nVRCVerify ਵਿੱਚ ਹੁਣ ਇੱਕ ਚੋਣਵਾਂ Premium ਪੱਧਰ ਹੈ। ਸ਼ੁਰੂ ਵਿੱਚ ਹੀ ਸਾਫ਼ ਕਰ ਦਿਆਂ: **ਤੁਹਾਡੇ ਸਰਵਰ ਵਿੱਚ ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲ ਰਿਹਾ।**\n\n18+ ਤਸਦੀਕ ਮੁਫ਼ਤ ਹੈ ਅਤੇ ਸਾਰਿਆਂ ਲਈ ਪੱਕੇ ਤੌਰ 'ਤੇ ਮੁਫ਼ਤ ਹੀ ਰਹੇਗੀ। ਪਹਿਲਾਂ ਤੋਂ ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਦੀ ਸ਼ਾਮਲ ਹੁੰਦੇ ਹੀ ਆਪਣੇ-ਆਪ ਤਸਦੀਕ ਵੀ ਮੁਫ਼ਤ ਹੈ।\n\nਅਤੇ ਕਿਉਂਕਿ **{server}** Premium ਸ਼ੁਰੂ ਹੋਣ ਤੋਂ ਪਹਿਲਾਂ ਸੈੱਟ ਕੀਤਾ ਗਿਆ ਸੀ, ਇਸਨੂੰ ਇਹ ਸਹੂਲਤਾਂ ਵੀ ਬਿਨਾਂ ਕਿਸੇ ਖਰਚੇ ਦੇ, ਪੱਕੇ ਤੌਰ 'ਤੇ ਮਿਲਦੀਆਂ ਰਹਿਣਗੀਆਂ:\n• ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਦਾ ਆਪਣੇ-ਆਪ ਹਟਣਾ\n• VRChat ਨਾਲ ਉਪਨਾਮ ਦਾ ਆਪਣੇ-ਆਪ ਮੇਲ\n• ਤਸਦੀਕ ਤੋਂ ਬਾਅਦ ਆਪਣਾ ਸੁਨੇਹਾ\n\nਸੋ ਤੁਹਾਨੂੰ ਕੁਝ ਵੀ ਕਰਨ ਦੀ ਲੋੜ ਨਹੀਂ। ਜੇ ਕਦੇ ਜਾਣਨਾ ਹੋਵੇ ਕਿ Premium ਹੋਰ ਕੀ ਦਿੰਦਾ ਹੈ, ਤਾਂ ਆਪਣੇ ਸਰਵਰ ਵਿੱਚ `/vrcverify_subscription` ਚਲਾਓ।\n(ਇਹ ਇੱਕ ਵਾਰੀ ਭੇਜਿਆ ਜਾਣ ਵਾਲਾ ਸੁਨੇਹਾ ਹੈ।)",
-        "log_verified":              "✅ {user} — 18+ ਤਸਦੀਕਸ਼ੁਦਾ · {when}",
-        "log_role_failed":           "⚠️ {user} — 18+ ਤਸਦੀਕਸ਼ੁਦਾ, ਪਰ ਭੂਮਿਕਾ ਨਹੀਂ ਦਿੱਤੀ ਜਾ ਸਕੀ। ਜਾਂਚੋ ਕਿ VRCVerify ਬੋਟ ਦੀ ਭੂਮਿਕਾ ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਤੋਂ ਉੱਪਰ ਹੈ। · {when}",
-        "log_not_18":                "❌ {user} — VRChat ਮੁਤਾਬਕ 18+ ਨਹੀਂ · {when}",
-        "log_entries_dropped":       "…{count} ਪੁਰਾਣੀਆਂ ਐਂਟਰੀਆਂ ਦਰਜ ਨਹੀਂ ਕੀਤੀਆਂ ਜਾ ਸਕੀਆਂ।",
-        "log_channel_ready":         "📋 ਹੁਣ ਤੋਂ ਤਸਦੀਕ ਗਤੀਵਿਧੀ ਇੱਥੇ ਦਰਜ ਕੀਤੀ ਜਾਵੇਗੀ।\nਐਂਟਰੀਆਂ ਵਿੱਚ ਮੈਂਬਰ, ਨਤੀਜਾ ਅਤੇ ਸਮਾਂ ਦਿਸਦਾ ਹੈ — ਉਹਨਾਂ ਦਾ VRChat ਨਾਮ ਜਾਂ ID ਕਦੇ ਨਹੀਂ।",
-        "log_channel_set":           "ਤਸਦੀਕ ਗਤੀਵਿਧੀ {channel} ਵਿੱਚ ਦਰਜ ਕੀਤੀ ਜਾਵੇਗੀ।",
-        "log_channel_cleared":       "ਤਸਦੀਕ ਗਤੀਵਿਧੀ ਦੀ ਲਾਗਿੰਗ ਹੁਣ ਬੰਦ ਹੈ।",
-        "log_channel_premium_only":  "ਤਸਦੀਕ ਗਤੀਵਿਧੀ ਲਾਗ VRCVerify Premium ਦੀ ਸਹੂਲਤ ਹੈ। ਮੁੱਖ 18+ ਤਸਦੀਕ ਸਾਰਿਆਂ ਲਈ ਮੁਫ਼ਤ ਰਹਿੰਦੀ ਹੈ।",
-        "log_channel_no_permission": "ਮੈਂ {channel} ਵਿੱਚ ਪੋਸਟ ਨਹੀਂ ਕਰ ਸਕਦਾ। ਉੱਥੇ ਬੋਟ ਨੂੰ **ਚੈਨਲ ਵੇਖੋ** ਅਤੇ **ਸੁਨੇਹੇ ਭੇਜੋ** ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ, ਫਿਰ ਇਹ ਕਮਾਂਡ ਦੁਬਾਰਾ ਚਲਾਓ।",
-        "log_channel_announcement": "{channel} ਇੱਕ ਐਲਾਨ ਚੈਨਲ ਹੈ। ਹੋਰ ਸਰਵਰ ਇਸਨੂੰ ਫਾਲੋ ਕਰ ਸਕਦੇ ਹਨ, ਜਿਸ ਨਾਲ ਤੁਹਾਡੇ ਮੈਂਬਰਾਂ ਦੀ 18+ ਸਥਿਤੀ ਇਸ ਸਰਵਰ ਤੋਂ ਬਾਹਰ ਦੁਬਾਰਾ ਪ੍ਰਕਾਸ਼ਿਤ ਹੋ ਜਾਵੇਗੀ, ਇਸ ਲਈ ਇਸਨੂੰ ਤਸਦੀਕ ਲਾਗ ਵਜੋਂ ਨਹੀਂ ਵਰਤਿਆ ਜਾ ਸਕਦਾ। ਕਿਰਪਾ ਕਰਕੇ ਆਮ ਟੈਕਸਟ ਚੈਨਲ ਚੁਣੋ।",
-        "panel_color_invalid": "ਇਹ ਹੈਕਸ ਰੰਗ ਵਰਗਾ ਨਹੀਂ ਲੱਗਦਾ। `#5865F2` ਵਰਗਾ ਕੁਝ ਵਰਤੋ (ਜਾਂ ਛੋਟੇ ਰੂਪ ਵਿੱਚ `#58F`)।",
-        # Issue #49 phase 5: the member-facing group invite.
-        "btn_group_invite": "ਮੈਨੂੰ ਸੱਦਾ ਭੇਜੋ",
-        "dm_group_invite_offer": "ਤੁਸੀਂ **{server}** ਵਿੱਚ ਪ੍ਰਮਾਣਿਤ ਹੋ ਗਏ ਹੋ! ਕੀ ਤੁਸੀਂ ਉਨ੍ਹਾਂ ਦੇ VRChat ਗਰੁੱਪ **{group}** ਦਾ ਸੱਦਾ ਚਾਹੁੰਦੇ ਹੋ?\n\nਜਦੋਂ ਤੱਕ ਤੁਸੀਂ ਬਟਨ ਨਹੀਂ ਦਬਾਉਂਦੇ, VRChat ਨੂੰ ਕੁਝ ਨਹੀਂ ਭੇਜਿਆ ਜਾਂਦਾ।",
-        "group_invite_working": "VRChat ਤੋਂ ਤੁਹਾਡਾ ਸੱਦਾ ਮੰਗਿਆ ਜਾ ਰਿਹਾ ਹੈ...",
-        "group_invite_sent": "ਸੱਦਾ ਭੇਜ ਦਿੱਤਾ ਗਿਆ! **{group}** ਵਿੱਚ ਸ਼ਾਮਲ ਹੋਣ ਲਈ ਆਪਣੀਆਂ VRChat ਸੂਚਨਾਵਾਂ ਖੋਲ੍ਹੋ।",
-        "group_invite_already_member": "ਤੁਸੀਂ ਪਹਿਲਾਂ ਹੀ **{group}** ਵਿੱਚ ਹੋ, ਇਸ ਲਈ ਭੇਜਣ ਨੂੰ ਕੁਝ ਨਹੀਂ ਹੈ।",
-        "group_invite_already_invited": "**{group}** ਦਾ ਸੱਦਾ ਪਹਿਲਾਂ ਹੀ ਤੁਹਾਡੀਆਂ VRChat ਸੂਚਨਾਵਾਂ ਵਿੱਚ ਉਡੀਕ ਰਿਹਾ ਹੈ।",
-        "group_invite_blocked": "VRChat ਸੱਦਾ ਨਹੀਂ ਪਹੁੰਚਾ ਸਕਿਆ। ਹੋ ਸਕਦਾ ਹੈ ਤੁਹਾਡੀਆਂ VRChat ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਗਰੁੱਪ ਸੱਦੇ ਬੰਦ ਹੋਣ, ਜਾਂ ਗਰੁੱਪ ਤੁਹਾਡੇ ਖਾਤੇ 'ਤੇ ਬਲਾਕ ਹੋਵੇ।",
-        "group_invite_banned": "ਤੁਹਾਨੂੰ **{group}** ਵਿੱਚ ਸੱਦਾ ਨਹੀਂ ਦਿੱਤਾ ਜਾ ਸਕਦਾ। ਇਹ ਸਿਰਫ਼ ਗਰੁੱਪ ਦਾ ਮਾਡਰੇਟਰ ਬਦਲ ਸਕਦਾ ਹੈ।",
-        "group_invite_setup_problem": "**{server}** ਦਾ VRChat ਗਰੁੱਪ ਇਸ ਵੇਲੇ ਸਹੀ ਢੰਗ ਨਾਲ ਸੈੱਟ ਨਹੀਂ ਹੈ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਸਰਵਰ ਦੇ ਪ੍ਰਬੰਧਕਾਂ ਨੂੰ ਦੱਸੋ।",
-        "group_invite_unavailable": "VRChat ਨੇ ਜਵਾਬ ਨਹੀਂ ਦਿੱਤਾ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਕੁਝ ਮਿੰਟਾਂ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
-        "group_invite_too_soon": "ਤੁਸੀਂ ਪਹਿਲਾਂ ਹੀ ਸੱਦਾ ਮੰਗ ਚੁੱਕੇ ਹੋ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਕੁਝ ਮਿੰਟ ਉਡੀਕੋ।",
-        "group_invite_account_missing": "VRChat ਨੇ ਉਸ ਖਾਤੇ ਨੂੰ ਨਹੀਂ ਪਛਾਣਿਆ ਜਿਸ ਨਾਲ ਤੁਸੀਂ ਪ੍ਰਮਾਣੀਕਰਨ ਕੀਤਾ ਸੀ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਆਪਣਾ VRChat ਖਾਤਾ ਦੁਬਾਰਾ ਜੋੜਨ ਲਈ ਫਿਰ ਤੋਂ ਪ੍ਰਮਾਣੀਕਰਨ ਕਰੋ।",
-        "group_invite_not_a_member": "ਇਹ ਸੱਦਾ **{server}** ਲਈ ਸੀ, ਅਤੇ ਤੁਸੀਂ ਹੁਣ ਉਸ ਸਰਵਰ ਦੇ ਮੈਂਬਰ ਨਹੀਂ ਹੋ। ਜੇ ਤੁਸੀਂ ਹਾਲੇ ਵੀ ਸੱਦਾ ਚਾਹੁੰਦੇ ਹੋ, ਤਾਂ ਸਰਵਰ ਵਿੱਚ ਸ਼ਾਮਲ ਹੋ ਕੇ ਦੁਬਾਰਾ ਪ੍ਰਮਾਣੀਕਰਨ ਕਰੋ।",
-        "group_invite_not_verified": "ਤੁਸੀਂ ਇਸ ਵੇਲੇ **{server}** ਵਿੱਚ 18+ ਵਜੋਂ ਤਸਦੀਕ ਨਹੀਂ ਹੋ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਨਵਾਂ ਸੱਦਾ ਲੈਣ ਲਈ ਦੁਬਾਰਾ ਤਸਦੀਕ ਕਰੋ।",
-        "group_invite_account_changed": "ਇਹ ਸੱਦਾ ਇੱਕ ਵੱਖਰੇ VRChat ਖਾਤੇ ਲਈ ਸੀ, ਜੋ ਹੁਣ ਤੁਹਾਡੇ ਜੁੜੇ ਖਾਤੇ ਤੋਂ ਵੱਖਰਾ ਹੈ। ਆਪਣੇ ਮੌਜੂਦਾ ਖਾਤੇ ਲਈ ਨਵਾਂ ਸੱਦਾ ਲੈਣ ਲਈ ਦੁਬਾਰਾ ਤਸਦੀਕ ਕਰੋ।",
-    }
-}
+SUBSCRIPTION_INFO = N_(
+    "I've decided to offer this free of charge however if you wish to still support me, you can find my Ko-fi here:{kofi_link}. Thank you for your continued support"
+)
+
+SETTINGS_SAVED = N_("Settings saved!")
+
+SETTINGS_UNREADABLE = N_(
+    "Couldn't read this server's settings just now. Try again shortly — nothing has changed."
+)
+
+INVALID_VRC_ID_INPUT = N_(
+    "It looks like you entered your display name instead of your VRChat userID.\n"
+    "Please enter either the full profile URL or your userID (which always starts with `usr_`).\n"
+    "https://imgur.com/a/EEl6ekH"
+)
+
+CODE_NOT_FOUND = N_(
+    "We couldn't find your code in your VRChat bio. Please try again. \n"
+    "**Double check that the code is on its own line.**"
+)
+
+VERIFY_BUTTON_EXPIRED = N_(
+    "This verification link has expired or was replaced by a newer one. Please run `/vrcverify` again to get a fresh code."
+)
+
+NICKNAME_UPDATED = N_("Your nickname was updated to {display_name}.")
+
+NICKNAME_UPDATE_FAILED = N_("We could not update your nickname.")
+
+SETUP_SUCCESS = N_(
+    "Successfully {action} server config.\n"
+    "Verified Role set to: `{role}` (ID={role_id})"
+)
+
+SETUP_UNVERIFIED_SET = N_(
+    "\n"
+    "Unverified Role to remove: `{role}` (ID={role_id})"
+)
+
+SETUP_UNVERIFIED_MISSING = N_(
+    "\n"
+    "(Unverified role not set; no role will be removed on verification.)"
+)
+
+INSTRUCTIONS_TITLE = N_("How to Use the VRChat Verification Bot")
+
+INSTRUCTIONS_DESC = N_(
+    "**Follow these steps** to verify your 18+ status:\n"
+    "\n"
+    "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
+    "2. If you're new, you'll be asked for your VRChat username\n"
+    "3. The bot will give you a unique code - put this in your VRChat bio **ON ITS OWN LINE**\n"
+    "4. Press **Verify** in Discord once your bio is updated\n"
+    "\n"
+    "If you need additional help, contact an admin or type `/vrcverify_support`."
+)
+
+BIO_VERIFY_INSTRUCTIONS1 = N_("**1)** Add the code to your VRChat bio on its own line.")
+
+BIO_VERIFY_INSTRUCTIONS2 = N_(
+    "**2)** Once your bio is updated, click **Verify** in Discord (within 10 minutes)."
+)
+
+BTN_BEGIN_VERIFICATION = N_("Begin Verification")
+
+BTN_UPDATE_NICKNAME = N_("Update Nickname")
+
+SETTINGS_INTRO = N_(
+    "**VRChat Verify Settings**\n"
+    "\n"
+    "1.) **Enable auto nickname change**\n"
+    "   Automatically update users' Discord nicknames to match their VRChat display names.\n"
+    "   Current: **{current}**"
+)
+
+DM_ROLE_FAILED_BOT_POSITION = N_(
+    "I couldn't assign the '{role}' role in {server}. This usually happens when the VRCVerify bot's role is not above the verified (and unverified) roles in the server's role list. Please ask a server admin to move the VRCVerify bot role above those roles and try again."
+)
+
+DM_UNVERIFIED_FAILED_BOT_POSITION = N_(
+    "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable)."
+)
+
+CUSTOM_MSG_CLEARED = N_(
+    "Custom verification request message cleared. Default will be used."
+)
+
+CUSTOM_MSG_SAVED = N_("Custom verification request message saved.")
+
+CUSTOM_MSG_TOO_LONG = N_("Message too long (max 1000 characters).")
+
+CUSTOM_MSG_INVALID_LINKS = N_(
+    "Blocked: Only discord.com or vrchat.com links allowed. Invalid link(s):\n"
+    "{invalid_list}"
+)
+
+VRC_ID_ALREADY_LINKED = N_(
+    "The VRChat profile you tried to use is already registered to a different Discord account. If you believe this is a mistake, please contact a server admin."
+)
+
+VRCHAT_ISSUE_USER_NOT_FOUND = N_(
+    "We could not find that VRChat account. Please double-check that you pasted your VRChat profile URL or `usr_...` user ID correctly."
+)
+
+VRCHAT_ISSUE_RATE_LIMITED = N_(
+    "VRChat is rate limiting verification lookups right now. Please wait a minute and try again."
+)
+
+VRCHAT_ISSUE_TEMP_UNAVAILABLE = N_(
+    "VRCVerify is temporarily unable to talk to VRChat right now. Please try again in a little while."
+)
+
+VRCHAT_ISSUE_OUTAGE_CONFIRMED = N_(
+    "VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n"
+    "\n"
+    "Status page: {status_page}"
+)
+
+VRCHAT_ISSUE_OUTAGE_CONFIRMED_WITH_STATUS = N_(
+    "VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n"
+    "\n"
+    "Status page: {status_page}\n"
+    "\n"
+    "Reported status: {status_message}"
+)
+
+VRCHAT_ISSUE_OUTAGE_SUSPECTED = N_(
+    "VRChat appears to be having temporary API issues, so verification could not be completed right now. Please try again later.\n"
+    "\n"
+    "Status page: {status_page}"
+)
+
+VRCHAT_ISSUE_UNEXPECTED = N_(
+    "Verification could not be completed because VRChat returned an unexpected error. Please try again later."
+)
+
+COOLDOWN_ACTIVE = N_(
+    "You're doing that too fast. Please wait {seconds} seconds and try again."
+)
+
+BTN_DONATE = N_("Donate")
+
+SETUP_DONATE_HINT = N_(
+    "\n"
+    "\n"
+    "☕ VRCVerify is free thanks to donations. If it helps your community, you can support it here: {kofi_link}"
+)
+
+MILESTONE_OWNER_DM = N_(
+    "🎉 **{server}** has reached {count} completed verifications with VRCVerify!\n"
+    "The bot is free and runs on donations — if it's been useful to your community, you can support it here: {kofi_link}\n"
+    "(This is a one-time message.)"
+)
+
+SETUP_PANEL_NUDGE = N_(
+    "\n"
+    "\n"
+    "📌 **One more step:** members can't verify until you post the instructions panel.\n"
+    "Run `/vrcverify_instructions` in the channel you want them to verify from. Use a normal text channel everyone can see — not a thread, since threads auto-archive and quietly break the panel.\n"
+    "You can run `/vrcverify_status` any time to check on it."
+)
+
+PANEL_NUDGE_DM = N_(
+    "👋 You set up VRCVerify in **{server}**, but no instructions panel has been posted yet — so members there still have no way to start verifying.\n"
+    "\n"
+    "Run `/vrcverify_instructions` in the channel you want them to verify from. Use a normal text channel everyone can see rather than a thread, since threads auto-archive and quietly break the panel.\n"
+    "\n"
+    "Run `/vrcverify_status` in your server for a quick health check.\n"
+    "(This is a one-time message.)"
+)
+
+STATUS_HEADER = N_("**VRCVerify status for {server}**")
+
+STATUS_ROLE_OK = N_("✅ Verified role: **{role}**")
+
+STATUS_ROLE_MISSING = N_(
+    "❌ No verified role set — run `/vrcverify_setup` to choose one."
+)
+
+STATUS_ROLE_DELETED = N_(
+    "❌ The configured verified role no longer exists — run `/vrcverify_setup` to pick a new one."
+)
+
+STATUS_PANEL_OK = N_("✅ Instructions panel is posted and the bot can still update it.")
+
+STATUS_PANEL_MISSING = N_(
+    "❌ No instructions panel posted — run `/vrcverify_instructions` in the channel members should verify from."
+)
+
+STATUS_PANEL_UNREACHABLE = N_(
+    "⚠️ The instructions panel exists but the bot can't update it. Check that it still has **View Channel**, **Send Messages** and **Embed Links** in that channel."
+)
+
+STATUS_PANEL_ARCHIVED = N_(
+    "⚠️ The instructions panel is in a thread that has been archived, so the bot can't update it. Un-archive the thread, or post a fresh panel in a normal text channel."
+)
+
+STATUS_PANEL_GONE = N_(
+    "❌ The saved instructions panel no longer exists — it or its channel was deleted. Run `/vrcverify_instructions` again to post a new one."
+)
+
+STATUS_TIPS = N_(
+    "\n"
+    "**Tips**\n"
+    "• Post the panel in a normal text channel everyone can see — threads auto-archive and silently break it.\n"
+    "• Keep the bot's **View Channel**, **Send Messages** and **Embed Links** permissions in that channel.\n"
+    "• If you delete or recreate that channel, run `/vrcverify_instructions` again."
+)
+
+GUILD_JOIN_WELCOME_DM = N_(
+    "👋 Thanks for adding VRCVerify to **{server}**!\n"
+    "\n"
+    "To get set up:\n"
+    "1. Run `/vrcverify_setup` to choose the role members get once verified.\n"
+    "2. Run `/vrcverify_instructions` in the channel you want members to verify from — use a normal text channel everyone can see, not a thread, since threads auto-archive and quietly break the panel.\n"
+    "\n"
+    "Need a hand? `/vrcverify_support` has you covered."
+)
+
+PREMIUM_STATUS_ACTIVE = N_(
+    "✅ **VRCVerify Premium is active on {server}.**\n"
+    "\n"
+    "Unlocked here:\n"
+    "• Verification activity log — set it up with `/vrcverify_logchannel`\n"
+    "• Priority in the verification queue when there's a backlog\n"
+    "• Automatic removal of the unverified role\n"
+    "• Automatic nickname sync with VRChat\n"
+    "• Custom post-verification message\n"
+    "• Your colour and server icon on the instructions panel\n"
+    "• Reduced verification cooldown\n"
+    "• Invite verified members straight into your server's VRChat group\n"
+    "\n"
+    "Appearance and automation settings live in `/vrcverify_settings`.\n"
+    "\n"
+    "You can manage or cancel this any time from Discord's **User Settings → Subscriptions**.\n"
+    "Thank you for supporting VRCVerify. 💜"
+)
+
+PREMIUM_STATUS_ACTIVE_CARD = N_(
+    "✅ **VRCVerify Premium is active on {server}.**\n"
+    "\n"
+    "Unlocked here:\n"
+    "• Verification activity log — set it up with `/vrcverify_logchannel`\n"
+    "• Priority in the verification queue when there's a backlog\n"
+    "• Automatic removal of the unverified role\n"
+    "• Automatic nickname sync with VRChat\n"
+    "• Custom post-verification message\n"
+    "• Your colour and server icon on the instructions panel\n"
+    "• Reduced verification cooldown\n"
+    "• Invite verified members straight into your server's VRChat group\n"
+    "\n"
+    "Appearance and automation settings live in `/vrcverify_settings`.\n"
+    "\n"
+    "This server pays by card, so manage or cancel it on the **VRCVerify website** — it won't appear in Discord's subscription settings.\n"
+    "Thank you for supporting VRCVerify. 💜"
+)
+
+PREMIUM_STATUS_ACTIVE_BOTH = N_(
+    "⚠️ **{server} is paying for VRCVerify Premium twice.**\n"
+    "\n"
+    "There's an active **Discord** subscription and an active **card** subscription for this server. Premium is on and stays on — but you're being charged for both.\n"
+    "\n"
+    "Nothing has been cancelled for you, deliberately: cancelling a subscription and issuing a refund without a person deciding is not something this bot should do on its own.\n"
+    "\n"
+    "Keep whichever suits you and cancel the other:\n"
+    "• **Discord** — User Settings → Subscriptions\n"
+    "• **Card** — the Subscriptions page on the website\n"
+    "\n"
+    "If you're unsure: the website has 6- and 12-month plans that work out cheaper, and Discord can only bill monthly."
+)
+
+PREMIUM_STATUS_INACTIVE = N_(
+    "**18+ verification is free on {server}, and always will be.** So is auto-verifying members who are already verified when they join.\n"
+    "\n"
+    "VRCVerify Premium adds these optional extras for this server:\n"
+    "• Verification activity log — every verification in a channel you choose, including the ones that fail silently\n"
+    "• Priority in the verification queue when there's a backlog\n"
+    "• Automatic removal of the unverified role\n"
+    "• Automatic nickname sync with VRChat\n"
+    "• Custom post-verification message\n"
+    "• Your colour and server icon on the instructions panel\n"
+    "• Reduced verification cooldown\n"
+    "• Invite verified members straight into your server's VRChat group\n"
+    "\n"
+    "One subscription covers the whole server, and there are two ways to buy it:\n"
+    "• **In Discord** — the button below. Billed monthly.\n"
+    "• **By card on the website** — the same Premium, plus 6- and 12-month plans that work out cheaper. Discord can only bill monthly, so the longer plans are website-only."
+)
+
+PREMIUM_STATUS_GRANDFATHERED = N_(
+    "**18+ verification is free on {server}, and always will be.** So is auto-verifying members who are already verified when they join.\n"
+    "\n"
+    "Because this server was set up before Premium launched, it also keeps these for free, permanently:\n"
+    "• Automatic removal of the unverified role\n"
+    "• Automatic nickname sync with VRChat\n"
+    "• Custom post-verification message\n"
+    "\n"
+    "Premium adds these on top:\n"
+    "• Verification activity log — every verification in a channel you choose, including the ones that fail silently\n"
+    "• Priority in the verification queue when there's a backlog\n"
+    "• Your colour and server icon on the instructions panel\n"
+    "• Reduced verification cooldown\n"
+    "• Invite verified members straight into your server's VRChat group\n"
+    "\n"
+    "**Premium is available two ways:**\n"
+    "• **In Discord** — the button below. Billed monthly.\n"
+    "• **By card on the website** — the same Premium, plus 6- and 12-month plans that work out cheaper. Discord can only bill monthly, so the longer plans are website-only."
+)
+
+PREMIUM_CUTOVER_DM = N_(
+    "👋 A quick heads-up about VRCVerify in **{server}**.\n"
+    "\n"
+    "VRCVerify now has an optional Premium tier — and to be clear up front, **nothing about your server changes.**\n"
+    "\n"
+    "18+ verification is free and staying free, permanently, for everyone. So is auto-verifying members who are already verified when they join.\n"
+    "\n"
+    "And because **{server}** was set up before Premium launched, it keeps these too, at no cost, permanently:\n"
+    "• Automatic removal of the unverified role\n"
+    "• Automatic nickname sync with VRChat\n"
+    "• Custom post-verification message\n"
+    "\n"
+    "So there is nothing you need to do. If you're ever curious what Premium adds, run `/vrcverify_subscription` in your server.\n"
+    "(This is a one-time message.)"
+)
+
+LOG_VERIFIED = N_("✅ {user} — verified 18+ · {when}")
+
+LOG_ROLE_FAILED = N_(
+    "⚠️ {user} — verified 18+, but the role could not be assigned. Check that the VRCVerify bot's role sits above the verified role. · {when}"
+)
+
+LOG_NOT_18 = N_("❌ {user} — not 18+ according to VRChat · {when}")
+
+LOG_ENTRIES_DROPPED = N_("…{count} earlier entries could not be recorded.")
+
+LOG_CHANNEL_READY = N_(
+    "📋 Verification activity will be logged here from now on.\n"
+    "Entries show the member, the result and the time — never their VRChat name or ID."
+)
+
+LOG_CHANNEL_SET = N_("Verification activity will be logged in {channel}.")
+
+LOG_CHANNEL_CLEARED = N_("Verification activity logging is now off.")
+
+LOG_CHANNEL_PREMIUM_ONLY = N_(
+    "The verification activity log is a VRCVerify Premium feature. Core 18+ verification stays free for everyone."
+)
+
+LOG_CHANNEL_NO_PERMISSION = N_(
+    "I can't post in {channel}. Give the bot **View Channel** and **Send Messages** there, then run this command again."
+)
+
+LOG_CHANNEL_ANNOUNCEMENT = N_(
+    "{channel} is an announcement channel. Other servers can follow it, which would republish your members' 18+ status outside this server, so it can't be used as a verification log. Please pick a normal text channel."
+)
+
+PANEL_COLOR_INVALID = N_(
+    "That doesn't look like a hex colour. Use something like `#5865F2` (or `#58F` for short)."
+)
+
+
+# Issue #49 phase 5: the member-facing group invite.
+
+BTN_GROUP_INVITE = N_("Send me an invite")
+
+DM_GROUP_INVITE_OFFER = N_(
+    "You're verified in **{server}**! Would you like an invite to their VRChat group, **{group}**?\n"
+    "\n"
+    "Nothing is sent to VRChat unless you press the button."
+)
+
+GROUP_INVITE_WORKING = N_("Asking VRChat for your invite...")
+
+GROUP_INVITE_SENT = N_(
+    "Invite sent! Open your VRChat notifications to join **{group}**."
+)
+
+GROUP_INVITE_ALREADY_MEMBER = N_(
+    "You're already in **{group}**, so there's nothing to send."
+)
+
+GROUP_INVITE_ALREADY_INVITED = N_(
+    "An invite to **{group}** is already waiting in your VRChat notifications."
+)
+
+GROUP_INVITE_BLOCKED = N_(
+    "VRChat wouldn't deliver the invite. Group invites may be switched off in your VRChat settings, or the group may be blocked on your account."
+)
+
+GROUP_INVITE_BANNED = N_(
+    "You can't be invited to **{group}**. Only a group moderator can change that."
+)
+
+GROUP_INVITE_SETUP_PROBLEM = N_(
+    "**{server}**'s VRChat group isn't set up correctly right now, so the invite couldn't be sent. Please let the server's admins know."
+)
+
+GROUP_INVITE_UNAVAILABLE = N_(
+    "VRChat didn't answer, so the invite couldn't be sent. Please try again in a few minutes."
+)
+
+GROUP_INVITE_TOO_SOON = N_(
+    "You've already asked for an invite. Please give it a few minutes before trying again."
+)
+
+GROUP_INVITE_ACCOUNT_MISSING = N_(
+    "VRChat didn't recognise the account you verified with, so the invite couldn't be sent. Try verifying again to relink your VRChat account."
+)
+
+GROUP_INVITE_NOT_A_MEMBER = N_(
+    "This invite was for **{server}**, and you're no longer a member there. Join the server and verify again if you'd still like an invite."
+)
+
+GROUP_INVITE_NOT_VERIFIED = N_(
+    "You're not currently verified as 18+ in **{server}**, so the invite couldn't be sent. Verify again to get a new invite offer."
+)
+
+GROUP_INVITE_ACCOUNT_CHANGED = N_(
+    "This offer was for a different VRChat account than the one you have linked now. Verify again to get a new invite offer for your current account."
+)
+
+# -- every msgid in this file, for the checks that have to iterate them --
+#
+# The dict this file used to be could be walked with .items(); a module of
+# constants cannot, and several checks legitimately need to ask "is this string
+# one of ours" or "does every one of these render in Japanese". Built from
+# globals() rather than hand-listed for the obvious reason: a hand-list is a
+# second place to forget a string, and forgetting one there would silently
+# shrink the very checks that exist to catch a forgotten string.
+#
+# COMPUTED ON FIRST ACCESS, NOT HERE, and that is not a micro-optimisation.
+# The natural way to add a string -- the way the README tells you to -- is to
+# append a constant to the end of this file. A frozenset built at this line
+# would not contain anything written below it, so a newly added string would
+# be missing from `ALL_MESSAGES` while being present in the .pot and in every
+# catalogue. Every check keyed on this set would then quietly stop covering
+# the newest string in the file, which is the one most likely to be wrong.
+#
+# That is not hypothetical: it is what this module did for one commit, and
+# what the .pot-versus-code test caught while #231 was proving out the
+# documented "add a string" workflow.
+_all_messages = None
+
+
+def __getattr__(name: str):
+    """Resolve `ALL_MESSAGES` lazily, so its value cannot depend on where in
+    this file the last constant was written."""
+    if name != "ALL_MESSAGES":
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    global _all_messages
+    if _all_messages is None:
+        _all_messages = frozenset(
+            value
+            for key, value in globals().items()
+            if key.isupper() and isinstance(value, str)
+        )
+    return _all_messages

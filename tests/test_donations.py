@@ -20,7 +20,9 @@ import discord
 import pytest
 
 import bot
-from locales import localizations, LANGUAGE_CODES
+import locales
+from i18n_support import template
+from locales import LANGUAGE_CODES
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GUILD_ID = "123456789"
@@ -99,12 +101,11 @@ class TestDonateButton:
         return bot.VRCVerifyInstructionView(locale=locale)
 
     def test_panel_has_three_buttons_in_order(self):
-        en = localizations["en-US"]
         labels = [c.label for c in self._view().children]
         assert labels == [
-            en["btn_begin_verification"],
-            en["btn_update_nickname"],
-            en["btn_donate"],
+            locales.BTN_BEGIN_VERIFICATION,
+            locales.BTN_UPDATE_NICKNAME,
+            locales.BTN_DONATE,
         ]
 
     def test_donate_is_link_button_to_kofi(self):
@@ -117,11 +118,11 @@ class TestDonateButton:
 
     def test_donate_label_localized(self):
         donate = self._view("de").children[-1]
-        assert donate.label == localizations["de"]["btn_donate"]
+        assert donate.label == template(locales.BTN_DONATE, "de")
 
     def test_unknown_locale_falls_back_to_english(self):
         donate = self._view("fr").children[-1]
-        assert donate.label == localizations["en-US"]["btn_donate"]
+        assert donate.label == locales.BTN_DONATE
 
     def test_view_stays_non_expiring(self):
         # Panels are re-attached on startup and must never time out.
@@ -136,24 +137,39 @@ class TestDonateButton:
 # ---------------------------------------------------------------
 class TestDonationLocaleStrings:
     @pytest.mark.parametrize("locale", LANGUAGE_CODES)
-    def test_new_keys_exist_everywhere(self, locale):
-        for key in ("btn_donate", "setup_donate_hint", "milestone_owner_dm"):
-            assert key in localizations[locale], f"{locale} missing {key}"
+    def test_new_strings_are_translated_everywhere(self, locale):
+        """Was "the key exists in every table" before #231.
+
+        gettext has no missing keys -- an untranslated string falls back to its
+        English msgid rather than raising -- so the question worth asking is no
+        longer whether the key is present but whether the language actually has
+        its own words for it. That is a strictly stronger check than the one it
+        replaces, and it is the one that would have caught a donate button
+        silently reading "Donate" in Japanese.
+        """
+        for msgid in (locales.BTN_DONATE, locales.SETUP_DONATE_HINT,
+                      locales.MILESTONE_OWNER_DM):
+            rendered = template(msgid, locale)
+            assert rendered, f"{locale} renders nothing for {msgid[:40]!r}"
+            if locale != "en-US":
+                assert rendered != msgid, (
+                    f"{locale} has not translated {msgid[:40]!r}"
+                )
 
     @pytest.mark.parametrize("locale", LANGUAGE_CODES)
     def test_setup_hint_embeds_the_link(self, locale):
-        msg = localizations[locale]["setup_donate_hint"].format(kofi_link=bot.KOFI_URL)
+        msg = template(locales.SETUP_DONATE_HINT, locale).format(kofi_link=bot.KOFI_URL)
         assert bot.KOFI_URL in msg
 
     @pytest.mark.parametrize("locale", LANGUAGE_CODES)
     def test_setup_hint_separates_itself(self, locale):
         # The hint is appended to the setup confirmation, so it must start
         # on its own paragraph in every language.
-        assert localizations[locale]["setup_donate_hint"].startswith("\n\n")
+        assert template(locales.SETUP_DONATE_HINT, locale).startswith("\n\n")
 
     @pytest.mark.parametrize("locale", LANGUAGE_CODES)
     def test_milestone_dm_embeds_all_fields(self, locale):
-        msg = localizations[locale]["milestone_owner_dm"].format(
+        msg = template(locales.MILESTONE_OWNER_DM, locale).format(
             server="SrvName", count=100, kofi_link=bot.KOFI_URL
         )
         assert "SrvName" in msg
@@ -182,7 +198,7 @@ class TestSetupConfirmationHint:
         run(bot.vrcverify_setup.callback(interaction, role, None))
 
         assert len(sent) == 1
-        expected_tail = localizations["en-US"]["setup_donate_hint"].format(
+        expected_tail = locales.SETUP_DONATE_HINT.format(
             kofi_link=bot.KOFI_URL
         )
         assert sent[0].endswith(expected_tail)
@@ -220,7 +236,7 @@ class TestRecordGuildVerification:
         assert len(dm_spy) == 1
         call = dm_spy[0]
         assert call.member is owner_member
-        assert call.key == "milestone_owner_dm"
+        assert call.key == locales.MILESTONE_OWNER_DM
         assert call.kwargs == {
             "server": guild.name,
             "count": 3,
@@ -585,7 +601,7 @@ class TestSupportCommandOffersTheInvite:
         exists."""
         monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", None)
         assert self.reply() == bot.get_message(
-            "support_info", SimpleNamespace(locale="en-US")
+            locales.SUPPORT_INFO, SimpleNamespace(locale="en-US")
         )
 
     def test_a_configured_invite_is_offered(self, monkeypatch):
@@ -594,7 +610,7 @@ class TestSupportCommandOffersTheInvite:
         assert "https://discord.gg/abc" in reply
         # The help text survives; the invite is additional, not a replacement.
         assert bot.get_message(
-            "support_info", SimpleNamespace(locale="en-US")
+            locales.SUPPORT_INFO, SimpleNamespace(locale="en-US")
         ) in reply
 
     def test_a_malformed_invite_offers_nothing(self, monkeypatch):
