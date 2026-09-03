@@ -38,7 +38,9 @@ from sqlalchemy.exc import IntegrityError
 from contextlib import contextmanager
 from datetime import date, datetime, timezone, timedelta
 from dotenv import load_dotenv
-from locales import localizations, LANGUAGE_CODES
+import locales
+from locales import LANGUAGE_CODES
+from i18n_core import Catalogues
 import bot_api
 import heartbeat
 from log_safety import install_log_scrubbing
@@ -51,13 +53,54 @@ def get_locale(interaction: discord.Interaction) -> str:
     return loc if loc in LANGUAGE_CODES else "en-US"
 
 
-def get_message(key: str, interaction: discord.Interaction, **kwargs) -> str:
-    """Fetch localized template and format with kwargs."""
-    locale = get_locale(interaction)
-    template = localizations.get(locale, localizations["en-US"]).get(key)
-    if template is None:
-        template = localizations["en-US"].get(key, key)
-    return template.format(**kwargs)
+# The bot's compiled catalogues (#231). One domain, separate from the
+# dashboard's, so neither image carries the other's strings. Read from disk on
+# first use and cached for the life of the process.
+CATALOGUES = Catalogues(
+    domain="bot",
+    localedir=os.path.join(os.path.dirname(os.path.abspath(__file__)), "translations", "bot"),
+    languages=LANGUAGE_CODES,
+    default="en-US",
+)
+
+
+def translate(msgid: str, locale: str, **kwargs) -> str:
+    """Translate one string into `locale` and fill in its placeholders.
+
+    The locale-code form. `get_message` is the interaction form and delegates
+    here; this exists separately because the button labels are built from a
+    stored guild locale with no interaction anywhere in reach -- a persistent
+    view is constructed at startup to re-register its custom_ids, long before
+    anybody clicks it.
+
+    Before #231 those call sites reached into the localizations dict directly
+    and spelled their own fallback, three different ways in four places. Now
+    there is one lookup and one fallback for every string the bot says.
+    """
+    return CATALOGUES.translator(locale)(msgid).format(**kwargs)
+
+
+def get_message(msgid: str, interaction: discord.Interaction, **kwargs) -> str:
+    """Translate one string for whoever this interaction belongs to, and fill
+    in its placeholders.
+
+    `msgid` is the English text, as an `N_()` constant from locales.py -- see
+    that file for why the English is the key rather than a symbolic name.
+
+    The fallbacks are the same three the dict version had, and each still lands
+    on English rather than on nothing:
+
+    - an unsupported locale, which `get_locale` already floors to en-US
+    - a language whose catalogue is missing, which `Catalogues._load` opens
+      with fallback=True
+    - a string that language has not translated yet, which gettext answers with
+      the msgid, and the msgid is the English
+
+    So there is no input to this function that renders blank, and none that
+    renders a bare key -- which was the specific risk in keying gettext on
+    symbolic names, and the reason #231 did not.
+    """
+    return translate(msgid, get_locale(interaction), **kwargs)
 
 # -------------------------------------------------------------------
 # Load environment variables
@@ -1688,11 +1731,11 @@ def _dashboard_page(guild_id, page: str) -> Optional[str]:
 # update posts crossposted into their own servers (issue #138).
 #
 # ONE value, read from config, rather than the URL written into all twelve
-# locale strings. The issue's scope asked for both "invite link in config, not
+# translations. The issue's scope asked for both "invite link in config, not
 # hardcoded" and "the URL in all 12 locales", which cannot both be true -- a
-# URL repeated twelve times in locales.py is hardcoded twelve times over, and
-# rotating it would mean a code change touching every language. So the locale
-# strings carry an `{invite}` placeholder and this supplies the value.
+# URL repeated twelve times across the catalogues is hardcoded twelve times
+# over, and rotating it would mean editing every language. So the string
+# carries an `{invite}` placeholder and this supplies the value.
 #
 # Unset means the feature is simply not provisioned, exactly as the invite
 # worker treats INVITE_VRCHAT_USERNAME: no sentence is appended anywhere and
@@ -3009,9 +3052,9 @@ def resolve_premium_flags_from_interaction(
 # link into a server channel publishes it to everyone who can read there, in a
 # place whose permissions we neither control nor can audit, and the member
 # never agreed to that.
-LOG_OUTCOME_VERIFIED = "log_verified"
-LOG_OUTCOME_ROLE_FAILED = "log_role_failed"
-LOG_OUTCOME_NOT_18 = "log_not_18"
+LOG_OUTCOME_VERIFIED = locales.LOG_VERIFIED
+LOG_OUTCOME_ROLE_FAILED = locales.LOG_ROLE_FAILED
+LOG_OUTCOME_NOT_18 = locales.LOG_NOT_18
 
 
 class VerificationLogBuffer:
@@ -4832,7 +4875,7 @@ async def flush_guild_log(
             locale = get_server_locale_code(guild_id, guild)
         lines = [
             get_message(
-                "log_entries_dropped",
+                locales.LOG_ENTRIES_DROPPED,
                 SimpleNamespace(locale=locale),
                 count=dropped,
             )
@@ -4931,8 +4974,8 @@ class VRCVerifyInstructionView(View):
         super().__init__(timeout=None)
         self.locale = locale
         # dynamic labels from localization
-        begin_label = localizations.get(locale, localizations['en-US'])['btn_begin_verification']
-        update_label = localizations.get(locale, localizations['en-US'])['btn_update_nickname']
+        begin_label = translate(locales.BTN_BEGIN_VERIFICATION, locale)
+        update_label = translate(locales.BTN_UPDATE_NICKNAME, locale)
         # Fixed custom_ids keep already-posted panels routable after a restart;
         # the labels below are per-guild, but the ids never vary.
         begin_btn = Button(
@@ -4951,7 +4994,7 @@ class VRCVerifyInstructionView(View):
         update_btn.callback = self.update_nickname
         self.add_item(update_btn)
         # Donate button (link buttons can't be colored; the emoji makes it stand out)
-        donate_label = localizations.get(locale, localizations['en-US'])['btn_donate']
+        donate_label = translate(locales.BTN_DONATE, locale)
         donate_btn = Button(label=donate_label, emoji="☕", style=discord.ButtonStyle.link, url=KOFI_URL)
         self.add_item(donate_btn)
 
@@ -4976,7 +5019,7 @@ class VRCVerifyInstructionView(View):
         )
         if remaining:
             return await interaction.response.send_message(
-                get_message("cooldown_active", interaction, seconds=remaining),
+                get_message(locales.COOLDOWN_ACTIVE, interaction, seconds=remaining),
                 ephemeral=True,
             )
 
@@ -4985,7 +5028,7 @@ class VRCVerifyInstructionView(View):
             user = session.query(User).filter_by(discord_id=user_id).first()
             if not user:
                 return await interaction.response.send_message(
-                    get_message("not_verified", interaction), ephemeral=True
+                    get_message(locales.NOT_VERIFIED, interaction), ephemeral=True
                 )
             # ensure string type
             vrc_user_id = str(user.vrc_user_id)
@@ -5001,7 +5044,7 @@ class VRCVerifyInstructionView(View):
         )
         # localized confirmation
         await interaction.response.send_message(
-            get_message("nickname_update_requested", interaction), ephemeral=True
+            get_message(locales.NICKNAME_UPDATE_REQUESTED, interaction), ephemeral=True
         )
 
 
@@ -5148,7 +5191,7 @@ async def send_settings_summary(interaction: discord.Interaction) -> None:
     embed = await build_settings_summary(interaction.guild)
     if embed is None:
         await interaction.followup.send(
-            get_message("settings_unreadable", interaction), ephemeral=True
+            get_message(locales.SETTINGS_UNREADABLE, interaction), ephemeral=True
         )
         return
 
@@ -5194,7 +5237,7 @@ async def dm_role_assignment_failure(
     await dm_localized(
         member,
         guild,
-        "dm_role_failed_bot_position",
+        locales.DM_ROLE_FAILED_BOT_POSITION,
         instr_locale,
         role=role.name,
         server=guild.name,
@@ -5364,7 +5407,7 @@ async def record_guild_verification(guild_id: str, guild: Optional[discord.Guild
         await dm_localized(
             member,
             guild,
-            "milestone_owner_dm",
+            locales.MILESTONE_OWNER_DM,
             instr_locale,
             server=guild.name,
             count=milestone_count,
@@ -5395,36 +5438,36 @@ def build_vrchat_issue_message(data: dict, locale_code: str = "en-US") -> str:
     ctx = SimpleNamespace(locale=locale_code)
 
     if error_type == "vrchat_user_not_found":
-        return get_message("vrchat_issue_user_not_found", ctx)
+        return get_message(locales.VRCHAT_ISSUE_USER_NOT_FOUND, ctx)
 
     if error_type == "vrchat_rate_limited":
-        return get_message("vrchat_issue_rate_limited", ctx)
+        return get_message(locales.VRCHAT_ISSUE_RATE_LIMITED, ctx)
 
     if error_type in {"vrchat_auth_error", "vrchat_session_unavailable"}:
-        return get_message("vrchat_issue_temp_unavailable", ctx)
+        return get_message(locales.VRCHAT_ISSUE_TEMP_UNAVAILABLE, ctx)
 
     if confirmed_outage:
         if status_message:
             return get_message(
-                "vrchat_issue_outage_confirmed_with_status",
+                locales.VRCHAT_ISSUE_OUTAGE_CONFIRMED_WITH_STATUS,
                 ctx,
                 status_page=status_page,
                 status_message=escape(status_message[:500]),
             )
         return get_message(
-            "vrchat_issue_outage_confirmed",
+            locales.VRCHAT_ISSUE_OUTAGE_CONFIRMED,
             ctx,
             status_page=status_page,
         )
 
     if suspected_outage or error_type in {"vrchat_upstream_error", "vrchat_timeout"}:
         return get_message(
-            "vrchat_issue_outage_suspected",
+            locales.VRCHAT_ISSUE_OUTAGE_SUSPECTED,
             ctx,
             status_page=status_page,
         )
 
-    return get_message("vrchat_issue_unexpected", ctx)
+    return get_message(locales.VRCHAT_ISSUE_UNEXPECTED, ctx)
 
 async def process_verification(interaction: discord.Interaction):
     """
@@ -5451,7 +5494,7 @@ async def process_verification(interaction: discord.Interaction):
         server = session.query(Server).filter_by(server_id=guild_id).first()
         if not server or not server.role_id:
             await interaction.response.send_message(
-                get_message("setup_missing", interaction), ephemeral=True
+                get_message(locales.SETUP_MISSING, interaction), ephemeral=True
             )
             return
 
@@ -5471,7 +5514,7 @@ async def process_verification(interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         await assign_role(user_id, True, guild_id)
         await interaction.followup.send(
-            get_message("already_verified", interaction), ephemeral=True
+            get_message(locales.ALREADY_VERIFIED, interaction), ephemeral=True
         )
         return
 
@@ -5488,7 +5531,7 @@ async def process_verification(interaction: discord.Interaction):
         )
         if remaining:
             await interaction.response.send_message(
-                get_message("cooldown_active", interaction, seconds=remaining),
+                get_message(locales.COOLDOWN_ACTIVE, interaction, seconds=remaining),
                 ephemeral=True,
             )
             return
@@ -5502,7 +5545,7 @@ async def process_verification(interaction: discord.Interaction):
             priority=flags.request_priority(),
         )
         await interaction.followup.send(
-            get_message("recheck_started", interaction), ephemeral=True
+            get_message(locales.RECHECK_STARTED, interaction), ephemeral=True
         )
         return
 
@@ -5699,22 +5742,22 @@ async def publish_to_vrc_checker(
 # enormously to the server's admin and not at all to the member, who can do
 # nothing about either. Their message says so and points at the admins.
 GROUP_INVITE_MESSAGE_KEYS = {
-    GROUP_INVITE_SENT: "group_invite_sent",
-    GROUP_INVITE_ALREADY_MEMBER: "group_invite_already_member",
-    GROUP_INVITE_ALREADY_INVITED: "group_invite_already_invited",
-    GROUP_INVITE_BLOCKED: "group_invite_blocked",
-    GROUP_INVITE_BANNED: "group_invite_banned",
-    GROUP_INVITE_GROUP_NOT_FOUND: "group_invite_setup_problem",
-    GROUP_INVITE_USER_NOT_FOUND: "group_invite_account_missing",
-    GROUP_INVITE_NO_PERMISSION: "group_invite_setup_problem",
-    GROUP_INVITE_VRCHAT_UNAVAILABLE: "group_invite_unavailable",
+    GROUP_INVITE_SENT: locales.GROUP_INVITE_SENT,
+    GROUP_INVITE_ALREADY_MEMBER: locales.GROUP_INVITE_ALREADY_MEMBER,
+    GROUP_INVITE_ALREADY_INVITED: locales.GROUP_INVITE_ALREADY_INVITED,
+    GROUP_INVITE_BLOCKED: locales.GROUP_INVITE_BLOCKED,
+    GROUP_INVITE_BANNED: locales.GROUP_INVITE_BANNED,
+    GROUP_INVITE_GROUP_NOT_FOUND: locales.GROUP_INVITE_SETUP_PROBLEM,
+    GROUP_INVITE_USER_NOT_FOUND: locales.GROUP_INVITE_ACCOUNT_MISSING,
+    GROUP_INVITE_NO_PERMISSION: locales.GROUP_INVITE_SETUP_PROBLEM,
+    GROUP_INVITE_VRCHAT_UNAVAILABLE: locales.GROUP_INVITE_UNAVAILABLE,
     # Not "try again in a few minutes": a job the worker calls malformed is a
     # stored VRChat id that will be just as malformed next time. The only
     # thing that changes it is verifying again, which is what this says.
-    GROUP_INVITE_BAD_JOB: "group_invite_account_missing",
-    GROUP_INVITE_TIMED_OUT: "group_invite_unavailable",
-    GROUP_INVITE_WORKER_UNREACHABLE: "group_invite_unavailable",
-    GROUP_INVITE_PENDING: "group_invite_working",
+    GROUP_INVITE_BAD_JOB: locales.GROUP_INVITE_ACCOUNT_MISSING,
+    GROUP_INVITE_TIMED_OUT: locales.GROUP_INVITE_UNAVAILABLE,
+    GROUP_INVITE_WORKER_UNREACHABLE: locales.GROUP_INVITE_UNAVAILABLE,
+    GROUP_INVITE_PENDING: locales.GROUP_INVITE_WORKING,
 }
 
 # Bump this when the button's meaning changes, the way
@@ -5781,9 +5824,7 @@ class GroupInviteButton(
         self.account = account
         super().__init__(
             Button(
-                label=localizations.get(locale, localizations["en-US"]).get(
-                    "btn_group_invite", localizations["en-US"]["btn_group_invite"]
-                ),
+                label=translate(locales.BTN_GROUP_INVITE, locale),
                 style=discord.ButtonStyle.primary,
                 custom_id=f"{GROUP_INVITE_CUSTOM_ID_PREFIX}{guild_id}:{account}",
             )
@@ -5948,7 +5989,7 @@ async def offer_group_invite(
     try:
         await member.send(
             get_message(
-                "dm_group_invite_offer",
+                locales.DM_GROUP_INVITE_OFFER,
                 SimpleNamespace(locale=locale_code),
                 server=guild.name,
                 group=(config.get("group_name") or "their VRChat group"),
@@ -6014,7 +6055,7 @@ async def handle_group_invite_press(
 
     try:
         await interaction.response.edit_message(
-            content=get_message("group_invite_working", ctx), view=None
+            content=get_message(locales.GROUP_INVITE_WORKING, ctx), view=None
         )
     except discord.HTTPException:
         logger.warning(
@@ -6030,7 +6071,7 @@ async def handle_group_invite_press(
     # has no invite to send until an admin sets it up again.
     account = invite_account_for_guild(str(guild_id))
     if account is None:
-        await settle("group_invite_setup_problem", server=server_name)
+        await settle(locales.GROUP_INVITE_SETUP_PROBLEM, server=server_name)
         return
 
     config = await group_invite_target(str(guild_id))
@@ -6038,7 +6079,7 @@ async def handle_group_invite_press(
         # Between the offer and the press, the server turned this off, let its
         # subscription lapse, or lost the group. Not the member's doing, and
         # not worth a retry button that would fail the same way.
-        await settle("group_invite_setup_problem", server=server_name)
+        await settle(locales.GROUP_INVITE_SETUP_PROBLEM, server=server_name)
         return
 
     # Are they still in the server this offer came from?
@@ -6058,7 +6099,7 @@ async def handle_group_invite_press(
         # second we simply cannot tell. Skipping here let an ex-member of a
         # server the bot had been kicked out of press a months-old button and
         # be invited into that server's private group.
-        await settle("group_invite_unavailable", retryable=True)
+        await settle(locales.GROUP_INVITE_UNAVAILABLE, retryable=True)
         return
 
     try:
@@ -6082,12 +6123,12 @@ async def handle_group_invite_press(
             guild_id,
             exc_info=True,
         )
-        await settle("group_invite_unavailable", retryable=True)
+        await settle(locales.GROUP_INVITE_UNAVAILABLE, retryable=True)
         return
     if still_a_member is None:
         # Nothing recorded. If they rejoin and verify, they are offered
         # again from scratch, which is the right outcome.
-        await settle("group_invite_not_a_member", server=server_name)
+        await settle(locales.GROUP_INVITE_NOT_A_MEMBER, server=server_name)
         return
 
     try:
@@ -6098,10 +6139,10 @@ async def handle_group_invite_press(
             interaction.user.id,
             exc_info=True,
         )
-        await settle("group_invite_unavailable", retryable=True)
+        await settle(locales.GROUP_INVITE_UNAVAILABLE, retryable=True)
         return
     if not vrc_user_id:
-        await settle("group_invite_unavailable")
+        await settle(locales.GROUP_INVITE_UNAVAILABLE)
         return
 
     # Is this member 18+ RIGHT NOW?
@@ -6122,7 +6163,7 @@ async def handle_group_invite_press(
             interaction.user.id,
             guild_id,
         )
-        await settle("group_invite_not_verified", server=server_name)
+        await settle(locales.GROUP_INVITE_NOT_VERIFIED, server=server_name)
         return
 
     # ...and is it still the same VRChat account the offer was made for?
@@ -6140,7 +6181,7 @@ async def handle_group_invite_press(
             interaction.user.id,
             guild_id,
         )
-        await settle("group_invite_account_changed", server=server_name)
+        await settle(locales.GROUP_INVITE_ACCOUNT_CHANGED, server=server_name)
         return
 
     group_name = config.get("group_name") or "the group"
@@ -6153,7 +6194,7 @@ async def handle_group_invite_press(
             interaction.user.id,
             exc_info=True,
         )
-        await settle("group_invite_unavailable", retryable=True)
+        await settle(locales.GROUP_INVITE_UNAVAILABLE, retryable=True)
         return
 
     refusal = group_invite_refusal(request, config["group_id"])
@@ -6163,7 +6204,7 @@ async def handle_group_invite_press(
             # They pressed a button that should not have been there -- an old
             # DM, most likely. Tell them where they actually stand.
             await settle(
-                GROUP_INVITE_MESSAGE_KEYS.get(state, "group_invite_unavailable"),
+                GROUP_INVITE_MESSAGE_KEYS.get(state, locales.GROUP_INVITE_UNAVAILABLE),
                 server=server_name,
                 group=group_name,
             )
@@ -6178,7 +6219,7 @@ async def handle_group_invite_press(
             # again. A request genuinely in flight needs no button: its result
             # is already on its way to rewrite this message.
             await settle(
-                "group_invite_too_soon",
+                locales.GROUP_INVITE_TOO_SOON,
                 retryable=(refusal == INVITE_REFUSED_COOLDOWN),
             )
         return
@@ -6198,13 +6239,13 @@ async def handle_group_invite_press(
             interaction.user.id,
             guild_id,
         )
-        await settle("group_invite_unavailable", retryable=True)
+        await settle(locales.GROUP_INVITE_UNAVAILABLE, retryable=True)
         return
 
     if job is None:
         # The row was claimed between the read above and this write -- a double
         # press that beat the button being removed.
-        await settle("group_invite_too_soon")
+        await settle(locales.GROUP_INVITE_TOO_SOON)
         return
 
     loop = asyncio.get_running_loop()
@@ -6213,7 +6254,7 @@ async def handle_group_invite_press(
     )
     if not published:
         abandon_group_invite(str(guild_id), interaction.user.id, job["jobID"])
-        await settle("group_invite_unavailable", retryable=True)
+        await settle(locales.GROUP_INVITE_UNAVAILABLE, retryable=True)
         return
 
     logger.info(
@@ -6369,7 +6410,7 @@ async def assign_role(
                 except discord.Forbidden:
                     logger.warning(f"⚠️ Cannot DM user {member.id} custom success message.")
             else:
-                await dm_localized(member, guild, "dm_role_success", instr_locale, role=role.name, server=guild.name)
+                await dm_localized(member, guild, locales.DM_ROLE_SUCCESS, instr_locale, role=role.name, server=guild.name)
         except discord.Forbidden:
             logger.warning(f"Missing permission to add {role.name} in {guild_id}.")
             # The failure mode an admin would otherwise never learn about: the
@@ -6392,7 +6433,7 @@ async def assign_role(
                     await dm_localized(
                         member,
                         guild,
-                        "dm_unverified_failed_bot_position",
+                        locales.DM_UNVERIFIED_FAILED_BOT_POSITION,
                         instr_locale,
                         role=unverified_role.name,
                         server=guild.name
@@ -6425,13 +6466,13 @@ async def assign_role(
             try:
                 await member.edit(nick=safe_nick)
                 logger.info(f"🔄 Updated nickname to {safe_nick} for {member}.")
-                await dm_localized(member, guild, "nickname_updated", instr_locale, display_name=safe_nick)
+                await dm_localized(member, guild, locales.NICKNAME_UPDATED, instr_locale, display_name=safe_nick)
             # Forbidden subclasses HTTPException; catching the parent also covers
             # a 400 from an unacceptable nickname. Letting that escape would skip
             # the milestone bookkeeping that runs after assign_role returns.
             except discord.HTTPException:
                 logger.warning(f"Could not set nickname for {member}.", exc_info=True)
-                await dm_localized(member, guild, "nickname_update_failed", instr_locale)
+                await dm_localized(member, guild, locales.NICKNAME_UPDATE_FAILED, instr_locale)
 
         # Last, and in its own DM. Every path that verifies somebody arrives
         # here -- a fresh verification, a re-check, pressing Begin Verification
@@ -6468,7 +6509,7 @@ async def assign_role(
             await log_channel_if_allowed(guild_id, log_channel_id),
             instr_locale,
         )
-        await dm_localized(member, guild, "not_18_plus", instr_locale)
+        await dm_localized(member, guild, locales.NOT_18_PLUS, instr_locale)
 
 
 # -------------------------------------------------------------------
@@ -6489,7 +6530,7 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
         vrc_user_id = parse_vrc_user_input(self.vrc_username.value)
         if vrc_user_id is None:
             await interaction.response.send_message(
-                get_message("invalid_vrc_id_input", interaction), ephemeral=True
+                get_message(locales.INVALID_VRC_ID_INPUT, interaction), ephemeral=True
             )
             return
 
@@ -6503,7 +6544,7 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
                 # This VRChat profile is already registered to another Discord account
                 # (you can localize this later if you want)
                 await interaction.response.send_message(
-                    get_message("vrc_id_already_linked", interaction),
+                    get_message(locales.VRC_ID_ALREADY_LINKED, interaction),
                     ephemeral=True
                 )
                 return
@@ -6532,8 +6573,8 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
 
         view = VRCVerificationButton(vrc_user_id, verification_code, guild_id)
         # Use localized instruction strings for the numbered steps
-        step1 = get_message("bio_verify_instructions1", interaction)
-        step2 = get_message("bio_verify_instructions2", interaction)
+        step1 = get_message(locales.BIO_VERIFY_INSTRUCTIONS1, interaction)
+        step2 = get_message(locales.BIO_VERIFY_INSTRUCTIONS2, interaction)
         await interaction.response.send_message(
             f"✅ **VRChat userID saved!**\n\n"
             f"{step1}\n"
@@ -6577,7 +6618,7 @@ class VRCVerificationButton(discord.ui.View):
         )
         if remaining:
             await interaction.response.send_message(
-                get_message("cooldown_active", interaction, seconds=remaining),
+                get_message(locales.COOLDOWN_ACTIVE, interaction, seconds=remaining),
                 ephemeral=True,
             )
             return
@@ -6590,7 +6631,7 @@ class VRCVerificationButton(discord.ui.View):
             )
             if not pending or datetime.now(timezone.utc) > pending.expires_at:
                 await interaction.response.send_message(
-                    get_message("verify_button_expired", interaction), ephemeral=True
+                    get_message(locales.VERIFY_BUTTON_EXPIRED, interaction), ephemeral=True
                 )
                 return
             vrc_user_id = pending.vrc_user_id
@@ -6607,7 +6648,7 @@ class VRCVerificationButton(discord.ui.View):
         )
 
         await interaction.followup.send(
-            get_message("verification_requested", interaction), ephemeral=True
+            get_message(locales.VERIFICATION_REQUESTED, interaction), ephemeral=True
         )
 
 
@@ -6680,7 +6721,7 @@ async def vrcverify_setup(
 
     # Localized confirmation
     base = get_message(
-        "setup_success",
+        locales.SETUP_SUCCESS,
         interaction,
         action=action,
         role=verified_role.name,
@@ -6688,14 +6729,14 @@ async def vrcverify_setup(
     )
     if unverified_role:
         extra_local = get_message(
-            "setup_unverified_set",
+            locales.SETUP_UNVERIFIED_SET,
             interaction,
             role=unverified_role.name,
             role_id=unverified_role.id
         )
     else:
-        extra_local = get_message("setup_unverified_missing", interaction)
-    panel_nudge = "" if has_panel else get_message("setup_panel_nudge", interaction)
+        extra_local = get_message(locales.SETUP_UNVERIFIED_MISSING, interaction)
+    panel_nudge = "" if has_panel else get_message(locales.SETUP_PANEL_NUDGE, interaction)
     # The invite, at the one moment an admin has just proved they care whether
     # this bot works. Reuses support_invite_line rather than inventing a second
     # sentence saying the same thing -- #122 asks for that explicitly, and two
@@ -6705,11 +6746,11 @@ async def vrcverify_setup(
     # this reply exactly as it was.
     invite = support_invite_url()
     invite_hint = (
-        "\n\n" + get_message("support_invite_line", interaction, invite=invite)
+        "\n\n" + get_message(locales.SUPPORT_INVITE_LINE, interaction, invite=invite)
         if invite
         else ""
     )
-    donate_hint = get_message("setup_donate_hint", interaction, kofi_link=KOFI_URL)
+    donate_hint = get_message(locales.SETUP_DONATE_HINT, interaction, kofi_link=KOFI_URL)
     # This command survived the move to the dashboard because it is how a
     # server gets configured before anyone has heard of the website. Pointing
     # at the dashboard here is the introduction -- a link on the one reply
@@ -6776,7 +6817,7 @@ async def vrcverify_subscription(interaction: discord.Interaction):
     # "it's free, tips welcome" message it has always been.
     if not PREMIUM_ENFORCED:
         await interaction.response.send_message(
-            get_message("subscription_info", interaction, kofi_link=KOFI_URL),
+            get_message(locales.SUBSCRIPTION_INFO, interaction, kofi_link=KOFI_URL),
             ephemeral=True,
         )
         return
@@ -6813,7 +6854,7 @@ async def vrcverify_subscription(interaction: discord.Interaction):
             interaction.guild_id,
         )
         message = get_message(
-            "premium_status_active_both", interaction, server=server_name
+            locales.PREMIUM_STATUS_ACTIVE_BOTH, interaction, server=server_name
         )
         extra = (
             {"view": DashboardLinkView(subscription_url, "Manage subscription")}
@@ -6822,7 +6863,7 @@ async def vrcverify_subscription(interaction: discord.Interaction):
         )
     elif by_card:
         message = get_message(
-            "premium_status_active_card", interaction, server=server_name
+            locales.PREMIUM_STATUS_ACTIVE_CARD, interaction, server=server_name
         )
         extra = (
             {"view": DashboardLinkView(subscription_url, "Manage subscription")}
@@ -6830,15 +6871,15 @@ async def vrcverify_subscription(interaction: discord.Interaction):
             else {}
         )
     elif by_discord:
-        message = get_message("premium_status_active", interaction, server=server_name)
+        message = get_message(locales.PREMIUM_STATUS_ACTIVE, interaction, server=server_name)
         # No purchase button: they already bought it. send_message() calls
         # view.is_finished(), so an absent view has to be MISSING, not None.
         extra = {}
     else:
         key = (
-            "premium_status_grandfathered"
+            locales.PREMIUM_STATUS_GRANDFATHERED
             if is_grandfathered(interaction.guild_id)
-            else "premium_status_inactive"
+            else locales.PREMIUM_STATUS_INACTIVE
         )
         message = get_message(key, interaction, server=server_name)
         extra = {"view": PremiumUpgradeView(subscription_url)}
@@ -6865,11 +6906,11 @@ async def vrcverify_support(interaction: discord.Interaction):
     member who finds the server is a member who can be told to ask their admin
     to follow the channel.
     """
-    message = get_message("support_info", interaction)
+    message = get_message(locales.SUPPORT_INFO, interaction)
     invite = support_invite_url()
     if invite:
         message = f"{message}\n\n" + get_message(
-            "support_invite_line", interaction, invite=invite
+            locales.SUPPORT_INVITE_LINE, interaction, invite=invite
         )
     await interaction.response.send_message(message, ephemeral=True)
 
@@ -6960,7 +7001,7 @@ async def vrcverify_instructions(interaction: discord.Interaction):
 
     # Quiet, admin-only nudge after the public panel is posted
     await interaction.followup.send(
-        get_message("setup_donate_hint", interaction, kofi_link=KOFI_URL).strip(),
+        get_message(locales.SETUP_DONATE_HINT, interaction, kofi_link=KOFI_URL).strip(),
         ephemeral=True,
     )
 
@@ -7019,14 +7060,14 @@ def load_status_snapshot(guild_id: str):
 # cases collapse together: from the admin's side all three mean "the saved
 # panel isn't there any more, post a new one".
 PANEL_STATUS_MESSAGE_KEYS = {
-    "ok": "status_panel_ok",
-    "gone": "status_panel_gone",
-    "missing_ids": "status_panel_gone",
-    "malformed": "status_panel_gone",
-    "forbidden": "status_panel_unreachable",
-    "archived": "status_panel_archived",
-    "http_error": "status_panel_unreachable",
-    "error": "status_panel_unreachable",
+    "ok": locales.STATUS_PANEL_OK,
+    "gone": locales.STATUS_PANEL_GONE,
+    "missing_ids": locales.STATUS_PANEL_GONE,
+    "malformed": locales.STATUS_PANEL_GONE,
+    "forbidden": locales.STATUS_PANEL_UNREACHABLE,
+    "archived": locales.STATUS_PANEL_ARCHIVED,
+    "http_error": locales.STATUS_PANEL_UNREACHABLE,
+    "error": locales.STATUS_PANEL_UNREACHABLE,
 }
 
 
@@ -7052,7 +7093,7 @@ async def vrcverify_status(interaction: discord.Interaction):
     remaining = check_verification_cooldown(str(interaction.user.id), scope="status")
     if remaining:
         await interaction.response.send_message(
-            get_message("cooldown_active", interaction, seconds=remaining),
+            get_message(locales.COOLDOWN_ACTIVE, interaction, seconds=remaining),
             ephemeral=True,
         )
         return
@@ -7063,23 +7104,23 @@ async def vrcverify_status(interaction: discord.Interaction):
 
     role_id, panel_entry = load_status_snapshot(guild_id)
 
-    lines = [get_message("status_header", interaction, server=guild.name)]
+    lines = [get_message(locales.STATUS_HEADER, interaction, server=guild.name)]
 
     if not role_id:
-        lines.append(get_message("status_role_missing", interaction))
+        lines.append(get_message(locales.STATUS_ROLE_MISSING, interaction))
     else:
         try:
             role = guild.get_role(int(role_id))
         except (TypeError, ValueError):
             role = None
         if role is None:
-            lines.append(get_message("status_role_deleted", interaction))
+            lines.append(get_message(locales.STATUS_ROLE_DELETED, interaction))
         else:
-            lines.append(get_message("status_role_ok", interaction, role=role.name))
+            lines.append(get_message(locales.STATUS_ROLE_OK, interaction, role=role.name))
 
     if panel_entry is None:
         panel_healthy = False
-        lines.append(get_message("status_panel_missing", interaction))
+        lines.append(get_message(locales.STATUS_PANEL_MISSING, interaction))
     else:
         # Re-attaching the same view is idempotent, so using the refresh path
         # as the probe costs one API call and leaves the panel looking the
@@ -7089,13 +7130,13 @@ async def vrcverify_status(interaction: discord.Interaction):
         panel_healthy = outcome == "ok"
         lines.append(
             get_message(
-                PANEL_STATUS_MESSAGE_KEYS.get(outcome, "status_panel_unreachable"),
+                PANEL_STATUS_MESSAGE_KEYS.get(outcome, locales.STATUS_PANEL_UNREACHABLE),
                 interaction,
             )
         )
 
     if not panel_healthy:
-        lines.append(get_message("status_tips", interaction))
+        lines.append(get_message(locales.STATUS_TIPS, interaction))
 
     # The link belongs on the answer that gives an admin something to do. A
     # healthy server needs no next step, so it gets no button; an unhealthy one
@@ -7496,7 +7537,7 @@ async def tell_member_about_invite(guild_id, row: dict, state: str) -> None:
         )
 
     text = get_message(
-        GROUP_INVITE_MESSAGE_KEYS.get(state, "group_invite_unavailable"),
+        GROUP_INVITE_MESSAGE_KEYS.get(state, locales.GROUP_INVITE_UNAVAILABLE),
         ctx,
         server=(guild.name if guild else "this server"),
         group=(group_name or "the group"),
@@ -7745,7 +7786,7 @@ async def handle_verification_result(data: dict):
                     try:
                         await member.send(
                             get_message(
-                                "code_not_found",
+                                locales.CODE_NOT_FOUND,
                                 SimpleNamespace(locale=(getattr(guild, "preferred_locale", None) or "en-US"))
                             )
                         )
@@ -7865,7 +7906,7 @@ async def send_panel_nudge_dm(candidate) -> bool:
     await dm_localized(
         member,
         guild,
-        "panel_nudge_dm",
+        locales.PANEL_NUDGE_DM,
         get_server_locale_code(server_id, guild),
         server=guild.name,
     )
@@ -8070,7 +8111,7 @@ async def send_premium_cutover_dm(candidate) -> bool:
     await dm_localized(
         member,
         guild,
-        "premium_cutover_dm",
+        locales.PREMIUM_CUTOVER_DM,
         get_server_locale_code(server_id, guild),
         server=guild.name,
     )
@@ -8462,10 +8503,9 @@ def build_instructions_embed(
     The instruction copy itself is never customisable — see
     InstructionPanelBranding for why.
     """
-    strings = localizations.get(locale, localizations["en-US"])
     embed = Embed(
-        title=strings.get("instructions_title", ""),
-        description=strings.get("instructions_desc", ""),
+        title=translate(locales.INSTRUCTIONS_TITLE, locale),
+        description=translate(locales.INSTRUCTIONS_DESC, locale),
         color=color if color is not None else DEFAULT_PANEL_COLOR,
     )
     usage_example = "**Example Usage**:\n" "```bash\n" "/vrcverify\n" "```"
@@ -10703,7 +10743,7 @@ async def on_guild_join(guild: discord.Guild):
     try:
         owner = guild.owner or await fetch_member_cached(guild, guild.owner_id)
         if owner:
-            await dm_localized(owner, guild, "guild_join_welcome_dm", server=guild.name)
+            await dm_localized(owner, guild, locales.GUILD_JOIN_WELCOME_DM, server=guild.name)
     except Exception:
         logger.exception(f"Failed to send welcome DM for guild {guild.id}")
 

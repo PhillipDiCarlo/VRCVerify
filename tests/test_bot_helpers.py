@@ -6,7 +6,8 @@ from types import SimpleNamespace
 import pytest
 
 import bot
-from locales import localizations
+import locales
+from i18n_support import template
 
 
 def ctx(locale="en-US"):
@@ -30,7 +31,7 @@ class TestGetLocale:
 
 class TestGetMessage:
     def test_known_key_formats_kwargs(self):
-        msg = bot.get_message("dm_role_success", ctx(), role="18+", server="Test")
+        msg = bot.get_message(locales.DM_ROLE_SUCCESS, ctx(), role="18+", server="Test")
         assert "18+" in msg and "Test" in msg
 
     def test_unknown_key_returns_key_itself(self):
@@ -38,7 +39,7 @@ class TestGetMessage:
 
     def test_key_missing_from_locale_falls_back_to_english(self):
         # Even if a locale were missing a key, English must be served.
-        msg = bot.get_message("already_verified", ctx("zh-CN"))
+        msg = bot.get_message(locales.ALREADY_VERIFIED, ctx("zh-CN"))
         assert msg  # non-empty localized or English string
 
 
@@ -111,9 +112,9 @@ class TestVerificationCooldown:
         assert bot.check_verification_cooldown("user1") == 0
 
     def test_cooldown_message_localized_everywhere(self):
-        from locales import localizations, LANGUAGE_CODES
+        from locales import LANGUAGE_CODES
         for code in LANGUAGE_CODES:
-            msg = localizations[code]["cooldown_active"].format(seconds=30)
+            msg = template(locales.COOLDOWN_ACTIVE, code).format(seconds=30)
             assert "30" in msg
 
 
@@ -188,16 +189,16 @@ class TestSanitizeCustomMessage:
 class TestBuildVrchatIssueMessage:
     def test_user_not_found(self):
         msg = bot.build_vrchat_issue_message({"error_type": "vrchat_user_not_found"})
-        assert msg == localizations["en-US"]["vrchat_issue_user_not_found"]
+        assert msg == locales.VRCHAT_ISSUE_USER_NOT_FOUND
 
     def test_rate_limited(self):
         msg = bot.build_vrchat_issue_message({"error_type": "vrchat_rate_limited"})
-        assert msg == localizations["en-US"]["vrchat_issue_rate_limited"]
+        assert msg == locales.VRCHAT_ISSUE_RATE_LIMITED
 
     @pytest.mark.parametrize("etype", ["vrchat_auth_error", "vrchat_session_unavailable"])
     def test_temp_unavailable(self, etype):
         msg = bot.build_vrchat_issue_message({"error_type": etype})
-        assert msg == localizations["en-US"]["vrchat_issue_temp_unavailable"]
+        assert msg == locales.VRCHAT_ISSUE_TEMP_UNAVAILABLE
 
     def test_confirmed_outage_without_status_message(self):
         msg = bot.build_vrchat_issue_message(
@@ -219,19 +220,19 @@ class TestBuildVrchatIssueMessage:
         msg = bot.build_vrchat_issue_message(
             {"error_type": "vrchat_timeout", "vrchat_outage": True}
         )
-        assert msg == localizations["en-US"]["vrchat_issue_outage_suspected"].format(
+        assert msg == locales.VRCHAT_ISSUE_OUTAGE_SUSPECTED.format(
             status_page="https://status.vrchat.com/"
         )
 
     def test_unknown_error_type_gets_generic_message(self):
         msg = bot.build_vrchat_issue_message({"error_type": "something_else"})
-        assert msg == localizations["en-US"]["vrchat_issue_unexpected"]
+        assert msg == locales.VRCHAT_ISSUE_UNEXPECTED
 
     def test_localized_output(self):
         msg = bot.build_vrchat_issue_message(
             {"error_type": "vrchat_user_not_found"}, locale_code="es-ES"
         )
-        assert msg == localizations["es-ES"]["vrchat_issue_user_not_found"]
+        assert msg == template(locales.VRCHAT_ISSUE_USER_NOT_FOUND, "es-ES")
 
 
 class TestDiscordSafeNickname:
@@ -331,30 +332,35 @@ class TestTheSupportInviteIsOptional:
 class TestTheInviteSentenceIsLocalised:
     def test_every_locale_can_render_it(self):
         """The URL is language-neutral and comes from config, so an admin in
-        any locale gets a working link on day one -- see UNTRANSLATED in
-        tests/test_locales.py for why the carrier sentence is English."""
+        any locale gets a working link on day one.
+
+        The carrier sentence around it was English in all eleven catalogues
+        until #231, held open by the UNTRANSLATED allowlist in
+        tests/test_locales.py. That allowlist is gone and the sentence is
+        translated; what has not changed, and is what this pins, is that the
+        URL itself is never part of the translation."""
         for code in bot.LANGUAGE_CODES:
             rendered = bot.get_message(
-                "support_invite_line", ctx(code), invite="https://discord.gg/abc"
+                locales.SUPPORT_INVITE_LINE, ctx(code), invite="https://discord.gg/abc"
             )
             assert "https://discord.gg/abc" in rendered
             assert "{invite}" not in rendered
 
     def test_the_placeholder_is_the_only_one(self):
-        """A second placeholder would make every non-English table a KeyError
-        waiting for the one caller that forgets it."""
+        """A second placeholder would make every non-English catalogue a
+        KeyError waiting for the one caller that forgets it."""
         for code in bot.LANGUAGE_CODES:
-            template = localizations[code]["support_invite_line"]
+            text = template(locales.SUPPORT_INVITE_LINE, code)
             names = {
-                f for _, f, _, _ in string.Formatter().parse(template) if f
+                f for _, f, _, _ in string.Formatter().parse(text) if f
             }
             assert names == {"invite"}
 
     def test_the_url_is_not_baked_into_any_locale(self):
         """The whole reason for the placeholder: rotating the invite must be a
-        config change, not a code change across twelve tables."""
+        config change, not an edit across eleven catalogues."""
         for code in bot.LANGUAGE_CODES:
-            assert "discord.gg" not in localizations[code]["support_invite_line"]
+            assert "discord.gg" not in template(locales.SUPPORT_INVITE_LINE, code)
 
 
 class TestTheLogChannelRuleIsStillAboutContent:

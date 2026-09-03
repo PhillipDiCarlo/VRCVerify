@@ -28,6 +28,7 @@ from aiohttp.test_utils import TestClient, TestServer
 
 import api_tokens
 import bot
+import locales
 import bot_api
 
 GUILD_ID = 987654321
@@ -3426,7 +3427,7 @@ class TestTheRetiredCommandsStillAnswer:
         run(bot.send_settings_summary(interaction))
 
         (reply,) = interaction.followup.sent
-        assert reply["content"] == bot.localizations["en-US"]["settings_unreadable"]
+        assert reply["content"] == locales.SETTINGS_UNREADABLE
         assert "embed" not in reply
 
     def test_the_reply_carries_a_deep_link_to_this_guild(self, monkeypatch, free):
