@@ -1,0 +1,753 @@
+# Chinese (Simplified, China) translations for VRCVerify.
+# Copyright (C) 2026 Esatto Technologies
+# This file is distributed under the same license as the VRCVerify project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: VRCVerify VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-09-03 02:38-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh_CN\n"
+"Language-Team: zh_CN <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#. key: already_verified
+msgid "You're already verified! Role assigned (or re-assigned)."
+msgstr "您已通过验证! 角色已分配（或重新分配）。"
+
+#. key: bio_verify_instructions1
+msgid "**1)** Add the code to your VRChat bio on its own line."
+msgstr "**1)** 将代码添加到您的 VRChat 个人资料简介中的单独一行。"
+
+#. key: bio_verify_instructions2
+msgid "**2)** Once your bio is updated, click **Verify** in Discord (within 10 minutes)."
+msgstr "**2)** 更新后，在 Discord 中点击 **验证**（在 10 分钟内）。"
+
+#. key: btn_begin_verification
+msgid "Begin Verification"
+msgstr "开始验证"
+
+#. key: btn_donate
+msgid "Donate"
+msgstr "捐赠"
+
+#. key: btn_group_invite
+msgid "Send me an invite"
+msgstr "给我发送邀请"
+
+#. key: btn_update_nickname
+msgid "Update Nickname"
+msgstr "更新昵称"
+
+#. key: code_not_found
+msgid ""
+"We couldn't find your code in your VRChat bio. Please try again. \n"
+"**Double check that the code is on its own line.**"
+msgstr ""
+"我们未能在您的 VRChat 简介中找到该代码。请重试。\n"
+"**请确认代码位于单独一行。**"
+
+#. key: cooldown_active
+#, python-brace-format
+msgid "You're doing that too fast. Please wait {seconds} seconds and try again."
+msgstr "操作太频繁。请等待 {seconds} 秒后再试。"
+
+#. key: custom_msg_cleared
+msgid "Custom verification request message cleared. Default will be used."
+msgstr "自定义验证请求消息已清除。将使用默认消息。"
+
+#. key: custom_msg_invalid_links
+#, python-brace-format
+msgid ""
+"Blocked: Only discord.com or vrchat.com links allowed. Invalid link(s):\n"
+"{invalid_list}"
+msgstr ""
+"已阻止：只允许 discord.com 或 vrchat.com 链接。无效链接：\n"
+"{invalid_list}"
+
+#. key: custom_msg_saved
+msgid "Custom verification request message saved."
+msgstr "自定义验证请求消息已保存。"
+
+#. key: custom_msg_too_long
+msgid "Message too long (max 1000 characters)."
+msgstr "消息过长（最多1000字符）。"
+
+#. key: dm_group_invite_offer
+#, python-brace-format
+msgid ""
+"You're verified in **{server}**! Would you like an invite to their VRChat group, **{group}**?\n"
+"\n"
+"Nothing is sent to VRChat unless you press the button."
+msgstr ""
+"你已在 **{server}** 完成验证！需要该服务器 VRChat 群组 **{group}** 的邀请吗？\n"
+"\n"
+"除非你点击按钮，否则不会向 VRChat 发送任何内容。"
+
+#. key: dm_role_failed_bot_position
+#, python-brace-format
+msgid "I couldn't assign the '{role}' role in {server}. This usually happens when the VRCVerify bot's role is not above the verified (and unverified) roles in the server's role list. Please ask a server admin to move the VRCVerify bot role above those roles and try again."
+msgstr "我无法在 {server} 为你分配“{role}”角色。通常是因为 VRCVerify 机器人的角色没有位于已验证（和未验证）角色之上。请让服务器管理员将 VRCVerify 机器人的角色移动到这些角色之上，然后再试一次。"
+
+#. key: dm_role_success
+#, python-brace-format
+msgid "You've been verified and given **{role}** in **{server}**!"
+msgstr "您已验证并获得 **{role}** 角色,位于 **{server}**!"
+
+#. key: dm_unverified_failed_bot_position
+#, python-brace-format
+msgid "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable)."
+msgstr "无法在 {server} 中移除 {role} 身份组。这通常是因为 VRCVerify 机器人的身份组没有排在未验证身份组之上。请让服务器管理员确认 VRCVerify 机器人的身份组位于已验证和未验证身份组（如果有）之上。"
+
+#. key: group_invite_account_changed
+msgid "This offer was for a different VRChat account than the one you have linked now. Verify again to get a new invite offer for your current account."
+msgstr "此邀请是为另一个 VRChat 账号发出的，与你当前绑定的账号不同。请重新验证，以便为你当前的账号获得新的邀请。"
+
+#. key: group_invite_account_missing
+msgid "VRChat didn't recognise the account you verified with, so the invite couldn't be sent. Try verifying again to relink your VRChat account."
+msgstr "VRChat 无法识别你验证时使用的账号，因此邀请无法发送。请重新进行验证，以重新关联你的 VRChat 账号。"
+
+#. key: group_invite_already_invited
+#, python-brace-format
+msgid "An invite to **{group}** is already waiting in your VRChat notifications."
+msgstr "你的 VRChat 通知中已经有一份 **{group}** 的邀请在等待你。"
+
+#. key: group_invite_already_member
+#, python-brace-format
+msgid "You're already in **{group}**, so there's nothing to send."
+msgstr "你已经是 **{group}** 的成员，因此无需发送邀请。"
+
+#. key: group_invite_banned
+#, python-brace-format
+msgid "You can't be invited to **{group}**. Only a group moderator can change that."
+msgstr "你无法被邀请加入 **{group}**。只有群组管理员才能更改这一点。"
+
+#. key: group_invite_blocked
+msgid "VRChat wouldn't deliver the invite. Group invites may be switched off in your VRChat settings, or the group may be blocked on your account."
+msgstr "VRChat 无法送达这份邀请。你的 VRChat 设置中可能关闭了群组邀请，或者该群组在你的账号上被屏蔽了。"
+
+#. key: group_invite_not_a_member
+#, python-brace-format
+msgid "This invite was for **{server}**, and you're no longer a member there. Join the server and verify again if you'd still like an invite."
+msgstr "这份邀请来自 **{server}**，而你已不再是该服务器的成员。如果仍想获得邀请，请重新加入该服务器并再次进行验证。"
+
+#. key: group_invite_not_verified
+#, python-brace-format
+msgid "You're not currently verified as 18+ in **{server}**, so the invite couldn't be sent. Verify again to get a new invite offer."
+msgstr "你目前在 **{server}** 中未被验证为 18+，因此无法发送邀请。请重新验证以获得新的邀请。"
+
+#. key: group_invite_sent
+#, python-brace-format
+msgid "Invite sent! Open your VRChat notifications to join **{group}**."
+msgstr "邀请已发送！请打开 VRChat 通知加入 **{group}**。"
+
+#. key: group_invite_setup_problem
+#, python-brace-format
+msgid "**{server}**'s VRChat group isn't set up correctly right now, so the invite couldn't be sent. Please let the server's admins know."
+msgstr "**{server}** 的 VRChat 群组目前配置不正确，因此无法发送邀请。请告知该服务器的管理员。"
+
+#. key: group_invite_too_soon
+msgid "You've already asked for an invite. Please give it a few minutes before trying again."
+msgstr "你已经申请过邀请了。请等几分钟再试。"
+
+#. key: group_invite_unavailable
+msgid "VRChat didn't answer, so the invite couldn't be sent. Please try again in a few minutes."
+msgstr "VRChat 没有响应，因此无法发送邀请。请几分钟后再试。"
+
+#. key: group_invite_working
+msgid "Asking VRChat for your invite..."
+msgstr "正在向 VRChat 请求你的邀请……"
+
+#. key: guild_join_welcome_dm
+#, python-brace-format
+msgid ""
+"👋 Thanks for adding VRCVerify to **{server}**!\n"
+"\n"
+"To get set up:\n"
+"1. Run `/vrcverify_setup` to choose the role members get once verified.\n"
+"2. Run `/vrcverify_instructions` in the channel you want members to verify from — use a normal text channel everyone can see, not a thread, since threads auto-archive and quietly break the panel.\n"
+"\n"
+"Need a hand? `/vrcverify_support` has you covered."
+msgstr ""
+"👋 感谢将 VRCVerify 添加到 **{server}**!\n"
+"\n"
+"设置步骤:\n"
+"1. 运行 `/vrcverify_setup` 选择成员验证后获得的身份组。\n"
+"2. 在你希望成员进行验证的频道中运行 `/vrcverify_instructions` — 请使用所有人都能看到的普通文字频道,不要使用子区,因为子区会自动存档并悄悄使面板失效。\n"
+"\n"
+"需要帮助?可以使用 `/vrcverify_support`。"
+
+#. key: instructions_desc
+msgid ""
+"**Follow these steps** to verify your 18+ status:\n"
+"\n"
+"1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
+"2. If you're new, you'll be asked for your VRChat username\n"
+"3. The bot will give you a unique code - put this in your VRChat bio **ON ITS OWN LINE**\n"
+"4. Press **Verify** in Discord once your bio is updated\n"
+"\n"
+"If you need additional help, contact an admin or type `/vrcverify_support`."
+msgstr ""
+"**按照这些步骤** 验证您的 18+ 状态:\n"
+"\n"
+"1. 点击 **开始验证** 按钮（如果显示）或在任何地方输入 `/vrcverify`。\n"
+"2. 如果您是新用户,系统会要求您提供 VRChat 用户名\n"
+"3. 机器人会给您一个唯一的代码 - 将其放入您的 VRChat 个人资料中 **单独一行**\n"
+"4. 更新个人资料后,在 Discord 中按 **验证**\n"
+"\n"
+"如果您需要额外的帮助,请联系管理员或输入 `/vrcverify_support`。"
+
+#. key: instructions_title
+msgid "How to Use the VRChat Verification Bot"
+msgstr "如何使用 VRChat 验证机器人"
+
+#. key: invalid_vrc_id_input
+msgid ""
+"It looks like you entered your display name instead of your VRChat userID.\n"
+"Please enter either the full profile URL or your userID (which always starts with `usr_`).\n"
+"https://imgur.com/a/EEl6ekH"
+msgstr ""
+"您似乎输入了显示名称而不是 VRChat 用户ID。\n"
+"请输入完整的个人资料 URL 或以 `usr_` 开头的用户ID。\n"
+"https://imgur.com/a/EEl6ekH"
+
+#. key: log_channel_announcement
+#, python-brace-format
+msgid "{channel} is an announcement channel. Other servers can follow it, which would republish your members' 18+ status outside this server, so it can't be used as a verification log. Please pick a normal text channel."
+msgstr "{channel} 是公告频道。其他服务器可以关注它，这会把你成员的 18+ 状态转发到本服务器之外，因此不能用作验证日志。请选择一个普通文字频道。"
+
+#. key: log_channel_cleared
+msgid "Verification activity logging is now off."
+msgstr "验证活动记录已关闭。"
+
+#. key: log_channel_no_permission
+#, python-brace-format
+msgid "I can't post in {channel}. Give the bot **View Channel** and **Send Messages** there, then run this command again."
+msgstr "我无法在 {channel} 中发言。请授予机器人该频道的**查看频道**和**发送消息**权限，然后重新运行此命令。"
+
+#. key: log_channel_premium_only
+msgid "The verification activity log is a VRCVerify Premium feature. Core 18+ verification stays free for everyone."
+msgstr "验证活动日志是 VRCVerify 高级版功能。核心的 18+ 验证对所有人始终免费。"
+
+#. key: log_channel_ready
+msgid ""
+"📋 Verification activity will be logged here from now on.\n"
+"Entries show the member, the result and the time — never their VRChat name or ID."
+msgstr ""
+"📋 今后验证活动将记录在此频道。\n"
+"记录仅显示成员、结果和时间，绝不会显示其 VRChat 名称或 ID。"
+
+#. key: log_channel_set
+#, python-brace-format
+msgid "Verification activity will be logged in {channel}."
+msgstr "验证活动将记录在 {channel}。"
+
+#. key: log_entries_dropped
+#, python-brace-format
+msgid "…{count} earlier entries could not be recorded."
+msgstr "…有 {count} 条较早的记录未能写入。"
+
+#. key: log_not_18
+#, python-brace-format
+msgid "❌ {user} — not 18+ according to VRChat · {when}"
+msgstr "❌ {user} — 根据 VRChat 未满 18 岁 · {when}"
+
+#. key: log_role_failed
+#, python-brace-format
+msgid "⚠️ {user} — verified 18+, but the role could not be assigned. Check that the VRCVerify bot's role sits above the verified role. · {when}"
+msgstr "⚠️ {user} — 已验证 18+，但无法分配身份组。请检查 VRCVerify 机器人的身份组是否位于已验证身份组之上。· {when}"
+
+#. key: log_verified
+#, python-brace-format
+msgid "✅ {user} — verified 18+ · {when}"
+msgstr "✅ {user} — 已验证 18+ · {when}"
+
+#. key: milestone_owner_dm
+#, python-brace-format
+msgid ""
+"🎉 **{server}** has reached {count} completed verifications with VRCVerify!\n"
+"The bot is free and runs on donations — if it's been useful to your community, you can support it here: {kofi_link}\n"
+"(This is a one-time message.)"
+msgstr ""
+"🎉 **{server}** 已通过 VRCVerify 完成 {count} 次验证!\n"
+"本机器人免费提供,依靠捐赠维持运营。如果它对您的社区有帮助,您可以在这里支持我们:{kofi_link}\n"
+"(此消息仅发送一次。)"
+
+#. key: nickname_update_failed
+msgid "We could not update your nickname."
+msgstr "我们无法更新您的昵称。"
+
+#. key: nickname_update_requested
+msgid "Nickname update requested. I'll DM you once it's done!"
+msgstr "已请求更新昵称。完成后我会通过私信通知您! "
+
+#. key: nickname_updated
+#, python-brace-format
+msgid "Your nickname was updated to {display_name}."
+msgstr "您的昵称已更新为 {display_name}。"
+
+#. key: not_18_plus
+msgid "You are not 18+ according to VRChat. Contact an admin if this is an error."
+msgstr "根据VRChat,您未满18岁。如果有误,请联系管理员。"
+
+#. key: not_verified
+msgid "You haven't verified yet. Please click **Begin Verification** first."
+msgstr "您尚未通过验证。请先点击 **开始验证**。"
+
+#. key: panel_color_invalid
+msgid "That doesn't look like a hex colour. Use something like `#5865F2` (or `#58F` for short)."
+msgstr "这看起来不是十六进制颜色。请使用类似 `#5865F2` 的格式（也可以简写为 `#58F`）。"
+
+#. key: panel_nudge_dm
+#, python-brace-format
+msgid ""
+"👋 You set up VRCVerify in **{server}**, but no instructions panel has been posted yet — so members there still have no way to start verifying.\n"
+"\n"
+"Run `/vrcverify_instructions` in the channel you want them to verify from. Use a normal text channel everyone can see rather than a thread, since threads auto-archive and quietly break the panel.\n"
+"\n"
+"Run `/vrcverify_status` in your server for a quick health check.\n"
+"(This is a one-time message.)"
+msgstr ""
+"👋 你已经在 **{server}** 中设置了 VRCVerify,但尚未发布说明面板,因此成员目前仍然无法开始验证。\n"
+"\n"
+"请在你希望成员验证的频道中运行 `/vrcverify_instructions`。请使用所有人都能看到的普通文字频道,而不是子区,因为子区会自动存档并悄悄使面板失效。\n"
+"\n"
+"在你的服务器中运行 `/vrcverify_status` 可以快速检查状态。\n"
+"(此消息仅发送一次。)"
+
+#. key: premium_cutover_dm
+#, python-brace-format
+msgid ""
+"👋 A quick heads-up about VRCVerify in **{server}**.\n"
+"\n"
+"VRCVerify now has an optional Premium tier — and to be clear up front, **nothing about your server changes.**\n"
+"\n"
+"18+ verification is free and staying free, permanently, for everyone. So is auto-verifying members who are already verified when they join.\n"
+"\n"
+"And because **{server}** was set up before Premium launched, it keeps these too, at no cost, permanently:\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"\n"
+"So there is nothing you need to do. If you're ever curious what Premium adds, run `/vrcverify_subscription` in your server.\n"
+"(This is a one-time message.)"
+msgstr ""
+"👋 关于 **{server}** 中 VRCVerify 的一则简短通知。\n"
+"\n"
+"VRCVerify 现在推出了可选的高级版。先说清楚:**你的服务器不会有任何变化。**\n"
+"\n"
+"18+ 验证是免费的,并且将永久对所有人免费。已验证成员加入时自动验证同样免费。\n"
+"\n"
+"而且由于 **{server}** 在高级版推出之前就已完成设置,以下功能也将永久免费保留:\n"
+"• 自动移除未验证身份组\n"
+"• 自动将昵称与 VRChat 同步\n"
+"• 自定义验证成功后的消息\n"
+"\n"
+"所以你无需做任何事。如果你想了解高级版还提供什么,可以在服务器中运行 `/vrcverify_subscription`。\n"
+"(这是一次性消息。)"
+
+#. key: premium_status_active
+#, python-brace-format
+msgid ""
+"✅ **VRCVerify Premium is active on {server}.**\n"
+"\n"
+"Unlocked here:\n"
+"• Verification activity log — set it up with `/vrcverify_logchannel`\n"
+"• Priority in the verification queue when there's a backlog\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"• Your colour and server icon on the instructions panel\n"
+"• Reduced verification cooldown\n"
+"• Invite verified members straight into your server's VRChat group\n"
+"\n"
+"Appearance and automation settings live in `/vrcverify_settings`.\n"
+"\n"
+"You can manage or cancel this any time from Discord's **User Settings → Subscriptions**.\n"
+"Thank you for supporting VRCVerify. 💜"
+msgstr ""
+"✅ **{server} 已启用 VRCVerify 高级版。**\n"
+"\n"
+"本服务器已解锁:\n"
+"• 验证活动日志 — 使用 `/vrcverify_logchannel` 设置\n"
+"• 出现积压时，你的成员在验证队列中优先处理\n"
+"• 自动移除未验证身份组\n"
+"• 自动将昵称与 VRChat 同步\n"
+"• 自定义验证成功后的消息\n"
+"• 在说明面板上使用你自己的颜色和服务器图标\n"
+"• 更短的验证冷却时间\n"
+"• 将已验证的成员直接邀请到你服务器的 VRChat 群组\n"
+"\n"
+"外观和自动化设置位于 `/vrcverify_settings`。\n"
+"\n"
+"你可以随时在 Discord 的**用户设置 → 订阅**中管理或取消。\n"
+"感谢你对 VRCVerify 的支持。💜"
+
+#. key: premium_status_active_both
+#, python-brace-format
+msgid ""
+"⚠️ **{server} is paying for VRCVerify Premium twice.**\n"
+"\n"
+"There's an active **Discord** subscription and an active **card** subscription for this server. Premium is on and stays on — but you're being charged for both.\n"
+"\n"
+"Nothing has been cancelled for you, deliberately: cancelling a subscription and issuing a refund without a person deciding is not something this bot should do on its own.\n"
+"\n"
+"Keep whichever suits you and cancel the other:\n"
+"• **Discord** — User Settings → Subscriptions\n"
+"• **Card** — the Subscriptions page on the website\n"
+"\n"
+"If you're unsure: the website has 6- and 12-month plans that work out cheaper, and Discord can only bill monthly."
+msgstr ""
+"⚠️ **{server} 为 VRCVerify 高级版重复付费了。**\n"
+"\n"
+"本服务器同时有一个有效的 **Discord** 订阅和一个有效的**银行卡**订阅。高级版仍然可用 — 但你正在被重复扣费。\n"
+"\n"
+"我们没有替你取消任何一个，这是有意为之：在没有人做决定的情况下取消订阅并退款，不是这个机器人该自行处理的事。\n"
+"\n"
+"请保留你想要的那一个，并取消另一个：\n"
+"• **Discord** — 用户设置 → 订阅\n"
+"• **银行卡** — 网站上的订阅页面\n"
+"\n"
+"如果拿不定主意：网站上的 6 个月和 12 个月方案更划算，而 Discord 只能按月计费。"
+
+#. key: premium_status_active_card
+#, python-brace-format
+msgid ""
+"✅ **VRCVerify Premium is active on {server}.**\n"
+"\n"
+"Unlocked here:\n"
+"• Verification activity log — set it up with `/vrcverify_logchannel`\n"
+"• Priority in the verification queue when there's a backlog\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"• Your colour and server icon on the instructions panel\n"
+"• Reduced verification cooldown\n"
+"• Invite verified members straight into your server's VRChat group\n"
+"\n"
+"Appearance and automation settings live in `/vrcverify_settings`.\n"
+"\n"
+"This server pays by card, so manage or cancel it on the **VRCVerify website** — it won't appear in Discord's subscription settings.\n"
+"Thank you for supporting VRCVerify. 💜"
+msgstr ""
+"✅ **{server} 已启用 VRCVerify 高级版。**\n"
+"\n"
+"本服务器已解锁:\n"
+"• 验证活动日志 — 使用 `/vrcverify_logchannel` 设置\n"
+"• 出现积压时，你的成员在验证队列中优先处理\n"
+"• 自动移除未验证身份组\n"
+"• 自动将昵称与 VRChat 同步\n"
+"• 自定义验证成功后的消息\n"
+"• 在说明面板上使用你自己的颜色和服务器图标\n"
+"• 更短的验证冷却时间\n"
+"• 将已验证的成员直接邀请到你服务器的 VRChat 群组\n"
+"\n"
+"外观和自动化设置位于 `/vrcverify_settings`。\n"
+"\n"
+"本服务器通过银行卡付款，请在 **VRCVerify 网站**上管理或取消 — Discord 的订阅设置中不会显示它。\n"
+"感谢你对 VRCVerify 的支持。💜"
+
+#. key: premium_status_grandfathered
+#, python-brace-format
+msgid ""
+"**18+ verification is free on {server}, and always will be.** So is auto-verifying members who are already verified when they join.\n"
+"\n"
+"Because this server was set up before Premium launched, it also keeps these for free, permanently:\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"\n"
+"Premium adds these on top:\n"
+"• Verification activity log — every verification in a channel you choose, including the ones that fail silently\n"
+"• Priority in the verification queue when there's a backlog\n"
+"• Your colour and server icon on the instructions panel\n"
+"• Reduced verification cooldown\n"
+"• Invite verified members straight into your server's VRChat group\n"
+"\n"
+"**Premium is available two ways:**\n"
+"• **In Discord** — the button below. Billed monthly.\n"
+"• **By card on the website** — the same Premium, plus 6- and 12-month plans that work out cheaper. Discord can only bill monthly, so the longer plans are website-only."
+msgstr ""
+"**{server} 的 18+ 验证是免费的,并且永远免费。**已验证成员加入时自动验证同样免费。\n"
+"\n"
+"由于本服务器在高级版推出之前就已完成设置,以下功能也将永久免费保留:\n"
+"• 自动移除未验证身份组\n"
+"• 自动将昵称与 VRChat 同步\n"
+"• 自定义验证成功后的消息\n"
+"\n"
+"高级版在此之上还提供：\n"
+"• 验证活动日志：每一次验证都记录到你选择的频道，包括那些静默失败的\n"
+"• 出现积压时，你的成员在验证队列中优先处理\n"
+"• 在说明面板上使用你自己的颜色和服务器图标\n"
+"• 更短的验证冷却时间\n"
+"• 将已验证的成员直接邀请到你服务器的 VRChat 群组\n"
+"\n"
+"**获取高级版有两种方式：**\n"
+"• **在 Discord 中** — 点击下方按钮，按月计费。\n"
+"• **在网站上用银行卡** — 同样的高级版，还有更划算的 6 个月和 12 个月方案。Discord 只能按月计费，所以长期方案仅在网站提供。"
+
+#. key: premium_status_inactive
+#, python-brace-format
+msgid ""
+"**18+ verification is free on {server}, and always will be.** So is auto-verifying members who are already verified when they join.\n"
+"\n"
+"VRCVerify Premium adds these optional extras for this server:\n"
+"• Verification activity log — every verification in a channel you choose, including the ones that fail silently\n"
+"• Priority in the verification queue when there's a backlog\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"• Your colour and server icon on the instructions panel\n"
+"• Reduced verification cooldown\n"
+"• Invite verified members straight into your server's VRChat group\n"
+"\n"
+"One subscription covers the whole server, and there are two ways to buy it:\n"
+"• **In Discord** — the button below. Billed monthly.\n"
+"• **By card on the website** — the same Premium, plus 6- and 12-month plans that work out cheaper. Discord can only bill monthly, so the longer plans are website-only."
+msgstr ""
+"**{server} 的 18+ 验证是免费的,并且永远免费。**已验证成员加入时自动验证同样免费。\n"
+"\n"
+"VRCVerify 高级版为本服务器增加以下可选功能:\n"
+"• 验证活动日志：每一次验证都记录到你选择的频道，包括那些静默失败的\n"
+"• 出现积压时，你的成员在验证队列中优先处理\n"
+"• 自动移除未验证身份组\n"
+"• 自动将昵称与 VRChat 同步\n"
+"• 自定义验证成功后的消息\n"
+"• 在说明面板上使用你自己的颜色和服务器图标\n"
+"• 更短的验证冷却时间\n"
+"• 将已验证的成员直接邀请到你服务器的 VRChat 群组\n"
+"\n"
+"一次订阅即可覆盖整个服务器，有两种购买方式：\n"
+"• **在 Discord 中** — 点击下方按钮，按月计费。\n"
+"• **在网站上用银行卡** — 同样的高级版，还有更划算的 6 个月和 12 个月方案。Discord 只能按月计费，所以长期方案仅在网站提供。"
+
+#. key: recheck_started
+msgid "We're re-checking your VRChat 18+ status. If you've updated your VRChat age verification, you'll get a DM soon!"
+msgstr "我们正在重新检查您的 18+ 状态。如果您已更新 VRChat 年龄验证,很快就会收到私信! "
+
+#. key: settings_intro
+#, python-brace-format
+msgid ""
+"**VRChat Verify Settings**\n"
+"\n"
+"1.) **Enable auto nickname change**\n"
+"   Automatically update users' Discord nicknames to match their VRChat display names.\n"
+"   Current: **{current}**"
+msgstr ""
+"**VRChat 验证设置**\n"
+"\n"
+"1.) **启用自动昵称更改**\n"
+"   自动更新用户的 Discord 昵称以匹配他们的 VRChat 显示名称。\n"
+"   当前:**{current}**"
+
+#. key: settings_saved
+msgid "Settings saved!"
+msgstr "设置已保存!"
+
+#. key: settings_unreadable
+msgid "Couldn't read this server's settings just now. Try again shortly — nothing has changed."
+msgstr "暂时无法读取该服务器的设置。请稍后重试 — 任何设置都未更改。"
+
+#. key: setup_donate_hint
+#, python-brace-format
+msgid ""
+"\n"
+"\n"
+"☕ VRCVerify is free thanks to donations. If it helps your community, you can support it here: {kofi_link}"
+msgstr ""
+"\n"
+"\n"
+"☕ VRCVerify 依靠捐赠免费提供。如果它对您的社区有帮助,您可以在这里支持我们:{kofi_link}"
+
+#. key: setup_missing
+msgid "This server hasn't set up a verification role yet. Please contact an admin."
+msgstr "此服务器尚未设置验证角色。请联系管理员。"
+
+#. key: setup_panel_nudge
+msgid ""
+"\n"
+"\n"
+"📌 **One more step:** members can't verify until you post the instructions panel.\n"
+"Run `/vrcverify_instructions` in the channel you want them to verify from. Use a normal text channel everyone can see — not a thread, since threads auto-archive and quietly break the panel.\n"
+"You can run `/vrcverify_status` any time to check on it."
+msgstr ""
+"\n"
+"\n"
+"📌 **还差一步:** 在你发布说明面板之前,成员无法进行验证。\n"
+"请在你希望成员验证的频道中运行 `/vrcverify_instructions`。请使用所有人都能看到的普通文字频道,不要使用子区,因为子区会自动存档并悄悄使面板失效。\n"
+"你可以随时运行 `/vrcverify_status` 来检查状态。"
+
+#. key: setup_success
+#, python-brace-format
+msgid ""
+"Successfully {action} server config.\n"
+"Verified Role set to: `{role}` (ID={role_id})"
+msgstr ""
+"成功{action} 服务器配置。\n"
+"已将已验证角色设置为: `{role}` (ID={role_id})"
+
+#. key: setup_unverified_missing
+msgid ""
+"\n"
+"(Unverified role not set; no role will be removed on verification.)"
+msgstr ""
+"\n"
+"（未设置未验证角色；验证后不会移除任何角色。）"
+
+#. key: setup_unverified_set
+#, python-brace-format
+msgid ""
+"\n"
+"Unverified Role to remove: `{role}` (ID={role_id})"
+msgstr ""
+"\n"
+"待移除的未验证角色: `{role}` (ID={role_id})"
+
+#. key: status_header
+#, python-brace-format
+msgid "**VRCVerify status for {server}**"
+msgstr "**{server} 的 VRCVerify 状态**"
+
+#. key: status_panel_archived
+msgid "⚠️ The instructions panel is in a thread that has been archived, so the bot can't update it. Un-archive the thread, or post a fresh panel in a normal text channel."
+msgstr "⚠️ 说明面板位于已存档的子区中,机器人无法更新它。请取消存档该子区,或在普通文字频道中重新发布面板。"
+
+#. key: status_panel_gone
+msgid "❌ The saved instructions panel no longer exists — it or its channel was deleted. Run `/vrcverify_instructions` again to post a new one."
+msgstr "❌ 已保存的说明面板不存在了 — 面板或其频道已被删除。请再次运行 `/vrcverify_instructions` 发布新的面板。"
+
+#. key: status_panel_missing
+msgid "❌ No instructions panel posted — run `/vrcverify_instructions` in the channel members should verify from."
+msgstr "❌ 尚未发布说明面板 — 请在成员应进行验证的频道中运行 `/vrcverify_instructions`。"
+
+#. key: status_panel_ok
+msgid "✅ Instructions panel is posted and the bot can still update it."
+msgstr "✅ 说明面板已发布,机器人仍可更新它。"
+
+#. key: status_panel_unreachable
+msgid "⚠️ The instructions panel exists but the bot can't update it. Check that it still has **View Channel**, **Send Messages** and **Embed Links** in that channel."
+msgstr "⚠️ 说明面板存在,但机器人无法更新它。请检查机器人在该频道中是否仍拥有**查看频道**、**发送消息**和**嵌入链接**权限。"
+
+#. key: status_role_deleted
+msgid "❌ The configured verified role no longer exists — run `/vrcverify_setup` to pick a new one."
+msgstr "❌ 已配置的已验证身份组不存在了 — 请运行 `/vrcverify_setup` 重新选择一个。"
+
+#. key: status_role_missing
+msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
+msgstr "❌ 尚未设置已验证身份组 — 请运行 `/vrcverify_setup` 选择一个。"
+
+#. key: status_role_ok
+#, python-brace-format
+msgid "✅ Verified role: **{role}**"
+msgstr "✅ 已验证身份组:**{role}**"
+
+#. key: status_tips
+msgid ""
+"\n"
+"**Tips**\n"
+"• Post the panel in a normal text channel everyone can see — threads auto-archive and silently break it.\n"
+"• Keep the bot's **View Channel**, **Send Messages** and **Embed Links** permissions in that channel.\n"
+"• If you delete or recreate that channel, run `/vrcverify_instructions` again."
+msgstr ""
+"\n"
+"**提示**\n"
+"• 请把面板发布在所有人都能看到的普通文字频道 — 子区会自动存档并悄悄使其失效。\n"
+"• 请保留机器人在该频道的**查看频道**、**发送消息**和**嵌入链接**权限。\n"
+"• 如果你删除或重建了该频道,请再次运行 `/vrcverify_instructions`。"
+
+#. key: subscription_info
+#, python-brace-format
+msgid "I've decided to offer this free of charge however if you wish to still support me, you can find my Ko-fi here:{kofi_link}. Thank you for your continued support"
+msgstr "我决定免费提供此功能,如果您愿意支持我,可以点击此处的我的Ko-fi:{kofi_link}。感谢您的持续支持! "
+
+#. key: support_info
+msgid ""
+"Need help with verification?\n"
+"- Contact a server admin for assistance\n"
+"- Or visit our support page at https://esattotech.com/contact-us/\n"
+"\n"
+"If this is an error, please let us know!"
+msgstr ""
+"需要验证帮助？\n"
+"- 联系服务器管理员获取帮助\n"
+"- 或访问我们的支持页面:https://esattotech.com/contact-us/\n"
+"\n"
+"如果有误,请告诉我们! "
+
+#. key: support_invite_line
+#, python-brace-format
+msgid "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel."
+msgstr "在您自己的服务器中获取 VRCVerify 更新：加入 {invite} 并关注公告频道。"
+
+#. key: verification_requested
+msgid "Verification request received! We'll DM you with the results. Please make sure your DMs for this server are open so you can receive the message."
+msgstr "验证请求已收到！完成后我们会私信通知您。请确保已开启此服务器的私信。"
+
+#. key: verify_button_expired
+msgid "This verification link has expired or was replaced by a newer one. Please run `/vrcverify` again to get a fresh code."
+msgstr "此验证链接已过期或已被更新的链接替换。请重新输入 `/vrcverify` 以获取新代码。"
+
+#. key: vrc_id_already_linked
+msgid "The VRChat profile you tried to use is already registered to a different Discord account. If you believe this is a mistake, please contact a server admin."
+msgstr "您尝试使用的 VRChat 个人资料已经绑定到另一位 Discord 帐号。如果您认为这是错误的，请联系服务器管理员。"
+
+#. key: vrchat_issue_outage_confirmed
+#, python-brace-format
+msgid ""
+"VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n"
+"\n"
+"Status page: {status_page}"
+msgstr ""
+"VRChat 当前报告了影响验证流程的服务问题。请稍后再试。\n"
+"\n"
+"状态页面：{status_page}"
+
+#. key: vrchat_issue_outage_confirmed_with_status
+#, python-brace-format
+msgid ""
+"VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n"
+"\n"
+"Status page: {status_page}\n"
+"\n"
+"Reported status: {status_message}"
+msgstr ""
+"VRChat 当前报告了影响验证流程的服务问题。请稍后再试。\n"
+"\n"
+"状态页面：{status_page}\n"
+"\n"
+"报告状态：{status_message}"
+
+#. key: vrchat_issue_outage_suspected
+#, python-brace-format
+msgid ""
+"VRChat appears to be having temporary API issues, so verification could not be completed right now. Please try again later.\n"
+"\n"
+"Status page: {status_page}"
+msgstr ""
+"VRChat 似乎暂时出现了 API 问题，因此目前无法完成验证。请稍后再试。\n"
+"\n"
+"状态页面：{status_page}"
+
+#. key: vrchat_issue_rate_limited
+msgid "VRChat is rate limiting verification lookups right now. Please wait a minute and try again."
+msgstr "VRChat 目前正在限制验证查询请求。请稍等一分钟后再试。"
+
+#. key: vrchat_issue_temp_unavailable
+msgid "VRCVerify is temporarily unable to talk to VRChat right now. Please try again in a little while."
+msgstr "VRCVerify 目前暂时无法连接到 VRChat。请稍后再试。"
+
+#. key: vrchat_issue_unexpected
+msgid "Verification could not be completed because VRChat returned an unexpected error. Please try again later."
+msgstr "由于 VRChat 返回了意外错误，验证无法完成。请稍后再试。"
+
+#. key: vrchat_issue_user_not_found
+msgid "We could not find that VRChat account. Please double-check that you pasted your VRChat profile URL or `usr_...` user ID correctly."
+msgstr "我们找不到该 VRChat 账号。请再次确认您粘贴的 VRChat 个人资料链接或 `usr_...` 用户 ID 是否正确。"
+

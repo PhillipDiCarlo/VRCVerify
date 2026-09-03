@@ -1,0 +1,587 @@
+# Translations template for VRCVerify.
+# Copyright (C) 2026 Esatto Technologies
+# This file is distributed under the same license as the VRCVerify project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: VRCVerify VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-09-03 02:38-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#. key: already_verified
+msgid "You're already verified! Role assigned (or re-assigned)."
+msgstr ""
+
+#. key: bio_verify_instructions1
+msgid "**1)** Add the code to your VRChat bio on its own line."
+msgstr ""
+
+#. key: bio_verify_instructions2
+msgid "**2)** Once your bio is updated, click **Verify** in Discord (within 10 minutes)."
+msgstr ""
+
+#. key: btn_begin_verification
+msgid "Begin Verification"
+msgstr ""
+
+#. key: btn_donate
+msgid "Donate"
+msgstr ""
+
+#. key: btn_group_invite
+msgid "Send me an invite"
+msgstr ""
+
+#. key: btn_update_nickname
+msgid "Update Nickname"
+msgstr ""
+
+#. key: code_not_found
+msgid ""
+"We couldn't find your code in your VRChat bio. Please try again. \n"
+"**Double check that the code is on its own line.**"
+msgstr ""
+
+#. key: cooldown_active
+#, python-brace-format
+msgid "You're doing that too fast. Please wait {seconds} seconds and try again."
+msgstr ""
+
+#. key: custom_msg_cleared
+msgid "Custom verification request message cleared. Default will be used."
+msgstr ""
+
+#. key: custom_msg_invalid_links
+#, python-brace-format
+msgid ""
+"Blocked: Only discord.com or vrchat.com links allowed. Invalid link(s):\n"
+"{invalid_list}"
+msgstr ""
+
+#. key: custom_msg_saved
+msgid "Custom verification request message saved."
+msgstr ""
+
+#. key: custom_msg_too_long
+msgid "Message too long (max 1000 characters)."
+msgstr ""
+
+#. key: dm_group_invite_offer
+#, python-brace-format
+msgid ""
+"You're verified in **{server}**! Would you like an invite to their VRChat group, **{group}**?\n"
+"\n"
+"Nothing is sent to VRChat unless you press the button."
+msgstr ""
+
+#. key: dm_role_failed_bot_position
+#, python-brace-format
+msgid "I couldn't assign the '{role}' role in {server}. This usually happens when the VRCVerify bot's role is not above the verified (and unverified) roles in the server's role list. Please ask a server admin to move the VRCVerify bot role above those roles and try again."
+msgstr ""
+
+#. key: dm_role_success
+#, python-brace-format
+msgid "You've been verified and given **{role}** in **{server}**!"
+msgstr ""
+
+#. key: dm_unverified_failed_bot_position
+#, python-brace-format
+msgid "Could not remove the {role} role in {server}. This usually happens when the VRCVerify bot's role is not above the unverified role. Ask a server admin to verify that the VRCVerify bot's role is above both the verified and unverified (if applicable)."
+msgstr ""
+
+#. key: group_invite_account_changed
+msgid "This offer was for a different VRChat account than the one you have linked now. Verify again to get a new invite offer for your current account."
+msgstr ""
+
+#. key: group_invite_account_missing
+msgid "VRChat didn't recognise the account you verified with, so the invite couldn't be sent. Try verifying again to relink your VRChat account."
+msgstr ""
+
+#. key: group_invite_already_invited
+#, python-brace-format
+msgid "An invite to **{group}** is already waiting in your VRChat notifications."
+msgstr ""
+
+#. key: group_invite_already_member
+#, python-brace-format
+msgid "You're already in **{group}**, so there's nothing to send."
+msgstr ""
+
+#. key: group_invite_banned
+#, python-brace-format
+msgid "You can't be invited to **{group}**. Only a group moderator can change that."
+msgstr ""
+
+#. key: group_invite_blocked
+msgid "VRChat wouldn't deliver the invite. Group invites may be switched off in your VRChat settings, or the group may be blocked on your account."
+msgstr ""
+
+#. key: group_invite_not_a_member
+#, python-brace-format
+msgid "This invite was for **{server}**, and you're no longer a member there. Join the server and verify again if you'd still like an invite."
+msgstr ""
+
+#. key: group_invite_not_verified
+#, python-brace-format
+msgid "You're not currently verified as 18+ in **{server}**, so the invite couldn't be sent. Verify again to get a new invite offer."
+msgstr ""
+
+#. key: group_invite_sent
+#, python-brace-format
+msgid "Invite sent! Open your VRChat notifications to join **{group}**."
+msgstr ""
+
+#. key: group_invite_setup_problem
+#, python-brace-format
+msgid "**{server}**'s VRChat group isn't set up correctly right now, so the invite couldn't be sent. Please let the server's admins know."
+msgstr ""
+
+#. key: group_invite_too_soon
+msgid "You've already asked for an invite. Please give it a few minutes before trying again."
+msgstr ""
+
+#. key: group_invite_unavailable
+msgid "VRChat didn't answer, so the invite couldn't be sent. Please try again in a few minutes."
+msgstr ""
+
+#. key: group_invite_working
+msgid "Asking VRChat for your invite..."
+msgstr ""
+
+#. key: guild_join_welcome_dm
+#, python-brace-format
+msgid ""
+"👋 Thanks for adding VRCVerify to **{server}**!\n"
+"\n"
+"To get set up:\n"
+"1. Run `/vrcverify_setup` to choose the role members get once verified.\n"
+"2. Run `/vrcverify_instructions` in the channel you want members to verify from — use a normal text channel everyone can see, not a thread, since threads auto-archive and quietly break the panel.\n"
+"\n"
+"Need a hand? `/vrcverify_support` has you covered."
+msgstr ""
+
+#. key: instructions_desc
+msgid ""
+"**Follow these steps** to verify your 18+ status:\n"
+"\n"
+"1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
+"2. If you're new, you'll be asked for your VRChat username\n"
+"3. The bot will give you a unique code - put this in your VRChat bio **ON ITS OWN LINE**\n"
+"4. Press **Verify** in Discord once your bio is updated\n"
+"\n"
+"If you need additional help, contact an admin or type `/vrcverify_support`."
+msgstr ""
+
+#. key: instructions_title
+msgid "How to Use the VRChat Verification Bot"
+msgstr ""
+
+#. key: invalid_vrc_id_input
+msgid ""
+"It looks like you entered your display name instead of your VRChat userID.\n"
+"Please enter either the full profile URL or your userID (which always starts with `usr_`).\n"
+"https://imgur.com/a/EEl6ekH"
+msgstr ""
+
+#. key: log_channel_announcement
+#, python-brace-format
+msgid "{channel} is an announcement channel. Other servers can follow it, which would republish your members' 18+ status outside this server, so it can't be used as a verification log. Please pick a normal text channel."
+msgstr ""
+
+#. key: log_channel_cleared
+msgid "Verification activity logging is now off."
+msgstr ""
+
+#. key: log_channel_no_permission
+#, python-brace-format
+msgid "I can't post in {channel}. Give the bot **View Channel** and **Send Messages** there, then run this command again."
+msgstr ""
+
+#. key: log_channel_premium_only
+msgid "The verification activity log is a VRCVerify Premium feature. Core 18+ verification stays free for everyone."
+msgstr ""
+
+#. key: log_channel_ready
+msgid ""
+"📋 Verification activity will be logged here from now on.\n"
+"Entries show the member, the result and the time — never their VRChat name or ID."
+msgstr ""
+
+#. key: log_channel_set
+#, python-brace-format
+msgid "Verification activity will be logged in {channel}."
+msgstr ""
+
+#. key: log_entries_dropped
+#, python-brace-format
+msgid "…{count} earlier entries could not be recorded."
+msgstr ""
+
+#. key: log_not_18
+#, python-brace-format
+msgid "❌ {user} — not 18+ according to VRChat · {when}"
+msgstr ""
+
+#. key: log_role_failed
+#, python-brace-format
+msgid "⚠️ {user} — verified 18+, but the role could not be assigned. Check that the VRCVerify bot's role sits above the verified role. · {when}"
+msgstr ""
+
+#. key: log_verified
+#, python-brace-format
+msgid "✅ {user} — verified 18+ · {when}"
+msgstr ""
+
+#. key: milestone_owner_dm
+#, python-brace-format
+msgid ""
+"🎉 **{server}** has reached {count} completed verifications with VRCVerify!\n"
+"The bot is free and runs on donations — if it's been useful to your community, you can support it here: {kofi_link}\n"
+"(This is a one-time message.)"
+msgstr ""
+
+#. key: nickname_update_failed
+msgid "We could not update your nickname."
+msgstr ""
+
+#. key: nickname_update_requested
+msgid "Nickname update requested. I'll DM you once it's done!"
+msgstr ""
+
+#. key: nickname_updated
+#, python-brace-format
+msgid "Your nickname was updated to {display_name}."
+msgstr ""
+
+#. key: not_18_plus
+msgid "You are not 18+ according to VRChat. Contact an admin if this is an error."
+msgstr ""
+
+#. key: not_verified
+msgid "You haven't verified yet. Please click **Begin Verification** first."
+msgstr ""
+
+#. key: panel_color_invalid
+msgid "That doesn't look like a hex colour. Use something like `#5865F2` (or `#58F` for short)."
+msgstr ""
+
+#. key: panel_nudge_dm
+#, python-brace-format
+msgid ""
+"👋 You set up VRCVerify in **{server}**, but no instructions panel has been posted yet — so members there still have no way to start verifying.\n"
+"\n"
+"Run `/vrcverify_instructions` in the channel you want them to verify from. Use a normal text channel everyone can see rather than a thread, since threads auto-archive and quietly break the panel.\n"
+"\n"
+"Run `/vrcverify_status` in your server for a quick health check.\n"
+"(This is a one-time message.)"
+msgstr ""
+
+#. key: premium_cutover_dm
+#, python-brace-format
+msgid ""
+"👋 A quick heads-up about VRCVerify in **{server}**.\n"
+"\n"
+"VRCVerify now has an optional Premium tier — and to be clear up front, **nothing about your server changes.**\n"
+"\n"
+"18+ verification is free and staying free, permanently, for everyone. So is auto-verifying members who are already verified when they join.\n"
+"\n"
+"And because **{server}** was set up before Premium launched, it keeps these too, at no cost, permanently:\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"\n"
+"So there is nothing you need to do. If you're ever curious what Premium adds, run `/vrcverify_subscription` in your server.\n"
+"(This is a one-time message.)"
+msgstr ""
+
+#. key: premium_status_active
+#, python-brace-format
+msgid ""
+"✅ **VRCVerify Premium is active on {server}.**\n"
+"\n"
+"Unlocked here:\n"
+"• Verification activity log — set it up with `/vrcverify_logchannel`\n"
+"• Priority in the verification queue when there's a backlog\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"• Your colour and server icon on the instructions panel\n"
+"• Reduced verification cooldown\n"
+"• Invite verified members straight into your server's VRChat group\n"
+"\n"
+"Appearance and automation settings live in `/vrcverify_settings`.\n"
+"\n"
+"You can manage or cancel this any time from Discord's **User Settings → Subscriptions**.\n"
+"Thank you for supporting VRCVerify. 💜"
+msgstr ""
+
+#. key: premium_status_active_both
+#, python-brace-format
+msgid ""
+"⚠️ **{server} is paying for VRCVerify Premium twice.**\n"
+"\n"
+"There's an active **Discord** subscription and an active **card** subscription for this server. Premium is on and stays on — but you're being charged for both.\n"
+"\n"
+"Nothing has been cancelled for you, deliberately: cancelling a subscription and issuing a refund without a person deciding is not something this bot should do on its own.\n"
+"\n"
+"Keep whichever suits you and cancel the other:\n"
+"• **Discord** — User Settings → Subscriptions\n"
+"• **Card** — the Subscriptions page on the website\n"
+"\n"
+"If you're unsure: the website has 6- and 12-month plans that work out cheaper, and Discord can only bill monthly."
+msgstr ""
+
+#. key: premium_status_active_card
+#, python-brace-format
+msgid ""
+"✅ **VRCVerify Premium is active on {server}.**\n"
+"\n"
+"Unlocked here:\n"
+"• Verification activity log — set it up with `/vrcverify_logchannel`\n"
+"• Priority in the verification queue when there's a backlog\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"• Your colour and server icon on the instructions panel\n"
+"• Reduced verification cooldown\n"
+"• Invite verified members straight into your server's VRChat group\n"
+"\n"
+"Appearance and automation settings live in `/vrcverify_settings`.\n"
+"\n"
+"This server pays by card, so manage or cancel it on the **VRCVerify website** — it won't appear in Discord's subscription settings.\n"
+"Thank you for supporting VRCVerify. 💜"
+msgstr ""
+
+#. key: premium_status_grandfathered
+#, python-brace-format
+msgid ""
+"**18+ verification is free on {server}, and always will be.** So is auto-verifying members who are already verified when they join.\n"
+"\n"
+"Because this server was set up before Premium launched, it also keeps these for free, permanently:\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"\n"
+"Premium adds these on top:\n"
+"• Verification activity log — every verification in a channel you choose, including the ones that fail silently\n"
+"• Priority in the verification queue when there's a backlog\n"
+"• Your colour and server icon on the instructions panel\n"
+"• Reduced verification cooldown\n"
+"• Invite verified members straight into your server's VRChat group\n"
+"\n"
+"**Premium is available two ways:**\n"
+"• **In Discord** — the button below. Billed monthly.\n"
+"• **By card on the website** — the same Premium, plus 6- and 12-month plans that work out cheaper. Discord can only bill monthly, so the longer plans are website-only."
+msgstr ""
+
+#. key: premium_status_inactive
+#, python-brace-format
+msgid ""
+"**18+ verification is free on {server}, and always will be.** So is auto-verifying members who are already verified when they join.\n"
+"\n"
+"VRCVerify Premium adds these optional extras for this server:\n"
+"• Verification activity log — every verification in a channel you choose, including the ones that fail silently\n"
+"• Priority in the verification queue when there's a backlog\n"
+"• Automatic removal of the unverified role\n"
+"• Automatic nickname sync with VRChat\n"
+"• Custom post-verification message\n"
+"• Your colour and server icon on the instructions panel\n"
+"• Reduced verification cooldown\n"
+"• Invite verified members straight into your server's VRChat group\n"
+"\n"
+"One subscription covers the whole server, and there are two ways to buy it:\n"
+"• **In Discord** — the button below. Billed monthly.\n"
+"• **By card on the website** — the same Premium, plus 6- and 12-month plans that work out cheaper. Discord can only bill monthly, so the longer plans are website-only."
+msgstr ""
+
+#. key: recheck_started
+msgid "We're re-checking your VRChat 18+ status. If you've updated your VRChat age verification, you'll get a DM soon!"
+msgstr ""
+
+#. key: settings_intro
+#, python-brace-format
+msgid ""
+"**VRChat Verify Settings**\n"
+"\n"
+"1.) **Enable auto nickname change**\n"
+"   Automatically update users' Discord nicknames to match their VRChat display names.\n"
+"   Current: **{current}**"
+msgstr ""
+
+#. key: settings_saved
+msgid "Settings saved!"
+msgstr ""
+
+#. key: settings_unreadable
+msgid "Couldn't read this server's settings just now. Try again shortly — nothing has changed."
+msgstr ""
+
+#. key: setup_donate_hint
+#, python-brace-format
+msgid ""
+"\n"
+"\n"
+"☕ VRCVerify is free thanks to donations. If it helps your community, you can support it here: {kofi_link}"
+msgstr ""
+
+#. key: setup_missing
+msgid "This server hasn't set up a verification role yet. Please contact an admin."
+msgstr ""
+
+#. key: setup_panel_nudge
+msgid ""
+"\n"
+"\n"
+"📌 **One more step:** members can't verify until you post the instructions panel.\n"
+"Run `/vrcverify_instructions` in the channel you want them to verify from. Use a normal text channel everyone can see — not a thread, since threads auto-archive and quietly break the panel.\n"
+"You can run `/vrcverify_status` any time to check on it."
+msgstr ""
+
+#. key: setup_success
+#, python-brace-format
+msgid ""
+"Successfully {action} server config.\n"
+"Verified Role set to: `{role}` (ID={role_id})"
+msgstr ""
+
+#. key: setup_unverified_missing
+msgid ""
+"\n"
+"(Unverified role not set; no role will be removed on verification.)"
+msgstr ""
+
+#. key: setup_unverified_set
+#, python-brace-format
+msgid ""
+"\n"
+"Unverified Role to remove: `{role}` (ID={role_id})"
+msgstr ""
+
+#. key: status_header
+#, python-brace-format
+msgid "**VRCVerify status for {server}**"
+msgstr ""
+
+#. key: status_panel_archived
+msgid "⚠️ The instructions panel is in a thread that has been archived, so the bot can't update it. Un-archive the thread, or post a fresh panel in a normal text channel."
+msgstr ""
+
+#. key: status_panel_gone
+msgid "❌ The saved instructions panel no longer exists — it or its channel was deleted. Run `/vrcverify_instructions` again to post a new one."
+msgstr ""
+
+#. key: status_panel_missing
+msgid "❌ No instructions panel posted — run `/vrcverify_instructions` in the channel members should verify from."
+msgstr ""
+
+#. key: status_panel_ok
+msgid "✅ Instructions panel is posted and the bot can still update it."
+msgstr ""
+
+#. key: status_panel_unreachable
+msgid "⚠️ The instructions panel exists but the bot can't update it. Check that it still has **View Channel**, **Send Messages** and **Embed Links** in that channel."
+msgstr ""
+
+#. key: status_role_deleted
+msgid "❌ The configured verified role no longer exists — run `/vrcverify_setup` to pick a new one."
+msgstr ""
+
+#. key: status_role_missing
+msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
+msgstr ""
+
+#. key: status_role_ok
+#, python-brace-format
+msgid "✅ Verified role: **{role}**"
+msgstr ""
+
+#. key: status_tips
+msgid ""
+"\n"
+"**Tips**\n"
+"• Post the panel in a normal text channel everyone can see — threads auto-archive and silently break it.\n"
+"• Keep the bot's **View Channel**, **Send Messages** and **Embed Links** permissions in that channel.\n"
+"• If you delete or recreate that channel, run `/vrcverify_instructions` again."
+msgstr ""
+
+#. key: subscription_info
+#, python-brace-format
+msgid "I've decided to offer this free of charge however if you wish to still support me, you can find my Ko-fi here:{kofi_link}. Thank you for your continued support"
+msgstr ""
+
+#. key: support_info
+msgid ""
+"Need help with verification?\n"
+"- Contact a server admin for assistance\n"
+"- Or visit our support page at https://esattotech.com/contact-us/\n"
+"\n"
+"If this is an error, please let us know!"
+msgstr ""
+
+#. key: support_invite_line
+#, python-brace-format
+msgid "Get VRCVerify updates in your own server: join {invite} and follow the announcements channel."
+msgstr ""
+
+#. key: verification_requested
+msgid "Verification request received! We'll DM you with the results. Please make sure your DMs for this server are open so you can receive the message."
+msgstr ""
+
+#. key: verify_button_expired
+msgid "This verification link has expired or was replaced by a newer one. Please run `/vrcverify` again to get a fresh code."
+msgstr ""
+
+#. key: vrc_id_already_linked
+msgid "The VRChat profile you tried to use is already registered to a different Discord account. If you believe this is a mistake, please contact a server admin."
+msgstr ""
+
+#. key: vrchat_issue_outage_confirmed
+#, python-brace-format
+msgid ""
+"VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n"
+"\n"
+"Status page: {status_page}"
+msgstr ""
+
+#. key: vrchat_issue_outage_confirmed_with_status
+#, python-brace-format
+msgid ""
+"VRChat is currently reporting a service issue that is affecting verification. Please try again later.\n"
+"\n"
+"Status page: {status_page}\n"
+"\n"
+"Reported status: {status_message}"
+msgstr ""
+
+#. key: vrchat_issue_outage_suspected
+#, python-brace-format
+msgid ""
+"VRChat appears to be having temporary API issues, so verification could not be completed right now. Please try again later.\n"
+"\n"
+"Status page: {status_page}"
+msgstr ""
+
+#. key: vrchat_issue_rate_limited
+msgid "VRChat is rate limiting verification lookups right now. Please wait a minute and try again."
+msgstr ""
+
+#. key: vrchat_issue_temp_unavailable
+msgid "VRCVerify is temporarily unable to talk to VRChat right now. Please try again in a little while."
+msgstr ""
+
+#. key: vrchat_issue_unexpected
+msgid "Verification could not be completed because VRChat returned an unexpected error. Please try again later."
+msgstr ""
+
+#. key: vrchat_issue_user_not_found
+msgid "We could not find that VRChat account. Please double-check that you pasted your VRChat profile URL or `usr_...` user ID correctly."
+msgstr ""
+
