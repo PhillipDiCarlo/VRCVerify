@@ -8,19 +8,32 @@ language; the strings themselves live in `translations/` as gettext catalogues.
 
 WHY GETTEXT AND NOT ANOTHER DICT
 --------------------------------
-`locales.py` is a dict-of-dicts, and copying that shape here was the obvious
-move. It was rejected for one reason: the dashboard's strings need translating
-by people, in a tool translators already own, and nobody is opening a 1,200
-line Python literal in Poedit. `.po` files are the format that entire industry
-speaks, and `pybabel extract` re-reads the templates rather than trusting
-somebody to remember to add the key.
+When #97 wrote this, `locales.py` was a dict-of-dicts and copying that shape
+here was the obvious move. It was rejected for one reason: the dashboard's
+strings need translating by people, in a tool translators already own, and
+nobody is opening a 1,200 line Python literal in Poedit. `.po` files are the
+format that entire industry speaks, and `pybabel extract` re-reads the
+templates rather than trusting somebody to remember to add the key.
 
-The cost of two systems is real -- #97 says two systems that disagree about
-what "verified" is called in Japanese is worse than either alone -- and it is
-paid down deliberately: the language *list* is pinned against the bot's by a
-test (see tests/test_i18n.py), so the two can never drift apart on which
-languages exist. What they say inside a language is reviewed by the same
-person either way.
+#97 also said the cost of running two systems was real -- two systems that
+disagree about what "verified" is called in Japanese being worse than either
+alone -- and that it would be paid down deliberately rather than left. #231
+paid it: the bot's twelve languages are gettext catalogues too, under their
+own domain in `src/translations/bot/`, and the argument above turned out to
+apply to the larger surface as much as this one.
+
+So there is one mechanism now, not two. The language *list* is still pinned
+across both by a test (see tests/test_i18n.py), so a thirteenth language
+cannot be half-added. What is new since #231 is that a string appearing on
+both sides can finally be seen to be the same string by a translation memory,
+which is the drift mitigation that did not exist while half the product's text
+was a Python literal.
+
+The two domains stay separate on purpose: neither image carries the other's
+strings. The reading of a compiled catalogue is shared -- see `i18n_core`,
+which explains why that is a third module rather than either side importing
+the other. What stays here is everything about *choosing* a language, which is
+a web question the bot does not have: it is handed a locale by Discord.
 
 THE STRINGS NEED NOTHING FROM BABEL. THE DATES DO
 -------------------------------------------------
