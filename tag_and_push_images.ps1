@@ -35,15 +35,42 @@ function Get-Dockerfile($imageName) {
 
 # Fail on the actual problem, once, instead of letting every docker call print
 # its own socket error.
+#
+# Two Windows PowerShell 5.1 traps live in this function, and both are silent on
+# the Mac (PowerShell 7 has neither):
+#
+#   1. Redirecting a native command's stderr makes 5.1 wrap every line in a
+#      NativeCommandError, which $ErrorActionPreference = "Stop" then promotes to
+#      a fatal error. Docker Desktop writes harmless notices there ("WARNING: No
+#      blkio throttle.read_bps_device support"), so `docker info *> $null` killed
+#      the script before a single image was built. Hence the preference is
+#      dropped for exactly as long as the redirections are in effect.
+#   2. Invoking through the call operator (`& $exe @args 2>&1`) sets
+#      $LASTEXITCODE to 1 when stderr is redirected and non-empty, whatever the
+#      process actually returned -- which reads as "Docker is not running" on a
+#      perfectly healthy daemon. Call docker directly; do not "tidy" this into a
+#      helper that takes the command as arguments.
+#
+# $LASTEXITCODE is captured immediately after each call, before the next one
+# overwrites it.
 function Invoke-Preflight {
-    docker info *> $null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Docker daemon is not running (or is unreachable). Start Docker and try again."
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        docker info 2>&1 | Out-Null
+        $dockerExit = $LASTEXITCODE
+        docker buildx version 2>&1 | Out-Null
+        $buildxExit = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+
+    if ($dockerExit -ne 0) {
+        Write-Host "Docker daemon is not running (or is unreachable). Start Docker and try again."
         exit 1
     }
-    docker buildx version *> $null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "docker buildx is required to build for $TargetPlatform but is not available."
+    if ($buildxExit -ne 0) {
+        Write-Host "docker buildx is required to build for $TargetPlatform but is not available."
         exit 1
     }
 }
@@ -71,7 +98,7 @@ function Publish-Image($imageName, $version) {
         --push `
         .
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "FAILED: $imageName was not published."
+        Write-Host "FAILED: $imageName was not published."
         exit 1
     }
     Write-Host "Published $imageName as $version and latest ($TargetPlatform)"
