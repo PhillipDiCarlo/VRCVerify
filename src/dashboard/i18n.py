@@ -57,7 +57,6 @@ catalogue for a language it wants to assert on.
 
 from __future__ import annotations
 
-import gettext as _gettext
 import os
 import re
 from datetime import date as _date, datetime as _datetime, timezone as _timezone
@@ -70,6 +69,8 @@ from babel.dates import (
     format_time as _babel_format_time,
 )
 from babel.numbers import format_decimal as _babel_format_decimal
+
+from i18n_core import Catalogues as _Catalogues, N_ as _N_
 
 # The languages this dashboard has catalogues for.
 #
@@ -173,23 +174,11 @@ for _code in UI_LANGUAGES:
     _BY_BASE.setdefault(_code.split("-")[0].lower(), _code)
 
 
-def N_(text: str) -> str:
-    """Mark a string for translation without translating it here and now.
-
-    The standard gettext no-op, and the answer to a problem the view modules
-    all have: their labels live in module-level tables, evaluated once at
-    import, long before any request has said which language it wants. Calling
-    `_()` there would freeze whichever language the first import happened to
-    see into every later render.
-
-    So the table holds `N_("Renews")` -- which is the msgid, unchanged, and
-    which `pybabel extract -k N_` can see -- and the *lookup* happens at the
-    point of use, against the callable that request was given.
-
-    Returns its argument. The whole of its work is being a name the extractor
-    recognises.
-    """
-    return text
+# `N_` is re-exported rather than redefined. The view modules and the templates
+# import it from here and always have; moving the definition to i18n_core so
+# the bot can share it (#231) is not a reason to make forty call sites say
+# where it lives now.
+N_ = _N_
 
 
 def is_supported(code: Optional[str]) -> bool:
@@ -294,10 +283,17 @@ def negotiate(
     return DEFAULT_LANGUAGE
 
 
-# Catalogues are read from disk once and kept. There are twelve of them, they
-# are small, and they cannot change without a deploy -- so the alternative is
-# re-reading the same file on every request for the rest of the process's life.
-_catalogues: dict = {}
+# Reading the compiled catalogues is the part the bot does identically, so it
+# lives in i18n_core and this is the dashboard's instance of it (#231). The
+# domain, the directory and the language list are what make it the dashboard's;
+# everything about *choosing* a language stays here, because it is all a web
+# question -- a cookie, an Accept-Language header, a dir attribute.
+_CATALOGUES = _Catalogues(
+    domain=DOMAIN,
+    localedir=LOCALE_DIR,
+    languages=UI_LANGUAGES,
+    default=DEFAULT_LANGUAGE,
+)
 
 
 def catalogue(code: str):
@@ -305,22 +301,9 @@ def catalogue(code: str):
     object.
 
     Exposed as well as `translator()` because Jinja's i18n extension wants the
-    object -- `NullTranslations` and its GNU subclass already carry both
-    `gettext` and `ngettext`, so handing it over directly saves an adapter
-    class whose only job would be to forward two methods.
-
-    An unsupported code returns the English no-op rather than raising. The
-    callers have all validated already; this is the floor under them, not the
-    check itself.
+    object rather than a callable. See `i18n_core.Catalogues.catalogue`.
     """
-    if not is_supported(code):
-        code = DEFAULT_LANGUAGE
-
-    cached = _catalogues.get(code)
-    if cached is None:
-        cached = _load(code)
-        _catalogues[code] = cached
-    return cached
+    return _CATALOGUES.catalogue(code)
 
 
 def translator(code: str) -> Callable[[str], str]:
@@ -329,37 +312,18 @@ def translator(code: str) -> Callable[[str], str]:
     Passed into the view modules as an argument, which is the whole reason it
     exists as a separate thing from `catalogue()`: those modules take a
     callable, not a Flask global and not a translations object they would then
-    have to know the shape of.
+    have to know the shape of. That is what lets the page that takes money have
+    its states tested without a request, and it is why a test can pass
+    `lambda s: s` or a catalogue for a language it wants to assert on.
 
     Returns the msgid unchanged for `en-US`, for a language with no catalogue
     yet, and for any string not yet translated in the catalogue it does have.
-
-    That last one is the property that lets #97 land in phases: the payment
-    pages are translated first because that is where a misunderstanding costs
-    money, and every string not reached yet renders in English rather than
-    rendering blank. A half-translated page is a worse page than a fully
-    English one and a much better page than an empty one.
+    That last one is the property that let #97 land in phases: the payment
+    pages were translated first, because that is where a misunderstanding costs
+    money, and every string not reached yet rendered in English rather than
+    rendering blank.
     """
-    return catalogue(code).gettext
-
-
-def _load(code: str):
-    """Open one compiled catalogue, or a no-op stand-in if there is not one."""
-    if code == DEFAULT_LANGUAGE:
-        return _gettext.NullTranslations()
-    # gettext names directories with an underscore (`pt_BR`), Discord and the
-    # bot use a hyphen (`pt-BR`). The hyphen is what everything outside this
-    # function speaks; the translation is done here and nowhere else.
-    return _gettext.translation(
-        DOMAIN,
-        localedir=LOCALE_DIR,
-        languages=[code.replace("-", "_")],
-        # A missing catalogue renders English. The alternative is a page that
-        # 500s because a language was added to the list before its file was
-        # compiled, and a deploy that half-lands should degrade to English
-        # rather than to nothing.
-        fallback=True,
-    )
+    return _CATALOGUES.translator(code)
 
 
 def direction(code: str) -> str:
