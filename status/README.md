@@ -44,6 +44,7 @@ fail if that leaks.
     status/
       wrangler.toml     the Worker, its D1 binding, its cron, its hostname
       schema.sql        every table, applied once
+      migrations/       one-shot ALTERs for databases that already exist
       src/
         config.js       what is listed, and the private part -> capability map
         logic.js        every decision, with no I/O, so it can be tested
@@ -240,11 +241,15 @@ then sign in and expect the form.
 
 An open incident is shown in its own banner, as information.
 
-**It never moves a colour.** Not the hero, not one pill, not one row. Not
+**It never moves a live colour.** Not the hero, not one pill, not one row. Not
 better than what was measured, and not worse either: an operator opening a
 "down" incident must not paint five working capabilities red for everyone
 reading the page. State is measured; prose is written; the two are shown side
 by side rather than merged.
+
+The single exception is a `maintenance` incident, which changes the *history*
+and never the present. See below; it is the only lever this page gives an
+operator over its own numbers, and it is deliberately a narrow one.
 
 The one thing an open incident does change is the *sentence* at the top,
 which becomes "1 open incident" rather than "All systems operational" while
@@ -253,6 +258,64 @@ above a red banner somebody wrote to say otherwise, is a page arguing with
 itself -- and the all-clear wins, because it is bigger. A real measured
 outage keeps its own headline, which already agrees with the banner and says
 more than a count does.
+
+## Maintenance windows
+
+A deploy takes the bot down for a couple of minutes. Without somewhere to put
+those minutes they land in `daily.down` and read exactly like a crash, which
+over ninety days turns a shipping habit into a wall of bad-looking days.
+
+**Declare the window before you push:**
+
+1. Open `/admin`, post an incident with impact **maintenance**. It is public
+   the moment you submit, which is the point.
+2. Deploy.
+3. Post an update on that incident with status **resolved**. That closes it;
+   there is no separate resolve button, by design.
+
+While the window is open, minutes that would have counted as `down` or
+`degraded` go to `daily.maintenance` instead, which sits outside the uptime
+percentage the same way `unknown` does. The day's tooltip names the excluded
+time out loud -- "100% up (15 minutes of maintenance not counted)" -- because a
+percentage that quietly skipped a quarter of an hour is how a status page loses
+its credit, once, permanently.
+
+**Only the bad minutes move.** `up` still counts as `up` inside a window, and
+`unknown` still counts as `unknown`. Most status pages exclude the entire
+window; that shape is worse here, because a window left open by accident would
+quietly stop measuring a service that was working fine, and the page would have
+less to say the longer the mistake lasted. This way, forgetting to resolve one
+costs nothing until something actually breaks.
+
+**What it cannot do.** Incidents carry no component, so a window covers
+everything -- an unrelated fault during a deploy is excluded too. It is not
+scheduled, either: `started_at` is set when you post, so there is no way to
+announce Tuesday's work on Sunday. Both are worth fixing if this gets used
+enough to be annoying.
+
+**The honest caveat.** This is the one number on the page an operator can
+influence, and it only stays honest because the window is public, timestamped,
+and permanent in `incidents`. The downtime is categorised in the open, not
+erased. Used for actual planned work it is what every status page does; used
+after the fact to tidy up a bad afternoon it is the thing this whole project is
+written to not be.
+
+### Adding the counter to a database that already exists
+
+**Run this BEFORE deploying the Worker, not after.** The page reads
+`daily.maintenance` in the query behind the history strip, so a Worker deployed
+against a database without the column does not degrade gracefully -- it fails
+the read and takes the whole status page down. Migrate first, deploy second:
+
+    npx wrangler d1 execute vrcverify-status --remote \
+      --file status/migrations/001-daily-maintenance.sql
+    npx wrangler deploy --config status/wrangler.toml
+
+`schema.sql` is all `CREATE TABLE IF NOT EXISTS`, so re-running it is a no-op --
+but that does not extend to a new column, which is why this is a separate file.
+A second run of the migration fails with "duplicate column name", which is the
+safe direction to fail in. Fresh databases get the column from `schema.sql` and
+need nothing.
 
 ## The rules this thing holds
 

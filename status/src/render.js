@@ -11,7 +11,7 @@
  * script, and every word here is legible without it.
  */
 
-import { COMPONENTS, UPSTREAMS } from "./config.js";
+import { COMPONENTS, DAY_RED_BELOW_PERCENT, UPSTREAMS } from "./config.js";
 import {
   UPDATE_STATUSES,
   dayUptime,
@@ -95,11 +95,20 @@ export function utcStamp(unixSeconds) {
 function historyStrip(days, rows) {
   const bars = days
     .map((day) => {
-      const { percent, state } = dayUptime(rows?.[day]);
+      const row = rows?.[day];
+      const { percent, state } = dayUptime(row, {
+        redBelowPercent: DAY_RED_BELOW_PERCENT,
+      });
+      // Excluded minutes are SAID OUT LOUD rather than silently left out of the
+      // denominator. A percentage that quietly skipped an hour is the kind of
+      // number a status page loses its credit for once, permanently.
+      const excluded = row?.maintenance ?? 0;
+      const note =
+        excluded > 0 ? ` (${humanDuration(excluded * 60)} of maintenance not counted)` : "";
       const label =
         percent === null
-          ? `${day}: no data`
-          : `${day}: ${percent.toFixed(percent === 100 ? 0 : 2)}% up`;
+          ? `${day}: ${state === "maintenance" ? "maintenance all day" : "no data"}`
+          : `${day}: ${percent.toFixed(percent === 100 ? 0 : 2)}% up${note}`;
       return `<span class="bar is-${state}" title="${escapeHtml(label)}"></span>`;
     })
     .join("");

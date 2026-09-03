@@ -194,20 +194,42 @@ test("the page needs no JavaScript to say anything", () => {
 });
 
 test("history draws one bar a day, and no-data days are their own state", () => {
-  const days = ["2026-08-29", "2026-08-30", "2026-08-31"];
+  const days = ["2026-08-28", "2026-08-29", "2026-08-30", "2026-08-31"];
   const rows = {
+    "2026-08-28": { up: 1400, degraded: 0, down: 40, unknown: 0 },
     "2026-08-29": { up: 1440, degraded: 0, down: 0, unknown: 0 },
     // 2026-08-30 is deliberately absent: the page has to survive a day the
     // checker never ran at all, which is every day before it was deployed.
-    "2026-08-31": { up: 1400, degraded: 0, down: 40, unknown: 0 },
+    "2026-08-31": { up: 1240, degraded: 0, down: 200, unknown: 0 },
   };
   const history = { days, byComponent: { verification: rows } };
   const html = page({ history });
   assert.ok(html.includes('title="2026-08-29: 100% up"'));
   assert.ok(html.includes('title="2026-08-30: no data"'));
   assert.ok(html.includes('class="bar is-unknown"'), "a day nobody observed is not green");
+  // 40 minutes lost is 97.22%: a rough patch, not a bad day. It used to draw
+  // the same red as an outage lasting the whole afternoon, which is what made
+  // the strip worth nothing -- see logic.dayUptime.
+  assert.ok(html.includes('class="bar is-degraded"'), "a short outage is not a whole red day");
+  // 200 minutes is 86.11%, and still is one.
   assert.ok(html.includes('class="bar is-down"'));
-  assert.ok(html.includes("3 days ago"));
+  assert.ok(html.includes("4 days ago"));
+});
+
+test("a declared maintenance window is drawn and named, not silently dropped", () => {
+  const days = ["2026-08-30", "2026-08-31"];
+  const rows = {
+    // A deploy: fifteen minutes, declared, on an otherwise perfect day.
+    "2026-08-30": { up: 1425, degraded: 0, down: 0, unknown: 0, maintenance: 15 },
+    "2026-08-31": { up: 0, degraded: 0, down: 0, unknown: 0, maintenance: 1440 },
+  };
+  const history = { days, byComponent: { verification: rows } };
+  const html = page({ history });
+  // The day reads 100%, and says why in the same breath. A percentage that
+  // quietly skipped a quarter of an hour is how a status page loses its credit.
+  assert.ok(html.includes("2026-08-30: 100% up (15 minutes of maintenance not counted)"));
+  assert.ok(html.includes('class="bar is-maintenance"'), "planned work has its own colour");
+  assert.ok(html.includes('title="2026-08-31: maintenance all day"'));
 });
 
 test("the uptime figure is never rounded up to a clean 100%", () => {
