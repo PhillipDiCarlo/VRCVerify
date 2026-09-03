@@ -520,16 +520,39 @@ GROUP_INVITE_ACCOUNT_CHANGED = N_(
     "This offer was for a different VRChat account than the one you have linked now. Verify again to get a new invite offer for your current account."
 )
 
-# -- every msgid above, for the checks that have to iterate them --
+# -- every msgid in this file, for the checks that have to iterate them --
 #
 # The dict this file used to be could be walked with .items(); a module of
-# constants cannot, and several tests legitimately need to ask "is this string
+# constants cannot, and several checks legitimately need to ask "is this string
 # one of ours" or "does every one of these render in Japanese". Built from
 # globals() rather than hand-listed for the obvious reason: a hand-list is a
-# second place to forget a string, and forgetting one here would silently
+# second place to forget a string, and forgetting one there would silently
 # shrink the very checks that exist to catch a forgotten string.
-ALL_MESSAGES = frozenset(
-    value
-    for name, value in list(globals().items())
-    if name.isupper() and isinstance(value, str)
-)
+#
+# COMPUTED ON FIRST ACCESS, NOT HERE, and that is not a micro-optimisation.
+# The natural way to add a string -- the way the README tells you to -- is to
+# append a constant to the end of this file. A frozenset built at this line
+# would not contain anything written below it, so a newly added string would
+# be missing from `ALL_MESSAGES` while being present in the .pot and in every
+# catalogue. Every check keyed on this set would then quietly stop covering
+# the newest string in the file, which is the one most likely to be wrong.
+#
+# That is not hypothetical: it is what this module did for one commit, and
+# what the .pot-versus-code test caught while #231 was proving out the
+# documented "add a string" workflow.
+_all_messages = None
+
+
+def __getattr__(name: str):
+    """Resolve `ALL_MESSAGES` lazily, so its value cannot depend on where in
+    this file the last constant was written."""
+    if name != "ALL_MESSAGES":
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    global _all_messages
+    if _all_messages is None:
+        _all_messages = frozenset(
+            value
+            for key, value in globals().items()
+            if key.isupper() and isinstance(value, str)
+        )
+    return _all_messages
