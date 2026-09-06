@@ -3,4 +3,4 @@ python-dotenv==1.2.3
 SQLAlchemy==2.0.52
 psycopg2-binary==2.9.12
 pika==1.4.4
-vrchatapi==1.20.7
+vrchatapi==1.20.9
