@@ -70,8 +70,9 @@
     </ul>
     {# THE CARDS CARRY THEIR OWN CTA, which is what every reference in #195
        does and what fills the space Free would otherwise leave -- three
-       features against Premium's six, in a grid that stretches both to the
-       same height.
+       features against Premium's longer list, in a grid that stretches both
+       to the same height. Deliberately not a count: it said "six" and went
+       stale the moment #265 added the seventh and eighth.
        `margin-top: auto` in the stylesheet pins both buttons to the bottom
        edge so they line up across the two cards regardless of that gap. #}
     <a class="button secondary" href="{{ install_url }}" rel="noopener">{% trans %}Add to your server{% endtrans %}</a>
@@ -101,6 +102,8 @@
       <li>{% trans %}A verification log channel{% endtrans %}</li>
       <li>{% trans %}Priority in the verification queue{% endtrans %}</li>
       <li>{% trans %}A branded instructions panel{% endtrans %}</li>
+      <li>{% trans %}A shorter verification cooldown{% endtrans %}</li>
+      <li>{% trans %}VRChat group invites for verified members{% endtrans %}</li>
     </ul>
     {# Into the dashboard rather than into Discord: buying happens signed in,
        where the server is known. The button below the cadence cards says the

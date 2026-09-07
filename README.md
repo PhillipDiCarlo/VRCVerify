@@ -214,6 +214,7 @@ dashboard. See [Two ways to pay](#two-ways-to-pay).
 | Verification activity log channel | — | — | ✅ |
 | Priority placement in the verification queue | — | — | ✅ |
 | Branded instructions panel (colour + icon) | — | — | ✅ |
+| VRChat group invites for verified members | — | — | ✅ |
 
 Auto-verify-on-join is free for everyone and is deliberately not gated at all —
 `on_member_join` never so much as reads an entitlement. Users read "the bot

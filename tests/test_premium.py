@@ -16,6 +16,8 @@ path:
 
 import asyncio
 import logging
+import pathlib
+import re
 from contextlib import contextmanager
 from types import SimpleNamespace
 
@@ -25,6 +27,10 @@ import pytest
 import bot
 import locales
 from i18n_support import template
+
+# Same convention as test_site.py: the two pricing surfaces are read off disk,
+# because the landing page is a static asset with no server to request it from.
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 GUILD_ID = "987654321"
 OWNER_ID = "77"
@@ -1126,6 +1132,102 @@ class TestPremiumStatusCopy:
         # The double-billed message names both, because that reader has to
         # cancel one of them and needs to be told where each one lives.
         assert "User Settings" in locales.PREMIUM_STATUS_ACTIVE_BOTH
+
+
+class TestPricingPagesListEveryFeature:
+    """Issue #265: the two sales pages must sell everything the code gates.
+
+    TestPremiumStatusCopy anchors the *bot* copy to the FEATURE_ constants, so
+    the in-bot pitch has never gone stale. The two pricing surfaces had no
+    equivalent, and both quietly fell two features behind: the reduced cooldown
+    was never listed at all, and the VRChat group invite was announced in the
+    changelog on both the site and the dashboard while the card meant to sell
+    it stayed silent. A prospect could read about a feature in What's new and
+    then not find it on the pricing page.
+
+    These count bullets rather than naming them. The wording differs between
+    the bot ("Reduced verification cooldown") and the cards ("A shorter
+    verification cooldown") because the registers differ, and pinning the exact
+    strings would forbid that. What must not differ is how many things Premium
+    is claimed to include.
+
+    Read off the file rather than a rendered response on purpose: the landing
+    page is a static asset with no server at all, so a test that needed a
+    request could only ever cover half the problem.
+    """
+
+    # Both cards are the `plan-featured` one; the Free card is the plain
+    # `plan-card` immediately above it in both files.
+    PAGES = (
+        "site/index.html",
+        "src/dashboard/templates/pricing.html",
+    )
+
+    @staticmethod
+    def premium_bullets(path):
+        """The `<li>`s inside the Premium card's feature list.
+
+        Whitespace is collapsed and the `{% trans %}` wrapper stripped, so a
+        bullet that gets rewrapped across two lines -- which both files do at
+        about 75 columns -- reads the same as one that fits on a single line.
+        Without that, reflowing a paragraph fails this for no real reason, and
+        a test that cries wolf is one somebody eventually deletes.
+        """
+        text = (ROOT / path).read_text(encoding="utf-8")
+        start = text.index("plan-card plan-featured")
+        block = text[start:text.index("</ul>", start)]
+        # The list opens after the price and blurb; everything before it is
+        # not a feature.
+        block = block[block.index('class="plan-list"'):]
+        bullets = re.findall(r"<li>(.*?)</li>", block, re.S)
+        return [
+            re.sub(r"\s+", " ",
+                   re.sub(r"{%-?\s*(?:end)?trans\s*-?%}", "", b)).strip()
+            for b in bullets
+        ]
+
+    @pytest.mark.parametrize("path", PAGES)
+    def test_the_card_lists_every_feature_the_code_gates(self, path):
+        expected = len(TestPremiumStatusCopy.gated_features())
+        bullets = self.premium_bullets(path)
+        assert len(bullets) == expected, (
+            f"{path} sells {len(bullets)} features and the code gates "
+            f"{expected}. A feature that is gated but unsold is one nobody "
+            f"can be charged for knowingly; add it to the Premium card, or "
+            f"name it in UNANNOUNCED_FEATURES if it is not reachable yet."
+        )
+
+    def test_both_pages_sell_the_same_bundle(self):
+        """#195 put these two cards in step deliberately: a visitor arriving
+        from the landing page's "See pricing" button should meet the same
+        comparison, not a different one. `premium_bullets` strips the
+        dashboard's `{% trans %}` wrappers, so this compares the English.
+        """
+        site, dash = (self.premium_bullets(p) for p in self.PAGES)
+        assert site == dash, (
+            "the landing page and /pricing describe different bundles"
+        )
+
+    def test_the_readme_table_lists_every_gated_feature(self):
+        """The third surface, and it drifted too.
+
+        README's Free/Grandfathered/Premium table is where a contributor looks
+        to find out what the tier actually is, and it was missing the VRChat
+        group invite. Every gated feature is a row whose Free column is a dash;
+        the ungated ones (18+ verification, auto-verify-on-join, the manual
+        nickname button, instructions language) are ticked in all three.
+        """
+        table = (ROOT / "README.md").read_text(encoding="utf-8")
+        start = table.index("| Feature | Free | Grandfathered")
+        rows = [
+            r for r in table[start:].split("\n")[2:]
+            if r.startswith("|")
+        ]
+        gated = [r for r in rows if r.split("|")[2].strip() == "\u2014"]
+        assert len(gated) == len(TestPremiumStatusCopy.gated_features()), (
+            f"the README table describes {len(gated)} gated features and the "
+            f"code gates {len(TestPremiumStatusCopy.gated_features())}"
+        )
 
 
 class TestCutoverCompletionWarning:

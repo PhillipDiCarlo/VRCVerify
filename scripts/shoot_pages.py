@@ -55,6 +55,11 @@ PAGES = [
     ("settings", f"/guild/{PREMIUM}/settings", {}),
     ("settings-free", f"/guild/{FREE}/settings", {}),
     ("subscription", f"/guild/{PREMIUM}/subscription", {}),
+    # /pricing was missing here until #265, which is the page that takes money
+    # from a stranger and the one whose feature list had gone two features
+    # stale. Signed-out content on a signed-in-capable route, so it shoots in
+    # the ordinary batch.
+    ("pricing", "/pricing", {}),
     ("refusal", f"/guild/{PREMIUM}", {"PREVIEW_BOT_DOWN": "1"}),
 ]
 
