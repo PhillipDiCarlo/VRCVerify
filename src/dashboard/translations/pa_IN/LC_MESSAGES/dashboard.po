@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-03 02:52-0400\n"
+"POT-Creation-Date: 2026-09-07 18:35-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pa_Guru_IN\n"
@@ -1378,6 +1378,12 @@ msgstr "ਤਸਦੀਕ ਕਤਾਰ ਵਿੱਚ ਪਹਿਲ"
 
 msgid "A branded instructions panel"
 msgstr "ਤੁਹਾਡੇ ਸਰਵਰ ਦੇ ਰੰਗ ਅਤੇ ਆਈਕਨ ਵਾਲਾ ਹਦਾਇਤ ਪੈਨਲ"
+
+msgid "A shorter verification cooldown"
+msgstr "ਘਟਾਇਆ ਗਿਆ ਤਸਦੀਕ ਕੂਲਡਾਊਨ"
+
+msgid "VRChat group invites for verified members"
+msgstr "ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਲਈ VRChat ਗਰੁੱਪ ਸੱਦੇ"
 
 msgid "Open the dashboard"
 msgstr "ਡੈਸ਼ਬੋਰਡ ਖੋਲ੍ਹੋ"

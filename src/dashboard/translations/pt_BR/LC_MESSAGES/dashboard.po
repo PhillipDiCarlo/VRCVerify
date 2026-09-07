@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-03 02:52-0400\n"
+"POT-Creation-Date: 2026-09-07 18:35-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -1396,6 +1396,12 @@ msgstr "Prioridade na fila de verificação"
 
 msgid "A branded instructions panel"
 msgstr "Um painel de instruções com a sua identidade"
+
+msgid "A shorter verification cooldown"
+msgstr "Tempo de espera de verificação reduzido"
+
+msgid "VRChat group invites for verified members"
+msgstr "Convites ao grupo do VRChat para membros verificados"
 
 msgid "Open the dashboard"
 msgstr "Abrir o painel"
