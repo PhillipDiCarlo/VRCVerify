@@ -1208,6 +1208,27 @@ class TestPricingPagesListEveryFeature:
             "the landing page and /pricing describe different bundles"
         )
 
+    def test_the_readme_table_lists_every_gated_feature(self):
+        """The third surface, and it drifted too.
+
+        README's Free/Grandfathered/Premium table is where a contributor looks
+        to find out what the tier actually is, and it was missing the VRChat
+        group invite. Every gated feature is a row whose Free column is a dash;
+        the ungated ones (18+ verification, auto-verify-on-join, the manual
+        nickname button, instructions language) are ticked in all three.
+        """
+        table = (ROOT / "README.md").read_text(encoding="utf-8")
+        start = table.index("| Feature | Free | Grandfathered")
+        rows = [
+            r for r in table[start:].split("\n")[2:]
+            if r.startswith("|")
+        ]
+        gated = [r for r in rows if r.split("|")[2].strip() == "\u2014"]
+        assert len(gated) == len(TestPremiumStatusCopy.gated_features()), (
+            f"the README table describes {len(gated)} gated features and the "
+            f"code gates {len(TestPremiumStatusCopy.gated_features())}"
+        )
+
 
 class TestCutoverCompletionWarning:
     """Issue #59: the tier must not go live before everyone has been told.
