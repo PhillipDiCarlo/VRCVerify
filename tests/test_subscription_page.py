@@ -516,6 +516,17 @@ class FakeBotAPI:
     def admin_guild_ids(self, actor_id, guild_ids):
         return {GUILD}
 
+    def guild_summaries(self, actor_id, guild_ids):
+        """Only what the picker needs to render on the way past. These tests
+        are about the pricing and subscription pages; the card states have
+        their own coverage in test_dashboard.py."""
+        return {
+            str(GUILD): {
+                "configured": {"verified_role": True, "verified_role_exists": True},
+                "panel": {"posted": True},
+            }
+        }
+
 
 class FakeStripe:
     def __init__(self):

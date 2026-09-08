@@ -31,19 +31,33 @@
   {% else %}
     <ul class="servers">
       {% for server in servers %}
-        {# THREE STATES, NOT TWO.
-           `installed` is false both for a server the bot is not in and for
-           every server when the bot could not be asked -- and those are not
-           the same thing. Treating them the same is what made this page
-           offer "Add to this server" for a server the bot was already in,
-           every time the bot was briefly unreachable, with only the banner
-           above to contradict it.
+        {# FIVE STATES, DECIDED IN `picker_view` RATHER THAN HERE.
+           They used to be three and computed in this template, from
+           `installed` plus `reachable`. Two of them still mean what they did:
 
-           So an unreachable bot means unknown, and unknown offers no install
-           button at all. It is better to make somebody click through and find
-           out than to invite them to reinstall something already working. #}
-        {% set state = 'unknown' if not reachable
-                       else ('ready' if server.installed else 'absent') %}
+             absent   the bot is not in it, OR you do not administer it. Two
+                      answers wearing one name, on purpose -- the bot cannot
+                      tell them apart and must not, since telling them apart
+                      would let a signed-in user map which communities run
+                      18+ gating.
+             unknown  the bot could not be asked. Every card at once. Offers
+                      no install button, because inviting somebody to
+                      reinstall a working bot is worse than making them click
+                      through and find out. That was a real bug on this page.
+
+           The other three replace the single `ready`, which said the same
+           sentence on every working card and so said nothing (#164):
+
+             done     set up and working
+             todo     installed, and something required was never configured
+             broken   configured and NOT working -- the state nothing else
+                      surfaces, because the server looks finished until you
+                      click in
+
+           The state and its wording both arrive on the card. This template
+           picks neither, so adding a sixth is a change in one Python module
+           rather than a new branch scattered through the HTML. #}
+        {% set state = server.state %}
         <li class="server-card {{ state }}">
           {# The shape follows Sentry's project grid: the card does not change,
              the contents of its slots do. A configured project's card carries
@@ -76,16 +90,19 @@
             {% endif %}
           </p>
 
-          {# The slot Sentry fills with a sparkline. There is nothing truthful
-             to put in it yet: this page asks the bot one question -- which of
-             these servers am I in -- and per-server counts would mean one call
-             each. See the note on #133 about a batch summary endpoint. #}
-          {# "absent" IS TWO ANSWERS WEARING ONE NAME, and this line must not
-             pick one of them. `admin_guild_ids` returns the guilds the bot is
-             in AND you administer; its own docstring says a guild missing from
-             that answer means either "bot not there" or "not yours" --
-             indistinguishable on purpose, because telling them apart would let
-             a signed-in user map which communities run 18+ gating.
+          {# The slot Sentry fills with a sparkline, and it now carries
+             something (#164 phase 3). The old note here said there was nothing
+             truthful to put in it, because this page asked the bot one
+             question -- which of these am I in -- and per-server facts would
+             have meant one call each. The batch summary endpoint answers both
+             in one request, so the card can say whether the server is working
+             without the page costing any more than it did.
+
+             "absent" IS STILL TWO ANSWERS WEARING ONE NAME, and its wording
+             must not pick one of them. A guild missing from the summaries
+             means either "bot not there" or "not yours", indistinguishable on
+             purpose, because telling them apart would let a signed-in user map
+             which communities run 18+ gating.
 
              So the card cannot say "VRCVerify isn't in this server yet", which
              is what it said before: a definite claim about the bot's presence,
@@ -95,17 +112,9 @@
 
              `_guild_page_unavailable` -- one click away, same signal -- has
              always got this right: "Either VRCVerify isn't in it, or you don't
-             have the Administrator permission there." This is that sentence,
-             at the width of a card. #}
-          <p class="server-state">
-            {% if state == 'ready' %}
-              {% trans %}Overview, settings and activity{% endtrans %}
-            {% elif state == 'absent' %}
-              {% trans %}Not set up here, or not yours to manage{% endtrans %}
-            {% else %}
-              {% trans %}Can't check this server right now{% endtrans %}
-            {% endif %}
-          </p>
+             have the Administrator permission there." The absent wording is
+             that sentence, at the width of a card. #}
+          <p class="server-state server-state-{{ state }}">{{ server.note }}</p>
 
           {% if state == 'absent' %}
             {# Kept as an OFFER rather than turned into instructions, because

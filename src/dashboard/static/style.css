@@ -1489,6 +1489,20 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * page. The banner above the grid is what explains it. */
 .server-card.unknown .server-state { color: var(--faint); font-style: italic; }
 
+/* The two states that want something doing (#164). Same `--notice` the setup
+ * list uses for its todo and broken rows, so an admin who has seen one
+ * recognises the other -- and applied to the TEXT, which is the slot's whole
+ * content, rather than to a dot or a border that would carry the meaning in
+ * colour alone. The wording says which state it is; the colour only makes it
+ * findable in a grid.
+ *
+ * `done` is deliberately unstyled. Styling every state leaves nothing for the
+ * eye to catch on, which is the failure mode of a grid where six cards are
+ * green and one is amber: the green is noise and the amber has to compete
+ * with it. A working server says so in the ordinary muted voice. */
+.server-state-todo,
+.server-state-broken { color: var(--notice); }
+
 /* --- the empty picker ---
  *
  * Reachable in an ordinary way -- somebody promoted since they last signed in

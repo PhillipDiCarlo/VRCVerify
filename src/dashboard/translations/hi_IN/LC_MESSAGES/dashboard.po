@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 00:02-0400\n"
+"POT-Creation-Date: 2026-09-08 00:43-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: hi_IN\n"
@@ -239,6 +239,20 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "नया"
+
+# | msgid "The verified role needs attention"
+msgid "See which servers need attention"
+msgstr "देखें किन सर्वरों पर ध्यान चाहिए"
+
+msgid ""
+"Your server list now says how each server is doing rather than the same "
+"sentence on every card. A server that was never finished, and one that "
+"was set up and has quietly stopped working, are both visible without "
+"opening them."
+msgstr ""
+"आपकी सर्वर सूची अब हर कार्ड पर एक ही वाक्य दिखाने के बजाय बताती है कि हर "
+"सर्वर का हाल क्या है। जो सर्वर कभी पूरा सेट नहीं हुआ, और जो सेट था पर "
+"चुपचाप काम करना बंद कर चुका है, दोनों बिना खोले दिख जाते हैं।"
 
 msgid "A permission check that was missing"
 msgstr "एक अनुमति जाँच जो छूट गई थी"
@@ -487,6 +501,22 @@ msgstr "आपकी पुरानी सुविधाएँ मुफ़्
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "VRCVerify Premium में अपग्रेड करें"
+
+msgid "Set up and working"
+msgstr "सेट है और काम कर रहा है"
+
+msgid "Setup isn't finished"
+msgstr "सेटअप पूरा नहीं हुआ"
+
+# | msgid "Something went wrong."
+msgid "Something isn't working"
+msgstr "कुछ काम नहीं कर रहा"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "यहाँ सेट नहीं है, या आपके प्रबंधन में नहीं है"
+
+msgid "Can't check this server right now"
+msgstr "अभी इस सर्वर की जाँच नहीं हो सकती"
 
 # | msgid "A verification log channel"
 msgid "Verification"
@@ -1330,15 +1360,6 @@ msgstr "साइन आउट करके फिर से शुरू कर
 msgid "You'll be asked to sign in with Discord again."
 msgstr "आपसे दोबारा Discord से साइन इन करने को कहा जाएगा।"
 
-msgid "Overview, settings and activity"
-msgstr "अवलोकन, सेटिंग्स और गतिविधि"
-
-msgid "Not set up here, or not yours to manage"
-msgstr "यहाँ सेट नहीं है, या आपके प्रबंधन में नहीं है"
-
-msgid "Can't check this server right now"
-msgstr "अभी इस सर्वर की जाँच नहीं हो सकती"
-
 # | msgid "Add to your server"
 msgid "Add to server"
 msgstr "सर्वर में जोड़ें"
@@ -1872,4 +1893,7 @@ msgstr ""
 "है</a> — वहाँ क़ीमत और सुविधाएँ दी हैं, पर सर्वर आप चेकआउट के दौरान चुनते"
 " हैं, इसलिए अगर आप एक से ज़्यादा सर्वर संभालते हैं तो ऊपर वाला कमांड "
 "इस्तेमाल करें।"
+
+#~ msgid "Overview, settings and activity"
+#~ msgstr "अवलोकन, सेटिंग्स और गतिविधि"
 

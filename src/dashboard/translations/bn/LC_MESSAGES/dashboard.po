@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 00:02-0400\n"
+"POT-Creation-Date: 2026-09-08 00:43-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: bn\n"
@@ -237,6 +237,20 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "নতুন"
+
+# | msgid "The verified role needs attention"
+msgid "See which servers need attention"
+msgstr "দেখুন কোন সার্ভারে নজর দরকার"
+
+msgid ""
+"Your server list now says how each server is doing rather than the same "
+"sentence on every card. A server that was never finished, and one that "
+"was set up and has quietly stopped working, are both visible without "
+"opening them."
+msgstr ""
+"আপনার সার্ভার তালিকা এখন প্রতিটি কার্ডে একই বাক্য না দেখিয়ে প্রতিটি "
+"সার্ভারের অবস্থা জানায়। যে সার্ভারের সেটআপ কখনও শেষ হয়নি, আর যেটি সেট "
+"করা ছিল কিন্তু নীরবে কাজ করা বন্ধ করেছে, দুটোই না খুলেই দেখা যায়।"
 
 msgid "A permission check that was missing"
 msgstr "একটি অনুমতি যাচাই যা বাদ পড়েছিল"
@@ -485,6 +499,22 @@ msgstr "আপনার পুরোনো সুবিধাগুলো ফ্
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "VRCVerify Premium-এ আপগ্রেড করুন"
+
+msgid "Set up and working"
+msgstr "সেট করা আছে ও কাজ করছে"
+
+msgid "Setup isn't finished"
+msgstr "সেটআপ শেষ হয়নি"
+
+# | msgid "Something went wrong."
+msgid "Something isn't working"
+msgstr "কিছু একটা কাজ করছে না"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "এখানে সেট করা নেই, বা আপনার পরিচালনায় নয়"
+
+msgid "Can't check this server right now"
+msgstr "এই সার্ভারটি এখন পরীক্ষা করা যাচ্ছে না"
 
 # | msgid "A verification log channel"
 msgid "Verification"
@@ -1327,15 +1357,6 @@ msgstr "সাইন আউট করে আবার শুরু করুন"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "আপনাকে আবার Discord দিয়ে সাইন ইন করতে বলা হবে।"
 
-msgid "Overview, settings and activity"
-msgstr "সারসংক্ষেপ, সেটিংস ও কার্যকলাপ"
-
-msgid "Not set up here, or not yours to manage"
-msgstr "এখানে সেট করা নেই, বা আপনার পরিচালনায় নয়"
-
-msgid "Can't check this server right now"
-msgstr "এই সার্ভারটি এখন পরীক্ষা করা যাচ্ছে না"
-
 # | msgid "Add to your server"
 msgid "Add to server"
 msgstr "সার্ভারে যোগ করুন"
@@ -1865,4 +1886,7 @@ msgstr ""
 "target=\"_blank\">Discord-এর স্টোর পাতায় দেখুন কী কী রয়েছে</a> — সেখানে"
 " দাম আর সুবিধাগুলো দেওয়া আছে, তবে সার্ভার আপনি চেকআউটের সময় বেছে নেন, "
 "তাই একাধিক সার্ভার সামলালে উপরের কমান্ডটি ব্যবহার করুন।"
+
+#~ msgid "Overview, settings and activity"
+#~ msgstr "সারসংক্ষেপ, সেটিংস ও কার্যকলাপ"
 

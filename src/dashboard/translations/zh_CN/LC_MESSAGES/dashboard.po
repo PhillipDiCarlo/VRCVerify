@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 00:02-0400\n"
+"POT-Creation-Date: 2026-09-08 00:43-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -199,6 +199,17 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "新"
+
+# | msgid "The verified role needs attention"
+msgid "See which servers need attention"
+msgstr "一眼看出哪些服务器需要处理"
+
+msgid ""
+"Your server list now says how each server is doing rather than the same "
+"sentence on every card. A server that was never finished, and one that "
+"was set up and has quietly stopped working, are both visible without "
+"opening them."
+msgstr "服务器列表现在会说明每台服务器的状况，而不是在每张卡片上重复同一句话。从未配置完成的服务器，以及配置好之后悄悄停止工作的服务器，都无需点进去就能看到。"
 
 msgid "A permission check that was missing"
 msgstr "补上了一项缺失的权限检查"
@@ -424,6 +435,22 @@ msgstr "无论你如何选择，你保留的旧有权益都将继续免费。"
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "升级到 VRCVerify Premium"
+
+msgid "Set up and working"
+msgstr "已设置并正常运行"
+
+msgid "Setup isn't finished"
+msgstr "设置尚未完成"
+
+# | msgid "Something went wrong."
+msgid "Something isn't working"
+msgstr "有些地方不正常"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "这里尚未设置，或不归你管理"
+
+msgid "Can't check this server right now"
+msgstr "暂时无法检查此服务器"
 
 # | msgid "A verification log channel"
 msgid "Verification"
@@ -1189,15 +1216,6 @@ msgstr "退出登录并重新开始"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "系统会再次要求你使用 Discord 登录。"
 
-msgid "Overview, settings and activity"
-msgstr "概览、设置与活动"
-
-msgid "Not set up here, or not yours to manage"
-msgstr "这里尚未设置，或不归你管理"
-
-msgid "Can't check this server right now"
-msgstr "暂时无法检查此服务器"
-
 # | msgid "Add to your server"
 msgid "Add to server"
 msgstr "添加到服务器"
@@ -1640,4 +1658,7 @@ msgstr ""
 "<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" target=\"_blank\">在"
 " Discord 商店页面查看包含哪些内容</a> —— "
 "那里列出了价格和权益，但服务器要在结账过程中选择，所以如果你管理不止一个服务器，请使用上面的命令。"
+
+#~ msgid "Overview, settings and activity"
+#~ msgstr "概览、设置与活动"
 

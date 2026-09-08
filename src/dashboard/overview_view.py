@@ -618,9 +618,17 @@ def build_setup(
         for key, label, note in OPTIONAL_ROWS
     ]
 
+    # `required` names the two rows that decide `complete`, so a second caller
+    # can ask "which rows must be done" without hardcoding a list beside this
+    # one. The picker's cards read it (#164 phase 3): they need three states
+    # where `complete` is a boolean, and re-deriving "the required ones are the
+    # first two" from row order is exactly the drift this whole function was
+    # written to end.
+    required = (role, panel)
     return {
         "rows": rows,
-        "complete": role["state"] == "done" and panel["state"] == "done",
+        "required": tuple(row["key"] for row in required),
+        "complete": all(row["state"] == "done" for row in required),
     }
 
 

@@ -212,6 +212,17 @@ _FIELD_SEPARATOR = ":"
 # reachable for three weeks by then.
 ENTRIES = (
     Entry(
+        id="2026-09-picker-card-states",
+        date=date(2026, 9, 8),
+        title=N_("See which servers need attention"),
+        body=(
+            N_("Your server list now says how each server is doing rather "
+            "than the same sentence on every card. A server that was never "
+            "finished, and one that was set up and has quietly stopped "
+            "working, are both visible without opening them.")
+        ),
+    ),
+    Entry(
         id="2026-09-manage-roles-check",
         date=date(2026, 9, 8),
         title=N_("A permission check that was missing"),

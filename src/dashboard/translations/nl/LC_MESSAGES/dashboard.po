@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 00:02-0400\n"
+"POT-Creation-Date: 2026-09-08 00:43-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: nl\n"
@@ -244,6 +244,21 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "Nieuw"
+
+# | msgid "The verified role needs attention"
+msgid "See which servers need attention"
+msgstr "Zie welke servers aandacht nodig hebben"
+
+msgid ""
+"Your server list now says how each server is doing rather than the same "
+"sentence on every card. A server that was never finished, and one that "
+"was set up and has quietly stopped working, are both visible without "
+"opening them."
+msgstr ""
+"Je serverlijst zegt nu hoe het met elke server gaat, in plaats van "
+"dezelfde zin op elke kaart. Een server die nooit is afgerond, en een die "
+"was ingesteld en stilletjes is gestopt met werken, zijn allebei te zien "
+"zonder ze te openen."
 
 msgid "A permission check that was missing"
 msgstr "Een ontbrekende rechtencontrole"
@@ -496,6 +511,22 @@ msgstr "Je overgenomen extra's blijven gratis, wat je ook besluit."
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "Upgraden naar VRCVerify Premium"
+
+msgid "Set up and working"
+msgstr "Ingesteld en werkend"
+
+msgid "Setup isn't finished"
+msgstr "Instellen is niet afgerond"
+
+# | msgid "Something went wrong."
+msgid "Something isn't working"
+msgstr "Er werkt iets niet"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "Hier niet ingesteld, of niet van jou om te beheren"
+
+msgid "Can't check this server right now"
+msgstr "Deze server is nu niet te controleren"
 
 # | msgid "A verification log channel"
 msgid "Verification"
@@ -1358,15 +1389,6 @@ msgstr "Uitloggen en opnieuw beginnen"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "Je wordt gevraagd opnieuw met Discord in te loggen."
 
-msgid "Overview, settings and activity"
-msgstr "Overzicht, instellingen en activiteit"
-
-msgid "Not set up here, or not yours to manage"
-msgstr "Hier niet ingesteld, of niet van jou om te beheren"
-
-msgid "Can't check this server right now"
-msgstr "Deze server is nu niet te controleren"
-
 # | msgid "Add to your server"
 msgid "Add to server"
 msgstr "Aan server toevoegen"
@@ -1911,4 +1933,7 @@ msgstr ""
 "daar staan de prijs en de voordelen, maar de server kies je tijdens het "
 "afrekenen, dus gebruik het commando hierboven als je er meer dan één "
 "beheert."
+
+#~ msgid "Overview, settings and activity"
+#~ msgstr "Overzicht, instellingen en activiteit"
 

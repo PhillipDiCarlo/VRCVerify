@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 00:02-0400\n"
+"POT-Creation-Date: 2026-09-08 00:43-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
@@ -240,6 +240,21 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "Новое"
+
+# | msgid "The verified role needs attention"
+msgid "See which servers need attention"
+msgstr "Видно, каким серверам нужно внимание"
+
+msgid ""
+"Your server list now says how each server is doing rather than the same "
+"sentence on every card. A server that was never finished, and one that "
+"was set up and has quietly stopped working, are both visible without "
+"opening them."
+msgstr ""
+"Список серверов теперь показывает состояние каждого, а не одну и ту же "
+"фразу на каждой карточке. И сервер, который так и не настроили, и сервер,"
+" который был настроен и незаметно перестал работать, видны, не открывая "
+"их."
 
 msgid "A permission check that was missing"
 msgstr "Проверка прав, которой не хватало"
@@ -498,6 +513,22 @@ msgstr ""
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "Перейти на VRCVerify Premium"
+
+msgid "Set up and working"
+msgstr "Настроен и работает"
+
+msgid "Setup isn't finished"
+msgstr "Настройка не завершена"
+
+# | msgid "Something went wrong."
+msgid "Something isn't working"
+msgstr "Что-то не работает"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "Здесь не настроено или не в вашем управлении"
+
+msgid "Can't check this server right now"
+msgstr "Сейчас этот сервер не проверить"
 
 # | msgid "A verification log channel"
 msgid "Verification"
@@ -1350,15 +1381,6 @@ msgstr "Выйти и начать заново"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "Вас снова попросят войти через Discord."
 
-msgid "Overview, settings and activity"
-msgstr "Обзор, настройки и активность"
-
-msgid "Not set up here, or not yours to manage"
-msgstr "Здесь не настроено или не в вашем управлении"
-
-msgid "Can't check this server right now"
-msgstr "Сейчас этот сервер не проверить"
-
 # | msgid "Add to your server"
 msgid "Add to server"
 msgstr "Добавить на сервер"
@@ -1897,4 +1919,7 @@ msgstr ""
 "Discord</a> — там указаны цена и возможности, но сервер выбирается во "
 "время оплаты, поэтому используйте команду выше, если управляете не одним "
 "сервером."
+
+#~ msgid "Overview, settings and activity"
+#~ msgstr "Обзор, настройки и активность"
 

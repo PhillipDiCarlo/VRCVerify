@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 00:02-0400\n"
+"POT-Creation-Date: 2026-09-08 00:43-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -190,6 +190,16 @@ msgid "Premium"
 msgstr ""
 
 msgid "New"
+msgstr ""
+
+msgid "See which servers need attention"
+msgstr ""
+
+msgid ""
+"Your server list now says how each server is doing rather than the same "
+"sentence on every card. A server that was never finished, and one that "
+"was set up and has quietly stopped working, are both visible without "
+"opening them."
 msgstr ""
 
 msgid "A permission check that was missing"
@@ -391,6 +401,21 @@ msgid "Your grandfathered extras stay free whatever you decide."
 msgstr ""
 
 msgid "Upgrade to VRCVerify Premium"
+msgstr ""
+
+msgid "Set up and working"
+msgstr ""
+
+msgid "Setup isn't finished"
+msgstr ""
+
+msgid "Something isn't working"
+msgstr ""
+
+msgid "Not set up here, or not yours to manage"
+msgstr ""
+
+msgid "Can't check this server right now"
 msgstr ""
 
 msgid "Verification"
@@ -1114,15 +1139,6 @@ msgid "Sign out and start again"
 msgstr ""
 
 msgid "You'll be asked to sign in with Discord again."
-msgstr ""
-
-msgid "Overview, settings and activity"
-msgstr ""
-
-msgid "Not set up here, or not yours to manage"
-msgstr ""
-
-msgid "Can't check this server right now"
 msgstr ""
 
 msgid "Add to server"

@@ -85,6 +85,11 @@ PAIRS = [
     # pair on them needs its own entry. Only `ink on inset` was listed before
     # -- for text typed into an input -- and the price, the saving, the plan
     # label and the trial chip were all riding on that one line.
+    # #164 phase 3: the picker's cards say whether each server is working, and
+    # they are drawn on --inset like the plan cards. The setup list's identical
+    # wording rides on ("notice", "panel") above, which is a different ground
+    # and therefore a different ratio -- the exact trap #141 phase 2 hit.
+    ("notice", "inset", "a server card that needs setup or has stopped working"),
     ("ink", "inset", "the price on a plan card"),
     ("muted", "inset", "a plan's label"),
     ("faint", "inset", "the per-period suffix beside a price"),

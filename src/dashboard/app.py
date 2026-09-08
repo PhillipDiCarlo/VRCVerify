@@ -74,6 +74,7 @@ from dashboard import (
     i18n,
     oauth,
     overview_view,
+    picker_view,
     settings_view,
     stripe_events,
     subscription_view,
@@ -1136,31 +1137,40 @@ def _register_routes(app: Flask) -> None:
         candidates = [g_ for g_ in (session.guilds or []) if g_.get("admin_hint")]
 
         try:
-            installed = _bot_api().admin_guild_ids(
+            # ONE CALL, not two. This answers the membership question as well:
+            # the bot summarises only guilds this caller administers, so a
+            # guild absent from the result carries exactly what
+            # `admin_guild_ids` carried. Asking both would run the bot's
+            # authority check twice per page load -- and this is the landing
+            # page of every signed-in session -- and would let membership and
+            # state disagree about the same server in the same render.
+            summaries = _bot_api().guild_summaries(
                 int(session.discord_id), [g_["id"] for g_ in candidates]
             )
             reachable = True
         except BotAPIError as error:
-            # The picker still renders, with everything shown as un-installed
-            # and a banner explaining why. Better than a blank page that looks
-            # like the user has no servers.
+            # The picker still renders, every card in the "unknown" state and a
+            # banner explaining why. Better than a blank page that looks like
+            # the user has no servers, and better than "un-installed", which
+            # would offer to reinstall a bot that is working fine.
             logger.warning("bot API unreachable while rendering the picker: %s", error)
-            installed = set()
+            summaries = None
             reachable = False
 
-        servers = [
-            {
-                "id": g_["id"],
-                "name": g_["name"],
-                "icon_url": oauth.icon_url(g_),
-                "installed": g_["id"] in installed,
-                "invite_url": _invite_url(config.discord_client_id, g_["id"]),
-            }
-            for g_ in candidates
-        ]
-        # Installed first, then alphabetical -- the ones you can actually
-        # configure are the reason you came.
-        servers.sort(key=lambda s: (not s["installed"], s["name"].lower()))
+        servers = picker_view.build_cards(
+            [
+                {
+                    "id": g_["id"],
+                    "name": g_["name"],
+                    "icon_url": oauth.icon_url(g_),
+                    "invite_url": _invite_url(config.discord_client_id, g_["id"]),
+                }
+                for g_ in candidates
+            ],
+            summaries,
+            reachable=reachable,
+            t=_translator(),
+        )
 
         return render_template(
             "picker.html",
