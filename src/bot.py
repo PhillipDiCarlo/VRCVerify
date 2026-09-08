@@ -111,6 +111,69 @@ DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 
+def refuse_ad_hoc_database(
+    url: Optional[str], *, imported: bool, override: str = ""
+) -> Optional[str]:
+    """Why a real database must not be opened by an imported `bot`.
+
+    THIS MODULE CONNECTS AT IMPORT TIME. `load_dotenv()` above reads the `.env`
+    beside it, `DATABASE_URL` comes out of that, and `create_engine` below runs
+    at module scope. So `import bot` -- from a heredoc, a file in /tmp, a
+    `python3 -c` one-liner -- opens a writable connection to whatever `.env`
+    names, which on any developer checkout is production. There is no function
+    to call first and nothing to pass.
+
+    On 2026-09-08 that emptied the `servers` table: 993 rows, including the
+    `id` values that decide grandfathered premium. The script was borrowing
+    `session.query(Server).delete()` from the test suite's teardown, where it
+    is correct, and running it where it was not. `tests/conftest.py` had always
+    prevented exactly this by setting a SQLite URL before importing, but
+    conftest is loaded by pytest and by nothing else.
+
+    THE CONDITION IS IMPORT-VERSUS-RUN, NOT AN ENVIRONMENT VARIABLE, and that
+    is the whole design. The container runs `python src/bot.py`, so `__name__`
+    is `"__main__"` and it is unaffected -- no new variable to set, nothing the
+    deployment can forget, and therefore no way for this guard to cause an
+    outage. Nothing else in `src/` imports this module, so there is no second
+    legitimate caller to accommodate.
+
+    SQLite is always allowed, in both directions: it is what the test suite
+    uses, and a local file cannot be somebody's production data.
+
+    Returns the reason to refuse, or None to proceed. Pure, so the decision is
+    testable without an import or a database.
+    """
+    if not imported:
+        return None
+    if not url:
+        return None
+    if url.startswith("sqlite"):
+        return None
+    if override == "1":
+        return None
+    # Named, so the message says which database was declined rather than
+    # leaving somebody to guess which .env was in play. The credential is not
+    # in either half of the split.
+    where = url.split("@", 1)[1] if "@" in url else url
+    return (
+        f"refusing to open {where} because bot.py was imported rather than run. "
+        "Importing this module connects to whatever DATABASE_URL names, with "
+        "write access, which is how the servers table was emptied on "
+        "2026-09-08. Use pytest (conftest sets a SQLite URL), or export "
+        "DATABASE_URL=sqlite:///:memory: before the import. If you genuinely "
+        "mean to touch this database, set VRCVERIFY_ALLOW_DB_IMPORT=1."
+    )
+
+
+_refusal = refuse_ad_hoc_database(
+    DATABASE_URL,
+    imported=__name__ != "__main__",
+    override=os.getenv("VRCVERIFY_ALLOW_DB_IMPORT", ""),
+)
+if _refusal is not None:
+    raise RuntimeError(_refusal)
+
+
 RABBITMQ_REQUEST_QUEUE = os.getenv("RABBITMQ_QUEUE_NAME") # The queue to which we send verification requests (the "inbound" queue for vrc_online_checker).
 RABBITMQ_RESULT_QUEUE = os.getenv("RABBITMQ_RESULT_QUEUE") # The queue from which we *receive* the verification results back from vrc_online_checker.
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
