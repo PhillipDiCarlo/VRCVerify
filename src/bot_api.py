@@ -63,7 +63,6 @@ from api_tokens import (  # noqa: F401  (re-exported)
     DEFAULT_TOKEN_TTL,
     MIN_SIGNING_KEY_BYTES,
     OP_GUILD_SUMMARIES,
-    OP_LIST_GUILDS,
     OP_PUT_STRIPE_SUBSCRIPTION,
     SYSTEM_ACTOR_ID,
     SYSTEM_OPERATIONS,
@@ -194,12 +193,15 @@ class BotAPIDeps:
     # The same check, for the picker: narrows a caller's own guild list to the
     # ones they administer. Kept as its own reader rather than a loop over
     # is_admin so the bot can bound the work it does in one pass.
-    read_admin_guilds: Callable[[int, list], Awaitable[Optional[list]]]
-    # The same question's second half, for the picker's cards: a small
-    # per-guild summary, for the guilds this actor administers and no
-    # others. Takes (actor_id, guild_ids) and returns a dict keyed by
-    # guild id, in which a guild the caller has no standing in is ABSENT
-    # rather than present and empty.
+    # The picker's one call. A small per-guild summary, for the guilds this
+    # actor administers and no others. Takes (actor_id, guild_ids) and returns
+    # a dict keyed by guild id, in which a guild the caller has no standing in
+    # is ABSENT rather than present and empty.
+    #
+    # It answers the membership question too, which is why there is no longer
+    # a separate list-guilds reader beside it: a guild missing from the result
+    # means either "bot not there" or "not yours", the same deliberate
+    # ambiguity, and asking twice ran the authority check twice.
     read_guild_summaries: Callable[[int, list], Awaitable[Optional[dict]]]
     read_settings: Callable[[int], Awaitable[Optional[dict]]]
     read_roles: Callable[[int], Awaitable[Optional[list]]]
@@ -682,74 +684,42 @@ async def handle_health(request: web.Request) -> web.Response:
     return _json({"ok": True, "ready": bool(deps.is_ready())})
 
 
-async def handle_list_guilds(request: web.Request) -> web.Response:
-    """Which of the caller's guilds this bot is in AND the caller administers.
+async def handle_guild_summaries(request: web.Request) -> web.Response:
+    """The picker's per-guild summaries, for a whole list of ids at once.
 
-    Names and icons are NOT returned, because the dashboard already has them:
-    they came from the user's OAuth guild list, which is where the picker gets
-    its tiles. All this adds is the bit the dashboard cannot know — whether the
-    bot is present — which decides greyscale-with-an-invite versus a link into
-    the settings pages.
+    THIS IS THE ONE ENDPOINT THAT ANSWERS ABOUT A LIST THE CALLER CHOOSES, and
+    the reasoning below used to live on `handle_list_guilds`, which this
+    replaced and which #164 retired. It is restated in full rather than
+    referred to, because it is the property the whole picker rests on and it
+    should not need a second file to explain it.
 
-    The Administrator filter is not decoration. An earlier version answered
-    "is the bot in this guild?" for any id the caller sent, which made this the
-    one endpoint not bounded by the bot's own authority check. Under the design
-    assumption that the public host is eventually compromised — and a
-    compromised host holds the signing key, so it can mint tokens for any
-    actor — that turned into an unbounded oracle: walk arbitrary ids and
-    enumerate every server running this bot, i.e. a census of communities
-    operating 18+ gating. Every other endpoint yields only what a real
-    administrator could already see, and this one now matches.
+    Names and icons are NOT returned. The dashboard already has them from the
+    user's OAuth guild list, which is where the cards get their tiles. All
+    this adds is what the dashboard cannot know: whether the bot is present,
+    and whether the server is actually working.
+
+    THE ADMINISTRATOR FILTER IS NOT DECORATION. An earlier version of the
+    endpoint this replaced answered "is the bot in this guild?" for any id the
+    caller sent, which made it the one route not bounded by the bot's own
+    authority check. Under the design assumption that the public host is
+    eventually compromised -- and a compromised host holds the signing key, so
+    it can mint tokens for any actor -- that is an unbounded oracle: walk
+    arbitrary ids and enumerate every server running this bot, which is a
+    census of communities operating 18+ gating. Every other endpoint yields
+    only what a real administrator could already see, and this one matches.
 
     So the answer is never about a guild the caller has no standing in, and a
     guild the caller does not administer is indistinguishable from one the bot
     has never joined.
-    """
-    try:
-        claims = await _authorize(request, guild_scoped=False)
-    except _Denied as denied:
-        return denied.response
-
-    deps: BotAPIDeps = request.app[DEPS_KEY]
-    raw_ids = (request.query.get("ids") or "").strip()
-    if not raw_ids:
-        return _json({"present": []})
-
-    candidates = [chunk for chunk in raw_ids.split(",") if chunk]
-    if len(candidates) > MAX_GUILD_IDS:
-        return _deny(request, 400, "too_many_ids", actor=claims.actor_id)
-
-    guild_ids = []
-    for candidate in candidates:
-        try:
-            guild_ids.append(int(candidate))
-        except ValueError:
-            return _deny(request, 400, "bad_guild_id", actor=claims.actor_id)
-
-    present = await deps.read_admin_guilds(claims.actor_id, guild_ids)
-    if present is None:
-        return _deny(request, 503, "unavailable", actor=claims.actor_id)
-    return _json({"present": [str(guild_id) for guild_id in present]})
-
-
-async def handle_guild_summaries(request: web.Request) -> web.Response:
-    """The picker's per-guild summaries, for a whole list of ids at once.
-
-    Deliberately the same shape as `handle_list_guilds`, because it carries the
-    same disclosure risk by a different route. Everything that endpoint's
-    docstring says about walking arbitrary ids applies here unchanged: a
-    compromised dashboard host holds the signing key and can therefore mint a
-    token for any actor, so an endpoint that answered about ids the caller has
-    no standing in would be a census of every community running 18+ gating.
 
     The summary is attached AFTER the standing filter and never before it, and
-    a guild the caller does not administer is missing from the response rather
-    than present with a null body. That distinction is the whole thing: a key
-    that is always there, holding nothing, still answers the question.
+    such a guild is MISSING from the response rather than present with a null
+    body. That distinction is the whole thing: a key that is always there,
+    holding nothing, still answers the question.
 
-    Same cap and same denials as the membership check, and a failed read is a
-    503 rather than a partial answer -- the picker renders its cards without
-    state, which is better than cards asserting a state nobody checked.
+    A failed read is a 503 rather than a partial answer -- the picker renders
+    every card in its "unknown" state, which is better than cards asserting a
+    state nobody checked.
     """
     try:
         claims = await _authorize(request, guild_scoped=False)
@@ -1042,7 +1012,6 @@ def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
     )
 
     app.router.add_get("/healthz", handle_health)
-    app.router.add_get("/api/v1/guilds", handle_list_guilds)
     # Before the `{guild_id}` routes below. They are one segment longer so
     # there is no ambiguity to resolve, but registering the static path first
     # keeps it that way if one of them is ever shortened.

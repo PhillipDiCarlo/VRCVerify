@@ -72,17 +72,18 @@ def test_every_preview_server_is_obviously_invented():
 def test_the_two_failing_servers_fail_for_different_reasons():
     """They are not interchangeable, and the difference is the point.
 
-    "Bot not added" must be absent from `admin_guild_ids`, because that is
-    what the picker draws its un-installed card from. "Bot unreachable" must
-    be present: a server the bot is in but cannot answer for is an outage,
-    which is a real production state and the one `error.html` exists for.
+    "Bot not added" must be absent from `guild_summaries`, because that
+    absence is what the picker draws its un-installed card from. "Bot
+    unreachable" must be present: a server the bot is in but cannot answer
+    for is an outage, which is a real production state and the one
+    `error.html` exists for.
     """
     stub = PreviewBotAPI()
-    installed = stub.admin_guild_ids(1, [g["id"] for g in GUILDS])
+    summarised = set(stub.guild_summaries(1, [g["id"] for g in GUILDS]))
 
-    assert installed == INSTALLED
-    assert NOT_ADDED not in installed
-    assert UNREACHABLE in installed
+    assert summarised == INSTALLED
+    assert NOT_ADDED not in summarised
+    assert UNREACHABLE in summarised
 
     # Both refuse every read, by different statuses that render differently.
     for guild_id, status in ((NOT_ADDED, 404), (UNREACHABLE, 503)):

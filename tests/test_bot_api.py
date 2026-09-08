@@ -97,11 +97,6 @@ def make_deps(written=None, posted=None, mirrored=None, checked=None, **override
     async def is_admin(guild_id, user_id):
         return int(user_id) == ADMIN_ID
 
-    async def read_admin_guilds(user_id, guild_ids):
-        if int(user_id) != ADMIN_ID:
-            return []
-        return [gid for gid in guild_ids if int(gid) == GUILD_ID]
-
     async def read_guild_summaries(user_id, guild_ids):
         # Mirrors the real reader's contract: only guilds this actor
         # administers appear, and one they do not is ABSENT rather than
@@ -166,7 +161,6 @@ def make_deps(written=None, posted=None, mirrored=None, checked=None, **override
         is_ready=lambda: True,
         guild_present=lambda guild_id: int(guild_id) == GUILD_ID,
         is_admin=is_admin,
-        read_admin_guilds=read_admin_guilds,
         read_guild_summaries=read_guild_summaries,
         read_settings=read_settings,
         read_roles=read_roles,
@@ -750,101 +744,6 @@ class TestRequests:
         assert "actor=unknown" in caplog.text
 
 
-class TestGuildList:
-    OP = bot_api.OP_LIST_GUILDS
-
-    def token(self, actor_id=ADMIN_ID):
-        return bot_api.mint_token(
-            SIGNING_KEY, actor_id=actor_id, operation=self.OP, guild_id=None
-        )
-
-    def test_returns_only_the_guilds_the_bot_is_in(self):
-        async def scenario(client):
-            return await get(
-                client,
-                f"/api/v1/guilds?ids={GUILD_ID},{OTHER_GUILD_ID}",
-                self.token(),
-            )
-
-        status, body = serve(scenario)
-        assert status == 200
-        assert body == {"present": [str(GUILD_ID)]}
-
-    def test_it_is_not_a_bot_presence_oracle(self):
-        """The bug this endpoint shipped with, pinned shut.
-
-        It used to answer "is the bot in this guild?" for any id the caller
-        sent, making it the one endpoint not bounded by the bot's own authority
-        check. Since a compromised dashboard holds the signing key and can mint
-        a token for any actor, that let an attacker walk arbitrary ids and
-        enumerate every server running this bot.
-        """
-
-        async def scenario(client):
-            return await get(
-                client,
-                # GUILD_ID is a real guild the bot is in — but this caller has
-                # no standing in it, so it must come back indistinguishable
-                # from one the bot has never joined.
-                f"/api/v1/guilds?ids={GUILD_ID},{OTHER_GUILD_ID}",
-                self.token(actor_id=MEMBER_ID),
-            )
-
-        status, body = serve(scenario)
-        assert status == 200
-        assert body == {"present": []}
-
-    def test_an_unreadable_answer_is_a_503_not_an_empty_list(self):
-        """An empty list means "none of these"; it must not mean "we failed"."""
-
-        async def unavailable(user_id, guild_ids):
-            return None
-
-        async def scenario(client):
-            return await get(
-                client, f"/api/v1/guilds?ids={GUILD_ID}", self.token()
-            )
-
-        status, body = serve(scenario, deps=make_deps(read_admin_guilds=unavailable))
-        assert status == 503
-        assert body["error"] == "unavailable"
-
-    def test_a_guild_scoped_token_cannot_reach_it(self):
-        async def scenario(client):
-            return await get(client, "/api/v1/guilds", token_for(self.OP))
-
-        status, body = serve(scenario)
-        assert status == 403
-        assert body["error"] == "wrong_guild"
-
-    def test_an_oversized_query_is_refused(self):
-        async def scenario(client):
-            ids = ",".join(str(n) for n in range(bot_api.MAX_GUILD_IDS + 1))
-            return await get(client, f"/api/v1/guilds?ids={ids}", self.token())
-
-        status, body = serve(scenario)
-        assert status == 400
-        assert body["error"] == "too_many_ids"
-
-    def test_the_actor_is_taken_from_the_token_not_the_query(self):
-        """There is no way to ask on someone else's behalf."""
-        seen = {}
-
-        async def record(user_id, guild_ids):
-            seen["actor"] = int(user_id)
-            return []
-
-        async def scenario(client):
-            return await get(
-                client,
-                f"/api/v1/guilds?ids={GUILD_ID}&user_id={ADMIN_ID}",
-                self.token(actor_id=MEMBER_ID),
-            )
-
-        serve(scenario, deps=make_deps(read_admin_guilds=record))
-        assert seen["actor"] == MEMBER_ID
-
-
 class TestGuildSummaries:
     """The picker's per-guild summaries. Same disclosure risk as the
     membership check above, by a different route, so it is held to the same
@@ -906,25 +805,20 @@ class TestGuildSummaries:
         assert status == 503
         assert body["error"] == "unavailable"
 
-    def test_a_membership_token_cannot_be_replayed_here(self):
-        """The reason this is its own operation rather than a widened
-        OP_LIST_GUILDS."""
+    def test_a_token_for_another_operation_cannot_be_replayed_here(self):
+        """The operation is part of what is signed, so a token minted to read
+        one guild's settings cannot be turned on the whole list."""
 
         async def scenario(client):
             return await get(
                 client,
                 f"/api/v1/guilds/summaries?ids={GUILD_ID}",
-                bot_api.mint_token(
-                    SIGNING_KEY,
-                    actor_id=ADMIN_ID,
-                    operation=bot_api.OP_LIST_GUILDS,
-                    guild_id=None,
-                ),
+                token_for(SETTINGS_OP),
             )
 
         status, body = serve(scenario)
         assert status == 403
-        assert body["error"] == "wrong_operation"
+        assert body["error"] in {"wrong_operation", "wrong_guild"}
 
     def test_an_oversized_query_is_refused(self):
         async def scenario(client):
@@ -1625,10 +1519,9 @@ class TestTheWriteSurfaceIsExactlyThis:
                 "is_ready",
                 "guild_present",
                 "is_admin",
-                "read_admin_guilds",
-                # A reader, and it widens what the website can SEE rather than
-                # what it can change -- so the write assertions above stay as
-                # they are and this list is the one that had to move.
+                # The picker's one reader. `read_admin_guilds` sat beside it
+                # until #164: the summaries answer membership too, so it had
+                # no caller and both it and its endpoint were retired.
                 "read_guild_summaries",
                 "read_settings",
                 "read_roles",

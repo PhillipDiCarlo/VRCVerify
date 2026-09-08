@@ -8975,8 +8975,9 @@ async def dashboard_admin_guilds(user_id, guild_ids) -> Optional[list]:
     because it throws away most of the work: an id the bot has never joined
     costs nothing and, importantly, is reported identically to a guild the
     caller simply does not administer. The caller cannot tell those two apart,
-    which is the whole point — see handle_list_guilds in bot_api.py for what
-    went wrong when this endpoint answered on presence alone.
+    which is the whole point — see handle_guild_summaries in bot_api.py for
+    what went wrong when the dashboard's guild endpoint answered on presence
+    alone.
     """
     try:
         member_id = int(user_id)
@@ -9044,9 +9045,8 @@ async def dashboard_guild_summaries(user_id, guild_ids) -> Optional[dict]:
     the caller does not administer is absent from the result, never present
     with an empty summary: the presence of a key would itself be the answer to
     "is the bot in this server", which is exactly the question the picker is
-    built on not being able to answer. `handle_list_guilds` in bot_api.py has
-    the full reasoning; this endpoint inherits it rather than restating it,
-    because it is the same disclosure by a different route.
+    built on not being able to answer. `handle_guild_summaries` in bot_api.py
+    carries the full reasoning.
 
     So this delegates to `dashboard_admin_guilds` rather than re-deriving who
     may see what. One filter, one place, and a summary that can only ever be
@@ -10914,7 +10914,6 @@ def build_bot_api_deps() -> bot_api.BotAPIDeps:
         is_ready=bot.is_ready,
         guild_present=dashboard_guild_present,
         is_admin=dashboard_is_admin,
-        read_admin_guilds=dashboard_admin_guilds,
         read_guild_summaries=dashboard_guild_summaries,
         read_settings=read_dashboard_settings,
         read_roles=read_dashboard_roles,

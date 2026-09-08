@@ -513,9 +513,6 @@ class FakeBotAPI:
             raise self.error
         return self._settings
 
-    def admin_guild_ids(self, actor_id, guild_ids):
-        return {GUILD}
-
     def guild_summaries(self, actor_id, guild_ids):
         """Only what the picker needs to render on the way past. These tests
         are about the pricing and subscription pages; the card states have

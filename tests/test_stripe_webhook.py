@@ -101,8 +101,8 @@ class FakeBotAPI:
         return {"applied": True, "status": subscription.get("status")}
 
     # The picker calls this on `/`; unused here but the app expects it.
-    def admin_guild_ids(self, actor_id, guild_ids):
-        return set()
+    def guild_summaries(self, actor_id, guild_ids):
+        return {}
 
 
 def make_subscription(
