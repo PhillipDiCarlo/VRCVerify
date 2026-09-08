@@ -5007,9 +5007,9 @@ class TestTheControls(object):
     def _refusal(config, store) -> str:
         """The page _guild_page_unavailable renders when a read is refused.
 
-        `fail=True` is not enough: it only breaks admin_guild_ids, which the
-        picker uses. A guild page reads `overview`, so that is the endpoint
-        that has to say no.
+        `fail=True` is not enough: it only breaks the picker's own call. A
+        guild page reads `overview`, so that is the endpoint that has to say
+        no.
         """
         api = FakeBotAPI(errors={"overview": BotAPIError("down", status=503)})
         app = create_app(config, store=store, client=api)
@@ -9228,7 +9228,13 @@ class TestTwoLanguagesAtOnce:
         assert self._japanese_characters(pages["ja"]) > 50
 
     def test_the_picker_keeps_its_language(self, app, store, bot_api):
-        pages = self._race(app, store, bot_api, "admin_guild_ids", "/")
+        # `guild_summaries`, not `admin_guild_ids`: #164 phase 3 made the
+        # picker ask one question instead of two, and this delay has to land
+        # on the call the page actually makes. Slowing a method nobody invokes
+        # means the two requests never overlap, and then this test passes
+        # against the broken code -- which is the exact failure `_race`'s own
+        # comment warns about.
+        pages = self._race(app, store, bot_api, "guild_summaries", "/")
         assert 'lang="de"' in pages["de"]
         leaked = self._japanese_characters(pages["de"])
         assert leaked <= 12, (
