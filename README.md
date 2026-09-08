@@ -931,6 +931,47 @@ it.
   refreshed more than once, so a same-day change is represented by the latest
   observed counts rather than duplicate points.
 
+   **Guild locales (`guild_locale`).** One row per guild holding the server's
+   configured Discord language and the UTC date it was last observed, written
+   by the same sweep as the membership snapshot above: once on startup, then
+   at each UTC midnight. Created automatically, no manual migration needed.
+
+   **This is a language setting, not a location.** Discord gives bots no
+   server IP and no geodata, so `preferred_locale` is the closest signal
+   available, and it reports what an admin configured rather than where anyone
+   is. Treat it as a loose proxy for region and label it that way on any
+   dashboard built from it. It is also not `servers.instructions_locale`,
+   which is the panel language chosen during setup.
+
+   The table is current state rather than history: rows are overwritten in
+   place, so it holds one row per guild ever installed rather than one per
+   guild per day. Churn still adds rows over time, slowly enough that nothing
+   prunes it today, and a deployment that outgrows that can delete by
+   `last_seen`. Rows are kept after the bot is removed from a guild, matching
+   the retained `servers` row, which is also why a breakdown of live servers
+   has to filter on `last_seen`:
+
+   ```sql
+   SELECT preferred_locale, count(*) AS servers
+   FROM guild_locale
+   WHERE last_seen >= current_date - 2
+   GROUP BY preferred_locale
+   ORDER BY servers DESC;
+   ```
+
+   A guild whose locale Discord did not report is recorded as absent rather
+   than defaulted to `en-US`, so the counts never include servers that were
+   never actually observed. Guilds that are unavailable during a Discord
+   outage are skipped for the same reason: their payload carries only an id,
+   and the library fills the locale in with a default `en-US` that would
+   otherwise rewrite the table to English every time Discord had a bad day.
+   The previous reading is left in place instead.
+
+   Like `verification_daily`, this table holds **no member identifiers and no
+   per-person timestamps**. A guild id and a language cannot be turned back
+   into a person, and `tests/test_guild_locale.py` asserts the column list so
+   that cannot change quietly.
+
 ---
 
 ## Running the Bot and Checker
