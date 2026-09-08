@@ -38,7 +38,7 @@ from markupsafe import escape
 
 pytest.importorskip("flask")
 
-from dashboard import changelog, i18n, oauth, overview_view, settings_view  # noqa: E402
+from dashboard import changelog, i18n, oauth, overview_view, picker_view, settings_view  # noqa: E402
 from dashboard.app import CSP, SESSION_COOKIE, create_app  # noqa: E402
 from dashboard import app as app_module  # noqa: E402
 from dashboard.botapi import BotAPIError  # noqa: E402
@@ -343,6 +343,36 @@ DEFAULT_CHANNELS = [
 ]
 
 
+def healthy_summary(**overrides):
+    """A server that is set up and working, in the shape the summaries
+    endpoint returns: the same `configured` and `panel` blocks the Overview
+    consumes, because the picker runs `build_setup` over them rather than
+    reading a verdict the bot reached."""
+    summary = {
+        "configured": {
+            "verified_role": True,
+            "verified_role_exists": True,
+            "verified_role_assignable": True,
+            "bot_can_manage_roles": True,
+            "unverified_role": False,
+            "log_channel": False,
+            "auto_verify": True,
+        },
+        "panel": {
+            "posted": True,
+            "channel_id": LOG_CHANNEL,
+            "channel_exists": True,
+            "channel_postable": True,
+        },
+    }
+    for key, value in overrides.items():
+        if isinstance(value, dict):
+            summary[key] = {**summary[key], **value}
+        else:
+            summary[key] = value
+    return summary
+
+
 class FakeBotAPI:
     """Stands in for the bot. Records what it was asked."""
 
@@ -359,6 +389,7 @@ class FakeBotAPI:
         errors=None,
         saved=None,
         overview=None,
+        summaries=None,
     ):
         self.installed = {str(g) for g in installed}
         self.fail = fail
@@ -383,12 +414,33 @@ class FakeBotAPI:
         # {"settings": BotAPIError(...), ...} -- per-endpoint failures, so a
         # secondary read can be broken without breaking the page.
         self.errors = errors or {}
+        # Per-guild picker summaries. None means "every installed server is
+        # healthy", which is what most tests want and none of them should have
+        # to spell out; a dict overrides individual guilds.
+        self._summaries = summaries
 
     def admin_guild_ids(self, actor_id, guild_ids):
         self.calls.append((actor_id, list(guild_ids)))
         if self.fail:
             raise BotAPIError("bot unreachable")
         return {g for g in map(str, guild_ids) if g in self.installed}
+
+    def guild_summaries(self, actor_id, guild_ids):
+        """Mirrors the real endpoint: only guilds this caller administers are
+        in the result, and one they do not is ABSENT rather than present
+        holding nothing."""
+        self.calls.append((actor_id, list(guild_ids)))
+        if self.fail:
+            raise BotAPIError("bot unreachable")
+        answered = {}
+        for guild_id in map(str, guild_ids):
+            if guild_id not in self.installed:
+                continue
+            if self._summaries is not None and guild_id in self._summaries:
+                answered[guild_id] = self._summaries[guild_id]
+            else:
+                answered[guild_id] = healthy_summary()
+        return answered
 
     def _answer(self, what, actor_id, guild_id, payload):
         self.reads.append((what, str(actor_id), str(guild_id)))
@@ -1001,6 +1053,125 @@ def _pending_state(store):
 # -------------------------------------------------------------------
 # The picker
 # -------------------------------------------------------------------
+class TestTheCardStates:
+    """What a card says about its server (#164 phase 3).
+
+    Three states where there used to be one sentence repeated on every working
+    card. Exercised through `picker_view` rather than through a rendered page
+    wherever the question is "which state is this", so a failure names the
+    state rather than a missing substring.
+    """
+
+    def card(self, summaries, name="Alpha Club", reachable=True):
+        servers = [{"id": GUILD_IN, "name": name}]
+        return picker_view.build_cards(
+            servers, summaries, reachable=reachable
+        )[0]
+
+    def test_a_working_server_says_so(self):
+        card = self.card({GUILD_IN: healthy_summary()})
+        assert card["state"] == "done"
+        assert card["note"] == "Set up and working"
+
+    def test_an_unconfigured_server_is_todo_not_working(self):
+        """The state that was invisible before this: installed, never set up,
+        and rendering identically to a working server."""
+        card = self.card({GUILD_IN: healthy_summary(
+            configured={"verified_role": False, "verified_role_exists": None,
+                        "verified_role_assignable": None},
+        )})
+        assert card["state"] == "todo"
+        assert card["note"] == "Setup isn't finished"
+
+    def test_a_silently_broken_server_is_broken_not_working(self):
+        """Configured, looks finished, cannot grant the role. The state
+        nothing else on any screen surfaces."""
+        card = self.card({GUILD_IN: healthy_summary(
+            configured={"bot_can_manage_roles": False,
+                        "verified_role_assignable": False},
+        )})
+        assert card["state"] == "broken"
+        assert card["note"] == "Something isn't working"
+
+    def test_a_panel_it_cannot_post_to_is_broken(self):
+        """Not only the role. A panel in a channel the bot lost access to
+        stops verification just as completely."""
+        card = self.card({GUILD_IN: healthy_summary(
+            panel={"channel_postable": False},
+        )})
+        assert card["state"] == "broken"
+
+    def test_broken_outranks_todo(self):
+        """Opposite of the Overview's list order, and right for one line: a
+        server that was working and stopped is losing verifications now, where
+        one that was never finished has not started."""
+        card = self.card({GUILD_IN: healthy_summary(
+            configured={"verified_role_exists": False},
+            panel={"posted": False},
+        )})
+        assert card["state"] == "broken"
+
+    def test_a_guild_not_in_the_summaries_is_absent(self):
+        """Carries exactly what a guild missing from `admin_guild_ids` carried:
+        either the bot is not there or this person does not administer it, and
+        the card must not pick one."""
+        card = self.card({})
+        assert card["state"] == "absent"
+        assert card["note"] == "Not set up here, or not yours to manage"
+        assert card["installed"] is False
+
+    def test_an_unreachable_bot_is_unknown_for_every_card(self):
+        """Not absent. Offering to install a bot that is working fine is the
+        bug this state exists to prevent."""
+        card = self.card(None, reachable=False)
+        assert card["state"] == "unknown"
+        assert card["installed"] is False
+
+    def test_an_unreadable_summary_is_unknown_rather_than_working(self):
+        """`build_setup` returns None when the configuration could not be
+        read. A card must not round that up to "working"."""
+        card = self.card({GUILD_IN: {"configured": None, "panel": None}})
+        assert card["state"] == "unknown"
+
+    def test_the_required_rows_come_from_build_setup(self):
+        """Not a second list kept beside it. Adding a third required step
+        should change what the cards say without anyone editing picker_view.
+        """
+        setup = overview_view.build_setup(healthy_summary())
+        assert setup["required"] == ("verified_role", "panel")
+        assert setup["complete"] is True
+
+    def test_installed_servers_sort_ahead_of_absent_ones(self):
+        cards = picker_view.build_cards(
+            [
+                {"id": GUILD_OUT, "name": "Aaa Absent"},
+                {"id": GUILD_IN, "name": "Zzz Working"},
+            ],
+            {GUILD_IN: healthy_summary()},
+            reachable=True,
+        )
+        assert [c["name"] for c in cards] == ["Zzz Working", "Aaa Absent"]
+
+    def test_state_does_not_reorder_the_installed_group(self):
+        """A card moving because a role was deleted would shuffle the grid
+        under somebody hunting for one server, and the state is already on the
+        card."""
+        cards = picker_view.build_cards(
+            [
+                {"id": GUILD_IN, "name": "Aaa Broken"},
+                {"id": GUILD_OUT, "name": "Bbb Working"},
+            ],
+            {
+                GUILD_IN: healthy_summary(
+                    configured={"verified_role_exists": False}
+                ),
+                GUILD_OUT: healthy_summary(),
+            },
+            reachable=True,
+        )
+        assert [c["name"] for c in cards] == ["Aaa Broken", "Bbb Working"]
+
+
 class TestPicker:
     def test_signed_out_visitors_get_the_login_page(self, client):
         response = client.get("/")
@@ -1124,7 +1295,45 @@ class TestPicker:
         assert "Add to server" not in page
         assert "disable_guild_select" not in page
         # And it says so on each card rather than only in the banner.
-        assert page.count("Can't check this server right now") == 2
+        # Escaped: the card's wording is chosen in `picker_view` and reaches
+        # the page through a variable, so Jinja escapes the apostrophe. It
+        # used to be a literal in the template, which is not escaped.
+        assert page.count(str(escape("Can't check this server right now"))) == 2
+
+    def test_the_states_reach_the_rendered_card(self, config, store):
+        """End to end, because `picker_view` deciding correctly is worth
+        nothing if the template still prints one sentence for every card."""
+        app = create_app(config, store=store, client=FakeBotAPI(
+            installed=(GUILD_IN,),
+            summaries={GUILD_IN: healthy_summary(
+                configured={"bot_can_manage_roles": False,
+                            "verified_role_assignable": False},
+            )},
+        ))
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+
+        page = test_client.get("/").data.decode()
+        assert str(escape("Something isn't working")) in page
+        # The class as well as the wording: the colour is what makes one
+        # amber card findable among green ones.
+        assert "server-state-broken" in page
+        # And the old placeholder is gone rather than merely outnumbered.
+        assert "Overview, settings and activity" not in page
+
+    def test_the_picker_asks_the_bot_exactly_once(self, config, store):
+        """Bounded regardless of how many servers somebody administers, which
+        is the acceptance criterion the whole endpoint exists for. Two calls
+        would also run the bot's authority check twice per page load."""
+        api = FakeBotAPI(installed=(GUILD_IN,))
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+
+        test_client.get("/")
+        assert len(api.calls) == 1
 
     def test_an_unreachable_bot_still_lets_you_try_a_server(
         self, client, store, config

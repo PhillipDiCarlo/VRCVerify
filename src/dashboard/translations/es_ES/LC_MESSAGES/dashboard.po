@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 00:02-0400\n"
+"POT-Creation-Date: 2026-09-08 00:43-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es_ES\n"
@@ -247,6 +247,21 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "Nuevo"
+
+# | msgid "The verified role needs attention"
+msgid "See which servers need attention"
+msgstr "Mira qué servidores necesitan atención"
+
+msgid ""
+"Your server list now says how each server is doing rather than the same "
+"sentence on every card. A server that was never finished, and one that "
+"was set up and has quietly stopped working, are both visible without "
+"opening them."
+msgstr ""
+"Tu lista de servidores ahora dice cómo va cada uno, en vez de la misma "
+"frase en todas las tarjetas. Un servidor que nunca se terminó de "
+"configurar, y uno que estaba configurado y ha dejado de funcionar en "
+"silencio, se ven ambos sin abrirlos."
 
 msgid "A permission check that was missing"
 msgstr "Una comprobación de permisos que faltaba"
@@ -500,6 +515,22 @@ msgstr "Tus extras heredados siguen siendo gratis, decidas lo que decidas."
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "Pasar a VRCVerify Premium"
+
+msgid "Set up and working"
+msgstr "Configurado y funcionando"
+
+msgid "Setup isn't finished"
+msgstr "Configuración sin terminar"
+
+# | msgid "Something went wrong."
+msgid "Something isn't working"
+msgstr "Algo no está funcionando"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "No está configurado aquí, o no es tuyo para gestionar"
+
+msgid "Can't check this server right now"
+msgstr "Ahora mismo no se puede comprobar este servidor"
 
 # | msgid "A verification log channel"
 msgid "Verification"
@@ -1365,15 +1396,6 @@ msgstr "Cerrar sesión y empezar de nuevo"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "Se te pedirá iniciar sesión con Discord otra vez."
 
-msgid "Overview, settings and activity"
-msgstr "Resumen, ajustes y actividad"
-
-msgid "Not set up here, or not yours to manage"
-msgstr "No está configurado aquí, o no es tuyo para gestionar"
-
-msgid "Can't check this server right now"
-msgstr "Ahora mismo no se puede comprobar este servidor"
-
 # | msgid "Add to your server"
 msgid "Add to server"
 msgstr "Añadir al servidor"
@@ -1918,4 +1940,7 @@ msgstr ""
 "Discord</a>: ahí figuran el precio y las ventajas, pero el servidor lo "
 "eliges al pagar, así que usa el comando de arriba si administras más de "
 "uno."
+
+#~ msgid "Overview, settings and activity"
+#~ msgstr "Resumen, ajustes y actividad"
 

@@ -33,6 +33,7 @@ from api_tokens import (
     OP_GUILD_SETTINGS,
     OP_GUILD_AUDIT,
     OP_POST_PANEL,
+    OP_GUILD_SUMMARIES,
     OP_LIST_GUILDS,
     OP_PUT_STRIPE_SUBSCRIPTION,
     OP_UPDATE_SETTINGS,
@@ -144,6 +145,29 @@ class BotAPIClient:
             actor_id,
         )
         return {str(g) for g in payload.get("present", [])}
+
+    def guild_summaries(self, actor_id: int, guild_ids: list) -> dict:
+        """A small per-guild summary, keyed by guild id, for the picker's cards.
+
+        Answers the membership question too: the bot summarises only guilds
+        this caller administers, so a guild MISSING from the result carries
+        exactly what `admin_guild_ids` carried -- either the bot is not there
+        or this person does not administer it, indistinguishable on purpose.
+
+        That is why the picker asks this instead of asking both. Two calls
+        would mean running the bot's authority check twice per page load, and
+        would let membership and state disagree with each other about the same
+        server in the same render.
+        """
+        wanted = [str(int(g)) for g in guild_ids][:MAX_GUILD_IDS]
+        if not wanted:
+            return {}
+        payload = self._get(
+            f"/api/v1/guilds/summaries?ids={','.join(wanted)}",
+            OP_GUILD_SUMMARIES,
+            actor_id,
+        )
+        return dict(payload.get("summaries") or {})
 
     def settings(self, actor_id: int, guild_id) -> dict:
         return self._get(

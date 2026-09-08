@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 00:02-0400\n"
+"POT-Creation-Date: 2026-09-08 00:43-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -234,6 +234,20 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "جديد"
+
+# | msgid "The verified role needs attention"
+msgid "See which servers need attention"
+msgstr "اعرف أي الخوادم يحتاج إلى انتباه"
+
+msgid ""
+"Your server list now says how each server is doing rather than the same "
+"sentence on every card. A server that was never finished, and one that "
+"was set up and has quietly stopped working, are both visible without "
+"opening them."
+msgstr ""
+"صارت قائمة خوادمك تخبرك بحال كل خادم بدل عرض الجملة نفسها على كل بطاقة. "
+"الخادم الذي لم يكتمل إعداده، والخادم الذي أُعدّ ثم توقّف عن العمل بصمت، "
+"كلاهما ظاهر دون فتحه."
 
 msgid "A permission check that was missing"
 msgstr "فحص صلاحية كان مفقودًا"
@@ -491,6 +505,22 @@ msgstr "مزاياك المكتسبة سابقًا تبقى مجانية مهم�
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "الترقية إلى VRCVerify Premium"
+
+msgid "Set up and working"
+msgstr "مُعدّ ويعمل"
+
+msgid "Setup isn't finished"
+msgstr "الإعداد غير مكتمل"
+
+# | msgid "Something went wrong."
+msgid "Something isn't working"
+msgstr "هناك ما لا يعمل"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "غير مُعدّ هنا، أو ليس من إدارتك"
+
+msgid "Can't check this server right now"
+msgstr "لا يمكن فحص هذا الخادم الآن"
 
 # | msgid "A verification log channel"
 msgid "Verification"
@@ -1319,15 +1349,6 @@ msgstr "تسجيل الخروج والبدء من جديد"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "سيُطلب منك تسجيل الدخول عبر Discord مرة أخرى."
 
-msgid "Overview, settings and activity"
-msgstr "نظرة عامة وإعدادات ونشاط"
-
-msgid "Not set up here, or not yours to manage"
-msgstr "غير مُعدّ هنا، أو ليس من إدارتك"
-
-msgid "Can't check this server right now"
-msgstr "لا يمكن فحص هذا الخادم الآن"
-
 # | msgid "Add to your server"
 msgid "Add to server"
 msgstr "الإضافة إلى الخادم"
@@ -1837,4 +1858,7 @@ msgstr ""
 "target=\"_blank\">اطّلع على ما هو مشمول في صفحة متجر Discord</a>؛ فهي "
 "تعرض السعر والمزايا، لكنك تختار الخادم أثناء الدفع، فاستخدم الأمر أعلاه "
 "إن كنت تدير أكثر من خادم."
+
+#~ msgid "Overview, settings and activity"
+#~ msgstr "نظرة عامة وإعدادات ونشاط"
 

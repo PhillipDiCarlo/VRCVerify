@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 00:02-0400\n"
+"POT-Creation-Date: 2026-09-08 00:43-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -209,6 +209,17 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "新着"
+
+# | msgid "The verified role needs attention"
+msgid "See which servers need attention"
+msgstr "対応が必要なサーバーが分かります"
+
+msgid ""
+"Your server list now says how each server is doing rather than the same "
+"sentence on every card. A server that was never finished, and one that "
+"was set up and has quietly stopped working, are both visible without "
+"opening them."
+msgstr "サーバー一覧が、どのカードにも同じ一文を表示するのではなく、各サーバーの状況を伝えるようになりました。設定が終わっていないサーバーも、設定済みなのに静かに動かなくなったサーバーも、開かずに分かります。"
 
 msgid "A permission check that was missing"
 msgstr "抜けていた権限チェック"
@@ -440,6 +451,22 @@ msgstr "以前から引き継がれている特典は、どちらを選んでも
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "VRCVerify Premium にアップグレード"
+
+msgid "Set up and working"
+msgstr "設定済みで正常"
+
+msgid "Setup isn't finished"
+msgstr "セットアップが未完了"
+
+# | msgid "Something went wrong."
+msgid "Something isn't working"
+msgstr "正常に動いていません"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "ここでは未設定、またはあなたの管理対象ではありません"
+
+msgid "Can't check this server right now"
+msgstr "このサーバーは今は確認できません"
 
 # | msgid "A verification log channel"
 msgid "Verification"
@@ -1231,15 +1258,6 @@ msgstr "ログアウトしてやり直す"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "もう一度 Discord でのログインを求められます。"
 
-msgid "Overview, settings and activity"
-msgstr "概要・設定・アクティビティ"
-
-msgid "Not set up here, or not yours to manage"
-msgstr "ここでは未設定、またはあなたの管理対象ではありません"
-
-msgid "Can't check this server right now"
-msgstr "このサーバーは今は確認できません"
-
 # | msgid "Add to your server"
 msgid "Add to server"
 msgstr "サーバーに追加"
@@ -1698,4 +1716,7 @@ msgstr ""
 "<a href=\"%(store_url)s\" rel=\"noopener noreferrer\" "
 "target=\"_blank\">Discord "
 "のストアページで内容を見る</a>。料金と特典が載っていますが、サーバーは購入手続きの途中で選ぶ形になるため、複数のサーバーを管理している場合は上のコマンドをお使いください。"
+
+#~ msgid "Overview, settings and activity"
+#~ msgstr "概要・設定・アクティビティ"
 

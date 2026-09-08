@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 00:02-0400\n"
+"POT-Creation-Date: 2026-09-08 00:43-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pa_Guru_IN\n"
@@ -240,6 +240,20 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "ਨਵਾਂ"
+
+# | msgid "The verified role needs attention"
+msgid "See which servers need attention"
+msgstr "ਵੇਖੋ ਕਿਹੜੇ ਸਰਵਰਾਂ ਵੱਲ ਧਿਆਨ ਚਾਹੀਦਾ ਹੈ"
+
+msgid ""
+"Your server list now says how each server is doing rather than the same "
+"sentence on every card. A server that was never finished, and one that "
+"was set up and has quietly stopped working, are both visible without "
+"opening them."
+msgstr ""
+"ਤੁਹਾਡੀ ਸਰਵਰ ਸੂਚੀ ਹੁਣ ਹਰ ਕਾਰਡ ਉੱਤੇ ਇੱਕੋ ਵਾਕ ਦੀ ਥਾਂ ਦੱਸਦੀ ਹੈ ਕਿ ਹਰ ਸਰਵਰ ਦਾ "
+"ਕੀ ਹਾਲ ਹੈ। ਜਿਹੜਾ ਸਰਵਰ ਕਦੇ ਪੂਰਾ ਸੈੱਟ ਨਹੀਂ ਹੋਇਆ, ਅਤੇ ਜਿਹੜਾ ਸੈੱਟ ਸੀ ਪਰ "
+"ਚੁੱਪ-ਚਾਪ ਕੰਮ ਕਰਨਾ ਬੰਦ ਕਰ ਗਿਆ, ਦੋਵੇਂ ਬਿਨਾਂ ਖੋਲ੍ਹੇ ਦਿਸ ਜਾਂਦੇ ਹਨ।"
 
 msgid "A permission check that was missing"
 msgstr "ਇੱਕ ਇਜਾਜ਼ਤ ਜਾਂਚ ਜੋ ਰਹਿ ਗਈ ਸੀ"
@@ -490,6 +504,22 @@ msgstr "ਤੁਹਾਡੀਆਂ ਪੁਰਾਣੀਆਂ ਸਹੂਲਤਾਂ 
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "VRCVerify Premium ਲਈ ਅੱਪਗਰੇਡ ਕਰੋ"
+
+msgid "Set up and working"
+msgstr "ਸੈੱਟ ਹੈ ਅਤੇ ਕੰਮ ਕਰ ਰਿਹਾ ਹੈ"
+
+msgid "Setup isn't finished"
+msgstr "ਸੈੱਟਅੱਪ ਪੂਰਾ ਨਹੀਂ ਹੋਇਆ"
+
+# | msgid "Something went wrong."
+msgid "Something isn't working"
+msgstr "ਕੁਝ ਕੰਮ ਨਹੀਂ ਕਰ ਰਿਹਾ"
+
+msgid "Not set up here, or not yours to manage"
+msgstr "ਇੱਥੇ ਸੈੱਟ ਨਹੀਂ, ਜਾਂ ਤੁਹਾਡੇ ਪ੍ਰਬੰਧ ਵਿੱਚ ਨਹੀਂ"
+
+msgid "Can't check this server right now"
+msgstr "ਹੁਣੇ ਇਸ ਸਰਵਰ ਦੀ ਜਾਂਚ ਨਹੀਂ ਹੋ ਸਕਦੀ"
 
 # | msgid "A verification log channel"
 msgid "Verification"
@@ -1339,15 +1369,6 @@ msgstr "ਸਾਈਨ ਆਉਟ ਕਰ ਕੇ ਦੁਬਾਰਾ ਸ਼ੁਰੂ 
 msgid "You'll be asked to sign in with Discord again."
 msgstr "ਤੁਹਾਨੂੰ ਦੁਬਾਰਾ Discord ਨਾਲ ਸਾਈਨ ਇਨ ਕਰਨ ਲਈ ਕਿਹਾ ਜਾਵੇਗਾ।"
 
-msgid "Overview, settings and activity"
-msgstr "ਸੰਖੇਪ, ਸੈਟਿੰਗਾਂ ਅਤੇ ਸਰਗਰਮੀ"
-
-msgid "Not set up here, or not yours to manage"
-msgstr "ਇੱਥੇ ਸੈੱਟ ਨਹੀਂ, ਜਾਂ ਤੁਹਾਡੇ ਪ੍ਰਬੰਧ ਵਿੱਚ ਨਹੀਂ"
-
-msgid "Can't check this server right now"
-msgstr "ਹੁਣੇ ਇਸ ਸਰਵਰ ਦੀ ਜਾਂਚ ਨਹੀਂ ਹੋ ਸਕਦੀ"
-
 # | msgid "Add to your server"
 msgid "Add to server"
 msgstr "ਸਰਵਰ ਵਿੱਚ ਜੋੜੋ"
@@ -1886,4 +1907,7 @@ msgstr ""
 "ਹੈ</a> — ਉੱਥੇ ਕੀਮਤ ਅਤੇ ਸਹੂਲਤਾਂ ਦਿੱਤੀਆਂ ਹਨ, ਪਰ ਸਰਵਰ ਤੁਸੀਂ ਭੁਗਤਾਨ ਦੌਰਾਨ "
 "ਚੁਣਦੇ ਹੋ, ਇਸ ਲਈ ਜੇ ਤੁਸੀਂ ਇੱਕ ਤੋਂ ਵੱਧ ਸਰਵਰ ਸੰਭਾਲਦੇ ਹੋ ਤਾਂ ਉੱਪਰ ਵਾਲੀ ਕਮਾਂਡ "
 "ਵਰਤੋ।"
+
+#~ msgid "Overview, settings and activity"
+#~ msgstr "ਸੰਖੇਪ, ਸੈਟਿੰਗਾਂ ਅਤੇ ਸਰਗਰਮੀ"
 

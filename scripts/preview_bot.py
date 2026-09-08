@@ -243,6 +243,59 @@ class PreviewBotAPI:
             raise _outage()
         return {g for g in map(str, guild_ids) if g in INSTALLED}
 
+    def guild_summaries(self, actor_id, guild_ids) -> dict:
+        """What the picker's cards read (#164 phase 3).
+
+        Absent for a guild the caller has no standing in, exactly as the real
+        endpoint is, so NOT_ADDED stays the un-installed card here too.
+
+        The three installed servers deliberately show three different states,
+        because a preview where every card says the same thing cannot show
+        whether the states are distinguishable at a glance -- which is the one
+        question this page's design turns on:
+
+          PREMIUM      done    set up and working
+          FREE         todo    installed, never configured
+          UNREACHABLE  broken  configured, and the bot cannot grant the role
+
+        UNREACHABLE's card state is unrelated to its name. That server exists
+        so clicking INTO it reaches error.html, which is a per-guild read
+        failing; the summaries call does not go through `_check` and answers
+        for it normally. It carries `broken` here only because three installed
+        servers is exactly how many states there are to show, and a preview
+        where two cards say the same thing cannot answer the question this
+        page's design turns on -- whether the three are distinguishable at a
+        glance.
+        """
+        if BOT_DOWN:
+            raise _outage()
+
+        summaries = {}
+        for guild_id in map(str, guild_ids):
+            if guild_id not in INSTALLED:
+                continue
+            overview = make_overview()
+            configured = dict(overview["configured"])
+            panel = {"posted": True, "channel_id": LOG_CHANNEL,
+                     "channel_exists": True, "channel_postable": True}
+            if guild_id == FREE:
+                configured.update(
+                    verified_role=False,
+                    verified_role_exists=None,
+                    verified_role_assignable=None,
+                )
+                panel = {"posted": False}
+            elif guild_id == UNREACHABLE:
+                configured.update(
+                    bot_can_manage_roles=False, verified_role_assignable=False
+                )
+            if NO_MANAGE_ROLES:
+                configured.update(
+                    bot_can_manage_roles=False, verified_role_assignable=False
+                )
+            summaries[guild_id] = {"configured": configured, "panel": panel}
+        return summaries
+
     def settings(self, actor_id, guild_id) -> dict:
         guild_id = self._check(guild_id)
         if guild_id == FREE and PREVIEW_SUB in _SUB_STATES:
