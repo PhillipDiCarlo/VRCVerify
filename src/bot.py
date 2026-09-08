@@ -9013,6 +9013,103 @@ async def dashboard_admin_guilds(user_id, guild_ids) -> Optional[list]:
         return None
 
 
+async def dashboard_guild_summaries(user_id, guild_ids) -> Optional[dict]:
+    """A small per-guild summary for the picker, for the whole list at once.
+
+    THE STANDING FILTER RUNS FIRST AND NOTHING IS ATTACHED BEFORE IT. A guild
+    the caller does not administer is absent from the result, never present
+    with an empty summary: the presence of a key would itself be the answer to
+    "is the bot in this server", which is exactly the question the picker is
+    built on not being able to answer. `handle_list_guilds` in bot_api.py has
+    the full reasoning; this endpoint inherits it rather than restating it,
+    because it is the same disclosure by a different route.
+
+    So this delegates to `dashboard_admin_guilds` rather than re-deriving who
+    may see what. One filter, one place, and a summary that can only ever be
+    computed for a guild that already passed it.
+
+    ONE QUERY, NOT ONE PER GUILD. The obvious implementation is a loop over
+    `read_dashboard_settings` and `read_dashboard_panel`, and it is the wrong
+    one: the first resolves premium flags and builds the whole field table per
+    guild, so 200 guilds behind a single request becomes hundreds of reads and
+    the N problem simply moves from HTTP to the database. Everything the
+    summary needs is on the `servers` row apart from the log channel, so this
+    is two `IN` queries and then in-memory work -- `get_role`,
+    `get_channel_or_thread` and `permissions_for` need no REST call and no
+    member chunking.
+
+    Counts are deliberately absent. This says whether a server is set up and
+    working, which is what the picker's cards are for; verification figures are
+    a separate decision and a separate payload.
+    """
+    try:
+        allowed = await dashboard_admin_guilds(user_id, guild_ids)
+        if allowed is None:
+            return None
+        if not allowed:
+            return {}
+
+        keys = [panel_view_key(guild_id) for guild_id in allowed]
+        # Outside the session below: `server_has_column` inspects the engine
+        # and so takes a connection of its own, and asking for a second one
+        # while holding the first is how a small pool starves itself.
+        #
+        # Same guard the settings read uses -- the column post-dates some
+        # deployments and a missing one must not break the whole summary.
+        has_auto_verify = server_has_column("auto_verify_new_members")
+
+        with session_scope() as session:
+            servers = {
+                row.server_id: row
+                for row in session.query(Server).filter(Server.server_id.in_(keys))
+            }
+            # A separate table, so a separate query -- still one for the whole
+            # batch rather than one per guild.
+            log_channels = {
+                row.server_id
+                for row in session.query(VerificationLogChannel.server_id).filter(
+                    VerificationLogChannel.server_id.in_(keys)
+                )
+            }
+            summaries = {}
+            for guild_id in allowed:
+                key = panel_view_key(guild_id)
+                row = servers.get(key)
+                guild = bot.get_guild(int(guild_id))
+                if guild is None:
+                    # Passed the standing filter a moment ago, so this is the
+                    # gateway losing the guild mid-request rather than anything
+                    # about the caller. Omitted rather than guessed at.
+                    continue
+                summaries[str(guild_id)] = {
+                    "configured": _configuration_from_values(
+                        getattr(row, "role_id", None),
+                        getattr(row, "unverified_role_id", None),
+                        # Membership of the set IS the setting: the row exists
+                        # only when a channel was chosen.
+                        key in log_channels,
+                        getattr(row, "auto_verify_new_members", None)
+                        if has_auto_verify
+                        else None,
+                        guild,
+                    ),
+                    "panel": _panel_from_values(
+                        getattr(row, "instructions_channel_id", None),
+                        getattr(row, "instructions_message_id", None),
+                        getattr(row, "instructions_locale", None),
+                        guild,
+                    ),
+                }
+            return summaries
+    except Exception:
+        logger.warning(
+            "Could not build the dashboard guild summaries for user %s.",
+            user_id,
+            exc_info=True,
+        )
+        return None
+
+
 async def read_dashboard_settings(guild_id) -> Optional[dict]:
     """Every setting in SETTINGS_FIELDS, with its plan state resolved.
 
@@ -9346,6 +9443,44 @@ async def read_dashboard_channels(guild_id) -> Optional[list]:
         return None
 
 
+def _panel_from_values(channel_id, message_id, locale, guild) -> dict:
+    """The panel block, from the stored ids rather than from a fresh read.
+
+    Split out of `read_dashboard_panel` for the same reason
+    `_configuration_from_values` was: the picker's batch summary needs this for
+    many guilds and reads their rows in one query, so the per-guild database
+    lookup has to be separable from the in-memory channel checks. Everything
+    below the query is in memory -- `get_channel_or_thread` and
+    `permissions_for` need no REST call and no chunking.
+    """
+    if not channel_id:
+        return {"posted": False}
+
+    channel = None
+    if guild is not None:
+        try:
+            channel = guild.get_channel_or_thread(int(channel_id))
+        except (TypeError, ValueError):
+            channel = None
+
+    postable = None
+    if guild is not None and guild.me is not None and channel is not None:
+        perms = channel.permissions_for(guild.me)
+        postable = bool(
+            perms.view_channel and perms.send_messages and perms.embed_links
+        )
+
+    return {
+        "posted": True,
+        "channel_id": str(channel_id),
+        "message_id": str(message_id),
+        "channel_name": getattr(channel, "name", None),
+        "channel_exists": channel is not None,
+        "channel_postable": postable,
+        "locale": locale or "en-US",
+    }
+
+
 async def read_dashboard_panel(guild_id) -> Optional[dict]:
     """Where this guild's instructions panel is, and whether it looks reachable.
 
@@ -9373,30 +9508,12 @@ async def read_dashboard_panel(guild_id) -> Optional[dict]:
         if entry is None or not entry.get("channel_id"):
             return {"posted": False}
 
-        guild = bot.get_guild(int(guild_id))
-        channel = None
-        if guild is not None:
-            try:
-                channel = guild.get_channel_or_thread(int(entry["channel_id"]))
-            except (TypeError, ValueError):
-                channel = None
-
-        postable = None
-        if guild is not None and guild.me is not None and channel is not None:
-            perms = channel.permissions_for(guild.me)
-            postable = bool(
-                perms.view_channel and perms.send_messages and perms.embed_links
-            )
-
-        return {
-            "posted": True,
-            "channel_id": str(entry["channel_id"]),
-            "message_id": str(entry["message_id"]),
-            "channel_name": getattr(channel, "name", None),
-            "channel_exists": channel is not None,
-            "channel_postable": postable,
-            "locale": entry.get("locale", "en-US"),
-        }
+        return _panel_from_values(
+            entry["channel_id"],
+            entry["message_id"],
+            entry.get("locale", "en-US"),
+            bot.get_guild(int(guild_id)),
+        )
     except Exception:
         logger.warning("Could not read the panel for guild %s.", guild_id, exc_info=True)
         return None
@@ -10013,34 +10130,27 @@ def bot_can_manage_roles(guild) -> Optional[bool]:
     return bool(permissions.manage_roles)
 
 
-def _overview_configuration(settings: Optional[dict], guild) -> Optional[dict]:
-    """The handful of settings the Overview reports as set or not set.
+def _configuration_from_values(
+    role_id,
+    unverified_role_id,
+    log_channel_id,
+    auto_verify,
+    guild,
+) -> dict:
+    """The configuration booleans, from raw values rather than from a settings
+    payload.
 
-    Booleans only, never the ids themselves. The Overview's job is to say
-    whether verification is wired up; the Settings page is where the actual
-    values live, and duplicating them here would be a second place for them to
-    be wrong.
+    Split out of `_overview_configuration` for the picker's batch summary,
+    which reads the same facts for many guilds at once and must not go through
+    `read_dashboard_settings` to do it: that resolves premium flags and builds
+    the whole field table per guild, so a loop over it turns one request into
+    hundreds of reads. This takes the four values it actually needs and does
+    the rest in memory.
 
-    `verified_role_exists` and `verified_role_assignable` are the health half
-    of that same discipline: still booleans, still never an id, but "wired up"
-    and "actually works" are different questions once a role can be deleted
-    out from under a stored id, or the bot's own role can be moved below it.
-    Both are None when the question doesn't apply yet -- no role_id set means
-    there is nothing to check for existence, and no role (or no `guild.me`)
-    means there is nothing to check for hierarchy -- so the caller can tell
-    "not configured" apart from "configured and broken" apart from "cannot
-    tell". Same `top_role > role` and `managed` check as `read_dashboard_roles`
-    uses for `assignable`, run for one role instead of all of them, which is
-    what keeps this cheap enough to run on every page load.
+    One implementation, two callers, for the reason `build_setup` gives about
+    its own rows: two ways of answering "is this server wired up" is two
+    answers that disagree by the third release.
     """
-    if not settings:
-        return None
-    fields = settings.get("fields") or {}
-
-    def value(name):
-        return (fields.get(name) or {}).get("value")
-
-    role_id = value("role_id")
     role = None
     if role_id:
         try:
@@ -10073,10 +10183,46 @@ def _overview_configuration(settings: Optional[dict], guild) -> Optional[dict]:
         # checked. A dashboard older than this field sees it missing, which
         # reads as unknown and leaves the previous behaviour intact.
         "bot_can_manage_roles": can_manage,
-        "unverified_role": bool(value("unverified_role_id")),
-        "log_channel": bool(value("verification_log_channel_id")),
-        "auto_verify": bool(value("auto_verify_new_members")),
+        "unverified_role": bool(unverified_role_id),
+        "log_channel": bool(log_channel_id),
+        "auto_verify": bool(auto_verify),
     }
+
+
+def _overview_configuration(settings: Optional[dict], guild) -> Optional[dict]:
+    """The handful of settings the Overview reports as set or not set.
+
+    Booleans only, never the ids themselves. The Overview's job is to say
+    whether verification is wired up; the Settings page is where the actual
+    values live, and duplicating them here would be a second place for them to
+    be wrong.
+
+    `verified_role_exists` and `verified_role_assignable` are the health half
+    of that same discipline: still booleans, still never an id, but "wired up"
+    and "actually works" are different questions once a role can be deleted
+    out from under a stored id, or the bot's own role can be moved below it.
+    Both are None when the question doesn't apply yet -- no role_id set means
+    there is nothing to check for existence, and no role (or no `guild.me`)
+    means there is nothing to check for hierarchy -- so the caller can tell
+    "not configured" apart from "configured and broken" apart from "cannot
+    tell". Same `top_role > role` and `managed` check as `read_dashboard_roles`
+    uses for `assignable`, run for one role instead of all of them, which is
+    what keeps this cheap enough to run on every page load.
+    """
+    if not settings:
+        return None
+    fields = settings.get("fields") or {}
+
+    def value(name):
+        return (fields.get(name) or {}).get("value")
+
+    return _configuration_from_values(
+        value("role_id"),
+        value("unverified_role_id"),
+        value("verification_log_channel_id"),
+        value("auto_verify_new_members"),
+        guild,
+    )
 
 
 def _record_dashboard_audit(session, guild_id, actor_id, changed: list) -> None:
@@ -10733,6 +10879,7 @@ def build_bot_api_deps() -> bot_api.BotAPIDeps:
         guild_present=dashboard_guild_present,
         is_admin=dashboard_is_admin,
         read_admin_guilds=dashboard_admin_guilds,
+        read_guild_summaries=dashboard_guild_summaries,
         read_settings=read_dashboard_settings,
         read_roles=read_dashboard_roles,
         read_channels=read_dashboard_channels,

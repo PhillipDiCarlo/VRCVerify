@@ -102,6 +102,21 @@ def make_deps(written=None, posted=None, mirrored=None, checked=None, **override
             return []
         return [gid for gid in guild_ids if int(gid) == GUILD_ID]
 
+    async def read_guild_summaries(user_id, guild_ids):
+        # Mirrors the real reader's contract: only guilds this actor
+        # administers appear, and one they do not is ABSENT rather than
+        # present holding nothing.
+        if int(user_id) != ADMIN_ID:
+            return {}
+        return {
+            str(gid): {
+                "configured": {"verified_role": True},
+                "panel": {"posted": True},
+            }
+            for gid in guild_ids
+            if int(gid) == GUILD_ID
+        }
+
     async def read_settings(guild_id):
         return {"guild_id": str(guild_id), "fields": {}}
 
@@ -152,6 +167,7 @@ def make_deps(written=None, posted=None, mirrored=None, checked=None, **override
         guild_present=lambda guild_id: int(guild_id) == GUILD_ID,
         is_admin=is_admin,
         read_admin_guilds=read_admin_guilds,
+        read_guild_summaries=read_guild_summaries,
         read_settings=read_settings,
         read_roles=read_roles,
         read_channels=read_channels,
@@ -829,6 +845,152 @@ class TestGuildList:
         assert seen["actor"] == MEMBER_ID
 
 
+class TestGuildSummaries:
+    """The picker's per-guild summaries. Same disclosure risk as the
+    membership check above, by a different route, so it is held to the same
+    assertions rather than to weaker ones."""
+
+    OP = bot_api.OP_GUILD_SUMMARIES
+
+    def token(self, actor_id=ADMIN_ID):
+        return bot_api.mint_token(
+            SIGNING_KEY, actor_id=actor_id, operation=self.OP, guild_id=None
+        )
+
+    def test_it_summarises_only_the_guilds_the_caller_administers(self):
+        async def scenario(client):
+            return await get(
+                client,
+                f"/api/v1/guilds/summaries?ids={GUILD_ID},{OTHER_GUILD_ID}",
+                self.token(),
+            )
+
+        status, body = serve(scenario)
+        assert status == 200
+        assert set(body["summaries"]) == {str(GUILD_ID)}
+
+    def test_a_guild_without_standing_is_absent_not_empty(self):
+        """The whole endpoint, in one assertion. A key that is always present
+        and merely holds nothing still answers "is the bot in this server",
+        which is the question the picker is built on being unable to answer."""
+
+        async def scenario(client):
+            return await get(
+                client,
+                # A real guild the bot is in, and a caller with no standing in
+                # it: indistinguishable from one the bot has never joined.
+                f"/api/v1/guilds/summaries?ids={GUILD_ID},{OTHER_GUILD_ID}",
+                self.token(actor_id=MEMBER_ID),
+            )
+
+        status, body = serve(scenario)
+        assert status == 200
+        assert body == {"summaries": {}}
+        assert str(GUILD_ID) not in body["summaries"]
+
+    def test_an_unreadable_answer_is_a_503_not_an_empty_map(self):
+        """Empty means "none of these are yours"; it must not mean "we
+        failed", or the picker would draw every card as un-set-up."""
+
+        async def unavailable(user_id, guild_ids):
+            return None
+
+        async def scenario(client):
+            return await get(
+                client, f"/api/v1/guilds/summaries?ids={GUILD_ID}", self.token()
+            )
+
+        status, body = serve(
+            scenario, deps=make_deps(read_guild_summaries=unavailable)
+        )
+        assert status == 503
+        assert body["error"] == "unavailable"
+
+    def test_a_membership_token_cannot_be_replayed_here(self):
+        """The reason this is its own operation rather than a widened
+        OP_LIST_GUILDS."""
+
+        async def scenario(client):
+            return await get(
+                client,
+                f"/api/v1/guilds/summaries?ids={GUILD_ID}",
+                bot_api.mint_token(
+                    SIGNING_KEY,
+                    actor_id=ADMIN_ID,
+                    operation=bot_api.OP_LIST_GUILDS,
+                    guild_id=None,
+                ),
+            )
+
+        status, body = serve(scenario)
+        assert status == 403
+        assert body["error"] == "wrong_operation"
+
+    def test_an_oversized_query_is_refused(self):
+        async def scenario(client):
+            ids = ",".join(str(n) for n in range(bot_api.MAX_GUILD_IDS + 1))
+            return await get(
+                client, f"/api/v1/guilds/summaries?ids={ids}", self.token()
+            )
+
+        status, body = serve(scenario)
+        assert status == 400
+        assert body["error"] == "too_many_ids"
+
+    def test_a_bad_id_is_refused_rather_than_skipped(self):
+        async def scenario(client):
+            return await get(
+                client,
+                f"/api/v1/guilds/summaries?ids={GUILD_ID},nonsense",
+                self.token(),
+            )
+
+        status, body = serve(scenario)
+        assert status == 400
+        assert body["error"] == "bad_guild_id"
+
+    def test_no_ids_asks_the_bot_nothing(self):
+        asked = []
+
+        async def record(user_id, guild_ids):
+            asked.append(list(guild_ids))
+            return {}
+
+        async def scenario(client):
+            return await get(client, "/api/v1/guilds/summaries", self.token())
+
+        status, body = serve(scenario, deps=make_deps(read_guild_summaries=record))
+        assert status == 200
+        assert body == {"summaries": {}}
+        assert asked == []
+
+    def test_the_actor_is_taken_from_the_token_not_the_query(self):
+        """There is no way to ask on someone else's behalf."""
+        seen = {}
+
+        async def record(user_id, guild_ids):
+            seen["actor"] = int(user_id)
+            return {}
+
+        async def scenario(client):
+            return await get(
+                client,
+                f"/api/v1/guilds/summaries?ids={GUILD_ID}&user_id={ADMIN_ID}",
+                self.token(actor_id=MEMBER_ID),
+            )
+
+        serve(scenario, deps=make_deps(read_guild_summaries=record))
+        assert seen["actor"] == MEMBER_ID
+
+    def test_a_guild_scoped_token_cannot_reach_it(self):
+        async def scenario(client):
+            return await get(client, "/api/v1/guilds/summaries", token_for(self.OP))
+
+        status, body = serve(scenario)
+        assert status == 403
+        assert body["error"] == "wrong_guild"
+
+
 # -------------------------------------------------------------------
 # Pinning the phase
 # -------------------------------------------------------------------
@@ -1464,6 +1626,10 @@ class TestTheWriteSurfaceIsExactlyThis:
                 "guild_present",
                 "is_admin",
                 "read_admin_guilds",
+                # A reader, and it widens what the website can SEE rather than
+                # what it can change -- so the write assertions above stay as
+                # they are and this list is the one that had to move.
+                "read_guild_summaries",
                 "read_settings",
                 "read_roles",
                 "read_channels",
@@ -1571,9 +1737,15 @@ class FakeGuild:
             else None
         )
         self._members = {}
+        # Keyed by id, from the same list `roles` already carries, so a test
+        # that sets up a hierarchy does not also have to set up a lookup.
+        self._roles = {role.id: role for role in self.roles}
 
     def get_member(self, user_id):
         return self._members.get(user_id)
+
+    def get_role(self, role_id):
+        return self._roles.get(role_id)
 
     def get_channel_or_thread(self, channel_id):
         for channel in self.text_channels:
@@ -3091,6 +3263,138 @@ class TestRoleReader:
     def test_an_absent_guild_reads_as_unavailable(self, monkeypatch):
         monkeypatch.setattr(bot.bot, "get_guild", lambda _id: None)
         assert run(bot.read_dashboard_roles(GUILD_ID)) is None
+
+
+class TestGuildSummaryReader:
+    """`dashboard_guild_summaries` itself, below the route: the standing
+    filter, the shared computation, and the promise that it stays one pair of
+    queries however many guilds are asked about."""
+
+    def guilds(self, monkeypatch, *ids, **kwargs):
+        made = {int(gid): FakeGuild(**kwargs) for gid in ids}
+        for gid, guild in made.items():
+            guild.id = gid
+        monkeypatch.setattr(bot.bot, "get_guild", lambda gid: made.get(int(gid)))
+        return made
+
+    def allow(self, monkeypatch, *ids):
+        """Stand in for the Discord round trip the real filter makes."""
+        allowed = {int(gid) for gid in ids}
+
+        async def is_admin(guild_id, user_id):
+            return int(guild_id) in allowed
+
+        monkeypatch.setattr(bot, "dashboard_is_admin", is_admin)
+
+    def test_it_answers_only_for_guilds_the_actor_administers(self, monkeypatch):
+        self.guilds(monkeypatch, GUILD_ID, OTHER_GUILD_ID,
+                    roles=[FakeRole(1, "Verified", 5)])
+        self.allow(monkeypatch, GUILD_ID)
+        make_server(server_id=str(GUILD_ID))
+        make_server(server_id=str(OTHER_GUILD_ID), row_id=11)
+
+        summaries = run(
+            bot.dashboard_guild_summaries(ADMIN_ID, [GUILD_ID, OTHER_GUILD_ID])
+        )
+        assert set(summaries) == {str(GUILD_ID)}
+
+    def test_a_guild_without_standing_is_absent_rather_than_blank(
+        self, monkeypatch
+    ):
+        """Not a key holding an empty summary. The key IS the disclosure."""
+        self.guilds(monkeypatch, GUILD_ID)
+        self.allow(monkeypatch)  # administers nothing
+        make_server(server_id=str(GUILD_ID))
+
+        summaries = run(bot.dashboard_guild_summaries(MEMBER_ID, [GUILD_ID]))
+        assert summaries == {}
+
+    def test_it_carries_the_configuration_and_the_panel(self, monkeypatch):
+        self.guilds(monkeypatch, GUILD_ID, roles=[FakeRole(1, "Verified", 5)])
+        self.allow(monkeypatch, GUILD_ID)
+        make_server(server_id=str(GUILD_ID), role_id="1")
+
+        summary = run(bot.dashboard_guild_summaries(ADMIN_ID, [GUILD_ID]))[
+            str(GUILD_ID)
+        ]
+        assert summary["configured"]["verified_role"] is True
+        # No panel ids stored, so the never-posted state rather than a guess.
+        assert summary["panel"] == {"posted": False}
+
+    def test_it_reports_a_missing_manage_roles_permission(self, monkeypatch):
+        """The same fact phase 1 put on the Overview, now available for a whole
+        list at once. This is what a picker card reads as "not working"."""
+        self.guilds(monkeypatch, GUILD_ID, manage_roles=False)
+        self.allow(monkeypatch, GUILD_ID)
+        make_server(server_id=str(GUILD_ID), role_id="1")
+
+        summary = run(bot.dashboard_guild_summaries(ADMIN_ID, [GUILD_ID]))[
+            str(GUILD_ID)
+        ]
+        assert summary["configured"]["bot_can_manage_roles"] is False
+
+    def test_a_guild_with_no_row_yet_is_still_summarised(self, monkeypatch):
+        """Installed and never configured: the state the picker most needs to
+        show. Nothing stored is not an error and not an absence of standing."""
+        self.guilds(monkeypatch, GUILD_ID)
+        self.allow(monkeypatch, GUILD_ID)
+
+        summary = run(bot.dashboard_guild_summaries(ADMIN_ID, [GUILD_ID]))[
+            str(GUILD_ID)
+        ]
+        assert summary["configured"]["verified_role"] is False
+        assert summary["panel"] == {"posted": False}
+
+    def test_the_read_does_not_grow_with_the_number_of_guilds(self, monkeypatch):
+        """The acceptance criterion, and the trap this reader exists to avoid.
+
+        A loop over `read_dashboard_settings` would pass every other test here
+        and turn one request into hundreds of reads. Counting statements is the
+        only assertion that catches it.
+        """
+        ids = list(range(GUILD_ID, GUILD_ID + 25))
+        self.guilds(monkeypatch, *ids)
+        self.allow(monkeypatch, *ids)
+        for offset, gid in enumerate(ids):
+            make_server(server_id=str(gid), row_id=100 + offset)
+
+        counted = []
+        real_scope = bot.session_scope
+
+        import sqlalchemy
+
+        @sqlalchemy.event.listens_for(sqlalchemy.engine.Engine, "before_cursor_execute")
+        def count(conn, cursor, statement, params, context, executemany):
+            counted.append(statement)
+
+        try:
+            summaries = run(bot.dashboard_guild_summaries(ADMIN_ID, ids))
+        finally:
+            sqlalchemy.event.remove(
+                sqlalchemy.engine.Engine, "before_cursor_execute", count
+            )
+
+        assert len(summaries) == 25
+        selects = [s for s in counted if s.lstrip().upper().startswith("SELECT")]
+        # Guards the guard: a listener that never fired would count zero and
+        # make the real assertion below vacuous.
+        assert selects, "no statements were observed, so this asserts nothing"
+        # Two: the servers rows and the log-channel rows, each an IN over the
+        # whole batch. A per-guild loop puts this in the dozens, which is the
+        # implementation this test exists to forbid.
+        assert len(selects) <= 2, selects
+
+    def test_an_unresolvable_actor_is_unavailable_rather_than_empty(
+        self, monkeypatch
+    ):
+        """None, not {}: "we could not check" must not render as "none of
+        these are yours", which the picker would draw as blank cards."""
+
+        async def broken(user_id, guild_ids):
+            return None
+
+        monkeypatch.setattr(bot, "dashboard_admin_guilds", broken)
+        assert run(bot.dashboard_guild_summaries(ADMIN_ID, [GUILD_ID])) is None
 
 
 class TestChannelReader:
