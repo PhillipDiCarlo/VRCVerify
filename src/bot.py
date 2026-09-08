@@ -1253,6 +1253,54 @@ class ServerMembershipDaily(Base):
     inaccessible_count = Column(Integer, nullable=False, default=0)
 
 
+class GuildLocale(Base):
+    """Each guild's configured Discord language, as a rough "where is this
+    used" signal (issue #132).
+
+    A loose proxy for region, and it must never be presented as anything more.
+    `preferred_locale` is a setting a server admin chose, so it says the server
+    is *configured* in Brazilian Portuguese, not that anybody in it is in
+    Brazil. Discord hands out no server IP and no geodata, so this is the only
+    signal available and an approximation is all it can ever be.
+
+    `servers.instructions_locale` does not answer this. That is the panel
+    language an admin picked during setup, which is a product configuration
+    choice rather than an observation about the server.
+
+    Current state, not history: one row per guild, overwritten in place. The
+    question this exists to answer is "where is the bot being used", which the
+    latest observation answers. Growth is bounded by the guild count rather
+    than by time, which is what makes it safe to keep without a prune job.
+
+    A separate table rather than a column on `servers`, for two reasons. The
+    familiar one first: create_all() adds missing tables but never columns, as
+    most of the tables in this file already say. The second is specific to this data. The
+    `servers` row only exists once a guild has run setup, but `active_count`
+    deliberately counts every installed guild including the ones that never
+    did -- so a column there would be blank for exactly the population this is
+    meant to measure.
+
+    Deliberately **no member identifiers and no per-person timestamps**, the
+    same line `VerificationDaily` holds. A guild id and a language setting
+    cannot be turned back into a person. `tests/test_guild_locale.py` asserts
+    the column list so that cannot change quietly.
+    """
+
+    # Named for the guild rather than the server because the row set is
+    # Discord's guild list, not the registration list -- the two differ, and
+    # that difference is the reason this table exists. The column keeps the
+    # `server_id` name every other guild id in this file uses, so it still
+    # joins against `servers` and `verification_daily` without a translation.
+    __tablename__ = "guild_locale"
+    server_id = Column(String, primary_key=True)
+    # As Discord reports it, coerced to the plain string form: "de", "pt-BR".
+    preferred_locale = Column(String, nullable=False)
+    # UTC, and the reason a departed guild does not quietly inflate a count.
+    # Rows are kept after a removal for the same reason `servers` rows are, so
+    # a locale breakdown that wants only live guilds filters on this.
+    last_seen = Column(Date, nullable=False)
+
+
 class StripeSubscription(Base):
     """One Stripe subscription, mirrored (issue #88). A guild may have several.
 
@@ -5346,6 +5394,54 @@ def _record_server_membership_day() -> None:
                     setattr(snapshot, field, value)
     except Exception:
         logger.warning("Could not record the server membership snapshot.", exc_info=True)
+
+    # Same sweep, separate transaction, on purpose. The membership snapshot is
+    # what the dashboard and the Grafana panel read; a fault in the newer,
+    # softer locale record must not be able to roll it back.
+    _record_guild_locales()
+
+
+def _record_guild_locales() -> None:
+    """Refresh each live guild's configured language (issue #132).
+
+    Riding the daily sweep rather than `on_guild_join` is the same choice
+    `_record_server_membership_day` makes, and for the same reason: this reads
+    the current `bot.guilds` cache, so a join missed during a disconnect, or a
+    locale an admin changed without telling us, is simply correct again on the
+    next run. An event handler would need both to fire and to be delivered.
+    """
+    today = datetime.now(timezone.utc).date()
+    try:
+        with session_scope() as session:
+            # One read for the whole table, then one pass over the guilds.
+            # Fetching per guild would be a query per server every night.
+            existing = {row.server_id: row for row in session.query(GuildLocale)}
+            for guild in bot.guilds:
+                locale = getattr(guild, "preferred_locale", None)
+                if not locale:
+                    # Recorded as absent rather than as English. Defaulting
+                    # here would manufacture en-US guilds that were never
+                    # observed, in the one table whose only job is to say
+                    # which languages are actually out there.
+                    continue
+                # discord.Locale is an enum, and an enum is not its string.
+                # str(Locale.german) == "de" -- see `dm_localized`, where
+                # skipping this coercion once sent every fallback DM in
+                # English.
+                code = str(locale)
+                key = str(guild.id)
+                row = existing.get(key)
+                if row is None:
+                    session.add(
+                        GuildLocale(
+                            server_id=key, preferred_locale=code, last_seen=today
+                        )
+                    )
+                else:
+                    row.preferred_locale = code
+                    row.last_seen = today
+    except Exception:
+        logger.warning("Could not record guild locales.", exc_info=True)
 
 
 async def server_membership_snapshot_task() -> None:
