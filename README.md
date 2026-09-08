@@ -944,10 +944,12 @@ it.
    which is the panel language chosen during setup.
 
    The table is current state rather than history: rows are overwritten in
-   place, so it grows with the guild count and not with time, and it needs no
-   prune job. Rows are kept after the bot is removed from a guild, matching
-   the retained `servers` row, which is why a breakdown of live servers has to
-   filter on `last_seen`:
+   place, so it holds one row per guild ever installed rather than one per
+   guild per day. Churn still adds rows over time, slowly enough that nothing
+   prunes it today, and a deployment that outgrows that can delete by
+   `last_seen`. Rows are kept after the bot is removed from a guild, matching
+   the retained `servers` row, which is also why a breakdown of live servers
+   has to filter on `last_seen`:
 
    ```sql
    SELECT preferred_locale, count(*) AS servers
@@ -959,7 +961,11 @@ it.
 
    A guild whose locale Discord did not report is recorded as absent rather
    than defaulted to `en-US`, so the counts never include servers that were
-   never actually observed speaking English.
+   never actually observed. Guilds that are unavailable during a Discord
+   outage are skipped for the same reason: their payload carries only an id,
+   and the library fills the locale in with a default `en-US` that would
+   otherwise rewrite the table to English every time Discord had a bad day.
+   The previous reading is left in place instead.
 
    Like `verification_daily`, this table holds **no member identifiers and no
    per-person timestamps**. A guild id and a language cannot be turned back

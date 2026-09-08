@@ -98,6 +98,48 @@ def test_a_guild_with_no_locale_is_recorded_as_absent(monkeypatch):
     assert locales() == {"200": ("ko", TODAY)}
 
 
+def test_an_unavailable_guild_does_not_overwrite_a_known_locale(monkeypatch):
+    """Discord outage regression.
+
+    discord.py fills `preferred_locale` with a default `en-US` whenever the
+    guild payload omits it, and an unavailable guild's payload carries nothing
+    but an id and the unavailable flag. That default is a fabrication, not an
+    observation, and trusting it lets an outage quietly rewrite the whole
+    table to English -- the precise skew this table exists not to have.
+    """
+    set_guilds(monkeypatch, guild(100, "pt-BR"))
+    bot._record_guild_locales()
+
+    set_guilds(
+        monkeypatch,
+        SimpleNamespace(
+            id=100,
+            preferred_locale=discord.Locale.american_english,
+            unavailable=True,
+        ),
+    )
+    bot._record_guild_locales()
+
+    assert locales() == {"100": ("pt-BR", TODAY)}
+
+
+def test_an_unavailable_guild_is_not_recorded_at_all(monkeypatch):
+    """A guild we have never actually seen must not enter as an en-US row."""
+    set_guilds(
+        monkeypatch,
+        SimpleNamespace(
+            id=100,
+            preferred_locale=discord.Locale.american_english,
+            unavailable=True,
+        ),
+        guild(200, "fi"),
+    )
+
+    bot._record_guild_locales()
+
+    assert locales() == {"200": ("fi", TODAY)}
+
+
 def test_the_daily_sweep_records_locales_too(monkeypatch):
     """The point of riding the existing sweep: no second task to schedule."""
     set_guilds(monkeypatch, guild(100, "es-ES"))

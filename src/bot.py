@@ -1269,8 +1269,12 @@ class GuildLocale(Base):
 
     Current state, not history: one row per guild, overwritten in place. The
     question this exists to answer is "where is the bot being used", which the
-    latest observation answers. Growth is bounded by the guild count rather
-    than by time, which is what makes it safe to keep without a prune job.
+    latest observation answers.
+
+    Growth is one row per guild ever installed, not one per guild per day, so
+    churn still adds rows over time -- just slowly enough that no prune job is
+    needed at this size. `VerificationDaily` carries the same caveat, and the
+    same answer if it ever stops being true: delete by date.
 
     A separate table rather than a column on `servers`, for two reasons. The
     familiar one first: create_all() adds missing tables but never columns, as
@@ -5417,6 +5421,15 @@ def _record_guild_locales() -> None:
             # Fetching per guild would be a query per server every night.
             existing = {row.server_id: row for row in session.query(GuildLocale)}
             for guild in bot.guilds:
+                if getattr(guild, "unavailable", False):
+                    # A guild in the middle of a Discord outage. Its payload
+                    # is an id and a flag, and discord.py fills the rest with
+                    # defaults -- including `preferred_locale`, which it
+                    # defaults to en-US rather than leaving unset. That value
+                    # is a fabrication, not an observation, so trusting it
+                    # would let an outage quietly rewrite this whole table to
+                    # English. Skipping leaves the last real reading in place.
+                    continue
                 locale = getattr(guild, "preferred_locale", None)
                 if not locale:
                     # Recorded as absent rather than as English. Defaulting
