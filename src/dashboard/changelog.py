@@ -211,6 +211,19 @@ _FIELD_SEPARATOR = ":"
 # usable rather than when the issue was filed. The other four had been
 # reachable for three weeks by then.
 ENTRIES = (
+    Entry(
+        id="2026-09-manage-roles-check",
+        date=date(2026, 9, 8),
+        title=N_("A permission check that was missing"),
+        body=(
+            N_("VRCVerify needs Discord's Manage Roles permission to grant a "
+            "verified role. It was never checking whether it had one, so a "
+            "server that had lost the permission looked healthy on the "
+            "Overview while every verification quietly failed to grant "
+            "anything. The Overview and the role picker now say so, and tell "
+            "you where to fix it.")
+        ),
+    ),
     # Dated when the page became findable rather than when it went live. The
     # status page itself had been serving for a day already, and the rows on it
     # were real, but nothing linked to it from anywhere a member would look. A

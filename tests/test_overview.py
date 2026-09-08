@@ -24,6 +24,7 @@ fails if it ever grows a column that could name a member.
 """
 
 from datetime import date, timedelta
+from types import SimpleNamespace
 
 import pytest
 
@@ -428,8 +429,13 @@ class FakeRole:
 
 
 class FakeMember:
-    def __init__(self, top_role):
+    """The bot's own member object. `manage_roles` defaults to True because a
+    bot invited through `_invite_url` has the permission -- the tests that
+    matter here are the ones that take it away."""
+
+    def __init__(self, top_role, manage_roles=True):
         self.top_role = top_role
+        self.guild_permissions = SimpleNamespace(manage_roles=manage_roles)
 
 
 class FakeGuild:
@@ -556,7 +562,11 @@ class TestTheOverviewPayload:
         configured = read_overview()["configured"]
         assert configured["verified_role"] is True
         assert configured["unverified_role"] is False
-        health_only = {"verified_role_exists", "verified_role_assignable"}
+        health_only = {
+            "verified_role_exists",
+            "verified_role_assignable",
+            "bot_can_manage_roles",
+        }
         for key, value in configured.items():
             if key in health_only:
                 assert value is None or isinstance(value, bool)
@@ -619,6 +629,45 @@ class TestVerifiedRoleHealth:
         in_guild._roles[900000000001] = verified
         in_guild.me = FakeMember(top_role=FakeRole(0, position=10))
         assert read_overview()["configured"]["verified_role_assignable"] is False
+
+    def test_a_bot_without_manage_roles_cannot_grant_a_role_it_outranks(
+        self, in_guild
+    ):
+        """The gap this phase closes. Hierarchy alone said yes, because being
+        above a role is trivially true for a bot that holds no permission at
+        all -- so the Overview reported a server as working while every
+        verification silently failed."""
+        make_server(role_id="900000000001")
+        in_guild._roles[900000000001] = FakeRole(900000000001, position=3)
+        in_guild.me = FakeMember(top_role=FakeRole(0, position=10),
+                                 manage_roles=False)
+        configured = read_overview()["configured"]
+        assert configured["bot_can_manage_roles"] is False
+        # Folded into the composite too, so a caller reading only this field
+        # still gets a truthful answer.
+        assert configured["verified_role_assignable"] is False
+
+    def test_the_permission_is_reported_separately_from_the_hierarchy(
+        self, in_guild
+    ):
+        """Two fields rather than one, because the remedies are on different
+        screens and `_role_row` has to be able to tell them apart."""
+        make_server(role_id="900000000001")
+        in_guild._roles[900000000001] = FakeRole(900000000001, position=8)
+        in_guild.me = FakeMember(top_role=FakeRole(0, position=2))
+        configured = read_overview()["configured"]
+        assert configured["bot_can_manage_roles"] is True
+        assert configured["verified_role_assignable"] is False
+
+    def test_an_unavailable_bot_member_cannot_answer_the_permission_either(
+        self, in_guild
+    ):
+        """None rather than False: the same restraint the hierarchy check
+        takes. Reporting every server as broken because `guild.me` was missing
+        would be the worse guess."""
+        make_server(role_id="900000000001")
+        in_guild._roles[900000000001] = FakeRole(900000000001, position=3)
+        assert read_overview()["configured"]["bot_can_manage_roles"] is None
 
     def test_no_member_identifier_appears_anywhere_in_the_payload(self, in_guild):
         """The privacy ceiling, pinned end to end.

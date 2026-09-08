@@ -1553,12 +1553,23 @@ class FakeChannel:
 
 
 class FakeGuild:
-    def __init__(self, roles=(), channels=(), me=True, owner_id=OWNER_ID):
+    def __init__(
+        self, roles=(), channels=(), me=True, owner_id=OWNER_ID, manage_roles=True
+    ):
         self.id = GUILD_ID
         self.owner_id = owner_id
         self.roles = list(roles)
         self.text_channels = list(channels)
-        self.me = SimpleNamespace(top_role=FakeRole(90, "Bot", 90)) if me else None
+        # `manage_roles` defaults to True: a bot invited through the dashboard's
+        # own install link has the permission, so that is the ordinary server.
+        self.me = (
+            SimpleNamespace(
+                top_role=FakeRole(90, "Bot", 90),
+                guild_permissions=SimpleNamespace(manage_roles=manage_roles),
+            )
+            if me
+            else None
+        )
         self._members = {}
 
     def get_member(self, user_id):
@@ -3039,6 +3050,43 @@ class TestRoleReader:
     ):
         self.guild(monkeypatch, roles=[FakeRole(2, "Verified", 10)], me=False)
         assert run(bot.read_dashboard_roles(GUILD_ID))[0]["assignable"] is None
+
+    def test_without_manage_roles_nothing_is_assignable(self, monkeypatch):
+        """Hierarchy is satisfied vacuously for a bot that holds no permission,
+        so checking only the hierarchy offered every role in the picker as
+        grantable while the bot could grant none of them."""
+        self.guild(
+            monkeypatch,
+            roles=[FakeRole(2, "Below", 10), FakeRole(3, "Also below", 20)],
+            manage_roles=False,
+        )
+        roles = run(bot.read_dashboard_roles(GUILD_ID))
+        assert [role["assignable"] for role in roles] == [False, False]
+        assert {role["unassignable_reason"] for role in roles} == {"permission"}
+
+    def test_a_hierarchy_problem_is_not_reported_as_a_permission_one(
+        self, monkeypatch
+    ):
+        """The two have different fixes and different screens, so the picker
+        has to be able to tell which warning to print."""
+        self.guild(monkeypatch, roles=[FakeRole(3, "Above", 99)])
+        role = run(bot.read_dashboard_roles(GUILD_ID))[0]
+        assert role["assignable"] is False
+        assert role["unassignable_reason"] == "role"
+
+    def test_an_assignable_role_carries_no_reason(self, monkeypatch):
+        self.guild(monkeypatch, roles=[FakeRole(2, "Below", 10)])
+        role = run(bot.read_dashboard_roles(GUILD_ID))[0]
+        assert role["assignable"] is True
+        assert role["unassignable_reason"] is None
+
+    def test_an_unknown_answer_invents_no_reason(self, monkeypatch):
+        """`assignable` is None because `guild.me` was missing. There is no
+        reason to give for a question that was never answered."""
+        self.guild(monkeypatch, roles=[FakeRole(2, "Verified", 10)], me=False)
+        role = run(bot.read_dashboard_roles(GUILD_ID))[0]
+        assert role["assignable"] is None
+        assert role["unassignable_reason"] is None
 
     def test_an_absent_guild_reads_as_unavailable(self, monkeypatch):
         monkeypatch.setattr(bot.bot, "get_guild", lambda _id: None)

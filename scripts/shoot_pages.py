@@ -61,6 +61,21 @@ PAGES = [
     # the ordinary batch.
     ("pricing", "/pricing", {}),
     ("refusal", f"/guild/{PREMIUM}", {"PREVIEW_BOT_DOWN": "1"}),
+    # The bot is present and answering and simply cannot grant roles. Both
+    # pages, because the two say different things about the same fact: the
+    # Overview names the remedy and offers no button, the role picker warns
+    # under the field. Neither is reachable from the four preview servers,
+    # which are all healthy in this respect.
+    (
+        "overview-no-manage-roles",
+        f"/guild/{PREMIUM}",
+        {"PREVIEW_NO_MANAGE_ROLES": "1"},
+    ),
+    (
+        "settings-no-manage-roles",
+        f"/guild/{PREMIUM}/settings",
+        {"PREVIEW_NO_MANAGE_ROLES": "1"},
+    ),
 ]
 
 # Both themes explicitly, plus "system" left to the OS preference -- which is a

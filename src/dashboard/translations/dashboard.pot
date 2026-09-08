@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-07 18:35-0400\n"
+"POT-Creation-Date: 2026-09-08 00:02-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -192,6 +192,17 @@ msgstr ""
 msgid "New"
 msgstr ""
 
+msgid "A permission check that was missing"
+msgstr ""
+
+msgid ""
+"VRCVerify needs Discord's Manage Roles permission to grant a verified "
+"role. It was never checking whether it had one, so a server that had lost"
+" the permission looked healthy on the Overview while every verification "
+"quietly failed to grant anything. The Overview and the role picker now "
+"say so, and tell you where to fix it."
+msgstr ""
+
 msgid "Check whether VRCVerify is working"
 msgstr ""
 
@@ -321,6 +332,12 @@ msgstr ""
 msgid "Required — verification can't finish without one."
 msgstr ""
 
+msgid ""
+"VRCVerify is missing the Manage Roles permission, so it can't grant this "
+"role to anyone. Give its role that permission in Server Settings, or re-"
+"invite the bot."
+msgstr ""
+
 msgid "The role that was set has been deleted. Choose another."
 msgstr ""
 
@@ -425,6 +442,12 @@ msgid "Russian"
 msgstr ""
 
 msgid "Punjabi"
+msgstr ""
+
+msgid ""
+"VRCVerify is missing the Manage Roles permission, so it can't add or "
+"remove roles at all. Give its role that permission in Server Settings, or"
+" re-invite the bot."
 msgstr ""
 
 msgid "Not set"

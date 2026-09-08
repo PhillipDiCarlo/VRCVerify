@@ -9239,6 +9239,12 @@ async def read_dashboard_roles(guild_id) -> Optional[list]:
     It is None, not False, when `guild.me` is unavailable: "we cannot tell" and
     "we checked and no" are different answers, and greying out every role
     because the bot's own member object was missing would be the worse guess.
+
+    All three of Discord's requirements are checked: the Manage Roles
+    permission via `bot_can_manage_roles`, the hierarchy, and `managed`. The
+    first used to be missing, which made this field report every role as
+    grantable for a bot that could grant none of them. `unassignable_reason`
+    separates the two remedies, since they are on different screens.
     """
     try:
         guild = bot.get_guild(int(guild_id))
@@ -9246,17 +9252,32 @@ async def read_dashboard_roles(guild_id) -> Optional[list]:
             return None
         me = guild.me
         top_role = me.top_role if me is not None else None
+        # Guild-wide, so it is read once rather than per role. False here makes
+        # every role unassignable at once, which is exactly what it means: a
+        # bot without Manage Roles cannot grant any of them, however the
+        # hierarchy is arranged.
+        can_manage = bot_can_manage_roles(guild)
 
         roles = []
         for role in guild.roles:
             if role.is_default():
                 continue  # @everyone: not a choice, never assignable
-            if top_role is None:
+            # `reason` exists so the picker can say something true about the
+            # fix. A missing permission is corrected in Discord's own settings
+            # and a hierarchy problem by reordering roles, and telling an admin
+            # to reorder roles when the bot holds no permission at all sends
+            # them to a screen where nothing they can do will help.
+            reason = None
+            if can_manage is False:
+                assignable, reason = False, "permission"
+            elif top_role is None:
                 assignable = None
             else:
                 # Managed roles belong to an integration and cannot be granted
                 # by anyone, whatever the hierarchy says.
                 assignable = bool(not role.managed and top_role > role)
+                if not assignable:
+                    reason = "role"
             roles.append(
                 {
                     "id": str(role.id),
@@ -9265,6 +9286,10 @@ async def read_dashboard_roles(guild_id) -> Optional[list]:
                     "color": role.color.value,
                     "managed": bool(role.managed),
                     "assignable": assignable,
+                    # None whenever `assignable` is not False: there is no
+                    # reason to give for a role that can be granted, and none
+                    # to invent for one we could not check.
+                    "unassignable_reason": reason,
                 }
             )
         roles.sort(key=lambda entry: entry["position"], reverse=True)
@@ -9959,6 +9984,35 @@ async def read_dashboard_overview(guild_id) -> Optional[dict]:
     }
 
 
+def bot_can_manage_roles(guild) -> Optional[bool]:
+    """Whether the bot holds Manage Roles in this guild.
+
+    THE THIRD REQUIREMENT, and the one this codebase used to omit. Discord
+    grants a role only when all of: the actor holds Manage Roles, the actor's
+    top role sits above the target, and the target is not `managed`. Checking
+    only the last two reports a bot with no permission at all as able to grant
+    anything, because hierarchy is satisfied vacuously when there is nothing to
+    be below. That is not a hypothetical: `_invite_url` records that the apex
+    site's install link asks for no permissions whatsoever, and an admin can
+    strip the permission from the bot's role at any point after a full install.
+
+    None, not False, when `guild.me` is unavailable, for the same reason
+    `read_dashboard_roles` returns None there: "we cannot tell" and "we checked
+    and no" are different answers, and reporting every server as broken because
+    the bot's own member object was missing would be the worse guess.
+
+    discord.py folds Administrator into `guild_permissions`, so a bot that is
+    an administrator reads True here without a second check for it.
+    """
+    me = getattr(guild, "me", None)
+    if me is None:
+        return None
+    permissions = getattr(me, "guild_permissions", None)
+    if permissions is None:
+        return None
+    return bool(permissions.manage_roles)
+
+
 def _overview_configuration(settings: Optional[dict], guild) -> Optional[dict]:
     """The handful of settings the Overview reports as set or not set.
 
@@ -9994,16 +10048,31 @@ def _overview_configuration(settings: Optional[dict], guild) -> Optional[dict]:
         except (TypeError, ValueError):
             role = None
 
+    can_manage = bot_can_manage_roles(guild)
+
+    # Reported separately as well as folded into `verified_role_assignable`,
+    # because the two carry different instructions. "Move your role above it"
+    # is the fix for a hierarchy problem and useless advice for a missing
+    # permission, and `_role_row` needs to be able to tell which it is looking
+    # at. The composite stays truthful on its own so any caller reading only
+    # that field still gets the right answer.
     role_assignable = None
     if role is not None:
-        top_role = guild.me.top_role if guild.me is not None else None
-        if top_role is not None:
-            role_assignable = bool(not role.managed and top_role > role)
+        if can_manage is False:
+            role_assignable = False
+        else:
+            top_role = guild.me.top_role if guild.me is not None else None
+            if top_role is not None:
+                role_assignable = bool(not role.managed and top_role > role)
 
     return {
         "verified_role": bool(role_id),
         "verified_role_exists": (role is not None) if role_id else None,
         "verified_role_assignable": role_assignable,
+        # Guild-wide rather than per role, and None when it could not be
+        # checked. A dashboard older than this field sees it missing, which
+        # reads as unknown and leaves the previous behaviour intact.
+        "bot_can_manage_roles": can_manage,
         "unverified_role": bool(value("unverified_role_id")),
         "log_channel": bool(value("verification_log_channel_id")),
         "auto_verify": bool(value("auto_verify_new_members")),

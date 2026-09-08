@@ -34,6 +34,7 @@ from html.parser import HTMLParser
 from types import SimpleNamespace
 
 import pytest
+from markupsafe import escape
 
 pytest.importorskip("flask")
 
@@ -267,6 +268,7 @@ def make_overview(
                 "verified_role": True,
                 "verified_role_exists": True,
                 "verified_role_assignable": True,
+                "bot_can_manage_roles": True,
                 "unverified_role": False,
                 "log_channel": False,
                 "auto_verify": True,
@@ -285,6 +287,7 @@ DEFAULT_ROLES = [
         "color": 0x5865F2,
         "managed": False,
         "assignable": True,
+        "unassignable_reason": None,
     },
     {
         "id": UNVERIFIED_ROLE,
@@ -293,6 +296,7 @@ DEFAULT_ROLES = [
         "color": 0,
         "managed": False,
         "assignable": True,
+        "unassignable_reason": None,
     },
     {
         "id": UNASSIGNABLE_ROLE,
@@ -301,8 +305,21 @@ DEFAULT_ROLES = [
         "color": 0,
         "managed": False,
         "assignable": False,
+        # Outranks the bot. The permission is present; the hierarchy is the
+        # problem, which is the hint this role should draw.
+        "unassignable_reason": "role",
     },
 ]
+
+
+def roles_without_manage_permission():
+    """Every role unassignable for the one reason that is not about the role:
+    the bot holds no Manage Roles permission, so none of them can be granted
+    however the hierarchy is arranged."""
+    return [
+        dict(role, assignable=False, unassignable_reason="permission")
+        for role in DEFAULT_ROLES
+    ]
 
 DEFAULT_CHANNELS = [
     {
@@ -1372,10 +1389,35 @@ class TestTheBell:
         bell = page.split('<details class="bell', 1)[1].split("</details>", 1)[0]
         assert bell.count("bell-title") <= changelog.BELL_LIMIT
 
-    def test_a_premium_entry_never_wears_the_lock_badge(self, client, store):
+    def test_a_premium_entry_never_wears_the_lock_badge(
+        self, monkeypatch, client, store
+    ):
         """`.badge.premium` means "your plan cannot use this" on the settings
         page, and this bell renders on that page. One chip with two meanings
-        on one document is a chip that means neither."""
+        on one document is a chip that means neither.
+
+        The entry is supplied rather than borrowed from `ENTRIES`, which shows
+        only its newest `BELL_LIMIT`: relying on the shipped list meant this
+        stopped testing anything the moment five ordinary entries landed on
+        top of the premium one, and it would have gone green while doing it.
+        """
+        entry = changelog.Entry(
+            id="2026-09-premium-fixture",
+            date=date(2026, 9, 1),
+            title="A premium entry",
+            body="Rendered for the badge check.",
+            premium=True,
+        )
+        # Wrapping `build_bell` rather than setting `changelog.ENTRIES`:
+        # `entries=ENTRIES` is a default argument, bound at import, so
+        # replacing the module attribute leaves the bell rendering the real
+        # list and the test passing for the wrong reason.
+        real = changelog.build_bell
+        monkeypatch.setattr(
+            changelog,
+            "build_bell",
+            lambda seen, **kwargs: real(seen, entries=(entry,), **kwargs),
+        )
         login_as(client, store)
         page = client.get("/").data.decode()
         bell = page.split('<details class="bell', 1)[1].split("</details>", 1)[0]
@@ -1715,8 +1757,15 @@ class TestTheChangelogPage:
         login_as(client, store)
         page = client.get("/updates").data.decode()
         for item in changelog.ENTRIES:
-            assert item.title in page
-            assert item.body in page
+            # Escaped the way Jinja escapes, because the template renders
+            # these as text: an entry containing an apostrophe or an ampersand
+            # reaches the page as an entity, and comparing the raw string would
+            # report a body that renders perfectly well as missing.
+            # `markupsafe.escape` rather than `html.escape` -- the two disagree
+            # about the apostrophe (&#39; against &#x27;), and this page is
+            # rendered by the one Jinja uses.
+            assert str(escape(item.title)) in page
+            assert str(escape(item.body)) in page
 
     def test_it_is_signed_in_only(self, client):
         """The public version is #137's job, which is what the `public` flag
@@ -2105,6 +2154,40 @@ class TestSettingsWarnings:
         page = every_settings_page(test_client)
         assert "cannot grant this role" in page
         assert "Server Settings -&gt; Roles" in page
+
+    def test_a_missing_manage_roles_permission_names_the_right_fix(
+        self, config, store
+    ):
+        """The hierarchy hint sends admins to reorder roles. That is the wrong
+        screen when the bot has no permission to move toward, so the reason
+        from the bot decides which warning prints."""
+        test_client, _api = settings_client(
+            config,
+            store,
+            roles=roles_without_manage_permission(),
+            settings=make_settings(values={"role_id": VERIFIED_ROLE}),
+        )
+        page = every_settings_page(test_client)
+        assert "add or remove roles at all" in page
+        assert "cannot grant this role" not in page
+
+    def test_an_older_bot_still_gets_the_hierarchy_hint(self, config, store):
+        """Deploy skew: no reason on the payload at all. The previous wording
+        stays the default rather than the page inventing a permission problem
+        it was never told about."""
+        roles = [
+            {k: v for k, v in role.items() if k != "unassignable_reason"}
+            for role in DEFAULT_ROLES
+        ]
+        test_client, _api = settings_client(
+            config,
+            store,
+            roles=roles,
+            settings=make_settings(values={"role_id": UNASSIGNABLE_ROLE}),
+        )
+        page = every_settings_page(test_client)
+        assert "cannot grant this role" in page
+        assert "add or remove roles at all" not in page
 
     def test_a_deleted_role_is_called_out(self, config, store):
         test_client, _api = settings_client(
@@ -4435,6 +4518,7 @@ class TestTheSetupListOnThePage:
             "verified_role": True,
             "verified_role_exists": True,
             "verified_role_assignable": True,
+            "bot_can_manage_roles": True,
             "unverified_role": False,
             "log_channel": False,
             "auto_verify": True,
@@ -7062,6 +7146,7 @@ class TestOverviewViewModel:
             "verified_role": True,
             "verified_role_exists": True,
             "verified_role_assignable": True,
+            "bot_can_manage_roles": True,
             "unverified_role": False,
             "log_channel": False,
             "auto_verify": True,
@@ -7117,6 +7202,74 @@ class TestOverviewViewModel:
         role = next(row for row in setup["rows"] if row["label"] == "Verified role")
         assert role["state"] == "broken"
         assert "sit above" in role["note"]
+
+    def test_a_missing_manage_roles_permission_is_broken_with_its_own_note(self):
+        """The gap this phase closes. Hierarchy is trivially satisfied for a
+        bot holding no permission, so the row used to read "Set, and VRCVerify
+        can grant it" on a server where nothing could ever be granted."""
+        setup = overview_view.build_setup(
+            {"configured": self._configured(bot_can_manage_roles=False,
+                                             verified_role_assignable=False),
+             "panel": {"posted": True}}
+        )
+        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        assert role["state"] == "broken"
+        assert "Manage Roles" in role["note"]
+        # Not the hierarchy note: reordering roles fixes nothing here.
+        assert "sit above" not in role["note"]
+        # And no button, because no Settings field grants a Discord permission.
+        assert role["action"] is None
+
+    def test_the_permission_note_wins_over_the_other_broken_notes(self):
+        """Several can be false at once. The permission is the one to name,
+        since fixing anything else while it is missing changes nothing."""
+        setup = overview_view.build_setup(
+            {"configured": self._configured(bot_can_manage_roles=False,
+                                             verified_role_exists=False,
+                                             verified_role_assignable=False),
+             "panel": {"posted": True}}
+        )
+        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        assert "Manage Roles" in role["note"]
+
+    def test_an_unset_role_still_reads_as_todo_without_the_permission(self):
+        """The permission outranks both BROKEN states and not the todo. A
+        server with no role chosen has a step to take and the role picker is
+        where to take it, so it keeps that step and hears about the permission
+        once it has a role for the permission to be about."""
+        setup = overview_view.build_setup(
+            {"configured": self._configured(verified_role=False,
+                                             verified_role_exists=None,
+                                             verified_role_assignable=None,
+                                             bot_can_manage_roles=False),
+             "panel": {"posted": True}}
+        )
+        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        assert role["state"] == "todo"
+        assert role["action"] is not None
+
+    def test_a_bot_older_than_the_permission_field_is_not_reported_broken(self):
+        """The deploy-skew case: the bot and the dashboard ship separately, so
+        a dashboard that is ahead sees no such key. Absent reads as unknown,
+        not as False, or every working server would show as broken until the
+        bot caught up."""
+        configured = self._configured()
+        del configured["bot_can_manage_roles"]
+        setup = overview_view.build_setup(
+            {"configured": configured, "panel": {"posted": True}}
+        )
+        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        assert role["state"] == "done"
+
+    def test_an_unknown_permission_is_not_treated_as_broken(self):
+        """None means `guild.me` was unavailable, the same restraint the
+        hierarchy check takes."""
+        setup = overview_view.build_setup(
+            {"configured": self._configured(bot_can_manage_roles=None),
+             "panel": {"posted": True}}
+        )
+        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        assert role["state"] == "done"
 
     def test_unknown_assignability_is_not_treated_as_broken(self):
         """`None` means the hierarchy could not be checked, not that it
@@ -7232,6 +7385,7 @@ class TestTheNextStepRanker:
             "verified_role": True,
             "verified_role_exists": True,
             "verified_role_assignable": True,
+            "bot_can_manage_roles": True,
             "unverified_role": False,
             "log_channel": False,
             "auto_verify": True,

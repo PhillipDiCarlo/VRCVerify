@@ -216,6 +216,18 @@ def _plan(state: dict) -> dict:
     }
 
 
+# One string for both role fields, because the permission is guild-wide: a bot
+# without Manage Roles can neither grant the verified role nor remove the
+# unverified one, so there is no per-field variant of this to write. The
+# hierarchy hints stay per field, since those really do differ ("grant" versus
+# "remove").
+_MISSING_MANAGE_ROLES = N_(
+    "VRCVerify is missing the Manage Roles permission, so it can't add or "
+    "remove roles at all. Give its role that permission in Server Settings, "
+    "or re-invite the bot."
+)
+
+
 def _role_field(
     settings: dict,
     roles: Optional[list],
@@ -267,7 +279,16 @@ def _role_field(
                 swatch = _hex(role["color"])
             assignable = role.get("assignable")
             if assignable is False:
-                warnings.append(t(unassignable_hint))
+                # Which of the two remedies to name. A missing Manage Roles
+                # permission is fixed in Discord's own settings, and the
+                # hierarchy hints below tell an admin to reorder roles, which
+                # for this cause is a screen where nothing they do will help.
+                # An older bot sends no reason at all, so the hierarchy hint
+                # stays the default rather than the permission one.
+                if role.get("unassignable_reason") == "permission":
+                    warnings.append(t(_MISSING_MANAGE_ROLES))
+                else:
+                    warnings.append(t(unassignable_hint))
             elif assignable is None and roles is not None:
                 warnings.append(t(N_(
                     "Couldn't check whether VRCVerify can manage this role."

@@ -39,6 +39,11 @@
        Caught by measuring the rendered boxes, not by reading either file:
        `.actions` computed `display: flex` and had room to spare, and the
        button still wrapped. #}
+    {# The whole row is conditional, because a card can now legitimately have
+       nothing to offer. A missing Manage Roles permission is granted in
+       Discord and by nothing on any Settings page, so `_setup_step` returns no
+       action for it -- and an empty flex row would still draw its gap. #}
+    {% if next_step.action or next_step.entry_id %}
     <div class="actions">
       {% if next_step.action == 'subscription' %}
         <a class="button" href="{{ url_for('guild_subscription', guild_id=guild_id) }}">
@@ -46,7 +51,10 @@
              setup step and the demo have always used, so the two candidates
              that carry no label are unchanged. #}
           {{ next_step.cta_label or _('See plans and subscribe') }}</a>
-      {% else %}
+      {% elif next_step.action == 'settings' %}
+        {# `elif`, NOT `else`: an absent action once meant "the settings one",
+           and turning that into a button the card never asked for is how an
+           admin gets sent to a page where nothing they can change helps. #}
         <a class="button" href="{{ url_for('guild_settings', guild_id=guild_id, group=next_step.group or 'verification') }}">
           {{ next_step.cta_label or 'Go to Settings' }}</a>
       {% endif %}
@@ -66,6 +74,7 @@
         </form>
       {% endif %}
     </div>
+    {% endif %}
   </section>
 {% endif %}
 
