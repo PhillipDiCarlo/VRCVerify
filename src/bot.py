@@ -9013,6 +9013,30 @@ async def dashboard_admin_guilds(user_id, guild_ids) -> Optional[list]:
         return None
 
 
+def _rows_by_server_id(rows) -> dict:
+    """Index rows by NORMALISED server id, never by the raw column value.
+
+    THE BUG THIS EXISTS TO PREVENT SHIPPED ONCE (#164). `servers.server_id` is
+    declared String while the deployed column is an integer type, so the driver
+    hands back an int on production and a str on SQLite. A dict keyed on the
+    raw value therefore matched nothing against `panel_view_key`'s string keys:
+    every row read as missing, every server reported itself unconfigured, and
+    every picker card said setup was unfinished while the Overview for the same
+    server said it was complete. Nothing errored and nothing logged.
+
+    `panel_view_key`'s own docstring warns about exactly this -- "makes the
+    in-memory version lookup silently never match" -- and the warning was on
+    the write side of the query while the mistake was on the read side.
+
+    A FUNCTION RATHER THAN A DICT COMPREHENSION, because the test database
+    cannot reproduce the fault: SQLite applies TEXT affinity to a VARCHAR
+    column and coerces the int away, so a row inserted with an integer id comes
+    back as a string and the broken version passes. The invariant is testable
+    here even though the type is not reachable there.
+    """
+    return {panel_view_key(row.server_id): row for row in rows}
+
+
 async def dashboard_guild_summaries(user_id, guild_ids) -> Optional[dict]:
     """A small per-guild summary for the picker, for the whole list at once.
 
@@ -9059,18 +9083,30 @@ async def dashboard_guild_summaries(user_id, guild_ids) -> Optional[dict]:
         has_auto_verify = server_has_column("auto_verify_new_members")
 
         with session_scope() as session:
-            servers = {
-                row.server_id: row
-                for row in session.query(Server).filter(Server.server_id.in_(keys))
-            }
+            # `panel_view_key` ON THE WAY OUT OF THE QUERY, NOT ONLY ON THE
+            # WAY IN. `servers.server_id` is declared String and the deployed
+            # column is an integer type, so the driver hands back an int while
+            # `keys` holds strings -- and a dict keyed by the raw value then
+            # never matches the lookup below. It is not an error and nothing
+            # logs: every row reads as missing, so every server reports itself
+            # unconfigured and every card says setup is unfinished.
+            #
+            # This is the exact failure `panel_view_key`'s own docstring warns
+            # about ("makes the in-memory version lookup silently never
+            # match"). SQLite stores the column as declared, so it matches
+            # locally and only production disagrees.
+            servers = _rows_by_server_id(
+                session.query(Server).filter(Server.server_id.in_(keys))
+            )
             # A separate table, so a separate query -- still one for the whole
-            # batch rather than one per guild.
-            log_channels = {
-                row.server_id
-                for row in session.query(VerificationLogChannel.server_id).filter(
-                    VerificationLogChannel.server_id.in_(keys)
+            # batch rather than one per guild. Normalised for the same reason.
+            log_channels = set(
+                _rows_by_server_id(
+                    session.query(VerificationLogChannel.server_id).filter(
+                        VerificationLogChannel.server_id.in_(keys)
+                    )
                 )
-            }
+            )
             summaries = {}
             for guild_id in allowed:
                 key = panel_view_key(guild_id)

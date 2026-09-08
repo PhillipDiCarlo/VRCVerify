@@ -3384,6 +3384,34 @@ class TestGuildSummaryReader:
         # implementation this test exists to forbid.
         assert len(selects) <= 2, selects
 
+    def test_rows_are_indexed_by_normalised_id_not_the_raw_column(self):
+        """THE BUG THAT SHIPPED, and the reason it is tested here rather than
+        through the database.
+
+        `servers.server_id` is declared String while the deployed column is an
+        integer type, so the driver returns an int in production. Indexing on
+        the raw value then never matched `panel_view_key`'s string keys: every
+        row read as missing, every server reported itself unconfigured, and
+        every picker card said setup was unfinished while the Overview for the
+        same server said it was complete. Nothing errored and nothing logged.
+
+        SQLite cannot reproduce it. A VARCHAR column has TEXT affinity, so a
+        row inserted with an integer id comes back as a string and the broken
+        code passes -- which is exactly how this reached users. So the
+        invariant is asserted directly, against rows carrying both types.
+        """
+        rows = [
+            SimpleNamespace(server_id=987654321),   # what production returns
+            SimpleNamespace(server_id="123456789"),  # what SQLite returns
+        ]
+        indexed = bot._rows_by_server_id(rows)
+
+        assert set(indexed) == {"987654321", "123456789"}
+        # Keyed by the same function the lookup uses, so both forms are found.
+        assert indexed[bot.panel_view_key(987654321)] is rows[0]
+        assert indexed[bot.panel_view_key("987654321")] is rows[0]
+        assert indexed[bot.panel_view_key(123456789)] is rows[1]
+
     def test_an_unresolvable_actor_is_unavailable_rather_than_empty(
         self, monkeypatch
     ):
