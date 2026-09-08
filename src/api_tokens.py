@@ -35,6 +35,11 @@ TOKEN_VERSION = "v1"
 # path. Getting one wrong is a 403 `wrong_operation`, which looks like a
 # permissions bug rather than a typo, so they live here with the signer.
 OP_LIST_GUILDS = "GET /api/v1/guilds"
+# The picker's second question, for the same list of ids: not just which of
+# these am I in, but how is each one doing. A separate operation rather than a
+# widened `OP_LIST_GUILDS`, so a token minted for the membership check cannot
+# be replayed to read the summaries.
+OP_GUILD_SUMMARIES = "GET /api/v1/guilds/summaries"
 OP_GUILD_SETTINGS = "GET /api/v1/guilds/{guild_id}/settings"
 OP_GUILD_ROLES = "GET /api/v1/guilds/{guild_id}/roles"
 OP_GUILD_CHANNELS = "GET /api/v1/guilds/{guild_id}/channels"
