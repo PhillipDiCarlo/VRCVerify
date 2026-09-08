@@ -92,6 +92,14 @@
     <li class="entry">
       <p class="entry-meta">
         <span class="tag">New</span>
+        <time datetime="2026-09-08">Sep 8, 2026</time>
+      </p>
+      <h2>A permission check that was missing</h2>
+      <p class="entry-body">VRCVerify needs Discord&#x27;s Manage Roles permission to grant a verified role. It was never checking whether it had one, so a server that had lost the permission looked healthy on the Overview while every verification quietly failed to grant anything. The Overview and the role picker now say so, and tell you where to fix it.</p>
+    </li>
+    <li class="entry">
+      <p class="entry-meta">
+        <span class="tag">New</span>
         <time datetime="2026-09-02">Sep 2, 2026</time>
       </p>
       <h2>Check whether VRCVerify is working</h2>

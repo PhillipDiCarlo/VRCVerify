@@ -88,6 +88,19 @@ except ImportError as missing:  # pragma: no cover - a dev-tool setup problem
 # those cards without being able to break this call.
 BOT_DOWN = os.environ.get("PREVIEW_BOT_DOWN") == "1"
 
+# The bot is in the server and answering, and simply has no Manage Roles
+# permission -- so it can grant nothing, however the roles are ordered. There
+# is no natural example among the four servers above: every one of them is
+# healthy in this respect, and the state is invisible from the outside, which
+# is exactly the property that let it go unnoticed in the first place.
+#
+#   PREVIEW_NO_MANAGE_ROLES=1
+#
+# Same idiom as PREVIEW_BOT_DOWN and PREVIEW_SUB. Applied to every server at
+# once, because the permission is guild-wide and a half-applied version would
+# only invite the question of which server it was meant to be about.
+NO_MANAGE_ROLES = os.environ.get("PREVIEW_NO_MANAGE_ROLES") == "1"
+
 
 def _outage() -> BotAPIError:
     return BotAPIError("preview: the whole bot is pretending to be down", status=503)
@@ -272,10 +285,21 @@ class PreviewBotAPI:
         guild_id = self._check(guild_id)
         payload = make_overview(premium=guild_id == PREMIUM)
         payload["guild_id"] = guild_id
+        if NO_MANAGE_ROLES:
+            # Both fields, as the bot reports them: the permission on its own,
+            # and the composite it also feeds. Setting only the first would be
+            # a payload the real reader never produces.
+            payload["configured"]["bot_can_manage_roles"] = False
+            payload["configured"]["verified_role_assignable"] = False
         return payload
 
     def roles(self, actor_id, guild_id) -> list:
         self._check(guild_id)
+        if NO_MANAGE_ROLES:
+            return [
+                dict(role, assignable=False, unassignable_reason="permission")
+                for role in DEFAULT_ROLES
+            ]
         return DEFAULT_ROLES
 
     def channels(self, actor_id, guild_id) -> list:

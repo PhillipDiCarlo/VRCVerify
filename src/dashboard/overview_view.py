@@ -444,10 +444,24 @@ def _settings_action(
 def _role_row(configured: dict, t: Callable[[str], str] = _untranslated) -> dict:
     """Verified role: set, still exists, and the bot can actually grant it.
 
-    All three ways this can be unfinished point at the same fix -- the role
-    picker in Settings, which already flags an unassignable role (see
-    `read_dashboard_roles`'s `assignable`) when choosing one -- so every
-    non-done state gets the same action rather than three different ones.
+    Most ways this can be unfinished point at the same fix -- the role picker
+    in Settings, which already flags an unassignable role (see
+    `read_dashboard_roles`'s `assignable`) when choosing one -- so those states
+    share one action rather than inventing three.
+
+    A MISSING MANAGE ROLES PERMISSION IS THE EXCEPTION, and it outranks both
+    broken states. Nothing in the role picker can grant a permission the bot
+    does not have, so sending an admin there would be sending them somewhere
+    no choice helps; the note names the remedy in Discord instead and the row
+    carries no action, the same as a finished one. This is also why the bot
+    reports `bot_can_manage_roles` separately from `verified_role_assignable`,
+    which folds the permission in and so cannot say which of the two is wrong.
+
+    It does NOT outrank "no role set at all", which stays the first check.
+    That server has a step to take, the role picker is the right place to take
+    it, and the permission becomes the next thing to say once it has one --
+    whereas leading with the permission would leave a brand-new server reading
+    about a role it has not chosen yet.
     """
     action = _settings_action("verified_role", t=t)
     label = t(N_("Verified role"))
@@ -461,6 +475,28 @@ def _role_row(configured: dict, t: Callable[[str], str] = _untranslated) -> dict
             "state": "todo",
             "note": t(N_("Required — verification can't finish without one.")),
             "action": action,
+        }
+    # Before the hierarchy check and before the existence check, but after the
+    # todo above: a bot with no permission cannot grant the role whatever else
+    # is true of it, and both of those notes would name a fix that changes
+    # nothing.
+    #
+    # `is False` rather than falsy, deliberately. None means the bot could not
+    # be asked, and a bot older than this field omits it entirely -- both read
+    # as unknown here and fall through to the checks that came before it,
+    # rather than reporting every working server as broken during a deploy.
+    if configured.get("bot_can_manage_roles") is False:
+        return {
+            "key": key,
+            "label": label,
+            "state": "broken",
+            "note": t(N_(
+                "VRCVerify is missing the Manage Roles permission, so it "
+                "can't grant this role to anyone. Give its role that "
+                "permission in Server Settings, or re-invite the bot."
+            )),
+            # Nothing on the Settings page fixes this one.
+            "action": None,
         }
     if configured.get("verified_role_exists") is False:
         return {
@@ -592,11 +628,18 @@ def _setup_step(setup: dict, t: Callable[[str], str] = _untranslated) -> dict:
     """The single most useful setup row to surface at the top of the page,
     for whichever of the two required rows isn't done.
 
-    Reuses `build_setup`'s own row -- state, note, and all -- rather than a
-    second copy of "is the role missing" that could disagree with the list
-    right below it. `state` decides only the *title*, because "todo" and
-    "broken" already have distinct, accurate notes from #135 phase 3 and
-    duplicating that wording here is how the two drift.
+    Reuses `build_setup`'s own row -- state, note, AND whether it has a fix to
+    offer -- rather than a second copy of "is the role missing" that could
+    disagree with the list right below it. `state` decides only the *title*,
+    because "todo" and "broken" already have distinct, accurate notes from
+    #135 phase 3 and duplicating that wording here is how the two drift.
+
+    THE BUTTON IS THE ROW'S, NOT THIS FUNCTION'S. It used to be hardcoded to
+    "settings", which was true of every row that existed at the time and stops
+    being true the moment one of them cannot be fixed from Settings: a missing
+    Manage Roles permission is granted in Discord, and no field on any of the
+    five Settings pages does it. Reading the row's own `action` means a row
+    that declines to offer a fix is not overruled here.
     """
     # BY `key`, NEVER BY `label` (#97). `label` is translated now, so
     # `by_label["Verified role"]` is a KeyError the moment somebody reads this
@@ -620,7 +663,7 @@ def _setup_step(setup: dict, t: Callable[[str], str] = _untranslated) -> dict:
         return {
             "title": title,
             "body": role["note"],
-            "action": "settings",
+            "action": "settings" if role["action"] else None,
             "group": _SETTINGS_ANCHOR["verified_role"][0],
         }
 
@@ -633,7 +676,7 @@ def _setup_step(setup: dict, t: Callable[[str], str] = _untranslated) -> dict:
     return {
         "title": title,
         "body": panel["note"],
-        "action": "settings",
+        "action": "settings" if panel["action"] else None,
         "group": _SETTINGS_ANCHOR["panel"][0],
     }
 
