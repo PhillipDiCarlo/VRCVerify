@@ -34,7 +34,6 @@ from api_tokens import (
     OP_GUILD_AUDIT,
     OP_POST_PANEL,
     OP_GUILD_SUMMARIES,
-    OP_LIST_GUILDS,
     OP_PUT_STRIPE_SUBSCRIPTION,
     OP_UPDATE_SETTINGS,
     SYSTEM_ACTOR_ID,
@@ -129,35 +128,18 @@ class BotAPIClient:
             raise BotAPIError("bot API is not healthy", response.status_code)
         return response.json()
 
-    def admin_guild_ids(self, actor_id: int, guild_ids: list) -> set:
-        """Which of these guilds the bot is in AND this user administers.
-
-        The bot answers only about guilds the caller has standing in, so a
-        guild missing from the response means either "bot not there" or "not
-        yours" — indistinguishable on purpose.
-        """
-        wanted = [str(int(g)) for g in guild_ids][:MAX_GUILD_IDS]
-        if not wanted:
-            return set()
-        payload = self._get(
-            f"/api/v1/guilds?ids={','.join(wanted)}",
-            OP_LIST_GUILDS,
-            actor_id,
-        )
-        return {str(g) for g in payload.get("present", [])}
-
     def guild_summaries(self, actor_id: int, guild_ids: list) -> dict:
         """A small per-guild summary, keyed by guild id, for the picker's cards.
 
         Answers the membership question too: the bot summarises only guilds
-        this caller administers, so a guild MISSING from the result carries
-        exactly what `admin_guild_ids` carried -- either the bot is not there
-        or this person does not administer it, indistinguishable on purpose.
+        this caller administers, so a guild MISSING from the result means
+        either the bot is not there or this person does not administer it,
+        indistinguishable on purpose.
 
-        That is why the picker asks this instead of asking both. Two calls
-        would mean running the bot's authority check twice per page load, and
-        would let membership and state disagree with each other about the same
-        server in the same render.
+        That is why this is the picker's only call, and why the
+        membership-only endpoint beside it was retired in #164. Two calls ran
+        the bot's authority check twice per page load and let membership and
+        state disagree about the same server inside one render.
         """
         wanted = [str(int(g)) for g in guild_ids][:MAX_GUILD_IDS]
         if not wanted:

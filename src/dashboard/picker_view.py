@@ -15,7 +15,7 @@ FIVE CARD STATES, AND THE FIRST TWO ARE NOT ABOUT SETUP AT ALL
 * **absent** -- the caller has no standing in this server. TWO ANSWERS WEARING
   ONE NAME, on purpose: the bot is not there, or it is and this person does not
   administer it. The summary endpoint cannot tell them apart and must not, so
-  neither can this. See `handle_list_guilds` in `bot_api.py`.
+  neither can this. See `handle_guild_summaries` in `bot_api.py`.
 
 The remaining three are the ones this module was added for (#164). They are the
 same distinction the Overview's setup list draws, at the width of a card:
@@ -106,8 +106,9 @@ def build_cards(
     """One entry per card, in the order they should be drawn.
 
     `summaries` is keyed by guild id and holds ONLY the servers this caller
-    administers. A guild missing from it is `absent`, which is the same signal
-    `admin_guild_ids` used to carry and carries the same deliberate ambiguity.
+    administers. A guild missing from it is `absent`, and that absence carries
+    the deliberate ambiguity the endpoint is built to preserve: the bot is not
+    there, or it is and this person does not administer it.
     None means the call failed outright, which is `unknown` for every card.
 
     Installed first, then alphabetical. The ones that can actually be

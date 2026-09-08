@@ -419,12 +419,6 @@ class FakeBotAPI:
         # to spell out; a dict overrides individual guilds.
         self._summaries = summaries
 
-    def admin_guild_ids(self, actor_id, guild_ids):
-        self.calls.append((actor_id, list(guild_ids)))
-        if self.fail:
-            raise BotAPIError("bot unreachable")
-        return {g for g in map(str, guild_ids) if g in self.installed}
-
     def guild_summaries(self, actor_id, guild_ids):
         """Mirrors the real endpoint: only guilds this caller administers are
         in the result, and one they do not is ABSENT rather than present
@@ -1112,9 +1106,9 @@ class TestTheCardStates:
         assert card["state"] == "broken"
 
     def test_a_guild_not_in_the_summaries_is_absent(self):
-        """Carries exactly what a guild missing from `admin_guild_ids` carried:
-        either the bot is not there or this person does not administer it, and
-        the card must not pick one."""
+        """A guild missing from the summaries means either the bot is not
+        there or this person does not administer it, and the card must not
+        pick one."""
         card = self.card({})
         assert card["state"] == "absent"
         assert card["note"] == "Not set up here, or not yours to manage"
@@ -5320,9 +5314,9 @@ class TestTheSignInCard(object):
 class TestThePickerSaysOnlyWhatItKnows(object):
     """`installed` is two answers wearing one name.
 
-    `admin_guild_ids` returns the guilds the bot is in AND the caller
-    administers; its docstring says a guild missing from that answer means
-    either "bot not there" or "not yours" -- indistinguishable on purpose,
+    `guild_summaries` answers for the guilds the bot is in AND the caller
+    administers; a guild missing from that answer means either "bot not there"
+    or "not yours" -- indistinguishable on purpose,
     because telling them apart would let a signed-in user map which
     communities run 18+ gating.
 
@@ -9228,12 +9222,10 @@ class TestTwoLanguagesAtOnce:
         assert self._japanese_characters(pages["ja"]) > 50
 
     def test_the_picker_keeps_its_language(self, app, store, bot_api):
-        # `guild_summaries`, not `admin_guild_ids`: #164 phase 3 made the
-        # picker ask one question instead of two, and this delay has to land
-        # on the call the page actually makes. Slowing a method nobody invokes
-        # means the two requests never overlap, and then this test passes
-        # against the broken code -- which is the exact failure `_race`'s own
-        # comment warns about.
+        # The delay has to land on the call the page actually makes. Slowing
+        # a method nobody invokes means the two requests never overlap, and
+        # then this test passes against the broken code -- which is the exact
+        # failure `_race`'s own comment warns about.
         pages = self._race(app, store, bot_api, "guild_summaries", "/")
         assert 'lang="de"' in pages["de"]
         leaked = self._japanese_characters(pages["de"])

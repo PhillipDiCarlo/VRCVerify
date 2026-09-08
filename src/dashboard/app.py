@@ -1137,13 +1137,14 @@ def _register_routes(app: Flask) -> None:
         candidates = [g_ for g_ in (session.guilds or []) if g_.get("admin_hint")]
 
         try:
-            # ONE CALL, not two. This answers the membership question as well:
-            # the bot summarises only guilds this caller administers, so a
-            # guild absent from the result carries exactly what
-            # `admin_guild_ids` carried. Asking both would run the bot's
-            # authority check twice per page load -- and this is the landing
-            # page of every signed-in session -- and would let membership and
-            # state disagree about the same server in the same render.
+            # ONE CALL, and the only one this page makes. It answers the
+            # membership question as well: the bot summarises only guilds this
+            # caller administers, so a guild absent from the result means
+            # either "bot not there" or "not yours", indistinguishable on
+            # purpose. There was a second endpoint answering only that half
+            # until #164 retired it -- asking both ran the bot's authority
+            # check twice on the landing page of every signed-in session, and
+            # let membership and state disagree inside one render.
             summaries = _bot_api().guild_summaries(
                 int(session.discord_id), [g_["id"] for g_ in candidates]
             )
@@ -3166,7 +3167,7 @@ def _guild_page_unavailable(
     open web. Rendered differently, a signed-in user could walk arbitrary guild
     ids and learn which servers run VRCVerify -- a census of communities
     operating 18+ gating, from a browser, with nothing compromised. It is the
-    same oracle handle_list_guilds was hardened against, arriving by a
+    same oracle handle_guild_summaries is hardened against, arriving by a
     different door.
 
     Shared by all three sections, and that sharing is the control. Three

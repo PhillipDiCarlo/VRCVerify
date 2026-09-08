@@ -81,7 +81,7 @@ except ImportError as missing:  # pragma: no cover - a dev-tool setup problem
 # A bot that answers nothing, for the states an outage produces.
 #
 # Not the same as the one unreachable server below: that one is a single guild
-# refusing while the bot is otherwise fine. This is `admin_guild_ids` itself
+# refusing while the bot is otherwise fine. This is the picker's own call
 # failing, which is what makes the picker unable to say which servers the bot
 # is in -- and #133 phase 3 turned that into its own "unknown" card state
 # rather than showing everything as un-installed. There is no way to look at
@@ -132,9 +132,9 @@ GUILDS = [
     },
 ]
 
-# What `admin_guild_ids` answers with: which servers the bot is in. NOT_ADDED
-# is absent on purpose -- it is the un-installed card on the picker, which #133
-# phase 3 rebuilds around card content rather than colour. UNREACHABLE *is*
+# Which servers the bot is in, and so which ones `guild_summaries` answers
+# for. NOT_ADDED is absent on purpose -- it is the un-installed card on the
+# picker, which #133 phase 3 rebuilds around card content rather than colour. UNREACHABLE *is*
 # installed, so clicking into it reaches error.html by the path a real outage
 # would take.
 INSTALLED = {PREMIUM, FREE, UNREACHABLE}
@@ -237,11 +237,6 @@ class PreviewBotAPI:
         if BOT_DOWN:
             raise _outage()
         return {"ok": True}
-
-    def admin_guild_ids(self, actor_id, guild_ids) -> set:
-        if BOT_DOWN:
-            raise _outage()
-        return {g for g in map(str, guild_ids) if g in INSTALLED}
 
     def guild_summaries(self, actor_id, guild_ids) -> dict:
         """What the picker's cards read (#164 phase 3).
