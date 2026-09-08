@@ -398,3 +398,76 @@ class TestTheLogChannelRuleIsStillAboutContent:
         start = source.index("The log channel, which unlike a role")
         comment = source[start:start + 1400]
         assert "#138" in comment
+
+
+class TestRefusingAnAdHocDatabase:
+    """The guard on `bot.py` connecting at import time (#273).
+
+    On 2026-09-08 an ad-hoc script emptied the production `servers` table: 993
+    rows, including the `id` values that decide grandfathered premium. It did
+    it by importing `bot`, which opens a writable connection to whatever
+    `DATABASE_URL` names, and then borrowing `session.query(Server).delete()`
+    from this suite's own teardown.
+
+    The decision is a pure function so it can be tested without an import, a
+    database, or the environment these tests run in.
+    """
+
+    REAL = "postgresql://user:secret@10.53.1.87:5432/vrcverify_database"
+
+    def test_running_as_main_is_always_allowed(self):
+        """The container runs `python src/bot.py`. This guard must never be
+        able to stop it, which is why the condition is import-versus-run and
+        not an environment variable the deployment could forget to set."""
+        assert bot.refuse_ad_hoc_database(self.REAL, imported=False) is None
+
+    def test_sqlite_is_allowed_even_on_import(self):
+        """What conftest sets, and what every test therefore uses. A local
+        file cannot be somebody's production data."""
+        assert bot.refuse_ad_hoc_database(
+            "sqlite:///:memory:", imported=True
+        ) is None
+
+    def test_a_real_database_on_import_is_refused(self):
+        """The exact case that caused the incident."""
+        reason = bot.refuse_ad_hoc_database(self.REAL, imported=True)
+        assert reason is not None
+        # Names what it declined, so nobody has to guess which .env was live.
+        assert "10.53.1.87:5432/vrcverify_database" in reason
+
+    def test_the_refusal_does_not_leak_the_credential(self):
+        """It is printed to a terminal and pasted into bug reports."""
+        reason = bot.refuse_ad_hoc_database(self.REAL, imported=True)
+        assert "secret" not in reason
+        assert "user:secret" not in reason
+
+    def test_the_refusal_says_how_to_proceed_deliberately(self):
+        reason = bot.refuse_ad_hoc_database(self.REAL, imported=True)
+        assert "VRCVERIFY_ALLOW_DB_IMPORT=1" in reason
+        assert "pytest" in reason
+
+    def test_the_override_is_honoured(self):
+        """Touching production from a script stays possible, but only by
+        saying so."""
+        assert bot.refuse_ad_hoc_database(
+            self.REAL, imported=True, override="1"
+        ) is None
+
+    def test_only_an_exact_one_overrides(self):
+        """`VRCVERIFY_ALLOW_DB_IMPORT=0` or `=false` is not consent, and an
+        unset variable arrives here as an empty string."""
+        for value in ("", "0", "false", "no", "true"):
+            assert bot.refuse_ad_hoc_database(
+                self.REAL, imported=True, override=value
+            ) is not None
+
+    def test_no_url_is_not_the_guard_s_problem(self):
+        """A missing DATABASE_URL fails later and more clearly on its own."""
+        assert bot.refuse_ad_hoc_database(None, imported=True) is None
+        assert bot.refuse_ad_hoc_database("", imported=True) is None
+
+    def test_a_url_without_credentials_still_names_itself(self):
+        reason = bot.refuse_ad_hoc_database(
+            "postgresql://10.53.1.87:5432/vrcverify_database", imported=True
+        )
+        assert "vrcverify_database" in reason
