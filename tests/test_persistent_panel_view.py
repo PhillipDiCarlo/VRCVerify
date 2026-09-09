@@ -22,8 +22,20 @@ def run(coro):
 
 
 def interactive_buttons(view):
-    """The two dispatchable buttons (the donate button is a link, so it isn't)."""
+    """The two dispatchable buttons (the website button is a link, so it isn't)."""
     return [c for c in view.children if c.style is not discord.ButtonStyle.link]
+
+
+@pytest.fixture
+def website(monkeypatch):
+    """A configured site, which the panel needs before it grows a link button.
+
+    conftest pins WEBSITE_URL empty so the panel's shape does not depend on a
+    developer's .env, so anything asserting on the link button has to ask for
+    one explicitly.
+    """
+    monkeypatch.setattr(bot, "WEBSITE_URL", "https://vrcverify.com")
+    return "https://vrcverify.com"
 
 
 def make_server(server_id=GUILD_ID, channel_id="222", message_id="111", **overrides):
@@ -94,12 +106,27 @@ class TestPersistentView:
         de = [b.label for b in interactive_buttons(bot.VRCVerifyInstructionView("de"))]
         assert en != de
 
-    def test_donate_link_button_has_no_custom_id(self):
+    def test_website_link_button_has_no_custom_id(self, website):
         # Discord rejects custom_id on link buttons; it must stay unset.
         link = [c for c in bot.VRCVerifyInstructionView("en-US").children
                 if c.style is discord.ButtonStyle.link]
         assert len(link) == 1
         assert link[0].custom_id is None
+
+    def test_link_button_does_not_change_the_dispatchable_ids(self, website):
+        # The whole reason INSTRUCTIONS_VIEW_VERSION stayed at 1 through #240:
+        # swapping the third button must not disturb the two that route.
+        ids = [b.custom_id for b in interactive_buttons(bot.VRCVerifyInstructionView("en-US"))]
+        assert ids == [
+            bot.BEGIN_VERIFICATION_CUSTOM_ID,
+            bot.UPDATE_NICKNAME_CUSTOM_ID,
+        ]
+
+    def test_view_is_persistent_with_the_link_button(self, website):
+        # A link button carries no custom_id, and discord.py refuses to treat a
+        # view as persistent if any *dispatchable* item lacks one. Adding a
+        # third button must not cost the panel its persistence.
+        assert bot.VRCVerifyInstructionView(locale="en-US").is_persistent()
 
     def test_add_view_accepts_it(self):
         client = discord.Client(intents=discord.Intents.none())
@@ -109,6 +136,17 @@ class TestPersistentView:
         # message id — that is what makes one registration cover every panel.
         assert (2, bot.BEGIN_VERIFICATION_CUSTOM_ID) in store[None]
         assert (2, bot.UPDATE_NICKNAME_CUSTOM_ID) in store[None]
+
+    def test_add_view_accepts_it_with_the_link_button(self, website):
+        # setup_hook registers the view at boot, and add_view raises on a view
+        # it considers non-persistent. If the third button ever cost the panel
+        # its persistence, the bot would fail to start rather than fail
+        # quietly, so this is worth pinning at the call site and not only via
+        # is_persistent().
+        client = discord.Client(intents=discord.Intents.none())
+        client.add_view(bot.VRCVerifyInstructionView(locale="en-US"))
+        store = client._connection._view_store._views
+        assert (2, bot.BEGIN_VERIFICATION_CUSTOM_ID) in store[None]
 
     def test_a_never_seen_message_resolves_to_the_view(self):
         client = discord.Client(intents=discord.Intents.none())

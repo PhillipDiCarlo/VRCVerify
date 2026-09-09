@@ -239,12 +239,10 @@ COOLDOWN_ACTIVE = N_(
     "You're doing that too fast. Please wait {seconds} seconds and try again."
 )
 
-BTN_DONATE = N_("Donate")
+BTN_LEARN_MORE = N_("Learn more")
 
-SETUP_DONATE_HINT = N_(
-    "\n"
-    "\n"
-    "☕ VRCVerify is free thanks to donations. If it helps your community, you can support it here: {kofi_link}"
+SETUP_PANEL_POSTED = N_(
+    "✅ Instructions panel posted. Members can verify from this channel now."
 )
 
 MILESTONE_OWNER_DM = N_(

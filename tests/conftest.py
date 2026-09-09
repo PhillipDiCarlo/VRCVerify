@@ -44,6 +44,12 @@ os.environ["PREMIUM_GRANDFATHER_MAX_ID"] = ""
 # directly, which is the honest way to ask for one.
 os.environ["DASHBOARD_URL"] = ""
 
+# Same again for the panel's website button (#240). With WEBSITE_URL set the
+# instruction panel grows a third button, so a developer whose .env points at
+# the real site would see the panel-shape assertions fail on the contents of an
+# untracked file. Tests that want the button set bot.WEBSITE_URL directly.
+os.environ["WEBSITE_URL"] = ""
+
 # Third time, same problem, same fix -- and this one was found the hard way.
 # STRIPE_ENABLED went in with #88 step 1 and was not pinned here, so the moment
 # a developer switched it on in their own .env, load_dotenv() carried it into

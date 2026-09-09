@@ -169,12 +169,18 @@ class TestSetupNudge:
         run(bot.vrcverify_setup.callback(interaction, self.ROLE, None))
         assert locales.SETUP_PANEL_NUDGE not in sent[0].msg
 
-    def test_donate_hint_stays_last(self):
-        # The donate hint reads as a footer; the nudge must slot in above it.
+    def test_nudge_stays_last(self, monkeypatch):
+        # The donate hint used to be the footer this slotted in above. With it
+        # gone (#240) the nudge closes the reply, which is right: it is the one
+        # thing the admin still has to do.
+        #
+        # SUPPORT_INVITE_URL is pinned off rather than left to the environment.
+        # conftest does not neutralise it, so a developer with one in their
+        # .env gets an extra trailing paragraph here and CI does not.
+        monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", None)
         interaction, sent = setup_interaction()
         run(bot.vrcverify_setup.callback(interaction, self.ROLE, None))
-        tail = locales.SETUP_DONATE_HINT.format(kofi_link=bot.KOFI_URL)
-        assert sent[0].msg.endswith(tail)
+        assert sent[0].msg.rstrip().endswith(locales.SETUP_PANEL_NUDGE.rstrip())
 
     def test_nudge_is_localized(self):
         interaction, sent = setup_interaction(locale="de")

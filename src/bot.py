@@ -259,8 +259,12 @@ def log_queue_argument_mismatch(queue_name: str) -> None:
     )
 
 
-# Donation link surfaced on the instruction panel, admin confirmations,
-# and the one-time milestone DM.
+# Donation link. Down to two surfaces since #240: the one-time milestone DM,
+# and /vrcverify_subscription's free branch. It is no longer on the instruction
+# panel or the setup confirmations, because every donation the project has ever
+# taken came from a server admin, which is the same person being asked to buy
+# premium. Revenue is meant to come from the subscription; Ko-fi is a general
+# support link in the VRCVerify Discord now.
 KOFI_URL = "https://ko-fi.com/italiandogs"
 # Verifications a guild must complete before the one-time owner thank-you DM.
 MILESTONE_VERIFICATION_COUNT = 100
@@ -1880,6 +1884,48 @@ def support_invite_url() -> Optional[str]:
         )
         return None
     return SUPPORT_INVITE_URL
+
+
+# The apex marketing site, offered on the instruction panel (issue #240).
+#
+# Separate from DASHBOARD_URL rather than derived from it. The dashboard is
+# behind Discord OAuth and, past that, refuses anyone without Administrator in
+# the guild -- so a dashboard link on the panel would send the ordinary member
+# it is aimed at through a login and into a refusal page. The apex site needs
+# no login and answers the question a member actually has.
+WEBSITE_URL = (os.getenv("WEBSITE_URL") or "").strip().rstrip("/") or None
+
+
+def website_url() -> Optional[str]:
+    """The public site, or None if there is no usable URL.
+
+    Scheme-checked for the reason _dashboard_page gives: Discord rejects a link
+    button whose URL has no scheme with a 400 that fails the whole interaction,
+    and this button is built inside the instruction panel view. A typo'd
+    WEBSITE_URL costing a button is survivable; one that breaks every panel is
+    not.
+
+    None is a first-class answer, not a degraded one. A self-hoster runs this
+    bot with no site of their own, and a panel in their server advertising
+    vrcverify.com would be worse than a panel with two buttons.
+    """
+    if not WEBSITE_URL:
+        return None
+    scheme, _, host = WEBSITE_URL.partition("//")
+    # `host` rather than the scheme alone, because "https://" passes a
+    # startswith check and is not a URL. Discord answers a link button built
+    # from one with the same 400 that a schemeless value earns, and this button
+    # is built on the panel-posting path AND the refresh path -- so letting it
+    # through would break every panel rather than costing a button, which is
+    # the opposite of what this function is for.
+    if scheme not in ("https:", "http:") or not host:
+        logger.warning(
+            "WEBSITE_URL is not a usable URL (%r); no website button will be "
+            "offered. It must look like https://example.com",
+            WEBSITE_URL,
+        )
+        return None
+    return WEBSITE_URL
 
 
 def dashboard_guild_url(guild_id) -> Optional[str]:
@@ -5108,10 +5154,24 @@ class VRCVerifyInstructionView(View):
         )
         update_btn.callback = self.update_nickname
         self.add_item(update_btn)
-        # Donate button (link buttons can't be colored; the emoji makes it stand out)
-        donate_label = translate(locales.BTN_DONATE, locale)
-        donate_btn = Button(label=donate_label, emoji="☕", style=discord.ButtonStyle.link, url=KOFI_URL)
-        self.add_item(donate_btn)
+        # Website button (link buttons can't be colored; the emoji makes it stand out)
+        #
+        # Aimed at the member who was just asked to hand over an age check and
+        # wants to know what this bot is before they start, which is why the
+        # label asks that question rather than naming the destination.
+        #
+        # Omitted entirely when no site is configured. A link button needs a
+        # URL, so there is nothing to render without one.
+        site = website_url()
+        if site:
+            learn_more_label = translate(locales.BTN_LEARN_MORE, locale)
+            learn_more_btn = Button(
+                label=learn_more_label,
+                emoji="🌐",
+                style=discord.ButtonStyle.link,
+                url=site,
+            )
+            self.add_item(learn_more_btn)
 
     async def begin_verification(self, interaction: discord.Interaction):
         # call the verification helper
@@ -6922,7 +6982,6 @@ async def vrcverify_setup(
         if invite
         else ""
     )
-    donate_hint = get_message(locales.SETUP_DONATE_HINT, interaction, kofi_link=KOFI_URL)
     # This command survived the move to the dashboard because it is how a
     # server gets configured before anyone has heard of the website. Pointing
     # at the dashboard here is the introduction -- a link on the one reply
@@ -6931,9 +6990,8 @@ async def vrcverify_setup(
     # next thing on the screen.
     url = dashboard_guild_url(interaction.guild.id)
     extra = {"view": DashboardLinkView(url)} if url else {}
-    # Donate hint stays last so it reads as a footer under everything else.
     await interaction.response.send_message(
-        base + extra_local + panel_nudge + invite_hint + donate_hint,
+        base + extra_local + panel_nudge + invite_hint,
         ephemeral=True,
         **extra,
     )
@@ -6980,10 +7038,17 @@ class PremiumUpgradeView(View):
 async def vrcverify_subscription(interaction: discord.Interaction):
     """Show this server's premium status and, if it isn't subscribed, how to.
 
-    Ko-fi deliberately does not appear here. Donations and the subscription are
-    separate things, and mixing them in the one place people come to buy makes
-    both read as optional. Ko-fi still has the instruction-panel button and the
-    setup hint.
+    Ko-fi deliberately does not appear on the paid branch below. Donations and
+    the subscription are separate things, and mixing them in the one place
+    people come to buy makes both read as optional.
+
+    The free branch is the exception and stays one: with no SKU configured
+    there is nothing to sell, so the Ko-fi line there is the whole answer
+    rather than a competing one. It is also the last Ko-fi surface in the
+    command set apart from the milestone DM -- the instruction-panel button
+    and the setup hints were removed in #240, because the only people who ever
+    donated were admins, and asking an admin for a donation next to a
+    subscription asks them to pay twice.
     """
     # Before the SKU exists there is nothing to sell, so this stays the honest
     # "it's free, tips welcome" message it has always been.
@@ -7171,9 +7236,13 @@ async def vrcverify_instructions(interaction: discord.Interaction):
     # Panel is up; retire any pending nudge for this guild.
     complete_guild_onboarding(guild_id)
 
-    # Quiet, admin-only nudge after the public panel is posted
+    # The interaction was deferred, so it needs a followup on the success path
+    # too -- without one Discord leaves the admin looking at "thinking..." until
+    # it times out into an error, which reads as a command that failed after it
+    # has already posted the panel. This used to be carried by the donate hint
+    # that sat here; the confirmation was load-bearing, the donation ask was not.
     await interaction.followup.send(
-        get_message(locales.SETUP_DONATE_HINT, interaction, kofi_link=KOFI_URL).strip(),
+        get_message(locales.SETUP_PANEL_POSTED, interaction),
         ephemeral=True,
     )
 
