@@ -1003,8 +1003,12 @@ a.bar-button { text-decoration: none; }
   color: var(--muted);
 }
 
-/* 4.6:1 on --panel, pinned by test_contrast.py. Enough to pick out of the
- * column without becoming the loudest thing in it. */
+/* 6.8:1 on --panel in both themes, pinned by test_contrast.py. Enough to pick
+ * out of the column without becoming the loudest thing in it.
+ *
+ * It read 4.6:1 until #284, which is what blurple measured here. The accent
+ * moved and the ratio moved with it; the token did not, which is the whole
+ * reason this rule needed no change. */
 .bell-tag.premium { color: var(--accent-text); }
 
 .bell-title {

@@ -1156,11 +1156,30 @@ class TestPricingPagesListEveryFeature:
     request could only ever cover half the problem.
     """
 
-    # Both cards are the `plan-featured` one; the Free card is the plain
-    # `plan-card` immediately above it in both files.
-    PAGES = (
-        "site/index.html",
-        "src/dashboard/templates/pricing.html",
+    # THE LANDING PAGE LEFT THIS LIST IN #285, because it no longer carries a
+    # feature list to count. It listed the same eight, and this class is what
+    # kept the two honest -- so the removal is only safe while nothing brings a
+    # list back without bringing it back in here too. That is what
+    # test_the_landing_page_carries_no_feature_list below is for.
+    #
+    # What the landing page does still do is name three capabilities in prose,
+    # and those are checked by test_the_landing_pages_prose_names_gated_features.
+    #
+    # The card is the `plan-featured` one; the Free card is the plain
+    # `plan-card` immediately above it.
+    PAGES = ("src/dashboard/templates/pricing.html",)
+
+    LANDING = "site/index.html"
+
+    # The three capabilities the landing page's Premium sentence names, and the
+    # FEATURE_ slug each one is claiming. Prose rather than bullets, so this
+    # cannot count -- it has to name. Wording is free to change; what is pinned
+    # is that a sentence advertising a capability corresponds to one the code
+    # still gates.
+    LANDING_CLAIMS = (
+        ("clearing up unverified roles", "unverified_role_removal"),
+        ("syncing nicknames", "nickname_sync"),
+        ("sending VRChat group invites", "group_invite"),
     )
 
     @staticmethod
@@ -1197,15 +1216,58 @@ class TestPricingPagesListEveryFeature:
             f"name it in UNANNOUNCED_FEATURES if it is not reachable yet."
         )
 
-    def test_both_pages_sell_the_same_bundle(self):
-        """#195 put these two cards in step deliberately: a visitor arriving
-        from the landing page's "See pricing" button should meet the same
-        comparison, not a different one. `premium_bullets` strips the
-        dashboard's `{% trans %}` wrappers, so this compares the English.
+    # REMOVED IN #285: test_both_pages_sell_the_same_bundle.
+    #
+    # #195 put the landing page's card and /pricing's in step deliberately, so
+    # a visitor arriving on "See pricing" met the same comparison rather than a
+    # different one. There is one card now, so there is no pair to compare.
+    #
+    # What that test really bought was two hand-written lists agreeing. The
+    # remaining surfaces -- /pricing and the README table -- are each measured
+    # against the FEATURE_ constants directly, so they agree through the source
+    # rather than with each other, which is the stronger arrangement and the
+    # one that made the pairwise check redundant rather than merely orphaned.
+
+    def test_the_landing_page_carries_no_feature_list(self):
+        """#285 removed it. This is what stops it coming back unguarded.
+
+        The landing page and /pricing sold the same eight features, and the
+        parity checks above are the only reason that stayed true -- both lists
+        had fallen two features behind before #265 wrote them. If a list
+        reappears on the landing page it must reappear in PAGES at the same
+        time, or the surface goes back to being a hand-maintained copy with
+        nothing comparing it to anything.
         """
-        site, dash = (self.premium_bullets(p) for p in self.PAGES)
-        assert site == dash, (
-            "the landing page and /pricing describe different bundles"
+        text = (ROOT / self.LANDING).read_text(encoding="utf-8")
+        assert 'class="plan-list"' not in text, (
+            "the landing page lists features again. Put it back in PAGES so "
+            "it is counted against the gated features, or take the list out."
+        )
+
+    @pytest.mark.parametrize("phrase,slug", LANDING_CLAIMS)
+    def test_the_landing_pages_prose_names_gated_features(self, phrase, slug):
+        """The list went; three names stayed, in a sentence.
+
+        A sentence is a weaker duplicate than a list and a harder one to
+        notice, which is exactly why it gets a check. If a capability stops
+        being Premium -- moved to free, or removed -- this page would go on
+        advertising it as the reason to pay, and nothing else would say so.
+        """
+        # Whitespace collapsed for the reason premium_bullets records: this
+        # sentence wraps at about 75 columns, so half of these phrases span a
+        # line break in the file and a raw substring check would fail on a
+        # reflow rather than on a real change.
+        text = re.sub(r"<!--.*?-->", "",
+                      (ROOT / self.LANDING).read_text(encoding="utf-8"), flags=re.S)
+        text = re.sub(r"\s+", " ", text)
+        assert phrase in text, (
+            f"the Premium sentence no longer says {phrase!r}. If the wording "
+            "changed, update LANDING_CLAIMS; if the capability went, it should "
+            "not be sold here."
+        )
+        assert slug in TestPremiumStatusCopy.gated_features(), (
+            f"the landing page sells {phrase!r} but {slug!r} is no longer a "
+            "gated Premium feature"
         )
 
     def test_the_readme_table_lists_every_gated_feature(self):

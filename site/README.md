@@ -263,6 +263,37 @@ time, and reading the environment at generation time would make the committed
 HTML depend on whose shell ran the script while `--check` regenerates in memory
 and compares.
 
+## Looking at it locally
+
+    Run and Debug -> "Apex site (local preview)"      or
+    .venv/bin/python scripts/dev_site.py
+
+Serves the six pages at <http://127.0.0.1:5002/>. Files are read per request,
+so a save is visible on reload; there is no build step and nothing to restart.
+
+**Not `python -m http.server ./site`.** Every internal link here is
+extensionless — `/terms`, not `/terms.html` — and nothing on disk is called
+`terms`. In production Cloudflare resolves that, because the Worker is
+assets-only and no code of ours runs on a request. A plain static server 404s
+on every legal page, which is the one thing a preview needs to be able to
+click through.
+
+`scripts/dev_site.py` reimplements the two edge behaviours a reader can see and
+nothing else: an extensionless path resolves to `<path>.html`, and anything
+unmatched serves `404.html` **with a 404 status**. The status code is the part
+worth keeping: serving that page with a 200 is the usual way a hand-rolled dev
+server differs from the edge, and a soft 404 looks exactly like a working page
+to everything except a human — on a site whose URLs Stripe and Discord hold.
+
+`npx wrangler dev` runs the real asset handler and is the thing to reach for if
+you are changing `wrangler.toml` rather than a stylesheet. It needs Docker and
+a node toolchain, which is why it is not the default answer here.
+
+The dashboard and the status page are separate previews: `scripts/dev_dashboard.py`
+and `status/README.md`. Links to them from these pages are absolute URLs to
+production and stay that way locally, so clicking "Dashboard" leaves the
+preview — which is what it does on the real site too.
+
 ## Editing
 
 Plain HTML, one shared `style.css`, no build step. Keep the footers and navs in
