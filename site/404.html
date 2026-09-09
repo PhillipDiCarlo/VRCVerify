@@ -11,7 +11,12 @@
 <script src="/theme.js"></script>
 <script src="/status.js" defer></script>
 </head>
-<body>
+<!-- `notfound` does two things and neither is a measure: it puts the wave
+     behind this page as well, and it lifts <main> above it. The landing page's
+     `home` class is deliberately not reused -- that one also unlocks the wide
+     landing layout, and this page is a short list that wants the reading
+     measure every other document page has. -->
+<body class="notfound">
 
 <header class="site">
   <div class="wrap">
@@ -72,6 +77,45 @@
     <div class="theme-picker" hidden></div>
   </div>
 </header>
+
+<!-- THE SAME WAVE, SHORTER (#285). The drawing is index.html's, byte for byte
+     below the class -- test_site.py fails if the two drift, the same way it
+     fails on a header that drifts. `short` is the only difference and it is a
+     height, set in the stylesheet.
+
+     A 404 is a page somebody landed on by accident, most likely from a rotted
+     legal link held by Stripe or Discord. It gets the same page furniture as
+     everything else so it reads as part of the site rather than as a server
+     error, and a fraction of the height because there is nothing here to sit
+     behind: four links and a sentence. -->
+<svg class="hero-wave short" aria-hidden="true" focusable="false"
+     viewBox="0 0 1440 620" preserveAspectRatio="xMaxYMid slice">
+  <defs>
+    <radialGradient id="wave-glow" cx="0.76" cy="0.34" r="0.58">
+      <stop offset="0" stop-color="var(--accent)" stop-opacity="0.22"></stop>
+      <stop offset="1" stop-color="var(--accent)" stop-opacity="0"></stop>
+    </radialGradient>
+    <!-- userSpaceOnUse so all three arcs are lit by ONE gradient across the
+         viewBox rather than each being faded within its own bounding box,
+         which would put a bright middle on every line at a different x. -->
+    <linearGradient id="wave-edge" gradientUnits="userSpaceOnUse"
+                    x1="380" y1="0" x2="1440" y2="0">
+      <stop offset="0" stop-color="var(--accent)" stop-opacity="0"></stop>
+      <stop offset="0.55" stop-color="var(--accent)" stop-opacity="0.55"></stop>
+      <stop offset="1" stop-color="var(--accent)" stop-opacity="0.12"></stop>
+    </linearGradient>
+  </defs>
+  <!-- A haze and three lines, and nothing filled. A filled band was tried and
+       removed: however soft its gradient, its own outline stayed visible as a
+       crescent through the right of the hero, which is a shape somebody drew
+       rather than atmosphere. The glow has no edge because it has no path. -->
+  <rect width="1440" height="620" fill="url(#wave-glow)"></rect>
+  <g fill="none" stroke="url(#wave-edge)" stroke-width="1.5">
+    <path d="M400 620 C 680 500, 920 360, 1120 228 S 1370 56, 1460 0"></path>
+    <path d="M480 660 C 760 540, 1000 400, 1200 268 S 1450 96, 1540 40" opacity="0.75"></path>
+    <path d="M560 700 C 840 580, 1080 440, 1280 308 S 1530 136, 1620 80" opacity="0.5"></path>
+  </g>
+</svg>
 
 <main class="wrap">
 

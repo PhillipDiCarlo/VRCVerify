@@ -173,6 +173,32 @@ def test_the_footer_is_identical_on_every_page():
     )
 
 
+def test_the_wave_is_one_drawing_on_every_page_that_carries_it():
+    """The same reason the header and footer have a drift test.
+
+    The landing page and the 404 both draw the hero wave, and there is no
+    template engine here -- it is the same SVG pasted into two files. Two
+    copies of a drawing diverge exactly as two copies of a nav do, and a wave
+    that is subtly different on one page is harder to notice than a nav that
+    is, not easier.
+
+    The `short` class is the one permitted difference and it is a class, not a
+    path: what it changes is a height in the stylesheet, so the DRAWING stays
+    one drawing. Everything inside the tag is compared.
+    """
+    drawings = {}
+    for page in PAGES:
+        match = re.search(r'<svg class="hero-wave[^"]*"(.*?)</svg>', read(page), re.S)
+        if match:
+            drawings[page.name] = match.group(1).strip()
+    assert len(drawings) >= 2, (
+        f"expected the wave on the landing page and the 404, found {sorted(drawings)}"
+    )
+    assert len(set(drawings.values())) == 1, (
+        "the wave has drifted between pages: " + ", ".join(sorted(drawings))
+    )
+
+
 def test_the_header_nav_is_identical_on_every_page():
     headers = {}
     for page in PAGES:

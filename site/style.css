@@ -1087,7 +1087,11 @@ th { color: var(--muted); font-weight: 600; }
    a form still going at the flow diagram would be competing with content
    rather than sitting behind it -- and it has to scale, because at 1440 the
    hero is 500px tall and at 390 it is nearly 700. */
-body.home { position: relative; }
+/* Two pages carry a wave: the landing page and the 404. Listed rather than
+   keyed off `:has(> .hero-wave)`, which would do the same job and be one more
+   thing a reader has to know this stylesheet does. */
+body.home,
+body.notfound { position: relative; }
 .hero-wave {
   position: absolute;
   inset-inline: 0;
@@ -1107,7 +1111,18 @@ body.home { position: relative; }
 }
 /* Everything real sits above it. `main` needs the stacking context; the header
    and footer already have their own grounds and their own z-index. */
-body.home > main { position: relative; z-index: 1; }
+body.home > main,
+body.notfound > main { position: relative; z-index: 1; }
+
+/* A FRACTION OF THE HEIGHT, on the 404. Same drawing, same position, same
+   mask; the element is simply shorter, so the form is the top of the same
+   curve rather than a second design.
+
+   The 404 is four links and a sentence. At the landing page's height the wave
+   would still be going long after the page had stopped, which is the one thing
+   an atmospheric form must not do -- it would read as the page having lost its
+   content rather than as the page being short. */
+.hero-wave.short { height: clamp(11rem, 18vw, 18rem); }
 
 /* Under prefers-reduced-motion the wave is unchanged, and that is correct
    rather than an omission: it does not move. Nothing on this site does. */
@@ -1468,7 +1483,12 @@ body.home > main { position: relative; z-index: 1; }
    here; never edit the markup there.
    ========================================================================== */
 
-.changelog-page main.wrap { max-width: 48rem; }
+/* WIDER THAN A POLICY, because it is not one (#285). 48rem held a single
+   column of prose; this page is a 7.5rem date gutter plus that column, so the
+   gutter was coming out of the reading width rather than out of the margin,
+   and the entries wrapped at about forty characters against a page with 500px
+   of empty ground on either side. */
+.changelog-page main.wrap { max-width: 58rem; }
 .changelog-page .lede { margin-bottom: 2.5rem; }
 
 .entries { list-style: none; padding: 0; margin: 0; }
@@ -1480,6 +1500,23 @@ body.home > main { position: relative; z-index: 1; }
    It collapses to a single column on a phone rather than shrinking the gutter,
    because a 5rem date column next to a 15rem text column is two bad measures
    instead of one good one. */
+/* THE ENTRY IS AN <li>, WHICH IS WHY IT WAS NARROW.
+   `main.wrap li { max-width: var(--measure) }` caps every list item on the
+   site at 52ch so prose in a bulleted list gets a readable line. An entry is
+   not prose in a list -- it is a two-column row, a date gutter beside a
+   paragraph -- and the cap was landing on the whole row, so the 7.5rem gutter
+   came out of the 52ch and the paragraph wrapped at about forty characters.
+
+   The measure below it was already right and made no difference, which is the
+   part worth remembering: the text had a 62ch max-width and a 380px column.
+   Setting a measure on something whose container is narrower than the measure
+   does nothing at all, and looks from the stylesheet like it should.
+
+   Same exemption, same shape and same reason as `.trust-strip` and
+   `.flow-note` above -- scoped through `main.wrap` so it outranks the rule it
+   has to beat rather than tying with it. */
+.changelog-page main.wrap .entry { max-width: none; }
+
 .entry {
   display: grid;
   grid-template-columns: 7.5rem 1fr;
@@ -1499,6 +1536,18 @@ body.home > main { position: relative; z-index: 1; }
   margin: 0;
 }
 .entry-meta time { color: var(--faint); font-size: 0.875rem; }
+
+/* 62ch, WHICH IS THE DASHBOARD'S NUMBER FOR THIS EXACT TEXT.
+   `.changelog-body` there is 62ch and says so; here the body was inheriting
+   the site-wide `main.wrap p` measure of 52ch. The same entry, from the same
+   constant in changelog.py, was therefore wrapping at two different widths
+   depending on which surface a reader opened -- which is the one thing a
+   generated page shared between two products should not do.
+
+   62 rather than 52 because an entry is a short paragraph in a list, read one
+   at a time, not a document read straight through. The dashboard reached that
+   conclusion first and this follows it rather than re-deriving it. */
+.changelog-page main.wrap .entry-body { max-width: 62ch; }
 
 /* "New" and "Premium". Quiet in both cases -- the dashboard makes the same
    choice for the same reason: a loud Premium tag on a page reachable by
