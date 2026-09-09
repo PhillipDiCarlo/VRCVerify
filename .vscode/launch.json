@@ -65,6 +65,29 @@
             }
         },
         {
+            // Serves the apex marketing site at http://127.0.0.1:5002 --
+            // the home page, the three legal pages, What's new and the 404.
+            // Static files straight off disk, so a save is visible on reload
+            // and there is no build step and nothing to restart.
+            //
+            // NOT `python -m http.server`, which cannot serve this site: every
+            // internal link is extensionless (/terms, not /terms.html) and
+            // Cloudflare is what resolves those in production. The script
+            // reimplements that, and serves 404.html with a real 404.
+            // See scripts/dev_site.py.
+            "name": "Apex site (local preview)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/dev_site.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "serverReadyAction": {
+                "pattern": "Apex site preview: (https?://\\S+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        },
+        {
             "name": "Bot.py Debugger",
             "type": "debugpy",
             "request": "launch",
