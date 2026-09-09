@@ -567,26 +567,42 @@ def test_no_premium_amount_is_hardcoded_anywhere_on_the_site():
         )
 
 
-def test_the_plan_cards_never_use_a_bare_plan_class():
-    """#158, on the other side of the fence.
+# REMOVED IN #285: test_the_plan_cards_never_use_a_bare_plan_class.
+#
+# It carried #158's lesson across from the dashboard -- a bare `.plan` there
+# collided with an unrelated `.plan` in settings.html and rendered the price on
+# the page that takes money as an italic gray footnote. This site copied the
+# card design, so it copied the guard.
+#
+# The cards are gone and so are their rules, so the guard now watches markup
+# that is not here. That is the thing this suite's own docstrings refuse to do:
+# assert a requirement nothing renders. The dashboard still has its own
+# collision test, which is where the lesson actually applies.
 
-    The dashboard shipped `.plan` and it collided with an unrelated `.plan` in
-    settings.html, rendering the price on the page that takes money as an
-    italic gray footnote. It was renamed `.plan-card` and a collision test was
-    added there. This site copies the card design, so it copies the lesson --
-    a bare `.plan` here would be the same mistake with a fresh stylesheet.
+
+def test_the_free_offer_leads_with_what_it_is():
+    """The free tier is the product's best trust signal and must not read as a
+    crippled one. If this copy ever inverts into a list of what free lacks,
+    that is a deliberate decision and should fail here first.
+
+    #285 removed the two plan cards, and this rule outlived them. It used to
+    ride on one sentence inside the free card; it is now a property of the
+    section's ORDER, which is the thing that actually carries the meaning: the
+    heading promises free, and free is described before Premium is mentioned.
+    A section that opened on Premium and reached free as the leftover would
+    pass a substring check and fail a reader.
     """
-    classes = re.findall(r'class="([^"]+)"', read(INDEX))
-    bare = [c for c in classes if "plan" in c.split() ]
-    assert not bare, f"index.html uses a bare `plan` class: {bare}"
+    text = re.sub(r"<!--.*?-->", "", read(INDEX), flags=re.S)
+    assert "<h2>Verification is free, and stays free</h2>" in text
+    section = text[text.index("<h2>Verification is free, and stays free</h2>"):]
+    section = section[: section.index("<h2>What it does not do</h2>")]
 
-
-def test_the_free_card_leads_with_what_it_is():
-    """The free column is the product's best trust signal and must not read as
-    a crippled tier. If this copy ever inverts into a list of what free lacks,
-    that is a deliberate decision and should fail here first."""
-    text = read(INDEX)
-    assert "Everything you need to verify your members." in text
+    assert "Everything you need to verify your members is free" in section, (
+        "the free offer no longer leads with what it is"
+    )
+    assert section.index("is free") < section.index("Premium"), (
+        "Premium is described before free is, which inverts the section"
+    )
 
 
 def test_the_hero_states_the_three_things_the_product_does_not_do():
@@ -642,10 +658,12 @@ def test_the_landing_page_text_clears_aa_in_both_themes():
         # both themes and there is no reason to assert the weaker of the two.
         ("trust strip tick", "--accent-text", "--bg"),
         ("flow note", "--muted", "--bg"),
-        ("flow body, plan blurb, plan eyebrow", "--muted", "--panel"),
-        ("plan price", "--ink-strong", "--panel"),
-        ("plan feature tick", "--accent-text", "--panel"),
-        ("plan feature text", "--ink", "--panel"),
+        # #285 took the flow's cards away, so its body text moved from --panel
+        # to the page ground with everything else in that section.
+        ("flow body", "--muted", "--bg"),
+        # The four plan-card pairs that used to sit here went with the cards
+        # in #285. Nothing on this page draws on --panel any more; every pair
+        # left is on the page ground.
     ]
     for label, fg, bg in pairs:
         for theme, prefix in (("dark", ""), ("light", "--light")):
@@ -659,13 +677,22 @@ def test_the_landing_page_text_clears_aa_in_both_themes():
 
 def test_the_number_ring_in_the_flow_is_visible():
     """It is drawn with --control-line rather than --line for the same reason
-    the theme picker is: a ring that vanishes is not a ring."""
-    for theme, edge, panel in (
-        ("dark", _token("--control-line"), _token("--panel")),
-        ("light", _token("--light-control-line"), _token("--light-panel")),
+    the theme picker is: a ring that vanishes is not a ring.
+
+    MEASURED ON --bg SINCE #285. The ring used to sit inside a --panel card;
+    the cards went and the schematic's rail, ring and chevrons are all drawn
+    straight on the page ground now. Measuring against --panel would have gone
+    on passing while measuring a surface this element no longer touches.
+
+    One weight, one colour, three shapes: the same ratio covers the rail and
+    the chevrons, which are the same 1px --control-line on the same ground.
+    """
+    for theme, edge, ground in (
+        ("dark", _token("--control-line"), _token("--bg")),
+        ("light", _token("--light-control-line"), _token("--light-bg")),
     ):
-        ratio = _contrast(edge, panel)
-        assert ratio >= 3.0, f"{theme}: flow number ring is {ratio:.2f}:1"
+        ratio = _contrast(edge, ground)
+        assert ratio >= 3.0, f"{theme}: the flow's rail and ring is {ratio:.2f}:1"
 
 
 # --------------------------------------------------------------------------
@@ -969,9 +996,14 @@ def test_the_outlined_button_is_readable_in_every_state():
     1. Hover set `background: --line-soft` under an --accent-text label, which
        is 4.30:1 in dark -- the control became LESS readable at the moment of
        interaction, and on keyboard focus.
-    2. The border was --accent, and this button also sits inside a plan card
-       whose fill is --panel, where --accent is 2.74:1. It is the button's only
-       edge, since the background is transparent.
+    2. The border was --accent, and this button also sat inside a plan card
+       whose fill is --panel, where --accent was 2.74:1. It is the button's
+       only edge, since the background is transparent.
+
+    The plan cards went in #285 and the accent moved in #284, so neither half
+    of point 2 still describes the page. The rule it produced is kept anyway:
+    the border is --accent-text because that is the token for the accent as a
+    foreground, and a button's only edge owes 3:1 wherever it is drawn.
     """
     css = STYLE.read_text(encoding="utf-8")
     rule = re.search(r"\.cta\.secondary \{([^}]*)\}", css)
@@ -1059,11 +1091,20 @@ def test_the_premium_card_sends_people_to_the_price_and_not_the_front_door():
     A button reading "See pricing" that lands on a sign-in screen is the exact
     bait-and-switch this epic is trying to remove.
     """
-    text = read(SITE / "index.html")
-    card = re.search(r'<div class="plan-card plan-featured">(.*?)</div>', text, re.S)
-    assert card, "the Premium card is gone"
-    assert f'href="{PRICING_URL}"' in card.group(1), (
-        "the Premium card still points at the dashboard front door"
+    text = re.sub(r"<!--.*?-->", "", read(SITE / "index.html"), flags=re.S)
+    section = text[text.index("<h2>Verification is free, and stays free</h2>"):]
+    section = section[: section.index("<h2>What it does not do</h2>")]
+
+    # #285 took the Premium card away and this rule outlived it, so it is
+    # asserted about the section rather than about a div that no longer exists.
+    links = re.findall(r'<a[^>]+href="([^"]+)"', section)
+    assert links, "nothing in this section routes anybody to Premium"
+    assert PRICING_URL in links, (
+        f"the Premium route does not reach the price: {links}"
+    )
+    assert "https://dashboard.vrcverify.com" not in links, (
+        "the Premium route points at the dashboard front door, which is the "
+        "sign-in screen PR #187 flagged as a drop-off"
     )
 
 

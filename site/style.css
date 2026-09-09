@@ -1149,25 +1149,70 @@ body.home > main { position: relative; z-index: 1; }
   margin: -0.15rem 0.15rem 0.15rem 0;
 }
 
-/* THE FLOW.
+/* THE FLOW, as a schematic (#285).
    A row on a desktop, a column on a phone, with the arrows rotating a quarter
    turn rather than being hidden -- an arrow that disappears takes the "and
-   then" with it, and three unconnected boxes do not read as a sequence. */
+   then" with it, and three unconnected boxes do not read as a sequence.
+
+   THE RAIL IS WHAT MAKES IT A SEQUENCE NOW, so that argument is carried by a
+   line rather than by two glyphs. One continuous hairline runs through all
+   three numbers, the numbers punch a hole in it by wearing the page ground,
+   and the chevrons sit in gaps of their own. It is one weight throughout: 1px,
+   --control-line, the same edge the ring has always been drawn with.
+
+   THE CARDS ARE GONE and nothing replaced them. They were --panel with a
+   --line border and an 8px radius, which is the vocabulary for "this is a
+   separate object" spent on three short paragraphs that were not competing
+   with anything. The surface ramp already separates this section from the
+   hero above it.
+
+   --ROW-CENTRE IS THE ONE NUMBER HOLDING THIS TOGETHER. The rail, the
+   chevrons and the numbers all have to sit on one line, and that line is the
+   ring's vertical middle. Stated once here rather than derived three times. */
 .flow {
+  --row-centre: 0.875rem;   /* half of .flow-num's 1.75rem height */
+  position: relative;
   display: flex;
-  align-items: stretch;
-  gap: 0.75rem;
+  align-items: flex-start;
+  gap: var(--space-4);
   list-style: none;
   padding: 0;
   margin: 1.25rem 0 0;
 }
+.flow::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: var(--row-centre);
+  height: 1px;
+  background: var(--control-line);
+}
 .flow-step {
   flex: 1;
   margin: 0;
-  padding: 1.15rem;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+}
+/* THE RAIL HAS TO STOP AT THE LAST NODE. Drawn as one line across the whole
+   row, it ran a full column's width past the third number and off into
+   nothing, which reads as unfinished rather than as a diagram.
+
+   Painted over in --bg rather than measured and shortened. The line's end is
+   at the centre of the last ring, and that x is (two steps + two gaps + two
+   chevrons + half a ring) into a flex row -- an arithmetic that is correct
+   until the first time anything in the row changes width. Covering the tail
+   from the last ring's edge is the same trick the ring itself uses on the
+   line behind it, and it needs to know nothing about the layout.
+
+   `position: relative` so it is a positioned box and therefore paints above
+   `.flow::before`, which is absolute and earlier in the tree. */
+.flow-step:last-child { position: relative; }
+.flow-step:last-child::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--row-centre) - 1px);
+  height: 3px;
+  inset-inline-start: 1.75rem;
+  inset-inline-end: 0;
+  background: var(--bg);
 }
 .flow-num {
   display: inline-flex;
@@ -1180,15 +1225,26 @@ body.home > main { position: relative; z-index: 1; }
   color: var(--muted);
   font-size: 0.875rem;
   font-weight: 700;
+  /* The ground, so the ring reads as a node ON the rail rather than a circle
+     with a line through it. --bg and not transparent for exactly that reason. */
+  background: var(--bg);
+  position: relative;
 }
 .flow-step h3 { margin: 0.7rem 0 0.3rem; font-size: 1rem; }
 .flow-step p { margin: 0; color: var(--muted); font-size: 0.9375rem; }
 .flow-arrow {
   display: flex;
   align-items: center;
+  justify-content: center;
   margin: 0;
-  color: var(--faint);
   flex: 0 0 auto;
+  color: var(--control-line);
+  /* Same height as the ring so it centres on the same line, and the ground
+     again so the chevron sits in a gap rather than on top of the rail. */
+  height: 1.75rem;
+  padding-inline: var(--space-2);
+  background: var(--bg);
+  position: relative;
 }
 
 .flow-note {
@@ -1199,89 +1255,69 @@ body.home > main { position: relative; z-index: 1; }
   padding-left: 0.9rem;
 }
 
-/* THE TWO PLANS.
-   .plan-card and .plan-featured are the dashboard's names on purpose (#141,
-   #158) so the two surfaces stay recognizably one product -- and so nobody
-   reintroduces a bare `.plan`, which is the collision #158 was filed for.
-   The dashboard draws these on --inset, which this site does not carry; the
-   equivalent surface here is --panel.
+/* THE TWO PLAN CARDS ARE GONE (#285), and so are their rules.
 
-   NO .plan-badge, unlike the dashboard. It needs one because it renders three
-   cards and a `highlight` flag decides which is featured. Two cards, one of
-   them outlined in the accent, is already unambiguous -- and the badge sat
-   directly above an <h3> saying the same word. */
-.plans {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
-  gap: 1rem;
-  margin: 1.25rem 0 0;
-  align-items: start;
-}
-.plan-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.3rem;
-  padding: 1.35rem 1.25rem 1.25rem;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  position: relative;
-  height: 100%;
-}
-/* Outlined rather than filled: the accent states which card is the paid one,
-   and it is still doing one of its two permitted jobs. */
-.plan-card.plan-featured {
-  border-color: var(--accent-text);
-  box-shadow: 0 0 0 1px var(--accent-text);
-}
-.plan-card h3 { margin: 0; font-size: 0.9375rem; font-weight: 600; color: var(--muted); }
-.plan-price {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0.15rem 0 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--ink-strong);
-}
-.plan-price span { font-size: 0.875rem; font-weight: 400; color: var(--muted); }
-.plan-blurb { margin: 0.5rem 0 0; color: var(--muted); font-size: 0.9375rem; }
-.plan-list { margin: 0.9rem 0 1.25rem; padding: 0; list-style: none; }
-.plan-list li {
-  position: relative;
-  padding-left: 1.5rem;
-  margin: 0.35rem 0;
-  font-size: 0.9375rem;
-}
-/* A tick drawn in text rather than an image.
-   The empty alt string is what actually keeps it out of the accessibility
-   tree, so a screen reader reads the feature and not "check mark" six times.
-   This comment used to claim that was happening while the plain `content`
-   below did nothing of the sort -- the ticks were being announced.
+   They were .plans, .plan-card, .plan-featured, .plan-price, .plan-blurb and
+   .plan-list, copied from the dashboard's names on purpose so the two surfaces
+   stayed recognizably one product. index.html says why the section went: the
+   feature list was an untranslated second copy of a translated one with
+   nothing keeping them in step.
 
-   Guarded by @supports because the `content: x / alt` syntax is recent
-   (Chrome 77, Safari 17.4, Firefox 129); where it is unsupported the whole
-   declaration would be dropped and the ticks would vanish entirely, which is
-   worse than announcing them. So the plain form is the floor. */
-.plan-list li::before {
-  content: "\2713";
-  position: absolute;
-  left: 0;
-  color: var(--accent-text);
-  font-weight: 700;
-}
-@supports (content: "x" / "y") {
-  .plan-list li::before { content: "\2713" / ""; }
-}
-.plan-card .cta { margin: auto 0 0; align-self: stretch; text-align: center; }
+   DELETED RATHER THAN LEFT FOR LATER. Nothing on this site draws a plan card
+   now, and a stylesheet that keeps rules for markup that no longer exists is a
+   stylesheet nobody can safely edit -- the next person cannot tell which half
+   is load-bearing. The dashboard's copies are untouched and remain the
+   reference if a card ever comes back here.
 
+   .plans-note stayed, because the sentence it styles did. */
 .plans-note { margin: 1rem 0 0; color: var(--faint); font-size: var(--text-note); }
 
+/* THE SCHEMATIC TURNED ON ITS SIDE (#285), rather than stacked.
+   Three cards in a column was the old narrow layout and it lost the rail
+   entirely -- the thing that says these are one sequence. Rotated, the rail
+   runs DOWN the left through the same three nodes and the text sits beside
+   them, which is the same diagram and reads better in a narrow column than
+   three full-width boxes did.
+
+   The numbers are placed explicitly. Auto-placement puts the paragraph in
+   column 1 under the ring, because the ring only occupies one row unless it
+   is told otherwise. */
 @media (max-width: 46rem) {
-  .flow { flex-direction: column; align-items: stretch; }
-  .flow-arrow { justify-content: center; transform: rotate(90deg); }
+  .flow { flex-direction: column; align-items: stretch; gap: 0; }
+  .flow::before {
+    inset-inline: auto;
+    inset-block: 0;
+    inset-inline-start: var(--row-centre);
+    width: 1px;
+    height: auto;
+  }
+  .flow-step {
+    display: grid;
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+    column-gap: var(--space-4);
+  }
+  .flow-num { grid-column: 1; grid-row: 1 / span 2; }
+  .flow-step h3 { grid-column: 2; margin-top: 0.15rem; }
+  .flow-step p { grid-column: 2; }
+  .flow-arrow {
+    /* Onto the vertical rail: a 1.75rem box centred on --row-centre, which
+       means starting at zero and being as wide as the ring. */
+    align-self: flex-start;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    transform: rotate(90deg);
+  }
+  /* The tail again, turned with everything else: below the last ring rather
+     than after it. */
+  .flow-step:last-child::after {
+    top: 1.75rem;
+    bottom: 0;
+    height: auto;
+    inset-inline-start: calc(var(--row-centre) - 1px);
+    inset-inline-end: auto;
+    width: 3px;
+  }
 }
 
 /* ==========================================================================
