@@ -1090,7 +1090,7 @@ written into one comes back as a string. In production that same column may be
 `bigint` and the driver returns an `int`.
 
 That gap took the server picker down for every server on 2026-09-08 (#164):
-`servers.server_id` is declared `String` and deployed `bigint`, a dict keyed on
+`servers.server_id` was declared `String` and deployed `bigint`, a dict keyed on
 the raw value matched nothing, and every server read as unconfigured. Nothing
 errored and nothing logged. Two regression tests written for that bug passed
 against the broken code, because SQLite handed them back the string they had
@@ -1120,18 +1120,11 @@ emptied the `servers` table on 2026-09-08 when borrowed by an ad-hoc script.
 To reproduce something against real data, restore a copy locally and point this
 at the copy. Never at production.
 
-**Expect failures in the fixtures, not in the bot.** As of this writing 26
-tests fail and 9 error under Postgres, in seven files, from two causes -- both
-test data that production never produces:
-
-- fixtures inserting non-numeric ids such as `server_id="a"`, which Postgres
-  rejects for a `bigint` column and SQLite accepts;
-- fixtures inserting `vrc_user_id=None`, which the deployed column forbids.
-
-The remaining assertion failures are of the form `assert 555 == '555'`: the
-test wrote a string and Postgres returned an int, which is the divergence
-itself showing up. Cleaning these up is worth doing and is not yet done; until
-it is, this mode is most useful pointed at specific files.
+**It passes clean, so a failure there means something.** It did not always:
+this mode landed with 26 failures and 9 errors across seven files, all of it
+fixture data production cannot hold, and a real regression appearing in that
+list would have been indistinguishable from the noise. #281 emptied it. Treat
+a failure here as a finding.
 
 ### The reconciliation, and why it needed no migration
 
@@ -1151,11 +1144,36 @@ docstrings say why the reason changed: the remaining mismatch is between the
 `servers` table (`bigint`) and `instruction_panel_views` (`character varying`),
 plus Discord's own ids, which are strings.
 
-`servers.owner_id`, `servers.role_id` and `users.discord_id` are the same
-shape and are still declared `String`. They are recorded in
-`test_schema_snapshot.KNOWN` with the reason each is currently harmless -- all
-three are passed straight to `int()` or to a `filter_by()` that Postgres casts,
-and none is used as a dictionary key, which is the thing that breaks.
+`servers.owner_id`, `servers.role_id` and `users.discord_id` were the same
+shape and got the same one-line change in #281, and `users.vrc_user_id` -- the
+model permitted a `NULL` the column forbids -- was reconciled to
+`nullable=False` alongside them. All four entries are gone from
+`test_schema_snapshot.KNOWN`.
+
+Each had been recorded there as harmless, with a real reason: every one was
+passed straight to `int()` or to a `filter_by()` that Postgres casts, and none
+was used as a dictionary key, which is the thing that broke in #164.
+
+One of those reasons had already expired. `VRCUsernameModal.on_submit`
+compares `existing_user.discord_id` against `str(interaction.user.id)` to ask
+whether a VRChat account belongs to somebody else -- not a dictionary key, so
+not what the entry was watching for, and `123 != "123"` is True regardless.
+The check answered "somebody else's" for every caller. It is latent rather
+than live, because neither route into that modal can reach it with the
+member's own row, but it is the #164 shape and it went unnoticed for as long
+as the model claimed the column was text. See
+`tests/test_vrc_username_modal.py`.
+
+That is the argument for reconciling rather than recording: an entry saying
+"safe as long as nobody does the obvious thing" is worth less than a
+declaration that makes the obvious thing work, and it cannot tell you when
+somebody has already done it.
+
+Reconciling cost no migration and changed nothing on production, which has
+returned `int` for these columns all along. What it changed is the tests: the
+suite had accumulated assertions like `srv.role_id == "999"` that described
+SQLite rather than production, and those only became visible -- and fixable --
+once the model told the truth.
 
 ### What the models and production disagree about
 

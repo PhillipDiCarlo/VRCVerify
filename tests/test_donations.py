@@ -17,7 +17,7 @@ Covers:
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -321,15 +321,6 @@ class TestRecordGuildVerification:
 # ---------------------------------------------------------------
 # handle_verification_result triggers milestone counting
 # ---------------------------------------------------------------
-class NaiveNowDatetime(datetime):
-    """SQLite returns naive datetimes, so pending-expiry comparisons need a
-    naive 'now' inside handle_verification_result during these tests."""
-
-    @classmethod
-    def now(cls, tz=None):
-        return datetime.now()
-
-
 class TestVerificationResultCountsMilestone:
     CODE = "VRC-TEST01"
 
@@ -351,14 +342,22 @@ class TestVerificationResultCountsMilestone:
     def user_row(self):
         with bot.session_scope() as session:
             session.query(bot.User).delete()
-            session.add(bot.User(discord_id="555", verification_status=False))
+            # vrc_user_id is NOT NULL on the deployed column and, since #281,
+            # in the model too. A prior id is also what an existing row
+            # actually looks like: a User is only created by a successful
+            # verification, which always has one. The test below asserts it is
+            # replaced by the new one, which is a stronger claim than watching
+            # a blank get filled.
+            session.add(
+                bot.User(
+                    discord_id="555",
+                    verification_status=False,
+                    vrc_user_id="usr_previous",
+                )
+            )
         yield
         with bot.session_scope() as session:
             session.query(bot.User).delete()
-
-    @pytest.fixture
-    def naive_now(self, monkeypatch):
-        monkeypatch.setattr(bot, "datetime", NaiveNowDatetime)
 
     def _make_pending(self, expires_in_minutes=5):
         with bot.session_scope() as session:
@@ -369,7 +368,15 @@ class TestVerificationResultCountsMilestone:
                     guild_id=GUILD_ID,
                     vrc_user_id="usr_x",
                     verification_code=self.CODE,
-                    expires_at=datetime.now() + timedelta(minutes=expires_in_minutes),
+                    # Aware UTC, matching what /vrcverify actually stores.
+                    # This was a naive local-time `datetime.now()`, which only
+                    # worked because handle_verification_result's `now` was
+                    # monkeypatched to be naive too -- so the pair agreed with
+                    # each other and with neither the column nor production.
+                    expires_at=(
+                        datetime.now(timezone.utc)
+                        + timedelta(minutes=expires_in_minutes)
+                    ),
                 )
             )
 
@@ -408,7 +415,7 @@ class TestVerificationResultCountsMilestone:
 
     # -- code-based (bio) flow --
     def test_code_flow_success_counts_and_updates_user(
-        self, spies, user_row, naive_now
+        self, spies, user_row
     ):
         self._make_pending()
         run(bot.handle_verification_result(self._code_data()))
@@ -420,20 +427,20 @@ class TestVerificationResultCountsMilestone:
             assert bool(user.verification_status) is True
             assert user.vrc_user_id == "usr_x"
 
-    def test_code_flow_not_18_plus_never_counts(self, spies, user_row, naive_now):
+    def test_code_flow_not_18_plus_never_counts(self, spies, user_row):
         self._make_pending()
         run(bot.handle_verification_result(self._code_data(is_18_plus=False)))
         assert len(spies.assign) == 1
         assert spies.record == []
 
-    def test_expired_code_never_counts(self, spies, user_row, naive_now):
+    def test_expired_code_never_counts(self, spies, user_row):
         self._make_pending(expires_in_minutes=-1)
         run(bot.handle_verification_result(self._code_data()))
         assert spies.assign == []
         assert spies.record == []
         assert self._pending_count() == 0  # expired pending is removed
 
-    def test_code_not_found_in_bio_never_counts(self, spies, user_row, naive_now):
+    def test_code_not_found_in_bio_never_counts(self, spies, user_row):
         self._make_pending()
         run(bot.handle_verification_result(self._code_data(code_found=False)))
         assert spies.assign == []
@@ -442,7 +449,7 @@ class TestVerificationResultCountsMilestone:
         # (which re-sends the same code) can still find a match.
         assert self._pending_count() == 1
 
-    def test_unknown_code_never_counts(self, spies, user_row, naive_now):
+    def test_unknown_code_never_counts(self, spies, user_row):
         # No pending row at all
         with bot.session_scope() as session:
             session.query(bot.PendingVerification).delete()

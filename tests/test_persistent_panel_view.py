@@ -188,13 +188,13 @@ class TestVersionRecording:
             assert session.query(bot.InstructionPanelView).count() == 0
 
     def test_stale_only_skips_current_panels(self, clean_db):
-        make_server("a", channel_id="1", message_id="10")
-        make_server("b", channel_id="2", message_id="20")
-        mark_migrated("a")
+        make_server("101", channel_id="1", message_id="10")
+        make_server("102", channel_id="2", message_id="20")
+        mark_migrated("101")
 
         stale = bot.load_instruction_panels(stale_only=True)
 
-        assert [p["server_id"] for p in stale] == ["b"]
+        assert [p["server_id"] for p in stale] == ["102"]
 
     def test_stale_only_includes_older_versions(self, clean_db):
         make_server()
@@ -205,9 +205,9 @@ class TestVersionRecording:
         assert [p["server_id"] for p in stale] == [GUILD_ID]
 
     def test_full_load_ignores_version(self, clean_db):
-        make_server("a", channel_id="1", message_id="10")
-        make_server("b", channel_id="2", message_id="20")
-        mark_migrated("a")
+        make_server("101", channel_id="1", message_id="10")
+        make_server("102", channel_id="2", message_id="20")
+        mark_migrated("101")
 
         assert len(bot.load_instruction_panels()) == 2
 

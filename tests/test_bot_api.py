@@ -1727,7 +1727,17 @@ class TestSettingsReader:
         make_server(role_id="555", auto_nickname_change=True, instructions_locale="fr")
         payload = run(bot.read_dashboard_settings(GUILD_ID))
         fields = payload["fields"]
-        assert fields["role_id"]["value"] == "555"
+        # 555, not "555". `servers.role_id` is bigint, so this reader has
+        # always handed the dashboard a number here; only SQLite made it look
+        # like a string. The dashboard normalizes with str() on its own side
+        # (settings_view._role_field, and _lookup's str() comparison), which
+        # is what keeps the seam safe -- see
+        # test_dashboard.TestRoleFieldTakesTheIdAsSent.
+        assert fields["role_id"]["value"] == 555
+        # The neighbouring role column really is varchar, so the payload
+        # genuinely carries both types. Pinned so the asymmetry is visible
+        # rather than surprising.
+        assert fields["unverified_role_id"]["value"] is None
         assert fields["auto_nickname_change"]["value"] is True
         assert fields["instructions_locale"]["value"] == "fr"
 
@@ -2073,6 +2083,41 @@ class TestSettingsWriter:
         write({"role_id": "3"})
         assert audit_rows() == [("role_id", "2", "3", str(ADMIN_ID))]
 
+    def test_resaving_the_same_verified_role_is_not_audited(
+        self, monkeypatch, subscribed
+    ):
+        """The no-op rule, on the one field where it was broken.
+
+        `test_a_no_op_write_is_not_audited` covers instructions_locale, a
+        varchar column whose stored value comes back as the same str the
+        coercer produces. `servers.role_id` is bigint, so the comparison in
+        write_dashboard_settings was `123 != "123"` -- true forever. Every
+        save that included an unchanged verified role appended an audit row
+        saying it had changed from 2 to 2, which is the exact noise
+        _record_dashboard_audit's docstring says the rule exists to prevent.
+
+        Invisible until #281 declared the column bigint; under String, SQLite
+        handed back the string that had been written and both sides matched.
+        """
+        self.guild_with_roles(monkeypatch)
+        make_server(role_id="2")
+
+        write({"role_id": "2"})
+
+        assert audit_rows() == []
+
+    def test_resaving_the_same_role_as_a_number_is_not_audited(
+        self, monkeypatch, subscribed
+    ):
+        """Same field, submitted the way JSON allows. The coercer normalizes
+        an int to a digit string, so this must not be a change either."""
+        self.guild_with_roles(monkeypatch)
+        make_server(role_id="2")
+
+        write({"role_id": 2})
+
+        assert audit_rows() == []
+
     def test_an_unverified_role_can_be_cleared(self, monkeypatch, subscribed):
         """/vrcverify_setup clears it by omitting the argument, so this must too."""
         self.guild_with_roles(monkeypatch)
@@ -2121,17 +2166,29 @@ class TestSettingsWriter:
         write({"role_id": wanted})
         with bot.session_scope() as session:
             srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
-            assert srv.role_id == wanted
+            assert srv.role_id == int(wanted)
 
-    def test_an_id_that_arrived_as_a_number_is_stored_as_a_string(
+    def test_an_id_that_arrived_as_a_number_round_trips(
         self, monkeypatch, subscribed
     ):
+        """JSON has a number type, so an id can arrive either way.
+
+        Renamed from ..._is_stored_as_a_string, which was never true of the
+        deployed database: `servers.role_id` is bigint and stores a number
+        whichever way the id was submitted. The property that actually matters
+        is that both spellings name the same role, which is what this asserts.
+        """
         self.guild_with_roles(monkeypatch)
         make_server(role_id="2")
         write({"role_id": 3})
         with bot.session_scope() as session:
             srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
-            assert srv.role_id == "3"
+            assert srv.role_id == 3
+
+        write({"role_id": "3"})
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.role_id == 3
 
     def test_auto_verify_is_written_for_a_free_server(self, free):
         """Never gated, for anyone, ever."""
@@ -2736,8 +2793,8 @@ class TestPanelAction:
         assert self.post()["action"] == "posted"
         with bot.session_scope() as session:
             srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
-            assert srv.owner_id == str(OWNER_ID)
-            assert srv.owner_id != str(ADMIN_ID)
+            assert srv.owner_id == OWNER_ID
+            assert srv.owner_id != ADMIN_ID
 
     def test_the_action_is_audited(self, monkeypatch, subscribed):
         self.setup_guild(monkeypatch)
@@ -3268,7 +3325,17 @@ class TestGuildSummaryReader:
             )
 
         assert len(summaries) == 25
-        selects = [s for s in counted if s.lstrip().upper().startswith("SELECT")]
+        selects = [
+            s
+            for s in counted
+            if s.lstrip().upper().startswith("SELECT")
+            # Only statements against our own tables. Under
+            # scripts/test_postgres.sh, SQLAlchemy reflects the schema through
+            # pg_catalog on first use, and counting those made this assert 5
+            # against a limit of 2 -- a failure about the driver, not about the
+            # reader. SQLite emits no such statements, so this is a no-op there.
+            and "pg_catalog." not in s
+        ]
         # Guards the guard: a listener that never fired would count zero and
         # make the real assertion below vacuous.
         assert selects, "no statements were observed, so this asserts nothing"

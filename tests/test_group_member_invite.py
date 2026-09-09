@@ -699,8 +699,17 @@ class TestTheOffer:
         assert standing() is None
 
     def test_a_member_with_no_vrchat_account_is_not_offered(self, subscribed):
+        """The empty string, not None.
+
+        `users.vrc_user_id` is NOT NULL on the deployed database, so a row
+        holding None is not a state production can reach -- this used to pass
+        only because SQLite had no constraint to enforce, and #281 made the
+        model say so. The empty string is the representation that IS reachable,
+        and member_invite_identity's `or None` is the line that turns it back
+        into "no account" for this caller.
+        """
         make_server()
-        make_user(vrc_user_id=None)
+        make_user(vrc_user_id="")
         ready_group()
         assert self.offer() == []
 

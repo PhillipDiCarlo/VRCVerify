@@ -61,10 +61,17 @@ class TestTheSchemaCameFromTheSnapshot:
 class TestStrictTypingSqliteCannotShow:
     def test_a_non_numeric_id_is_refused(self):
         """SQLite stores 'a' in an INTEGER column without complaint; Postgres
-        raises. Several test fixtures still rely on the SQLite behavior, which
-        is why the Postgres run has failures that the default run does not --
-        see the README. This pins the difference so it is a known quantity
-        rather than a surprise.
+        raises.
+
+        THIS IS THE ONE THAT DOES NOT TRANSFER. Declaring BigInteger buys the
+        fast suite the production *type* on the way out -- reads come back as
+        ints -- but not strict typing on the way in: SQLite's INTEGER affinity
+        converts a numeric string and shrugs at anything else. So a fixture
+        holding a non-numeric id is still invisible to `pytest` and still
+        raises here, which is the gap #281 emptied the fixtures to close.
+
+        Kept as the standing proof that the Postgres mode can still see
+        something the default run cannot.
         """
         from sqlalchemy.exc import DataError
 
@@ -72,13 +79,17 @@ class TestStrictTypingSqliteCannotShow:
             with bot.session_scope() as session:
                 session.add(bot.Server(server_id="a", owner_id="1", role_id="2"))
 
-    def test_the_not_null_on_vrc_user_id_is_real(self):
-        """The model permits NULL and the deployed column does not -- recorded
-        in test_schema_snapshot.KNOWN. Production survives it because the one
-        construction site assigns before flushing. This is what a second one
-        would meet."""
-        from sqlalchemy.exc import IntegrityError
+    def test_a_non_numeric_owner_id_is_refused_too(self):
+        """owner_id and role_id are bigint as well, reconciled in #281.
 
-        with pytest.raises(IntegrityError):
+        Named separately because "the id columns" is three columns, and a
+        fixture is as likely to put a label in one as in another -- several
+        did.
+        """
+        from sqlalchemy.exc import DataError
+
+        with pytest.raises(DataError):
             with bot.session_scope() as session:
-                session.add(bot.User(discord_id="555"))
+                session.add(
+                    bot.Server(server_id="1", owner_id="nobody", role_id="2")
+                )
