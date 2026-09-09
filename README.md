@@ -25,7 +25,7 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
    - Consumes its own RabbitMQ queue (`RABBITMQ_GROUP_INVITE_QUEUE`), never the verification queue: two consumers on one queue split messages round-robin, so the checker would swallow its jobs.
    - Verifies a server's group setup on request: joins the group it was told about, then reports whether the account is a member and holds `group-invites-manage` (its own permission, which being a group admin does **not** include) and the optional `group-members-viewall`.
    - **Never joins a group it was not explicitly told to join.** There is no loop that polls for or accepts pending invites; anyone can invite the account to a group, and that alone must never put it in one.
-   - Sends one member's invite on request. **Only two answers stop it:** they are already in the group, or the group has banned them. (`userblocked` refuses as well, but that is not a third policy — the invite would be answered 403 anyway, since `confirm_override_block` is always `False`, so refusing merely saves the call.) Membership is read first so those answers cost no invite, and so the two states that need *action* rather than a sentence can be recognised — see below. That check is best effort and can never block an invite — every failure of it falls through to attempting the invite anyway, and the design deliberately does not need it to succeed. `create_group_invite` is where every authoritative answer comes from — 400 for an existing member **or** one who already has an invite waiting, 403 for a recipient who will not take invites, 404 for a group that has gone **or** a member whose linked VRChat account no longer resolves, 409 for a member the group has banned. The 403 and 404 are told apart by asking whether the group still exists, because they need opposite advice: re-verify, or go and find an admin. The two 400s are told apart by their wording, which is the only place in the worker where a message is read rather than a status — being a member is finished, while a waiting invite is a nudge to check their notifications, and answering both with "already a member" sent people hunting through a group they had not joined. That match is anchored to the **end** of the sentence, because the part in front of it is the member's own display name; an unrecognised 400 keeps the older reading and says so in the log. The 409 needs no wording at all: VRChat names that case by status. `confirm_override_block` is passed as **False** explicitly, because `vrchatapi` defaults it to `True` — omitting it would opt in to pushing invites past people who have blocked the group.
+   - Sends one member's invite on request. **Only two answers stop it:** they are already in the group, or the group has banned them. (`userblocked` refuses as well, but that is not a third policy — the invite would be answered 403 anyway, since `confirm_override_block` is always `False`, so refusing merely saves the call.) Membership is read first so those answers cost no invite, and so the two states that need *action* rather than a sentence can be recognized — see below. That check is best effort and can never block an invite — every failure of it falls through to attempting the invite anyway, and the design deliberately does not need it to succeed. `create_group_invite` is where every authoritative answer comes from — 400 for an existing member **or** one who already has an invite waiting, 403 for a recipient who will not take invites, 404 for a group that has gone **or** a member whose linked VRChat account no longer resolves, 409 for a member the group has banned. The 403 and 404 are told apart by asking whether the group still exists, because they need opposite advice: re-verify, or go and find an admin. The two 400s are told apart by their wording, which is the only place in the worker where a message is read rather than a status — being a member is finished, while a waiting invite is a nudge to check their notifications, and answering both with "already a member" sent people hunting through a group they had not joined. That match is anchored to the **end** of the sentence, because the part in front of it is the member's own display name; an unrecognized 400 keeps the older reading and says so in the log. The 409 needs no wording at all: VRChat names that case by status. `confirm_override_block` is passed as **False** explicitly, because `vrchatapi` defaults it to `True` — omitting it would opt in to pushing invites past people who have blocked the group.
 
      What the membership check can and cannot see was measured on 2026-08-27, in a private group built for the purpose. A user with no member record in the group reads as `None` whether they are a stranger **or** banned, so a ban only shows up on the check when the member already had a record; every other ban is discovered by the invite attempt returning 409. An unban leaves the record at `inactive`, which is what lets a member a moderator has forgiven be invited again — and the reason a ban is never cached as a permanent verdict.
 
@@ -123,7 +123,7 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
   when something is broken — which is exactly when the website may be the
   broken thing.
   - Optional removal of an "unverified" role once a user becomes verified.
-  - Instructions panel colour and server-icon thumbnail (premium).
+  - Instructions panel color and server-icon thumbnail (premium).
 - Instructions posting command (/vrcverify_instructions) that publishes a localized, interactive instruction embed with buttons.
 - Robust request/result flow via RabbitMQ including a dedicated result consumer in the bot.
 - Improved RabbitMQ reliability: both services auto-reconnect after broker restarts/idle disconnects; publishes retry and use persistent delivery.
@@ -148,9 +148,9 @@ See the sections below for details and configuration.
   - **PendingVerification:** Temporarily holds verification requests until they are processed.
   - **PremiumCutoverNotice:** Which guilds have already had the one-time premium announcement DM.
   - **PremiumGrandfatherLine:** Single row holding `MAX(servers.id)` as of the moment the premium tier was switched on. Servers at or below it keep the grandfathered features free, permanently. Captured once, never moved.
-  - **InstructionPanelBranding:** A premium server's chosen embed colour and whether to show its server icon on the instructions panel. Both default to off, so the row existing does not by itself restyle anything.
+  - **InstructionPanelBranding:** A premium server's chosen embed color and whether to show its server icon on the instructions panel. Both default to off, so the row existing does not by itself restyle anything.
   - **VerificationLogChannel:** Where a guild posts its verification activity log.
-  - **StripeSubscription:** A guild's card subscription, mirrored from Stripe so the premium gate stays a database read rather than an API call. Stripe remains the source of truth; the bot holds no Stripe credential and never talks to Stripe — the dashboard verifies each webhook signature and forwards a normalised summary over the existing mTLS channel. Premium is granted if **either** this or a Discord entitlement is live.
+  - **StripeSubscription:** A guild's card subscription, mirrored from Stripe so the premium gate stays a database read rather than an API call. Stripe remains the source of truth; the bot holds no Stripe credential and never talks to Stripe — the dashboard verifies each webhook signature and forwards a normalized summary over the existing mTLS channel. Premium is granted if **either** this or a Discord entitlement is live.
   - **StripeEvent:** Every webhook event id already acted on. Stripe retries a delivery for up to three days, so duplicates are expected traffic; this is what makes applying one idempotent.
   - **PremiumEntitlementSeen:** Which guilds have ever held a Discord entitlement for the premium SKU, including ones that have since ended. Discord's gateway only reports entitlements that change while the bot is connected, so this is filled by a sweep on every boot that walks ended entitlements too. It exists for one question — whether a server has ever paid — and the free trial is the only thing that asks it.
 
@@ -213,12 +213,12 @@ dashboard. See [Two ways to pay](#two-ways-to-pay).
 | Reduced verification cooldown | — | — | ✅ |
 | Verification activity log channel | — | — | ✅ |
 | Priority placement in the verification queue | — | — | ✅ |
-| Branded instructions panel (colour + icon) | — | — | ✅ |
+| Branded instructions panel (color + icon) | — | — | ✅ |
 | VRChat group invites for verified members | — | — | ✅ |
 
 Auto-verify-on-join is free for everyone and is deliberately not gated at all —
 `on_member_join` never so much as reads an entitlement. Users read "the bot
-recognises me and gives me the role" as simply how a verification bot works, so
+recognizes me and gives me the role" as simply how a verification bot works, so
 charging for it reads as the bot being broken rather than as an upsell. It's
 also the only gated feature a *member* could perceive, and members move between
 servers. `tests/test_premium.py::TestAutoVerifyOnJoinIsFree` pins this so it
@@ -292,7 +292,7 @@ deploy either way. Each price's own metadata carries its label, order, saving
 and trial length.
 
 The bot holds **no Stripe credential and never talks to Stripe.** The dashboard
-verifies each webhook signature and forwards a normalised summary over the
+verifies each webhook signature and forwards a normalized summary over the
 existing mTLS channel; the bot writes `StripeSubscription` and answers from the
 database. That keeps the payment integration on the public box and the money
 questions answerable without a network call.
@@ -309,7 +309,7 @@ qualifies can be offered one a minute later.
 14 days, **card only**, **monthly only**, and only for a server that has
 **never held premium by either route**. Length and which plans offer it are set
 in Stripe (`trial_days` on a price's metadata); *who may be offered one* is the
-bot's answer, travelling in the settings payload beside the SKU id, and the
+bot's answer, traveling in the settings payload beside the SKU id, and the
 checkout route re-checks it server-side before passing a trial to Stripe — a
 card rendered without one is not a gate, because a POST is not a click.
 
@@ -377,14 +377,14 @@ two services agree and that each actually passes the arguments.
 
 ### Branded instructions panel
 
-The dashboard's Instructions panel group lets a premium server set its own embed colour
-and show its server icon as the panel thumbnail. Colour is entered as a hex
-value (`#5865F2`, or `#58F` shorthand); Discord has no colour-picker component
-of any kind, so a text field is the only way to express an exact brand colour.
-`#000000` is nudged to `#010101`, because Discord reads a colour of 0 as "no
-colour" and would render the default grey.
+The dashboard's Instructions panel group lets a premium server set its own embed color
+and show its server icon as the panel thumbnail. Color is entered as a hex
+value (`#5865F2`, or `#58F` shorthand); Discord has no color-picker component
+of any kind, so a text field is the only way to express an exact brand color.
+`#000000` is nudged to `#010101`, because Discord reads a color of 0 as "no
+color" and would render the default gray.
 
-**The instruction copy itself is not customisable, deliberately.** It is the
+**The instruction copy itself is not customizable, deliberately.** It is the
 part that actually gets people through verification correctly, and letting
 servers rewrite it means support requests about instructions nobody here wrote.
 
@@ -499,7 +499,7 @@ it asks the bot for over mTLS, and the bot decides what it is allowed to know.
 | Settings | `/guild/<id>/settings` | Every setting the slash commands can change. |
 | Subscriptions | `/guild/<id>/subscription` | This server's premium status, and where a card subscription is bought. Plans come from Stripe at render time; checkout and the billing portal both redirect to Stripe's own domain. |
 
-All three authorise identically — a session to prove who is asking, then the
+All three authorize identically — a session to prove who is asking, then the
 bot to decide what they may see — and, just as importantly, **all three fail
 identically**, through one `_guild_page_unavailable`. A 403 and a 404 from the
 bot render as the same page with the same status, because rendered differently
@@ -509,7 +509,7 @@ worth using — which is why Subscriptions called the bot before rendering even
 back when it was a placeholder with nothing on it.
 
 Subscriptions has one failure rule the other two don't need: **a read that
-fails must never render as "not subscribed".** It apologises instead. "Not
+fails must never render as "not subscribed".** It apologizes instead. "Not
 subscribed" next to a Buy button is how you sell somebody a second
 subscription, so the page carries a distinct "we could not read this" state
 rather than collapsing it into the empty one.
@@ -524,7 +524,7 @@ which is why the collapsed state and the cookie can never disagree.
 The dashboard borrows **Discord's own surface layering** — a dark shell, a
 lighter sidebar on it, lighter cards again on top — so an admin arriving from a
 slash command feels like they changed rooms rather than applications. What is
-deliberately *not* borrowed is blurple as decoration: here the brand colour
+deliberately *not* borrowed is blurple as decoration: here the brand color
 means exactly two things, "this is the page you are on" and "this button does
 the thing", so it never appears on a border or a heading. Everything else is
 carried by the surface ramp and type weight.
@@ -533,11 +533,11 @@ Four constraints shape the implementation, and three of them are CSP:
 
 - **`style-src 'self'`, no `'unsafe-inline'`** — no `style=""` attributes
   anywhere. Any value that varies per element has to be a class or a
-  presentation attribute, which is why the colour swatches are SVG `fill`. If a
+  presentation attribute, which is why the color swatches are SVG `fill`. If a
   genuinely dynamic value is ever needed, the answer is a per-response nonce on
   one `<style>` block that sets custom properties — not `'unsafe-inline'`.
 - **`font-src 'self'`** — Inter is vendored into `static/fonts` (48KB latin
-  subset, variable weight, OFL, licence alongside it). No font CDN: a third
+  subset, variable weight, OFL, license alongside it). No font CDN: a third
   party would otherwise see who opens the dashboard and could break it by going
   down. The subset has no U+2713 or U+2190, which is why the ticks and the back
   arrow are inline SVG — a glyph the font lacks falls back to another family at
@@ -560,7 +560,7 @@ external (never inline), touches no network, writes no markup, and holds no
 authority — with JavaScript off, every page renders, navigates and saves
 exactly as before. `tests/test_dashboard.py` pins all of that.
 
-**Motion is narrow by intent**: 120ms colour fades on hover and focus, and
+**Motion is narrow by intent**: 120ms color fades on hover and focus, and
 nothing else. A cross-document view transition between pages was tried and
 removed — it cross-faded the whole page on every navigation, which put a delay
 between clicking a section and being able to read it, and moving between
@@ -615,7 +615,7 @@ differences between them are deliberate:
 - **The custom DM** goes through `sanitize_custom_message()` — the same
   function the slash command uses, not a second implementation. It strips
   zero-width characters, defuses `@everyone`, and allows links only to
-  discord.com and vrchat.com. The *sanitised* text is what gets stored.
+  discord.com and vrchat.com. The *sanitized* text is what gets stored.
 
 A picker is only rendered when it has something to pick from. When the roles or
 channels read fails, the field falls back to read-only — an empty `<select>`
@@ -685,7 +685,7 @@ The session file is created owner-only, and the table prunes itself whenever a
 login starts — the only unauthenticated way to add a row to it is therefore
 also the thing that clears the abandoned ones, with no scheduler involved.
 
-Two rules the settings page exists to honour:
+Two rules the settings page exists to honor:
 
 - **It mirrors the bot field for field, including the inconsistencies.** Some
   settings a lapsed plan refuses to *save* (nickname sync, panel branding); some
@@ -996,9 +996,9 @@ Each component connects to RabbitMQ to exchange verification requests and result
 
   The bot supports multiple locales for user-facing content. A server admin can choose the preferred language on the dashboard (Instructions language). If a user’s Discord locale is supported, it will be used; otherwise, English (en-US) is the fallback.
 
-  **Adding or changing a string.** Write the English in `src/locales.py` as an `N_()` constant, use it in `src/bot.py`, then run `./scripts/i18n.sh`. That extracts it into `src/translations/bot/bot.pot`, merges it into all eleven `.po` catalogues as untranslated, and compiles the `.mo` files the bot actually reads. A string nobody has translated yet renders in English rather than blank, so a new string is safe to ship before its translations land.
+  **Adding or changing a string.** Write the English in `src/locales.py` as an `N_()` constant, use it in `src/bot.py`, then run `./scripts/i18n.sh`. That extracts it into `src/translations/bot/bot.pot`, merges it into all eleven `.po` catalogs as untranslated, and compiles the `.mo` files the bot actually reads. A string nobody has translated yet renders in English rather than blank, so a new string is safe to ship before its translations land.
 
-  The translations themselves are gettext catalogues under `src/translations/bot/<lang>/LC_MESSAGES/`, which is a format Poedit, Crowdin and Weblate all open -- they do not need a Python editor. The dashboard's live alongside them in `src/dashboard/translations/` under a separate domain, and `scripts/i18n.sh` handles both. The list of supported language codes is `LANGUAGE_CODES` in `src/locales.py`, pinned by a test against the dashboard's copy so a thirteenth language cannot be half-added.
+  The translations themselves are gettext catalogs under `src/translations/bot/<lang>/LC_MESSAGES/`, which is a format Poedit, Crowdin and Weblate all open -- they do not need a Python editor. The dashboard's live alongside them in `src/dashboard/translations/` under a separate domain, and `scripts/i18n.sh` handles both. The list of supported language codes is `LANGUAGE_CODES` in `src/locales.py`, pinned by a test against the dashboard's copy so a thirteenth language cannot be half-added.
 
   Changing the *wording* of an existing string changes its msgid and orphans all eleven translations of it. `pybabel` offers a fuzzy match; the compile step deliberately does not ship fuzzy entries, so the string reverts to English until a person confirms each one. That is the intended cost of a reword.
 

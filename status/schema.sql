@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS component_state (
 --
 -- This is the one counter an operator can influence, and it is worth being
 -- clear-eyed about that. It stays honest only because the window is public,
--- timestamped and permanent in `incidents` -- the downtime is categorised in
+-- timestamped and permanent in `incidents` -- the downtime is categorized in
 -- the open, not erased. Only the bad minutes move: `up` still counts as `up`
 -- during a window, so forgetting to resolve one masks nothing that was working
 -- and cannot quietly delete a day.

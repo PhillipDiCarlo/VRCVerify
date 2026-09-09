@@ -69,7 +69,7 @@ def backoff_delay(attempt: int) -> float:
     """Delay before retry number `attempt`, with jitter.
 
     The jitter is not decoration. VRChat's guidelines call out that fixed
-    intervals from many callers synchronise into traffic spikes, so every
+    intervals from many callers synchronize into traffic spikes, so every
     retry schedule here is deliberately uneven.
     """
     import random

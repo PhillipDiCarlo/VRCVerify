@@ -134,7 +134,7 @@ GUILDS = [
 
 # Which servers the bot is in, and so which ones `guild_summaries` answers
 # for. NOT_ADDED is absent on purpose -- it is the un-installed card on the
-# picker, which #133 phase 3 rebuilds around card content rather than colour. UNREACHABLE *is*
+# picker, which #133 phase 3 rebuilds around card content rather than color. UNREACHABLE *is*
 # installed, so clicking into it reaches error.html by the path a real outage
 # would take.
 INSTALLED = {PREMIUM, FREE, UNREACHABLE}
@@ -143,7 +143,7 @@ INSTALLED = {PREMIUM, FREE, UNREACHABLE}
 #
 # `subscription.html` branches eight ways and only two of them are reachable
 # from the four servers above -- "free" and "bought through Discord". The
-# other six are the ones worth looking at: a card subscription, a cancelled
+# other six are the ones worth looking at: a card subscription, a canceled
 # one still running out its period, a failed payment, a server being charged
 # twice, a lapsed server worth winning back, and Stripe being unreachable.
 #
@@ -153,7 +153,7 @@ INSTALLED = {PREMIUM, FREE, UNREACHABLE}
 # already knows how to drive a page through an environment variable.
 #
 #   PREVIEW_SUB=card       paying by card, renews
-#   PREVIEW_SUB=cancelled  cancelled, premium until the period ends
+#   PREVIEW_SUB=canceled   canceled, premium until the period ends
 #   PREVIEW_SUB=past_due   the last payment failed, Stripe is retrying
 #   PREVIEW_SUB=both       paying twice, once by card and once through Discord
 #   PREVIEW_SUB=lapsed     not premium now, but was -- the win-back state
@@ -165,7 +165,7 @@ PREVIEW_SUB = os.environ.get("PREVIEW_SUB", "")
 
 _SUB_STATES = {
     "card": dict(premium=True, active=True, status="active"),
-    "cancelled": dict(premium=True, active=True, status="active", cancel=True),
+    "canceled": dict(premium=True, active=True, status="active", cancel=True),
     "past_due": dict(premium=True, active=True, status="past_due"),
     "both": dict(premium=True, discord=True, active=True, status="active",
                  active_count=1),

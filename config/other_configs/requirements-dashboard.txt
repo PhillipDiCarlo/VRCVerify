@@ -14,7 +14,7 @@ gunicorn==26.2.0
 # Dates and numbers in twelve languages (issue #230).
 #
 # THIS FILE ARGUED AGAINST THIS PACKAGE AND THE ARGUMENT CHANGED. Babel was
-# deliberately dev-only for #97: the catalogues are read with the standard
+# deliberately dev-only for #97: the catalogs are read with the standard
 # library's `gettext`, so translating the dashboard's *strings* cost nothing
 # here. Formatting its dates and numbers is a different problem and the
 # standard library cannot do it -- `strftime('%B')` reads the process-global C

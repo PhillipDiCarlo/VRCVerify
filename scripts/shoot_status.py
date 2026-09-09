@@ -12,7 +12,7 @@ preview, which this page has nothing to do with. What the two share is the
 reason either exists -- nine pull requests across epic #122 shipped saying "not
 verified in a browser", and the first browser pass found a glyph that was
 illegible at the size it was actually drawn. This page is four glyphs and a
-colour, so it is exactly the kind of thing reading the CSS cannot check.
+color, so it is exactly the kind of thing reading the CSS cannot check.
 
 The theme is chosen the way a reader chooses it: by writing the same
 localStorage key /theme.js reads. There is no server here to hold a cookie.

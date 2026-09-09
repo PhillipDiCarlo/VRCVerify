@@ -123,7 +123,7 @@ class Entry:
     # A FIELD, AND ON THE COPY RATHER THAN ON THE CONSTANT. `ENTRIES` is
     # module-level and shared by every request in the process, so the entry a
     # German reader is looking at cannot be the object a Japanese reader's
-    # thread is about to render. `_localised()` already solved this for the
+    # thread is about to render. `_localized()` already solved this for the
     # title and the body by returning a `replace()` copy; the date rides along
     # on the same copy, which is why this is a field and not an argument to the
     # property. The constant keeps the default and is never written to.
@@ -325,7 +325,7 @@ ENTRIES = (
 def read_seen(value: Optional[str], entries=ENTRIES) -> Optional[str]:
     """The id of the newest entry this browser has already seen, or None.
 
-    Validated against the ids actually shipped. An id we no longer recognise
+    Validated against the ids actually shipped. An id we no longer recognize
     -- a hand-edited cookie, or one written by an older deploy whose entry has
     since been renamed -- is treated as having seen nothing, which shows the
     dot once more rather than hiding entries the browser never saw.
@@ -418,24 +418,24 @@ class Bell:
         return bool(self.entries)
 
 
-def _localised(entry, t, lang: str = DEFAULT_LANGUAGE):
+def _localized(entry, t, lang: str = DEFAULT_LANGUAGE):
     """One entry with its title, body and date in the reader's language, still
     an Entry.
 
     IN PYTHON, NOT IN THE TEMPLATE, and that is a security property rather
     than a preference. Jinja's i18n extension is installed `newstyle`, so
     `_()` in a template returns Markup -- correct for a literal written in a
-    template, and wrong for a value: a msgid that misses the catalogue comes
+    template, and wrong for a value: a msgid that misses the catalog comes
     back unchanged and now marked safe to render as HTML.
 
     `t` here is a plain `gettext` and returns a plain `str`, so the template
     escapes the result like any other value. `validate_entries` already keeps
-    markup out of the constant; this keeps the second line of that defence
-    intact for whatever a catalogue might one day contain.
+    markup out of the constant; this keeps the second line of that defense
+    intact for whatever a catalog might one day contain.
 
     `lang` rides on the copy for the same reason the title does -- see the
     `locale` field on `Entry`. It is a separate argument from `t` because a
-    date is not a msgid: there is nothing for a catalogue to look up.
+    date is not a msgid: there is nothing for a catalog to look up.
     """
     return replace(
         entry, title=t(entry.title), body=t(entry.body), locale=lang
@@ -448,7 +448,7 @@ def build_bell(
     """The most recent handful, and whether any of them is new to this browser."""
     shown = tuple(entries[:BELL_LIMIT])
     if t is not None:
-        shown = tuple(_localised(entry, t, lang) for entry in shown)
+        shown = tuple(_localized(entry, t, lang) for entry in shown)
     return Bell(entries=shown, unread=has_unread(seen_id, entries))
 
 
@@ -462,7 +462,7 @@ def public_entries(entries=ENTRIES, t=None, lang: str = DEFAULT_LANGUAGE) -> tup
     public = tuple(entry for entry in entries if entry.public)
     if t is None:
         return public
-    return tuple(_localised(entry, t, lang) for entry in public)
+    return tuple(_localized(entry, t, lang) for entry in public)
 
 
 def build_premium_card(

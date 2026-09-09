@@ -93,8 +93,8 @@ DEFAULT_GLOBAL_RATE_LIMIT = 600
 # The budgets before this were sized when every route was a GET answered from
 # the gateway cache, costing Discord nothing. That is no longer what a request
 # costs: posting a panel is up to three Discord REST calls (fetch, send, delete)
-# and saving a language or colour is up to two (fetch, edit). At the general
-# limits alone the API would authorise enough of those to make a dent in the
+# and saving a language or color is up to two (fetch, edit). At the general
+# limits alone the API would authorize enough of those to make a dent in the
 # bot's account-wide REST budget -- which verification shares, and verification
 # is the product.
 #
@@ -107,7 +107,7 @@ DEFAULT_GLOBAL_WRITE_RATE_LIMIT = 60
 
 # The ceiling aiohttp enforces before a handler sees anything. Comfortably
 # above the largest honest body — a settings patch of a few fields, or a
-# normalised Stripe subscription of eight short values — and far below anything
+# normalized Stripe subscription of eight short values — and far below anything
 # worth spending memory on.
 MAX_REQUEST_BYTES = 16 * 1024
 
@@ -221,7 +221,7 @@ class BotAPIDeps:
     #
     # No actor argument, unlike write_settings: there is no human behind a
     # renewal, and the bot records a fixed system actor rather than anything
-    # this side could name. The payload is already normalised by the dashboard;
+    # this side could name. The payload is already normalized by the dashboard;
     # nothing raw from Stripe crosses the wire.
     write_stripe_subscription: Callable[[int, dict], Awaitable[Optional[dict]]]
     # The one action. Everything else here stores a value; this makes the bot
@@ -470,7 +470,7 @@ class RateLimiter:
 
 
 # -------------------------------------------------------------------
-# Request authorisation
+# Request authorization
 # -------------------------------------------------------------------
 def _peer_identities(request: web.Request) -> set[str]:
     """Every name the presented client certificate claims.
@@ -526,7 +526,7 @@ def _operation_for(request: web.Request) -> str:
 
 
 class _Denied(Exception):
-    """Carries a ready-made refusal back out of the authorisation helper."""
+    """Carries a ready-made refusal back out of the authorization helper."""
 
     def __init__(self, response: web.Response):
         self.response = response
@@ -749,7 +749,7 @@ async def handle_guild_summaries(request: web.Request) -> web.Response:
 
 
 def _guild_reader(read: str):
-    """Build a handler that authorises, then returns one guild-scoped read."""
+    """Build a handler that authorizes, then returns one guild-scoped read."""
 
     async def handler(request: web.Request) -> web.Response:
         try:
@@ -774,7 +774,7 @@ def _guild_reader(read: str):
 async def handle_update_settings(request: web.Request) -> web.Response:
     """The one route that changes anything. Same three gates as every read.
 
-    The token that authorises this is bound to `PATCH /...`, not just to the
+    The token that authorizes this is bound to `PATCH /...`, not just to the
     path, so a token minted for the settings *read* cannot be replayed to write
     them -- see `_operation_for`, which takes the method from the route the
     router actually matched.
@@ -877,7 +877,7 @@ async def handle_verify_group(request: web.Request) -> web.Response:
     id -- and a group id in a request body is exactly the input that would let
     whoever can reach this endpoint point the invite account at a group of
     their choosing. The bot reads the group from the guild's own settings row,
-    where an authorised admin put it.
+    where an authorized admin put it.
 
     A body is not merely ignored, it is refused: a caller sending one has
     misunderstood the contract, and silently dropping it would let that
@@ -911,7 +911,7 @@ async def handle_verify_group(request: web.Request) -> web.Response:
     return _json(result)
 
 
-# The normalised subscription payload's complete field set. Listed here so the
+# The normalized subscription payload's complete field set. Listed here so the
 # envelope check is exhaustive rather than "the ones we happened to read": an
 # extra key means the two ends disagree about the contract, and the interesting
 # case is the one where the dashboard has been talked into sending more than it
@@ -946,7 +946,7 @@ async def handle_put_stripe_subscription(request: web.Request) -> web.Response:
 
     The signature that makes this trustworthy is Stripe's, and it was checked on
     the dashboard, which is where the public ingress is. What crosses this wire
-    is the dashboard's normalised summary of an event it already verified, and
+    is the dashboard's normalized summary of an event it already verified, and
     it arrives with the same token, mTLS and replay protection as every other
     call. This handler validates the envelope only; what any of it *means* — a
     replay, an out-of-order event, a status that grants premium — is decided
@@ -976,7 +976,7 @@ async def handle_put_stripe_subscription(request: web.Request) -> web.Response:
         if isinstance(value, str) and len(value) > MAX_STRIPE_FIELD_LEN:
             return _deny(request, 400, "field_too_long", actor=claims.actor_id)
     # The one non-string field, checked for its actual type rather than left to
-    # be coerced. `bool("false")` is True, so a normalisation slip on the other
+    # be coerced. `bool("false")` is True, so a normalization slip on the other
     # side of the wire would silently turn "renews on the 3rd" into "ends on
     # the 3rd" -- a wrong statement about somebody's money, arriving through
     # the one field where a string and a boolean look equally plausible.

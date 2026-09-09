@@ -2,13 +2,13 @@
 
 `bot.translate` and `bot.get_message` always `.format(**kwargs)`, deliberately:
 a string whose placeholder the caller forgot should raise where it is called,
-not render `{role}` to a member. That is the right behaviour for the bot and
+not render `{role}` to a member. That is the right behavior for the bot and
 the wrong one for a test that wants to inspect the template itself -- checking
 that a translation kept its `{server}`, or that it opens its own paragraph, or
 that Japanese is not still English.
 
 Before #231 those tests read `localizations[code][key]`, which was the raw
-template. This is that, against the compiled catalogues: the same string the
+template. This is that, against the compiled catalogs: the same string the
 dict used to hand back, translated and unformatted.
 """
 
@@ -17,7 +17,7 @@ import bot
 
 def template(msgid: str, locale: str) -> str:
     """The translated string for `locale`, with its placeholders left alone."""
-    return bot.CATALOGUES.translator(locale)(msgid)
+    return bot.CATALOGS.translator(locale)(msgid)
 
 
 def is_translated(msgid: str, locale: str) -> bool:

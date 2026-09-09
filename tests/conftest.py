@@ -69,7 +69,7 @@ os.environ["STRIPE_STATUS_TTL"] = ""
 # Fourth time, and the one the three notes above should have caught. The switch
 # that turns the premium tier on was never pinned, so on any machine whose .env
 # carries the production SKU -- which is every machine that has ever deployed
-# this bot -- ten tests fail. They are the tests asserting behaviour "while the
+# this bot -- ten tests fail. They are the tests asserting behavior "while the
 # tier is off", and they cannot be off while PREMIUM_ENFORCED is true at import.
 #
 # It went unnoticed because it fails in the safe direction on a fresh checkout

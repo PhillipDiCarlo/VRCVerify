@@ -55,7 +55,7 @@ OP_UPDATE_SETTINGS = "PATCH /api/v1/guilds/{guild_id}/settings"
 OP_POST_PANEL = "POST /api/v1/guilds/{guild_id}/panel"
 # Also an action: it puts a job on a queue that makes a VRChat account join
 # a group. The group is not in the request -- the bot reads it from the
-# guild's own settings -- so this token authorises the *asking*, nothing more.
+# guild's own settings -- so this token authorizes the *asking*, nothing more.
 OP_VERIFY_GROUP = "POST /api/v1/guilds/{guild_id}/verify-group"
 # The only operation with no human behind it: a Stripe webhook, verified on the
 # dashboard and forwarded here. See SYSTEM_ACTOR_ID.
@@ -176,7 +176,7 @@ def verify_token(
     """Authenticate a token and confirm it was minted for *this* request.
 
     The signature is checked before the payload is parsed, so no attacker-
-    supplied JSON is ever deserialised on an unauthenticated path.
+    supplied JSON is ever deserialized on an unauthenticated path.
     """
     current = now if now is not None else time.time()
 

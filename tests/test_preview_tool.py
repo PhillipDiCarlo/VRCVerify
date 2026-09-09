@@ -79,11 +79,11 @@ def test_the_two_failing_servers_fail_for_different_reasons():
     `error.html` exists for.
     """
     stub = PreviewBotAPI()
-    summarised = set(stub.guild_summaries(1, [g["id"] for g in GUILDS]))
+    summarized = set(stub.guild_summaries(1, [g["id"] for g in GUILDS]))
 
-    assert summarised == INSTALLED
-    assert NOT_ADDED not in summarised
-    assert UNREACHABLE in summarised
+    assert summarized == INSTALLED
+    assert NOT_ADDED not in summarized
+    assert UNREACHABLE in summarized
 
     # Both refuse every read, by different statuses that render differently.
     for guild_id, status in ((NOT_ADDED, 404), (UNREACHABLE, 503)):

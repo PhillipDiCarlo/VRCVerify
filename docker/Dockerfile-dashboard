@@ -27,7 +27,7 @@ COPY --chown=appuser:appuser src/api_tokens.py ./src/api_tokens.py
 # Same deal: stdlib-only, shared with every other service so that one
 # escaping rule applies to all four sets of logs.
 COPY --chown=appuser:appuser src/log_safety.py ./src/log_safety.py
-# Reading a compiled gettext catalogue, shared with the bot since #231 for the
+# Reading a compiled gettext catalog, shared with the bot since #231 for the
 # same reason as the two above: both ends must resolve a language and fall back
 # identically, and one implementation is what guarantees that. stdlib-only --
 # it imports `gettext` and nothing else.
@@ -45,7 +45,7 @@ ENV PYTHONPATH=/app/src
 # Docker network, and there is no published port -- see the compose file.
 EXPOSE 8000
 
-# --forwarded-allow-ips="*" lets gunicorn honour X-Forwarded-Proto. It defaults
+# --forwarded-allow-ips="*" lets gunicorn honor X-Forwarded-Proto. It defaults
 # to trusting only 127.0.0.1, and cloudflared reaches us from a Docker network
 # address, so without this the scheme is ignored and every OAuth callback URL
 # comes out as http:// -- which Discord rejects outright.

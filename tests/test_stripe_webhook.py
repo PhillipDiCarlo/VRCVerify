@@ -801,7 +801,7 @@ class TestConfiguration:
 
         Product and price ids sit next to each other in the Stripe dashboard
         and both are "the thing I copied for the plan". A price id here matches
-        no prices, so the page would apologise forever with nothing in the log
+        no prices, so the page would apologize forever with nothing in the log
         saying why -- the failure is silent, which is what makes a boot-time
         check worth its line.
         """
@@ -895,7 +895,7 @@ class TestPureHelpers:
 
     def test_an_expanded_customer_object_still_yields_an_id(self):
         subscription = make_subscription(customer={"id": "cus_EXPANDED"})
-        payload = stripe_events.normalise(
+        payload = stripe_events.normalize(
             subscription, event_id="evt_1", event_created=int(time.time())
         )
         assert payload["customer_id"] == "cus_EXPANDED"

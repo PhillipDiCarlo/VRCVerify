@@ -13,7 +13,7 @@ something untrue about somebody's subscription:
   refuses rather than allowing
 - "renews on" and "ends on" are different promises and the page must not
   confuse them
-- an unrecognised price is a labelling problem, never a payment problem
+- an unrecognized price is a labeling problem, never a payment problem
 
 `subscription_view` is pure, so every state below is built without Flask, a
 clock or a network, which is the whole point of that split.
@@ -340,11 +340,11 @@ class TestTheDateFollowsTheLanguage:
         """All three of the page's dates, not just the one in the title of the
         issue -- they come off one `_format_date` call and a fix that reached
         only `renews_on` would be a page contradicting itself."""
-        cancelled = build(
+        canceled = build(
             payload(premium=True, active=True, status="active", cancel=True),
             lang="ja",
         )
-        assert cancelled.ends_on == "2026年11月3日"
+        assert canceled.ends_on == "2026年11月3日"
 
         lapsed = build(
             payload(premium=False, active=False, status="canceled",
@@ -374,7 +374,7 @@ class TestTheDateFollowsTheLanguage:
 
 
 class TestDatesAndLabels:
-    def test_cancelled_says_ends_on_not_renews_on(self):
+    def test_canceled_says_ends_on_not_renews_on(self):
         """Different promises. Saying the wrong one is lying about money."""
         page = build(
             payload(premium=True, active=True, status="active", cancel=True),
@@ -382,17 +382,17 @@ class TestDatesAndLabels:
         assert page.ends_on == "November 3, 2026"
         assert page.renews_on is None
 
-    def test_cancelled_outright_also_says_ends_on(self):
+    def test_canceled_outright_also_says_ends_on(self):
         """The regression, from production, 2026-08-18.
 
-        A subscription cancelled in the Stripe dashboard comes back
+        A subscription canceled in the Stripe dashboard comes back
         `status=canceled` with `cancel_at_period_end` still FALSE -- there is
         no future period end left to cancel at. Reading only the flag put it on
         the "renews" branch, so the page told a real customer they would be
         billed again on a date nothing was going to bill them.
 
         Both halves were individually right, which is why no unit test caught
-        it and cancelling a real subscription did.
+        it and canceling a real subscription did.
         """
         page = build(
             payload(premium=True, active=True, status="canceled", cancel=False),
@@ -401,8 +401,8 @@ class TestDatesAndLabels:
         assert page.renews_on is None
 
     def test_an_ordinary_active_subscription_still_says_renews(self):
-        """The other side of the fix. Widening `cancelling` must not make every
-        subscription look cancelled."""
+        """The other side of the fix. Widening `canceling` must not make every
+        subscription look canceled."""
         page = build(payload(premium=True, active=True, status="active"))
         assert page.renews_on == "November 3, 2026"
         assert page.ends_on is None
@@ -752,7 +752,7 @@ class TestCheckout:
         assert stripe.checkouts[0]["guild_id"] == GUILD
         assert stripe.checkouts[0]["actor_discord_id"] == ACTOR
 
-    def test_stripe_being_down_apologises_rather_than_pretending(self, config):
+    def test_stripe_being_down_apologizes_rather_than_pretending(self, config):
         client, _bot, stripe, session = make_client(config)
         stripe.error = StripeAPIError("boom")
         response = client.post(
@@ -839,7 +839,7 @@ class TestPortal:
         account, so leaving the session to pick it means this product's
         customers are offered whatever that default lists -- on an account
         with other products, prices this one never published. The gate cannot
-        be moved to the bot instead: an unrecognised price id still grants
+        be moved to the bot instead: an unrecognized price id still grants
         premium, on purpose, so nothing downstream would notice.
         """
         scoped = dataclasses.replace(
@@ -888,12 +888,12 @@ class TestTheStatusChipAndFactList:
         page = build(payload(premium=True, active=True, status="active"))
         assert page.chip == {"label": "Active", "tone": "ok"}
 
-    def test_a_cancelled_one_says_cancelled_not_active(self):
+    def test_a_canceled_one_says_canceled_not_active(self):
         """"Active" on a subscription that stops next month is true and
         unhelpful -- and it is the same reason the fact list below says
         "Premium until" rather than "Renews"."""
         page = build(payload(premium=True, active=True, status="active", cancel=True))
-        assert page.chip["label"] == "Cancelled"
+        assert page.chip["label"] == "Canceled"
         assert ("Premium until", page.ends_on) in page.facts
         assert not any(label == "Renews" for label, _ in page.facts)
 
@@ -941,7 +941,7 @@ class TestTheStatusChipAndFactList:
         assert labels["Renews"]
 
     def test_a_free_server_gets_no_chip(self):
-        """"Not subscribed" is not a status worth stamping, and a grey pill
+        """"Not subscribed" is not a status worth stamping, and a gray pill
         saying "Free" beside a Buy button reads as a downgrade."""
         assert build(payload()).chip is None
         assert build(payload()).facts == ()
@@ -1018,7 +1018,7 @@ class TestTheLapsedWinback:
 
 
 class TestThePageRenders:
-    def test_a_failed_read_apologises_and_offers_nothing(self, config):
+    def test_a_failed_read_apologizes_and_offers_nothing(self, config):
         client, bot_api, _stripe, _session = make_client(config)
         bot_api.error = BotAPIError("unavailable", 503)
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
@@ -1110,7 +1110,7 @@ class TestThePageRenders:
 
     def test_the_purchase_card_is_not_the_settings_footnote(self, config):
         """#158. `settings.html` uses `<p class="muted plan">` for an italic
-        grey footnote, and the purchase card declared no colour, size, style or
+        gray footnote, and the purchase card declared no color, size, style or
         margin -- so it inherited all four. The PRICE rendered italic and
         --muted on the page that takes money, and the Subscribe label was
         italic too.
@@ -1129,7 +1129,7 @@ class TestThePageRenders:
         a reader who scans will take the dearest to unlock more. It does not.
 
         Layout cannot fix that here: the reference that solves it best
-        normalises every card to one unit, which needs a figure derived from
+        normalizes every card to one unit, which needs a figure derived from
         the charge -- and this repo computes no amounts, because a second copy
         of a price on a page about money is a second thing to be wrong. So the
         claim is stated in words, above the cards.
@@ -1169,13 +1169,13 @@ class TestThePageRenders:
         assert "plan-trial" not in page
         assert "free trial" not in page
 
-    def test_no_link_falls_back_to_the_browsers_own_colour(self, config):
+    def test_no_link_falls_back_to_the_browsers_own_color(self, config):
         """#168. There was no `a { color }` rule at all, so "See what's
         included on Discord's store page" rendered in Chrome's link blue -- on
         a card the design system painted, on the page that takes money.
 
         Read from the stylesheet rather than the render, because a computed
-        colour needs a browser and this is the rule's existence, not its
+        color needs a browser and this is the rule's existence, not its
         value. `test_contrast.py` owns whether --accent-text is legible where
         links are drawn.
         """
@@ -1190,7 +1190,7 @@ class TestThePageRenders:
         base = _re.search(r"\na\s*\{([^}]*)\}", css)
         assert base, "no base `a { }` rule -- links fall back to the user agent"
         assert "color:" in base.group(1)
-        # Colour alone is not a link affordance (WCAG 1.4.1). The
+        # Color alone is not a link affordance (WCAG 1.4.1). The
         # component-scoped rules drop the underline deliberately, because a nav
         # item is identifiable by position; a word inside a sentence is not.
         assert "text-decoration" in base.group(1)
@@ -1199,7 +1199,7 @@ class TestThePageRenders:
         """The card route gets three laid-out cards with prices and buttons.
         This page is the only place that lists both routes, and the 6- and
         12-month terms are card-only precisely because Discord bills monthly --
-        so the redesign must not quietly favour one."""
+        so the redesign must not quietly favor one."""
         client, _bot, _stripe, _session = make_client(config)
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
         assert 'class="buy-command"' in page
@@ -1213,7 +1213,7 @@ class TestThePageRenders:
         assert "/vrcverify_subscription" in page
 
     def test_no_inline_style_reaches_the_page(self, config):
-        """`style-src 'self'` drops inline styles SILENTLY, so a colour written
+        """`style-src 'self'` drops inline styles SILENTLY, so a color written
         as style="" would simply not apply and nothing would say so."""
         client, _bot, _stripe, _session = make_client(config)
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
@@ -1683,7 +1683,7 @@ class TestAmounts:
     def test_a_priced_plan_still_renders_without_its_amount(self, config):
         """A tiered or metered price has no flat unit_amount. It must still be
         purchasable, because Checkout knows what to charge even when this page
-        cannot summarise it in one number."""
+        cannot summarize it in one number."""
         client, _bot, stripe, session = make_client(config)
         stripe.prices = [{"id": PRICE_MONTHLY,
                           "recurring": {"interval": "month", "interval_count": 1},
@@ -1742,8 +1742,8 @@ class TestTheTrialIsOfferedOnlyToServersThatMayHaveOne:
 
     def test_an_eligible_server_sees_the_trial_on_the_card(self):
         page = self.page_for(trial_eligible=True)
-        trialled = [p for p in page.plans if page.trial_note_for(p)]
-        assert [p.price_id for p in trialled] == [PRICE_YEARLY]
+        trialed = [p for p in page.plans if page.trial_note_for(p)]
+        assert [p.price_id for p in trialed] == [PRICE_YEARLY]
 
     def test_an_ineligible_server_sees_no_trial_anywhere(self):
         page = self.page_for(trial_eligible=False)
@@ -1782,7 +1782,7 @@ class TestTheTrialIsOfferedOnlyToServersThatMayHaveOne:
         assert page.trial_eligible is False
 
 
-class TestCheckoutHonoursEligibility:
+class TestCheckoutHonorsEligibility:
     def test_an_eligible_server_gets_the_trial(self, config):
         client, _bot, stripe, session = make_client(config)
         client.post(
@@ -1931,7 +1931,7 @@ class TestThePublicPricingPage:
 
     def test_it_uses_plan_card_never_a_bare_plan(self, config):
         """#158: `.plan` collided with a footnote class and rendered the price
-        on the page that takes money as an italic grey footnote."""
+        on the page that takes money as an italic gray footnote."""
         store = SessionStore(config.session_db_path, config.session_max_age)
         app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
         app.config.update(TESTING=True)
@@ -2099,8 +2099,8 @@ class TestThePublicPricingPage:
         assert "A branded instructions panel" in page
 
     def test_the_marketing_title_size_is_scoped_to_this_page(self, config):
-        """`.page-head` centres and draws at --text-display. A console that
-        centres its headings reads as a brochure, so neither may leak onto
+        """`.page-head` centers and draws at --text-display. A console that
+        centers its headings reads as a brochure, so neither may leak onto
         Overview or Settings."""
         client, _bot, _stripe, _session = make_client(config)
         # The console pages this fixture can reach: the picker, and the
@@ -2110,7 +2110,7 @@ class TestThePublicPricingPage:
         for path in ("/", f"/guild/{GUILD}/subscription", f"/guild/{GUILD}/settings"):
             body = client.get(path).data.decode()
             # `page-head` itself is now correct on a console page -- that is
-            # phase 4. What must never appear there is `selling`, which centres
+            # phase 4. What must never appear there is `selling`, which centers
             # the block and draws the h1 at --text-display.
             assert "selling" not in body, (
                 f"{path} has picked up the pricing page's marketing header"

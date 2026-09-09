@@ -23,7 +23,7 @@
  *   the design: a preference the page can write itself needs no server.
  * - No `innerHTML`, ever. Nothing here writes markup.
  * - No authority. Every value it writes is checked again on the server before
- *   it can reach a page, and the worst a tampered copy achieves is a colour
+ *   it can reach a page, and the worst a tampered copy achieves is a color
  *   the reader did not ask for on their own screen.
  *
  * PROGRESSIVE ENHANCEMENT

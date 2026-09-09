@@ -70,7 +70,7 @@ PORT = 5001
 
 # Fake, and structured so nothing here could be mistaken for a real value.
 # The two keys are different from each other because config.py refuses to start
-# when they match -- one signs cookies, the other authorises calls into the
+# when they match -- one signs cookies, the other authorizes calls into the
 # homelab, and sharing them turns a cookie bug into an API-forgery bug.
 os.environ.update(
     DISCORD_CLIENT_ID="000000000000000000",
@@ -123,7 +123,7 @@ PREVIEW_SIGNED_IN = os.environ.get("PREVIEW_SIGNED_IN", "1") != "0"
 # axis and silent about the other one.
 #
 # The token is real randomness rather than a fake value like everything above
-# it, and that is not an exception to this file's rule: it authorises nothing
+# it, and that is not an exception to this file's rule: it authorizes nothing
 # anywhere, it is minted fresh per run, and the whole point is that it cannot
 # be guessed by the next account over. Nothing outside this process has ever
 # seen it.
@@ -361,7 +361,7 @@ def _drop_secure_from_cookies(response):
     is how the theme picker looked verified and still failed on first click.
 
     Stripped here and only here. The flag itself is pinned by the test suite,
-    so production keeps it and this cannot quietly become the real behaviour.
+    so production keeps it and this cannot quietly become the real behavior.
 
     The alternative -- serving the preview over HTTPS with the repo's certs --
     tests the real flags but puts a browser warning in front of every reload.

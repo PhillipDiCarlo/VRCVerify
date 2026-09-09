@@ -119,7 +119,7 @@ class TestTheUnreadDot:
     def test_an_empty_feed_has_nothing_unread(self):
         assert changelog.has_unread(None, ()) is False
 
-    def test_an_unrecognised_cookie_value_is_treated_as_seen_nothing(self):
+    def test_an_unrecognized_cookie_value_is_treated_as_seen_nothing(self):
         # A hand-edited cookie, or one written by a deploy whose entry has
         # since been renamed. Showing the dot once more is the right failure:
         # the alternative is trusting the value and hiding entries this
@@ -128,7 +128,7 @@ class TestTheUnreadDot:
         assert changelog.read_seen("", (ORDINARY,)) is None
         assert changelog.read_seen(None, (ORDINARY,)) is None
 
-    def test_a_recognised_value_survives(self):
+    def test_a_recognized_value_survives(self):
         assert changelog.read_seen(ORDINARY.id, (ORDINARY,)) == ORDINARY.id
 
 
@@ -502,19 +502,19 @@ class TestTheDateFollowsTheLanguage:
     def test_the_badge_is_written_the_way_each_language_writes_it(self):
         one = entry()
         one = changelog.replace(one, date=date(2026, 8, 24))
-        assert changelog._localised(one, lambda s: s, "en-US").display_date == (
+        assert changelog._localized(one, lambda s: s, "en-US").display_date == (
             "Aug 24, 2026"
         )
         # Medium, so the locales that write a compact date in digits get one.
         # That is the correct answer for a badge, not a missing translation.
-        assert changelog._localised(one, lambda s: s, "ja").display_date == (
+        assert changelog._localized(one, lambda s: s, "ja").display_date == (
             "2026/08/24"
         )
-        assert changelog._localised(one, lambda s: s, "de").display_date == (
+        assert changelog._localized(one, lambda s: s, "de").display_date == (
             "24.08.2026"
         )
 
-    def test_localising_never_writes_to_the_shared_constant(self):
+    def test_localizing_never_writes_to_the_shared_constant(self):
         """THE REASON `locale` IS A FIELD ON A COPY.
 
         `ENTRIES` is module-level and `gunicorn --threads 4` shares it. If the
@@ -527,7 +527,7 @@ class TestTheDateFollowsTheLanguage:
         original = changelog.ENTRIES[0]
         before = original.display_date
 
-        changelog._localised(original, lambda s: s, "ja")
+        changelog._localized(original, lambda s: s, "ja")
         changelog.build_bell(None, t=lambda s: s, lang="ar")
         changelog.public_entries(t=lambda s: s, lang="de")
 
@@ -543,10 +543,10 @@ class TestTheDateFollowsTheLanguage:
     def test_the_bell_and_the_page_agree(self):
         """Two surfaces, one entry, one date. They take the language by
         different routes -- `build_bell` has a parameter, the changelog page
-        calls `_localised` per entry -- so it is worth pinning that the two
+        calls `_localized` per entry -- so it is worth pinning that the two
         arrive at the same string."""
         newest = changelog.ENTRIES[0]
         bell = changelog.build_bell(None, t=lambda s: s, lang="ja")
         assert bell.entries[0].display_date == (
-            changelog._localised(newest, lambda s: s, "ja").display_date
+            changelog._localized(newest, lambda s: s, "ja").display_date
         )

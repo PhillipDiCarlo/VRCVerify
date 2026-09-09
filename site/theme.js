@@ -20,7 +20,7 @@
  * The rest waits for the DOM, because it needs the placeholder to exist.
  *
  * IT BUILDS THE CONTROL RATHER THAN WIRING ONE (#195 phase 7). The picker used
- * to be a labelled <select> in the markup while the dashboard used an icon
+ * to be a labeled <select> in the markup while the dashboard used an icon
  * opening a popover -- two affordances for the same three-way choice, met by
  * the same person within one click of each other. The dashboard's shape won
  * because it is the one that works with JavaScript off.

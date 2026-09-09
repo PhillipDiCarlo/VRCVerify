@@ -24,9 +24,9 @@ logger = logging.getLogger(__name__)
 
 STRIPE_API_BASE = "https://api.stripe.com/v1"
 
-# Stripe pins behaviour to the version the account is on unless asked
+# Stripe pins behavior to the version the account is on unless asked
 # otherwise. Naming it means a Stripe-side upgrade cannot silently change the
-# shape of what `stripe_events.normalise` reads.
+# shape of what `stripe_events.normalize` reads.
 STRIPE_API_VERSION = "2024-06-20"
 
 # How many prices one product may offer. Stripe's own maximum for a single
@@ -291,7 +291,7 @@ class StripeClient:
     ) -> str:
         """Open Stripe's own billing portal for this customer.
 
-        Cancelling, switching plan and updating a card all happen on Stripe's
+        Canceling, switching plan and updating a card all happen on Stripe's
         domain. That is deliberate and not laziness: every one of those is an
         action on somebody's money, and the alternative is reimplementing them
         against an API on the box this project assumes will eventually be

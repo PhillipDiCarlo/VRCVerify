@@ -90,7 +90,7 @@ test("Stripe's undocumented feed, including the day it changes shape", () => {
     "up",
   );
   // status.stripe.com/current is undocumented and carries no promise. If it
-  // stops answering in a shape we recognise, the answer is "we do not know",
+  // stops answering in a shape we recognize, the answer is "we do not know",
   // never "fine".
   assert.equal(readStripe({ statuses: {} }, services), "unknown");
   assert.equal(readStripe({ largestatus: "up" }, services), "unknown");
@@ -232,7 +232,7 @@ test("minutes we could not observe are not counted as downtime", () => {
   assert.equal(dayUptime({ up: 1400, degraded: 40, down: 0, unknown: 0 }).state, "degraded");
 });
 
-test("a day's colour scales with how much of it was lost", () => {
+test("a day's color scales with how much of it was lost", () => {
   // The bug this replaced: one bad minute in 1440 painted the day the same red
   // as a day that was down from midnight to midnight. A deploy is not an
   // outage, and the strip has to be able to say so.
@@ -240,7 +240,7 @@ test("a day's colour scales with how much of it was lost", () => {
   assert.equal(dayUptime({ up: 0, degraded: 0, down: 1440, unknown: 0 }).state, "down");
 
   // ...but a day with real downtime in it is never green. Green is a claim, and
-  // the blips too short to be worth a colour never reach these counters at all:
+  // the blips too short to be worth a color never reach these counters at all:
   // they follow the published state, which `nextState` holds back until a fault
   // has been seen twice.
   assert.equal(dayUptime({ up: 1439, degraded: 0, down: 1, unknown: 0 }).state, "degraded");
@@ -301,14 +301,14 @@ test("maintenance minutes are excluded from uptime rather than counted against i
 
   // A window does not launder an unrelated fault. These down minutes happened
   // outside it -- the cron would have written them to `down`, not `maintenance`
-  // -- and they still colour the day.
+  // -- and they still color the day.
   assert.equal(
     dayUptime({ up: 1000, degraded: 0, down: 425, unknown: 0, maintenance: 15 }).state,
     "down",
   );
 
   // A day that was nothing but declared maintenance is not a day nobody looked
-  // at. It gets its own colour rather than the no-data grey.
+  // at. It gets its own color rather than the no-data gray.
   assert.deepEqual(dayUptime({ up: 0, degraded: 0, down: 0, unknown: 0, maintenance: 1440 }), {
     percent: null,
     state: "maintenance",

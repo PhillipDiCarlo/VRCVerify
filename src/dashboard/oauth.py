@@ -9,8 +9,8 @@ would let whoever compromised it act as every user who ever logged in, against
 Discord, indefinitely. An id and a stale guild list are worth far less.
 
 What the guild list is *for* also matters. It renders the picker — which server
-tiles to show, and which to grey out. It is **not** authority. The `permissions`
-field Discord returns here describes the user at the moment they authorised,
+tiles to show, and which to gray out. It is **not** authority. The `permissions`
+field Discord returns here describes the user at the moment they authorized,
 and is used only as a display hint; every real decision is re-asked of the bot,
 which reads its own gateway cache. See `bot_api.dashboard_is_admin`.
 """
@@ -37,7 +37,7 @@ ADMINISTRATOR = 0x8
 
 
 class OAuthError(Exception):
-    """The authorisation could not be completed."""
+    """The authorization could not be completed."""
 
 
 def new_state() -> str:
@@ -54,7 +54,7 @@ def authorize_url(client_id: str, redirect_uri: str, state: str) -> str:
             "scope": SCOPES,
             "state": state,
             # Always re-prompt. Without this Discord silently reuses an
-            # existing authorisation, which makes "log in as someone else" on a
+            # existing authorization, which makes "log in as someone else" on a
             # shared machine quietly impossible.
             "prompt": "consent",
         }
@@ -70,7 +70,7 @@ def exchange_code(
     timeout: int = 10,
     session: Optional[requests.Session] = None,
 ) -> str:
-    """Swap the authorisation code for an access token. Returns the token."""
+    """Swap the authorization code for an access token. Returns the token."""
     http = session or requests
     response = http.post(
         TOKEN_URL,
@@ -116,7 +116,7 @@ def _shape_guild(raw: dict) -> dict:
     """Keep only what the picker draws, and label the hint as a hint.
 
     `admin_hint` is exactly that. It comes from the permissions Discord handed
-    us at authorisation time, so it is already stale by the time it is
+    us at authorization time, so it is already stale by the time it is
     rendered, and a user demoted since then would still see the tile. That is
     acceptable *because opening the server asks the bot*, which answers from
     its own gateway cache. Never let this field gate anything.

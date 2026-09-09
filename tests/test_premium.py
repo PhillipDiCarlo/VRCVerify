@@ -459,7 +459,7 @@ class TestIsGrandfathered:
 
 
 # ---------------------------------------------------------------
-# Gated behaviour
+# Gated behavior
 # ---------------------------------------------------------------
 @pytest.fixture
 def assign_role_harness(monkeypatch):
@@ -605,10 +605,10 @@ class TestAssignRoleSkipsNeedlessLookups:
 class TestAutoVerifyOnJoinIsFree:
     """Auto-verify-on-join must never become a paid feature.
 
-    Users read "the bot recognises me and gives me the role" as simply how a
+    Users read "the bot recognizes me and gives me the role" as simply how a
     verification bot works, so gating it reads as the bot being broken rather
     than as an upsell. These tests exist to stop it drifting behind the paywall
-    the next time someone reorganises the bundle.
+    the next time someone reorganizes the bundle.
     """
 
     def make_member(self):
@@ -1323,7 +1323,7 @@ class TestCutoverCompletionWarning:
         """servers.server_id comes back as an int on the deployed database.
 
         The notice table's column is genuinely text, so the two halves must be
-        normalised in Python before they are compared. This cannot be set up
+        normalized in Python before they are compared. This cannot be set up
         through the real session: SQLite coerces an int written to a String
         column back to str, which is exactly why the mismatch is invisible
         locally and only bites on Postgres (`bigint = character varying`).

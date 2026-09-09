@@ -2,7 +2,7 @@
 
 This is the guard that makes the gettext conversion reviewable. #231 moves the
 bot's twelve languages out of the `localizations` dict in src/locales.py and
-into gettext catalogues -- 1,092 renderings, in eleven languages nobody on this
+into gettext catalogs -- 1,092 renderings, in eleven languages nobody on this
 project reads, through a converter script, a .po round trip and a compile step.
 
 Every other test in the suite asks whether the machinery works. This one asks
@@ -36,7 +36,7 @@ output equals today's output, which is what this test exists to not do.
 **Why it renders rather than comparing tables.** `.format()` is where a broken
 placeholder turns into a KeyError and where a translation that invented its own
 `{name}` blows up. Rendering with real arguments puts that on the same footing
-as the text itself, so the round trip is checked end to end: catalogue lookup,
+as the text itself, so the round trip is checked end to end: catalog lookup,
 fallback, and substitution.
 """
 

@@ -57,7 +57,7 @@ def make_event(
     current_period_end=None,
     cancel_at_period_end=False,
 ) -> dict:
-    """One normalised payload, exactly as the dashboard forwards it."""
+    """One normalized payload, exactly as the dashboard forwards it."""
     return {
         "event_id": event_id,
         "event_created": (event_created or datetime.now(timezone.utc)).isoformat(),
@@ -247,7 +247,7 @@ class TestWhatCountsAsPaid:
         store_subscription(status=status)
         assert bot.stripe_active(GUILD_ID) is expected
 
-    def test_cancelled_keeps_premium_until_the_paid_period_runs_out(self, stripe_on):
+    def test_canceled_keeps_premium_until_the_paid_period_runs_out(self, stripe_on):
         """The Discord side already behaves this way; the two must not disagree.
 
         A cancellation leaves the subscription live until the period the
@@ -259,7 +259,7 @@ class TestWhatCountsAsPaid:
         )
         assert bot.stripe_active(GUILD_ID) is True
 
-    def test_cancelled_stops_once_the_period_has_run_out(self, stripe_on):
+    def test_canceled_stops_once_the_period_has_run_out(self, stripe_on):
         store_subscription(status="canceled", current_period_end=in_days(-1))
         assert bot.stripe_active(GUILD_ID) is False
 
@@ -500,7 +500,7 @@ class TestTheWriter:
         """bool("false") is True.
 
         This is the field that decides whether the page says "renews on the
-        3rd" or "ends on the 3rd", so a normalisation slip on the other side of
+        3rd" or "ends on the 3rd", so a normalization slip on the other side of
         the wire would make a wrong statement about somebody's money. Refuse it
         rather than guess.
         """
@@ -612,7 +612,7 @@ class TestOrdering:
         with bot.session_scope() as session:
             assert session.query(bot.StripeEvent).count() == 2
         # And the cancellation stands: a delayed `updated` must never resurrect
-        # premium for a server that cancelled.
+        # premium for a server that canceled.
         assert bot.stripe_active(GUILD_ID) is False
 
     def test_an_event_of_identical_age_is_not_applied(self, stripe_on):
@@ -709,8 +709,8 @@ class TestTwoLiveSubscriptions:
             )
             assert row.price_id == PRICE_YEARLY
 
-    def test_cancelling_one_leaves_premium_on_for_the_other(self, stripe_on):
-        """The bug, stated as the behaviour it should have had.
+    def test_canceling_one_leaves_premium_on_for_the_other(self, stripe_on):
+        """The bug, stated as the behavior it should have had.
 
         Cancel the first subscription; the second is still being billed, so
         premium stays on.
@@ -731,7 +731,7 @@ class TestTwoLiveSubscriptions:
         bot.stripe_status_cache.clear()
         assert bot.stripe_active(GUILD_ID) is True
 
-    def test_cancelling_both_does_end_premium(self, stripe_on):
+    def test_canceling_both_does_end_premium(self, stripe_on):
         self.both()
         for event_id, subscription_id in (
             ("evt_c1", SUBSCRIPTION),
@@ -975,7 +975,7 @@ class TestTheSettingsPayload:
 
         "Not subscribed" next to a Buy button is how a paying customer is sold
         a second subscription. The API turns None into a 503 and the page
-        apologises instead.
+        apologizes instead.
         """
         make_server()
         real_scope = bot.session_scope
@@ -1102,7 +1102,7 @@ class TestTheSubscriptionCommandNamesTheRightPlatform:
         # unclear, and there has to be something to notice that in.
         assert any("billed twice" in record.message for record in caplog.records)
 
-    def test_nobody_is_auto_cancelled_or_refunded(self, enforced, stripe_on,
+    def test_nobody_is_auto_canceled_or_refunded(self, enforced, stripe_on,
                                                   monkeypatch):
         """The command warns. It does not act.
 
@@ -1165,7 +1165,7 @@ class TestTheEverPaidLedger:
     """What makes a free trial a once-per-server thing.
 
     A live subscription is easy to see from either platform. The hard case is
-    the one this table exists for: a server that paid, cancelled, and came
+    the one this table exists for: a server that paid, canceled, and came
     back. Discord leaves nothing behind when an entitlement ends, so without a
     ledger that server is indistinguishable from a brand new one -- and a free
     month is available again, once per cancellation, forever.
@@ -1220,7 +1220,7 @@ class TestTrialEligibility:
         assert bot.trial_eligible(GUILD_ID) is False
 
     def test_a_past_card_subscriber_is_not_eligible(self, stripe_on):
-        """The whole point: cancelling must not restore the offer."""
+        """The whole point: canceling must not restore the offer."""
         make_server()
         store_subscription(status="canceled", current_period_end=in_days(-9))
         assert bot.trial_eligible(GUILD_ID) is False

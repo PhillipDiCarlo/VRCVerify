@@ -171,14 +171,14 @@ The mechanism, and the one thing to keep in mind when editing:
 - The picker ships `hidden` and is revealed by the script, so a control that
   cannot work without JavaScript is never painted before JavaScript arrives.
 
-The colour values are **copied from `src/dashboard/static/style.css`** rather
+The color values are **copied from `src/dashboard/static/style.css`** rather
 than shared — different origin, different deploy, and the whole point of this
 site is that it does not depend on the dashboard's host. Both files carry a
-comment saying so. Change a colour in one, change it in the other.
+comment saying so. Change a color in one, change it in the other.
 
 The same is now true of **the typeface and the type ramp** (#195). `Inter var`
 is copied into `fonts/` rather than fetched from the dashboard, for exactly the
-reason the colours are copied. The ramps are *not* identical — a console is
+reason the colors are copied. The ramps are *not* identical — a console is
 denser than a document — but `--text-display`, the marketing size, is, and a
 test fails if the two declarations drift apart.
 

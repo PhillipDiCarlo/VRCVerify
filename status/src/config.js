@@ -159,16 +159,16 @@ export const UPSTREAMS = [
 ];
 
 /**
- * Colours for the Discord embed, one per severity.
+ * Colors for the Discord embed, one per severity.
  *
  * Deliberately NOT the page's tokens. Those were measured against this
  * project's own surfaces in two themes; a Discord embed's stripe sits on
  * Discord's background, in a client whose theme we do not control, and reusing
  * a token measured somewhere else is the mistake this project has already made
- * four times. These are chosen for one job, which is being recognisable at a
+ * four times. These are chosen for one job, which is being recognizable at a
  * glance in a channel.
  */
-export const ALERT_COLOURS = {
+export const ALERT_COLORS = {
   down: 0xed4245,
   degraded: 0xf0b232,
   up: 0x26b261,
@@ -195,7 +195,7 @@ export const HISTORY_DAYS = 90;
  *
  * The number exists because the first version of the history strip had no such
  * threshold: any down minute at all painted the whole day red, so a two-minute
- * deploy and a two-hour outage were the same colour. That is not a scale, it is
+ * deploy and a two-hour outage were the same color. That is not a scale, it is
  * a boolean wearing one, and it made the strip useless for the thing a reader
  * actually wants from it -- telling a bad day from a busy one at a glance.
  *

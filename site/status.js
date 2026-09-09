@@ -14,7 +14,7 @@
  * prettier version of the failure the whole project exists to avoid. So the
  * dot starts neutral and only a completed, fresh, understood reading moves it.
  * Every other path -- no fetch, a 500, a timeout, stale data, a shape this
- * code does not recognise -- leaves it exactly as it shipped.
+ * code does not recognize -- leaves it exactly as it shipped.
  *
  * WHY THIS IS ALLOWED TO TALK TO ANOTHER ORIGIN AT ALL, on a site whose tests
  * say nothing is loaded from a third party: status.vrcverify.com is ours, the
@@ -34,7 +34,7 @@
   // must not repaint a dot that five good rows have already earned.
   var SEVERITY = ["down", "degraded", "unknown", "up"];
 
-  // What the mark says out loud. The colour is not the message: a reader who
+  // What the mark says out loud. The color is not the message: a reader who
   // cannot tell the green from the amber gets the same sentence either way.
   var SPOKEN = {
     up: "All systems operational",
@@ -47,8 +47,8 @@
   // because there is nothing to import from: that page renders on a Worker.
   //
   // THE SHAPE IS NOT DECORATION. --ok and --down sit 0.01 apart in relative
-  // luminance, so as two coloured dots the working and down states are
-  // identical to a red-green colourblind reader. The tick and the cross are
+  // luminance, so as two colored dots the working and down states are
+  // identical to a red-green colorblind reader. The tick and the cross are
   // what actually distinguishes them.
   var GLYPH = {
     up: '<path d="M6.2 10.4l2.6 2.6 5.2-5.6"/><circle cx="10" cy="10" r="8.25"/>',

@@ -122,7 +122,7 @@ class TestPanelNoLongerAsksForMoney:
 
     def test_donation_strings_are_gone_from_locales(self):
         # Removed rather than orphaned: a string left in locales.py keeps its
-        # place in all eleven catalogues and reads as still in use.
+        # place in all eleven catalogs and reads as still in use.
         assert not hasattr(locales, "BTN_DONATE")
         assert not hasattr(locales, "SETUP_DONATE_HINT")
 

@@ -60,7 +60,7 @@ def in_days(days: int) -> datetime:
 
 
 def stripe_payload(**overrides) -> dict:
-    """One normalised payload, spelled as `dashboard.stripe_events.normalise`
+    """One normalized payload, spelled as `dashboard.stripe_events.normalize`
     spells it. Tests that care about the spelling itself build theirs by
     calling that function instead, so this stays a convenience and never
     becomes the only place the field names appear."""
@@ -756,7 +756,7 @@ class TestGuildSummaries:
             SIGNING_KEY, actor_id=actor_id, operation=self.OP, guild_id=None
         )
 
-    def test_it_summarises_only_the_guilds_the_caller_administers(self):
+    def test_it_summarizes_only_the_guilds_the_caller_administers(self):
         async def scenario(client):
             return await get(
                 client,
@@ -1214,7 +1214,7 @@ class TestTheSystemRoute:
         """There is no human to check, so is_admin must never be consulted.
 
         Calling it would not merely be pointless -- it would mean the route's
-        behaviour depended on whether SYSTEM_ACTOR_ID happened to administer
+        behavior depended on whether SYSTEM_ACTOR_ID happened to administer
         the guild, which is a question with no meaning.
         """
         asked = []
@@ -1973,7 +1973,7 @@ class TestSettingsWriter:
             {"panel_embed_color": -1},
             {"panel_embed_color": 0x1000000},     # 25 bits
             {"panel_embed_color": "red"},
-            {"panel_embed_color": True},          # bool is an int; not a colour
+            {"panel_embed_color": True},          # bool is an int; not a color
             {"panel_show_icon": "yes"},
             {"panel_show_icon": 1},
         ],
@@ -2157,7 +2157,7 @@ class TestSettingsWriter:
         assert audit_rows() == []
 
     # ----- the custom DM -----
-    def test_a_custom_message_is_stored_sanitised(self, subscribed):
+    def test_a_custom_message_is_stored_sanitized(self, subscribed):
         """The stored text, not the submitted text.
 
         The @everyone defusal has to survive into the database -- passing the
@@ -2802,7 +2802,7 @@ class TestBothHalvesTogether:
 
     Everything else in this file fakes one side or the other, which cannot
     catch the seam between them: an operation string only one end updated, a
-    body key spelled differently on each side, a colour that survives one
+    body key spelled differently on each side, a color that survives one
     validator and not the other. Here the only fake is the transport, which is
     plain HTTP because TLS is configured at the socket rather than in either
     application.
@@ -2869,7 +2869,7 @@ class TestBothHalvesTogether:
 
         This is the one path in the project where four separate spellings of
         the same eight fields have to agree: Stripe's own schema, the
-        dashboard's `normalise`, the handler's `STRIPE_PAYLOAD_FIELDS`
+        dashboard's `normalize`, the handler's `STRIPE_PAYLOAD_FIELDS`
         envelope, and the writer's `payload.get` calls. Every other test in the
         suite fakes at least one of those, so a field renamed on one side and
         not the others survives all of them -- and would present in production
@@ -2880,8 +2880,8 @@ class TestBothHalvesTogether:
         make_server()
 
         # Shaped like the object Stripe's API returns, not like the payload the
-        # bot wants: going through normalise() is the point.
-        payload = stripe_events.normalise(
+        # bot wants: going through normalize() is the point.
+        payload = stripe_events.normalize(
             {
                 "id": SUBSCRIPTION_ID,
                 "customer": CUSTOMER_ID,
@@ -2893,7 +2893,7 @@ class TestBothHalvesTogether:
             event_id="evt_end_to_end",
             event_created=int(datetime.now(timezone.utc).timestamp()),
         )
-        assert payload is not None, "normalise rejected its own happy path"
+        assert payload is not None, "normalize rejected its own happy path"
 
         result = self.run_stripe_against_bot(
             lambda client: client.put_stripe_subscription(GUILD_ID, payload)
@@ -2911,7 +2911,7 @@ class TestBothHalvesTogether:
     def test_the_cancel_flag_survives_the_wire_as_a_boolean(self, stripe_on):
         """`bool("false")` is True, and this field decides what the page says.
 
-        A subscription cancelled at period end still grants premium until the
+        A subscription canceled at period end still grants premium until the
         period runs out, so nothing about the *gate* would look wrong if this
         arrived coerced. What would be wrong is the sentence shown to the
         customer: "renews on the 3rd" instead of "ends on the 3rd".
@@ -2919,7 +2919,7 @@ class TestBothHalvesTogether:
         stripe_events = pytest.importorskip("dashboard.stripe_events")
         make_server()
 
-        payload = stripe_events.normalise(
+        payload = stripe_events.normalize(
             {
                 "id": SUBSCRIPTION_ID,
                 "customer": CUSTOMER_ID,
@@ -2928,7 +2928,7 @@ class TestBothHalvesTogether:
                 "cancel_at_period_end": True,
                 "items": {"data": [{"price": {"id": PRICE_ID}}]},
             },
-            event_id="evt_cancelling",
+            event_id="evt_canceling",
             event_created=int(datetime.now(timezone.utc).timestamp()),
         )
         result = self.run_stripe_against_bot(
@@ -2937,7 +2937,7 @@ class TestBothHalvesTogether:
 
         assert result["applied"] is True
         # Still premium: a cancellation leaves the paid period alone, matching
-        # what the Discord side already does with a cancelled entitlement.
+        # what the Discord side already does with a canceled entitlement.
         assert result["premium"] is True
         stored = bot.load_stripe_subscription(GUILD_ID)
         assert stored["cancel_at_period_end"] is True
@@ -3226,7 +3226,7 @@ class TestGuildSummaryReader:
         ]
         assert summary["configured"]["bot_can_manage_roles"] is False
 
-    def test_a_guild_with_no_row_yet_is_still_summarised(self, monkeypatch):
+    def test_a_guild_with_no_row_yet_is_still_summarized(self, monkeypatch):
         """Installed and never configured: the state the picker most needs to
         show. Nothing stored is not an error and not an absence of standing."""
         self.guilds(monkeypatch, GUILD_ID)
@@ -3277,7 +3277,7 @@ class TestGuildSummaryReader:
         # implementation this test exists to forbid.
         assert len(selects) <= 2, selects
 
-    def test_rows_are_indexed_by_normalised_id_not_the_raw_column(self):
+    def test_rows_are_indexed_by_normalized_id_not_the_raw_column(self):
         """THE BUG THAT SHIPPED, and the reason it is tested here rather than
         through the database.
 
@@ -3796,7 +3796,7 @@ class TestNothingEditsSettingsFromDiscordAnyMore:
         ):
             assert not hasattr(bot, gone), f"{gone} came back"
 
-    def test_the_sanitiser_did_not_leave_with_the_modal(self):
+    def test_the_sanitizer_did_not_leave_with_the_modal(self):
         """The modal called it; the dashboard write path still does. Losing it
         would drop the @everyone defusing and the link allowlist."""
         assert callable(bot.sanitize_custom_message)
@@ -3866,7 +3866,7 @@ class TestVerifyGroupRoute:
     from the guild's own settings row, on the bot's side of the wire.
     """
 
-    def test_an_authorised_admin_may_ask(self):
+    def test_an_authorized_admin_may_ask(self):
         checked = []
 
         async def scenario(client):

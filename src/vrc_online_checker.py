@@ -232,7 +232,7 @@ def _get_vrchat_user_with_retry(users_api_instance, vrc_user_id: str):
 # it and we call it raw. Because it is undocumented it could change shape or
 # disappear without notice, so every failure falls back to /users/{id}: a
 # stale bio only costs a retry, but a hard failure blocks verification.
-# Set VRCHAT_USE_PROFILE_ENDPOINT=false to force the old behaviour.
+# Set VRCHAT_USE_PROFILE_ENDPOINT=false to force the old behavior.
 # -------------------------------------------------------------------
 VRCHAT_USE_PROFILE_ENDPOINT = os.getenv(
     "VRCHAT_USE_PROFILE_ENDPOINT", "true"

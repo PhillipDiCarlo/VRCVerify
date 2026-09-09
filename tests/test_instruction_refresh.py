@@ -2,7 +2,7 @@
 
 Startup used to re-post every guild's panel with two sequential API calls each
 (fetch_message + edit), which scaled badly past ~1000 servers. These tests pin
-the replacement behaviour:
+the replacement behavior:
 - one edit per panel, via a partial message (no channel/message fetch, no cache)
 - panels refresh concurrently, bounded by INSTRUCTIONS_REFRESH_CONCURRENCY
 - a 404 forgets the saved reference; a 403 leaves it alone

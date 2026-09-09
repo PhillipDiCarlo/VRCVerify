@@ -45,7 +45,7 @@
          collapsed rail; showing them in both states put it in plain view.
 
          The track is drawn with a gap instead, so there is nothing to fill and
-         no surface colour to guess. #}
+         no surface color to guess. #}
       <path d="M2 5h6.6M12.4 5h1.6"></path>
       <path d="M2 11h1.6M7.4 11h6.6"></path>
       <circle cx="10.5" cy="5" r="1.9"></circle>
@@ -69,7 +69,7 @@
        stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
     {%- if which == 'dark' -%}
       {# A crescent, drawn as one path rather than two overlapping circles:
-         a mask would need a fill colour that changes with the surface. #}
+         a mask would need a fill color that changes with the surface. #}
       <path d="M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8z"></path>
     {%- elif which == 'light' -%}
       <circle cx="8" cy="8" r="3.1"></circle>
@@ -102,7 +102,7 @@
    page cannot. The dashboard's CSP is `default-src 'none'` with no
    `connect-src`, deliberately: the bell, the theme picker and the language
    menu are all built as <details> disclosures precisely because a control
-   needing a fetch could not work here at all. A coloured dot would mean
+   needing a fetch could not work here at all. A colored dot would mean
    widening that policy for decoration, on the one origin in this project that
    holds a session. So this is a signpost, and the page it points at is the
    thing that knows. #}
@@ -133,7 +133,7 @@
 
    'everywhere' is two devices side by side rather than one device with
    something layered over it. The overlapping version needs the upper shape to
-   punch a hole in the lower one with `fill`, and the only colour available to
+   punch a hole in the lower one with `fill`, and the only color available to
    fill it with is the surface behind -- which is `--panel` at rest and
    `--hover` under the pointer, so it would show its seams on hover. Two
    separate shapes say "more than this one" without that problem. #}
@@ -275,7 +275,7 @@
          a status link that appears only after signing in has hidden itself
          during the outage it exists for.
 
-         The word is already translated in all eleven catalogues -- the footer
+         The word is already translated in all eleven catalogs -- the footer
          link shipped it -- so this reuses the string rather than adding one. #}
       <a class="bar-button" href="https://status.vrcverify.com/"
          title="{{ _('Status') }}" aria-label="{{ _('Status') }}">
@@ -357,7 +357,7 @@
                          The panel is deliberately the quiet surface. Its job
                          is credibility -- the thing that makes phase 4's
                          Overview card land as news rather than as an advert
-                         -- and a column of coloured chips spends exactly that. #}
+                         -- and a column of colored chips spends exactly that. #}
                       <span class="bell-tag{% if item.premium %} premium{% endif %}">{{ tag_label(item) }}</span>
                       {# The ISO form for machines, the readable one for
                          people. `display_date` builds "24 Aug 2026" without
@@ -593,7 +593,7 @@
 
          Both still live in the bar rather than on an account page, and that
          reasoning is unchanged and still load-bearing: the second one is what
-         you want at the moment you have just realised somebody else has your
+         you want at the moment you have just realized somebody else has your
          session, and at that moment you should not have to go looking. A menu
          costs one click; a page would cost a navigation and a hunt.
 

@@ -1,4 +1,4 @@
-"""Every colour pair the dashboard actually renders, against WCAG AA.
+"""Every color pair the dashboard actually renders, against WCAG AA.
 
 WHY THIS IS A TEST AND NOT A ONE-OFF AUDIT
 
@@ -7,7 +7,7 @@ and three light ones were below AA -- including blurple as a link on a dark
 card at 2.7:1. None of that was visible in review, because a hex value in a
 diff looks like every other hex value. A ratio does not.
 
-So the audit is pinned here. Change a colour and this fails with the pair and
+So the audit is pinned here. Change a color and this fails with the pair and
 the number, rather than shipping a theme nobody can read.
 
 WHAT IS DELIBERATELY NOT CHECKED
@@ -17,7 +17,7 @@ combination; `--ok` on `--chrome` is not, and asserting it would be inventing
 a requirement to satisfy a requirement.
 
 Contrast is also not the whole of legibility -- weight, size and surrounding
-colour all matter, and none of them are measurable here. Passing this is a
+color all matter, and none of them are measurable here. Passing this is a
 floor, not a finish.
 """
 
@@ -71,7 +71,7 @@ PAIRS = [
     # comment on .notice.ok.
     ("ok", "panel", "a save confirmation"),
     # #141 phase 1: the subscription status chips. Tinted text on a hairline
-    # of the same colour, drawn straight on the card -- so the text itself has
+    # of the same color, drawn straight on the card -- so the text itself has
     # to clear 4.5:1 there, not just the border. `ok` and `notice` on `panel`
     # are already above; `muted` on `panel` is too. Listed by name anyway,
     # because these are the words that say whether somebody is being charged
@@ -101,14 +101,14 @@ PAIRS = [
     # cheapest moment to find out whether the first one was ever legible.
     ("ink-strong", "selected", "the current section and group in the sidebar"),
     # #159: surfaces this list said it covered and did not. The claim at the top
-    # is "every colour pair the dashboard actually renders", and --hover had no
+    # is "every color pair the dashboard actually renders", and --hover had no
     # entries at all -- a whole surface, three foregrounds, never measured. It
     # is the fill every row in the bell panel, the account menu and the sidebar
     # takes under the pointer.
     #
     # THESE WERE READ OFF THE RENDERED PAGE, not off the rules. Reasoning from
     # the stylesheet alone gets this wrong: `.bell-all:hover` sets a background
-    # and no colour, which looks like an accent link sitting on --hover at
+    # and no color, which looks like an accent link sitting on --hover at
     # 4.30:1 in dark, under AA. It is not. The global `a:hover` rule takes it to
     # --ink-strong at the same moment, and measuring in a browser says 10.73.
     # Every number below came from computed styles under a real pointer.
@@ -137,7 +137,7 @@ PAIRS = [
 #
 # What stops it coming back is not here. It is
 # TestEveryNoticeLivesInACard in test_dashboard.py, which walks the templates
-# instead of the palette -- because the defect was never a colour, it was an
+# instead of the palette -- because the defect was never a color, it was an
 # element in the wrong place.
 
 # Deliberately NOT here: a control's edge against its OWN fill. It was added
@@ -146,7 +146,7 @@ PAIRS = [
 # 1.4.11 asks that a component be distinguishable from what is ADJACENT and
 # outside it; the border and the fill together are the control, and nothing is
 # lost when they sit close. Pairs listed here should be things a reader has to
-# tell apart, not every two colours that touch.
+# tell apart, not every two colors that touch.
 #
 # THE SWITCH HAS TO CLEAR 3:1 TWICE, in opposite directions.
 #
@@ -212,7 +212,7 @@ def _palettes():
 
 def _relative_luminance(value: str) -> float:
     value = value.lstrip("#")
-    assert re.fullmatch(r"[0-9a-fA-F]{6}", value), f"not a plain hex colour: {value}"
+    assert re.fullmatch(r"[0-9a-fA-F]{6}", value), f"not a plain hex color: {value}"
     channels = [int(value[i : i + 2], 16) / 255 for i in (0, 2, 4)]
     channels = [
         c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels
@@ -288,7 +288,7 @@ class TestContrast:
         assert contrast(dark["accent-text"], dark["panel"]) >= AA_TEXT
 
     def test_the_checker_agrees_with_known_values(self):
-        """Guards the maths, so a broken formula cannot make everything pass."""
+        """Guards the math, so a broken formula cannot make everything pass."""
         assert contrast("#ffffff", "#000000") == pytest.approx(21.0, abs=0.01)
         assert contrast("#ffffff", "#ffffff") == pytest.approx(1.0, abs=0.01)
         assert contrast("#777777", "#ffffff") == pytest.approx(4.48, abs=0.02)

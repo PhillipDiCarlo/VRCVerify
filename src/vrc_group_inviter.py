@@ -167,7 +167,7 @@ INVITE_ALREADY_MEMBER = "already_member"
 INVITE_ALREADY_INVITED = "already_invited"
 # 403 "You can't invite that user" -- the member has group invites switched
 # off, or has blocked the account. Terminal on purpose: the whole compliance
-# argument for this feature is that a member's "no" is honoured, so this is
+# argument for this feature is that a member's "no" is honored, so this is
 # recorded and never retried.
 INVITE_BLOCKED = "blocked"
 # The member is banned from the group. Nothing the bot or the member can do.
@@ -295,7 +295,7 @@ def _call_with_retry(func, *args, **kwargs):
     """Run one VRChat call, retrying only transient upstream failures.
 
     Backoff is required of every caller by VRChat's guidelines, and the delay
-    carries jitter so many workers cannot synchronise into a spike.
+    carries jitter so many workers cannot synchronize into a spike.
     """
     last_exc = None
     for attempt in range(1, VRCHAT_CALL_RETRIES + 1):
@@ -441,7 +441,7 @@ def _classify_invite_400(detail: str) -> str:
     a liability -- there are tests holding that line for both. Here the status
     genuinely does not distinguish the two, and VRChat does.
 
-    An unrecognised 400 keeps the previous behaviour rather than becoming a new
+    An unrecognized 400 keeps the previous behavior rather than becoming a new
     failure mode: VRChat rewording either sentence, or _api_detail falling back
     to a raw body it could not parse, then lands exactly where it landed
     before this function existed.
@@ -456,9 +456,9 @@ def _classify_invite_400(detail: str) -> str:
         # as _api_detail: what WE concluded is recorded either way, and the
         # only way anyone finds out that VRChat reworded this -- or that a
         # third meaning for 400 exists -- is a line saying we did not
-        # recognise it.
+        # recognize it.
         logging.warning(
-            "Unrecognised 400 from create_group_invite (%s); reporting it as "
+            "Unrecognized 400 from create_group_invite (%s); reporting it as "
             "%s, which is what this status has always meant here.",
             detail,
             INVITE_ALREADY_MEMBER,
@@ -485,7 +485,7 @@ def _probe_group(groups, group_id) -> tuple[str, bool]:
       * 403 means "you may not invite" OR "that user will not be invited"
 
     The alternative is matching English substrings in an error body, which is
-    what this replaced. That approach breaks on rewording or localisation, and
+    what this replaced. That approach breaks on rewording or localization, and
     it broke asymmetrically: a permission error mentioning "...cannot invite
     that user" would have been recorded as the MEMBER's refusal, which is
     permanent and never retried. This asks a question with an answer instead.
@@ -515,7 +515,7 @@ def _probe_group(groups, group_id) -> tuple[str, bool]:
 def claim_code_present(group, claim_code) -> bool:
     """Is the guild's one-time code in this group's description?
 
-    The group-level analogue of the bio code members already paste into their
+    The group-level analog of the bio code members already paste into their
     VRChat profile, and it exists to answer one question: does the person who
     typed this group id into the dashboard actually run the group? Without it,
     anyone could name a stranger's group and -- if the account happened to be
@@ -752,7 +752,7 @@ def _space_invite_calls() -> None:
 
     See INVITE_MIN_SPACING_SECONDS. The jitter is on the same reasoning as
     backoff_delay's: a fixed interval is exactly what makes many callers
-    synchronise, and VRChat's guidelines call that out by name.
+    synchronize, and VRChat's guidelines call that out by name.
     """
     wait = INVITE_MIN_SPACING_SECONDS + random.uniform(0.0, 0.5)
     elapsed = time.monotonic() - _last_invite_call
@@ -845,15 +845,15 @@ def send_group_invite(job: dict) -> dict:
 
     Membership is read first so those answers can be given without spending an
     invite, and so the two states that need ACTION rather than a sentence can
-    be recognised: a member holding an invite they cannot see needs it
+    be recognized: a member holding an invite they cannot see needs it
     re-issued, and a member with a pending join request needs admitting rather
     than leaving in a queue the bot was installed to replace. Both are argued
     where they take effect below.
 
-    That check is an OPTIMISATION, not a gate. Every failure of it falls
+    That check is an OPTIMIZATION, not a gate. Every failure of it falls
     through to the invite, and it is never reported. Since #217 that costs the
     member nothing even in the case where it used to: a stale invite the check
-    could not see is recognised from VRChat's own 400 and rescued on a second
+    could not see is recognized from VRChat's own 400 and rescued on a second
     pass, so the withdraw-and-re-send no longer depends on the check having
     worked.
 
@@ -868,7 +868,7 @@ def send_group_invite(job: dict) -> dict:
     comes from create_group_invite regardless -- 400 for an existing member,
     403 for a recipient who will not take invites, 404 for a group that has
     gone or a member whose account does not resolve, 409 for a banned one. The
-    check only buys a better sentence in the cases it can recognise, and buying
+    check only buys a better sentence in the cases it can recognize, and buying
     nothing is an acceptable outcome.
 
     What that read CAN and cannot see was finally measured on 2026-08-27, in a
@@ -947,7 +947,7 @@ def send_group_invite(job: dict) -> dict:
 
     # Two answers stop an invite as a matter of POLICY: they are already in,
     # or the group has thrown them out. `userblocked` stops it too, but that is
-    # an optimisation rather than a third policy -- see its branch. Everything
+    # an optimization rather than a third policy -- see its branch. Everything
     # else means the member asked for something they can have, and gets it.
     if status == "member":
         return _invite_result(job, INVITE_ALREADY_MEMBER)
@@ -984,7 +984,7 @@ def send_group_invite(job: dict) -> dict:
     #
     # The SECOND pass exists for #217: the precheck is best effort, and when
     # it raised we reach here with status None, so a member in exactly that
-    # state is not recognised until VRChat answers 400 "already invited" --
+    # state is not recognized until VRChat answers 400 "already invited" --
     # at which point the same withdraw-and-re-send is what they need. Both
     # routes run the one code path below rather than a second implementation
     # of it, which is why this is a loop and not a nested rescue inside the
@@ -1203,7 +1203,7 @@ def publish_result(result: dict):
             channel.basic_publish(
                 exchange="", routing_key=RESULT_QUEUE_NAME, body=body, properties=properties
             )
-            # Summarised, not dumped. error_message carries VRChat's own prose,
+            # Summarized, not dumped. error_message carries VRChat's own prose,
             # and VRChat names the user in it -- "User usr_... is already a
             # member of this group". Logging the whole payload put a usr_ id
             # and a guild id on one line, which is most of the Discord-to-

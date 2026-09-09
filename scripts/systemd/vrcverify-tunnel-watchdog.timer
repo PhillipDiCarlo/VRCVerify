@@ -8,7 +8,7 @@ Documentation=https://github.com/PhillipDiCarlo/VRCVerify
 OnBootSec=90s
 OnUnitActiveSec=2min
 
-# No randomised delay. This is a recovery check, not a load-spreading job --
+# No randomized delay. This is a recovery check, not a load-spreading job --
 # jitter here would only widen the outage window for no benefit.
 AccuracySec=10s
 

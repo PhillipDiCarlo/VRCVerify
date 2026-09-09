@@ -46,14 +46,14 @@ def _untranslated(text: str) -> str:
 
 # Display names only. The authoritative list is locales.LANGUAGE_CODES in the
 # bot, which this image deliberately does not carry -- it ships api_tokens.py
-# and this package, nothing else. An unrecognised code renders as itself, so
+# and this package, nothing else. An unrecognized code renders as itself, so
 # the two drifting apart degrades to showing "pt-BR" instead of "Portuguese".
 #
 # Step 5 must NOT build its locale <select> from this dict. The choices have to
 # come from the bot, or the dashboard could offer a language the bot cannot
 # render.
-# Shown in the colour picker when a server has chosen nothing. Cosmetic only:
-# what "no colour" means is the bot's business, and it stores NULL either way.
+# Shown in the color picker when a server has chosen nothing. Cosmetic only:
+# what "no color" means is the bot's business, and it stores NULL either way.
 DEFAULT_PANEL_SWATCH = "#5865f2"
 
 # The bot's own cap, mirrored so the textarea stops at the same place the save
@@ -274,7 +274,7 @@ def _role_field(
                 )))
         else:
             display = role.get("name") or f"Role {raw}"
-            # Colour 0 is Discord's "no colour", which renders as default grey.
+            # Color 0 is Discord's "no color", which renders as default gray.
             if role.get("color"):
                 swatch = _hex(role["color"])
             assignable = role.get("assignable")
@@ -324,7 +324,7 @@ def _hex(color) -> Optional[str]:
 
     The result lands in an SVG fill attribute, so the shape of it is the
     guarantee that matters: masking to 24 bits means no value can widen it into
-    anything but a colour, whatever arrives.
+    anything but a color, whatever arrives.
     """
     try:
         return "#{:06x}".format(int(color) & 0xFFFFFF)
@@ -491,7 +491,7 @@ def build_groups(
 
 
 # What each setup state means, as a headline and the next thing to do. Keyed
-# on the bot's own state codes; anything unrecognised falls through to a
+# on the bot's own state codes; anything unrecognized falls through to a
 # generic line rather than reaching the page as a raw identifier.
 #
 # Every one of these names something the admin can act on, which is the whole
@@ -641,7 +641,7 @@ def group_setup_summary(
         pass
     elif state == "ready" and not block.get("can_see_members"):
         # Not a failure, and the reason is narrower than it used to be. Invites
-        # work without it: a member who is already in the group is recognised
+        # work without it: a member who is already in the group is recognized
         # from the invite attempt itself and told so.
         #
         # What it still buys is the case that attempt CANNOT distinguish -- a
@@ -872,13 +872,13 @@ def _panel_fields(settings: dict, t: Callable[[str], str] = _untranslated):
     swatch = _hex(color_state.get("value"))
     color = Field(
         "panel_embed_color",
-        t(N_("Panel colour")),
-        t(N_("The colour bar down the side of the instructions panel.")),
+        t(N_("Panel color")),
+        t(N_("The color bar down the side of the instructions panel.")),
         "color",
         swatch or t(N_("Default blue")),
         empty=swatch is None,
         swatch=swatch,
-        # A colour input cannot be empty, so it needs something to show while
+        # A color input cannot be empty, so it needs something to show while
         # the "use the default" box is ticked.
         value=swatch or DEFAULT_PANEL_SWATCH,
         **_plan(color_state),
@@ -1000,7 +1000,7 @@ def build_upgrade(settings: dict, application_id: Optional[str]) -> Optional[dic
 
 
 # Labels for the audit list. Deliberately the same words the settings above
-# use, so a line of history is recognisably about a control on this page.
+# use, so a line of history is recognizably about a control on this page.
 AUDIT_LABELS = {
     "role_id": N_("Verified role"),
     "unverified_role_id": N_("Unverified role"),
@@ -1008,7 +1008,7 @@ AUDIT_LABELS = {
     "auto_nickname_change": N_("Nickname sync"),
     "custom_verification_requested_message": N_("Custom verification message"),
     "instructions_locale": N_("Language"),
-    "panel_embed_color": N_("Panel colour"),
+    "panel_embed_color": N_("Panel color"),
     "panel_show_icon": N_("Server icon on the panel"),
     "verification_log_channel_id": N_("Verification log channel"),
     "vrchat_group_id": N_("VRChat group"),
@@ -1032,7 +1032,7 @@ PANEL_ACTIONS = {
     "replaced": N_("replaced in"),
 }
 
-# Long enough to recognise a message, short enough that one entry cannot push
+# Long enough to recognize a message, short enough that one entry cannot push
 # the rest of the history off the screen.
 AUDIT_VALUE_MAX = 80
 
