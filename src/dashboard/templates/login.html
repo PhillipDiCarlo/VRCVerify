@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Sign in — VRCVerify{% endblock %}
 
+{# The dot grid and the wave, drawn by base.html. Set at the top level rather
+   than inside a block on purpose: Jinja evaluates it before the parent renders,
+   which is what lets a child template turn on chrome the parent owns. #}
+{% set atmosphere = true %}
+
 {# THE DISCORD MARK.
    Inline, like every other icon here: the CSP is img-src 'self' plus Discord's
    CDN, and a data: URI would mean widening it to draw one shape. `fill` is a

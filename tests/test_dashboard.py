@@ -7150,6 +7150,49 @@ class TestTheHeaderBar:
         # Once per dark selector: the explicit one and the OS one.
         assert css.count("--logo-filter: var(--dark-logo-filter);") == 2
 
+    def test_every_dark_value_is_mapped_by_both_dark_selectors(self):
+        """The gap that let #286 nearly ship a token wired up only halfway.
+
+        Dark is reached two ways, and they are not alternatives: `[data-theme=
+        "dark"]` is the reader who chose it, and the `prefers-color-scheme`
+        block inside `:not([data-theme])` is System, which is the DEFAULT and
+        therefore the majority. Adding a token means writing the same mapping
+        line into both blocks, by hand, and the failure when you write only one
+        is silent and asymmetric: the token resolves for anyone who has pressed
+        the toggle and falls back to its light value for everyone who has not.
+
+        Nothing checked this. `--logo-filter` above is spot-checked with a
+        `count(...) == 2` on one literal, which is the right idea applied to
+        one of twenty-odd tokens; this asks it of all of them.
+
+        Declared-but-unmapped is the failure, so the check runs in that
+        direction only. A `--dark-*` value referenced by a rule rather than by
+        a mapping is legitimate and is not required to appear in either block.
+        """
+        import re
+
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            css = handle.read()
+        css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+        declared = set(re.findall(r"(--dark-[a-z0-9-]+)\s*:", css))
+        assert len(declared) > 15, f"only found {len(declared)} dark values"
+
+        unmapped = {
+            name: css.count(f"var({name})")
+            for name in sorted(declared)
+            if css.count(f"var({name})") < 2
+        }
+        assert not unmapped, (
+            "each of these dark values is used fewer than twice, so at least "
+            "one of the two dark selectors cannot be mapping it: " + repr(unmapped)
+        )
+
 
 class TestTheChartGeometry:
     """#135 phase 2. Every coordinate the SVG draws, computed without a
@@ -9827,11 +9870,26 @@ class TestTheSmallDefectsFoundAlongsideTheThemingWork(object):
     def test_no_raw_color_literal_survives_outside_the_token_blocks(self):
         """The general form of the finding above. Every hex in this file should
         be a token declaration; a color written into a rule is a color that
-        cannot be rethemed."""
+        cannot be rethemed.
+
+        MASKS ARE EXEMPT, and narrowly: `mask-image` reads only the ALPHA of
+        what it is given, so the `#000` in a fade gradient is a stencil rather
+        than a color. It is never painted, it cannot be seen, and theming it
+        would change nothing -- swap it for hotpink and the render is
+        identical. The rule this test enforces is "a color that cannot be
+        rethemed", and a value with no color role is not one.
+
+        The exemption is the two mask properties and nothing else, so a hex in
+        `background`, `border` or `fill` still fails. Same construction the
+        apex stylesheet already ships for the same fade (#285).
+        """
         css = re.sub(r"/\*.*?\*/", "", self._css(), flags=re.S)
         # Drop every `--foo: #hex;` declaration, then look for what is left.
         without_tokens = re.sub(r"--[a-z0-9-]+\s*:\s*#[0-9a-fA-F]{3,8}\s*;", "", css)
-        leftovers = re.findall(r"#[0-9a-fA-F]{3,8}\b", without_tokens)
+        without_masks = re.sub(
+            r"(?:-webkit-)?mask-image\s*:[^;]*;", "", without_tokens
+        )
+        leftovers = re.findall(r"#[0-9a-fA-F]{3,8}\b", without_masks)
         assert not leftovers, f"raw color literals in rules: {leftovers}"
 
     def test_the_collapsed_side_up_is_reset_with_its_siblings(self):

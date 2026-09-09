@@ -199,7 +199,53 @@
      three submit buttons and works completely. See static/prefs.js. #}
   <script src="{{ asset('prefs.js') }}" defer></script>
 </head>
-<body>
+<body{% if atmosphere %} class="atmospheric"{% endif %}>
+  {# THE FIELD, on the pages that are not the console.
+
+     Opted into by the child template with `{% set atmosphere = true %}` at its
+     top level, which Jinja makes visible here -- so sign-in, pricing and the
+     error page carry it and no route had to learn a new argument.
+
+     THE CURVE BELOW IS THE APEX SITE'S, PASTED BYTE FOR BYTE. Not similar to
+     it: the same drawing, on a domain that deploys separately and shares no
+     build step, which is the same arrangement the design tokens have and needs
+     the same guard. `test_the_wave_is_one_drawing_everywhere_it_appears`
+     compares this against site/index.html and fails on any divergence, so the
+     "lower amplitude" this page wants is a height and an opacity in style.css
+     rather than a second set of hand-tuned control points. #}
+  {% if atmosphere %}
+    <div class="field" aria-hidden="true">
+      <div class="field-dots"></div>
+      <svg class="hero-wave" aria-hidden="true" focusable="false"
+           viewBox="0 0 1440 620" preserveAspectRatio="xMaxYMid slice">
+        <defs>
+          <radialGradient id="wave-glow" cx="0.76" cy="0.34" r="0.58">
+            <stop offset="0" stop-color="var(--accent)" stop-opacity="0.22"></stop>
+            <stop offset="1" stop-color="var(--accent)" stop-opacity="0"></stop>
+          </radialGradient>
+          <!-- userSpaceOnUse so all three arcs are lit by ONE gradient across the
+               viewBox rather than each being faded within its own bounding box,
+               which would put a bright middle on every line at a different x. -->
+          <linearGradient id="wave-edge" gradientUnits="userSpaceOnUse"
+                          x1="380" y1="0" x2="1440" y2="0">
+            <stop offset="0" stop-color="var(--accent)" stop-opacity="0"></stop>
+            <stop offset="0.55" stop-color="var(--accent)" stop-opacity="0.55"></stop>
+            <stop offset="1" stop-color="var(--accent)" stop-opacity="0.12"></stop>
+          </linearGradient>
+        </defs>
+        <!-- A haze and three lines, and nothing filled. A filled band was tried and
+             removed: however soft its gradient, its own outline stayed visible as a
+             crescent through the right of the hero, which is a shape somebody drew
+             rather than atmosphere. The glow has no edge because it has no path. -->
+        <rect width="1440" height="620" fill="url(#wave-glow)"></rect>
+        <g fill="none" stroke="url(#wave-edge)" stroke-width="1.5">
+          <path d="M400 620 C 680 500, 920 360, 1120 228 S 1370 56, 1460 0"></path>
+          <path d="M480 660 C 760 540, 1000 400, 1200 268 S 1450 96, 1540 40" opacity="0.75"></path>
+          <path d="M560 700 C 840 580, 1080 440, 1280 308 S 1530 136, 1620 80" opacity="0.5"></path>
+        </g>
+      </svg>
+    </div>
+  {% endif %}
   <header class="bar">
     {# The hamburger is a submit button, not a checkbox.
        A hidden checkbox with a sibling selector would collapse the sidebar

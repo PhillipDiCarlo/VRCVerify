@@ -254,6 +254,15 @@
    * White here, because on light the card and the knob are both white and no
    * squeeze happens. */
   --switch-knob: #ffffff;
+
+  /* The dot grid on the atmospheric pages. 1.25:1 against --bg, and that
+   * figure is the design rather than a shortfall: this is texture behind a
+   * card, not a boundary or a mark, so 1.4.11 does not reach it and taking it
+   * to 3:1 would turn a field into graph paper. Deliberately matched to
+   * --dark-field-dot's 1.25:1, so the grid is exactly as quiet in both themes
+   * -- eyeballed dot colours are how one theme ends up with visible ruling and
+   * the other with nothing at all. */
+  --field-dot: #cbced4;
 }
 
 /* The dark values, named once and painted by nothing.
@@ -390,6 +399,10 @@
   /* 3.38:1 against the card, 3.74:1 against the knob, and the same figure for
    * an input's border because it is the same requirement. */
   --dark-control-line: #80848e;
+
+  /* 1.25:1 against --dark-bg, the same figure --field-dot has against the
+   * light ground. See there for why that is the target and not a floor. */
+  --dark-field-dot: #2e3035;
 }
 
 /* Dark, chosen explicitly. Beats the light floor on specificity, and is
@@ -426,6 +439,7 @@
   --logo-filter: var(--dark-logo-filter);
   --switch-knob: var(--dark-switch-knob);
   --control-line: var(--dark-control-line);
+  --field-dot: var(--dark-field-dot);
 }
 
 /* Dark, because the OS asked and the reader has not said otherwise.
@@ -466,6 +480,7 @@
     --logo-filter: var(--dark-logo-filter);
     --switch-knob: var(--dark-switch-knob);
     --control-line: var(--dark-control-line);
+    --field-dot: var(--dark-field-dot);
   }
 }
 
@@ -1635,10 +1650,97 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * is the cheapest way not to be the fourth. It is also why this card no longer
  * wears `.centered`: that class is shared with the refusal page, and the two
  * want different widths. */
+/* ------------------------------------------------------------------ *
+ * THE ATMOSPHERIC FIELD (#286).
+ *
+ * Behind the three pages that are not the console: sign-in, pricing and the
+ * error page. Every other page here is a working surface where atmosphere is
+ * noise, so this is opted into per template rather than being the ground.
+ *
+ * TWO LAYERS, AND ONLY ONE OF THEM IS DRAWN HERE. The dot grid is CSS, so it
+ * costs no request and no `img-src`. The wave is the apex site's hero SVG,
+ * pasted BYTE FOR BYTE into base.html -- see the drift test in test_site.py.
+ * The amplitude difference the issue asks for is a height and an opacity in
+ * this file, never an edited path, which is the same rule the apex set for
+ * itself when its 404 wanted a shorter one: change the drawing's box, not the
+ * drawing. Two hand-tuned copies of a curve diverge, and a wave that is subtly
+ * wrong on one domain is harder to spot than a nav that is.
+ * ------------------------------------------------------------------ */
+.field {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  /* THE DRAWING'S OWN PROPORTIONS, NOT A HEIGHT. Set as a height first, and
+   * the result was three straight diagonal scratches: the wave is 1440x620,
+   * `slice` crops to fill, and a band much wider than 2.32:1 keeps the middle
+   * of each arc and throws away both ends -- which is where all the curvature
+   * lives. The curve is the whole drawing, so the box has to be the shape the
+   * curve was drawn in.
+   *
+   * max-height is where the cropping is allowed back, on a very wide monitor
+   * where the honest ratio would be 800px of atmosphere. There it slices, the
+   * same as the apex hero does. */
+  aspect-ratio: 1440 / 620;
+  max-height: 34rem;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  /* ONE FADE, ON THE COMPOSITE. Each layer used to fade itself, which left the
+   * haze's own bottom edge as a horizontal seam across the full width of the
+   * dark theme -- the exact "shape somebody drew" the apex removed a filled
+   * band to avoid. Masking the parent fades everything inside it together, so
+   * the field has no edge at all. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 42%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 42%, transparent 100%);
+}
+
+/* The field sits under the bar, not beside it: `header.bar` paints --chrome
+ * and so hides the top of the wave exactly as the apex header does. Anything
+ * else on the page has to be lifted out of the stacking order the field
+ * created, or it renders behind atmosphere. */
+body.atmospheric { position: relative; }
+body.atmospheric > header.bar,
+body.atmospheric > .layout,
+body.atmospheric > footer { position: relative; z-index: 1; }
+
+.field-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at center,
+                                    var(--field-dot) 1px, transparent 1.5px);
+  background-size: 1.375rem 1.375rem;
+  /* The grid's own falloff is horizontal: .field fades everything downward, so
+   * this only has to stop the dots reaching the left and right edges as a full
+   * bleed. A dot grid that runs to the viewport edge reads as a texture swatch
+   * somebody placed; one that thins out reads as depth. */
+  -webkit-mask-image: radial-gradient(75% 120% at 50% 10%,
+                                      #000 35%, transparent 100%);
+  mask-image: radial-gradient(75% 120% at 50% 10%, #000 35%, transparent 100%);
+}
+
+.field .hero-wave {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  /* Quieter than on the apex, where the same drawing is the hero. Here it is
+   * behind a card somebody is reading three privacy sentences on. No mask of
+   * its own -- .field fades the whole composite, and a second fade stacked on
+   * this one is what put a seam in the dark theme. */
+  opacity: 0.75;
+}
+
 .signin {
   max-width: 30rem;
-  margin: 2.5rem auto;
+  /* Further down than the 2.5rem it had, so the card sits ON the field rather
+   * than at its top edge, and the wave reads as behind it rather than as a
+   * band above it. */
+  margin: 4rem auto 2.5rem;
   text-align: center;
+  /* The one thing that makes this a card floating on atmosphere instead of a
+   * panel the field happens to run behind. */
+  box-shadow: var(--shadow-raised);
 }
 
 /* 48px drawn from a 128px file, so it is still crisp at 2x without a second
