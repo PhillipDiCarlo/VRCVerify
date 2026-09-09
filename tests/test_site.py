@@ -633,7 +633,14 @@ def test_the_landing_page_text_clears_aa_in_both_themes():
     would mean heavy borders that contradict the design language.
     """
     pairs = [
-        ("trust strip / plans note", "--faint", "--bg"),
+        # The trust strip left this entry in #285. It was --faint here with the
+        # plans note; it is body-size --ink now, and measuring it as --faint
+        # would be asserting the styling it stopped having.
+        ("plans note", "--faint", "--bg"),
+        ("trust strip", "--ink", "--bg"),
+        # Its tick. A shape, so 3:1 would do, but it clears the text floor on
+        # both themes and there is no reason to assert the weaker of the two.
+        ("trust strip tick", "--accent-text", "--bg"),
         ("flow note", "--muted", "--bg"),
         ("flow body, plan blurb, plan eyebrow", "--muted", "--panel"),
         ("plan price", "--ink-strong", "--panel"),

@@ -176,6 +176,24 @@
   --radius-card: 8px;
   --bar-control: 2rem;
   --shadow-overlay: 0 4px 12px rgb(0 0 0 / 0.40), 0 12px 32px rgb(0 0 0 / 0.36);
+
+  /* Copied across for the shared shell (#285), under the same rule as the five
+     above: a rule here needs it now. The header is the one raised surface on
+     this site -- it sits ON the page rather than beside it, which is what the
+     dashboard's bar has always said and what made three headers read as three
+     products. --shadow-overlay was already here and is the wrong weight: it is
+     tuned for a popover floating well clear of the page. */
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.32), 0 2px 8px rgb(0 0 0 / 0.28);
+
+  /* The bar's height, stated rather than emergent, which is the dashboard's
+     word for word reason: derived from padding, a bar grows whenever anything
+     taller than its text is put in it. The status pill did exactly that here.
+
+     min-height rather than the dashboard's height, and that difference is
+     deliberate. Its bar holds icon buttons that cannot wrap; this one holds a
+     three-item text nav that must, at 320px. Fixed height there would clip it.
+     On every width where it does not wrap, the two bars are the same height. */
+  --bar-h: 3rem;
 }
 
 /* 2. The light values, named once and painted by nothing.
@@ -247,6 +265,7 @@
      not change with the theme, so they are declared once above. */
   --light-hover: #e3e5e8;
   --light-shadow-overlay: 0 4px 12px rgb(0 0 0 / 0.12), 0 12px 32px rgb(0 0 0 / 0.10);
+  --light-shadow-raised: 0 1px 2px rgb(0 0 0 / 0.08), 0 2px 8px rgb(0 0 0 / 0.06);
 }
 
 /* 3. Light, chosen explicitly. Unaffected by what the OS prefers, which is
@@ -277,6 +296,7 @@
   --control-line: var(--light-control-line);
   --hover: var(--light-hover);
   --shadow-overlay: var(--light-shadow-overlay);
+  --shadow-raised: var(--light-shadow-raised);
 }
 
 /* 4. Light, because the OS asked and the reader chose to follow it.
@@ -309,6 +329,7 @@
     --control-line: var(--light-control-line);
     --hover: var(--light-hover);
     --shadow-overlay: var(--light-shadow-overlay);
+    --shadow-raised: var(--light-shadow-raised);
   }
 }
 
@@ -521,25 +542,79 @@ main.wrap li { max-width: var(--measure); }
 header.site .wrap,
 footer.site .wrap { max-width: 60rem; }
 
+/* THE SHARED SHELL (#285 of epic #243).
+
+   Three surfaces had three headers, which was the loudest single sign that
+   this is not one product. They are one pattern now, and the pattern is the
+   dashboard's bar, because that is the surface people spend time in and the
+   one whose chrome was already reasoned about.
+
+   WHAT IS SHARED, and what each surface fills it with:
+
+     a full-bleed bar on --chrome, contents held to the page measure
+     the brand pinned left, everything else pinned right
+     one stated height, --bar-h
+     a raised shadow, so the bar sits ON the page
+     centred alignment, so a control and a word share a centre line
+
+   The dashboard fills the right-hand cluster with icon buttons and this site
+   fills it with a nav plus two controls. That is the difference the pattern is
+   meant to allow; the geometry around it is what stops them looking unrelated.
+
+   THREE THINGS DELIBERATELY NOT COPIED FROM THE DASHBOARD'S BAR:
+
+     Its contents run edge to edge, because an app's chrome should. A document
+     site's chrome lines up with the document, so `.wrap` still holds this one
+     to the same measure the page below it uses. The BAR is full width either
+     way -- that is the part that reads as shared.
+
+     Its fixed `height`. See --bar-h for why this one is a min-height.
+
+     Its logo mark, which this site does not have yet. #288 redraws the mark as
+     an SVG; until then the wordmark stands alone here and the two brands do
+     not quite match. That is the last visible gap in this pattern. */
 header.site {
   border-bottom: 1px solid var(--line);
   background: var(--chrome);
+  /* Both needed for the shadow to land ON the page rather than under it:
+     without a position the bar has no stacking context to be lifted out of.
+     The dashboard's bar carries the same pair for the same reason. */
+  box-shadow: var(--shadow-raised);
+  position: relative;
+  z-index: 10;
 }
 header.site .wrap {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1.5rem;
-  align-items: baseline;
-  padding-top: 1.25rem;
-  padding-bottom: 1.25rem;
+  gap: var(--space-2) var(--space-5);
+  /* Centre, not baseline. Baseline aligns the TEXT in each child, which is
+     right when every child is a word and wrong the moment one is a control:
+     the status pill's border and the theme button's box both hung below the
+     nav's baseline, by different amounts, and the row read as three things
+     that had been placed separately. */
+  align-items: center;
+  min-height: var(--bar-h);
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
 }
 header.site a.brand {
   font-weight: 700;
   font-size: 1.05rem;
   color: var(--ink-strong);
   text-decoration: none;
-  margin-right: auto;
+  /* -0.01em and margin-INLINE-end, both the dashboard's. The tracking is what
+     makes the two wordmarks the same object rather than the same string at the
+     same size; the logical property is free here and correct if this site is
+     ever translated. */
+  letter-spacing: -0.01em;
+  margin-inline-end: auto;
 }
+/* 1.25rem, and NOT --space-5, which is the nearest step at 1.5rem. This is the
+   case #284 named when it declined to convert this file's literals: 1.25rem is
+   the value these pages use most and it is not on the scale. Converting it up
+   costs 8px across the nav's two gaps, which at 375px is exactly enough to
+   wrap the header onto a third row and strand the theme picker on a line of
+   its own. Measured, after doing it. */
 header.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; }
 header.site nav a { color: var(--muted); text-decoration: none; font-size: 0.94rem; }
 header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); text-decoration: underline; }
@@ -999,14 +1074,79 @@ th { color: var(--muted); font-weight: 600; }
 .cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1.75rem 0 0; }
 .cta-row .cta { margin: 0; }
 
-/* Small, quiet, and the last thing under the buttons -- the Zaro pattern, in
-   --faint rather than the accent, because the accent is spoken for. */
+/* THE WAVE, positioned (#285). The drawing and the argument for it are in
+   index.html; this is only where it sits.
+
+   `top: 0` rather than under the header, which looks wrong written down and is
+   the robust choice: the header is opaque, sits on --chrome and carries
+   z-index 10, so it covers the top of the form regardless of how tall it grows
+   when the nav wraps at 320px. Offsetting by --bar-h instead would leave a
+   band of page ground showing under a wrapped header.
+
+   The height is the only tuned number here. It has to end inside the hero --
+   a form still going at the flow diagram would be competing with content
+   rather than sitting behind it -- and it has to scale, because at 1440 the
+   hero is 500px tall and at 390 it is nearly 700. */
+body.home { position: relative; }
+.hero-wave {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  width: 100%;
+  height: clamp(24rem, 40vw, 40rem);
+  z-index: 0;
+  pointer-events: none;
+  /* The form has no bottom edge, it stops being there. Without this the band
+     ends on a hard horizontal line, which on a 1440 viewport landed straight
+     through the flow cards and read as a rule somebody had drawn. Masked
+     rather than faded inside the SVG so the fade follows the element's
+     rendered height, which is a clamp and therefore not knowable in viewBox
+     units. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 52%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 52%, transparent 100%);
+}
+/* Everything real sits above it. `main` needs the stacking context; the header
+   and footer already have their own grounds and their own z-index. */
+body.home > main { position: relative; z-index: 1; }
+
+/* Under prefers-reduced-motion the wave is unchanged, and that is correct
+   rather than an omission: it does not move. Nothing on this site does. */
+
+/* THE TRUST STRIP (#285).
+   Was 13px --faint uppercase with middot separators, which is the register a
+   reader has been trained to skip, applied to the strongest claim the product
+   makes. Now body-size --ink with a marked item each.
+
+   The mark is --accent-text and it is the one place on this page the accent is
+   spent on something that is not a button or a link. That is deliberate and it
+   is the exception the epic's rule allows for: these three are the claim, and
+   a tick is the shortest way to say "guaranteed" rather than "listed". */
 .trust-strip {
-  margin: 1.25rem 0 0;
-  color: var(--faint);
-  font-size: 0.8125rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: var(--space-6) 0 0;
+  color: var(--ink);
+  font-size: var(--text-subhead);
+}
+.trust-strip span { display: inline-flex; align-items: center; gap: var(--space-2); }
+/* A tick drawn from two borders on an empty box, rather than a glyph. Inter is
+   vendored here and carries no tick, so a character would fall through to the
+   reader's fallback stack and arrive at a different weight, size and baseline
+   on every machine. Two borders and a rotation are the same on all of them. */
+.trust-strip span::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.4rem;
+  height: 0.75rem;
+  border: 2px solid var(--accent-text);
+  border-top: 0;
+  border-inline-start: 0;
+  rotate: 45deg;
+  /* The rotation puts the tick's heel below the text's centre line; this lifts
+     it back onto it. Margin rather than translate so the flex gap still
+     measures from the shape's box. */
+  margin: -0.15rem 0.15rem 0.15rem 0;
 }
 
 /* THE FLOW.
@@ -1353,15 +1493,19 @@ th { color: var(--muted); font-weight: 600; }
   .entry h2, .entry-body { grid-column: 1; }
 }
 
+/* The other half of the shared shell. No shadow here and that is not an
+   oversight: the header is raised because the page scrolls UNDER it, and
+   nothing scrolls under a footer. Same ground, same measure, same link
+   treatment, same spacing scale. */
 footer.site {
   border-top: 1px solid var(--line);
   background: var(--chrome);
-  margin-top: 3rem;
+  margin-top: var(--space-7);
   color: var(--muted);
   font-size: var(--text-micro);
 }
-footer.site .wrap { padding-top: 1.5rem; padding-bottom: 2.5rem; }
-footer.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 0.75rem; }
+footer.site .wrap { padding-top: var(--space-5); padding-bottom: 2.5rem; }
+footer.site nav { display: flex; flex-wrap: wrap; gap: var(--space-5); margin-bottom: var(--space-3); }
 footer.site a { color: var(--muted); }
 
 a:focus-visible, .cta:focus-visible,

@@ -78,6 +78,55 @@
   </div>
 </header>
 
+<!-- THE WAVE (#285).
+     One atmospheric form, spanning the full width, sitting behind the hero.
+
+     WHAT IT IS FOR. At 1440 this page put a 60rem column in the middle of the
+     viewport and left the outer 480px empty, so the widest screens got the
+     emptiest page -- the opposite of what a landing page should do. The form
+     is what occupies that width. It is decoration and nothing depends on it,
+     which is why it is aria-hidden and why the page reads identically with it
+     removed.
+
+     WHY IT IS A SIBLING OF <main> RATHER THAN A CHILD. It has to reach the
+     viewport edges, and everything inside <main> is held to the page measure
+     by `.wrap`. Putting it here means no `100vw` arithmetic, which is the
+     usual way a full-bleed element ends up with a horizontal scrollbar on any
+     platform that reserves space for one. It is absolutely positioned against
+     the body and drawn under the header, which is opaque and above it.
+
+     WHY INLINE SVG. Same reason the flow's arrows are: no request, no third
+     party, and the fills read the theme tokens directly, so it recolours with
+     the page rather than needing a second file for dark. -->
+<svg class="hero-wave" aria-hidden="true" focusable="false"
+     viewBox="0 0 1440 620" preserveAspectRatio="xMaxYMid slice">
+  <defs>
+    <radialGradient id="wave-glow" cx="0.76" cy="0.34" r="0.58">
+      <stop offset="0" stop-color="var(--accent)" stop-opacity="0.22"></stop>
+      <stop offset="1" stop-color="var(--accent)" stop-opacity="0"></stop>
+    </radialGradient>
+    <!-- userSpaceOnUse so all three arcs are lit by ONE gradient across the
+         viewBox rather than each being faded within its own bounding box,
+         which would put a bright middle on every line at a different x. -->
+    <linearGradient id="wave-edge" gradientUnits="userSpaceOnUse"
+                    x1="380" y1="0" x2="1440" y2="0">
+      <stop offset="0" stop-color="var(--accent)" stop-opacity="0"></stop>
+      <stop offset="0.55" stop-color="var(--accent)" stop-opacity="0.55"></stop>
+      <stop offset="1" stop-color="var(--accent)" stop-opacity="0.12"></stop>
+    </linearGradient>
+  </defs>
+  <!-- A haze and three lines, and nothing filled. A filled band was tried and
+       removed: however soft its gradient, its own outline stayed visible as a
+       crescent through the right of the hero, which is a shape somebody drew
+       rather than atmosphere. The glow has no edge because it has no path. -->
+  <rect width="1440" height="620" fill="url(#wave-glow)"></rect>
+  <g fill="none" stroke="url(#wave-edge)" stroke-width="1.5">
+    <path d="M400 620 C 680 500, 920 360, 1120 228 S 1370 56, 1460 0"></path>
+    <path d="M480 660 C 760 540, 1000 400, 1200 268 S 1450 96, 1540 40" opacity="0.75"></path>
+    <path d="M560 700 C 840 580, 1080 440, 1280 308 S 1530 136, 1620 80" opacity="0.5"></path>
+  </g>
+</svg>
+
 <main class="wrap">
 
   <!-- HERO.
@@ -106,8 +155,24 @@
        buttons where the decision is made. Deliberately NOT a replacement for
        that section: this is the headline version, that is the detail, and the
        section below still carries the full four with their reasons. A visitor
-       who reads nothing else should still leave knowing this much. -->
-  <p class="trust-strip">No identity documents · No photographs · No manual override</p>
+       who reads nothing else should still leave knowing this much.
+
+       PROMOTED AGAIN IN #285, from 13px grey uppercase separated by middots to
+       body-size text with a marked item each. It was set like a disclaimer --
+       the typographic register a reader has learned to skip -- while saying
+       the strongest thing this product has to say. Uppercase at that size is
+       also the slowest thing on the page to read.
+
+       The marks are drawn in CSS rather than as glyphs or images: Inter is
+       vendored here and a tick character would fall through to whatever the
+       reader's fallback stack supplies, at a different weight and baseline on
+       every machine. Each claim stays one contiguous string so the test that
+       pins these three sentences keeps working on the markup. -->
+  <p class="trust-strip">
+    <span>No identity documents</span>
+    <span>No photographs</span>
+    <span>No manual override</span>
+  </p>
 
   <!-- HOW IT WORKS.
        The "visual proof" this page was missing. Built from real HTML text with
