@@ -12,7 +12,7 @@
  * radii, the weight of the type.
  *
  * Not borrowed: blurple as decoration. Discord can afford to paint furniture
- * in its brand colour because it has no other blue to confuse it with. Here
+ * in its brand color because it has no other blue to confuse it with. Here
  * blurple means exactly two things -- "this is the page you are on" and "this
  * is the button that does the thing" -- so it is never spent on a border or a
  * heading. Everything else is carried by the surface ramp and type weight.
@@ -24,19 +24,19 @@
  * of it. Page navigation is instant, nothing loops, nothing spins, nothing
  * slides, and the fades are off under prefers-reduced-motion.
  *
- * TOKENS: the block below defines three palettes' worth of colour plus a
+ * TOKENS: the block below defines three palettes' worth of color plus a
  * vocabulary for type, spacing, elevation, motion and focus. Most of the
- * non-colour tokens are not applied to the rules further down yet -- they are
+ * non-color tokens are not applied to the rules further down yet -- they are
  * adopted component by component as each is restyled, so the conversion lands
  * in reviewable pieces rather than one commit that touches every line. Reach
  * for an existing token before adding a literal.
  *
- * THE COLOUR VALUES ARE DUPLICATED IN `site/style.css` (issue #137). The apex
+ * THE COLOR VALUES ARE DUPLICATED IN `site/style.css` (issue #137). The apex
  * site cannot share this file -- different origin, different deploy, and the
  * entire argument for that site being static is that it does not depend on
  * the box this dashboard runs on. So the surface, ink, line and accent values
  * exist twice on purpose, and this comment is half of the pair that says so.
- * Change a colour here, change it there.
+ * Change a color here, change it there.
  *
  * The site orders its theme blocks the other way up -- dark on the bare
  * `:root` rather than light -- because it has no server to stamp the
@@ -88,11 +88,11 @@
  *
  * The dark hexes appear exactly once, in block 2. Blocks 3 and 4 repeat the
  * *mapping* because a media query cannot be folded into a selector list, but a
- * colour change is still a one-line edit rather than two that can disagree. */
+ * color change is still a one-line edit rather than two that can disagree. */
 
 /* Light: the floor, and what an explicit Light choice pins.
  *
- * Discord's light palette. The ground is genuinely grey rather than white --
+ * Discord's light palette. The ground is genuinely gray rather than white --
  * white is reserved for the cards, and without that the ramp has nowhere to
  * go. */
 :root,
@@ -127,7 +127,7 @@
 
   --ink: #313338;         /* body text */
   --ink-strong: #060607;  /* headings, values, anything you scan for */
-  --muted: #5c5e66;       /* descriptions. 5.4:1 on white, not decorative grey */
+  --muted: #5c5e66;       /* descriptions. 5.4:1 on white, not decorative gray */
   --faint: #63666f;       /* the least important thing on the page, and still
                              text: 5.7:1 on a card, 4.6:1 on the ground, which
                              is the darkest surface it lands on. Was #80848e --
@@ -151,7 +151,7 @@
                              * background is the pale one. */
 
   /* Semantic, and separate from the accent on purpose -- "this succeeded" and
-   * "this is the current page" must never be the same colour. */
+   * "this is the current page" must never be the same color. */
   /* Darkened from #1a8245 by the adversarial pass over #141. That value is
    * 4.86:1 on --panel and passed everywhere it was measured -- but the plan
    * cards are drawn on --inset, and on that surface it is 4.14:1. "Save about
@@ -183,7 +183,7 @@
   --notice-line: #f0c98a;
 
   /* The logo is one flat black-and-white mark and ships as one file. The dark
-   * theme recolours it rather than loading a second image -- see
+   * theme recolors it rather than loading a second image -- see
    * --dark-logo-filter for why that is not laziness. */
   --logo-filter: none;
 
@@ -215,7 +215,7 @@
   --control-h: 2.25rem;
 
   /* White in both themes, and therefore not repeated in either dark block. The
-   * knob is a physical object in the metaphor -- it does not change colour
+   * knob is a physical object in the metaphor -- it does not change color
    * when the room does. */
   --switch-knob: #ffffff;
 }
@@ -400,7 +400,7 @@
   }
 }
 
-/* Everything that is not a colour, and therefore not a theme.
+/* Everything that is not a color, and therefore not a theme.
  *
  * These are the vocabulary the rest of this epic builds against. Most of them
  * are NOT yet applied to the rules below: converting several hundred literals
@@ -523,7 +523,7 @@
   --font: "Inter var", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* Checkboxes and colour inputs render in the OS blue otherwise. One property,
+  /* Checkboxes and color inputs render in the OS blue otherwise. One property,
    * and it is a real CSS property rather than an inline style, which is the
    * only reason it is available to us. */
   accent-color: var(--accent);
@@ -554,11 +554,11 @@ body {
    *
    * ONE TRAP, AND IT COST A ROUND HERE. A flex item with `auto` margins on
    * the cross axis does NOT stretch -- the auto margins win and the item is
-   * sized to fit-content instead. `.layout` carries `margin: 0 auto` to centre
+   * sized to fit-content instead. `.layout` carries `margin: 0 auto` to center
    * itself, so making body a column silently shrank it from 78rem to its
    * content width and moved the entire app 81px to the right. Nothing failed;
    * it just rendered narrower. `width: 100%` on `.layout` below restores the
-   * block behaviour, after which max-width caps it and the auto margins centre
+   * block behavior, after which max-width caps it and the auto margins center
    * it, exactly as before. */
   min-height: 100vh;
   display: flex;
@@ -574,25 +574,25 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* THE DESIGN SYSTEM OWNS ITS LINK COLOUR (#168).
+/* THE DESIGN SYSTEM OWNS ITS LINK COLOR (#168).
  *
- * There was no `a { color }` rule at all. Links took their colour from five
+ * There was no `a { color }` rule at all. Links took their color from five
  * component-scoped rules and everything else fell back to the user agent's --
  * so "See what's included on Discord's store page" rendered in Chrome's link
  * blue, on a card this file had painted, next to text in --ink and --muted. On
  * the page that takes money.
  *
  * It was better than it sounds and still wrong: `color-scheme` is declared per
- * theme, so Chrome supplied its dark-mode link colour on dark rather than
- * #0000EE on #313338. Both were legible. But the colour was the browser's, it
+ * theme, so Chrome supplied its dark-mode link color on dark rather than
+ * #0000EE on #313338. Both were legible. But the color was the browser's, it
  * did not match --accent-text, which exists for exactly this, and it would not
  * have followed the palette if the tokens changed.
  *
  * --accent-text rather than --accent: the latter is a button background and is
  * 2.7:1 against a card. Both pairs used here are pinned in test_contrast.py.
  *
- * Underlined, not just tinted. Colour alone is not a link affordance, and
- * WCAG 1.4.1 says so -- the five component rules that already set a colour
+ * Underlined, not just tinted. Color alone is not a link affordance, and
+ * WCAG 1.4.1 says so -- the five component rules that already set a color
  * drop the underline deliberately, because a nav item and a breadcrumb are
  * identifiable by position. A sentence with a word in it is not. */
 a {
@@ -616,9 +616,9 @@ p { text-wrap: pretty; }
  * which on a 948px card is ~120 characters.
  *
  * Scoped to `.panel` rather than applied globally: a paragraph outside a card
- * is chrome -- the footer's line, an empty-state note centred in its own box --
- * and those are already short or already centred, so a max-width there would
- * either do nothing or fight the centring. */
+ * is chrome -- the footer's line, an empty-state note centered in its own box --
+ * and those are already short or already centered, so a max-width there would
+ * either do nothing or fight the centering. */
 .panel .blurb,
 .panel .desc,
 .panel > p { max-width: var(--measure); }
@@ -859,7 +859,7 @@ a.bar-button { text-decoration: none; }
   height: 0.3rem;
   border-radius: 50%;
   background: var(--accent-text);
-  /* A ring in the surface colour, so the dot stays a dot when it overlaps the
+  /* A ring in the surface color, so the dot stays a dot when it overlaps the
    * bell's outline instead of merging into the stroke. `box-shadow` rather
    * than a border, which would grow the element and shift it off the corner.
    * --chrome at rest; the [open] rule below swaps it, because the button is
@@ -925,7 +925,7 @@ a.bar-button { text-decoration: none; }
  *
  * A tint rather than a fill for the second reason too: this panel is the
  * quiet surface. It earns the credibility that makes phase 4's Overview card
- * land as news instead of as an advert, and a column of coloured chips is how
+ * land as news instead of as an advert, and a column of colored chips is how
  * that gets spent. */
 .bell-tag {
   font-weight: 700;
@@ -1019,13 +1019,13 @@ a.bar-button { text-decoration: none; }
  *
  * Both are still one click from every page rather than behind an account page,
  * which is the point the original comment made and is still the right one --
- * "sign out everywhere" is what you want at the moment you realise somebody
+ * "sign out everywhere" is what you want at the moment you realize somebody
  * else has your session, and that is not a moment to go looking.
  *
  * NEITHER IS STYLED AS DESTRUCTIVE, deliberately. Red would be the obvious
  * choice for "sign out everywhere" and it would be the wrong one: it destroys
  * no data, it ends sessions, and it is exactly the thing you want somebody to
- * do without hesitating when they think they have been compromised. Colouring
+ * do without hesitating when they think they have been compromised. Coloring
  * it as a hazard would discourage the one action the control exists for.
  *
  * There is no identity block at the top of this menu, unlike every comparable
@@ -1067,9 +1067,9 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   line-height: 1;
 }
 
-/* Centred on its own class, NOT on .centered.
+/* Centered on its own class, NOT on .centered.
  *
- * .centered is also what the sign-in page wears, and centring there would
+ * .centered is also what the sign-in page wears, and centering there would
  * restyle a page this phase has no business touching -- #134 redesigns it. A
  * shared class picking up a look meant for one of its users is how a stylesheet
  * starts changing pages nobody edited. */
@@ -1099,7 +1099,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * It stays unfilled anyway, for the reason the fill was reached for in the
  * first place being the weaker one. A success notice is the only kind a reader
  * does not have to act on, and the fill is what makes the warning hard to skip
- * past. Two filled boxes of different colours read as two alerts.
+ * past. Two filled boxes of different colors read as two alerts.
  *
  * WHAT THIS DOES MEAN is that whatever sits behind this element IS its
  * background. On --panel that is 5.39:1. As a direct child of <main> it would
@@ -1141,7 +1141,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  *
  * Needed the moment two calls to action sit side by side: two filled blurple
  * buttons in a comparison fight each other, and `.plan-featured` exists
- * precisely to say which of the two tiers is the emphasised one.
+ * precisely to say which of the two tiers is the emphasized one.
  *
  * --accent-text FOR THE BORDER, NOT --accent, and this is the same measurement
  * the apex site's `.cta.secondary` already paid for: --accent is 2.74:1
@@ -1323,7 +1323,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 .side-link:hover { background: var(--hover); color: var(--ink-strong); }
 
 /* The current section. Discord marks selection with a filled pill rather than
- * a coloured label, which leaves the brand colour free to mean "act on this"
+ * a colored label, which leaves the brand color free to mean "act on this"
  * everywhere else on the page. */
 .side-link.current,
 .side-link.current:hover {
@@ -1385,10 +1385,10 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * every state and the CONTENTS of its slots change. A server that is set up
  * gets a name that opens it; one the bot is not in gets an "Add to server"
  * button in the slot where nothing else lives. The difference is a shape
- * rather than a shade, so it survives greyscale, colour blindness, and being
+ * rather than a shade, so it survives grayscale, color blindness, and being
  * glanced at rather than read.
  *
- * The greyscale on an absent icon stays, but it is now the second signal
+ * The grayscale on an absent icon stays, but it is now the second signal
  * rather than the only one. */
 .servers {
   list-style: none;
@@ -1478,7 +1478,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   color: var(--faint);
 }
 
-/* Servers the bot is not in, and servers we could not ask about. Greyscale
+/* Servers the bot is not in, and servers we could not ask about. Grayscale
  * reads as "available but not set up" and is the SECOND cue in both cases --
  * the first is the button, or its absence. */
 .server-card.absent .icon img,
@@ -1491,9 +1491,9 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 /* The two states that want something doing (#164). Same `--notice` the setup
  * list uses for its todo and broken rows, so an admin who has seen one
- * recognises the other -- and applied to the TEXT, which is the slot's whole
+ * recognizes the other -- and applied to the TEXT, which is the slot's whole
  * content, rather than to a dot or a border that would carry the meaning in
- * colour alone. The wording says which state it is; the colour only makes it
+ * color alone. The wording says which state it is; the color only makes it
  * findable in a grid.
  *
  * `done` is deliberately unstyled. Styling every state leaves nothing for the
@@ -1506,13 +1506,13 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 /* --- the empty picker ---
  *
  * Reachable in an ordinary way -- somebody promoted since they last signed in
- * -- so it gets a way forward rather than an apology in grey text.
+ * -- so it gets a way forward rather than an apology in gray text.
  *
  * `.empty-state`, NOT `.empty`, and that rename is a bug fix rather than a
  * tidy-up. settings.html marks a value with nothing behind it as
  * `class="value empty"` -- "Not set", "No panel found", "Couldn't check" --
  * and a bare `.empty` here reached every one of them. Each of those little
- * grey phrases was being drawn as a padded, bordered card on the densest page
+ * gray phrases was being drawn as a padded, bordered card on the densest page
  * in the app. Two templates, one word, entirely different meanings. */
 .empty-state {
   margin: 1rem 0 0;
@@ -1548,7 +1548,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * those cards are a stack of provider buttons and nothing else, because there
  * is nothing unusual to say. This one has three sentences about what signing
  * in grants and what this site cannot see, and they were previously drawn as
- * one grey <p class="muted"> underneath the lede.
+ * one gray <p class="muted"> underneath the lede.
  *
  * Everything is prefixed `signin-`. Three class collisions surfaced during
  * #133 -- `.centered`, `.empty` and `.plan`, each one word meaning two things
@@ -1586,7 +1586,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 /* THE PART THAT WAS STYLED AS THE LEAST IMPORTANT THING ON THE PAGE.
  *
  * Given the card's own inset surface so it reads as a block rather than as
- * more prose, and left-aligned because these are sentences: three centred
+ * more prose, and left-aligned because these are sentences: three centered
  * lines of different lengths is a poem, not a list. */
 .signin-grants {
   list-style: none;
@@ -1642,7 +1642,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 /* Under everything, in the quietest voice on the page that is still readable:
  * --faint on --panel is tested. Craft and OpenAI both sit them here, small and
- * unemphasised -- present for somebody looking for them, not competing with
+ * unemphasized -- present for somebody looking for them, not competing with
  * the one action. */
 .signin-legal {
   display: flex;
@@ -1795,7 +1795,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 /* --- the toggle switch ---
  *
  * A REAL <input type="checkbox">, restyled. Not a div with a click handler:
- * keeping the native control means the keyboard behaviour, the focus ring, the
+ * keeping the native control means the keyboard behavior, the focus ring, the
  * label association and everything a screen reader says about it are the
  * browser's job and stay correct for free. `appearance: none` removes the box
  * and nothing else.
@@ -1885,7 +1885,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * resolve it.
  *
  * Hidden by default and revealed by a class app.js sets. With no JavaScript it
- * never appears, which is the behaviour this page has always had. */
+ * never appears, which is the behavior this page has always had. */
 .unsaved {
   display: none;
   align-items: center;
@@ -1946,7 +1946,7 @@ input[type="text"]:hover { border-color: var(--ink); }
 
 /* THE FOCUS RING IS NOT SET HERE, and specifically `outline: none` is not.
  *
- * This rule used to end with it, replacing the ring with a 1px border colour.
+ * This rule used to end with it, replacing the ring with a 1px border color.
  * `select:focus` is more specific than the `:focus-visible` rule at the foot
  * of this file, so it won every time -- these two controls had no focus ring
  * at all, for anybody, including somebody navigating by keyboard. A
@@ -1976,7 +1976,7 @@ textarea {
   line-height: 1.5;
 }
 
-/* The Save button stays a full, labelled button and does not shrink to an icon
+/* The Save button stays a full, labeled button and does not shrink to an icon
  * when idle. It is the only thing on the card that commits anything, and a
  * control that is hard to find while you are looking for it is a worse problem
  * than one that is prominent while you are not. */
@@ -2019,7 +2019,7 @@ textarea {
  *
  * A chip and a fact list, the shape every billing page gathered as reference
  * settles on (Superhuman, Base44, Rise, Grammarly). What it replaces is eight
- * states rendered as eight paragraphs of grey prose under one heading, so the
+ * states rendered as eight paragraphs of gray prose under one heading, so the
  * page announced "you are being charged twice" in the same voice, at the same
  * weight, as "verification is free".
  *
@@ -2171,7 +2171,7 @@ code {
 
 /* Chrome, and it aligns with the other piece of chrome (#195 phase 6).
  *
- * It was `max-width: 78rem` centred on the page while `main` is 60rem, so at
+ * It was `max-width: 78rem` centered on the page while `main` is 60rem, so at
  * 1280px it started at x=16 and the content column started at x=296 -- lined
  * up with neither the cards above it nor the bar at the top. And with no
  * ground and no rule it was not a bar at all, just text that had run out of
@@ -2196,7 +2196,7 @@ footer p + p { margin-top: var(--space-2); }
  * desktop and take two on a phone, and two lines of footer is fine where a
  * sideways scrollbar under the content is not.
  *
- * The colour is still declared rather than inherited, but the reason changed.
+ * The color is still declared rather than inherited, but the reason changed.
  * It used to be the workaround #168 described, because there was no base
  * `a { color }` rule and an unstyled link here would render in the browser's
  * default blue. #168 is fixed, so the base rule now paints these --accent-text
@@ -2219,7 +2219,7 @@ footer p + p { margin-top: var(--space-2); }
 
 /* --- the changelog page (#136 phase 3) ---
  *
- * The full list the bell summarises. Bodies are NOT clamped here: this is
+ * The full list the bell summarizes. Bodies are NOT clamped here: this is
  * where the panel's two-line previews point, so clamping again would leave
  * the text nowhere to be read.
  *
@@ -2375,7 +2375,7 @@ footer p + p { margin-top: var(--space-2); }
  * oldest at 0 and newest at the viewBox's right edge, with no `dir` check
  * anywhere in that arithmetic. The series does not mirror in RTL, so a label
  * meant to sit over its newest end cannot follow `dir` either without
- * drifting away from the bars it is labelling. */
+ * drifting away from the bars it is labeling. */
 .chart-scale {
   margin: var(--space-5) 0 var(--space-1);
   text-align: right;
@@ -2429,9 +2429,9 @@ footer p + p { margin-top: var(--space-2); }
 .setup-row-off .setup-state { color: var(--faint); }
 
 /* Not configured, and configured-but-broken, share the amber "needs
- * attention" colour -- neither is red, because a server missing its
+ * attention" color -- neither is red, because a server missing its
  * verified role is not an error state, it is one step from finished.
- * "Broken" additionally colours its note: an admin who thought this was
+ * "Broken" additionally colors its note: an admin who thought this was
  * already working needs that sentence to stand out more than "not set yet"
  * does. See `_role_row` and `_panel_row` in overview_view.py for which row
  * lands in which state. */
@@ -2733,9 +2733,9 @@ footer p + p { margin-top: var(--space-2); }
   .side-link { justify-content: center; }
   .layout.collapsed .side-link { justify-content: center; }
   .layout.collapsed .side-guild { justify-content: flex-start; }
-  /* The third of the trio `.layout.collapsed` centres, and the one this block
+  /* The third of the trio `.layout.collapsed` centers, and the one this block
      forgot to put back (#163). No effect today because `.side-up` lands in the
-     grid's `auto` track and is content-sized -- but the rail's centring makes
+     grid's `auto` track and is content-sized -- but the rail's centering makes
      no sense at a width where the labels are back, and the other two are
      reset right here. */
   .layout.collapsed .side-up a { justify-content: flex-start; }
@@ -2811,7 +2811,7 @@ footer p + p { margin-top: var(--space-2); }
 
 /* --- motion ---
  *
- * Narrow by intent: colour fades on the things you point at, and a cross-fade
+ * Narrow by intent: color fades on the things you point at, and a cross-fade
  * between pages. Nothing loops, nothing spins, nothing moves in space, and
  * none of it runs for a reader who has asked for less. A dashboard that
  * animates while you are trying to read a number is a dashboard arguing with
@@ -2834,7 +2834,7 @@ footer p + p { margin-top: var(--space-2); }
   }
 
   /* The knob travels. Only here: with motion reduced the switch still changes
-   * state and still changes colour, it simply arrives rather than slides.
+   * state and still changes color, it simply arrives rather than slides.
    * A switch that stopped working under prefers-reduced-motion would be a
    * broken control, not a calmer one. */
   .switch::before { transition: translate var(--motion-fast) var(--ease); }
@@ -2849,7 +2849,7 @@ footer p + p { margin-top: var(--space-2); }
  * once is friction the tenth time. Navigation is instant. */
 
 /* --- Subscriptions ------------------------------------------------------ *
- * Three plan cards side by side, stacking on narrow screens. No colour is
+ * Three plan cards side by side, stacking on narrow screens. No color is
  * written inline anywhere on this page: `style-src 'self'` drops inline styles
  * SILENTLY, so a swatch written as style="" would simply not apply and nothing
  * would say so. */
@@ -2890,9 +2890,9 @@ footer p + p { margin-top: var(--space-2); }
 
 /* THE ONE PAGE IN THIS APP THAT IS SELLING RATHER THAN ADMINISTERING.
  *
- * Centred, and drawn at --text-display, which is the size site/index.html's
+ * Centered, and drawn at --text-display, which is the size site/index.html's
  * hero uses and the size every pricing reference in #195 uses. Neither belongs
- * on a console page: 48px on Overview would shout, and a console that centres
+ * on a console page: 48px on Overview would shout, and a console that centers
  * its headings reads as a brochure. A test asserts this class has not leaked.
  */
 .page-head.selling {
@@ -2905,15 +2905,15 @@ footer p + p { margin-top: var(--space-2); }
   margin: 0 0 var(--space-3);
 }
 .page-head.selling p {
-  /* Two centred lines broken at the measure land "per server." alone on the
+  /* Two centered lines broken at the measure land "per server." alone on the
    * second; `balance` splits them evenly instead. Worth it on a heading block
    * and nowhere else -- the algorithm is capped at a few lines and costs
    * layout work, so it does not belong on body copy. */
   text-wrap: balance;
-  /* Centred prose still takes a measure -- a centred 100-character line is
+  /* Centered prose still takes a measure -- a centered 100-character line is
    * harder to read than a left-aligned one, not easier, because the eye has
    * to find a new left edge on every line. `auto` margins rather than the
-   * parent's text-align doing the work, so the block itself is centred. */
+   * parent's text-align doing the work, so the block itself is centered. */
   margin: 0 auto;
   font-size: var(--text-section);
   line-height: var(--leading-body);
@@ -2974,7 +2974,7 @@ footer p + p { margin-top: var(--space-2); }
  * cannot be swapped between clicking and submitting.
  *
  * `.plan-card`, NOT `.plan` -- #158. `settings.html` uses `<p class="muted
- * plan">` for an italic grey footnote, and this block declared no `color`,
+ * plan">` for an italic gray footnote, and this block declared no `color`,
  * `font-size`, `font-style` or `margin`, so it inherited all four. On the page
  * that takes money, in both themes, at every width, the price rendered italic
  * and --muted instead of --ink-strong and the Subscribe label was italic: the
@@ -3015,7 +3015,7 @@ footer p + p { margin-top: var(--space-2); }
   letter-spacing: 0.02em;
   text-transform: uppercase;
   /* --accent-ink, not #fff, and --radius-pill, not 999px. These were the only
-     raw colour literal outside the token blocks and a hardcoded radius beside
+     raw color literal outside the token blocks and a hardcoded radius beside
      a token holding the same value (#163). --accent-ink is #ffffff in both
      themes, so this is the same pixels by a name that survives a retheme. */
   color: var(--accent-ink);
@@ -3077,7 +3077,7 @@ footer p + p { margin-top: var(--space-2); }
   margin: 0.15rem 0 0;
   padding: 0.2rem 0.45rem;
   border-radius: var(--radius-control);
-  /* A hairline of its own colour rather than a fill. There is no soft-accent
+  /* A hairline of its own color rather than a fill. There is no soft-accent
    * surface token, and inventing one would mean a fourth background value to
    * keep in step across two themes for a badge this size -- the same
    * reasoning the status chips in phase 1 followed. `currentColor` means the
@@ -3152,7 +3152,7 @@ footer p + p { margin-top: var(--space-2); }
 
 @media (max-width: 40rem) {
   /* One column, and a wider gap than the row layout needs. `.plan-badge`
-   * overhangs its card by 0.6rem, which is invisible beside a neighbour and
+   * overhangs its card by 0.6rem, which is invisible beside a neighbor and
    * lands on the card above it once these stack -- the 0.75rem row gap left
    * it touching the border above. */
   .plans { grid-template-columns: 1fr; gap: 1.35rem; }

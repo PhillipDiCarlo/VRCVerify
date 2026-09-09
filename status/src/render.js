@@ -29,7 +29,7 @@ const STATE_LABEL = {
 };
 
 /**
- * The four glyphs, so that state is never carried by colour alone.
+ * The four glyphs, so that state is never carried by color alone.
  *
  * Drawn rather than lettered, because a check and a cross survive being
  * shrunk to 17px in a way that a glyph from the body font does not -- the
@@ -87,7 +87,7 @@ export function utcStamp(unixSeconds) {
  * strip itself is hidden from assistive technology rather than being narrated
  * as ninety anonymous list items.
  *
- * A day with no observations is drawn in the track colour, distinct from both
+ * A day with no observations is drawn in the track color, distinct from both
  * green and red. It has to be: this page will have exactly that for its first
  * eighty-nine days, and drawing "we did not exist yet" as either health or
  * failure would be inventing history.
@@ -194,10 +194,10 @@ const IMPACT_STATE = { maintenance: "degraded", degraded: "degraded", down: "dow
  * the only arrangement where the useful line is above the fold on a phone.
  */
 function incidentBanner(incident, now) {
-  // A FINISHED INCIDENT IS DRAWN NEUTRAL, not in the colour of the trouble it
+  // A FINISHED INCIDENT IS DRAWN NEUTRAL, not in the color of the trouble it
   // used to be. The history section was shipping a red-bordered, red-tinted
   // card for something that had been fixed hours earlier -- alarming at a
-  // glance, and wrong the moment anybody read the date. The state colour is
+  // glance, and wrong the moment anybody read the date. The state color is
   // for things that are happening now; what a closed one needs to say is how
   // long it lasted.
   const done = Boolean(incident.resolved_at);
@@ -256,7 +256,7 @@ export function renderPage({
   // THE DEPENDENCY ROWS GET THE SAME GATE, which the first version of this
   // function forgot. They are not read live: they are read out of the same
   // storage, written by the same checker, and a checker that stopped an hour
-  // ago knows no more about Discord than it does about us. Half a page of grey
+  // ago knows no more about Discord than it does about us. Half a page of gray
   // rows beside four confident green ones would be worse than either, because
   // it reads as "our stuff is unknown, theirs is fine" -- a claim nobody made.
   const shownUpstreams = {};
@@ -265,7 +265,7 @@ export function renderPage({
   }
 
   const open = (incidents ?? []).filter((incident) => !incident.resolved_at);
-  // THE COLOUR IS MEASURED, NEVER TYPED. An incident is a person's words, and
+  // THE COLOR IS MEASURED, NEVER TYPED. An incident is a person's words, and
   // it must not move the hero's state or one pill in either direction: not
   // better than the rows say (that was always true) and not worse either -- an
   // operator opening a "down" incident by habit, or over-stating one to be
@@ -299,7 +299,7 @@ export function renderPage({
   const WARNINGS = {
     // Each one says what is broken, what the page is doing about it, and what
     // it does NOT imply. The last part matters: a reader who sees a wall of
-    // grey needs to be told that grey is a statement about this page rather
+    // gray needs to be told that gray is a statement about this page rather
     // than about the bot.
     stale:
       "The checker last reported more than five minutes ago, so every row above is " +
@@ -416,7 +416,7 @@ export function renderPage({
  * the hour it exists for.
  *
  * It reuses the public stylesheet rather than carrying its own, so it inherits
- * the theme, the type scale and the focus rings, and so that changing a colour
+ * the theme, the type scale and the focus rings, and so that changing a color
  * on the status page cannot leave this one looking like a different product's
  * admin panel.
  */
@@ -497,7 +497,7 @@ export function renderAdmin({ incidents, who, now }) {
   </section>
 
   <p class="caveat">An open incident shows as its own banner on the public page, as
-  information. It never changes the status of any service, or the colour of anything:
+  information. It never changes the status of any service, or the color of anything:
   those come only from what was measured. While one is open the headline says how many
   there are, instead of claiming all is well above your own banner.</p>
 </main>

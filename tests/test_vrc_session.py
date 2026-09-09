@@ -385,7 +385,7 @@ class TestSessionPersistence:
         file had already been deleted -- so a rejected session left NOTHING
         on disk and the next restart burned a 2FA email, defeating the whole
         feature in exactly the case it exists for. The previous test actually
-        asserted the broken behaviour (`attach == 1`).
+        asserted the broken behavior (`attach == 1`).
         """
         path = tmp_path / "session.txt"
         acct = account(path)
@@ -674,7 +674,7 @@ class TestStale2faCodes:
         assert vrcs.fetch_latest_2fa_code(account(), not_before=self.NOW) == "555555"
 
     def test_without_not_before_any_code_is_accepted(self, monkeypatch):
-        """Callers that do not know when they asked keep the old behaviour."""
+        """Callers that do not know when they asked keep the old behavior."""
         self._install(monkeypatch, [(self.NOW - 86400, "Your One-Time Code is 666666")])
         assert vrcs.fetch_latest_2fa_code(account()) == "666666"
 

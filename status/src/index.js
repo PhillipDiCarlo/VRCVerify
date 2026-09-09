@@ -14,7 +14,7 @@ import {
   HEARTBEAT_STALE_SECONDS,
   PAGE_CACHE_SECONDS,
   HISTORY_DAYS,
-  ALERT_COLOURS,
+  ALERT_COLORS,
 } from "./config.js";
 import {
   capabilitiesFromParts,
@@ -568,7 +568,7 @@ async function sendAlerts(env, alert) {
             {
               title: alert.title,
               description: alert.lines.join("\n"),
-              color: ALERT_COLOURS[alert.severity] ?? ALERT_COLOURS.unknown,
+              color: ALERT_COLORS[alert.severity] ?? ALERT_COLORS.unknown,
               url: "https://status.vrcverify.com/",
               timestamp: new Date(alert.at * 1000).toISOString(),
             },
@@ -687,7 +687,7 @@ async function handleReport(request, env, now, ctx) {
   // WHO WATCHES THIS? Nothing did, and the adversarial pass is where that
   // turned up: every alert in the system is produced BY the cron, so the one
   // failure that silences all of them is the cron itself not running. The page
-  // would correctly go grey and say its data was stale, and not one person
+  // would correctly go gray and say its data was stale, and not one person
   // would be told, which is the 17h43m outage's exact shape rebuilt inside the
   // thing built to prevent it.
   //

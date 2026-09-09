@@ -199,7 +199,7 @@ class TestSigning:
         assert reporter._sign(self.SECRET, self.TIMESTAMP + 1, self.BODY) != self.EXPECTED
 
     def test_the_body_the_reporter_sends_is_the_body_it_signs(self, monkeypatch):
-        """A re-serialisation between signing and sending would fail every time."""
+        """A re-serialization between signing and sending would fail every time."""
         sent = {}
 
         class FakeResponse:

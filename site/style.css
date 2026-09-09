@@ -16,12 +16,12 @@
    Undocumented duplication is how two surfaces drift into looking like two
    products.
 
-   Change a colour in one, change it in the other.
+   Change a color in one, change it in the other.
 
    THERE IS NOW A THIRD COPY: status/public/style.css, the status page (issue
    #170). Same argument again, one step further -- that Worker exists to keep
    serving when this one is not, so it cannot fetch a stylesheet from here.
-   Change a colour in one, change it in all three. tests/test_status_page.py
+   Change a color in one, change it in all three. tests/test_status_page.py
    compares its tokens against this file and fails on drift.
 
    WHAT WAS NOT COPIED, and where to find it if a later phase needs it: the
@@ -122,7 +122,7 @@
      that diverges -- see the light block. */
   --control-line: #80848e;
 
-  /* THREE STATUS COLOURS, for the header's status dot (#170).
+  /* THREE STATUS COLORS, for the header's status dot (#170).
 
      Taken from status/public/style.css at the values it measured, unchanged,
      because a green here and a green there have to be the same green -- the
@@ -140,7 +140,7 @@
        light  --ok 5.54:1   --notice 5.70:1   --down 5.30:1
 
      A dot is a graphical object and owes 3:1 (WCAG 1.4.11). All six clear
-     4.5:1 as well, so the label beside it may take the colour later without
+     4.5:1 as well, so the label beside it may take the color later without
      another pass. Pinned in tests/test_site.py. */
   --ok: #26b261;
   --notice: #f0b232;
@@ -189,7 +189,7 @@
      The dashboard's light --control-line is #8d919b, tuned against the white
      cards its inputs sit on, where it gives 3.16:1. This site's only control
      sits on the header bar -- --chrome, #f2f3f5, which is darker than white --
-     and against that the same grey gives 2.84:1, under the 3:1 a UI component
+     and against that the same gray gives 2.84:1, under the 3:1 a UI component
      needs. The dashboard was never asked for that pairing, so its value is not
      wrong; it is measured against a surface this site does not use here.
 
@@ -328,7 +328,7 @@
    changes the layout and nothing catches it.
 
    THE OTHER HALF OF THIS PAIR IS IN src/dashboard/static/style.css, exactly
-   as the colour tokens are, and for the same reason -- two origins, two
+   as the color tokens are, and for the same reason -- two origins, two
    deploys, no shared stylesheet possible. Read that file's block before
    changing anything here.
 
@@ -494,7 +494,7 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
 
    IT IS A LINK FIRST AND AN INDICATOR SECOND. It ships as a working link to
    the status page with a neutral dot, which is the whole feature for anybody
-   with JavaScript off or blocked. /status.js then colours the dot from the
+   with JavaScript off or blocked. /status.js then colors the dot from the
    real verdict. Nothing here is hidden pending a script, unlike the theme
    picker: that control cannot work without JavaScript, and this one can. */
 .status-pill {
@@ -514,16 +514,16 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
 
 /* NEVER GREEN FROM MISSING DATA, which is the status page's first rule and
    has to hold on the surface that quotes it. The mark ships as a neutral dot
-   in the faint colour, and every path that does not end in a confirmed
+   in the faint color, and every path that does not end in a confirmed
    reading leaves it exactly there: no script, blocked script, failed fetch,
-   stale data, a shape this code does not recognise. Green is only ever
+   stale data, a shape this code does not recognize. Green is only ever
    written by a successful read.
 
-   AND STATE IS NEVER COLOUR ALONE, which is the same page's other rule, and
-   the reason this is a glyph slot rather than a coloured dot. Measured:
+   AND STATE IS NEVER COLOR ALONE, which is the same page's other rule, and
+   the reason this is a glyph slot rather than a colored dot. Measured:
    --ok and --down have relative luminance 0.3312 and 0.3407 -- a difference
    of 0.01 -- so "everything is working" and "something is down" were the same
-   grey dot to a red-green colourblind reader, in the two states where being
+   gray dot to a red-green colorblind reader, in the two states where being
    wrong costs the most. /status.js swaps in a tick, an exclamation or a
    cross, which are the status page's own glyphs at its own proportions. */
 .status-glyph { flex: none; color: var(--faint); }
@@ -590,8 +590,8 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
   header.site .wrap { column-gap: 0.75rem; }
 }
 
-/* STATE IS NEVER CARRIED BY COLOUR ALONE, which is the same rule the status
-   page follows by drawing four glyphs rather than four colours. Here the
+/* STATE IS NEVER CARRIED BY COLOR ALONE, which is the same rule the status
+   page follows by drawing four glyphs rather than four colors. Here the
    verdict goes in text only a screen reader meets, because the visible pill
    has room for one word and "Status" is the word that says where it goes.
    Identical to status/public/style.css, which needed it for the same job. */
@@ -637,7 +637,7 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
 
 /* THE THEME MENU (#195 phase 7).
 
-   ONE AFFORDANCE ACROSS BOTH HOSTS. This was a labelled <select> while the
+   ONE AFFORDANCE ACROSS BOTH HOSTS. This was a labeled <select> while the
    dashboard used an icon opening a popover -- two controls for the same
    three-way choice, met by the same person within one click of each other.
    The dashboard's is the model because it is the one that works with
@@ -752,7 +752,7 @@ li { margin: 0.3rem 0; }
  * IT IS NAVIGATION, NOT A SUMMARY. A tidy list at the top of a Terms of
  * Service can be mistaken for a precis of the agreement, and a reader who
  * believes they have read the terms because they read the list has been misled
- * by the layout. So: announced as <nav>, labelled "On this page", drawn as a
+ * by the layout. So: announced as <nav>, labeled "On this page", drawn as a
  * block of links, carrying no descriptions. It says where things are, never
  * what they say.
  *
@@ -779,7 +779,7 @@ li { margin: 0.3rem 0; }
  * It only tightens the type.
  *
  * Multi-column rather than a grid. Grid sizes each row to its tallest item,
- * and the longer titles wrap, so every short neighbour left a hole. Multicol
+ * and the longer titles wrap, so every short neighbor left a hole. Multicol
  * packs, and it fills down then across, which reads better for a list the
  * document order matters in: 1-6 beside 7-12 rather than odds beside evens.
  * The DOM order is untouched either way, so a screen reader hears the sections
@@ -998,7 +998,7 @@ th { color: var(--muted); font-weight: 600; }
 
 /* THE TWO PLANS.
    .plan-card and .plan-featured are the dashboard's names on purpose (#141,
-   #158) so the two surfaces stay recognisably one product -- and so nobody
+   #158) so the two surfaces stay recognizably one product -- and so nobody
    reintroduces a bare `.plan`, which is the collision #158 was filed for.
    The dashboard draws these on --inset, which this site does not carry; the
    equivalent surface here is --panel.
@@ -1103,7 +1103,7 @@ th { color: var(--muted); font-weight: 600; }
 .policy p,
 .policy li { line-height: 1.7; }
 
-/* Hierarchy by size and spacing, not by colour. There is more space above a
+/* Hierarchy by size and spacing, not by color. There is more space above a
    heading than below it, so a heading belongs to what follows rather than
    floating between two sections -- the single most useful thing typography can
    do for a document somebody is scanning. */
@@ -1166,14 +1166,14 @@ th { color: var(--muted); font-weight: 600; }
 
 /* The date a policy was last changed is the first thing anybody checks when
    they are trying to establish what was in force on a given day, and it was
-   rendering as small grey text below the title like a caption. */
+   rendering as small gray text below the title like a caption. */
 .policy .updated {
   display: inline-block;
   margin: 0 0 2rem;
   padding: 0.25rem 0.6rem;
   /* --control-line, not --line. This element's entire shape is its border, and
      --line is 1.62:1 on the ground in dark and 1.05:1 in light -- so the pill
-     did not render as a pill at all, just small grey text where a chip was
+     did not render as a pill at all, just small gray text where a chip was
      drawn. --line is for separating things that are already distinguishable. */
   border: 1px solid var(--control-line);
   border-radius: 999px;

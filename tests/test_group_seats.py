@@ -324,7 +324,7 @@ class TestResolvingAGuildsAccount:
     def test_no_lease_on_a_single_account_install_is_not_in_doubt(self):
         """Every guild configured before the lease table existed is in exactly
         this position, and telling them the feature is unavailable until a
-        sweep materialises a row would be a self-inflicted outage."""
+        sweep materializes a row would be a self-inflicted outage."""
         assert bot.invite_account_for_guild(GUILD_ID).user_id == ACCOUNT_A
 
     def test_no_lease_with_several_accounts_says_so(self, two_accounts):

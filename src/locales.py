@@ -11,7 +11,7 @@
 # Weblate, or handed to a volunteer from the Discord without asking that person
 # to edit Python and hoping they balance the quotes.
 #
-# The dashboard has had gettext catalogues since #97, and #97 predicted the
+# The dashboard has had gettext catalogs since #97, and #97 predicted the
 # cost of running two systems for one job. #231 is the paying down. The twelve
 # languages now live in src/translations/bot/<lang>/LC_MESSAGES/bot.po, in the
 # format the translation industry actually speaks, and `pybabel update` merges
@@ -52,7 +52,7 @@ from i18n_core import N_
 #
 # tests/test_i18n.py pins this equal to the dashboard's UI_LANGUAGES, so a
 # thirteenth language cannot be added to one surface and forgotten on the
-# other. en-US leads and has no catalogue directory: its "translation" is the
+# other. en-US leads and has no catalog directory: its "translation" is the
 # msgids in this file.
 LANGUAGE_CODES = [
     "en-US", "es-ES", "zh-CN", "ja", "de", "nl",
@@ -325,7 +325,7 @@ PREMIUM_STATUS_ACTIVE = N_(
     "• Automatic removal of the unverified role\n"
     "• Automatic nickname sync with VRChat\n"
     "• Custom post-verification message\n"
-    "• Your colour and server icon on the instructions panel\n"
+    "• Your color and server icon on the instructions panel\n"
     "• Reduced verification cooldown\n"
     "• Invite verified members straight into your server's VRChat group\n"
     "\n"
@@ -344,7 +344,7 @@ PREMIUM_STATUS_ACTIVE_CARD = N_(
     "• Automatic removal of the unverified role\n"
     "• Automatic nickname sync with VRChat\n"
     "• Custom post-verification message\n"
-    "• Your colour and server icon on the instructions panel\n"
+    "• Your color and server icon on the instructions panel\n"
     "• Reduced verification cooldown\n"
     "• Invite verified members straight into your server's VRChat group\n"
     "\n"
@@ -359,7 +359,7 @@ PREMIUM_STATUS_ACTIVE_BOTH = N_(
     "\n"
     "There's an active **Discord** subscription and an active **card** subscription for this server. Premium is on and stays on — but you're being charged for both.\n"
     "\n"
-    "Nothing has been cancelled for you, deliberately: cancelling a subscription and issuing a refund without a person deciding is not something this bot should do on its own.\n"
+    "Nothing has been canceled for you, deliberately: canceling a subscription and issuing a refund without a person deciding is not something this bot should do on its own.\n"
     "\n"
     "Keep whichever suits you and cancel the other:\n"
     "• **Discord** — User Settings → Subscriptions\n"
@@ -377,7 +377,7 @@ PREMIUM_STATUS_INACTIVE = N_(
     "• Automatic removal of the unverified role\n"
     "• Automatic nickname sync with VRChat\n"
     "• Custom post-verification message\n"
-    "• Your colour and server icon on the instructions panel\n"
+    "• Your color and server icon on the instructions panel\n"
     "• Reduced verification cooldown\n"
     "• Invite verified members straight into your server's VRChat group\n"
     "\n"
@@ -397,7 +397,7 @@ PREMIUM_STATUS_GRANDFATHERED = N_(
     "Premium adds these on top:\n"
     "• Verification activity log — every verification in a channel you choose, including the ones that fail silently\n"
     "• Priority in the verification queue when there's a backlog\n"
-    "• Your colour and server icon on the instructions panel\n"
+    "• Your color and server icon on the instructions panel\n"
     "• Reduced verification cooldown\n"
     "• Invite verified members straight into your server's VRChat group\n"
     "\n"
@@ -454,7 +454,7 @@ LOG_CHANNEL_ANNOUNCEMENT = N_(
 )
 
 PANEL_COLOR_INVALID = N_(
-    "That doesn't look like a hex colour. Use something like `#5865F2` (or `#58F` for short)."
+    "That doesn't look like a hex color. Use something like `#5865F2` (or `#58F` for short)."
 )
 
 
@@ -503,7 +503,7 @@ GROUP_INVITE_TOO_SOON = N_(
 )
 
 GROUP_INVITE_ACCOUNT_MISSING = N_(
-    "VRChat didn't recognise the account you verified with, so the invite couldn't be sent. Try verifying again to relink your VRChat account."
+    "VRChat didn't recognize the account you verified with, so the invite couldn't be sent. Try verifying again to relink your VRChat account."
 )
 
 GROUP_INVITE_NOT_A_MEMBER = N_(
@@ -527,12 +527,12 @@ GROUP_INVITE_ACCOUNT_CHANGED = N_(
 # second place to forget a string, and forgetting one there would silently
 # shrink the very checks that exist to catch a forgotten string.
 #
-# COMPUTED ON FIRST ACCESS, NOT HERE, and that is not a micro-optimisation.
+# COMPUTED ON FIRST ACCESS, NOT HERE, and that is not a micro-optimization.
 # The natural way to add a string -- the way the README tells you to -- is to
 # append a constant to the end of this file. A frozenset built at this line
 # would not contain anything written below it, so a newly added string would
 # be missing from `ALL_MESSAGES` while being present in the .pot and in every
-# catalogue. Every check keyed on this set would then quietly stop covering
+# catalog. Every check keyed on this set would then quietly stop covering
 # the newest string in the file, which is the one most likely to be wrong.
 #
 # That is not hypothetical: it is what this module did for one commit, and

@@ -236,7 +236,7 @@ def _iso(epoch) -> Optional[str]:
         return None
 
 
-def normalise(subscription: dict, *, event_id: str, event_created) -> Optional[dict]:
+def normalize(subscription: dict, *, event_id: str, event_created) -> Optional[dict]:
     """Turn a Stripe subscription into the payload the bot accepts.
 
     Nothing raw from Stripe crosses the wire to the homelab. The bot receives

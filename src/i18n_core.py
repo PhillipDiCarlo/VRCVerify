@@ -1,8 +1,8 @@
-"""Reading a compiled gettext catalogue. Shared by the bot and the dashboard.
+"""Reading a compiled gettext catalog. Shared by the bot and the dashboard.
 
 WHY THIS FILE EXISTS AS A THIRD THING
 -------------------------------------
-#97 gave the dashboard gettext catalogues and left the bot's twelve languages
+#97 gave the dashboard gettext catalogs and left the bot's twelve languages
 in the `localizations` dict in locales.py. #231 converts the bot too, and the
 forty lines that open a `.mo`, cache it and hand back a `gettext` callable are
 identical for both. The question #231 had to answer explicitly was whether to
@@ -18,7 +18,7 @@ minimal and making it a dependency of the bot invites people to add to it.
 
 **Duplication was rejected over what a test can pin.** The alternative on the
 table was forty copied lines in the bot with a test asserting the two behave
-alike. That test can only pin the behaviour the copy has on the day it is
+alike. That test can only pin the behavior the copy has on the day it is
 written. It cannot pin the fallback somebody adds to one copy a year later,
 which is exactly the divergence that would matter and exactly the one nobody
 would notice: both halves would still work, and only one of them the way the
@@ -74,20 +74,20 @@ def N_(text: str) -> str:
     that interaction actually asked for.
 
     Returns its argument. The whole of its work is being a name the extractor
-    recognises. `-k N_` in scripts/i18n.sh is not optional: without it every
+    recognizes. `-k N_` in scripts/i18n.sh is not optional: without it every
     one of these msgids is silently missing from the .pot, and the only symptom
     is a string that stays in English.
     """
     return text
 
 
-class Catalogues:
-    """The compiled catalogues for one domain, read once and kept.
+class Catalogs:
+    """The compiled catalogs for one domain, read once and kept.
 
     One instance per domain: the dashboard's `dashboard.mo` files and the bot's
     `bot.mo` files stay separate, so neither image carries the other's strings.
 
-    Catalogues are read from disk on first use and cached for the life of the
+    Catalogs are read from disk on first use and cached for the life of the
     process. There are eleven of them per domain, they are small, and they
     cannot change without a deploy -- so the alternative is re-reading the same
     file on every request and every interaction forever.
@@ -119,8 +119,8 @@ class Catalogues:
         """
         return isinstance(code, str) and code in self._languages
 
-    def catalogue(self, code: str):
-        """The catalogue for one language, as a `gettext` translations object.
+    def catalog(self, code: str):
+        """The catalog for one language, as a `gettext` translations object.
 
         Exposed as well as `translator()` because Jinja's i18n extension wants
         the object -- `NullTranslations` and its GNU subclass already carry
@@ -141,25 +141,25 @@ class Catalogues:
     def translator(self, code: str) -> Callable[[str], str]:
         """The `gettext` callable for one language.
 
-        A separate thing from `catalogue()` because both callers want a plain
+        A separate thing from `catalog()` because both callers want a plain
         callable rather than an object whose shape they would have to know: the
         dashboard's view modules take one as an argument, which is what keeps
         them free of Flask globals, and the bot's `get_message` calls it and
         then `.format()`s the result.
 
         Returns the msgid unchanged for the default language, for a language
-        with no catalogue yet, and for any string not yet translated in the
-        catalogue it does have. That last one is the property worth naming:
+        with no catalog yet, and for any string not yet translated in the
+        catalog it does have. That last one is the property worth naming:
         every gap renders in English rather than rendering blank, so a
         half-translated surface is worse than a fully English one and much
         better than an empty one.
         """
-        return self.catalogue(code).gettext
+        return self.catalog(code).gettext
 
     def _load(self, code: str):
-        """Open one compiled catalogue, or a no-op stand-in if there is not one."""
+        """Open one compiled catalog, or a no-op stand-in if there is not one."""
         if code == self._default:
-            # The source language's "catalogue" is the msgids themselves. There
+            # The source language's "catalog" is the msgids themselves. There
             # is no en-US directory under translations/ and there should never
             # be one: it would be a file full of entries translating English
             # into the same English, with every one of them a chance to drift.
@@ -172,7 +172,7 @@ class Catalogues:
             self._domain,
             localedir=self._localedir,
             languages=[code.replace("-", "_")],
-            # A missing catalogue renders English. The alternative is a surface
+            # A missing catalog renders English. The alternative is a surface
             # that raises because a language was added to the list before its
             # file was compiled, and a deploy that half-lands should degrade to
             # English rather than to nothing.

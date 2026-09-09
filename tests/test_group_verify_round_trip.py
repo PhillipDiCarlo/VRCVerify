@@ -9,7 +9,7 @@ That last point is the one worth stating plainly. The worker joins a VRChat
 group when it is told to. If the group could come from the request body,
 anyone who reached the endpoint could park the bot in a group of their
 choosing -- so the job is built from the stored settings row and the caller
-supplies only a guild id it has already been authorised for.
+supplies only a guild id it has already been authorized for.
 """
 
 import asyncio

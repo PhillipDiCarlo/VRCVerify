@@ -5,13 +5,13 @@
    Inline, like every other icon here: the CSP is img-src 'self' plus Discord's
    CDN, and a data: URI would mean widening it to draw one shape. `fill` is a
    presentation attribute, not CSS -- style-src 'self' drops inline style=""
-   silently, so a colour written that way would simply not apply.
+   silently, so a color written that way would simply not apply.
 
    currentColor rather than Discord's blurple: the button is already
-   --accent-ink on --accent, and a second brand colour inside it would be a
-   third colour competing in one control. Discord's brand guidelines ask for
+   --accent-ink on --accent, and a second brand color inside it would be a
+   third color competing in one control. Discord's brand guidelines ask for
    the mark's shape to be unaltered, which this is; they do not require it be
-   drawn in blurple on a coloured button, and their own docs show the white
+   drawn in blurple on a colored button, and their own docs show the white
    mark on dark buttons. #}
 {% macro discord_mark() -%}
   <svg class="signin-discord" viewBox="0 0 24 24" width="18" height="18"
@@ -34,7 +34,7 @@
    through for what this site cannot see. That leaves exactly one slash on the
    page, which makes it mean something specific rather than being a device.
 
-   Not colour, and not red: the two negatives are reassurances, and red would
+   Not color, and not red: the two negatives are reassurances, and red would
    read as a warning about the thing the sentence exists to promise. Drawn at
    18 rather than 16 -- these carry more shape than the 16px section icons. #}
 {% macro grant_mark(kind) -%}

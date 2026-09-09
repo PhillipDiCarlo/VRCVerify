@@ -11,7 +11,7 @@
  * wrong: the browser did exactly what it was asked.
  *
  * That is a real way to lose work, and no amount of CSS can detect it. Every
- * other candidate for a script here (client-side validation, a colour preview,
+ * other candidate for a script here (client-side validation, a color preview,
  * copy buttons, filtering) was either already handled natively or would
  * duplicate a rule the bot owns, so this file does one thing.
  *
@@ -53,7 +53,7 @@
   // Tracked per form, not as one page-wide flag. A single flag looks correct
   // and defeats the entire point: saving group B would clear the flag group A
   // set, so the one sequence this file exists to catch -- edit one group, save
-  // another -- would pass silently, which is the behaviour without any script
+  // another -- would pass silently, which is the behavior without any script
   // at all.
   var dirty = [];
 
@@ -63,7 +63,7 @@
     if (!isDirty && at !== -1) dirty.splice(at, 1);
     // The visible half. Same per-form state, said on the page instead of only
     // on the way out -- the `beforeunload` prompt below is unchanged and still
-    // the last line of defence.
+    // the last line of defense.
     form.classList.toggle("is-dirty", isDirty);
   }
 
@@ -73,7 +73,7 @@
     }
 
     // `input` covers typing; `change` covers selects, checkboxes and the
-    // colour picker, which do not fire `input` consistently across the range
+    // color picker, which do not fire `input` consistently across the range
     // of browsers this has to work in.
     form.addEventListener("input", mark);
     form.addEventListener("change", mark);

@@ -8,13 +8,13 @@
    paying customer a Buy button and not.
 
    No inline styles anywhere. `style-src 'self'` drops them SILENTLY, so a
-   colour written as style="" would simply not apply and nothing would say so.
+   color written as style="" would simply not apply and nothing would say so.
    Everything visual is a class in style.css.
 
    TRANSLATED FIRST OF EVERY PAGE HERE (#97). "Excludes tax", "renews on",
    "ends on" and the double-billing warning are the sentences where a
    misunderstanding does not produce a confused admin but a chargeback, so this
-   page and /pricing were the two the twelve catalogues were filled in for
+   page and /pricing were the two the twelve catalogs were filled in for
    before anything else.
 
    WHOLE SENTENCES IN ONE `{% raw %}{% trans %}{% endraw %}` BLOCK, never a sentence assembled from
@@ -110,7 +110,7 @@
     </p>
 
   {% elif page.state == 'both' %}
-    {# Detected and warned, never auto-cancelled. Code that cancels a
+    {# Detected and warned, never auto-canceled. Code that cancels a
        subscription and issues a refund without a human deciding is a category
        of bug that costs real money in the wrong direction.
 
@@ -152,18 +152,18 @@
 
   {% elif page.state == 'stripe' %}
     {# Plan, payment route and date are all in the fact list above. What is
-       left is the one thing the list cannot say: that a cancelled
+       left is the one thing the list cannot say: that a canceled
        subscription is not a lapsed one, and the server keeps Premium for the
        period it has already paid for. #}
     {% if page.ends_on %}
       <p class="blurb">
-        {% trans %}Cancelled, and nothing changes before then — this server keeps Premium for the whole of the period it has already paid for.{% endtrans %}
+        {% trans %}Canceled, and nothing changes before then — this server keeps Premium for the whole of the period it has already paid for.{% endtrans %}
       </p>
     {% endif %}
 
   {% elif page.state == 'discord' %}
     <p class="blurb">
-      {% trans %}Discord handles the billing, so cancelling or changing the payment method happens there — <strong>User Settings → Subscriptions</strong>. We can't manage a Discord subscription from here.{% endtrans %}
+      {% trans %}Discord handles the billing, so canceling or changing the payment method happens there — <strong>User Settings → Subscriptions</strong>. We can't manage a Discord subscription from here.{% endtrans %}
     </p>
     {# Deliberately no card buttons. Offering one to a server that already pays
        is precisely how it ends up paying twice. #}
@@ -227,7 +227,7 @@
        a different billing period.
 
        Layout alone cannot fix that. The reference that solves it best (Uxcel)
-       normalises both its cards to one unit -- "$20 per month" beside "$8 per
+       normalizes both its cards to one unit -- "$20 per month" beside "$8 per
        month, paid yearly" -- which cannot be misread. That move is not
        available here: it needs a per-month figure derived from the charge, and
        this repo holds that no amount is ever computed, because a second copy
@@ -248,7 +248,7 @@
     <div class="plans">
       {% for plan in page.plans %}
         {# `.plan-card`, not `.plan` (#158). `settings.html` uses `.plan` for
-           an italic grey footnote, and this card inherited its colour, size,
+           an italic gray footnote, and this card inherited its color, size,
            style and margin from it -- so the price rendered italic and muted
            on the page that takes money. Every child here was already
            `.plan-*`; the card was the half that had drifted. #}
@@ -338,7 +338,7 @@
     {# THE SECOND ROUTE, AND IT HAS TO READ AS ONE.
        The card route above gets three laid-out cards with prices and buttons;
        this one was a paragraph with the command buried mid-sentence. That is
-       the redesign quietly favouring one of the two, which this page cannot
+       the redesign quietly favoring one of the two, which this page cannot
        afford to do -- it is the only place that lists both, and the 6- and
        12-month terms are card-only precisely because Discord bills monthly.
 

@@ -153,7 +153,7 @@ class TestGroupIdParsing:
         """
         assert bot.parse_vrchat_group_id(url) == GROUP_ID
 
-    def test_the_id_is_normalised_to_lower_case(self):
+    def test_the_id_is_normalized_to_lower_case(self):
         """Case folding is what makes the UNIQUE column mean anything.
 
         Two guilds submitting one group in different cases would otherwise both
@@ -278,11 +278,11 @@ class TestStorage:
         assert row["enabled"] is True
         assert row["group_id"] is None
 
-    def test_the_storage_layer_normalises_the_id_too(self):
+    def test_the_storage_layer_normalizes_the_id_too(self):
         """The UNIQUE column's invariant belongs to the function that writes it.
 
         The settings coercer is one caller. A later phase storing what a worker
-        echoed back would be another, and an unnormalised id reaching the table
+        echoed back would be another, and an unnormalized id reaching the table
         would put a second casing of an already-claimed group in it -- at which
         point first-claim-wins has quietly stopped being true.
         """
@@ -574,7 +574,7 @@ class TestTheSettingsPayload:
         assert block["can_invite"] is False
         assert block["can_see_members"] is True
         assert block["joined_account"] == "usr_0e59962a-3e0d-4303-802b-9314623027e5"
-        # Serialised, because this payload is JSON on the wire.
+        # Serialized, because this payload is JSON on the wire.
         assert block["verified_at"] == when.isoformat()
 
     def test_the_verdict_is_not_a_settings_field(self):

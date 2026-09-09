@@ -130,7 +130,7 @@ def set_standing(state, *, group_id=GROUP_ID, age_seconds=0, job_id="job-1"):
     `settled_at` is written for anything that is not still pending, because
     that is what the row would really look like and it is what the cooldown is
     measured from. Leaving it NULL -- as this helper used to -- quietly tested
-    only the requested_at fallback, so every parametrised suite below would
+    only the requested_at fallback, so every parameterized suite below would
     have passed with the cooldown keyed on the wrong field.
     """
     when = datetime.now(timezone.utc) - timedelta(seconds=age_seconds)
@@ -1409,7 +1409,7 @@ class TestAModeratorCanChangeTheirMind:
     def test_the_member_is_never_actually_invited_while_banned(self, api):
         """The reason re-asking is safe, and it is not our enforcement.
 
-        Pinned end to end because it is the whole licence for this change. The
+        Pinned end to end because it is the whole license for this change. The
         worker refuses on the membership read when it can see the ban, and
         create_group_invite answers 409 when it cannot (#209). Either way the
         state that comes back is `banned` and NO INVITE IS CREATED, so asking
@@ -1478,7 +1478,7 @@ class TestTheOfferIsStampedForOneAccount:
 
     def test_v1_buttons_no_longer_route(self):
         """Every button posted before this fix carries no account fingerprint,
-        so there is no way to honour one safely. They were the vulnerable
+        so there is no way to honor one safely. They were the vulnerable
         population; retiring them IS the fix, not a side effect."""
         pattern = bot.GroupInviteButton.__discord_ui_compiled_template__
         assert pattern.fullmatch(f"vrcverify:groupinvite:v1:{GUILD_ID}") is None
@@ -1823,7 +1823,7 @@ class TestSendingOneInvite:
     def test_joining_between_the_check_and_the_invite(self, api):
         # The real sentence, as measured 2026-08-27 -- including the U+2024 it
         # ends with. The shortened paraphrase this used to carry no longer
-        # exercises the recognised path, since the suffix match wants the "is".
+        # exercises the recognized path, since the suffix match wants the "is".
         api.invite_error = FakeApiException(
             400, "ClubLA Bot is already a member of this group\u2024"
         )
@@ -1928,7 +1928,7 @@ class TestThePrecheckCanNeverBlockAnInvite:
 
     # 401 is deliberately absent: vrchatapi raises UnauthorizedException for
     # it, not a bare ApiException, and that is the one precheck failure that
-    # does stop -- see the test above. Listing it here would pin behaviour the
+    # does stop -- see the test above. Listing it here would pin behavior the
     # real client cannot produce.
     @pytest.mark.parametrize("status", [400, 403, 404, 429, 500, 502, 503])
     def test_no_precheck_status_prevents_the_invite(self, api, status):
@@ -2071,7 +2071,7 @@ class TestTellingTwoKindsOf403Apart:
     def test_the_wording_of_the_403_is_never_consulted(self, api):
         """The point of the rewrite. An error phrased any way at all is read
         the same, because the reading comes from a question with an answer --
-        which survives VRChat rewording or localising its messages."""
+        which survives VRChat rewording or localizing its messages."""
         outcomes = set()
         for body in ["You can't invite that user", "nonsense", "", "Verboten"]:
             api.calls.clear()
@@ -2279,7 +2279,7 @@ class TestAStaleInviteTheCheckCouldNotSee:
         assert api.withdrawals() == []
         assert len(api.invites()) == 1
 
-    def test_an_unrecognised_400_is_never_rescued(self, api):
+    def test_an_unrecognized_400_is_never_rescued(self, api):
         """VRChat rewording the sentence must not start withdrawing invites on
         a 400 nobody has read. It lands where it landed before, unchanged."""
         api.get_member_error = FakeApiException(500, "Internal Server Error")
@@ -2409,7 +2409,7 @@ class TestTellingTwoKindsOf400Apart:
 
     def test_the_two_get_different_sentences(self):
         """The whole point of separating them. If these keys were ever made
-        equal, this suite would still pass while the member-facing behaviour
+        equal, this suite would still pass while the member-facing behavior
         went back to what it was."""
         assert (
             bot.GROUP_INVITE_MESSAGE_KEYS[bot.GROUP_INVITE_ALREADY_INVITED]
@@ -2456,21 +2456,21 @@ class TestTellingTwoKindsOf400Apart:
     @pytest.mark.parametrize(
         "detail", ["", "Some entirely new wording", '{"unparseable', None]
     )
-    def test_an_unrecognised_400_keeps_the_old_behaviour(self, detail):
+    def test_an_unrecognized_400_keeps_the_old_behavior(self, detail):
         """VRChat rewording either sentence, or _api_detail falling back to a
         body it could not parse, must not become a NEW failure mode -- it lands
         where it landed before this split existed."""
         assert inviter._classify_invite_400(detail) == inviter.INVITE_ALREADY_MEMBER
 
-    def test_an_unrecognised_400_says_so_in_the_log(self, caplog):
+    def test_an_unrecognized_400_says_so_in_the_log(self, caplog):
         """The only way anyone finds out VRChat reworded this. _api_detail
         exists for the same reason, and its docstring says that absence cost
         three deploys."""
         with caplog.at_level(logging.WARNING):
             inviter._classify_invite_400("Some entirely new wording")
-        assert "Unrecognised 400" in caplog.text
+        assert "Unrecognized 400" in caplog.text
 
-    def test_a_recognised_400_is_quiet(self, caplog):
+    def test_a_recognized_400_is_quiet(self, caplog):
         """A check that cries wolf gets filtered out of the log and stops being
         a check."""
         with caplog.at_level(logging.WARNING):
@@ -2478,10 +2478,10 @@ class TestTellingTwoKindsOf400Apart:
             inviter._classify_invite_400(
                 "ClubLA Bot is already a member of this group\u2024"
             )
-        assert "Unrecognised 400" not in caplog.text
+        assert "Unrecognized 400" not in caplog.text
 
 
-class TestABannedRecipientIsRecognised:
+class TestABannedRecipientIsRecognized:
     """409 from create_group_invite means banned, and used to mean nothing.
 
     Measured live on 2026-08-27 in a throwaway group:
@@ -2621,7 +2621,7 @@ class TestThroughputIsSpaced:
         assert inviter.INVITE_MIN_SPACING_SECONDS <= 60.0
 
     def test_the_wait_is_jittered(self):
-        """A fixed interval is exactly what makes many callers synchronise into
+        """A fixed interval is exactly what makes many callers synchronize into
         a spike, which VRChat's guidelines call out by name."""
         seen = {round(inviter.random.uniform(0.0, 0.5), 6) for _ in range(50)}
         assert len(seen) > 1
@@ -2652,7 +2652,7 @@ class TestTheWorkerSurvivesItsOwnConfiguration:
             monkeypatch.setenv("INVITE_CALL_RETRIES", raw)
         assert inviter._int_env("INVITE_CALL_RETRIES", 3) == 3
 
-    def test_a_real_value_is_still_honoured(self, monkeypatch):
+    def test_a_real_value_is_still_honored(self, monkeypatch):
         monkeypatch.setenv("INVITE_MIN_SPACING_SECONDS", "7.5")
         assert inviter._float_env("INVITE_MIN_SPACING_SECONDS", 3.0) == 7.5
 
@@ -2880,7 +2880,7 @@ class TestTheOutcomeDmIsActuallyEditable:
         sorted(bot.GROUP_INVITE_STATES - bot.GROUP_INVITE_SETTLED_STATES),
     )
     def test_every_retryable_outcome_can_be_told(self, dm, state):
-        """Parametrised over the whole set rather than one example: the bug was
+        """Parameterized over the whole set rather than one example: the bug was
         in the branch shared by all of them."""
         run(bot.tell_member_about_invite(GUILD_ID, self.row(), state))
         assert len(dm) == 1
@@ -3008,7 +3008,7 @@ class TestAStoredVerdictAlwaysReachesSomeone:
 
 
 class TestTheWorkerLogDoesNotPairTheTwoIdentities:
-    def test_the_result_payload_is_summarised_not_dumped(self):
+    def test_the_result_payload_is_summarized_not_dumped(self):
         """VRChat names the user in its own error prose -- "User usr_... is
         already a member" -- and the payload carries guildID. Logging the whole
         body put a VRChat id and a Discord server on one line, which is most of

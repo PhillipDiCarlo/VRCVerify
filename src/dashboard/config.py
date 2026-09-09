@@ -29,7 +29,7 @@ MIN_SECRET_KEY_BYTES = 32
 DEFAULT_SESSION_MAX_AGE = 8 * 3600
 # How long the OAuth guild list is reused before the user has to log in again
 # to refresh it. The Discord token is discarded at login (see oauth.py), so
-# there is no way to refresh this without a new authorisation -- which is the
+# there is no way to refresh this without a new authorization -- which is the
 # intended trade.
 DEFAULT_GUILD_CACHE_TTL = 900
 
@@ -70,7 +70,7 @@ class DashboardConfig:
     # It does NOT mean the browser may name a price. The form submits a price
     # id, and the checkout route accepts it only after finding it in a freshly
     # fetched list of this product's active prices. The guarantee is the same
-    # one as before -- no price the server has not authorised -- enforced
+    # one as before -- no price the server has not authorized -- enforced
     # against Stripe's live answer instead of a static table.
     stripe_product_id: str = ""
     # Which billing-portal configuration a portal session opens with. Empty
@@ -83,8 +83,8 @@ class DashboardConfig:
     # this account has others -- so its plan list is not necessarily this
     # product's. A customer who can switch to another product's cheaper
     # recurring price keeps premium at that price, because the bot grants on
-    # subscription STATUS and treats an unrecognised price id as still paid.
-    # That rule is deliberate (a catalogue mismatch must not switch off a
+    # subscription STATUS and treats an unrecognized price id as still paid.
+    # That rule is deliberate (a catalog mismatch must not switch off a
     # paying customer) and it is exactly why the price cannot also be the gate.
     #
     # Naming a configuration scoped to this product's prices closes it without
@@ -93,7 +93,7 @@ class DashboardConfig:
     # Deliberately OPTIONAL rather than required-when-enabled, unlike every
     # other Stripe variable here. Those have no safe default and refusing to
     # boot is better than pretending; this one degrades to exactly the
-    # behaviour that is live today. Making it mandatory would mean a deploy
+    # behavior that is live today. Making it mandatory would mean a deploy
     # that reaches this host before the variable does takes the whole site
     # down, which has already happened once on 2026-08-15.
     stripe_portal_configuration_id: str = ""
@@ -129,7 +129,7 @@ class DashboardConfig:
             )
         if signing_key == secret_key.encode("utf-8"):
             # Two different trust domains: one signs cookies handed to browsers,
-            # the other authorises calls into the homelab. Sharing them means a
+            # the other authorizes calls into the homelab. Sharing them means a
             # cookie-signing bug becomes an API-forgery bug.
             raise DashboardConfigError(
                 "BOT_API_TOKEN_SIGNING_KEY and DASHBOARD_SECRET_KEY must differ."
@@ -169,7 +169,7 @@ class DashboardConfig:
                 # A price id here is the plausible mistake -- they sit next to
                 # each other in the Stripe dashboard and both are "the thing I
                 # copied for the plan". It would list no prices at all, so the
-                # page would apologise forever with nothing in the logs saying
+                # page would apologize forever with nothing in the logs saying
                 # why, which is exactly the failure this check is cheap enough
                 # to be worth preventing.
                 raise DashboardConfigError(
@@ -263,7 +263,7 @@ def _int_env(name: str, default: int, minimum: int = 1) -> int:
 
 
 def _validate_redirect(uri: str) -> None:
-    """The redirect URI is where Discord sends an authorisation code.
+    """The redirect URI is where Discord sends an authorization code.
 
     Over plain http that code crosses the network in the clear and can be
     stolen and exchanged before the real user's browser gets there. Discord

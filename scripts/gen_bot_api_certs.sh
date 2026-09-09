@@ -43,7 +43,7 @@
 #   swap the leaf certs, then restart. Doing it in that order means neither
 #   side is ever presented a certificate it cannot verify.
 #
-#   Revocation is deliberately not modelled. With exactly one client there is
+#   Revocation is deliberately not modeled. With exactly one client there is
 #   nothing a CRL would tell the bot that "reissue the CA and both leaves"
 #   doesn't say faster, and BOT_API_CLIENT_CN already pins which certificate is
 #   acceptable even if a second one exists.

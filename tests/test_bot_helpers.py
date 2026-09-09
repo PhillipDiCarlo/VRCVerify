@@ -402,7 +402,7 @@ class TestThePanelDegradesWithoutAWebsite:
         monkeypatch.setattr(bot, "WEBSITE_URL", "vrcverify.com")
         assert len(bot.VRCVerifyInstructionView(locale="en-US").children) == 2
 
-    def test_the_label_is_localised(self, monkeypatch):
+    def test_the_label_is_localized(self, monkeypatch):
         monkeypatch.setattr(bot, "WEBSITE_URL", "https://vrcverify.com")
         en = bot.VRCVerifyInstructionView(locale="en-US").children[-1].label
         de = bot.VRCVerifyInstructionView(locale="de").children[-1].label
@@ -410,12 +410,12 @@ class TestThePanelDegradesWithoutAWebsite:
         assert de != en, "the website button is reading English in German"
 
 
-class TestTheInviteSentenceIsLocalised:
+class TestTheInviteSentenceIsLocalized:
     def test_every_locale_can_render_it(self):
         """The URL is language-neutral and comes from config, so an admin in
         any locale gets a working link on day one.
 
-        The carrier sentence around it was English in all eleven catalogues
+        The carrier sentence around it was English in all eleven catalogs
         until #231, held open by the UNTRANSLATED allowlist in
         tests/test_locales.py. That allowlist is gone and the sentence is
         translated; what has not changed, and is what this pins, is that the
@@ -428,7 +428,7 @@ class TestTheInviteSentenceIsLocalised:
             assert "{invite}" not in rendered
 
     def test_the_placeholder_is_the_only_one(self):
-        """A second placeholder would make every non-English catalogue a
+        """A second placeholder would make every non-English catalog a
         KeyError waiting for the one caller that forgets it."""
         for code in bot.LANGUAGE_CODES:
             text = template(locales.SUPPORT_INVITE_LINE, code)
@@ -439,7 +439,7 @@ class TestTheInviteSentenceIsLocalised:
 
     def test_the_url_is_not_baked_into_any_locale(self):
         """The whole reason for the placeholder: rotating the invite must be a
-        config change, not an edit across eleven catalogues."""
+        config change, not an edit across eleven catalogs."""
         for code in bot.LANGUAGE_CODES:
             assert "discord.gg" not in template(locales.SUPPORT_INVITE_LINE, code)
 
@@ -527,7 +527,7 @@ class TestRefusingAnAdHocDatabase:
         assert "VRCVERIFY_ALLOW_DB_IMPORT=1" in reason
         assert "pytest" in reason
 
-    def test_the_override_is_honoured(self):
+    def test_the_override_is_honored(self):
         """Touching production from a script stays possible, but only by
         saying so."""
         assert bot.refuse_ad_hoc_database(

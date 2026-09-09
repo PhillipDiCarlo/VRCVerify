@@ -7,7 +7,7 @@ Split into three kinds of test, and the split is the point:
   cookie, a guild's setting and an `Accept-Language` header is the thing most
   likely to be got wrong later, and it deserves to fail in one line rather
   than in a page render.
-* **The catalogues** are files on disk, and what is worth pinning about them
+* **The catalogs** are files on disk, and what is worth pinning about them
   is not their wording -- that is a translator's -- but that they exist, that
   they compile, and that they agree with the bot about which languages there
   are.
@@ -55,20 +55,20 @@ class TestTheLanguageListMatchesTheBot:
         assert list(i18n.UI_LANGUAGES) == list(LANGUAGE_CODES)
 
     def test_every_language_has_a_name_in_its_own_script(self):
-        """A picker labelled in English is no use to the person opening it."""
+        """A picker labeled in English is no use to the person opening it."""
         for code in i18n.UI_LANGUAGES:
             assert code in i18n.ENDONYMS, code
             assert i18n.ENDONYMS[code].strip()
 
-    def test_english_is_the_default_and_has_no_catalogue_directory(self):
-        """Its catalogue is the msgids. A directory for it would be a file of
+    def test_english_is_the_default_and_has_no_catalog_directory(self):
+        """Its catalog is the msgids. A directory for it would be a file of
         entries translating English into the same English, each one a chance
         to drift."""
         assert i18n.DEFAULT_LANGUAGE == "en-US"
         assert not os.path.isdir(os.path.join(i18n.LOCALE_DIR, "en_US"))
 
 
-class TestEveryCatalogueIsCompiledAndLoadable:
+class TestEveryCatalogIsCompiledAndLoadable:
     """A .po that was never compiled is a translation that silently does not
     ship: gettext has no way to say "there is a newer translation you did not
     compile", it just serves the English. That failure is invisible in review
@@ -77,7 +77,7 @@ class TestEveryCatalogueIsCompiledAndLoadable:
     @pytest.mark.parametrize(
         "code", [c for c in i18n.UI_LANGUAGES if c != i18n.DEFAULT_LANGUAGE]
     )
-    def test_the_compiled_catalogue_is_in_the_tree(self, code):
+    def test_the_compiled_catalog_is_in_the_tree(self, code):
         path = os.path.join(
             i18n.LOCALE_DIR, code.replace("-", "_"), "LC_MESSAGES", "dashboard.mo"
         )
@@ -90,7 +90,7 @@ class TestEveryCatalogueIsCompiledAndLoadable:
         """The four #97 named as the expensive ones to misunderstand.
 
         Not a spot check on wording -- it cannot be, from here -- but on the
-        thing that would make the whole feature a no-op: a catalogue that
+        thing that would make the whole feature a no-op: a catalog that
         loads, reports success, and hands back the English for every string.
         """
         gettext = i18n.translator(code)
@@ -105,12 +105,12 @@ class TestEveryCatalogueIsCompiledAndLoadable:
     @pytest.mark.parametrize(
         "code", [c for c in i18n.UI_LANGUAGES if c != i18n.DEFAULT_LANGUAGE]
     )
-    def test_no_catalogue_hides_english_behind_a_fuzzy_flag(self, code):
+    def test_no_catalog_hides_english_behind_a_fuzzy_flag(self, code):
         """The trap `pybabel --statistics` sets, and the one that caught us.
 
         A fuzzy entry is Babel's guess that an old translation still fits a
         changed English string. `--statistics` counts it as translated;
-        `compile` without `--use-fuzzy` drops it. So a catalogue can report
+        `compile` without `--use-fuzzy` drops it. So a catalog can report
         "154 of 154 (100%)" and serve English for four of them -- which is
         what happened when the sidebar's labels were added and "Settings" was
         fuzzy-matched against "Settings sections". The only symptom was an
@@ -298,7 +298,7 @@ class TestAcceptLanguage:
         assert i18n.parse_accept_language("en;q=0.2, ja;q=0.9, de") == ["de", "ja", "en-US"]
 
     def test_a_base_language_matches_the_variant_we_carry(self):
-        """One Portuguese catalogue read by a Portuguese speaker beats
+        """One Portuguese catalog read by a Portuguese speaker beats
         English."""
         assert i18n.parse_accept_language("pt-PT") == ["pt-BR"]
         assert i18n.parse_accept_language("ja-JP") == ["ja"]
@@ -318,7 +318,7 @@ class TestAcceptLanguage:
 
     def test_nothing_unsupported_ever_comes_back(self):
         """The caller never has to re-check, which is what stops an unchecked
-        value reaching a `lang` attribute or a catalogue path."""
+        value reaching a `lang` attribute or a catalog path."""
         for code in i18n.parse_accept_language("fr, ja, kl, de, xx-YY"):
             assert i18n.is_supported(code)
 
@@ -341,7 +341,7 @@ class TestDirection:
 
 class TestTheNoOpMarker:
     def test_it_returns_its_argument(self):
-        """Its entire job is being a name `pybabel extract -k N_` recognises,
+        """Its entire job is being a name `pybabel extract -k N_` recognizes,
         so that a table built at import can hold msgids and be looked up per
         request."""
         assert i18n.N_("Renews") == "Renews"
@@ -500,7 +500,7 @@ class TestDatesAndNumbersFollowTheLanguage:
         assert i18n.format_timestamp(stamp, "de").startswith("11.08.2026")
 
     def test_an_unsupported_language_falls_back_rather_than_raising(self):
-        """The same floor `catalogue()` puts under itself. Callers have all
+        """The same floor `catalog()` puts under itself. Callers have all
         validated; this is not the check, it is what happens if one is missed."""
         assert i18n.format_date("2027-02-03", "xx-YY") == "February 3, 2027"
         assert i18n.format_number(1000, "xx-YY") == "1,000"

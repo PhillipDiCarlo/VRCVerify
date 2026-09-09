@@ -711,7 +711,7 @@ class TestConfig:
     def test_reusing_one_key_for_both_purposes_refuses_to_start(
         self, monkeypatch, certs
     ):
-        """Cookie signing and API authorisation are separate trust domains."""
+        """Cookie signing and API authorization are separate trust domains."""
         self.env(
             monkeypatch,
             certs,
@@ -727,7 +727,7 @@ class TestConfig:
             DashboardConfig.from_env()
 
     def test_a_plaintext_redirect_refuses_to_start(self, monkeypatch, certs):
-        """An authorisation code over http can be stolen in flight."""
+        """An authorization code over http can be stolen in flight."""
         self.env(
             monkeypatch, certs, OAUTH_REDIRECT_URI="http://dashboard.vrcverify.com/callback"
         )
@@ -844,7 +844,7 @@ class TestRevokingEverySessionAUserHas:
         """Pre-auth rows carry no identity to match on and no authority.
 
         Matching them would mean matching on NULL, which in SQL is not equality
-        -- so this pins the behaviour rather than the accident.
+        -- so this pins the behavior rather than the accident.
         """
         pending = store.begin_login("mid-flight")
         store.complete_login(store.begin_login("b").sid, ACTOR, GUILDS)
@@ -1010,7 +1010,7 @@ class TestOAuthFlow:
         response = client.get("/callback?code=abc&state=whatever")
         assert response.status_code == 400
 
-    def test_a_declined_authorisation_is_handled_quietly(self, client):
+    def test_a_declined_authorization_is_handled_quietly(self, client):
         client.get("/login")
         response = client.get("/callback?error=access_denied")
         assert response.status_code == 400
@@ -1251,10 +1251,10 @@ class TestPicker:
         assert "Add to server" in card
         assert f'href="/guild/{GUILD_OUT}"' not in card
 
-    def test_the_two_states_differ_by_more_than_a_colour(self, client, store):
+    def test_the_two_states_differ_by_more_than_a_color(self, client, store):
         """The point of the Sentry pattern this is shaped after: a card is
         told apart by what is in it, not by what shade it is. Someone seeing
-        the page in greyscale, or not seeing colour at all, still gets it."""
+        the page in grayscale, or not seeing color at all, still gets it."""
         page = client.get("/").data.decode()
         login_as(client, store)
         page = client.get("/").data.decode()
@@ -1310,7 +1310,7 @@ class TestPicker:
 
         page = test_client.get("/").data.decode()
         assert str(escape("Something isn't working")) in page
-        # The class as well as the wording: the colour is what makes one
+        # The class as well as the wording: the color is what makes one
         # amber card findable among green ones.
         assert "server-state-broken" in page
         # And the old placeholder is gone rather than merely outnumbered.
@@ -1417,7 +1417,7 @@ class TestSettingsPage:
         assert "Verified" in page
         assert VERIFIED_ROLE not in page
 
-    def test_an_editable_role_is_labelled_by_name(self, config, store):
+    def test_an_editable_role_is_labeled_by_name(self, config, store):
         """Editable, the id has to be in the option value -- the label doesn't."""
         test_client, _api = settings_client(config, store)
         page = settings_page(test_client).data.decode()
@@ -1651,7 +1651,7 @@ class TestTheBell:
         self, client, store
     ):
         """Validated against the ids actually shipped. Trusting an
-        unrecognised value would hide entries this browser has never seen; the
+        unrecognized value would hide entries this browser has never seen; the
         dot appearing once more is the harmless direction to fail in."""
         login_as(client, store)
         client.set_cookie("vrcverify_seen", "../../etc/passwd")
@@ -1951,7 +1951,7 @@ class TestDismissingAPremiumCard:
 
 
 class TestTheChangelogPage:
-    """The full list the bell summarises (issue #136 phase 3)."""
+    """The full list the bell summarizes (issue #136 phase 3)."""
 
     def test_it_lists_every_entry_in_full(self, client, store):
         """Bodies are NOT clamped here. This page is where the panel's
@@ -2314,7 +2314,7 @@ class TestTheUpgradeOffer:
         assert "application-directory" not in page
 
     def test_enforced_alone_is_enough_to_withhold_the_offer(self):
-        """Defence in depth, tested on the pure function.
+        """Defense in depth, tested on the pure function.
 
         A payload saying "not subscribed, here is the SKU" while the tier is
         switched off is not one the bot emits today. It is exactly what a
@@ -2600,7 +2600,7 @@ class TestSavingThePanelGroup:
             "panel_show_icon": True,
         }
 
-    def test_the_colour_is_sent_as_an_integer(self, config, store):
+    def test_the_color_is_sent_as_an_integer(self, config, store):
         test_client, api, session = self.logged_in(config, store)
         self.post(
             test_client,
@@ -2610,7 +2610,7 @@ class TestSavingThePanelGroup:
         )
         assert api.saves[-1][2]["panel_embed_color"] == 0x0A0B0C
 
-    def test_the_default_checkbox_clears_the_colour(self, config, store):
+    def test_the_default_checkbox_clears_the_color(self, config, store):
         test_client, api, session = self.logged_in(config, store)
         self.post(
             test_client,
@@ -2693,7 +2693,7 @@ class TestSavingThePanelGroup:
         page = test_client.get(response.headers["Location"]).data.decode()
         assert expected in page
 
-    def test_an_unrecognised_refusal_never_reaches_the_page_as_text(
+    def test_an_unrecognized_refusal_never_reaches_the_page_as_text(
         self, config, store
     ):
         """The bot's error strings must not become this app's HTML."""
@@ -2817,7 +2817,7 @@ class TestSavingTheRemainingGroups:
 
     # ----- after verifying -----
     def test_the_custom_message_is_sent_exactly_as_typed(self, config, store):
-        """Sanitising here would be a second opinion about what is allowed."""
+        """Sanitizing here would be a second opinion about what is allowed."""
         test_client, api, session = self.logged_in(config, store)
         raw = "  Welcome @everyone!  \nhttps://vrchat.com/home  "
         self.post(
@@ -3425,7 +3425,7 @@ class TestTheFormMatchesWhatTheBotAccepts:
         # This select is "which language should the bot speak to my members
         # in", and only the bot can answer which those are. The picker in the
         # bar is "which language should this website answer *me* in", and the
-        # answer to that is which catalogues this image was built with. Two
+        # answer to that is which catalogs this image was built with. Two
         # lists, two sources, and an unscoped substring search cannot tell the
         # difference between them.
         select = re.search(
@@ -3727,7 +3727,7 @@ class TestHardening:
         assert os.path.exists(font), "the vendored font is missing"
         with open(font, "rb") as handle:
             assert handle.read(4) == b"wOF2", "not a WOFF2 file"
-        # Vendoring a font means vendoring its licence.
+        # Vendoring a font means vendoring its license.
         assert os.path.exists(os.path.join(static, "fonts", "Inter-LICENSE.txt"))
 
     def test_the_stylesheet_asks_for_no_external_origin(self):
@@ -3841,7 +3841,7 @@ class TestHardening:
 
         Nothing errors -- the browser just drops the declaration and the page
         renders subtly wrong, which is a bad way to find out. The role and panel
-        colour swatches are SVG fill attributes for exactly this reason.
+        color swatches are SVG fill attributes for exactly this reason.
         """
         test_client, _api = settings_client(
             config,
@@ -3852,8 +3852,8 @@ class TestHardening:
                 premium=True, writable=set(), values={"panel_embed_color": 0xFF00FF}
             ),
         )
-        # Both settings pages that carry a swatch: the role colours are on
-        # Verification, the panel colour on its own page (#140).
+        # Both settings pages that carry a swatch: the role colors are on
+        # Verification, the panel color on its own page (#140).
         for path in (
             "/",
             f"/guild/{GUILD_IN}/settings/verification",
@@ -3965,7 +3965,7 @@ class TestHardening:
     def test_cf_access_headers_grant_nothing(self, client, store):
         """The Access policy comes off at launch (A-14).
 
-        Any code that authorised on these headers would silently become a
+        Any code that authorized on these headers would silently become a
         complete authentication bypass on that day, with no error and no
         deploy to correlate against. So they must do nothing, ever.
         """
@@ -4097,7 +4097,7 @@ class TestPostingThePanel:
         assert "Embed Links" in page
         assert "can&#39;t log there" not in page
 
-    def test_an_unrecognised_action_never_reaches_the_url(self, config, store):
+    def test_an_unrecognized_action_never_reaches_the_url(self, config, store):
         """The one place a bot value used to travel without being looked up."""
         test_client, _api, session = self.logged_in(
             config, store, panel_result={"action": "\r\nSet-Cookie: x=1", "channel_id": "1"}
@@ -4128,7 +4128,7 @@ class TestPostingThePanel:
         assert "Saved." in test_client.get(target).data.decode()
         assert "Saved." not in test_client.get(target).data.decode()
 
-    def test_an_unrecognised_panel_refusal_never_reaches_the_page_as_text(
+    def test_an_unrecognized_panel_refusal_never_reaches_the_page_as_text(
         self, config, store
     ):
         leak = "surprising-internal-detail"
@@ -4217,7 +4217,7 @@ class TestTheChangeHistory:
         page = settings_page(test_client, "activity").data.decode()
         assert "ID 555555555555" in page
 
-    def test_a_colour_reads_as_a_colour(self, config, store):
+    def test_a_color_reads_as_a_color(self, config, store):
         test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
         assert "#ff0000" in settings_page(test_client, "activity").data.decode()
 
@@ -4306,7 +4306,7 @@ class TestSettingsViewModel:
             ("#ff0000; --x: url(evil)", None),
         ],
     )
-    def test_colours_can_only_ever_be_a_colour(self, value, expected):
+    def test_colors_can_only_ever_be_a_color(self, value, expected):
         """The result lands in an SVG fill attribute, so shape is the guard."""
         assert settings_view._hex(value) == expected
 
@@ -4411,12 +4411,12 @@ class TestTheChartOnThePage(object):
         assert chart
         assert "onclick" not in chart.group(0) and "<script" not in chart.group(0)
 
-    def test_the_bars_use_presentation_attributes_not_hardcoded_colour(
+    def test_the_bars_use_presentation_attributes_not_hardcoded_color(
         self, config, store
     ):
         """No hex value anywhere in the markup -- the whole point of
         `fill="currentColor"` plus a CSS class is that the chart is wrong in
-        exactly one theme the moment somebody hardcodes a colour here."""
+        exactly one theme the moment somebody hardcodes a color here."""
         page = self._page(config, store)
         chart = re.search(r'<div class="chart".*?</div>', page, re.S)
         assert chart
@@ -4533,7 +4533,7 @@ class TestZeroAndBlankAreDifferentAnswers:
         assert self.BLANK in page
         assert "Only counting since June 1, 2026" in page
 
-    def test_the_windows_are_always_labelled_even_when_blank(self, config, store):
+    def test_the_windows_are_always_labeled_even_when_blank(self, config, store):
         """The tiles stay in place. A missing tile looks like a broken page."""
         page = self._page(
             config, store, today=None, last_7_days=None, last_30_days=None
@@ -4598,7 +4598,7 @@ class TestThePremiumPitchOnThePage:
     THE DEMO IS NO LONGER THE DEFAULT OCCUPANT OF THIS SLOT. #135 wrote these
     against a feed that had no premium entries, so a configured free server
     fell straight through to the data-backed demo. There is one premium entry
-    now, and it ranks ABOVE the demo -- which is the behaviour #135's own
+    now, and it ranks ABOVE the demo -- which is the behavior #135's own
     docstring specified and left with no caller.
 
     So each of these dismisses that entry to reach the demo. That is not a
@@ -4964,7 +4964,7 @@ def _copy_only(source: str, filename: str) -> str:
     NOTE about it, not an instruction to use it -- and this exact test failed
     on the comment written to explain the bug it had just found. Python
     comments go through `tokenize` rather than a regex so a `#` inside a
-    string, of which this codebase has several as colours, cannot swallow the
+    string, of which this codebase has several as colors, cannot swallow the
     rest of the line.
     """
     if filename.endswith(".html"):
@@ -5077,7 +5077,7 @@ class TestTheControls(object):
         assert 'class="button"' in page
 
     def test_the_refusal_page_does_not_restyle_the_sign_in_page(self):
-        """`.centered` is worn by both. Centring the refusal page through it
+        """`.centered` is worn by both. Centering the refusal page through it
         would silently restyle a page this phase has no business touching --
         #134 redesigns that one."""
         css = self._css()
@@ -5207,7 +5207,7 @@ class TestTheSignInCard(object):
         return [re.sub(r"\s+", " ", row) for row in rows]
 
     def test_each_promise_is_its_own_row_with_its_own_mark(self, client):
-        """Three sentences in one grey paragraph is a paragraph. Three rows
+        """Three sentences in one gray paragraph is a paragraph. Three rows
         with a glyph each is a list of what you are granting, which is what
         these actually are."""
         rows = self._rows(client.get("/").data.decode())
@@ -5234,7 +5234,7 @@ class TestTheSignInCard(object):
         grammar joining them."""
         for row in self._rows(client.get("/").data.decode()):
             strong = re.search(r"<strong>(.*?)</strong>", row, re.S)
-            assert strong, f"nothing emphasised in: {row.strip()[:60]}"
+            assert strong, f"nothing emphasized in: {row.strip()[:60]}"
 
     def test_there_is_one_primary_action_and_it_starts_the_flow(self, client):
         """"One unmistakable primary action." A second `.button` anywhere on
@@ -5357,7 +5357,7 @@ class TestThePickerSaysOnlyWhatItKnows(object):
     def test_the_offer_survives_both_readings(self, client, store):
         """The install link stays, and stays an offer rather than an
         instruction: Discord refuses it to anyone without Manage Server, and
-        re-authorising a bot already in the server changes nothing. A sentence
+        re-authorizing a bot already in the server changes nothing. A sentence
         telling somebody to go and install it would be right under only one of
         the two readings."""
         card = self._absent_card(client, store)
@@ -5371,7 +5371,7 @@ class TestTheAccountMenuIsWhereItPromisedToBe(object):
     page with no way to sign out.
 
     That is the one thing the menu is in the bar for. The comment beside it
-    says "sign out everywhere" is what you want at the moment you realise
+    says "sign out everywhere" is what you want at the moment you realize
     somebody else has your session, "and at that moment you should not have to
     go looking". A typo should not be what takes it away.
     """
@@ -5400,7 +5400,7 @@ class TestTheAccountMenuIsWhereItPromisedToBe(object):
         assert "Sign out everywhere" in page
 
 
-class TestEverySettingsControlIsLabelled(object):
+class TestEverySettingsControlIsLabeled(object):
     """Found by an adversarial pass over the whole of #133, not by the suite.
 
     Phase 4 put `id="l-<field>"` on all eleven setting rows and then wired only
@@ -5759,7 +5759,7 @@ class TestNarrowScreens(object):
         settings.html marks a value with nothing behind it as
         `class="value empty"` -- "Not set", "No panel found", "Couldn't check"
         -- and the picker's empty-state card was a bare `.empty`, so every one
-        of those little grey phrases was being drawn as a padded, bordered
+        of those little gray phrases was being drawn as a padded, bordered
         card on the densest page in the app.
         """
         test_client, _api = settings_client(config, store)
@@ -6121,7 +6121,7 @@ class TestTheToggleSwitches:
         you ask for a setting to be turned OFF.
 
         The bot would refuse both of these fields anyway, being the reason they
-        are uneditable. That is not a defence: this page must not send a change
+        are uneditable. That is not a defense: this page must not send a change
         nobody made.
         """
         page = self._page(config, store)
@@ -6239,7 +6239,7 @@ class TestTheSidebarLayout:
 
     def test_the_icons_are_not_hidden_when_the_sidebar_is_expanded(self):
         """This has to read the stylesheet, and the first version of it did
-        not -- which made it pass against the behaviour it was written to
+        not -- which made it pass against the behavior it was written to
         change.
 
         The icons were ALWAYS in the markup; `display: none` is what kept them
@@ -6315,7 +6315,7 @@ class TestTheSidebarLayout:
         assert marks, "no section glyphs in the sidebar"
         assert int(guild_icon.group(1)) > max(marks)
 
-    def test_no_sidebar_icon_paints_itself_a_surface_colour(self, config, store):
+    def test_no_sidebar_icon_paints_itself_a_surface_color(self, config, store):
         """An icon cannot know what is behind it.
 
         The settings glyph filled its slider knobs with `--panel` to punch a
@@ -6449,7 +6449,7 @@ class TestTheSidebarPreference:
         """The form carries an endpoint name, never a path.
 
         A hidden field holding a URL is how a preference toggle becomes an open
-        redirect. Anything unrecognised lands on the picker.
+        redirect. Anything unrecognized lands on the picker.
         """
         test_client, _api = settings_client(config, store)
         session = store.load(test_client.get_cookie(SESSION_COOKIE).value)
@@ -6517,13 +6517,13 @@ class TestTheThemeAttribute:
         "value",
         ["", "System", "DARK", "purple", "dark light", '"><script>', "../../etc"],
     )
-    def test_anything_unrecognised_falls_back_to_dark(self, client, value):
+    def test_anything_unrecognized_falls_back_to_dark(self, client, value):
         """The cookie is attacker-controlled; the attribute is not.
 
         `_theme()` reduces it to one of three known words before it is
         interpolated, so nothing from a header can reach the markup. Note the
         casing cases: matching is exact, so `DARK` is not a third spelling of
-        dark, it is simply unrecognised.
+        dark, it is simply unrecognized.
         """
         client.set_cookie("vrcverify_theme", value)
         tag = self._html_tag(client.get("/").data.decode())
@@ -6577,7 +6577,7 @@ class TestTheGuildsOwnLanguage:
 
     #97 offers three ways to pick a language and calls this one "the most
     consistent with the bot and the least discoverable if it is wrong". Both
-    halves are honoured: it decides when nobody has picked, and the picker in
+    halves are honored: it decides when nobody has picked, and the picker in
     the bar always beats it.
 
     The constraint that shaped the implementation is in the issue too -- the
@@ -6626,7 +6626,7 @@ class TestTheGuildsOwnLanguage:
 
     def test_a_language_the_dashboard_cannot_render_falls_through(self, config, store):
         """Two hosts, two deploys: a bot running ahead of the dashboard is a
-        normal state, and the honest answer to a language we have no catalogue
+        normal state, and the honest answer to a language we have no catalog
         for is the next choice down, not an error."""
         test_client, _api = settings_client(
             config, store, settings=make_settings(values={"instructions_locale": "xx-XX"})
@@ -6644,12 +6644,12 @@ class TestTheGuildsOwnLanguage:
         test_client, api = settings_client(config, store, settings=self._german())
         before = len(api.reads)
         settings_page(test_client)
-        after_localised = len(api.reads) - before
+        after_localized = len(api.reads) - before
 
         plain_client, plain_api = settings_client(config, store, settings=make_settings())
         before = len(plain_api.reads)
         settings_page(plain_client)
-        assert len(plain_api.reads) - before == after_localised
+        assert len(plain_api.reads) - before == after_localized
 
 
 class TestTheLanguagePicker:
@@ -6694,8 +6694,8 @@ class TestTheLanguagePicker:
         assert 'action="/prefs/lang"' in page
 
     def test_each_option_is_named_in_its_own_language(self):
-        """A menu labelled "Japanese" is no use to somebody looking for the
-        word they would recognise."""
+        """A menu labeled "Japanese" is no use to somebody looking for the
+        word they would recognize."""
         assert i18n.ENDONYMS["ja"] == "\u65e5\u672c\u8a9e"
         assert i18n.ENDONYMS["de"] == "Deutsch"
 
@@ -6729,7 +6729,7 @@ class TestTheLanguagePicker:
         assert "SameSite=Lax" in header
         assert "HttpOnly" not in header
 
-    def test_an_unrecognised_language_changes_nothing(self, client):
+    def test_an_unrecognized_language_changes_nothing(self, client):
         """The picker only ever offers the twelve, so the only reachable cause
         is a hand-built request. The honest answer to one of those is the page
         they asked to go back to -- not an error page."""
@@ -6773,8 +6773,8 @@ class TestTheLanguagePicker:
         client.set_cookie("vrcverify_lang", "ja")
         assert 'dir="ltr"' in client.get("/").data.decode()
 
-    def test_the_page_is_actually_translated_not_merely_labelled(self, client):
-        """The failure this whole feature could have: a catalogue that loads,
+    def test_the_page_is_actually_translated_not_merely_labeled(self, client):
+        """The failure this whole feature could have: a catalog that loads,
         reports success and serves the English for everything."""
         client.set_cookie("vrcverify_lang", "de")
         page = client.get("/").data.decode()
@@ -6789,7 +6789,7 @@ class TestTheLanguagePicker:
         assert 'lang="en-US"' in page
         assert "<script>alert(1)</script>" not in page
 
-    def test_accept_language_is_honoured_with_no_cookie_at_all(self, client):
+    def test_accept_language_is_honored_with_no_cookie_at_all(self, client):
         """The sign-in page has no guild and no cookie, and is the first page
         anybody sees."""
         page = client.get("/", headers={"Accept-Language": "de-DE,de;q=0.9"}).data.decode()
@@ -6896,7 +6896,7 @@ class TestTheThemePicker:
     @pytest.mark.parametrize(
         "value", ["", "purple", "DARK", "dark light", '"><script>', "../../etc"]
     )
-    def test_an_unrecognised_choice_changes_nothing(self, client, value):
+    def test_an_unrecognized_choice_changes_nothing(self, client, value):
         client.set_cookie("vrcverify_theme", "light")
         response = client.post("/prefs/theme", data={"theme": value})
         assert response.status_code == 302
@@ -7014,7 +7014,7 @@ class TestTheHeaderBar:
         """Red would be the obvious choice for "sign out everywhere" and the
         wrong one: it destroys no data, and it is exactly what you want
         somebody to do without hesitating when they think they have been
-        compromised. A hazard colour would discourage it."""
+        compromised. A hazard color would discourage it."""
         login_as(client, store)
         page = client.get("/").data.decode()
         start = page.index('<details class="account')
@@ -7087,7 +7087,7 @@ class TestTheHeaderBar:
             header = handle.read(24)
         assert struct.unpack(">II", header[16:24]) == declared
 
-    def test_the_dark_theme_recolours_the_logo_rather_than_swapping_it(self):
+    def test_the_dark_theme_recolors_the_logo_rather_than_swapping_it(self):
         """One file, inverted. The alternative is a second PNG and a standing
         obligation to keep two images in step forever."""
         import dashboard
@@ -7697,7 +7697,7 @@ class TestWriteSurface:
             # and has neither to offer. It reads nothing, stores nothing
             # server-side and never reaches the bot; the whole effect of a
             # forged call is that the caller's own next page is a different
-            # colour. See set_theme_preference, and TestTheThemePicker for the
+            # color. See set_theme_preference, and TestTheThemePicker for the
             # redirect, which is the only part of it worth attacking.
             "/prefs/theme",
             # Putting one premium changelog card away, for one server (#136
@@ -7728,7 +7728,7 @@ class TestWriteSurface:
             # English, so a picker reachable only from behind a sign-in page
             # they cannot read would be most of the way to not existing. The
             # submitted value is checked against the twelve before it can reach
-            # a `lang` attribute or a catalogue path.
+            # a `lang` attribute or a catalog path.
             "/prefs/lang",
         }, f"an unexpected write route appeared: {posts}"
 
@@ -8434,13 +8434,13 @@ class TestSniffingTheBytes:
     """The upstream content type is the thing that could not be trusted, so
     the proxy does not repeat it."""
 
-    def test_a_png_is_recognised(self):
+    def test_a_png_is_recognized(self):
         assert app_module._sniff_image(bytes([137, 80, 78, 71, 13, 10, 26, 10])) == "image/png"
 
-    def test_a_jpeg_is_recognised(self):
+    def test_a_jpeg_is_recognized(self):
         assert app_module._sniff_image(b"\xff\xd8\xff\xe0rest") == "image/jpeg"
 
-    def test_a_webp_is_recognised(self):
+    def test_a_webp_is_recognized(self):
         assert app_module._sniff_image(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == "image/webp"
 
     def test_a_riff_that_is_not_a_webp_is_not_an_image(self):
@@ -8686,7 +8686,7 @@ class TestTheSharedTypeScaleAndMeasure(object):
         crossing from the landing page to /pricing sees both within one click
         and any difference reads as two products.
 
-        Same bargain as the colour tokens: two origins, two deploys, no shared
+        Same bargain as the color tokens: two origins, two deploys, no shared
         stylesheet possible, so the guarantee is a test rather than an import.
         """
         pattern = r"--text-display:\s*([^;]+);"
@@ -8904,7 +8904,7 @@ class TestTheFooterIsABar(object):
         assert "background: var(--chrome)" in body, "the footer is not a bar"
         assert "border-top" in body, "the footer has no edge"
         assert "max-width" not in body, (
-            "the footer centres itself again, which is what made it align "
+            "the footer centers itself again, which is what made it align "
             "with neither the content nor the header"
         )
 
@@ -9150,7 +9150,7 @@ class TestTwoLanguagesAtOnce:
     requests share one Flask app, and therefore one Jinja Environment, whose
     `globals` dict is where `_()` is looked up when a render starts.
 
-    The first version of #97 bound the catalogue in `before_request` with
+    The first version of #97 bound the catalog in `before_request` with
     `install_gettext_translations`, which writes into exactly that dict. The
     window looked small enough to argue away and was not: between the hook and
     the `render_template` in the same request sits the round trip to the bot
@@ -9216,7 +9216,7 @@ class TestTwoLanguagesAtOnce:
         leaked = self._japanese_characters(pages["de"])
         assert leaked <= 12, (
             f"the German admin's Overview carried {leaked} Japanese "
-            "characters: another request swapped the shared catalogue"
+            "characters: another request swapped the shared catalog"
         )
         # The other side of it, so a fix that simply broke Japanese fails too.
         assert self._japanese_characters(pages["ja"]) > 50
@@ -9271,7 +9271,7 @@ class TestNumbersAndDaysFollowTheLanguage:
 
     def test_the_unknown_and_blank_states_are_untouched(self):
         """Formatting applies to values. The other two states say words, and
-        those come from the catalogue like every other word on the page."""
+        those come from the catalog like every other word on the page."""
         tiles = overview_view.build_tiles(
             self._overview(known=False), t=lambda s: s, lang="de"
         )
@@ -9510,7 +9510,7 @@ class TestEveryNoticeLivesInACard(object):
     This is the guard rather than a `("ok", "bg")` entry in test_contrast.py.
     Pinning the pairing would assert a combination nothing renders, which that
     file's docstring refuses to do -- and it would pin the wrong thing anyway.
-    The defect was never a colour. It was an element in the wrong place.
+    The defect was never a color. It was an element in the wrong place.
     """
 
     @staticmethod
@@ -9665,7 +9665,7 @@ class TestTheSmallDefectsFoundAlongsideTheThemingWork(object):
 
         dark = _palettes()["dark"]
         assert dark["inset"] != dark["bg"], (
-            "--dark-inset and --dark-bg are the same colour again"
+            "--dark-inset and --dark-bg are the same color again"
         )
         # Not an accessibility floor -- SC 1.4.11 is about components, not
         # decorative surfaces. The light theme separates the same two by
@@ -9750,7 +9750,7 @@ class TestTheSmallDefectsFoundAlongsideTheThemingWork(object):
         assert "width: 100%" in self._rule(narrow.group(1), "main")
 
     def test_the_plan_badge_uses_tokens_not_literals(self):
-        """It was the only raw colour literal outside the token blocks, and a
+        """It was the only raw color literal outside the token blocks, and a
         hardcoded radius beside a token holding the same value."""
         # Comments stripped first: the rule carries a note naming the two
         # literals it replaced, and a test that cannot tell a declaration from
@@ -9759,18 +9759,18 @@ class TestTheSmallDefectsFoundAlongsideTheThemingWork(object):
         assert "var(--accent-ink)" in rule and "#fff" not in rule
         assert "var(--radius-pill)" in rule and "999px" not in rule
 
-    def test_no_raw_colour_literal_survives_outside_the_token_blocks(self):
+    def test_no_raw_color_literal_survives_outside_the_token_blocks(self):
         """The general form of the finding above. Every hex in this file should
-        be a token declaration; a colour written into a rule is a colour that
+        be a token declaration; a color written into a rule is a color that
         cannot be rethemed."""
         css = re.sub(r"/\*.*?\*/", "", self._css(), flags=re.S)
         # Drop every `--foo: #hex;` declaration, then look for what is left.
         without_tokens = re.sub(r"--[a-z0-9-]+\s*:\s*#[0-9a-fA-F]{3,8}\s*;", "", css)
         leftovers = re.findall(r"#[0-9a-fA-F]{3,8}\b", without_tokens)
-        assert not leftovers, f"raw colour literals in rules: {leftovers}"
+        assert not leftovers, f"raw color literals in rules: {leftovers}"
 
     def test_the_collapsed_side_up_is_reset_with_its_siblings(self):
-        """`.layout.collapsed` centres `.side-guild`, `.side-up a` and
+        """`.layout.collapsed` centers `.side-guild`, `.side-up a` and
         `.side-link`. The narrow block put two of the three back."""
         narrow = re.search(r"@media \(max-width: 48rem\)(.*)", self._css(), re.S)
         assert narrow, "the narrow block's query has changed shape"
@@ -9780,7 +9780,7 @@ class TestTheSmallDefectsFoundAlongsideTheThemingWork(object):
             ".layout.collapsed .side-up a",
         ):
             assert "justify-content: flex-start" in self._rule(body, selector), (
-                f"{selector} still wears the rail's centring at phone width"
+                f"{selector} still wears the rail's centering at phone width"
             )
 
     def test_the_dead_guild_head_rules_are_gone(self):

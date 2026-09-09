@@ -2,7 +2,7 @@
  * Hand-written incidents (issue #170 phase 5).
  *
  * This is the one place a person can put words on a page that is otherwise
- * entirely measured. THE HEADLINE, THE HERO COLOUR AND THE PILLS ARE NEVER
+ * entirely measured. THE HEADLINE, THE HERO COLOR AND THE PILLS ARE NEVER
  * TYPED -- an incident is prose, shown in its own banner, and it must not move
  * any of those either direction. Not better than the rows say (a "resolved"
  * incident cannot paper over a real outage) and not worse either (an
@@ -40,7 +40,7 @@ function pageWith(incidents) {
 
 test("an open 'down' incident does not turn five working services red", () => {
   const html = pageWith([{ id: 1, title: "Slow for some", impact: "down", started_at: NOW - 60, resolved_at: null, updates: [] }]);
-  assert.ok(html.includes('class="hero is-up"'), "the hero colour is measured, and nothing was measured down");
+  assert.ok(html.includes('class="hero is-up"'), "the hero color is measured, and nothing was measured down");
   // Every row still reads as measured. This is the whole point: one person's
   // word does not repaint working services.
   assert.equal(
@@ -143,7 +143,7 @@ test("a resolved incident moves out of the banner and into the history", () => {
   assert.ok(html.includes("Recent incidents"));
   assert.ok(html.includes("Resolved after 2 hours"));
   assert.ok(html.includes("All systems operational"), "a closed incident is not a live one");
-  // And it is drawn neutral rather than in the colour of the trouble it used
+  // And it is drawn neutral rather than in the color of the trouble it used
   // to be. A red card for something fixed hours ago is alarming at a glance
   // and wrong the moment anybody reads the date.
   assert.ok(html.includes("incident is-resolved"));

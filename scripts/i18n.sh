@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Re-extract, merge and compile the translation catalogues, both domains.
+# Re-extract, merge and compile the translation catalogs, both domains.
 #
 # Run this after changing ANY user-facing string, in src/dashboard (#97) or in
 # src/locales.py (#231). The three steps below are one operation and are not
@@ -11,9 +11,9 @@
 #            that still has a matching msgid and marking the rest fuzzy
 #   compile  turns the .po files into the .mo files that actually get read
 #
-# Doing the first without the second leaves the catalogues behind the source.
+# Doing the first without the second leaves the catalogs behind the source.
 # Doing the second without the third leaves the running code behind the
-# catalogues, silently -- gettext has no way to say "there is a newer
+# catalogs, silently -- gettext has no way to say "there is a newer
 # translation you did not compile", it simply serves the English.
 #
 # TWO DOMAINS, ON PURPOSE. dashboard.pot and bot.pot stay separate so neither
@@ -44,7 +44,7 @@ CONFIG=config/other_configs/babel.cfg
 # i18n_core translates the hyphenated codes the bot and Discord use into these,
 # in one function, so this is the only other place the spelling appears.
 LANGUAGES=(es_ES zh_CN ja de nl hi_IN ar bn pt_BR ru pa_IN)
-# en_US is absent on purpose, in both domains. Its catalogue is the msgids
+# en_US is absent on purpose, in both domains. Its catalog is the msgids
 # themselves; a directory for it would be a file full of entries translating
 # English into the same English, with every one of them a chance to drift.
 
@@ -54,14 +54,14 @@ if ! command -v pybabel >/dev/null 2>&1; then
 	exit 1
 fi
 
-# domain, source path to extract from, directory holding the catalogues
+# domain, source path to extract from, directory holding the catalogs
 run_domain() {
-	local domain="$1" source="$2" catalogues="$3"
-	local pot="$catalogues/$domain.pot"
+	local domain="$1" source="$2" catalogs="$3"
+	local pot="$catalogs/$domain.pot"
 
 	echo
 	echo "=================== $domain ==================="
-	mkdir -p "$catalogues"
+	mkdir -p "$catalogs"
 
 	echo "==> extract"
 	# `-k N_` is not optional. Both domains keep strings in tables built at
@@ -86,11 +86,11 @@ run_domain() {
 
 	echo "==> update"
 	for lang in "${LANGUAGES[@]}"; do
-		if [ -d "$catalogues/$lang" ]; then
-			pybabel update -i "$pot" -d "$catalogues" -D "$domain" -l "$lang" \
+		if [ -d "$catalogs/$lang" ]; then
+			pybabel update -i "$pot" -d "$catalogs" -D "$domain" -l "$lang" \
 				--previous
 		else
-			pybabel init -i "$pot" -d "$catalogues" -D "$domain" -l "$lang"
+			pybabel init -i "$pot" -d "$catalogs" -D "$domain" -l "$lang"
 		fi
 	done
 
@@ -101,7 +101,7 @@ run_domain() {
 	# cancellation. In the bot they include role assignment failures and the
 	# premium pitch. A wrong guess in either place is a support ticket, so a
 	# fuzzy entry renders the msgid until a person has looked at it.
-	pybabel compile -d "$catalogues" -D "$domain" --statistics
+	pybabel compile -d "$catalogs" -D "$domain" --statistics
 }
 
 run_domain dashboard src/dashboard src/dashboard/translations
@@ -110,7 +110,7 @@ run_domain bot src/locales.py src/translations/bot
 echo
 echo "==> fuzzy check, both domains"
 # `--statistics` COUNTS A FUZZY ENTRY AS TRANSLATED, and compile then drops it.
-# So a catalogue can report "154 of 154 messages (100%)" and still serve English
+# So a catalog can report "154 of 154 messages (100%)" and still serve English
 # for four of them -- which is exactly what happened when the sidebar's labels
 # were added: pybabel matched "Settings" against "Settings sections", marked it
 # fuzzy, counted it, and compiled it out. The only symptom was a German page
@@ -118,7 +118,7 @@ echo "==> fuzzy check, both domains"
 #
 # The same trap has a whole-file form, which #231 walked into: Babel's Catalog
 # defaults to fuzzy, which marks the HEADER fuzzy, which makes compile skip the
-# entire catalogue -- printing "91 of 91 (100%)" on the line above the one where
+# entire catalog -- printing "91 of 91 (100%)" on the line above the one where
 # it skips it. Eleven complete .po files, eleven empty .mo files, every language
 # English. This turns both into a line of output.
 python3 - <<'PY'
@@ -137,7 +137,7 @@ for domain, pattern in PATTERNS:
         lang = path.split("/")[-3]
         if catalog.fuzzy:
             trouble = True
-            print(f"  {domain}/{lang}: THE WHOLE CATALOGUE IS FUZZY -- compile "
+            print(f"  {domain}/{lang}: THE WHOLE CATALOG IS FUZZY -- compile "
                   f"will skip every entry in it and serve English")
         fuzzy = [m.id for m in catalog if m.id and "fuzzy" in m.flags]
         empty = [m.id for m in catalog if m.id and not m.string]
@@ -148,7 +148,7 @@ for domain, pattern in PATTERNS:
         for msgid in empty:
             print(f"  {domain}/{lang}: UNTRANSLATED {msgid[:60]!r}")
 if not trouble:
-    print("  no fuzzy or untranslated entries: every catalogue ships complete")
+    print("  no fuzzy or untranslated entries: every catalog ships complete")
 sys.exit(0)
 PY
 

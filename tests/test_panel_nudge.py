@@ -175,7 +175,7 @@ class TestSetupNudge:
         # thing the admin still has to do.
         #
         # SUPPORT_INVITE_URL is pinned off rather than left to the environment.
-        # conftest does not neutralise it, so a developer with one in their
+        # conftest does not neutralize it, so a developer with one in their
         # .env gets an extra trailing paragraph here and CI does not.
         monkeypatch.setattr(bot, "SUPPORT_INVITE_URL", None)
         interaction, sent = setup_interaction()
@@ -249,7 +249,7 @@ class TestOnboardingHelpers:
             assert session.query(bot.GuildOnboarding).count() == 1
         assert onboarding_row().setup_at == first
 
-    def test_record_normalises_int_guild_ids(self):
+    def test_record_normalizes_int_guild_ids(self):
         bot.record_guild_onboarding(int(GUILD_ID))
         assert onboarding_row(GUILD_ID) is not None
 
@@ -351,7 +351,7 @@ class TestNudgeCandidates:
         make_server()
         assert bot.load_panel_nudge_candidates(10) == []
 
-    def test_limit_is_honoured(self, monkeypatch):
+    def test_limit_is_honored(self, monkeypatch):
         monkeypatch.setattr(bot, "PANEL_NUDGE_GRACE_HOURS", 0)
         for index in range(5):
             sid = str(1000 + index)
@@ -597,7 +597,7 @@ class TestStatusCommand:
             )
 
         # `view` is captured rather than ignored: whether this command offers a
-        # dashboard button is behaviour worth asserting, and a fake that
+        # dashboard button is behavior worth asserting, and a fake that
         # rejected the kwarg would only ever prove the command never passes it.
         async def followup_send(msg, ephemeral=False, view=None):
             sent.append(

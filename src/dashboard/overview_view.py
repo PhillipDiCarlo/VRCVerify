@@ -46,7 +46,7 @@ def _untranslated(text: str) -> str:
     return text
 
 
-# How each window is labelled. "Today (UTC)" rather than "last 24 hours"
+# How each window is labeled. "Today (UTC)" rather than "last 24 hours"
 # because the rollup stores days, not moments -- see `_verification_windows` in
 # bot.py. A tile promising a rolling day and delivering a calendar one is a
 # small lie that gets noticed at midnight.
@@ -707,7 +707,7 @@ def _demo_step(
     nothing left to sell it.
     """
     if ngettext is None:
-        # The English rule, for a caller that passed no catalogue: one form for
+        # The English rule, for a caller that passed no catalog: one form for
         # 1 and one for everything else.
         def ngettext(one, many, n):
             return one if n == 1 else many
@@ -727,7 +727,7 @@ def _demo_step(
     # a property of the language, not of the number: Russian has three forms,
     # Japanese and Chinese have one, and Arabic has six. Appending an "s" is
     # correct for exactly one of the twelve, so the whole sentence is a plural
-    # msgid and gettext picks the form from the catalogue's own rule.
+    # msgid and gettext picks the form from the catalog's own rule.
     #
     # The FORM comes from `ngettext` above; the DIGITS are grouped separately,
     # because they are not a property of the sentence (#230). This one was the
@@ -778,7 +778,7 @@ def build_next_step(
        verification must not be sold to instead of fixed.
     2. `changelog_entry`, an undismissed premium changelog entry. This
        parameter is #136's contract, not #135's: nothing calls this with one
-       yet, and the default keeps today's behaviour exactly as it was. #135
+       yet, and the default keeps today's behavior exactly as it was. #135
        only defines where it ranks and what shape it needs -- the same shape
        this function itself returns, `{"title", "body", "action"}` -- so #136
        can hand back exactly what should be shown without this function

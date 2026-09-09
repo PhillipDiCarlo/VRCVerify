@@ -184,7 +184,7 @@
               {% if group.group_setup.error and group.group_setup.tone != 'ok' %}
                 {# VRChat's own words, passed through. Only the framing is translated:
                  the message itself came from VRChat's API in English and this
-                 app has no catalogue for it. #}
+                 app has no catalog for it. #}
               <p class="muted desc">{% trans said=group.group_setup.error %}VRChat said: {{ said }}{% endtrans %}</p>
               {% endif %}
               {% if group.group_setup.show_claim_code %}
@@ -288,7 +288,7 @@
                     {% endfor %}
                   </select>
                 {% elif field.kind == 'color' %}
-                  {# A colour input cannot be empty, so "no colour" is its own
+                  {# A color input cannot be empty, so "no color" is its own
                      checkbox rather than a sentinel value pretending to be one. #}
                   {{ present(field) }}
                   <label class="check">

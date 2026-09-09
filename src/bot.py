@@ -40,7 +40,7 @@ from datetime import date, datetime, timezone, timedelta
 from dotenv import load_dotenv
 import locales
 from locales import LANGUAGE_CODES
-from i18n_core import Catalogues
+from i18n_core import Catalogs
 import bot_api
 import heartbeat
 from log_safety import install_log_scrubbing
@@ -53,10 +53,10 @@ def get_locale(interaction: discord.Interaction) -> str:
     return loc if loc in LANGUAGE_CODES else "en-US"
 
 
-# The bot's compiled catalogues (#231). One domain, separate from the
+# The bot's compiled catalogs (#231). One domain, separate from the
 # dashboard's, so neither image carries the other's strings. Read from disk on
 # first use and cached for the life of the process.
-CATALOGUES = Catalogues(
+CATALOGS = Catalogs(
     domain="bot",
     localedir=os.path.join(os.path.dirname(os.path.abspath(__file__)), "translations", "bot"),
     languages=LANGUAGE_CODES,
@@ -77,7 +77,7 @@ def translate(msgid: str, locale: str, **kwargs) -> str:
     and spelled their own fallback, three different ways in four places. Now
     there is one lookup and one fallback for every string the bot says.
     """
-    return CATALOGUES.translator(locale)(msgid).format(**kwargs)
+    return CATALOGS.translator(locale)(msgid).format(**kwargs)
 
 
 def get_message(msgid: str, interaction: discord.Interaction, **kwargs) -> str:
@@ -91,7 +91,7 @@ def get_message(msgid: str, interaction: discord.Interaction, **kwargs) -> str:
     on English rather than on nothing:
 
     - an unsupported locale, which `get_locale` already floors to en-US
-    - a language whose catalogue is missing, which `Catalogues._load` opens
+    - a language whose catalog is missing, which `Catalogs._load` opens
       with fallback=True
     - a string that language has not translated yet, which gettext answers with
       the msgid, and the msgid is the English
@@ -346,7 +346,7 @@ PANEL_NUDGE_DM_SPACING = _float_env("PANEL_NUDGE_DM_SPACING", 2.0)
 
 # Instruction panel buttons carry fixed custom_ids so a single bot.add_view()
 # call routes clicks for every panel ever posted, instead of the bot having to
-# re-edit all of them on boot just to hand out ids it recognises.
+# re-edit all of them on boot just to hand out ids it recognizes.
 #
 # Bump this when the button set changes: the custom_ids change with it, panels
 # still carrying an older version stop matching the registered view, and the
@@ -691,7 +691,7 @@ class PremiumGrandfatherLine(Base):
 
     That ordering is the entire point: it makes "a server loses automation it
     already had" impossible by construction rather than something we detect
-    afterwards and apologise for (issue #59). It also means the cutover DM can
+    afterwards and apologize for (issue #59). It also means the cutover DM can
     go out after the switch without harm, since it is now purely informational.
 
     Captured rather than configured because a hand-set line is a number someone
@@ -713,7 +713,7 @@ class PremiumGrandfatherLine(Base):
 
 
 class InstructionPanelBranding(Base):
-    """A premium server's own colour and thumbnail for its instructions panel.
+    """A premium server's own color and thumbnail for its instructions panel.
 
     A separate table for the same reason as the others: create_all() adds
     missing tables but never columns.
@@ -722,7 +722,7 @@ class InstructionPanelBranding(Base):
     change how a panel looks. That matters because subscribing should not
     silently restyle a panel the admin never asked to restyle.
 
-    Only the styling is customisable. The instruction copy itself is not, and
+    Only the styling is customizable. The instruction copy itself is not, and
     deliberately: it is the part that actually gets people through verification
     correctly, and letting servers rewrite it means support requests about
     instructions nobody here wrote.
@@ -735,7 +735,7 @@ class InstructionPanelBranding(Base):
     __tablename__ = "instruction_panel_branding"
     server_id = Column(String, primary_key=True)
     # Discord's native integer form. NULL means "use the default blue" rather
-    # than a sentinel colour, so "unset" and "deliberately dark" stay distinct.
+    # than a sentinel color, so "unset" and "deliberately dark" stay distinct.
     embed_color = Column(Integer, nullable=True)
     show_icon = Column(Boolean, nullable=False, default=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -1005,8 +1005,8 @@ class GroupInviteConfig(Base):
 
     __tablename__ = "group_invite_config"
     server_id = Column(String, primary_key=True)
-    # The `grp_...` id, lower-cased by parse_vrchat_group_id. Normalising there
-    # rather than here is deliberate: unnormalised, two guilds could claim one
+    # The `grp_...` id, lower-cased by parse_vrchat_group_id. Normalizing there
+    # rather than here is deliberate: unnormalized, two guilds could claim one
     # group in different cases and the unique constraint would not notice.
     group_id = Column(String(64), nullable=True, unique=True)
     # What the group calls itself, as the worker last saw it. Display only --
@@ -1050,7 +1050,7 @@ class GroupInviteConfig(Base):
     invite_account_id = Column(String(64), nullable=True)
     # Proof the claimer controls the group: shown on the dashboard, pasted into
     # the group description, read back through get_group() before the bot
-    # joins. The group-level analogue of the bio code members already use.
+    # joins. The group-level analog of the bio code members already use.
     claim_code = Column(String(20), nullable=True)
     claim_code_issued_at = Column(DateTime(timezone=True), nullable=True)
     # One of GROUP_SETUP_STATES: what the last check concluded.
@@ -1389,7 +1389,7 @@ class StripeSubscription(Base):
     place this departs from the issue's schema. A guild really can hold two
     live subscriptions at once — the issue's own Double billing section says to
     expect it and warn about it — and a table that cannot represent that does
-    not merely lose a warning, it loses money in the customer's disfavour: with
+    not merely lose a warning, it loses money in the customer's disfavor: with
     one row per guild, an ordinary renewal of the older subscription overwrites
     the newer one, and the older one's eventual cancellation then switches off
     a server that is still being billed for the other. That was found by
@@ -1417,7 +1417,7 @@ class StripeSubscription(Base):
     # dashboard's config.
     price_id = Column(String, nullable=False)
     # Stripe's own status string, verbatim and unmapped. A boolean here would
-    # throw away the difference between "cancelled" and "we could not charge
+    # throw away the difference between "canceled" and "we could not charge
     # the card yesterday", which is exactly the difference support questions
     # are about.
     status = Column(String, nullable=False)
@@ -1426,7 +1426,7 @@ class StripeSubscription(Base):
     # Ordering guard, per subscription — which is the scope Stripe's ordering
     # actually concerns. It does not promise events arrive in order, and a
     # delayed `subscription.updated` overwriting a newer `subscription.deleted`
-    # would silently restore premium to a server that cancelled.
+    # would silently restore premium to a server that canceled.
     last_event_created = Column(DateTime(timezone=True), nullable=False)
     updated_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
@@ -1852,7 +1852,7 @@ def _dashboard_page(guild_id, page: str) -> Optional[str]:
 # ONE value, read from config, rather than the URL written into all twelve
 # translations. The issue's scope asked for both "invite link in config, not
 # hardcoded" and "the URL in all 12 locales", which cannot both be true -- a
-# URL repeated twelve times across the catalogues is hardcoded twelve times
+# URL repeated twelve times across the catalogs is hardcoded twelve times
 # over, and rotating it would mean editing every language. So the string
 # carries an `{invite}` placeholder and this supplies the value.
 #
@@ -1966,7 +1966,7 @@ def dashboard_subscription_url(guild_id) -> Optional[str]:
 
 # The kill switch. With no SKU configured every gate answers "allowed", so this
 # code can ship and run in production before the SKU is even published, with
-# behaviour identical to the free bot. Turning the tier on is one env var, not
+# behavior identical to the free bot. Turning the tier on is one env var, not
 # a deploy — and if it ever needs turning back off, that is one env var too.
 PREMIUM_SKU_ID = _optional_int_env("PREMIUM_SKU_ID")
 PREMIUM_ENFORCED = PREMIUM_SKU_ID is not None
@@ -2015,20 +2015,20 @@ STRIPE_STATUS_TTL = _int_env("STRIPE_STATUS_TTL", 900)
 # Stripe's statuses that mean "this server has paid for what it is using".
 #
 # `past_due` is deliberately in this set. Stripe is still retrying the card;
-# the subscription is not cancelled, a charge is merely late. Cutting a paying
+# the subscription is not canceled, a charge is merely late. Cutting a paying
 # customer off on the first failed retry is the same mistake the entitlement
 # lookup's fail-open exists to avoid. `unpaid` is Stripe having given up, and
 # is not in the set.
 #
-# `canceled` is not here either, but see stripe_active(): a cancelled
+# `canceled` is not here either, but see stripe_active(): a canceled
 # subscription keeps premium until its paid period actually runs out, which is
 # how the Discord side already behaves. The two payment paths must not disagree
-# about what cancelling means.
+# about what canceling means.
 STRIPE_PAID_STATUSES = frozenset({"active", "trialing", "past_due"})
 
 # How long a processed webhook event id is kept before the ledger forgets it.
 #
-# Its only job is to recognise a redelivery, and Stripe stops retrying after
+# Its only job is to recognize a redelivery, and Stripe stops retrying after
 # three days — so anything older than that can no longer be replayed at us and
 # keeping it buys nothing. Thirty days is an order of magnitude of headroom on
 # a number that is not ours to change.
@@ -2045,9 +2045,9 @@ PREMIUM_VERIFICATION_COOLDOWN_SECONDS = _int_env(
 )
 
 # Auto-verify-on-join is deliberately NOT in this list, and is not gated at
-# all. Users expect a verification bot to recognise them and hand out the role
+# all. Users expect a verification bot to recognize them and hand out the role
 # on join — a server owner described it as simply how these bots work. Charging
-# for behaviour people read as baseline doesn't land as "premium", it lands as
+# for behavior people read as baseline doesn't land as "premium", it lands as
 # the bot being worse than the alternatives until you pay. It is also the only
 # gated feature a *member* could perceive, and members move between servers.
 FEATURE_UNVERIFIED_ROLE_REMOVAL = "unverified_role_removal"
@@ -2181,7 +2181,7 @@ def field_is_announced(name: str) -> bool:
 # else, and the order was deliberate: every one of those values is a constrained
 # type — one of a fixed set of language codes, a 24-bit integer, a boolean — so
 # the first write path this project ever had could be about the plumbing
-# (authorisation, the audit record, refusing a locked field) rather than about
+# (authorization, the audit record, refusing a locked field) rather than about
 # validating free text or reasoning about role hierarchies at the same time.
 # The remaining groups followed once that plumbing was proven, so this is now
 # every setting the dashboard offers.
@@ -2248,11 +2248,11 @@ def _coerce_embed_color(value):
     if value is None:
         return None  # Explicitly back to the default blue.
     # bool is a subclass of int, and True would otherwise sail through as the
-    # colour #000001.
+    # color #000001.
     if isinstance(value, bool) or not isinstance(value, int):
-        raise SettingRejected("panel_embed_color", "not_a_colour")
+        raise SettingRejected("panel_embed_color", "not_a_color")
     if not 0 <= value <= 0xFFFFFF:
-        raise SettingRejected("panel_embed_color", "colour_out_of_range")
+        raise SettingRejected("panel_embed_color", "color_out_of_range")
     return value
 
 
@@ -2266,7 +2266,7 @@ def _role_coercer(field_name: str, *, required: bool):
     """A Discord snowflake, as the string the servers table stores.
 
     Accepts an int as well as a digit string because JSON has a number type and
-    an id that arrived as one is not wrong -- only ambiguous, and normalising
+    an id that arrived as one is not wrong -- only ambiguous, and normalizing
     here is cheaper than a mismatch nobody notices until a role stops matching.
     """
 
@@ -2298,7 +2298,7 @@ def _bool_coercer(field_name: str):
 
 
 def _coerce_custom_message(value):
-    """The custom DM, through the same sanitiser the slash command uses.
+    """The custom DM, through the same sanitizer the slash command uses.
 
     Not a reimplementation: sanitize_custom_message strips zero-width
     characters, defuses @everyone/@here, and allows links only to discord.com
@@ -2324,7 +2324,7 @@ def _coerce_custom_message(value):
         raise SettingRejected(
             "custom_verification_requested_message", "message_links_not_allowed"
         )
-    # The sanitised text, never the submitted text -- the @everyone defusal has
+    # The sanitized text, never the submitted text -- the @everyone defusal has
     # to survive into the database, not just past the check.
     return cleaned
 
@@ -2534,7 +2534,7 @@ class PremiumStatusCache:
         guess made when a lookup fails, and a *negative* read of an interaction
         payload (where "no entitlements field" and "no entitlements" are
         indistinguishable). Letting either write _last_known would let a bad
-        guess outlive itself and invert the fail-open behaviour.
+        guess outlive itself and invert the fail-open behavior.
         """
         self._fresh[guild_id] = (time.monotonic() + ttl, value)
 
@@ -2691,7 +2691,7 @@ def has_ever_paid(guild_id) -> bool:
             return True
         # Card subscriptions need no separate ledger: stripe_subscription rows
         # outlive the subscription by design, so the presence of ANY row --
-        # active, cancelled, unpaid, years old -- is the record that this guild
+        # active, canceled, unpaid, years old -- is the record that this guild
         # once paid by card.
         row = (
             session.query(StripeSubscription.stripe_subscription_id)
@@ -2790,12 +2790,12 @@ def load_stripe_subscription(guild_id):
             if not rows:
                 return None
 
-            normalised = []
+            normalized = []
             for row in rows:
                 period_end = row.current_period_end
                 if period_end is not None and period_end.tzinfo is None:
                     period_end = period_end.replace(tzinfo=timezone.utc)
-                normalised.append(
+                normalized.append(
                     (row, period_end, _stripe_row_is_paid(row.status, period_end, now))
                 )
 
@@ -2803,9 +2803,9 @@ def load_stripe_subscription(guild_id):
             # longest, or — if none is paid — the one that ended most recently,
             # so "your subscription ended on the 3rd" names the right date
             # rather than an older lapsed one.
-            paid = [entry for entry in normalised if entry[2]]
+            paid = [entry for entry in normalized if entry[2]]
             row, period_end, _active = max(
-                paid or normalised,
+                paid or normalized,
                 key=lambda entry: entry[1] or datetime.min.replace(tzinfo=timezone.utc),
             )
             return {
@@ -2845,7 +2845,7 @@ def _stripe_row_is_paid(status, current_period_end, now: datetime) -> bool:
     Two independent conditions, both required:
 
     * the status is one Stripe considers paid (STRIPE_PAID_STATUSES), **or**
-      the subscription is cancelled but its paid period has not run out yet;
+      the subscription is canceled but its paid period has not run out yet;
     * the paid period has not run out.
 
     That second clause is what makes a `canceled` subscription keep working
@@ -2856,7 +2856,7 @@ def _stripe_row_is_paid(status, current_period_end, now: datetime) -> bool:
         return False
     # SQLite hands back naive datetimes for a timezone-aware column, so a row
     # written on Postgres and one written in a test compare differently unless
-    # this is normalised. Storing UTC is a project-wide invariant, so assuming
+    # this is normalized. Storing UTC is a project-wide invariant, so assuming
     # it here is safe.
     if current_period_end.tzinfo is None:
         current_period_end = current_period_end.replace(tzinfo=timezone.utc)
@@ -2970,7 +2970,7 @@ async def sweep_entitlement_history() -> int:
     The gateway only tells this process about entitlements that change while it
     is connected, which leaves two holes the ledger cannot afford: everything
     that happened before this code shipped — the tier launched 2026-08-03 and
-    every server that subscribed and cancelled since then is invisible — and
+    every server that subscribed and canceled since then is invisible — and
     anything that changes during a restart or an outage.
 
     Both close the same way, by asking Discord. `entitlements()` defaults to
@@ -3350,7 +3350,7 @@ def load_group_invite_config(guild_id) -> Optional[dict]:
     Everything here stores UTC, but SQLite has no timezone type and hands back
     a naive datetime, so a value written as aware reads back ambiguous -- and
     an ambiguous instant on the wire is one the website renders in whatever
-    zone it guesses. Same normalisation load_stripe_subscription does, for the
+    zone it guesses. Same normalization load_stripe_subscription does, for the
     same reason.
     """
     if guild_id is None:
@@ -3436,7 +3436,7 @@ def save_group_invite_config(guild_id, *, group_id, enabled) -> Optional[str]:
     key = panel_view_key(guild_id)
     # Parsed here as well as in the coercer, because this is the function that
     # writes the UNIQUE column and so is the one whose invariant it is. A
-    # caller reaching this with an unnormalised id -- a later phase storing
+    # caller reaching this with an unnormalized id -- a later phase storing
     # what a worker echoed back, say -- would otherwise put a second casing of
     # an already-claimed group into the table, and first-claim-wins would
     # quietly stop being true. Idempotent for anything already parsed.
@@ -3510,7 +3510,7 @@ def begin_group_verification(guild_id) -> Optional[dict]:
     The job is built HERE, from the stored row, and never from anything a
     browser sent. That is the same rule the invite worker's module docstring
     enforces from the other end: the only group id that worker will ever join
-    is one an authorised admin typed into that guild's own settings. Accepting
+    is one an authorized admin typed into that guild's own settings. Accepting
     a group id from the request body would hand anyone who can reach the
     dashboard the ability to park the bot in a group of their choosing.
 
@@ -3952,7 +3952,7 @@ def begin_group_invite(
 
 
 def retire_group_invite_request(guild_id, discord_id) -> bool:
-    """Clear a spent request so a fresh offer can be honoured. True if cleared.
+    """Clear a spent request so a fresh offer can be honored. True if cleared.
 
     Deleted rather than moved to some "offered again" state, because that IS
     the member's standing now: they have been offered a button and have not
@@ -4160,7 +4160,7 @@ def invite_account_for_guild(guild_id) -> Optional[InviteAccount]:
     A guild with no lease on a SINGLE-account installation gets that account.
     Every guild configured before this table existed is in exactly that
     position, and the alternative is telling them the feature is unavailable
-    until a sweep materialises a row that was never in doubt. With several
+    until a sweep materializes a row that was never in doubt. With several
     accounts the answer genuinely is unknown until one is assigned, so it says
     so instead of guessing.
     """
@@ -4228,7 +4228,7 @@ def assign_invite_account(guild_id) -> Optional[InviteAccount]:
 
     Two guilds assigning in the same instant can both pick the same account and
     put it one over its cap. Left alone deliberately: the loser finds out at
-    join time with a clear failure, and the alternative is serialising every
+    join time with a clear failure, and the alternative is serializing every
     setup in the product behind one lock to save a seat that VRC+ doubles.
     """
     if not INVITE_ACCOUNTS:
@@ -4242,7 +4242,7 @@ def assign_invite_account(guild_id) -> Optional[InviteAccount]:
 
     existing = invite_account_for_guild(guild_id)
     if existing is not None:
-        # Materialise the lease for a single-account installation that has
+        # Materialize the lease for a single-account installation that has
         # never had one, so the seat is counted from here on.
         _record_seat_lease(key, existing.user_id, now)
         return existing
@@ -4748,7 +4748,7 @@ async def seat_sweep_task(interval_seconds: int = SEAT_SWEEP_INTERVAL):
         except Exception:
             logger.exception("Seat sweep failed; retrying next interval.")
         # Jittered, like every other repeating schedule here: a fixed interval
-        # is what makes many deployments synchronise into a spike.
+        # is what makes many deployments synchronize into a spike.
         await asyncio.sleep(interval_seconds + random.uniform(0, 60))
 
 
@@ -4820,13 +4820,13 @@ async def log_channel_if_allowed(guild_id, log_channel_id) -> Optional[str]:
 
 
 # -------------------------------------------------------------------
-# Premium: branded instructions panel (colour + thumbnail)
+# Premium: branded instructions panel (color + thumbnail)
 # -------------------------------------------------------------------
 DEFAULT_PANEL_COLOR = discord.Color.blue()
 
-# Discord treats an embed colour of 0 as "no colour set" and renders the plain
-# grey sidebar, so a server asking for black would appear to have been ignored.
-# Nudge it to the darkest value that still registers as a colour.
+# Discord treats an embed color of 0 as "no color set" and renders the plain
+# gray sidebar, so a server asking for black would appear to have been ignored.
+# Nudge it to the darkest value that still registers as a color.
 NEAREST_RENDERABLE_BLACK = 0x010101
 
 
@@ -4834,7 +4834,7 @@ def parse_hex_color(raw: str) -> Optional[int]:
     """Parse '#5865F2', '5865F2' or '0x5865F2' into Discord's integer form.
 
     Returns None for anything else, so the caller can say so rather than
-    storing a colour the admin did not choose. Three-digit shorthand (#abc) is
+    storing a color the admin did not choose. Three-digit shorthand (#abc) is
     accepted because people type it.
     """
     if not raw:
@@ -4864,7 +4864,7 @@ BRANDING_UNREADABLE = object()
 
 
 def load_panel_branding(guild_id):
-    """This guild's stored (colour, show_icon).
+    """This guild's stored (color, show_icon).
 
     Returns None when the guild definitely has no branding, or
     BRANDING_UNREADABLE when the question could not be answered.
@@ -4895,7 +4895,7 @@ def save_panel_branding(guild_id, embed_color: Optional[int], show_icon: bool) -
     Styling that asks for nothing removes the row instead of storing it. The
     settings view saves every page at once, so a premium server that only
     touched its nickname setting would otherwise get a row meaning "default
-    colour, no icon" — indistinguishable in effect from having none, but enough
+    color, no icon" — indistinguishable in effect from having none, but enough
     to make resolve_panel_style do an entitlement lookup for that guild on
     every fleet refresh. That short-circuit is the reason the refresh does not
     cost one REST call per panel, so it is worth protecting.
@@ -4925,7 +4925,7 @@ def panel_style(
     guild: Optional[discord.Guild],
     allowed: bool,
 ) -> tuple[discord.Color, Optional[str]]:
-    """Turn stored branding into the (colour, thumbnail_url) an embed needs.
+    """Turn stored branding into the (color, thumbnail_url) an embed needs.
 
     Kept separate from the entitlement read so it can be exercised without a
     database or a Discord connection, and so both call sites provably agree.
@@ -5226,7 +5226,7 @@ class VRCVerifyInstructionView(View):
 # -------------------------------------------------------------------
 # Settings summary (read-only -- editing lives on the dashboard)
 # -------------------------------------------------------------------
-# The paged settings editor used to live here: four pages of selects, a colour
+# The paged settings editor used to live here: four pages of selects, a color
 # modal, and its own copy of the premium gating. It was removed when the web
 # dashboard took over configuration. What is left reads the SAME payload the
 # website renders -- read_dashboard_settings -- so the two can report different
@@ -5239,7 +5239,7 @@ class VRCVerifyInstructionView(View):
 
 # How each setting is titled in the summary. English, like the editor that
 # preceded it and like the dashboard itself; the member-facing instructions
-# panel is the localised surface and stays that way.
+# panel is the localized surface and stays that way.
 SETTINGS_SUMMARY_LABELS = (
     ("role_id", "Verified role"),
     ("unverified_role_id", "Unverified role"),
@@ -5247,7 +5247,7 @@ SETTINGS_SUMMARY_LABELS = (
     ("auto_nickname_change", "Nickname sync"),
     ("custom_verification_requested_message", "Custom message"),
     ("instructions_locale", "Instructions language"),
-    ("panel_embed_color", "Panel colour"),
+    ("panel_embed_color", "Panel color"),
     ("panel_show_icon", "Panel icon"),
     ("verification_log_channel_id", "Activity log"),
     ("vrchat_group_id", "VRChat group"),
@@ -6000,7 +6000,7 @@ GROUP_INVITE_MESSAGE_KEYS = {
 # v1 -> v2: the custom_id gained the account fingerprint below. Every v1 button
 # still sitting in a DM stops matching, and that is the point rather than a
 # side effect: a v1 button carries no record of which VRChat account it was
-# offered for, so there is no way to honour one safely. They were the
+# offered for, so there is no way to honor one safely. They were the
 # vulnerable population, and retiring them is the fix.
 GROUP_INVITE_VIEW_VERSION = 2
 GROUP_INVITE_CUSTOM_ID_PREFIX = f"vrcverify:groupinvite:v{GROUP_INVITE_VIEW_VERSION}:"
@@ -7081,7 +7081,7 @@ async def vrcverify_subscription(interaction: discord.Interaction):
     by_card = stripe_active(interaction.guild_id)
 
     if by_discord and by_card:
-        # Paying twice. Never cancelled for them and never refunded
+        # Paying twice. Never canceled for them and never refunded
         # automatically -- code that moves money without a human deciding is
         # the wrong failure direction -- so this says so plainly and points at
         # the page that can cancel the half we control.
@@ -8507,12 +8507,12 @@ def panel_row_owner_id(guild, actor_id) -> str:
 
 
 def panel_view_key(server_id) -> str:
-    """Normalise a guild id for the instruction_panel_views table.
+    """Normalize a guild id for the instruction_panel_views table.
 
     `servers.server_id` is declared String but can come back as an int, because
     the deployed column is an integer type and SQLAlchemy returns whatever the
     driver gives. instruction_panel_views.server_id really is text, so an
-    un-normalised id makes Postgres reject `character varying = bigint` — and,
+    un-normalized id makes Postgres reject `character varying = bigint` — and,
     worse, makes the in-memory version lookup silently never match.
     """
     return str(server_id)
@@ -8580,7 +8580,7 @@ async def restyle_instruction_panel(guild_id) -> str:
     """Re-edit one guild's panel so a styling change is visible right away.
 
     The startup fleet refresh runs with rebuild_embed=False, so without this a
-    colour change would not show up until an operator triggered a full refresh
+    color change would not show up until an operator triggered a full refresh
     — potentially months. Called after an admin saves, and when a guild's
     entitlements change.
 
@@ -8741,7 +8741,7 @@ def build_instructions_embed(
     for the posted panel and the refreshed panel to disagree. Both call sites
     resolve the style the same way and hand it in.
 
-    The instruction copy itself is never customisable — see
+    The instruction copy itself is never customizable — see
     InstructionPanelBranding for why.
     """
     embed = Embed(
@@ -9147,7 +9147,7 @@ async def dashboard_admin_guilds(user_id, guild_ids) -> Optional[list]:
 
 
 def _rows_by_server_id(rows) -> dict:
-    """Index rows by NORMALISED server id, never by the raw column value.
+    """Index rows by NORMALIZED server id, never by the raw column value.
 
     THE BUG THIS EXISTS TO PREVENT SHIPPED ONCE (#164). `servers.server_id` is
     declared String while the deployed column is an integer type, so the driver
@@ -9231,7 +9231,7 @@ async def dashboard_guild_summaries(user_id, guild_ids) -> Optional[dict]:
                 session.query(Server).filter(Server.server_id.in_(keys))
             )
             # A separate table, so a separate query -- still one for the whole
-            # batch rather than one per guild. Normalised for the same reason.
+            # batch rather than one per guild. Normalized for the same reason.
             log_channels = set(
                 _rows_by_server_id(
                     session.query(VerificationLogChannel.server_id).filter(
@@ -9502,7 +9502,7 @@ async def read_dashboard_roles(guild_id) -> Optional[list]:
     picker is that the admin finds out while choosing.
 
     It is None, not False, when `guild.me` is unavailable: "we cannot tell" and
-    "we checked and no" are different answers, and greying out every role
+    "we checked and no" are different answers, and graying out every role
     because the bot's own member object was missing would be the worse guess.
 
     All three of Discord's requirements are checked: the Manage Roles
@@ -9764,7 +9764,7 @@ def _panel_post_lock(guild_id) -> asyncio.Lock:
 async def post_dashboard_panel(guild_id, actor_id, channel_id):
     """Put this guild's instructions panel where the admin asked for it.
 
-    Serialised per guild -- see `_panel_post_lock`. Everything below reads a
+    Serialized per guild -- see `_panel_post_lock`. Everything below reads a
     recorded location and acts on it across several awaits, which is only safe
     if one request per guild is doing it at a time.
     """
@@ -9857,7 +9857,7 @@ async def _post_dashboard_panel(guild_id, actor_id, channel_id):
     style = await resolve_panel_style(guild_id, guild)
     color, icon = style if style else (DEFAULT_PANEL_COLOR, None)
     # panel_view_key, like every other lookup in this function. This is the one
-    # helper here that queries server_id un-normalised, and the deployed column
+    # helper here that queries server_id un-normalized, and the deployed column
     # disagrees with its declared type -- see panel_view_key's docstring. A
     # mismatch there is swallowed, so the panel would silently go up in the
     # guild's Discord language and be rewritten to the configured one on the
@@ -10016,7 +10016,7 @@ async def read_dashboard_audit(guild_id, limit: int = 25) -> Optional[list]:
         return None
 
 
-# The earliest day the rollup ever recorded, for anybody. Memoised because it
+# The earliest day the rollup ever recorded, for anybody. Memoized because it
 # is a scan of the whole table and it does not move: once a first row exists,
 # the earliest day is fixed. Cached as None while the table is empty, which
 # re-queries — an empty MIN() is instant, and the value must not stay None
@@ -10349,7 +10349,7 @@ def _configuration_from_values(
         "verified_role_assignable": role_assignable,
         # Guild-wide rather than per role, and None when it could not be
         # checked. A dashboard older than this field sees it missing, which
-        # reads as unknown and leaves the previous behaviour intact.
+        # reads as unknown and leaves the previous behavior intact.
         "bot_can_manage_roles": can_manage,
         "unverified_role": bool(unverified_role_id),
         "log_channel": bool(log_channel_id),
@@ -10688,7 +10688,7 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
         )
         return None
 
-    # The save is committed, so a panel still showing the old language or colour
+    # The save is committed, so a panel still showing the old language or color
     # is now merely stale -- and would stay that way, since the fleet sweep
     # rebuilds the view but not the embed. Only after the write, and never in a
     # way that can fail the save: restyle_instruction_panel swallows its own
@@ -10715,7 +10715,7 @@ STRIPE_AUDIT_ACTOR = "system:stripe"
 
 
 def _parse_stripe_timestamp(raw) -> Optional[datetime]:
-    """One ISO-8601 instant from the normalised payload, as aware UTC.
+    """One ISO-8601 instant from the normalized payload, as aware UTC.
 
     Returns None for anything unparseable rather than raising, so the caller
     decides what a missing timestamp means — which differs between the two
@@ -10799,7 +10799,7 @@ async def write_dashboard_stripe_subscription(guild_id, payload: dict):
     The only caller is the bot API's system route, which the dashboard reaches
     after verifying a webhook's signature. Nothing here talks to Stripe: this
     process holds no Stripe credential and never will, so everything it knows
-    arrives in `payload`, already normalised on the other side of the wire.
+    arrives in `payload`, already normalized on the other side of the wire.
 
     Three guards, in this order, and all three matter:
 
@@ -10812,7 +10812,7 @@ async def write_dashboard_stripe_subscription(guild_id, payload: dict):
        order. An event no newer than the one already applied to *that
        subscription* is recorded and dropped, because a delayed
        `subscription.updated` overwriting a newer `subscription.deleted` would
-       silently restore premium to a server that cancelled.
+       silently restore premium to a server that canceled.
 
        **A constraint on whoever builds the forwarding half (#88 step 3):**
        Stripe's `event.created` has one-second resolution, so two events for
@@ -10864,7 +10864,7 @@ async def write_dashboard_stripe_subscription(guild_id, payload: dict):
     # Checked here as well as at the envelope, because bool("false") is True
     # and this is the field that decides whether the page says "renews" or
     # "ends". Coercing it would make a wrong statement about someone's money
-    # out of a normalisation slip.
+    # out of a normalization slip.
     if not isinstance(cancel_at_period_end, bool):
         raise SettingRejected("cancel_at_period_end", "bad_cancel_at_period_end")
 
@@ -10895,7 +10895,7 @@ async def write_dashboard_stripe_subscription(guild_id, payload: dict):
                     key,
                 )
                 return {"applied": False, "reason": "duplicate_event"}
-            # In the same transaction as the change it authorises: a failure
+            # In the same transaction as the change it authorizes: a failure
             # part-way through must roll back the ledger entry too, or the
             # event would be marked processed without ever having been applied
             # and Stripe's retry would be answered "already done".
@@ -11125,7 +11125,7 @@ def start_background_task(name: str, coro, run_once: bool = False):
 
     def report_exit(finished):
         if finished.cancelled():
-            logger.info(f"Background task '{name}' was cancelled.")
+            logger.info(f"Background task '{name}' was canceled.")
             return
         error = finished.exception()
         if error is not None:
@@ -11178,7 +11178,7 @@ async def on_ready():
     capture_grandfather_line()
 
     # Backfills the ever-paid ledger from Discord's own entitlement list,
-    # ended ones included, so a server that subscribed and cancelled before
+    # ended ones included, so a server that subscribed and canceled before
     # this shipped is not offered a free trial as though it were new. Runs in
     # the background: it is an API walk, nothing else on this path waits on it,
     # and trial_eligible fails closed while it is still running.
@@ -11318,7 +11318,7 @@ def _note_entitlement_change(entitlement: discord.Entitlement, event: str) -> No
     #
     # Deliberately fired on renewals and cancellations alike: the event only
     # says "re-resolve", and resolve_panel_style decides the outcome. A
-    # subscription cancelled but not yet expired therefore keeps its styling.
+    # subscription canceled but not yet expired therefore keeps its styling.
     # isinstance rather than `is not None`: an unreadable table must not buy a
     # panel edit that resolve_panel_style would then decline to apply anyway.
     if isinstance(load_panel_branding(guild_id), tuple):
@@ -11332,7 +11332,7 @@ async def on_entitlement_create(entitlement: discord.Entitlement):
 
 @bot.event
 async def on_entitlement_update(entitlement: discord.Entitlement):
-    # Fires when a subscription is cancelled (gaining an ends_at) as well as
+    # Fires when a subscription is canceled (gaining an ends_at) as well as
     # when it renews, so this is not only a downgrade signal.
     _note_entitlement_change(entitlement, "updated")
 

@@ -7,7 +7,7 @@ as ANSI, so a comment character became a byte the YAML parser rejects. It
 refuses the whole file, and the error names neither the line nor the
 character.
 
-Normalising the content once was not enough. That was done on 2026-08-03 and
+Normalizing the content once was not enough. That was done on 2026-08-03 and
 by 2026-08-16 six new em dashes had arrived in `.env.example` and
 docker-compose.dashboard.yml, because nothing was watching. Hence a test: the
 guarantee is worth exactly as much as the thing enforcing it.

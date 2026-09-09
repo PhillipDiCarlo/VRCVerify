@@ -136,10 +136,10 @@ class TestParseHexColor:
         assert bot.parse_hex_color(raw) is None
 
     def test_black_is_nudged_so_discord_renders_it(self):
-        """Discord treats 0 as "no colour" and shows the default grey sidebar.
+        """Discord treats 0 as "no color" and shows the default gray sidebar.
 
         A server asking for black would look like it had been ignored, so the
-        value is moved to the darkest colour Discord will actually render.
+        value is moved to the darkest color Discord will actually render.
         """
         assert bot.parse_hex_color("#000000") == bot.NEAREST_RENDERABLE_BLACK
         assert bot.parse_hex_color("#000000") != 0
@@ -154,7 +154,7 @@ class TestBuildInstructionsEmbed:
         assert embed.color == bot.DEFAULT_PANEL_COLOR
         assert embed.thumbnail.url is None
 
-    def test_applies_colour_and_thumbnail(self):
+    def test_applies_color_and_thumbnail(self):
         embed = bot.build_instructions_embed(
             "en-US", discord.Color(BRAND), ICON_URL
         )
@@ -162,7 +162,7 @@ class TestBuildInstructionsEmbed:
         assert embed.thumbnail.url == ICON_URL
 
     def test_the_instruction_copy_never_changes(self):
-        """Styling is customisable; the wording is not, deliberately."""
+        """Styling is customizable; the wording is not, deliberately."""
         plain = bot.build_instructions_embed("en-US")
         styled = bot.build_instructions_embed(
             "en-US", discord.Color(BRAND), ICON_URL
@@ -200,7 +200,7 @@ class TestStorage:
         with bot.session_scope() as session:
             assert session.query(bot.InstructionPanelBranding).count() == 0
 
-    def test_clearing_a_colour_removes_the_row(self):
+    def test_clearing_a_color_removes_the_row(self):
         make_server()
         set_branding(embed_color=BRAND, show_icon=False)
         assert bot.load_panel_branding(GUILD_ID) == (BRAND, False)
@@ -235,7 +235,7 @@ class TestStorage:
 # Style resolution and gating
 # ---------------------------------------------------------------
 class TestPanelStyle:
-    def test_premium_gets_its_colour_and_icon(self):
+    def test_premium_gets_its_color_and_icon(self):
         style = bot.panel_style((BRAND, True), FakeGuild(), allowed=True)
         assert style == (discord.Color(BRAND), ICON_URL)
 
@@ -247,7 +247,7 @@ class TestPanelStyle:
         style = bot.panel_style(None, FakeGuild(), allowed=True)
         assert style == (bot.DEFAULT_PANEL_COLOR, None)
 
-    def test_icon_off_keeps_the_colour(self):
+    def test_icon_off_keeps_the_color(self):
         style = bot.panel_style((BRAND, False), FakeGuild(), allowed=True)
         assert style == (discord.Color(BRAND), None)
 
@@ -260,7 +260,7 @@ class TestPanelStyle:
         style = bot.panel_style((BRAND, True), None, allowed=True)
         assert style == (discord.Color(BRAND), None)
 
-    def test_no_stored_colour_keeps_the_default_blue(self):
+    def test_no_stored_color_keeps_the_default_blue(self):
         style = bot.panel_style((None, True), FakeGuild(), allowed=True)
         assert style == (bot.DEFAULT_PANEL_COLOR, ICON_URL)
 

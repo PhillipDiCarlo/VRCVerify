@@ -84,7 +84,7 @@ class TestTheFilter:
             "t", logging.WARNING, __file__, 1, msg, args or None, None
         )
 
-    def test_an_injected_line_is_neutralised(self):
+    def test_an_injected_line_is_neutralized(self):
         forged = "bob\nbot-api ALLOW actor=attacker guild=1 op=settings.write"
         record = self.record("bot-api DENY actor=%s", forged)
         ControlCharacterFilter().filter(record)
@@ -234,7 +234,7 @@ class TestNothingReinstallsAnUnfilteredHandler:
         assert "bot.run(DISCORD_BOT_TOKEN, log_handler=None)" in source
 
     def test_discord_would_otherwise_touch_the_root_logger(self):
-        """Pinning the behaviour this guards against, so a discord.py upgrade
+        """Pinning the behavior this guards against, so a discord.py upgrade
         that changes it shows up here rather than as silent unescaped logs."""
         import inspect
 

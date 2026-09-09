@@ -128,7 +128,7 @@ class TestRequestPriority:
         flags = bot.PremiumFlags(premium=False, grandfathered=True)
         assert flags.request_priority() == bot.DEFAULT_REQUEST_PRIORITY
 
-    def test_everyone_is_prioritised_while_the_tier_is_off(self):
+    def test_everyone_is_prioritized_while_the_tier_is_off(self):
         # PREMIUM_SKU_ID unset: the whole premium system is inert, so nothing
         # should be sorted below anything else.
         flags = run(bot.resolve_premium_flags(GUILD_ID))
@@ -256,7 +256,7 @@ def channel_closed_406():
 
 
 class TestQueueArgumentMismatch:
-    def test_recognised_in_both_services(self):
+    def test_recognized_in_both_services(self):
         error = channel_closed_406()
         assert bot.is_queue_argument_mismatch(error) is True
         assert checker.is_queue_argument_mismatch(error) is True

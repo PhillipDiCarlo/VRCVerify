@@ -1,6 +1,6 @@
 """Unit tests for src/vrc_group_inviter.py.
 
-Every VRChat call is faked. What these pin down is the behaviour confirmed
+Every VRChat call is faked. What these pin down is the behavior confirmed
 against a live group on 2026-08-19 (issue #49): that the invite permission is
 its own thing an admin role can lack, that a non-member reads as
 membership_status None rather than a 404, and that the worker never joins a

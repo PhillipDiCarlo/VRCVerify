@@ -4,7 +4,7 @@ The bot has spoken twelve languages since long before this website existed.
 Configuration moved here in #65 and the payment page landed with #88, so the
 two things a non-English-speaking admin now has to do are both done on pages
 that only spoke English. This module is the half of #97 that decides *which*
-language; the strings themselves live in `translations/` as gettext catalogues.
+language; the strings themselves live in `translations/` as gettext catalogs.
 
 WHY GETTEXT AND NOT ANOTHER DICT
 --------------------------------
@@ -18,7 +18,7 @@ templates rather than trusting somebody to remember to add the key.
 #97 also said the cost of running two systems was real -- two systems that
 disagree about what "verified" is called in Japanese being worse than either
 alone -- and that it would be paid down deliberately rather than left. #231
-paid it: the bot's twelve languages are gettext catalogues too, under their
+paid it: the bot's twelve languages are gettext catalogs too, under their
 own domain in `src/translations/bot/`, and the argument above turned out to
 apply to the larger surface as much as this one.
 
@@ -30,7 +30,7 @@ which is the drift mitigation that did not exist while half the product's text
 was a Python literal.
 
 The two domains stay separate on purpose: neither image carries the other's
-strings. The reading of a compiled catalogue is shared -- see `i18n_core`,
+strings. The reading of a compiled catalog is shared -- see `i18n_core`,
 which explains why that is a third module rather than either side importing
 the other. What stays here is everything about *choosing* a language, which is
 a web question the bot does not have: it is handed a locale by Discord.
@@ -65,7 +65,7 @@ for the convenience of a global.
 
 They take a `gettext` callable as an argument instead. `translator()` below
 returns one, `app.py` passes it in, and a test can pass `lambda s: s` or a
-catalogue for a language it wants to assert on.
+catalog for a language it wants to assert on.
 """
 
 from __future__ import annotations
@@ -83,9 +83,9 @@ from babel.dates import (
 )
 from babel.numbers import format_decimal as _babel_format_decimal
 
-from i18n_core import Catalogues as _Catalogues, N_ as _N_
+from i18n_core import Catalogs as _Catalogs, N_ as _N_
 
-# The languages this dashboard has catalogues for.
+# The languages this dashboard has catalogs for.
 #
 # Deliberately a literal rather than `from locales import LANGUAGE_CODES`: the
 # dashboard image ships api_tokens.py, log_safety.py and this package, and
@@ -101,7 +101,7 @@ UI_LANGUAGES = (
     "hi-IN", "ar", "bn", "pt-BR", "ru", "pa-IN",
 )
 
-# The source language. Its "catalogue" is the msgids themselves, so there is no
+# The source language. Its "catalog" is the msgids themselves, so there is no
 # en-US directory under translations/ and there should never be one.
 DEFAULT_LANGUAGE = "en-US"
 
@@ -111,7 +111,7 @@ DEFAULT_LANGUAGE = "en-US"
 # English-reading admin is choosing *for their members*. This picker is a
 # different question -- it is read by the person who cannot read the page --
 # and "Japanese" is no help to somebody looking for the word they would
-# recognise. So: 日本語. The English name is not shown alongside; a picker that
+# recognize. So: 日本語. The English name is not shown alongside; a picker that
 # reads "日本語 (Japanese)" is twice the width to say the same thing to the one
 # person who does not need the second half.
 ENDONYMS = {
@@ -141,7 +141,7 @@ ENDONYMS = {
 # unmirrored sidebar is not.
 RTL_LANGUAGES = frozenset({"ar"})
 
-# Where the compiled catalogues live, and what they are called. One domain for
+# Where the compiled catalogs live, and what they are called. One domain for
 # the whole dashboard: splitting per page would mean deciding which file a
 # string in base.html belongs to, and base.html is on every page.
 DOMAIN = "dashboard"
@@ -181,7 +181,7 @@ _TAG = re.compile(
 
 # Base language to the code we actually have. Consulted only when the exact tag
 # missed, so `pt-PT` and `pt` both land on Brazilian Portuguese: one Portuguese
-# catalogue read by a Portuguese speaker beats English.
+# catalog read by a Portuguese speaker beats English.
 _BY_BASE = {}
 for _code in UI_LANGUAGES:
     _BY_BASE.setdefault(_code.split("-")[0].lower(), _code)
@@ -296,12 +296,12 @@ def negotiate(
     return DEFAULT_LANGUAGE
 
 
-# Reading the compiled catalogues is the part the bot does identically, so it
+# Reading the compiled catalogs is the part the bot does identically, so it
 # lives in i18n_core and this is the dashboard's instance of it (#231). The
 # domain, the directory and the language list are what make it the dashboard's;
 # everything about *choosing* a language stays here, because it is all a web
 # question -- a cookie, an Accept-Language header, a dir attribute.
-_CATALOGUES = _Catalogues(
+_CATALOGS = _Catalogs(
     domain=DOMAIN,
     localedir=LOCALE_DIR,
     languages=UI_LANGUAGES,
@@ -309,34 +309,34 @@ _CATALOGUES = _Catalogues(
 )
 
 
-def catalogue(code: str):
-    """The compiled catalogue for one language, as a `gettext` translations
+def catalog(code: str):
+    """The compiled catalog for one language, as a `gettext` translations
     object.
 
     Exposed as well as `translator()` because Jinja's i18n extension wants the
-    object rather than a callable. See `i18n_core.Catalogues.catalogue`.
+    object rather than a callable. See `i18n_core.Catalogs.catalog`.
     """
-    return _CATALOGUES.catalogue(code)
+    return _CATALOGS.catalog(code)
 
 
 def translator(code: str) -> Callable[[str], str]:
     """The `gettext` callable for one language.
 
     Passed into the view modules as an argument, which is the whole reason it
-    exists as a separate thing from `catalogue()`: those modules take a
+    exists as a separate thing from `catalog()`: those modules take a
     callable, not a Flask global and not a translations object they would then
     have to know the shape of. That is what lets the page that takes money have
     its states tested without a request, and it is why a test can pass
-    `lambda s: s` or a catalogue for a language it wants to assert on.
+    `lambda s: s` or a catalog for a language it wants to assert on.
 
-    Returns the msgid unchanged for `en-US`, for a language with no catalogue
-    yet, and for any string not yet translated in the catalogue it does have.
+    Returns the msgid unchanged for `en-US`, for a language with no catalog
+    yet, and for any string not yet translated in the catalog it does have.
     That last one is the property that let #97 land in phases: the payment
     pages were translated first, because that is where a misunderstanding costs
     money, and every string not reached yet rendered in English rather than
     rendering blank.
     """
-    return _CATALOGUES.translator(code)
+    return _CATALOGS.translator(code)
 
 
 def direction(code: str) -> str:
@@ -369,12 +369,12 @@ _LOCALES = {code: _Locale.parse(code.replace("-", "_")) for code in UI_LANGUAGES
 def _locale(code: Optional[str]):
     """The Babel locale for one of our codes, English for anything else.
 
-    The same floor `catalogue()` puts under itself, for the same reason: the
+    The same floor `catalog()` puts under itself, for the same reason: the
     callers have all validated, and a formatting helper is the wrong place to
     raise on a language that should never have got this far.
 
     GATED THROUGH `is_supported` RATHER THAN `_LOCALES.get`, which is the same
-    check `catalogue()` makes and is not the same thing. `.get` hashes its
+    check `catalog()` makes and is not the same thing. `.get` hashes its
     argument, so an unhashable one -- a list, a dict -- raises `TypeError`
     from inside the floor that exists to stop exactly that. `is_supported`
     tests membership of a tuple by equality and has no such edge.
@@ -497,7 +497,7 @@ def format_timestamp(value, code: str) -> Optional[str]:
 
     "Aug 11, 2026 7:11 AM UTC", "11.08.2026 07:11 UTC", "2026/08/11 7:11 UTC".
 
-    THE "UTC" IS NOT DECORATION AND IS NOT LOCALISED. The audit trail is what
+    THE "UTC" IS NOT DECORATION AND IS NOT LOCALIZED. The audit trail is what
     an admin reads to work out who changed what and when, and the bot records
     those instants in UTC. Rendering the clock time without naming the zone
     would invite every reader to subtract their own offset from a number that

@@ -12,7 +12,7 @@
  * to `up`. A page that shows green because a probe failed to run is worse than
  * no page, because it is believed. The incident.io reference draws "no data
  * available" as its own state for the same reason, rather than filling the gap
- * with the colour everybody wants to see.
+ * with the color everybody wants to see.
  */
 
 /**
@@ -225,7 +225,7 @@ export function verdict(states) {
 /**
  * Stop the all-clear headline shouting over an open incident.
  *
- * THE LEVEL IS NEVER TOUCHED HERE. Not the hero colour, not one pill, not one
+ * THE LEVEL IS NEVER TOUCHED HERE. Not the hero color, not one pill, not one
  * row. An earlier version let an incident's stated impact override the
  * measured verdict outright, which painted five working capabilities red on
  * one person's say-so -- that was wrong and stays fixed. But swinging fully
@@ -234,7 +234,7 @@ export function verdict(states) {
  * to say otherwise. Only visible in a screenshot, and obviously wrong once
  * seen.
  *
- * So: the colour is measurement, and it does not move. The sentence stops
+ * So: the color is measurement, and it does not move. The sentence stops
  * making a claim the banner underneath it contradicts.
  *
  * ONLY the all-clear sentence is replaced. "Some services are down" already
@@ -250,14 +250,14 @@ export function headlineWithOpenIncidents(measured, openCount) {
 }
 
 /**
- * A day's worth of counters, as a percentage and a colour.
+ * A day's worth of counters, as a percentage and a color.
  *
  * Minutes we could not observe are excluded from the denominator rather than
  * counted as downtime. A day with nothing but `unknown` has no percentage at
  * all -- `null`, drawn as a gap -- because averaging over no observations
  * produces a number that looks like measurement and is not.
  *
- * The COLOUR IS SCALED BY HOW MUCH OF THE DAY WAS LOST, not by whether
+ * The COLOR IS SCALED BY HOW MUCH OF THE DAY WAS LOST, not by whether
  * anything was. This function used to read `row.down > 0 ? "down" : ...`,
  * which painted a day containing one bad minute exactly as red as a day that
  * was down from midnight to midnight -- so a deploy and a real outage were
@@ -282,7 +282,7 @@ export function dayUptime(row, { redBelowPercent = 99 } = {}) {
   const observed = (row?.up ?? 0) + (row?.degraded ?? 0) + (row?.down ?? 0);
   if (observed === 0) {
     // A day made entirely of declared maintenance is not a day nobody looked
-    // at, and drawing it in the no-data colour would say the wrong thing about
+    // at, and drawing it in the no-data color would say the wrong thing about
     // the one kind of downtime this page announced in advance.
     return { percent: null, state: (row?.maintenance ?? 0) > 0 ? "maintenance" : "unknown" };
   }
@@ -416,7 +416,7 @@ export function signatureIsTimely(timestamp, now, { tolerance = 300 } = {}) {
 /**
  * Validate a report body against the parts we are willing to hear about.
  *
- * An unrecognised part name is DROPPED rather than rejected or stored. Stored,
+ * An unrecognized part name is DROPPED rather than rejected or stored. Stored,
  * it would let whatever holds the signing key invent rows on a public page.
  * Rejecting the whole report would mean a newer reporter, deployed before this
  * Worker knows about its new part, silently stops reporting the parts this

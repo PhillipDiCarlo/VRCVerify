@@ -7,7 +7,7 @@ Every call carries two independent proofs:
   *dashboard*.
 * a **scoped token**, minted here per request from the shared signing key,
   naming the acting Discord user, the target guild, and the exact operation.
-  This authorises one specific thing on behalf of one specific person.
+  This authorizes one specific thing on behalf of one specific person.
 
 Neither is sufficient alone, and that is deliberate: a leaked certificate
 cannot act as a user, and a leaked signing key cannot reach the port.
@@ -131,7 +131,7 @@ class BotAPIClient:
     def guild_summaries(self, actor_id: int, guild_ids: list) -> dict:
         """A small per-guild summary, keyed by guild id, for the picker's cards.
 
-        Answers the membership question too: the bot summarises only guilds
+        Answers the membership question too: the bot summarizes only guilds
         this caller administers, so a guild MISSING from the result means
         either the bot is not there or this person does not administer it,
         indistinguishable on purpose.

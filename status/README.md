@@ -51,7 +51,7 @@ fail if that leaks.
         render.js       the page, as a string
         index.js        the routes and the cron
       public/
-        style.css       a copy of site/style.css plus the status colours
+        style.css       a copy of site/style.css plus the status colors
         theme.js        a copy of site/theme.js, byte for byte
         fonts/          a copy of the site's font, served from this origin
       test/             node --test, no dependencies
@@ -121,7 +121,7 @@ to be worth meeting one at a time.
 
 5. **Check the page tells the truth by making it lie.** Stop the cron (comment
    out `[triggers]` and redeploy, or simply wait five minutes with the cron
-   disabled) and confirm the page turns grey and says the data is out of date,
+   disabled) and confirm the page turns gray and says the data is out of date,
    rather than continuing to show the last green it saw. A status page is
    worth exactly what its worst case is worth.
 
@@ -161,7 +161,7 @@ running perfectly. Somebody will believe it.
    the heartbeat is stale, and two runs of the page's cron to confirm it. Start
    it again and the row recovers on the next run, because recovery is published
    immediately and only failure needs confirming. This is the single most
-   important behaviour in the whole system and it takes four minutes to check.
+   important behavior in the whole system and it takes four minutes to check.
 
 ## Alerting (phase 4)
 
@@ -241,7 +241,7 @@ then sign in and expect the form.
 
 An open incident is shown in its own banner, as information.
 
-**It never moves a live colour.** Not the hero, not one pill, not one row. Not
+**It never moves a live color.** Not the hero, not one pill, not one row. Not
 better than what was measured, and not worse either: an operator opening a
 "down" incident must not paint five working capabilities red for everyone
 reading the page. State is measured; prose is written; the two are shown side
@@ -295,7 +295,7 @@ enough to be annoying.
 
 **The honest caveat.** This is the one number on the page an operator can
 influence, and it only stays honest because the window is public, timestamped,
-and permanent in `incidents`. The downtime is categorised in the open, not
+and permanent in `incidents`. The downtime is categorized in the open, not
 erased. Used for actual planned work it is what every status page does; used
 after the fact to tidy up a bad afternoon it is the thing this whole project is
 written to not be.
@@ -320,7 +320,7 @@ need nothing.
 ## The rules this thing holds
 
 1. **Never render green from missing data.** Absent, stale and unparseable are
-   their own states, drawn grey and named. Stale data is drawn as unknown even
+   their own states, drawn gray and named. Stale data is drawn as unknown even
    when every stored row says `up`, because a checker that stopped an hour ago
    is not evidence, it is a photograph.
 2. **No infrastructure name reaches the public surface.**

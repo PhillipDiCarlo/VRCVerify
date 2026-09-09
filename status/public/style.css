@@ -10,7 +10,7 @@
    working when the other two are down. Importing either of their stylesheets
    would hand this page the failure it was built to survive.
 
-   So: change a colour in one, change it in all three. tests/test_status_page.py
+   So: change a color in one, change it in all three. tests/test_status_page.py
    pins the values against site/style.css so a drift fails a test rather than
    shipping two products.
 
@@ -20,7 +20,7 @@
    tell that they changed hosts.
 
    WHAT IS NEW, and lives at the bottom of this file rather than woven through
-   the copy: three status colours and the components that use them. Keeping the
+   the copy: three status colors and the components that use them. Keeping the
    new work in one block is what makes the copied part diffable against its
    source.
 
@@ -112,7 +112,7 @@
      The dashboard's light --control-line is #8d919b, tuned against the white
      cards its inputs sit on, where it gives 3.16:1. This site's only control
      sits on the header bar -- --chrome, #f2f3f5, which is darker than white --
-     and against that the same grey gives 2.84:1, under the 3:1 a UI component
+     and against that the same gray gives 2.84:1, under the 3:1 a UI component
      needs. The dashboard was never asked for that pairing, so its value is not
      wrong; it is measured against a surface this site does not use here.
 
@@ -245,7 +245,7 @@
    changes the layout and nothing catches it.
 
    THE OTHER HALF OF THIS PAIR IS IN src/dashboard/static/style.css, exactly
-   as the colour tokens are, and for the same reason -- two origins, two
+   as the color tokens are, and for the same reason -- two origins, two
    deploys, no shared stylesheet possible. Read that file's block before
    changing anything here.
 
@@ -355,7 +355,7 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
 
 /* THE THEME MENU (#195 phase 7).
 
-   ONE AFFORDANCE ACROSS BOTH HOSTS. This was a labelled <select> while the
+   ONE AFFORDANCE ACROSS BOTH HOSTS. This was a labeled <select> while the
    dashboard used an icon opening a popover -- two controls for the same
    three-way choice, met by the same person within one click of each other.
    The dashboard's is the model because it is the one that works with
@@ -501,7 +501,7 @@ a:focus-visible, .cta:focus-visible,
    site/style.css; everything below is new with issue #170.
    ------------------------------------------------------------------ */
 
-/* THREE STATUS COLOURS, in the same four-block order the theme uses above.
+/* THREE STATUS COLORS, in the same four-block order the theme uses above.
 
    --ok and --notice are the dashboard's, at its values unchanged, so a green
    here and a green there are the same green. --down is new to this project.
@@ -529,7 +529,7 @@ a:focus-visible, .cta:focus-visible,
   --notice: #f0b232;
   --down: #f4787a;
   /* Maintenance. Blue because every status page a reader has already seen uses
-     blue for planned work, and because it is the one status colour that carries
+     blue for planned work, and because it is the one status color that carries
      no alarm -- which is the whole claim being made. Discord's blurple #5865f2
      was the obvious pick and fails at 2.74:1 on --panel; this is the same hue
      lifted until it clears AA on both surfaces. */
@@ -560,7 +560,7 @@ a:focus-visible, .cta:focus-visible,
 
      The dashboard's value is not wrong. Green there lives on cards and insets,
      where it measures 5.39:1 and 4.59:1. It is never drawn on the page ground,
-     because nothing on the dashboard puts a status colour there. This page
+     because nothing on the dashboard puts a status color there. This page
      does -- the hero glyph sits directly on --bg, and on the day everything is
      working that glyph IS the page. At #177a41 it was 4.27:1, below AA, in the
      state a reader sees every time but one.
@@ -592,12 +592,12 @@ a:focus-visible, .cta:focus-visible,
   }
 }
 
-/* A state's colour is set once, here, and inherited by everything inside the
+/* A state's color is set once, here, and inherited by everything inside the
    row through `currentColor` -- the glyph, the pill's border, the bars. That
    is what stops a row from being drawn half green and half red when a later
    component forgets to be told which state it is in.
 
-   COLOUR IS NEVER THE ONLY CHANNEL. Every state carries a glyph and a word as
+   COLOR IS NEVER THE ONLY CHANNEL. Every state carries a glyph and a word as
    well, because roughly one in twelve men cannot separate the green from the
    red and a page whose entire content is "green or red" would be telling them
    nothing. */
@@ -625,7 +625,7 @@ main.wrap { max-width: 48rem; }
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 50%;
-  /* The fill is the state colour at low alpha, so the ring reads as tinted
+  /* The fill is the state color at low alpha, so the ring reads as tinted
      rather than as a second element. `color-mix` degrades to nothing on
      browsers without it, leaving a plain glyph on the page ground, which is
      legible and unremarkable rather than broken. */
@@ -701,7 +701,7 @@ main.wrap { max-width: 48rem; }
   color: var(--ink-strong);
 }
 
-/* The glyph inherits the row's state colour; the name does not. A row whose
+/* The glyph inherits the row's state color; the name does not. A row whose
    label is painted red is a row that shouts at the reader before they have
    read which service it is. */
 .row-name .glyph { flex: 0 0 auto; }
@@ -717,7 +717,7 @@ main.wrap { max-width: 48rem; }
 
 /* THE PILL IS ITS OWN BOUNDARY, so its border has to clear 3:1 against the
    card the way `--control-line` does on the apex site. Here the border is
-   `currentColor` -- the state colour, every one of which was measured against
+   `currentColor` -- the state color, every one of which was measured against
    --panel above -- so the pill inherits a boundary that has already been
    proven rather than needing a token of its own. */
 .pill {
@@ -824,7 +824,7 @@ main.wrap { max-width: 48rem; }
 }
 
 /* Available to a screen reader, invisible on screen. The strip's real content
-   goes here rather than being left implicit in the colours. */
+   goes here rather than being left implicit in the colors. */
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -839,7 +839,7 @@ main.wrap { max-width: 48rem; }
 
 /* AN INCIDENT, on the public page. The card takes a tint of the state so it
    reads as a banner rather than as another section, and the left edge carries
-   the colour at full strength -- a shape that survives being the third card
+   the color at full strength -- a shape that survives being the third card
    down on a phone. */
 .incident {
   border-color: currentColor;
@@ -940,7 +940,7 @@ main.wrap { max-width: 48rem; }
   font-size: var(--text-note);
 }
 
-/* A finished incident. Neutral: the state colours belong to things that are
+/* A finished incident. Neutral: the state colors belong to things that are
    happening now, and a red card for something fixed three hours ago is
    alarming at a glance and wrong as soon as anybody reads the date. */
 .incident.is-resolved {

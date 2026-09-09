@@ -76,7 +76,7 @@ test("a form on a page that forbids the browser's own submission", () => {
   );
   // Pinned as an allowlist rather than as "not no-referrer", because that
   // weaker assertion passes for a typo ("same-orgin"), which browsers ignore
-  // in favour of their default, and for "unsafe-url", which would fix the form
+  // in favor of their default, and for "unsafe-url", which would fix the form
   // by leaking every admin URL to every third party. The set below is the
   // policies that provably leave Origin intact on a same-origin POST.
   assert.ok(
@@ -95,7 +95,7 @@ test("the same scheduled minute delivered twice is counted once", () => {
   // counts the minute twice and can send the alert twice, and an alert that
   // sometimes arrives in pairs is one people stop reading carefully.
   const now = 1788242330;
-  assert.ok(isDuplicateRun(String(now), now), "the redelivery is recognised");
+  assert.ok(isDuplicateRun(String(now), now), "the redelivery is recognized");
   assert.ok(!isDuplicateRun(String(now - 60), now), "the next minute is not a duplicate");
   assert.ok(!isDuplicateRun(null, now), "the first run ever is not a duplicate");
   assert.ok(!isDuplicateRun(undefined, now));

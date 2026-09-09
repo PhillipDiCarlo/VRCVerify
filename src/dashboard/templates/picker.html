@@ -16,7 +16,7 @@
        administers a server but was promoted after they last signed in. Discord
        tells us the server list once, at sign-in, so the fix really is to sign
        in again -- which makes this an empty state with something to do, rather
-       than a sentence apologising. #}
+       than a sentence apologizing. #}
     <div class="empty-state">
       <p class="empty-title">{% trans %}No servers to show{% endtrans %}</p>
       <p class="empty-body">
@@ -64,8 +64,8 @@
              data; an unconfigured one carries "No activity yet" and a Start
              Setup button in the same place. That is what makes the two
              distinguishable before you read either of them, and why the
-             distinction survives being colour-blind or seeing the page in
-             greyscale -- a button is a shape, not a hue. #}
+             distinction survives being color-blind or seeing the page in
+             grayscale -- a button is a shape, not a hue. #}
           <span class="icon" aria-hidden="true">
             {% if server.icon_url %}
               <img src="{{ server.icon_url }}" alt="" width="64" height="64"
@@ -120,7 +120,7 @@
             {# Kept as an OFFER rather than turned into instructions, because
                an offer is true under both readings of `absent`: Discord
                refuses the install to anyone without Manage Server, and
-               re-authorising a bot already in the server changes nothing.
+               re-authorizing a bot already in the server changes nothing.
                A sentence telling somebody to go and install it would only be
                right under one of the two. #}
             <p class="server-action">

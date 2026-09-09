@@ -1,7 +1,7 @@
 """The dashboard web app: login, picker, and one server's three sections.
 
 Picking a server lands on Overview and the sidebar leads to Settings and
-Subscriptions. All three authorise identically -- a session to prove who is
+Subscriptions. All three authorize identically -- a session to prove who is
 asking, then the bot to decide what they may see -- and all three fail
 identically, through `_guild_page_unavailable`. That second half matters as
 much as the first: an oracle for "which servers run 18+ gating" only has to
@@ -27,7 +27,7 @@ Design notes worth keeping in view while reading:
 
 * **Cloudflare Access sits in front of this in development and comes off at
   launch.** Nothing here may ever read `Cf-Access-*` headers, because code that
-  authorised on them would silently become a complete bypass the day the wall
+  authorized on them would silently become a complete bypass the day the wall
   is removed. Authority is the Discord session plus the bot's own answer.
 * **The reverse proxy is trusted for exactly one thing**: the scheme, via
   `X-Forwarded-Proto`. Without it Flask builds `http://` callback URLs and
@@ -258,7 +258,7 @@ class _IconCache:
                     return value
 
         # Outside the lock: two threads may fetch the same icon at once, which
-        # costs one extra request and is cheaper than serialising every miss
+        # costs one extra request and is cheaper than serializing every miss
         # behind a six-second timeout.
         value = fetch()
 
@@ -398,7 +398,7 @@ class _RateLimiter:
         return True
 
 # The sidebar's collapsed state. A UI preference and nothing else: it is not
-# read by any authorisation decision, it names no guild, and forging it gets an
+# read by any authorization decision, it names no guild, and forging it gets an
 # attacker a narrower sidebar. Deliberately NOT `__Host-` prefixed -- that
 # prefix belongs to the session cookie, and a second cookie wearing it would
 # make the one that matters harder to pick out of a jar.
@@ -407,8 +407,8 @@ NAV_COOKIE = "vrcverify_nav"
 NAV_COOKIE_MAX_AGE = 31536000
 
 # The chosen theme (issue #123). Same class of thing as NAV_COOKIE and for the
-# same reasons: a display preference, read by no authorisation decision, naming
-# no guild, and worth forging only to change the colour of your own page. Not
+# same reasons: a display preference, read by no authorization decision, naming
+# no guild, and worth forging only to change the color of your own page. Not
 # `__Host-` prefixed, so the session cookie stays the one that stands out.
 #
 # Deliberately NOT httponly, unlike NAV_COOKIE. Phase 4 lets the theme button
@@ -424,10 +424,10 @@ THEME_COOKIE_MAX_AGE = 31536000
 
 # Which language to render the dashboard in (issue #97). The same class of
 # thing as THEME_COOKIE, with the same attributes and for the same reasons: a
-# display preference, read by no authorisation decision, naming no guild, and
+# display preference, read by no authorization decision, naming no guild, and
 # worth forging only to read your own page in a language you did not pick.
 # `i18n.is_supported` reduces it to one of twelve known codes before it reaches
-# a `lang` attribute or a catalogue path, so a hand-edited value renders
+# a `lang` attribute or a catalog path, so a hand-edited value renders
 # English rather than reaching either.
 #
 # Not httponly, like the theme, so the picker can be made instant later without
@@ -472,7 +472,7 @@ SEEN_COOKIE_MAX_AGE = 31536000
 #
 # Not httponly, like the two above, so a future enhancement can dismiss
 # without a navigation. Nothing reads it but changelog.parse_dismissed, which
-# drops every pair it does not recognise.
+# drops every pair it does not recognize.
 DISMISS_COOKIE = "vrcverify_dismissed"
 DISMISS_COOKIE_MAX_AGE = 31536000
 
@@ -747,7 +747,7 @@ def _register_assets(app: Flask) -> None:
     # Jinja's own i18n extension, not flask-babel's (issue #97).
     #
     # This is what turns `{{ _("Renews on %(date)s", date=when) }}` in a
-    # template into a catalogue lookup, and -- more usefully -- what lets
+    # template into a catalog lookup, and -- more usefully -- what lets
     # `pybabel extract` find those strings by parsing the templates rather
     # than trusting somebody to have listed them.
     #
@@ -874,7 +874,7 @@ def _register_assets(app: Flask) -> None:
         """"Premium" or "New" beside a changelog entry, translated.
 
         A global rather than `{{ _(entry.tag) }}` in the template, for the
-        reason `changelog._localised` gives: `_()` is newstyle here and
+        reason `changelog._localized` gives: `_()` is newstyle here and
         returns Markup, so applying it to a value skips the escaping that
         element relies on. This returns a plain str.
         """
@@ -978,7 +978,7 @@ def _offered_plans():
 
     config = _config()
     if not config.stripe_enabled:
-        # Nothing to fetch and nothing to apologise for: the kill switch being
+        # Nothing to fetch and nothing to apologize for: the kill switch being
         # off is not an outage.
         return (), False
     try:
@@ -1044,7 +1044,7 @@ def _register_hooks(app: Flask) -> None:
             # undefined here.)
             #
             # LANG_COOKIE varies it too, since #97 -- every string on the page
-            # comes from a catalogue chosen by that cookie, and by
+            # comes from a catalog chosen by that cookie, and by
             # `Accept-Language` when there is no cookie. That widens what
             # `private` is protecting without changing the conclusion: private
             # scopes the cache to the one browser, and both of those inputs
@@ -1131,14 +1131,14 @@ def _register_routes(app: Flask) -> None:
             return render_template("login.html")
 
         config = _config()
-        # Display filter only. `admin_hint` came from Discord at authorisation
+        # Display filter only. `admin_hint` came from Discord at authorization
         # time and is already stale; it decides which tiles to draw, never what
         # anyone may do.
         candidates = [g_ for g_ in (session.guilds or []) if g_.get("admin_hint")]
 
         try:
             # ONE CALL, and the only one this page makes. It answers the
-            # membership question as well: the bot summarises only guilds this
+            # membership question as well: the bot summarizes only guilds this
             # caller administers, so a guild absent from the result means
             # either "bot not there" or "not yours", indistinguishable on
             # purpose. There was a second endpoint answering only that half
@@ -1245,7 +1245,7 @@ def _register_routes(app: Flask) -> None:
             # worth a stack trace.
             return render_template(
                 "error.html",
-                message=_translator()(N_("Authorisation was declined.")),
+                message=_translator()(N_("Authorization was declined.")),
             ), 400
 
         code = request.args.get("code")
@@ -1300,7 +1300,7 @@ def _register_routes(app: Flask) -> None:
     def guild_overview(guild_id: int):
         """Where you land after picking a server: how it's doing, in numbers.
 
-        Authorised exactly like the settings page, and for the same reason --
+        Authorized exactly like the settings page, and for the same reason --
         the bot re-checks Administrator before answering. This page reports
         aggregates only; there is no per-member data behind it to leak, because
         none is stored.
@@ -1435,7 +1435,7 @@ def _register_routes(app: Flask) -> None:
         # The submitted price is matched against Stripe's own list of this
         # product's ACTIVE prices, never trusted as given. The guarantee is the
         # one the static table used to provide -- no price the server has not
-        # authorised, so no checking out against a $0 price made while testing
+        # authorized, so no checking out against a $0 price made while testing
         # -- but enforced against Stripe's live answer, which also means a
         # price archived a minute ago stops being sellable without a deploy.
         #
@@ -1502,7 +1502,7 @@ def _register_routes(app: Flask) -> None:
                 trial_days=page.trial_days_for(plan),
             )
         except StripeAPIError as error:
-            # The page apologises and offers the Discord path. It does not
+            # The page apologizes and offers the Discord path. It does not
             # pretend to have created a session.
             logger.warning("could not create a checkout session: %s", error)
             return _subscription_redirect(session, guild_id, "error:stripe")
@@ -1515,7 +1515,7 @@ def _register_routes(app: Flask) -> None:
     def subscription_portal(guild_id: int):
         """Hand the admin to Stripe's billing portal.
 
-        Cancelling, switching plan and updating a card all happen on Stripe's
+        Canceling, switching plan and updating a card all happen on Stripe's
         domain, and none of them is reimplemented here. That is not
         convenience: every one is an action on somebody's money, and this is
         the process the threat model assumes will be compromised.
@@ -1739,12 +1739,12 @@ def _register_routes(app: Flask) -> None:
             render_template(
                 "changelog.html",
                 # Translated here rather than in the template: see
-                # `changelog._localised` for why `_()` on a runtime value is
+                # `changelog._localized` for why `_()` on a runtime value is
                 # an escaping hole rather than a shortcut. This page renders
                 # every entry, not only the public ones, which is the one
                 # thing it does that the apex site's copy cannot.
                 entries=tuple(
-                    changelog._localised(entry, _translator(), _lang())
+                    changelog._localized(entry, _translator(), _lang())
                     for entry in changelog.ENTRIES
                 ),
                 csrf_token=session.csrf_token,
@@ -1872,7 +1872,7 @@ def _register_routes(app: Flask) -> None:
         THE ENTRY ID IS CHECKED AGAINST WHAT WE SHIPPED. It has to come from
         the form, unlike `/prefs/seen`'s value: which card was on screen is
         something only the page knows. So it is validated against the shipped
-        ids rather than trusted -- an id we do not recognise changes nothing
+        ids rather than trusted -- an id we do not recognize changes nothing
         and simply redirects back, which also keeps a crafted post from
         filling a bounded cookie with pairs that will never match anything.
 
@@ -1928,7 +1928,7 @@ def _register_routes(app: Flask) -> None:
         Why that is safe here, and would not be on the route above: this one
         reads nothing, stores nothing server-side, and never touches the bot.
         The entire consequence of a forged request is that somebody's own page
-        renders in a different colour on their next load. There is no state to
+        renders in a different color on their next load. There is no state to
         corrupt, nothing to leak, and no authority to borrow -- the cookie is
         read by exactly one thing, `_theme()`, which reduces it to one of three
         known words before it reaches the markup.
@@ -1944,7 +1944,7 @@ def _register_routes(app: Flask) -> None:
         1. The submitted value is checked against a fixed set. A value from a
            form reaching a `data-` attribute unchecked is how a preference
            becomes an injection, and `_theme()` is the second line of that
-           defence rather than the only one.
+           defense rather than the only one.
         2. The return trip is an endpoint *name* looked up in a fixed table,
            never a path from the form -- the same rule `set_nav_preference`
            follows, and for the same reason.
@@ -1952,7 +1952,7 @@ def _register_routes(app: Flask) -> None:
         chosen = request.form.get("theme") or ""
         response = redirect(_preference_return_url())
         if chosen not in THEMES:
-            # A form that submitted nothing recognisable changes nothing. No
+            # A form that submitted nothing recognizable changes nothing. No
             # error page: there is no way for an admin to cause this, so the
             # only reachable cause is a hand-built request, and the honest
             # answer to one of those is the page they asked to go back to.
@@ -2000,7 +2000,7 @@ def _register_routes(app: Flask) -> None:
         of a forged request is that somebody's own next page renders in a
         language they did not pick. `i18n.is_supported` reduces the submitted
         value to one of twelve known codes before it can reach a `lang`
-        attribute or a catalogue path.
+        attribute or a catalog path.
 
         Not rate-limited, also for the same reason: it does strictly less work
         than the render it redirects to.
@@ -2017,7 +2017,7 @@ def _register_routes(app: Flask) -> None:
         chosen = request.form.get("lang") or ""
         response = redirect(_preference_return_url())
         if not i18n.is_supported(chosen):
-            # A form that submitted nothing recognisable changes nothing. No
+            # A form that submitted nothing recognizable changes nothing. No
             # error page: the picker only ever offers the twelve, so the only
             # reachable cause is a hand-built request, and the honest answer to
             # one of those is the page they asked to go back to.
@@ -2039,7 +2039,7 @@ def _register_routes(app: Flask) -> None:
     def save_verification_settings(guild_id: int):
         """The verification group: which roles, and auto-verify on join.
 
-        Same shape as the panel save below, and the same division of labour --
+        Same shape as the panel save below, and the same division of labor --
         the bot confirms each role actually exists in the guild, which is the
         guarantee Discord's role picker gives `/vrcverify_setup` for free and
         this form cannot give itself.
@@ -2110,7 +2110,7 @@ def _register_routes(app: Flask) -> None:
         The message is submitted exactly as typed. Every rule about it -- the
         length cap, the zero-width stripping, the @everyone defusal, the
         discord.com/vrchat.com link allowlist -- belongs to the bot, which runs
-        the same sanitiser its own slash command does. Trimming or cleaning it
+        the same sanitizer its own slash command does. Trimming or cleaning it
         here would create a second opinion about what an admin is allowed to
         say through the bot.
         """
@@ -2162,8 +2162,8 @@ def _register_routes(app: Flask) -> None:
            trusted by the thing that actually writes the row.
 
         Values are turned into JSON types here because HTML forms only carry
-        strings, and the bot's API takes an int for a colour and a bool for a
-        toggle. That conversion is not validation -- a colour that survives it
+        strings, and the bot's API takes an int for a color and a bool for a
+        toggle. That conversion is not validation -- a color that survives it
         can still be refused, and the refusal is what decides.
         """
         session = _require_login()
@@ -2183,7 +2183,7 @@ def _register_routes(app: Flask) -> None:
             if request.form.get("panel_color_default"):
                 changes["panel_embed_color"] = None
             else:
-                changes["panel_embed_color"] = _colour_to_int(
+                changes["panel_embed_color"] = _color_to_int(
                     request.form.get("panel_embed_color")
                 )
 
@@ -2329,7 +2329,7 @@ def _register_routes(app: Flask) -> None:
         base.html gates the account menu on `csrf_token`, so an error page that
         did not pass one came out with no way to sign out. That is the one
         thing the menu is in the bar for: the comment there says "sign out
-        everywhere" is what you want at the moment you realise somebody else
+        everywhere" is what you want at the moment you realize somebody else
         has your session, "and at that moment you should not have to go
         looking". Mistyping a URL should not be the thing that takes it away.
 
@@ -2358,7 +2358,7 @@ def _register_routes(app: Flask) -> None:
 
 
 # The refusals worth explaining differently, and the copy for each. Anything
-# not listed falls through to the generic message, so an unrecognised reason
+# not listed falls through to the generic message, so an unrecognized reason
 # can never reach the page as text.
 SAVE_ERRORS = {
     "requires_premium": (
@@ -2477,7 +2477,7 @@ PANEL_RESULTS = {
     ),
     # Panels posted by /vrcverify_instructions before it stopped replying with
     # them belong to a webhook, and Discord quietly ignores embed edits on those
-    # -- so the language and colour could never be applied to one. The only
+    # -- so the language and color could never be applied to one. The only
     # repair is a new message, which is why this reads as an explanation rather
     # than as a plain success.
     "replaced": (
@@ -2617,10 +2617,10 @@ def _register_stripe_webhook(app: Flask) -> None:
         if current_guild is not None:
             guild_id = current_guild
 
-        normalised = stripe_events.normalise(
+        normalized = stripe_events.normalize(
             current, event_id=event_id, event_created=event.get("created")
         )
-        if normalised is None:
+        if normalized is None:
             logger.error(
                 "Stripe subscription %s is missing fields this cannot record; "
                 "ignoring. Event %s.",
@@ -2630,7 +2630,7 @@ def _register_stripe_webhook(app: Flask) -> None:
             return {"ok": True, "ignored": "incomplete"}
 
         try:
-            result = _bot_api().put_stripe_subscription(guild_id, normalised)
+            result = _bot_api().put_stripe_subscription(guild_id, normalized)
         except BotAPIError as error:
             # Never 200-and-drop. This is the failure the three-day retry
             # window exists for, and answering 200 here is the one thing that
@@ -2841,11 +2841,11 @@ def _panel_error_message(code: Optional[str]) -> Optional[str]:
     return _translator()(PANEL_ERRORS.get(code, GENERIC_PANEL_ERROR))
 
 
-def _colour_to_int(raw: Optional[str]) -> Optional[int]:
-    """`#rrggbb` from a colour input, as the integer the bot stores.
+def _color_to_int(raw: Optional[str]) -> Optional[int]:
+    """`#rrggbb` from a color input, as the integer the bot stores.
 
     Returns None for anything that is not that shape, which the bot then
-    refuses -- rather than guessing at a colour the admin did not pick.
+    refuses -- rather than guessing at a color the admin did not pick.
     """
     text = (raw or "").strip().lstrip("#")
     if len(text) != 6:
@@ -2942,7 +2942,7 @@ def _guild_chrome(
         "sections": _sections(),
         "nav_collapsed": _nav_collapsed(),
         # Which page the hamburger should return to. A key from our own table,
-        # so the form carries a name we recognise rather than a path it chose.
+        # so the form carries a name we recognize rather than a path it chose.
         "nav_return_to": SECTION_ENDPOINTS.get(section, "index"),
         # Empty on every page that has no sub-page, which the forms treat as
         # "no group" rather than as a value.
@@ -2977,7 +2977,7 @@ def _nav_collapsed() -> bool:
 def _theme() -> str:
     """Which of the three themes this browser last asked for.
 
-    Anything unrecognised -- absent, empty, hand-edited, left over from a
+    Anything unrecognized -- absent, empty, hand-edited, left over from a
     future version -- becomes the default rather than an error. There is no
     state to corrupt and nothing to warn about: the reader gets a dark page and
     can pick again.
@@ -3044,11 +3044,11 @@ def _ngettext():
     """This request's `ngettext`, for the one string that counts things.
 
     Separate from `_translator` because plural selection is a different call:
-    it takes two msgids and a number, and the catalogue's own Plural-Forms rule
+    it takes two msgids and a number, and the catalog's own Plural-Forms rule
     decides which form comes back. Russian has three, Arabic six, Japanese one
     -- so an English `"s" if n != 1` is correct in exactly one of the twelve.
     """
-    return i18n.catalogue(
+    return i18n.catalog(
         getattr(g, "language", None) or i18n.DEFAULT_LANGUAGE
     ).ngettext
 
@@ -3083,8 +3083,8 @@ def _note_guild_locale(settings: Optional[dict]) -> None:
     """Remember the language this guild configured, from a payload in hand.
 
     Called by the routes that already fetched settings. Deliberately silent
-    about anything it does not recognise: the bot's list of languages and this
-    image's list of catalogues are pinned equal by a test, but a bot running
+    about anything it does not recognize: the bot's list of languages and this
+    image's list of catalogs are pinned equal by a test, but a bot running
     ahead of a dashboard deploy is a normal state on two hosts, and the honest
     response to a language we cannot render is to render the next choice down.
     """
@@ -3144,7 +3144,7 @@ def _preference_return_url() -> str:
     # from the request is interpolated into a redirect target -- has to hold
     # for strings as well as for ids.
     #
-    # Anything unrecognised falls through to the bare settings URL rather than
+    # Anything unrecognized falls through to the bare settings URL rather than
     # to the server list: a form cached before this shipped carries no group at
     # all, and bouncing a reader out of the server they were configuring is a
     # worse answer than landing them on its first settings page. A hand-edited
@@ -3236,7 +3236,7 @@ def _invite_url(client_id: str, guild_id: Optional[str] = None) -> str:
     """The bot's install flow, at one specific server or at none.
 
     `disable_guild_select` plus `guild_id` means the admin lands on the right
-    server rather than a dropdown, which is the whole reason a greyed-out tile
+    server rather than a dropdown, which is the whole reason a grayed-out tile
     is worth clicking.
 
     WITHOUT a guild it is the generic install link, which is what /pricing

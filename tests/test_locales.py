@@ -1,4 +1,4 @@
-"""Structural checks for the bot's gettext catalogues (#231).
+"""Structural checks for the bot's gettext catalogs (#231).
 
 These were checks on `src/locales.py` when it was a dict-of-dicts. #231 moved
 the twelve languages into `src/translations/bot/`, and the questions worth
@@ -9,7 +9,7 @@ asking changed shape with the data:
 | `test_english_locale_exists`         | gone -- English IS the msgids           |
 | `test_language_codes_match_tables`   | every code has a compiled `.mo`         |
 | `test_locale_has_no_unknown_keys`    | free -- gettext has no extra keys       |
-| `test_locale_is_complete`            | no untranslated entry in any catalogue  |
+| `test_locale_is_complete`            | no untranslated entry in any catalog  |
 | `test_placeholders_match_english`    | kept, against the `.po`                 |
 | `test_bold/inline_code_balanced`     | kept, against the `.po`                 |
 | `test_no_string_is_left_as_english`  | kept, and the allowlist is gone         |
@@ -30,7 +30,7 @@ allowlist into gettext keyed by full English text instead of a short key name,
 which is more brittle for the same result, and which would have kept alive a
 mechanism whose only remaining job was to excuse a string nobody had gotten to.
 If a string ever genuinely must stay English in one language, the honest fix is
-a comment in that catalogue and a line here, added deliberately -- not an
+a comment in that catalog and a line here, added deliberately -- not an
 allowlist standing open waiting for one.
 
 `tests/test_locales_snapshot.py` is the other half of this file's job and the
@@ -58,12 +58,12 @@ LOCALE_DIR = os.path.join(
 TRANSLATED = [code for code in locales.LANGUAGE_CODES if code != "en-US"]
 
 
-def catalogue_path(code: str) -> str:
+def catalog_path(code: str) -> str:
     return os.path.join(LOCALE_DIR, code.replace("-", "_"), "LC_MESSAGES", f"{DOMAIN}.po")
 
 
 def entries(code: str) -> dict:
-    with open(catalogue_path(code), "rb") as handle:
+    with open(catalog_path(code), "rb") as handle:
         catalog = read_po(handle)
     return {str(m.id): m for m in catalog if m.id}
 
@@ -76,8 +76,8 @@ def placeholder_names(text: str) -> set:
     }
 
 
-class TestTheCataloguesAreThereAndComplete:
-    def test_english_has_no_catalogue_directory(self):
+class TestTheCatalogsAreThereAndComplete:
+    def test_english_has_no_catalog_directory(self):
         """Its "translation" is the msgids. A directory here would be a file
         translating English into the same English, every line a chance to
         drift -- the argument scripts/i18n.sh makes and this enforces."""
@@ -85,13 +85,13 @@ class TestTheCataloguesAreThereAndComplete:
             assert not os.path.isdir(os.path.join(LOCALE_DIR, name))
 
     @pytest.mark.parametrize("code", TRANSLATED)
-    def test_the_compiled_catalogue_is_in_the_tree(self, code):
+    def test_the_compiled_catalog_is_in_the_tree(self, code):
         """An ignored .mo is a bot that DMs English in every language while
         every .po in the tree says otherwise, with nothing to indicate it --
         gettext falls back silently. .gitignore carves these out for exactly
         this reason; this is what notices if that carve-out ever breaks."""
         path = os.path.join(LOCALE_DIR, code.replace("-", "_"), "LC_MESSAGES", f"{DOMAIN}.mo")
-        assert os.path.exists(path), f"{code}: no compiled catalogue at {path}"
+        assert os.path.exists(path), f"{code}: no compiled catalog at {path}"
 
     @pytest.mark.parametrize("code", TRANSLATED)
     def test_every_string_is_translated(self, code):
@@ -106,9 +106,9 @@ class TestTheCataloguesAreThereAndComplete:
 
         A fuzzy entry is Babel's guess that an old translation still fits a
         changed English string. `--statistics` counts it as translated;
-        `compile` without `--use-fuzzy` drops it. So a catalogue reports
+        `compile` without `--use-fuzzy` drops it. So a catalog reports
         "91 of 91 (100%)" and serves English -- which is what the whole
-        catalogue did when Babel's default `fuzzy=True` marked its header.
+        catalog did when Babel's default `fuzzy=True` marked its header.
 
         Not shipping the guess is the right policy: these strings include role
         assignment failures and the premium pitch, where a wrong guess is a
@@ -121,7 +121,7 @@ class TestTheCataloguesAreThereAndComplete:
         """locales.py and the extracted .pot must agree.
 
         A constant added without re-running scripts/i18n.sh is missing from
-        every catalogue, and its only symptom is a string that stays English
+        every catalog, and its only symptom is a string that stays English
         in all eleven languages -- which looks exactly like a string nobody has
         translated yet, and so gets ignored.
         """
@@ -185,20 +185,20 @@ class TestTheTranslationsAreStructurallySound:
         assert not copied, (
             f"{code} is still English in: {copied}. A string that must stay "
             f"English needs a deliberate exception here and a comment in the "
-            f"catalogue, not a silent copy."
+            f"catalog, not a silent copy."
         )
 
 
-class TestTheRuntimeAgreesWithTheCatalogues:
+class TestTheRuntimeAgreesWithTheCatalogs:
     """The checks above read the .po files. The bot reads the .mo. A test that
     only ever reads the source of truth cannot catch the compile step going
     wrong, which is the step that silently did nothing on the first run."""
 
     @pytest.mark.parametrize("code", TRANSLATED)
-    def test_what_the_bot_serves_is_what_the_catalogue_says(self, code):
-        catalogue = entries(code)
+    def test_what_the_bot_serves_is_what_the_catalog_says(self, code):
+        catalog = entries(code)
         for msgid in locales.ALL_MESSAGES:
-            assert template(msgid, code) == str(catalogue[msgid].string), (
+            assert template(msgid, code) == str(catalog[msgid].string), (
                 f"{code}: the compiled .mo disagrees with the .po for "
                 f"{msgid[:45]!r} -- run ./scripts/i18n.sh"
             )

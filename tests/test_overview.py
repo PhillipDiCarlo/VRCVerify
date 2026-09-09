@@ -78,7 +78,7 @@ def clean_db():
             session.query(bot.VerificationDaily).delete()
 
     wipe()
-    # Memoised across calls, and the tests move the table under it constantly.
+    # Memoized across calls, and the tests move the table under it constantly.
     bot._collecting_since = None
     yield
     wipe()
@@ -353,7 +353,7 @@ class TestTheDailySeries:
             return real(*args, **kwargs)
 
         add_day(today() - timedelta(days=40), 1)
-        # Warm `_collecting_since` first. It is memoised globally and every
+        # Warm `_collecting_since` first. It is memoized globally and every
         # Overview render before this one has already paid for it, so counting
         # it here would measure a cold process rather than the series -- and
         # the claim being made is about the series.
@@ -400,7 +400,7 @@ class TestCollectionStart:
     def test_it_is_not_cached_as_none(self):
         """An empty table must not freeze the answer at "never".
 
-        Memoising None would mean the first verification after a deploy never
+        Memoizing None would mean the first verification after a deploy never
         starts the clock, and every window stays blank until a restart.
         """
         assert bot._collection_started() is None

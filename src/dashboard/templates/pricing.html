@@ -31,13 +31,13 @@
    product id and its prices -- served to anybody who asks. #}
 {% block content %}
 
-{# THE TITLE IS NOT IN A CARD, and it is the one centred thing in this app.
+{# THE TITLE IS NOT IN A CARD, and it is the one centered thing in this app.
    Both are deliberate and both are scoped to this page by `.page-head`.
 
    Every console reference in #195 puts its page title on the page ground
-   rather than inside a panel, and every pricing reference centres it. This
+   rather than inside a panel, and every pricing reference centers it. This
    page is the second kind. Overview and Settings must NOT copy this -- a
-   console that centres its headings reads as a brochure. #}
+   console that centers its headings reads as a brochure. #}
 <header class="page-head selling">
   <h1>{% trans %}Pricing{% endtrans %}</h1>
   <p>{% trans %}Verification is free, forever. Premium adds the automation around it, per server.{% endtrans %}</p>
@@ -147,7 +147,7 @@
     <div class="plans">
       {% for plan in page.plans %}
         {# `.plan-card`, never a bare `.plan` (#158) -- that collision rendered
-           the price as an italic grey footnote on the page that takes money.
+           the price as an italic gray footnote on the page that takes money.
            Not a <form> here, unlike subscription.html: there is no guild to
            check out for and no session to carry a CSRF token. Buying happens
            in the dashboard, signed in, where the server is known. #}

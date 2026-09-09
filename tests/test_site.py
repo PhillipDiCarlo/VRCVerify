@@ -196,12 +196,12 @@ def test_nothing_is_loaded_from_a_third_party(page):
     THIS USED TO BAN SCRIPTS OUTRIGHT -- `assert "<script" not in text` -- and
     #137 phase 1 narrowed it to third-party scripts, which is all this test's
     own docstring ever claimed. The blanket version was free to be stronger
-    than its stated rule for as long as the site had no behaviour at all; the
+    than its stated rule for as long as the site had no behavior at all; the
     theme toggle is the first script here, it is served from this origin, and
     every page still renders completely without it.
 
     The property being defended is "nothing on this page is fetched from
-    somebody else's server", not "this page has no behaviour". An inline
+    somebody else's server", not "this page has no behavior". An inline
     <script> block is still refused: same-origin is checked by reading the
     `src`, so a script with no `src` has nothing to check, and keeping the one
     path from repository to browser a reviewable file is worth more than the
@@ -228,7 +228,7 @@ def test_nothing_is_loaded_from_a_third_party(page):
 # date cannot be shown to have been in force on a given day.
 #
 # `changelog.html` joined them in #137 phase 4 and is worth a word, because
-# PAGES is a glob and every new page lands in every parametrised test here
+# PAGES is a glob and every new page lands in every parameterized test here
 # automatically. That is the good half. The bad half is this set: a page that
 # is not a policy has to say so, or it is asked for a "Last updated" line it
 # has no business carrying. The changelog dates every entry individually and a
@@ -429,7 +429,7 @@ def test_the_stylesheet_braces_balance(sheet):
     of the two started a qualified rule whose prelude ran on into the next
     selector, and `.lede` was dropped from the parsed sheet in Chromium,
     Firefox and WebKit alike. The changelog and 404 ledes silently lost their
-    size and their muted colour, and no test in this file could see it,
+    size and their muted color, and no test in this file could see it,
     because every test here reads the CSS as text and the text was still
     there.
 
@@ -458,11 +458,11 @@ def test_the_site_loads_no_script_other_than_its_own():
         assert srcs == ["/theme.js", "/status.js"], f"{page.name}: {srcs}"
 
 
-def _luminance(hex_colour):
-    hex_colour = hex_colour.lstrip("#")
+def _luminance(hex_color):
+    hex_color = hex_color.lstrip("#")
     channels = []
     for i in (0, 2, 4):
-        c = int(hex_colour[i:i + 2], 16) / 255
+        c = int(hex_color[i:i + 2], 16) / 255
         channels.append(c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4)
     r, g, b = channels
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
@@ -572,7 +572,7 @@ def test_the_plan_cards_never_use_a_bare_plan_class():
 
     The dashboard shipped `.plan` and it collided with an unrelated `.plan` in
     settings.html, rendering the price on the page that takes money as an
-    italic grey footnote. It was renamed `.plan-card` and a collision test was
+    italic gray footnote. It was renamed `.plan-card` and a collision test was
     added there. This site copies the card design, so it copies the lesson --
     a bare `.plan` here would be the same mistake with a fresh stylesheet.
     """
@@ -1082,18 +1082,18 @@ def test_the_font_is_vendored_and_not_fetched_from_anywhere():
         assert "//" not in url, f"@font-face reaches off-origin: {url}"
 
 
-def test_the_font_licence_ships_beside_it():
-    """Inter is SIL OFL 1.1, which requires the licence to travel with the
-    font. Vendoring the binary and leaving the licence in the other host's
+def test_the_font_license_ships_beside_it():
+    """Inter is SIL OFL 1.1, which requires the license to travel with the
+    font. Vendoring the binary and leaving the license in the other host's
     directory would be shipping it without terms."""
-    licence = SITE / "fonts" / "Inter-LICENSE.txt"
-    assert licence.exists(), "the font ships without its licence"
-    assert "SIL Open Font License" in licence.read_text(encoding="utf-8")
+    license = SITE / "fonts" / "Inter-LICENSE.txt"
+    assert license.exists(), "the font ships without its license"
+    assert "SIL Open Font License" in license.read_text(encoding="utf-8")
 
 
 def test_the_two_hosts_serve_the_same_font_file():
     """Copied, not shared -- different origin, different deploy, same reasoning
-    as the colour tokens. A test rather than an import, because there is no
+    as the color tokens. A test rather than an import, because there is no
     mechanism that could keep them equal on its own.
 
     Compared by bytes: two files with the same name and different contents
@@ -1305,7 +1305,7 @@ def test_no_section_is_left_out(name):
 def test_it_is_announced_as_navigation(name):
     """It must not be mistakeable for a summary of the terms. A reader who
     believes they have read the agreement because they read the list has been
-    misled by the layout, so it is marked up and labelled as a signpost."""
+    misled by the layout, so it is marked up and labeled as a signpost."""
     text = read(SITE / name)
     block = re.search(r'<nav class="toc"[^>]*>(.*?)</nav>', text, re.S).group(1)
     assert 'aria-label="On this page"' in text
@@ -1412,7 +1412,7 @@ def test_the_nav_is_down_to_three_links():
 #
 # It is a link that happens to know something, not a widget. Everything below
 # is about keeping it in that order: the link works with no script, the dot
-# never claims health it did not read, and the colours are the status page's
+# never claims health it did not read, and the colors are the status page's
 # own rather than a second green that drifts from it.
 # ---------------------------------------------------------------------------
 
@@ -1475,7 +1475,7 @@ def test_the_status_script_sends_nothing_about_the_reader():
     assert 'credentials: "omit"' in js
 
 
-def test_the_status_colours_are_the_status_pages_own():
+def test_the_status_colors_are_the_status_pages_own():
     """One product, one green. The dot and the page it opens are read within a
     click of each other, and two greens that nearly match look like a bug in
     whichever one the reader sees second."""
@@ -1491,25 +1491,25 @@ def test_the_status_colours_are_the_status_pages_own():
 @pytest.mark.parametrize("theme", ["", "light-"])
 def test_the_dot_clears_the_graphical_floor_on_the_header_bar(token, theme):
     """--chrome is a surface the status page's own suite deliberately does not
-    check, because nothing there draws a status colour on it. Here something
+    check, because nothing there draws a status color on it. Here something
     does, and it is exactly the "measured on one surface, drawn on another"
     mistake that has moved --ok three times in this project.
 
     A dot is a graphical object: WCAG 1.4.11 asks 3:1. All six clear 4.5:1 as
-    well, so the label beside it could take the colour without another pass.
+    well, so the label beside it could take the color without another pass.
     """
     palette = _status_tokens(SITE / "style.css")
     ratio = _contrast(palette[f"--{theme}{token}"], palette[f"--{theme}chrome"])
     assert ratio >= 3.0, f"--{theme}{token} on --{theme}chrome is {ratio:.2f}:1"
 
 
-def test_state_is_not_carried_by_colour_alone():
+def test_state_is_not_carried_by_color_alone():
     """The fix for a real defect, pinned so it cannot come back as a tidy-up.
 
-    The first version of this pill was a coloured dot. --ok and --down have
+    The first version of this pill was a colored dot. --ok and --down have
     relative luminance 0.3312 and 0.3407 -- 0.01 apart -- so "everything is
-    working" and "something is down" were the same grey dot to a red-green
-    colourblind reader, in the two states where being wrong costs most. The
+    working" and "something is down" were the same gray dot to a red-green
+    colorblind reader, in the two states where being wrong costs most. The
     tick, the exclamation and the cross are what actually tell them apart, and
     they are the status page's own glyphs so both surfaces draw one mark.
     """

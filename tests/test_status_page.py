@@ -8,7 +8,7 @@ files and would otherwise be checked by remembering:
   1. Its stylesheet is a COPY of the apex site's. Copies drift, and two
      surfaces that drift look like two products. The token values are pinned
      against their source.
-  2. Its status colours are new to this project, and no one has ever drawn a
+  2. Its status colors are new to this project, and no one has ever drawn a
      red here before. They are measured on every surface they land on, because
      `--ok` has already had to be moved twice for exactly that omission.
   3. Its public copy names capabilities and never infrastructure. That is
@@ -85,21 +85,21 @@ class TestTheCopiedStylesheet:
         assert "fonts.googleapis" not in STATUS_CSS.read_text(encoding="utf-8")
 
 
-# The surfaces a status colour is ACTUALLY drawn on, and only those.
+# The surfaces a status color is ACTUALLY drawn on, and only those.
 #
 # `--bg` is the page ground, where the hero glyph sits. `--panel` is the card,
 # where every row's glyph and pill sit. `--chrome` is deliberately absent: the
-# header and footer carry no status colour, and asserting that pair would be
+# header and footer carry no status color, and asserting that pair would be
 # inventing a requirement to satisfy a requirement -- which is what
 # test_contrast.py's docstring says this suite will not do.
 #
-# Both surfaces, every colour, every time. `--ok` has now been moved three
+# Both surfaces, every color, every time. `--ok` has now been moved three
 # times in this project by measuring against one surface and then drawing on
 # another, and the fourth was caught by this test on the day it was written.
 SURFACES = ("bg", "panel")
 
 
-class TestStatusColours:
+class TestStatusColors:
     @pytest.mark.parametrize("token", ["ok", "notice", "down", "planned"])
     @pytest.mark.parametrize("surface", SURFACES)
     def test_dark_clears_aa(self, token, surface):
@@ -160,11 +160,11 @@ class TestStatusColours:
 
     @pytest.mark.parametrize("surface", SURFACES)
     def test_the_unknown_state_is_legible_too(self, surface):
-        """`--faint` is the fourth status colour, and the easiest to forget.
+        """`--faint` is the fourth status color, and the easiest to forget.
 
         It is the one a reader sees when the checker itself is broken, which is
         the moment the page most needs to be readable. It is pinned on the page
-        ground as well as the card, because the hero glyph goes grey in exactly
+        ground as well as the card, because the hero glyph goes gray in exactly
         that case.
         """
         palette = _tokens(STATUS_CSS)
@@ -173,8 +173,8 @@ class TestStatusColours:
         assert dark >= 4.5, f"--faint on --{surface} is {dark:.2f}:1 on dark"
         assert light >= 4.5, f"--light-faint on --light-{surface} is {light:.2f}:1 on light"
 
-    def test_no_state_is_told_apart_by_colour_alone(self):
-        """Each state ships a word and a drawn glyph as well as a colour."""
+    def test_no_state_is_told_apart_by_color_alone(self):
+        """Each state ships a word and a drawn glyph as well as a color."""
         render = (ROOT / "status" / "src" / "render.js").read_text(encoding="utf-8")
         for label in ("Operational", "Degraded", "Down", "Unknown"):
             assert f'"{label}"' in render

@@ -59,7 +59,7 @@ cover/
 # (#97) and, since #231, the bot's.
 #
 # The stock Python ignore above is right for a project that compiles its
-# catalogues at build or install time. This one cannot: Dockerfile-dashboard
+# catalogs at build or install time. This one cannot: Dockerfile-dashboard
 # copies src/dashboard/ and installs no toolchain, because Babel is a dev
 # dependency and requirements-dashboard.txt argues that every package on the
 # internet-facing host is something an attacker gets to probe.
@@ -71,11 +71,11 @@ cover/
 # that reason.
 #
 # The .pot rides along so `pybabel update` has a baseline in a fresh clone
-# rather than regenerating one and marking the whole catalogue changed.
+# rather than regenerating one and marking the whole catalog changed.
 !src/dashboard/translations/**/*.mo
 !src/dashboard/translations/*.pot
 
-# Same argument, same shape, for the bot's catalogues (#231). Dockerfile-bot
+# Same argument, same shape, for the bot's catalogs (#231). Dockerfile-bot
 # copies src/ and installs no toolchain either, and the bot's failure mode is
 # worse than the dashboard's: these strings arrive in a DM, unprompted, to
 # somebody who may never open the website at all.

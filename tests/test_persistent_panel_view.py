@@ -1,7 +1,7 @@
 """Unit tests for the persistent instruction panel view (issue #14, tier 2).
 
 Panel buttons used to get a random custom_id per process, so every posted panel
-had to be re-edited on boot just to hand out ids the new process recognised.
+had to be re-edited on boot just to hand out ids the new process recognized.
 They now carry fixed, versioned ids and are registered once via add_view(), so
 a restart only has to touch panels that predate the current version.
 """
@@ -220,10 +220,10 @@ class TestServerIdCoercion:
     is an integer type, so SQLAlchemy hands back ints. Against the text column
     in instruction_panel_views that made Postgres reject `varchar = bigint` on
     write, and made the version lookup silently miss on read. Everything
-    touching that table has to normalise first.
+    touching that table has to normalize first.
     """
 
-    def test_key_normalises_ints(self):
+    def test_key_normalizes_ints(self):
         assert bot.panel_view_key(123) == "123"
         assert bot.panel_view_key("123") == "123"
 
@@ -267,10 +267,10 @@ class TestServerIdCoercion:
             pytest.param(lambda: bot.load_instruction_panels(), id="load"),
         ],
     )
-    def test_every_table_access_normalises_first(self, clean_db, monkeypatch, call):
+    def test_every_table_access_normalizes_first(self, clean_db, monkeypatch, call):
         # The round-trip tests above cannot fail on SQLite, whose TEXT affinity
         # quietly coerces ints on the way in. Postgres does not, so the real
-        # invariant to protect is that nothing reaches this table un-normalised.
+        # invariant to protect is that nothing reaches this table un-normalized.
         make_server(GUILD_ID)
         seen = []
         real = bot.panel_view_key
@@ -278,4 +278,4 @@ class TestServerIdCoercion:
 
         call()
 
-        assert seen, "guild id reached instruction_panel_views without normalising"
+        assert seen, "guild id reached instruction_panel_views without normalizing"

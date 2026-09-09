@@ -21,7 +21,7 @@ than a new branch scattered through the HTML:
 * ``stripe``       — subscribed by card. Plan, renewal date, portal link.
 * ``past_due``     — subscribed by card, last payment failed. Premium is still
                      on while Stripe retries. Not an error and not silence.
-* ``both``         — paying on both platforms. Warned, never auto-cancelled.
+* ``both``         — paying on both platforms. Warned, never auto-canceled.
 * ``pending``      — Stripe has just bounced the browser back from checkout and
                      the webhook has not landed yet. Offers no way to buy,
                      because the alternative is three Buy buttons under a
@@ -87,7 +87,7 @@ def _untranslated(text: str) -> str:
 
 # The metadata keys read off a Stripe price, all optional.
 #
-# Optional matters: a price with no metadata still renders, labelled from its
+# Optional matters: a price with no metadata still renders, labeled from its
 # own billing interval. That is what stops a plan created in a hurry from
 # rendering as a blank card, and it means the metadata is presentation rather
 # than configuration the page cannot work without.
@@ -95,7 +95,7 @@ PLAN_METADATA = ("label", "order", "saving", "trial_days")
 
 # The `saving` strings this repository knows about, listed so `pybabel` finds
 # them. Nothing reads this tuple: the values arrive from Stripe metadata and
-# are looked up in `plan_from_price`. It exists so the catalogue HAS an entry
+# are looked up in `plan_from_price`. It exists so the catalog HAS an entry
 # for them -- a msgid nobody marked is a msgid nobody can translate.
 KNOWN_SAVINGS = (N_("Save about 10%"), N_("Save about 20%"))
 
@@ -194,7 +194,7 @@ def _billing_period(price: dict, t: Callable[[str], str] = _untranslated) -> Opt
         return f"per {interval}"
     return f"per {count} {interval}s"
 
-# What an unrecognised price id renders as.
+# What an unrecognized price id renders as.
 #
 # This will happen: a plan switched in the billing portal, a price replaced
 # during a pricing change, an id rotated between test and live. The
@@ -322,11 +322,11 @@ class SubscriptionPage:
 
     # THE STATUS CHIP AND THE FACT LIST (#141 phase 1)
     # ------------------------------------------------
-    # Eight of this page's states used to be eight paragraphs of grey prose
+    # Eight of this page's states used to be eight paragraphs of gray prose
     # under one heading, so "you are being charged twice" and "verification is
     # free" arrived in the same voice at the same weight. Every billing page
     # gathered as reference does the same two things instead -- a chip on the
-    # plan name saying which state this is, and a labelled list of the facts
+    # plan name saying which state this is, and a labeled list of the facts
     # underneath. Superhuman, Base44, Rise and Grammarly all land on it.
     #
     # Built here rather than branched in the template for the reason the
@@ -334,7 +334,7 @@ class SubscriptionPage:
     # takes money, and a condition grown inside a template branch is how two
     # of these end up disagreeing about whether somebody has paid.
 
-    #: The chip's tone. Maps to a class, never to a colour -- the stylesheet
+    #: The chip's tone. Maps to a class, never to a color -- the stylesheet
     #: owns which token each tone resolves to, and `test_contrast.py` owns
     #: whether that token is legible where it is drawn.
     _CHIP = {
@@ -351,17 +351,17 @@ class SubscriptionPage:
         """The state, as a word and a tone, or None where there is no status.
 
         `off` and the free/lapsed default get no chip: "not subscribed" is not
-        a status worth stamping, and a grey pill saying "Free" next to a Buy
+        a status worth stamping, and a gray pill saying "Free" next to a Buy
         button reads as a downgrade rather than as a fact.
         """
-        # Cancelled-but-still-running is not a state of its own -- `build()`
+        # Canceled-but-still-running is not a state of its own -- `build()`
         # keeps it inside `stripe` and marks it by setting `ends_on` instead
         # of `renews_on`. It is worth its own word here, because "Active" on a
         # subscription that stops next month is true and unhelpful, and the
         # fact list underneath says "Premium until" rather than "Renews" for
         # exactly the same reason.
         if self.state == "stripe" and self.ends_on:
-            return {"label": self._t(N_("Cancelled")), "tone": "muted"}
+            return {"label": self._t(N_("Canceled")), "tone": "muted"}
 
         found = self._CHIP.get(self.state)
         if found is None:
@@ -408,7 +408,7 @@ class SubscriptionPage:
             # "Discord" and "Card" are values, not labels, and both are
             # translatable: "Card" is the English word for the payment method
             # and has an equivalent everywhere. "Discord" is a product name and
-            # its msgid will be left as-is in most catalogues -- but not all,
+            # its msgid will be left as-is in most catalogs -- but not all,
             # since a few of these scripts transliterate product names, and
             # that is the translator's call to make rather than this file's.
             rows.append((self._t(N_("Billed through")), self._t(N_("Discord"))))
@@ -575,7 +575,7 @@ def plan_from_price(price: dict, t: Callable[[str], str] = _untranslated) -> Opt
         metadata = {}
 
     # The operator's own words, typed into the price's metadata in Stripe --
-    # and still offered to the catalogue, which is worth explaining.
+    # and still offered to the catalog, which is worth explaining.
     #
     # In practice these labels ARE our own English: a price is called
     # "Monthly" or "6 months" because that is what the cards have always said,
@@ -682,7 +682,7 @@ def build(
     `lang` is beside `t` and not folded into it (#230). `t` answers "what does
     this label say"; `lang` answers "how does this reader write a date", and
     the second question has no msgid to hang off -- the date is a value the bot
-    sent, not a string in a catalogue. Both are arguments for the same reason:
+    sent, not a string in a catalog. Both are arguments for the same reason:
     nothing in this module may read a request.
 
     `settings` is None when the bot could not answer. That is its own state and
@@ -766,28 +766,28 @@ def build(
     # sets `cancel_at_period_end`.
     #
     # "Cancel at period end" is the customer's own choice in the portal: the
-    # subscription stays `active` and the flag goes up. Cancelling outright --
+    # subscription stays `active` and the flag goes up. Canceling outright --
     # in the Stripe dashboard, or by Stripe giving up on an unpaid one -- sets
     # the STATUS to `canceled` and leaves that flag FALSE, because there is no
     # future period end to cancel at any more.
     #
     # Reading only the flag therefore put a live cancellation on the "renews"
     # branch, and the page told a customer they would be billed again on a date
-    # nothing was going to bill them. Found 2026-08-18 by cancelling a real
+    # nothing was going to bill them. Found 2026-08-18 by canceling a real
     # subscription and reading the page it produced, which is the only way this
     # was ever going to surface -- both halves were individually correct.
     #
-    # `current_period_end` does not move when a subscription is cancelled, so
+    # `current_period_end` does not move when a subscription is canceled, so
     # the date is right in both cases; it is the promise attached to it that
     # differs. The bot grants premium until that date either way
     # (`_stripe_row_is_paid` admits `canceled` while the period is unexpired),
     # so this changes the words and not the entitlement.
-    cancelling = bool(stripe_block.get("cancel_at_period_end")) or status == "canceled"
+    canceling = bool(stripe_block.get("cancel_at_period_end")) or status == "canceled"
     label = plan_label_for(stripe_block.get("price_id"), plans, t)
 
     # Exactly one of these is ever set, and they are different promises.
-    renews_on = None if cancelling else period_end
-    ends_on = period_end if cancelling else None
+    renews_on = None if canceling else period_end
+    ends_on = period_end if canceling else None
 
     # Paying twice: on both platforms, or on two cards. Premium stays granted
     # either way -- being double-billed must not also break something -- and
@@ -852,7 +852,7 @@ def build(
         plans=tuple(plans) if stripe_on else (),
         # Only worth saying while Stripe is otherwise on: with either kill
         # switch off there are no card plans to be unable to load, and
-        # apologising for the absence of something deliberately switched off
+        # apologizing for the absence of something deliberately switched off
         # would be the page inventing a fault.
         plans_unavailable=plans_unavailable and stripe_on,
         store_url=store_url,
@@ -868,7 +868,7 @@ def build(
         #
         # `stripe_on` is required as well, so a payload from a bot with Stripe
         # switched off cannot advertise a trial that the checkout route --
-        # which re-reads this same field -- would then refuse to honour.
+        # which re-reads this same field -- would then refuse to honor.
         trial_eligible=bool(stripe_block.get("trial_eligible")) and stripe_on,
         t=t,
     )

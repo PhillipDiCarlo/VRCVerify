@@ -136,7 +136,7 @@ test("all clear says all clear", () => {
   assert.equal((html.match(/class="row is-up"/g) ?? []).length, COMPONENTS.length + UPSTREAMS.length);
 });
 
-test("state is carried by a word and a glyph, never by colour alone", () => {
+test("state is carried by a word and a glyph, never by color alone", () => {
   const components = {};
   for (const component of COMPONENTS) {
     components[component.id] = { state: "down", since: NOW - 7200 };
@@ -144,7 +144,7 @@ test("state is carried by a word and a glyph, never by colour alone", () => {
   const html = page({ components });
   // The word.
   assert.ok(html.includes(">Down<"));
-  // The glyph, which is a drawn cross rather than a colour swap.
+  // The glyph, which is a drawn cross rather than a color swap.
   assert.ok(html.includes("<svg"));
   // And how long, which is the question a reader has immediately after "Down".
   assert.ok(html.includes("for 2 hours"));
@@ -228,7 +228,7 @@ test("a declared maintenance window is drawn and named, not silently dropped", (
   // The day reads 100%, and says why in the same breath. A percentage that
   // quietly skipped a quarter of an hour is how a status page loses its credit.
   assert.ok(html.includes("2026-08-30: 100% up (15 minutes of maintenance not counted)"));
-  assert.ok(html.includes('class="bar is-maintenance"'), "planned work has its own colour");
+  assert.ok(html.includes('class="bar is-maintenance"'), "planned work has its own color");
   assert.ok(html.includes('title="2026-08-31: maintenance all day"'));
 });
 
