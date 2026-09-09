@@ -11206,8 +11206,23 @@ async def on_ready():
         run_once=True,
     )
 
-    # Start watching for a trigger file so you can update instructions at runtime
-    # To trigger an instruction panel update type "touch /tmp/update_instructions.trigger" into a terminal
+    # Start watching for a trigger file so you can update instructions at runtime.
+    # Unlike the startup refresh above, this one ignores view_version and
+    # re-edits EVERY saved panel, which is what makes it the way to push a
+    # cosmetic panel change (a button, a label) that does not warrant bumping
+    # INSTRUCTIONS_VIEW_VERSION.
+    #
+    # INSIDE THE CONTAINER, not on the host. This path is the bot's own
+    # filesystem, and the deployed bot mounts nothing at /tmp -- so a `touch`
+    # in an ssh session on the VPS creates a file this watcher will never see,
+    # with no error anywhere and no panel updated. That is a real half hour
+    # somebody has already lost. The command is:
+    #
+    #   docker compose exec discord-bot touch /tmp/update_instructions.trigger
+    #
+    # Confirm it fired in the log: the watcher announces itself at boot with
+    # its resolved path, and logs "Trigger file detected" when it picks the
+    # file up. No second line means the file landed somewhere else.
     trigger_path = os.getenv("INSTRUCTIONS_TRIGGER_PATH", "/tmp/update_instructions.trigger")
     poll = int(os.getenv("INSTRUCTIONS_TRIGGER_POLL", "5"))
     start_background_task(
