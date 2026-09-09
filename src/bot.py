@@ -23,6 +23,7 @@ import pika
 from pika.exceptions import AMQPError
 from sqlalchemy import (
     create_engine,
+    BigInteger,
     Column,
     Integer,
     String,
@@ -588,7 +589,20 @@ def session_scope():
 class Server(Base):
     __tablename__ = "servers"
     id = Column(Integer, primary_key=True)
-    server_id = Column(String, unique=True, nullable=False)
+    # BigInteger, not String, because the deployed column is bigint (#275).
+    #
+    # THE MODEL USED TO SAY String AND THAT IS WHAT SHIPPED #164. psycopg
+    # returned an int for a column the code believed was text, a dict keyed on
+    # the raw value matched nothing against string keys, and every server on
+    # the picker read as unconfigured while its own Overview read as complete.
+    # Nothing raised and nothing logged.
+    #
+    # Declaring the truth here costs no migration -- production is already
+    # bigint -- and it buys the thing the test suite could not otherwise have:
+    # SQLite gives a BIGINT column INTEGER affinity, so reads come back as
+    # ints there too. The production type is now reachable from the default
+    # fast suite rather than only from scripts/test_postgres.sh.
+    server_id = Column(BigInteger, unique=True, nullable=False)
     owner_id = Column(String, nullable=False)
     role_id = Column(String, nullable=True)
     # Optional role to remove upon successful verification
@@ -8509,11 +8523,16 @@ def panel_row_owner_id(guild, actor_id) -> str:
 def panel_view_key(server_id) -> str:
     """Normalize a guild id for the instruction_panel_views table.
 
-    `servers.server_id` is declared String but can come back as an int, because
-    the deployed column is an integer type and SQLAlchemy returns whatever the
-    driver gives. instruction_panel_views.server_id really is text, so an
-    un-normalized id makes Postgres reject `character varying = bigint` — and,
-    worse, makes the in-memory version lookup silently never match.
+    STILL NEEDED AFTER #275, and the reason changed. `servers.server_id` used
+    to be declared String while deployed bigint, so it could come back as
+    either; the model now says BigInteger and it reliably comes back an int.
+    The mismatch that remains is between the two TABLES:
+    `instruction_panel_views.server_id` really is text, so an un-normalized id
+    makes Postgres reject `character varying = bigint` — and, worse, makes the
+    in-memory version lookup silently never match, which is #164.
+
+    So the ids crossing into that table, and into any dict compared against
+    Discord's string ids, go through here.
     """
     return str(server_id)
 
@@ -8626,7 +8645,13 @@ def load_instruction_panels(stale_only: bool = False):
                 continue
             panels.append(
                 {
-                    "server_id": server.server_id,
+                    # NORMALIZED, like the version lookup three lines up. The
+                    # raw value is an int (servers.server_id is bigint), and
+                    # emitting it raw here while normalizing it there is the
+                    # exact asymmetry that shipped #164 -- normalized on the
+                    # way into the query, raw on the way out. Callers key and
+                    # compare these against string ids from Discord.
+                    "server_id": panel_view_key(server.server_id),
                     "channel_id": server.instructions_channel_id,
                     "message_id": server.instructions_message_id,
                     "locale": server.instructions_locale or "en-US",
@@ -9149,9 +9174,9 @@ async def dashboard_admin_guilds(user_id, guild_ids) -> Optional[list]:
 def _rows_by_server_id(rows) -> dict:
     """Index rows by NORMALIZED server id, never by the raw column value.
 
-    THE BUG THIS EXISTS TO PREVENT SHIPPED ONCE (#164). `servers.server_id` is
-    declared String while the deployed column is an integer type, so the driver
-    hands back an int on production and a str on SQLite. A dict keyed on the
+    THE BUG THIS EXISTS TO PREVENT SHIPPED ONCE (#164). `servers.server_id` was
+    declared String while the deployed column was an integer type, so the driver
+    handed back an int on production and a str on SQLite. A dict keyed on the
     raw value therefore matched nothing against `panel_view_key`'s string keys:
     every row read as missing, every server reported itself unconfigured, and
     every picker card said setup was unfinished while the Overview for the same
@@ -9161,11 +9186,16 @@ def _rows_by_server_id(rows) -> dict:
     in-memory version lookup silently never match" -- and the warning was on
     the write side of the query while the mistake was on the read side.
 
-    A FUNCTION RATHER THAN A DICT COMPREHENSION, because the test database
-    cannot reproduce the fault: SQLite applies TEXT affinity to a VARCHAR
-    column and coerces the int away, so a row inserted with an integer id comes
-    back as a string and the broken version passes. The invariant is testable
-    here even though the type is not reachable there.
+    A FUNCTION RATHER THAN A DICT COMPREHENSION, because when this was written
+    the test database could not reproduce the fault: SQLite applies TEXT
+    affinity to a VARCHAR column and coerced the int away, so a row inserted
+    with an integer id came back as a string and the broken version passed.
+
+    #275 closed that gap from the other end -- the model now declares
+    BigInteger, which SQLite gives INTEGER affinity, so the int is reachable in
+    the ordinary suite. The normalizing is still required: the ids here are
+    compared against Discord's, which are strings, and against
+    instruction_panel_views, whose column really is text.
     """
     return {panel_view_key(row.server_id): row for row in rows}
 
