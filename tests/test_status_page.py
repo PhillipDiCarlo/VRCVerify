@@ -5,9 +5,11 @@ of that is reachable from pytest, and most of it is covered by
 `node --test status/test` instead. What is covered HERE is the part that spans
 files and would otherwise be checked by remembering:
 
-  1. Its stylesheet is a COPY of the apex site's. Copies drift, and two
-     surfaces that drift look like two products. The token values are pinned
-     against their source.
+  1. Its stylesheet is a COPY of the apex site's, which is itself a copy of
+     the dashboard's. Copies drift, and surfaces that drift look like separate
+     products. All three sets of token values are pinned against each other
+     here -- see TestTheDashboardCopy for why the third comparison needs a
+     name mapping the first one does not.
   2. Its status colors are new to this project, and no one has ever drawn a
      red here before. They are measured on every surface they land on, because
      `--ok` has already had to be moved twice for exactly that omission.
@@ -35,6 +37,7 @@ SITE_CSS = ROOT / "site" / "style.css"
 STATUS_CSS = ROOT / "status" / "public" / "style.css"
 SITE_THEME = ROOT / "site" / "theme.js"
 STATUS_THEME = ROOT / "status" / "public" / "theme.js"
+DASHBOARD_CSS = ROOT / "src" / "dashboard" / "static" / "style.css"
 CONFIG_JS = ROOT / "status" / "src" / "config.js"
 WRANGLER = ROOT / "status" / "wrangler.toml"
 
@@ -83,6 +86,119 @@ class TestTheCopiedStylesheet:
         """A page built to survive the apex site being down cannot fetch from it."""
         assert (ROOT / "status" / "public" / "fonts" / "inter-latin-var.woff2").exists()
         assert "fonts.googleapis" not in STATUS_CSS.read_text(encoding="utf-8")
+
+
+# The third copy, and the one nothing was comparing (#284).
+#
+# TestTheCopiedStylesheet above pins status against the apex site by name,
+# which works because those two files are byte-level siblings. The dashboard is
+# the ORIGIN of both and was never compared to either, so its palette could
+# have drifted from theirs indefinitely -- which is precisely the failure the
+# comment blocks in all three files exist to prevent, left with no test behind
+# it. #284 moves the accent in all three at once and is exactly the change that
+# gap would have let land half-done.
+#
+# It needs a mapping because the two files name their themes differently, for
+# reasons written up in each. The dashboard renders light from bare `:root` and
+# names its dark values `--dark-*`; the apex site is the mirror, because it has
+# no server to stamp a theme into the first paint and so must have dark on bare
+# `:root`. So "the dark value" lives under a prefixed name in one file and an
+# unprefixed one in the other, and vice versa.
+
+
+def _themed(path: pathlib.Path, prefix: str) -> tuple[dict[str, str], dict[str, str]]:
+    """A file's tokens split into (prefixed, unprefixed), prefix stripped."""
+    tokens = _tokens(path)
+    marked = {k[len(prefix) :]: v for k, v in tokens.items() if k.startswith(prefix)}
+    plain = {k[2:]: v for k, v in tokens.items() if not k.startswith(prefix)}
+    return marked, plain
+
+
+# Deliberate divergences, each argued for in a comment beside the value.
+#
+# Listed rather than tolerated: an entry here is a claim that somebody measured
+# the two surfaces and decided they differ, and the test names the file where
+# that argument lives so the next person can check it rather than assume it.
+DIVERGENT = {
+    "light": {
+        # site/style.css: "THE ONE VALUE THAT DELIBERATELY DIFFERS FROM THE
+        # DASHBOARD" -- the dashboard's inputs sit on white cards, this site's
+        # only control sits on the darker --chrome, and the same gray is 2.84:1
+        # there.
+        "control-line": "the surface the control sits on differs",
+        # status/public/style.css: the dashboard never draws a status color on
+        # the page ground; the status page's hero glyph sits directly on it, and
+        # the dashboard's green is 4.27:1 there.
+        "ok": "the status page draws --ok on --bg and the dashboard never does",
+    },
+    "dark": {},
+}
+
+
+class TestTheDashboardCopy:
+    @pytest.mark.parametrize("theme", ["light", "dark"])
+    def test_the_apex_palette_matches_the_dashboard_it_was_copied_from(self, theme):
+        light_site, dark_site = _themed(SITE_CSS, "--light-")
+        dark_dash, light_dash = _themed(DASHBOARD_CSS, "--dark-")
+        site = {"dark": dark_site, "light": light_site}[theme]
+        dashboard = {"dark": dark_dash, "light": light_dash}[theme]
+
+        shared = sorted(set(site) & set(dashboard) - set(DIVERGENT[theme]))
+        assert len(shared) > 12, (
+            f"only {len(shared)} {theme} tokens are named the same in both "
+            "files -- the copy has stopped resembling its origin"
+        )
+        drifted = {
+            name: (site[name], dashboard[name])
+            for name in shared
+            if site[name] != dashboard[name]
+        }
+        assert not drifted, (
+            f"{theme} tokens have drifted between site/style.css and the "
+            f"dashboard: {drifted}. Either fix one, or add it to DIVERGENT "
+            "with the measurement that says the two surfaces really differ."
+        )
+
+    @pytest.mark.parametrize("theme", ["light", "dark"])
+    def test_every_listed_divergence_is_still_a_divergence(self, theme):
+        """A tolerated difference that has gone away should stop being tolerated."""
+        light_site, dark_site = _themed(SITE_CSS, "--light-")
+        dark_dash, light_dash = _themed(DASHBOARD_CSS, "--dark-")
+        site = {"dark": dark_site, "light": light_site}[theme]
+        dashboard = {"dark": dark_dash, "light": light_dash}[theme]
+
+        for name, why in DIVERGENT[theme].items():
+            assert name in site and name in dashboard, (
+                f"--{name} is listed as a deliberate {theme} divergence but is "
+                "no longer declared in both files"
+            )
+            assert site[name] != dashboard[name], (
+                f"--{name} is listed as diverging ({why}) and the two files now "
+                f"agree at {site[name]}. Drop it from DIVERGENT."
+            )
+
+    def test_the_accent_is_the_same_hue_in_all_three_files(self):
+        """#284: the accent lands everywhere or it lands nowhere.
+
+        The name-mapped comparison above already covers this. It is asserted
+        again by hand because the accent is the one token the epic moves, and a
+        failure here should say "the accent" rather than arrive as one line in a
+        dict of twenty.
+        """
+        for theme, prefix in (("dark", ""), ("light", "--light-")):
+            site = _tokens(SITE_CSS)
+            status = _tokens(STATUS_CSS)
+            dashboard = _tokens(DASHBOARD_CSS)
+            key = f"{prefix}accent" if prefix else "--accent"
+            dash_key = "--dark-accent" if theme == "dark" else "--accent"
+            values = {
+                "site": site[key],
+                "status": status[key],
+                "dashboard": dashboard[dash_key],
+            }
+            assert len(set(values.values())) == 1, (
+                f"the {theme} accent differs between surfaces: {values}"
+            )
 
 
 # The surfaces a status color is ACTUALLY drawn on, and only those.

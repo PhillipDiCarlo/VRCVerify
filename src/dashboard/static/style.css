@@ -11,9 +11,12 @@
  * Borrowed: the three-step surface ramp, the pill-shaped nav selection, the
  * radii, the weight of the type.
  *
- * Not borrowed: blurple as decoration. Discord can afford to paint furniture
- * in its brand color because it has no other blue to confuse it with. Here
- * blurple means exactly two things -- "this is the page you are on" and "this
+ * Not borrowed: blurple, and not as decoration either. The surfaces are
+ * Discord's; the accent is not, since #243. Discord can afford to paint
+ * furniture in its brand color because it has no other blue to confuse it
+ * with -- but on a page that is NOT Discord, blurple furniture reads as a
+ * claim of affiliation nobody made. So the accent is Signal cyan, and it
+ * still means exactly two things -- "this is the page you are on" and "this
  * is the button that does the thing" -- so it is never spent on a border or a
  * heading. Everything else is carried by the surface ramp and type weight.
  *
@@ -137,18 +140,38 @@
   --line: #dfe0e3;
   --line-soft: #ebedef;
 
-  --accent: #5865f2;
-  --accent-hover: #4752c4;
-  --accent-ink: #ffffff;
-  /* Blurple as FOREGROUND -- a link, a tick, the current nav item. Identical
-   * to --accent here because #5865f2 already clears 4.5:1 on white. On dark it
-   * cannot be identical, which is the whole reason this token exists; see the
-   * dark block below. */
-  --accent-text: #4150f0;   /* 5.8:1 on a card, 4.6:1 on the ground. Darker
-                             * than --accent rather than lighter, the mirror of
-                             * what the dark theme needs -- a foreground has to
-                             * move away from its background, and here the
-                             * background is the pale one. */
+  /* SIGNAL CYAN (#243), replacing Discord's blurple. Changed in all three
+   * stylesheets in the same commit -- see the copies note at the top.
+   *
+   * The hue was not a taste decision. Green is spent on --ok, amber on
+   * --notice, red is held for the day something destructive ships, and the
+   * blue-violet band is the one being left. That leaves the blue-cyan-teal
+   * band as the only part of the wheel not already carrying a meaning here.
+   *
+   * It is also darker than blurple was, which is what buys the margin: white
+   * on it is 4.9:1 rather than the 4.6:1 that shipped, and every foreground
+   * pair below gained at least a point. */
+  --accent: #0E7C8C;
+  --accent-hover: #0A6472;
+  /* WHITE HERE, DARK ON DARK, and that asymmetry is the whole reason this
+   * theme still needs two accent tokens while dark needs one. A white label
+   * pins the fill dark; a dark fill cannot also be a foreground on a pale
+   * ground. See --dark-accent-ink for the other half. */
+  --accent-ink: #ffffff;     /* 4.9:1 on --accent, 6.8:1 on --accent-hover */
+  /* The accent as FOREGROUND -- a link, a tick, the current nav item.
+   *
+   * NOT identical to --accent, which is the one thing that changed shape when
+   * the hue moved. Blurple could nearly have got away with it here; cyan
+   * cannot. #0E7C8C is 4.9:1 on a white card and 3.9:1 on the gray page
+   * ground, and a link on the ground is a pair this palette really renders
+   * (it is in test_contrast.py's list). So it darkens -- the mirror of what
+   * the dark theme needs, because a foreground has to move away from its
+   * background and here the background is the pale one.
+   *
+   * It lands on the same hex as --accent-hover. That is two constraints
+   * meeting, not an alias: they are different jobs and either can move
+   * without the other. */
+  --accent-text: #0A6472;   /* 6.8:1 on a card, 5.4:1 on the ground */
 
   /* Semantic, and separate from the accent on purpose -- "this succeeded" and
    * "this is the current page" must never be the same color. */
@@ -200,7 +223,8 @@
    * Anything lighter fails both at once; --selected, the obvious candidate,
    * managed 1.44:1.
    *
-   * On: exactly --accent here. On dark it cannot be; see --dark-switch-on.
+   * On: exactly --accent, in both themes since #284. It used to need its own
+   * --switch-on on dark, and the knob is what freed it; see --dark-switch-knob.
    *
    * --control-line is named for the general case rather than for the switch,
    * because an input needs exactly the same thing: its own edge, 3:1 against
@@ -208,15 +232,27 @@
    * measured and came out at 1.17:1 -- the inset fill alone, with a
    * transparent border, is very nearly invisible on a white card. */
   --control-line: #8d919b;
-  --switch-on: #5865f2;
 
   /* One height for every control on the page, so a select, an input and a
    * button sitting in a row line up on both edges rather than nearly. */
   --control-h: 2.25rem;
 
-  /* White in both themes, and therefore not repeated in either dark block. The
-   * knob is a physical object in the metaphor -- it does not change color
-   * when the room does. */
+  /* THE KNOB IS THEMED NOW, and that is what removed the third accent (#284).
+   *
+   * It used to be white in both themes, on the argument that the knob is a
+   * physical object in the metaphor and does not change color when the room
+   * does. That argument cost a token: a white knob on a dark card squeezes the
+   * on-state from both sides at once, and no cyan cleared 3:1 against the card
+   * AND against white, so --switch-on existed to sit in the gap.
+   *
+   * Dark buttons already gave up the same argument one step earlier -- see
+   * --dark-accent-ink, where the label stopped being white so the fill could
+   * be bright. Applying it to the knob costs nothing and pays for itself:
+   * every ratio improves and the switch finally wears the same cyan as the
+   * button beside it, which two accents on one card never did.
+   *
+   * White here, because on light the card and the knob are both white and no
+   * squeeze happens. */
   --switch-knob: #ffffff;
 }
 
@@ -261,25 +297,46 @@
   --dark-line: #3f4147;
   --dark-line-soft: #35373c;
 
-  /* ONE BLURPLE CANNOT DO BOTH JOBS ON A DARK SURFACE, so there are two.
+  /* ON DARK THE TWO ACCENTS COLLAPSE INTO ONE, and the reason is the ink.
    *
-   * As a button background, --accent has to stay dark enough for white
-   * --accent-ink to read on it: #5865f2 gives 4.6:1, and lightening it to
-   * #8a93f6 would drop that to 2.8:1.
+   * For as long as the label on a button was white, --accent had to stay dark
+   * enough to carry it -- and a foreground had to be light enough to read
+   * against the card. Two requirements pulling in opposite directions on one
+   * hue, which is why --accent-text was ever a separate token.
    *
-   * As a foreground -- a link, a tick, the current nav item -- it has to be
-   * light enough to read *against* the card: #5865f2 on #313338 is 2.7:1,
-   * below the 3:1 floor for a UI component and well below the 4.5:1 a link
-   * needs.
+   * That was measured again when the hue moved to cyan (#243) and it produced
+   * a worse result than it did with blurple. Blurple's two values sat close in
+   * brightness; cyan's do not, so the FILLED button rendered as the dullest
+   * accent on a dark page while the outlined one beside it rendered as the
+   * brightest. The secondary call to action was winning the hero. That is a
+   * hierarchy failure no contrast ratio reports, and it was only visible in a
+   * screenshot.
    *
-   * Those pull in opposite directions and no single value satisfies both,
-   * which is why --accent-text exists. It is still blurple, so the rule at the
-   * top of this file -- that the accent means exactly two things -- is intact.
-   * It is the tint of it that survives on a dark card. */
-  --dark-accent: #5865f2;
-  --dark-accent-hover: #4752c4;
-  --dark-accent-ink: #ffffff;
-  --dark-accent-text: #8a93f6;   /* 4.6:1 on panel, 5.0:1 on chrome */
+   * A DARK LABEL DISSOLVES THE CONFLICT. Once --accent-ink is dark, the fill
+   * is free to be the bright value, which is also the value a foreground
+   * wants -- so one hex does both jobs and the button becomes the loudest
+   * thing on the card rather than the quietest.
+   *
+   *   --accent      #3FD0E4 : 6.83:1 against the card, so it reads as a
+   *                           foreground too.
+   *   --accent-ink  #062A30 : 8.22:1 on the resting fill, 5.41:1 on the hover.
+   *   white ink               1.85:1 on that fill. This is why the old
+   *                           arrangement could not simply lighten.
+   *
+   * --accent-text still EXISTS because light still needs it; see that block.
+   * It is equal to --accent here and test_contrast.py asserts that it may be,
+   * along with the reason.
+   *
+   * Hover DARKENS rather than brightens. Brightening a value this light barely
+   * registers -- #6BDFEE against the resting fill is 1.18:1, which is not a
+   * state change anyone perceives. Going deeper gives 1.52:1 and keeps the
+   * label at 5.41:1. */
+  --dark-accent: #3FD0E4;
+  --dark-accent-hover: #22A9BC;
+  --dark-accent-ink: #062A30;    /* a dark teal, not a neutral: it is the
+                                  * accent's own hue taken to the floor, so
+                                  * the button reads as one object */
+  --dark-accent-text: #3FD0E4;   /* 6.8:1 on panel, 7.5:1 on chrome */
 
   /* Lifted to clear 4.5:1 on --panel. Discord's own value is 4.0:1 there,
    * which is fine for a status dot and not for the word "Saved".
@@ -302,21 +359,33 @@
    * other answer and would mean two files to keep in step forever. */
   --dark-logo-filter: invert(1);
 
-  /* NO EXISTING BLURPLE SATISFIES BOTH SWITCH CONSTRAINTS ON DARK, so the
-   * switch gets its own -- the same shape of problem that produced
-   * --accent-text, one step further along.
+  /* THE KNOB IS THE INK. One value, drawn on the accent, everywhere.
    *
-   *   --accent      #5865f2 : 2.74:1 against the card. Fails.
-   *   --accent-text #8a93f6 : 2.77:1 against the white knob. Fails.
-   *   --switch-on   #7681f5 : 3.75:1 against the card, 3.37:1 against the
-   *                           knob. Clears both.
+   * This is the same dark teal as --dark-accent-ink, and deliberately so: the
+   * label on a button and the knob on a switch are the same thing under the
+   * metaphor, a mark sitting on the accent. Written as a literal rather than
+   * var(--dark-accent-ink) because this block is the one place values are
+   * stated, and the contrast tests read hexes out of it.
    *
-   * It sits between the two because it has to; a token squeezed from both
-   * sides has less room than one squeezed from one. On light no squeeze
-   * happens -- the card and the knob are both white, so the two requirements
-   * collapse into the same number -- which is why --switch-on is plain
-   * --accent there and only diverges here. */
-  --dark-switch-on: #7681f5;
+   * WHAT THIS REPLACED. There used to be a --switch-on holding a third cyan,
+   * because a white knob squeezed the on-state from both sides: the track had
+   * to clear 3:1 against the card and the knob had to clear 3:1 against the
+   * track, and no single value did both. #1195a8 sat in that gap at 3.54:1 and
+   * 3.57:1 -- legal, and visibly duller than the button next to it, so one
+   * card wore two cyans.
+   *
+   * Darkening the knob removes the squeeze entirely and the switch becomes
+   * plain --accent:
+   *
+   *   track  #3FD0E4 vs the card    6.83:1
+   *   knob   #062A30 vs an on track 8.22:1
+   *   knob   #062A30 vs an off track 4.06:1
+   *   off track vs the card         3.38:1
+   *
+   * Every one beats the arrangement it replaced, whose worst pair was 3.38:1
+   * and whose second worst was 3.54:1. A simplification that also measures
+   * better is not a trade. */
+  --dark-switch-knob: #062A30;
 
   /* 3.38:1 against the card, 3.74:1 against the knob, and the same figure for
    * an input's border because it is the same requirement. */
@@ -355,7 +424,7 @@
   --notice-line: var(--dark-notice-line);
 
   --logo-filter: var(--dark-logo-filter);
-  --switch-on: var(--dark-switch-on);
+  --switch-knob: var(--dark-switch-knob);
   --control-line: var(--dark-control-line);
 }
 
@@ -395,7 +464,7 @@
     --notice-line: var(--dark-notice-line);
 
     --logo-filter: var(--dark-logo-filter);
-    --switch-on: var(--dark-switch-on);
+    --switch-knob: var(--dark-switch-knob);
     --control-line: var(--dark-control-line);
   }
 }
@@ -1139,15 +1208,21 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 /* THE OUTLINED BUTTON (#195 phase 3).
  *
- * Needed the moment two calls to action sit side by side: two filled blurple
+ * Needed the moment two calls to action sit side by side: two filled accent
  * buttons in a comparison fight each other, and `.plan-featured` exists
  * precisely to say which of the two tiers is the emphasized one.
  *
- * --accent-text FOR THE BORDER, NOT --accent, and this is the same measurement
- * the apex site's `.cta.secondary` already paid for: --accent is 2.74:1
- * against --panel, and this border is the button's ENTIRE shape, so it needs
- * the 3:1 WCAG 1.4.11 asks of a UI component boundary. --accent-text exists
- * for exactly this -- accent as a foreground rather than as a fill.
+ * --accent-text FOR THE BORDER, NOT --accent. The border is the button's
+ * ENTIRE shape, so it owes the 3:1 WCAG 1.4.11 asks of a UI component
+ * boundary, and --accent-text is the token that exists for exactly this --
+ * the accent as a foreground rather than as a fill.
+ *
+ * THE ORIGINAL REASON EXPIRED IN #284 and the choice outlived it. --accent
+ * used to be 2.74:1 against a dark --panel, so it could not draw this border
+ * at all; it is 6.83:1 now and could. What keeps --accent-text here is
+ * meaning rather than arithmetic: the two tokens are the same hex on dark, so
+ * nothing renders differently, and on light --accent-text is the darker of
+ * the two, which is the correct direction for a line on a pale card.
  *
  * Hover fills with --accent and flips the label to --accent-ink, so the two
  * buttons swap emphasis on hover rather than the outlined one merely tinting.
@@ -1845,7 +1920,7 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   background: var(--switch-knob);
 }
 
-.switch:checked { background: var(--switch-on); }
+.switch:checked { background: var(--accent); }
 /* `translate` moves along the physical X axis regardless of `dir`, unlike the
  * `inset-inline-start` above -- so the RTL flip needs its own line rather than
  * following for free (#229). Off is the inline-start side either way; this is
@@ -2108,27 +2183,27 @@ textarea {
   border-radius: var(--radius-control);
 }
 
-/* THE RING IS DOING THE 1.4.11 WORK, not the fill (#163).
+/* THE RING IS GONE, because the fill now does the 1.4.11 work itself (#284).
  *
- * --accent on a dark --panel is 2.74:1, under the 3:1 a component needs
- * against its surroundings -- the same number --dark-accent-text's comment
- * calls out while reasoning about this exact hex on this exact surface.
+ * It existed since #163 for one reason: --accent was 2.74:1 against a dark
+ * --panel, under the 3:1 a component needs against its surroundings, and
+ * lightening the fill to fix that would have taken the white label on it
+ * below 4.5:1. Two requirements moving in opposite directions on one shape,
+ * so a second edge was the only thing that satisfied both.
  *
- * The fill cannot be the fix. Lightening it to clear 3:1 there takes the white
- * label on it below 4.5:1 -- #666ff4 is 3.10 on the card and 4.08 under the
- * word, and this label is 11px bold, which is not large text. The two
- * requirements move in opposite directions on one shape, so a second edge is
- * the only thing that satisfies both.
+ * #243 lightened the fill and #284 made the label dark, which is precisely
+ * the move that was unavailable then. --accent is now 6.83:1 against a dark
+ * card and 4.91:1 against a light one, both well past 3:1, so the badge's own
+ * boundary is perceivable and a ring drawn in --accent-text would be the same
+ * hex as the fill on dark -- an invisible line asserting a requirement that no
+ * longer applies.
  *
- * An inset ring rather than a border, so the badge does not change size and
- * the row it sits in does not reflow. `.sub-chip` already draws its edge this
- * way. --accent-text is 5.78:1 on a light card and 4.57:1 on a dark one, both
- * well past 3:1, and it is the token that exists for exactly this -- blurple
- * that stays legible as a foreground on either card. */
+ * Recorded rather than quietly deleted: if the fill ever darkens again, the
+ * ring is what has to come back, and `.sub-chip` still draws its edge this
+ * way if a pattern is wanted. */
 .badge.premium {
   background: var(--accent);
   color: var(--accent-ink);
-  box-shadow: inset 0 0 0 1px var(--accent-text);
 }
 .badge.inactive { background: var(--inset); color: var(--muted); }
 
@@ -2201,7 +2276,7 @@ footer p + p { margin-top: var(--space-2); }
  * `a { color }` rule and an unstyled link here would render in the browser's
  * default blue. #168 is fixed, so the base rule now paints these --accent-text
  * and underlines them -- which is right for a link inside a sentence and wrong
- * for a row of five in a footer bar, where blurple would make the quietest
+ * for a row of five in a footer bar, where the accent would make the quietest
  * chrome on the page the loudest.
  *
  * --muted rather than --faint, and underlined, so this row matches the apex
@@ -3016,8 +3091,14 @@ footer p + p { margin-top: var(--space-2); }
   text-transform: uppercase;
   /* --accent-ink, not #fff, and --radius-pill, not 999px. These were the only
      raw color literal outside the token blocks and a hardcoded radius beside
-     a token holding the same value (#163). --accent-ink is #ffffff in both
-     themes, so this is the same pixels by a name that survives a retheme. */
+     a token holding the same value (#163). At the time --accent-ink was
+     #ffffff in both themes, so the change was the same pixels by a name that
+     survives a retheme.
+
+     THE RETHEME HAPPENED (#284) and the name is why this chip did not break:
+     --accent-ink is dark on dark now, and every rule that had written #fff by
+     hand would be painting white on bright cyan at 1.85:1. This one moved on
+     its own. */
   color: var(--accent-ink);
   background: var(--accent);
   border-radius: var(--radius-pill);

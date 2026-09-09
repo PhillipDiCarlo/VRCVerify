@@ -43,11 +43,11 @@
 
    ONE NAME CHANGED MEANING, so read this before copying a rule between files.
    This stylesheet used to define `--accent-text` as the text drawn ON the
-   accent -- white on blurple, inside a button. In the dashboard's vocabulary
-   that is `--accent-ink`, and `--accent-text` is the opposite thing: blurple
-   as a FOREGROUND, for a link on a page. They are now used the dashboard's
-   way here too. A rule moved between the files without noticing would paint a
-   button's label in blurple on blurple.
+   accent -- white on the fill, inside a button. In the dashboard's vocabulary
+   that is `--accent-ink`, and `--accent-text` is the opposite thing: the
+   accent as a FOREGROUND, for a link on a page. They are now used the
+   dashboard's way here too. A rule moved between the files without noticing
+   would paint a button's label in the accent, on the accent.
 
    THEMING: DARK BY DEFAULT, AND WHY THE BLOCKS ARE ORDERED THIS WAY
    -----------------------------------------------------------------
@@ -96,18 +96,39 @@
   --line: #3f4147;
   --line-soft: #35373c;
 
-  /* Blurple means exactly two things, here as in the dashboard: "this is the
-     button that does the thing", and a link. Never a border for decoration,
-     never a heading.
+  /* SIGNAL CYAN (#243), replacing Discord's blurple. The accent means exactly
+     two things, here as in the dashboard: "this is the button that does the
+     thing", and a link. Never a border for decoration, never a heading.
 
-     Two tokens because one value cannot do both jobs on a dark surface. As a
-     button background --accent must stay dark enough for white --accent-ink
-     to read on it (4.6:1). As a foreground it must be light enough to read
-     against the panel, which #5865f2 is not (2.7:1) -- hence --accent-text. */
-  --accent: #5865f2;
-  --accent-hover: #4752c4;
-  --accent-ink: #ffffff;
-  --accent-text: #8a93f6;
+     The hue moved off blue-violet because that band is Discord's, and this is
+     not Discord's site. Cyan was what was left: green is spent on --ok, amber
+     on --notice and red on --down, so the blue-cyan-teal band was the only
+     part of the wheel not already carrying a meaning here.
+
+     ON DARK THE TWO ACCENT TOKENS HOLD THE SAME VALUE, and the reason is the
+     ink (#284). While the label on a button was white, --accent had to stay
+     dark enough to carry it, and a foreground had to be light enough to read
+     against the panel -- two requirements pulling apart, which is why there
+     were ever two tokens.
+
+     Cyan made that arrangement fail in a way blurple never did. Its two values
+     sit far apart in brightness, so the filled `.cta` rendered duller than the
+     outlined `.cta.secondary` beside it and the secondary button won the hero.
+     A dark --accent-ink dissolves it: the fill is free to be the bright value,
+     which is the value a foreground wants anyway, so one hex does both jobs
+     and the primary button is the loudest thing above the fold again.
+
+     #3FD0E4 is 6.8:1 against the panel and 8.9:1 against the ground. The label
+     on it is 8.2:1 resting and 5.4:1 hovered. White on that fill would be
+     1.9:1, which is why lightening alone was never available.
+
+     --accent-text still exists because the LIGHT theme still needs it; see
+     --light-accent-text. Hover darkens rather than brightens, because
+     brightening a value this light is not a perceptible state change. */
+  --accent: #3FD0E4;
+  --accent-hover: #22A9BC;
+  --accent-ink: #062A30;
+  --accent-text: #3FD0E4;
 
   /* EDGES THAT HAVE TO BE SEEN, which --line cannot carry.
      --line is a separator between things that are already distinguishable. An
@@ -178,12 +199,22 @@
   --light-notice: #8a5300;
   --light-down: #c0272b;
 
-  --light-accent: #5865f2;
-  --light-accent-hover: #4752c4;
+  --light-accent: #0E7C8C;
+  --light-accent-hover: #0A6472;
+  /* WHITE HERE, DARK ON DARK. That asymmetry is why this theme still needs
+     two accent tokens where dark needs one: a white label pins the fill dark,
+     and a dark fill cannot also be a foreground on a pale ground. */
   --light-accent-ink: #ffffff;
   /* Darker than --accent rather than lighter: a foreground has to move away
-     from its background, and on light the background is the pale one. */
-  --light-accent-text: #4150f0;
+     from its background, and on light the background is the pale one.
+
+     It has to move further than blurple did. #0E7C8C clears 4.5:1 on a white
+     card at 4.9:1 but only reaches 3.9:1 on --bg, and this site draws links
+     on the ground as well as on cards. 5.4:1 there.
+
+     Same hex as --light-accent-hover, which is two constraints landing on one
+     value rather than an alias. Either can move without the other. */
+  --light-accent-text: #0A6472;
 
   /* THE ONE VALUE THAT DELIBERATELY DIFFERS FROM THE DASHBOARD.
      The dashboard's light --control-line is #8d919b, tuned against the white
@@ -379,6 +410,38 @@
      fallbacks are what this site used before #195 phase 2, so a browser that
      refuses the woff2 lands exactly where it started. */
   --font: "Inter var", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* SPACING, NAMED (#284). The other half of this pair is in
+     src/dashboard/static/style.css, holding the same seven values, and this
+     is the same bargain #195 phase 1 struck for the type ramp: name the
+     scale, adopt it component by component.
+
+     NOTHING BELOW IS CONVERTED YET, and that is deliberate. This file's
+     margins and paddings currently run 0.1, 0.25, 0.3, 0.35, 0.4, 0.5, 0.55,
+     0.6, 0.7, 0.75, 0.9, 1, 1.1, 1.25, 1.35, 1.5, 1.75, 2, 2.5 and 3rem --
+     twenty values that are not a scale. The most common of them, 1.25rem
+     across fourteen rules, is not a step here: it falls between --space-4 and
+     --space-5. So converting this file in one commit is not a rename, it is a
+     layout change in fourteen places with nothing to catch a wrong pick.
+     #285 restyles these pages and adopts the scale as it goes.
+
+     The values are the dashboard's unchanged. A step that means the same
+     thing in both files carries the same name, which is the rule the type
+     ramp above already follows. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* The third radius. --radius-control and --radius-card are up in the dark
+     block with the theme-menu tokens they were copied across for; this one is
+     here because it was not copied for a component -- four rules in this file
+     already wrote 999px by hand, and they now say what they mean. Same value
+     as the dashboard's. */
+  --radius-pill: 999px;
 }
 
 body {
@@ -504,7 +567,7 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
   padding: 0 0.55rem;
   height: var(--bar-control);
   border: 1px solid var(--control-line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--muted);
   text-decoration: none;
   font-size: 0.86rem;
@@ -972,7 +1035,7 @@ th { color: var(--muted); font-weight: 600; }
   justify-content: center;
   width: 1.75rem;
   height: 1.75rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--control-line);
   color: var(--muted);
   font-size: 0.875rem;
@@ -1176,7 +1239,7 @@ th { color: var(--muted); font-weight: 600; }
      did not render as a pill at all, just small gray text where a chip was
      drawn. --line is for separating things that are already distinguishable. */
   border: 1px solid var(--control-line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.8125rem;
   color: var(--muted);
 }
@@ -1233,10 +1296,10 @@ th { color: var(--muted); font-weight: 600; }
 .entry .tag {
   padding: 0.1rem 0.45rem;
   /* Same reason as the .updated pill: the chip is its border. With --line the
-     "NEW" tag rendered as bare small-caps beside a crisp blurple "PREMIUM"
-     one, which is the opposite of the even-handedness below. */
+     "NEW" tag rendered as bare small-caps beside a crisp accent-colored
+     "PREMIUM" one, which is the opposite of the even-handedness below. */
   border: 1px solid var(--control-line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.02em;
