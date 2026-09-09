@@ -325,7 +325,10 @@ class TestNudgeCandidates:
         make_onboarding(hours_ago=49)
         candidates = bot.load_panel_nudge_candidates(10)
         assert [c["server_id"] for c in candidates] == [GUILD_ID]
-        assert candidates[0]["owner_id"] == OWNER_ID
+        # int(OWNER_ID), not OWNER_ID: `servers.owner_id` is bigint, so the
+        # candidate carries the raw column value the way production always
+        # has. resolve_config_admin, the only consumer, calls int() on it.
+        assert candidates[0]["owner_id"] == int(OWNER_ID)
 
     def test_guild_with_a_panel_is_skipped(self, monkeypatch):
         monkeypatch.setattr(bot, "PANEL_NUDGE_GRACE_HOURS", 48)

@@ -39,25 +39,14 @@ KNOWN = {
     # ---- The type-class divergences. These are the dangerous family: the
     # driver returns a different PYTHON type than the code was written for, and
     # nothing raises. #164 is what that looks like in production.
-    "servers.owner_id: type -- model varchar, deployed bigint": (
-        "Same shape as server_id and found the same way, but never keyed on:"
-        " the only consumer is resolve_config_admin(), which does int(owner_id)"
-        " before use, so it is indifferent to which type it is handed. Writes"
-        " send a str into a bigint column, which Postgres casts."
-    ),
-    "servers.role_id: type -- model varchar, deployed bigint": (
-        "As owner_id. Read straight into int() for a Discord API call, never"
-        " compared against a string and never used as a dict key."
-    ),
-    "users.discord_id: type -- model varchar(30), deployed bigint": (
-        "Only ever reaches the database through filter_by(discord_id=...),"
-        " where Postgres casts the parameter. No dict is keyed on it, which is"
-        " the thing that would break -- see _rows_by_server_id's docstring."
-    ),
     "users.vrc_user_id: type -- model varchar(50), deployed text": (
         "text is wider than varchar(50), so nothing that fits the model fails"
-        " on production. The divergence runs in the safe direction; the one to"
-        " watch is the nullable entry below, which does not."
+        " on production -- the divergence runs in the safe direction, and both"
+        " sides hand back a str either way, so no consumer can tell them"
+        " apart. Left alone deliberately: the model is the tighter side, and"
+        " widening it to Text would only lose the cap. (#281 reconciled the"
+        " NULLABILITY of this column, which ran the other way; the type is the"
+        " half that was always harmless.)"
     ),
     # ---- Timezone. Comparing an aware datetime against a naive one raises
     # TypeError in Python and Postgres refuses the mixed comparison too. On
@@ -98,14 +87,6 @@ KNOWN = {
     ),
     # ---- Nullability. The model permitting NULL where the column does not is
     # the direction that fails, on write, at flush time.
-    "users.vrc_user_id: nullable -- model NULL allowed, deployed NOT NULL": (
-        "THE NARROW ONE. The model says a User may have no VRChat id; the"
-        " column says otherwise. The single place that builds a User without"
-        " one (handle_verification_result) assigns vrc_user_id before the"
-        " session flushes, so it survives on a technicality. A second"
-        " construction site that does not would raise NotNullViolation on"
-        " production and pass every test here."
-    ),
     "servers.auto_nickname_change: nullable -- model NULL allowed, deployed NOT NULL": (
         "Column(Boolean, default=False) leaves nullable at its default of True."
         " The default fills the value on every insert the code makes, so the"
@@ -219,10 +200,14 @@ class TestTheReconciliationHoldsAtRuntime:
     """
 
     @pytest.fixture(autouse=True)
-    def clean_servers(self):
+    def clean_rows(self):
+        # Users as well as servers since #281 put the User columns under test
+        # here: discord_id is unique, so a row left behind by one test makes
+        # the next one fail on the insert rather than on what it asserts.
         def wipe():
             with bot.session_scope() as session:
                 session.query(bot.Server).delete()
+                session.query(bot.User).delete()
 
         wipe()
         yield
@@ -234,6 +219,51 @@ class TestTheReconciliationHoldsAtRuntime:
         with bot.session_scope() as session:
             row = session.query(bot.Server).first()
             assert isinstance(row.server_id, int)
+
+    def test_the_other_three_id_columns_read_back_as_ints_too(self):
+        """#281, the same move made three more times.
+
+        owner_id, role_id and discord_id were all declared String over a
+        deployed bigint and all excused in KNOWN as safe-because-nobody-keys-a-
+        dict-on-them. That was true and it was one line of new code away from
+        being false. Declaring them honestly makes the production type
+        reachable here, exactly as it did for server_id.
+        """
+        with bot.session_scope() as session:
+            session.add(bot.Server(server_id="123456789", owner_id="1", role_id="2"))
+            session.add(bot.User(discord_id="555", vrc_user_id="usr_x"))
+        with bot.session_scope() as session:
+            row = session.query(bot.Server).first()
+            assert isinstance(row.owner_id, int)
+            assert isinstance(row.role_id, int)
+            assert isinstance(session.query(bot.User).first().discord_id, int)
+
+    def test_a_user_without_a_vrchat_id_is_refused(self):
+        """#281 reconciled users.vrc_user_id to NOT NULL, and this is the
+        assertion that reconciliation bought.
+
+        It used to live in test_postgres_types.py, because the model permitted
+        a NULL the deployed column forbade and only a real Postgres would say
+        so. Now the model declares it, create_all builds the constraint under
+        SQLite too, and a second construction site that forgot the id fails on
+        the commit that introduced it rather than on production.
+        """
+        from sqlalchemy.exc import IntegrityError
+
+        with pytest.raises(IntegrityError):
+            with bot.session_scope() as session:
+                session.add(bot.User(discord_id="555"))
+
+    def test_a_verified_user_with_no_linked_account_is_still_expressible(self):
+        """NOT NULL is not the same as "must name an account".
+
+        The empty string is the representation, and member_invite_identity's
+        `or None` is what turns it back into "nothing to invite". Pinned so
+        the reconciliation cannot be read as having removed the state.
+        """
+        with bot.session_scope() as session:
+            session.add(bot.User(discord_id="555", vrc_user_id=""))
+        assert bot.member_invite_identity("555") == (None, False)
 
     def test_a_dict_keyed_on_the_raw_value_is_what_broke(self):
         """#164 reproduced rather than described -- the assertion the original

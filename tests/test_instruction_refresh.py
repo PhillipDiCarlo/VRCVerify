@@ -477,9 +477,9 @@ class TestFleetIsolation:
     def test_view_construction_failure_does_not_abort_the_fleet(
         self, monkeypatch, clean_servers
     ):
-        make_server("a", channel_id="1", message_id="10")
-        make_server("b", channel_id="2", message_id="20", instructions_locale="de")
-        make_server("c", channel_id="3", message_id="30")
+        make_server("101", channel_id="1", message_id="10")
+        make_server("102", channel_id="2", message_id="20", instructions_locale="de")
+        make_server("103", channel_id="3", message_id="30")
         rec = Recorder().install(monkeypatch)
         self.exploding_view("de", monkeypatch)
 
@@ -488,8 +488,8 @@ class TestFleetIsolation:
         assert sorted(e[1] for e in rec.edits) == [10, 30]
 
     def test_embed_construction_failure_is_contained(self, monkeypatch, clean_servers):
-        make_server("a", channel_id="1", message_id="10")
-        make_server("b", channel_id="2", message_id="20")
+        make_server("101", channel_id="1", message_id="10")
+        make_server("102", channel_id="2", message_id="20")
         rec = Recorder().install(monkeypatch)
         real = bot.build_instructions_embed
         seen = []
@@ -509,8 +509,8 @@ class TestFleetIsolation:
     def test_summary_still_logs_when_a_worker_crashes(
         self, monkeypatch, clean_servers, caplog
     ):
-        make_server("a", channel_id="1", message_id="10")
-        make_server("b", channel_id="2", message_id="20", instructions_locale="de")
+        make_server("101", channel_id="1", message_id="10")
+        make_server("102", channel_id="2", message_id="20", instructions_locale="de")
         Recorder().install(monkeypatch)
         self.exploding_view("de", monkeypatch)
 
@@ -522,7 +522,7 @@ class TestFleetIsolation:
     def test_an_escaped_error_is_reported_not_silently_counted(
         self, monkeypatch, clean_servers, caplog
     ):
-        make_server("a", channel_id="1", message_id="10", instructions_locale="de")
+        make_server("101", channel_id="1", message_id="10", instructions_locale="de")
         Recorder().install(monkeypatch)
         self.exploding_view("de", monkeypatch)
 
@@ -550,21 +550,21 @@ class TestFleetIsolation:
     def test_an_escape_from_the_worker_does_not_abort_the_pass(
         self, monkeypatch, clean_servers
     ):
-        make_server("a", channel_id="1", message_id="10")
-        make_server("b", channel_id="2", message_id="20")
-        make_server("c", channel_id="3", message_id="30")
+        make_server("101", channel_id="1", message_id="10")
+        make_server("102", channel_id="2", message_id="20")
+        make_server("103", channel_id="3", message_id="30")
         rec = Recorder().install(monkeypatch)
-        self.escaping_worker(monkeypatch, "a")
+        self.escaping_worker(monkeypatch, "101")
 
         run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
 
         assert sorted(e[1] for e in rec.edits) == [20, 30]
 
     def test_summary_survives_an_escaped_error(self, monkeypatch, clean_servers, caplog):
-        make_server("a", channel_id="1", message_id="10")
-        make_server("b", channel_id="2", message_id="20")
+        make_server("101", channel_id="1", message_id="10")
+        make_server("102", channel_id="2", message_id="20")
         Recorder().install(monkeypatch)
-        self.escaping_worker(monkeypatch, "a")
+        self.escaping_worker(monkeypatch, "101")
 
         with caplog.at_level("INFO"):
             run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
@@ -575,7 +575,7 @@ class TestFleetIsolation:
     def test_cancellation_is_not_swallowed(self, monkeypatch, clean_servers):
         # return_exceptions=True captures CancelledError too; a shutdown must
         # still propagate rather than be logged as a per-panel failure.
-        make_server("a", channel_id="1", message_id="10")
+        make_server("101", channel_id="1", message_id="10")
         Recorder().install(monkeypatch)
 
         async def cancel_one(entry, rebuild_embed):
@@ -785,16 +785,30 @@ class TestDepartedGuilds:
 
         assert saved_panel("111") == ("1", "10")
 
-    def test_unparseable_ids_are_not_assumed_departed(self, monkeypatch, clean_servers):
-        # "I couldn't tell" is not "we left". Let it through so the existing
-        # malformed-id handling reports it instead of skipping it silently.
-        make_server("not-a-guild-id", channel_id="1", message_id="10")
-        rec = Recorder().install(monkeypatch)
+    def test_unparseable_ids_are_not_assumed_departed(self, monkeypatch):
+        """"I couldn't tell" is not "we left".
+
+        NOT THROUGH THE DATABASE, deliberately. `servers.server_id` is bigint,
+        so a row holding "not-a-guild-id" is not a state production can reach
+        -- the insert raises. This used to go through the database and passed
+        only because SQLite stores a non-numeric string in an INTEGER column
+        without complaint, which made the test a demonstration of SQLite's
+        typing rather than of the guard.
+
+        The guard is still worth keeping and still worth testing: partition
+        takes plain dicts, and the entries it is handed come from
+        load_instruction_panels' own normalization rather than straight from
+        the column. Handing it the bad entry directly tests exactly the branch,
+        with nothing in between.
+        """
         self.only_in(monkeypatch)
 
-        run(bot.refresh_all_instruction_panels(rebuild_embed=False, reason="test"))
+        reachable, departed = bot.partition_reachable_panels(
+            [entry(server_id="not-a-guild-id", channel_id="1", message_id="10")]
+        )
 
-        assert [e[1] for e in rec.edits] == [10]
+        assert departed == []
+        assert [e["server_id"] for e in reachable] == ["not-a-guild-id"]
 
 
 class TestGuildRemoveCleanup:
@@ -825,7 +839,10 @@ class TestGuildRemoveCleanup:
         with bot.session_scope() as session:
             srv = session.query(bot.Server).filter_by(server_id="111").first()
             assert srv is not None
-            assert srv.role_id == "999"
+            # An int, not "999": `servers.role_id` is bigint, and since #281
+            # the model says so, so SQLite reads it back the way production
+            # always has.
+            assert srv.role_id == 999
 
     def test_failure_is_swallowed(self, monkeypatch, clean_servers):
         def boom(_):

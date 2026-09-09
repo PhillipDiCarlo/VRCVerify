@@ -603,8 +603,19 @@ class Server(Base):
     # ints there too. The production type is now reachable from the default
     # fast suite rather than only from scripts/test_postgres.sh.
     server_id = Column(BigInteger, unique=True, nullable=False)
-    owner_id = Column(String, nullable=False)
-    role_id = Column(String, nullable=True)
+    # owner_id and role_id are bigint on the deployed database too, and were
+    # declared String for the same reason server_id was: nobody looked. Both
+    # were listed in test_schema_snapshot.KNOWN as safe-for-now, on the
+    # grounds that every consumer wraps them in int() and none keys a dict on
+    # them. That was true, and it is not a property worth relying on -- it is
+    # one line of new code away from being false, and #164 is what the false
+    # version looks like in production.
+    #
+    # Reconciling them changes nothing on production, which has always
+    # returned ints here. What it changes is SQLite: the fast suite now reads
+    # back the type production returns instead of the string it was handed.
+    owner_id = Column(BigInteger, nullable=False)
+    role_id = Column(BigInteger, nullable=True)
     # Optional role to remove upon successful verification
     unverified_role_id = Column(String, nullable=True)
     subscription_status = Column(Boolean, default=False)
@@ -627,9 +638,21 @@ class Server(Base):
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
-    discord_id = Column(String(30), unique=True, nullable=False)
+    # bigint deployed, as on `servers` above -- see the note there.
+    discord_id = Column(BigInteger, unique=True, nullable=False)
     verification_status = Column(Boolean, default=False)
-    vrc_user_id = Column(String(50), nullable=True)
+    # NOT NULL deployed. The model used to permit a NULL the column forbids,
+    # which is the direction that fails on write: it passed every test here
+    # and would have raised NotNullViolation on production the first time a
+    # User was built without one. The single construction site never did,
+    # which is the only reason it stayed quiet -- see
+    # handle_verification_result, which now passes it to the constructor
+    # rather than assigning it a few lines later.
+    #
+    # "Verified with no VRChat account linked" is still representable: it is
+    # the empty string, which is what member_invite_identity's `or None`
+    # normalizes away.
+    vrc_user_id = Column(String(50), nullable=False)
     last_verification_attempt = Column(DateTime(timezone=True))
 
 
@@ -2277,11 +2300,20 @@ def _coerce_show_icon(value):
 
 
 def _role_coercer(field_name: str, *, required: bool):
-    """A Discord snowflake, as the string the servers table stores.
+    """A Discord snowflake, validated and normalized to a digit string.
 
     Accepts an int as well as a digit string because JSON has a number type and
     an id that arrived as one is not wrong -- only ambiguous, and normalizing
     here is cheaper than a mismatch nobody notices until a role stops matching.
+
+    A digit string rather than an int because these coercers feed columns of
+    both kinds: `servers.role_id` is bigint and `servers.unverified_role_id`
+    and the log-channel column are varchar. A digit string is the one form
+    every one of them accepts -- the driver casts it for the integer columns --
+    so this stays a validator and the column decides the storage type. What
+    comes back OUT is whatever the column is, which is why
+    read_dashboard_settings emits an int for role_id and a str for its
+    neighbour; the dashboard's _role_field str()s both.
     """
 
     def coerce(value):
@@ -8024,7 +8056,14 @@ async def handle_verification_result(data: dict):
             if not pending:
                 logger.warning(f"⚠️ No pending verification for {discord_id}/{verification_code}.")
                 return
-            if now_utc > pending.expires_at:
+            # _utc() because the two sides come from different places: now_utc
+            # is aware, and the stored value is only aware if the backend has a
+            # timezone type. Postgres does, SQLite does not, so this comparison
+            # raised TypeError under SQLite -- which the tests used to hide by
+            # monkeypatching bot.datetime to return a naive now, i.e. by
+            # testing something other than the deployed code. Same helper the
+            # seat and subscription readers already use for the same reason.
+            if now_utc > _utc(pending.expires_at):
                 session.delete(pending)
                 logger.warning(f"⚠️ Verification code expired for {discord_id}.")
                 return
@@ -8052,7 +8091,13 @@ async def handle_verification_result(data: dict):
             # Everything checks out — create/update user row
             user = session.query(User).filter_by(discord_id=discord_id).first()
             if not user:
-                user = User(discord_id=discord_id)
+                # vrc_user_id goes in the constructor because the column is
+                # NOT NULL. It used to be assigned two lines below, which
+                # survived only because nothing flushed in between -- an
+                # autoflush from any query added there would have raised on
+                # production and passed every test. Constructing the row
+                # complete removes the ordering dependency entirely.
+                user = User(discord_id=discord_id, vrc_user_id=data["vrcUserID"])
                 session.add(user)
                 # First successful verification creates the user; set initial last attempt
                 user.last_verification_attempt = datetime.now(timezone.utc)
@@ -9246,12 +9291,13 @@ async def dashboard_guild_summaries(user_id, guild_ids) -> Optional[dict]:
 
         with session_scope() as session:
             # `panel_view_key` ON THE WAY OUT OF THE QUERY, NOT ONLY ON THE
-            # WAY IN. `servers.server_id` is declared String and the deployed
-            # column is an integer type, so the driver hands back an int while
-            # `keys` holds strings -- and a dict keyed by the raw value then
-            # never matches the lookup below. It is not an error and nothing
-            # logs: every row reads as missing, so every server reports itself
-            # unconfigured and every card says setup is unfinished.
+            # WAY IN. `servers.server_id` is bigint, so the driver hands back
+            # an int -- and since #275 the model says BigInteger, so SQLite
+            # does too -- while `keys` holds strings. A dict keyed by the raw
+            # value then never matches the lookup below. It is not an error
+            # and nothing logs: every row reads as missing, so every server
+            # reports itself unconfigured and every card says setup is
+            # unfinished.
             #
             # This is the exact failure `panel_view_key`'s own docstring warns
             # about ("makes the in-memory version lookup silently never

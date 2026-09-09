@@ -914,32 +914,32 @@ class TestGrandfatherLineCapture:
         assert bot.grandfather_line() is None
 
     def test_captures_the_highest_server_id(self, enforced):
-        make_server("a", row_id=10)
-        make_server("b", row_id=NEW_ID)
-        make_server("c", row_id=50)
+        make_server("101", row_id=10)
+        make_server("102", row_id=NEW_ID)
+        make_server("103", row_id=50)
         assert bot.capture_grandfather_line() == NEW_ID
         assert bot.grandfather_line() == NEW_ID
 
     def test_every_existing_server_ends_up_grandfathered(self, enforced):
         """The whole point: switching the tier on takes nothing from anyone."""
         for index in range(1, 6):
-            make_server(f"s{index}", row_id=index * 37)
+            make_server(str(200 + index), row_id=index * 37)
         bot.capture_grandfather_line()
-        assert all(bot.is_grandfathered(f"s{i}") for i in range(1, 6))
+        assert all(bot.is_grandfathered(str(200 + i)) for i in range(1, 6))
 
     def test_a_server_added_later_is_not_grandfathered(self, enforced):
-        make_server("early", row_id=10)
+        make_server("301", row_id=10)
         bot.capture_grandfather_line()
-        make_server("late", row_id=11)
-        assert bot.is_grandfathered("early") is True
-        assert bot.is_grandfathered("late") is False
+        make_server("302", row_id=11)
+        assert bot.is_grandfathered("301") is True
+        assert bot.is_grandfathered("302") is False
 
     def test_the_line_never_moves_once_drawn(self, enforced):
-        make_server("early", row_id=10)
+        make_server("301", row_id=10)
         assert bot.capture_grandfather_line() == 10
         # A later boot, with more servers, must not redraw it -- otherwise
         # every restart would retroactively grandfather everyone since.
-        make_server("late", row_id=999)
+        make_server("302", row_id=999)
         assert bot.capture_grandfather_line() == 10
         assert bot.grandfather_line() == 10
 
@@ -1239,23 +1239,23 @@ class TestCutoverCompletionWarning:
     """
 
     def test_counts_only_the_untold_inside_the_line(self):
-        make_server("told", row_id=OLD_ID)
-        make_server("untold", row_id=OLD_ID + 1)
-        mark_notified("told")
+        make_server("401", row_id=OLD_ID)
+        make_server("402", row_id=OLD_ID + 1)
+        mark_notified("401")
         assert bot.count_pending_cutover_notices() == 1
 
     def test_servers_past_the_line_are_not_counted(self):
         # They never had the grandfathered features, so there is nothing to
         # warn about — otherwise this would grow forever after launch and
         # become noise instead of signal.
-        make_server("new", row_id=NEW_ID)
+        make_server("501", row_id=NEW_ID)
         assert bot.count_pending_cutover_notices() == 0
 
     def test_it_matches_the_campaign_audience(self):
         """The count and the campaign must never disagree about who is owed."""
         for index in range(4):
             make_server(str(index), row_id=index + 1)
-        make_server("past", row_id=NEW_ID)
+        make_server("601", row_id=NEW_ID)
         mark_notified("0")
         assert bot.count_pending_cutover_notices() == len(
             bot.load_premium_cutover_candidates(100)

@@ -2347,6 +2347,54 @@ class TestTheUpgradeOffer:
         assert "Only the instructions panel settings can be changed" not in page
 
 
+class TestRoleFieldTakesTheIdAsSent:
+    """The bot sends `role_id` as a NUMBER, and this page has to cope.
+
+    `servers.role_id` is bigint, so read_dashboard_settings has always put an
+    int on the wire for this one field while its neighbour
+    `unverified_role_id` -- a varchar column -- stays a string. Every other
+    test in this file feeds strings, so the int half of that contract was
+    never exercised here; it only became visible once #281 declared the column
+    honestly and the bot-side test started reading back an int.
+
+    Nothing is broken: _role_field stores `str(raw)` and _lookup compares
+    `str(entry["id"]) == str(wanted)`. That normalization is load-bearing
+    rather than incidental, which is why it is pinned.
+    """
+
+    def test_an_int_role_id_still_finds_its_role(self, config, store):
+        test_client, _api = settings_client(
+            config,
+            store,
+            settings=make_settings(values={"role_id": int(VERIFIED_ROLE)}),
+        )
+        page = every_settings_page(test_client)
+        assert "Verified" in page
+        # The failure mode if the str() went away: a real, present role
+        # reported as deleted.
+        assert "no longer exists" not in page
+
+    def test_an_int_role_id_still_selects_its_option(self, config, store):
+        """The dropdown compares the stored value against each option's id.
+
+        Both sides are strings by the time the template sees them. An int
+        reaching the comparison unconverted would render every option
+        unselected, so a page load would silently offer to change the setting
+        to whatever sat at the top of the list.
+        """
+        test_client, _api = settings_client(
+            config,
+            store,
+            settings=make_settings(values={"role_id": int(VERIFIED_ROLE)}),
+        )
+        page = settings_page(test_client, "verification").data.decode()
+        option = re.search(
+            rf'<option value="{VERIFIED_ROLE}"(.*?)>', page, re.S
+        )
+        assert option, "the configured role is not even among the options"
+        assert "selected" in option.group(1)
+
+
 class TestSettingsWarnings:
     """The point of the dashboard: say it now, not at verification time."""
 

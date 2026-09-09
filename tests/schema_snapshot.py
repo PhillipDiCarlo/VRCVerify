@@ -4,7 +4,7 @@ WHY THIS EXISTS. The suite runs on SQLite, and SQLite cannot reproduce a
 disagreement about a column's type. It gives a VARCHAR column TEXT affinity, so
 an integer written into one comes back as a string -- which means the
 production behavior is not merely untested here, it is unreachable. #164
-shipped on exactly that: `servers.server_id` is declared String while the
+shipped on exactly that: `servers.server_id` was declared String while the
 deployed column is `bigint`, so psycopg returned an int, a dict keyed on the
 raw value matched nothing, and every server on the picker read as unconfigured.
 Two regression tests written for that bug passed against the broken code.
