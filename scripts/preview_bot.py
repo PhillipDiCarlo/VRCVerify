@@ -153,7 +153,7 @@ INSTALLED = {PREMIUM, FREE, UNREACHABLE}
 # already knows how to drive a page through an environment variable.
 #
 #   PREVIEW_SUB=card       paying by card, renews
-#   PREVIEW_SUB=canceled  canceled, premium until the period ends
+#   PREVIEW_SUB=canceled   canceled, premium until the period ends
 #   PREVIEW_SUB=past_due   the last payment failed, Stripe is retrying
 #   PREVIEW_SUB=both       paying twice, once by card and once through Discord
 #   PREVIEW_SUB=lapsed     not premium now, but was -- the win-back state

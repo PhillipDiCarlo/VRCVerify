@@ -9,7 +9,7 @@ asking changed shape with the data:
 | `test_english_locale_exists`         | gone -- English IS the msgids           |
 | `test_language_codes_match_tables`   | every code has a compiled `.mo`         |
 | `test_locale_has_no_unknown_keys`    | free -- gettext has no extra keys       |
-| `test_locale_is_complete`            | no untranslated entry in any catalog  |
+| `test_locale_is_complete`            | no untranslated entry in any catalog    |
 | `test_placeholders_match_english`    | kept, against the `.po`                 |
 | `test_bold/inline_code_balanced`     | kept, against the `.po`                 |
 | `test_no_string_is_left_as_english`  | kept, and the allowlist is gone         |

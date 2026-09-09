@@ -129,7 +129,7 @@ foreach ($path in $Probes.Keys) {
     $observed = if ($result.Challenged) { "challenged" } else { "reached origin" }
     $wanted   = if ($expectChallenge)   { "challenged" } else { "reached origin" }
     $verdict  = if ($ok) { "ok  " } else { "FAIL" }
-    $color   = if ($ok) { "Green" } else { "Red" }
+    $color    = if ($ok) { "Green" } else { "Red" }
 
     Write-Host ("  {0}  {1,-20} {2,-24} want {3,-14} {4}" -f `
         $verdict, $path, $observed, $wanted, $result.Status) -ForegroundColor $color
