@@ -1,13 +1,18 @@
-"""Unit tests for the donation features.
+"""Unit tests for what is left of the donation features.
+
+#240 removed the two surfaces that asked an ordinary setup flow for money: the
+Donate button on the instruction panel and the Ko-fi hint appended to the
+/vrcverify_setup confirmation. Every donation the project ever took came from a
+server admin, which is the same person being asked to buy premium, so the ask
+now lives only where it does not compete with the subscription.
 
 Covers:
-- the ☕ Donate link button on the instruction panel view
-- the donate hint appended to the /vrcverify_setup confirmation
+- that the removed surfaces stay removed
 - record_guild_verification(): per-guild counting, the one-time milestone
   DM to the configuring admin (with guild-owner fallback), and the
   pre-migration column guard
 - the milestone wiring inside handle_verification_result
-- locale coverage/formatting of the three new strings in all languages
+- locale coverage/formatting of the milestone string in all languages
 - the GitHub FUNDING.yml sponsor declaration
 """
 
@@ -16,7 +21,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
-import discord
 import pytest
 
 import bot
@@ -94,42 +98,33 @@ def owner_member(monkeypatch):
 
 
 # ---------------------------------------------------------------
-# Instruction panel: Donate button
+# Instruction panel: the Donate button is gone (#240)
 # ---------------------------------------------------------------
-class TestDonateButton:
-    def _view(self, locale="en-US"):
-        return bot.VRCVerifyInstructionView(locale=locale)
+class TestPanelNoLongerAsksForMoney:
+    """The panel is read by members, not admins.
 
-    def test_panel_has_three_buttons_in_order(self):
-        labels = [c.label for c in self._view().children]
-        assert labels == [
-            locales.BTN_BEGIN_VERIFICATION,
-            locales.BTN_UPDATE_NICKNAME,
-            locales.BTN_DONATE,
-        ]
+    Its third button used to be Ko-fi. It is now a link to the public site,
+    which is covered in test_persistent_panel_view.py; what belongs here is the
+    part that must not come back.
+    """
 
-    def test_donate_is_link_button_to_kofi(self):
-        donate = self._view().children[-1]
-        assert donate.style is discord.ButtonStyle.link
-        assert donate.url == bot.KOFI_URL
+    def test_no_button_points_at_kofi(self, monkeypatch):
+        monkeypatch.setattr(bot, "WEBSITE_URL", "https://vrcverify.com")
+        view = bot.VRCVerifyInstructionView(locale="en-US")
+        assert all(
+            (getattr(c, "url", None) or "") != bot.KOFI_URL for c in view.children
+        )
 
-    def test_donate_has_coffee_emoji(self):
-        assert str(self._view().children[-1].emoji) == "☕"
+    def test_no_coffee_cup_anywhere_on_the_panel(self, monkeypatch):
+        monkeypatch.setattr(bot, "WEBSITE_URL", "https://vrcverify.com")
+        view = bot.VRCVerifyInstructionView(locale="en-US")
+        assert all(str(getattr(c, "emoji", "") or "") != "☕" for c in view.children)
 
-    def test_donate_label_localized(self):
-        donate = self._view("de").children[-1]
-        assert donate.label == template(locales.BTN_DONATE, "de")
-
-    def test_unknown_locale_falls_back_to_english(self):
-        donate = self._view("fr").children[-1]
-        assert donate.label == locales.BTN_DONATE
-
-    def test_view_stays_non_expiring(self):
-        # Panels are re-attached on startup and must never time out.
-        assert self._view().timeout is None
-
-    def test_kofi_url_is_https(self):
-        assert bot.KOFI_URL.startswith("https://ko-fi.com/")
+    def test_donation_strings_are_gone_from_locales(self):
+        # Removed rather than orphaned: a string left in locales.py keeps its
+        # place in all eleven catalogues and reads as still in use.
+        assert not hasattr(locales, "BTN_DONATE")
+        assert not hasattr(locales, "SETUP_DONATE_HINT")
 
 
 # ---------------------------------------------------------------
@@ -147,25 +142,12 @@ class TestDonationLocaleStrings:
         replaces, and it is the one that would have caught a donate button
         silently reading "Donate" in Japanese.
         """
-        for msgid in (locales.BTN_DONATE, locales.SETUP_DONATE_HINT,
-                      locales.MILESTONE_OWNER_DM):
-            rendered = template(msgid, locale)
-            assert rendered, f"{locale} renders nothing for {msgid[:40]!r}"
-            if locale != "en-US":
-                assert rendered != msgid, (
-                    f"{locale} has not translated {msgid[:40]!r}"
-                )
-
-    @pytest.mark.parametrize("locale", LANGUAGE_CODES)
-    def test_setup_hint_embeds_the_link(self, locale):
-        msg = template(locales.SETUP_DONATE_HINT, locale).format(kofi_link=bot.KOFI_URL)
-        assert bot.KOFI_URL in msg
-
-    @pytest.mark.parametrize("locale", LANGUAGE_CODES)
-    def test_setup_hint_separates_itself(self, locale):
-        # The hint is appended to the setup confirmation, so it must start
-        # on its own paragraph in every language.
-        assert template(locales.SETUP_DONATE_HINT, locale).startswith("\n\n")
+        rendered = template(locales.MILESTONE_OWNER_DM, locale)
+        assert rendered, f"{locale} renders nothing for the milestone DM"
+        if locale != "en-US":
+            assert rendered != locales.MILESTONE_OWNER_DM, (
+                f"{locale} has not translated the milestone DM"
+            )
 
     @pytest.mark.parametrize("locale", LANGUAGE_CODES)
     def test_milestone_dm_embeds_all_fields(self, locale):
@@ -178,10 +160,10 @@ class TestDonationLocaleStrings:
 
 
 # ---------------------------------------------------------------
-# /vrcverify_setup confirmation carries the donate hint
+# /vrcverify_setup confirmation no longer asks for money (#240)
 # ---------------------------------------------------------------
-class TestSetupConfirmationHint:
-    def test_setup_reply_ends_with_donate_hint(self, clean_servers):
+class TestSetupConfirmationHasNoDonationAsk:
+    def test_setup_reply_does_not_mention_kofi(self, clean_servers):
         sent = []
 
         async def send_message(msg, ephemeral=False):
@@ -198,10 +180,9 @@ class TestSetupConfirmationHint:
         run(bot.vrcverify_setup.callback(interaction, role, None))
 
         assert len(sent) == 1
-        expected_tail = locales.SETUP_DONATE_HINT.format(
-            kofi_link=bot.KOFI_URL
-        )
-        assert sent[0].endswith(expected_tail)
+        assert bot.KOFI_URL not in sent[0]
+        assert "ko-fi" not in sent[0].lower()
+        assert "donation" not in sent[0].lower()
 
 
 # ---------------------------------------------------------------
@@ -498,12 +479,14 @@ class TestVerificationResultCountsMilestone:
 
 
 # ---------------------------------------------------------------
-# /vrcverify_instructions posts the panel, then nudges the admin
+# /vrcverify_instructions posts the panel, then confirms it (#240)
 # ---------------------------------------------------------------
-class TestInstructionsFollowupHint:
-    def test_admin_gets_ephemeral_donate_followup(self, clean_servers):
+class TestInstructionsFollowup:
+    def _run(self, monkeypatch, website="https://vrcverify.com"):
         panel = []
         followups = []
+
+        monkeypatch.setattr(bot, "WEBSITE_URL", website)
 
         # A real channel message, not the command's reply: Discord ignores
         # embed edits on a reply, so a panel posted that way could never be
@@ -528,20 +511,46 @@ class TestInstructionsFollowupHint:
 
         make_server()
         run(bot.vrcverify_instructions.callback(interaction))
+        return panel, followups
 
-        # public panel went out with the Donate button attached
+    def test_panel_goes_out_with_the_website_button(self, clean_servers, monkeypatch):
+        panel, _ = self._run(monkeypatch)
         assert len(panel) == 1
-        assert panel[0].view.children[-1].url == bot.KOFI_URL
+        assert panel[0].view.children[-1].url == "https://vrcverify.com"
+
+    def test_panel_location_is_saved(self, clean_servers, monkeypatch):
+        self._run(monkeypatch)
         # panel location saved for reinitialization on restart
         with bot.session_scope() as session:
             srv = session.query(bot.Server).filter_by(server_id=GUILD_ID).first()
             assert srv.instructions_channel_id == "222"
             assert srv.instructions_message_id == "111"
-        # admin-only follow-up carries the donate hint
+
+    def test_admin_gets_a_confirmation_not_a_donation_ask(
+        self, clean_servers, monkeypatch
+    ):
+        _, followups = self._run(monkeypatch)
         assert len(followups) == 1
         assert followups[0].ephemeral is True
-        assert bot.KOFI_URL in followups[0].msg
-        assert not followups[0].msg.startswith("\n")  # stripped for standalone use
+        assert bot.KOFI_URL not in followups[0].msg
+        assert followups[0].msg == locales.SETUP_PANEL_POSTED
+
+    def test_success_path_always_answers_the_deferred_interaction(
+        self, clean_servers, monkeypatch
+    ):
+        """The regression #240 nearly shipped.
+
+        The donate hint was this command's only success followup. Deleting it
+        without putting a confirmation in its place left the interaction
+        deferred and unanswered, which Discord renders as "thinking..." until
+        it times out into an error -- on a command that had already posted the
+        panel successfully.
+
+        Asserted with no website configured too, since that path builds a
+        different view and must still reply.
+        """
+        _, followups = self._run(monkeypatch, website=None)
+        assert len(followups) == 1
 
 
 # ---------------------------------------------------------------
@@ -657,9 +666,13 @@ class TestSetupOffersTheInviteToo:
     def test_nothing_is_added_when_it_is_not(self, monkeypatch):
         assert "discord.gg" not in self.reply(monkeypatch, None)
 
-    def test_the_donate_hint_stays_last(self, monkeypatch):
-        """The existing comment says the donate hint reads as a footer under
-        everything else. Slipping a new line after it would quietly undo
-        that."""
+    def test_the_invite_is_now_the_footer(self, monkeypatch):
+        """The donate hint used to sit under this as the reply's footer.
+
+        With it gone (#240) the invite is the last thing an admin reads, so
+        nothing may be appended after it without a deliberate decision about
+        which line should close the reply.
+        """
         reply = self.reply(monkeypatch, "https://discord.gg/abc")
-        assert reply.index("discord.gg/abc") < reply.index(bot.KOFI_URL)
+        expected = locales.SUPPORT_INVITE_LINE.format(invite="https://discord.gg/abc")
+        assert reply.rstrip().endswith(expected)

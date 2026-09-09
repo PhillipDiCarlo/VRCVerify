@@ -212,6 +212,18 @@ _FIELD_SEPARATOR = ":"
 # reachable for three weeks by then.
 ENTRIES = (
     Entry(
+        id="2026-09-panel-learn-more",
+        date=date(2026, 9, 8),
+        title=N_("A website link on your instructions panel"),
+        body=(
+            N_("The Donate button on the instructions panel is now a Learn "
+            "more button that opens vrcverify.com, so a member who is asked "
+            "to verify can read what VRCVerify does before they start. The "
+            "donation reminder that appeared after setup is gone as well. "
+            "Already-posted panels update the next time they are refreshed.")
+        ),
+    ),
+    Entry(
         id="2026-09-picker-card-states",
         date=date(2026, 9, 8),
         title=N_("See which servers need attention"),

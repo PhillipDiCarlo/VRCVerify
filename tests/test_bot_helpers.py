@@ -329,6 +329,87 @@ class TestTheSupportInviteIsOptional:
         assert "SUPPORT_INVITE_URL" in caplog.text
 
 
+# ---------------------------------------------------------------
+# The website button on the instruction panel (#240)
+# ---------------------------------------------------------------
+class TestTheWebsiteIsOptional:
+    """Unset means a two-button panel, not a broken one.
+
+    A self-hoster has no site of their own, and a panel in their server
+    advertising vrcverify.com would be worse than no button at all.
+    """
+
+    def test_no_website_configured_offers_none(self, monkeypatch):
+        monkeypatch.setattr(bot, "WEBSITE_URL", None)
+        assert bot.website_url() is None
+
+    def test_an_empty_value_is_the_same_as_unset(self, monkeypatch):
+        monkeypatch.setattr(bot, "WEBSITE_URL", "")
+        assert bot.website_url() is None
+
+    def test_a_configured_site_is_returned(self, monkeypatch):
+        monkeypatch.setattr(bot, "WEBSITE_URL", "https://vrcverify.com")
+        assert bot.website_url() == "https://vrcverify.com"
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "vrcverify.com",
+            "www.vrcverify.com",
+            "ftp://vrcverify.com",
+            # A scheme on its own passes a naive startswith check and is not a
+            # URL. Discord rejects a link button built from one exactly as it
+            # rejects a schemeless value.
+            "https://",
+            "http://",
+        ],
+    )
+    def test_a_url_without_a_usable_scheme_is_refused(self, monkeypatch, value):
+        """This one is not merely cosmetic.
+
+        The value goes into a link button inside the instruction panel view,
+        and Discord answers a schemeless button URL with a 400 that fails the
+        whole interaction. Refusing it costs a button; passing it through would
+        break /vrcverify_instructions and every panel refresh outright.
+        """
+        monkeypatch.setattr(bot, "WEBSITE_URL", value)
+        assert bot.website_url() is None
+
+    def test_a_bad_value_says_so_in_the_log(self, monkeypatch, caplog):
+        import logging
+
+        monkeypatch.setattr(bot, "WEBSITE_URL", "vrcverify.com")
+        with caplog.at_level(logging.WARNING):
+            bot.website_url()
+        assert "WEBSITE_URL" in caplog.text
+
+
+class TestThePanelDegradesWithoutAWebsite:
+    def test_no_website_means_two_buttons(self, monkeypatch):
+        monkeypatch.setattr(bot, "WEBSITE_URL", None)
+        view = bot.VRCVerifyInstructionView(locale="en-US")
+        assert len(view.children) == 2
+
+    def test_a_website_adds_a_third(self, monkeypatch):
+        monkeypatch.setattr(bot, "WEBSITE_URL", "https://vrcverify.com")
+        view = bot.VRCVerifyInstructionView(locale="en-US")
+        assert len(view.children) == 3
+        assert view.children[-1].url == "https://vrcverify.com"
+
+    def test_a_malformed_website_adds_nothing(self, monkeypatch):
+        # The refusal has to reach the view, not just the helper: a button
+        # built from a schemeless URL fails the whole interaction.
+        monkeypatch.setattr(bot, "WEBSITE_URL", "vrcverify.com")
+        assert len(bot.VRCVerifyInstructionView(locale="en-US").children) == 2
+
+    def test_the_label_is_localised(self, monkeypatch):
+        monkeypatch.setattr(bot, "WEBSITE_URL", "https://vrcverify.com")
+        en = bot.VRCVerifyInstructionView(locale="en-US").children[-1].label
+        de = bot.VRCVerifyInstructionView(locale="de").children[-1].label
+        assert en == locales.BTN_LEARN_MORE
+        assert de != en, "the website button is reading English in German"
+
+
 class TestTheInviteSentenceIsLocalised:
     def test_every_locale_can_render_it(self):
         """The URL is language-neutral and comes from config, so an admin in

@@ -24,6 +24,15 @@ out as a non-goal and which belongs in its own PR -- or the conversion losing a
 string. Regenerating the fixture to get back to green would convert this from a
 guard into a rubber stamp.
 
+**Editing it when a string is genuinely added or removed.** That is the "own
+PR" case above, and #240 is the first of them: it deleted `btn_donate` and
+`setup_donate_hint` and added `btn_learn_more` and `setup_panel_posted`. The
+fixture was edited by removing exactly those two keys and appending exactly two
+new ones, leaving the other eighty-nine byte-identical -- which the diff shows,
+and which is the whole difference between an edit and a regeneration. Do it
+that way, never by re-rendering the file: re-rendering asserts that today's
+output equals today's output, which is what this test exists to not do.
+
 **Why it renders rather than comparing tables.** `.format()` is where a broken
 placeholder turns into a KeyError and where a translation that invented its own
 `{name}` blows up. Rendering with real arguments puts that on the same footing

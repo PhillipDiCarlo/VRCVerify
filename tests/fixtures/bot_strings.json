@@ -75,20 +75,6 @@
       "ru": "Начать проверку",
       "pa-IN": "ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ"
     },
-    "btn_donate": {
-      "en-US": "Donate",
-      "es-ES": "Donar",
-      "zh-CN": "捐赠",
-      "ja": "寄付",
-      "de": "Spenden",
-      "nl": "Doneren",
-      "hi-IN": "दान करें",
-      "ar": "تبرع",
-      "bn": "দান করুন",
-      "pt-BR": "Doar",
-      "ru": "Поддержать",
-      "pa-IN": "ਦਾਨ ਕਰੋ"
-    },
     "btn_group_invite": {
       "en-US": "Send me an invite",
       "es-ES": "Envíame una invitación",
@@ -102,6 +88,20 @@
       "pt-BR": "Me envie um convite",
       "ru": "Отправьте мне приглашение",
       "pa-IN": "ਮੈਨੂੰ ਸੱਦਾ ਭੇਜੋ"
+    },
+    "btn_learn_more": {
+      "en-US": "Learn more",
+      "es-ES": "Más información",
+      "zh-CN": "了解更多",
+      "ja": "詳しく見る",
+      "de": "Mehr erfahren",
+      "nl": "Meer informatie",
+      "hi-IN": "और जानें",
+      "ar": "اعرف المزيد",
+      "bn": "আরও জানুন",
+      "pt-BR": "Saiba mais",
+      "ru": "Подробнее",
+      "pa-IN": "ਹੋਰ ਜਾਣੋ"
     },
     "btn_update_nickname": {
       "en-US": "Update Nickname",
@@ -887,20 +887,6 @@
       "ru": "Сейчас не удалось прочитать настройки этого сервера. Попробуйте ещё раз через некоторое время — ничего не изменилось.",
       "pa-IN": "ਇਸ ਸਰਵਰ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਇਸ ਵੇਲੇ ਪੜ੍ਹੀਆਂ ਨਹੀਂ ਜਾ ਸਕੀਆਂ। ਕਿਰਪਾ ਕਰਕੇ ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ — ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲਿਆ।"
     },
-    "setup_donate_hint": {
-      "en-US": "\n\n☕ VRCVerify is free thanks to donations. If it helps your community, you can support it here: https://ko-fi.com/snapshot",
-      "es-ES": "\n\n☕ VRCVerify es gratuito gracias a las donaciones. Si ayuda a tu comunidad, puedes apoyarlo aquí: https://ko-fi.com/snapshot",
-      "zh-CN": "\n\n☕ VRCVerify 依靠捐赠免费提供。如果它对您的社区有帮助,您可以在这里支持我们:https://ko-fi.com/snapshot",
-      "ja": "\n\n☕ VRCVerifyは寄付のおかげで無料で提供されています。コミュニティのお役に立てましたら、こちらからご支援ください:https://ko-fi.com/snapshot",
-      "de": "\n\n☕ VRCVerify ist dank Spenden kostenlos. Wenn es deiner Community hilft, kannst du es hier unterstützen: https://ko-fi.com/snapshot",
-      "nl": "\n\n☕ VRCVerify is gratis dankzij donaties. Als het je community helpt, kun je het hier steunen: https://ko-fi.com/snapshot",
-      "hi-IN": "\n\n☕ VRCVerify दान की बदौलत मुफ़्त है। यदि यह आपके समुदाय की मदद करता है, तो आप यहाँ समर्थन कर सकते हैं: https://ko-fi.com/snapshot",
-      "ar": "\n\n☕ VRCVerify مجاني بفضل التبرعات. إذا كان يساعد مجتمعك، يمكنك دعمه هنا: https://ko-fi.com/snapshot",
-      "bn": "\n\n☕ দানের কারণে VRCVerify বিনামূল্যে। যদি এটি আপনার কমিউনিটিকে সাহায্য করে, আপনি এখানে সমর্থন করতে পারেন: https://ko-fi.com/snapshot",
-      "pt-BR": "\n\n☕ O VRCVerify é gratuito graças a doações. Se ele ajuda a sua comunidade, você pode apoiá-lo aqui: https://ko-fi.com/snapshot",
-      "ru": "\n\n☕ VRCVerify бесплатен благодаря пожертвованиям. Если он помогает вашему сообществу, вы можете поддержать его здесь: https://ko-fi.com/snapshot",
-      "pa-IN": "\n\n☕ VRCVerify ਦਾਨ ਸਦਕਾ ਮੁਫ਼ਤ ਹੈ। ਜੇ ਇਹ ਤੁਹਾਡੀ ਕਮਿਊਨਿਟੀ ਦੀ ਮਦਦ ਕਰਦਾ ਹੈ, ਤਾਂ ਤੁਸੀਂ ਇੱਥੇ ਸਮਰਥਨ ਕਰ ਸਕਦੇ ਹੋ: https://ko-fi.com/snapshot"
-    },
     "setup_missing": {
       "en-US": "This server hasn't set up a verification role yet. Please contact an admin.",
       "es-ES": "Este servidor aún no ha configurado un rol de verificación. Por favor, contacta a un administrador.",
@@ -928,6 +914,20 @@
       "pt-BR": "\n\n📌 **Falta um passo:** os membros não conseguem se verificar até você publicar o painel de instruções.\nExecute `/vrcverify_instructions` no canal de onde quiser que eles se verifiquem. Use um canal de texto normal que todos possam ver — não um tópico, já que tópicos são arquivados sozinhos e quebram o painel silenciosamente.\nVocê pode executar `/vrcverify_status` a qualquer momento para conferir.",
       "ru": "\n\n📌 **Остался один шаг:** участники не смогут пройти проверку, пока вы не опубликуете панель инструкций.\nВыполните `/vrcverify_instructions` в канале, из которого они должны проходить проверку. Используйте обычный текстовый канал, видимый всем, а не ветку: ветки автоматически архивируются, и панель тихо перестаёт работать.\nВыполнить `/vrcverify_status` для проверки можно в любой момент.",
       "pa-IN": "\n\n📌 **ਇੱਕ ਹੋਰ ਕਦਮ:** ਜਦੋਂ ਤੱਕ ਤੁਸੀਂ ਹਦਾਇਤ ਪੈਨਲ ਪੋਸਟ ਨਹੀਂ ਕਰਦੇ, ਮੈਂਬਰ ਤਸਦੀਕ ਨਹੀਂ ਕਰ ਸਕਦੇ।\nਜਿਸ ਚੈਨਲ ਤੋਂ ਤੁਸੀਂ ਉਹਨਾਂ ਦੀ ਤਸਦੀਕ ਕਰਵਾਉਣੀ ਹੈ, ਉੱਥੇ `/vrcverify_instructions` ਚਲਾਓ। ਥ੍ਰੈੱਡ ਦੀ ਥਾਂ ਅਜਿਹਾ ਆਮ ਟੈਕਸਟ ਚੈਨਲ ਵਰਤੋ ਜੋ ਸਾਰਿਆਂ ਨੂੰ ਦਿਸਦਾ ਹੋਵੇ, ਕਿਉਂਕਿ ਥ੍ਰੈੱਡ ਆਪਣੇ ਆਪ ਆਰਕਾਈਵ ਹੋ ਜਾਂਦੇ ਹਨ ਅਤੇ ਪੈਨਲ ਚੁੱਪ-ਚਾਪ ਕੰਮ ਕਰਨਾ ਬੰਦ ਕਰ ਦਿੰਦਾ ਹੈ।\nਜਾਂਚ ਲਈ ਤੁਸੀਂ ਕਦੇ ਵੀ `/vrcverify_status` ਚਲਾ ਸਕਦੇ ਹੋ।"
+    },
+    "setup_panel_posted": {
+      "en-US": "✅ Instructions panel posted. Members can verify from this channel now.",
+      "es-ES": "✅ Panel de instrucciones publicado. Los miembros ya pueden verificarse desde este canal.",
+      "zh-CN": "✅ 说明面板已发布。成员现在可以在此频道进行验证。",
+      "ja": "✅ 説明パネルを投稿しました。メンバーはこのチャンネルから認証できます。",
+      "de": "✅ Anleitungs-Panel veröffentlicht. Mitglieder können sich jetzt in diesem Kanal verifizieren.",
+      "nl": "✅ Instructiepaneel geplaatst. Leden kunnen zich nu vanaf dit kanaal verifiëren.",
+      "hi-IN": "✅ निर्देश पैनल पोस्ट कर दिया गया। सदस्य अब इस चैनल से सत्यापन कर सकते हैं।",
+      "ar": "✅ تم نشر لوحة التعليمات. يمكن للأعضاء الآن التحقق من هذه القناة.",
+      "bn": "✅ নির্দেশাবলী প্যানেল পোস্ট করা হয়েছে। সদস্যরা এখন এই চ্যানেল থেকে যাচাই করতে পারবেন।",
+      "pt-BR": "✅ Painel de instruções publicado. Os membros já podem se verificar neste canal.",
+      "ru": "✅ Панель с инструкциями опубликована. Участники теперь могут пройти проверку в этом канале.",
+      "pa-IN": "✅ ਹਦਾਇਤਾਂ ਦਾ ਪੈਨਲ ਪੋਸਟ ਕਰ ਦਿੱਤਾ ਗਿਆ। ਮੈਂਬਰ ਹੁਣ ਇਸ ਚੈਨਲ ਤੋਂ ਤਸਦੀਕ ਕਰ ਸਕਦੇ ਹਨ।"
     },
     "setup_success": {
       "en-US": "Successfully updated server config.\nVerified Role set to: `Verified 18+` (ID=123456789012345678)",
