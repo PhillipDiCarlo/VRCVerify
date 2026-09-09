@@ -90,8 +90,21 @@ def main() -> None:
     handler = functools.partial(Handler, directory=str(SITE))
     # Threading, so a page that pulls a stylesheet, two scripts and a font does
     # not serialise them behind one another and take a visible moment to paint.
-    with socketserver.ThreadingTCPServer((HOST, PORT), handler) as httpd:
-        httpd.allow_reuse_address = True
+    #
+    # ON THE CLASS, NOT THE INSTANCE. TCPServer binds inside __init__, so
+    # setting this on the object afterwards is too late to affect the socket it
+    # already has -- which is a no-op that looks exactly like a fix. Without it,
+    # stopping the preview and starting it again inside the TIME_WAIT window
+    # fails with "Address already in use", which is the normal way somebody
+    # uses this: stop it, edit, start it.
+    server = type("Preview", (socketserver.ThreadingTCPServer,),
+                  {"allow_reuse_address": True, "daemon_threads": True})
+    try:
+        httpd = server((HOST, PORT), handler)
+    except OSError as error:
+        sys.exit(f"cannot serve on {HOST}:{PORT}: {error}\n"
+                 "Another copy of this preview is probably still running.")
+    with httpd:
         home = f"http://{HOST}:{PORT}/"
         print(f"\n  Apex site preview: {home}")
         print("  Pages: / /terms /privacy /refunds /changelog, and /nothing "
