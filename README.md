@@ -1081,6 +1081,99 @@ pytest
 
 Note: `src/test_vrc.py` is a manual VRChat login script, not part of the automated suite (pytest only collects from `tests/`, per `pytest.ini`).
 
+### Running the suite against Postgres
+
+The default run uses an in-memory SQLite database, which is fast and needs
+nothing installed. What it cannot do is reproduce a disagreement about a
+column's **type**: SQLite gives a `VARCHAR` column TEXT affinity, so an integer
+written into one comes back as a string. In production that same column may be
+`bigint` and the driver returns an `int`.
+
+That gap took the server picker down for every server on 2026-09-08 (#164):
+`servers.server_id` is declared `String` and deployed `bigint`, a dict keyed on
+the raw value matched nothing, and every server read as unconfigured. Nothing
+errored and nothing logged. Two regression tests written for that bug passed
+against the broken code, because SQLite handed them back the string they had
+written.
+
+```bash
+./scripts/test_postgres.sh                        # whole suite
+./scripts/test_postgres.sh tests/test_premium.py  # or any pytest arguments
+```
+
+That starts a throwaway `postgres:15-alpine` container on port 55432, loads
+`schema/production.sql` into it, and runs pytest against that. The container is
+removed when the run ends.
+
+**The schema comes from the committed dump, not from `create_all()`.** This is
+the part that is easy to get wrong. A Postgres database built by
+`Base.metadata.create_all()` has the columns the *models* describe, and the
+models are the half of the disagreement that was never in question -- such a
+database would not reproduce #164 either. The divergence being tested for is
+between the models and the **deployed** schema, so the deployed schema has to
+come from the deployed database.
+
+**It only points at loopback.** `conftest.local_database_only` refuses any
+`VRCVERIFY_TEST_DATABASE_URL` that is not `localhost`, `127.0.0.1` or `::1`,
+because the suite's teardown deletes rows -- that is its job, and it is what
+emptied the `servers` table on 2026-09-08 when borrowed by an ad-hoc script.
+To reproduce something against real data, restore a copy locally and point this
+at the copy. Never at production.
+
+**Expect failures in the fixtures, not in the bot.** As of this writing 26
+tests fail and 9 error under Postgres, in seven files, from two causes -- both
+test data that production never produces:
+
+- fixtures inserting non-numeric ids such as `server_id="a"`, which Postgres
+  rejects for a `bigint` column and SQLite accepts;
+- fixtures inserting `vrc_user_id=None`, which the deployed column forbids.
+
+The remaining assertion failures are of the form `assert 555 == '555'`: the
+test wrote a string and Postgres returned an int, which is the divergence
+itself showing up. Cleaning these up is worth doing and is not yet done; until
+it is, this mode is most useful pointed at specific files.
+
+### The reconciliation, and why it needed no migration
+
+`servers.server_id` is now declared `BigInteger`, matching the deployed column,
+rather than `String`. Production was already `bigint`, so nothing was migrated
+and there was no DDL to run.
+
+The point of changing the model rather than the column is that it moves the
+production type *into the fast suite*: SQLite gives a `BIGINT` column INTEGER
+affinity, so a read comes back an `int` there too, and
+`test_schema_snapshot.py::TestTheReconciliationHoldsAtRuntime` can assert the
+round trip on every commit without a container. Under `String` that assertion
+could not be written honestly at all.
+
+`panel_view_key()` and `_rows_by_server_id()` are still required, and their
+docstrings say why the reason changed: the remaining mismatch is between the
+`servers` table (`bigint`) and `instruction_panel_views` (`character varying`),
+plus Discord's own ids, which are strings.
+
+`servers.owner_id`, `servers.role_id` and `users.discord_id` are the same
+shape and are still declared `String`. They are recorded in
+`test_schema_snapshot.KNOWN` with the reason each is currently harmless -- all
+three are passed straight to `int()` or to a `filter_by()` that Postgres casts,
+and none is used as a dictionary key, which is the thing that breaks.
+
+### What the models and production disagree about
+
+`schema/production.sql` is a `pg_dump --schema-only` of the real database, and
+`tests/test_schema_snapshot.py` compares the models against it on every run --
+under SQLite too, since it reads a file rather than a database. It fails when a
+column type diverges in a way that is not already written down, with the reason
+each known divergence is tolerable recorded next to it.
+
+Refresh the snapshot after any migration:
+
+```bash
+./scripts/refresh_schema_snapshot.sh
+```
+
+Read the diff before committing it. A change there is either a migration you
+meant to run, or one somebody ran by hand.
+
 ---
 
 ## Contributing

@@ -27,6 +27,64 @@ TEST_ENV = {
     "LOG_LEVEL": "WARNING",
 }
 
+def local_database_only(url):
+    """Reason to refuse `url` as a test database, or None to allow it.
+
+    THE POINT IS NOT TIDINESS. Pointing the suite at a database means pointing
+    the suite's teardown at it, and the teardown deletes rows -- that is its
+    job. `session.query(Server).delete()` run against production is exactly
+    what emptied the servers table on 2026-09-08 (VPS_RUNBOOK.md section 14b). A
+    Postgres run of this suite is therefore a loaded gun by construction, and
+    the safety is that the barrel may only point at localhost.
+
+    Deliberately an allowlist of loopback hosts rather than a denylist of known
+    production addresses: a denylist is wrong the first time production moves,
+    and it is wrong silently.
+
+    Pure, so it is testable without a database -- see test_test_database_guard.
+    """
+    if url.startswith("sqlite"):
+        return None
+    without_scheme = url.split("://", 1)[-1]
+    # The credential half may contain an @, so split from the right.
+    authority = without_scheme.rsplit("@", 1)[-1]
+    host = authority.split("/")[0].rsplit(":", 1)[0].strip("[]")
+    if host in ("localhost", "127.0.0.1", "::1"):
+        return None
+    return (
+        f"VRCVERIFY_TEST_DATABASE_URL points at {host!r}, which is not"
+        " loopback. The suite's teardown deletes rows, so it may only be aimed"
+        " at a disposable local database. To reproduce something against a"
+        " real schema, restore a copy locally and point this at that copy --"
+        " never at production. See scripts/test_postgres.sh."
+    )
+
+
+# Opt-in Postgres run (#275). SQLite stays the default because it is fast and
+# needs nothing installed, and because most of what this suite asserts is
+# behavior rather than storage. What SQLite cannot do is reproduce a
+# disagreement about a column's TYPE -- it gives VARCHAR columns TEXT affinity,
+# so an integer written into one comes back as a string, which is how #164
+# reached production with two regression tests passing over it.
+#
+# scripts/test_postgres.sh sets this to a throwaway container seeded from
+# schema/production.sql. Seeded from the DUMP rather than from create_all(),
+# because create_all() would build the columns the models describe and the
+# models are the half of the disagreement that was never in doubt.
+_test_database_url = os.environ.get("VRCVERIFY_TEST_DATABASE_URL", "").strip()
+if _test_database_url:
+    _refusal = local_database_only(_test_database_url)
+    if _refusal is not None:
+        raise RuntimeError(_refusal)
+    TEST_ENV["DATABASE_URL"] = _test_database_url
+    # bot.py refuses a non-SQLite URL on import (#273), which is the guard that
+    # makes an ad-hoc script safe and which must stay armed. Opening it here
+    # only after local_database_only() has passed means the override is granted
+    # to a proven-loopback URL and to nothing else -- the guard is narrowed to
+    # this one case rather than switched off for the suite.
+    os.environ["VRCVERIFY_ALLOW_DB_IMPORT"] = "1"
+
+
 os.environ.update(TEST_ENV)
 
 # The grandfather line is captured into the database at launch, and the env var
