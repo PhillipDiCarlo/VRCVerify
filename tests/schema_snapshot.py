@@ -69,6 +69,11 @@ def parse_snapshot(text=None):
             if not line or line.upper().startswith(_NOT_A_COLUMN):
                 continue
             name, _, rest = line.partition(" ")
+            # pg_dump quotes any identifier that is a reserved word, so a
+            # column called "order" arrives as `"order" integer`. Left quoted
+            # it would match no model column and be reported as absent, which
+            # is a confusing failure for a column that is present and fine.
+            name = name.strip('"')
             rest = rest.strip()
             nullable = "NOT NULL" not in rest.upper()
             # DEFAULT and NOT NULL are not part of the type. Cut at whichever
@@ -110,13 +115,21 @@ _ALIASES = {
 
 
 def _normalize(sql_type):
-    """(family, length) -- 'character varying(30)' -> ('varchar', 30)."""
+    """(family, parameters) -- 'character varying(30)' -> ('varchar', (30,)).
+
+    Every number inside the parentheses is kept, not just the first. The first
+    version took only the leading one, which is right for varchar(n) and wrong
+    for numeric(p, s): it read numeric(10,2) and numeric(10,4) as the same
+    thing and had nothing to say about the difference. A check whose failure
+    mode is silence is the failure mode this whole file exists to remove.
+    """
     sql_type = sql_type.strip().lower()
-    length = None
-    match = re.match(r"^(.*?)\((\d+)(?:,\s*\d+)?\)$", sql_type)
+    parameters = None
+    match = re.match(r"^(.*?)\((\d+(?:\s*,\s*\d+)*)\)$", sql_type)
     if match:
-        sql_type, length = match.group(1).strip(), int(match.group(2))
-    return _ALIASES.get(sql_type, sql_type), length
+        sql_type = match.group(1).strip()
+        parameters = tuple(int(part) for part in match.group(2).split(","))
+    return _ALIASES.get(sql_type, sql_type), parameters
 
 
 class Divergence:
@@ -183,8 +196,8 @@ def compare(base, snapshot=None):
                 found.append(Divergence(table, name, "absent", model_type, "--"))
                 continue
 
-            model_family, model_length = _normalize(model_type)
-            deployed_family, deployed_length = _normalize(deployed.sql_type)
+            model_family, model_parameters = _normalize(model_type)
+            deployed_family, deployed_parameters = _normalize(deployed.sql_type)
 
             if model_family != deployed_family:
                 kind = (
@@ -195,7 +208,7 @@ def compare(base, snapshot=None):
                 found.append(
                     Divergence(table, name, kind, model_type, deployed.sql_type)
                 )
-            elif model_length != deployed_length:
+            elif model_parameters != deployed_parameters:
                 found.append(
                     Divergence(table, name, "length", model_type, deployed.sql_type)
                 )

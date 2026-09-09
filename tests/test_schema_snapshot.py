@@ -334,6 +334,30 @@ class TestTheParser:
         )
         assert set(parsed["t"]) == {"c"}
 
+    def test_a_reserved_word_column_name_is_unquoted(self):
+        """pg_dump writes `"order" integer`. Left quoted the name matches no
+        model column and gets reported as absent -- a loud failure about a
+        column that is present and correct."""
+        parsed = parse_snapshot(
+            'CREATE TABLE public.t (\n    "order" integer NOT NULL\n);\n'
+        )
+        assert set(parsed["t"]) == {"order"}
+
+    def test_a_precision_and_scale_are_both_kept(self):
+        """numeric(10,2) against numeric(10,4) is a real divergence. The first
+        version of _normalize kept only the leading number and read the two as
+        identical, which is the silent-miss direction."""
+        from schema_snapshot import _normalize
+
+        assert _normalize("numeric(10,2)") != _normalize("numeric(10,4)")
+        assert _normalize("numeric(10,2)") == ("numeric", (10, 2))
+
+    def test_an_unparenthesised_type_has_no_parameters(self):
+        from schema_snapshot import _normalize
+
+        assert _normalize("bigint") == ("bigint", None)
+        assert _normalize("character varying") == ("varchar", None)
+
     def test_a_column_with_no_qualifiers_is_nullable(self):
         parsed = parse_snapshot("CREATE TABLE public.t (\n    c bigint\n);\n")
         assert parsed["t"]["c"].nullable is True
