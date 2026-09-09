@@ -1665,3 +1665,85 @@ def test_the_404_setting_did_not_fall_into_a_route():
         assert set(route) == {"pattern", "custom_domain"}, (
             f"a stray key landed in a route table: {route}"
         )
+
+
+# --------------------------------------------------------------------------
+# The local preview (#285).
+#
+# CodeQL called this out as py/path-injection, and it was right about the
+# shape even though a loopback dev server is a mild place to have it. These
+# tests pin the containment rather than the mechanism, so a later rewrite of
+# the resolver has to stay inside site/ to pass.
+# --------------------------------------------------------------------------
+
+import dev_site  # noqa: E402
+
+
+@pytest.mark.parametrize("request_path, resolved", [
+    ("/terms.html", "terms.html"),
+    ("/changelog.html", "changelog.html"),
+    ("/deeper/page.html", "deeper/page.html"),
+])
+def test_the_preview_resolves_a_page_to_a_file_in_the_site(request_path, resolved):
+    assert dev_site.under_site(request_path) == SITE / resolved
+
+
+@pytest.mark.parametrize("request_path", [
+    "/../../../etc/passwd.html",
+    "/../wrangler.toml",
+    "/terms/../../src/bot.py",
+    # The prefix check without the separator would let this one through:
+    # site-anything/ starts with site as a string and is not inside it.
+    "/../site-elsewhere/index.html",
+])
+def test_the_preview_never_resolves_a_path_out_of_the_site(request_path):
+    """The is_file() behind this call is an existence oracle if it escapes.
+
+    Nothing outside site/ was ever SERVED -- the base class drops the ".."
+    before it opens anything -- so the leak here is which files exist on the
+    machine, not what is in them. Answering that for arbitrary paths is still
+    a thing to not do.
+    """
+    assert dev_site.under_site(request_path) is None
+
+
+def test_the_preview_serves_the_site_the_way_the_edge_does():
+    """One live request each for the three behaviours this script exists for.
+
+    Extensionless resolution, a 404 that is actually a 404, and a climbing
+    path that gets the 404 rather than a file. The last one is the traversal
+    end to end: under_site() declining is only half the guarantee, since the
+    rewrite being skipped still leaves the base class holding the path.
+    """
+    import functools
+    import http.client
+    import socketserver
+    import threading
+
+    handler = functools.partial(dev_site.Handler, directory=str(SITE))
+    server = socketserver.TCPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        def get(path):
+            conn = http.client.HTTPConnection(*server.server_address, timeout=5)
+            try:
+                conn.request("GET", path)
+                response = conn.getresponse()
+                return response.status, response.read()
+            finally:
+                conn.close()
+
+        status, body = get("/terms")
+        assert status == 200 and b"Terms" in body
+
+        status, body = get("/nothing-here")
+        assert status == 404, "a soft 404 is the bug this preview exists to avoid"
+        assert b"404" in body or b"not found" in body.lower()
+
+        status, _ = get("/../../../etc/passwd")
+        assert status in (400, 404), status
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)

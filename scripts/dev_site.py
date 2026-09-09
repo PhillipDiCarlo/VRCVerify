@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import functools
 import http.server
+import os.path
 import pathlib
 import socketserver
 import sys
@@ -53,17 +54,40 @@ SITE = REPO / "site"
 HOST, PORT = "127.0.0.1", 5002
 
 
+def under_site(path: str) -> pathlib.Path | None:
+    """A requested path -> the file it names inside site/, or None if outside.
+
+    NORMALISE FIRST, THEN CHECK THE PREFIX. The other order proves nothing,
+    because a path that starts with the site directory can still climb back
+    out of it with a "..".
+
+    This is not defending the response. Nothing outside site/ can be SERVED
+    from here whether this function exists or not: the base class drops ".."
+    segments when it translates a path, so a request for /../../../etc/passwd
+    reads site/etc/passwd.html, finds nothing, and 404s. What it defends is
+    the is_file() call that decides whether to rewrite the path at all, which
+    runs BEFORE any of that and answers, for any path the caller cares to
+    name, whether that file exists on this machine. The leak is the shape of
+    the filesystem rather than the contents of it, and a dev server bound to
+    loopback is a mild place for it, but it costs four lines to not have.
+    """
+    full = os.path.normpath(os.path.join(str(SITE), path.lstrip("/")))
+    if not full.startswith(str(SITE) + os.sep):
+        return None
+    return pathlib.Path(full)
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     """SimpleHTTPRequestHandler plus the two Cloudflare behaviours above."""
 
     def send_head(self):
         # Resolve /terms -> terms.html before the base class looks for a
         # directory called "terms" and gives up.
-        path = self.path.split("?", 1)[0].split("#", 1)[0]
-        if path not in ("/", "") and not pathlib.PurePosixPath(path).suffix:
-            candidate = SITE / (path.lstrip("/") + ".html")
-            if candidate.is_file():
-                self.path = path.rstrip("/") + ".html"
+        path = self.path.split("?", 1)[0].split("#", 1)[0].rstrip("/")
+        if path and not pathlib.PurePosixPath(path).suffix:
+            candidate = under_site(path + ".html")
+            if candidate is not None and candidate.is_file():
+                self.path = path + ".html"
         return super().send_head()
 
     def send_error(self, code, message=None, explain=None):
