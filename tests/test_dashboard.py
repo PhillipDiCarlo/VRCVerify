@@ -6261,7 +6261,7 @@ class TestTheToggleSwitches:
         guard = css.index("@media (prefers-reduced-motion: no-preference)")
         assert css.index(".switch::before { transition") > guard
         # The state change itself is not conditional on anything.
-        assert ".switch:checked { background: var(--switch-on); }" in css
+        assert ".switch:checked { background: var(--accent); }" in css
 
 
 class TestTheSidebarLayout:
@@ -9767,20 +9767,37 @@ class TestTheSmallDefectsFoundAlongsideTheThemingWork(object):
         # keeps the quiet edge.
         assert "var(--line)" in self._rule(self._css(), ".empty-state")
 
-    def test_the_premium_badge_has_an_edge_the_fill_cannot_give_it(self):
-        """--accent on a dark --panel is 2.74:1. The fill cannot be the fix:
-        lightening it to clear 3:1 takes the white label below 4.5:1, and the
-        label is 11px bold, which is not large text."""
+    def test_the_premium_badge_has_a_perceivable_edge(self):
+        """The badge is a filled shape on a card and has to be tellable from
+        it: SC 1.4.11, 3:1.
+
+        HOW IT MEETS THAT CHANGED, so this asserts the requirement rather than
+        the mechanism. --accent used to be 2.74:1 on a dark --panel, and
+        lightening the fill to clear 3:1 would have taken the white label below
+        4.5:1 at 11px bold -- so #163 drew an inset ring in --accent-text
+        instead, and this test pinned the ring.
+
+        #284 made --accent-ink dark on dark, which freed the fill to be the
+        bright value. It is now 6.83:1 on a dark card and 4.91:1 on a light
+        one, the boundary is the fill's own edge, and the ring was removed as
+        an invisible line asserting a solved problem.
+
+        If the fill ever darkens back under 3:1, this fails and the ring is
+        what has to come back."""
         import sys
 
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         from test_contrast import _palettes, contrast
 
         rule = self._rule(self._css(), ".badge.premium")
-        assert "box-shadow: inset 0 0 0 1px var(--accent-text)" in rule
+        assert "background: var(--accent)" in rule
+        assert "color: var(--accent-ink)" in rule
         for theme, palette in _palettes().items():
-            ring = contrast(palette["accent-text"], palette["panel"])
-            assert ring >= 3.0, f"{theme}: the badge's ring is {ring:.2f}:1"
+            edge = contrast(palette["accent"], palette["panel"])
+            assert edge >= 3.0, (
+                f"{theme}: the badge's fill is {edge:.2f}:1 against the card, "
+                "so it has no perceivable boundary and needs the ring back"
+            )
             label = contrast(palette["accent-ink"], palette["accent"])
             assert label >= 4.5, f"{theme}: the badge's label is {label:.2f}:1"
 

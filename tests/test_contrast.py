@@ -56,7 +56,7 @@ PAIRS = [
     ("faint", "panel", "the least important text on a card"),
     ("faint", "chrome", "the least important text in the bar"),
     ("faint", "bg", "the least important text on the ground"),
-    ("accent-ink", "accent", "a button's label on blurple"),
+    ("accent-ink", "accent", "a button's label on the accent fill"),
     ("accent-text", "panel", "a link or tick on a card"),
     ("accent-text", "chrome", "the current section in the sidebar"),
     ("accent-text", "bg", "an accent stripe on the ground"),
@@ -170,8 +170,11 @@ UI_PAIRS = [
     # needs and under the 4.5:1 it would need if it were ever words.
     ("accent-text", "hover", "the bell's dot, and a menu's tick, on a hovered row"),
     ("switch-knob", "control-line", "the knob on an off switch"),
-    ("switch-on", "panel", "an on switch against the card"),
-    ("switch-knob", "switch-on", "the knob on an on switch"),
+    # #284: the on-state is plain --accent now, so these two name the accent
+    # rather than a --switch-on that no longer exists. The requirement did not
+    # change -- the track against the card, and the knob against the track.
+    ("accent", "panel", "an on switch against the card"),
+    ("switch-knob", "accent", "the knob on an on switch"),
 ]
 
 
@@ -203,9 +206,10 @@ def _palettes():
     }
     # Layered over the light values rather than standing alone, because that is
     # what the cascade actually does: a token the dark blocks do not mention
-    # keeps the value :root gave it. --switch-knob is white in both themes and
-    # is deliberately declared once, so reading the dark palette as only the
-    # --dark-* names would have left it undefined here and unchecked on dark.
+    # keeps the value :root gave it. --control-h and --bar-h are declared once
+    # for this reason, so reading the dark palette as only the --dark-* names
+    # would leave a token undefined here and unchecked on dark. --switch-knob
+    # used to be the example; #284 gave it a dark value of its own.
     dark = {**light, **overrides}
     return {"light": light, "dark": dark}
 
@@ -253,39 +257,85 @@ class TestContrast:
             f"(--{fg} {palette[fg]} on --{bg} {palette[bg]}), below {AA_UI}:1"
         )
 
-    def test_neither_existing_blurple_could_have_been_the_switch_on_dark(self):
-        """Why --switch-on exists rather than reusing something.
+    def test_the_switch_needs_no_accent_of_its_own(self):
+        """Why --switch-on was deleted rather than retuned (#284).
 
-        On dark the on-state is squeezed from both sides at once: --accent is
-        too dark to read against the card, --accent-text is too light to read
-        against the white knob. On light both comparisons are against white, so
-        they collapse into one number and --switch-on is plain --accent.
+        For three iterations this file asserted the opposite: that no accent
+        could be the switch on dark, because a white knob squeezed the
+        on-state from both sides. The track had to clear 3:1 against the card
+        and the knob had to clear 3:1 against the track, and no one value did
+        both -- so a third accent sat in the gap.
 
-        If this ever starts passing for one of the two, the extra token should
-        go rather than linger as a third blurple nobody can justify.
+        The squeeze was a property of the KNOB, not of the accent. Darkening
+        it on dark removes the conflict, and the earlier test's own note said
+        what to do then: the extra token should go rather than linger as a
+        third accent nobody can justify.
+
+        Both halves are pinned. If the knob ever goes back to white on dark,
+        the second assertion fails and --switch-on is what has to come back.
         """
-        dark = _palettes()["dark"]
-        assert contrast(dark["accent"], dark["panel"]) < AA_UI
-        assert contrast(dark["accent-text"], dark["switch-knob"]) < AA_UI
+        for theme, palette in _palettes().items():
+            assert "switch-on" not in palette, (
+                f"{theme}: --switch-on is back. Either it is redundant with "
+                "--accent and should go, or something squeezed the switch "
+                "again and this test should say what."
+            )
+            knob = contrast(palette["switch-knob"], palette["accent"])
+            assert knob >= AA_UI, (
+                f"{theme}: the knob on an on switch is {knob:.2f}:1, so the "
+                "accent cannot be the track and the switch needs its own value"
+            )
 
+        dark = _palettes()["dark"]
+        assert dark["switch-knob"] != "#ffffff", (
+            "a white knob on dark is what forced --switch-on to exist; if it "
+            "is white again, the accent cannot carry the on-state"
+        )
         light = _palettes()["light"]
-        assert light["switch-on"] == light["accent"], (
-            "on light the two constraints are the same comparison, so the "
-            "switch should not have diverged from the accent here"
+        assert light["switch-knob"] == "#ffffff", (
+            "on light the card and the knob are both white and no squeeze "
+            "happens, so there is nothing here a dark knob would buy"
         )
 
-    def test_the_two_accents_are_different_on_dark_and_must_stay_so(self):
-        """The finding that made --accent-text necessary.
+    def test_the_ink_decides_whether_the_two_accents_can_collapse(self):
+        """Why dark needs one accent value and light needs two (#284).
 
-        On a dark card one blurple cannot be both a button background with
-        white on it and a readable foreground -- the two requirements move in
-        opposite directions. If these ever collapse back to one value, one of
-        those two jobs is silently failing.
+        This test used to assert the opposite -- that the two accents must
+        differ on dark -- and the reasoning was sound for as long as the label
+        on a button was white. A white label pins the fill dark; a dark fill
+        cannot also be a readable foreground; so two tokens.
+
+        Making --accent-ink dark on dark removes the first constraint, and the
+        two jobs stop pulling apart. Light still has a white label, so light
+        still needs both. The rule is not "dark collapses" -- it is "the ink
+        decides", and each half is asserted here with the measurement that
+        makes it true, so neither theme can be changed to match the other by
+        eye.
         """
         dark = _palettes()["dark"]
-        assert dark["accent"] != dark["accent-text"]
+        # Dark: one bright value does both jobs, because the label is dark.
         assert contrast(dark["accent-ink"], dark["accent"]) >= AA_TEXT
         assert contrast(dark["accent-text"], dark["panel"]) >= AA_TEXT
+        assert dark["accent"] == dark["accent-text"], (
+            "the dark fill and the dark foreground want the same value now; "
+            "if they have diverged, say why here"
+        )
+        assert contrast("#ffffff", dark["accent"]) < AA_TEXT, (
+            "a white label would read on this fill, which means the fill is "
+            "dark again and the collapse above is no longer justified"
+        )
+
+        # Light: the label is white, so the fill stays dark, and a foreground
+        # on the page ground cannot be that same dark fill.
+        light = _palettes()["light"]
+        assert light["accent-ink"] == "#ffffff"
+        assert contrast(light["accent-ink"], light["accent"]) >= AA_TEXT
+        assert contrast(light["accent"], light["bg"]) < AA_TEXT, (
+            "the fill now reads on the page ground, so --accent-text has "
+            "nothing left to do on light and should collapse here too"
+        )
+        assert light["accent"] != light["accent-text"]
+        assert contrast(light["accent-text"], light["bg"]) >= AA_TEXT
 
     def test_the_checker_agrees_with_known_values(self):
         """Guards the math, so a broken formula cannot make everything pass."""
