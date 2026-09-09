@@ -1154,9 +1154,20 @@ Each had been recorded there as harmless, with a real reason: every one was
 passed straight to `int()` or to a `filter_by()` that Postgres casts, and none
 was used as a dictionary key, which is the thing that broke in #164.
 
-Those reasons were accurate. They were also each one line of new code away
-from expiring, and an entry saying "safe as long as nobody does the obvious
-thing" is worth less than a declaration that makes the obvious thing work.
+One of those reasons had already expired. `VRCUsernameModal.on_submit`
+compares `existing_user.discord_id` against `str(interaction.user.id)` to ask
+whether a VRChat account belongs to somebody else -- not a dictionary key, so
+not what the entry was watching for, and `123 != "123"` is True regardless.
+The check answered "somebody else's" for every caller. It is latent rather
+than live, because neither route into that modal can reach it with the
+member's own row, but it is the #164 shape and it went unnoticed for as long
+as the model claimed the column was text. See
+`tests/test_vrc_username_modal.py`.
+
+That is the argument for reconciling rather than recording: an entry saying
+"safe as long as nobody does the obvious thing" is worth less than a
+declaration that makes the obvious thing work, and it cannot tell you when
+somebody has already done it.
 
 Reconciling cost no migration and changed nothing on production, which has
 returned `int` for these columns all along. What it changed is the tests: the

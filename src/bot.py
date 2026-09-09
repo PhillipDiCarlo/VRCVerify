@@ -6818,7 +6818,20 @@ class VRCUsernameModal(discord.ui.Modal, title="Enter Your VRChat Profile URL or
         # Check if this VRChat ID is already linked to a *different* Discord account
         with session_scope() as session:
             existing_user = session.query(User).filter_by(vrc_user_id=vrc_user_id).first()
-            if existing_user and existing_user.discord_id != discord_id:
+            # str() ON THE COLUMN, and it is load-bearing. `users.discord_id`
+            # is bigint, so this side is an int while `discord_id` above is
+            # str(interaction.user.id) -- and `123 != "123"` is True, so this
+            # answered "somebody else's" for everyone, including the account
+            # that owns the id. That made the "it's the same Discord user"
+            # case named below unreachable.
+            #
+            # Latent rather than live: both routes into this modal require the
+            # member to have no stored VRChat id, so the row found here could
+            # never be their own. The branch still has to be right for the
+            # next route in. Same shape as #164, and invisible until #281
+            # declared the column bigint and SQLite began returning an int too
+            # -- see tests/test_vrc_username_modal.py.
+            if existing_user and str(existing_user.discord_id) != discord_id:
                 # This VRChat profile is already registered to another Discord account
                 # (you can localize this later if you want)
                 await interaction.response.send_message(
