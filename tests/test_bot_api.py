@@ -2083,6 +2083,41 @@ class TestSettingsWriter:
         write({"role_id": "3"})
         assert audit_rows() == [("role_id", "2", "3", str(ADMIN_ID))]
 
+    def test_resaving_the_same_verified_role_is_not_audited(
+        self, monkeypatch, subscribed
+    ):
+        """The no-op rule, on the one field where it was broken.
+
+        `test_a_no_op_write_is_not_audited` covers instructions_locale, a
+        varchar column whose stored value comes back as the same str the
+        coercer produces. `servers.role_id` is bigint, so the comparison in
+        write_dashboard_settings was `123 != "123"` -- true forever. Every
+        save that included an unchanged verified role appended an audit row
+        saying it had changed from 2 to 2, which is the exact noise
+        _record_dashboard_audit's docstring says the rule exists to prevent.
+
+        Invisible until #281 declared the column bigint; under String, SQLite
+        handed back the string that had been written and both sides matched.
+        """
+        self.guild_with_roles(monkeypatch)
+        make_server(role_id="2")
+
+        write({"role_id": "2"})
+
+        assert audit_rows() == []
+
+    def test_resaving_the_same_role_as_a_number_is_not_audited(
+        self, monkeypatch, subscribed
+    ):
+        """Same field, submitted the way JSON allows. The coercer normalizes
+        an int to a digit string, so this must not be a change either."""
+        self.guild_with_roles(monkeypatch)
+        make_server(role_id="2")
+
+        write({"role_id": 2})
+
+        assert audit_rows() == []
+
     def test_an_unverified_role_can_be_cleared(self, monkeypatch, subscribed):
         """/vrcverify_setup clears it by omitting the argument, so this must too."""
         self.guild_with_roles(monkeypatch)

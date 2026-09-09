@@ -2250,6 +2250,17 @@ PANEL_VISIBLE_FIELDS = frozenset(
     {"instructions_locale", "panel_embed_color", "panel_show_icon"}
 )
 
+# Settings whose column may not hand back the type their coercer produces.
+# _role_coercer yields a digit string; `servers.role_id` is bigint and returns
+# an int, while `servers.unverified_role_id` is varchar and returns a str. Any
+# comparison between a stored value and a coerced one has to bring them to the
+# same shape first, or `123 != "123"` answers "changed" every single time --
+# which is what write_dashboard_settings did, appending an audit row saying the
+# role had changed from 2 to 2 on every save that included it. Listed rather
+# than special-cased on role_id alone so that reconciling another id column
+# cannot reintroduce it silently.
+DIGIT_STRING_SETTINGS = frozenset({"role_id", "unverified_role_id"})
+
 # Outcomes of the post-save restyle that mean "stored, but the live panel does
 # not show it". The save is still a success; the admin just needs telling, or
 # they are looking at a panel that silently disagrees with their settings.
@@ -10756,6 +10767,11 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
                         current = current or row_fields[name]
                     elif name == "auto_verify_new_members":
                         current = row_fields[name] if current is None else bool(current)
+                    elif name in DIGIT_STRING_SETTINGS:
+                        # See DIGIT_STRING_SETTINGS: role_id comes back an int
+                        # and `new` is always a digit string, so without this
+                        # the comparison below is true even when nothing moved.
+                        current = None if current is None else str(current)
                     if current != new:
                         changed.append((name, current, new))
                         setattr(srv, name, new)
