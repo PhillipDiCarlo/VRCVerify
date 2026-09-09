@@ -662,8 +662,10 @@ def test_the_landing_page_text_clears_aa_in_both_themes():
         # to the page ground with everything else in that section.
         ("flow body", "--muted", "--bg"),
         # The four plan-card pairs that used to sit here went with the cards
-        # in #285. Nothing on this page draws on --panel any more; every pair
-        # left is on the page ground.
+        # in #285 -- and then --panel came back, once, for the buy card in the
+        # offer section. These two are what that card draws.
+        ("buy card heading", "--ink-strong", "--panel"),
+        ("buy card note", "--faint", "--panel"),
     ]
     for label, fg, bg in pairs:
         for theme, prefix in (("dark", ""), ("light", "--light")):

@@ -1270,7 +1270,42 @@ body.home > main { position: relative; z-index: 1; }
    reference if a card ever comes back here.
 
    .plans-note stayed, because the sentence it styles did. */
-.plans-note { margin: 1rem 0 0; color: var(--faint); font-size: var(--text-note); }
+/* THE OFFER, in two columns (#285).
+   The prose keeps its measure on the left; the buy card sits beside it rather
+   than under it. Stacked, this section left the right half of a 1440 viewport
+   empty for its whole height, on the one block of the page whose job is
+   selling rather than reading.
+
+   minmax(0, 1fr) on the text column and not plain 1fr: a grid track sized 1fr
+   floors at min-content, so a long unbroken string in the prose would push the
+   column wider than its share instead of wrapping. */
+.offer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 20rem);
+  gap: var(--space-6);
+  align-items: start;
+  margin: 1.25rem 0 0;
+}
+.offer-body { margin: 0; max-width: var(--measure); }
+.offer-buy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: 1.25rem 1.35rem;
+  background: var(--panel);
+  border-radius: var(--radius-card);
+}
+.offer-buy h3 { margin: 0; font-size: 1rem; }
+.offer-buy .cta { margin: 0; }
+
+/* One column below the landing breakpoint, where there is no empty half to
+   fill and two columns would only narrow both. */
+@media (max-width: 46rem) {
+  .offer { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+}
+
+.plans-note { margin: 0; color: var(--faint); font-size: var(--text-note); }
 
 /* THE SCHEMATIC TURNED ON ITS SIDE (#285), rather than stacked.
    Three cards in a column was the old narrow layout and it lost the rail
