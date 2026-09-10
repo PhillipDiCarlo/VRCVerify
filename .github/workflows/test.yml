@@ -1,0 +1,168 @@
+# The tests, on every pull request.
+#
+# THIS DID NOT EXIST UNTIL #297, and the gap was not that the status Worker's
+# tests were missing: nothing ran at all. `codeql.yml` was the only workflow in
+# this directory, so forty-five Python test files and six JavaScript ones
+# passed or failed on one laptop and nowhere else, and a pull request that
+# broke any of them merged green.
+#
+# THREE JOBS, RUNNING IN PARALLEL AND FAILING INDEPENDENTLY, so a broken status
+# page does not report itself as a Python failure. Two of them are the two
+# toolchains; the third is the same Python suite again on Postgres, for the one
+# class of bug SQLite cannot reproduce. Each says why above itself.
+name: Tests
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+# A second push to a pull request makes the first run irrelevant. Without this
+# they both finish, and the older one can report after the newer.
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The version the images run. Pinned to the minor, not the patch, so a
+      # security release does not need a commit here -- but not left floating
+      # to "3.x" either, because this suite imports bot.py, which imports
+      # discord.py and SQLAlchemy, and a major that those have not caught up
+      # with would fail as a mystery rather than as an upgrade.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: config/other_configs/requirements-dev.txt
+
+      # requirements-dev.txt pulls in requirements.txt and the dashboard's,
+      # deliberately, so that "a complete test environment" is one file. See
+      # the comment at the top of it: tests/test_dashboard.py skips itself when
+      # Flask is absent, and a skipped security test is not a passed one.
+      - run: pip install -r config/other_configs/requirements-dev.txt
+
+      # No credentials, and none are needed. conftest.py pins DATABASE_URL to
+      # an in-memory SQLite and every other secret to a test value BEFORE any
+      # module that reads them is imported, and `local_database_only` refuses
+      # any database URL that is not loopback. The suite cannot reach anything
+      # real from here even if this runner were given a way to.
+      - run: pytest
+
+  # THE SAME SUITE, ON POSTGRES. Not a duplicate run for its own sake: SQLite
+  # is loosely typed and Postgres is not, so the fast job above structurally
+  # cannot reproduce a disagreement about a column's TYPE. #164 reached
+  # production through exactly that gap, with two regression tests passing over
+  # it, and scripts/test_postgres.sh was written in #275 to close it. It was a
+  # documented manual step, which means it ran when somebody remembered.
+  #
+  # WHY THIS CANNOT REACH THE REAL DATABASE, in three independent ways, because
+  # the suite's teardown deletes rows and one of them being wrong is not
+  # something to find out afterwards:
+  #
+  #   1. The database is a service container on this runner. It is created for
+  #      this job, reachable only on localhost, and destroyed with it.
+  #   2. conftest.local_database_only refuses any URL whose host is not
+  #      loopback, as an allowlist rather than a denylist, and raises at import
+  #      before a single test collects.
+  #   3. bot.py refuses a non-SQLite URL on import (#273). conftest opens that
+  #      guard ONLY after the loopback check has passed.
+  #
+  # And this job references no secret, so the runner holds no credential that
+  # could reach anything real even if all three failed at once.
+  postgres:
+    name: pytest (postgres)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # The major production runs. The snapshot is a pg_dump from 15.8, and
+        # loading a 15 dump into a later major is a different test from the one
+        # this job is for.
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: test-only-not-a-secret
+          POSTGRES_DB: vrcverify_test
+        ports:
+          - 5432:5432
+        # Actions waits on this before running any step, so there is no sleep
+        # here and no race. Postgres comes up, shuts down and comes up again
+        # during initdb, which is what makes a fixed wait the wrong tool.
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vrcverify_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: config/other_configs/requirements-dev.txt
+
+      - run: pip install -r config/other_configs/requirements-dev.txt
+
+      # Installed rather than assumed. `psql` does ship on ubuntu-latest today,
+      # and a job that depends on what a runner image happens to preinstall
+      # breaks silently the day that changes.
+      - name: Install the psql client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+
+      # SEEDED FROM THE DUMP, NOT FROM create_all(). A database built by
+      # create_all() has the columns the models describe, which is the half of
+      # the disagreement that was never in question -- it would not reproduce
+      # #164 either. ON_ERROR_STOP so a snapshot that does not load fails here,
+      # with the SQL error, rather than as a cascade of missing-table errors
+      # inside pytest.
+      - name: Load schema/production.sql
+        run: psql -v ON_ERROR_STOP=1 -q -f schema/production.sql
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: test-only-not-a-secret
+          PGDATABASE: vrcverify_test
+
+      - run: pytest
+        env:
+          # 127.0.0.1 spelled out rather than "localhost", because the guard
+          # this passes through parses the host out of this string and both
+          # spellings should keep working -- but only one of them is what the
+          # service is actually published on.
+          VRCVERIFY_TEST_DATABASE_URL: postgresql://postgres:test-only-not-a-secret@127.0.0.1:5432/vrcverify_test
+
+  javascript:
+    name: node --test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      # NO INSTALL STEP, and that is not an omission. status/package.json has
+      # no dependencies on purpose (see status/README.md), the tests use the
+      # standard library's test runner, and the Worker itself ships nothing but
+      # its own source. Adding a lockfile install here would invent a supply
+      # chain this surface does not have.
+      #
+      # These are the tests that matter most for the status page, because
+      # status/src/render.js has no template files: every row of that page is a
+      # JavaScript template string, and these six files are what stands between
+      # an edit and a page that says the wrong thing about whether the product
+      # is working.
+      - run: node --test test/*.test.js
+        working-directory: status

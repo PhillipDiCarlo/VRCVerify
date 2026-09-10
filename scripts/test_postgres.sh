@@ -6,8 +6,14 @@
 # WHY. The default suite runs on SQLite, which cannot reproduce a disagreement
 # about a column's type: it gives VARCHAR columns TEXT affinity, so an integer
 # written into one comes back as a string. #164 shipped through that gap with
-# two regression tests passing over it. Use this before a release, and whenever
-# a change touches a reader or a writer.
+# two regression tests passing over it.
+#
+# CI RUNS THIS MODE ON EVERY PULL REQUEST NOW (#297), as the `postgres` job in
+# .github/workflows/test.yml, so it no longer depends on somebody remembering
+# before a release. This script is still the way to run it HERE: to see a
+# failure without pushing, to pass -k or a path through to pytest, and to
+# reproduce something against a restored copy of real data, which is a thing a
+# runner cannot do and must not.
 #
 # SEEDED FROM THE DUMP, NOT FROM create_all(). A Postgres database built by
 # create_all() has the columns the MODELS describe, which is the half of the
