@@ -27,7 +27,7 @@ updates:
       - dependency-name: "python"
         versions: ["*rc*", "*a*", "*b*"]
 
-  # GitHub Actions used by CI (CodeQL workflow)
+  # GitHub Actions used by CI (the CodeQL and Tests workflows)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
