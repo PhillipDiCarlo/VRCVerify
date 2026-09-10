@@ -2260,10 +2260,65 @@ class TestTheUpgradeOffer:
     """
 
     def test_a_free_server_is_pointed_at_the_subscriptions_page(self, config, store):
+        """#286 moved the offer out of a panel at the top of the page and into
+        the rows it applies to. The destination is unchanged; where the reader
+        meets it is not."""
         test_client, _api = settings_client(config, store)
-        page = settings_page(test_client).data.decode()
-        assert "Upgrade to VRCVerify Premium" in page
+        # The logging group, because that is where the premium row lives. The
+        # offer is no longer on every settings page -- it is on the pages with
+        # something to sell, which is the whole point of moving it.
+        page = settings_page(test_client, group="logging").data.decode()
+        assert '<section class="upgrade">' not in page, (
+            "the panel-inside-a-panel is back at the top of the page"
+        )
+        assert 'class="plan-link"' in page
         assert f"/guild/{GUILD_IN}/subscription" in page
+
+    def test_no_empty_notices_panel_is_drawn(self, config, store):
+        """The regression the move caused, and a screenshot caught.
+
+        `upgrade` was one of the conditions that drew the notices panel, which
+        was right while the call-out lived inside it. Left there afterwards, a
+        free server got an empty grey card at the top of every settings page --
+        a `<section class="panel">` with nothing in it, which nothing failed on
+        and no test was asking about.
+        """
+        test_client, _api = settings_client(config, store)
+        page = settings_page(test_client, group="logging").data.decode()
+        panels = re.findall(r'<section class="panel">(.*?)</section>', page, re.S)
+        for body in panels:
+            assert body.strip(), "an empty notices panel is being drawn"
+
+    def test_a_page_with_nothing_to_sell_carries_no_offer(self, config, store):
+        """The consequence, stated so nobody restores the old panel to "fix" it.
+
+        Verification has no premium row, so a free server reading it sees no
+        pitch at all. That is an improvement rather than a gap: an advert on a
+        page whose every setting is already free is an advert with nothing
+        behind it.
+        """
+        test_client, _api = settings_client(config, store)
+        page = settings_page(test_client, group="verification").data.decode()
+        assert 'class="plan-link"' not in page
+
+    def test_the_offer_sits_beside_the_control_it_unlocks(self, config, store):
+        """The whole point of moving it. A pitch beside the setting it unlocks
+        is answerable where it stands; a pitch at the top of the page is an
+        advert somebody scrolls past to reach their settings.
+
+        So every plan link is inside a `.setting`, and there are as many of
+        them as there are premium rows -- not one for the page.
+        """
+        test_client, _api = settings_client(config, store)
+        page = settings_page(test_client, group="logging").data.decode()
+        rows = re.findall(r'<div class="setting[^"]*">.*?</div>', page, re.S)
+        with_link = [row for row in rows if 'class="plan-link"' in row]
+        assert with_link, "no premium row carries the offer"
+        assert page.count('class="plan-link"') == len(with_link), (
+            "a plan link escaped the rows and is loose on the page"
+        )
+        for row in with_link:
+            assert "Premium only." in row
 
     def test_settings_no_longer_sells_anything_itself(self, config, store):
         """The pitch lives in exactly one place now.
@@ -2296,9 +2351,8 @@ class TestTheUpgradeOffer:
         test_client, _api = settings_client(
             config, store, settings=make_settings(grandfathered=True)
         )
-        page = settings_page(test_client).data.decode()
-        assert "Add VRCVerify Premium" in page
-        assert "grandfathered extras stay free" in page
+        page = settings_page(test_client, group="logging").data.decode()
+        assert "Add Premium" in page
         assert f"/guild/{GUILD_IN}/subscription" in page
 
     def test_no_offer_when_the_tier_is_switched_off(self, config, store):
@@ -9236,24 +9290,37 @@ class TestSettingsRowsAreRows(object):
         ) as handle:
             return handle.read()
 
-    def test_the_two_column_row_is_above_the_breakpoint_only(self):
-        """Two columns on a 390px phone leaves the control about 40% of the
-        width, which is narrower than a select needs for a role name. The rows
-        stay stacked there."""
-        css = self._css()
-        grid = re.search(
-            r"@media \(min-width: 48rem\) \{\s*\.setting \{([^}]*)\}", css
-        )
-        assert grid, "the settings row grid is not behind a min-width query"
-        assert "grid-template-columns" in grid.group(1)
+    def test_the_row_is_never_two_columns_at_any_width(self):
+        """#286 inverted the split, and this is what stops it coming back.
 
-        # And nothing outside that query turns `.setting` into a grid.
-        outside = css[: css.index("@media (min-width: 48rem)")]
-        bare = re.search(r"\n\.setting \{([^}]*)\}", outside)
-        assert bare, "the base .setting rule has gone"
-        assert "display: grid" not in bare.group(1), (
-            "the row is a grid at every width, including a phone"
+        #195 phase 5 made the ROW two columns -- label left, control right --
+        to stop a 148px select sitting alone under its label in a 900px card.
+        It solved that and bought a worse one: the control ended up about
+        500px from the words naming it, and reading a group became a
+        left-right-down zigzag.
+
+        The two columns belong to the SECTION now, so the field column is
+        narrow enough that the original complaint cannot return, and the
+        control sits directly under its own label at every width.
+        """
+        css = re.sub(r"/\*.*?\*/", "", self._css(), flags=re.S)
+        for match in re.finditer(r"(?:^|\n)\s*\.setting\s*\{([^}]*)\}", css):
+            assert "display: grid" not in match.group(1), (
+                "the settings row is a grid again, which is the zigzag"
+            )
+
+    def test_the_section_is_what_holds_two_columns(self):
+        """And behind a query wide enough for a page that also has a sidebar.
+        At 48rem, where the row rule used to sit, the left column would eat
+        what little the fields have."""
+        css = re.sub(r"/\*.*?\*/", "", self._css(), flags=re.S)
+        grid = re.search(
+            r"@media \(min-width: (\d+)rem\) \{\s*\.settings-group \{([^}]*)\}",
+            css,
         )
+        assert grid, "the section grid is not behind a min-width query"
+        assert int(grid.group(1)) >= 60
+        assert "grid-template-columns" in grid.group(2)
 
     def test_the_description_did_not_move_into_the_accessible_name(self):
         """The references put the description in the left column beside the
@@ -9934,11 +10001,14 @@ class TestEveryNoticeLivesInACard(object):
         it has one, wraps the whole element.
 
         A STACK, NOT A DEPTH COUNTER. The first version of this counted only
-        panel opens but every `</section>` close, so `<section class="upgrade">`
-        inside a panel -- which is a section and is not a panel -- decremented a
-        depth it had never incremented, and the two real notices after it in
-        settings.html were reported as bare. Sections that are not panels have
-        to be pushed too, or closing one pops the panel around it.
+        panel opens but every `</section>` close, so a `<section>` that is not
+        a panel -- settings.html carried one, `<section class="upgrade">`,
+        until #286 replaced it with a link per row -- decremented a depth it
+        had never incremented, and the two real notices after it were reported
+        as bare. Sections that are not panels have to be pushed too, or closing
+        one pops the panel around it. The fixture below keeps that shape even
+        though no template ships it today: the scan has to stay right for the
+        next one.
         """
         stack, bad = [], []
         for match in re.finditer(
@@ -10009,9 +10079,13 @@ class TestEveryNoticeLivesInACard(object):
         assert self._offenders(nested) == [6]
 
     def test_a_section_that_is_not_a_panel_does_not_pop_the_panel(self):
-        """settings.html's real shape, and what the first version of this scan
-        got wrong: `<section class="upgrade">` sits inside the panel, and the
-        notices come after it closes. They are still inside the card."""
+        """settings.html's shape until #286, and what the first version of
+        this scan got wrong: a non-panel `<section>` sat inside the panel and
+        the notices came after it closed. They are still inside the card.
+
+        Kept as a fixture rather than deleted with the markup: the bug is in
+        the scan, not in that template, and it returns the moment anybody
+        nests a plain section again."""
         real = (
             '<section class="panel">\n'
             '  <section class="upgrade">\n'

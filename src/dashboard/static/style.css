@@ -2063,18 +2063,21 @@ body.atmospheric > footer { position: relative; z-index: 1; }
 /* The upgrade offer. Bordered rather than filled: it sits above settings an
  * admin came here to change, and a block loud enough to compete with them
  * would be an advertisement on a page they already paid attention to. */
-.upgrade {
-  margin: 1.25rem 0 0;
-  padding: 0.9rem 1rem;
-  background: var(--inset);
-  border-inline-start: 3px solid var(--accent-text);
-  border-radius: var(--radius-control);
-}
+/* `.upgrade` USED TO LIVE HERE: an inset panel with a 3px accent edge, drawn
+ * inside the notices panel at the top of Settings. #286 replaced it with one
+ * link in each row it applies to -- a pitch beside the control it unlocks is
+ * answerable where it stands, and a pitch at the top of the page is an advert
+ * you scroll past to reach your settings.
+ *
+ * Worth knowing that this name was a trap while it existed: the picker's plan
+ * tag was briefly `class="plan-tag upgrade"` and inherited every one of these
+ * declarations, rendering as a dark box with a cyan rule. The classes there
+ * are `plan-paid` / `plan-free` for that reason. */
 
-.upgrade h2 { font-size: 1rem; margin: 0 0 0.4rem; }
-.upgrade p { margin: 0 0 0.5rem; font-size: 0.9375rem; }
-.upgrade p:last-child { margin-bottom: 0; }
-.upgrade a { color: var(--accent-text); }
+/* The link that replaced it. Inline in the row's plan sentence, so it reads as
+ * part of the explanation rather than as a button competing with the control
+ * above it. */
+.plan-link { color: var(--accent-text); white-space: nowrap; }
 
 /* Each settings group is its own card. Whitespace alone did not separate them:
  * the settings *inside* a group are divided by a hairline, so a group boundary
@@ -2109,35 +2112,52 @@ body.atmospheric > footer { position: relative; z-index: 1; }
 
 .setting dd { margin: 0.3rem 0 0; }
 
-/* LABEL LEFT, CONTROL RIGHT (#195 phase 5).
+/* THE SPLIT MOVED UP A LEVEL (#286), AND THIS RULE IS WHY IT HAD TO.
  *
- * Stacked, a 148px <select> sat alone in a 900px card with its label above it
- * and its helper line below, so a settings group read as a column of loosely
- * related fragments rather than a list of rows. Semrush and Time2book both
- * put the name on the left and the control on the right; that is the shape
- * this adopts.
+ * #195 phase 5 put the label left and the control right, PER ROW, to stop a
+ * 148px <select> sitting alone under its label in a 900px card. It solved
+ * that and bought a worse problem: the control ended up ~500px from the words
+ * naming it, and reading a group became a left-right-down zigzag.
  *
- * CSS ONLY, AND DELIBERATELY SO. Moving the description into the <dt> would
- * match the references more closely and would also fold it into every
- * control's accessible name -- `aria-labelledby` points at the <dt>, so a
- * screen reader would announce the whole helper sentence as the field's
- * label. Doing that properly means splitting the label into its own element
- * and adding `aria-describedby` to seven control types. Worth doing; not
- * worth bundling into a layout change, where a mistake is invisible to
- * everyone who can see the page.
+ * So the two columns are now the SECTION's -- heading and explanation on the
+ * left, fields down the right -- and within a row the control sits directly
+ * under its own label again, in a column narrow enough that the original
+ * complaint cannot come back. See `.settings-group` below.
  *
- * Above the breakpoint only. Two columns on a phone would leave the control
- * about 40% of 390px, which is narrower than the select needs for a role name.
- */
-@media (min-width: 48rem) {
-  .setting {
+ * The note #195 left here still stands and is still not done: the description
+ * lives in the <dd>, and moving it into the <dt> would fold it into every
+ * control's accessible name, because `aria-labelledby` points at the <dt>.
+ * Doing it properly means splitting the label into its own element and adding
+ * `aria-describedby` to seven control types. Worth doing; still not worth
+ * bundling into a layout change, where a mistake is invisible to everyone who
+ * can see the page. */
+
+/* Heading and explanation hold the left column; the fields run down the right.
+ *
+ * `.settings-group`, not `.panel.group`: the Overview wears that pair on its
+ * stat panel and its setup checklist, and a two-column rule keyed to it would
+ * reformat two pages this issue is not about.
+ *
+ * 64rem rather than the 48rem the old per-row rule used. This page carries a
+ * sidebar, so at 768px the left column would eat what little the fields have
+ * -- and unlike a label, a section heading loses nothing by sitting above its
+ * fields on a narrow screen. */
+@media (min-width: 64rem) {
+  .settings-group {
     display: grid;
-    grid-template-columns: minmax(0, 16rem) minmax(0, 1fr);
-    gap: 0 var(--space-5);
+    grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+    gap: 0 var(--space-6);
     align-items: start;
   }
-  .setting dd { margin: 0; }
+  /* Everything that is not the heading, including the <form> wrapping the
+     fields and the separate action forms after it. Stated as `> *` with the
+     heading overriding, so a section that grows a fourth child lands in the
+     right column rather than silently in the left one. */
+  .settings-group > * { grid-column: 2; }
+  .settings-group > .group-head { grid-column: 1; grid-row: 1; }
 }
+
+.group-head h2 { margin-top: 0; }
 
 .value {
   margin: 0;
