@@ -1,6 +1,16 @@
 {% extends "base.html" %}
 {% block title %}{% trans %}Pricing · VRCVerify{% endtrans %}{% endblock %}
 
+{# The dot grid and the wave, drawn by base.html -- the apex site's own field,
+   re-rendered rather than screenshotted, which is what the issue asks for and
+   what piece 1 already built for the sign-in page.
+
+   OUTSIDE `{% block %}`, and that is the whole trick. Jinja evaluates a
+   template's top-level `set` before the parent renders, so the parent can see
+   it; the same line inside a block runs while the parent is already drawing
+   its <body>, and the field silently never appears. Cost one screenshot. #}
+{% set atmosphere = true %}
+
 {# WHAT PREMIUM COSTS, FOR SOMEBODY WHO HAS NOT SIGNED IN (#188, restructured
    in #195 phase 3).
 
@@ -29,100 +39,43 @@
 
    NOTHING HERE MAY NAME A GUILD OR AN ADMIN. It is product-level data -- a
    product id and its prices -- served to anybody who asks. #}
+{# The tick, once. Inline SVG rather than a character: the vendored Inter
+   subset carries no U+2713, so a tick glyph falls back to another family and
+   lands at a different weight and baseline -- which reads as a rendering fault
+   rather than a design choice. Same reason the setup list draws its own. #}
+{% macro tick() %}
+  <span class="compare-yes" aria-hidden="true">
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
+         stroke="currentColor" stroke-width="2.2"
+         stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 8.5l3.5 3.5L13 4.5"></path>
+    </svg>
+  </span>
+  <span class="offscreen">{% trans %}Included{% endtrans %}</span>
+{% endmacro %}
+
 {% block content %}
 
 {# THE TITLE IS NOT IN A CARD, and it is the one centered thing in this app.
-   Both are deliberate and both are scoped to this page by `.page-head`.
-
-   Every console reference in #195 puts its page title on the page ground
-   rather than inside a panel, and every pricing reference centers it. This
-   page is the second kind. Overview and Settings must NOT copy this -- a
-   console that centers its headings reads as a brochure. #}
+   Every console reference in #195 puts its page title on the page ground, and
+   every pricing reference centers it. This page is the second kind. Overview
+   and Settings must NOT copy this -- a console that centers its headings reads
+   as a brochure. #}
 <header class="page-head selling">
   <h1>{% trans %}Pricing{% endtrans %}</h1>
   <p>{% trans %}Verification is free, forever. Premium adds the automation around it, per server.{% endtrans %}</p>
 </header>
 
-{# FREE AND PREMIUM AS PEERS, and this markup mirrors the landing page's two
-   cards deliberately -- a visitor arriving from vrcverify.com's "See pricing"
-   button should meet the same comparison, not a different one. The feature
-   lists are the second copy of site/index.html's; that duplication is
-   commented in both files, exactly as the design tokens are.
+{# ONE CARD, NOT FOUR PANELS (#286).
 
-   It is a duplication of a FEATURE LIST. It is never a duplication of a price:
-   every figure on this page comes from the Stripe read below. #}
-<div class="tiers">
-  <div class="plan-card">
-    <h2>{% trans %}Free{% endtrans %}</h2>
-    {# "Free" rather than "$0" -- the same wording the landing page uses, and
-       for the same reason: a price-shaped token here invites a reader to
-       compare it against the cadence figures below, which are for the other
-       tier entirely. #}
-    <p class="plan-price">
-      <span class="plan-amount">{% trans %}Free{% endtrans %}</span>
-      <span class="plan-period">{% trans %}forever{% endtrans %}</span>
-    </p>
-    <p class="plan-blurb">{% trans %}Everything you need to verify your members.{% endtrans %}</p>
-    <ul class="plan-list">
-      <li>{% trans %}Verify members as 18+{% endtrans %}</li>
-      <li>{% trans %}Auto-verify people who verified in another server{% endtrans %}</li>
-      <li>{% trans %}Members can update their own nickname{% endtrans %}</li>
-    </ul>
-    {# THE CARDS CARRY THEIR OWN CTA, which is what every reference in #195
-       does and what fills the space Free would otherwise leave -- three
-       features against Premium's longer list, in a grid that stretches both
-       to the same height. Deliberately not a count: it said "six" and went
-       stale the moment #265 added the seventh and eighth.
-       `margin-top: auto` in the stylesheet pins both buttons to the bottom
-       edge so they line up across the two cards regardless of that gap. #}
-    <a class="button secondary" href="{{ install_url }}" rel="noopener">{% trans %}Add to your server{% endtrans %}</a>
-  </div>
+   This page was a title, two peer cards, a cadence section and a closing CTA.
+   At full width the feature names sat at one end of the screen and the columns
+   at the other, and the page said the same things more than once: the Premium
+   card's button and the closing panel's button were the same offer, and the
+   cadence section repeated the tiers it sat below.
 
-  <div class="plan-card plan-featured">
-    <h2>{% trans %}Premium{% endtrans %}</h2>
-    {# NO FIGURE IN THIS CARD, and it is the one compromise in this layout.
-       The references put a price on every tier card, and this one cannot
-       honestly carry a single number: Premium has three cadences and picking
-       one to headline means either computing a per-month figure -- which this
-       repo forbids, because a second copy of a price is a second thing to be
-       wrong -- or nominating a plan the page has no basis to nominate.
-
-       So the card says what the landing page's card says, and the real
-       figures are in the section immediately below it, which is where the
-       reader is already heading. #}
-    <p class="plan-price">
-      <span class="plan-amount">{% trans %}Per server{% endtrans %}</span>
-      <span class="plan-period">{% trans %}monthly, 6 or 12 months{% endtrans %}</span>
-    </p>
-    <p class="plan-blurb">{% trans %}The automation around verification, for servers that want it.{% endtrans %}</p>
-    <ul class="plan-list">
-      <li>{% trans %}Automatic removal of an unverified role{% endtrans %}</li>
-      <li>{% trans %}Nickname syncing{% endtrans %}</li>
-      <li>{% trans %}A custom post-verification message{% endtrans %}</li>
-      <li>{% trans %}A verification log channel{% endtrans %}</li>
-      <li>{% trans %}Priority in the verification queue{% endtrans %}</li>
-      <li>{% trans %}A branded instructions panel{% endtrans %}</li>
-      <li>{% trans %}A shorter verification cooldown{% endtrans %}</li>
-      <li>{% trans %}VRChat group invites for verified members{% endtrans %}</li>
-    </ul>
-    {# Into the dashboard rather than into Discord: buying happens signed in,
-       where the server is known. The button below the cadence cards says the
-       same thing for a reader who scrolled past this one. #}
-    <a class="button" href="{{ url_for('index') }}">{% trans %}Open the dashboard{% endtrans %}</a>
-  </div>
-</div>
-
-<section class="panel group">
-  {# ONE PRODUCT, THREE CADENCES, SAID BEFORE ANYONE STARTS COMPARING.
-     Reused verbatim from subscription.html rather than reworded: three cards
-     at rising prices is the shape of a tier comparison, and a reader who
-     scans will take the dearest one to unlock the most. It does not unlock
-     anything more. That misreading is likelier here than on the signed-in
-     page, not less -- this audience has never seen the product.
-
-     The heading now says it too, so the claim survives a reader who skips
-     the paragraph. #}
-  <h2>{% trans %}One Premium, three ways to pay for it{% endtrans %}</h2>
+   So: one comparison, in a card narrow enough to read across. #}
+<section class="panel pricing-card">
 
   {% if page.unavailable %}
     {# A FAILED READ IS AN APOLOGY, NEVER "NOTHING IS FOR SALE".
@@ -130,9 +83,9 @@
        who sees an empty list has a working bot in front of them, while a
        stranger concludes the product is abandoned and closes the tab.
 
-       Since #195 the tier cards above render regardless, so a Stripe outage
-       now costs the reader the figures rather than the whole page. #}
-    <p class="blurb">
+       The comparison below renders regardless, so a Stripe outage costs the
+       reader the figures rather than the whole page. #}
+    <p class="notice">
       {% trans %}We can't load prices right now. <strong>Premium is still available.</strong> Try again in a moment, or subscribe inside Discord.{% endtrans %}
     </p>
   {% elif not page.offers_plans %}
@@ -140,79 +93,143 @@
       {% trans %}There are no plans on sale at the moment.{% endtrans %}
     </p>
   {% else %}
-    <p class="blurb">
-      {% trans %}Every plan below unlocks exactly the same features — the only difference is how long you pay for at once, and how much that saves.{% endtrans %}
-    </p>
+    {# THE BILLING TERM, AS THREE LINKS STYLED AS ONE CONTROL.
 
-    <div class="plans">
+       Links rather than a script: the choice lands in the address bar, so it
+       is bookmarkable and the back button undoes it, and the page keeps
+       working with JavaScript off like everything else here. `aria-current`
+       is what tells a screen reader which segment is the live one -- the
+       styling alone says nothing.
+
+       ONE PRODUCT, THREE CADENCES, and the heading says so. Three prices in a
+       row is the shape of a tier comparison, and a reader who scans will take
+       the dearest to unlock the most. It unlocks nothing more. That misreading
+       is likelier here than on the signed-in page, not less: this audience has
+       never seen the product. #}
+    <h2 class="term-heading">{% trans %}One Premium, three ways to pay for it{% endtrans %}</h2>
+    <div class="term-switch" role="group"
+         aria-label="{{ _('Billing term') }}">
       {% for plan in page.plans %}
-        {# `.plan-card`, never a bare `.plan` (#158) -- that collision rendered
-           the price as an italic gray footnote on the page that takes money.
-           Not a <form> here, unlike subscription.html: there is no guild to
-           check out for and no session to carry a CSRF token. Buying happens
-           in the dashboard, signed in, where the server is known. #}
-        <div class="plan-card{% if plan.highlight %} plan-featured{% endif %}">
-          {% if plan.highlight %}
-            <p class="plan-badge">{% trans %}Most popular{% endtrans %}</p>
-          {% endif %}
-          <h3>{{ plan.label }}</h3>
-          {# Omitted entirely when Stripe did not give us one -- never guessed,
-             never zero. Same rule as the subscription page. #}
-          {% if plan.amount %}
-            <p class="plan-price">
-              <span class="plan-amount">{{ plan.amount }}</span>
-              {% if plan.period %}<span class="plan-period">{{ plan.period }}</span>{% endif %}
-            </p>
-          {% endif %}
+        <a class="term{% if chosen and plan.price_id == chosen.price_id %} on{% endif %}"
+           href="{{ url_for('pricing') }}?term={{ plan.price_id | urlencode }}"
+           {% if chosen and plan.price_id == chosen.price_id %}aria-current="true"{% endif %}>
+          <span class="term-label">{{ plan.label }}</span>
+          {# The saving is named IN the control, so the reason to pick a longer
+             term is on the thing you press rather than in a note beside it.
+             It comes from the price's own Stripe metadata -- deliberately
+             hedged ("about"), because this repo does not compute a second copy
+             of a figure it can be wrong about. #}
           {% if plan.saving %}
-            <p class="plan-saving">{{ plan.saving }}</p>
+            <span class="term-saving">{{ plan.saving }}</span>
           {% endif %}
-        </div>
+        </a>
       {% endfor %}
     </div>
 
+    {% if chosen %}
+      <p class="term-price">
+        {# Omitted entirely when Stripe did not give us one -- never guessed,
+           never zero. Same rule as the subscription page. #}
+        {% if chosen.amount %}
+          <span class="term-amount">{{ chosen.amount }}</span>
+          {% if chosen.period %}<span class="term-period">{{ chosen.period }}</span>{% endif %}
+        {% else %}
+          <span class="term-amount muted">{% trans %}Price unavailable{% endtrans %}</span>
+        {% endif %}
+      </p>
+      <p class="blurb muted term-note">
+        {% trans %}Per server. Every term unlocks exactly the same features — the only difference is how long you pay for at once.{% endtrans %}
+      </p>
+    {% endif %}
+  {% endif %}
+
+  {# THE COMPARISON, AS ONE TABLE.
+
+     Two cards could not be compared: a reader had to hold three bullets in
+     mind while reading eight more in the card beside them. A row per
+     capability with a mark in each column is the whole point of a table, and
+     it is the shape every pricing reference this epic looked at uses.
+
+     PREMIUM INCLUDES EVERYTHING FREE DOES, which is why the first three rows
+     are ticked in both columns. Listing them only under Free would say the
+     opposite. #}
+  <table class="compare">
+    <caption class="offscreen">{% trans %}What each plan includes{% endtrans %}</caption>
+    <thead>
+      <tr>
+        <th scope="col">{% trans %}Feature{% endtrans %}</th>
+        <th scope="col">{% trans %}Free{% endtrans %}</th>
+        {# The one recommendation this page makes, and it is made in the
+           column rather than in a sentence. #}
+        <th scope="col" class="compare-premium">{% trans %}Premium{% endtrans %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for feature in [
+           _('Verify members as 18+'),
+           _('Auto-verify people who verified in another server'),
+           _('Members can update their own nickname'),
+         ] %}
+        <tr>
+          <th scope="row">{{ feature }}</th>
+          <td>{{ tick() }}</td>
+          <td class="compare-premium">{{ tick() }}</td>
+        </tr>
+      {% endfor %}
+
+      {# THE GATED SET. `premium-only` is not decoration: tests/test_premium.py
+         counts these rows against the FEATURE_ constants in bot.py, so a
+         capability the code gates and this table does not sell fails the
+         suite. Both surfaces fell two features behind before #265 wrote that
+         check; the class is how it finds them now that the card is a table. #}
+      {% for feature in [
+           _('Automatic removal of an unverified role'),
+           _('Nickname syncing'),
+           _('A custom post-verification message'),
+           _('A verification log channel'),
+           _('Priority in the verification queue'),
+           _('A branded instructions panel'),
+           _('A shorter verification cooldown'),
+           _('VRChat group invites for verified members'),
+         ] %}
+        <tr class="premium-only">
+          <th scope="row">{{ feature }}</th>
+          <td><span class="compare-no" aria-hidden="true">&ndash;</span>
+              <span class="offscreen">{% trans %}Not included{% endtrans %}</span></td>
+          <td class="compare-premium">{{ tick() }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {# ONE CLOSE, NOT TWO. The page carried a "Ready to start?" panel whose
+     button duplicated the Premium card's word for word, under copy describing
+     a different action. Both paths are here instead, side by side, which is
+     what the two columns above have just been comparing. #}
+  <p class="pricing-actions">
+    <a class="button secondary" href="{{ install_url }}" rel="noopener">{% trans %}Add to your server{% endtrans %}</a>
+    <a class="button" href="{{ url_for('index') }}">{% trans %}Open the dashboard{% endtrans %}</a>
+  </p>
+
+  {% if page.mentions_a_trial %}
     {# THE TRIAL, STATED WITHOUT A NUMBER, AND THAT IS DELIBERATE.
        `trial_days_for()` is the one place a plan's trial length meets a
-       server's eligibility, so that a card and the checkout route can never
+       server's eligibility, so a card and the checkout route can never
        disagree about whether somebody's first month is free. This page has no
        server, so it cannot evaluate the second half -- and "14 days free"
        shown to a reader whose server already used its trial is a promise
-       broken at the moment they hand over a card number.
-
-       So: a trial exists, the dashboard says whether yours does. #}
-    {% if page.mentions_a_trial %}
-      <p class="blurb muted">
-        {% trans %}Some plans start with a free trial. Whether a particular server qualifies depends on whether it has had one before — the dashboard tells you before you pay.{% endtrans %}
-      </p>
-    {% endif %}
-
-    {# The same tax sentence as subscription.html, and deliberately the SAME
-       msgid: one string, one translation, one meaning of "excludes tax" across
-       both pages that quote a price. Two near-identical msgids is how the
-       signed-in and signed-out pages end up disagreeing in Japanese. #}
+       broken at the moment they hand over a card number. #}
     <p class="blurb muted">
-      {% trans %}Prices are in US dollars and <strong>exclude tax</strong>; any tax due where you are is added at checkout. Payment is handled by Stripe — card details never reach VRCVerify.{% endtrans %}
+      {% trans %}Some plans start with a free trial. Whether a particular server qualifies depends on whether it has had one before — the dashboard tells you before you pay.{% endtrans %}
     </p>
   {% endif %}
 
+  {# The same tax sentence as subscription.html, and deliberately the SAME
+     msgid: one string, one translation, one meaning of "excludes tax" across
+     both pages that quote a price. Two near-identical msgids is how the
+     signed-in and signed-out pages end up disagreeing in Japanese. #}
   <p class="blurb muted">
-    {% trans %}Premium is bought per server. You can subscribe with a card in the dashboard, or monthly through Discord.{% endtrans %}
-  </p>
-</section>
-
-<section class="panel group">
-  <h2>{% trans %}Ready to start?{% endtrans %}</h2>
-  <p class="blurb">
-    {% trans %}Add VRCVerify to your server and verification works immediately, at no cost. Premium is there when you want it.{% endtrans %}
-  </p>
-  {# The button matches the sentence above it. It said "Open the dashboard"
-     under copy reading "Add VRCVerify to your server", which is a different
-     action -- and it duplicated the Premium card's CTA word for word.
-     This close is for the free path: somebody who has just read that
-     verification costs nothing and wants to try it. The paid path's close is
-     the Premium card, and the cadence cards sit between the two. #}
-  <p>
-    <a class="button" href="{{ install_url }}" rel="noopener">{% trans %}Add to your server{% endtrans %}</a>
+    {% trans %}Prices are in US dollars and <strong>exclude tax</strong>; any tax due where you are is added at checkout. Payment is handled by Stripe — card details never reach VRCVerify.{% endtrans %}
   </p>
 </section>
 

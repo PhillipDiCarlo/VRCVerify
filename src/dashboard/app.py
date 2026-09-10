@@ -1250,6 +1250,15 @@ def _register_routes(app: Flask) -> None:
         return render_template(
             "pricing.html",
             page=page,
+            # WHICH BILLING TERM THE TABLE IS SHOWING. A GET, like the picker's
+            # search: the segmented control is three links, so the choice lands
+            # in the address bar, can be bookmarked, and is undone by the back
+            # button. No script, and no cookie for something nobody needs
+            # remembered.
+            #
+            # `chosen` re-matches the id against the plans just fetched rather
+            # than trusting it -- see PublicPricingPage.chosen.
+            chosen=page.chosen(request.args.get("term")),
             install_url=_invite_url(config.discord_client_id),
         )
 

@@ -3389,48 +3389,149 @@ footer p + p { margin-top: var(--space-2); }
   line-height: var(--leading-body);
 }
 
-/* TWO TIERS, SIDE BY SIDE, AND THEY MUST STAY COMPARABLE.
+/* --- /pricing (#286) ---------------------------------------------------- *
  *
- * A separate grid from `.plans` rather than a reuse of it: that one is
- * `auto-fit minmax(11rem, 1fr)`, which is right for three narrow cadence
- * cards and wrong for two cards carrying a six-item feature list -- auto-fit
- * would let them collapse to 11rem and wrap the features to shreds.
+ * ONE CARD, NARROW, ON THE FIELD. The page was a title, two peer cards, a
+ * cadence section and a closing CTA -- at full width the feature names sat at
+ * one end of the screen and the columns at the other, which is the one thing a
+ * comparison must not do.
  *
- * `1fr 1fr` so the two cards are equal width whatever their content, because
- * the whole job of this block is comparison and a wider card reads as the
- * bigger offer before a word is read. Equal HEIGHT comes from the grid's
- * default `stretch`, which matters because Premium lists six features and
- * Free lists three.
+ * The width is a measure argument, not a taste one: a reader has to carry a
+ * row's label across to its two marks, and the further that is the more often
+ * they land on the wrong row.
  */
-.tiers {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-  margin: 0 0 var(--space-5);
-  align-items: stretch;
-}
-@media (max-width: 44rem) {
-  /* One column before the cards get too narrow to read a feature line in.
-   * Free stays first: the product's strongest claim is that the thing it
-   * exists to do costs nothing, and on a phone the first card is the one
-   * most people see. */
-  .tiers { grid-template-columns: 1fr; }
+.pricing-card {
+  max-width: 38rem;
+  margin-inline: auto;
+  box-shadow: var(--shadow-raised);
 }
 
-/* The tier cards head with an h2, where the cadence cards below head with an
- * h3. Both are `.plan-card`, so the size has to be said once here rather than
- * inherited from whichever heading level the template happened to use. */
-/* Pins both CTAs to the bottom edge so they align across the two cards --
- * Premium lists six features and Free lists three, and a button floating
- * mid-card next to one sitting at the foot reads as an accident. */
-.tiers .plan-card .button { margin-top: auto; align-self: stretch; }
-
-.tiers .plan-card h2 {
-  margin: 0;
+.term-heading {
+  margin: 0 0 var(--space-3);
   font-size: var(--text-section);
+}
+
+/* THE SEGMENTED CONTROL IS THREE LINKS. No script, so the choice lands in the
+ * address bar and the back button undoes it -- and it works with JavaScript
+ * off, like everything else here. */
+.term-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  background: var(--inset);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius-control);
+}
+
+.term {
+  flex: 1 1 7rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: var(--space-2) var(--space-3);
+  border-radius: calc(var(--radius-control) - 2px);
+  color: var(--ink);
+  text-decoration: none;
+  text-align: center;
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+.term:hover { background: var(--hover); }
+
+/* The chosen segment. A FILL PLUS A WEIGHT, never colour alone: `aria-current`
+ * carries it for a screen reader, and a segment that differed only in hue
+ * would say nothing in grayscale. */
+.term.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.term.on:hover { background: var(--accent-hover); }
+
+.term-saving {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent-text);
+}
+/* On the filled segment the saving cannot keep --accent-text: that is the
+ * accent against a card, and here it would be the accent against itself. */
+.term.on .term-saving { color: var(--accent-ink); opacity: 0.85; }
+
+.term-price {
+  margin: var(--space-4) 0 var(--space-1);
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.term-amount {
+  /* --text-hero, the tile figure size: this is the one number on the page
+   * and it should read as one. --text-display is the page title, and a price
+   * at that size would out-shout the heading above it. */
+  font-size: var(--text-hero);
+  font-weight: 700;
+  color: var(--ink-strong);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.term-period { font-size: var(--text-note); color: var(--muted); }
+.term-note { margin: 0 0 var(--space-5); }
+
+/* --- the comparison table --- */
+.compare {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-5) 0 0;
+  font-size: var(--text-body);
+}
+.compare th,
+.compare td {
+  padding: var(--space-3) var(--space-2);
+  border-top: 1px solid var(--line-soft);
+  text-align: start;
+  vertical-align: baseline;
+}
+.compare thead th {
+  border-top: 0;
+  padding-top: 0;
+  font-size: var(--text-note);
   font-weight: 600;
   color: var(--muted);
 }
+.compare tbody th {
+  font-weight: 400;
+  color: var(--ink);
+}
+.compare thead th:not(:first-child),
+.compare tbody td { text-align: center; width: 5.5rem; }
+
+/* THE ONE RECOMMENDATION THIS PAGE MAKES, and it is made in the column rather
+ * than in a sentence.
+ *
+ * 5% of the accent, mixed rather than a token: a fourth surface colour that
+ * exists on one table is a token to keep in step for no reason. color-mix is
+ * dropped whole where it is unsupported, which loses the tint and keeps the
+ * edge -- the column is still marked, just not shaded. */
+.compare-premium { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.compare thead th.compare-premium {
+  color: var(--accent-text);
+  border-top: 2px solid var(--accent-text);
+  padding-top: var(--space-2);
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
+}
+
+.compare-yes { color: var(--accent-text); display: inline-flex; }
+.compare-no { color: var(--faint); }
+
+.pricing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: var(--space-5) 0 var(--space-4);
+}
+.pricing-actions .button { flex: 1 1 12rem; justify-content: center; }
 
 .plans {
   display: grid;
@@ -3564,36 +3665,6 @@ footer p + p { margin-top: var(--space-2); }
   color: var(--accent-text);
 }
 
-
-/* THE FEATURE LISTS ON /pricing (#188).
- * Deliberately the same shape and the same class name as `.plan-list` in
- * site/style.css, so the apex site's plan cards and this page read as one
- * product. The two files cannot share anything -- different origin, different
- * deploy -- so this comment is half the pair that says so. Change one, change
- * the other.
- *
- * The tick's empty alt string keeps it out of the accessibility tree; a
- * screen reader should read the feature, not "check mark" six times. Behind
- * @supports because that content syntax is recent, and where it is
- * unsupported the whole declaration would be dropped and the ticks would
- * vanish -- which is worse than announcing them. */
-.plan-list { list-style: none; margin: var(--space-3) 0 var(--space-4); padding: 0; }
-.plan-list li {
-  position: relative;
-  padding-inline-start: 1.5rem;
-  margin: var(--space-2) 0;
-  color: var(--ink);
-}
-.plan-list li::before {
-  content: "\2713";
-  position: absolute;
-  inset-inline-start: 0;
-  color: var(--accent-text);
-  font-weight: 700;
-}
-@supports (content: "x" / "y") {
-  .plan-list li::before { content: "\2713" / ""; }
-}
 
 .plan-card .button { margin-top: auto; align-self: stretch; }
 

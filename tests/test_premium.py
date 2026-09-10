@@ -1184,26 +1184,29 @@ class TestPricingPagesListEveryFeature:
 
     @staticmethod
     def premium_bullets(path):
-        """The `<li>`s inside the Premium card's feature list.
+        """The gated capabilities the page sells.
 
-        Whitespace is collapsed and the `{% trans %}` wrapper stripped, so a
-        bullet that gets rewrapped across two lines -- which both files do at
-        about 75 columns -- reads the same as one that fits on a single line.
-        Without that, reflowing a paragraph fails this for no real reason, and
-        a test that cries wolf is one somebody eventually deletes.
+        THE CARD BECAME A TABLE IN #286, and this reads the rows Premium has
+        and Free does not -- `tr.premium-only` -- where it used to read the
+        `<li>`s of the Premium card's list. The guarantee is unchanged and is
+        the reason this is worth rewriting rather than deleting: a capability
+        the code gates and this page does not sell is one nobody can be charged
+        for knowingly.
+
+        The free rows are deliberately NOT counted. They are ticked in both
+        columns, because Premium includes everything Free does, and counting
+        them would make the total eleven against a gate that stands at eight.
+
+        Whitespace is collapsed and the `_()` wrapper stripped, so an entry
+        that gets rewrapped across two lines reads the same as one that fits on
+        a single line. Without that, reflowing a list fails this for no real
+        reason, and a test that cries wolf is one somebody eventually deletes.
         """
         text = (ROOT / path).read_text(encoding="utf-8")
-        start = text.index("plan-card plan-featured")
-        block = text[start:text.index("</ul>", start)]
-        # The list opens after the price and blurb; everything before it is
-        # not a feature.
-        block = block[block.index('class="plan-list"'):]
-        bullets = re.findall(r"<li>(.*?)</li>", block, re.S)
-        return [
-            re.sub(r"\s+", " ",
-                   re.sub(r"{%-?\s*(?:end)?trans\s*-?%}", "", b)).strip()
-            for b in bullets
-        ]
+        start = text.index('<tr class="premium-only">')
+        block = text[text.rindex("{% for", 0, start):text.index("</tbody>", start)]
+        entries = re.findall(r"_\((['\"])(.*?)\1\)", block, re.S)
+        return [re.sub(r"\s+", " ", entry).strip() for _quote, entry in entries]
 
     @pytest.mark.parametrize("path", PAGES)
     def test_the_card_lists_every_feature_the_code_gates(self, path):
