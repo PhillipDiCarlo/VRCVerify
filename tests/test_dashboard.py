@@ -5570,15 +5570,22 @@ class TestTheSignInCard(object):
         assert mark and 'aria-hidden="true"' in mark.group(0)
         assert "style=" not in mark.group(0)
 
-    def test_the_logo_is_local_and_carries_a_digest(self, client):
-        """`img-src` is 'self' plus Discord's CDN, so it has to be served from
-        here -- and through asset(), or a deploy leaves a year-cached stale
-        copy behind."""
+    def test_the_mark_is_inline_and_fetches_nothing(self, client):
+        """It used to be a PNG under /static, asserted to be local and
+        digested because `img-src` is 'self' plus Discord's CDN and a logo from
+        anywhere else would need the CSP widened.
+
+        Inline since #288, which satisfies that rule by having no request to
+        make. What is left to check is that it stayed that way: an <img> here
+        would be a fetch on the page whose whole job is to be fast and
+        trustworthy before anybody has signed in.
+        """
         page = client.get("/").data.decode()
-        src = re.search(r'<img class="signin-mark" src="([^"]+)"', page)
-        assert src, "no logo on the sign-in card"
-        assert src.group(1).startswith("/static/")
-        assert "?v=" in src.group(1)
+        mark = re.search(r"<svg class=\"brand-mark signin-mark\"[^>]*>", page)
+        assert mark, "no mark on the sign-in card"
+        assert "<img" not in page[page.index(mark.group(0)) - 200 :][:600], (
+            "the sign-in mark is being fetched rather than drawn"
+        )
 
     def test_the_terms_are_reachable_from_the_page_that_asks_you_to_agree(
         self, client
@@ -7366,56 +7373,66 @@ class TestTheHeaderBar:
 
     # --- the logo ---
 
-    def test_the_logo_is_served_from_our_own_static_files(self, client):
-        """`img-src` is 'self' plus Discord's CDN. A logo from anywhere else
-        would need the CSP widened, which is not a trade worth making for a
-        picture."""
+    def test_the_mark_is_drawn_rather_than_fetched(self, client):
+        """`img-src` is 'self' plus Discord's CDN, and a logo from anywhere
+        else would need the CSP widened for a picture. Inline since #288, so
+        there is no origin involved at all -- and no <img> to regress to."""
         page = client.get("/").data.decode()
-        mark = re.search(r"<img[^>]*brand-mark[^>]*>", page).group(0)
-        assert 'src="/static/logo.png?v=' in mark
+        mark = re.search(r"<svg[^>]*brand-mark[^>]*>", page)
+        assert mark, "no mark in the header"
+        assert "logo.png" not in page
 
-    def test_the_logo_is_marked_decorative(self, client):
+    def test_the_mark_is_marked_decorative(self, client):
         """The word "VRCVerify" sits beside it saying the same thing. A screen
         reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
-        that just says where it goes."""
-        page = client.get("/").data.decode()
-        mark = re.search(r"<img[^>]*brand-mark[^>]*>", page).group(0)
-        assert 'alt=""' in mark
-        assert "VRCVerify" in page[page.index(mark) : page.index(mark) + 400]
+        that just says where it goes.
 
-    def test_the_logo_declares_its_intrinsic_size(self, client):
-        """Without these the wordmark jumps sideways when the image lands.
-        They are the file's real dimensions, not its rendered ones -- the
-        browser wants the ratio, the stylesheet sets the height."""
+        `aria-hidden` now rather than `alt=""`, which is the same claim made
+        the way an inline SVG makes it. `focusable="false"` goes with it: older
+        engines put SVGs in the tab order, which would give the header a stop
+        that does nothing.
+        """
+        page = client.get("/").data.decode()
+        mark = re.search(r"<svg[^>]*brand-mark[^>]*>", page).group(0)
+        assert 'aria-hidden="true"' in mark
+        assert 'focusable="false"' in mark
+        assert "VRCVerify" in page[page.index(mark) : page.index(mark) + 2400]
+
+    def test_the_mark_carries_its_own_aspect_ratio(self, client):
+        """The PNG declared width and height so the wordmark did not jump
+        sideways when the image landed. An inline SVG cannot land late, but it
+        still needs the ratio, or `height` with `width: auto` has nothing to
+        compute a width from and the plaque draws square."""
+        page = client.get("/").data.decode()
+        mark = re.search(r"<svg[^>]*brand-mark[^>]*>", page).group(0)
+        assert 'viewBox="0 0 32 24"' in mark
+
+    def test_the_dark_theme_recolors_the_mark_rather_than_swapping_it(self):
+        """One drawing, recoloured. The alternative is a second asset and a
+        standing obligation to keep two of them in step forever.
+
+        It used to be a monochrome PNG with `invert(1)` thrown at it, which
+        works for exactly one kind of artwork. The mark is now filled with
+        `currentColor`, so the recolouring is a single `color` declaration and
+        the theme reaches it the same way it reaches text. A hex typed into the
+        path would be a colour the theme cannot see -- the exact trap the
+        filter existed to work around.
+        """
         import dashboard
 
-        page = client.get("/").data.decode()
-        mark = re.search(r"<img[^>]*brand-mark[^>]*>", page).group(0)
-        declared = (
-            int(re.search(r'width="(\d+)"', mark).group(1)),
-            int(re.search(r'height="(\d+)"', mark).group(1)),
-        )
-        path = os.path.join(
-            os.path.dirname(dashboard.__file__), "static", "logo.png"
-        )
-        with open(path, "rb") as handle:
-            header = handle.read(24)
-        assert struct.unpack(">II", header[16:24]) == declared
-
-    def test_the_dark_theme_recolors_the_logo_rather_than_swapping_it(self):
-        """One file, inverted. The alternative is a second PNG and a standing
-        obligation to keep two images in step forever."""
-        import dashboard
+        static = os.path.dirname(dashboard.__file__)
+        with open(os.path.join(static, "static", "style.css"), encoding="utf-8") as fh:
+            css = fh.read()
+        assert "--logo-filter" not in css, "the filter has no mark left to filter"
+        rule = re.search(r"\.brand-mark\s*\{[^}]*\}", css)
+        assert rule and "color: var(--accent-text)" in rule.group(0)
 
         with open(
-            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
-            encoding="utf-8",
-        ) as handle:
-            css = handle.read()
-        assert "--logo-filter: none;" in css
-        assert "--dark-logo-filter: invert(1);" in css
-        # Once per dark selector: the explicit one and the OS one.
-        assert css.count("--logo-filter: var(--dark-logo-filter);") == 2
+            os.path.join(static, "templates", "_mark.html"), encoding="utf-8"
+        ) as fh:
+            markup = fh.read()
+        assert 'fill="currentColor"' in markup
+        assert not re.search(r'fill="#', markup), "a hex the theme cannot reach"
 
     def test_every_dark_value_is_mapped_by_both_dark_selectors(self):
         """The gap that let #286 nearly ship a token wired up only halfway.

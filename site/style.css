@@ -598,6 +598,13 @@ header.site .wrap {
   padding-bottom: var(--space-2);
 }
 header.site a.brand {
+  /* Flex since #288, because the brand is a mark plus a word rather than a
+     word. `align-items: center` and not baseline: the mark has no baseline to
+     share, and centring the plaque on the word is what makes the two read as
+     one object. */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-weight: 700;
   font-size: 1.05rem;
   color: var(--ink-strong);
@@ -615,6 +622,22 @@ header.site a.brand {
    costs 8px across the nav's two gaps, which at 375px is exactly enough to
    wrap the header onto a third row and strand the theme picker on a line of
    its own. Measured, after doing it. */
+/* THE MARK. Sized by height, because it is wider than it is tall and matching
+   its height to the word is what makes the pair a lockup rather than a picture
+   standing beside some text. The viewBox carries the ratio, so nothing reflows
+   and there is no image to arrive late.
+
+   Its entire theme story is the colour: the path is filled with
+   `currentColor`, and --accent-text is bright cyan on dark and deep cyan on
+   light, both already measured. The digits are never painted at all -- they
+   are the page showing through -- so they follow the surface for free. */
+header.site .brand-mark {
+  height: 1.375rem;
+  width: auto;
+  flex: 0 0 auto;
+  color: var(--accent-text);
+}
+
 header.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; }
 header.site nav a { color: var(--muted); text-decoration: none; font-size: 0.94rem; }
 header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); text-decoration: underline; }

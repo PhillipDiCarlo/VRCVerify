@@ -205,11 +205,6 @@
   --notice-bg: #fdf3e0;
   --notice-line: #f0c98a;
 
-  /* The logo is one flat black-and-white mark and ships as one file. The dark
-   * theme recolors it rather than loading a second image -- see
-   * --dark-logo-filter for why that is not laziness. */
-  --logo-filter: none;
-
   /* THE TOGGLE SWITCH, which has to clear 3:1 TWICE.
    *
    * A switch is a UI component, so its track must be distinguishable from the
@@ -399,7 +394,6 @@
    * Decided by compositing the actual file over --dark-chrome both ways and
    * looking at the two, not by reasoning about it. A second PNG would be the
    * other answer and would mean two files to keep in step forever. */
-  --dark-logo-filter: invert(1);
 
   /* THE KNOB IS THE INK. One value, drawn on the accent, everywhere.
    *
@@ -472,7 +466,6 @@
   --notice-bg: var(--dark-notice-bg);
   --notice-line: var(--dark-notice-line);
 
-  --logo-filter: var(--dark-logo-filter);
   --switch-knob: var(--dark-switch-knob);
   --control-line: var(--dark-control-line);
   --field-dot: var(--dark-field-dot);
@@ -514,7 +507,6 @@
     --notice-bg: var(--dark-notice-bg);
     --notice-line: var(--dark-notice-line);
 
-    --logo-filter: var(--dark-logo-filter);
     --switch-knob: var(--dark-switch-knob);
     --control-line: var(--dark-control-line);
     --field-dot: var(--dark-field-dot);
@@ -801,17 +793,25 @@ p { text-wrap: pretty; }
   margin-inline-end: auto;
 }
 
-/* Sized by height, not width: the mark is wider than it is tall, and matching
- * its height to the word beside it is what makes the two read as one lockup
- * instead of a picture standing next to some text. `width: auto` with the
- * intrinsic size on the element keeps the aspect ratio and reserves the right
- * box before the image arrives, so the wordmark does not jump sideways.
- *
- * The filter is the whole dark-theme story for this image; see --logo-filter. */
+/* THE MARK. Sized by height, not width: it is wider than it is tall, and
+   matching its height to the word beside it is what makes the two read as one
+   lockup instead of a picture standing next to some text. The viewBox carries
+   the ratio, so nothing reflows and there is no image to arrive late.
+
+   Its whole theme story is one line.
+
+   It used to be a monochrome PNG with `invert(1)` thrown at it for dark, which
+   is a technique that works for exactly one kind of artwork and forecloses the
+   mark ever having a colour. Inlined (#288), it is one path filled with
+   `currentColor`, so the colour below is the entire arrangement: deep cyan on
+   light, bright cyan on dark, both already measured as --accent-text.
+
+   The digits are not painted at all -- they are the page showing through the
+   path -- so they follow the surface for free and there is no second token. */
 .brand-mark {
   height: 1.375rem;
   width: auto;
-  filter: var(--logo-filter);
+  color: var(--accent-text);
 }
 
 /* The right-hand cluster, and the reserved slot. #136 adds its bell as one
@@ -2134,16 +2134,13 @@ body.atmospheric > footer { position: relative; z-index: 1; }
   box-shadow: var(--shadow-raised);
 }
 
-/* 48px drawn from a 128px file, so it is still crisp at 2x without a second
- * asset. The mark alone, not the lockup -- the <h1> below already says the
- * name. Same --logo-filter as the header's mark: it is the whole dark-theme
- * story for this image. */
+/* The same mark, larger, on the page that has to earn the sign-in. A size and
+ * a margin and nothing else: `.brand-mark` above already gave it its colour,
+ * and this element carries both classes. */
 .signin-mark {
   display: block;
   height: 3rem;
-  width: auto;
   margin: 0 auto var(--space-4);
-  filter: var(--logo-filter);
 }
 
 .signin h1 { font-size: 1.5rem; margin: 0 0 var(--space-2); }

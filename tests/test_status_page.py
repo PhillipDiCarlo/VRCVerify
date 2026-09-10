@@ -75,6 +75,70 @@ class TestTheCopiedStylesheet:
         assert "site/style.css" in status
         assert "src/dashboard/static/style.css" in status
 
+    def test_the_mark_is_the_same_drawing_everywhere(self):
+        """One logo, three surfaces, three copies of the path that draws it.
+
+        THE DUPLICATION IS THE SAME BARGAIN THE TOKENS MAKE, for the same
+        reason: each surface has to keep working when the others are down, so
+        none of them may fetch the mark from another. The apex is an
+        assets-only Worker, the status page is a Worker rendering strings, the
+        dashboard is Flask -- there is no shared build step and #243 says a new
+        one must not put a runtime dependency on anything external.
+
+        So the mark is pasted, and this is what stops the three from becoming
+        three logos. It compares the `d` attribute itself rather than the file
+        around it, because the wrapper differs by necessity: Jinja on one, six
+        static HTML files on another, a JavaScript template string on the
+        third. The drawing is the part that has to agree.
+        """
+        pattern = re.compile(r'fill-rule="evenodd" d="([^"]+)"')
+        copies = {}
+        for label, path in (
+            ("dashboard", ROOT / "src" / "dashboard" / "templates" / "_mark.html"),
+            ("status", ROOT / "status" / "src" / "render.js"),
+            ("apex", ROOT / "site" / "index.html"),
+        ):
+            found = pattern.findall(path.read_text(encoding="utf-8"))
+            assert found, f"{label} has no mark path in {path.name}"
+            copies[label] = found[0]
+
+        assert len(set(copies.values())) == 1, (
+            "the mark has drifted between surfaces: "
+            + ", ".join(f"{k} {len(v)} chars" for k, v in copies.items())
+        )
+
+    def test_every_apex_page_carries_the_same_mark(self):
+        """The header is byte-identical across the six pages and the mark is
+        part of it. test_site.py compares the whole header; this one names the
+        mark specifically, so a failure says which thing broke."""
+        pattern = re.compile(r'fill-rule="evenodd" d="([^"]+)"')
+        marks = {}
+        for page in sorted((ROOT / "site").glob("*.html")):
+            found = pattern.findall(page.read_text(encoding="utf-8"))
+            assert found, f"{page.name} has no mark in its header"
+            marks[page.name] = found[0]
+        assert len(set(marks.values())) == 1, f"apex pages disagree: {sorted(marks)}"
+
+    def test_the_mark_is_one_colour_and_takes_it_from_the_stylesheet(self):
+        """`currentColor` is the whole reason this mark needs no second token.
+
+        A hex typed into the path would be a fourth copy of a colour, on the
+        one element that appears on every page of all three surfaces, and it
+        would be invisible to the theme -- which is exactly the trap the PNG
+        it replaces fell into and answered with `invert(1)`.
+        """
+        for path in (
+            ROOT / "src" / "dashboard" / "templates" / "_mark.html",
+            ROOT / "status" / "src" / "render.js",
+            *sorted((ROOT / "site").glob("*.html")),
+        ):
+            text = path.read_text(encoding="utf-8")
+            for match in re.finditer(r'<path fill="([^"]+)" fill-rule="evenodd"', text):
+                assert match.group(1) == "currentColor", (
+                    f"{path.name} paints the mark {match.group(1)!r} rather than "
+                    "taking it from the stylesheet"
+                )
+
     def test_the_theme_toggle_is_the_same_script(self):
         """Byte for byte below its header, so the two sites cannot toggle differently."""
         site = SITE_THEME.read_text(encoding="utf-8")
