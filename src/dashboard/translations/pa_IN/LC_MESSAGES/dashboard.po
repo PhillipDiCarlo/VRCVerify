@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-09 01:26-0400\n"
+"POT-Creation-Date: 2026-09-10 01:48-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pa_Guru_IN\n"
@@ -241,6 +241,25 @@ msgstr "Premium"
 msgid "New"
 msgstr "ਨਵਾਂ"
 
+# | msgid "Open the dashboard"
+msgid "A new look for the dashboard"
+msgstr "ਡੈਸ਼ਬੋਰਡ ਦੀ ਨਵੀਂ ਦਿੱਖ"
+
+msgid ""
+"Your server list is now a grid of tiles you can search, pin and open with"
+" a single click anywhere on the card, and each one says whether that "
+"server is on Premium. Setup has moved to the top of a server's Overview "
+"with a progress bar, and retires itself once everything required is done."
+" Settings puts each control directly under its own label, and the pricing"
+" page is one comparison you can read across."
+msgstr ""
+"ਤੁਹਾਡੀ ਸਰਵਰ ਸੂਚੀ ਹੁਣ ਟਾਈਲਾਂ ਦੀ ਇੱਕ ਗਰਿੱਡ ਹੈ ਜਿਸ ਵਿੱਚ ਤੁਸੀਂ ਲੱਭ ਸਕਦੇ ਹੋ, "
+"ਪਿੰਨ ਕਰ ਸਕਦੇ ਹੋ ਅਤੇ ਕਾਰਡ ਉੱਤੇ ਕਿਤੇ ਵੀ ਇੱਕ ਕਲਿੱਕ ਨਾਲ ਖੋਲ੍ਹ ਸਕਦੇ ਹੋ, ਅਤੇ ਹਰ"
+" ਟਾਈਲ ਦੱਸਦੀ ਹੈ ਕਿ ਉਹ ਸਰਵਰ Premium ਉੱਤੇ ਹੈ ਜਾਂ ਨਹੀਂ। ਸੈੱਟਅੱਪ ਹੁਣ ਸਰਵਰ ਦੀ "
+"ਸੰਖੇਪ ਜਾਣਕਾਰੀ ਦੇ ਸਿਖਰ ਉੱਤੇ ਹੈ, ਤਰੱਕੀ ਪੱਟੀ ਨਾਲ, ਅਤੇ ਸਾਰੇ ਲੋੜੀਂਦੇ ਕਦਮ ਪੂਰੇ "
+"ਹੋਣ ਉੱਤੇ ਆਪਣੇ ਆਪ ਹਟ ਜਾਂਦਾ ਹੈ। ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਹਰ ਕੰਟਰੋਲ ਸਿੱਧਾ ਆਪਣੇ ਲੇਬਲ ਦੇ "
+"ਹੇਠਾਂ ਹੈ, ਅਤੇ ਕੀਮਤਾਂ ਵਾਲਾ ਪੰਨਾ ਇੱਕੋ ਤੁਲਨਾ ਹੈ ਜੋ ਆਰ-ਪਾਰ ਪੜ੍ਹੀ ਜਾ ਸਕਦੀ ਹੈ।"
+
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
 msgstr "ਤੁਹਾਡੇ ਹਦਾਇਤਾਂ ਪੈਨਲ ਉੱਤੇ ਵੈੱਬਸਾਈਟ ਲਿੰਕ"
@@ -434,8 +453,9 @@ msgstr "ਚੋਣਵਾਂ। ਕਿਸੇ ਦੇ ਤਸਦੀਕ ਹੁੰਦ�
 msgid "Verification log"
 msgstr "ਤਸਦੀਕ ਲਾਗ"
 
-msgid "Optional. Premium."
-msgstr "ਚੋਣਵਾਂ। Premium।"
+# | msgid "Optional. Premium."
+msgid "Optional."
+msgstr "ਵਿਕਲਪਿਕ।"
 
 # | msgid "Sections"
 # | msgid "Settings"
@@ -482,22 +502,6 @@ msgstr "VRCVerify ਹੁਣ ਉੱਥੇ ਪੋਸਟ ਨਹੀਂ ਕਰ ਸਕ
 
 msgid "Posted, and VRCVerify can still reach it."
 msgstr "ਪੋਸਟ ਹੈ, ਅਤੇ VRCVerify ਹਾਲੇ ਵੀ ਇਸ ਤੱਕ ਪਹੁੰਚ ਸਕਦਾ ਹੈ।"
-
-msgid "No verified role is set"
-msgstr "ਕੋਈ ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਸੈੱਟ ਨਹੀਂ ਹੈ"
-
-msgid "The verified role needs attention"
-msgstr "ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਵੱਲ ਧਿਆਨ ਦੇਣ ਦੀ ਲੋੜ ਹੈ"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "No instructions panel is posted"
-msgstr "ਕੋਈ ਹਦਾਇਤ ਪੈਨਲ ਪੋਸਟ ਨਹੀਂ ਹੈ"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "The instructions panel needs attention"
-msgstr "ਹਦਾਇਤ ਪੈਨਲ ਵੱਲ ਧਿਆਨ ਦੇਣ ਦੀ ਲੋੜ ਹੈ"
 
 #, python-format
 msgid ""
@@ -1282,6 +1286,36 @@ msgstr ""
 "<code>/vrcverify_settings</code> ਵਿਖਾਉਂਦਾ ਹੈ ਕਿ ਕੀ ਸੰਭਾਲਿਆ ਹੋਇਆ ਹੈ। ਬਾਕੀ "
 "ਸਭ ਕੁਝ ਇੱਥੇ ਹੀ ਬਦਲਿਆ ਜਾਂਦਾ ਹੈ।"
 
+msgid "Finish setting up"
+msgstr "ਸੈੱਟਅੱਪ ਪੂਰਾ ਕਰੋ"
+
+#, python-format
+msgid ""
+"What still needs doing before this server can verify anyone, and whether "
+"what's already set is still working. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+"ਇਸ ਸਰਵਰ ਉੱਤੇ ਕਿਸੇ ਨੂੰ ਤਸਦੀਕ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਕੀ ਬਾਕੀ ਹੈ, ਅਤੇ ਜੋ ਪਹਿਲਾਂ ਹੀ "
+"ਸੈੱਟ ਹੈ ਉਹ ਹਾਲੇ ਵੀ ਕੰਮ ਕਰ ਰਿਹਾ ਹੈ ਜਾਂ ਨਹੀਂ। ਇਹ ਸਭ <a "
+"href=\"%(settings_url)s\">ਸੈਟਿੰਗਾਂ</a> ਵਿੱਚ ਬਦਲਿਆ ਜਾ ਸਕਦਾ ਹੈ।"
+
+#, python-format
+msgid "%(done)s of %(total)s done"
+msgstr "%(total)s ਵਿੱਚੋਂ %(done)s ਪੂਰੇ"
+
+#, python-format
+msgid "%(done)s of %(total)s required steps done"
+msgstr "%(total)s ਲੋੜੀਂਦੇ ਕਦਮਾਂ ਵਿੱਚੋਂ %(done)s ਪੂਰੇ"
+
+msgid "set"
+msgstr "ਸੈੱਟ ਹੈ"
+
+msgid "needs attention"
+msgstr "ਧਿਆਨ ਚਾਹੀਦਾ ਹੈ"
+
+msgid "off, optional"
+msgstr "ਬੰਦ, ਵਿਕਲਪਿਕ"
+
 msgid "See plans and subscribe"
 msgstr "ਪਲਾਨ ਵੇਖੋ ਅਤੇ ਸਬਸਕ੍ਰਾਈਬ ਕਰੋ"
 
@@ -1329,32 +1363,19 @@ msgstr "ਮਾਪਿਆ ਨਹੀਂ"
 msgid "Couldn't load the daily trend just now."
 msgstr "ਰੋਜ਼ਾਨਾ ਰੁਝਾਨ ਇਸ ਵੇਲੇ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।"
 
-msgid "Setup"
-msgstr "ਸੈੱਟਅੱਪ"
-
-#, python-format
-msgid ""
-"What's configured here, and whether it's actually working -- one list "
-"instead of two, since \"switched on\" and \"still works\" used to be "
-"answered in different places on this page. Change any of it on <a "
-"href=\"%(settings_url)s\">Settings</a>."
-msgstr ""
-"ਇੱਥੇ ਕੀ ਸੈੱਟ ਹੈ, ਅਤੇ ਕੀ ਉਹ ਸੱਚਮੁੱਚ ਕੰਮ ਕਰ ਰਿਹਾ ਹੈ -- ਦੋ ਦੀ ਥਾਂ ਇੱਕ ਸੂਚੀ, "
-"ਕਿਉਂਕਿ ਪਹਿਲਾਂ “ਚਾਲੂ ਹੈ” ਅਤੇ “ਹਾਲੇ ਵੀ ਕੰਮ ਕਰਦਾ ਹੈ” ਇਸ ਪੰਨੇ ਉੱਤੇ ਵੱਖ-ਵੱਖ "
-"ਥਾਵਾਂ 'ਤੇ ਦੱਸੇ ਜਾਂਦੇ ਸਨ। ਇਹਨਾਂ ਵਿੱਚੋਂ ਕੁਝ ਵੀ ਤੁਸੀਂ <a "
-"href=\"%(settings_url)s\">ਸੈਟਿੰਗਾਂ</a> ਵਿੱਚ ਬਦਲ ਸਕਦੇ ਹੋ।"
-
-msgid "Setup complete — verification is fully working here."
-msgstr "ਸੈੱਟਅੱਪ ਪੂਰਾ — ਇੱਥੇ ਤਸਦੀਕ ਪੂਰੀ ਤਰ੍ਹਾਂ ਕੰਮ ਕਰ ਰਹੀ ਹੈ।"
-
-msgid "set"
-msgstr "ਸੈੱਟ ਹੈ"
-
-msgid "needs attention"
-msgstr "ਧਿਆਨ ਚਾਹੀਦਾ ਹੈ"
-
 msgid "Your servers — VRCVerify"
 msgstr "ਤੁਹਾਡੇ ਸਰਵਰ — VRCVerify"
+
+#, python-format
+msgid "Pin %(name)s"
+msgstr "%(name)s ਪਿੰਨ ਕਰੋ"
+
+msgid "Upgrade"
+msgstr "ਅੱਪਗਰੇਡ"
+
+# | msgid "Add to your server"
+msgid "Add to server"
+msgstr "ਸਰਵਰ ਵਿੱਚ ਜੋੜੋ"
 
 # | msgid "Add to your server"
 msgid "Your servers"
@@ -1367,6 +1388,31 @@ msgstr ""
 "ਬੌਟ ਨਾਲ ਇਸ ਵੇਲੇ ਸੰਪਰਕ ਨਹੀਂ ਹੋ ਰਿਹਾ, ਇਸ ਲਈ ਅਸੀਂ ਨਹੀਂ ਦੱਸ ਸਕਦੇ ਕਿ ਇਹਨਾਂ "
 "ਵਿੱਚੋਂ ਕਿਹੜਿਆਂ ਵਿੱਚ ਉਹ ਹੈ। ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਸੁਰੱਖਿਅਤ ਹਨ — ਇੱਥੇ ਕੁਝ ਨਹੀਂ "
 "ਬਦਲਿਆ। ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Search your servers"
+msgstr "ਆਪਣੇ ਸਰਵਰ ਲੱਭੋ"
+
+# | msgid "Per server"
+msgid "Search servers"
+msgstr "ਸਰਵਰ ਲੱਭੋ"
+
+msgid "Search"
+msgstr "ਲੱਭੋ"
+
+# | msgid "No servers to show"
+msgid "No servers match that"
+msgstr "ਕੋਈ ਸਰਵਰ ਮੇਲ ਨਹੀਂ ਖਾਂਦਾ"
+
+#, python-format
+msgid "Nothing in your list is called “%(q)s”."
+msgstr "ਤੁਹਾਡੀ ਸੂਚੀ ਵਿੱਚ “%(q)s” ਨਾਂ ਦਾ ਕੁਝ ਨਹੀਂ ਹੈ।"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Show all your servers"
+msgstr "ਆਪਣੇ ਸਾਰੇ ਸਰਵਰ ਵਿਖਾਓ"
 
 msgid "No servers to show"
 msgstr "ਵਿਖਾਉਣ ਲਈ ਕੋਈ ਸਰਵਰ ਨਹੀਂ"
@@ -1386,12 +1432,16 @@ msgstr "ਸਾਈਨ ਆਉਟ ਕਰ ਕੇ ਦੁਬਾਰਾ ਸ਼ੁਰੂ 
 msgid "You'll be asked to sign in with Discord again."
 msgstr "ਤੁਹਾਨੂੰ ਦੁਬਾਰਾ Discord ਨਾਲ ਸਾਈਨ ਇਨ ਕਰਨ ਲਈ ਕਿਹਾ ਜਾਵੇਗਾ।"
 
-# | msgid "Add to your server"
-msgid "Add to server"
-msgstr "ਸਰਵਰ ਵਿੱਚ ਜੋੜੋ"
+# | msgid "None"
+msgid "Pinned"
+msgstr "ਪਿੰਨ ਕੀਤੇ"
 
 msgid "Pricing · VRCVerify"
 msgstr "ਕੀਮਤਾਂ · VRCVerify"
+
+# | msgid "Canceled"
+msgid "Included"
+msgstr "ਸ਼ਾਮਲ ਹੈ"
 
 msgid "Pricing"
 msgstr "ਕੀਮਤਾਂ"
@@ -1403,14 +1453,43 @@ msgstr ""
 "ਤਸਦੀਕ ਹਮੇਸ਼ਾ ਲਈ ਮੁਫ਼ਤ ਹੈ। Premium ਇਸਦੇ ਆਲੇ-ਦੁਆਲੇ ਦਾ ਸਵੈਚਾਲਨ ਜੋੜਦਾ ਹੈ, ਹਰ "
 "ਸਰਵਰ ਲਈ ਵੱਖਰਾ।"
 
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+"ਅਸੀਂ ਇਸ ਵੇਲੇ ਕੀਮਤਾਂ ਲੋਡ ਨਹੀਂ ਕਰ ਸਕਦੇ। <strong>Premium ਹਾਲੇ ਵੀ ਉਪਲਬਧ "
+"ਹੈ।</strong> ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਕੋਸ਼ਿਸ਼ ਕਰੋ, ਜਾਂ Discord ਦੇ ਅੰਦਰੋਂ ਸਬਸਕ੍ਰਾਈਬ"
+" ਕਰੋ।"
+
+msgid "There are no plans on sale at the moment."
+msgstr "ਇਸ ਵੇਲੇ ਵਿਕਰੀ ਲਈ ਕੋਈ ਪਲਾਨ ਨਹੀਂ ਹੈ।"
+
+msgid "One Premium, three ways to pay for it"
+msgstr "ਇੱਕੋ Premium, ਭੁਗਤਾਨ ਦੇ ਤਿੰਨ ਤਰੀਕੇ"
+
+msgid "Billing term"
+msgstr "ਬਿਲਿੰਗ ਮਿਆਦ"
+
+msgid "Price unavailable"
+msgstr "ਕੀਮਤ ਉਪਲਬਧ ਨਹੀਂ"
+
+# | msgid "" "Every plan below unlocks exactly the same features — the only
+# | difference " "is how long you pay for at once, and how much that saves."
+msgid ""
+"Per server. Every term unlocks exactly the same features — the only "
+"difference is how long you pay for at once."
+msgstr ""
+"ਪ੍ਰਤੀ ਸਰਵਰ। ਹਰ ਮਿਆਦ ਵਿੱਚ ਬਿਲਕੁਲ ਉਹੀ ਸਹੂਲਤਾਂ ਮਿਲਦੀਆਂ ਹਨ — ਫ਼ਰਕ ਸਿਰਫ਼ ਇਹ ਹੈ"
+" ਕਿ ਤੁਸੀਂ ਇੱਕੋ ਵਾਰ ਕਿੰਨੇ ਸਮੇਂ ਦਾ ਭੁਗਤਾਨ ਕਰਦੇ ਹੋ।"
+
+msgid "What each plan includes"
+msgstr "ਹਰ ਪਲਾਨ ਵਿੱਚ ਕੀ ਸ਼ਾਮਲ ਹੈ"
+
+msgid "Feature"
+msgstr "ਸਹੂਲਤ"
+
 msgid "Free"
 msgstr "ਮੁਫ਼ਤ"
-
-msgid "forever"
-msgstr "ਹਮੇਸ਼ਾ ਲਈ"
-
-msgid "Everything you need to verify your members."
-msgstr "ਆਪਣੇ ਮੈਂਬਰਾਂ ਦੀ ਤਸਦੀਕ ਲਈ ਲੋੜੀਂਦਾ ਸਭ ਕੁਝ।"
 
 msgid "Verify members as 18+"
 msgstr "ਮੈਂਬਰਾਂ ਦੀ 18+ ਵਜੋਂ ਤਸਦੀਕ"
@@ -1420,18 +1499,6 @@ msgstr "ਜਿਹੜੇ ਲੋਕ ਕਿਸੇ ਹੋਰ ਸਰਵਰ ਵਿੱ�
 
 msgid "Members can update their own nickname"
 msgstr "ਮੈਂਬਰ ਆਪਣਾ ਉਪਨਾਮ ਆਪ ਬਦਲ ਸਕਦੇ ਹਨ"
-
-msgid "Add to your server"
-msgstr "ਆਪਣੇ ਸਰਵਰ ਵਿੱਚ ਜੋੜੋ"
-
-msgid "Per server"
-msgstr "ਪ੍ਰਤੀ ਸਰਵਰ"
-
-msgid "monthly, 6 or 12 months"
-msgstr "ਮਹੀਨਾਵਾਰ, 6 ਜਾਂ 12 ਮਹੀਨੇ"
-
-msgid "The automation around verification, for servers that want it."
-msgstr "ਤਸਦੀਕ ਦੇ ਆਲੇ-ਦੁਆਲੇ ਦਾ ਸਵੈਚਾਲਨ, ਉਹਨਾਂ ਸਰਵਰਾਂ ਲਈ ਜਿਨ੍ਹਾਂ ਨੂੰ ਇਹ ਚਾਹੀਦਾ ਹੈ।"
 
 msgid "Automatic removal of an unverified role"
 msgstr "ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਦਾ ਆਪਣੇ-ਆਪ ਹਟਣਾ"
@@ -1457,33 +1524,15 @@ msgstr "ਘਟਾਇਆ ਗਿਆ ਤਸਦੀਕ ਕੂਲਡਾਊਨ"
 msgid "VRChat group invites for verified members"
 msgstr "ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਲਈ VRChat ਗਰੁੱਪ ਸੱਦੇ"
 
+# | msgid "Not applied"
+msgid "Not included"
+msgstr "ਸ਼ਾਮਲ ਨਹੀਂ"
+
+msgid "Add to your server"
+msgstr "ਆਪਣੇ ਸਰਵਰ ਵਿੱਚ ਜੋੜੋ"
+
 msgid "Open the dashboard"
 msgstr "ਡੈਸ਼ਬੋਰਡ ਖੋਲ੍ਹੋ"
-
-msgid "One Premium, three ways to pay for it"
-msgstr "ਇੱਕੋ Premium, ਭੁਗਤਾਨ ਦੇ ਤਿੰਨ ਤਰੀਕੇ"
-
-msgid ""
-"We can't load prices right now. <strong>Premium is still "
-"available.</strong> Try again in a moment, or subscribe inside Discord."
-msgstr ""
-"ਅਸੀਂ ਇਸ ਵੇਲੇ ਕੀਮਤਾਂ ਲੋਡ ਨਹੀਂ ਕਰ ਸਕਦੇ। <strong>Premium ਹਾਲੇ ਵੀ ਉਪਲਬਧ "
-"ਹੈ।</strong> ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਕੋਸ਼ਿਸ਼ ਕਰੋ, ਜਾਂ Discord ਦੇ ਅੰਦਰੋਂ ਸਬਸਕ੍ਰਾਈਬ"
-" ਕਰੋ।"
-
-msgid "There are no plans on sale at the moment."
-msgstr "ਇਸ ਵੇਲੇ ਵਿਕਰੀ ਲਈ ਕੋਈ ਪਲਾਨ ਨਹੀਂ ਹੈ।"
-
-msgid ""
-"Every plan below unlocks exactly the same features — the only difference "
-"is how long you pay for at once, and how much that saves."
-msgstr ""
-"ਹੇਠਾਂ ਦਿੱਤਾ ਹਰ ਪਲਾਨ ਬਿਲਕੁਲ ਇੱਕੋ ਜਿਹੀਆਂ ਸਹੂਲਤਾਂ ਖੋਲ੍ਹਦਾ ਹੈ — ਫ਼ਰਕ ਸਿਰਫ਼ ਇਹ"
-" ਹੈ ਕਿ ਤੁਸੀਂ ਇੱਕੋ ਵਾਰ ਕਿੰਨੇ ਸਮੇਂ ਦਾ ਭੁਗਤਾਨ ਕਰਦੇ ਹੋ, ਅਤੇ ਉਸ ਨਾਲ ਕਿੰਨੀ ਬੱਚਤ"
-" ਹੁੰਦੀ ਹੈ।"
-
-msgid "Most popular"
-msgstr "ਸਭ ਤੋਂ ਵੱਧ ਪ੍ਰਸਿੱਧ"
 
 msgid ""
 "Some plans start with a free trial. Whether a particular server qualifies"
@@ -1503,23 +1552,6 @@ msgstr ""
 " ਇਲਾਕੇ ਵਿੱਚ ਬਣਦਾ ਟੈਕਸ ਭੁਗਤਾਨ ਵੇਲੇ ਜੋੜਿਆ ਜਾਂਦਾ ਹੈ। ਭੁਗਤਾਨ Stripe ਸੰਭਾਲਦਾ "
 "ਹੈ — ਕਾਰਡ ਦੀ ਜਾਣਕਾਰੀ ਕਦੇ VRCVerify ਤੱਕ ਨਹੀਂ ਪਹੁੰਚਦੀ।"
 
-msgid ""
-"Premium is bought per server. You can subscribe with a card in the "
-"dashboard, or monthly through Discord."
-msgstr ""
-"Premium ਹਰ ਸਰਵਰ ਲਈ ਵੱਖਰਾ ਖਰੀਦਿਆ ਜਾਂਦਾ ਹੈ। ਤੁਸੀਂ ਡੈਸ਼ਬੋਰਡ ਵਿੱਚ ਕਾਰਡ ਨਾਲ "
-"ਸਬਸਕ੍ਰਾਈਬ ਕਰ ਸਕਦੇ ਹੋ, ਜਾਂ Discord ਰਾਹੀਂ ਮਹੀਨਾਵਾਰ।"
-
-msgid "Ready to start?"
-msgstr "ਸ਼ੁਰੂ ਕਰਨ ਲਈ ਤਿਆਰ ਹੋ?"
-
-msgid ""
-"Add VRCVerify to your server and verification works immediately, at no "
-"cost. Premium is there when you want it."
-msgstr ""
-"VRCVerify ਨੂੰ ਆਪਣੇ ਸਰਵਰ ਵਿੱਚ ਜੋੜੋ ਅਤੇ ਤਸਦੀਕ ਤੁਰੰਤ, ਬਿਨਾਂ ਕਿਸੇ ਖ਼ਰਚੇ ਦੇ "
-"ਕੰਮ ਕਰਨ ਲੱਗ ਪਵੇਗੀ। Premium ਉਦੋਂ ਮੌਜੂਦ ਹੈ ਜਦੋਂ ਤੁਸੀਂ ਉਸਨੂੰ ਚਾਹੋ।"
-
 msgid "Saved."
 msgstr "ਸੰਭਾਲ ਲਿਆ ਗਿਆ।"
 
@@ -1537,16 +1569,6 @@ msgstr ""
 "ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਸੰਭਾਲ ਲਈਆਂ ਗਈਆਂ, ਪਰ ਹਦਾਇਤ ਪੈਨਲ ਹਾਲੇ ਵੀ ਪੁਰਾਣੀਆਂ ਵਿਖਾ "
 "ਰਿਹਾ ਹੈ। ਇਸਨੂੰ ਬਦਲਣ ਲਈ ਹੇਠਾਂ <strong>ਪੈਨਲ ਦੁਬਾਰਾ ਪੋਸਟ ਕਰੋ ਜਾਂ "
 "ਹਟਾਓ</strong> ਵਰਤੋ।"
-
-msgid ""
-"Your grandfathered extras stay free whatever you decide. Premium unlocks "
-"the settings marked below."
-msgstr ""
-"ਤੁਹਾਡੀਆਂ ਪੁਰਾਣੀਆਂ ਸਹੂਲਤਾਂ ਮੁਫ਼ਤ ਹੀ ਰਹਿਣਗੀਆਂ, ਤੁਸੀਂ ਜੋ ਵੀ ਫ਼ੈਸਲਾ ਕਰੋ। "
-"Premium ਹੇਠਾਂ ਨਿਸ਼ਾਨਬੱਧ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹ ਦਿੰਦਾ ਹੈ।"
-
-msgid "Unlocks the settings marked below. 18+ verification itself stays free."
-msgstr "ਹੇਠਾਂ ਨਿਸ਼ਾਨਬੱਧ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹ ਦਿੰਦਾ ਹੈ। 18+ ਤਸਦੀਕ ਆਪ ਮੁਫ਼ਤ ਹੀ ਰਹਿੰਦੀ ਹੈ।"
 
 msgid ""
 "Couldn't load this server's roles and channels just now, so some settings"
@@ -1585,6 +1607,9 @@ msgstr ""
 
 msgid "Members use this message to begin verification."
 msgstr "ਮੈਂਬਰ ਇਸੇ ਸੁਨੇਹੇ ਤੋਂ ਤਸਦੀਕ ਸ਼ੁਰੂ ਕਰਦੇ ਹਨ।"
+
+msgid "Setup"
+msgstr "ਸੈੱਟਅੱਪ"
 
 #, python-format
 msgid "VRChat said: %(said)s"
@@ -1636,6 +1661,14 @@ msgid "Your saved value is kept, and comes back if the subscription is renewed."
 msgstr ""
 "ਤੁਹਾਡਾ ਸੰਭਾਲਿਆ ਮੁੱਲ ਬਣਿਆ ਰਹਿੰਦਾ ਹੈ, ਅਤੇ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਨਵਿਆਉਣ 'ਤੇ ਵਾਪਸ ਆ "
 "ਜਾਂਦਾ ਹੈ।"
+
+# | msgid "Premium"
+msgid "Add Premium"
+msgstr "Premium ਜੋੜੋ"
+
+# | msgid "Spanish"
+msgid "See plans"
+msgstr "ਪਲਾਨ ਵੇਖੋ"
 
 msgid ""
 "Saved, but not acted on without Premium. Anyone can set this; the bot "
@@ -1859,6 +1892,9 @@ msgstr ""
 "ਬਿਲਕੁਲ ਇੱਕੋ ਜਿਹੀਆਂ ਸਹੂਲਤਾਂ ਖੋਲ੍ਹਦਾ ਹੈ — ਫ਼ਰਕ ਸਿਰਫ਼ ਇਹ ਹੈ ਕਿ ਤੁਸੀਂ ਇੱਕੋ "
 "ਵਾਰ ਕਿੰਨੇ ਸਮੇਂ ਦਾ ਭੁਗਤਾਨ ਕਰਦੇ ਹੋ, ਅਤੇ ਉਸ ਨਾਲ ਕਿੰਨੀ ਬੱਚਤ ਹੁੰਦੀ ਹੈ।"
 
+msgid "Most popular"
+msgstr "ਸਭ ਤੋਂ ਵੱਧ ਪ੍ਰਸਿੱਧ"
+
 msgid "Subscribe"
 msgstr "ਸਬਸਕ੍ਰਾਈਬ ਕਰੋ"
 
@@ -1927,4 +1963,97 @@ msgstr ""
 
 #~ msgid "Overview, settings and activity"
 #~ msgstr "ਸੰਖੇਪ, ਸੈਟਿੰਗਾਂ ਅਤੇ ਸਰਗਰਮੀ"
+
+#~ msgid "No verified role is set"
+#~ msgstr "ਕੋਈ ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਸੈੱਟ ਨਹੀਂ ਹੈ"
+
+#~ msgid "The verified role needs attention"
+#~ msgstr "ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਵੱਲ ਧਿਆਨ ਦੇਣ ਦੀ ਲੋੜ ਹੈ"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "No instructions panel is posted"
+#~ msgstr "ਕੋਈ ਹਦਾਇਤ ਪੈਨਲ ਪੋਸਟ ਨਹੀਂ ਹੈ"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "The instructions panel needs attention"
+#~ msgstr "ਹਦਾਇਤ ਪੈਨਲ ਵੱਲ ਧਿਆਨ ਦੇਣ ਦੀ ਲੋੜ ਹੈ"
+
+#~ msgid ""
+#~ "What's configured here, and whether it's"
+#~ " actually working -- one list instead"
+#~ " of two, since \"switched on\" and"
+#~ " \"still works\" used to be answered"
+#~ " in different places on this page."
+#~ " Change any of it on <a "
+#~ "href=\"%(settings_url)s\">Settings</a>."
+#~ msgstr ""
+#~ "ਇੱਥੇ ਕੀ ਸੈੱਟ ਹੈ, ਅਤੇ ਕੀ ਉਹ "
+#~ "ਸੱਚਮੁੱਚ ਕੰਮ ਕਰ ਰਿਹਾ ਹੈ -- ਦੋ "
+#~ "ਦੀ ਥਾਂ ਇੱਕ ਸੂਚੀ, ਕਿਉਂਕਿ ਪਹਿਲਾਂ "
+#~ "“ਚਾਲੂ ਹੈ” ਅਤੇ “ਹਾਲੇ ਵੀ ਕੰਮ ਕਰਦਾ"
+#~ " ਹੈ” ਇਸ ਪੰਨੇ ਉੱਤੇ ਵੱਖ-ਵੱਖ ਥਾਵਾਂ "
+#~ "'ਤੇ ਦੱਸੇ ਜਾਂਦੇ ਸਨ। ਇਹਨਾਂ ਵਿੱਚੋਂ "
+#~ "ਕੁਝ ਵੀ ਤੁਸੀਂ <a "
+#~ "href=\"%(settings_url)s\">ਸੈਟਿੰਗਾਂ</a> ਵਿੱਚ ਬਦਲ ਸਕਦੇ"
+#~ " ਹੋ।"
+
+#~ msgid "Setup complete — verification is fully working here."
+#~ msgstr "ਸੈੱਟਅੱਪ ਪੂਰਾ — ਇੱਥੇ ਤਸਦੀਕ ਪੂਰੀ ਤਰ੍ਹਾਂ ਕੰਮ ਕਰ ਰਹੀ ਹੈ।"
+
+#~ msgid "forever"
+#~ msgstr "ਹਮੇਸ਼ਾ ਲਈ"
+
+#~ msgid "Everything you need to verify your members."
+#~ msgstr "ਆਪਣੇ ਮੈਂਬਰਾਂ ਦੀ ਤਸਦੀਕ ਲਈ ਲੋੜੀਂਦਾ ਸਭ ਕੁਝ।"
+
+#~ msgid "monthly, 6 or 12 months"
+#~ msgstr "ਮਹੀਨਾਵਾਰ, 6 ਜਾਂ 12 ਮਹੀਨੇ"
+
+#~ msgid "The automation around verification, for servers that want it."
+#~ msgstr ""
+#~ "ਤਸਦੀਕ ਦੇ ਆਲੇ-ਦੁਆਲੇ ਦਾ ਸਵੈਚਾਲਨ, ਉਹਨਾਂ "
+#~ "ਸਰਵਰਾਂ ਲਈ ਜਿਨ੍ਹਾਂ ਨੂੰ ਇਹ ਚਾਹੀਦਾ "
+#~ "ਹੈ।"
+
+#~ msgid ""
+#~ "Premium is bought per server. You "
+#~ "can subscribe with a card in the"
+#~ " dashboard, or monthly through Discord."
+#~ msgstr ""
+#~ "Premium ਹਰ ਸਰਵਰ ਲਈ ਵੱਖਰਾ ਖਰੀਦਿਆ "
+#~ "ਜਾਂਦਾ ਹੈ। ਤੁਸੀਂ ਡੈਸ਼ਬੋਰਡ ਵਿੱਚ ਕਾਰਡ "
+#~ "ਨਾਲ ਸਬਸਕ੍ਰਾਈਬ ਕਰ ਸਕਦੇ ਹੋ, ਜਾਂ "
+#~ "Discord ਰਾਹੀਂ ਮਹੀਨਾਵਾਰ।"
+
+#~ msgid "Ready to start?"
+#~ msgstr "ਸ਼ੁਰੂ ਕਰਨ ਲਈ ਤਿਆਰ ਹੋ?"
+
+#~ msgid ""
+#~ "Add VRCVerify to your server and "
+#~ "verification works immediately, at no "
+#~ "cost. Premium is there when you "
+#~ "want it."
+#~ msgstr ""
+#~ "VRCVerify ਨੂੰ ਆਪਣੇ ਸਰਵਰ ਵਿੱਚ ਜੋੜੋ "
+#~ "ਅਤੇ ਤਸਦੀਕ ਤੁਰੰਤ, ਬਿਨਾਂ ਕਿਸੇ ਖ਼ਰਚੇ "
+#~ "ਦੇ ਕੰਮ ਕਰਨ ਲੱਗ ਪਵੇਗੀ। Premium ਉਦੋਂ"
+#~ " ਮੌਜੂਦ ਹੈ ਜਦੋਂ ਤੁਸੀਂ ਉਸਨੂੰ ਚਾਹੋ।"
+
+#~ msgid ""
+#~ "Your grandfathered extras stay free "
+#~ "whatever you decide. Premium unlocks the"
+#~ " settings marked below."
+#~ msgstr ""
+#~ "ਤੁਹਾਡੀਆਂ ਪੁਰਾਣੀਆਂ ਸਹੂਲਤਾਂ ਮੁਫ਼ਤ ਹੀ "
+#~ "ਰਹਿਣਗੀਆਂ, ਤੁਸੀਂ ਜੋ ਵੀ ਫ਼ੈਸਲਾ ਕਰੋ। "
+#~ "Premium ਹੇਠਾਂ ਨਿਸ਼ਾਨਬੱਧ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹ "
+#~ "ਦਿੰਦਾ ਹੈ।"
+
+#~ msgid "Unlocks the settings marked below. 18+ verification itself stays free."
+#~ msgstr ""
+#~ "ਹੇਠਾਂ ਨਿਸ਼ਾਨਬੱਧ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹ ਦਿੰਦਾ ਹੈ।"
+#~ " 18+ ਤਸਦੀਕ ਆਪ ਮੁਫ਼ਤ ਹੀ ਰਹਿੰਦੀ "
+#~ "ਹੈ।"
 

@@ -212,6 +212,20 @@ _FIELD_SEPARATOR = ":"
 # reachable for three weeks by then.
 ENTRIES = (
     Entry(
+        id="2026-09-dashboard-redesign",
+        date=date(2026, 9, 10),
+        title=N_("A new look for the dashboard"),
+        body=(
+            N_("Your server list is now a grid of tiles you can search, pin "
+            "and open with a single click anywhere on the card, and each one "
+            "says whether that server is on Premium. Setup has moved to the "
+            "top of a server's Overview with a progress bar, and retires "
+            "itself once everything required is done. Settings puts each "
+            "control directly under its own label, and the pricing page is "
+            "one comparison you can read across.")
+        ),
+    ),
+    Entry(
         id="2026-09-panel-learn-more",
         date=date(2026, 9, 8),
         title=N_("A website link on your instructions panel"),

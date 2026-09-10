@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-09 01:26-0400\n"
+"POT-Creation-Date: 2026-09-10 01:48-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -210,6 +210,21 @@ msgstr "Premium"
 msgid "New"
 msgstr "新着"
 
+# | msgid "Open the dashboard"
+msgid "A new look for the dashboard"
+msgstr "ダッシュボードの新しい見た目"
+
+msgid ""
+"Your server list is now a grid of tiles you can search, pin and open with"
+" a single click anywhere on the card, and each one says whether that "
+"server is on Premium. Setup has moved to the top of a server's Overview "
+"with a progress bar, and retires itself once everything required is done."
+" Settings puts each control directly under its own label, and the pricing"
+" page is one comparison you can read across."
+msgstr ""
+"サーバー一覧はタイル表示になり、検索やピン留めができ、カードのどこをクリックしても開けます。各タイルにはそのサーバーが Premium "
+"かどうかも表示されます。セットアップはサーバーの概要の先頭に移動して進捗バーが付き、必須項目がすべて終わると自動的に消えます。設定では各コントロールがそのラベルの真下に並び、料金ページは横に読める一つの比較表になりました。"
+
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
 msgstr "説明パネルにウェブサイトへのリンク"
@@ -385,8 +400,9 @@ msgstr "任意。認証が済むと外れます。"
 msgid "Verification log"
 msgstr "認証ログ"
 
-msgid "Optional. Premium."
-msgstr "任意。Premium。"
+# | msgid "Optional. Premium."
+msgid "Optional."
+msgstr "任意。"
 
 # | msgid "Sections"
 # | msgid "Settings"
@@ -432,22 +448,6 @@ msgstr "VRCVerify はもうそこに投稿できません。権限を確認し�
 
 msgid "Posted, and VRCVerify can still reach it."
 msgstr "投稿済みで、VRCVerify から引き続き操作できます。"
-
-msgid "No verified role is set"
-msgstr "認証済みロールが設定されていません"
-
-msgid "The verified role needs attention"
-msgstr "認証済みロールの確認が必要です"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "No instructions panel is posted"
-msgstr "案内パネルが投稿されていません"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "The instructions panel needs attention"
-msgstr "案内パネルの確認が必要です"
 
 #, python-format
 msgid ""
@@ -1176,6 +1176,35 @@ msgstr ""
 "でサーバーの認証済みロールを設定でき、それだけでメンバーの認証を始められます。<code>/vrcverify_settings</code> "
 "は保存されている内容を表示します。それ以外はすべてここで変更します。"
 
+msgid "Finish setting up"
+msgstr "セットアップを完了する"
+
+#, python-format
+msgid ""
+"What still needs doing before this server can verify anyone, and whether "
+"what's already set is still working. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+"このサーバーで認証を始めるために残っていること、そして設定済みの項目が今も動作しているか。すべて<a "
+"href=\"%(settings_url)s\">設定</a>から変更できます。"
+
+#, python-format
+msgid "%(done)s of %(total)s done"
+msgstr "%(total)s 件中 %(done)s 件完了"
+
+#, python-format
+msgid "%(done)s of %(total)s required steps done"
+msgstr "必須ステップ %(total)s 件中 %(done)s 件完了"
+
+msgid "set"
+msgstr "設定済み"
+
+msgid "needs attention"
+msgstr "要確認"
+
+msgid "off, optional"
+msgstr "オフ、任意"
+
 msgid "See plans and subscribe"
 msgstr "プランを見て登録する"
 
@@ -1219,31 +1248,19 @@ msgstr "未計測"
 msgid "Couldn't load the daily trend just now."
 msgstr "ただいま日次の推移を読み込めませんでした。"
 
-msgid "Setup"
-msgstr "セットアップ"
-
-#, python-format
-msgid ""
-"What's configured here, and whether it's actually working -- one list "
-"instead of two, since \"switched on\" and \"still works\" used to be "
-"answered in different places on this page. Change any of it on <a "
-"href=\"%(settings_url)s\">Settings</a>."
-msgstr ""
-"ここで何が設定され、それが実際に機能しているか。リストを 2 つではなく 1 "
-"つにまとめています。以前は「オンかどうか」と「今も動いているか」がこのページの別々の場所で答えられていました。いずれも<a "
-"href=\"%(settings_url)s\">設定</a>から変更できます。"
-
-msgid "Setup complete — verification is fully working here."
-msgstr "セットアップ完了。ここでは認証が完全に機能しています。"
-
-msgid "set"
-msgstr "設定済み"
-
-msgid "needs attention"
-msgstr "要確認"
-
 msgid "Your servers — VRCVerify"
 msgstr "あなたのサーバー — VRCVerify"
+
+#, python-format
+msgid "Pin %(name)s"
+msgstr "%(name)s をピン留め"
+
+msgid "Upgrade"
+msgstr "アップグレード"
+
+# | msgid "Add to your server"
+msgid "Add to server"
+msgstr "サーバーに追加"
 
 # | msgid "Add to your server"
 msgid "Your servers"
@@ -1255,6 +1272,31 @@ msgid ""
 msgstr ""
 "ただいま Bot "
 "に接続できないため、このうちどのサーバーに参加しているかをお伝えできません。設定は無事で、ここでは何も変わっていません。少ししてからもう一度お試しください。"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Search your servers"
+msgstr "あなたのサーバーを検索"
+
+# | msgid "Per server"
+msgid "Search servers"
+msgstr "サーバーを検索"
+
+msgid "Search"
+msgstr "検索"
+
+# | msgid "No servers to show"
+msgid "No servers match that"
+msgstr "一致するサーバーはありません"
+
+#, python-format
+msgid "Nothing in your list is called “%(q)s”."
+msgstr "リストに「%(q)s」という名前のものはありません。"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Show all your servers"
+msgstr "すべてのサーバーを表示"
 
 msgid "No servers to show"
 msgstr "表示できるサーバーがありません"
@@ -1273,12 +1315,16 @@ msgstr "ログアウトしてやり直す"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "もう一度 Discord でのログインを求められます。"
 
-# | msgid "Add to your server"
-msgid "Add to server"
-msgstr "サーバーに追加"
+# | msgid "None"
+msgid "Pinned"
+msgstr "ピン留め済み"
 
 msgid "Pricing · VRCVerify"
 msgstr "料金 · VRCVerify"
+
+# | msgid "Canceled"
+msgid "Included"
+msgstr "含まれる"
 
 msgid "Pricing"
 msgstr "料金"
@@ -1288,14 +1334,40 @@ msgid ""
 " server."
 msgstr "認証はずっと無料です。Premium はその周りの自動化を、サーバーごとに追加します。"
 
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+"ただいま料金を読み込めません。<strong>Premium "
+"は引き続きご利用いただけます。</strong>少ししてからもう一度お試しいただくか、Discord 内でご登録ください。"
+
+msgid "There are no plans on sale at the moment."
+msgstr "現在販売中のプランはありません。"
+
+msgid "One Premium, three ways to pay for it"
+msgstr "Premium は 1 つ、支払い方は 3 通り"
+
+msgid "Billing term"
+msgstr "支払い期間"
+
+msgid "Price unavailable"
+msgstr "価格を取得できません"
+
+# | msgid "" "Every plan below unlocks exactly the same features — the only
+# | difference " "is how long you pay for at once, and how much that saves."
+msgid ""
+"Per server. Every term unlocks exactly the same features — the only "
+"difference is how long you pay for at once."
+msgstr "サーバーごと。どの期間でも使える機能はまったく同じで、違うのは一度にどれだけの期間分を支払うかだけです。"
+
+msgid "What each plan includes"
+msgstr "各プランに含まれるもの"
+
+msgid "Feature"
+msgstr "機能"
+
 msgid "Free"
 msgstr "無料"
-
-msgid "forever"
-msgstr "ずっと"
-
-msgid "Everything you need to verify your members."
-msgstr "メンバーの認証に必要なものがすべて揃っています。"
 
 msgid "Verify members as 18+"
 msgstr "メンバーを 18+ として認証"
@@ -1305,18 +1377,6 @@ msgstr "ほかのサーバーで認証済みの人を自動で認証"
 
 msgid "Members can update their own nickname"
 msgstr "メンバーが自分のニックネームを更新できる"
-
-msgid "Add to your server"
-msgstr "サーバーに追加"
-
-msgid "Per server"
-msgstr "サーバーごと"
-
-msgid "monthly, 6 or 12 months"
-msgstr "月額、6 か月または 12 か月"
-
-msgid "The automation around verification, for servers that want it."
-msgstr "認証まわりの自動化を、必要とするサーバーに。"
 
 msgid "Automatic removal of an unverified role"
 msgstr "未認証ロールの自動削除"
@@ -1342,29 +1402,15 @@ msgstr "認証クールダウンの短縮"
 msgid "VRChat group invites for verified members"
 msgstr "認証済みメンバーへの VRChat グループ招待"
 
+# | msgid "Not applied"
+msgid "Not included"
+msgstr "含まれない"
+
+msgid "Add to your server"
+msgstr "サーバーに追加"
+
 msgid "Open the dashboard"
 msgstr "ダッシュボードを開く"
-
-msgid "One Premium, three ways to pay for it"
-msgstr "Premium は 1 つ、支払い方は 3 通り"
-
-msgid ""
-"We can't load prices right now. <strong>Premium is still "
-"available.</strong> Try again in a moment, or subscribe inside Discord."
-msgstr ""
-"ただいま料金を読み込めません。<strong>Premium "
-"は引き続きご利用いただけます。</strong>少ししてからもう一度お試しいただくか、Discord 内でご登録ください。"
-
-msgid "There are no plans on sale at the moment."
-msgstr "現在販売中のプランはありません。"
-
-msgid ""
-"Every plan below unlocks exactly the same features — the only difference "
-"is how long you pay for at once, and how much that saves."
-msgstr "下のどのプランでも、使える機能はまったく同じです。違うのは一度にどれだけの期間ぶんを支払うか、そしてそれでいくら安くなるかだけです。"
-
-msgid "Most popular"
-msgstr "人気"
 
 msgid ""
 "Some plans start with a free trial. Whether a particular server qualifies"
@@ -1380,19 +1426,6 @@ msgstr ""
 "料金は米ドル表示で、<strong>税抜き</strong>です。お住まいの地域で課される税は決済時に加算されます。決済は Stripe "
 "が処理し、カード情報が VRCVerify に届くことはありません。"
 
-msgid ""
-"Premium is bought per server. You can subscribe with a card in the "
-"dashboard, or monthly through Discord."
-msgstr "Premium はサーバーごとの購入です。ダッシュボードでカード決済にするか、Discord 経由の月額にできます。"
-
-msgid "Ready to start?"
-msgstr "はじめませんか？"
-
-msgid ""
-"Add VRCVerify to your server and verification works immediately, at no "
-"cost. Premium is there when you want it."
-msgstr "VRCVerify をサーバーに追加すれば、認証はすぐに無料で使えます。Premium は必要になったときにあります。"
-
 msgid "Saved."
 msgstr "保存しました。"
 
@@ -1405,14 +1438,6 @@ msgid ""
 "Your settings were saved, but the instructions panel still shows the old "
 "ones. Use <strong>Repost or move panel</strong> below to replace it."
 msgstr "設定は保存されましたが、案内パネルにはまだ以前の内容が表示されています。下の<strong>パネルを再投稿または移動</strong>から置き換えてください。"
-
-msgid ""
-"Your grandfathered extras stay free whatever you decide. Premium unlocks "
-"the settings marked below."
-msgstr "以前から引き継がれている特典は、どちらを選んでも無料のままです。Premium は下に印の付いた設定を解放します。"
-
-msgid "Unlocks the settings marked below. 18+ verification itself stays free."
-msgstr "下に印の付いた設定を解放します。18+ 認証そのものは引き続き無料です。"
 
 msgid ""
 "Couldn't load this server's roles and channels just now, so some settings"
@@ -1446,6 +1471,9 @@ msgstr ""
 
 msgid "Members use this message to begin verification."
 msgstr "メンバーはこのメッセージから認証を始めます。"
+
+msgid "Setup"
+msgstr "セットアップ"
 
 #, python-format
 msgid "VRChat said: %(said)s"
@@ -1492,6 +1520,14 @@ msgstr "Premium 限定。"
 
 msgid "Your saved value is kept, and comes back if the subscription is renewed."
 msgstr "保存した値はそのまま残り、サブスクリプションを更新すると再び有効になります。"
+
+# | msgid "Premium"
+msgid "Add Premium"
+msgstr "Premium を追加"
+
+# | msgid "Spanish"
+msgid "See plans"
+msgstr "プランを見る"
 
 msgid ""
 "Saved, but not acted on without Premium. Anyone can set this; the bot "
@@ -1675,6 +1711,9 @@ msgstr ""
 "<strong>Premium は 1 つ、支払い方は 3 "
 "通り。</strong>下のどのプランでも、使える機能はまったく同じです。違うのは一度にどれだけの期間ぶんを支払うか、そしてそれでいくら安くなるかだけです。"
 
+msgid "Most popular"
+msgstr "人気"
+
 msgid "Subscribe"
 msgstr "登録する"
 
@@ -1734,4 +1773,73 @@ msgstr ""
 
 #~ msgid "Overview, settings and activity"
 #~ msgstr "概要・設定・アクティビティ"
+
+#~ msgid "No verified role is set"
+#~ msgstr "認証済みロールが設定されていません"
+
+#~ msgid "The verified role needs attention"
+#~ msgstr "認証済みロールの確認が必要です"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "No instructions panel is posted"
+#~ msgstr "案内パネルが投稿されていません"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "The instructions panel needs attention"
+#~ msgstr "案内パネルの確認が必要です"
+
+#~ msgid ""
+#~ "What's configured here, and whether it's"
+#~ " actually working -- one list instead"
+#~ " of two, since \"switched on\" and"
+#~ " \"still works\" used to be answered"
+#~ " in different places on this page."
+#~ " Change any of it on <a "
+#~ "href=\"%(settings_url)s\">Settings</a>."
+#~ msgstr ""
+#~ "ここで何が設定され、それが実際に機能しているか。リストを 2 つではなく 1 "
+#~ "つにまとめています。以前は「オンかどうか」と「今も動いているか」がこのページの別々の場所で答えられていました。いずれも<a "
+#~ "href=\"%(settings_url)s\">設定</a>から変更できます。"
+
+#~ msgid "Setup complete — verification is fully working here."
+#~ msgstr "セットアップ完了。ここでは認証が完全に機能しています。"
+
+#~ msgid "forever"
+#~ msgstr "ずっと"
+
+#~ msgid "Everything you need to verify your members."
+#~ msgstr "メンバーの認証に必要なものがすべて揃っています。"
+
+#~ msgid "monthly, 6 or 12 months"
+#~ msgstr "月額、6 か月または 12 か月"
+
+#~ msgid "The automation around verification, for servers that want it."
+#~ msgstr "認証まわりの自動化を、必要とするサーバーに。"
+
+#~ msgid ""
+#~ "Premium is bought per server. You "
+#~ "can subscribe with a card in the"
+#~ " dashboard, or monthly through Discord."
+#~ msgstr "Premium はサーバーごとの購入です。ダッシュボードでカード決済にするか、Discord 経由の月額にできます。"
+
+#~ msgid "Ready to start?"
+#~ msgstr "はじめませんか？"
+
+#~ msgid ""
+#~ "Add VRCVerify to your server and "
+#~ "verification works immediately, at no "
+#~ "cost. Premium is there when you "
+#~ "want it."
+#~ msgstr "VRCVerify をサーバーに追加すれば、認証はすぐに無料で使えます。Premium は必要になったときにあります。"
+
+#~ msgid ""
+#~ "Your grandfathered extras stay free "
+#~ "whatever you decide. Premium unlocks the"
+#~ " settings marked below."
+#~ msgstr "以前から引き継がれている特典は、どちらを選んでも無料のままです。Premium は下に印の付いた設定を解放します。"
+
+#~ msgid "Unlocks the settings marked below. 18+ verification itself stays free."
+#~ msgstr "下に印の付いた設定を解放します。18+ 認証そのものは引き続き無料です。"
 

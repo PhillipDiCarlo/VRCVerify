@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-09 01:26-0400\n"
+"POT-Creation-Date: 2026-09-10 01:48-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -192,6 +192,18 @@ msgstr ""
 msgid "New"
 msgstr ""
 
+msgid "A new look for the dashboard"
+msgstr ""
+
+msgid ""
+"Your server list is now a grid of tiles you can search, pin and open with"
+" a single click anywhere on the card, and each one says whether that "
+"server is on Premium. Setup has moved to the top of a server's Overview "
+"with a progress bar, and retires itself once everything required is done."
+" Settings puts each control directly under its own label, and the pricing"
+" page is one comparison you can read across."
+msgstr ""
+
 msgid "A website link on your instructions panel"
 msgstr ""
 
@@ -341,7 +353,7 @@ msgstr ""
 msgid "Verification log"
 msgstr ""
 
-msgid "Optional. Premium."
+msgid "Optional."
 msgstr ""
 
 msgid "Go to Settings"
@@ -381,18 +393,6 @@ msgid "VRCVerify can't post there anymore — check its permissions."
 msgstr ""
 
 msgid "Posted, and VRCVerify can still reach it."
-msgstr ""
-
-msgid "No verified role is set"
-msgstr ""
-
-msgid "The verified role needs attention"
-msgstr ""
-
-msgid "No instructions panel is posted"
-msgstr ""
-
-msgid "The instructions panel needs attention"
 msgstr ""
 
 #, python-format
@@ -1066,6 +1066,33 @@ msgid ""
 "changed here."
 msgstr ""
 
+msgid "Finish setting up"
+msgstr ""
+
+#, python-format
+msgid ""
+"What still needs doing before this server can verify anyone, and whether "
+"what's already set is still working. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+
+#, python-format
+msgid "%(done)s of %(total)s done"
+msgstr ""
+
+#, python-format
+msgid "%(done)s of %(total)s required steps done"
+msgstr ""
+
+msgid "set"
+msgstr ""
+
+msgid "needs attention"
+msgstr ""
+
+msgid "off, optional"
+msgstr ""
+
 msgid "See plans and subscribe"
 msgstr ""
 
@@ -1106,27 +1133,17 @@ msgstr ""
 msgid "Couldn't load the daily trend just now."
 msgstr ""
 
-msgid "Setup"
+msgid "Your servers — VRCVerify"
 msgstr ""
 
 #, python-format
-msgid ""
-"What's configured here, and whether it's actually working -- one list "
-"instead of two, since \"switched on\" and \"still works\" used to be "
-"answered in different places on this page. Change any of it on <a "
-"href=\"%(settings_url)s\">Settings</a>."
+msgid "Pin %(name)s"
 msgstr ""
 
-msgid "Setup complete — verification is fully working here."
+msgid "Upgrade"
 msgstr ""
 
-msgid "set"
-msgstr ""
-
-msgid "needs attention"
-msgstr ""
-
-msgid "Your servers — VRCVerify"
+msgid "Add to server"
 msgstr ""
 
 msgid "Your servers"
@@ -1135,6 +1152,25 @@ msgstr ""
 msgid ""
 "Can't reach the bot right now, so we can't tell which of these it's in. "
 "Your settings are safe — nothing here has changed. Try again shortly."
+msgstr ""
+
+msgid "Search your servers"
+msgstr ""
+
+msgid "Search servers"
+msgstr ""
+
+msgid "Search"
+msgstr ""
+
+msgid "No servers match that"
+msgstr ""
+
+#, python-format
+msgid "Nothing in your list is called “%(q)s”."
+msgstr ""
+
+msgid "Show all your servers"
 msgstr ""
 
 msgid "No servers to show"
@@ -1152,10 +1188,13 @@ msgstr ""
 msgid "You'll be asked to sign in with Discord again."
 msgstr ""
 
-msgid "Add to server"
+msgid "Pinned"
 msgstr ""
 
 msgid "Pricing · VRCVerify"
+msgstr ""
+
+msgid "Included"
 msgstr ""
 
 msgid "Pricing"
@@ -1166,13 +1205,35 @@ msgid ""
 " server."
 msgstr ""
 
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+
+msgid "There are no plans on sale at the moment."
+msgstr ""
+
+msgid "One Premium, three ways to pay for it"
+msgstr ""
+
+msgid "Billing term"
+msgstr ""
+
+msgid "Price unavailable"
+msgstr ""
+
+msgid ""
+"Per server. Every term unlocks exactly the same features — the only "
+"difference is how long you pay for at once."
+msgstr ""
+
+msgid "What each plan includes"
+msgstr ""
+
+msgid "Feature"
+msgstr ""
+
 msgid "Free"
-msgstr ""
-
-msgid "forever"
-msgstr ""
-
-msgid "Everything you need to verify your members."
 msgstr ""
 
 msgid "Verify members as 18+"
@@ -1182,18 +1243,6 @@ msgid "Auto-verify people who verified in another server"
 msgstr ""
 
 msgid "Members can update their own nickname"
-msgstr ""
-
-msgid "Add to your server"
-msgstr ""
-
-msgid "Per server"
-msgstr ""
-
-msgid "monthly, 6 or 12 months"
-msgstr ""
-
-msgid "The automation around verification, for servers that want it."
 msgstr ""
 
 msgid "Automatic removal of an unverified role"
@@ -1220,26 +1269,13 @@ msgstr ""
 msgid "VRChat group invites for verified members"
 msgstr ""
 
+msgid "Not included"
+msgstr ""
+
+msgid "Add to your server"
+msgstr ""
+
 msgid "Open the dashboard"
-msgstr ""
-
-msgid "One Premium, three ways to pay for it"
-msgstr ""
-
-msgid ""
-"We can't load prices right now. <strong>Premium is still "
-"available.</strong> Try again in a moment, or subscribe inside Discord."
-msgstr ""
-
-msgid "There are no plans on sale at the moment."
-msgstr ""
-
-msgid ""
-"Every plan below unlocks exactly the same features — the only difference "
-"is how long you pay for at once, and how much that saves."
-msgstr ""
-
-msgid "Most popular"
 msgstr ""
 
 msgid ""
@@ -1254,19 +1290,6 @@ msgid ""
 "details never reach VRCVerify."
 msgstr ""
 
-msgid ""
-"Premium is bought per server. You can subscribe with a card in the "
-"dashboard, or monthly through Discord."
-msgstr ""
-
-msgid "Ready to start?"
-msgstr ""
-
-msgid ""
-"Add VRCVerify to your server and verification works immediately, at no "
-"cost. Premium is there when you want it."
-msgstr ""
-
 msgid "Saved."
 msgstr ""
 
@@ -1278,14 +1301,6 @@ msgstr ""
 msgid ""
 "Your settings were saved, but the instructions panel still shows the old "
 "ones. Use <strong>Repost or move panel</strong> below to replace it."
-msgstr ""
-
-msgid ""
-"Your grandfathered extras stay free whatever you decide. Premium unlocks "
-"the settings marked below."
-msgstr ""
-
-msgid "Unlocks the settings marked below. 18+ verification itself stays free."
 msgstr ""
 
 msgid ""
@@ -1313,6 +1328,9 @@ msgid ""
 msgstr ""
 
 msgid "Members use this message to begin verification."
+msgstr ""
+
+msgid "Setup"
 msgstr ""
 
 #, python-format
@@ -1353,6 +1371,12 @@ msgid "Premium only."
 msgstr ""
 
 msgid "Your saved value is kept, and comes back if the subscription is renewed."
+msgstr ""
+
+msgid "Add Premium"
+msgstr ""
+
+msgid "See plans"
 msgstr ""
 
 msgid ""
@@ -1512,6 +1536,9 @@ msgid ""
 "<strong>One Premium, three ways to pay for it.</strong> Every plan below "
 "unlocks exactly the same features — the only difference is how long you "
 "pay for at once, and how much that saves."
+msgstr ""
+
+msgid "Most popular"
 msgstr ""
 
 msgid "Subscribe"

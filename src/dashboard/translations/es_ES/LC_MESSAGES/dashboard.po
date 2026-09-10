@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-09 01:26-0400\n"
+"POT-Creation-Date: 2026-09-10 01:48-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es_ES\n"
@@ -248,6 +248,26 @@ msgstr "Premium"
 msgid "New"
 msgstr "Nuevo"
 
+# | msgid "Open the dashboard"
+msgid "A new look for the dashboard"
+msgstr "Un nuevo aspecto para el panel"
+
+msgid ""
+"Your server list is now a grid of tiles you can search, pin and open with"
+" a single click anywhere on the card, and each one says whether that "
+"server is on Premium. Setup has moved to the top of a server's Overview "
+"with a progress bar, and retires itself once everything required is done."
+" Settings puts each control directly under its own label, and the pricing"
+" page is one comparison you can read across."
+msgstr ""
+"Tu lista de servidores es ahora una cuadrícula de tarjetas que puedes "
+"buscar, fijar y abrir con un solo clic en cualquier punto de la tarjeta, "
+"y cada una indica si ese servidor tiene Premium. La configuración ha "
+"pasado a la parte superior del Resumen de cada servidor, con una barra de"
+" progreso, y desaparece cuando todo lo obligatorio está hecho. En "
+"Ajustes, cada control está justo debajo de su propia etiqueta, y la "
+"página de precios es una única comparación que se lee de un vistazo."
+
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
 msgstr "Un enlace al sitio web en tu panel de instrucciones"
@@ -444,8 +464,9 @@ msgstr "Opcional. Se quita en cuanto alguien se verifica."
 msgid "Verification log"
 msgstr "Registro de verificaciones"
 
-msgid "Optional. Premium."
-msgstr "Opcional. Premium."
+# | msgid "Optional. Premium."
+msgid "Optional."
+msgstr "Opcional."
 
 # | msgid "Sections"
 # | msgid "Settings"
@@ -494,22 +515,6 @@ msgstr "VRCVerify ya no puede publicar ahí: comprueba sus permisos."
 
 msgid "Posted, and VRCVerify can still reach it."
 msgstr "Publicado, y VRCVerify todavía puede acceder a él."
-
-msgid "No verified role is set"
-msgstr "No hay ningún rol de verificado configurado"
-
-msgid "The verified role needs attention"
-msgstr "El rol de verificado necesita atención"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "No instructions panel is posted"
-msgstr "No hay ningún panel de instrucciones publicado"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "The instructions panel needs attention"
-msgstr "El panel de instrucciones necesita atención"
 
 #, python-format
 msgid ""
@@ -1308,6 +1313,36 @@ msgstr ""
 "<code>/vrcverify_settings</code> muestra lo que hay guardado. Todo lo "
 "demás se cambia aquí."
 
+msgid "Finish setting up"
+msgstr "Termina la configuración"
+
+#, python-format
+msgid ""
+"What still needs doing before this server can verify anyone, and whether "
+"what's already set is still working. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+"Lo que falta para que este servidor pueda verificar a alguien, y si lo ya"
+" configurado sigue funcionando. Puedes cambiarlo todo en <a "
+"href=\"%(settings_url)s\">Ajustes</a>."
+
+#, python-format
+msgid "%(done)s of %(total)s done"
+msgstr "%(done)s de %(total)s hechos"
+
+#, python-format
+msgid "%(done)s of %(total)s required steps done"
+msgstr "%(done)s de %(total)s pasos obligatorios hechos"
+
+msgid "set"
+msgstr "configurado"
+
+msgid "needs attention"
+msgstr "necesita atención"
+
+msgid "off, optional"
+msgstr "desactivado, opcional"
+
 msgid "See plans and subscribe"
 msgstr "Ver planes y suscribirse"
 
@@ -1357,32 +1392,19 @@ msgstr "Sin medir"
 msgid "Couldn't load the daily trend just now."
 msgstr "No se pudo cargar la tendencia diaria en este momento."
 
-msgid "Setup"
-msgstr "Configuración"
-
-#, python-format
-msgid ""
-"What's configured here, and whether it's actually working -- one list "
-"instead of two, since \"switched on\" and \"still works\" used to be "
-"answered in different places on this page. Change any of it on <a "
-"href=\"%(settings_url)s\">Settings</a>."
-msgstr ""
-"Qué hay configurado aquí, y si de verdad funciona: una lista en vez de "
-"dos, ya que «activado» y «sigue funcionando» solían responderse en sitios"
-" distintos de esta página. Puedes cambiar todo ello en <a "
-"href=\"%(settings_url)s\">Ajustes</a>."
-
-msgid "Setup complete — verification is fully working here."
-msgstr "Configuración completa: la verificación funciona por completo aquí."
-
-msgid "set"
-msgstr "configurado"
-
-msgid "needs attention"
-msgstr "necesita atención"
-
 msgid "Your servers — VRCVerify"
 msgstr "Tus servidores — VRCVerify"
+
+#, python-format
+msgid "Pin %(name)s"
+msgstr "Fijar %(name)s"
+
+msgid "Upgrade"
+msgstr "Mejorar"
+
+# | msgid "Add to your server"
+msgid "Add to server"
+msgstr "Añadir al servidor"
 
 # | msgid "Add to your server"
 msgid "Your servers"
@@ -1395,6 +1417,31 @@ msgstr ""
 "No se puede contactar con el bot ahora mismo, así que no podemos decir en"
 " cuáles de estos está. Tus ajustes están a salvo: aquí no ha cambiado "
 "nada. Inténtalo de nuevo en un momento."
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Search your servers"
+msgstr "Busca en tus servidores"
+
+# | msgid "Per server"
+msgid "Search servers"
+msgstr "Buscar servidores"
+
+msgid "Search"
+msgstr "Buscar"
+
+# | msgid "No servers to show"
+msgid "No servers match that"
+msgstr "Ningún servidor coincide"
+
+#, python-format
+msgid "Nothing in your list is called “%(q)s”."
+msgstr "No hay nada en tu lista que se llame «%(q)s»."
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Show all your servers"
+msgstr "Ver todos tus servidores"
 
 msgid "No servers to show"
 msgstr "No hay servidores que mostrar"
@@ -1414,12 +1461,16 @@ msgstr "Cerrar sesión y empezar de nuevo"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "Se te pedirá iniciar sesión con Discord otra vez."
 
-# | msgid "Add to your server"
-msgid "Add to server"
-msgstr "Añadir al servidor"
+# | msgid "None"
+msgid "Pinned"
+msgstr "Fijados"
 
 msgid "Pricing · VRCVerify"
 msgstr "Precios · VRCVerify"
+
+# | msgid "Canceled"
+msgid "Included"
+msgstr "Incluido"
 
 msgid "Pricing"
 msgstr "Precios"
@@ -1431,14 +1482,43 @@ msgstr ""
 "La verificación es gratis, para siempre. Premium añade la automatización "
 "a su alrededor, por servidor."
 
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+"No podemos cargar los precios en este momento. <strong>Premium sigue "
+"disponible.</strong> Inténtalo de nuevo en un momento, o suscríbete "
+"dentro de Discord."
+
+msgid "There are no plans on sale at the moment."
+msgstr "En este momento no hay ningún plan a la venta."
+
+msgid "One Premium, three ways to pay for it"
+msgstr "Un solo Premium, tres formas de pagarlo"
+
+msgid "Billing term"
+msgstr "Periodo de facturación"
+
+msgid "Price unavailable"
+msgstr "Precio no disponible"
+
+# | msgid "" "Every plan below unlocks exactly the same features — the only
+# | difference " "is how long you pay for at once, and how much that saves."
+msgid ""
+"Per server. Every term unlocks exactly the same features — the only "
+"difference is how long you pay for at once."
+msgstr ""
+"Por servidor. Todos los periodos desbloquean exactamente las mismas "
+"funciones; la única diferencia es cuánto tiempo pagas de una vez."
+
+msgid "What each plan includes"
+msgstr "Qué incluye cada plan"
+
+msgid "Feature"
+msgstr "Función"
+
 msgid "Free"
 msgstr "Gratis"
-
-msgid "forever"
-msgstr "para siempre"
-
-msgid "Everything you need to verify your members."
-msgstr "Todo lo que necesitas para verificar a tus miembros."
 
 msgid "Verify members as 18+"
 msgstr "Verificar a miembros como 18+"
@@ -1448,20 +1528,6 @@ msgstr "Verificar automáticamente a quien ya se verificó en otro servidor"
 
 msgid "Members can update their own nickname"
 msgstr "Los miembros pueden actualizar su propio apodo"
-
-msgid "Add to your server"
-msgstr "Añádelo a tu servidor"
-
-msgid "Per server"
-msgstr "Por servidor"
-
-msgid "monthly, 6 or 12 months"
-msgstr "mensual, 6 o 12 meses"
-
-msgid "The automation around verification, for servers that want it."
-msgstr ""
-"La automatización alrededor de la verificación, para los servidores que "
-"la quieran."
 
 msgid "Automatic removal of an unverified role"
 msgstr "Eliminación automática de un rol de no verificado"
@@ -1487,33 +1553,15 @@ msgstr "Tiempo de espera de verificación reducido"
 msgid "VRChat group invites for verified members"
 msgstr "Invitaciones al grupo de VRChat para miembros verificados"
 
+# | msgid "Not applied"
+msgid "Not included"
+msgstr "No incluido"
+
+msgid "Add to your server"
+msgstr "Añádelo a tu servidor"
+
 msgid "Open the dashboard"
 msgstr "Abrir el panel de control"
-
-msgid "One Premium, three ways to pay for it"
-msgstr "Un solo Premium, tres formas de pagarlo"
-
-msgid ""
-"We can't load prices right now. <strong>Premium is still "
-"available.</strong> Try again in a moment, or subscribe inside Discord."
-msgstr ""
-"No podemos cargar los precios en este momento. <strong>Premium sigue "
-"disponible.</strong> Inténtalo de nuevo en un momento, o suscríbete "
-"dentro de Discord."
-
-msgid "There are no plans on sale at the moment."
-msgstr "En este momento no hay ningún plan a la venta."
-
-msgid ""
-"Every plan below unlocks exactly the same features — the only difference "
-"is how long you pay for at once, and how much that saves."
-msgstr ""
-"Todos los planes de abajo desbloquean exactamente las mismas funciones: "
-"la única diferencia es cuánto tiempo pagas de una vez, y cuánto ahorras "
-"con ello."
-
-msgid "Most popular"
-msgstr "El más popular"
 
 msgid ""
 "Some plans start with a free trial. Whether a particular server qualifies"
@@ -1534,23 +1582,6 @@ msgstr ""
 "pagar. Del pago se encarga Stripe: los datos de tu tarjeta nunca llegan a"
 " VRCVerify."
 
-msgid ""
-"Premium is bought per server. You can subscribe with a card in the "
-"dashboard, or monthly through Discord."
-msgstr ""
-"Premium se compra por servidor. Puedes suscribirte con tarjeta en el "
-"panel de control, o mensualmente a través de Discord."
-
-msgid "Ready to start?"
-msgstr "¿Listo para empezar?"
-
-msgid ""
-"Add VRCVerify to your server and verification works immediately, at no "
-"cost. Premium is there when you want it."
-msgstr ""
-"Añade VRCVerify a tu servidor y la verificación funciona de inmediato, "
-"sin coste. Premium está ahí cuando lo quieras."
-
 msgid "Saved."
 msgstr "Guardado."
 
@@ -1568,18 +1599,6 @@ msgstr ""
 "Tus ajustes se guardaron, pero el panel de instrucciones sigue mostrando "
 "los antiguos. Usa <strong>Volver a publicar o mover el panel</strong> "
 "abajo para reemplazarlo."
-
-msgid ""
-"Your grandfathered extras stay free whatever you decide. Premium unlocks "
-"the settings marked below."
-msgstr ""
-"Tus extras heredados siguen siendo gratis, decidas lo que decidas. "
-"Premium desbloquea los ajustes marcados abajo."
-
-msgid "Unlocks the settings marked below. 18+ verification itself stays free."
-msgstr ""
-"Desbloquea los ajustes marcados abajo. La verificación 18+ en sí sigue "
-"siendo gratis."
 
 msgid ""
 "Couldn't load this server's roles and channels just now, so some settings"
@@ -1619,6 +1638,9 @@ msgstr ""
 
 msgid "Members use this message to begin verification."
 msgstr "Los miembros usan este mensaje para empezar la verificación."
+
+msgid "Setup"
+msgstr "Configuración"
 
 #, python-format
 msgid "VRChat said: %(said)s"
@@ -1669,6 +1691,14 @@ msgstr "Solo con Premium."
 
 msgid "Your saved value is kept, and comes back if the subscription is renewed."
 msgstr "Tu valor guardado se conserva, y vuelve si se renueva la suscripción."
+
+# | msgid "Premium"
+msgid "Add Premium"
+msgstr "Añadir Premium"
+
+# | msgid "Spanish"
+msgid "See plans"
+msgstr "Ver planes"
 
 msgid ""
 "Saved, but not acted on without Premium. Anyone can set this; the bot "
@@ -1893,6 +1923,9 @@ msgstr ""
 "planes de abajo desbloquean exactamente las mismas funciones: la única "
 "diferencia es cuánto tiempo pagas de una vez, y cuánto ahorras con ello."
 
+msgid "Most popular"
+msgstr "El más popular"
+
 msgid "Subscribe"
 msgstr "Suscribirse"
 
@@ -1961,4 +1994,94 @@ msgstr ""
 
 #~ msgid "Overview, settings and activity"
 #~ msgstr "Resumen, ajustes y actividad"
+
+#~ msgid "No verified role is set"
+#~ msgstr "No hay ningún rol de verificado configurado"
+
+#~ msgid "The verified role needs attention"
+#~ msgstr "El rol de verificado necesita atención"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "No instructions panel is posted"
+#~ msgstr "No hay ningún panel de instrucciones publicado"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "The instructions panel needs attention"
+#~ msgstr "El panel de instrucciones necesita atención"
+
+#~ msgid ""
+#~ "What's configured here, and whether it's"
+#~ " actually working -- one list instead"
+#~ " of two, since \"switched on\" and"
+#~ " \"still works\" used to be answered"
+#~ " in different places on this page."
+#~ " Change any of it on <a "
+#~ "href=\"%(settings_url)s\">Settings</a>."
+#~ msgstr ""
+#~ "Qué hay configurado aquí, y si de"
+#~ " verdad funciona: una lista en vez"
+#~ " de dos, ya que «activado» y "
+#~ "«sigue funcionando» solían responderse en "
+#~ "sitios distintos de esta página. Puedes"
+#~ " cambiar todo ello en <a "
+#~ "href=\"%(settings_url)s\">Ajustes</a>."
+
+#~ msgid "Setup complete — verification is fully working here."
+#~ msgstr "Configuración completa: la verificación funciona por completo aquí."
+
+#~ msgid "forever"
+#~ msgstr "para siempre"
+
+#~ msgid "Everything you need to verify your members."
+#~ msgstr "Todo lo que necesitas para verificar a tus miembros."
+
+#~ msgid "monthly, 6 or 12 months"
+#~ msgstr "mensual, 6 o 12 meses"
+
+#~ msgid "The automation around verification, for servers that want it."
+#~ msgstr ""
+#~ "La automatización alrededor de la "
+#~ "verificación, para los servidores que la"
+#~ " quieran."
+
+#~ msgid ""
+#~ "Premium is bought per server. You "
+#~ "can subscribe with a card in the"
+#~ " dashboard, or monthly through Discord."
+#~ msgstr ""
+#~ "Premium se compra por servidor. Puedes"
+#~ " suscribirte con tarjeta en el panel"
+#~ " de control, o mensualmente a través"
+#~ " de Discord."
+
+#~ msgid "Ready to start?"
+#~ msgstr "¿Listo para empezar?"
+
+#~ msgid ""
+#~ "Add VRCVerify to your server and "
+#~ "verification works immediately, at no "
+#~ "cost. Premium is there when you "
+#~ "want it."
+#~ msgstr ""
+#~ "Añade VRCVerify a tu servidor y la"
+#~ " verificación funciona de inmediato, sin"
+#~ " coste. Premium está ahí cuando lo"
+#~ " quieras."
+
+#~ msgid ""
+#~ "Your grandfathered extras stay free "
+#~ "whatever you decide. Premium unlocks the"
+#~ " settings marked below."
+#~ msgstr ""
+#~ "Tus extras heredados siguen siendo "
+#~ "gratis, decidas lo que decidas. Premium"
+#~ " desbloquea los ajustes marcados abajo."
+
+#~ msgid "Unlocks the settings marked below. 18+ verification itself stays free."
+#~ msgstr ""
+#~ "Desbloquea los ajustes marcados abajo. "
+#~ "La verificación 18+ en sí sigue "
+#~ "siendo gratis."
 
