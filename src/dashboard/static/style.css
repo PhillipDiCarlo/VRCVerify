@@ -2845,18 +2845,44 @@ footer p + p { margin-top: var(--space-2); }
  * would be the first thing to undo it. */
 .setup-action { padding: 0.4rem 0.9rem; font-size: 0.85rem; }
 
-/* No fill, same reason .notice.ok has none -- see the comment on that rule,
- * which carries the argument and the current numbers. The 4.14:1 figure that
- * used to be quoted here belonged to --ok's older #1a8245 and is 4.59:1 since
- * the #141 pass darkened it; the reason this is unfilled is no longer that
- * number. Unfilled it sits on --panel, where --ok is 5.39:1. */
-.setup-complete {
-  margin: 0 0 var(--space-3);
-  padding: 0.6rem 0.85rem;
-  border: 1px solid var(--ok);
-  border-radius: var(--radius-control);
-  color: var(--ok);
+/* `.setup-complete` USED TO LIVE HERE and is gone with the markup that drew
+ * it (#286). The whole section retires at 100% now, so the finished state is
+ * the absence of the panel rather than a green line inside it -- a checklist
+ * with everything ticked is furniture on the page an admin visits most. */
+
+.setup-progress {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0 0 var(--space-4);
+}
+.setup-progress-step {
+  flex: 1 1 0;
+  height: 0.35rem;
+  border-radius: var(--radius-pill);
+  /* --control-line, not --line: this is a control's worth of meaning rather
+   * than a hairline between rows, and it has to stay visible when it is the
+   * only empty segment beside a filled one. 3.38:1 on the card. */
+  background: var(--control-line);
+}
+.setup-progress-step.done { background: var(--accent-text); }
+
+.setup-progress-label {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-note);
   font-weight: 600;
+  color: var(--muted);
+}
+
+/* The same tag the changelog and the picker use, at the size this list reads
+ * at. --accent-text on --panel is already pinned in test_contrast's pairs. */
+.setup-premium {
+  margin-inline-start: 0.4rem;
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  white-space: nowrap;
 }
 
 /* --- change history --- */

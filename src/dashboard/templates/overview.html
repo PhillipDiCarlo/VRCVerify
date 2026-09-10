@@ -4,6 +4,164 @@
 {% block content %}
 {% include "_guild_head.html" %}
 
+{# SETUP FIRST, AND IT RETIRES (#286).
+
+   ABOVE THE NUMBERS, because a server with no verified role has nothing to
+   count and burying the reason under four zeroes is how an admin concludes
+   the bot is broken. That argument is not new -- it is why the next-step slot
+   sat here -- and it applies with more force to the whole checklist than it
+   did to one row of it.
+
+   `not setup.complete` IS THE RETIREMENT. A finished server sees nothing
+   here at all, rather than a checklist with everything ticked, because a list
+   with nothing left to do is furniture on the page an admin visits most. It
+   comes back on its own the moment a required row breaks, which is the state
+   worth interrupting somebody for.
+
+   The optional rows go with it. They are settings, and Settings is where they
+   live permanently; this list exists to get a server working. #}
+{% if setup and not setup.complete %}
+  <section class="panel group setup-panel">
+    <h2>{% trans %}Finish setting up{% endtrans %}</h2>
+    {% set settings_url = url_for('guild_settings', guild_id=guild_id, group='verification') %}
+    {# REWRITTEN WITH THE PANEL (#286). The old sentence explained that this
+       list used to be two lists, which is a fact about the page's history and
+       not about the reader's server -- and it shipped a literal "--" into the
+       rendered copy, which this project writes as a period or a comma
+       everywhere else.
+
+       The panel only appears when something is unfinished now, so the blurb
+       can say what the list is FOR rather than what it is made of. #}
+    <p class="muted blurb">
+      {% trans settings_url=settings_url %}What still needs doing before this server can verify anyone, and whether what's already set is still working. Change any of it on <a href="{{ settings_url }}">Settings</a>.{% endtrans %}
+    </p>
+
+    {# THE BAR COUNTS THE REQUIRED ROWS AND NOTHING ELSE, which is the same
+       set `complete` is computed from. A bar that could only reach 100% by
+       switching on three optional toggles would tell an admin their finished
+       server is unfinished, which is the exact thing those rows are worded
+       not to do.
+
+       The number is written out beside it. A bar alone at 50% does not say
+       whether that is one of two or nine of eighteen, and with two required
+       rows the difference is the whole message. #}
+    <p class="setup-progress-label">
+      {% trans done=setup.progress.done, total=setup.progress.total %}{{ done }} of {{ total }} done{% endtrans %}
+    </p>
+    {# ONE SEGMENT PER REQUIRED ROW, not a percentage-width fill.
+
+       Two reasons, and the second is the better one. The CSP here is
+       `style-src 'self'`, which drops inline style="" silently -- so a fill
+       whose width is a percentage would need either 101 generated classes or
+       a rule per plausible step count, and it would fail by rendering an
+       empty bar rather than by erroring.
+
+       And a bar of segments is truer at this size. With two required rows a
+       continuous bar at 50% says "halfway" without saying halfway through
+       what; two boxes, one filled, says there are two things and one is
+       done. The segments are drawn filled-first because the ORDER of them
+       carries nothing -- the rows below say which is which. #}
+    <div class="setup-progress" role="img"
+         aria-label="{{ _('%(done)s of %(total)s required steps done', done=setup.progress.done, total=setup.progress.total) }}">
+      {% for index in range(setup.progress.total) %}
+        <span class="setup-progress-step{% if index < setup.progress.done %} done{% endif %}"></span>
+      {% endfor %}
+    </div>
+
+    <ul class="setup">
+      {% for row in setup.rows %}
+        {# THREE VISUAL STATES, NOT TWO, because "not configured" and
+           "configured but broken" need different notes and the same color
+           would erase that. `state` comes straight from overview_view, which
+           is also where "off means fine" for the three optional rows and
+           "off means blocked" for the first two stays a single decision
+           rather than one made twice, here and in Python. #}
+        <li class="setup-row setup-row-{{ row.state }}">
+          {# Inline SVG rather than &check; / &times;. The vendored Inter subset
+             has no U+2713, so a tick would silently fall back to another
+             family and land at a different weight and baseline -- which reads
+             as a rendering fault rather than a design choice. #}
+          <span class="setup-state" aria-hidden="true">
+            {%- if row.state == 'done' -%}
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
+                   stroke="currentColor" stroke-width="2.2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 8.5l3.5 3.5L13 4.5"></path>
+              </svg>
+            {%- elif row.state == 'broken' -%}
+              {# Configured, and wrong -- a different mark from an ordinary
+                 X, because the fix here is "something changed", not "turn
+                 this on". #}
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
+                   stroke="currentColor" stroke-width="2.2"
+                   stroke-linecap="round">
+                <circle cx="8" cy="8" r="6.2"></circle>
+                <path d="M8 5.1v3.6"></path>
+                <circle cx="8" cy="11.1" r="0.2" fill="currentColor" stroke="none"></circle>
+              </svg>
+            {%- elif row.required -%}
+              {# Required and not set. A cross, because something that must be
+                 done has not been. #}
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
+                   stroke="currentColor" stroke-width="2.2"
+                   stroke-linecap="round">
+                <path d="M4 4l8 8M12 4l-8 8"></path>
+              </svg>
+            {%- else -%}
+              {# OPTIONAL AND OFF, WHICH IS NOT A FAULT. This wore the same red
+                 cross as a missing verified role, so a server that was working
+                 perfectly showed three errors -- and an admin cannot tell a
+                 real one from a preference they never wanted. A hollow circle
+                 is the absence of a choice rather than the presence of a
+                 problem. #}
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
+                   stroke="currentColor" stroke-width="1.6">
+                <circle cx="8" cy="8" r="5.2"></circle>
+              </svg>
+            {%- endif -%}
+          </span>
+          <span class="setup-label">
+            {{ row.label }}
+            {# THE PLAN, DISCOVERED WHILE SETTING UP (#286). This used to be
+               the word "Premium." at the end of the row's note, which cannot
+               be styled, cannot be counted, and read as a footnote on the one
+               list every new admin walks down.
+
+               INSIDE THE LABEL CELL, not beside it. `.setup-row` is a
+               four-column grid, and a fifth child that only one row has would
+               shift the note and the button one column across on that row
+               alone -- a misalignment with no error behind it. #}
+            {% if row.premium %}
+              <span class="setup-premium">{% trans %}Premium{% endtrans %}</span>
+            {% endif %}
+            {# Read only by a screen reader, and translated like everything
+               else -- the tick beside it is `aria-hidden`, so this string is
+               the ONLY thing that tells a non-sighted reader whether the row
+               is configured. Leaving it English would make the setup list
+               unreadable in exactly the way the visual version is not. #}
+            <span class="offscreen">
+              {%- if row.state == 'done' %}: {% trans %}set{% endtrans %}
+              {%- elif row.state == 'broken' %}: {% trans %}needs attention{% endtrans %}
+              {%- elif row.required %}: {% trans %}not set{% endtrans %}
+              {%- else %}: {% trans %}off, optional{% endtrans %}{% endif -%}
+            </span>
+          </span>
+          <span class="muted setup-note">{{ row.note }}</span>
+          {% if row.action %}
+            {# The group as well as the fragment (#140). Without it this
+               lands on whatever the bare URL redirects to, and the panel row's
+               anchor matches nothing there. #}
+            <a class="button setup-action"
+               href="{{ url_for('guild_settings', guild_id=guild_id, group=row.action.group) }}#{{ row.action.anchor }}">
+              {{- row.action.label -}}
+            </a>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
 {# The one thing worth doing next, if there is one. Above the numbers on
    purpose: a server with no verified role has nothing to count, and burying
    the reason under four zeroes is how an admin concludes the bot is broken.
@@ -41,8 +199,9 @@
        button still wrapped. #}
     {# The whole row is conditional, because a card can now legitimately have
        nothing to offer. A missing Manage Roles permission is granted in
-       Discord and by nothing on any Settings page, so `_setup_step` returns no
-       action for it -- and an empty flex row would still draw its gap. #}
+       Discord and by nothing on any Settings page, so a changelog entry or
+       a demo can arrive with no button -- and an empty flex row would still
+       draw its gap. #}
     {% if next_step.action or next_step.entry_id %}
     <div class="actions">
       {% if next_step.action == 'subscription' %}
@@ -181,86 +340,4 @@
   {% endif %}
 </section>
 
-{% if setup %}
-  <section class="panel group">
-    <h2>{% trans %}Setup{% endtrans %}</h2>
-    {% set settings_url = url_for('guild_settings', guild_id=guild_id, group='verification') %}
-    <p class="muted blurb">
-      {% trans settings_url=settings_url %}What's configured here, and whether it's actually working -- one list instead of two, since "switched on" and "still works" used to be answered in different places on this page. Change any of it on <a href="{{ settings_url }}">Settings</a>.{% endtrans %}
-    </p>
-
-    {# Pipedrive's finished state, not a fourth tick among three: a fully
-       configured server should read as done, not as a checklist with nothing
-       left to check off. #}
-    {% if setup.complete %}
-      <p class="setup-complete">{% trans %}Setup complete — verification is fully working here.{% endtrans %}</p>
-    {% endif %}
-
-    <ul class="setup">
-      {% for row in setup.rows %}
-        {# THREE VISUAL STATES, NOT TWO, because "not configured" and
-           "configured but broken" need different notes and the same color
-           would erase that. `state` comes straight from overview_view, which
-           is also where "off means fine" for the three optional rows and
-           "off means blocked" for the first two stays a single decision
-           rather than one made twice, here and in Python. #}
-        <li class="setup-row setup-row-{{ row.state }}">
-          {# Inline SVG rather than &check; / &times;. The vendored Inter subset
-             has no U+2713, so a tick would silently fall back to another
-             family and land at a different weight and baseline -- which reads
-             as a rendering fault rather than a design choice. #}
-          <span class="setup-state" aria-hidden="true">
-            {%- if row.state == 'done' -%}
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
-                   stroke="currentColor" stroke-width="2.2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 8.5l3.5 3.5L13 4.5"></path>
-              </svg>
-            {%- elif row.state == 'broken' -%}
-              {# Configured, and wrong -- a different mark from an ordinary
-                 X, because the fix here is "something changed", not "turn
-                 this on". #}
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
-                   stroke="currentColor" stroke-width="2.2"
-                   stroke-linecap="round">
-                <circle cx="8" cy="8" r="6.2"></circle>
-                <path d="M8 5.1v3.6"></path>
-                <circle cx="8" cy="11.1" r="0.2" fill="currentColor" stroke="none"></circle>
-              </svg>
-            {%- else -%}
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none"
-                   stroke="currentColor" stroke-width="2.2"
-                   stroke-linecap="round">
-                <path d="M4 4l8 8M12 4l-8 8"></path>
-              </svg>
-            {%- endif -%}
-          </span>
-          <span class="setup-label">
-            {{ row.label }}
-            {# Read only by a screen reader, and translated like everything
-               else -- the tick beside it is `aria-hidden`, so this string is
-               the ONLY thing that tells a non-sighted reader whether the row
-               is configured. Leaving it English would make the setup list
-               unreadable in exactly the way the visual version is not. #}
-            <span class="offscreen">
-              {%- if row.state == 'done' %}: {% trans %}set{% endtrans %}
-              {%- elif row.state == 'broken' %}: {% trans %}needs attention{% endtrans %}
-              {%- else %}: {% trans %}not set{% endtrans %}{% endif -%}
-            </span>
-          </span>
-          <span class="muted setup-note">{{ row.note }}</span>
-          {% if row.action %}
-            {# The group as well as the fragment (#140). Without it this
-               lands on whatever the bare URL redirects to, and the panel row's
-               anchor matches nothing there. #}
-            <a class="button setup-action"
-               href="{{ url_for('guild_settings', guild_id=guild_id, group=row.action.group) }}#{{ row.action.anchor }}">
-              {{- row.action.label -}}
-            </a>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-  </section>
-{% endif %}
 {% endblock %}

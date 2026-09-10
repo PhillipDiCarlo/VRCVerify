@@ -429,15 +429,19 @@ class TestItFitsTheRankerBuiltIn135:
         card = changelog.build_premium_card(GUILD, entries=(PREMIUM,))
         assert {"title", "body", "action"} <= set(card)
 
-    def test_a_setup_step_still_outranks_a_premium_entry(self):
-        # Rank 1 is absolute: a server that cannot finish a verification must
-        # be fixed, not sold to.
+    def test_an_unfinished_server_is_still_never_sold_to(self):
+        """The same rule as before, enforced a different way (#286).
+
+        It used to hold because a setup step outranked the premium entry in
+        this slot. The setup step moved to the checklist above the stats, and
+        deleting the branch would have let the pitch move UP into the slot it
+        was being kept out of -- the exact outcome that ranking existed to
+        prevent. So the slot is empty instead.
+        """
         broken = self.configured_overview()
         broken["configured"]["verified_role"] = None
         card = changelog.build_premium_card(GUILD, entries=(PREMIUM,))
-        step = build_next_step(broken, card)
-        assert step["action"] == "settings"
-        assert "Log channel" not in step["title"]
+        assert build_next_step(broken, card) is None
 
     def test_a_premium_entry_outranks_the_data_backed_demo(self):
         card = changelog.build_premium_card(GUILD, entries=(PREMIUM,))

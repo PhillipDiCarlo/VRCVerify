@@ -411,8 +411,15 @@ OPTIONAL_ROWS = (
         N_("Unverified role"),
         N_("Optional. Removed once someone verifies."),
     ),
-    ("log_channel", N_("Verification log"), N_("Optional. Premium.")),
+    ("log_channel", N_("Verification log"), N_("Optional.")),
 )
+
+# Which rows are gated behind Premium. A SET RATHER THAN A WORD IN THE NOTE,
+# which is where it used to live ("Optional. Premium."). Prose cannot be styled
+# as a tag, cannot be counted, and cannot be checked against the gate it claims
+# to describe -- and #286 wants the plan discoverable while somebody is setting
+# up, which means the checklist has to know rather than merely say.
+PREMIUM_ROWS = frozenset({"log_channel"})
 
 # Where each fixable row's action points: which settings group, and which field
 # on it. Not a full URL -- this module stays Flask-free, like `settings_view`,
@@ -465,7 +472,8 @@ def _role_row(configured: dict, t: Callable[[str], str] = _untranslated) -> dict
     """
     action = _settings_action("verified_role", t=t)
     label = t(N_("Verified role"))
-    # `key` rather than the label is what `_setup_step` looks this row up by.
+    # `key` rather than the label is what every consumer looks this row up
+    # by -- picker_view's card states, and the checklist's own ordering.
     # The label is translated; the key is not, and must not be.
     key = "verified_role"
     if not configured.get("verified_role"):
@@ -618,6 +626,25 @@ def build_setup(
         for key, label, note in OPTIONAL_ROWS
     ]
 
+    required_keys = {role["key"], panel["key"]}
+    for index, row in enumerate(rows):
+        # `required` on the row itself, so the template can draw an optional
+        # row differently without re-deriving "the first two" from position.
+        # An optional toggle left off wore the same red cross as a missing
+        # verified role, which told an admin their working server was broken.
+        row["required"] = row["key"] in required_keys
+        row["premium"] = row["key"] in PREMIUM_ROWS
+        row["order"] = index
+
+    # FINISHED ROWS SINK (#286). Sorted here rather than in the template
+    # because the order is a fact about the data, and a template that sorts is
+    # a template that can disagree with the progress count beside it.
+    #
+    # The definition order still decides ties, so within the unfinished group
+    # this is still "the order that blocks verification": the role first, since
+    # nothing after it matters without one, then the panel, then the choices.
+    rows.sort(key=lambda row: (row["state"] == "done", row["order"]))
+
     # `required` names the two rows that decide `complete`, so a second caller
     # can ask "which rows must be done" without hardcoding a list beside this
     # one. The picker's cards read it (#164 phase 3): they need three states
@@ -625,67 +652,17 @@ def build_setup(
     # first two" from row order is exactly the drift this whole function was
     # written to end.
     required = (role, panel)
+    done = sum(1 for row in required if row["state"] == "done")
     return {
         "rows": rows,
         "required": tuple(row["key"] for row in required),
         "complete": all(row["state"] == "done" for row in required),
-    }
-
-
-def _setup_step(setup: dict, t: Callable[[str], str] = _untranslated) -> dict:
-    """The single most useful setup row to surface at the top of the page,
-    for whichever of the two required rows isn't done.
-
-    Reuses `build_setup`'s own row -- state, note, AND whether it has a fix to
-    offer -- rather than a second copy of "is the role missing" that could
-    disagree with the list right below it. `state` decides only the *title*,
-    because "todo" and "broken" already have distinct, accurate notes from
-    #135 phase 3 and duplicating that wording here is how the two drift.
-
-    THE BUTTON IS THE ROW'S, NOT THIS FUNCTION'S. It used to be hardcoded to
-    "settings", which was true of every row that existed at the time and stops
-    being true the moment one of them cannot be fixed from Settings: a missing
-    Manage Roles permission is granted in Discord, and no field on any of the
-    five Settings pages does it. Reading the row's own `action` means a row
-    that declines to offer a fix is not overruled here.
-    """
-    # BY `key`, NEVER BY `label` (#97). `label` is translated now, so
-    # `by_label["Verified role"]` is a KeyError the moment somebody reads this
-    # page in German -- and the label is the one thing about a row that is
-    # guaranteed to change. `key` is the stable identifier the rows have
-    # always carried for the optional three; the two required rows now carry
-    # it too, for exactly this lookup.
-    by_key = {row["key"]: row for row in setup["rows"]}
-
-    role = by_key["verified_role"]
-    if role["state"] != "done":
-        title = (
-            t(N_("No verified role is set"))
-            if role["state"] == "todo"
-            else t(N_("The verified role needs attention"))
-        )
-        # Named, not left to the template's fallback: this is the one
-        # candidate whose button already knew which field it was about, and
-        # after the split (#140) "Settings" is five pages, only one of which
-        # has a role picker on it.
-        return {
-            "title": title,
-            "body": role["note"],
-            "action": "settings" if role["action"] else None,
-            "group": _SETTINGS_ANCHOR["verified_role"][0],
-        }
-
-    panel = by_key["panel"]
-    title = (
-        t(N_("No instructions panel is posted"))
-        if panel["state"] == "todo"
-        else t(N_("The instructions panel needs attention"))
-    )
-    return {
-        "title": title,
-        "body": panel["note"],
-        "action": "settings" if panel["action"] else None,
-        "group": _SETTINGS_ANCHOR["panel"][0],
+        # OVER THE REQUIRED ROWS ONLY, which is the same set `complete` is
+        # computed from -- a bar that could never reach 100% without switching
+        # on three optional toggles would be telling an admin their finished
+        # server is unfinished, which is the exact thing the optional rows are
+        # written not to do.
+        "progress": {"done": done, "total": len(required)},
     }
 
 
@@ -774,8 +751,17 @@ def build_next_step(
     """The single most useful thing to put in the best attention slot on the
     page, if anything. At most one item, ranked:
 
-    1. A genuine setup step -- always wins. A server that cannot finish a
-       verification must not be sold to instead of fixed.
+    1. NOTHING, while setup is unfinished. This used to return a setup step,
+       and #286 moved that job to the checklist above the stats -- which now
+       carries every unfinished row and a progress bar rather than the single
+       most urgent one.
+
+       BUT THE RULE THE SETUP CASE ENFORCED IS NOT GONE, it changed shape. "A
+       server that cannot finish a verification must not be sold to instead of
+       fixed" was true because the setup step outranked the pitch; delete the
+       branch and the pitch simply moves up into the slot, which is the exact
+       outcome that ranking existed to prevent. So an unfinished server gets
+       silence here and a checklist above.
     2. `changelog_entry`, an undismissed premium changelog entry. This
        parameter is #136's contract, not #135's: nothing calls this with one
        yet, and the default keeps today's behavior exactly as it was. #135
@@ -808,7 +794,9 @@ def build_next_step(
         # with the other half missing would be worse than matching it.
         return None
     if not setup["complete"]:
-        return _setup_step(setup, t)
+        # The checklist has it, and this slot stays empty rather than filling
+        # with a premium pitch aimed at a server that cannot verify anybody.
+        return None
 
     if changelog_entry:
         return changelog_entry

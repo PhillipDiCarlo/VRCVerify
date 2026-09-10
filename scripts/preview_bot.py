@@ -345,6 +345,23 @@ class PreviewBotAPI:
         guild_id = self._check(guild_id)
         payload = make_overview(premium=guild_id == PREMIUM)
         payload["guild_id"] = guild_id
+        # THE SAME OVERRIDES `guild_summaries` APPLIES, because the two are
+        # answers to the same question and the preview was letting them
+        # disagree: the picker drew the free server as "Setup isn't finished"
+        # while its own Overview said setup was complete. Sharing `build_setup`
+        # is what stops those two surfaces disagreeing in production (#164),
+        # and a preview that contradicts itself cannot show that working.
+        if guild_id == FREE:
+            payload["configured"].update(
+                verified_role=False,
+                verified_role_exists=None,
+                verified_role_assignable=None,
+            )
+            payload["panel"] = {"posted": False}
+        elif guild_id == UNREACHABLE:
+            payload["configured"].update(
+                bot_can_manage_roles=False, verified_role_assignable=False
+            )
         if NO_MANAGE_ROLES:
             # Both fields, as the bot reports them: the permission on its own,
             # and the composite it also feeds. Setting only the first would be

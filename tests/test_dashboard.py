@@ -1821,18 +1821,23 @@ class TestDismissingAPremiumCard:
         assert _premium_entry().title in slot
         assert "<script>" not in slot
 
-    def test_the_setup_step_and_the_demo_carry_no_dismiss_control(self, config, store):
+    def test_an_unfinished_server_has_nothing_here_to_dismiss(self, config, store):
         """Only a changelog entry has a permanent id to record dismissal
-        against. A broken server must not be able to hide the reason, and the
-        demo comes and goes with the numbers on its own."""
+        against, and a broken server must not be able to hide the reason.
+
+        Since #286 that holds more simply than it used to: an unfinished
+        server has no next-step card at all, and the checklist above the stats
+        carries no dismiss control either. There is nothing to put away.
+        """
         test_client, _api = settings_client(
             config, store,
             overview=make_overview(last_30_days=214,
                                    configured={"verified_role": False}),
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
-        slot = page.split('class="panel group next-step"', 1)[1].split("</section>", 1)[0]
-        assert "/prefs/dismiss" not in slot
+        assert 'class="panel group next-step"' not in page
+        setup = page.split('class="setup"', 1)[1].split("</ul>", 1)[0]
+        assert "/prefs/dismiss" not in setup
 
     def test_no_class_is_claimed_twice_from_two_ends_of_the_stylesheet(self):
         """#158, and the fourth of these is what this exists to stop.
@@ -4619,8 +4624,17 @@ class TestTheOverviewSuggestsOneNextStep:
         assert "No verified role" not in page
         assert "No instructions panel" not in page
 
-    def test_no_verified_role_comes_first(self, config, store):
-        """It blocks everything after it, including the panel being useful."""
+    def test_both_unfinished_rows_are_reported_rather_than_the_first(self, config, store):
+        """#286 replaced the one-at-a-time slot with the whole checklist.
+
+        The old behaviour surfaced the most urgent row and hid the rest, so an
+        admin fixed the role, reloaded, and only then learned the panel was
+        missing too. Two round trips to find out about two things.
+
+        The role is still FIRST, which is the half of the old rule worth
+        keeping: it blocks everything after it, including the panel being
+        useful.
+        """
         page = self._page(
             config,
             store,
@@ -4632,12 +4646,14 @@ class TestTheOverviewSuggestsOneNextStep:
             },
             panel={"posted": False},
         )
-        assert "No verified role is set" in page
-        assert "No instructions panel is posted" not in page
+        setup = page.split('class="setup"', 1)[1].split("</ul>", 1)[0]
+        assert "Verified role" in setup and "Instructions panel" in setup
+        assert setup.index("Verified role") < setup.index("Instructions panel")
 
     def test_a_missing_panel_is_reported_when_the_role_is_fine(self, config, store):
         page = self._page(config, store, panel={"posted": False})
-        assert "No instructions panel is posted" in page
+        setup = page.split('class="setup"', 1)[1].split("</ul>", 1)[0]
+        assert "Members need a message to start from." in setup
 
 
 class TestThePremiumPitchOnThePage:
@@ -4738,15 +4754,22 @@ class TestThePremiumPitchOnThePage:
         page = self._page(config, store, last_30_days=None)
         assert "VRCVerify Premium" not in page
 
-    def test_a_broken_server_is_fixed_rather_than_sold_to(self, config, store):
-        """Rank 1 is absolute. A server that cannot finish a verification sees
-        the reason, not an announcement -- even an undismissed one."""
-        slot = self._slot(self._page(
+    def test_a_broken_server_is_still_never_sold_to(self, config, store):
+        """The rule survives #286, by suppression rather than by ranking.
+
+        A server that cannot finish a verification used to see a setup step in
+        this slot, which is what kept the announcement out of it. The setup
+        step moved to the checklist above the stats -- so the slot is empty
+        here, and the announcement still does not appear. Deleting the branch
+        without this would have promoted the pitch into the slot it was being
+        kept out of.
+        """
+        page = self._page(
             config, store, dismissed=False, last_30_days=214,
             configured={"verified_role": False},
-        ))
-        assert "No verified role is set" in slot
-        assert _premium_entry().title not in slot
+        )
+        assert 'class="panel group next-step"' not in page
+        assert _premium_entry().title not in page
 
     def test_only_ever_one_item_in_the_slot(self, config, store):
         page = self._page(config, store, dismissed=False, last_30_days=214)
@@ -4777,13 +4800,111 @@ class TestTheSetupListOnThePage:
         base.update(overrides)
         return base
 
+    @staticmethod
+    def _section(page):
+        """The setup panel, or None when it has retired.
+
+        In one place because #286 renamed the heading, and five regexes
+        spelling it out is five things to miss next time.
+        """
+        found = re.search(r"<h2>Finish setting up</h2>.*?</section>", page, re.S)
+        return found.group(0) if found else None
+
     def test_every_row_label_appears(self, config, store):
-        page = self._page(config, store, panel={"posted": True})
+        """Including the optional three, which are not what makes the panel
+        show but are still part of it while it does."""
+        page = self._page(
+            config, store,
+            configured=self._configured(verified_role=False,
+                                         verified_role_exists=None,
+                                         verified_role_assignable=None),
+            panel={"posted": True},
+        )
+        section = self._section(page)
+        assert section
         for label in (
             "Verified role", "Instructions panel", "Auto-verify on join",
             "Unverified role", "Verification log",
         ):
-            assert label in page
+            assert label in section
+
+    def test_the_panel_retires_when_the_required_rows_are_done(self, config, store):
+        """#286. A finished server sees no checklist at all -- not one with
+        everything ticked, and not a green "Setup complete" line either. The
+        finished state is the absence of the panel.
+
+        It comes back on its own when a required row breaks, which is the only
+        state worth interrupting somebody on this page for.
+        """
+        assert self._section(self._page(config, store, panel={"posted": True})) is None
+        assert "Setup complete" not in self._page(
+            config, store, panel={"posted": True}
+        )
+        assert self._section(
+            self._page(config, store, panel={"posted": False})
+        ) is not None
+
+    def test_the_progress_bar_has_one_segment_per_required_row(self, config, store):
+        """Segments rather than a percentage width, because `style-src 'self'`
+        drops inline style="" silently -- a percentage fill would render as an
+        empty bar with nothing to notice."""
+        page = self._page(config, store, panel={"posted": False})
+        section = self._section(page)
+        assert section.count("setup-progress-step") == 2
+        # The role is done in this fixture and the panel is not.
+        assert section.count("setup-progress-step done") == 1
+        assert "1 of 2 done" in section
+
+    def test_an_optional_row_is_not_drawn_as_a_failure(self, config, store):
+        """#286. Required-and-unset keeps the cross; optional-and-off gets a
+        hollow circle. Both were the same cross, which meant a working server
+        with two toggles off showed two marks that look like faults.
+
+        The colour was never the problem -- `.setup-row-off .setup-state` has
+        always been --faint rather than red, so the issue's "reads as an
+        error" overstates it. The SHAPE was, and a cross is a cross whatever
+        colour it is drawn in.
+        """
+        page = self._page(
+            config, store,
+            configured=self._configured(verified_role=False,
+                                         verified_role_exists=None,
+                                         verified_role_assignable=None),
+            panel={"posted": True},
+        )
+        section = self._section(page)
+        rows = re.findall(r'<li class="setup-row setup-row-(\w+)">(.*?)</li>',
+                          section, re.S)
+        marks = {state: ("circle" if "<circle" in body and "M4 4l8 8" not in body
+                         else "cross" if "M4 4l8 8" in body else "other")
+                 for state, body in rows}
+        assert marks["todo"] == "cross", marks
+        assert marks["off"] == "circle", marks
+
+    def test_the_premium_row_carries_its_tag_in_the_list(self, config, store):
+        """The plan, discovered while setting up. It used to be the word
+        "Premium." at the end of the row's note -- unstyleable, uncountable,
+        and read as a footnote on the one list every new admin walks down."""
+        page = self._page(
+            config, store,
+            configured=self._configured(verified_role=False,
+                                         verified_role_exists=None,
+                                         verified_role_assignable=None),
+            panel={"posted": True},
+        )
+        section = self._section(page)
+        row = re.search(r'<li class="setup-row[^"]*">(?:(?!</li>).)*?'
+                        r'Verification log.*?</li>', section, re.S)
+        assert row and "setup-premium" in row.group(0)
+        # Exactly one row wears it, so the tag still means something.
+        assert section.count("setup-premium") == 1
+
+    def test_finished_rows_sink_below_unfinished_ones(self, config, store):
+        """#286. The role is done here and the panel is not, so the panel --
+        which is defined second -- has to appear above it."""
+        page = self._page(config, store, panel={"posted": False})
+        section = self._section(page)
+        assert section.index("Instructions panel") < section.index("Verified role")
 
     def test_a_broken_role_shows_its_own_note_and_a_settings_link(self, config, store):
         page = self._page(
@@ -4793,11 +4914,10 @@ class TestTheSetupListOnThePage:
             panel={"posted": True},
         )
         assert "has been deleted" in page
-        section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
+        section = self._section(page)
         assert section
         assert (
-            f'href="/guild/{GUILD_IN}/settings/verification#f-role_id"'
-            in section.group(0)
+            f'href="/guild/{GUILD_IN}/settings/verification#f-role_id"' in section
         )
 
     def test_a_broken_panel_shows_its_own_note_and_a_settings_link(self, config, store):
@@ -4805,15 +4925,14 @@ class TestTheSetupListOnThePage:
             config, store,
             panel={"posted": True, "channel_exists": True, "channel_postable": False},
         )
-        section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
+        section = self._section(page)
         assert section
-        assert "check its permissions" in section.group(0)
+        assert "check its permissions" in section
         # The link this split would have broken silently: the panel field is
         # not on the page the bare /settings URL redirects to, so a fragment
         # alone would have scrolled to nothing.
         assert (
-            f'href="/guild/{GUILD_IN}/settings/panel#panel_channel_id"'
-            in section.group(0)
+            f'href="/guild/{GUILD_IN}/settings/panel#panel_channel_id"' in section
         )
 
     def test_an_unfinished_required_row_reads_differently_from_an_off_optional_one(
@@ -4836,29 +4955,23 @@ class TestTheSetupListOnThePage:
         assert "setup-row setup-row-off" in page
 
     def test_a_done_row_carries_no_action_button(self, config, store):
-        page = self._page(config, store, panel={"posted": True})
-        section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
+        """The role is done in this fixture, so its row offers no fix -- and
+        the panel, which is not, still does."""
+        page = self._page(config, store, panel={"posted": False})
+        section = self._section(page)
         assert section
-        # Two rows can be unfinished at most in this fixture (role, panel);
-        # both are done here, so no Settings link should appear at all.
-        assert "setup-action" not in section.group(0)
-
-    def test_the_complete_banner_appears_only_when_both_required_rows_are_done(
-        self, config, store
-    ):
-        done = self._page(config, store, panel={"posted": True})
-        assert "Setup complete" in done
-
-        not_done = self._page(config, store, panel={"posted": False})
-        assert "Setup complete" not in not_done
+        role = re.search(r'<li class="setup-row setup-row-done">.*?</li>',
+                         section, re.S)
+        assert role and "setup-action" not in role.group(0)
 
     def test_no_style_attribute_appears_in_the_setup_section(self, config, store):
         """`style-src 'self'` drops inline style="" silently -- the same trap
-        the chart's own render test guards against."""
-        page = self._page(config, store, panel={"posted": True})
-        section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
+        the chart's own render test guards against, and the reason the
+        progress bar is segments rather than a percentage width."""
+        page = self._page(config, store, panel={"posted": False})
+        section = self._section(page)
         assert section
-        assert 'style="' not in section.group(0)
+        assert 'style="' not in section
 
 
 class TestEverySectionFailsTheSameWay:
@@ -7451,14 +7564,17 @@ class TestOverviewViewModel:
         """The page shows an apology rather than a row of dashes."""
         assert overview_view.build_tiles(None) == []
 
-    def test_the_next_step_is_at_most_one_thing(self):
-        step = overview_view.build_next_step(
-            {
-                "configured": {"verified_role": False},
-                "panel": {"posted": False},
-            }
-        )
-        assert "verified role" in step["title"]
+    def test_two_unfinished_rows_still_produce_one_checklist(self):
+        """Both required rows unfinished. The slot is empty (#286) and the
+        checklist reports both, with progress saying none of two are done --
+        which is the thing the single "next step" could never show."""
+        overview = {
+            "configured": {"verified_role": False},
+            "panel": {"posted": False},
+        }
+        assert overview_view.build_next_step(overview) is None
+        setup = overview_view.build_setup(overview)
+        assert setup["progress"] == {"done": 0, "total": 2}
 
     def _configured(self, **overrides):
         base = {
@@ -7678,19 +7794,22 @@ class TestOverviewViewModel:
         checks would be worse than matching it."""
         assert overview_view.build_next_step({"configured": None}) is None
 
-    def test_a_broken_required_row_is_a_setup_step_with_its_own_title(self):
-        """Deleted, not just unset -- the top banner has to say which,
-        reusing the exact note build_setup already wrote for the row."""
-        step = overview_view.build_next_step(
+    def test_a_broken_required_row_says_which_kind_of_broken(self):
+        """Deleted, not just unset. The distinction used to be carried by the
+        top banner and is carried by the checklist row now -- same note, same
+        fix, one surface instead of two saying it."""
+        setup = overview_view.build_setup(
             {
                 "configured": self._configured(verified_role_exists=False,
                                                 verified_role_assignable=None),
                 "panel": {"posted": True},
             }
         )
-        assert step["title"] == "The verified role needs attention"
-        assert "deleted" in step["body"]
-        assert step["action"] == "settings"
+        role = next(r for r in setup["rows"] if r["key"] == "verified_role")
+        assert role["state"] == "broken"
+        assert "deleted" in role["note"]
+        assert role["action"]["group"] == "verification"
+        assert setup["progress"] == {"done": 1, "total": 2}
 
 
 class TestTheNextStepRanker:
@@ -7717,15 +7836,19 @@ class TestTheNextStepRanker:
 
     CHANGELOG = {"title": "New: branded panels", "body": "...", "action": "subscription"}
 
-    def test_setup_beats_a_changelog_entry_and_a_demo(self):
+    def test_an_unfinished_server_empties_the_slot_entirely(self):
+        """Neither the changelog entry nor the demo may take the slot the setup
+        step used to hold. That step is the checklist's job now, and the
+        ranking it won is preserved as silence here."""
         overview = self._overview(
             configured=self._configured(verified_role=False,
                                          verified_role_exists=None,
                                          verified_role_assignable=None),
             last_30_days=214,
         )
-        step = overview_view.build_next_step(overview, changelog_entry=self.CHANGELOG)
-        assert step["title"] == "No verified role is set"
+        assert overview_view.build_next_step(
+            overview, changelog_entry=self.CHANGELOG
+        ) is None
 
     def test_a_changelog_entry_beats_the_demo(self):
         overview = self._overview(last_30_days=214)
