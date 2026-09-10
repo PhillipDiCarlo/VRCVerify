@@ -1,19 +1,32 @@
 {% extends "base.html" %}
 {% block title %}VRCVerify{% endblock %}
 
+{# The dot grid and the wave, at the top level so base.html can see it. Inside
+   `{% block %}` Jinja runs it while the parent is already drawing its <body>
+   and the field silently never appears -- see pricing.html, which cost a
+   screenshot to notice. #}
+{% set atmosphere = true %}
+
 {% block content %}
 {# THE PAGE PEOPLE SEE AT THE WORST MOMENT.
-   Reached through _guild_page_unavailable when the bot cannot answer, so it
-   is read by somebody whose server may be having a problem right now. It gets
-   the same card, tokens and button as every other page rather than a special
-   apology layout -- a page that looks broken while telling you something is
-   broken makes the outage feel bigger than it is.
+   Reached through `_guild_page_unavailable` when the bot cannot answer, so it
+   is read by somebody whose server may be having a problem right now. Same
+   card, tokens and field as every other page rather than a special apology
+   layout -- a page that looks broken while telling you something is broken
+   makes the outage feel bigger than it is.
 
-   `message` is chosen from a fixed set in app.py and never carries anything
-   the bot said, so there is nothing here that could reflect a caller's text
-   back onto the page. #}
+   TWO STRINGS, NOT ONE (#286). It used to be an h1 reading "Sorry" over one
+   sentence. "Sorry" is not a fact, it is a tone, and it took the largest text
+   on the page to say nothing about what had happened. The heading now names
+   what failed and the sentence says what to do about it -- which is also why
+   neither is ever a status code: "503" is the answer to a question nobody
+   reading this page asked.
+
+   Both are chosen from fixed sets in app.py and never carry anything the bot
+   said, so there is nothing here that could reflect a caller's text back onto
+   the page. #}
 <section class="panel centered refusal">
-  {# Decorative: the sentence below says what happened, and a screen reader
+  {# Decorative: the heading below says what happened, and a screen reader
      announcing "warning triangle" before it adds nothing. Inline SVG for the
      same reason as every other glyph -- the vendored Inter subset has no such
      character. #}
@@ -25,10 +38,19 @@
       <path d="M12 10v4.2M12 17.4h.01"></path>
     </svg>
   </p>
-  <h1>{% trans %}Sorry{% endtrans %}</h1>
+  <h1>{{ heading }}</h1>
   <p>{{ message }}</p>
   <p class="actions">
     <a class="button" href="{{ url_for('index') }}">{% trans %}Back to your servers{% endtrans %}</a>
+    {# ONLY WHERE IT ANSWERS SOMETHING. The status page tells you whether the
+       bot is down for everybody, which is exactly the question an admin has
+       when the bot did not answer -- and exactly not the question when they
+       mistyped a URL or asked about a server they do not administer. A link
+       that is always there is a link that means nothing when it matters. #}
+    {% if show_status %}
+      <a class="button secondary" href="https://status.vrcverify.com/">
+        {% trans %}Check VRCVerify's status{% endtrans %}</a>
+    {% endif %}
   </p>
 </section>
 {% endblock %}

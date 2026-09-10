@@ -40,8 +40,13 @@
    load-bearing for the same reason the fill was rejected.
 
    Conditional, so a page with nothing to announce renders no empty card. #}
+{# `upgrade` IS NO LONGER A REASON TO DRAW THIS PANEL (#286). It was, while
+   the call-out lived inside it -- and leaving it here after the call-out moved
+   into the rows rendered an empty grey card at the top of every settings page
+   a free server opens. Caught in a screenshot; nothing failed, and the panel
+   is a `<section>` with no content, which no test was asking about. #}
 {% if saved or group_check or panel_stale or panel_result or save_error
-      or upgrade or not names_resolved or not auto_verify_column_present %}
+      or not names_resolved or not auto_verify_column_present %}
 <section class="panel">
   {% if saved %}
     <p class="notice ok">{% trans %}Saved.{% endtrans %}</p>
@@ -77,28 +82,17 @@
      never be more than partly true. Two places to buy, with two different sets
      of options, is how the copy drifts apart; so buying lives on Subscriptions
      and this says where that is. #}
-  {% if upgrade %}
-    <section class="upgrade">
-      <h2>
-        {% if upgrade.grandfathered %}
-          {% trans %}Add VRCVerify Premium{% endtrans %}
-        {% else %}
-          {% trans %}Upgrade to VRCVerify Premium{% endtrans %}
-        {% endif %}
-      </h2>
-      <p>
-        {% if upgrade.grandfathered %}
-          {% trans %}Your grandfathered extras stay free whatever you decide. Premium unlocks the settings marked below.{% endtrans %}
-        {% else %}
-          {% trans %}Unlocks the settings marked below. 18+ verification itself stays free.{% endtrans %}
-        {% endif %}
-      </p>
-      <p>
-        <a href="{{ url_for('guild_subscription', guild_id=guild_id) }}">
-          {% trans %}See plans and subscribe{% endtrans %}</a>
-      </p>
-    </section>
-  {% endif %}
+  {# THE UPGRADE CALL-OUT USED TO BE HERE, as a `<section class="upgrade">`
+     inside the notices panel -- a panel inside a panel, at the top of the
+     page, naming settings "marked below" that the reader had not reached yet.
+
+     It is one link in each row it applies to now (#286). A pitch beside the
+     control it unlocks is answerable where it stands; a pitch at the top of
+     the page is an advert you scroll past to reach your settings.
+
+     `upgrade` still travels from the route, because it is exactly the right
+     gate for those links: it is None when premium is already active or not
+     enforced at all. #}
 
   {% if not names_resolved %}
     <p class="notice">
@@ -116,9 +110,23 @@
 
 {% for group in groups %}
   {% set editable = group.fields | selectattr('editable') | list %}
-  <section class="panel group">
-      <h2>{{ group.title }}</h2>
-      <p class="muted blurb">{{ group.blurb }}</p>
+  {# TWO COLUMNS AT THE SECTION, NOT AT THE ROW (#286).
+
+     The split used to be per field -- label left, control right -- which put
+     a 148px select at the far end of a 900px card from the words naming it,
+     and made reading a group a left-right-down zigzag across a ~500px gulf.
+     Moving the split up one level fixes both: the heading and its explanation
+     hold the left column once, and the fields run down the right with each
+     control directly under its own label.
+
+     `settings-group` rather than styling `.panel.group`, which the Overview
+     also uses for its stat and setup panels -- a two-column rule there would
+     reformat pages this issue is not about. #}
+  <section class="panel group settings-group">
+      <div class="group-head">
+        <h2>{{ group.title }}</h2>
+        <p class="muted blurb">{{ group.blurb }}</p>
+      </div>
 
       {# data-guard opts this form into the unsaved-changes warning. Only the
          groups that hold edits carry it: the panel-post form below is an
@@ -363,6 +371,19 @@
                   {% trans %}Premium only.{% endtrans %}
                   {%- if not field.empty %}
                     {% trans %}Your saved value is kept, and comes back if the subscription is renewed.{% endtrans %}
+                  {%- endif %}
+                  {# NO PRICE HERE (#286). A figure in a settings template is a
+                     figure to chase across six pages and twelve catalogs the
+                     next time it changes, and Subscriptions reads it from
+                     Stripe at render time. The link goes there. #}
+                  {%- if upgrade %}
+                    <a class="plan-link" href="{{ url_for('guild_subscription', guild_id=guild_id) }}">
+                      {%- if upgrade.grandfathered -%}
+                        {% trans %}Add Premium{% endtrans %}
+                      {%- else -%}
+                        {% trans %}See plans{% endtrans %}
+                      {%- endif -%}
+                    </a>
                   {%- endif %}
                 </p>
               {% elif field.badge == 'inactive' %}

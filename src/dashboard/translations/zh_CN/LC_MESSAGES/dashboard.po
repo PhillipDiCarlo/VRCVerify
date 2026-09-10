@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-09 01:26-0400\n"
+"POT-Creation-Date: 2026-09-10 02:53-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -41,11 +41,23 @@ msgstr "无法验证该次登录。请重试。"
 msgid "Discord could not complete the login. Please try again."
 msgstr "Discord 未能完成登录。请重试。"
 
-msgid "Page not found."
-msgstr "页面未找到。"
+# | msgid "Page not found."
+msgid "Page not found"
+msgstr "页面未找到"
 
-msgid "Something went wrong."
-msgstr "出了点问题。"
+msgid ""
+"That address doesn't match anything here. It may have been a typo, or a "
+"link to something that has since moved."
+msgstr "这个地址在这里没有对应的内容。可能是输入有误，或者链接指向的内容已经移动了。"
+
+# | msgid "Something went wrong."
+msgid "Something went wrong"
+msgstr "出了点问题"
+
+msgid ""
+"The dashboard hit an error it couldn't recover from. Try again in a "
+"moment, and check the setting you were changing if you were saving one."
+msgstr "控制台遇到了无法恢复的错误。请稍后重试；如果当时正在保存，请检查你正在修改的那项设置。"
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "该设置需要 VRCVerify Premium。未做任何更改。"
@@ -180,18 +192,28 @@ msgstr "设置"
 msgid "Subscriptions"
 msgstr "订阅"
 
-msgid ""
-"That server isn't available. Either VRCVerify isn't in it, or you don't "
-"have the Administrator permission there."
-msgstr "该服务器不可用。可能是 VRCVerify 不在其中，或者你在那里没有管理员权限。"
+# | msgid "That group ID wasn't usable"
+msgid "That server isn't available"
+msgstr "该服务器不可用"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
+# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
+# you
+# | don't " "have the Administrator permission there."
 msgid ""
-"Can't reach the bot right now, so this page can't be shown. Nothing has "
-"changed. Try again shortly."
-msgstr "暂时无法连接机器人，因此无法显示此页面。没有任何改动。请稍后重试。"
+"Either VRCVerify isn't in it, or you don't have the Administrator "
+"permission there."
+msgstr "要么 VRCVerify 不在其中，要么你在那里没有管理员权限。"
+
+msgid "Can't reach the bot"
+msgstr "无法连接到机器人"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+# | msgid "The bot didn't answer this one. Try again shortly."
+msgid ""
+"This page needs the bot to answer and it isn't answering right now. "
+"Nothing has changed. Try again shortly."
+msgstr "此页面需要机器人响应，而它现在没有响应。没有任何内容被更改。请稍后重试。"
 
 msgid "Premium"
 msgstr "Premium"
@@ -199,6 +221,21 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "新"
+
+# | msgid "Open the dashboard"
+msgid "A new look for the dashboard"
+msgstr "控制台的全新外观"
+
+msgid ""
+"Your server list is now a grid of tiles you can search, pin and open with"
+" a single click anywhere on the card, and each one says whether that "
+"server is on Premium. Setup has moved to the top of a server's Overview "
+"with a progress bar, and retires itself once everything required is done."
+" Settings puts each control directly under its own label, and the pricing"
+" page is one comparison you can read across."
+msgstr ""
+"服务器列表现在是磁贴网格，可以搜索、置顶，点击卡片的任意位置即可打开，每张磁贴还会显示该服务器是否为 "
+"Premium。设置流程移到了服务器概览的顶部，带有进度条，所有必需项完成后会自动隐藏。设置页中每个控件都紧挨在自己的标签下方，价格页则变成了一张可以横向对照阅读的对比表。"
 
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
@@ -370,8 +407,9 @@ msgstr "可选。成员完成验证后自动移除。"
 msgid "Verification log"
 msgstr "验证日志"
 
-msgid "Optional. Premium."
-msgstr "可选。Premium。"
+# | msgid "Optional. Premium."
+msgid "Optional."
+msgstr "可选。"
 
 # | msgid "Sections"
 # | msgid "Settings"
@@ -416,22 +454,6 @@ msgstr "VRCVerify 已无法在那里发言 —— 请检查权限。"
 msgid "Posted, and VRCVerify can still reach it."
 msgstr "已发布，且 VRCVerify 仍能访问。"
 
-msgid "No verified role is set"
-msgstr "尚未设置已验证身份组"
-
-msgid "The verified role needs attention"
-msgstr "已验证身份组需要处理"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "No instructions panel is posted"
-msgstr "尚未发布说明面板"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "The instructions panel needs attention"
-msgstr "说明面板需要处理"
-
 #, python-format
 msgid ""
 "%(count)s member verified here in the last 30 days. Premium logs each one"
@@ -449,6 +471,25 @@ msgstr "无论你如何选择，你保留的旧有权益都将继续免费。"
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "升级到 VRCVerify Premium"
+
+msgid "Working"
+msgstr "正常运行"
+
+# | msgid "Setup isn't finished"
+msgid "Setup unfinished"
+msgstr "设置未完成"
+
+# | msgid "needs attention"
+msgid "Needs attention"
+msgstr "需要处理"
+
+# | msgid "not set"
+msgid "Not set up"
+msgstr "未设置"
+
+# | msgid "Couldn't check"
+msgid "Can't check"
+msgstr "无法检查"
 
 msgid "Set up and working"
 msgstr "已设置并正常运行"
@@ -1096,12 +1137,12 @@ msgstr ""
 "noreferrer\">加入 VRCVerify 的 Discord</a> 并关注公告频道 —— 这里的每条更新都会发布到那里，Discord"
 " 会把它转发到你选择的任意频道。"
 
-msgid "Sorry"
-msgstr "抱歉"
-
 # | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "返回你的服务器"
+
+msgid "Check VRCVerify's status"
+msgstr "查看 VRCVerify 的状态"
 
 msgid "Manage your VRCVerify servers"
 msgstr "管理你的 VRCVerify 服务器"
@@ -1137,6 +1178,35 @@ msgstr ""
 "在 Discord 中使用 <code>/vrcverify_setup</code> "
 "设置服务器的已验证身份组，这就足以开始验证成员；<code>/vrcverify_settings</code> "
 "显示已保存的内容。其余一切都在这里更改。"
+
+msgid "Finish setting up"
+msgstr "完成设置"
+
+#, python-format
+msgid ""
+"What still needs doing before this server can verify anyone, and whether "
+"what's already set is still working. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+"这台服务器开始验证前还需要做什么，以及已设置的项目是否仍然正常。这些都可以在<a "
+"href=\"%(settings_url)s\">设置</a>中修改。"
+
+#, python-format
+msgid "%(done)s of %(total)s done"
+msgstr "已完成 %(done)s / %(total)s"
+
+#, python-format
+msgid "%(done)s of %(total)s required steps done"
+msgstr "必需步骤已完成 %(done)s / %(total)s"
+
+msgid "set"
+msgstr "已设置"
+
+msgid "needs attention"
+msgstr "需要处理"
+
+msgid "off, optional"
+msgstr "关闭，可选"
 
 msgid "See plans and subscribe"
 msgstr "查看套餐并订阅"
@@ -1181,39 +1251,71 @@ msgstr "未记录"
 msgid "Couldn't load the daily trend just now."
 msgstr "暂时无法加载每日趋势。"
 
-msgid "Setup"
-msgstr "设置"
-
-#, python-format
-msgid ""
-"What's configured here, and whether it's actually working -- one list "
-"instead of two, since \"switched on\" and \"still works\" used to be "
-"answered in different places on this page. Change any of it on <a "
-"href=\"%(settings_url)s\">Settings</a>."
-msgstr ""
-"这里配置了什么，以及它是否真的在工作 —— 一份列表而不是两份，因为“是否开启”和“是否仍然可用”过去在本页的不同位置分别作答。你可以在<a "
-"href=\"%(settings_url)s\">设置</a>中更改其中任何一项。"
-
-msgid "Setup complete — verification is fully working here."
-msgstr "设置已完成 —— 验证在这里完全可用。"
-
-msgid "set"
-msgstr "已设置"
-
-msgid "needs attention"
-msgstr "需要处理"
-
 msgid "Your servers — VRCVerify"
 msgstr "你的服务器 — VRCVerify"
+
+#, python-format
+msgid "Pin %(name)s"
+msgstr "置顶 %(name)s"
+
+msgid "Upgrade"
+msgstr "升级"
+
+# | msgid "Add to your server"
+msgid "Add to server"
+msgstr "添加到服务器"
 
 # | msgid "Add to your server"
 msgid "Your servers"
 msgstr "你的服务器"
 
+#, python-format
+msgid "One needs something from you."
+msgid_plural "%(count)s need something from you."
+msgstr[0] "%(count)s 台服务器需要你处理。"
+
 msgid ""
 "Can't reach the bot right now, so we can't tell which of these it's in. "
 "Your settings are safe — nothing here has changed. Try again shortly."
 msgstr "目前无法连接机器人，因此无法确定它在其中哪些服务器里。你的设置很安全 —— 这里没有任何改动。请稍后重试。"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Search your servers"
+msgstr "搜索你的服务器"
+
+# | msgid "Per server"
+msgid "Search servers"
+msgstr "搜索服务器"
+
+msgid "Search"
+msgstr "搜索"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+#, python-format
+msgid "%(count)s server"
+msgid_plural "%(count)s servers"
+msgstr[0] "%(count)s 台服务器"
+
+# | msgid "Premium"
+# | msgid "See Premium"
+#, python-format
+msgid "%(count)s Premium"
+msgstr "%(count)s 个 Premium"
+
+# | msgid "No servers to show"
+msgid "No servers match that"
+msgstr "没有匹配的服务器"
+
+#, python-format
+msgid "Nothing in your list is called “%(q)s”."
+msgstr "你的列表中没有名为“%(q)s”的服务器。"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Show all your servers"
+msgstr "显示全部服务器"
 
 msgid "No servers to show"
 msgstr "没有可显示的服务器"
@@ -1230,12 +1332,16 @@ msgstr "退出登录并重新开始"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "系统会再次要求你使用 Discord 登录。"
 
-# | msgid "Add to your server"
-msgid "Add to server"
-msgstr "添加到服务器"
+# | msgid "None"
+msgid "Pinned"
+msgstr "已置顶"
 
 msgid "Pricing · VRCVerify"
 msgstr "价格 · VRCVerify"
+
+# | msgid "Canceled"
+msgid "Included"
+msgstr "包含"
 
 msgid "Pricing"
 msgstr "价格"
@@ -1245,14 +1351,38 @@ msgid ""
 " server."
 msgstr "验证永久免费。Premium 按服务器计费，为验证补上周边的自动化。"
 
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr "我们暂时无法加载价格。<strong>Premium 仍然可用。</strong>请稍后重试，或改在 Discord 内订阅。"
+
+msgid "There are no plans on sale at the moment."
+msgstr "目前没有在售的套餐。"
+
+msgid "One Premium, three ways to pay for it"
+msgstr "同一个 Premium，三种付费方式"
+
+msgid "Billing term"
+msgstr "计费周期"
+
+msgid "Price unavailable"
+msgstr "价格暂时无法获取"
+
+# | msgid "" "Every plan below unlocks exactly the same features — the only
+# | difference " "is how long you pay for at once, and how much that saves."
+msgid ""
+"Per server. Every term unlocks exactly the same features — the only "
+"difference is how long you pay for at once."
+msgstr "按服务器计费。任何周期解锁的功能完全相同，区别只是一次付多长时间的费用。"
+
+msgid "What each plan includes"
+msgstr "各方案包含的内容"
+
+msgid "Feature"
+msgstr "功能"
+
 msgid "Free"
 msgstr "免费"
-
-msgid "forever"
-msgstr "永久"
-
-msgid "Everything you need to verify your members."
-msgstr "验证成员所需的一切。"
 
 msgid "Verify members as 18+"
 msgstr "将成员验证为 18+"
@@ -1262,18 +1392,6 @@ msgstr "自动验证已在其他服务器完成验证的人"
 
 msgid "Members can update their own nickname"
 msgstr "成员可以更新自己的昵称"
-
-msgid "Add to your server"
-msgstr "添加到你的服务器"
-
-msgid "Per server"
-msgstr "按服务器"
-
-msgid "monthly, 6 or 12 months"
-msgstr "按月、6 个月或 12 个月"
-
-msgid "The automation around verification, for servers that want it."
-msgstr "围绕验证的自动化，给需要它的服务器。"
 
 msgid "Automatic removal of an unverified role"
 msgstr "自动移除未验证身份组"
@@ -1299,27 +1417,15 @@ msgstr "更短的验证冷却时间"
 msgid "VRChat group invites for verified members"
 msgstr "为已验证成员提供的 VRChat 群组邀请"
 
+# | msgid "Not applied"
+msgid "Not included"
+msgstr "不包含"
+
+msgid "Add to your server"
+msgstr "添加到你的服务器"
+
 msgid "Open the dashboard"
 msgstr "打开控制台"
-
-msgid "One Premium, three ways to pay for it"
-msgstr "同一个 Premium，三种付费方式"
-
-msgid ""
-"We can't load prices right now. <strong>Premium is still "
-"available.</strong> Try again in a moment, or subscribe inside Discord."
-msgstr "我们暂时无法加载价格。<strong>Premium 仍然可用。</strong>请稍后重试，或改在 Discord 内订阅。"
-
-msgid "There are no plans on sale at the moment."
-msgstr "目前没有在售的套餐。"
-
-msgid ""
-"Every plan below unlocks exactly the same features — the only difference "
-"is how long you pay for at once, and how much that saves."
-msgstr "下面每个套餐解锁的功能完全相同 —— 唯一的区别是你一次付多长时间的费用，以及因此省下多少。"
-
-msgid "Most popular"
-msgstr "最受欢迎"
 
 msgid ""
 "Some plans start with a free trial. Whether a particular server qualifies"
@@ -1335,19 +1441,6 @@ msgstr ""
 "价格以美元计算且<strong>不含税</strong>；你所在地区应缴的税会在结账时另行计算。付款由 Stripe 处理 —— "
 "银行卡信息不会到达 VRCVerify。"
 
-msgid ""
-"Premium is bought per server. You can subscribe with a card in the "
-"dashboard, or monthly through Discord."
-msgstr "Premium 按服务器购买。你可以在控制台用银行卡订阅，也可以通过 Discord 按月订阅。"
-
-msgid "Ready to start?"
-msgstr "准备好开始了吗？"
-
-msgid ""
-"Add VRCVerify to your server and verification works immediately, at no "
-"cost. Premium is there when you want it."
-msgstr "把 VRCVerify 添加到你的服务器，验证立即可用，且不收费。需要时随时可以启用 Premium。"
-
 msgid "Saved."
 msgstr "已保存。"
 
@@ -1360,14 +1453,6 @@ msgid ""
 "Your settings were saved, but the instructions panel still shows the old "
 "ones. Use <strong>Repost or move panel</strong> below to replace it."
 msgstr "你的设置已保存，但说明面板显示的仍是旧内容。请使用下面的<strong>重新发布或移动面板</strong>来替换它。"
-
-msgid ""
-"Your grandfathered extras stay free whatever you decide. Premium unlocks "
-"the settings marked below."
-msgstr "无论你如何选择，你保留的旧有权益都将继续免费。Premium 会解锁下面标记的设置。"
-
-msgid "Unlocks the settings marked below. 18+ verification itself stays free."
-msgstr "解锁下面标记的设置。18+ 验证本身仍然免费。"
 
 msgid ""
 "Couldn't load this server's roles and channels just now, so some settings"
@@ -1399,6 +1484,9 @@ msgstr "在下面发布一个，或在 Discord 中使用 <code>/vrcverify_instru
 
 msgid "Members use this message to begin verification."
 msgstr "成员通过这条消息开始验证。"
+
+msgid "Setup"
+msgstr "设置"
 
 #, python-format
 msgid "VRChat said: %(said)s"
@@ -1444,6 +1532,14 @@ msgstr "仅限 Premium。"
 
 msgid "Your saved value is kept, and comes back if the subscription is renewed."
 msgstr "你保存的值会保留，续订后会恢复。"
+
+# | msgid "Premium"
+msgid "Add Premium"
+msgstr "添加 Premium"
+
+# | msgid "Spanish"
+msgid "See plans"
+msgstr "查看方案"
 
 msgid ""
 "Saved, but not acted on without Premium. Anyone can set this; the bot "
@@ -1675,4 +1771,88 @@ msgstr ""
 
 #~ msgid "Overview, settings and activity"
 #~ msgstr "概览、设置与活动"
+
+#~ msgid "No verified role is set"
+#~ msgstr "尚未设置已验证身份组"
+
+#~ msgid "The verified role needs attention"
+#~ msgstr "已验证身份组需要处理"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "No instructions panel is posted"
+#~ msgstr "尚未发布说明面板"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "The instructions panel needs attention"
+#~ msgstr "说明面板需要处理"
+
+#~ msgid ""
+#~ "What's configured here, and whether it's"
+#~ " actually working -- one list instead"
+#~ " of two, since \"switched on\" and"
+#~ " \"still works\" used to be answered"
+#~ " in different places on this page."
+#~ " Change any of it on <a "
+#~ "href=\"%(settings_url)s\">Settings</a>."
+#~ msgstr ""
+#~ "这里配置了什么，以及它是否真的在工作 —— "
+#~ "一份列表而不是两份，因为“是否开启”和“是否仍然可用”过去在本页的不同位置分别作答。你可以在<a "
+#~ "href=\"%(settings_url)s\">设置</a>中更改其中任何一项。"
+
+#~ msgid "Setup complete — verification is fully working here."
+#~ msgstr "设置已完成 —— 验证在这里完全可用。"
+
+#~ msgid "forever"
+#~ msgstr "永久"
+
+#~ msgid "Everything you need to verify your members."
+#~ msgstr "验证成员所需的一切。"
+
+#~ msgid "monthly, 6 or 12 months"
+#~ msgstr "按月、6 个月或 12 个月"
+
+#~ msgid "The automation around verification, for servers that want it."
+#~ msgstr "围绕验证的自动化，给需要它的服务器。"
+
+#~ msgid ""
+#~ "Premium is bought per server. You "
+#~ "can subscribe with a card in the"
+#~ " dashboard, or monthly through Discord."
+#~ msgstr "Premium 按服务器购买。你可以在控制台用银行卡订阅，也可以通过 Discord 按月订阅。"
+
+#~ msgid "Ready to start?"
+#~ msgstr "准备好开始了吗？"
+
+#~ msgid ""
+#~ "Add VRCVerify to your server and "
+#~ "verification works immediately, at no "
+#~ "cost. Premium is there when you "
+#~ "want it."
+#~ msgstr "把 VRCVerify 添加到你的服务器，验证立即可用，且不收费。需要时随时可以启用 Premium。"
+
+#~ msgid ""
+#~ "Your grandfathered extras stay free "
+#~ "whatever you decide. Premium unlocks the"
+#~ " settings marked below."
+#~ msgstr "无论你如何选择，你保留的旧有权益都将继续免费。Premium 会解锁下面标记的设置。"
+
+#~ msgid "Unlocks the settings marked below. 18+ verification itself stays free."
+#~ msgstr "解锁下面标记的设置。18+ 验证本身仍然免费。"
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+#~ msgid ""
+#~ "Can't reach the bot right now, so"
+#~ " this page can't be shown. Nothing"
+#~ " has changed. Try again shortly."
+#~ msgstr "暂时无法连接机器人，因此无法显示此页面。没有任何改动。请稍后重试。"
+
+#~ msgid "Sorry"
+#~ msgstr "抱歉"
+
+#~ msgid "Most popular"
+#~ msgstr "最受欢迎"
 

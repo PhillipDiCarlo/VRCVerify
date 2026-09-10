@@ -1115,14 +1115,18 @@ class TestThePageRenders:
         --muted on the page that takes money, and the Subscribe label was
         italic too.
 
-        Asserting the class name is what makes this a regression test rather
-        than a restatement: the two rules cannot collide again while the card
-        is not called `.plan`.
+        THE CARD ITSELF WENT IN #286 -- the three plan cards became one
+        segmented control -- so the half of this that named `.plan-card` is
+        gone with it. The half that matters is the other one, and it is not
+        about a card at all: nothing on the page that takes money may wear a
+        bare `.plan`, whatever shape it happens to have this year.
         """
         client, _bot, _stripe, _session = make_client(config)
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
-        assert 'class="plan-card' in page
         assert 'class="plan ' not in page and 'class="plan"' not in page
+        # And the price is still not italic-and-muted, which is what the
+        # collision actually did. `.term-amount-small` carries its own weight.
+        assert 'class="term-amount-small"' in page
 
     def test_the_three_plans_are_declared_one_product(self, config):
         """Three cards at rising prices is the shape of a tier comparison, and
@@ -1154,7 +1158,7 @@ class TestThePageRenders:
         time it shows up, on a card nobody was watching when it did."""
         client, _bot, _stripe, _session = make_client(config)
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
-        assert 'class="plan-trial"' in page
+        assert 'class="term-trial"' in page
         assert "free trial" in page
 
     def test_an_ineligible_server_is_shown_no_trial(self, config):
@@ -1166,7 +1170,7 @@ class TestThePageRenders:
             config, settings=payload(trial_eligible=False)
         )
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
-        assert "plan-trial" not in page
+        assert "term-trial" not in page
         assert "free trial" not in page
 
     def test_no_link_falls_back_to_the_browsers_own_color(self, config):
@@ -1708,11 +1712,23 @@ class TestAmounts:
         ])
         assert plans[0].period == expected
 
-    def test_highlight_metadata_features_one_card(self, config):
+    def test_highlight_metadata_preselects_exactly_one_term(self, config):
+        """#286. `highlight` used to draw a "Most popular" badge on one of
+        three cards; it decides which segment arrives already selected now.
+
+        A DELIBERATE TRADE, recorded rather than slipped in. The badge is gone
+        and the default-effect replaces it, which is the stronger nudge of the
+        two and does not need a fourth line in a segment that already carries a
+        label, a price, a saving and sometimes a trial.
+
+        Exactly one, because two checked radios in one group means the last
+        silently wins and the recommendation becomes whichever price Stripe
+        happened to return last.
+        """
         client, _bot, _stripe, _session = make_client(config)
         body = client.get(f"/guild/{GUILD}/subscription").data.decode()
-        assert body.count("plan-featured") == 1
-        assert "Most popular" in body
+        assert body.count('name="price_id"') == 3
+        assert body.count(" checked") == 1
 
     @pytest.mark.parametrize("raw", ["0", "no", "", "maybe", None])
     def test_anything_but_a_yes_is_not_highlighted(self, raw):
@@ -1898,13 +1914,31 @@ class TestThePublicPricingPage:
         app.config.update(TESTING=True)
         page = app.test_client().get("/pricing").data.decode()
         assert "One Premium, three ways to pay for it" in page
-        # Against the CADENCE grid specifically, not any `.plan-card`. Since
-        # #195 phase 3 the Free/Premium tier cards render above this claim and
-        # they are `.plan-card` too -- but they are not what can be misread as
-        # three tiers, so they are not what the claim has to precede.
-        assert page.index("One Premium") < page.index('class="plans"'), (
-            "the claim must land before the three cadence cards"
+        # Against the SEGMENTED CONTROL, which is what three cadences look like
+        # since #286 -- three cards became three segments, and a row of them at
+        # rising prices can be misread as three tiers exactly as the cards
+        # could. The claim still has to land first.
+        assert page.index("One Premium") < page.index('class="term-switch"'), (
+            "the claim must land before the three billing terms"
         )
+
+    def test_it_carries_the_atmospheric_field(self, config):
+        """#286 puts the apex site's own field behind this page -- re-rendered,
+        never a screenshot.
+
+        Pinned because the way a template asks for it is easy to get subtly
+        wrong: `{% set atmosphere = true %}` has to sit at the template's top
+        level, OUTSIDE `{% block content %}`. Inside a block it runs while the
+        parent is already drawing its <body>, so the field never appears and
+        nothing errors.
+        """
+        store = SessionStore(config.session_db_path, config.session_max_age)
+        app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
+        app.config.update(TESTING=True)
+        page = app.test_client().get("/pricing").data.decode()
+        assert 'class="field"' in page
+        assert 'class="field-dots"' in page
+        assert 'class="hero-wave"' in page
 
     def test_it_never_promises_a_number_of_trial_days(self, config):
         """THE thing this page must be vaguer about than the private one.
@@ -1936,7 +1970,10 @@ class TestThePublicPricingPage:
         app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
         app.config.update(TESTING=True)
         page = app.test_client().get("/pricing").data.decode()
-        assert 'class="plan-card' in page
+        # `.plan-card` left this page with the tier cards in #286; the class
+        # is still worn by subscription.html's purchase forms, which is where
+        # the collision that named this test could still bite. What has to hold
+        # HERE is only the second half.
         assert 'class="plan"' not in page
 
     def test_it_offers_no_way_to_pay_from_here(self, config):
@@ -1963,13 +2000,15 @@ class TestThePublicPricingPage:
         app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
         app.config.update(TESTING=True)
         page = app.test_client().get("/pricing").data.decode()
-        assert "Everything you need to verify your members" in page
-        # Reads the tier headings rather than a copy string: #195 phase 3 made
-        # Free and Premium peer cards, so "which comes first" is now a fact
-        # about document order and grid order rather than about wording.
-        assert page.index("<h2>Free</h2>") < page.index("<h2>Premium</h2>"), (
+        # Column order in the comparison table since #286, which is the same
+        # fact about document order the two peer cards used to carry: Free is
+        # the left column, Premium the right.
+        assert page.index(">Free</th>") < page.index(">Premium</th>"), (
             "Premium is being offered before the free tier it is an add-on to"
         )
+        # And the first rows of the table are the free ones, so a reader
+        # meets what costs nothing before what costs something.
+        assert page.index("Verify members as 18+") < page.index("Nickname syncing")
 
     # ----------------------------------------------------------------------
     # Cache posture and the links in (#188 phase 2).
@@ -2054,14 +2093,19 @@ class TestThePublicPricingPage:
         app = create_app(config, store=store, client=FakeBotAPI(), stripe=FakeStripe())
         app.config.update(TESTING=True)
         page = app.test_client().get("/pricing").data.decode()
-        tiers = page[page.index('class="tiers"'):page.index('class="panel group"')]
-        assert tiers.count('class="plan-card') == 2, "the two tiers are not peers"
-        assert tiers.count('class="plan-list"') == 2, (
-            "a tier card carries no feature list, which is what left a reader "
-            "comparing prices with no reason to pick one"
-        )
-        assert "Verify members as 18+" in tiers
-        assert "Automatic removal of an unverified role" in tiers
+        # ONE TABLE SINCE #286, and the comparison is tighter for it: two
+        # cards still made a reader hold three bullets in mind while reading
+        # eight more beside them. A row per capability with a mark in each
+        # column is what a table is for.
+        table = page[page.index('class="compare"'):page.index("</table>")]
+        assert table.count("<tr") == 12, "eleven capabilities and a header row"
+        assert "Verify members as 18+" in table
+        # Premium includes everything Free does, so the free rows are ticked in
+        # both columns. Listing them only under Free would say the opposite.
+        first_row = table[table.index("Verify members as 18+"):]
+        first_row = first_row[:first_row.index("</tr>")]
+        assert first_row.count("compare-yes") == 2
+        assert "Automatic removal of an unverified role" in table
 
     def test_the_title_is_a_marketing_size_not_a_console_size(self, config):
         """22.4px on a page whose whole audience is prospects, against 44-56px
@@ -2094,7 +2138,7 @@ class TestThePublicPricingPage:
         page = app.test_client().get("/pricing").data.decode()
         assert "can't load prices" in page
         assert "Premium is still" in page
-        assert 'class="tiers"' in page, "the tier comparison vanished with Stripe"
+        assert 'class="compare"' in page, "the comparison vanished with Stripe"
         assert "Automatic removal of an unverified role" in page
         assert "A branded instructions panel" in page
 

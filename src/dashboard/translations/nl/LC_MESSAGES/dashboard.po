@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-09 01:26-0400\n"
+"POT-Creation-Date: 2026-09-10 02:53-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: nl\n"
@@ -41,11 +41,28 @@ msgstr "Deze login kon niet worden geverifieerd. Probeer het opnieuw."
 msgid "Discord could not complete the login. Please try again."
 msgstr "Discord kon het inloggen niet afronden. Probeer het opnieuw."
 
-msgid "Page not found."
-msgstr "Pagina niet gevonden."
+# | msgid "Page not found."
+msgid "Page not found"
+msgstr "Pagina niet gevonden"
 
-msgid "Something went wrong."
-msgstr "Er is iets misgegaan."
+msgid ""
+"That address doesn't match anything here. It may have been a typo, or a "
+"link to something that has since moved."
+msgstr ""
+"Dat adres komt hier met niets overeen. Misschien een typfout, of een link"
+" naar iets dat inmiddels is verplaatst."
+
+# | msgid "Something went wrong."
+msgid "Something went wrong"
+msgstr "Er is iets misgegaan"
+
+msgid ""
+"The dashboard hit an error it couldn't recover from. Try again in a "
+"moment, and check the setting you were changing if you were saving one."
+msgstr ""
+"Het dashboard liep tegen een fout aan waarvan het niet kon herstellen. "
+"Probeer het zo nog eens, en controleer de instelling die je aan het "
+"wijzigen was als je aan het opslaan was."
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "Die instelling vereist VRCVerify Premium. Er is niets gewijzigd."
@@ -221,22 +238,30 @@ msgstr "Instellingen"
 msgid "Subscriptions"
 msgstr "Abonnementen"
 
-msgid ""
-"That server isn't available. Either VRCVerify isn't in it, or you don't "
-"have the Administrator permission there."
-msgstr ""
-"Die server is niet beschikbaar. Of VRCVerify staat er niet op, of je hebt"
-" daar geen Administrator-rechten."
+# | msgid "That group ID wasn't usable"
+msgid "That server isn't available"
+msgstr "Die server is niet beschikbaar"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
+# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
+# you
+# | don't " "have the Administrator permission there."
 msgid ""
-"Can't reach the bot right now, so this page can't be shown. Nothing has "
-"changed. Try again shortly."
+"Either VRCVerify isn't in it, or you don't have the Administrator "
+"permission there."
+msgstr "Of VRCVerify zit er niet in, of je hebt daar niet de Beheerder-rechten."
+
+msgid "Can't reach the bot"
+msgstr "Kan de bot niet bereiken"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+# | msgid "The bot didn't answer this one. Try again shortly."
+msgid ""
+"This page needs the bot to answer and it isn't answering right now. "
+"Nothing has changed. Try again shortly."
 msgstr ""
-"De bot is nu niet bereikbaar, dus deze pagina kan niet worden getoond. Er"
-" is niets gewijzigd. Probeer het zo meteen opnieuw."
+"Deze pagina heeft een antwoord van de bot nodig en die antwoordt op dit "
+"moment niet. Er is niets gewijzigd. Probeer het zo nog eens."
 
 msgid "Premium"
 msgstr "Premium"
@@ -244,6 +269,26 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "Nieuw"
+
+# | msgid "Open the dashboard"
+msgid "A new look for the dashboard"
+msgstr "Een nieuw uiterlijk voor het dashboard"
+
+msgid ""
+"Your server list is now a grid of tiles you can search, pin and open with"
+" a single click anywhere on the card, and each one says whether that "
+"server is on Premium. Setup has moved to the top of a server's Overview "
+"with a progress bar, and retires itself once everything required is done."
+" Settings puts each control directly under its own label, and the pricing"
+" page is one comparison you can read across."
+msgstr ""
+"Je serverlijst is nu een raster van tegels die je kunt doorzoeken, "
+"vastzetten en met één klik ergens op de kaart openen, en elke tegel "
+"vermeldt of die server Premium heeft. Instellen staat nu bovenaan het "
+"Overzicht van een server, met een voortgangsbalk, en verdwijnt zodra "
+"alles wat verplicht is klaar is. Bij Instellingen staat elk element "
+"direct onder zijn eigen label, en de prijzenpagina is één vergelijking "
+"die je in één keer leest."
 
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
@@ -439,8 +484,9 @@ msgstr "Optioneel. Wordt verwijderd zodra iemand zich verifieert."
 msgid "Verification log"
 msgstr "Verificatielog"
 
-msgid "Optional. Premium."
-msgstr "Optioneel. Premium."
+# | msgid "Optional. Premium."
+msgid "Optional."
+msgstr "Optioneel."
 
 # | msgid "Sections"
 # | msgid "Settings"
@@ -490,22 +536,6 @@ msgstr "VRCVerify kan daar niet meer plaatsen – controleer de rechten."
 msgid "Posted, and VRCVerify can still reach it."
 msgstr "Geplaatst, en VRCVerify kan het nog steeds bereiken."
 
-msgid "No verified role is set"
-msgstr "Er is geen geverifieerd-rol ingesteld"
-
-msgid "The verified role needs attention"
-msgstr "De geverifieerd-rol heeft aandacht nodig"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "No instructions panel is posted"
-msgstr "Er is geen instructiepaneel geplaatst"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "The instructions panel needs attention"
-msgstr "Het instructiepaneel heeft aandacht nodig"
-
 #, python-format
 msgid ""
 "%(count)s member verified here in the last 30 days. Premium logs each one"
@@ -528,6 +558,25 @@ msgstr "Je overgenomen extra's blijven gratis, wat je ook besluit."
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "Upgraden naar VRCVerify Premium"
+
+msgid "Working"
+msgstr "Werkt"
+
+# | msgid "Setup isn't finished"
+msgid "Setup unfinished"
+msgstr "Instellen niet af"
+
+# | msgid "needs attention"
+msgid "Needs attention"
+msgstr "Vraagt aandacht"
+
+# | msgid "not set"
+msgid "Not set up"
+msgstr "Niet ingesteld"
+
+# | msgid "Couldn't check"
+msgid "Can't check"
+msgstr "Niet te controleren"
 
 msgid "Set up and working"
 msgstr "Ingesteld en werkend"
@@ -1251,12 +1300,12 @@ msgstr ""
 " het aankondigingskanaal – elke update van hier wordt daar geplaatst, en "
 "Discord verspreidt hem naar elk kanaal dat je kiest."
 
-msgid "Sorry"
-msgstr "Sorry"
-
 # | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "Terug naar je servers"
+
+msgid "Check VRCVerify's status"
+msgstr "Status van VRCVerify bekijken"
 
 msgid "Manage your VRCVerify servers"
 msgstr "Beheer je VRCVerify-servers"
@@ -1299,6 +1348,36 @@ msgstr ""
 "een server in, wat genoeg is om leden te gaan verifiëren, en "
 "<code>/vrcverify_settings</code> toont wat er is opgeslagen. Al het "
 "andere wordt hier gewijzigd."
+
+msgid "Finish setting up"
+msgstr "Instellen afronden"
+
+#, python-format
+msgid ""
+"What still needs doing before this server can verify anyone, and whether "
+"what's already set is still working. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+"Wat er nog moet gebeuren voordat deze server iemand kan verifiëren, en of"
+" wat al is ingesteld nog werkt. Je past het allemaal aan bij <a "
+"href=\"%(settings_url)s\">Instellingen</a>."
+
+#, python-format
+msgid "%(done)s of %(total)s done"
+msgstr "%(done)s van %(total)s klaar"
+
+#, python-format
+msgid "%(done)s of %(total)s required steps done"
+msgstr "%(done)s van %(total)s verplichte stappen klaar"
+
+msgid "set"
+msgstr "ingesteld"
+
+msgid "needs attention"
+msgstr "heeft aandacht nodig"
+
+msgid "off, optional"
+msgstr "uit, optioneel"
 
 msgid "See plans and subscribe"
 msgstr "Abonnementen bekijken en afsluiten"
@@ -1349,36 +1428,29 @@ msgstr "Niet gemeten"
 msgid "Couldn't load the daily trend just now."
 msgstr "Kon de dagelijkse trend nu niet laden."
 
-msgid "Setup"
-msgstr "Instellen"
-
-#, python-format
-msgid ""
-"What's configured here, and whether it's actually working -- one list "
-"instead of two, since \"switched on\" and \"still works\" used to be "
-"answered in different places on this page. Change any of it on <a "
-"href=\"%(settings_url)s\">Settings</a>."
-msgstr ""
-"Wat hier is ingesteld, en of het ook echt werkt -- één lijst in plaats "
-"van twee, omdat „aangezet” en „werkt nog” op deze pagina vroeger op "
-"verschillende plekken werden beantwoord. Je kunt dit alles wijzigen op <a"
-" href=\"%(settings_url)s\">Instellingen</a>."
-
-msgid "Setup complete — verification is fully working here."
-msgstr "Instellen voltooid – verificatie werkt hier volledig."
-
-msgid "set"
-msgstr "ingesteld"
-
-msgid "needs attention"
-msgstr "heeft aandacht nodig"
-
 msgid "Your servers — VRCVerify"
 msgstr "Jouw servers — VRCVerify"
+
+#, python-format
+msgid "Pin %(name)s"
+msgstr "%(name)s vastzetten"
+
+msgid "Upgrade"
+msgstr "Upgraden"
+
+# | msgid "Add to your server"
+msgid "Add to server"
+msgstr "Aan server toevoegen"
 
 # | msgid "Add to your server"
 msgid "Your servers"
 msgstr "Jouw servers"
+
+#, python-format
+msgid "One needs something from you."
+msgid_plural "%(count)s need something from you."
+msgstr[0] "Eén server heeft iets van je nodig."
+msgstr[1] "%(count)s servers hebben iets van je nodig."
 
 msgid ""
 "Can't reach the bot right now, so we can't tell which of these it's in. "
@@ -1387,6 +1459,45 @@ msgstr ""
 "De bot is nu niet bereikbaar, dus we kunnen niet zeggen op welke hiervan "
 "hij zit. Je instellingen zijn veilig – hier is niets veranderd. Probeer "
 "het zo meteen opnieuw."
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Search your servers"
+msgstr "Zoek in je servers"
+
+# | msgid "Per server"
+msgid "Search servers"
+msgstr "Servers zoeken"
+
+msgid "Search"
+msgstr "Zoeken"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+#, python-format
+msgid "%(count)s server"
+msgid_plural "%(count)s servers"
+msgstr[0] "%(count)s server"
+msgstr[1] "%(count)s servers"
+
+# | msgid "Premium"
+# | msgid "See Premium"
+#, python-format
+msgid "%(count)s Premium"
+msgstr "%(count)s met Premium"
+
+# | msgid "No servers to show"
+msgid "No servers match that"
+msgstr "Geen servers gevonden"
+
+#, python-format
+msgid "Nothing in your list is called “%(q)s”."
+msgstr "Niets in je lijst heet “%(q)s”."
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Show all your servers"
+msgstr "Al je servers tonen"
 
 msgid "No servers to show"
 msgstr "Geen servers om te tonen"
@@ -1406,12 +1517,16 @@ msgstr "Uitloggen en opnieuw beginnen"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "Je wordt gevraagd opnieuw met Discord in te loggen."
 
-# | msgid "Add to your server"
-msgid "Add to server"
-msgstr "Aan server toevoegen"
+# | msgid "None"
+msgid "Pinned"
+msgstr "Vastgezet"
 
 msgid "Pricing · VRCVerify"
 msgstr "Prijzen · VRCVerify"
+
+# | msgid "Canceled"
+msgid "Included"
+msgstr "Inbegrepen"
 
 msgid "Pricing"
 msgstr "Prijzen"
@@ -1423,14 +1538,43 @@ msgstr ""
 "Verificatie is gratis, voor altijd. Premium voegt de automatisering "
 "eromheen toe, per server."
 
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+"We kunnen de prijzen nu niet laden. <strong>Premium is nog steeds "
+"beschikbaar.</strong> Probeer het zo meteen opnieuw, of neem een "
+"abonnement binnen Discord."
+
+msgid "There are no plans on sale at the moment."
+msgstr "Er zijn op dit moment geen abonnementen te koop."
+
+msgid "One Premium, three ways to pay for it"
+msgstr "Eén Premium, drie manieren om ervoor te betalen"
+
+msgid "Billing term"
+msgstr "Facturatieperiode"
+
+msgid "Price unavailable"
+msgstr "Prijs niet beschikbaar"
+
+# | msgid "" "Every plan below unlocks exactly the same features — the only
+# | difference " "is how long you pay for at once, and how much that saves."
+msgid ""
+"Per server. Every term unlocks exactly the same features — the only "
+"difference is how long you pay for at once."
+msgstr ""
+"Per server. Elke periode ontgrendelt precies dezelfde functies — het "
+"enige verschil is hoe lang je in één keer betaalt."
+
+msgid "What each plan includes"
+msgstr "Wat elk abonnement bevat"
+
+msgid "Feature"
+msgstr "Functie"
+
 msgid "Free"
 msgstr "Gratis"
-
-msgid "forever"
-msgstr "voor altijd"
-
-msgid "Everything you need to verify your members."
-msgstr "Alles wat je nodig hebt om je leden te verifiëren."
 
 msgid "Verify members as 18+"
 msgstr "Leden verifiëren als 18+"
@@ -1440,18 +1584,6 @@ msgstr "Mensen die zich op een andere server verifieerden automatisch verifiëre
 
 msgid "Members can update their own nickname"
 msgstr "Leden kunnen hun eigen bijnaam bijwerken"
-
-msgid "Add to your server"
-msgstr "Toevoegen aan je server"
-
-msgid "Per server"
-msgstr "Per server"
-
-msgid "monthly, 6 or 12 months"
-msgstr "maandelijks, 6 of 12 maanden"
-
-msgid "The automation around verification, for servers that want it."
-msgstr "De automatisering rondom verificatie, voor servers die dat willen."
 
 msgid "Automatic removal of an unverified role"
 msgstr "Automatisch verwijderen van een niet-geverifieerd-rol"
@@ -1477,33 +1609,15 @@ msgstr "Kortere wachttijd tussen verificaties"
 msgid "VRChat group invites for verified members"
 msgstr "VRChat-groepsuitnodigingen voor geverifieerde leden"
 
+# | msgid "Not applied"
+msgid "Not included"
+msgstr "Niet inbegrepen"
+
+msgid "Add to your server"
+msgstr "Toevoegen aan je server"
+
 msgid "Open the dashboard"
 msgstr "Dashboard openen"
-
-msgid "One Premium, three ways to pay for it"
-msgstr "Eén Premium, drie manieren om ervoor te betalen"
-
-msgid ""
-"We can't load prices right now. <strong>Premium is still "
-"available.</strong> Try again in a moment, or subscribe inside Discord."
-msgstr ""
-"We kunnen de prijzen nu niet laden. <strong>Premium is nog steeds "
-"beschikbaar.</strong> Probeer het zo meteen opnieuw, of neem een "
-"abonnement binnen Discord."
-
-msgid "There are no plans on sale at the moment."
-msgstr "Er zijn op dit moment geen abonnementen te koop."
-
-msgid ""
-"Every plan below unlocks exactly the same features — the only difference "
-"is how long you pay for at once, and how much that saves."
-msgstr ""
-"Elk abonnement hieronder ontgrendelt precies dezelfde functies – het "
-"enige verschil is hoe lang je in één keer betaalt, en hoeveel dat "
-"scheelt."
-
-msgid "Most popular"
-msgstr "Populairst"
 
 msgid ""
 "Some plans start with a free trial. Whether a particular server qualifies"
@@ -1524,23 +1638,6 @@ msgstr ""
 "afrekenen toegevoegd. De betaling wordt afgehandeld door Stripe – "
 "kaartgegevens bereiken VRCVerify nooit."
 
-msgid ""
-"Premium is bought per server. You can subscribe with a card in the "
-"dashboard, or monthly through Discord."
-msgstr ""
-"Premium wordt per server gekocht. Je kunt met een kaart in het dashboard "
-"abonneren, of maandelijks via Discord."
-
-msgid "Ready to start?"
-msgstr "Klaar om te beginnen?"
-
-msgid ""
-"Add VRCVerify to your server and verification works immediately, at no "
-"cost. Premium is there when you want it."
-msgstr ""
-"Voeg VRCVerify toe aan je server en verificatie werkt meteen, kosteloos. "
-"Premium staat klaar wanneer je het wilt."
-
 msgid "Saved."
 msgstr "Opgeslagen."
 
@@ -1558,18 +1655,6 @@ msgstr ""
 "Je instellingen zijn opgeslagen, maar het instructiepaneel toont nog de "
 "oude. Gebruik hieronder <strong>Paneel opnieuw plaatsen of "
 "verplaatsen</strong> om het te vervangen."
-
-msgid ""
-"Your grandfathered extras stay free whatever you decide. Premium unlocks "
-"the settings marked below."
-msgstr ""
-"Je overgenomen extra's blijven gratis, wat je ook besluit. Premium "
-"ontgrendelt de instellingen die hieronder gemarkeerd zijn."
-
-msgid "Unlocks the settings marked below. 18+ verification itself stays free."
-msgstr ""
-"Ontgrendelt de instellingen die hieronder gemarkeerd zijn. De "
-"18+-verificatie zelf blijft gratis."
 
 msgid ""
 "Couldn't load this server's roles and channels just now, so some settings"
@@ -1609,6 +1694,9 @@ msgstr ""
 
 msgid "Members use this message to begin verification."
 msgstr "Leden gebruiken dit bericht om de verificatie te beginnen."
+
+msgid "Setup"
+msgstr "Instellen"
 
 #, python-format
 msgid "VRChat said: %(said)s"
@@ -1659,6 +1747,14 @@ msgid "Your saved value is kept, and comes back if the subscription is renewed."
 msgstr ""
 "Je opgeslagen waarde blijft bewaard en komt terug als het abonnement "
 "wordt verlengd."
+
+# | msgid "Premium"
+msgid "Add Premium"
+msgstr "Premium toevoegen"
+
+# | msgid "Spanish"
+msgid "See plans"
+msgstr "Abonnementen bekijken"
 
 msgid ""
 "Saved, but not acted on without Premium. Anyone can set this; the bot "
@@ -1953,4 +2049,111 @@ msgstr ""
 
 #~ msgid "Overview, settings and activity"
 #~ msgstr "Overzicht, instellingen en activiteit"
+
+#~ msgid "No verified role is set"
+#~ msgstr "Er is geen geverifieerd-rol ingesteld"
+
+#~ msgid "The verified role needs attention"
+#~ msgstr "De geverifieerd-rol heeft aandacht nodig"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "No instructions panel is posted"
+#~ msgstr "Er is geen instructiepaneel geplaatst"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "The instructions panel needs attention"
+#~ msgstr "Het instructiepaneel heeft aandacht nodig"
+
+#~ msgid ""
+#~ "What's configured here, and whether it's"
+#~ " actually working -- one list instead"
+#~ " of two, since \"switched on\" and"
+#~ " \"still works\" used to be answered"
+#~ " in different places on this page."
+#~ " Change any of it on <a "
+#~ "href=\"%(settings_url)s\">Settings</a>."
+#~ msgstr ""
+#~ "Wat hier is ingesteld, en of het"
+#~ " ook echt werkt -- één lijst in"
+#~ " plaats van twee, omdat „aangezet” en"
+#~ " „werkt nog” op deze pagina vroeger"
+#~ " op verschillende plekken werden "
+#~ "beantwoord. Je kunt dit alles wijzigen"
+#~ " op <a href=\"%(settings_url)s\">Instellingen</a>."
+
+#~ msgid "Setup complete — verification is fully working here."
+#~ msgstr "Instellen voltooid – verificatie werkt hier volledig."
+
+#~ msgid "forever"
+#~ msgstr "voor altijd"
+
+#~ msgid "Everything you need to verify your members."
+#~ msgstr "Alles wat je nodig hebt om je leden te verifiëren."
+
+#~ msgid "monthly, 6 or 12 months"
+#~ msgstr "maandelijks, 6 of 12 maanden"
+
+#~ msgid "The automation around verification, for servers that want it."
+#~ msgstr "De automatisering rondom verificatie, voor servers die dat willen."
+
+#~ msgid ""
+#~ "Premium is bought per server. You "
+#~ "can subscribe with a card in the"
+#~ " dashboard, or monthly through Discord."
+#~ msgstr ""
+#~ "Premium wordt per server gekocht. Je "
+#~ "kunt met een kaart in het "
+#~ "dashboard abonneren, of maandelijks via "
+#~ "Discord."
+
+#~ msgid "Ready to start?"
+#~ msgstr "Klaar om te beginnen?"
+
+#~ msgid ""
+#~ "Add VRCVerify to your server and "
+#~ "verification works immediately, at no "
+#~ "cost. Premium is there when you "
+#~ "want it."
+#~ msgstr ""
+#~ "Voeg VRCVerify toe aan je server "
+#~ "en verificatie werkt meteen, kosteloos. "
+#~ "Premium staat klaar wanneer je het "
+#~ "wilt."
+
+#~ msgid ""
+#~ "Your grandfathered extras stay free "
+#~ "whatever you decide. Premium unlocks the"
+#~ " settings marked below."
+#~ msgstr ""
+#~ "Je overgenomen extra's blijven gratis, "
+#~ "wat je ook besluit. Premium ontgrendelt"
+#~ " de instellingen die hieronder gemarkeerd"
+#~ " zijn."
+
+#~ msgid "Unlocks the settings marked below. 18+ verification itself stays free."
+#~ msgstr ""
+#~ "Ontgrendelt de instellingen die hieronder "
+#~ "gemarkeerd zijn. De 18+-verificatie zelf "
+#~ "blijft gratis."
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+#~ msgid ""
+#~ "Can't reach the bot right now, so"
+#~ " this page can't be shown. Nothing"
+#~ " has changed. Try again shortly."
+#~ msgstr ""
+#~ "De bot is nu niet bereikbaar, dus"
+#~ " deze pagina kan niet worden getoond."
+#~ " Er is niets gewijzigd. Probeer het"
+#~ " zo meteen opnieuw."
+
+#~ msgid "Sorry"
+#~ msgstr "Sorry"
+
+#~ msgid "Most popular"
+#~ msgstr "Populairst"
 

@@ -254,6 +254,48 @@
    * White here, because on light the card and the knob are both white and no
    * squeeze happens. */
   --switch-knob: #ffffff;
+
+  /* The dot grid on the atmospheric pages. 1.25:1 against --bg, and that
+   * figure is the design rather than a shortfall: this is texture behind a
+   * card, not a boundary or a mark, so 1.4.11 does not reach it and taking it
+   * to 3:1 would turn a field into graph paper. Deliberately matched to
+   * --dark-field-dot's 1.25:1, so the grid is exactly as quiet in both themes
+   * -- eyeballed dot colours are how one theme ends up with visible ruling and
+   * the other with nothing at all. */
+  --field-dot: #cbced4;
+
+  /* Text on a picker tile. NOT THEMED, and deliberately not: the tile under it
+   * is the same twelve hues in both themes, so the arithmetic that makes this
+   * legible does not change when the page around it does. 10.65:1 at worst
+   * across the twelve, under the tile's bottom scrim. */
+  --tile-ink: #ffffff;
+
+  /* The plan tag on a tile. The DARK theme's accent in both themes, because
+   * the tile it sits on is the same twelve hues in both -- 5.76:1 against the
+   * worst of them, where the light accent would be 1.4:1 and unreadable.
+   *
+   * Accent on something that is not a control, which the epic otherwise
+   * forbids. The rule is that the accent must not be DECORATION; marking
+   * which plan a server is on is meaning, and it is the one thing on this
+   * screen the product is sold on. */
+  --tile-accent: #3FD0E4;
+
+  /* The status dots on a tile's chip. NOT THEMED, for the reason every other
+   * tile value is not: the chip's ground is black at 55% over the same twelve
+   * hues in both themes, so one set of values carries one set of measurements.
+   * Each figure below is the worst of the twelve, not a sample. */
+  --dot-ok: #4ade80;    /* 8.47:1 on the chip */
+  --dot-todo: #fbbf24;  /* 8.84:1 */
+  --dot-bad: #f87171;   /* 5.34:1 */
+  --dot-idle: #9ca3af;  /* 5.82:1 */
+
+  /* Broken, and only broken. `todo` keeps --notice, which the setup list also
+   * uses, so the two states stop sharing one signal (#286). 5.18:1 on --bg and
+   * 6.54:1 on --panel, which is the weight --notice already carries there
+   * (5.01 and 6.33) -- the point is that neither shouts louder than the other,
+   * since a grid where red is the only thing visible is a grid where amber
+   * stops being read. */
+  --bad: #b3261e;
 }
 
 /* The dark values, named once and painted by nothing.
@@ -390,6 +432,13 @@
   /* 3.38:1 against the card, 3.74:1 against the knob, and the same figure for
    * an input's border because it is the same requirement. */
   --dark-control-line: #80848e;
+
+  /* 1.25:1 against --dark-bg, the same figure --field-dot has against the
+   * light ground. See there for why that is the target and not a floor. */
+  --dark-field-dot: #2e3035;
+
+  /* 6.81:1 on --dark-bg, 5.22:1 on --dark-panel. See --bad. */
+  --dark-bad: #ff8085;
 }
 
 /* Dark, chosen explicitly. Beats the light floor on specificity, and is
@@ -426,6 +475,8 @@
   --logo-filter: var(--dark-logo-filter);
   --switch-knob: var(--dark-switch-knob);
   --control-line: var(--dark-control-line);
+  --field-dot: var(--dark-field-dot);
+  --bad: var(--dark-bad);
 }
 
 /* Dark, because the OS asked and the reader has not said otherwise.
@@ -466,6 +517,8 @@
     --logo-filter: var(--dark-logo-filter);
     --switch-knob: var(--dark-switch-knob);
     --control-line: var(--dark-control-line);
+    --field-dot: var(--dark-field-dot);
+    --bad: var(--dark-bad);
   }
 }
 
@@ -1460,127 +1513,480 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 /* --- server picker ---
  *
- * A card grid, shaped after Sentry's project list: the card is the same in
- * every state and the CONTENTS of its slots change. A server that is set up
- * gets a name that opens it; one the bot is not in gets an "Add to server"
- * button in the slot where nothing else lives. The difference is a shape
- * rather than a shade, so it survives grayscale, color blindness, and being
- * glanced at rather than read.
+ * A tile grid, after Magnific's project list: a coloured tile carrying the
+ * name, and one line of fact beneath it. The card chrome that used to draw
+ * this -- a border, a panel fill, a centred column -- is gone, because the
+ * tile is now the object and a box around it was a second boundary saying the
+ * same thing.
  *
- * The grayscale on an absent icon stays, but it is now the second signal
- * rather than the only one. */
+ * WHAT MAKES ONE SERVER LOOK UNLIKE THE NEXT IS ITS COLOUR, AND THE COLOUR IS
+ * DERIVED. See picker_view.tile_class: hashed from the guild id, never stored,
+ * twelve of them. An iconless server used to get a grey capital letter, which
+ * made every iconless server look like every other one.
+ * --------------------------------------------------------------------- */
 .servers {
   list-style: none;
   margin: 1rem 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-  gap: var(--space-4);
+  /* Small tiles, many of them. At 13rem the grid gave three tiles of ~340px
+   * across a wide viewport, and a 4:3 tile that size is a poster rather than
+   * a list item -- three blocks of saturated colour filling the page. The
+   * job here is picking one server out of several, which wants more of them
+   * on screen and each of them quieter.
+   *
+   * 12rem, AND THE PHONE GIVES UP ITS SECOND COLUMN FOR IT. The card is a card
+   * again: a chip, a name, a plan bubble and a sentence in a footer, and at
+   * 8.5rem those crowd each other -- the state chip ran into the star. A phone
+   * takes one column at this size rather than two, which is the better trade
+   * now that there is something in each card to read. */
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: var(--space-4) var(--space-3);
+  /* EACH CARD ITS OWN HEIGHT, not the tallest one's.
+   *
+   * The default `stretch` pulled every card down to whichever had the longest
+   * footer -- and the tile is fixed by its aspect-ratio, so all of that extra
+   * height landed in the footer as blank space on cards that had nothing more
+   * to say. A row of cards whose bottoms do not line up is untidy; a row of
+   * cards with an inch of nothing under three of them is a bug. */
+  align-items: start;
 }
 
+/* THE CARD IS A CARD AGAIN (#286, after looking at it).
+ *
+ * The tile alone was the object and the state sentence sat under it on the
+ * bare panel, which reads as a caption beside a picture rather than as part of
+ * the server -- the server's own information, outside the server's own panel.
+ * So the card has an edge and a ground, the tile is its head, and the sentence
+ * is a footer strip inside it.
+ *
+ * The hairline moves back here from the tile with it: the whole card is the
+ * click target now, so the card's edge is the control's bounds. --card-line is
+ * 3.37:1 light and 3.16:1 dark on --panel, which is what SC 1.4.11 asks of it. */
 .server-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-5) var(--space-4) var(--space-4);
-  background: var(--inset);
-  /* --card-line, not --line: a `.ready` card is a whole-card click target and
-     this edge is the only thing bounding it. See the token. `.empty-state`
-     carries the same fill and keeps --line, because it is a message, not a
-     control, and nothing about it is pressable. */
+  min-width: 0;
+  background: var(--panel);
   border: 1px solid var(--card-line);
   border-radius: var(--radius-card);
-  text-align: center;
+  overflow: hidden;
 }
 
-/* Hover belongs to the whole card only where the whole card is clickable.
- * An absent card is inert except for its button, so lighting it up on hover
- * would promise a click that does nothing. */
-.server-card.ready:hover,
-.server-card.unknown:hover { border-color: var(--accent-text); }
+/* THE TWELVE, and they are the same twelve in both themes.
+ *
+ * Every other colour in this file is themed, so this looks like an oversight
+ * and is not: a tile is a saturated mid-tone that sits on its own, the marks
+ * drawn on it are measured against the tile rather than against the page, and
+ * nothing behind it shows through. Theming them would mean twenty-four hexes
+ * and two sets of measurements to keep in step, for a surface whose contrast
+ * arithmetic does not change when the page around it does.
+ *
+ * MUTED, AND THAT IS THE SECOND HALF OF KEEPING IDENTITY APART FROM STATUS.
+ * The first cut ran these at 62% saturation, and a server that happened to
+ * hash to the red hue sat directly above the words "Something isn't working"
+ * in red. Nothing was wrong with either colour; the page simply implied a
+ * correlation that does not exist. Identity is large, muted and everywhere;
+ * status is small, saturated and rare. Contrast improves as a side effect --
+ * white on a name went from 7.89:1 at worst to 10.65:1.
+ *
+ * ROTATED OFF THE ACCENT, WHICH IS WHY THE RING STARTS AT 22 AND NOT 0.
+ * --dark-accent is hue 187, and the epic's standing rule is that the accent
+ * means "the page you are on" or "the button that does the thing", never
+ * decoration. Twelve hues at 30 degrees can sit at best 15 degrees off it, and
+ * this ring is rotated to take exactly that -- 172 and 202 straddle the accent
+ * rather than one of them landing on it. Rotating this back to 0 would put a
+ * tile at hue 202... and one at 182, which is the accent wearing a tile. */
+.server-tile.g0  { --tile-a: #ae6d47; --tile-b: #794e34; }   /* hue 22 */
+.server-tile.g1  { --tile-a: #aea147; --tile-b: #797034; }   /* hue 52 */
+.server-tile.g2  { --tile-a: #88ae47; --tile-b: #607934; }   /* hue 82 */
+.server-tile.g3  { --tile-a: #54ae47; --tile-b: #3d7934; }   /* hue 112 */
+.server-tile.g4  { --tile-a: #47ae6d; --tile-b: #34794e; }   /* hue 142 */
+.server-tile.g5  { --tile-a: #47aea1; --tile-b: #347970; }   /* hue 172 */
+.server-tile.g6  { --tile-a: #4788ae; --tile-b: #346079; }   /* hue 202 */
+.server-tile.g7  { --tile-a: #4754ae; --tile-b: #343d79; }   /* hue 232 */
+.server-tile.g8  { --tile-a: #6d47ae; --tile-b: #4e3479; }   /* hue 262 */
+.server-tile.g9  { --tile-a: #a147ae; --tile-b: #703479; }   /* hue 292 */
+.server-tile.g10  { --tile-a: #ae4788; --tile-b: #793460; }   /* hue 322 */
+.server-tile.g11  { --tile-a: #ae4754; --tile-b: #79343d; }   /* hue 352 */
+
+.server-tile {
+  display: flex;
+  /* A column ending at the bottom, so the name and the plan tag stack in the
+   * corner rather than sitting side by side. */
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  /* 3:2, not 4:3. A taller tile was fine while the tile WAS the card; with a
+   * footer under it the card became tall enough to fit three per screen. */
+  aspect-ratio: 3 / 2;
+  padding: var(--space-3);
+  overflow: hidden;
+  /* NO BORDER HERE. The boundary moved to `.server-card` with the card, and
+   * the argument moved with it: the darkest of the twelve, under the scrim, is
+   * 1.01:1 against --dark-panel, so the hue can never be the control's edge on
+   * its own. That is #163's finding arriving by a different route, and it is
+   * answered one level up rather than dropped. */
+  border-bottom: 1px solid var(--card-line);
+  /* THREE LAYERS, TOP TO BOTTOM: the corner scrims, then the hue.
+   *
+   * BOTH ENDS ARE SCRIMMED, not just the bottom, and the top one is what makes
+   * the star and the overflow legible in 3b. Without it a white glyph in the
+   * corner of the lightest tile is 1.98:1; with it the worst of the twelve is
+   * 7.00:1. Measured across all twenty-four stops, not sampled.
+   *
+   * The name sits on the bottom scrim, where white is 10.65:1 at worst. */
+  background:
+    linear-gradient(to top, rgb(0 0 0 / 0.45) 0%, rgb(0 0 0 / 0) 42%),
+    linear-gradient(to bottom, rgb(0 0 0 / 0.45) 0%, rgb(0 0 0 / 0) 34%),
+    linear-gradient(145deg, var(--tile-a), var(--tile-b));
+}
+
+/* The icon still wins where there is one. It sits ON the hue rather than
+ * replacing it, so a server whose icon fails to load falls back to its own
+ * colour rather than to a grey hole -- and so the two kinds of card are the
+ * same shape as each other. */
+.server-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%);
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  display: block;
+}
+
+/* THE CHIPS ON A TILE, both the state one and the plan one.
+ *
+ * Black at 55% over the tile's already-scrimmed corner, which is what makes a
+ * chip legible on any of the twelve hues without being themed: the white label
+ * is 14.76:1 at worst and the worst status dot is 5.34:1, measured across all
+ * twelve rather than sampled. A bare dot on the hue itself was 1.59:1.
+ *
+ * `position: relative` puts them over the stretched link, so they are not
+ * swallowed by it -- they are not pressable, but a tile whose chip is under
+ * the link is a tile whose chip cannot be selected as text either. */
+.tile-chip {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  align-self: flex-start;
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: rgb(0 0 0 / 0.55);
+  color: var(--tile-ink);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* ONE ROW ACROSS THE TOP, holding the state chip and the star.
+ *
+ * Both were absolutely positioned into opposite corners at first, which is
+ * fine until a label is long: "Setup unfinished" on a narrow tile ran straight
+ * under the star. A row with space-between cannot overlap however long the
+ * label gets, and the chip's label ellipsises rather than pushing the star
+ * off the tile. */
+.tile-top {
+  position: absolute;
+  z-index: 1;
+  inset-inline: var(--space-2);
+  top: var(--space-2);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.tile-top .tile-chip { min-width: 0; }
+.chip-label { overflow: hidden; text-overflow: ellipsis; }
+
+.chip-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: currentColor;
+}
+/* THEME-INDEPENDENT, like everything else drawn on a tile: the chip's ground
+ * is the same in both themes, so these are one set of values with one set of
+ * measurements rather than two of each. */
+.chip-done .chip-dot { color: var(--dot-ok); }
+.chip-todo .chip-dot { color: var(--dot-todo); }
+.chip-broken .chip-dot { color: var(--dot-bad); }
+.chip-absent .chip-dot,
+.chip-unknown .chip-dot { color: var(--dot-idle); }
 
 .server-name {
+  /* NOT `position: relative`, AND THAT WAS THE BUG. The stretched link below
+   * is `inset: 0` on `.server-name a::after`, which resolves against the
+   * nearest POSITIONED ancestor -- so a positioned `.server-name` made the
+   * link cover the name and nothing else. `.server-card` is the only
+   * positioned ancestor now, which is what makes the whole panel the target.
+   *
+   * `.server-tile` gave up its `position: relative` for the same reason: it
+   * would have stopped the link at the tile and left the footer dead. */
   margin: 0;
   font-size: var(--text-body);
   font-weight: 600;
+  line-height: var(--leading-tight);
   overflow-wrap: anywhere;
+  /* Theme-independent, because the surface under it is. 10.65:1 at worst
+   * across the twelve, under the bottom scrim above. */
+  color: var(--tile-ink);
 }
-.server-name a { color: var(--ink-strong); text-decoration: none; }
+.server-name a { color: inherit; text-decoration: none; }
 
-/* The whole card becomes the target while the markup stays one link around
- * the name. Only ever applied to the states with no button on the card --
- * a stretched link over a button swallows the button. */
-.server-card.ready .server-name a::after,
-.server-card.unknown .server-name a::after {
+.server-line {
+  /* NOT POSITIONED, for the same reason `.server-name` is not: the stretched
+   * link's `inset: 0` resolves against the nearest positioned ancestor, and
+   * ANY of them between the link and `.server-card` shrinks the target to
+   * itself. This one was added a few minutes after that was fixed on
+   * `.server-name`, and reintroduced the identical bug one level out --
+   * which is why there is now a test that clicks the card's far corner
+   * rather than an assertion that the rule exists. */
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  width: 100%;
+}
+.server-titles { min-width: 0; }
+
+.server-avatar {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: block;
+  object-fit: cover;
+}
+/* The initials, on the same translucent ground the state chip uses -- which is
+ * what makes them legible on any of the twelve hues without being themed. */
+.server-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.55);
+  color: var(--tile-ink);
+  font-size: var(--text-note);
+  font-weight: 700;
+}
+
+/* The quiet line that replaced the install button. Not a control: the card is
+ * the control, and this says where it goes. */
+.server-add {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-3);
+  font-size: var(--text-note);
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.plan-tag { margin: var(--space-2) 0 0; }
+/* Both tags are the same shape and the same size, and only the colour and the
+ * word differ. A bigger "Upgrade" than "Premium" would be a nag on every free
+ * card; a bigger "Premium" would be a reward nobody asked for. The selling is
+ * done by two cards next to each other not matching. */
+/* Both wear the chip; only the colour of the word differs, and only on the
+ * paid one. The free one stays white because "Free" is a statement of fact and
+ * an accent on it would read as a recommendation to stay there. */
+.plan-tag.plan-paid { color: var(--tile-accent); }
+
+/* THE WHOLE TILE IS THE TARGET, and the markup stays one honest link around
+ * the name (#276).
+ *
+ * `:not(.absent)` RATHER THAN A LIST OF STATES, and that is the bug fix. This
+ * named `.ready`, which #164 replaced with done/todo/broken -- so from that
+ * commit until this one the rule matched nothing and every working server had
+ * lost its whole-card target and its hover, silently, while `unknown` kept
+ * both. picker.html promises that adding a sixth state is a change in one
+ * Python module; naming states here is what broke that promise, so this names
+ * the one state that must be excluded instead.
+ *
+ * `absent` is excluded because it carries the "Add to server" button, and a
+ * stretched link over a button swallows the button. */
+/* EVERY card, not `:not(.absent)`. That exclusion existed because an absent
+ * card carried a button and a stretched link swallows a button. The button is
+ * a line of text now and the card itself is the offer, so there is nothing
+ * left to swallow. */
+.server-name a::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: var(--radius-card);
 }
 
-.server-state {
+.server-card:hover { border-color: var(--accent-text); }
+/* The ring belongs on the STRETCHED BOX, not on the link.
+ *
+ * The link's own box is the few words of the name; the thing a reader is
+ * actually selecting is the whole tile. Left to the global :focus-visible rule
+ * the ring would draw a tight rectangle around the text and leave the target
+ * it represents unmarked. Same tokens as that rule, so there is one focus
+ * appearance in the app and this is only moving where it lands. */
+.server-name a:focus-visible { outline: none; }
+.server-name a:focus-visible::after {
+  outline: var(--focus-width) solid var(--accent-text);
+  outline-offset: var(--focus-offset);
+}
+
+/* Servers the bot is not in, and servers we could not ask about. The hue is
+ * held back rather than removed: still that server's colour, just not
+ * claiming to be a place you can go. */
+.server-card.absent .server-tile,
+.server-card.unknown .server-tile { filter: saturate(0.35); opacity: 0.7; }
+
+.server-foot {
   margin: 0;
+  padding: var(--space-3);
   font-size: var(--text-note);
   color: var(--muted);
   line-height: var(--leading-tight);
 }
 
-/* Above the stretched link so it stays clickable in its own right. There is
- * no stretched link on an absent card, so this is belt and braces -- kept
- * because the day someone adds one is the day this button stops working, and
- * nothing would say so. */
-.server-action { position: relative; margin: var(--space-2) 0 0; }
-.server-action .button { text-decoration: none; }
-
-.icon {
-  display: block;
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 0.5rem;
-  border-radius: 50%;
-  overflow: hidden;
-  background: var(--inset);
-}
-
-.icon img { display: block; width: 64px; height: 64px; border-radius: 50%; }
-
-.initial {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--faint);
-}
-
-/* Servers the bot is not in, and servers we could not ask about. Grayscale
- * reads as "available but not set up" and is the SECOND cue in both cases --
- * the first is the button, or its absence. */
-.server-card.absent .icon img,
-.server-card.unknown .icon img { filter: grayscale(1); opacity: 0.55; }
-.server-card.absent .server-name { color: var(--muted); }
+/* THE STATE IS NOT ON THE TILE, and the issue asked for it there.
+ *
+ * It cannot go there. The tile's hue is identity and the ring spans all twelve
+ * including a red at 352 and an amber at 52, so a red status dot lands on a red
+ * tile: measured at 1.59:1 against its own scrimmed tile, and amber at 3.00:1.
+ * A status colour and an identity colour cannot share one surface.
+ *
+ * Below the tile the ground is --bg, which is themed and known, so both
+ * colours can be measured and both clear AA. The wording carries the meaning
+ * either way -- the colour only makes it findable in a grid, which is the same
+ * rule this slot has always been written to.
+ *
+ * `done` stays unstyled, and that is load-bearing rather than an omission.
+ * Colour every state and there is nothing for the eye to catch on: six green
+ * cards and one amber means the green is noise the amber has to compete with.
+ * A working server says so in the ordinary muted voice. */
+.server-state-todo { color: var(--notice); }
+.server-state-broken { color: var(--bad); }
 
 /* Unknown is not a diagnosis, so it is stated in the faintest voice on the
  * page. The banner above the grid is what explains it. */
 .server-card.unknown .server-state { color: var(--faint); font-style: italic; }
 
-/* The two states that want something doing (#164). Same `--notice` the setup
- * list uses for its todo and broken rows, so an admin who has seen one
- * recognizes the other -- and applied to the TEXT, which is the slot's whole
- * content, rather than to a dot or a border that would carry the meaning in
- * color alone. The wording says which state it is; the color only makes it
- * findable in a grid.
- *
- * `done` is deliberately unstyled. Styling every state leaves nothing for the
- * eye to catch on, which is the failure mode of a grid where six cards are
- * green and one is amber: the green is noise and the amber has to compete
- * with it. A working server says so in the ordinary muted voice. */
-.server-state-todo,
-.server-state-broken { color: var(--notice); }
+/* `.server-action` USED TO LIVE HERE: a full-width filled button on the
+ * absent card. In a grid that stretches every card to the tallest, it made
+ * every OTHER card carry its height as empty space. See `.server-add`. */
+
+.servers-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.servers-head h1 { margin: 0; }
+.servers-lede { margin: var(--space-1) 0 0; font-size: var(--text-body); }
+
+.servers-count {
+  margin: 0;
+  align-self: center;
+  font-size: var(--text-note);
+  white-space: nowrap;
+}
+
+/* A rule running out from the label, which is what separates two groups
+ * without spending a heading's worth of weight on either. */
+.servers-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-5) 0 0;
+  font-size: var(--text-note);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.servers-heading::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--line-soft);
+}
+.servers-heading:first-of-type { margin-top: var(--space-4); }
+
+.server-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  /* CAPPED, because a full-width search bar over a grid of four tiles is a
+   * control drawn at the scale of the page rather than of its job. It is also
+   * a measure argument: a field wider than the longest server name is empty
+   * space that reads as room somebody is supposed to fill. */
+  max-width: 26rem;
+}
+.server-search input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+/* The magnifier and the clear cross WebKit draws inside a `type=search` are
+ * the browser's, not ours: they take their colour from the UA stylesheet and
+ * land dark-on-dark in the dark theme. `appearance: none` gives the field back
+ * to the app's own input rules, and the visible Search button is what replaces
+ * the affordance -- it is also the only one a keyboard reaches. */
+.server-search input[type="search"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.server-search input[type="search"]::-webkit-search-decoration,
+.server-search input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+/* THE STAR SITS OVER THE STRETCHED LINK, which is the whole reason this has a
+ * z-index. `.server-name a::after` covers the tile at z-index auto within the
+ * tile's stacking context, so anything that must stay pressable has to be
+ * lifted above it -- without this the star is a decoration that opens the
+ * server when you press it. */
+.server-pin {
+  /* Positioned by `.tile-top` now rather than by itself. It keeps its own
+   * z-index because the stretched link covers the whole tile and a star under
+   * it is a star that opens the server when you press it. */
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  margin: 0;
+  line-height: 0;
+}
+
+.pin-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 24px of target around a 14px glyph, per #286. Padding rather than a bigger
+   * star: the mark stays the size it reads best at, and the thing a finger has
+   * to find grows around it. `@media (pointer: coarse)` further up takes every
+   * button to 44px, which this inherits. */
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--tile-ink);
+  cursor: pointer;
+}
+/* Unpinned stars are quiet until the card is touched, so a grid of nine
+ * servers is not a grid of nine stars competing with the names. The pinned
+ * one stays visible always -- it is state, not an affordance. */
+.pin-button { opacity: 0.55; }
+.pin-button.on,
+.server-card:hover .pin-button,
+.pin-button:focus-visible { opacity: 1; }
+.pin-button:hover { background: rgb(255 255 255 / 0.18); }
+
 
 /* --- the empty picker ---
  *
@@ -1635,10 +2041,97 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * is the cheapest way not to be the fourth. It is also why this card no longer
  * wears `.centered`: that class is shared with the refusal page, and the two
  * want different widths. */
+/* ------------------------------------------------------------------ *
+ * THE ATMOSPHERIC FIELD (#286).
+ *
+ * Behind the three pages that are not the console: sign-in, pricing and the
+ * error page. Every other page here is a working surface where atmosphere is
+ * noise, so this is opted into per template rather than being the ground.
+ *
+ * TWO LAYERS, AND ONLY ONE OF THEM IS DRAWN HERE. The dot grid is CSS, so it
+ * costs no request and no `img-src`. The wave is the apex site's hero SVG,
+ * pasted BYTE FOR BYTE into base.html -- see the drift test in test_site.py.
+ * The amplitude difference the issue asks for is a height and an opacity in
+ * this file, never an edited path, which is the same rule the apex set for
+ * itself when its 404 wanted a shorter one: change the drawing's box, not the
+ * drawing. Two hand-tuned copies of a curve diverge, and a wave that is subtly
+ * wrong on one domain is harder to spot than a nav that is.
+ * ------------------------------------------------------------------ */
+.field {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  /* THE DRAWING'S OWN PROPORTIONS, NOT A HEIGHT. Set as a height first, and
+   * the result was three straight diagonal scratches: the wave is 1440x620,
+   * `slice` crops to fill, and a band much wider than 2.32:1 keeps the middle
+   * of each arc and throws away both ends -- which is where all the curvature
+   * lives. The curve is the whole drawing, so the box has to be the shape the
+   * curve was drawn in.
+   *
+   * max-height is where the cropping is allowed back, on a very wide monitor
+   * where the honest ratio would be 800px of atmosphere. There it slices, the
+   * same as the apex hero does. */
+  aspect-ratio: 1440 / 620;
+  max-height: 34rem;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  /* ONE FADE, ON THE COMPOSITE. Each layer used to fade itself, which left the
+   * haze's own bottom edge as a horizontal seam across the full width of the
+   * dark theme -- the exact "shape somebody drew" the apex removed a filled
+   * band to avoid. Masking the parent fades everything inside it together, so
+   * the field has no edge at all. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 42%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 42%, transparent 100%);
+}
+
+/* The field sits under the bar, not beside it: `header.bar` paints --chrome
+ * and so hides the top of the wave exactly as the apex header does. Anything
+ * else on the page has to be lifted out of the stacking order the field
+ * created, or it renders behind atmosphere. */
+body.atmospheric { position: relative; }
+body.atmospheric > header.bar,
+body.atmospheric > .layout,
+body.atmospheric > footer { position: relative; z-index: 1; }
+
+.field-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at center,
+                                    var(--field-dot) 1px, transparent 1.5px);
+  background-size: 1.375rem 1.375rem;
+  /* The grid's own falloff is horizontal: .field fades everything downward, so
+   * this only has to stop the dots reaching the left and right edges as a full
+   * bleed. A dot grid that runs to the viewport edge reads as a texture swatch
+   * somebody placed; one that thins out reads as depth. */
+  -webkit-mask-image: radial-gradient(75% 120% at 50% 10%,
+                                      #000 35%, transparent 100%);
+  mask-image: radial-gradient(75% 120% at 50% 10%, #000 35%, transparent 100%);
+}
+
+.field .hero-wave {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  /* Quieter than on the apex, where the same drawing is the hero. Here it is
+   * behind a card somebody is reading three privacy sentences on. No mask of
+   * its own -- .field fades the whole composite, and a second fade stacked on
+   * this one is what put a seam in the dark theme. */
+  opacity: 0.75;
+}
+
 .signin {
   max-width: 30rem;
-  margin: 2.5rem auto;
+  /* Further down than the 2.5rem it had, so the card sits ON the field rather
+   * than at its top edge, and the wave reads as behind it rather than as a
+   * band above it. */
+  margin: 4rem auto 2.5rem;
   text-align: center;
+  /* The one thing that makes this a card floating on atmosphere instead of a
+   * panel the field happens to run behind. */
+  box-shadow: var(--shadow-raised);
 }
 
 /* 48px drawn from a 128px file, so it is still crisp at 2x without a second
@@ -1744,18 +2237,21 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 /* The upgrade offer. Bordered rather than filled: it sits above settings an
  * admin came here to change, and a block loud enough to compete with them
  * would be an advertisement on a page they already paid attention to. */
-.upgrade {
-  margin: 1.25rem 0 0;
-  padding: 0.9rem 1rem;
-  background: var(--inset);
-  border-inline-start: 3px solid var(--accent-text);
-  border-radius: var(--radius-control);
-}
+/* `.upgrade` USED TO LIVE HERE: an inset panel with a 3px accent edge, drawn
+ * inside the notices panel at the top of Settings. #286 replaced it with one
+ * link in each row it applies to -- a pitch beside the control it unlocks is
+ * answerable where it stands, and a pitch at the top of the page is an advert
+ * you scroll past to reach your settings.
+ *
+ * Worth knowing that this name was a trap while it existed: the picker's plan
+ * tag was briefly `class="plan-tag upgrade"` and inherited every one of these
+ * declarations, rendering as a dark box with a cyan rule. The classes there
+ * are `plan-paid` / `plan-free` for that reason. */
 
-.upgrade h2 { font-size: 1rem; margin: 0 0 0.4rem; }
-.upgrade p { margin: 0 0 0.5rem; font-size: 0.9375rem; }
-.upgrade p:last-child { margin-bottom: 0; }
-.upgrade a { color: var(--accent-text); }
+/* The link that replaced it. Inline in the row's plan sentence, so it reads as
+ * part of the explanation rather than as a button competing with the control
+ * above it. */
+.plan-link { color: var(--accent-text); white-space: nowrap; }
 
 /* Each settings group is its own card. Whitespace alone did not separate them:
  * the settings *inside* a group are divided by a hairline, so a group boundary
@@ -1790,35 +2286,52 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 .setting dd { margin: 0.3rem 0 0; }
 
-/* LABEL LEFT, CONTROL RIGHT (#195 phase 5).
+/* THE SPLIT MOVED UP A LEVEL (#286), AND THIS RULE IS WHY IT HAD TO.
  *
- * Stacked, a 148px <select> sat alone in a 900px card with its label above it
- * and its helper line below, so a settings group read as a column of loosely
- * related fragments rather than a list of rows. Semrush and Time2book both
- * put the name on the left and the control on the right; that is the shape
- * this adopts.
+ * #195 phase 5 put the label left and the control right, PER ROW, to stop a
+ * 148px <select> sitting alone under its label in a 900px card. It solved
+ * that and bought a worse problem: the control ended up ~500px from the words
+ * naming it, and reading a group became a left-right-down zigzag.
  *
- * CSS ONLY, AND DELIBERATELY SO. Moving the description into the <dt> would
- * match the references more closely and would also fold it into every
- * control's accessible name -- `aria-labelledby` points at the <dt>, so a
- * screen reader would announce the whole helper sentence as the field's
- * label. Doing that properly means splitting the label into its own element
- * and adding `aria-describedby` to seven control types. Worth doing; not
- * worth bundling into a layout change, where a mistake is invisible to
- * everyone who can see the page.
+ * So the two columns are now the SECTION's -- heading and explanation on the
+ * left, fields down the right -- and within a row the control sits directly
+ * under its own label again, in a column narrow enough that the original
+ * complaint cannot come back. See `.settings-group` below.
  *
- * Above the breakpoint only. Two columns on a phone would leave the control
- * about 40% of 390px, which is narrower than the select needs for a role name.
- */
-@media (min-width: 48rem) {
-  .setting {
+ * The note #195 left here still stands and is still not done: the description
+ * lives in the <dd>, and moving it into the <dt> would fold it into every
+ * control's accessible name, because `aria-labelledby` points at the <dt>.
+ * Doing it properly means splitting the label into its own element and adding
+ * `aria-describedby` to seven control types. Worth doing; still not worth
+ * bundling into a layout change, where a mistake is invisible to everyone who
+ * can see the page. */
+
+/* Heading and explanation hold the left column; the fields run down the right.
+ *
+ * `.settings-group`, not `.panel.group`: the Overview wears that pair on its
+ * stat panel and its setup checklist, and a two-column rule keyed to it would
+ * reformat two pages this issue is not about.
+ *
+ * 64rem rather than the 48rem the old per-row rule used. This page carries a
+ * sidebar, so at 768px the left column would eat what little the fields have
+ * -- and unlike a label, a section heading loses nothing by sitting above its
+ * fields on a narrow screen. */
+@media (min-width: 64rem) {
+  .settings-group {
     display: grid;
-    grid-template-columns: minmax(0, 16rem) minmax(0, 1fr);
-    gap: 0 var(--space-5);
+    grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+    gap: 0 var(--space-6);
     align-items: start;
   }
-  .setting dd { margin: 0; }
+  /* Everything that is not the heading, including the <form> wrapping the
+     fields and the separate action forms after it. Stated as `> *` with the
+     heading overriding, so a section that grows a fourth child lands in the
+     right column rather than silently in the left one. */
+  .settings-group > * { grid-column: 2; }
+  .settings-group > .group-head { grid-column: 1; grid-row: 1; }
 }
+
+.group-head h2 { margin-top: 0; }
 
 .value {
   margin: 0;
@@ -2365,11 +2878,37 @@ footer p + p { margin-top: var(--space-2); }
   margin: 0.9rem 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  /* 6rem, NOT 9.5rem, AND THE ROW IS WHY (#286). There are five tiles now --
+   * the all-time total moved up beside the member count instead of orphaning
+   * onto a row of its own -- and at 9.5rem five tracks do not fit beside the
+   * sidebar, so auto-fit gave four and orphaned "Last 30 days" instead. The
+   * same complaint, one tile along.
+   *
+   * auto-fit collapses the empty tracks, so five items can never produce more
+   * than five columns however wide the page gets. A phone still falls to two,
+   * which is where the wrapping is wanted. */
+  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
   gap: var(--space-4);
 }
 
 .tile { padding: 0; }
+
+/* THE MONTH INSIDE ITS OWN TILE (#286), for a server whose series has no shape
+ * worth a panel. Same bars, same honest gaps, an eighth of the height.
+ *
+ * `margin-top: auto` and the flex column above it are what keep the bars
+ * pinned to the BOTTOM of the tile. Without them a wrapped label on the tile
+ * beside it makes this one taller, and the drawing floats in the middle of its
+ * own box while its neighbours' numbers sit on a shared line. */
+.tile { display: flex; flex-direction: column; }
+.tile-spark {
+  display: block;
+  margin-top: auto;
+  padding-top: var(--space-3);
+  width: 100%;
+  height: 2rem;
+}
+.tile-spark svg { display: block; width: 100%; height: 100%; }
 
 .tile-label {
   display: block;
@@ -2526,18 +3065,44 @@ footer p + p { margin-top: var(--space-2); }
  * would be the first thing to undo it. */
 .setup-action { padding: 0.4rem 0.9rem; font-size: 0.85rem; }
 
-/* No fill, same reason .notice.ok has none -- see the comment on that rule,
- * which carries the argument and the current numbers. The 4.14:1 figure that
- * used to be quoted here belonged to --ok's older #1a8245 and is 4.59:1 since
- * the #141 pass darkened it; the reason this is unfilled is no longer that
- * number. Unfilled it sits on --panel, where --ok is 5.39:1. */
-.setup-complete {
-  margin: 0 0 var(--space-3);
-  padding: 0.6rem 0.85rem;
-  border: 1px solid var(--ok);
-  border-radius: var(--radius-control);
-  color: var(--ok);
+/* `.setup-complete` USED TO LIVE HERE and is gone with the markup that drew
+ * it (#286). The whole section retires at 100% now, so the finished state is
+ * the absence of the panel rather than a green line inside it -- a checklist
+ * with everything ticked is furniture on the page an admin visits most. */
+
+.setup-progress {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0 0 var(--space-4);
+}
+.setup-progress-step {
+  flex: 1 1 0;
+  height: 0.35rem;
+  border-radius: var(--radius-pill);
+  /* --control-line, not --line: this is a control's worth of meaning rather
+   * than a hairline between rows, and it has to stay visible when it is the
+   * only empty segment beside a filled one. 3.38:1 on the card. */
+  background: var(--control-line);
+}
+.setup-progress-step.done { background: var(--accent-text); }
+
+.setup-progress-label {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-note);
   font-weight: 600;
+  color: var(--muted);
+}
+
+/* The same tag the changelog and the picker use, at the size this list reads
+ * at. --accent-text on --panel is already pinned in test_contrast's pairs. */
+.setup-premium {
+  margin-inline-start: 0.4rem;
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  white-space: nowrap;
 }
 
 /* --- change history --- */
@@ -2998,48 +3563,187 @@ footer p + p { margin-top: var(--space-2); }
   line-height: var(--leading-body);
 }
 
-/* TWO TIERS, SIDE BY SIDE, AND THEY MUST STAY COMPARABLE.
+/* --- /pricing (#286) ---------------------------------------------------- *
  *
- * A separate grid from `.plans` rather than a reuse of it: that one is
- * `auto-fit minmax(11rem, 1fr)`, which is right for three narrow cadence
- * cards and wrong for two cards carrying a six-item feature list -- auto-fit
- * would let them collapse to 11rem and wrap the features to shreds.
+ * ONE CARD, NARROW, ON THE FIELD. The page was a title, two peer cards, a
+ * cadence section and a closing CTA -- at full width the feature names sat at
+ * one end of the screen and the columns at the other, which is the one thing a
+ * comparison must not do.
  *
- * `1fr 1fr` so the two cards are equal width whatever their content, because
- * the whole job of this block is comparison and a wider card reads as the
- * bigger offer before a word is read. Equal HEIGHT comes from the grid's
- * default `stretch`, which matters because Premium lists six features and
- * Free lists three.
+ * The width is a measure argument, not a taste one: a reader has to carry a
+ * row's label across to its two marks, and the further that is the more often
+ * they land on the wrong row.
  */
-.tiers {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-  margin: 0 0 var(--space-5);
-  align-items: stretch;
-}
-@media (max-width: 44rem) {
-  /* One column before the cards get too narrow to read a feature line in.
-   * Free stays first: the product's strongest claim is that the thing it
-   * exists to do costs nothing, and on a phone the first card is the one
-   * most people see. */
-  .tiers { grid-template-columns: 1fr; }
+.pricing-card {
+  max-width: 38rem;
+  margin-inline: auto;
+  box-shadow: var(--shadow-raised);
 }
 
-/* The tier cards head with an h2, where the cadence cards below head with an
- * h3. Both are `.plan-card`, so the size has to be said once here rather than
- * inherited from whichever heading level the template happened to use. */
-/* Pins both CTAs to the bottom edge so they align across the two cards --
- * Premium lists six features and Free lists three, and a button floating
- * mid-card next to one sitting at the foot reads as an accident. */
-.tiers .plan-card .button { margin-top: auto; align-self: stretch; }
-
-.tiers .plan-card h2 {
-  margin: 0;
+.term-heading {
+  margin: 0 0 var(--space-3);
   font-size: var(--text-section);
+}
+
+/* THE SEGMENTED CONTROL IS THREE LINKS. No script, so the choice lands in the
+ * address bar and the back button undoes it -- and it works with JavaScript
+ * off, like everything else here. */
+.term-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  background: var(--inset);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius-control);
+}
+
+.term {
+  flex: 1 1 7rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: var(--space-2) var(--space-3);
+  border-radius: calc(var(--radius-control) - 2px);
+  color: var(--ink);
+  text-decoration: none;
+  text-align: center;
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+.term:hover { background: var(--hover); }
+
+/* The chosen segment. A FILL PLUS A WEIGHT, never colour alone: `aria-current`
+ * carries it for a screen reader, and a segment that differed only in hue
+ * would say nothing in grayscale. */
+.term.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.term.on:hover { background: var(--accent-hover); }
+
+.term-saving {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent-text);
+}
+/* On the filled segment the saving cannot keep --accent-text: that is the
+ * accent against a card, and here it would be the accent against itself. */
+.term.on .term-saving { color: var(--accent-ink); opacity: 0.85; }
+
+.term-price {
+  margin: var(--space-4) 0 var(--space-1);
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.term-amount {
+  /* --text-hero, the tile figure size: this is the one number on the page
+   * and it should read as one. --text-display is the page title, and a price
+   * at that size would out-shout the heading above it. */
+  font-size: var(--text-hero);
+  font-weight: 700;
+  color: var(--ink-strong);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.term-period { font-size: var(--text-note); color: var(--muted); }
+.term-note { margin: 0 0 var(--space-5); }
+
+/* --- the comparison table --- */
+.compare {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-5) 0 0;
+  font-size: var(--text-body);
+}
+.compare th,
+.compare td {
+  padding: var(--space-3) var(--space-2);
+  border-top: 1px solid var(--line-soft);
+  text-align: start;
+  vertical-align: baseline;
+}
+.compare thead th {
+  border-top: 0;
+  padding-top: 0;
+  font-size: var(--text-note);
   font-weight: 600;
   color: var(--muted);
 }
+.compare tbody th {
+  font-weight: 400;
+  color: var(--ink);
+}
+.compare thead th:not(:first-child),
+.compare tbody td { text-align: center; width: 5.5rem; }
+
+/* THE ONE RECOMMENDATION THIS PAGE MAKES, and it is made in the column rather
+ * than in a sentence.
+ *
+ * 5% of the accent, mixed rather than a token: a fourth surface colour that
+ * exists on one table is a token to keep in step for no reason. color-mix is
+ * dropped whole where it is unsupported, which loses the tint and keeps the
+ * edge -- the column is still marked, just not shaded. */
+.compare-premium { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.compare thead th.compare-premium {
+  color: var(--accent-text);
+  border-top: 2px solid var(--accent-text);
+  padding-top: var(--space-2);
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
+}
+
+.compare-yes { color: var(--accent-text); display: inline-flex; }
+.compare-no { color: var(--faint); }
+
+/* THE SAME CONTROL AS /pricing, DRIVEN BY RADIOS (#286).
+ *
+ * That page can afford a link and a round trip per term; this one is a
+ * purchase, so the term has to arrive in the POST. Radios put it there with no
+ * script -- and `:checked + label` is what paints the selection, which is the
+ * whole reason the input is offscreen rather than `display: none`. A hidden
+ * input is not focusable, and a segmented control a keyboard cannot reach is
+ * a purchase a keyboard cannot make.
+ */
+.term-switch-buy {
+  border: 1px solid var(--control-line);
+  margin: var(--space-4) 0 0;
+  padding: 2px;
+}
+
+.term-radio:checked + .term {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.term-radio:checked + .term .term-saving { color: var(--accent-ink); opacity: 0.85; }
+/* The ring goes on the LABEL, because the input it belongs to is offscreen.
+ * Without this the focus indicator is drawn somewhere nobody can see, which is
+ * the same as not drawing one. */
+.term-radio:focus-visible + .term {
+  outline: var(--focus-width) solid var(--accent-text);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+
+.term-amount-small {
+  font-size: var(--text-body);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.term-trial { font-size: var(--text-micro); color: var(--muted); }
+.term-radio:checked + .term .term-trial { color: var(--accent-ink); opacity: 0.85; }
+
+.plan-buy .actions { margin-top: var(--space-4); }
+
+.pricing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: var(--space-5) 0 var(--space-4);
+}
+.pricing-actions .button { flex: 1 1 12rem; justify-content: center; }
 
 .plans {
   display: grid;
@@ -3173,36 +3877,6 @@ footer p + p { margin-top: var(--space-2); }
   color: var(--accent-text);
 }
 
-
-/* THE FEATURE LISTS ON /pricing (#188).
- * Deliberately the same shape and the same class name as `.plan-list` in
- * site/style.css, so the apex site's plan cards and this page read as one
- * product. The two files cannot share anything -- different origin, different
- * deploy -- so this comment is half the pair that says so. Change one, change
- * the other.
- *
- * The tick's empty alt string keeps it out of the accessibility tree; a
- * screen reader should read the feature, not "check mark" six times. Behind
- * @supports because that content syntax is recent, and where it is
- * unsupported the whole declaration would be dropped and the ticks would
- * vanish -- which is worse than announcing them. */
-.plan-list { list-style: none; margin: var(--space-3) 0 var(--space-4); padding: 0; }
-.plan-list li {
-  position: relative;
-  padding-inline-start: 1.5rem;
-  margin: var(--space-2) 0;
-  color: var(--ink);
-}
-.plan-list li::before {
-  content: "\2713";
-  position: absolute;
-  inset-inline-start: 0;
-  color: var(--accent-text);
-  font-weight: 700;
-}
-@supports (content: "x" / "y") {
-  .plan-list li::before { content: "\2713" / ""; }
-}
 
 .plan-card .button { margin-top: auto; align-self: stretch; }
 

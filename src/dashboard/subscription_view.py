@@ -346,6 +346,16 @@ class SubscriptionPage:
         "unavailable": (N_("Unknown"), "muted"),
     }
 
+
+    @property
+    def default_plan(self):
+        """Which billing term the purchase control arrives on.
+
+        The same rule /pricing leads with, from the same function -- see
+        `default_plan`. The template used to decide it itself and got it wrong.
+        """
+        return default_plan(self.plans)
+
     @property
     def chip(self) -> Optional[dict]:
         """The state, as a word and a tone, or None where there is no status.
@@ -874,6 +884,25 @@ def build(
     )
 
 
+def default_plan(plans):
+    """The plan a page should lead with: the highlighted one, else the first.
+
+    ONE FUNCTION BECAUSE THIS RULE ALREADY EXISTED TWICE. `PublicPricingPage.
+    chosen` had it, and subscription.html grew its own as
+    `plan.highlight or loop.first` -- which checks BOTH radios whenever the
+    highlighted plan is not the first one, and two checked radios in a group
+    means the last silently wins. The recommendation then becomes whichever
+    price Stripe happened to return last, with nothing to notice.
+    """
+    plans = tuple(plans)
+    if not plans:
+        return None
+    for plan in plans:
+        if plan.highlight:
+            return plan
+    return plans[0]
+
+
 class PublicPricingPage:
     """What a signed-out stranger is shown about what Premium costs (#188).
 
@@ -913,6 +942,28 @@ class PublicPricingPage:
     @property
     def offers_plans(self) -> bool:
         return bool(self.plans)
+
+    def chosen(self, price_id=None):
+        """The plan whose figures the page is showing, or None if it has none.
+
+        MATCHED AGAINST THE FRESHLY FETCHED LIST, never trusted. This is the
+        same rule the checkout route states about the id a form submits -- the
+        browser naming a price is safe precisely because the server only ever
+        accepts one it has just found. Here the consequence of a bad id is
+        cosmetic rather than financial, and the rule is worth following anyway:
+        an unmatched id must not be able to reach a template and be rendered.
+
+        Falls back to the highlighted plan, then to the first. A pricing page
+        that shows nothing because somebody edited a query string is worse than
+        one that shows the plan it would have shown anyway.
+        """
+        if not self.plans:
+            return None
+        if price_id:
+            for plan in self.plans:
+                if plan.price_id == price_id:
+                    return plan
+        return default_plan(self.plans)
 
     @property
     def unavailable(self) -> bool:

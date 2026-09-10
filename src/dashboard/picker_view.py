@@ -47,6 +47,7 @@ what the cards say without anybody remembering this file exists.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Callable, Optional
 
 from dashboard.i18n import N_
@@ -57,10 +58,66 @@ def _untranslated(text: str) -> str:
     return text
 
 
+# How many gradients a server can be drawn in. Twelve, and the number is a
+# judgement rather than a constraint: with a handful of servers on screen a
+# repeat is going to happen, and the question is only whether it reads as two
+# servers sharing a look or as the page failing to tell them apart. Twelve
+# well-separated hues collide often enough to be obviously a palette.
+TILE_COUNT = 12
+
+
+def tile_class(guild_id) -> str:
+    """Which of the twelve gradients this server is drawn in.
+
+    DERIVED, NEVER STORED. A column would have to be written at join time,
+    backfilled for every existing guild, and kept in step with a palette that
+    is a design decision -- for something whose only job is to make one square
+    look unlike the square beside it.
+
+    HASHED RATHER THAN `id % 12`, AND THE DIFFERENCE IS NOT SUBTLE. A Discord
+    snowflake is `(ms << 22) | (worker << 17) | (process << 12) | increment`,
+    where the increment counts events within one process-millisecond -- so for
+    something as rare as creating a guild it is almost always 0. That makes the
+    whole id a multiple of 4096, and 4096 is congruent to 4 modulo 12, so
+    `id % 12` can only ever return 0, 4 or 8.
+
+    A twelve-colour palette would have rendered in three colours. Measured, not
+    reasoned about: 500 realistic snowflakes with increment 0 yield exactly
+    {0, 4, 8}, and the same 500 through sha256 use all twelve. There is a test.
+
+    The bug this avoids is the quiet kind -- nothing errors, the tiles are
+    simply far more alike than the palette says they should be, and it reads as
+    the page failing to tell servers apart rather than as an arithmetic fault.
+
+    THE PALETTE IS ROTATED OFF THE ACCENT ON PURPOSE -- see style.css. Nothing
+    here needs to know that; this returns a name, and the stylesheet owns what
+    the name looks like.
+    """
+    digest = hashlib.sha256(str(guild_id).encode("utf-8")).digest()
+    return f"g{digest[0] % TILE_COUNT}"
+
+
 # What the slot says, per state. A card carries exactly one of these, and the
 # absent and unknown wordings are the ones the page already shipped -- they are
 # here so that all five live together rather than three in Python and two in
 # the template.
+# The short word on the tile's chip, per state (#286).
+#
+# A SECOND STRING PER STATE, NOT A SHORTENING OF THE FIRST. `_NOTES` is the
+# sentence in the card's footer and it is doing a different job: the chip says
+# WHICH state this is at a glance across a grid, the sentence says what that
+# means for this particular server. Deriving one from the other would give the
+# chip a clause and the footer a label.
+_STATUS = {
+    "done": N_("Working"),
+    "todo": N_("Setup unfinished"),
+    "broken": N_("Needs attention"),
+    # Still two answers wearing one name. "Not set up" is true under both
+    # readings and claims neither.
+    "absent": N_("Not set up"),
+    "unknown": N_("Can't check"),
+}
+
 _NOTES = {
     "done": N_("Set up and working"),
     "todo": N_("Setup isn't finished"),
@@ -96,11 +153,81 @@ def card_state(summary: Optional[dict]) -> str:
     return "done"
 
 
+# HOW MANY SERVERS MAY BE PINNED, and it is a cookie bound rather than a taste.
+# Twenty ids at ~19 characters each plus separators is under 400 bytes, which
+# leaves the whole cookie jar for this host comfortably inside the 4KB a browser
+# will carry -- and this cookie travels on every request to the dashboard.
+# `changelog.MAX_DISMISSALS` exists for the identical reason.
+MAX_FAVORITES = 20
+
+# A character that cannot occur in a decimal id, so a malformed value splits
+# into pieces that all fail the digit check below rather than into one piece
+# that happens to look valid.
+_FAVORITE_SEPARATOR = "."
+
+
+def parse_favorites(raw, *, manageable=None) -> tuple:
+    """The pinned guild ids in a cookie value, cleaned.
+
+    EVERY ENTRY IS CHECKED, because the cookie is not ours. It is written by
+    this app and then lives in a browser, where it can be edited by hand, so
+    what comes back is input. Anything that is not a run of digits is dropped,
+    duplicates collapse, and the result is capped.
+
+    `manageable` is the set of guild ids the caller actually administers, and
+    passing it is what keeps a pin from outliving the standing that created it.
+    Two cases, and they are the same case: an admin demoted since they pinned
+    a server, and somebody hand-editing an id they have never had access to.
+    Neither gets a tile, because the id never survives this function.
+
+    NOT AN AUTHORITY CHECK, and must not be mistaken for one. Nothing here
+    decides what anybody may do -- it decides which of the tiles this page is
+    already drawing are drawn first. The bot has already decided the rest.
+    """
+    ids = []
+    for piece in (raw or "").split(_FAVORITE_SEPARATOR):
+        piece = piece.strip()
+        if not piece.isdigit() or piece in ids:
+            continue
+        if manageable is not None and piece not in manageable:
+            continue
+        ids.append(piece)
+    return tuple(ids[:MAX_FAVORITES])
+
+
+def toggle_favorite(favorites, guild_id) -> str:
+    """The cookie value with one guild pinned, or unpinned if it already was.
+
+    Newest first, so the cap evicts the oldest pin rather than refusing the
+    new one. Refusing would be the worse failure: pressing a star and having
+    nothing happen, with the reason being twenty other servers somebody may
+    have pinned a year ago.
+    """
+    wanted = str(guild_id)
+    ids = [existing for existing in tuple(favorites) if existing != wanted]
+    if len(ids) == len(tuple(favorites)):
+        ids.insert(0, wanted)
+    return _FAVORITE_SEPARATOR.join(ids[:MAX_FAVORITES])
+
+
+def split_pinned(cards) -> tuple:
+    """`(pinned, rest)`, preserving the order `build_cards` chose within each.
+
+    Split here rather than in the template because "which group is this in" is
+    a fact about the data, and a template that decides it is a template that
+    can disagree with the heading it draws above the group.
+    """
+    pinned = [card for card in cards if card.get("pinned")]
+    rest = [card for card in cards if not card.get("pinned")]
+    return pinned, rest
+
+
 def build_cards(
     servers: list,
     summaries: Optional[dict],
     *,
     reachable: bool,
+    favorites=(),
     t: Callable[[str], str] = _untranslated,
 ) -> list:
     """One entry per card, in the order they should be drawn.
@@ -134,6 +261,24 @@ def build_cards(
             # and the template must not be able to read one out of it.
             "installed": state not in {"absent", "unknown"},
             "note": t(_NOTES[state]),
+            "status": t(_STATUS[state]),
+            # Drawn on every card, including the ones carrying a Discord icon.
+            # The icon covers the gradient rather than replacing it, so a
+            # server whose icon fails to load falls back to its own colour
+            # instead of to a grey hole.
+            "tile": tile_class(server["id"]),
+            "pinned": str(server["id"]) in set(favorites),
+            # THREE VALUES, AND `.get` IS NOT ENOUGH ON ITS OWN. The bot sends
+            # True, False or null, and null means "no claim" -- premium is not
+            # enforced, or the entitlement listing failed and no card
+            # subscription settles it. A missing key means the same thing, and
+            # so does an unreadable summary, which is why this is written to
+            # produce None in all three cases rather than only the first.
+            #
+            # A card with None draws no tag. That asymmetry is the point: a
+            # free server with no tag has lost a prompt, while a paying server
+            # told to upgrade has been told what it bought is missing.
+            "premium": (summary or {}).get("premium"),
         })
 
     cards.sort(key=lambda card: (not card["installed"], card["name"].lower()))

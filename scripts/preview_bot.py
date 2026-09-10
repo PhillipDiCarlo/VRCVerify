@@ -288,7 +288,19 @@ class PreviewBotAPI:
                 configured.update(
                     bot_can_manage_roles=False, verified_role_assignable=False
                 )
-            summaries[guild_id] = {"configured": configured, "panel": panel}
+            # Three values, matching what the real endpoint sends (#286): the
+            # premium server is paid, the free one is not, and UNREACHABLE
+            # deliberately says NOTHING -- the case where the entitlement
+            # listing failed and no card subscription settles it. That third
+            # state is the one worth previewing, because it is the only one
+            # where the card has to be able to draw no tag at all.
+            if guild_id == UNREACHABLE:
+                premium = None
+            else:
+                premium = guild_id == PREMIUM
+            summaries[guild_id] = {
+                "configured": configured, "panel": panel, "premium": premium,
+            }
         return summaries
 
     def settings(self, actor_id, guild_id) -> dict:
@@ -333,6 +345,23 @@ class PreviewBotAPI:
         guild_id = self._check(guild_id)
         payload = make_overview(premium=guild_id == PREMIUM)
         payload["guild_id"] = guild_id
+        # THE SAME OVERRIDES `guild_summaries` APPLIES, because the two are
+        # answers to the same question and the preview was letting them
+        # disagree: the picker drew the free server as "Setup isn't finished"
+        # while its own Overview said setup was complete. Sharing `build_setup`
+        # is what stops those two surfaces disagreeing in production (#164),
+        # and a preview that contradicts itself cannot show that working.
+        if guild_id == FREE:
+            payload["configured"].update(
+                verified_role=False,
+                verified_role_exists=None,
+                verified_role_assignable=None,
+            )
+            payload["panel"] = {"posted": False}
+        elif guild_id == UNREACHABLE:
+            payload["configured"].update(
+                bot_can_manage_roles=False, verified_role_assignable=False
+            )
         if NO_MANAGE_ROLES:
             # Both fields, as the bot reports them: the permission on its own,
             # and the composite it also feeds. Setting only the first would be

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-09 01:26-0400\n"
+"POT-Creation-Date: 2026-09-10 02:53-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -45,11 +45,28 @@ msgstr ""
 "Discord konnte die Anmeldung nicht abschließen. Bitte versuche es noch "
 "einmal."
 
-msgid "Page not found."
-msgstr "Seite nicht gefunden."
+# | msgid "Page not found."
+msgid "Page not found"
+msgstr "Seite nicht gefunden"
 
-msgid "Something went wrong."
-msgstr "Etwas ist schiefgelaufen."
+msgid ""
+"That address doesn't match anything here. It may have been a typo, or a "
+"link to something that has since moved."
+msgstr ""
+"Diese Adresse passt zu nichts hier. Vielleicht ein Tippfehler, oder ein "
+"Link auf etwas, das inzwischen umgezogen ist."
+
+# | msgid "Something went wrong."
+msgid "Something went wrong"
+msgstr "Etwas ist schiefgelaufen"
+
+msgid ""
+"The dashboard hit an error it couldn't recover from. Try again in a "
+"moment, and check the setting you were changing if you were saving one."
+msgstr ""
+"Im Dashboard ist ein Fehler aufgetreten, von dem es sich nicht erholen "
+"konnte. Versuch es gleich noch einmal, und prüfe die Einstellung, die du "
+"gerade geändert hast, falls du am Speichern warst."
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "Diese Einstellung erfordert VRCVerify Premium. Es wurde nichts geändert."
@@ -240,23 +257,32 @@ msgstr "Einstellungen"
 msgid "Subscriptions"
 msgstr "Abonnements"
 
-msgid ""
-"That server isn't available. Either VRCVerify isn't in it, or you don't "
-"have the Administrator permission there."
-msgstr ""
-"Dieser Server ist nicht verfügbar. Entweder ist VRCVerify nicht darauf, "
-"oder du hast dort keine Administrator-Berechtigung."
+# | msgid "That group ID wasn't usable"
+msgid "That server isn't available"
+msgstr "Dieser Server ist nicht verfügbar"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
+# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
+# you
+# | don't " "have the Administrator permission there."
 msgid ""
-"Can't reach the bot right now, so this page can't be shown. Nothing has "
-"changed. Try again shortly."
+"Either VRCVerify isn't in it, or you don't have the Administrator "
+"permission there."
 msgstr ""
-"Der Bot ist gerade nicht erreichbar, deshalb kann diese Seite nicht "
-"angezeigt werden. Es hat sich nichts geändert. Versuche es gleich noch "
-"einmal."
+"Entweder ist VRCVerify nicht darin, oder du hast dort nicht die "
+"Administrator-Berechtigung."
+
+msgid "Can't reach the bot"
+msgstr "Der Bot ist nicht erreichbar"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+# | msgid "The bot didn't answer this one. Try again shortly."
+msgid ""
+"This page needs the bot to answer and it isn't answering right now. "
+"Nothing has changed. Try again shortly."
+msgstr ""
+"Diese Seite braucht eine Antwort vom Bot, und er antwortet gerade nicht. "
+"Es hat sich nichts geändert. Versuch es gleich noch einmal."
 
 msgid "Premium"
 msgstr "Premium"
@@ -264,6 +290,27 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "Neu"
+
+# | msgid "Open the dashboard"
+msgid "A new look for the dashboard"
+msgstr "Ein neues Aussehen für das Dashboard"
+
+msgid ""
+"Your server list is now a grid of tiles you can search, pin and open with"
+" a single click anywhere on the card, and each one says whether that "
+"server is on Premium. Setup has moved to the top of a server's Overview "
+"with a progress bar, and retires itself once everything required is done."
+" Settings puts each control directly under its own label, and the pricing"
+" page is one comparison you can read across."
+msgstr ""
+"Deine Serverliste ist jetzt ein Raster aus Kacheln, die du durchsuchen, "
+"anheften und mit einem Klick an beliebiger Stelle öffnen kannst, und jede"
+" zeigt, ob dieser Server Premium hat. Die Einrichtung steht nun oben in "
+"der Übersicht eines Servers, mit einem Fortschrittsbalken, und "
+"verschwindet, sobald alles Erforderliche erledigt ist. In den "
+"Einstellungen steht jedes Bedienelement direkt unter seiner eigenen "
+"Beschriftung, und die Preisseite ist ein einziger Vergleich, den man in "
+"einer Zeile lesen kann."
 
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
@@ -463,8 +510,9 @@ msgstr "Optional. Wird entfernt, sobald jemand verifiziert ist."
 msgid "Verification log"
 msgstr "Verifizierungsprotokoll"
 
-msgid "Optional. Premium."
-msgstr "Optional. Premium."
+# | msgid "Optional. Premium."
+msgid "Optional."
+msgstr "Optional."
 
 # | msgid "Sections"
 # | msgid "Settings"
@@ -514,22 +562,6 @@ msgstr "VRCVerify kann dort nicht mehr posten – prüfe die Berechtigungen."
 msgid "Posted, and VRCVerify can still reach it."
 msgstr "Gepostet, und VRCVerify kann es weiterhin erreichen."
 
-msgid "No verified role is set"
-msgstr "Es ist keine Verifiziert-Rolle gesetzt"
-
-msgid "The verified role needs attention"
-msgstr "Die Verifiziert-Rolle braucht Aufmerksamkeit"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "No instructions panel is posted"
-msgstr "Es ist kein Anleitungs-Panel gepostet"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "The instructions panel needs attention"
-msgstr "Das Anleitungs-Panel braucht Aufmerksamkeit"
-
 #, python-format
 msgid ""
 "%(count)s member verified here in the last 30 days. Premium logs each one"
@@ -552,6 +584,25 @@ msgstr "Deine Bestandsvorteile bleiben kostenlos, wie du dich auch entscheidest.
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "Auf VRCVerify Premium upgraden"
+
+msgid "Working"
+msgstr "Läuft"
+
+# | msgid "Setup isn't finished"
+msgid "Setup unfinished"
+msgstr "Einrichtung offen"
+
+# | msgid "needs attention"
+msgid "Needs attention"
+msgstr "Braucht Aufmerksamkeit"
+
+# | msgid "not set"
+msgid "Not set up"
+msgstr "Nicht eingerichtet"
+
+# | msgid "Couldn't check"
+msgid "Can't check"
+msgstr "Nicht prüfbar"
 
 msgid "Set up and working"
 msgstr "Eingerichtet und funktioniert"
@@ -1286,12 +1337,12 @@ msgstr ""
 " bei</a> und folge dem Ankündigungskanal – jede Neuigkeit von hier wird "
 "dort gepostet, und Discord verteilt sie in jeden Kanal, den du auswählst."
 
-msgid "Sorry"
-msgstr "Entschuldigung"
-
 # | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "Zurück zu deinen Servern"
+
+msgid "Check VRCVerify's status"
+msgstr "Status von VRCVerify prüfen"
 
 msgid "Manage your VRCVerify servers"
 msgstr "Verwalte deine VRCVerify-Server"
@@ -1336,6 +1387,36 @@ msgstr ""
 " Servers fest, was reicht, um mit der Verifizierung von Mitgliedern zu "
 "beginnen, und <code>/vrcverify_settings</code> zeigt, was gespeichert "
 "ist. Alles Weitere wird hier geändert."
+
+msgid "Finish setting up"
+msgstr "Einrichtung abschließen"
+
+#, python-format
+msgid ""
+"What still needs doing before this server can verify anyone, and whether "
+"what's already set is still working. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+"Was noch zu tun ist, bevor dieser Server jemanden verifizieren kann, und "
+"ob das bereits Eingerichtete noch funktioniert. Ändern lässt sich alles "
+"unter <a href=\"%(settings_url)s\">Einstellungen</a>."
+
+#, python-format
+msgid "%(done)s of %(total)s done"
+msgstr "%(done)s von %(total)s erledigt"
+
+#, python-format
+msgid "%(done)s of %(total)s required steps done"
+msgstr "%(done)s von %(total)s erforderlichen Schritten erledigt"
+
+msgid "set"
+msgstr "gesetzt"
+
+msgid "needs attention"
+msgstr "braucht Aufmerksamkeit"
+
+msgid "off, optional"
+msgstr "aus, optional"
 
 msgid "See plans and subscribe"
 msgstr "Tarife ansehen und abonnieren"
@@ -1387,38 +1468,29 @@ msgstr "Nicht gemessen"
 msgid "Couldn't load the daily trend just now."
 msgstr "Konnte den Tagesverlauf gerade nicht laden."
 
-msgid "Setup"
-msgstr "Einrichtung"
-
-#, python-format
-msgid ""
-"What's configured here, and whether it's actually working -- one list "
-"instead of two, since \"switched on\" and \"still works\" used to be "
-"answered in different places on this page. Change any of it on <a "
-"href=\"%(settings_url)s\">Settings</a>."
-msgstr ""
-"Was hier eingerichtet ist und ob es tatsächlich funktioniert -- eine "
-"Liste statt zwei, denn „eingeschaltet“ und „funktioniert noch“ wurden auf"
-" dieser Seite früher an verschiedenen Stellen beantwortet. Ändern kannst "
-"du all das unter <a href=\"%(settings_url)s\">Einstellungen</a>."
-
-msgid "Setup complete — verification is fully working here."
-msgstr ""
-"Einrichtung abgeschlossen – die Verifizierung funktioniert hier "
-"vollständig."
-
-msgid "set"
-msgstr "gesetzt"
-
-msgid "needs attention"
-msgstr "braucht Aufmerksamkeit"
-
 msgid "Your servers — VRCVerify"
 msgstr "Deine Server — VRCVerify"
+
+#, python-format
+msgid "Pin %(name)s"
+msgstr "%(name)s anheften"
+
+msgid "Upgrade"
+msgstr "Upgrade"
+
+# | msgid "Add to your server"
+msgid "Add to server"
+msgstr "Zum Server hinzufügen"
 
 # | msgid "Add to your server"
 msgid "Your servers"
 msgstr "Deine Server"
+
+#, python-format
+msgid "One needs something from you."
+msgid_plural "%(count)s need something from you."
+msgstr[0] "Ein Server braucht etwas von dir."
+msgstr[1] "%(count)s Server brauchen etwas von dir."
 
 msgid ""
 "Can't reach the bot right now, so we can't tell which of these it's in. "
@@ -1427,6 +1499,45 @@ msgstr ""
 "Der Bot ist gerade nicht erreichbar, deshalb können wir nicht sagen, in "
 "welchen davon er ist. Deine Einstellungen sind sicher – hier hat sich "
 "nichts geändert. Versuche es gleich noch einmal."
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Search your servers"
+msgstr "Deine Server durchsuchen"
+
+# | msgid "Per server"
+msgid "Search servers"
+msgstr "Server suchen"
+
+msgid "Search"
+msgstr "Suchen"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+#, python-format
+msgid "%(count)s server"
+msgid_plural "%(count)s servers"
+msgstr[0] "%(count)s Server"
+msgstr[1] "%(count)s Server"
+
+# | msgid "Premium"
+# | msgid "See Premium"
+#, python-format
+msgid "%(count)s Premium"
+msgstr "%(count)s mit Premium"
+
+# | msgid "No servers to show"
+msgid "No servers match that"
+msgstr "Keine Server gefunden"
+
+#, python-format
+msgid "Nothing in your list is called “%(q)s”."
+msgstr "Nichts in deiner Liste heißt „%(q)s“."
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Show all your servers"
+msgstr "Alle deine Server anzeigen"
 
 msgid "No servers to show"
 msgstr "Keine Server anzuzeigen"
@@ -1446,12 +1557,16 @@ msgstr "Abmelden und neu beginnen"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "Du wirst gebeten, dich erneut mit Discord anzumelden."
 
-# | msgid "Add to your server"
-msgid "Add to server"
-msgstr "Zum Server hinzufügen"
+# | msgid "None"
+msgid "Pinned"
+msgstr "Angeheftet"
 
 msgid "Pricing · VRCVerify"
 msgstr "Preise · VRCVerify"
+
+# | msgid "Canceled"
+msgid "Included"
+msgstr "Enthalten"
 
 msgid "Pricing"
 msgstr "Preise"
@@ -1463,14 +1578,43 @@ msgstr ""
 "Verifizierung ist kostenlos, für immer. Premium ergänzt die "
 "Automatisierung drumherum, pro Server."
 
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+"Wir können die Preise gerade nicht laden. <strong>Premium ist weiterhin "
+"verfügbar.</strong> Versuche es gleich noch einmal oder abonniere in "
+"Discord."
+
+msgid "There are no plans on sale at the moment."
+msgstr "Zurzeit sind keine Tarife im Angebot."
+
+msgid "One Premium, three ways to pay for it"
+msgstr "Ein Premium, drei Wege, dafür zu bezahlen"
+
+msgid "Billing term"
+msgstr "Abrechnungszeitraum"
+
+msgid "Price unavailable"
+msgstr "Preis nicht verfügbar"
+
+# | msgid "" "Every plan below unlocks exactly the same features — the only
+# | difference " "is how long you pay for at once, and how much that saves."
+msgid ""
+"Per server. Every term unlocks exactly the same features — the only "
+"difference is how long you pay for at once."
+msgstr ""
+"Pro Server. Jeder Zeitraum schaltet genau dieselben Funktionen frei — der"
+" einzige Unterschied ist, für wie lange du auf einmal bezahlst."
+
+msgid "What each plan includes"
+msgstr "Was in den Tarifen enthalten ist"
+
+msgid "Feature"
+msgstr "Funktion"
+
 msgid "Free"
 msgstr "Kostenlos"
-
-msgid "forever"
-msgstr "für immer"
-
-msgid "Everything you need to verify your members."
-msgstr "Alles, was du brauchst, um deine Mitglieder zu verifizieren."
 
 msgid "Verify members as 18+"
 msgstr "Mitglieder als 18+ verifizieren"
@@ -1482,18 +1626,6 @@ msgstr ""
 
 msgid "Members can update their own nickname"
 msgstr "Mitglieder können ihren eigenen Nicknamen aktualisieren"
-
-msgid "Add to your server"
-msgstr "Zu deinem Server hinzufügen"
-
-msgid "Per server"
-msgstr "Pro Server"
-
-msgid "monthly, 6 or 12 months"
-msgstr "monatlich, 6 oder 12 Monate"
-
-msgid "The automation around verification, for servers that want it."
-msgstr "Die Automatisierung rund um die Verifizierung, für Server, die sie wollen."
 
 msgid "Automatic removal of an unverified role"
 msgstr "Automatisches Entfernen einer Unverifiziert-Rolle"
@@ -1519,33 +1651,15 @@ msgstr "Verkürzte Verifizierungs-Wartezeit"
 msgid "VRChat group invites for verified members"
 msgstr "VRChat-Gruppeneinladungen für verifizierte Mitglieder"
 
+# | msgid "Not applied"
+msgid "Not included"
+msgstr "Nicht enthalten"
+
+msgid "Add to your server"
+msgstr "Zu deinem Server hinzufügen"
+
 msgid "Open the dashboard"
 msgstr "Dashboard öffnen"
-
-msgid "One Premium, three ways to pay for it"
-msgstr "Ein Premium, drei Wege, dafür zu bezahlen"
-
-msgid ""
-"We can't load prices right now. <strong>Premium is still "
-"available.</strong> Try again in a moment, or subscribe inside Discord."
-msgstr ""
-"Wir können die Preise gerade nicht laden. <strong>Premium ist weiterhin "
-"verfügbar.</strong> Versuche es gleich noch einmal oder abonniere in "
-"Discord."
-
-msgid "There are no plans on sale at the moment."
-msgstr "Zurzeit sind keine Tarife im Angebot."
-
-msgid ""
-"Every plan below unlocks exactly the same features — the only difference "
-"is how long you pay for at once, and how much that saves."
-msgstr ""
-"Jeder Tarif unten schaltet genau dieselben Funktionen frei – der einzige "
-"Unterschied ist, für wie lange du auf einmal bezahlst und wie viel das "
-"spart."
-
-msgid "Most popular"
-msgstr "Am beliebtesten"
 
 msgid ""
 "Some plans start with a free trial. Whether a particular server qualifies"
@@ -1566,23 +1680,6 @@ msgstr ""
 "hinzugerechnet. Die Zahlung wickelt Stripe ab – Kartendaten erreichen "
 "VRCVerify nie."
 
-msgid ""
-"Premium is bought per server. You can subscribe with a card in the "
-"dashboard, or monthly through Discord."
-msgstr ""
-"Premium wird pro Server gekauft. Du kannst mit Karte im Dashboard "
-"abonnieren oder monatlich über Discord."
-
-msgid "Ready to start?"
-msgstr "Bereit loszulegen?"
-
-msgid ""
-"Add VRCVerify to your server and verification works immediately, at no "
-"cost. Premium is there when you want it."
-msgstr ""
-"Füge VRCVerify zu deinem Server hinzu und die Verifizierung läuft sofort,"
-" kostenlos. Premium ist da, wenn du es willst."
-
 msgid "Saved."
 msgstr "Gespeichert."
 
@@ -1600,18 +1697,6 @@ msgstr ""
 "Deine Einstellungen wurden gespeichert, aber das Anleitungs-Panel zeigt "
 "noch die alten. Nutze unten <strong>Panel neu posten oder "
 "verschieben</strong>, um es zu ersetzen."
-
-msgid ""
-"Your grandfathered extras stay free whatever you decide. Premium unlocks "
-"the settings marked below."
-msgstr ""
-"Deine Bestandsvorteile bleiben kostenlos, wie du dich auch entscheidest. "
-"Premium schaltet die unten markierten Einstellungen frei."
-
-msgid "Unlocks the settings marked below. 18+ verification itself stays free."
-msgstr ""
-"Schaltet die unten markierten Einstellungen frei. Die 18+-Verifizierung "
-"selbst bleibt kostenlos."
 
 msgid ""
 "Couldn't load this server's roles and channels just now, so some settings"
@@ -1651,6 +1736,9 @@ msgstr ""
 
 msgid "Members use this message to begin verification."
 msgstr "Über diese Nachricht starten Mitglieder die Verifizierung."
+
+msgid "Setup"
+msgstr "Einrichtung"
 
 #, python-format
 msgid "VRChat said: %(said)s"
@@ -1702,6 +1790,14 @@ msgid "Your saved value is kept, and comes back if the subscription is renewed."
 msgstr ""
 "Dein gespeicherter Wert bleibt erhalten und kommt zurück, wenn das "
 "Abonnement erneuert wird."
+
+# | msgid "Premium"
+msgid "Add Premium"
+msgstr "Premium hinzufügen"
+
+# | msgid "Spanish"
+msgid "See plans"
+msgstr "Tarife ansehen"
 
 msgid ""
 "Saved, but not acted on without Premium. Anyone can set this; the bot "
@@ -1996,4 +2092,116 @@ msgstr ""
 
 #~ msgid "Overview, settings and activity"
 #~ msgstr "Übersicht, Einstellungen und Aktivität"
+
+#~ msgid "No verified role is set"
+#~ msgstr "Es ist keine Verifiziert-Rolle gesetzt"
+
+#~ msgid "The verified role needs attention"
+#~ msgstr "Die Verifiziert-Rolle braucht Aufmerksamkeit"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "No instructions panel is posted"
+#~ msgstr "Es ist kein Anleitungs-Panel gepostet"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "The instructions panel needs attention"
+#~ msgstr "Das Anleitungs-Panel braucht Aufmerksamkeit"
+
+#~ msgid ""
+#~ "What's configured here, and whether it's"
+#~ " actually working -- one list instead"
+#~ " of two, since \"switched on\" and"
+#~ " \"still works\" used to be answered"
+#~ " in different places on this page."
+#~ " Change any of it on <a "
+#~ "href=\"%(settings_url)s\">Settings</a>."
+#~ msgstr ""
+#~ "Was hier eingerichtet ist und ob "
+#~ "es tatsächlich funktioniert -- eine "
+#~ "Liste statt zwei, denn „eingeschaltet“ "
+#~ "und „funktioniert noch“ wurden auf "
+#~ "dieser Seite früher an verschiedenen "
+#~ "Stellen beantwortet. Ändern kannst du "
+#~ "all das unter <a "
+#~ "href=\"%(settings_url)s\">Einstellungen</a>."
+
+#~ msgid "Setup complete — verification is fully working here."
+#~ msgstr ""
+#~ "Einrichtung abgeschlossen – die Verifizierung"
+#~ " funktioniert hier vollständig."
+
+#~ msgid "forever"
+#~ msgstr "für immer"
+
+#~ msgid "Everything you need to verify your members."
+#~ msgstr "Alles, was du brauchst, um deine Mitglieder zu verifizieren."
+
+#~ msgid "monthly, 6 or 12 months"
+#~ msgstr "monatlich, 6 oder 12 Monate"
+
+#~ msgid "The automation around verification, for servers that want it."
+#~ msgstr ""
+#~ "Die Automatisierung rund um die "
+#~ "Verifizierung, für Server, die sie "
+#~ "wollen."
+
+#~ msgid ""
+#~ "Premium is bought per server. You "
+#~ "can subscribe with a card in the"
+#~ " dashboard, or monthly through Discord."
+#~ msgstr ""
+#~ "Premium wird pro Server gekauft. Du "
+#~ "kannst mit Karte im Dashboard abonnieren"
+#~ " oder monatlich über Discord."
+
+#~ msgid "Ready to start?"
+#~ msgstr "Bereit loszulegen?"
+
+#~ msgid ""
+#~ "Add VRCVerify to your server and "
+#~ "verification works immediately, at no "
+#~ "cost. Premium is there when you "
+#~ "want it."
+#~ msgstr ""
+#~ "Füge VRCVerify zu deinem Server hinzu"
+#~ " und die Verifizierung läuft sofort, "
+#~ "kostenlos. Premium ist da, wenn du "
+#~ "es willst."
+
+#~ msgid ""
+#~ "Your grandfathered extras stay free "
+#~ "whatever you decide. Premium unlocks the"
+#~ " settings marked below."
+#~ msgstr ""
+#~ "Deine Bestandsvorteile bleiben kostenlos, wie"
+#~ " du dich auch entscheidest. Premium "
+#~ "schaltet die unten markierten Einstellungen"
+#~ " frei."
+
+#~ msgid "Unlocks the settings marked below. 18+ verification itself stays free."
+#~ msgstr ""
+#~ "Schaltet die unten markierten Einstellungen"
+#~ " frei. Die 18+-Verifizierung selbst bleibt"
+#~ " kostenlos."
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+#~ msgid ""
+#~ "Can't reach the bot right now, so"
+#~ " this page can't be shown. Nothing"
+#~ " has changed. Try again shortly."
+#~ msgstr ""
+#~ "Der Bot ist gerade nicht erreichbar, "
+#~ "deshalb kann diese Seite nicht angezeigt"
+#~ " werden. Es hat sich nichts geändert."
+#~ " Versuche es gleich noch einmal."
+
+#~ msgid "Sorry"
+#~ msgstr "Entschuldigung"
+
+#~ msgid "Most popular"
+#~ msgstr "Am beliebtesten"
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-09 01:26-0400\n"
+"POT-Creation-Date: 2026-09-10 02:53-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
@@ -42,11 +42,28 @@ msgstr "Не удалось проверить этот вход. Попробу
 msgid "Discord could not complete the login. Please try again."
 msgstr "Discord не смог завершить вход. Попробуйте ещё раз."
 
-msgid "Page not found."
-msgstr "Страница не найдена."
+# | msgid "Page not found."
+msgid "Page not found"
+msgstr "Страница не найдена"
 
-msgid "Something went wrong."
-msgstr "Что-то пошло не так."
+msgid ""
+"That address doesn't match anything here. It may have been a typo, or a "
+"link to something that has since moved."
+msgstr ""
+"Этому адресу здесь ничего не соответствует. Возможно, опечатка или ссылка"
+" на то, что с тех пор переехало."
+
+# | msgid "Something went wrong."
+msgid "Something went wrong"
+msgstr "Что-то пошло не так"
+
+msgid ""
+"The dashboard hit an error it couldn't recover from. Try again in a "
+"moment, and check the setting you were changing if you were saving one."
+msgstr ""
+"Панель управления столкнулась с ошибкой, от которой не смогла "
+"восстановиться. Повторите попытку через минуту и проверьте настройку, "
+"которую меняли, если вы сохраняли её."
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "Для этой настройки нужен VRCVerify Premium. Ничего не изменено."
@@ -217,22 +234,30 @@ msgstr "Настройки"
 msgid "Subscriptions"
 msgstr "Подписки"
 
-msgid ""
-"That server isn't available. Either VRCVerify isn't in it, or you don't "
-"have the Administrator permission there."
-msgstr ""
-"Этот сервер недоступен. Либо на нём нет VRCVerify, либо у вас нет там "
-"прав администратора."
+# | msgid "That group ID wasn't usable"
+msgid "That server isn't available"
+msgstr "Этот сервер недоступен"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
+# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
+# you
+# | don't " "have the Administrator permission there."
 msgid ""
-"Can't reach the bot right now, so this page can't be shown. Nothing has "
-"changed. Try again shortly."
+"Either VRCVerify isn't in it, or you don't have the Administrator "
+"permission there."
+msgstr "Либо VRCVerify не на нём, либо у вас там нет права «Администратор»."
+
+msgid "Can't reach the bot"
+msgstr "Бот недоступен"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+# | msgid "The bot didn't answer this one. Try again shortly."
+msgid ""
+"This page needs the bot to answer and it isn't answering right now. "
+"Nothing has changed. Try again shortly."
 msgstr ""
-"Бот сейчас недоступен, поэтому страницу нельзя показать. Ничего не "
-"изменено. Попробуйте ещё раз через минуту."
+"Этой странице нужен ответ бота, а он сейчас не отвечает. Ничего не "
+"изменилось. Повторите попытку чуть позже."
 
 msgid "Premium"
 msgstr "Premium"
@@ -240,6 +265,26 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "Новое"
+
+# | msgid "Open the dashboard"
+msgid "A new look for the dashboard"
+msgstr "Новый вид панели управления"
+
+msgid ""
+"Your server list is now a grid of tiles you can search, pin and open with"
+" a single click anywhere on the card, and each one says whether that "
+"server is on Premium. Setup has moved to the top of a server's Overview "
+"with a progress bar, and retires itself once everything required is done."
+" Settings puts each control directly under its own label, and the pricing"
+" page is one comparison you can read across."
+msgstr ""
+"Список серверов теперь состоит из плиток: по ним можно искать, закреплять"
+" их и открывать одним щелчком в любом месте карточки, и на каждой видно, "
+"есть ли у этого сервера Premium. Настройка переехала наверх обзора "
+"сервера, обзавелась индикатором выполнения и исчезает, как только всё "
+"обязательное сделано. В настройках каждый элемент управления стоит прямо "
+"под своей подписью, а страница цен стала одним сравнением, которое "
+"читается целиком."
 
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
@@ -436,8 +481,9 @@ msgstr "Не обязательно. Снимается, как только у�
 msgid "Verification log"
 msgstr "Журнал проверок"
 
-msgid "Optional. Premium."
-msgstr "Не обязательно. Premium."
+# | msgid "Optional. Premium."
+msgid "Optional."
+msgstr "Необязательно."
 
 # | msgid "Sections"
 # | msgid "Settings"
@@ -487,22 +533,6 @@ msgstr "VRCVerify больше не может туда писать — про�
 msgid "Posted, and VRCVerify can still reach it."
 msgstr "Опубликована, и VRCVerify по-прежнему до неё дотягивается."
 
-msgid "No verified role is set"
-msgstr "Роль «проверен» не задана"
-
-msgid "The verified role needs attention"
-msgstr "С ролью «проверен» нужно разобраться"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "No instructions panel is posted"
-msgstr "Панель инструкций не опубликована"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "The instructions panel needs attention"
-msgstr "С панелью инструкций нужно разобраться"
-
 #, python-format
 msgid ""
 "%(count)s member verified here in the last 30 days. Premium logs each one"
@@ -530,6 +560,25 @@ msgstr ""
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "Перейти на VRCVerify Premium"
+
+msgid "Working"
+msgstr "Работает"
+
+# | msgid "Setup isn't finished"
+msgid "Setup unfinished"
+msgstr "Настройка не закончена"
+
+# | msgid "needs attention"
+msgid "Needs attention"
+msgstr "Нужно внимание"
+
+# | msgid "not set"
+msgid "Not set up"
+msgstr "Не настроен"
+
+# | msgid "Couldn't check"
+msgid "Can't check"
+msgstr "Не удалось проверить"
 
 msgid "Set up and working"
 msgstr "Настроен и работает"
@@ -1243,12 +1292,12 @@ msgstr ""
 "отсюда публикуется там, а Discord пересылает его в любой канал по вашему "
 "выбору."
 
-msgid "Sorry"
-msgstr "Извините"
-
 # | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "Назад к вашим серверам"
+
+msgid "Check VRCVerify's status"
+msgstr "Проверить статус VRCVerify"
 
 msgid "Manage your VRCVerify servers"
 msgstr "Управляйте своими серверами VRCVerify"
@@ -1291,6 +1340,36 @@ msgstr ""
 "сервера, и этого уже хватает, чтобы начать проверять участников, а "
 "<code>/vrcverify_settings</code> показывает, что сохранено. Всё остальное"
 " меняется здесь."
+
+msgid "Finish setting up"
+msgstr "Завершите настройку"
+
+#, python-format
+msgid ""
+"What still needs doing before this server can verify anyone, and whether "
+"what's already set is still working. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+"Что ещё нужно сделать, чтобы этот сервер мог кого-то проверять, и "
+"работает ли то, что уже настроено. Всё это меняется в <a "
+"href=\"%(settings_url)s\">Настройках</a>."
+
+#, python-format
+msgid "%(done)s of %(total)s done"
+msgstr "%(done)s из %(total)s готово"
+
+#, python-format
+msgid "%(done)s of %(total)s required steps done"
+msgstr "%(done)s из %(total)s обязательных шагов готово"
+
+msgid "set"
+msgstr "задано"
+
+msgid "needs attention"
+msgstr "нужно разобраться"
+
+msgid "off, optional"
+msgstr "выключено, необязательно"
 
 msgid "See plans and subscribe"
 msgstr "Посмотреть тарифы и подписаться"
@@ -1341,36 +1420,30 @@ msgstr "Не измерялось"
 msgid "Couldn't load the daily trend just now."
 msgstr "Сейчас не удалось загрузить дневную динамику."
 
-msgid "Setup"
-msgstr "Настройка"
-
-#, python-format
-msgid ""
-"What's configured here, and whether it's actually working -- one list "
-"instead of two, since \"switched on\" and \"still works\" used to be "
-"answered in different places on this page. Change any of it on <a "
-"href=\"%(settings_url)s\">Settings</a>."
-msgstr ""
-"Что здесь настроено и работает ли оно на самом деле -- один список вместо"
-" двух, ведь «включено» и «всё ещё работает» раньше отвечались в разных "
-"местах этой страницы. Изменить любое из этого можно в разделе <a "
-"href=\"%(settings_url)s\">Настройки</a>."
-
-msgid "Setup complete — verification is fully working here."
-msgstr "Настройка завершена — проверка здесь работает полностью."
-
-msgid "set"
-msgstr "задано"
-
-msgid "needs attention"
-msgstr "нужно разобраться"
-
 msgid "Your servers — VRCVerify"
 msgstr "Ваши серверы — VRCVerify"
+
+#, python-format
+msgid "Pin %(name)s"
+msgstr "Закрепить %(name)s"
+
+msgid "Upgrade"
+msgstr "Улучшить"
+
+# | msgid "Add to your server"
+msgid "Add to server"
+msgstr "Добавить на сервер"
 
 # | msgid "Add to your server"
 msgid "Your servers"
 msgstr "Ваши серверы"
+
+#, python-format
+msgid "One needs something from you."
+msgid_plural "%(count)s need something from you."
+msgstr[0] "%(count)s сервер ждёт вашего внимания."
+msgstr[1] "%(count)s сервера ждут вашего внимания."
+msgstr[2] "%(count)s серверов ждут вашего внимания."
 
 msgid ""
 "Can't reach the bot right now, so we can't tell which of these it's in. "
@@ -1379,6 +1452,46 @@ msgstr ""
 "Сейчас до бота не достучаться, поэтому мы не можем сказать, на каких из "
 "них он есть. Ваши настройки в порядке — здесь ничего не изменилось. "
 "Попробуйте ещё раз через минуту."
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Search your servers"
+msgstr "Поиск по вашим серверам"
+
+# | msgid "Per server"
+msgid "Search servers"
+msgstr "Поиск серверов"
+
+msgid "Search"
+msgstr "Найти"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+#, python-format
+msgid "%(count)s server"
+msgid_plural "%(count)s servers"
+msgstr[0] "%(count)s сервер"
+msgstr[1] "%(count)s сервера"
+msgstr[2] "%(count)s серверов"
+
+# | msgid "Premium"
+# | msgid "See Premium"
+#, python-format
+msgid "%(count)s Premium"
+msgstr "%(count)s с Premium"
+
+# | msgid "No servers to show"
+msgid "No servers match that"
+msgstr "Совпадений нет"
+
+#, python-format
+msgid "Nothing in your list is called “%(q)s”."
+msgstr "В вашем списке нет ничего с названием «%(q)s»."
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Show all your servers"
+msgstr "Показать все ваши серверы"
 
 msgid "No servers to show"
 msgstr "Нет серверов для показа"
@@ -1398,12 +1511,16 @@ msgstr "Выйти и начать заново"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "Вас снова попросят войти через Discord."
 
-# | msgid "Add to your server"
-msgid "Add to server"
-msgstr "Добавить на сервер"
+# | msgid "None"
+msgid "Pinned"
+msgstr "Закреплённые"
 
 msgid "Pricing · VRCVerify"
 msgstr "Цены · VRCVerify"
+
+# | msgid "Canceled"
+msgid "Included"
+msgstr "Включено"
 
 msgid "Pricing"
 msgstr "Цены"
@@ -1415,14 +1532,43 @@ msgstr ""
 "Проверка бесплатна навсегда. Premium добавляет автоматизацию вокруг неё, "
 "для каждого сервера отдельно."
 
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+"Сейчас не удаётся загрузить цены. <strong>Premium по-прежнему "
+"доступен.</strong> Попробуйте ещё раз через минуту или оформите подписку "
+"в Discord."
+
+msgid "There are no plans on sale at the moment."
+msgstr "Сейчас в продаже нет ни одного тарифа."
+
+msgid "One Premium, three ways to pay for it"
+msgstr "Один Premium, три способа за него платить"
+
+msgid "Billing term"
+msgstr "Период оплаты"
+
+msgid "Price unavailable"
+msgstr "Цена недоступна"
+
+# | msgid "" "Every plan below unlocks exactly the same features — the only
+# | difference " "is how long you pay for at once, and how much that saves."
+msgid ""
+"Per server. Every term unlocks exactly the same features — the only "
+"difference is how long you pay for at once."
+msgstr ""
+"За сервер. Любой период открывает ровно те же возможности — разница "
+"только в том, за какой срок вы платите сразу."
+
+msgid "What each plan includes"
+msgstr "Что входит в каждый тариф"
+
+msgid "Feature"
+msgstr "Возможность"
+
 msgid "Free"
 msgstr "Бесплатно"
-
-msgid "forever"
-msgstr "навсегда"
-
-msgid "Everything you need to verify your members."
-msgstr "Всё, что нужно, чтобы проверять участников."
 
 msgid "Verify members as 18+"
 msgstr "Проверка участников как 18+"
@@ -1432,18 +1578,6 @@ msgstr "Автоматическая проверка тех, кто уже пр
 
 msgid "Members can update their own nickname"
 msgstr "Участники могут сами обновлять свой ник"
-
-msgid "Add to your server"
-msgstr "Добавить на свой сервер"
-
-msgid "Per server"
-msgstr "За сервер"
-
-msgid "monthly, 6 or 12 months"
-msgstr "месяц, 6 или 12 месяцев"
-
-msgid "The automation around verification, for servers that want it."
-msgstr "Автоматизация вокруг проверки — для серверов, которым она нужна."
 
 msgid "Automatic removal of an unverified role"
 msgstr "Автоматическое снятие роли «не проверен»"
@@ -1469,32 +1603,15 @@ msgstr "Уменьшенная задержка между проверками"
 msgid "VRChat group invites for verified members"
 msgstr "Приглашения в VRChat-группу для проверенных участников"
 
+# | msgid "Not applied"
+msgid "Not included"
+msgstr "Не включено"
+
+msgid "Add to your server"
+msgstr "Добавить на свой сервер"
+
 msgid "Open the dashboard"
 msgstr "Открыть панель управления"
-
-msgid "One Premium, three ways to pay for it"
-msgstr "Один Premium, три способа за него платить"
-
-msgid ""
-"We can't load prices right now. <strong>Premium is still "
-"available.</strong> Try again in a moment, or subscribe inside Discord."
-msgstr ""
-"Сейчас не удаётся загрузить цены. <strong>Premium по-прежнему "
-"доступен.</strong> Попробуйте ещё раз через минуту или оформите подписку "
-"в Discord."
-
-msgid "There are no plans on sale at the moment."
-msgstr "Сейчас в продаже нет ни одного тарифа."
-
-msgid ""
-"Every plan below unlocks exactly the same features — the only difference "
-"is how long you pay for at once, and how much that saves."
-msgstr ""
-"Все тарифы ниже открывают ровно одни и те же возможности — разница лишь в"
-" том, за какой срок вы платите сразу и сколько это экономит."
-
-msgid "Most popular"
-msgstr "Чаще всего выбирают"
 
 msgid ""
 "Some plans start with a free trial. Whether a particular server qualifies"
@@ -1514,23 +1631,6 @@ msgstr ""
 "который причитается в вашей стране, добавляется при оплате. Платёж "
 "обрабатывает Stripe — данные карты не попадают в VRCVerify."
 
-msgid ""
-"Premium is bought per server. You can subscribe with a card in the "
-"dashboard, or monthly through Discord."
-msgstr ""
-"Premium покупается для каждого сервера отдельно. Можно оформить подписку "
-"картой в панели управления или помесячно через Discord."
-
-msgid "Ready to start?"
-msgstr "Готовы начать?"
-
-msgid ""
-"Add VRCVerify to your server and verification works immediately, at no "
-"cost. Premium is there when you want it."
-msgstr ""
-"Добавьте VRCVerify на свой сервер — проверка заработает сразу и "
-"бесплатно. Premium будет рядом, когда он вам понадобится."
-
 msgid "Saved."
 msgstr "Сохранено."
 
@@ -1548,18 +1648,6 @@ msgstr ""
 "Ваши настройки сохранены, но панель инструкций всё ещё показывает старые."
 " Нажмите ниже <strong>Опубликовать заново или перенести панель</strong>, "
 "чтобы её заменить."
-
-msgid ""
-"Your grandfathered extras stay free whatever you decide. Premium unlocks "
-"the settings marked below."
-msgstr ""
-"Ваши сохранённые с прошлых времён возможности останутся бесплатными, что "
-"бы вы ни решили. Premium открывает отмеченные ниже настройки."
-
-msgid "Unlocks the settings marked below. 18+ verification itself stays free."
-msgstr ""
-"Открывает отмеченные ниже настройки. Сама проверка 18+ остаётся "
-"бесплатной."
 
 msgid ""
 "Couldn't load this server's roles and channels just now, so some settings"
@@ -1598,6 +1686,9 @@ msgstr ""
 
 msgid "Members use this message to begin verification."
 msgstr "С этого сообщения участники начинают проверку."
+
+msgid "Setup"
+msgstr "Настройка"
 
 #, python-format
 msgid "VRChat said: %(said)s"
@@ -1647,6 +1738,14 @@ msgstr "Только с Premium."
 
 msgid "Your saved value is kept, and comes back if the subscription is renewed."
 msgstr "Сохранённое значение остаётся и вернётся, если подписку возобновить."
+
+# | msgid "Premium"
+msgid "Add Premium"
+msgstr "Добавить Premium"
+
+# | msgid "Spanish"
+msgid "See plans"
+msgstr "Посмотреть тарифы"
 
 msgid ""
 "Saved, but not acted on without Premium. Anyone can set this; the bot "
@@ -1939,4 +2038,109 @@ msgstr ""
 
 #~ msgid "Overview, settings and activity"
 #~ msgstr "Обзор, настройки и активность"
+
+#~ msgid "No verified role is set"
+#~ msgstr "Роль «проверен» не задана"
+
+#~ msgid "The verified role needs attention"
+#~ msgstr "С ролью «проверен» нужно разобраться"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "No instructions panel is posted"
+#~ msgstr "Панель инструкций не опубликована"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "The instructions panel needs attention"
+#~ msgstr "С панелью инструкций нужно разобраться"
+
+#~ msgid ""
+#~ "What's configured here, and whether it's"
+#~ " actually working -- one list instead"
+#~ " of two, since \"switched on\" and"
+#~ " \"still works\" used to be answered"
+#~ " in different places on this page."
+#~ " Change any of it on <a "
+#~ "href=\"%(settings_url)s\">Settings</a>."
+#~ msgstr ""
+#~ "Что здесь настроено и работает ли "
+#~ "оно на самом деле -- один список"
+#~ " вместо двух, ведь «включено» и «всё"
+#~ " ещё работает» раньше отвечались в "
+#~ "разных местах этой страницы. Изменить "
+#~ "любое из этого можно в разделе <a"
+#~ " href=\"%(settings_url)s\">Настройки</a>."
+
+#~ msgid "Setup complete — verification is fully working here."
+#~ msgstr "Настройка завершена — проверка здесь работает полностью."
+
+#~ msgid "forever"
+#~ msgstr "навсегда"
+
+#~ msgid "Everything you need to verify your members."
+#~ msgstr "Всё, что нужно, чтобы проверять участников."
+
+#~ msgid "monthly, 6 or 12 months"
+#~ msgstr "месяц, 6 или 12 месяцев"
+
+#~ msgid "The automation around verification, for servers that want it."
+#~ msgstr "Автоматизация вокруг проверки — для серверов, которым она нужна."
+
+#~ msgid ""
+#~ "Premium is bought per server. You "
+#~ "can subscribe with a card in the"
+#~ " dashboard, or monthly through Discord."
+#~ msgstr ""
+#~ "Premium покупается для каждого сервера "
+#~ "отдельно. Можно оформить подписку картой "
+#~ "в панели управления или помесячно через"
+#~ " Discord."
+
+#~ msgid "Ready to start?"
+#~ msgstr "Готовы начать?"
+
+#~ msgid ""
+#~ "Add VRCVerify to your server and "
+#~ "verification works immediately, at no "
+#~ "cost. Premium is there when you "
+#~ "want it."
+#~ msgstr ""
+#~ "Добавьте VRCVerify на свой сервер — "
+#~ "проверка заработает сразу и бесплатно. "
+#~ "Premium будет рядом, когда он вам "
+#~ "понадобится."
+
+#~ msgid ""
+#~ "Your grandfathered extras stay free "
+#~ "whatever you decide. Premium unlocks the"
+#~ " settings marked below."
+#~ msgstr ""
+#~ "Ваши сохранённые с прошлых времён "
+#~ "возможности останутся бесплатными, что бы "
+#~ "вы ни решили. Premium открывает "
+#~ "отмеченные ниже настройки."
+
+#~ msgid "Unlocks the settings marked below. 18+ verification itself stays free."
+#~ msgstr ""
+#~ "Открывает отмеченные ниже настройки. Сама "
+#~ "проверка 18+ остаётся бесплатной."
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+#~ msgid ""
+#~ "Can't reach the bot right now, so"
+#~ " this page can't be shown. Nothing"
+#~ " has changed. Try again shortly."
+#~ msgstr ""
+#~ "Бот сейчас недоступен, поэтому страницу "
+#~ "нельзя показать. Ничего не изменено. "
+#~ "Попробуйте ещё раз через минуту."
+
+#~ msgid "Sorry"
+#~ msgstr "Извините"
+
+#~ msgid "Most popular"
+#~ msgstr "Чаще всего выбирают"
 

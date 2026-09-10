@@ -245,56 +245,75 @@
     <p class="blurb muted">
       {% trans %}Prices are in US dollars and <strong>exclude tax</strong>; any tax due where you are is added at checkout. Payment is handled by Stripe — card details never reach VRCVerify.{% endtrans %}
     </p>
-    <div class="plans">
-      {% for plan in page.plans %}
-        {# `.plan-card`, not `.plan` (#158). `settings.html` uses `.plan` for
-           an italic gray footnote, and this card inherited its color, size,
-           style and margin from it -- so the price rendered italic and muted
-           on the page that takes money. Every child here was already
-           `.plan-*`; the card was the half that had drifted. #}
-        <form class="plan-card{% if plan.highlight %} plan-featured{% endif %}"
-              method="post"
-              action="{{ url_for('subscription_checkout', guild_id=guild_id) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          {# The browser names a price, and the server accepts it only after
-             finding it among this product's ACTIVE prices, fetched from Stripe
-             on this request. A submitted id is a suggestion, never an
-             instruction -- see the checkout route. #}
-          <input type="hidden" name="price_id" value="{{ plan.price_id }}">
-          {% if plan.highlight %}
-            <p class="plan-badge">{% trans %}Most popular{% endtrans %}</p>
-          {% endif %}
+    {# ONE FORM, THREE SEGMENTS, ONE BUTTON (#286).
+
+       This was three `.plan-card` forms side by side, and the comment above
+       has always worried about the same thing: three cards at rising prices
+       is the shape of a TIER comparison, and a reader who scans takes the
+       dearest to unlock the most. It unlocks nothing more. A heading saying so
+       is a correction after the fact; a segmented control cannot be misread
+       that way in the first place, because it is visibly one choice.
+
+       It is also the same control /pricing now uses, which is the other half
+       of the bullet: the two pages stop being two designs of one thing.
+
+       RADIOS RATHER THAN LINKS, and that is the difference from /pricing. That
+       page is showing a figure and can afford a round trip per term. This one
+       is a purchase: the term has to arrive in the POST, and radios put it
+       there with no script and no navigation. Each segment carries its own
+       price, because without JavaScript a separate price line could not follow
+       the selection -- and a figure that does not track the selected term on
+       the page that takes money is the worst possible place for one.
+
+       The browser names a price and the server accepts it only after finding
+       it among this product's ACTIVE prices, fetched from Stripe on this
+       request. A submitted id is a suggestion, never an instruction. #}
+    <form class="plan-buy" method="post"
+          action="{{ url_for('subscription_checkout', guild_id=guild_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {# WHICH SEGMENT ARRIVES SELECTED. `plan.highlight or loop.first` was
+         written here first and is wrong: when the highlighted plan is not the
+         first, BOTH are checked, and the last one in a radio group silently
+         wins -- so the recommendation becomes whichever price Stripe happened
+         to return last. `default_plan` is the one implementation of the rule,
+         shared with /pricing, which had it already. #}
+      {% set default = page.default_plan %}
+      <fieldset class="term-switch term-switch-buy">
+        <legend class="offscreen">{% trans %}Billing term{% endtrans %}</legend>
+        {% for plan in page.plans %}
           {# `plan.label`, `plan.amount`, `plan.period` and `plan.saving` are
              built in subscription_view from Stripe's own price objects and
              translated there. The AMOUNT is deliberately not translated at
              all: it is a figure Stripe formatted, and a second opinion about
              what a price says is the one thing this page has always refused
              to hold. #}
-          <h3>{{ plan.label }}</h3>
-          {% if plan.amount %}
-            <p class="plan-price">
-              <span class="plan-amount">{{ plan.amount }}</span>
-              {% if plan.period %}<span class="plan-period">{{ plan.period }}</span>{% endif %}
-            </p>
-          {% endif %}
-          {% if plan.saving %}
-            <p class="plan-saving">{{ plan.saving }}</p>
-          {% else %}
-            <p class="plan-saving plan-saving-none">&nbsp;</p>
-          {% endif %}
-          {# page.trial_note_for(plan), never plan.trial_note: the plan knows
-             how long a trial would be, only the page knows whether THIS
-             server may have one. A card advertising a trial the checkout
-             route then declines to grant is a promise broken at the moment
-             somebody hands over a card number. #}
-          {% set trial_note = page.trial_note_for(plan) %}
-          {% if trial_note %}
-            <p class="plan-trial">{{ trial_note }}</p>
-          {% endif %}
-          <button class="button" type="submit">{% trans %}Subscribe{% endtrans %}</button>
-        </form>
-      {% endfor %}
-    </div>
+          <input class="term-radio offscreen" type="radio" name="price_id"
+                 id="term-{{ loop.index }}" value="{{ plan.price_id }}"
+                 {%- if default and plan.price_id == default.price_id %} checked{% endif %}>
+          <label class="term" for="term-{{ loop.index }}">
+            <span class="term-label">{{ plan.label }}</span>
+            {% if plan.amount %}
+              <span class="term-amount-small">{{ plan.amount }}</span>
+            {% endif %}
+            {% if plan.saving %}
+              <span class="term-saving">{{ plan.saving }}</span>
+            {% endif %}
+            {# page.trial_note_for(plan), never plan.trial_note: the plan knows
+               how long a trial would be, only the page knows whether THIS
+               server may have one. A segment advertising a trial the checkout
+               route then declines to grant is a promise broken at the moment
+               somebody hands over a card number. #}
+            {% set trial_note = page.trial_note_for(plan) %}
+            {% if trial_note %}
+              <span class="term-trial">{{ trial_note }}</span>
+            {% endif %}
+          </label>
+        {% endfor %}
+      </fieldset>
+      <p class="actions">
+        <button class="button" type="submit">{% trans %}Subscribe{% endtrans %}</button>
+      </p>
+    </form>
     <ul class="plan-notes">
       <li>{% trans %}All plans renew automatically. Cancel any time from this page.{% endtrans %}</li>
       <li>

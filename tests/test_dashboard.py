@@ -1538,6 +1538,28 @@ class TestSettingsDoesNotLeakWhichServersRunTheBot:
         assert response.status_code == 503
         assert b"Can&#39;t reach the bot" in response.data
 
+    def test_only_an_unreachable_bot_is_offered_the_status_page(
+        self, config, store
+    ):
+        """#286. "Is it just me" is precisely the question after a failed read,
+        and precisely not the question after a refusal.
+
+        A link that is always there is a link that means nothing when it
+        matters, and on the refusal page it is worse than nothing: the bot
+        answered, it said no, and sending an admin to look for an outage sends
+        them looking for something that is not there.
+        """
+        down = self._response(config, store, 503).data.decode()
+        assert "status.vrcverify.com" in down
+
+        refused = self._response(config, store, 403).data.decode()
+        # base.html's own status button is in the bar AND in the footer on
+        # every page, so the check is against the error card alone -- and it
+        # has to stop at the card's own </section>, not run to the end of the
+        # document, or the footer's link answers for it.
+        card = _error_card(refused)
+        assert "status.vrcverify.com" not in card
+
     def test_a_failed_settings_read_never_renders_defaults(self, config, store):
         page = self._response(config, store, 503).data.decode()
         # "English (en-US)" rather than the bare code, because since #97 the
@@ -1821,18 +1843,23 @@ class TestDismissingAPremiumCard:
         assert _premium_entry().title in slot
         assert "<script>" not in slot
 
-    def test_the_setup_step_and_the_demo_carry_no_dismiss_control(self, config, store):
+    def test_an_unfinished_server_has_nothing_here_to_dismiss(self, config, store):
         """Only a changelog entry has a permanent id to record dismissal
-        against. A broken server must not be able to hide the reason, and the
-        demo comes and goes with the numbers on its own."""
+        against, and a broken server must not be able to hide the reason.
+
+        Since #286 that holds more simply than it used to: an unfinished
+        server has no next-step card at all, and the checklist above the stats
+        carries no dismiss control either. There is nothing to put away.
+        """
         test_client, _api = settings_client(
             config, store,
             overview=make_overview(last_30_days=214,
                                    configured={"verified_role": False}),
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
-        slot = page.split('class="panel group next-step"', 1)[1].split("</section>", 1)[0]
-        assert "/prefs/dismiss" not in slot
+        assert 'class="panel group next-step"' not in page
+        setup = page.split('class="setup"', 1)[1].split("</ul>", 1)[0]
+        assert "/prefs/dismiss" not in setup
 
     def test_no_class_is_claimed_twice_from_two_ends_of_the_stylesheet(self):
         """#158, and the fourth of these is what this exists to stop.
@@ -2255,10 +2282,65 @@ class TestTheUpgradeOffer:
     """
 
     def test_a_free_server_is_pointed_at_the_subscriptions_page(self, config, store):
+        """#286 moved the offer out of a panel at the top of the page and into
+        the rows it applies to. The destination is unchanged; where the reader
+        meets it is not."""
         test_client, _api = settings_client(config, store)
-        page = settings_page(test_client).data.decode()
-        assert "Upgrade to VRCVerify Premium" in page
+        # The logging group, because that is where the premium row lives. The
+        # offer is no longer on every settings page -- it is on the pages with
+        # something to sell, which is the whole point of moving it.
+        page = settings_page(test_client, group="logging").data.decode()
+        assert '<section class="upgrade">' not in page, (
+            "the panel-inside-a-panel is back at the top of the page"
+        )
+        assert 'class="plan-link"' in page
         assert f"/guild/{GUILD_IN}/subscription" in page
+
+    def test_no_empty_notices_panel_is_drawn(self, config, store):
+        """The regression the move caused, and a screenshot caught.
+
+        `upgrade` was one of the conditions that drew the notices panel, which
+        was right while the call-out lived inside it. Left there afterwards, a
+        free server got an empty grey card at the top of every settings page --
+        a `<section class="panel">` with nothing in it, which nothing failed on
+        and no test was asking about.
+        """
+        test_client, _api = settings_client(config, store)
+        page = settings_page(test_client, group="logging").data.decode()
+        panels = re.findall(r'<section class="panel">(.*?)</section>', page, re.S)
+        for body in panels:
+            assert body.strip(), "an empty notices panel is being drawn"
+
+    def test_a_page_with_nothing_to_sell_carries_no_offer(self, config, store):
+        """The consequence, stated so nobody restores the old panel to "fix" it.
+
+        Verification has no premium row, so a free server reading it sees no
+        pitch at all. That is an improvement rather than a gap: an advert on a
+        page whose every setting is already free is an advert with nothing
+        behind it.
+        """
+        test_client, _api = settings_client(config, store)
+        page = settings_page(test_client, group="verification").data.decode()
+        assert 'class="plan-link"' not in page
+
+    def test_the_offer_sits_beside_the_control_it_unlocks(self, config, store):
+        """The whole point of moving it. A pitch beside the setting it unlocks
+        is answerable where it stands; a pitch at the top of the page is an
+        advert somebody scrolls past to reach their settings.
+
+        So every plan link is inside a `.setting`, and there are as many of
+        them as there are premium rows -- not one for the page.
+        """
+        test_client, _api = settings_client(config, store)
+        page = settings_page(test_client, group="logging").data.decode()
+        rows = re.findall(r'<div class="setting[^"]*">.*?</div>', page, re.S)
+        with_link = [row for row in rows if 'class="plan-link"' in row]
+        assert with_link, "no premium row carries the offer"
+        assert page.count('class="plan-link"') == len(with_link), (
+            "a plan link escaped the rows and is loose on the page"
+        )
+        for row in with_link:
+            assert "Premium only." in row
 
     def test_settings_no_longer_sells_anything_itself(self, config, store):
         """The pitch lives in exactly one place now.
@@ -2291,9 +2373,8 @@ class TestTheUpgradeOffer:
         test_client, _api = settings_client(
             config, store, settings=make_settings(grandfathered=True)
         )
-        page = settings_page(test_client).data.decode()
-        assert "Add VRCVerify Premium" in page
-        assert "grandfathered extras stay free" in page
+        page = settings_page(test_client, group="logging").data.decode()
+        assert "Add Premium" in page
         assert f"/guild/{GUILD_IN}/subscription" in page
 
     def test_no_offer_when_the_tier_is_switched_off(self, config, store):
@@ -4429,11 +4510,35 @@ class TestTheChartOnThePage(object):
     numbers without a request at all.
     """
 
+    # A month with shape, which is what earns the full-width panel. The default
+    # fixture is twenty-nine zeroes and one spike, and #286 draws that inside
+    # the "Last 30 days" tile instead -- a chart of one bar is a single number
+    # rendered as a picture.
+    BUSY = [{"day": f"2026-07-{day:02d}", "count": day % 4} for day in range(1, 31)]
+
     def _page(self, config, store, **overview_kwargs):
         test_client, _api = settings_client(
             config, store, overview=make_overview(**overview_kwargs)
         )
         return test_client.get(f"/guild/{GUILD_IN}").data.decode()
+
+    @staticmethod
+    def _drawing(page):
+        """The bars, from whichever of the two renderings the page chose.
+
+        The properties below -- no inline style, no script, presentation
+        attributes rather than hex, an honest gap for an unmeasured day -- are
+        properties of the DRAWING, not of the panel that used to be its only
+        home. Asserting them against `div.chart` alone would have quietly
+        stopped checking anything at all for a quiet server, which is most of
+        them.
+        """
+        for pattern in (r'<div class="chart".*?</div>',
+                        r'<span class="tile-spark">.*?</span>'):
+            found = re.search(pattern, page, re.S)
+            if found:
+                return found.group(0)
+        return None
 
     def test_the_chart_renders_as_inline_svg(self, config, store):
         """No CDN, no <script>, no library -- CSP forbids both."""
@@ -4441,23 +4546,47 @@ class TestTheChartOnThePage(object):
         assert "<svg" in page
         assert re.search(r'<rect class="chart-bar[^"]*"', page)
 
+    def test_a_quiet_month_draws_in_the_tile_and_a_busy_one_in_a_panel(
+        self, config, store
+    ):
+        """#286. The switch is `CHART_MIN_ACTIVE_DAYS` days that carried an
+        actual verification -- shape, not volume. Below it the same bars are
+        drawn small inside the tile they describe; a panel there would spend a
+        whole section saying what one figure already says."""
+        quiet = self._page(config, store)
+        assert '<span class="tile-spark">' in quiet
+        assert '<div class="chart"' not in quiet
+
+        busy = self._page(config, store, daily=self.BUSY)
+        assert '<div class="chart"' in busy
+        assert '<span class="tile-spark">' not in busy
+
+    def test_the_small_drawing_still_has_its_text_alternative(self, config, store):
+        """THE FAILURE THIS WOULD HAVE BEEN. The offscreen table sat inside the
+        panel's branch, and both drawings are `aria-hidden`. Left there, a
+        quiet server's chart would have had no text alternative at all -- and
+        the failure is invisible to everybody who can see the bars."""
+        page = self._page(config, store)
+        assert '<span class="tile-spark">' in page
+        assert '<table class="offscreen">' in page
+        assert "Not measured" in page or "Verifications per day" in page
+
     def test_no_style_attribute_appears_anywhere_in_it(self, config, store):
         """`style-src 'self'` drops an inline style="" SILENTLY -- no error,
         no console warning, the rule simply never applies. The chart is drawn
         entirely in x/y/width/height/fill attributes for exactly that reason."""
-        page = self._page(config, store)
-        chart = re.search(r'<div class="chart".*?</div>', page, re.S)
-        assert chart
-        assert 'style="' not in chart.group(0)
+        for kwargs in ({}, {"daily": self.BUSY}):
+            drawing = self._drawing(self._page(config, store, **kwargs))
+            assert drawing
+            assert 'style="' not in drawing
 
     def test_no_script_tag_or_handler_is_needed_to_draw_it(self, config, store):
         """It needs no JavaScript at all -- the numbers arrive already
         rendered, unlike the theme picker or the unsaved-changes indicator,
         which are enhancements on top of working markup."""
-        page = self._page(config, store)
-        chart = re.search(r'<div class="chart".*?</div>', page, re.S)
-        assert chart
-        assert "onclick" not in chart.group(0) and "<script" not in chart.group(0)
+        drawing = self._drawing(self._page(config, store))
+        assert drawing
+        assert "onclick" not in drawing and "<script" not in drawing
 
     def test_the_bars_use_presentation_attributes_not_hardcoded_color(
         self, config, store
@@ -4465,11 +4594,10 @@ class TestTheChartOnThePage(object):
         """No hex value anywhere in the markup -- the whole point of
         `fill="currentColor"` plus a CSS class is that the chart is wrong in
         exactly one theme the moment somebody hardcodes a color here."""
-        page = self._page(config, store)
-        chart = re.search(r'<div class="chart".*?</div>', page, re.S)
-        assert chart
-        assert not re.search(r"#[0-9a-fA-F]{3,8}", chart.group(0))
-        assert 'fill="currentColor"' in chart.group(0)
+        drawing = self._drawing(self._page(config, store))
+        assert drawing
+        assert not re.search(r"#[0-9a-fA-F]{3,8}", drawing)
+        assert 'fill="currentColor"' in drawing
 
     def test_zero_and_no_data_are_different_numbers_of_bars(self, config, store):
         """The acceptance criterion. A quiet day draws a <rect>; an unmeasured
@@ -4481,9 +4609,9 @@ class TestTheChartOnThePage(object):
             + [{"day": f"2026-07-{d:02d}", "count": 3} for d in range(26, 31)]
         )
         page = self._page(config, store, daily=daily)
-        chart = re.search(r'<div class="chart".*?</div>', page, re.S)
-        assert chart, "no chart section rendered"
-        rects = re.findall(r"<rect\b[^>]*>", chart.group(0))
+        drawing = self._drawing(page)
+        assert drawing, "neither rendering appeared"
+        rects = re.findall(r"<rect\b[^>]*>", drawing)
         assert len(rects) == 20  # the 15 zero days + the 5 real days, not 30
 
     def test_the_offscreen_table_carries_every_day_including_gaps(
@@ -4545,10 +4673,16 @@ class TestTheChartOnThePage(object):
         """`role="img"` on the wrapper takes the SVG itself out of a screen
         reader's way; the aria-label and the offscreen table are what a
         non-sighted reader actually gets instead of a picture."""
-        page = self._page(config, store)
-        wrapper = re.search(r'<div class="chart" role="img"[^>]*>', page)
+        busy = self._page(config, store, daily=self.BUSY)
+        wrapper = re.search(r'<div class="chart" role="img"[^>]*>', busy)
         assert wrapper and "aria-label=" in wrapper.group(0)
-        assert '<svg viewBox="0 0 300 64" aria-hidden="true"' in page
+        assert '<svg viewBox="0 0 300 64" aria-hidden="true"' in busy
+        # And the small one, whose wrapper is a tile rather than a panel: its
+        # SVG is aria-hidden the same way, so the offscreen table is the whole
+        # of what a non-sighted reader gets.
+        quiet = self._page(config, store)
+        assert '<svg viewBox="0 0 300 64" aria-hidden="true"' in quiet
+        assert '<table class="offscreen">' in quiet
 
 
 class TestZeroAndBlankAreDifferentAnswers:
@@ -4619,8 +4753,17 @@ class TestTheOverviewSuggestsOneNextStep:
         assert "No verified role" not in page
         assert "No instructions panel" not in page
 
-    def test_no_verified_role_comes_first(self, config, store):
-        """It blocks everything after it, including the panel being useful."""
+    def test_both_unfinished_rows_are_reported_rather_than_the_first(self, config, store):
+        """#286 replaced the one-at-a-time slot with the whole checklist.
+
+        The old behaviour surfaced the most urgent row and hid the rest, so an
+        admin fixed the role, reloaded, and only then learned the panel was
+        missing too. Two round trips to find out about two things.
+
+        The role is still FIRST, which is the half of the old rule worth
+        keeping: it blocks everything after it, including the panel being
+        useful.
+        """
         page = self._page(
             config,
             store,
@@ -4632,12 +4775,14 @@ class TestTheOverviewSuggestsOneNextStep:
             },
             panel={"posted": False},
         )
-        assert "No verified role is set" in page
-        assert "No instructions panel is posted" not in page
+        setup = page.split('class="setup"', 1)[1].split("</ul>", 1)[0]
+        assert "Verified role" in setup and "Instructions panel" in setup
+        assert setup.index("Verified role") < setup.index("Instructions panel")
 
     def test_a_missing_panel_is_reported_when_the_role_is_fine(self, config, store):
         page = self._page(config, store, panel={"posted": False})
-        assert "No instructions panel is posted" in page
+        setup = page.split('class="setup"', 1)[1].split("</ul>", 1)[0]
+        assert "Members need a message to start from." in setup
 
 
 class TestThePremiumPitchOnThePage:
@@ -4738,15 +4883,22 @@ class TestThePremiumPitchOnThePage:
         page = self._page(config, store, last_30_days=None)
         assert "VRCVerify Premium" not in page
 
-    def test_a_broken_server_is_fixed_rather_than_sold_to(self, config, store):
-        """Rank 1 is absolute. A server that cannot finish a verification sees
-        the reason, not an announcement -- even an undismissed one."""
-        slot = self._slot(self._page(
+    def test_a_broken_server_is_still_never_sold_to(self, config, store):
+        """The rule survives #286, by suppression rather than by ranking.
+
+        A server that cannot finish a verification used to see a setup step in
+        this slot, which is what kept the announcement out of it. The setup
+        step moved to the checklist above the stats -- so the slot is empty
+        here, and the announcement still does not appear. Deleting the branch
+        without this would have promoted the pitch into the slot it was being
+        kept out of.
+        """
+        page = self._page(
             config, store, dismissed=False, last_30_days=214,
             configured={"verified_role": False},
-        ))
-        assert "No verified role is set" in slot
-        assert _premium_entry().title not in slot
+        )
+        assert 'class="panel group next-step"' not in page
+        assert _premium_entry().title not in page
 
     def test_only_ever_one_item_in_the_slot(self, config, store):
         page = self._page(config, store, dismissed=False, last_30_days=214)
@@ -4777,13 +4929,111 @@ class TestTheSetupListOnThePage:
         base.update(overrides)
         return base
 
+    @staticmethod
+    def _section(page):
+        """The setup panel, or None when it has retired.
+
+        In one place because #286 renamed the heading, and five regexes
+        spelling it out is five things to miss next time.
+        """
+        found = re.search(r"<h2>Finish setting up</h2>.*?</section>", page, re.S)
+        return found.group(0) if found else None
+
     def test_every_row_label_appears(self, config, store):
-        page = self._page(config, store, panel={"posted": True})
+        """Including the optional three, which are not what makes the panel
+        show but are still part of it while it does."""
+        page = self._page(
+            config, store,
+            configured=self._configured(verified_role=False,
+                                         verified_role_exists=None,
+                                         verified_role_assignable=None),
+            panel={"posted": True},
+        )
+        section = self._section(page)
+        assert section
         for label in (
             "Verified role", "Instructions panel", "Auto-verify on join",
             "Unverified role", "Verification log",
         ):
-            assert label in page
+            assert label in section
+
+    def test_the_panel_retires_when_the_required_rows_are_done(self, config, store):
+        """#286. A finished server sees no checklist at all -- not one with
+        everything ticked, and not a green "Setup complete" line either. The
+        finished state is the absence of the panel.
+
+        It comes back on its own when a required row breaks, which is the only
+        state worth interrupting somebody on this page for.
+        """
+        assert self._section(self._page(config, store, panel={"posted": True})) is None
+        assert "Setup complete" not in self._page(
+            config, store, panel={"posted": True}
+        )
+        assert self._section(
+            self._page(config, store, panel={"posted": False})
+        ) is not None
+
+    def test_the_progress_bar_has_one_segment_per_required_row(self, config, store):
+        """Segments rather than a percentage width, because `style-src 'self'`
+        drops inline style="" silently -- a percentage fill would render as an
+        empty bar with nothing to notice."""
+        page = self._page(config, store, panel={"posted": False})
+        section = self._section(page)
+        assert section.count("setup-progress-step") == 2
+        # The role is done in this fixture and the panel is not.
+        assert section.count("setup-progress-step done") == 1
+        assert "1 of 2 done" in section
+
+    def test_an_optional_row_is_not_drawn_as_a_failure(self, config, store):
+        """#286. Required-and-unset keeps the cross; optional-and-off gets a
+        hollow circle. Both were the same cross, which meant a working server
+        with two toggles off showed two marks that look like faults.
+
+        The colour was never the problem -- `.setup-row-off .setup-state` has
+        always been --faint rather than red, so the issue's "reads as an
+        error" overstates it. The SHAPE was, and a cross is a cross whatever
+        colour it is drawn in.
+        """
+        page = self._page(
+            config, store,
+            configured=self._configured(verified_role=False,
+                                         verified_role_exists=None,
+                                         verified_role_assignable=None),
+            panel={"posted": True},
+        )
+        section = self._section(page)
+        rows = re.findall(r'<li class="setup-row setup-row-(\w+)">(.*?)</li>',
+                          section, re.S)
+        marks = {state: ("circle" if "<circle" in body and "M4 4l8 8" not in body
+                         else "cross" if "M4 4l8 8" in body else "other")
+                 for state, body in rows}
+        assert marks["todo"] == "cross", marks
+        assert marks["off"] == "circle", marks
+
+    def test_the_premium_row_carries_its_tag_in_the_list(self, config, store):
+        """The plan, discovered while setting up. It used to be the word
+        "Premium." at the end of the row's note -- unstyleable, uncountable,
+        and read as a footnote on the one list every new admin walks down."""
+        page = self._page(
+            config, store,
+            configured=self._configured(verified_role=False,
+                                         verified_role_exists=None,
+                                         verified_role_assignable=None),
+            panel={"posted": True},
+        )
+        section = self._section(page)
+        row = re.search(r'<li class="setup-row[^"]*">(?:(?!</li>).)*?'
+                        r'Verification log.*?</li>', section, re.S)
+        assert row and "setup-premium" in row.group(0)
+        # Exactly one row wears it, so the tag still means something.
+        assert section.count("setup-premium") == 1
+
+    def test_finished_rows_sink_below_unfinished_ones(self, config, store):
+        """#286. The role is done here and the panel is not, so the panel --
+        which is defined second -- has to appear above it."""
+        page = self._page(config, store, panel={"posted": False})
+        section = self._section(page)
+        assert section.index("Instructions panel") < section.index("Verified role")
 
     def test_a_broken_role_shows_its_own_note_and_a_settings_link(self, config, store):
         page = self._page(
@@ -4793,11 +5043,10 @@ class TestTheSetupListOnThePage:
             panel={"posted": True},
         )
         assert "has been deleted" in page
-        section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
+        section = self._section(page)
         assert section
         assert (
-            f'href="/guild/{GUILD_IN}/settings/verification#f-role_id"'
-            in section.group(0)
+            f'href="/guild/{GUILD_IN}/settings/verification#f-role_id"' in section
         )
 
     def test_a_broken_panel_shows_its_own_note_and_a_settings_link(self, config, store):
@@ -4805,15 +5054,14 @@ class TestTheSetupListOnThePage:
             config, store,
             panel={"posted": True, "channel_exists": True, "channel_postable": False},
         )
-        section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
+        section = self._section(page)
         assert section
-        assert "check its permissions" in section.group(0)
+        assert "check its permissions" in section
         # The link this split would have broken silently: the panel field is
         # not on the page the bare /settings URL redirects to, so a fragment
         # alone would have scrolled to nothing.
         assert (
-            f'href="/guild/{GUILD_IN}/settings/panel#panel_channel_id"'
-            in section.group(0)
+            f'href="/guild/{GUILD_IN}/settings/panel#panel_channel_id"' in section
         )
 
     def test_an_unfinished_required_row_reads_differently_from_an_off_optional_one(
@@ -4836,29 +5084,23 @@ class TestTheSetupListOnThePage:
         assert "setup-row setup-row-off" in page
 
     def test_a_done_row_carries_no_action_button(self, config, store):
-        page = self._page(config, store, panel={"posted": True})
-        section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
+        """The role is done in this fixture, so its row offers no fix -- and
+        the panel, which is not, still does."""
+        page = self._page(config, store, panel={"posted": False})
+        section = self._section(page)
         assert section
-        # Two rows can be unfinished at most in this fixture (role, panel);
-        # both are done here, so no Settings link should appear at all.
-        assert "setup-action" not in section.group(0)
-
-    def test_the_complete_banner_appears_only_when_both_required_rows_are_done(
-        self, config, store
-    ):
-        done = self._page(config, store, panel={"posted": True})
-        assert "Setup complete" in done
-
-        not_done = self._page(config, store, panel={"posted": False})
-        assert "Setup complete" not in not_done
+        role = re.search(r'<li class="setup-row setup-row-done">.*?</li>',
+                         section, re.S)
+        assert role and "setup-action" not in role.group(0)
 
     def test_no_style_attribute_appears_in_the_setup_section(self, config, store):
         """`style-src 'self'` drops inline style="" silently -- the same trap
-        the chart's own render test guards against."""
-        page = self._page(config, store, panel={"posted": True})
-        section = re.search(r'<h2>Setup</h2>.*?</section>', page, re.S)
+        the chart's own render test guards against, and the reason the
+        progress bar is segments rather than a percentage width."""
+        page = self._page(config, store, panel={"posted": False})
+        section = self._section(page)
         assert section
-        assert 'style="' not in section.group(0)
+        assert 'style="' not in section
 
 
 class TestEverySectionFailsTheSameWay:
@@ -5075,9 +5317,34 @@ class TestTheControls(object):
         Stated as a blanket rule because that is what makes it hold: any new
         `outline: none` reintroduces the same class of bug, whatever control it
         is attached to.
+
+        ONE EXCEPTION, AND IT IS CHECKED RATHER THAN TRUSTED (#286). The
+        picker's tile is a whole-card click target whose link wraps only the
+        name, so the global ring would draw a tight box around three words at
+        the bottom-left and leave the thing being selected unmarked. That rule
+        takes the outline off the link and puts the identical one on the link's
+        own stretched pseudo-element -- the control does not lose its
+        indicator, the indicator moves onto the box it represents.
+
+        So the rule is no longer "the string never appears". It is: every
+        selector that clears its outline must ALSO draw one on its own
+        `::after`, using the same two tokens the global rule uses. A bare
+        `outline: none` still fails, which is the bug this was written for.
         """
-        assert "outline: none" not in self._css()
-        assert "outline:none" not in self._css()
+        css = re.sub(r"/\*.*?\*/", "", self._css(), flags=re.S)
+        assert "outline:none" not in css, "unspaced form, normalise it first"
+
+        rules = dict(re.findall(r"([^{}]+)\{([^{}]*)\}", css))
+        rules = {selector.strip(): body for selector, body in rules.items()}
+
+        cleared = [s_ for s_, body in rules.items() if "outline: none" in body]
+        for selector in cleared:
+            paired = rules.get(f"{selector}::after", "")
+            assert "outline: var(--focus-width)" in paired, (
+                f"`{selector}` clears its focus outline and nothing draws one "
+                f"back on `{selector}::after`. A control with no focus "
+                f"indicator is the bug this test exists for."
+            )
 
     def test_the_focus_ring_is_defined_once(self):
         """From the tokens #123 added, so it cannot drift per control."""
@@ -7150,6 +7417,49 @@ class TestTheHeaderBar:
         # Once per dark selector: the explicit one and the OS one.
         assert css.count("--logo-filter: var(--dark-logo-filter);") == 2
 
+    def test_every_dark_value_is_mapped_by_both_dark_selectors(self):
+        """The gap that let #286 nearly ship a token wired up only halfway.
+
+        Dark is reached two ways, and they are not alternatives: `[data-theme=
+        "dark"]` is the reader who chose it, and the `prefers-color-scheme`
+        block inside `:not([data-theme])` is System, which is the DEFAULT and
+        therefore the majority. Adding a token means writing the same mapping
+        line into both blocks, by hand, and the failure when you write only one
+        is silent and asymmetric: the token resolves for anyone who has pressed
+        the toggle and falls back to its light value for everyone who has not.
+
+        Nothing checked this. `--logo-filter` above is spot-checked with a
+        `count(...) == 2` on one literal, which is the right idea applied to
+        one of twenty-odd tokens; this asks it of all of them.
+
+        Declared-but-unmapped is the failure, so the check runs in that
+        direction only. A `--dark-*` value referenced by a rule rather than by
+        a mapping is legitimate and is not required to appear in either block.
+        """
+        import re
+
+        import dashboard
+
+        with open(
+            os.path.join(os.path.dirname(dashboard.__file__), "static", "style.css"),
+            encoding="utf-8",
+        ) as handle:
+            css = handle.read()
+        css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+        declared = set(re.findall(r"(--dark-[a-z0-9-]+)\s*:", css))
+        assert len(declared) > 15, f"only found {len(declared)} dark values"
+
+        unmapped = {
+            name: css.count(f"var({name})")
+            for name in sorted(declared)
+            if css.count(f"var({name})") < 2
+        }
+        assert not unmapped, (
+            "each of these dark values is used fewer than twice, so at least "
+            "one of the two dark selectors cannot be mapping it: " + repr(unmapped)
+        )
+
 
 class TestTheChartGeometry:
     """#135 phase 2. Every coordinate the SVG draws, computed without a
@@ -7383,14 +7693,17 @@ class TestOverviewViewModel:
         """The page shows an apology rather than a row of dashes."""
         assert overview_view.build_tiles(None) == []
 
-    def test_the_next_step_is_at_most_one_thing(self):
-        step = overview_view.build_next_step(
-            {
-                "configured": {"verified_role": False},
-                "panel": {"posted": False},
-            }
-        )
-        assert "verified role" in step["title"]
+    def test_two_unfinished_rows_still_produce_one_checklist(self):
+        """Both required rows unfinished. The slot is empty (#286) and the
+        checklist reports both, with progress saying none of two are done --
+        which is the thing the single "next step" could never show."""
+        overview = {
+            "configured": {"verified_role": False},
+            "panel": {"posted": False},
+        }
+        assert overview_view.build_next_step(overview) is None
+        setup = overview_view.build_setup(overview)
+        assert setup["progress"] == {"done": 0, "total": 2}
 
     def _configured(self, **overrides):
         base = {
@@ -7610,19 +7923,22 @@ class TestOverviewViewModel:
         checks would be worse than matching it."""
         assert overview_view.build_next_step({"configured": None}) is None
 
-    def test_a_broken_required_row_is_a_setup_step_with_its_own_title(self):
-        """Deleted, not just unset -- the top banner has to say which,
-        reusing the exact note build_setup already wrote for the row."""
-        step = overview_view.build_next_step(
+    def test_a_broken_required_row_says_which_kind_of_broken(self):
+        """Deleted, not just unset. The distinction used to be carried by the
+        top banner and is carried by the checklist row now -- same note, same
+        fix, one surface instead of two saying it."""
+        setup = overview_view.build_setup(
             {
                 "configured": self._configured(verified_role_exists=False,
                                                 verified_role_assignable=None),
                 "panel": {"posted": True},
             }
         )
-        assert step["title"] == "The verified role needs attention"
-        assert "deleted" in step["body"]
-        assert step["action"] == "settings"
+        role = next(r for r in setup["rows"] if r["key"] == "verified_role")
+        assert role["state"] == "broken"
+        assert "deleted" in role["note"]
+        assert role["action"]["group"] == "verification"
+        assert setup["progress"] == {"done": 1, "total": 2}
 
 
 class TestTheNextStepRanker:
@@ -7649,15 +7965,19 @@ class TestTheNextStepRanker:
 
     CHANGELOG = {"title": "New: branded panels", "body": "...", "action": "subscription"}
 
-    def test_setup_beats_a_changelog_entry_and_a_demo(self):
+    def test_an_unfinished_server_empties_the_slot_entirely(self):
+        """Neither the changelog entry nor the demo may take the slot the setup
+        step used to hold. That step is the checklist's job now, and the
+        ranking it won is preserved as silence here."""
         overview = self._overview(
             configured=self._configured(verified_role=False,
                                          verified_role_exists=None,
                                          verified_role_assignable=None),
             last_30_days=214,
         )
-        step = overview_view.build_next_step(overview, changelog_entry=self.CHANGELOG)
-        assert step["title"] == "No verified role is set"
+        assert overview_view.build_next_step(
+            overview, changelog_entry=self.CHANGELOG
+        ) is None
 
     def test_a_changelog_entry_beats_the_demo(self):
         overview = self._overview(last_30_days=214)
@@ -7713,6 +8033,332 @@ class TestTheNextStepRanker:
         assert "214" in step["body"]
 
 
+class TestPinningAServer:
+    """#286 phase 3b. The cookie model, which is pure, plus the route's rules.
+
+    The pins are per browser and that is a signed-off trade, not an oversight:
+    following the account means a bot API change and a new column. The failure
+    mode is somebody pinning three servers on a desktop and seeing them
+    unpinned on a phone.
+    """
+
+    def test_a_hand_edited_cookie_cannot_smuggle_anything_through(self):
+        """The cookie is written by us and then lives in a browser, so what
+        comes back is input rather than something we stored."""
+        assert picker_view.parse_favorites("12.abc..34.12.'; DROP") == ("12", "34")
+        assert picker_view.parse_favorites(None) == ()
+        assert picker_view.parse_favorites("") == ()
+
+    def test_a_pin_does_not_outlive_the_standing_that_created_it(self):
+        """Filtered on the way OUT as well as in.
+
+        An admin demoted since they pinned a server, and somebody hand-editing
+        in an id they never had, are the same case -- and only the read-side
+        filter catches the first, because the cookie has no way to hear about
+        a demotion that happened after it was written.
+        """
+        assert picker_view.parse_favorites("12.34", manageable={"34"}) == ("34",)
+
+    def test_the_cap_evicts_rather_than_refuses(self):
+        """Pressing a star and having nothing happen, because of twenty
+        servers pinned a year ago, is the worse failure."""
+        value = ""
+        for guild_id in range(1000, 1000 + picker_view.MAX_FAVORITES + 5):
+            value = picker_view.toggle_favorite(
+                picker_view.parse_favorites(value), guild_id
+            )
+        pins = picker_view.parse_favorites(value)
+        assert len(pins) == picker_view.MAX_FAVORITES
+        # Newest first, so the newest press is the one that survived.
+        assert pins[0] == str(1000 + picker_view.MAX_FAVORITES + 4)
+
+    def test_the_same_star_pressed_twice_unpins(self):
+        assert picker_view.toggle_favorite(("5", "6"), 5) == "6"
+        assert picker_view.toggle_favorite(("6",), 5) == "5.6"
+
+    def test_pinned_cards_are_split_out_in_order(self):
+        cards = [
+            {"name": "a", "pinned": False},
+            {"name": "b", "pinned": True},
+            {"name": "c", "pinned": False},
+            {"name": "d", "pinned": True},
+        ]
+        pinned, rest = picker_view.split_pinned(cards)
+        assert [c["name"] for c in pinned] == ["b", "d"]
+        assert [c["name"] for c in rest] == ["a", "c"]
+
+
+class TestTheServerCardCarriesItsOwnInformation:
+    """#286, after looking at the rendered page beside the design it came from.
+
+    The first cut made the tile the whole object and put the state sentence
+    under it on the bare panel. That reads as a caption beside a picture rather
+    than as part of the server -- the server's own information, outside the
+    server's own panel.
+    """
+
+    def _cards(self, config, store):
+        test_client, _api = settings_client(config, store)
+        page = test_client.get("/").data.decode()
+        return page, re.findall(r'<li class="server-card .*?</li>', page, re.S)
+
+    def test_every_fact_about_a_server_is_inside_its_card(self, config, store):
+        page, cards = self._cards(config, store)
+        assert cards
+        for card in cards:
+            assert 'class="server-foot' in card, (
+                "a server's state sentence is outside its own card"
+            )
+        # And nothing is left loose between the cards.
+        between = re.sub(r'<li class="server-card .*?</li>', "", page, flags=re.S)
+        assert 'class="server-foot' not in between
+
+    def test_the_state_is_a_chip_on_the_tile_with_a_word_in_it(self, config, store):
+        """THE CHIP IS WHAT MADE THIS POSSIBLE. A bare status dot on the tile
+        measures 1.59:1 against its own hue, because the ring spans all twelve
+        including a red and an amber. An opaque chip gives the dot a ground
+        that does not depend on the hue: 14.76:1 for the label and 5.34:1 for
+        the worst dot, across all twelve.
+
+        The word as well as the dot, always. Colour is what carries across a
+        grid; the word is what a reader who cannot use colour gets instead.
+        """
+        _page, cards = self._cards(config, store)
+        for card in cards:
+            # Sliced on two markers that are in the RENDERED page, not on a
+            # closing tag counted by eye. A non-greedy match to the first
+            # `</span>` closes the dot, which is how a first pass at this test
+            # reported "a dot with no word" about markup that had one; matching
+            # a literal run of whitespace is the same mistake one step later,
+            # because Jinja's output is not indented like its source.
+            top = card[card.index('class="tile-top"'):card.index('class="server-name"')]
+            assert 'class="tile-chip chip-' in top, "a card has no state chip"
+            assert "chip-dot" in top
+            label = re.search(r'<span class="chip-label">(.*?)</span>', top, re.S)
+            assert label and label.group(1).strip(), "the chip is a dot with no word"
+
+    def test_the_chip_and_the_footer_do_not_say_the_same_thing(self, config, store):
+        """Two strings per state, doing two jobs: the chip says WHICH state at a
+        glance across a grid, the footer says what that means for this server.
+        Deriving one from the other gives the chip a clause and the footer a
+        label."""
+        _page, cards = self._cards(config, store)
+        for card in cards:
+            label = re.search(r'<span class="chip-label">(.*?)</span>', card, re.S)
+            foot = re.search(r'<p class="server-foot[^"]*">(.*?)</p>', card, re.S)
+            assert label and foot
+            assert label.group(1).strip() != foot.group(1).strip()
+
+    def test_the_header_count_cannot_disagree_with_the_chips(self, config, store):
+        """Counted in the route from the same cards the chips are drawn from.
+
+        And over the WHOLE list rather than the filtered one: a search that
+        hides two broken servers has not fixed them, and a header dropping to
+        silence while a filter is on would be a comfortable lie.
+        """
+        test_client, _api = settings_client(config, store)
+        unfiltered = test_client.get("/").data.decode()
+        needing = unfiltered.count("chip-todo") + unfiltered.count("chip-broken")
+        if needing:
+            assert "need something from you" in unfiltered
+
+        filtered = test_client.get("/?q=zzzznothing").data.decode()
+        if needing:
+            assert "need something from you" in filtered, (
+                "the tally follows the filter, so a search can hide a problem"
+            )
+
+
+class TestTheWholeCardIsTheTarget:
+    """#276, and the bug I introduced twice while fixing it.
+
+    The card is one link, stretched over the whole panel by
+    `.server-name a::after { inset: 0 }`. `inset` resolves against the nearest
+    POSITIONED ancestor -- so any positioned element between that anchor and
+    `.server-card` silently shrinks the target to itself. It cost the footer
+    once (`.server-name` was `position: relative`) and the whole card a second
+    time (`.server-line` was, added minutes after the first fix).
+
+    Neither failure looks like anything. The card still renders, the link still
+    works where the text is, and the rule the eye checks -- `inset: 0` -- is
+    right on the page. So this walks the chain instead.
+    """
+
+    # `.server-card` down to the anchor, which is the only positioned element
+    # allowed in it.
+    CHAIN = ("server-tile", "server-line", "server-titles", "server-name")
+
+    @staticmethod
+    def _css():
+        import dashboard
+
+        path = os.path.join(
+            os.path.dirname(dashboard.__file__), "static", "style.css"
+        )
+        with open(path, encoding="utf-8") as handle:
+            return re.sub(r"/\*.*?\*/", "", handle.read(), flags=re.S)
+
+    def test_nothing_between_the_link_and_the_card_is_positioned(self):
+        css = self._css()
+        for name in self.CHAIN:
+            for match in re.finditer(
+                r"(?:^|\n)\s*\.%s\s*\{([^}]*)\}" % name, css
+            ):
+                body = match.group(1)
+                assert "position: relative" not in body, (
+                    f".{name} is positioned, so the stretched link stops there "
+                    f"and the rest of the card is dead"
+                )
+                assert "position: absolute" not in body, (
+                    f".{name} is positioned, so the stretched link stops there"
+                )
+
+    def test_the_card_itself_is_the_positioned_ancestor(self):
+        """The other half: something has to be, or `inset: 0` reaches the
+        viewport and the link covers the page."""
+        rule = re.search(r"(?:^|\n)\.server-card\s*\{([^}]*)\}", self._css())
+        assert rule and "position: relative" in rule.group(1)
+
+    def test_the_star_is_lifted_above_the_link(self):
+        """The one thing inside the card that must NOT go where the card goes.
+        Without a z-index the star is under the stretched link, and pressing it
+        opens the server instead of pinning it."""
+        rule = re.search(r"(?:^|\n)\.server-pin\s*\{([^}]*)\}", self._css())
+        assert rule and "z-index" in rule.group(1)
+
+    def test_the_absent_card_carries_no_second_target(self, config, store):
+        """It used to hold an install BUTTON, which is why the stretched link
+        excluded it -- a stretched link over a button swallows the button. The
+        card links to the invite itself now, so the cue below is text rather
+        than a second control competing with the card it sits in."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get("/").data.decode()
+        absent = re.search(r'<li class="server-card absent">.*?</li>', page, re.S)
+        assert absent, "no absent card in the preview fixture"
+        card = absent.group(0)
+        assert card.count("<a ") == 1, "the absent card has more than one link"
+        assert "server-add" in card
+        assert 'class="button' not in card
+
+
+class TestTheFavoriteRoute:
+    """The route's three rules, which are the half a pure test cannot reach."""
+
+    def _pin(self, test_client, store, guild_id, token=True):
+        session = store.load(test_client.get_cookie(SESSION_COOKIE).value)
+        data = {"guild_id": guild_id, "return_to": "index"}
+        if token:
+            data["csrf_token"] = session.csrf_token
+        return test_client.post("/prefs/favorite", data=data)
+
+    def test_pinning_writes_the_cookie(self, config, store):
+        test_client, _api = settings_client(config, store)
+        response = self._pin(test_client, store, GUILD_IN)
+        assert response.status_code == 302
+        assert GUILD_IN in set_cookie_header(response, "vrcverify_pinned")
+
+    def test_it_needs_the_csrf_token(self, config, store):
+        test_client, _api = settings_client(config, store)
+        assert self._pin(test_client, store, GUILD_IN, token=False).status_code == 400
+
+    def test_a_guild_this_session_does_not_administer_changes_nothing(
+        self, config, store
+    ):
+        """NOT because a pin is dangerous.
+
+        An unchecked id would let a crafted post fill twenty bounded slots
+        with servers that can never match a tile, evicting real pins to hold
+        values that will never render. A bound only protects something if what
+        goes into it has to be real.
+        """
+        test_client, _api = settings_client(config, store)
+        for bogus in (GUILD_NOT_ADMIN, "../../etc", "", "99999999999999999999"):
+            response = self._pin(test_client, store, bogus)
+            with pytest.raises(AssertionError):
+                set_cookie_header(response, "vrcverify_pinned")
+
+    def test_it_never_reaches_the_bot(self, config, store):
+        """A preference toggle that could be made to call the bot is a way to
+        spend its rate limit, and to probe for guilds, from a route whose whole
+        job is writing one cookie."""
+        test_client, api = settings_client(config, store)
+        api.reads.clear()
+        self._pin(test_client, store, GUILD_IN)
+        assert api.reads == []
+
+
+def _error_card(page: str) -> str:
+    """The error card alone, stopping at its own closing tag.
+
+    Slicing to the end of the document instead is how a check for "this page
+    does not link to status" passes on a page that does not, and also on one
+    that does: base.html puts a status link in the bar and another in the
+    footer of every page in the app.
+    """
+    start = page.index('class="panel centered refusal"')
+    return page[start:page.index("</section>", start)]
+
+
+class TestTheErrorPageSaysWhatHappened:
+    """#286. It was an h1 reading "Sorry" over one sentence.
+
+    "Sorry" is a tone, not a fact, and it took the largest text on the page to
+    say nothing about what had gone wrong. The heading names what failed and
+    the sentence says what to do -- and neither is ever a status code, because
+    "503" answers a question nobody reading this page asked.
+
+    NONE OF THIS WAS COVERED BEFORE. Four call sites and the whole template
+    changed with a green suite; the only reason one assertion still held is
+    that the 503 heading happens to contain the phrase it looks for.
+    """
+
+    def _app(self, config, store):
+        app = create_app(config, store=store, client=FakeBotAPI())
+        app.config.update(TESTING=True)
+        return app.test_client()
+
+    def test_a_missing_page_says_what_is_missing(self, config, store):
+        page = self._app(config, store).get("/no-such-page").data.decode()
+        assert "<h1>Page not found</h1>" in page
+        assert "doesn&#39;t match anything here" in page
+
+    def test_no_status_code_reaches_the_reader(self, config, store):
+        """The number is in the response, where it belongs, and not in the
+        copy, where it explains nothing to the person reading it."""
+        response = self._app(config, store).get("/no-such-page")
+        assert response.status_code == 404
+        card = _error_card(response.data.decode())
+        for code in ("404", "500", "503", "403"):
+            assert code not in card
+
+    def test_a_missing_page_is_not_offered_the_status_page(self, config, store):
+        """A typo is not an outage."""
+        card = _error_card(self._app(config, store).get("/no-such-page").data.decode())
+        assert "status.vrcverify.com" not in card
+
+    def test_the_five_hundred_does_not_promise_nothing_changed(self, config, store):
+        """The 503 says "Nothing has changed" and may: a failed READ changes
+        nothing. A 500 can be raised halfway through a save, so the same
+        sentence there would be a promise the page cannot keep.
+
+        Read off the source rather than by provoking one: `server_error` is
+        marked `no cover - defensive` precisely because reaching it means the
+        app is already broken.
+        """
+        import dashboard.app as module
+        import inspect
+
+        source = inspect.getsource(module._register_routes)
+        five = source[source.index("def server_error"):]
+        five = five[:five.index("), 500")]
+        # Collapsed, because the sentence is wrapped across source lines and a
+        # test that only passes at one column width is a test that fails the
+        # next time somebody reflows a paragraph.
+        five = " ".join(five.replace('"', " ").split())
+        assert "Nothing has changed" not in five
+        assert "check the setting you were changing" in five
+
+
 class TestWriteSurface:
     """One save path per group and nothing else. Widening it means editing this."""
 
@@ -7755,6 +8401,18 @@ class TestWriteSurface:
             # rather than trusted, so a crafted post changes nothing and
             # cannot fill a bounded cookie with pairs that match nothing.
             "/prefs/dismiss",
+            # Pinning one server on the picker (#286). One cookie, no bot call,
+            # session and CSRF required -- following /prefs/nav rather than
+            # /prefs/theme, since this only ever renders for a signed-in admin
+            # and there is always a token to require.
+            #
+            # The second route here to take an id from the form, and the reason
+            # it is checked is not that a pin is dangerous. An unchecked id
+            # would let a crafted post fill twenty bounded slots with servers
+            # that can never match a tile, evicting real pins to hold values
+            # that will never render. The bound only protects something if what
+            # goes into it has to be real.
+            "/prefs/favorite",
             # The bell's "Mark all as read" (#136). One cookie, nothing else:
             # no session state, no bot call, and the value written is the
             # newest entry id this process already knows rather than anything
@@ -8879,24 +9537,37 @@ class TestSettingsRowsAreRows(object):
         ) as handle:
             return handle.read()
 
-    def test_the_two_column_row_is_above_the_breakpoint_only(self):
-        """Two columns on a 390px phone leaves the control about 40% of the
-        width, which is narrower than a select needs for a role name. The rows
-        stay stacked there."""
-        css = self._css()
-        grid = re.search(
-            r"@media \(min-width: 48rem\) \{\s*\.setting \{([^}]*)\}", css
-        )
-        assert grid, "the settings row grid is not behind a min-width query"
-        assert "grid-template-columns" in grid.group(1)
+    def test_the_row_is_never_two_columns_at_any_width(self):
+        """#286 inverted the split, and this is what stops it coming back.
 
-        # And nothing outside that query turns `.setting` into a grid.
-        outside = css[: css.index("@media (min-width: 48rem)")]
-        bare = re.search(r"\n\.setting \{([^}]*)\}", outside)
-        assert bare, "the base .setting rule has gone"
-        assert "display: grid" not in bare.group(1), (
-            "the row is a grid at every width, including a phone"
+        #195 phase 5 made the ROW two columns -- label left, control right --
+        to stop a 148px select sitting alone under its label in a 900px card.
+        It solved that and bought a worse one: the control ended up about
+        500px from the words naming it, and reading a group became a
+        left-right-down zigzag.
+
+        The two columns belong to the SECTION now, so the field column is
+        narrow enough that the original complaint cannot return, and the
+        control sits directly under its own label at every width.
+        """
+        css = re.sub(r"/\*.*?\*/", "", self._css(), flags=re.S)
+        for match in re.finditer(r"(?:^|\n)\s*\.setting\s*\{([^}]*)\}", css):
+            assert "display: grid" not in match.group(1), (
+                "the settings row is a grid again, which is the zigzag"
+            )
+
+    def test_the_section_is_what_holds_two_columns(self):
+        """And behind a query wide enough for a page that also has a sidebar.
+        At 48rem, where the row rule used to sit, the left column would eat
+        what little the fields have."""
+        css = re.sub(r"/\*.*?\*/", "", self._css(), flags=re.S)
+        grid = re.search(
+            r"@media \(min-width: (\d+)rem\) \{\s*\.settings-group \{([^}]*)\}",
+            css,
         )
+        assert grid, "the section grid is not behind a min-width query"
+        assert int(grid.group(1)) >= 60
+        assert "grid-template-columns" in grid.group(2)
 
     def test_the_description_did_not_move_into_the_accessible_name(self):
         """The references put the description in the left column beside the
@@ -9577,11 +10248,14 @@ class TestEveryNoticeLivesInACard(object):
         it has one, wraps the whole element.
 
         A STACK, NOT A DEPTH COUNTER. The first version of this counted only
-        panel opens but every `</section>` close, so `<section class="upgrade">`
-        inside a panel -- which is a section and is not a panel -- decremented a
-        depth it had never incremented, and the two real notices after it in
-        settings.html were reported as bare. Sections that are not panels have
-        to be pushed too, or closing one pops the panel around it.
+        panel opens but every `</section>` close, so a `<section>` that is not
+        a panel -- settings.html carried one, `<section class="upgrade">`,
+        until #286 replaced it with a link per row -- decremented a depth it
+        had never incremented, and the two real notices after it were reported
+        as bare. Sections that are not panels have to be pushed too, or closing
+        one pops the panel around it. The fixture below keeps that shape even
+        though no template ships it today: the scan has to stay right for the
+        next one.
         """
         stack, bad = [], []
         for match in re.finditer(
@@ -9652,9 +10326,13 @@ class TestEveryNoticeLivesInACard(object):
         assert self._offenders(nested) == [6]
 
     def test_a_section_that_is_not_a_panel_does_not_pop_the_panel(self):
-        """settings.html's real shape, and what the first version of this scan
-        got wrong: `<section class="upgrade">` sits inside the panel, and the
-        notices come after it closes. They are still inside the card."""
+        """settings.html's shape until #286, and what the first version of
+        this scan got wrong: a non-panel `<section>` sat inside the panel and
+        the notices came after it closed. They are still inside the card.
+
+        Kept as a fixture rather than deleted with the markup: the bug is in
+        the scan, not in that template, and it returns the moment anybody
+        nests a plain section again."""
         real = (
             '<section class="panel">\n'
             '  <section class="upgrade">\n'
@@ -9736,15 +10414,24 @@ class TestTheSmallDefectsFoundAlongsideTheThemingWork(object):
         )
 
     def test_the_clickable_server_card_has_a_boundary(self):
-        """`.server-card.ready` is a whole-card target via the stretched link,
-        so its edge is the bounds of a UI component: SC 1.4.11, 3:1. It was
-        1.32:1 light and 1.24:1 dark, with a 1.17:1 fill behind it."""
+        """The tile is a whole-card target via the stretched link, so its edge
+        is the bounds of a UI component: SC 1.4.11, 3:1. It was 1.32:1 light
+        and 1.24:1 dark, with a 1.17:1 fill behind it (#163).
+
+        THE EDGE MOVED FROM THE CARD TO THE TILE IN #286, and the requirement
+        followed it rather than being dropped. The obvious reading of that
+        redesign is that a filled gradient needs no hairline -- it is a large
+        shape, visibly there. That is true in the light theme, where the worst
+        of the twelve is 7.00:1 against --panel, and false in the dark one,
+        where the scrimmed corner of the darkest hue is 1.01:1.
+        A deep blue tile on a dark page is #163 all over again.
+        """
         import sys
 
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         from test_contrast import _palettes, contrast
 
-        assert "var(--card-line)" in self._rule(self._css(), ".server-card")
+        assert "var(--card-line)" in self._rule(self._css(), ".server-tile")
         for theme, palette in _palettes().items():
             ratio = contrast(palette["card-line"], palette["panel"])
             assert ratio >= 3.0, f"{theme}: the card's edge is {ratio:.2f}:1"
@@ -9827,11 +10514,26 @@ class TestTheSmallDefectsFoundAlongsideTheThemingWork(object):
     def test_no_raw_color_literal_survives_outside_the_token_blocks(self):
         """The general form of the finding above. Every hex in this file should
         be a token declaration; a color written into a rule is a color that
-        cannot be rethemed."""
+        cannot be rethemed.
+
+        MASKS ARE EXEMPT, and narrowly: `mask-image` reads only the ALPHA of
+        what it is given, so the `#000` in a fade gradient is a stencil rather
+        than a color. It is never painted, it cannot be seen, and theming it
+        would change nothing -- swap it for hotpink and the render is
+        identical. The rule this test enforces is "a color that cannot be
+        rethemed", and a value with no color role is not one.
+
+        The exemption is the two mask properties and nothing else, so a hex in
+        `background`, `border` or `fill` still fails. Same construction the
+        apex stylesheet already ships for the same fade (#285).
+        """
         css = re.sub(r"/\*.*?\*/", "", self._css(), flags=re.S)
         # Drop every `--foo: #hex;` declaration, then look for what is left.
         without_tokens = re.sub(r"--[a-z0-9-]+\s*:\s*#[0-9a-fA-F]{3,8}\s*;", "", css)
-        leftovers = re.findall(r"#[0-9a-fA-F]{3,8}\b", without_tokens)
+        without_masks = re.sub(
+            r"(?:-webkit-)?mask-image\s*:[^;]*;", "", without_tokens
+        )
+        leftovers = re.findall(r"#[0-9a-fA-F]{3,8}\b", without_masks)
         assert not leftovers, f"raw color literals in rules: {leftovers}"
 
     def test_the_collapsed_side_up_is_reset_with_its_siblings(self):

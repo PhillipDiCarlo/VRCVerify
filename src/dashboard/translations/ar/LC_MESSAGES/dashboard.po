@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-09 01:26-0400\n"
+"POT-Creation-Date: 2026-09-10 02:53-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -42,11 +42,27 @@ msgstr "تعذّر التحقّق من تسجيل الدخول هذا. حاول 
 msgid "Discord could not complete the login. Please try again."
 msgstr "لم يتمكّن Discord من إتمام تسجيل الدخول. حاول مرة أخرى."
 
-msgid "Page not found."
-msgstr "الصفحة غير موجودة."
+# | msgid "Page not found."
+msgid "Page not found"
+msgstr "الصفحة غير موجودة"
 
-msgid "Something went wrong."
-msgstr "حدث خطأ ما."
+msgid ""
+"That address doesn't match anything here. It may have been a typo, or a "
+"link to something that has since moved."
+msgstr ""
+"هذا العنوان لا يطابق أي شيء هنا. ربما كان خطأً في الكتابة، أو رابطًا إلى "
+"شيء انتقل منذ ذلك الحين."
+
+# | msgid "Something went wrong."
+msgid "Something went wrong"
+msgstr "حدث خطأ ما"
+
+msgid ""
+"The dashboard hit an error it couldn't recover from. Try again in a "
+"moment, and check the setting you were changing if you were saving one."
+msgstr ""
+"واجهت لوحة التحكّم خطأً لم تستطع التعافي منه. أعد المحاولة بعد لحظات، "
+"وتحقّق من الإعداد الذي كنت تغيّره إن كنت في أثناء الحفظ."
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "هذا الإعداد يتطلّب VRCVerify Premium. لم يتغيّر شيء."
@@ -211,22 +227,30 @@ msgstr "الإعدادات"
 msgid "Subscriptions"
 msgstr "الاشتراكات"
 
-msgid ""
-"That server isn't available. Either VRCVerify isn't in it, or you don't "
-"have the Administrator permission there."
-msgstr ""
-"هذا الخادم غير متاح. فإمّا أن VRCVerify ليس فيه، وإمّا أنك لا تملك صلاحية"
-" المشرف هناك."
+# | msgid "That group ID wasn't usable"
+msgid "That server isn't available"
+msgstr "هذا الخادم غير متاح"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
+# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
+# you
+# | don't " "have the Administrator permission there."
 msgid ""
-"Can't reach the bot right now, so this page can't be shown. Nothing has "
-"changed. Try again shortly."
+"Either VRCVerify isn't in it, or you don't have the Administrator "
+"permission there."
+msgstr "إمّا أن VRCVerify ليس فيه، أو أنك لا تملك صلاحية المشرف هناك."
+
+msgid "Can't reach the bot"
+msgstr "تعذّر الوصول إلى البوت"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+# | msgid "The bot didn't answer this one. Try again shortly."
+msgid ""
+"This page needs the bot to answer and it isn't answering right now. "
+"Nothing has changed. Try again shortly."
 msgstr ""
-"تعذّر الوصول إلى البوت الآن، لذا لا يمكن عرض هذه الصفحة. ولم يتغيّر شيء. "
-"حاول مرة أخرى بعد قليل."
+"تحتاج هذه الصفحة إلى ردّ من البوت وهو لا يستجيب الآن. لم يتغيّر شيء. أعد "
+"المحاولة بعد قليل."
 
 msgid "Premium"
 msgstr "Premium"
@@ -234,6 +258,25 @@ msgstr "Premium"
 # | msgid "Renews"
 msgid "New"
 msgstr "جديد"
+
+# | msgid "Open the dashboard"
+msgid "A new look for the dashboard"
+msgstr "مظهر جديد للوحة التحكّم"
+
+msgid ""
+"Your server list is now a grid of tiles you can search, pin and open with"
+" a single click anywhere on the card, and each one says whether that "
+"server is on Premium. Setup has moved to the top of a server's Overview "
+"with a progress bar, and retires itself once everything required is done."
+" Settings puts each control directly under its own label, and the pricing"
+" page is one comparison you can read across."
+msgstr ""
+"صارت قائمة خوادمك شبكة من البطاقات يمكنك البحث فيها وتثبيتها وفتحها بنقرة"
+" واحدة في أي موضع من البطاقة، وتوضّح كل بطاقة ما إذا كان ذلك الخادم "
+"مشتركًا في Premium. انتقل الإعداد إلى أعلى نظرة عامة الخادم مع شريط "
+"تقدّم، ويختفي بنفسه بمجرد اكتمال كل ما هو مطلوب. وفي الإعدادات صار كل "
+"عنصر تحكّم أسفل تسميته مباشرة، وصفحة الأسعار صارت مقارنة واحدة تُقرأ "
+"عرضًا."
 
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
@@ -422,8 +465,9 @@ msgstr "اختياري. تُزال بمجرّد أن يوثّق أحدهم نف�
 msgid "Verification log"
 msgstr "سجلّ التوثيق"
 
-msgid "Optional. Premium."
-msgstr "اختياري. Premium."
+# | msgid "Optional. Premium."
+msgid "Optional."
+msgstr "اختياري."
 
 # | msgid "Sections"
 # | msgid "Settings"
@@ -471,22 +515,6 @@ msgstr "لم يعد VRCVerify قادرًا على النشر هناك؛ تحقّ
 msgid "Posted, and VRCVerify can still reach it."
 msgstr "منشورة، وما زال VRCVerify قادرًا على الوصول إليها."
 
-msgid "No verified role is set"
-msgstr "لم تُحدَّد رتبة «موثَّق»"
-
-msgid "The verified role needs attention"
-msgstr "رتبة «موثَّق» تحتاج إلى انتباه"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "No instructions panel is posted"
-msgstr "لم تُنشَر لوحة إرشادات"
-
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
-msgid "The instructions panel needs attention"
-msgstr "لوحة الإرشادات تحتاج إلى انتباه"
-
 #, python-format
 msgid ""
 "%(count)s member verified here in the last 30 days. Premium logs each one"
@@ -521,6 +549,25 @@ msgstr "مزاياك المكتسبة سابقًا تبقى مجانية مهم�
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "الترقية إلى VRCVerify Premium"
+
+msgid "Working"
+msgstr "يعمل"
+
+# | msgid "Setup isn't finished"
+msgid "Setup unfinished"
+msgstr "الإعداد غير مكتمل"
+
+# | msgid "needs attention"
+msgid "Needs attention"
+msgstr "يحتاج انتباهك"
+
+# | msgid "not set"
+msgid "Not set up"
+msgstr "غير مُعدّ"
+
+# | msgid "Couldn't check"
+msgid "Can't check"
+msgstr "تعذّر التحقّق"
 
 msgid "Set up and working"
 msgstr "مُعدّ ويعمل"
@@ -1218,12 +1265,12 @@ msgstr ""
 "وتابع قناة الإعلانات؛ فكل تحديث هنا يُنشر هناك، وDiscord ينقله إلى أي "
 "قناة تختارها."
 
-msgid "Sorry"
-msgstr "عذرًا"
-
 # | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "العودة إلى خوادمك"
+
+msgid "Check VRCVerify's status"
+msgstr "تحقّق من حالة VRCVerify"
 
 msgid "Manage your VRCVerify servers"
 msgstr "أدِر خوادم VRCVerify الخاصة بك"
@@ -1262,6 +1309,36 @@ msgstr ""
 " وهذا يكفي للبدء بتوثيق الأعضاء، بينما يعرض "
 "<code>/vrcverify_settings</code> ما هو محفوظ. أما كل ما عدا ذلك فيُغيَّر "
 "من هنا."
+
+msgid "Finish setting up"
+msgstr "أكمل الإعداد"
+
+#, python-format
+msgid ""
+"What still needs doing before this server can verify anyone, and whether "
+"what's already set is still working. Change any of it on <a "
+"href=\"%(settings_url)s\">Settings</a>."
+msgstr ""
+"ما تبقّى قبل أن يتمكّن هذا الخادم من توثيق أي شخص، وما إذا كان المُعدّ "
+"سابقًا لا يزال يعمل. يمكن تغيير كل ذلك من <a "
+"href=\"%(settings_url)s\">الإعدادات</a>."
+
+#, python-format
+msgid "%(done)s of %(total)s done"
+msgstr "اكتمل %(done)s من %(total)s"
+
+#, python-format
+msgid "%(done)s of %(total)s required steps done"
+msgstr "اكتمل %(done)s من %(total)s من الخطوات المطلوبة"
+
+msgid "set"
+msgstr "محدَّد"
+
+msgid "needs attention"
+msgstr "يحتاج إلى انتباه"
+
+msgid "off, optional"
+msgstr "مُعطَّل، اختياري"
 
 msgid "See plans and subscribe"
 msgstr "عرض الخطط والاشتراك"
@@ -1310,35 +1387,33 @@ msgstr "غير مقيس"
 msgid "Couldn't load the daily trend just now."
 msgstr "تعذّر تحميل الاتجاه اليومي الآن."
 
-msgid "Setup"
-msgstr "الإعداد"
-
-#, python-format
-msgid ""
-"What's configured here, and whether it's actually working -- one list "
-"instead of two, since \"switched on\" and \"still works\" used to be "
-"answered in different places on this page. Change any of it on <a "
-"href=\"%(settings_url)s\">Settings</a>."
-msgstr ""
-"ما الذي أُعدّ هنا، وهل يعمل فعلًا -- قائمة واحدة بدل اثنتين، إذ كان "
-"«مفعَّل» و«ما زال يعمل» يُجابان في موضعين مختلفين من هذه الصفحة. ويمكنك "
-"تغيير أي منها من <a href=\"%(settings_url)s\">الإعدادات</a>."
-
-msgid "Setup complete — verification is fully working here."
-msgstr "اكتمل الإعداد؛ التوثيق يعمل هنا بالكامل."
-
-msgid "set"
-msgstr "محدَّد"
-
-msgid "needs attention"
-msgstr "يحتاج إلى انتباه"
-
 msgid "Your servers — VRCVerify"
 msgstr "خوادمك — VRCVerify"
+
+#, python-format
+msgid "Pin %(name)s"
+msgstr "تثبيت %(name)s"
+
+msgid "Upgrade"
+msgstr "الترقية"
+
+# | msgid "Add to your server"
+msgid "Add to server"
+msgstr "الإضافة إلى الخادم"
 
 # | msgid "Add to your server"
 msgid "Your servers"
 msgstr "خوادمك"
+
+#, python-format
+msgid "One needs something from you."
+msgid_plural "%(count)s need something from you."
+msgstr[0] "لا خوادم تحتاج إلى شيء منك."
+msgstr[1] "خادم واحد يحتاج إلى شيء منك."
+msgstr[2] "خادمان يحتاجان إلى شيء منك."
+msgstr[3] "%(count)s خوادم تحتاج إلى شيء منك."
+msgstr[4] "%(count)s خادمًا يحتاج إلى شيء منك."
+msgstr[5] "%(count)s خادم يحتاج إلى شيء منك."
 
 msgid ""
 "Can't reach the bot right now, so we can't tell which of these it's in. "
@@ -1346,6 +1421,49 @@ msgid ""
 msgstr ""
 "تعذّر الوصول إلى البوت الآن، فلا يمكننا معرفة أي من هذه الخوادم هو فيها. "
 "إعداداتك بأمان ولم يتغيّر شيء هنا. حاول مرة أخرى بعد قليل."
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Search your servers"
+msgstr "ابحث في خوادمك"
+
+# | msgid "Per server"
+msgid "Search servers"
+msgstr "ابحث عن خادم"
+
+msgid "Search"
+msgstr "بحث"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+#, python-format
+msgid "%(count)s server"
+msgid_plural "%(count)s servers"
+msgstr[0] "لا خوادم"
+msgstr[1] "خادم واحد"
+msgstr[2] "خادمان"
+msgstr[3] "%(count)s خوادم"
+msgstr[4] "%(count)s خادمًا"
+msgstr[5] "%(count)s خادم"
+
+# | msgid "Premium"
+# | msgid "See Premium"
+#, python-format
+msgid "%(count)s Premium"
+msgstr "%(count)s باشتراك Premium"
+
+# | msgid "No servers to show"
+msgid "No servers match that"
+msgstr "لا توجد خوادم مطابقة"
+
+#, python-format
+msgid "Nothing in your list is called “%(q)s”."
+msgstr "لا يوجد في قائمتك شيء باسم «%(q)s»."
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+msgid "Show all your servers"
+msgstr "إظهار كل خوادمك"
 
 msgid "No servers to show"
 msgstr "لا خوادم لعرضها"
@@ -1365,12 +1483,16 @@ msgstr "تسجيل الخروج والبدء من جديد"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "سيُطلب منك تسجيل الدخول عبر Discord مرة أخرى."
 
-# | msgid "Add to your server"
-msgid "Add to server"
-msgstr "الإضافة إلى الخادم"
+# | msgid "None"
+msgid "Pinned"
+msgstr "مثبَّتة"
 
 msgid "Pricing · VRCVerify"
 msgstr "الأسعار · VRCVerify"
+
+# | msgid "Canceled"
+msgid "Included"
+msgstr "مشمول"
 
 msgid "Pricing"
 msgstr "الأسعار"
@@ -1382,14 +1504,42 @@ msgstr ""
 "التوثيق مجاني إلى الأبد. أما Premium فيضيف الأتمتة المحيطة به، لكل خادم "
 "على حدة."
 
+msgid ""
+"We can't load prices right now. <strong>Premium is still "
+"available.</strong> Try again in a moment, or subscribe inside Discord."
+msgstr ""
+"لا نستطيع تحميل الأسعار الآن. <strong>‏Premium ما زال متاحًا.</strong> "
+"حاول مرة أخرى بعد قليل، أو اشترك من داخل Discord."
+
+msgid "There are no plans on sale at the moment."
+msgstr "لا توجد خطط معروضة للبيع في الوقت الحالي."
+
+msgid "One Premium, three ways to pay for it"
+msgstr "‏Premium واحد، وثلاث طرق للدفع مقابله"
+
+msgid "Billing term"
+msgstr "مدّة الفوترة"
+
+msgid "Price unavailable"
+msgstr "السعر غير متاح"
+
+# | msgid "" "Every plan below unlocks exactly the same features — the only
+# | difference " "is how long you pay for at once, and how much that saves."
+msgid ""
+"Per server. Every term unlocks exactly the same features — the only "
+"difference is how long you pay for at once."
+msgstr ""
+"لكل خادم. كل مدّة تفتح الميزات نفسها تمامًا، والفارق الوحيد هو المدّة "
+"التي تدفع عنها دفعة واحدة."
+
+msgid "What each plan includes"
+msgstr "ما تشمله كل خطة"
+
+msgid "Feature"
+msgstr "الميزة"
+
 msgid "Free"
 msgstr "مجاني"
-
-msgid "forever"
-msgstr "إلى الأبد"
-
-msgid "Everything you need to verify your members."
-msgstr "كل ما تحتاجه لتوثيق أعضائك."
 
 msgid "Verify members as 18+"
 msgstr "توثيق الأعضاء كـ 18+"
@@ -1399,18 +1549,6 @@ msgstr "توثيق تلقائي لمن سبق أن وثّقوا أنفسهم ف�
 
 msgid "Members can update their own nickname"
 msgstr "يستطيع الأعضاء تحديث ألقابهم بأنفسهم"
-
-msgid "Add to your server"
-msgstr "أضفه إلى خادمك"
-
-msgid "Per server"
-msgstr "لكل خادم"
-
-msgid "monthly, 6 or 12 months"
-msgstr "شهريًا أو 6 أو 12 شهرًا"
-
-msgid "The automation around verification, for servers that want it."
-msgstr "الأتمتة المحيطة بالتوثيق، للخوادم التي تريدها."
 
 msgid "Automatic removal of an unverified role"
 msgstr "إزالة تلقائية لرتبة «غير موثَّق»"
@@ -1436,31 +1574,15 @@ msgstr "مدة انتظار أقصر بين عمليات التحقق"
 msgid "VRChat group invites for verified members"
 msgstr "دعوات إلى مجموعة VRChat للأعضاء الموثّقين"
 
+# | msgid "Not applied"
+msgid "Not included"
+msgstr "غير مشمول"
+
+msgid "Add to your server"
+msgstr "أضفه إلى خادمك"
+
 msgid "Open the dashboard"
 msgstr "افتح لوحة التحكّم"
-
-msgid "One Premium, three ways to pay for it"
-msgstr "‏Premium واحد، وثلاث طرق للدفع مقابله"
-
-msgid ""
-"We can't load prices right now. <strong>Premium is still "
-"available.</strong> Try again in a moment, or subscribe inside Discord."
-msgstr ""
-"لا نستطيع تحميل الأسعار الآن. <strong>‏Premium ما زال متاحًا.</strong> "
-"حاول مرة أخرى بعد قليل، أو اشترك من داخل Discord."
-
-msgid "There are no plans on sale at the moment."
-msgstr "لا توجد خطط معروضة للبيع في الوقت الحالي."
-
-msgid ""
-"Every plan below unlocks exactly the same features — the only difference "
-"is how long you pay for at once, and how much that saves."
-msgstr ""
-"كل خطة في الأسفل تفتح الميزات نفسها تمامًا؛ والفرق الوحيد هو المدة التي "
-"تدفع عنها دفعةً واحدة، وكم يوفّر لك ذلك."
-
-msgid "Most popular"
-msgstr "الأكثر شيوعًا"
 
 msgid ""
 "Some plans start with a free trial. Whether a particular server qualifies"
@@ -1479,23 +1601,6 @@ msgstr ""
 "الضريبة المستحقّة في بلدك عند الدفع. تتولّى Stripe عملية الدفع، ولا تصل "
 "بيانات بطاقتك إلى VRCVerify أبدًا."
 
-msgid ""
-"Premium is bought per server. You can subscribe with a card in the "
-"dashboard, or monthly through Discord."
-msgstr ""
-"يُشترى Premium لكل خادم على حدة. يمكنك الاشتراك بالبطاقة من لوحة التحكّم،"
-" أو شهريًا عبر Discord."
-
-msgid "Ready to start?"
-msgstr "جاهز للبدء؟"
-
-msgid ""
-"Add VRCVerify to your server and verification works immediately, at no "
-"cost. Premium is there when you want it."
-msgstr ""
-"أضف VRCVerify إلى خادمك ليعمل التوثيق فورًا وبلا تكلفة. وسيكون Premium في"
-" انتظارك متى أردته."
-
 msgid "Saved."
 msgstr "تم الحفظ."
 
@@ -1510,16 +1615,6 @@ msgid ""
 msgstr ""
 "حُفظت إعداداتك، لكن لوحة الإرشادات ما زالت تعرض القديمة. استخدم "
 "<strong>إعادة نشر اللوحة أو نقلها</strong> في الأسفل لاستبدالها."
-
-msgid ""
-"Your grandfathered extras stay free whatever you decide. Premium unlocks "
-"the settings marked below."
-msgstr ""
-"مزاياك المكتسبة سابقًا تبقى مجانية مهما قرّرت. ويفتح Premium الإعدادات "
-"المؤشَّر عليها أدناه."
-
-msgid "Unlocks the settings marked below. 18+ verification itself stays free."
-msgstr "يفتح الإعدادات المؤشَّر عليها أدناه. أما توثيق 18+ نفسه فيبقى مجانيًا."
 
 msgid ""
 "Couldn't load this server's roles and channels just now, so some settings"
@@ -1557,6 +1652,9 @@ msgstr ""
 
 msgid "Members use this message to begin verification."
 msgstr "يستخدم الأعضاء هذه الرسالة لبدء التوثيق."
+
+msgid "Setup"
+msgstr "الإعداد"
 
 #, python-format
 msgid "VRChat said: %(said)s"
@@ -1605,6 +1703,14 @@ msgstr "لمشتركي Premium فقط."
 
 msgid "Your saved value is kept, and comes back if the subscription is renewed."
 msgstr "تبقى قيمتك المحفوظة، وتعود إن جُدّد الاشتراك."
+
+# | msgid "Premium"
+msgid "Add Premium"
+msgstr "أضف Premium"
+
+# | msgid "Spanish"
+msgid "See plans"
+msgstr "اطّلع على الخطط"
 
 msgid ""
 "Saved, but not acted on without Premium. Anyone can set this; the bot "
@@ -1877,4 +1983,103 @@ msgstr ""
 
 #~ msgid "Overview, settings and activity"
 #~ msgstr "نظرة عامة وإعدادات ونشاط"
+
+#~ msgid "No verified role is set"
+#~ msgstr "لم تُحدَّد رتبة «موثَّق»"
+
+#~ msgid "The verified role needs attention"
+#~ msgstr "رتبة «موثَّق» تحتاج إلى انتباه"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "No instructions panel is posted"
+#~ msgstr "لم تُنشَر لوحة إرشادات"
+
+# | msgid "A branded instructions panel"
+# | msgid "Instructions panel"
+#~ msgid "The instructions panel needs attention"
+#~ msgstr "لوحة الإرشادات تحتاج إلى انتباه"
+
+#~ msgid ""
+#~ "What's configured here, and whether it's"
+#~ " actually working -- one list instead"
+#~ " of two, since \"switched on\" and"
+#~ " \"still works\" used to be answered"
+#~ " in different places on this page."
+#~ " Change any of it on <a "
+#~ "href=\"%(settings_url)s\">Settings</a>."
+#~ msgstr ""
+#~ "ما الذي أُعدّ هنا، وهل يعمل فعلًا"
+#~ " -- قائمة واحدة بدل اثنتين، إذ "
+#~ "كان «مفعَّل» و«ما زال يعمل» يُجابان "
+#~ "في موضعين مختلفين من هذه الصفحة. "
+#~ "ويمكنك تغيير أي منها من <a "
+#~ "href=\"%(settings_url)s\">الإعدادات</a>."
+
+#~ msgid "Setup complete — verification is fully working here."
+#~ msgstr "اكتمل الإعداد؛ التوثيق يعمل هنا بالكامل."
+
+#~ msgid "forever"
+#~ msgstr "إلى الأبد"
+
+#~ msgid "Everything you need to verify your members."
+#~ msgstr "كل ما تحتاجه لتوثيق أعضائك."
+
+#~ msgid "monthly, 6 or 12 months"
+#~ msgstr "شهريًا أو 6 أو 12 شهرًا"
+
+#~ msgid "The automation around verification, for servers that want it."
+#~ msgstr "الأتمتة المحيطة بالتوثيق، للخوادم التي تريدها."
+
+#~ msgid ""
+#~ "Premium is bought per server. You "
+#~ "can subscribe with a card in the"
+#~ " dashboard, or monthly through Discord."
+#~ msgstr ""
+#~ "يُشترى Premium لكل خادم على حدة. "
+#~ "يمكنك الاشتراك بالبطاقة من لوحة التحكّم،"
+#~ " أو شهريًا عبر Discord."
+
+#~ msgid "Ready to start?"
+#~ msgstr "جاهز للبدء؟"
+
+#~ msgid ""
+#~ "Add VRCVerify to your server and "
+#~ "verification works immediately, at no "
+#~ "cost. Premium is there when you "
+#~ "want it."
+#~ msgstr ""
+#~ "أضف VRCVerify إلى خادمك ليعمل التوثيق"
+#~ " فورًا وبلا تكلفة. وسيكون Premium في"
+#~ " انتظارك متى أردته."
+
+#~ msgid ""
+#~ "Your grandfathered extras stay free "
+#~ "whatever you decide. Premium unlocks the"
+#~ " settings marked below."
+#~ msgstr ""
+#~ "مزاياك المكتسبة سابقًا تبقى مجانية مهما"
+#~ " قرّرت. ويفتح Premium الإعدادات المؤشَّر"
+#~ " عليها أدناه."
+
+#~ msgid "Unlocks the settings marked below. 18+ verification itself stays free."
+#~ msgstr "يفتح الإعدادات المؤشَّر عليها أدناه. أما توثيق 18+ نفسه فيبقى مجانيًا."
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+#~ msgid ""
+#~ "Can't reach the bot right now, so"
+#~ " this page can't be shown. Nothing"
+#~ " has changed. Try again shortly."
+#~ msgstr ""
+#~ "تعذّر الوصول إلى البوت الآن، لذا "
+#~ "لا يمكن عرض هذه الصفحة. ولم يتغيّر"
+#~ " شيء. حاول مرة أخرى بعد قليل."
+
+#~ msgid "Sorry"
+#~ msgstr "عذرًا"
+
+#~ msgid "Most popular"
+#~ msgstr "الأكثر شيوعًا"
 

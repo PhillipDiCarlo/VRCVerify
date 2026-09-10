@@ -2941,6 +2941,157 @@ def entitlements_grant_premium(entitlements) -> bool:
     return False
 
 
+class EntitledGuildsCache:
+    """Every guild the app holds a live entitlement for, as ONE cached answer.
+
+    The per-guild `PremiumStatusCache` above is the right shape for the paths
+    that ask about one server: a verification, a command, a settings page. It
+    is the wrong shape for the picker, which asks about a whole list at once
+    and would otherwise make one REST call per card on a cold cache. That is
+    exactly the N problem `dashboard_guild_summaries` was built to avoid, and
+    its own docstring says so.
+
+    Two layers, for the same reason and with the same failure rule as the
+    per-guild cache: a TTL'd answer, and a last-known one that never expires
+    and exists only so a Discord outage does not change what anybody is told.
+
+    NOT A REPLACEMENT FOR THE GATE. Nothing here decides whether a feature
+    runs. `resolve_premium_flags` remains the only answer to that, per guild,
+    and it is deliberately left alone -- this feeds a tag on a card.
+    """
+
+    def __init__(self, ttl: int):
+        self.ttl = ttl
+        self._fresh: tuple[float, frozenset] | None = None
+        self._last_known: frozenset | None = None
+
+    def get_fresh(self) -> frozenset | None:
+        if self._fresh is None:
+            return None
+        expires_at, value = self._fresh
+        if expires_at <= time.monotonic():
+            self._fresh = None
+            return None
+        return value
+
+    def get_last_known(self) -> frozenset | None:
+        return self._last_known
+
+    def set(self, value: frozenset) -> None:
+        self._fresh = (time.monotonic() + self.ttl, value)
+        self._last_known = value
+
+    def clear(self) -> None:
+        self._fresh = None
+        self._last_known = None
+
+
+entitled_guilds_cache = EntitledGuildsCache(PREMIUM_STATUS_TTL)
+
+
+async def entitled_guild_ids() -> frozenset | None:
+    """Guild ids with a live entitlement for our SKU, or None if we cannot say.
+
+    ONE UNFILTERED LISTING, CONSUMED TO THE END. `bot.entitlements` with no
+    `guild=` yields the application's entitlements rather than one guild's, so
+    the whole batch costs one paginated call instead of one call per card.
+
+    CONSUMED TO THE END IS LOAD-BEARING. The answer this produces is used in
+    both directions -- a guild in the set is paid, a guild absent from it is
+    not -- so a listing that stops early does not merely miss a few, it
+    reports paying servers as free. There is no partial answer to return here,
+    which is why the failure path below returns None rather than what it had
+    collected so far.
+
+    None means "no claim", and it is returned in three cases that all want the
+    same thing from a caller: premium is not enforced at all, the listing
+    failed and nothing was ever cached, or the SKU is unset. A caller must not
+    turn None into "free".
+    """
+    if not PREMIUM_ENFORCED:
+        return None
+
+    cached = entitled_guilds_cache.get_fresh()
+    if cached is not None:
+        return cached
+
+    try:
+        found = set()
+        async for entitlement in bot.entitlements(
+            skus=[discord.Object(id=PREMIUM_SKU_ID)],
+            exclude_ended=True,
+            exclude_deleted=True,
+        ):
+            guild_id = getattr(entitlement, "guild_id", None)
+            if guild_id and entitlements_grant_premium([entitlement]):
+                found.add(str(guild_id))
+        value = frozenset(found)
+        entitled_guilds_cache.set(value)
+        return value
+    except Exception:
+        # Last-known, or no claim at all. Never an empty set built from a
+        # half-finished listing -- see above.
+        last_known = entitled_guilds_cache.get_last_known()
+        logger.warning(
+            "Could not list the application's entitlements; falling back to %s.",
+            "the last known set" if last_known is not None else "no claim",
+            exc_info=True,
+        )
+        return last_known
+
+
+def stripe_paid_guild_ids(session, keys) -> set:
+    """Which of `keys` hold a paid card subscription, in one query.
+
+    The batched twin of `stripe_active`, and it takes the session it is given
+    rather than opening one: the only caller already holds one for the rest of
+    the summary, and asking for a second connection while holding the first is
+    how a small pool starves itself.
+
+    Any paid row wins, matching `stripe_active` -- a guild can hold more than
+    one subscription, and being double-billed must not switch premium off.
+    """
+    if not STRIPE_ENABLED or not keys:
+        return set()
+    now = datetime.now(timezone.utc)
+    rows = (
+        session.query(
+            StripeSubscription.server_id,
+            StripeSubscription.status,
+            StripeSubscription.current_period_end,
+        )
+        .filter(StripeSubscription.server_id.in_(list(keys)))
+        .all()
+    )
+    return {
+        row.server_id
+        for row in rows
+        if _stripe_row_is_paid(row.status, row.current_period_end, now)
+    }
+
+
+def premium_from_batch(key, entitled, stripe_paid):
+    """One guild's premium answer from the two batched sources, or None.
+
+    THE OR IS THE GATE, and it is the same OR `resolve_premium_flags` applies:
+    premium is granted if either source says so, never "one overrides the
+    other". Stripe's answer is definite in both directions here, because it
+    came from a query over exactly these ids.
+
+    Discord's is not. `entitled` is None when the listing could not be made,
+    and the difference between "not in the set" and "we never got the set"
+    is the difference between telling somebody to upgrade and telling a
+    paying customer to upgrade. So a guild Stripe does not know about, while
+    the entitlement listing is unavailable, resolves to None -- no claim --
+    and the card says nothing rather than something wrong.
+    """
+    if key in stripe_paid:
+        return True
+    if entitled is None:
+        return None
+    return key in entitled
+
+
 def premium_from_interaction(interaction: discord.Interaction) -> bool:
     """Resolve premium straight off an interaction payload, seeding the cache.
 
@@ -9313,6 +9464,11 @@ async def dashboard_guild_summaries(user_id, guild_ids) -> Optional[dict]:
         # deployments and a missing one must not break the whole summary.
         has_auto_verify = server_has_column("auto_verify_new_members")
 
+        # The Discord half of the premium gate, for the whole batch, and before
+        # the session opens -- it is a REST call, and holding a connection
+        # across it would tie up the pool for a network round trip.
+        entitled = await entitled_guild_ids()
+
         with session_scope() as session:
             # `panel_view_key` ON THE WAY OUT OF THE QUERY, NOT ONLY ON THE
             # WAY IN. `servers.server_id` is bigint, so the driver hands back
@@ -9339,6 +9495,9 @@ async def dashboard_guild_summaries(user_id, guild_ids) -> Optional[dict]:
                     )
                 )
             )
+            # The card half, in one query rather than one per guild.
+            stripe_paid = stripe_paid_guild_ids(session, keys)
+
             summaries = {}
             for guild_id in allowed:
                 key = panel_view_key(guild_id)
@@ -9367,6 +9526,17 @@ async def dashboard_guild_summaries(user_id, guild_ids) -> Optional[dict]:
                         getattr(row, "instructions_locale", None),
                         guild,
                     ),
+                    # THREE VALUES, NOT TWO. True is paid, False is not, and
+                    # null is "we cannot say" -- either premium is not enforced
+                    # at all, or the entitlement listing failed and this guild
+                    # has no card subscription to settle it either way.
+                    #
+                    # The third exists because the two mistakes are not equal.
+                    # A free server shown no tag has lost a prompt; a paying
+                    # server shown "Upgrade" has been told the thing it already
+                    # bought is missing. The dashboard draws nothing on null,
+                    # which is why this must never collapse to False.
+                    "premium": premium_from_batch(key, entitled, stripe_paid),
                 }
             return summaries
     except Exception:

@@ -199,6 +199,44 @@ def test_the_wave_is_one_drawing_on_every_page_that_carries_it():
     )
 
 
+DASHBOARD_BASE = ROOT / "src" / "dashboard" / "templates" / "base.html"
+
+
+def test_the_wave_is_one_drawing_everywhere_it_appears():
+    """The same property as the test above, across the domain boundary (#286).
+
+    The dashboard's sign-in, pricing and error pages carry the apex hero wave
+    behind them. That is a SEPARATE DEPLOYMENT with no shared build step -- a
+    Flask app on a VPS and an assets-only Worker -- so the drawing is a third
+    copy of itself, kept in step by nothing but this.
+
+    Exactly the arrangement the design tokens are in, and it gets the same
+    guard for the same reason: the copies cannot be made to share a file
+    without coupling two failure domains that are deliberately independent.
+
+    WHITESPACE IS NORMALISED AND NOTHING ELSE IS. The dashboard's copy is
+    indented to sit inside <body>, which is a fact about where it was pasted
+    rather than about the drawing. Every path, gradient stop, opacity and
+    viewBox still has to match exactly, so "lower amplitude" on the dashboard
+    has to be spent in style.css -- a height and an opacity -- and can never
+    become a second set of hand-edited control points.
+    """
+    def drawing(text):
+        match = re.search(r'<svg class="hero-wave[^"]*"(.*?)</svg>', text, re.S)
+        return " ".join(match.group(1).split()) if match else None
+
+    apex = drawing(read(SITE / "index.html"))
+    assert apex, "the apex home page has lost its wave"
+    dashboard = drawing(DASHBOARD_BASE.read_text(encoding="utf-8"))
+    assert dashboard, (
+        "base.html no longer carries the wave. If the dashboard has stopped "
+        "using it, delete this test rather than leaving it passing vacuously."
+    )
+    assert apex == dashboard, (
+        "the wave has drifted between the apex site and the dashboard"
+    )
+
+
 def test_the_header_nav_is_identical_on_every_page():
     headers = {}
     for page in PAGES:
