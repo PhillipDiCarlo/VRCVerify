@@ -263,6 +263,20 @@
    * -- eyeballed dot colours are how one theme ends up with visible ruling and
    * the other with nothing at all. */
   --field-dot: #cbced4;
+
+  /* Text on a picker tile. NOT THEMED, and deliberately not: the tile under it
+   * is the same twelve hues in both themes, so the arithmetic that makes this
+   * legible does not change when the page around it does. 10.65:1 at worst
+   * across the twelve, under the tile's bottom scrim. */
+  --tile-ink: #ffffff;
+
+  /* Broken, and only broken. `todo` keeps --notice, which the setup list also
+   * uses, so the two states stop sharing one signal (#286). 5.18:1 on --bg and
+   * 6.54:1 on --panel, which is the weight --notice already carries there
+   * (5.01 and 6.33) -- the point is that neither shouts louder than the other,
+   * since a grid where red is the only thing visible is a grid where amber
+   * stops being read. */
+  --bad: #b3261e;
 }
 
 /* The dark values, named once and painted by nothing.
@@ -403,6 +417,9 @@
   /* 1.25:1 against --dark-bg, the same figure --field-dot has against the
    * light ground. See there for why that is the target and not a floor. */
   --dark-field-dot: #2e3035;
+
+  /* 6.81:1 on --dark-bg, 5.22:1 on --dark-panel. See --bad. */
+  --dark-bad: #ff8085;
 }
 
 /* Dark, chosen explicitly. Beats the light floor on specificity, and is
@@ -440,6 +457,7 @@
   --switch-knob: var(--dark-switch-knob);
   --control-line: var(--dark-control-line);
   --field-dot: var(--dark-field-dot);
+  --bad: var(--dark-bad);
 }
 
 /* Dark, because the OS asked and the reader has not said otherwise.
@@ -481,6 +499,7 @@
     --switch-knob: var(--dark-switch-knob);
     --control-line: var(--dark-control-line);
     --field-dot: var(--dark-field-dot);
+    --bad: var(--dark-bad);
   }
 }
 
@@ -1475,65 +1494,183 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 /* --- server picker ---
  *
- * A card grid, shaped after Sentry's project list: the card is the same in
- * every state and the CONTENTS of its slots change. A server that is set up
- * gets a name that opens it; one the bot is not in gets an "Add to server"
- * button in the slot where nothing else lives. The difference is a shape
- * rather than a shade, so it survives grayscale, color blindness, and being
- * glanced at rather than read.
+ * A tile grid, after Magnific's project list: a coloured tile carrying the
+ * name, and one line of fact beneath it. The card chrome that used to draw
+ * this -- a border, a panel fill, a centred column -- is gone, because the
+ * tile is now the object and a box around it was a second boundary saying the
+ * same thing.
  *
- * The grayscale on an absent icon stays, but it is now the second signal
- * rather than the only one. */
+ * WHAT MAKES ONE SERVER LOOK UNLIKE THE NEXT IS ITS COLOUR, AND THE COLOUR IS
+ * DERIVED. See picker_view.tile_class: hashed from the guild id, never stored,
+ * twelve of them. An iconless server used to get a grey capital letter, which
+ * made every iconless server look like every other one.
+ * --------------------------------------------------------------------- */
 .servers {
   list-style: none;
   margin: 1rem 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-  gap: var(--space-4);
+  /* Small tiles, many of them. At 13rem the grid gave three tiles of ~340px
+   * across a wide viewport, and a 4:3 tile that size is a poster rather than
+   * a list item -- three blocks of saturated colour filling the page. The
+   * job here is picking one server out of several, which wants more of them
+   * on screen and each of them quieter.
+   *
+   * 8.5rem RATHER THAN 9.5, AND THE PHONE IS WHY. A phone gives this grid about
+   * 295px of inner width, and two 9.5rem tracks plus their gap need 316 -- so it
+   * fell to a single column, where a 4:3 tile is 281px tall and four servers is
+   * a page and a half of scrolling. At 8.5rem two tracks fit with room to
+   * spare. The wide layout barely notices; the phone stops being a slideshow. */
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: var(--space-4) var(--space-3);
 }
 
 .server-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: var(--space-2);
-  padding: var(--space-5) var(--space-4) var(--space-4);
-  background: var(--inset);
-  /* --card-line, not --line: a `.ready` card is a whole-card click target and
-     this edge is the only thing bounding it. See the token. `.empty-state`
-     carries the same fill and keeps --line, because it is a message, not a
-     control, and nothing about it is pressable. */
-  border: 1px solid var(--card-line);
-  border-radius: var(--radius-card);
-  text-align: center;
+  min-width: 0;
 }
 
-/* Hover belongs to the whole card only where the whole card is clickable.
- * An absent card is inert except for its button, so lighting it up on hover
- * would promise a click that does nothing. */
-.server-card.ready:hover,
-.server-card.unknown:hover { border-color: var(--accent-text); }
+/* THE TWELVE, and they are the same twelve in both themes.
+ *
+ * Every other colour in this file is themed, so this looks like an oversight
+ * and is not: a tile is a saturated mid-tone that sits on its own, the marks
+ * drawn on it are measured against the tile rather than against the page, and
+ * nothing behind it shows through. Theming them would mean twenty-four hexes
+ * and two sets of measurements to keep in step, for a surface whose contrast
+ * arithmetic does not change when the page around it does.
+ *
+ * MUTED, AND THAT IS THE SECOND HALF OF KEEPING IDENTITY APART FROM STATUS.
+ * The first cut ran these at 62% saturation, and a server that happened to
+ * hash to the red hue sat directly above the words "Something isn't working"
+ * in red. Nothing was wrong with either colour; the page simply implied a
+ * correlation that does not exist. Identity is large, muted and everywhere;
+ * status is small, saturated and rare. Contrast improves as a side effect --
+ * white on a name went from 7.89:1 at worst to 10.65:1.
+ *
+ * ROTATED OFF THE ACCENT, WHICH IS WHY THE RING STARTS AT 22 AND NOT 0.
+ * --dark-accent is hue 187, and the epic's standing rule is that the accent
+ * means "the page you are on" or "the button that does the thing", never
+ * decoration. Twelve hues at 30 degrees can sit at best 15 degrees off it, and
+ * this ring is rotated to take exactly that -- 172 and 202 straddle the accent
+ * rather than one of them landing on it. Rotating this back to 0 would put a
+ * tile at hue 202... and one at 182, which is the accent wearing a tile. */
+.server-tile.g0  { --tile-a: #ae6d47; --tile-b: #794e34; }   /* hue 22 */
+.server-tile.g1  { --tile-a: #aea147; --tile-b: #797034; }   /* hue 52 */
+.server-tile.g2  { --tile-a: #88ae47; --tile-b: #607934; }   /* hue 82 */
+.server-tile.g3  { --tile-a: #54ae47; --tile-b: #3d7934; }   /* hue 112 */
+.server-tile.g4  { --tile-a: #47ae6d; --tile-b: #34794e; }   /* hue 142 */
+.server-tile.g5  { --tile-a: #47aea1; --tile-b: #347970; }   /* hue 172 */
+.server-tile.g6  { --tile-a: #4788ae; --tile-b: #346079; }   /* hue 202 */
+.server-tile.g7  { --tile-a: #4754ae; --tile-b: #343d79; }   /* hue 232 */
+.server-tile.g8  { --tile-a: #6d47ae; --tile-b: #4e3479; }   /* hue 262 */
+.server-tile.g9  { --tile-a: #a147ae; --tile-b: #703479; }   /* hue 292 */
+.server-tile.g10  { --tile-a: #ae4788; --tile-b: #793460; }   /* hue 322 */
+.server-tile.g11  { --tile-a: #ae4754; --tile-b: #79343d; }   /* hue 352 */
+
+.server-tile {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  aspect-ratio: 4 / 3;
+  padding: var(--space-3);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  /* THE BOUNDARY, AND IT IS NOT DECORATION. The tile is a whole-card click
+   * target, so its edge is the bounds of a UI component and SC 1.4.11 asks
+   * for 3:1 against what is outside it. The hue cannot supply that on its own:
+   * the darkest of the twelve, under the scrim, is 1.01:1 against --dark-panel
+   * -- a deep blue tile on the dark theme is a control with no perceivable
+   * boundary at all, which is the exact finding of #163 arriving again by a
+   * different route. --card-line is 3.37:1 light and 3.16:1 dark on --panel,
+   * which is the surface these sit on. */
+  border: 1px solid var(--card-line);
+  /* THREE LAYERS, TOP TO BOTTOM: the corner scrims, then the hue.
+   *
+   * BOTH ENDS ARE SCRIMMED, not just the bottom, and the top one is what makes
+   * the star and the overflow legible in 3b. Without it a white glyph in the
+   * corner of the lightest tile is 1.98:1; with it the worst of the twelve is
+   * 7.00:1. Measured across all twenty-four stops, not sampled.
+   *
+   * The name sits on the bottom scrim, where white is 10.65:1 at worst. */
+  background:
+    linear-gradient(to top, rgb(0 0 0 / 0.45) 0%, rgb(0 0 0 / 0) 42%),
+    linear-gradient(to bottom, rgb(0 0 0 / 0.45) 0%, rgb(0 0 0 / 0) 34%),
+    linear-gradient(145deg, var(--tile-a), var(--tile-b));
+}
+
+/* The icon still wins where there is one. It sits ON the hue rather than
+ * replacing it, so a server whose icon fails to load falls back to its own
+ * colour rather than to a grey hole -- and so the two kinds of card are the
+ * same shape as each other. */
+.server-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%);
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  display: block;
+}
 
 .server-name {
+  position: relative;
   margin: 0;
   font-size: var(--text-body);
   font-weight: 600;
+  line-height: var(--leading-tight);
   overflow-wrap: anywhere;
+  /* Theme-independent, because the surface under it is. 10.65:1 at worst
+   * across the twelve, under the bottom scrim above. */
+  color: var(--tile-ink);
 }
-.server-name a { color: var(--ink-strong); text-decoration: none; }
+.server-name a { color: inherit; text-decoration: none; }
 
-/* The whole card becomes the target while the markup stays one link around
- * the name. Only ever applied to the states with no button on the card --
- * a stretched link over a button swallows the button. */
-.server-card.ready .server-name a::after,
-.server-card.unknown .server-name a::after {
+/* THE WHOLE TILE IS THE TARGET, and the markup stays one honest link around
+ * the name (#276).
+ *
+ * `:not(.absent)` RATHER THAN A LIST OF STATES, and that is the bug fix. This
+ * named `.ready`, which #164 replaced with done/todo/broken -- so from that
+ * commit until this one the rule matched nothing and every working server had
+ * lost its whole-card target and its hover, silently, while `unknown` kept
+ * both. picker.html promises that adding a sixth state is a change in one
+ * Python module; naming states here is what broke that promise, so this names
+ * the one state that must be excluded instead.
+ *
+ * `absent` is excluded because it carries the "Add to server" button, and a
+ * stretched link over a button swallows the button. */
+.server-card:not(.absent) .server-name a::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: var(--radius-card);
 }
+
+.server-card:not(.absent):hover .server-tile {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+/* The ring belongs on the STRETCHED BOX, not on the link.
+ *
+ * The link's own box is the few words of the name; the thing a reader is
+ * actually selecting is the whole tile. Left to the global :focus-visible rule
+ * the ring would draw a tight rectangle around the text and leave the target
+ * it represents unmarked. Same tokens as that rule, so there is one focus
+ * appearance in the app and this is only moving where it lands. */
+.server-card:not(.absent) .server-name a:focus-visible { outline: none; }
+.server-card:not(.absent) .server-name a:focus-visible::after {
+  outline: var(--focus-width) solid var(--accent-text);
+  outline-offset: var(--focus-offset);
+}
+
+/* Servers the bot is not in, and servers we could not ask about. The hue is
+ * held back rather than removed: still that server's colour, just not
+ * claiming to be a place you can go. */
+.server-card.absent .server-tile,
+.server-card.unknown .server-tile { filter: saturate(0.35); opacity: 0.7; }
 
 .server-state {
   margin: 0;
@@ -1542,60 +1679,30 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   line-height: var(--leading-tight);
 }
 
-/* Above the stretched link so it stays clickable in its own right. There is
- * no stretched link on an absent card, so this is belt and braces -- kept
- * because the day someone adds one is the day this button stops working, and
- * nothing would say so. */
-.server-action { position: relative; margin: var(--space-2) 0 0; }
-.server-action .button { text-decoration: none; }
-
-.icon {
-  display: block;
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 0.5rem;
-  border-radius: 50%;
-  overflow: hidden;
-  background: var(--inset);
-}
-
-.icon img { display: block; width: 64px; height: 64px; border-radius: 50%; }
-
-.initial {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--faint);
-}
-
-/* Servers the bot is not in, and servers we could not ask about. Grayscale
- * reads as "available but not set up" and is the SECOND cue in both cases --
- * the first is the button, or its absence. */
-.server-card.absent .icon img,
-.server-card.unknown .icon img { filter: grayscale(1); opacity: 0.55; }
-.server-card.absent .server-name { color: var(--muted); }
+/* THE STATE IS NOT ON THE TILE, and the issue asked for it there.
+ *
+ * It cannot go there. The tile's hue is identity and the ring spans all twelve
+ * including a red at 352 and an amber at 52, so a red status dot lands on a red
+ * tile: measured at 1.59:1 against its own scrimmed tile, and amber at 3.00:1.
+ * A status colour and an identity colour cannot share one surface.
+ *
+ * Below the tile the ground is --bg, which is themed and known, so both
+ * colours can be measured and both clear AA. The wording carries the meaning
+ * either way -- the colour only makes it findable in a grid, which is the same
+ * rule this slot has always been written to.
+ *
+ * `done` stays unstyled, and that is load-bearing rather than an omission.
+ * Colour every state and there is nothing for the eye to catch on: six green
+ * cards and one amber means the green is noise the amber has to compete with.
+ * A working server says so in the ordinary muted voice. */
+.server-state-todo { color: var(--notice); }
+.server-state-broken { color: var(--bad); }
 
 /* Unknown is not a diagnosis, so it is stated in the faintest voice on the
  * page. The banner above the grid is what explains it. */
 .server-card.unknown .server-state { color: var(--faint); font-style: italic; }
 
-/* The two states that want something doing (#164). Same `--notice` the setup
- * list uses for its todo and broken rows, so an admin who has seen one
- * recognizes the other -- and applied to the TEXT, which is the slot's whole
- * content, rather than to a dot or a border that would carry the meaning in
- * color alone. The wording says which state it is; the color only makes it
- * findable in a grid.
- *
- * `done` is deliberately unstyled. Styling every state leaves nothing for the
- * eye to catch on, which is the failure mode of a grid where six cards are
- * green and one is amber: the green is noise and the amber has to compete
- * with it. A working server says so in the ordinary muted voice. */
-.server-state-todo,
-.server-state-broken { color: var(--notice); }
+.server-action { margin: var(--space-1) 0 0; }
 
 /* --- the empty picker ---
  *

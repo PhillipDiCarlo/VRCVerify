@@ -5075,9 +5075,34 @@ class TestTheControls(object):
         Stated as a blanket rule because that is what makes it hold: any new
         `outline: none` reintroduces the same class of bug, whatever control it
         is attached to.
+
+        ONE EXCEPTION, AND IT IS CHECKED RATHER THAN TRUSTED (#286). The
+        picker's tile is a whole-card click target whose link wraps only the
+        name, so the global ring would draw a tight box around three words at
+        the bottom-left and leave the thing being selected unmarked. That rule
+        takes the outline off the link and puts the identical one on the link's
+        own stretched pseudo-element -- the control does not lose its
+        indicator, the indicator moves onto the box it represents.
+
+        So the rule is no longer "the string never appears". It is: every
+        selector that clears its outline must ALSO draw one on its own
+        `::after`, using the same two tokens the global rule uses. A bare
+        `outline: none` still fails, which is the bug this was written for.
         """
-        assert "outline: none" not in self._css()
-        assert "outline:none" not in self._css()
+        css = re.sub(r"/\*.*?\*/", "", self._css(), flags=re.S)
+        assert "outline:none" not in css, "unspaced form, normalise it first"
+
+        rules = dict(re.findall(r"([^{}]+)\{([^{}]*)\}", css))
+        rules = {selector.strip(): body for selector, body in rules.items()}
+
+        cleared = [s_ for s_, body in rules.items() if "outline: none" in body]
+        for selector in cleared:
+            paired = rules.get(f"{selector}::after", "")
+            assert "outline: var(--focus-width)" in paired, (
+                f"`{selector}` clears its focus outline and nothing draws one "
+                f"back on `{selector}::after`. A control with no focus "
+                f"indicator is the bug this test exists for."
+            )
 
     def test_the_focus_ring_is_defined_once(self):
         """From the tokens #123 added, so it cannot drift per control."""
@@ -9779,15 +9804,24 @@ class TestTheSmallDefectsFoundAlongsideTheThemingWork(object):
         )
 
     def test_the_clickable_server_card_has_a_boundary(self):
-        """`.server-card.ready` is a whole-card target via the stretched link,
-        so its edge is the bounds of a UI component: SC 1.4.11, 3:1. It was
-        1.32:1 light and 1.24:1 dark, with a 1.17:1 fill behind it."""
+        """The tile is a whole-card target via the stretched link, so its edge
+        is the bounds of a UI component: SC 1.4.11, 3:1. It was 1.32:1 light
+        and 1.24:1 dark, with a 1.17:1 fill behind it (#163).
+
+        THE EDGE MOVED FROM THE CARD TO THE TILE IN #286, and the requirement
+        followed it rather than being dropped. The obvious reading of that
+        redesign is that a filled gradient needs no hairline -- it is a large
+        shape, visibly there. That is true in the light theme, where the worst
+        of the twelve is 7.00:1 against --panel, and false in the dark one,
+        where the scrimmed corner of the darkest hue is 1.01:1.
+        A deep blue tile on a dark page is #163 all over again.
+        """
         import sys
 
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         from test_contrast import _palettes, contrast
 
-        assert "var(--card-line)" in self._rule(self._css(), ".server-card")
+        assert "var(--card-line)" in self._rule(self._css(), ".server-tile")
         for theme, palette in _palettes().items():
             ratio = contrast(palette["card-line"], palette["panel"])
             assert ratio >= 3.0, f"{theme}: the card's edge is {ratio:.2f}:1"

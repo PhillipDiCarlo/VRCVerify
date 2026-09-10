@@ -66,6 +66,13 @@ PAIRS = [
     # rows (#135 phase 3). Used since #123's setup checklist for a missing
     # required field, but never actually pinned until now.
     ("notice", "panel", "an unfinished or broken row in the setup list"),
+    # The picker's two card states, which #286 stopped sharing one signal.
+    # `todo` keeps --notice above; `broken` gets --bad, and it is pinned here
+    # rather than only measured in a comment because the whole point of
+    # splitting them was that each stays readable on its own. Both sit
+    # unboxed on the card, which is why `panel` is the ground.
+    ("bad", "panel", '"Something isn\'t working" under a picker tile'),
+    ("bad", "bg", "the same words where a card is drawn on the ground"),
     # The success notice has no fill of its own and sits on the card. Filling
     # it to match the warning was tried and is 4.14:1 in light -- see the
     # comment on .notice.ok.

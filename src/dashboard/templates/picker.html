@@ -56,64 +56,60 @@
 
            The state and its wording both arrive on the card. This template
            picks neither, so adding a sixth is a change in one Python module
-           rather than a new branch scattered through the HTML. #}
+           rather than a new branch scattered through the HTML.
+
+           AND THE STYLESHEET NOW KEEPS THAT PROMISE TOO. It named `.ready`
+           until #286, so from #164's rename until then every working card had
+           quietly lost its whole-card click target while `unknown` kept one.
+           It names `:not(.absent)` now -- the single state that must be
+           excluded, because it is the only one carrying a button. #}
         {% set state = server.state %}
         <li class="server-card {{ state }}">
-          {# The shape follows Sentry's project grid: the card does not change,
-             the contents of its slots do. A configured project's card carries
-             data; an unconfigured one carries "No activity yet" and a Start
-             Setup button in the same place. That is what makes the two
-             distinguishable before you read either of them, and why the
-             distinction survives being color-blind or seeing the page in
-             grayscale -- a button is a shape, not a hue. #}
-          <span class="icon" aria-hidden="true">
+          {# THE TILE IS THE CARD. The colour is hashed from the guild id in
+             `picker_view.tile_class` and is never stored: twelve hues, and an
+             iconless server gets one instead of the grey capital letter that
+             made every iconless server look like every other one.
+
+             An icon still wins where there is one, and sits ON the hue rather
+             than replacing it -- so an icon that fails to load falls back to
+             that server's own colour rather than to a grey hole. #}
+          <span class="server-tile {{ server.tile }}">
             {% if server.icon_url %}
-              <img src="{{ server.icon_url }}" alt="" width="64" height="64"
-                   loading="lazy">
-            {% else %}
-              <span class="initial">{{ server.name[:1] | upper }}</span>
+              <img class="server-icon" src="{{ server.icon_url }}" alt=""
+                   width="64" height="64" loading="lazy">
             {% endif %}
+
+            <p class="server-name">
+              {% if state == 'absent' %}
+                {# Nowhere to go: the bot is not in it, so its pages would
+                   refuse. The name is text, and the button below is the only
+                   action. #}
+                {{ server.name }}
+              {% else %}
+                {# Stretched by the stylesheet to cover the whole tile, so the
+                   target is the tile and the markup is still one honest link.
+                   Safe precisely because these states have no button on the
+                   card to be swallowed by it. #}
+                <a href="{{ url_for('guild_overview', guild_id=server.id) }}"
+                   >{{ server.name }}</a>
+              {% endif %}
+            </p>
           </span>
 
-          <p class="server-name">
-            {% if state == 'absent' %}
-              {# Nowhere to go: the bot is not in it, so its pages would refuse.
-                 The name is text, and the button below is the only action. #}
-              {{ server.name }}
-            {% else %}
-              {# Stretched by the stylesheet to cover the whole card, so the
-                 target is the card and the markup is still one honest link.
-                 Safe here precisely because these two states have no button
-                 to be swallowed by it. #}
-              <a href="{{ url_for('guild_overview', guild_id=server.id) }}"
-                 >{{ server.name }}</a>
-            {% endif %}
-          </p>
+          {# THE ONE FACT, and it is below the tile rather than on it.
 
-          {# The slot Sentry fills with a sparkline, and it now carries
-             something (#164 phase 3). The old note here said there was nothing
-             truthful to put in it, because this page asked the bot one
-             question -- which of these am I in -- and per-server facts would
-             have meant one call each. The batch summary endpoint answers both
-             in one request, so the card can say whether the server is working
-             without the page costing any more than it did.
+             #286 asked for a state badge in the tile's top-left corner. It
+             cannot go there: the tile's hue is identity and spans all twelve
+             including a red and an amber, so a red status dot lands on a red
+             tile at 1.59:1 against its own background. Below the tile the
+             ground is --bg, which is themed and known, and both colours clear
+             AA there. style.css carries the measurements.
 
              "absent" IS STILL TWO ANSWERS WEARING ONE NAME, and its wording
              must not pick one of them. A guild missing from the summaries
              means either "bot not there" or "not yours", indistinguishable on
              purpose, because telling them apart would let a signed-in user map
-             which communities run 18+ gating.
-
-             So the card cannot say "VRCVerify isn't in this server yet", which
-             is what it said before: a definite claim about the bot's presence,
-             built on a signal that deliberately carries no such fact. An admin
-             demoted since their last sign-in would be told their working bot
-             was not installed, and offered a link to install it again.
-
-             `_guild_page_unavailable` -- one click away, same signal -- has
-             always got this right: "Either VRCVerify isn't in it, or you don't
-             have the Administrator permission there." The absent wording is
-             that sentence, at the width of a card. #}
+             which communities run 18+ gating. #}
           <p class="server-state server-state-{{ state }}">{{ server.note }}</p>
 
           {% if state == 'absent' %}

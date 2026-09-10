@@ -47,6 +47,7 @@ what the cards say without anybody remembering this file exists.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Callable, Optional
 
 from dashboard.i18n import N_
@@ -55,6 +56,45 @@ from dashboard.overview_view import build_setup
 
 def _untranslated(text: str) -> str:
     return text
+
+
+# How many gradients a server can be drawn in. Twelve, and the number is a
+# judgement rather than a constraint: with a handful of servers on screen a
+# repeat is going to happen, and the question is only whether it reads as two
+# servers sharing a look or as the page failing to tell them apart. Twelve
+# well-separated hues collide often enough to be obviously a palette.
+TILE_COUNT = 12
+
+
+def tile_class(guild_id) -> str:
+    """Which of the twelve gradients this server is drawn in.
+
+    DERIVED, NEVER STORED. A column would have to be written at join time,
+    backfilled for every existing guild, and kept in step with a palette that
+    is a design decision -- for something whose only job is to make one square
+    look unlike the square beside it.
+
+    HASHED RATHER THAN `id % 12`, AND THE DIFFERENCE IS NOT SUBTLE. A Discord
+    snowflake is `(ms << 22) | (worker << 17) | (process << 12) | increment`,
+    where the increment counts events within one process-millisecond -- so for
+    something as rare as creating a guild it is almost always 0. That makes the
+    whole id a multiple of 4096, and 4096 is congruent to 4 modulo 12, so
+    `id % 12` can only ever return 0, 4 or 8.
+
+    A twelve-colour palette would have rendered in three colours. Measured, not
+    reasoned about: 500 realistic snowflakes with increment 0 yield exactly
+    {0, 4, 8}, and the same 500 through sha256 use all twelve. There is a test.
+
+    The bug this avoids is the quiet kind -- nothing errors, the tiles are
+    simply far more alike than the palette says they should be, and it reads as
+    the page failing to tell servers apart rather than as an arithmetic fault.
+
+    THE PALETTE IS ROTATED OFF THE ACCENT ON PURPOSE -- see style.css. Nothing
+    here needs to know that; this returns a name, and the stylesheet owns what
+    the name looks like.
+    """
+    digest = hashlib.sha256(str(guild_id).encode("utf-8")).digest()
+    return f"g{digest[0] % TILE_COUNT}"
 
 
 # What the slot says, per state. A card carries exactly one of these, and the
@@ -134,6 +174,11 @@ def build_cards(
             # and the template must not be able to read one out of it.
             "installed": state not in {"absent", "unknown"},
             "note": t(_NOTES[state]),
+            # Drawn on every card, including the ones carrying a Discord icon.
+            # The icon covers the gradient rather than replacing it, so a
+            # server whose icon fails to load falls back to its own colour
+            # instead of to a grey hole.
+            "tile": tile_class(server["id"]),
         })
 
     cards.sort(key=lambda card: (not card["installed"], card["name"].lower()))
