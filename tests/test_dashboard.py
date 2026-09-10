@@ -4434,11 +4434,35 @@ class TestTheChartOnThePage(object):
     numbers without a request at all.
     """
 
+    # A month with shape, which is what earns the full-width panel. The default
+    # fixture is twenty-nine zeroes and one spike, and #286 draws that inside
+    # the "Last 30 days" tile instead -- a chart of one bar is a single number
+    # rendered as a picture.
+    BUSY = [{"day": f"2026-07-{day:02d}", "count": day % 4} for day in range(1, 31)]
+
     def _page(self, config, store, **overview_kwargs):
         test_client, _api = settings_client(
             config, store, overview=make_overview(**overview_kwargs)
         )
         return test_client.get(f"/guild/{GUILD_IN}").data.decode()
+
+    @staticmethod
+    def _drawing(page):
+        """The bars, from whichever of the two renderings the page chose.
+
+        The properties below -- no inline style, no script, presentation
+        attributes rather than hex, an honest gap for an unmeasured day -- are
+        properties of the DRAWING, not of the panel that used to be its only
+        home. Asserting them against `div.chart` alone would have quietly
+        stopped checking anything at all for a quiet server, which is most of
+        them.
+        """
+        for pattern in (r'<div class="chart".*?</div>',
+                        r'<span class="tile-spark">.*?</span>'):
+            found = re.search(pattern, page, re.S)
+            if found:
+                return found.group(0)
+        return None
 
     def test_the_chart_renders_as_inline_svg(self, config, store):
         """No CDN, no <script>, no library -- CSP forbids both."""
@@ -4446,23 +4470,47 @@ class TestTheChartOnThePage(object):
         assert "<svg" in page
         assert re.search(r'<rect class="chart-bar[^"]*"', page)
 
+    def test_a_quiet_month_draws_in_the_tile_and_a_busy_one_in_a_panel(
+        self, config, store
+    ):
+        """#286. The switch is `CHART_MIN_ACTIVE_DAYS` days that carried an
+        actual verification -- shape, not volume. Below it the same bars are
+        drawn small inside the tile they describe; a panel there would spend a
+        whole section saying what one figure already says."""
+        quiet = self._page(config, store)
+        assert '<span class="tile-spark">' in quiet
+        assert '<div class="chart"' not in quiet
+
+        busy = self._page(config, store, daily=self.BUSY)
+        assert '<div class="chart"' in busy
+        assert '<span class="tile-spark">' not in busy
+
+    def test_the_small_drawing_still_has_its_text_alternative(self, config, store):
+        """THE FAILURE THIS WOULD HAVE BEEN. The offscreen table sat inside the
+        panel's branch, and both drawings are `aria-hidden`. Left there, a
+        quiet server's chart would have had no text alternative at all -- and
+        the failure is invisible to everybody who can see the bars."""
+        page = self._page(config, store)
+        assert '<span class="tile-spark">' in page
+        assert '<table class="offscreen">' in page
+        assert "Not measured" in page or "Verifications per day" in page
+
     def test_no_style_attribute_appears_anywhere_in_it(self, config, store):
         """`style-src 'self'` drops an inline style="" SILENTLY -- no error,
         no console warning, the rule simply never applies. The chart is drawn
         entirely in x/y/width/height/fill attributes for exactly that reason."""
-        page = self._page(config, store)
-        chart = re.search(r'<div class="chart".*?</div>', page, re.S)
-        assert chart
-        assert 'style="' not in chart.group(0)
+        for kwargs in ({}, {"daily": self.BUSY}):
+            drawing = self._drawing(self._page(config, store, **kwargs))
+            assert drawing
+            assert 'style="' not in drawing
 
     def test_no_script_tag_or_handler_is_needed_to_draw_it(self, config, store):
         """It needs no JavaScript at all -- the numbers arrive already
         rendered, unlike the theme picker or the unsaved-changes indicator,
         which are enhancements on top of working markup."""
-        page = self._page(config, store)
-        chart = re.search(r'<div class="chart".*?</div>', page, re.S)
-        assert chart
-        assert "onclick" not in chart.group(0) and "<script" not in chart.group(0)
+        drawing = self._drawing(self._page(config, store))
+        assert drawing
+        assert "onclick" not in drawing and "<script" not in drawing
 
     def test_the_bars_use_presentation_attributes_not_hardcoded_color(
         self, config, store
@@ -4470,11 +4518,10 @@ class TestTheChartOnThePage(object):
         """No hex value anywhere in the markup -- the whole point of
         `fill="currentColor"` plus a CSS class is that the chart is wrong in
         exactly one theme the moment somebody hardcodes a color here."""
-        page = self._page(config, store)
-        chart = re.search(r'<div class="chart".*?</div>', page, re.S)
-        assert chart
-        assert not re.search(r"#[0-9a-fA-F]{3,8}", chart.group(0))
-        assert 'fill="currentColor"' in chart.group(0)
+        drawing = self._drawing(self._page(config, store))
+        assert drawing
+        assert not re.search(r"#[0-9a-fA-F]{3,8}", drawing)
+        assert 'fill="currentColor"' in drawing
 
     def test_zero_and_no_data_are_different_numbers_of_bars(self, config, store):
         """The acceptance criterion. A quiet day draws a <rect>; an unmeasured
@@ -4486,9 +4533,9 @@ class TestTheChartOnThePage(object):
             + [{"day": f"2026-07-{d:02d}", "count": 3} for d in range(26, 31)]
         )
         page = self._page(config, store, daily=daily)
-        chart = re.search(r'<div class="chart".*?</div>', page, re.S)
-        assert chart, "no chart section rendered"
-        rects = re.findall(r"<rect\b[^>]*>", chart.group(0))
+        drawing = self._drawing(page)
+        assert drawing, "neither rendering appeared"
+        rects = re.findall(r"<rect\b[^>]*>", drawing)
         assert len(rects) == 20  # the 15 zero days + the 5 real days, not 30
 
     def test_the_offscreen_table_carries_every_day_including_gaps(
@@ -4550,10 +4597,16 @@ class TestTheChartOnThePage(object):
         """`role="img"` on the wrapper takes the SVG itself out of a screen
         reader's way; the aria-label and the offscreen table are what a
         non-sighted reader actually gets instead of a picture."""
-        page = self._page(config, store)
-        wrapper = re.search(r'<div class="chart" role="img"[^>]*>', page)
+        busy = self._page(config, store, daily=self.BUSY)
+        wrapper = re.search(r'<div class="chart" role="img"[^>]*>', busy)
         assert wrapper and "aria-label=" in wrapper.group(0)
-        assert '<svg viewBox="0 0 300 64" aria-hidden="true"' in page
+        assert '<svg viewBox="0 0 300 64" aria-hidden="true"' in busy
+        # And the small one, whose wrapper is a tile rather than a panel: its
+        # SVG is aria-hidden the same way, so the offscreen table is the whole
+        # of what a non-sighted reader gets.
+        quiet = self._page(config, store)
+        assert '<svg viewBox="0 0 300 64" aria-hidden="true"' in quiet
+        assert '<table class="offscreen">' in quiet
 
 
 class TestZeroAndBlankAreDifferentAnswers:

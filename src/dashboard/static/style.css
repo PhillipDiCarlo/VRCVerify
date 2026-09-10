@@ -2684,11 +2684,37 @@ footer p + p { margin-top: var(--space-2); }
   margin: 0.9rem 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  /* 6rem, NOT 9.5rem, AND THE ROW IS WHY (#286). There are five tiles now --
+   * the all-time total moved up beside the member count instead of orphaning
+   * onto a row of its own -- and at 9.5rem five tracks do not fit beside the
+   * sidebar, so auto-fit gave four and orphaned "Last 30 days" instead. The
+   * same complaint, one tile along.
+   *
+   * auto-fit collapses the empty tracks, so five items can never produce more
+   * than five columns however wide the page gets. A phone still falls to two,
+   * which is where the wrapping is wanted. */
+  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
   gap: var(--space-4);
 }
 
 .tile { padding: 0; }
+
+/* THE MONTH INSIDE ITS OWN TILE (#286), for a server whose series has no shape
+ * worth a panel. Same bars, same honest gaps, an eighth of the height.
+ *
+ * `margin-top: auto` and the flex column above it are what keep the bars
+ * pinned to the BOTTOM of the tile. Without them a wrapped label on the tile
+ * beside it makes this one taller, and the drawing floats in the middle of its
+ * own box while its neighbours' numbers sit on a shared line. */
+.tile { display: flex; flex-direction: column; }
+.tile-spark {
+  display: block;
+  margin-top: auto;
+  padding-top: var(--space-3);
+  width: 100%;
+  height: 2rem;
+}
+.tile-spark svg { display: block; width: 100%; height: 100%; }
 
 .tile-label {
   display: block;

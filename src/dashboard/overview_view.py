@@ -65,6 +65,7 @@ class Tile:
         label: str,
         value=None,
         *,
+        key: str = "",
         state: str = "value",
         note: Optional[str] = None,
         t: Callable[[str], str] = _untranslated,
@@ -75,6 +76,12 @@ class Tile:
         # here is something Jinja reads.
         self._t = t
         self._lang = lang
+        # A STABLE NAME, NEVER THE LABEL. `label` is translated, so
+        # `tile.label == "Last 30 days"` is False the moment somebody reads
+        # this page in German -- and the template has to find exactly one tile
+        # to draw the chart inside. Same reason the setup rows are looked up
+        # by `key` and not by label (#97).
+        self.key = key
         self.label = label
         # None unless `state` is "value". The template never formats this
         # itself, so a None can't reach the page as the word "None".
@@ -158,25 +165,32 @@ def build_tiles(
 
     members = overview.get("member_count")
     tiles.append(
-        Tile(t(N_("Members")), members, t=t, lang=lang)
+        Tile(t(N_("Members")), members, key="members", t=t, lang=lang)
         if isinstance(members, int)
-        else Tile(t(N_("Members")), state="unknown", t=t, lang=lang)
+        else Tile(t(N_("Members")), key="members", state="unknown", t=t, lang=lang)
     )
 
-    for key, label in WINDOWS:
-        tiles.append(_window_tile(label, counts.get(key), known, since, t, lang))
-
+    # ALL-TIME SECOND, BESIDE THE MEMBER COUNT (#286), rather than last with a
+    # caption on a row of its own. Both are cumulative facts about the server;
+    # the three below are windows onto it, and the old order put a lifetime
+    # total at the end of a sequence that reads as getting shorter.
     total = counts.get("total")
     if isinstance(total, int):
         tiles.append(
             Tile(
                 t(N_("Verified, all time")),
                 total,
+                key="total",
                 note=t(N_("Counted since this server's records began.")),
                 t=t,
                 lang=lang,
             )
         )
+
+    for key, label in WINDOWS:
+        tile = _window_tile(label, counts.get(key), known, since, t, lang)
+        tile.key = key
+        tiles.append(tile)
 
     return tiles
 
@@ -193,6 +207,20 @@ CHART_BAR_GAP = 1.0
 # it visible rather than collapsing to a 0px rect indistinguishable from the
 # blank space where an unmeasured day draws nothing at all.
 CHART_MIN_BAR_HEIGHT = 2.0
+
+# How many days have to carry an actual verification before the full-width
+# chart is worth drawing (#286).
+#
+# THIS IS ABOUT SHAPE, NOT VOLUME. A thirty-bar chart where twenty-nine days
+# are zero and one is a spike is not a trend anybody can read -- it is a single
+# number rendered as a drawing, and it takes a whole panel to say what the
+# "Last 30 days" tile says in one figure. Below this the same bars are drawn
+# small, inside that tile, where they cost nothing and still show the gaps.
+#
+# Ten of thirty is a third of the month. Lower and a server that verified
+# somebody on three separate days gets a panel; much higher and a genuinely
+# quiet-but-steady server never earns one.
+CHART_MIN_ACTIVE_DAYS = 10
 
 
 class ChartBar:
@@ -272,8 +300,14 @@ class Chart:
     """
 
     def __init__(self, bars=None, *, state: str = "value", note: Optional[str] = None,
-                 bar_width: float = 0.0, lang: str = DEFAULT_LANGUAGE):
+                 bar_width: float = 0.0, detailed: bool = False,
+                 lang: str = DEFAULT_LANGUAGE):
         self._lang = lang
+        # Whether this series has enough shape to earn the full-width drawing.
+        # Decided in `build_chart` rather than in the template, because "count
+        # the days that carry a verification" is arithmetic and overview.html
+        # does none -- the rule every other number on this page follows.
+        self.detailed = detailed
         self.bars = bars or []
         self.state = state
         self.note = note
@@ -393,7 +427,17 @@ def build_chart(
             height = CHART_MIN_BAR_HEIGHT
         bars.append(ChartBar(entry["day"], count, x, height, lang))
 
-    return Chart(bars, state="value", bar_width=bar_width, lang=lang)
+    # Days that actually carried a verification, not days that were measured.
+    # A measured zero is real data and gets a bar; it is not evidence that a
+    # trend exists to be read.
+    active = sum(1 for count in measured if count > 0)
+    return Chart(
+        bars,
+        state="value",
+        bar_width=bar_width,
+        detailed=active >= CHART_MIN_ACTIVE_DAYS,
+        lang=lang,
+    )
 
 
 # The optional toggles: on/off only, no health question behind either state.

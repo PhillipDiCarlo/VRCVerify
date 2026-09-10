@@ -1,6 +1,35 @@
 {% extends "base.html" %}
 {% block title %}{{ guild_name }} — VRCVerify{% endblock %}
 
+{# ONE DRAWING, TWO SIZES (#286). The bars are the same bars whether they are
+   sitting inside the "Last 30 days" tile or filling a panel of their own, so
+   this is a macro rather than two copies -- two copies of a drawing diverge
+   exactly as two copies of a nav do.
+
+   NOT A SPARKLINE, and that is deliberate. The obvious reading of the issue is
+   a continuous line, which would have to interpolate across days that were
+   never measured -- and this chart draws those as nothing at all while a real
+   zero gets a floor-height bar. `CHART_MIN_BAR_HEIGHT` exists for exactly that
+   distinction, and a line would erase it. #}
+{% macro day_bars(chart) %}
+  <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" aria-hidden="true"
+       preserveAspectRatio="none">
+    {% for bar in chart.bars %}
+      {# A day before the collection floor draws nothing here -- an honest gap,
+         not a bar interpolating across data that was never measured. A
+         measured day, even a quiet one, always gets a rect: that is what makes
+         zero and "no data" distinguishable at a glance rather than only in the
+         table below. #}
+      {% if bar.height is not none %}
+        <rect class="chart-bar{% if bar.count == 0 %} chart-bar-zero{% endif %}"
+              x="{{ bar.x }}" y="{{ bar.y }}"
+              width="{{ chart.bar_width }}" height="{{ bar.height }}"
+              fill="currentColor"></rect>
+      {% endif %}
+    {% endfor %}
+  </svg>
+{% endmacro %}
+
 {% block content %}
 {% include "_guild_head.html" %}
 
@@ -260,6 +289,14 @@
           {% if tile.note %}
             <span class="muted tile-note">{{ tile.note }}</span>
           {% endif %}
+          {# THE MONTH, INSIDE THE TILE THAT NAMES IT (#286), for a server
+             whose series has no shape worth a panel. `tile.key`, never the
+             label: the label is translated, and matching on it would put the
+             chart nowhere the moment somebody reads this page in German. #}
+          {% if tile.key == 'last_30_days' and chart.state == 'value'
+                and not chart.detailed %}
+            <span class="tile-spark">{{ day_bars(chart) }}</span>
+          {% endif %}
         </li>
       {% endfor %}
     </ul>
@@ -276,6 +313,11 @@
        file or that function -- the same discipline #123 put on every other
        icon here. #}
     {% if chart.state == 'value' %}
+    {# Deliberately at the same indent as the branch above: this is a guard on
+       the panel, not a nesting level worth reindenting forty lines for. The
+       text alternative below sits OUTSIDE it, and must, because the small
+       drawing in the tile is aria-hidden exactly like the big one. #}
+    {% if chart.detailed %}
       {# THE SCALE, NAMED (#195 phase 8).
          Bars are drawn against the busiest day, so without saying what that
          day was a reader has heights and no units -- and one tall bar beside a
@@ -292,29 +334,22 @@
       {% endif %}
       <div class="chart" role="img"
            aria-label="{% trans days=chart.bars|length %}Verifications per day, last {{ days }} days. The exact numbers follow this chart.{% endtrans %}">
-        <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" aria-hidden="true"
-             preserveAspectRatio="none">
-          {% for bar in chart.bars %}
-            {# A day before the collection floor draws nothing here -- an
-               honest gap, not a bar interpolating across data that was never
-               measured. A measured day, even a quiet one, always gets a rect:
-               that is what makes zero and "no data" distinguishable at a
-               glance rather than only in the table below. #}
-            {% if bar.height is not none %}
-              <rect class="chart-bar{% if bar.count == 0 %} chart-bar-zero{% endif %}"
-                    x="{{ bar.x }}" y="{{ bar.y }}"
-                    width="{{ chart.bar_width }}" height="{{ bar.height }}"
-                    fill="currentColor"></rect>
-            {% endif %}
-          {% endfor %}
-        </svg>
+        {{ day_bars(chart) }}
       </div>
+    {% endif %}
 
       {# The text alternative, not a caption beside a picture. `role="img"`
          above takes the SVG out of a screen reader's way entirely, so this
          table -- offscreen, like the setup rows' state announcements -- is
          where every reader who is not looking at pixels gets the real
-         numbers, in the same order the bars are drawn. #}
+         numbers, in the same order the bars are drawn.
+
+         OUTSIDE THE `detailed` BRANCH, one level down. It used to sit inside
+         the only rendering there was; now there are two, and the small one in
+         the tile is `aria-hidden` exactly like the big one. Leaving this in
+         the panel's branch would have left a quiet server's chart with no
+         text alternative at all -- the failure would have been silent, and
+         invisible to everybody who could see the bars. #}
       <table class="offscreen">
         <caption>{% trans days=chart.bars|length %}Verifications per day, last {{ days }} days{% endtrans %}</caption>
         <thead>
