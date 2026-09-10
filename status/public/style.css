@@ -676,7 +676,58 @@ a:focus-visible, .cta:focus-visible,
 .is-down { color: var(--down); }
 .is-unknown { color: var(--faint); }
 
-main.wrap { max-width: 48rem; }
+/* WIDER THAN A READING MEASURE, because this page stopped being one column.
+   48rem put 672px of empty ground either side of a 1440px window, and it is
+   also what made "incidents beside" impossible: splitting 768px in two leaves
+   the components around 490px, which takes each history bar from 6.7px to
+   4.4px and quietly undoes the other half of #287.
+
+   60rem and not a pixel more. `header.site .wrap` and `footer.site .wrap` are
+   pinned to 60rem a few hundred lines up, and a main column wider than the
+   chrome moves the brand away from the content it belongs to -- the exact
+   failure the comment on that rule was written about. */
+main.wrap { max-width: 60rem; }
+
+/* THE ADMIN PAGE DOES NOT GROW WITH THE PUBLIC ONE. It has no second column
+   and never will: it is three fields and a button, used one-handed on a phone
+   by somebody who has just been woken up. Left on 60rem it inherited a 1180px
+   textarea and a 1180px submit button, which is not a wide form, it is a form
+   nobody can aim at. This is the width it had before #287 widened the page. */
+main.wrap.admin-page { max-width: 48rem; }
+
+/* THE TWO COLUMNS. Components and dependencies on the left, the incident
+   history and the methodology note on the right.
+
+   The note is in the right column ON PURPOSE and is not filler: the column
+   empties out the moment a month goes quietly, and a page that is half blank
+   when everything is fine is a page that looks broken when it is working. The
+   note always has content, and it lands somewhere it is actually read instead
+   of being pushed off the bottom by four incident timelines.
+
+   Under 56rem it stacks to components, dependencies, incidents, note, which is
+   exactly the order the page already shipped in -- so the phone layout, which
+   is the one people load during an outage, is the layout that was already
+   there.
+
+   `align-items: start` because the two columns have nothing to do with each
+   other's height. Without it the shorter one stretches to the taller and its
+   last card grows a tail of dead space, which is #286's lesson and cost a
+   round of screenshots there. */
+.board { display: grid; gap: 1.5rem; }
+
+/* The card carries its own bottom margin everywhere else on this page, and
+   stacked that margin lands on top of the grid's gap: 3rem between the
+   components and the dependencies, 1.5rem everywhere else. The gap is the
+   spacing here. */
+.board-main > .card:last-child { margin-bottom: 0; }
+
+@media (min-width: 56rem) {
+  .board {
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    align-items: start;
+    gap: 2rem;
+  }
+}
 
 /* THE HERO, following the Better Stack and incident.io status pages: one
    glyph, one sentence, and when it was last checked. Nothing else competes
@@ -818,6 +869,7 @@ main.wrap { max-width: 48rem; }
 @media (max-width: 30rem) {
   .row { padding: 0.85rem 0.9rem; }
   .card-head { padding: 0.85rem 0.9rem; }
+  .bars-legend { padding: 0.6rem 0.9rem 0.9rem; }
 }
 
 /* The pill and, when a service is not up, how long it has been that way. Kept
@@ -843,9 +895,11 @@ main.wrap { max-width: 48rem; }
    -- and the strip carries aria-hidden, because ninety anonymous elements
    narrated one after another is not access, it is an obstacle.
 
-   Bars flex rather than being sized, so ninety of them fit whatever the
-   viewport is. At 320px they land near 2px wide, which is still a legible
-   texture, and the percentage beside them is where the number lives anyway. */
+   Bars flex rather than being sized, so they fit whatever the viewport is.
+   HOW MANY of them are drawn is a width question, and it was got wrong: at
+   320px ninety bars are 2px each, and a single amber day inside that is not a
+   texture, it is invisible. Fewer days are drawn where they would not fit --
+   see the nth-child rules below. */
 .bars {
   display: flex;
   gap: 1px;
@@ -857,9 +911,42 @@ main.wrap { max-width: 48rem; }
 .bar {
   flex: 1 1 0;
   min-width: 2px;
-  height: 1.6rem;
+  height: 2rem;
   border-radius: 1px;
   background: currentColor;
+}
+
+/* THE OLDEST BARS ARE NOT DRAWN, and these two numbers are the ones render.js
+   names as WIDE_DAYS and NARROW_DAYS. All ninety are in the markup; hiding
+   them here rather than sending fewer keeps one query, one document and no
+   layout shift, and means the strip can widen with the viewport instead of
+   being sized by the server for a screen it cannot see.
+
+   Sixty is what fits: at the 60rem cap the strip settles around 458px, so
+   sixty bars land at 6.7px, the width they had before the page grew a second
+   column. Ninety in the same space would be 5.1px.
+
+   KEEP THESE IN STEP WITH render.js. The label under the strip is built from
+   the constants there, so a change here alone puts "60 days ago" under thirty
+   bars. `historyWindowsAgree` in render.test.js reads both files and fails. */
+.bar:nth-child(-n + 30) { display: none; }
+
+/* Which number the legend shows, declared beside the rule it belongs to.
+
+   IT LIVED THIRTY LINES FURTHER DOWN and that was a bug, not untidiness: same
+   specificity as the media query below, later in the file, so it won at every
+   width and the phone legend read "days ago" with no number in front of it.
+   Only a screenshot at 390px showed it. */
+.at-narrow { display: none; }
+
+/* Thirty days below 480px, where sixty would be 4.2px a bar on a 390px phone.
+   Both rules only ever hide, so they compose rather than fight: under 30rem a
+   reader gets the union, which is the oldest sixty gone and the recent thirty
+   drawn. Anything added here that UNHIDES would depend on source order. */
+@media (max-width: 30rem) {
+  .bar:nth-child(-n + 60) { display: none; }
+  .at-wide { display: none; }
+  .at-narrow { display: inline; }
 }
 
 /* A day nobody observed is drawn in --control-line, which is this project's
@@ -877,14 +964,19 @@ main.wrap { max-width: 48rem; }
    read as gentler than amber at this size. */
 .bar.is-down { color: var(--down-fill); }
 
-.bars-scale {
+/* ONE AXIS, LABELLED ONCE. This used to sit inside every row, so five strips
+   of the same ninety days, flexed to the same width, carried five copies of
+   "90 days ago / Today". It reads as part of a row and it is not: it belongs
+   to the card, and it is now drawn once under the last of them. */
+.bars-legend {
   display: flex;
   justify-content: space-between;
-  flex: 1 1 100%;
-  order: 5;
+  padding: 0.6rem 1.15rem 0.9rem;
   color: var(--faint);
   font-size: var(--text-micro);
 }
+
+
 
 .row-uptime {
   color: var(--muted);
@@ -949,6 +1041,96 @@ main.wrap { max-width: 48rem; }
 }
 
 .update time { color: var(--faint); font-size: var(--text-micro); }
+
+/* THE TIMELINE, FOLDED. `<details>` and nothing else: no script, no route, no
+   fetch, so it opens with JavaScript off like everything else here.
+
+   An open incident shows its latest update and folds the rest, because the
+   current position is what somebody arriving mid-outage needs and the
+   archaeology is what was pushing the component rows 700px down the page. A
+   resolved one folds all of them: its summary line already says how long it
+   lasted, which is what a reader scanning the history is after. */
+.timeline { border-top: 1px solid var(--line-soft); }
+
+.timeline > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 1.15rem;
+  color: var(--accent-text);
+  font-size: var(--text-note);
+  cursor: pointer;
+  /* The default triangle goes from both engines and the caret below is the
+     marker, the same removal `.theme-button` makes a few hundred lines up. */
+  list-style: none;
+}
+
+.timeline > summary::-webkit-details-marker { display: none; }
+
+/* THE PROJECT'S RING, NOT THE BROWSER'S. The shared rule a few hundred lines
+   up names its controls one by one (`a`, `.cta`, `.theme-button`,
+   `.theme-item`) and a `<summary>` is none of them, so this one took
+   Chromium's default 1px auto outline instead: visible, but a different shape
+   and a different color from every other control on the page, and not a ring
+   whose contrast anybody here has measured.
+
+   Declared down here rather than added to that list because everything above
+   the "copied from site/style.css" boundary is exactly that, a copy, and the
+   apex site has no disclosure to give a ring to. Found by tabbing to it. */
+.timeline > summary:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+/* Drawn rather than lettered, for the reason the state glyphs are: a character
+   from the body font does not survive being set at this size. It rotates
+   instead of being swapped, so the closed and open states are the same shape
+   and the control does not appear to change identity when it is pressed. */
+.timeline > summary::before {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 120ms ease;
+}
+
+.timeline[open] > summary::before { transform: rotate(45deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline > summary::before { transition: none; }
+}
+
+.timeline .updates { border-top: 1px solid var(--line-soft); }
+
+/* THE INCIDENT HISTORY, in the right-hand column.
+
+   Drawn quieter than the cards on the left: these are things that are over,
+   set beside five rows saying what is true now, and a finished incident that
+   competes with a live state is the same mistake as painting it red. */
+.board-side .section-heading { margin: 0 0 0.75rem; }
+
+.board-side .card { margin-bottom: 1rem; }
+
+.board-side .card-head { padding: 0.8rem 0.95rem; }
+
+.board-side .incident-meta { padding: 0 0.95rem 0.8rem; }
+
+.board-side .timeline > summary { padding: 0.6rem 0.95rem; }
+
+.board-side .update { padding: 0.75rem 0.95rem; }
+
+/* What the column says when nothing has gone wrong, which is the state it is
+   in most of the time and the one worth reading well. Not an apology for an
+   empty box: an uneventful quarter is the best thing this page can report. */
+.board-empty {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: var(--text-note);
+}
+
+.board-side .caveat { margin-top: 1.5rem; }
 
 /* THE ADMIN FORM. Controls are deliberately large: this is used one-handed, on
    a phone, by somebody who has just been woken up. 44px is the smallest touch

@@ -9,9 +9,10 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
-import { renderPage, escapeHtml, utcStamp } from "../src/render.js";
-import { COMPONENTS, UPSTREAMS } from "../src/config.js";
+import { renderPage, escapeHtml, utcStamp, WIDE_DAYS, NARROW_DAYS } from "../src/render.js";
+import { COMPONENTS, HISTORY_DAYS, UPSTREAMS } from "../src/config.js";
 
 const NOW = Date.UTC(2026, 7, 31, 18, 22, 0) / 1000;
 
@@ -213,7 +214,33 @@ test("history draws one bar a day, and no-data days are their own state", () => 
   assert.ok(html.includes('class="bar is-degraded"'), "a short outage is not a whole red day");
   // 200 minutes is 86.11%, and still is one.
   assert.ok(html.includes('class="bar is-down"'));
-  assert.ok(html.includes("4 days ago"));
+  // The axis, once for the card rather than once per row, and clamped to what
+  // is actually drawn: four days of history may not be labelled "60 days ago".
+  assert.equal(html.match(/class="bars-legend"/g).length, 1, "one axis, labelled once");
+  assert.ok(html.includes('<span class="at-wide">4</span>'));
+  assert.ok(html.includes('<span class="at-narrow">4</span> days ago'));
+});
+
+/**
+ * THE DRIFT GUARD FOR THE ONE NUMBER THAT LIVES IN TWO FILES.
+ *
+ * render.js writes all ninety bars and names the window in the legend;
+ * style.css decides how many of them are actually drawn, with `nth-child`,
+ * because CSS cannot be handed a JavaScript constant. Change one and the page
+ * puts "60 days ago" under thirty bars, which is the page misreporting its own
+ * evidence -- the single thing a status page cannot do and recover from.
+ *
+ * Reading the stylesheet from a test is the same move `tests/test_status_page.py`
+ * already makes to keep the three token copies in step.
+ */
+test("the drawn history window agrees between render.js and the stylesheet", () => {
+  const css = readFileSync(new URL("../public/style.css", import.meta.url), "utf8");
+  const hidden = [...css.matchAll(/\.bar:nth-child\(-n \+ (\d+)\)/g)].map((m) => Number(m[1]));
+  assert.deepEqual(
+    hidden,
+    [HISTORY_DAYS - WIDE_DAYS, HISTORY_DAYS - NARROW_DAYS],
+    "the stylesheet hides exactly the days render.js says it does not draw",
+  );
 });
 
 test("a declared maintenance window is drawn and named, not silently dropped", () => {

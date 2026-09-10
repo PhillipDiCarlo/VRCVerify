@@ -11,7 +11,7 @@
  * script, and every word here is legible without it.
  */
 
-import { COMPONENTS, DAY_RED_BELOW_PERCENT, UPSTREAMS } from "./config.js";
+import { COMPONENTS, DAY_RED_BELOW_PERCENT, HISTORY_DAYS, UPSTREAMS } from "./config.js";
 import {
   UPDATE_STATUSES,
   dayUptime,
@@ -78,6 +78,28 @@ export function utcStamp(unixSeconds) {
 }
 
 /**
+ * HOW MANY DAYS THE STRIP DRAWS, which is not how many days the page keeps.
+ *
+ * `HISTORY_DAYS` is 90 and stays 90: it is what the uptime percentage averages
+ * over and what the nightly delete measures retention against, so lowering it
+ * would throw history away permanently to fix a drawing problem.
+ *
+ * What changes is how many of those days are drawn, because ninety bars in a
+ * 320px column are two pixels each and a bad day inside them is invisible --
+ * which is the width a status page is actually read at, during an outage, on a
+ * phone. The oldest bars are hidden in CSS, so the markup is the same at every
+ * width and there is no second query, no JavaScript and no layout shift.
+ *
+ * THESE TWO NUMBERS ARE DUPLICATED IN style.css as `nth-child` selectors and
+ * cannot be handed to it: CSS cannot read a JavaScript constant, and a strip
+ * that draws sixty days under a label reading "90 days ago" is a page lying
+ * about its own evidence. `historyWindowsAgree` in render.test.js reads both
+ * files and fails when they drift.
+ */
+export const WIDE_DAYS = 60;
+export const NARROW_DAYS = 30;
+
+/**
  * Ninety days, one bar each, oldest on the left.
  *
  * THE BARS ARE NOT THE ACCESSIBLE VERSION OF ANYTHING. They are a shape, and a
@@ -91,6 +113,9 @@ export function utcStamp(unixSeconds) {
  * green and red. It has to be: this page will have exactly that for its first
  * eighty-nine days, and drawing "we did not exist yet" as either health or
  * failure would be inventing history.
+ *
+ * Every one of the ninety is written out. CSS hides the oldest of them, and
+ * how many depends on the width -- see WIDE_DAYS above.
  */
 function historyStrip(days, rows) {
   const bars = days
@@ -135,6 +160,34 @@ function uptimeLine(days, rows) {
     `<span class="visually-hidden">${escapeHtml(summary)}</span>`;
 }
 
+/**
+ * The x-axis for the strips, drawn ONCE under the last row rather than under
+ * each of the five.
+ *
+ * All five strips are the same ninety days, flexed to the same width, in the
+ * same order, so five copies of "90 days ago / Today" label one axis five
+ * times. It read as part of each row and it is not: it belongs to the card.
+ *
+ * Only the number swaps between widths. Which of the two spans is shown is
+ * decided in CSS by the same media query that hides the bars, so the label can
+ * never name a range the strip is not drawing.
+ */
+function barsLegend(dayCount) {
+  // CLAMPED TO WHAT IS ACTUALLY THERE. `recentDays` always returns exactly
+  // HISTORY_DAYS in production, so the window is always the smaller number --
+  // but a strip holding four days under a label reading "60 days ago" would be
+  // the page overstating its own evidence, and that is the one thing the axis
+  // must never do. It costs a Math.min.
+  const wide = Math.min(WIDE_DAYS, dayCount);
+  const narrow = Math.min(NARROW_DAYS, dayCount);
+  return (
+    '<div class="bars-legend" aria-hidden="true"><span>' +
+    `<span class="at-wide">${wide}</span>` +
+    `<span class="at-narrow">${narrow}</span> days ago</span>` +
+    "<span>Today</span></div>"
+  );
+}
+
 function pill(state) {
   return `<span class="pill">${STATE_LABEL[state] ?? STATE_LABEL.unknown}</span>`;
 }
@@ -161,11 +214,7 @@ function componentRow(component, entry, now, history) {
     (history ? uptimeLine(history.days, history.byComponent[component.id]) : "") +
     `${pill(state)}</span>` +
     `<p class="row-desc">${escapeHtml(component.description)}</p>` +
-    (history
-      ? historyStrip(history.days, history.byComponent[component.id]) +
-        '<div class="bars-scale" aria-hidden="true">' +
-        `<span>${history.days.length} days ago</span><span>Today</span></div>`
-      : "") +
+    (history ? historyStrip(history.days, history.byComponent[component.id]) : "") +
     "</div>"
   );
 }
@@ -185,44 +234,95 @@ function upstreamRow(upstream, entry) {
 
 const IMPACT_STATE = { maintenance: "degraded", degraded: "degraded", down: "down" };
 
+function updateItem(update) {
+  return (
+    '<li class="update">' +
+    `<span class="update-status">${escapeHtml(update.status)}</span>` +
+    `<time datetime="${new Date(update.at * 1000).toISOString()}">${utcStamp(update.at)}</time>` +
+    `<p>${escapeHtml(update.body)}</p></li>`
+  );
+}
+
+function updateList(updates) {
+  return `<ol class="updates">${updates.map(updateItem).join("")}</ol>`;
+}
+
 /**
- * The banner, following the incident.io reference: what is wrong, how long it
- * has been wrong, and the latest thing anybody said about it.
+ * The updates that are not the current position, folded away.
  *
- * The updates read newest first. Somebody arriving mid-incident wants the
- * current position, not the archaeology, and a reverse-chronological list is
- * the only arrangement where the useful line is above the fold on a phone.
+ * `<details>` and nothing else: no JavaScript, no second route, no per-incident
+ * render function, and it works with scripting off, which is the discipline the
+ * rest of this page keeps. Closed by default, and the ONE thing that stays
+ * open is the latest update, because that is the current position and the
+ * archaeology is what the reader is being spared.
+ *
+ * TWO LISTS RATHER THAN ONE, deliberately. `<details>` is flow content and is
+ * not allowed as a child of `<ol>`, so a single list cannot have its tail
+ * folded. Both carry `.updates`, both read newest first, and neither is
+ * numbered, so nothing about the split is visible.
  */
-function incidentBanner(incident, now) {
-  // A FINISHED INCIDENT IS DRAWN NEUTRAL, not in the color of the trouble it
-  // used to be. The history section was shipping a red-bordered, red-tinted
-  // card for something that had been fixed hours earlier -- alarming at a
-  // glance, and wrong the moment anybody read the date. The state color is
-  // for things that are happening now; what a closed one needs to say is how
-  // long it lasted.
-  const done = Boolean(incident.resolved_at);
-  const state = done ? "resolved" : (IMPACT_STATE[incident.impact] ?? "degraded");
-  const running = done
-    ? `Resolved after ${escapeHtml(humanDuration(incident.resolved_at - incident.started_at))}`
-    : `Ongoing for ${escapeHtml(humanDuration(now - incident.started_at))}`;
-  const updates = incident.updates
-    .map(
-      (update) =>
-        '<li class="update">' +
-        `<span class="update-status">${escapeHtml(update.status)}</span>` +
-        `<time datetime="${new Date(update.at * 1000).toISOString()}">${utcStamp(update.at)}</time>` +
-        `<p>${escapeHtml(update.body)}</p></li>`,
-    )
-    .join("");
+function foldedUpdates(updates, label) {
+  if (!updates.length) return "";
+  const count = `${updates.length} ${label}${updates.length === 1 ? "" : "s"}`;
+  return `<details class="timeline"><summary>${count}</summary>${updateList(updates)}</details>`;
+}
+
+/**
+ * An incident that is happening now. Full width, above the two columns.
+ *
+ * IT DOES NOT GO IN THE SIDE COLUMN with the resolved ones, and the reason is
+ * the reader: somebody arriving mid-outage is here for this, and a live
+ * incident set in a 288px rail beside five green rows is a page burying its own
+ * lead. "Beside, not below" was decided about the HISTORY, which is what was
+ * pushing the methodology note off the bottom of the page.
+ *
+ * What it does lose is the archaeology. The banner used to print every update
+ * in full, so one incident with three of them filled the entire first screen
+ * and the five component states began around 700px down -- the reader had to
+ * scroll past the narrative to reach the facts. The latest update shows; the
+ * rest fold.
+ */
+function openIncident(incident, now) {
+  const state = IMPACT_STATE[incident.impact] ?? "degraded";
+  const [latest, ...earlier] = incident.updates;
   return (
     `<section class="card incident is-${state}">` +
     '<div class="card-head">' +
     `<h2>${escapeHtml(incident.title)}</h2>` +
-    `<span class="pill">${done ? "Resolved" : (STATE_LABEL[state] ?? "Degraded")}</span></div>` +
-    `<p class="incident-meta">${running}. Started ` +
+    `<span class="pill">${STATE_LABEL[state] ?? "Degraded"}</span></div>` +
+    `<p class="incident-meta">Ongoing for ${escapeHtml(humanDuration(now - incident.started_at))}. ` +
+    `Started <time datetime="${new Date(incident.started_at * 1000).toISOString()}">` +
+    `${utcStamp(incident.started_at)}</time>.</p>` +
+    (latest ? updateList([latest]) : "") +
+    foldedUpdates(earlier, "earlier update") +
+    "</section>"
+  );
+}
+
+/**
+ * An incident that is over, in the side column.
+ *
+ * A FINISHED INCIDENT IS DRAWN NEUTRAL, not in the color of the trouble it
+ * used to be. The history section was shipping a red-bordered, red-tinted card
+ * for something that had been fixed hours earlier -- alarming at a glance, and
+ * wrong the moment anybody read the date. The state color is for things that
+ * are happening now; what a closed one needs to say is how long it lasted.
+ *
+ * Every update folds, including the last. The summary line already says the
+ * outcome and the duration, which is what a reader scanning the history wants;
+ * the timeline is what they open when one of them turns out to matter.
+ */
+function pastIncident(incident) {
+  return (
+    '<section class="card incident is-resolved">' +
+    '<div class="card-head">' +
+    `<h2>${escapeHtml(incident.title)}</h2>` +
+    '<span class="pill">Resolved</span></div>' +
+    `<p class="incident-meta">Resolved after ` +
+    `${escapeHtml(humanDuration(incident.resolved_at - incident.started_at))}. Started ` +
     `<time datetime="${new Date(incident.started_at * 1000).toISOString()}">` +
     `${utcStamp(incident.started_at)}</time>.</p>` +
-    `<ol class="updates">${updates}</ol>` +
+    foldedUpdates(incident.updates, "update") +
     "</section>"
   );
 }
@@ -265,6 +365,10 @@ export function renderPage({
   }
 
   const open = (incidents ?? []).filter((incident) => !incident.resolved_at);
+  // The side column's contents. It is never the only thing in there: the
+  // methodology note follows, so a quiet month leaves a column with something
+  // in it rather than half a page of nothing.
+  const past = (incidents ?? []).filter((incident) => incident.resolved_at);
   // THE COLOR IS MEASURED, NEVER TYPED. An incident is a person's words, and
   // it must not move the hero's state or one pill in either direction: not
   // better than the rows say (that was always true) and not worse either -- an
@@ -347,42 +451,71 @@ export function renderPage({
     <p class="hero-checked">${checkedLine}</p>
   </div>
 
-  ${open.map((incident) => incidentBanner(incident, now)).join("\n  ")}
+  ${open.map((incident) => openIncident(incident, now)).join("\n  ")}
 
-  <section class="card">
-    <div class="card-head">
-      <h2>VRCVerify</h2>
-      <span class="is-${overall.level} pill">${STATE_LABEL[overall.level]}</span>
+  <div class="board">
+    <div class="board-main">
+
+      <section class="card">
+        <div class="card-head">
+          <h2>VRCVerify</h2>
+          <span class="is-${overall.level} pill">${STATE_LABEL[overall.level]}</span>
+        </div>
+        ${COMPONENTS.map((c) => componentRow(c, shown[c.id], now, history)).join("\n        ")}
+        ${history ? barsLegend(history.days.length) : ""}
+        ${staleWarning}
+      </section>
+
     </div>
-    ${COMPONENTS.map((c) => componentRow(c, shown[c.id], now, history)).join("\n    ")}
-    ${staleWarning}
-  </section>
 
-  <section class="card">
-    <div class="card-head">
-      <h2>Services we depend on</h2>
-    </div>
-    ${UPSTREAMS.map((u) => upstreamRow(u, shownUpstreams[u.id])).join("\n    ")}
-    <p class="card-note">Read from each company's own status feed. VRCVerify cannot
-    fix these, and when one of them is down the rows above will usually follow.</p>
-  </section>
+    <!-- WHAT IS IN THE SIDE COLUMN, AND WHY IT IS NOT WHAT #287 LISTED.
 
-  ${(incidents ?? []).some((incident) => incident.resolved_at)
-    ? '<h2 class="section-heading">Recent incidents</h2>' +
-      (incidents ?? [])
-        .filter((incident) => incident.resolved_at)
-        .map((incident) => incidentBanner(incident, now))
-        .join("")
-    : ""}
+         The issue put dependencies in the main column and only the incidents
+         beside. Built that way, the right column ran out about 900px above the
+         left and the page had a tall blank rail down one side, which is
+         problem 1 on that issue restated rather than solved: the methodology
+         note alone does not fill a column, it just stops it being empty.
 
-  <p class="caveat">Times are UTC. Everything is checked once a minute, and a
-  problem has to show up twice in a row before it is published here, so a fault
-  takes about two minutes to appear. Verification, the Discord bot and group
-  invites report in on their own schedule rather than being reached directly,
-  which can take about four. Recoveries are published as soon as they are seen.
-  This page runs on Cloudflare, separately from everything it reports on, so
-  that it stays up when they do not. Machine readable:
-  <a href="/api/status.json">/api/status.json</a>.</p>
+         Dependencies move across because they are the same KIND of thing as
+         the incident history and the note: context for the verdict on the
+         left, rather than part of it. That reads as "us" beside "everything
+         else you might want to know", and it balances the two columns.
+
+         It also promotes them. They used to sit about 1200px down the page,
+         which is a strange place to keep the answer to "is this Discord's
+         fault", the question every reader has about ninety seconds after the
+         headline.
+
+         The stacked order the issue asked for is unchanged, because this is
+         the first thing in the column: components, dependencies, incidents,
+         note. Exactly what shipped before. -->
+    <aside class="board-side">
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Services we depend on</h2>
+        </div>
+        ${UPSTREAMS.map((u) => upstreamRow(u, shownUpstreams[u.id])).join("\n        ")}
+        <p class="card-note">Read from each company's own status feed. VRCVerify cannot
+        fix these, and when one of them is down our rows will usually follow.</p>
+      </section>
+
+      <h2 class="section-heading">Recent incidents</h2>
+      ${past.length
+        ? past.map((incident) => pastIncident(incident)).join("\n      ")
+        : '<p class="board-empty">Nothing has gone wrong in the last ' +
+          `${HISTORY_DAYS} days. Anything that does is written up here, and stays.</p>`}
+
+      <p class="caveat">Times are UTC. Everything is checked once a minute, and a
+      problem has to show up twice in a row before it is published here, so a fault
+      takes about two minutes to appear. Verification, the Discord bot and group
+      invites report in on their own schedule rather than being reached directly,
+      which can take about four. Recoveries are published as soon as they are seen.
+      This page runs on Cloudflare, separately from everything it reports on, so
+      that it stays up when they do not. Machine readable:
+      <a href="/api/status.json">/api/status.json</a>.</p>
+    </aside>
+  </div>
 
 </main>
 
@@ -469,7 +602,7 @@ export function renderAdmin({ incidents, who, now }) {
   </div>
 </header>
 
-<main class="wrap">
+<main class="wrap admin-page">
   <h1>Post an incident</h1>
   <p class="lede">Signed in as ${escapeHtml(who)}. Anything posted here is public
   immediately, on the page anybody can read.</p>
