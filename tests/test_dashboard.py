@@ -8169,6 +8169,78 @@ class TestTheServerCardCarriesItsOwnInformation:
             )
 
 
+class TestTheWholeCardIsTheTarget:
+    """#276, and the bug I introduced twice while fixing it.
+
+    The card is one link, stretched over the whole panel by
+    `.server-name a::after { inset: 0 }`. `inset` resolves against the nearest
+    POSITIONED ancestor -- so any positioned element between that anchor and
+    `.server-card` silently shrinks the target to itself. It cost the footer
+    once (`.server-name` was `position: relative`) and the whole card a second
+    time (`.server-line` was, added minutes after the first fix).
+
+    Neither failure looks like anything. The card still renders, the link still
+    works where the text is, and the rule the eye checks -- `inset: 0` -- is
+    right on the page. So this walks the chain instead.
+    """
+
+    # `.server-card` down to the anchor, which is the only positioned element
+    # allowed in it.
+    CHAIN = ("server-tile", "server-line", "server-titles", "server-name")
+
+    @staticmethod
+    def _css():
+        import dashboard
+
+        path = os.path.join(
+            os.path.dirname(dashboard.__file__), "static", "style.css"
+        )
+        with open(path, encoding="utf-8") as handle:
+            return re.sub(r"/\*.*?\*/", "", handle.read(), flags=re.S)
+
+    def test_nothing_between_the_link_and_the_card_is_positioned(self):
+        css = self._css()
+        for name in self.CHAIN:
+            for match in re.finditer(
+                r"(?:^|\n)\s*\.%s\s*\{([^}]*)\}" % name, css
+            ):
+                body = match.group(1)
+                assert "position: relative" not in body, (
+                    f".{name} is positioned, so the stretched link stops there "
+                    f"and the rest of the card is dead"
+                )
+                assert "position: absolute" not in body, (
+                    f".{name} is positioned, so the stretched link stops there"
+                )
+
+    def test_the_card_itself_is_the_positioned_ancestor(self):
+        """The other half: something has to be, or `inset: 0` reaches the
+        viewport and the link covers the page."""
+        rule = re.search(r"(?:^|\n)\.server-card\s*\{([^}]*)\}", self._css())
+        assert rule and "position: relative" in rule.group(1)
+
+    def test_the_star_is_lifted_above_the_link(self):
+        """The one thing inside the card that must NOT go where the card goes.
+        Without a z-index the star is under the stretched link, and pressing it
+        opens the server instead of pinning it."""
+        rule = re.search(r"(?:^|\n)\.server-pin\s*\{([^}]*)\}", self._css())
+        assert rule and "z-index" in rule.group(1)
+
+    def test_the_absent_card_carries_no_second_target(self, config, store):
+        """It used to hold an install BUTTON, which is why the stretched link
+        excluded it -- a stretched link over a button swallows the button. The
+        card links to the invite itself now, so the cue below is text rather
+        than a second control competing with the card it sits in."""
+        test_client, _api = settings_client(config, store)
+        page = test_client.get("/").data.decode()
+        absent = re.search(r'<li class="server-card absent">.*?</li>', page, re.S)
+        assert absent, "no absent card in the preview fixture"
+        card = absent.group(0)
+        assert card.count("<a ") == 1, "the absent card has more than one link"
+        assert "server-add" in card
+        assert 'class="button' not in card
+
+
 class TestTheFavoriteRoute:
     """The route's three rules, which are the half a pure test cannot reach."""
 

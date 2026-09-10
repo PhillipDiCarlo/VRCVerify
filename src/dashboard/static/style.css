@@ -1542,6 +1542,14 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
    * now that there is something in each card to read. */
   grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
   gap: var(--space-4) var(--space-3);
+  /* EACH CARD ITS OWN HEIGHT, not the tallest one's.
+   *
+   * The default `stretch` pulled every card down to whichever had the longest
+   * footer -- and the tile is fixed by its aspect-ratio, so all of that extra
+   * height landed in the footer as blank space on cards that had nothing more
+   * to say. A row of cards whose bottoms do not line up is untidy; a row of
+   * cards with an inch of nothing under three of them is a bug. */
+  align-items: start;
 }
 
 /* THE CARD IS A CARD AGAIN (#286, after looking at it).
@@ -1604,7 +1612,6 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 .server-tile.g11  { --tile-a: #ae4754; --tile-b: #79343d; }   /* hue 352 */
 
 .server-tile {
-  position: relative;
   display: flex;
   /* A column ending at the bottom, so the name and the plan tag stack in the
    * corner rather than sitting side by side. */
@@ -1717,7 +1724,14 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 .chip-unknown .chip-dot { color: var(--dot-idle); }
 
 .server-name {
-  position: relative;
+  /* NOT `position: relative`, AND THAT WAS THE BUG. The stretched link below
+   * is `inset: 0` on `.server-name a::after`, which resolves against the
+   * nearest POSITIONED ancestor -- so a positioned `.server-name` made the
+   * link cover the name and nothing else. `.server-card` is the only
+   * positioned ancestor now, which is what makes the whole panel the target.
+   *
+   * `.server-tile` gave up its `position: relative` for the same reason: it
+   * would have stopped the link at the tile and left the footer dead. */
   margin: 0;
   font-size: var(--text-body);
   font-weight: 600;
@@ -1728,6 +1742,52 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   color: var(--tile-ink);
 }
 .server-name a { color: inherit; text-decoration: none; }
+
+.server-line {
+  /* NOT POSITIONED, for the same reason `.server-name` is not: the stretched
+   * link's `inset: 0` resolves against the nearest positioned ancestor, and
+   * ANY of them between the link and `.server-card` shrinks the target to
+   * itself. This one was added a few minutes after that was fixed on
+   * `.server-name`, and reintroduced the identical bug one level out --
+   * which is why there is now a test that clicks the card's far corner
+   * rather than an assertion that the rule exists. */
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  width: 100%;
+}
+.server-titles { min-width: 0; }
+
+.server-avatar {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: block;
+  object-fit: cover;
+}
+/* The initials, on the same translucent ground the state chip uses -- which is
+ * what makes them legible on any of the twelve hues without being themed. */
+.server-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.55);
+  color: var(--tile-ink);
+  font-size: var(--text-note);
+  font-weight: 700;
+}
+
+/* The quiet line that replaced the install button. Not a control: the card is
+ * the control, and this says where it goes. */
+.server-add {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-3);
+  font-size: var(--text-note);
+  font-weight: 600;
+  color: var(--accent-text);
+}
 
 .plan-tag { margin: var(--space-2) 0 0; }
 /* Both tags are the same shape and the same size, and only the colour and the
@@ -1752,17 +1812,18 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  *
  * `absent` is excluded because it carries the "Add to server" button, and a
  * stretched link over a button swallows the button. */
-.server-card:not(.absent) .server-name a::after {
+/* EVERY card, not `:not(.absent)`. That exclusion existed because an absent
+ * card carried a button and a stretched link swallows a button. The button is
+ * a line of text now and the card itself is the offer, so there is nothing
+ * left to swallow. */
+.server-name a::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: var(--radius-card);
 }
 
-.server-card:not(.absent):hover .server-tile {
-  outline: 2px solid var(--accent-text);
-  outline-offset: 2px;
-}
+.server-card:hover { border-color: var(--accent-text); }
 /* The ring belongs on the STRETCHED BOX, not on the link.
  *
  * The link's own box is the few words of the name; the thing a reader is
@@ -1770,8 +1831,8 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * the ring would draw a tight rectangle around the text and leave the target
  * it represents unmarked. Same tokens as that rule, so there is one focus
  * appearance in the app and this is only moving where it lands. */
-.server-card:not(.absent) .server-name a:focus-visible { outline: none; }
-.server-card:not(.absent) .server-name a:focus-visible::after {
+.server-name a:focus-visible { outline: none; }
+.server-name a:focus-visible::after {
   outline: var(--focus-width) solid var(--accent-text);
   outline-offset: var(--focus-offset);
 }
@@ -1813,12 +1874,9 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * page. The banner above the grid is what explains it. */
 .server-card.unknown .server-state { color: var(--faint); font-style: italic; }
 
-/* Inside the card's padding, not flush to its edges. The footer above sets
- * that padding on itself; this is a sibling, so it has to state its own. */
-.server-action {
-  margin: 0;
-  padding: 0 var(--space-3) var(--space-3);
-}
+/* `.server-action` USED TO LIVE HERE: a full-width filled button on the
+ * absent card. In a grid that stretches every card to the tallest, it made
+ * every OTHER card carry its height as empty space. See `.server-add`. */
 
 .servers-head {
   display: flex;

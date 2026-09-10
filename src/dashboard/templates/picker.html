@@ -93,57 +93,64 @@
       </form>
       </span>
 
-      {% if server.icon_url %}
-        <img class="server-icon" src="{{ server.icon_url }}" alt=""
-             width="64" height="64" loading="lazy">
-      {% endif %}
+      {# THE SERVER'S OWN ICON, BESIDE ITS NAME. Identification at a glance is
+         what an admin with nine servers actually needs, and a Discord icon is
+         the thing they already recognise -- the hue is a good tiebreaker and a
+         poor first answer.
 
-      <p class="server-name">
-        {% if state == 'absent' %}
-          {# Nowhere to go: the bot is not in it, so its pages would refuse.
-             The name is text, and the button below is the only action. #}
-          {{ server.name }}
+         INITIALS WHERE THERE IS NO ICON, on the same translucent chip ground
+         the state badge uses, so they are legible on any of the twelve hues.
+         #285 removed a grey capital letter and was right to: that letter was
+         the ONLY identity a card had. This one sits beside a name, on a
+         coloured tile, at avatar size -- a different thing doing a different
+         job. #}
+      <span class="server-line">
+        {% if server.icon_url %}
+          <img class="server-avatar" src="{{ server.icon_url }}" alt=""
+               width="32" height="32" loading="lazy">
         {% else %}
-          {# Stretched by the stylesheet to cover the whole tile, so the target
-             is the tile and the markup is still one honest link. #}
-          <a href="{{ url_for('guild_overview', guild_id=server.id) }}"
-             >{{ server.name }}</a>
+          <span class="server-avatar server-initial" aria-hidden="true"
+            >{{ server.name[:1] | upper }}</span>
         {% endif %}
-      </p>
 
-      {# THE PLAN, and only when the bot actually told us.
+        <span class="server-titles">
+          <p class="server-name">
+            {# EVERY CARD IS ONE LINK NOW, stretched over the whole panel by
+               the stylesheet -- the tile and the footer both. It used to cover
+               only the name, because `.server-name` was itself positioned and
+               so became the containing block for the `inset: 0` meant to reach
+               the card. The markup is still one honest link around the name.
 
-         `server.premium` is True, False or None, and None means no claim --
-         premium not enforced, or the entitlement listing failed with no card
-         subscription to settle it. Nothing is drawn then. A free server with
-         no tag has lost a prompt; a paying server told to upgrade has been
-         told the thing it bought is missing, and those two mistakes are not
-         worth trading against each other.
+               An `absent` card links to the invite instead of the overview,
+               which its pages would refuse. That is what let the button go:
+               the card IS the offer now. #}
+            {% if state == 'absent' %}
+              <a href="{{ server.invite_url }}" rel="noopener">{{ server.name }}</a>
+            {% else %}
+              <a href="{{ url_for('guild_overview', guild_id=server.id) }}"
+                 >{{ server.name }}</a>
+            {% endif %}
+          </p>
 
-         Both states get a tag rather than only the free one. An admin with a
-         mix of servers is sold to by the DIFFERENCE between two cards, which
-         is a stronger argument than a word on one of them -- and it means the
-         paid servers are acknowledged rather than silently identical to the
-         free ones. #}
-      {% if server.premium is not none %}
-        {# `plan-paid` / `plan-free`, NOT `premium` / `upgrade`. `.upgrade` is
-           already a component in this stylesheet -- the settings call-out, an
-           inset panel with a 3px accent edge -- and a bare modifier of that
-           name inherited the whole thing: this tag rendered as a large dark
-           box with a cyan rule down its side, which also shoved the server
-           name to the top of the tile.
+          {# THE PLAN, and only when the bot actually told us.
 
-           The same accident `.empty` / `.empty-state` is commented on in
-           style.css. A modifier that is also somebody else's component is a
-           rule you did not write applying to markup you did. #}
-        <p class="tile-chip plan-tag {{ 'plan-paid' if server.premium else 'plan-free' }}">
-          {%- if server.premium -%}
-            {% trans %}Premium{% endtrans %}
-          {%- else -%}
-            {% trans %}Upgrade{% endtrans %}
-          {%- endif -%}
-        </p>
-      {% endif %}
+             `server.premium` is True, False or None, and None means no claim --
+             premium not enforced, or the entitlement listing failed with no
+             card subscription to settle it. Nothing is drawn then. A free
+             server with no tag has lost a prompt; a paying server told to
+             upgrade has been told the thing it bought is missing, and those
+             two mistakes are not worth trading against each other. #}
+          {% if server.premium is not none %}
+            <p class="tile-chip plan-tag {{ 'plan-paid' if server.premium else 'plan-free' }}">
+              {%- if server.premium -%}
+                {% trans %}Premium{% endtrans %}
+              {%- else -%}
+                {% trans %}Upgrade{% endtrans %}
+              {%- endif -%}
+            </p>
+          {% endif %}
+        </span>
+      </span>
     </span>
 
     {# THE ONE FACT, INSIDE THE CARD (#286).
@@ -161,15 +168,24 @@
     <p class="server-foot server-state-{{ state }}">{{ server.note }}</p>
 
     {% if state == 'absent' %}
-      {# Kept as an OFFER rather than turned into instructions, because an offer
-         is true under both readings of `absent`: Discord refuses the install to
-         anyone without Manage Server, and re-authorizing a bot already in the
-         server changes nothing. A sentence telling somebody to go and install
-         it would only be right under one of the two. #}
-      <p class="server-action">
-        <a class="button" href="{{ server.invite_url }}" rel="noopener">
-          {% trans %}Add to server{% endtrans %}</a>
-      </p>
+      {# A QUIET LINE, NOT A BUTTON (#286, second pass).
+
+         It was a full-width filled button, and in a grid that stretches every
+         card to the tallest one it made every OTHER card carry its height as
+         empty space. Clerk, Ditto, Fabric and FLORA all do the same thing
+         instead: an inactive item keeps the same footprint as the rest and
+         says its state in a muted line.
+
+         Not an <a> either. The whole card is already a link to this exact
+         URL, so a second one inside it would be a nested target that goes
+         where the card goes -- this is a cue, and the card is the control.
+
+         Kept as an OFFER rather than instructions, because an offer is true
+         under both readings of `absent`: Discord refuses the install to anyone
+         without Manage Server, and re-authorizing a bot already in the server
+         changes nothing. A sentence telling somebody to go and install it
+         would only be right under one of the two. #}
+      <p class="server-add">{% trans %}Add to server{% endtrans %}</p>
     {% endif %}
   </li>
 {% endmacro %}

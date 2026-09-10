@@ -234,6 +234,32 @@ if PREVIEW_SIGNED_IN:
     app.config["STRIPE"] = _PreviewStripe()
 
 
+# TWO OF THE FOUR PREVIEW SERVERS GET AN ICON, so both branches of the card
+# are visible in a screenshot.
+#
+# `preview_bot.GUILDS` keeps `icon: None` throughout for a good reason -- a
+# made-up hash builds a cdn.discordapp.com URL for a file that does not exist,
+# and a page of broken images is a worse preview than one of initials. So the
+# URL is overridden here rather than a hash invented there: this app's own
+# logo, served from `self`, which the CSP already allows and which cannot 404.
+#
+# `oauth.icon_url` in the image is untouched; this rebinds the name the picker
+# route reads, in the preview process only.
+from dashboard import oauth as _oauth  # noqa: E402
+
+
+def _preview_icon_url(guild, size: int = 64):
+    from flask import url_for as _url_for
+
+    if str(guild.get("id", "")).endswith(("1", "4")):
+        return _url_for("static", filename="logo.png")
+    return None
+
+
+_oauth.icon_url = _preview_icon_url
+
+
+
 if PREVIEW_SIGNED_IN:
     # A real Session row, built by the real store, rather than a hand-made
     # object: the store is a local SQLite file the preview already owns, and
