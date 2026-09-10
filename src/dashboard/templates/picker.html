@@ -91,6 +91,40 @@
              >{{ server.name }}</a>
         {% endif %}
       </p>
+
+      {# THE PLAN, and only when the bot actually told us.
+
+         `server.premium` is True, False or None, and None means no claim --
+         premium not enforced, or the entitlement listing failed with no card
+         subscription to settle it. Nothing is drawn then. A free server with
+         no tag has lost a prompt; a paying server told to upgrade has been
+         told the thing it bought is missing, and those two mistakes are not
+         worth trading against each other.
+
+         Both states get a tag rather than only the free one. An admin with a
+         mix of servers is sold to by the DIFFERENCE between two cards, which
+         is a stronger argument than a word on one of them -- and it means the
+         paid servers are acknowledged rather than silently identical to the
+         free ones. #}
+      {% if server.premium is not none %}
+        {# `plan-paid` / `plan-free`, NOT `premium` / `upgrade`. `.upgrade` is
+           already a component in this stylesheet -- the settings call-out, an
+           inset panel with a 3px accent edge -- and a bare modifier of that
+           name inherited the whole thing: this tag rendered as a large dark
+           box with a cyan rule down its side, which also shoved the server
+           name to the top of the tile.
+
+           The same accident `.empty` / `.empty-state` is commented on in
+           style.css. A modifier that is also somebody else's component is a
+           rule you did not write applying to markup you did. #}
+        <p class="plan-tag {{ 'plan-paid' if server.premium else 'plan-free' }}">
+          {%- if server.premium -%}
+            {% trans %}Premium{% endtrans %}
+          {%- else -%}
+            {% trans %}Upgrade{% endtrans %}
+          {%- endif -%}
+        </p>
+      {% endif %}
     </span>
 
     {# THE ONE FACT, and it is below the tile rather than on it.

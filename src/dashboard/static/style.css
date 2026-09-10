@@ -270,6 +270,16 @@
    * across the twelve, under the tile's bottom scrim. */
   --tile-ink: #ffffff;
 
+  /* The plan tag on a tile. The DARK theme's accent in both themes, because
+   * the tile it sits on is the same twelve hues in both -- 5.76:1 against the
+   * worst of them, where the light accent would be 1.4:1 and unreadable.
+   *
+   * Accent on something that is not a control, which the epic otherwise
+   * forbids. The rule is that the accent must not be DECORATION; marking
+   * which plan a server is on is meaning, and it is the one thing on this
+   * screen the product is sold on. */
+  --tile-accent: #3FD0E4;
+
   /* Broken, and only broken. `todo` keeps --notice, which the setup list also
    * uses, so the two states stop sharing one signal (#286). 5.18:1 on --bg and
    * 6.54:1 on --panel, which is the weight --notice already carries there
@@ -1573,7 +1583,11 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 .server-tile {
   position: relative;
   display: flex;
-  align-items: flex-end;
+  /* A column ending at the bottom, so the name and the plan tag stack in the
+   * corner rather than sitting side by side. */
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
   aspect-ratio: 4 / 3;
   padding: var(--space-3);
   border-radius: var(--radius-card);
@@ -1628,6 +1642,22 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   color: var(--tile-ink);
 }
 .server-name a { color: inherit; text-decoration: none; }
+
+.plan-tag {
+  position: relative;
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: var(--leading-tight);
+}
+/* Both tags are the same shape and the same size, and only the colour and the
+ * word differ. A bigger "Upgrade" than "Premium" would be a nag on every free
+ * card; a bigger "Premium" would be a reward nobody asked for. The selling is
+ * done by two cards next to each other not matching. */
+.plan-tag.plan-paid { color: var(--tile-accent); }
+.plan-tag.plan-free { color: var(--tile-ink); opacity: 0.8; }
 
 /* THE WHOLE TILE IS THE TARGET, and the markup stays one honest link around
  * the name (#276).

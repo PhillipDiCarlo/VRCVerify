@@ -250,6 +250,17 @@ def build_cards(
             # instead of to a grey hole.
             "tile": tile_class(server["id"]),
             "pinned": str(server["id"]) in set(favorites),
+            # THREE VALUES, AND `.get` IS NOT ENOUGH ON ITS OWN. The bot sends
+            # True, False or null, and null means "no claim" -- premium is not
+            # enforced, or the entitlement listing failed and no card
+            # subscription settles it. A missing key means the same thing, and
+            # so does an unreadable summary, which is why this is written to
+            # produce None in all three cases rather than only the first.
+            #
+            # A card with None draws no tag. That asymmetry is the point: a
+            # free server with no tag has lost a prompt, while a paying server
+            # told to upgrade has been told what it bought is missing.
+            "premium": (summary or {}).get("premium"),
         })
 
     cards.sort(key=lambda card: (not card["installed"], card["name"].lower()))

@@ -1326,3 +1326,107 @@ class TestTheEntitlementSweep:
         with caplog.at_level("ERROR"):
             self.sweep_over(monkeypatch, "1", "2", "3", "4")
         assert any("INCOMPLETE" in record.message for record in caplog.records)
+
+
+class TestTheBatchedPremiumAnswer:
+    """#286. The picker asks about a whole list, so premium has to resolve for
+    a batch -- and the batch version has one property the per-guild gate does
+    not need: it must be able to say "I do not know".
+
+    `resolve_premium_flags` answers True or False for one guild and is allowed
+    to fail open, because the cost of guessing wrong is briefly extending a
+    feature. This feeds a TAG on a card, where guessing wrong means telling a
+    paying customer that the thing they bought is missing.
+    """
+
+    def test_stripe_settles_it_even_when_discord_cannot_be_asked(self):
+        """The OR still holds when only one side answered.
+
+        A guild with a live card subscription is premium whatever the
+        entitlement listing did, so an outage on Discord's side must not be
+        able to turn a paying customer's tag off.
+        """
+        assert bot.premium_from_batch("7", None, {"7"}) is True
+
+    def test_an_unavailable_listing_is_not_the_same_as_no_entitlement(self):
+        """THE WHOLE REASON THIS RETURNS THREE VALUES.
+
+        `entitled=None` means the listing could not be made. Collapsing that
+        to False prints "Upgrade" on the card of every server that pays
+        through Discord, for as long as the outage lasts.
+        """
+        assert bot.premium_from_batch("7", None, set()) is None
+        assert bot.premium_from_batch("7", frozenset(), set()) is False
+        assert bot.premium_from_batch("7", frozenset({"7"}), set()) is True
+
+    def test_any_paid_row_wins_for_a_double_billed_guild(self, stripe_on):
+        """Matching `stripe_active`: a guild can hold more than one
+        subscription, and being double-billed must not switch premium off."""
+        store_subscription(subscription_id="sub_dead", status="canceled",
+                           current_period_end=in_days(-5))
+        store_subscription(subscription_id="sub_live", status="active")
+        with bot.session_scope() as session:
+            paid = bot.stripe_paid_guild_ids(session, [GUILD_ID])
+        assert paid == {GUILD_ID}
+
+    def test_a_lapsed_guild_is_not_paid(self, stripe_on):
+        store_subscription(status="canceled", current_period_end=in_days(-5))
+        with bot.session_scope() as session:
+            paid = bot.stripe_paid_guild_ids(session, [GUILD_ID])
+        assert paid == set()
+
+    def test_it_asks_about_the_batch_and_nothing_else(self, stripe_on):
+        """One query over the ids given, so a guild nobody asked about cannot
+        appear in the answer."""
+        store_subscription(server_id=OTHER_GUILD_ID)
+        with bot.session_scope() as session:
+            paid = bot.stripe_paid_guild_ids(session, [GUILD_ID])
+        assert paid == set()
+
+    def test_a_failed_listing_falls_back_rather_than_reporting_an_empty_set(
+        self, monkeypatch
+    ):
+        """A HALF-FINISHED LISTING IS WORSE THAN NO LISTING.
+
+        The set is read in both directions -- in it means paid, absent from it
+        means free -- so returning what was collected before an error would
+        report every guild the iterator had not reached yet as unpaid. There
+        is no partial answer to give, which is why the failure path returns
+        the last complete one or nothing at all.
+        """
+        bot.entitled_guilds_cache.clear()
+        monkeypatch.setattr(bot, "PREMIUM_ENFORCED", True)
+        monkeypatch.setattr(bot, "PREMIUM_SKU_ID", 42)
+
+        class _Boom:
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                raise RuntimeError("Discord fell over mid-page")
+
+        monkeypatch.setattr(bot.bot, "entitlements", lambda **kw: _Boom(),
+                            raising=False)
+        assert asyncio.run(bot.entitled_guild_ids()) is None
+
+        # With something cached, the same failure yields the last complete set.
+        bot.entitled_guilds_cache.set(frozenset({"9"}))
+        bot.entitled_guilds_cache._fresh = None
+        assert asyncio.run(bot.entitled_guild_ids()) == frozenset({"9"})
+        bot.entitled_guilds_cache.clear()
+
+    def test_it_makes_no_claim_when_premium_is_not_enforced(self, monkeypatch):
+        """No SKU means nothing is gated, which is not the same as everything
+        being free -- and a card that said "Upgrade" there would be selling
+        something that does not exist."""
+        monkeypatch.setattr(bot, "PREMIUM_ENFORCED", False)
+        assert asyncio.run(bot.entitled_guild_ids()) is None
+
+    def test_no_query_at_all_while_the_feature_is_off(self):
+        """Matching `stripe_active`: with STRIPE_ENABLED unset this is not
+        merely False, it is no database work -- which is what keeps the whole
+        feature as if absent until somebody can actually pay through it."""
+        store_subscription()
+        with bot.session_scope() as session:
+            assert bot.stripe_paid_guild_ids(session, [GUILD_ID]) == set()
+

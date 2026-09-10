@@ -288,7 +288,19 @@ class PreviewBotAPI:
                 configured.update(
                     bot_can_manage_roles=False, verified_role_assignable=False
                 )
-            summaries[guild_id] = {"configured": configured, "panel": panel}
+            # Three values, matching what the real endpoint sends (#286): the
+            # premium server is paid, the free one is not, and UNREACHABLE
+            # deliberately says NOTHING -- the case where the entitlement
+            # listing failed and no card subscription settles it. That third
+            # state is the one worth previewing, because it is the only one
+            # where the card has to be able to draw no tag at all.
+            if guild_id == UNREACHABLE:
+                premium = None
+            else:
+                premium = guild_id == PREMIUM
+            summaries[guild_id] = {
+                "configured": configured, "panel": panel, "premium": premium,
+            }
         return summaries
 
     def settings(self, actor_id, guild_id) -> dict:
