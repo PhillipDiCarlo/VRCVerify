@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 01:48-0400\n"
+"POT-Creation-Date: 2026-09-10 02:10-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
@@ -42,11 +42,28 @@ msgstr "Не удалось проверить этот вход. Попробу
 msgid "Discord could not complete the login. Please try again."
 msgstr "Discord не смог завершить вход. Попробуйте ещё раз."
 
-msgid "Page not found."
-msgstr "Страница не найдена."
+# | msgid "Page not found."
+msgid "Page not found"
+msgstr "Страница не найдена"
 
-msgid "Something went wrong."
-msgstr "Что-то пошло не так."
+msgid ""
+"That address doesn't match anything here. It may have been a typo, or a "
+"link to something that has since moved."
+msgstr ""
+"Этому адресу здесь ничего не соответствует. Возможно, опечатка или ссылка"
+" на то, что с тех пор переехало."
+
+# | msgid "Something went wrong."
+msgid "Something went wrong"
+msgstr "Что-то пошло не так"
+
+msgid ""
+"The dashboard hit an error it couldn't recover from. Try again in a "
+"moment, and check the setting you were changing if you were saving one."
+msgstr ""
+"Панель управления столкнулась с ошибкой, от которой не смогла "
+"восстановиться. Повторите попытку через минуту и проверьте настройку, "
+"которую меняли, если вы сохраняли её."
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "Для этой настройки нужен VRCVerify Premium. Ничего не изменено."
@@ -217,22 +234,30 @@ msgstr "Настройки"
 msgid "Subscriptions"
 msgstr "Подписки"
 
-msgid ""
-"That server isn't available. Either VRCVerify isn't in it, or you don't "
-"have the Administrator permission there."
-msgstr ""
-"Этот сервер недоступен. Либо на нём нет VRCVerify, либо у вас нет там "
-"прав администратора."
+# | msgid "That group ID wasn't usable"
+msgid "That server isn't available"
+msgstr "Этот сервер недоступен"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
+# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
+# you
+# | don't " "have the Administrator permission there."
 msgid ""
-"Can't reach the bot right now, so this page can't be shown. Nothing has "
-"changed. Try again shortly."
+"Either VRCVerify isn't in it, or you don't have the Administrator "
+"permission there."
+msgstr "Либо VRCVerify не на нём, либо у вас там нет права «Администратор»."
+
+msgid "Can't reach the bot"
+msgstr "Бот недоступен"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+# | msgid "The bot didn't answer this one. Try again shortly."
+msgid ""
+"This page needs the bot to answer and it isn't answering right now. "
+"Nothing has changed. Try again shortly."
 msgstr ""
-"Бот сейчас недоступен, поэтому страницу нельзя показать. Ничего не "
-"изменено. Попробуйте ещё раз через минуту."
+"Этой странице нужен ответ бота, а он сейчас не отвечает. Ничего не "
+"изменилось. Повторите попытку чуть позже."
 
 msgid "Premium"
 msgstr "Premium"
@@ -1248,12 +1273,12 @@ msgstr ""
 "отсюда публикуется там, а Discord пересылает его в любой канал по вашему "
 "выбору."
 
-msgid "Sorry"
-msgstr "Извините"
-
 # | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "Назад к вашим серверам"
+
+msgid "Check VRCVerify's status"
+msgstr "Проверить статус VRCVerify"
 
 msgid "Manage your VRCVerify servers"
 msgstr "Управляйте своими серверами VRCVerify"
@@ -1902,9 +1927,6 @@ msgstr ""
 "ниже открывают ровно одни и те же возможности — разница лишь в том, за "
 "какой срок вы платите сразу и сколько это экономит."
 
-msgid "Most popular"
-msgstr "Чаще всего выбирают"
-
 msgid "Subscribe"
 msgstr "Оформить подписку"
 
@@ -2062,4 +2084,22 @@ msgstr ""
 #~ msgstr ""
 #~ "Открывает отмеченные ниже настройки. Сама "
 #~ "проверка 18+ остаётся бесплатной."
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+#~ msgid ""
+#~ "Can't reach the bot right now, so"
+#~ " this page can't be shown. Nothing"
+#~ " has changed. Try again shortly."
+#~ msgstr ""
+#~ "Бот сейчас недоступен, поэтому страницу "
+#~ "нельзя показать. Ничего не изменено. "
+#~ "Попробуйте ещё раз через минуту."
+
+#~ msgid "Sorry"
+#~ msgstr "Извините"
+
+#~ msgid "Most popular"
+#~ msgstr "Чаще всего выбирают"
 

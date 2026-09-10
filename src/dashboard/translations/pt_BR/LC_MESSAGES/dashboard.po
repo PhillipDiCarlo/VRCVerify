@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 01:48-0400\n"
+"POT-Creation-Date: 2026-09-10 02:10-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -41,11 +41,28 @@ msgstr "Não foi possível verificar esse login. Tente de novo."
 msgid "Discord could not complete the login. Please try again."
 msgstr "O Discord não conseguiu concluir o login. Tente de novo."
 
-msgid "Page not found."
-msgstr "Página não encontrada."
+# | msgid "Page not found."
+msgid "Page not found"
+msgstr "Página não encontrada"
 
-msgid "Something went wrong."
-msgstr "Algo deu errado."
+msgid ""
+"That address doesn't match anything here. It may have been a typo, or a "
+"link to something that has since moved."
+msgstr ""
+"Esse endereço não corresponde a nada aqui. Pode ter sido um erro de "
+"digitação, ou um link para algo que já foi movido."
+
+# | msgid "Something went wrong."
+msgid "Something went wrong"
+msgstr "Algo deu errado"
+
+msgid ""
+"The dashboard hit an error it couldn't recover from. Try again in a "
+"moment, and check the setting you were changing if you were saving one."
+msgstr ""
+"O painel encontrou um erro do qual não conseguiu se recuperar. Tente de "
+"novo em instantes e confira a configuração que você estava alterando, "
+"caso estivesse salvando alguma."
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "Essa configuração exige o VRCVerify Premium. Nada foi alterado."
@@ -224,22 +241,32 @@ msgstr "Configurações"
 msgid "Subscriptions"
 msgstr "Assinaturas"
 
-msgid ""
-"That server isn't available. Either VRCVerify isn't in it, or you don't "
-"have the Administrator permission there."
-msgstr ""
-"Esse servidor não está disponível. Ou o VRCVerify não está nele, ou você "
-"não tem a permissão de Administrador lá."
+# | msgid "That group ID wasn't usable"
+msgid "That server isn't available"
+msgstr "Esse servidor não está disponível"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
+# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
+# you
+# | don't " "have the Administrator permission there."
 msgid ""
-"Can't reach the bot right now, so this page can't be shown. Nothing has "
-"changed. Try again shortly."
+"Either VRCVerify isn't in it, or you don't have the Administrator "
+"permission there."
 msgstr ""
-"Não dá para falar com o bot agora, então esta página não pode ser "
-"mostrada. Nada foi alterado. Tente de novo daqui a pouco."
+"Ou o VRCVerify não está nele, ou você não tem a permissão de "
+"Administrador lá."
+
+msgid "Can't reach the bot"
+msgstr "Não dá para falar com o bot"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+# | msgid "The bot didn't answer this one. Try again shortly."
+msgid ""
+"This page needs the bot to answer and it isn't answering right now. "
+"Nothing has changed. Try again shortly."
+msgstr ""
+"Esta página precisa que o bot responda e ele não está respondendo agora. "
+"Nada foi alterado. Tente de novo em instantes."
 
 msgid "Premium"
 msgstr "Premium"
@@ -1254,12 +1281,12 @@ msgstr ""
 "VRCVerify</a> e siga o canal de anúncios — toda novidade daqui é "
 "publicada lá, e o Discord repassa para o canal que você escolher."
 
-msgid "Sorry"
-msgstr "Desculpe"
-
 # | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "Voltar aos seus servidores"
+
+msgid "Check VRCVerify's status"
+msgstr "Ver o status do VRCVerify"
 
 msgid "Manage your VRCVerify servers"
 msgstr "Gerencie seus servidores do VRCVerify"
@@ -1911,9 +1938,6 @@ msgstr ""
 "planos abaixo liberam exatamente os mesmos recursos — a única diferença é"
 " por quanto tempo você paga de uma vez, e quanto isso economiza."
 
-msgid "Most popular"
-msgstr "Mais popular"
-
 msgid "Subscribe"
 msgstr "Assinar"
 
@@ -2070,4 +2094,23 @@ msgstr ""
 #~ "Libera as configurações marcadas abaixo. "
 #~ "A verificação 18+ em si continua "
 #~ "grátis."
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+#~ msgid ""
+#~ "Can't reach the bot right now, so"
+#~ " this page can't be shown. Nothing"
+#~ " has changed. Try again shortly."
+#~ msgstr ""
+#~ "Não dá para falar com o bot "
+#~ "agora, então esta página não pode "
+#~ "ser mostrada. Nada foi alterado. Tente"
+#~ " de novo daqui a pouco."
+
+#~ msgid "Sorry"
+#~ msgstr "Desculpe"
+
+#~ msgid "Most popular"
+#~ msgstr "Mais popular"
 

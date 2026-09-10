@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 01:48-0400\n"
+"POT-Creation-Date: 2026-09-10 02:10-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: bn\n"
@@ -41,11 +41,28 @@ msgstr "এই সাইন-ইন যাচাই করা যায়নি�
 msgid "Discord could not complete the login. Please try again."
 msgstr "Discord সাইন-ইন সম্পূর্ণ করতে পারেনি। আবার চেষ্টা করুন।"
 
-msgid "Page not found."
-msgstr "পৃষ্ঠা পাওয়া যায়নি।"
+# | msgid "Page not found."
+msgid "Page not found"
+msgstr "পেজ পাওয়া যায়নি"
 
-msgid "Something went wrong."
-msgstr "কিছু একটা ভুল হয়েছে।"
+msgid ""
+"That address doesn't match anything here. It may have been a typo, or a "
+"link to something that has since moved."
+msgstr ""
+"এই ঠিকানার সঙ্গে এখানে কিছুই মেলে না। হয়তো টাইপ করতে ভুল হয়েছে, বা এটি "
+"এমন কিছুর লিঙ্ক যা সরে গেছে।"
+
+# | msgid "Something went wrong."
+msgid "Something went wrong"
+msgstr "কিছু একটা ভুল হয়েছে"
+
+msgid ""
+"The dashboard hit an error it couldn't recover from. Try again in a "
+"moment, and check the setting you were changing if you were saving one."
+msgstr ""
+"ড্যাশবোর্ডে এমন একটি ত্রুটি হয়েছে যা থেকে এটি সামলে উঠতে পারেনি। একটু "
+"পরে আবার চেষ্টা করুন, আর সংরক্ষণ করছিলেন কিনা মনে থাকলে সেই সেটিংটি দেখে "
+"নিন।"
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "এই সেটিংয়ের জন্য VRCVerify Premium দরকার। কিছুই বদলানো হয়নি।"
@@ -214,22 +231,30 @@ msgstr "সেটিংস"
 msgid "Subscriptions"
 msgstr "সাবস্ক্রিপশন"
 
-msgid ""
-"That server isn't available. Either VRCVerify isn't in it, or you don't "
-"have the Administrator permission there."
-msgstr ""
-"ওই সার্ভারটি পাওয়া যাচ্ছে না। হয় VRCVerify সেটিতে নেই, নয়তো সেখানে "
-"আপনার Administrator অনুমতি নেই।"
+# | msgid "That group ID wasn't usable"
+msgid "That server isn't available"
+msgstr "ওই সার্ভারটি পাওয়া যাচ্ছে না"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
+# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
+# you
+# | don't " "have the Administrator permission there."
 msgid ""
-"Can't reach the bot right now, so this page can't be shown. Nothing has "
-"changed. Try again shortly."
+"Either VRCVerify isn't in it, or you don't have the Administrator "
+"permission there."
+msgstr "হয় VRCVerify সেখানে নেই, নয়তো সেখানে আপনার অ্যাডমিনিস্ট্রেটর অনুমতি নেই।"
+
+msgid "Can't reach the bot"
+msgstr "বটের সঙ্গে যোগাযোগ করা যাচ্ছে না"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+# | msgid "The bot didn't answer this one. Try again shortly."
+msgid ""
+"This page needs the bot to answer and it isn't answering right now. "
+"Nothing has changed. Try again shortly."
 msgstr ""
-"এখন বটের সঙ্গে যোগাযোগ করা যাচ্ছে না, তাই এই পৃষ্ঠাটি দেখানো যাচ্ছে না। "
-"কিছুই বদলায়নি। একটু পরে আবার চেষ্টা করুন।"
+"এই পেজের জন্য বটের উত্তর দরকার, আর সেটি এখন উত্তর দিচ্ছে না। কিছুই "
+"বদলায়নি। একটু পরে আবার চেষ্টা করুন।"
 
 msgid "Premium"
 msgstr "Premium"
@@ -1227,12 +1252,12 @@ msgstr ""
 "অ্যানাউন্সমেন্ট চ্যানেলটি ফলো করুন — এখানকার প্রতিটি আপডেট সেখানে পোস্ট "
 "হয়, আর Discord সেটি আপনার বেছে নেওয়া যেকোনো চ্যানেলে পাঠিয়ে দেয়।"
 
-msgid "Sorry"
-msgstr "দুঃখিত"
-
 # | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "আপনার সার্ভারে ফিরুন"
+
+msgid "Check VRCVerify's status"
+msgstr "VRCVerify-এর স্ট্যাটাস দেখুন"
 
 msgid "Manage your VRCVerify servers"
 msgstr "আপনার VRCVerify সার্ভারগুলো সামলান"
@@ -1873,9 +1898,6 @@ msgstr ""
 "প্ল্যান হুবহু একই সুবিধা খুলে দেয় — পার্থক্য শুধু এটুকু যে আপনি একবারে "
 "কত সময়ের দাম দিচ্ছেন, আর তাতে কতটা সাশ্রয় হচ্ছে।"
 
-msgid "Most popular"
-msgstr "সবচেয়ে জনপ্রিয়"
-
 msgid "Subscribe"
 msgstr "সাবস্ক্রাইব করুন"
 
@@ -2027,4 +2049,23 @@ msgstr ""
 
 #~ msgid "Unlocks the settings marked below. 18+ verification itself stays free."
 #~ msgstr "নিচে চিহ্নিত সেটিংসগুলো খুলে দেয়। ১৮+ ভেরিফিকেশন নিজে ফ্রিই থাকে।"
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+#~ msgid ""
+#~ "Can't reach the bot right now, so"
+#~ " this page can't be shown. Nothing"
+#~ " has changed. Try again shortly."
+#~ msgstr ""
+#~ "এখন বটের সঙ্গে যোগাযোগ করা যাচ্ছে "
+#~ "না, তাই এই পৃষ্ঠাটি দেখানো যাচ্ছে "
+#~ "না। কিছুই বদলায়নি। একটু পরে আবার "
+#~ "চেষ্টা করুন।"
+
+#~ msgid "Sorry"
+#~ msgstr "দুঃখিত"
+
+#~ msgid "Most popular"
+#~ msgstr "সবচেয়ে জনপ্রিয়"
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 01:48-0400\n"
+"POT-Creation-Date: 2026-09-10 02:10-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pa_Guru_IN\n"
@@ -41,11 +41,27 @@ msgstr "ਇਸ ਸਾਈਨ-ਇਨ ਦੀ ਤਸਦੀਕ ਨਹੀਂ ਹੋ �
 msgid "Discord could not complete the login. Please try again."
 msgstr "Discord ਸਾਈਨ-ਇਨ ਪੂਰਾ ਨਹੀਂ ਕਰ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
 
-msgid "Page not found."
-msgstr "ਪੰਨਾ ਨਹੀਂ ਮਿਲਿਆ।"
+# | msgid "Page not found."
+msgid "Page not found"
+msgstr "ਪੰਨਾ ਨਹੀਂ ਮਿਲਿਆ"
 
-msgid "Something went wrong."
-msgstr "ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ।"
+msgid ""
+"That address doesn't match anything here. It may have been a typo, or a "
+"link to something that has since moved."
+msgstr ""
+"ਇਸ ਪਤੇ ਨਾਲ ਇੱਥੇ ਕੁਝ ਵੀ ਮੇਲ ਨਹੀਂ ਖਾਂਦਾ। ਸ਼ਾਇਦ ਲਿਖਣ ਵਿੱਚ ਗ਼ਲਤੀ ਹੋਈ ਹੋਵੇ, "
+"ਜਾਂ ਇਹ ਕਿਸੇ ਅਜਿਹੀ ਚੀਜ਼ ਦਾ ਲਿੰਕ ਹੋਵੇ ਜੋ ਹੁਣ ਹਟ ਚੁੱਕੀ ਹੈ।"
+
+# | msgid "Something went wrong."
+msgid "Something went wrong"
+msgstr "ਕੁਝ ਗ਼ਲਤ ਹੋ ਗਿਆ"
+
+msgid ""
+"The dashboard hit an error it couldn't recover from. Try again in a "
+"moment, and check the setting you were changing if you were saving one."
+msgstr ""
+"ਡੈਸ਼ਬੋਰਡ ਨੂੰ ਅਜਿਹੀ ਗ਼ਲਤੀ ਪਈ ਜਿਸ ਤੋਂ ਇਹ ਉੱਭਰ ਨਹੀਂ ਸਕਿਆ। ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ "
+"ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ, ਅਤੇ ਜੇ ਤੁਸੀਂ ਕੁਝ ਸੰਭਾਲ ਰਹੇ ਸੀ ਤਾਂ ਉਹ ਸੈਟਿੰਗ ਵੇਖ ਲਵੋ।"
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "ਇਸ ਸੈਟਿੰਗ ਲਈ VRCVerify Premium ਚਾਹੀਦਾ ਹੈ। ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲਿਆ ਗਿਆ।"
@@ -217,22 +233,32 @@ msgstr "ਸੈਟਿੰਗਾਂ"
 msgid "Subscriptions"
 msgstr "ਸਬਸਕ੍ਰਿਪਸ਼ਨਾਂ"
 
-msgid ""
-"That server isn't available. Either VRCVerify isn't in it, or you don't "
-"have the Administrator permission there."
-msgstr ""
-"ਉਹ ਸਰਵਰ ਉਪਲਬਧ ਨਹੀਂ ਹੈ। ਜਾਂ ਤਾਂ VRCVerify ਉਸ ਵਿੱਚ ਨਹੀਂ ਹੈ, ਜਾਂ ਉੱਥੇ ਤੁਹਾਡੇ"
-" ਕੋਲ Administrator ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।"
+# | msgid "That group ID wasn't usable"
+msgid "That server isn't available"
+msgstr "ਉਹ ਸਰਵਰ ਉਪਲਬਧ ਨਹੀਂ ਹੈ"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
+# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
+# you
+# | don't " "have the Administrator permission there."
 msgid ""
-"Can't reach the bot right now, so this page can't be shown. Nothing has "
-"changed. Try again shortly."
+"Either VRCVerify isn't in it, or you don't have the Administrator "
+"permission there."
 msgstr ""
-"ਹੁਣੇ ਬੌਟ ਤੱਕ ਨਹੀਂ ਪਹੁੰਚਿਆ ਜਾ ਸਕਦਾ, ਇਸ ਲਈ ਇਹ ਪੰਨਾ ਨਹੀਂ ਵਿਖਾਇਆ ਜਾ ਸਕਦਾ। ਕੁਝ"
-" ਵੀ ਨਹੀਂ ਬਦਲਿਆ। ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+"ਜਾਂ ਤਾਂ VRCVerify ਉਸ ਵਿੱਚ ਨਹੀਂ ਹੈ, ਜਾਂ ਉੱਥੇ ਤੁਹਾਡੇ ਕੋਲ ਐਡਮਿਨਿਸਟ੍ਰੇਟਰ "
+"ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।"
+
+msgid "Can't reach the bot"
+msgstr "ਬੋਟ ਤੱਕ ਪਹੁੰਚ ਨਹੀਂ ਹੋ ਰਹੀ"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+# | msgid "The bot didn't answer this one. Try again shortly."
+msgid ""
+"This page needs the bot to answer and it isn't answering right now. "
+"Nothing has changed. Try again shortly."
+msgstr ""
+"ਇਸ ਪੰਨੇ ਨੂੰ ਬੋਟ ਦੇ ਜਵਾਬ ਦੀ ਲੋੜ ਹੈ ਅਤੇ ਉਹ ਹੁਣ ਜਵਾਬ ਨਹੀਂ ਦੇ ਰਿਹਾ। ਕੁਝ ਵੀ "
+"ਨਹੀਂ ਬਦਲਿਆ। ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
 
 msgid "Premium"
 msgstr "Premium"
@@ -1237,12 +1263,12 @@ msgstr ""
 "ਐਲਾਨ ਚੈਨਲ ਫਾਲੋ ਕਰੋ — ਇੱਥੋਂ ਦਾ ਹਰ ਅੱਪਡੇਟ ਉੱਥੇ ਪੋਸਟ ਹੁੰਦਾ ਹੈ, ਅਤੇ Discord "
 "ਉਸਨੂੰ ਤੁਹਾਡੇ ਚੁਣੇ ਕਿਸੇ ਵੀ ਚੈਨਲ ਵਿੱਚ ਭੇਜ ਦਿੰਦਾ ਹੈ।"
 
-msgid "Sorry"
-msgstr "ਮਾਫ਼ ਕਰਨਾ"
-
 # | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "ਆਪਣੇ ਸਰਵਰਾਂ ਉੱਤੇ ਵਾਪਸ"
+
+msgid "Check VRCVerify's status"
+msgstr "VRCVerify ਦੀ ਸਥਿਤੀ ਵੇਖੋ"
 
 msgid "Manage your VRCVerify servers"
 msgstr "ਆਪਣੇ VRCVerify ਸਰਵਰ ਸੰਭਾਲੋ"
@@ -1892,9 +1918,6 @@ msgstr ""
 "ਬਿਲਕੁਲ ਇੱਕੋ ਜਿਹੀਆਂ ਸਹੂਲਤਾਂ ਖੋਲ੍ਹਦਾ ਹੈ — ਫ਼ਰਕ ਸਿਰਫ਼ ਇਹ ਹੈ ਕਿ ਤੁਸੀਂ ਇੱਕੋ "
 "ਵਾਰ ਕਿੰਨੇ ਸਮੇਂ ਦਾ ਭੁਗਤਾਨ ਕਰਦੇ ਹੋ, ਅਤੇ ਉਸ ਨਾਲ ਕਿੰਨੀ ਬੱਚਤ ਹੁੰਦੀ ਹੈ।"
 
-msgid "Most popular"
-msgstr "ਸਭ ਤੋਂ ਵੱਧ ਪ੍ਰਸਿੱਧ"
-
 msgid "Subscribe"
 msgstr "ਸਬਸਕ੍ਰਾਈਬ ਕਰੋ"
 
@@ -2056,4 +2079,23 @@ msgstr ""
 #~ "ਹੇਠਾਂ ਨਿਸ਼ਾਨਬੱਧ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹ ਦਿੰਦਾ ਹੈ।"
 #~ " 18+ ਤਸਦੀਕ ਆਪ ਮੁਫ਼ਤ ਹੀ ਰਹਿੰਦੀ "
 #~ "ਹੈ।"
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+#~ msgid ""
+#~ "Can't reach the bot right now, so"
+#~ " this page can't be shown. Nothing"
+#~ " has changed. Try again shortly."
+#~ msgstr ""
+#~ "ਹੁਣੇ ਬੌਟ ਤੱਕ ਨਹੀਂ ਪਹੁੰਚਿਆ ਜਾ ਸਕਦਾ,"
+#~ " ਇਸ ਲਈ ਇਹ ਪੰਨਾ ਨਹੀਂ ਵਿਖਾਇਆ ਜਾ"
+#~ " ਸਕਦਾ। ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲਿਆ। ਥੋੜ੍ਹੀ "
+#~ "ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+
+#~ msgid "Sorry"
+#~ msgstr "ਮਾਫ਼ ਕਰਨਾ"
+
+#~ msgid "Most popular"
+#~ msgstr "ਸਭ ਤੋਂ ਵੱਧ ਪ੍ਰਸਿੱਧ"
 

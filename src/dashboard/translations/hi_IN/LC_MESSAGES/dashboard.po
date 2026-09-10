@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 01:48-0400\n"
+"POT-Creation-Date: 2026-09-10 02:10-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: hi_IN\n"
@@ -41,11 +41,27 @@ msgstr "इस साइन-इन को सत्यापित नहीं 
 msgid "Discord could not complete the login. Please try again."
 msgstr "Discord साइन-इन पूरा नहीं कर सका। फिर से कोशिश करें।"
 
-msgid "Page not found."
-msgstr "पेज नहीं मिला।"
+# | msgid "Page not found."
+msgid "Page not found"
+msgstr "पेज नहीं मिला"
 
-msgid "Something went wrong."
-msgstr "कुछ गड़बड़ हो गई।"
+msgid ""
+"That address doesn't match anything here. It may have been a typo, or a "
+"link to something that has since moved."
+msgstr ""
+"इस पते से यहाँ कुछ भी मेल नहीं खाता। शायद टाइप करने में ग़लती हुई हो, या "
+"यह किसी ऐसी चीज़ का लिंक हो जो अब हट चुकी है।"
+
+# | msgid "Something went wrong."
+msgid "Something went wrong"
+msgstr "कुछ ग़लत हो गया"
+
+msgid ""
+"The dashboard hit an error it couldn't recover from. Try again in a "
+"moment, and check the setting you were changing if you were saving one."
+msgstr ""
+"डैशबोर्ड में ऐसी त्रुटि आई जिससे वह उबर नहीं सका। थोड़ी देर बाद फिर कोशिश"
+" करें, और अगर आप कुछ सहेज रहे थे तो वह सेटिंग जाँच लें।"
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "इस सेटिंग के लिए VRCVerify Premium चाहिए। कुछ भी नहीं बदला गया।"
@@ -216,22 +232,32 @@ msgstr "सेटिंग्स"
 msgid "Subscriptions"
 msgstr "सदस्यताएँ"
 
-msgid ""
-"That server isn't available. Either VRCVerify isn't in it, or you don't "
-"have the Administrator permission there."
-msgstr ""
-"वह सर्वर उपलब्ध नहीं है। या तो VRCVerify उसमें नहीं है, या वहाँ आपके पास "
-"Administrator अनुमति नहीं है।"
+# | msgid "That group ID wasn't usable"
+msgid "That server isn't available"
+msgstr "वह सर्वर उपलब्ध नहीं है"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
+# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
+# you
+# | don't " "have the Administrator permission there."
 msgid ""
-"Can't reach the bot right now, so this page can't be shown. Nothing has "
-"changed. Try again shortly."
+"Either VRCVerify isn't in it, or you don't have the Administrator "
+"permission there."
 msgstr ""
-"अभी बॉट से संपर्क नहीं हो पा रहा, इसलिए यह पेज नहीं दिखाया जा सकता। कुछ "
-"भी नहीं बदला है। थोड़ी देर में फिर कोशिश करें।"
+"या तो VRCVerify उसमें नहीं है, या वहाँ आपके पास एडमिनिस्ट्रेटर अनुमति "
+"नहीं है।"
+
+msgid "Can't reach the bot"
+msgstr "बॉट से संपर्क नहीं हो पा रहा"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+# | msgid "The bot didn't answer this one. Try again shortly."
+msgid ""
+"This page needs the bot to answer and it isn't answering right now. "
+"Nothing has changed. Try again shortly."
+msgstr ""
+"इस पेज को बॉट के जवाब की ज़रूरत है और वह अभी जवाब नहीं दे रहा। कुछ भी "
+"नहीं बदला है। थोड़ी देर बाद फिर कोशिश करें।"
 
 msgid "Premium"
 msgstr "Premium"
@@ -1228,12 +1254,12 @@ msgstr ""
 "अनाउंसमेंट चैनल फ़ॉलो करें — यहाँ का हर अपडेट वहाँ पोस्ट होता है, और "
 "Discord उसे आपकी चुनी किसी भी चैनल में भेज देता है।"
 
-msgid "Sorry"
-msgstr "माफ़ कीजिए"
-
 # | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "अपने सर्वरों पर वापस"
+
+msgid "Check VRCVerify's status"
+msgstr "VRCVerify की स्थिति देखें"
 
 msgid "Manage your VRCVerify servers"
 msgstr "अपने VRCVerify सर्वर संभालें"
@@ -1879,9 +1905,6 @@ msgstr ""
 "बिलकुल एक जैसी सुविधाएँ खोलता है — फ़र्क़ सिर्फ़ इतना है कि आप एक बार में"
 " कितने समय का भुगतान करते हैं, और उससे कितनी बचत होती है।"
 
-msgid "Most popular"
-msgstr "सबसे लोकप्रिय"
-
 msgid "Subscribe"
 msgstr "सदस्यता लें"
 
@@ -2039,4 +2062,23 @@ msgstr ""
 #~ "नीचे चिह्नित सेटिंग्स खोल देता है। "
 #~ "18+ वेरिफ़िकेशन ख़ुद मुफ़्त ही रहता "
 #~ "है।"
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+#~ msgid ""
+#~ "Can't reach the bot right now, so"
+#~ " this page can't be shown. Nothing"
+#~ " has changed. Try again shortly."
+#~ msgstr ""
+#~ "अभी बॉट से संपर्क नहीं हो पा "
+#~ "रहा, इसलिए यह पेज नहीं दिखाया जा"
+#~ " सकता। कुछ भी नहीं बदला है। "
+#~ "थोड़ी देर में फिर कोशिश करें।"
+
+#~ msgid "Sorry"
+#~ msgstr "माफ़ कीजिए"
+
+#~ msgid "Most popular"
+#~ msgstr "सबसे लोकप्रिय"
 

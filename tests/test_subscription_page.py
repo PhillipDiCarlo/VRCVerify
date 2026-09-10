@@ -1115,14 +1115,18 @@ class TestThePageRenders:
         --muted on the page that takes money, and the Subscribe label was
         italic too.
 
-        Asserting the class name is what makes this a regression test rather
-        than a restatement: the two rules cannot collide again while the card
-        is not called `.plan`.
+        THE CARD ITSELF WENT IN #286 -- the three plan cards became one
+        segmented control -- so the half of this that named `.plan-card` is
+        gone with it. The half that matters is the other one, and it is not
+        about a card at all: nothing on the page that takes money may wear a
+        bare `.plan`, whatever shape it happens to have this year.
         """
         client, _bot, _stripe, _session = make_client(config)
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
-        assert 'class="plan-card' in page
         assert 'class="plan ' not in page and 'class="plan"' not in page
+        # And the price is still not italic-and-muted, which is what the
+        # collision actually did. `.term-amount-small` carries its own weight.
+        assert 'class="term-amount-small"' in page
 
     def test_the_three_plans_are_declared_one_product(self, config):
         """Three cards at rising prices is the shape of a tier comparison, and
@@ -1154,7 +1158,7 @@ class TestThePageRenders:
         time it shows up, on a card nobody was watching when it did."""
         client, _bot, _stripe, _session = make_client(config)
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
-        assert 'class="plan-trial"' in page
+        assert 'class="term-trial"' in page
         assert "free trial" in page
 
     def test_an_ineligible_server_is_shown_no_trial(self, config):
@@ -1166,7 +1170,7 @@ class TestThePageRenders:
             config, settings=payload(trial_eligible=False)
         )
         page = client.get(f"/guild/{GUILD}/subscription").data.decode()
-        assert "plan-trial" not in page
+        assert "term-trial" not in page
         assert "free trial" not in page
 
     def test_no_link_falls_back_to_the_browsers_own_color(self, config):
@@ -1708,11 +1712,23 @@ class TestAmounts:
         ])
         assert plans[0].period == expected
 
-    def test_highlight_metadata_features_one_card(self, config):
+    def test_highlight_metadata_preselects_exactly_one_term(self, config):
+        """#286. `highlight` used to draw a "Most popular" badge on one of
+        three cards; it decides which segment arrives already selected now.
+
+        A DELIBERATE TRADE, recorded rather than slipped in. The badge is gone
+        and the default-effect replaces it, which is the stronger nudge of the
+        two and does not need a fourth line in a segment that already carries a
+        label, a price, a saving and sometimes a trial.
+
+        Exactly one, because two checked radios in one group means the last
+        silently wins and the recommendation becomes whichever price Stripe
+        happened to return last.
+        """
         client, _bot, _stripe, _session = make_client(config)
         body = client.get(f"/guild/{GUILD}/subscription").data.decode()
-        assert body.count("plan-featured") == 1
-        assert "Most popular" in body
+        assert body.count('name="price_id"') == 3
+        assert body.count(" checked") == 1
 
     @pytest.mark.parametrize("raw", ["0", "no", "", "maybe", None])
     def test_anything_but_a_yes_is_not_highlighted(self, raw):

@@ -2437,17 +2437,29 @@ def _register_routes(app: Flask) -> None:
 
     @app.errorhandler(404)
     def not_found(_error):
+        t = _translator()
         return render_template(
             "error.html",
-            message=_translator()(N_("Page not found.")),
+            heading=t(N_("Page not found")),
+            message=t(N_("That address doesn't match anything here. It may "
+                         "have been a typo, or a link to something that has "
+                         "since moved.")),
             **_chrome_for_error(),
         ), 404
 
     @app.errorhandler(500)
     def server_error(_error):  # pragma: no cover - defensive
+        t = _translator()
         return render_template(
             "error.html",
-            message=_translator()(N_("Something went wrong.")),
+            heading=t(N_("Something went wrong")),
+            # NO "NOTHING HAS CHANGED" HERE, unlike the 503 below. A failed
+            # read changes nothing and can say so; a 500 can be raised halfway
+            # through a save, and a page that promises otherwise is worse than
+            # one that admits it does not know.
+            message=t(N_("The dashboard hit an error it couldn't recover "
+                         "from. Try again in a moment, and check the setting "
+                         "you were changing if you were saving one.")),
             **_chrome_for_error(),
         ), 500
 
@@ -3312,13 +3324,17 @@ def _guild_page_unavailable(
             guild_id,
             error.status,
         )
+        t = _translator()
         return (
             render_template(
                 "error.html",
-                message=_translator()(
-                    N_("That server isn't available. Either VRCVerify isn't "
-                       "in it, or you don't have the Administrator permission "
-                       "there.")
+                heading=t(N_("That server isn't available")),
+                # NO STATUS LINK ON THIS ONE. The bot answered; it said no.
+                # Offering to check whether the service is up would send an
+                # admin to look for an outage that is not there.
+                message=t(
+                    N_("Either VRCVerify isn't in it, or you don't have the "
+                       "Administrator permission there.")
                 ),
                 csrf_token=session.csrf_token,
             ),
@@ -3328,18 +3344,24 @@ def _guild_page_unavailable(
     logger.warning(
         "%s read failed for guild %s: %s", section, guild_id, error
     )
+    t = _translator()
     return (
         render_template(
             "error.html",
-            message=_translator()(
+            heading=t(N_("Can't reach the bot")),
+            message=t(
                 # Section-neutral, because all three land here. It used to name
                 # settings, which on the Overview would have been telling an
                 # admin the wrong thing was unavailable. "Nothing has changed"
                 # stays: it is the sentence that matters after a failed save,
                 # and it is true on a page with no save in it.
-                N_("Can't reach the bot right now, so this page can't be "
-                   "shown. Nothing has changed. Try again shortly.")
+                N_("This page needs the bot to answer and it isn't answering "
+                   "right now. Nothing has changed. Try again shortly.")
             ),
+            # THE ONE BRANCH WHERE STATUS ANSWERS SOMETHING (#286). "Is it
+            # just me" is precisely the question after a failed read, and
+            # precisely not the question after a typo or a refusal.
+            show_status=True,
             csrf_token=session.csrf_token,
         ),
         503,

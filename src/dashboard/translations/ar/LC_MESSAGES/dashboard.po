@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 01:48-0400\n"
+"POT-Creation-Date: 2026-09-10 02:10-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -42,11 +42,27 @@ msgstr "تعذّر التحقّق من تسجيل الدخول هذا. حاول 
 msgid "Discord could not complete the login. Please try again."
 msgstr "لم يتمكّن Discord من إتمام تسجيل الدخول. حاول مرة أخرى."
 
-msgid "Page not found."
-msgstr "الصفحة غير موجودة."
+# | msgid "Page not found."
+msgid "Page not found"
+msgstr "الصفحة غير موجودة"
 
-msgid "Something went wrong."
-msgstr "حدث خطأ ما."
+msgid ""
+"That address doesn't match anything here. It may have been a typo, or a "
+"link to something that has since moved."
+msgstr ""
+"هذا العنوان لا يطابق أي شيء هنا. ربما كان خطأً في الكتابة، أو رابطًا إلى "
+"شيء انتقل منذ ذلك الحين."
+
+# | msgid "Something went wrong."
+msgid "Something went wrong"
+msgstr "حدث خطأ ما"
+
+msgid ""
+"The dashboard hit an error it couldn't recover from. Try again in a "
+"moment, and check the setting you were changing if you were saving one."
+msgstr ""
+"واجهت لوحة التحكّم خطأً لم تستطع التعافي منه. أعد المحاولة بعد لحظات، "
+"وتحقّق من الإعداد الذي كنت تغيّره إن كنت في أثناء الحفظ."
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "هذا الإعداد يتطلّب VRCVerify Premium. لم يتغيّر شيء."
@@ -211,22 +227,30 @@ msgstr "الإعدادات"
 msgid "Subscriptions"
 msgstr "الاشتراكات"
 
-msgid ""
-"That server isn't available. Either VRCVerify isn't in it, or you don't "
-"have the Administrator permission there."
-msgstr ""
-"هذا الخادم غير متاح. فإمّا أن VRCVerify ليس فيه، وإمّا أنك لا تملك صلاحية"
-" المشرف هناك."
+# | msgid "That group ID wasn't usable"
+msgid "That server isn't available"
+msgstr "هذا الخادم غير متاح"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
+# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
+# you
+# | don't " "have the Administrator permission there."
 msgid ""
-"Can't reach the bot right now, so this page can't be shown. Nothing has "
-"changed. Try again shortly."
+"Either VRCVerify isn't in it, or you don't have the Administrator "
+"permission there."
+msgstr "إمّا أن VRCVerify ليس فيه، أو أنك لا تملك صلاحية المشرف هناك."
+
+msgid "Can't reach the bot"
+msgstr "تعذّر الوصول إلى البوت"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+# | msgid "The bot didn't answer this one. Try again shortly."
+msgid ""
+"This page needs the bot to answer and it isn't answering right now. "
+"Nothing has changed. Try again shortly."
 msgstr ""
-"تعذّر الوصول إلى البوت الآن، لذا لا يمكن عرض هذه الصفحة. ولم يتغيّر شيء. "
-"حاول مرة أخرى بعد قليل."
+"تحتاج هذه الصفحة إلى ردّ من البوت وهو لا يستجيب الآن. لم يتغيّر شيء. أعد "
+"المحاولة بعد قليل."
 
 msgid "Premium"
 msgstr "Premium"
@@ -1222,12 +1246,12 @@ msgstr ""
 "وتابع قناة الإعلانات؛ فكل تحديث هنا يُنشر هناك، وDiscord ينقله إلى أي "
 "قناة تختارها."
 
-msgid "Sorry"
-msgstr "عذرًا"
-
 # | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "العودة إلى خوادمك"
+
+msgid "Check VRCVerify's status"
+msgstr "تحقّق من حالة VRCVerify"
 
 msgid "Manage your VRCVerify servers"
 msgstr "أدِر خوادم VRCVerify الخاصة بك"
@@ -1849,9 +1873,6 @@ msgstr ""
 "تفتح الميزات نفسها تمامًا؛ والفرق الوحيد هو المدة التي تدفع عنها دفعةً "
 "واحدة، وكم يوفّر لك ذلك."
 
-msgid "Most popular"
-msgstr "الأكثر شيوعًا"
-
 msgid "Subscribe"
 msgstr "اشترك"
 
@@ -1996,4 +2017,22 @@ msgstr ""
 
 #~ msgid "Unlocks the settings marked below. 18+ verification itself stays free."
 #~ msgstr "يفتح الإعدادات المؤشَّر عليها أدناه. أما توثيق 18+ نفسه فيبقى مجانيًا."
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+#~ msgid ""
+#~ "Can't reach the bot right now, so"
+#~ " this page can't be shown. Nothing"
+#~ " has changed. Try again shortly."
+#~ msgstr ""
+#~ "تعذّر الوصول إلى البوت الآن، لذا "
+#~ "لا يمكن عرض هذه الصفحة. ولم يتغيّر"
+#~ " شيء. حاول مرة أخرى بعد قليل."
+
+#~ msgid "Sorry"
+#~ msgstr "عذرًا"
+
+#~ msgid "Most popular"
+#~ msgstr "الأكثر شيوعًا"
 

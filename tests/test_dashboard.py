@@ -1538,6 +1538,28 @@ class TestSettingsDoesNotLeakWhichServersRunTheBot:
         assert response.status_code == 503
         assert b"Can&#39;t reach the bot" in response.data
 
+    def test_only_an_unreachable_bot_is_offered_the_status_page(
+        self, config, store
+    ):
+        """#286. "Is it just me" is precisely the question after a failed read,
+        and precisely not the question after a refusal.
+
+        A link that is always there is a link that means nothing when it
+        matters, and on the refusal page it is worse than nothing: the bot
+        answered, it said no, and sending an admin to look for an outage sends
+        them looking for something that is not there.
+        """
+        down = self._response(config, store, 503).data.decode()
+        assert "status.vrcverify.com" in down
+
+        refused = self._response(config, store, 403).data.decode()
+        # base.html's own status button is in the bar AND in the footer on
+        # every page, so the check is against the error card alone -- and it
+        # has to stop at the card's own </section>, not run to the end of the
+        # document, or the footer's link answers for it.
+        card = _error_card(refused)
+        assert "status.vrcverify.com" not in card
+
     def test_a_failed_settings_read_never_renders_defaults(self, config, store):
         page = self._response(config, store, 503).data.decode()
         # "English (en-US)" rather than the bare code, because since #97 the
@@ -8110,6 +8132,78 @@ class TestTheFavoriteRoute:
         api.reads.clear()
         self._pin(test_client, store, GUILD_IN)
         assert api.reads == []
+
+
+def _error_card(page: str) -> str:
+    """The error card alone, stopping at its own closing tag.
+
+    Slicing to the end of the document instead is how a check for "this page
+    does not link to status" passes on a page that does not, and also on one
+    that does: base.html puts a status link in the bar and another in the
+    footer of every page in the app.
+    """
+    start = page.index('class="panel centered refusal"')
+    return page[start:page.index("</section>", start)]
+
+
+class TestTheErrorPageSaysWhatHappened:
+    """#286. It was an h1 reading "Sorry" over one sentence.
+
+    "Sorry" is a tone, not a fact, and it took the largest text on the page to
+    say nothing about what had gone wrong. The heading names what failed and
+    the sentence says what to do -- and neither is ever a status code, because
+    "503" answers a question nobody reading this page asked.
+
+    NONE OF THIS WAS COVERED BEFORE. Four call sites and the whole template
+    changed with a green suite; the only reason one assertion still held is
+    that the 503 heading happens to contain the phrase it looks for.
+    """
+
+    def _app(self, config, store):
+        app = create_app(config, store=store, client=FakeBotAPI())
+        app.config.update(TESTING=True)
+        return app.test_client()
+
+    def test_a_missing_page_says_what_is_missing(self, config, store):
+        page = self._app(config, store).get("/no-such-page").data.decode()
+        assert "<h1>Page not found</h1>" in page
+        assert "doesn&#39;t match anything here" in page
+
+    def test_no_status_code_reaches_the_reader(self, config, store):
+        """The number is in the response, where it belongs, and not in the
+        copy, where it explains nothing to the person reading it."""
+        response = self._app(config, store).get("/no-such-page")
+        assert response.status_code == 404
+        card = _error_card(response.data.decode())
+        for code in ("404", "500", "503", "403"):
+            assert code not in card
+
+    def test_a_missing_page_is_not_offered_the_status_page(self, config, store):
+        """A typo is not an outage."""
+        card = _error_card(self._app(config, store).get("/no-such-page").data.decode())
+        assert "status.vrcverify.com" not in card
+
+    def test_the_five_hundred_does_not_promise_nothing_changed(self, config, store):
+        """The 503 says "Nothing has changed" and may: a failed READ changes
+        nothing. A 500 can be raised halfway through a save, so the same
+        sentence there would be a promise the page cannot keep.
+
+        Read off the source rather than by provoking one: `server_error` is
+        marked `no cover - defensive` precisely because reaching it means the
+        app is already broken.
+        """
+        import dashboard.app as module
+        import inspect
+
+        source = inspect.getsource(module._register_routes)
+        five = source[source.index("def server_error"):]
+        five = five[:five.index("), 500")]
+        # Collapsed, because the sentence is wrapped across source lines and a
+        # test that only passes at one column width is a test that fails the
+        # next time somebody reflows a paragraph.
+        five = " ".join(five.replace('"', " ").split())
+        assert "Nothing has changed" not in five
+        assert "check the setting you were changing" in five
 
 
 class TestWriteSurface:

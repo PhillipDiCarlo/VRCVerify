@@ -3525,6 +3525,44 @@ footer p + p { margin-top: var(--space-2); }
 .compare-yes { color: var(--accent-text); display: inline-flex; }
 .compare-no { color: var(--faint); }
 
+/* THE SAME CONTROL AS /pricing, DRIVEN BY RADIOS (#286).
+ *
+ * That page can afford a link and a round trip per term; this one is a
+ * purchase, so the term has to arrive in the POST. Radios put it there with no
+ * script -- and `:checked + label` is what paints the selection, which is the
+ * whole reason the input is offscreen rather than `display: none`. A hidden
+ * input is not focusable, and a segmented control a keyboard cannot reach is
+ * a purchase a keyboard cannot make.
+ */
+.term-switch-buy {
+  border: 1px solid var(--control-line);
+  margin: var(--space-4) 0 0;
+  padding: 2px;
+}
+
+.term-radio:checked + .term {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.term-radio:checked + .term .term-saving { color: var(--accent-ink); opacity: 0.85; }
+/* The ring goes on the LABEL, because the input it belongs to is offscreen.
+ * Without this the focus indicator is drawn somewhere nobody can see, which is
+ * the same as not drawing one. */
+.term-radio:focus-visible + .term {
+  outline: var(--focus-width) solid var(--accent-text);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+
+.term-amount-small {
+  font-size: var(--text-body);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.term-trial { font-size: var(--text-micro); color: var(--muted); }
+.term-radio:checked + .term .term-trial { color: var(--accent-ink); opacity: 0.85; }
+
+.plan-buy .actions { margin-top: var(--space-4); }
+
 .pricing-actions {
   display: flex;
   flex-wrap: wrap;

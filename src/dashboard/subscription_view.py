@@ -346,6 +346,16 @@ class SubscriptionPage:
         "unavailable": (N_("Unknown"), "muted"),
     }
 
+
+    @property
+    def default_plan(self):
+        """Which billing term the purchase control arrives on.
+
+        The same rule /pricing leads with, from the same function -- see
+        `default_plan`. The template used to decide it itself and got it wrong.
+        """
+        return default_plan(self.plans)
+
     @property
     def chip(self) -> Optional[dict]:
         """The state, as a word and a tone, or None where there is no status.
@@ -874,6 +884,25 @@ def build(
     )
 
 
+def default_plan(plans):
+    """The plan a page should lead with: the highlighted one, else the first.
+
+    ONE FUNCTION BECAUSE THIS RULE ALREADY EXISTED TWICE. `PublicPricingPage.
+    chosen` had it, and subscription.html grew its own as
+    `plan.highlight or loop.first` -- which checks BOTH radios whenever the
+    highlighted plan is not the first one, and two checked radios in a group
+    means the last silently wins. The recommendation then becomes whichever
+    price Stripe happened to return last, with nothing to notice.
+    """
+    plans = tuple(plans)
+    if not plans:
+        return None
+    for plan in plans:
+        if plan.highlight:
+            return plan
+    return plans[0]
+
+
 class PublicPricingPage:
     """What a signed-out stranger is shown about what Premium costs (#188).
 
@@ -934,10 +963,7 @@ class PublicPricingPage:
             for plan in self.plans:
                 if plan.price_id == price_id:
                     return plan
-        for plan in self.plans:
-            if plan.highlight:
-                return plan
-        return self.plans[0]
+        return default_plan(self.plans)
 
     @property
     def unavailable(self) -> bool:

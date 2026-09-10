@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 01:48-0400\n"
+"POT-Creation-Date: 2026-09-10 02:10-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: nl\n"
@@ -41,11 +41,28 @@ msgstr "Deze login kon niet worden geverifieerd. Probeer het opnieuw."
 msgid "Discord could not complete the login. Please try again."
 msgstr "Discord kon het inloggen niet afronden. Probeer het opnieuw."
 
-msgid "Page not found."
-msgstr "Pagina niet gevonden."
+# | msgid "Page not found."
+msgid "Page not found"
+msgstr "Pagina niet gevonden"
 
-msgid "Something went wrong."
-msgstr "Er is iets misgegaan."
+msgid ""
+"That address doesn't match anything here. It may have been a typo, or a "
+"link to something that has since moved."
+msgstr ""
+"Dat adres komt hier met niets overeen. Misschien een typfout, of een link"
+" naar iets dat inmiddels is verplaatst."
+
+# | msgid "Something went wrong."
+msgid "Something went wrong"
+msgstr "Er is iets misgegaan"
+
+msgid ""
+"The dashboard hit an error it couldn't recover from. Try again in a "
+"moment, and check the setting you were changing if you were saving one."
+msgstr ""
+"Het dashboard liep tegen een fout aan waarvan het niet kon herstellen. "
+"Probeer het zo nog eens, en controleer de instelling die je aan het "
+"wijzigen was als je aan het opslaan was."
 
 msgid "That setting needs VRCVerify Premium. Nothing was changed."
 msgstr "Die instelling vereist VRCVerify Premium. Er is niets gewijzigd."
@@ -221,22 +238,30 @@ msgstr "Instellingen"
 msgid "Subscriptions"
 msgstr "Abonnementen"
 
-msgid ""
-"That server isn't available. Either VRCVerify isn't in it, or you don't "
-"have the Administrator permission there."
-msgstr ""
-"Die server is niet beschikbaar. Of VRCVerify staat er niet op, of je hebt"
-" daar geen Administrator-rechten."
+# | msgid "That group ID wasn't usable"
+msgid "That server isn't available"
+msgstr "Die server is niet beschikbaar"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
+# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
+# you
+# | don't " "have the Administrator permission there."
 msgid ""
-"Can't reach the bot right now, so this page can't be shown. Nothing has "
-"changed. Try again shortly."
+"Either VRCVerify isn't in it, or you don't have the Administrator "
+"permission there."
+msgstr "Of VRCVerify zit er niet in, of je hebt daar niet de Beheerder-rechten."
+
+msgid "Can't reach the bot"
+msgstr "Kan de bot niet bereiken"
+
+# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
+# | again " "shortly."
+# | msgid "The bot didn't answer this one. Try again shortly."
+msgid ""
+"This page needs the bot to answer and it isn't answering right now. "
+"Nothing has changed. Try again shortly."
 msgstr ""
-"De bot is nu niet bereikbaar, dus deze pagina kan niet worden getoond. Er"
-" is niets gewijzigd. Probeer het zo meteen opnieuw."
+"Deze pagina heeft een antwoord van de bot nodig en die antwoordt op dit "
+"moment niet. Er is niets gewijzigd. Probeer het zo nog eens."
 
 msgid "Premium"
 msgstr "Premium"
@@ -1256,12 +1281,12 @@ msgstr ""
 " het aankondigingskanaal – elke update van hier wordt daar geplaatst, en "
 "Discord verspreidt hem naar elk kanaal dat je kiest."
 
-msgid "Sorry"
-msgstr "Sorry"
-
 # | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "Terug naar je servers"
+
+msgid "Check VRCVerify's status"
+msgstr "Status van VRCVerify bekijken"
 
 msgid "Manage your VRCVerify servers"
 msgstr "Beheer je VRCVerify-servers"
@@ -1914,9 +1939,6 @@ msgstr ""
 "abonnement hieronder ontgrendelt precies dezelfde functies – het enige "
 "verschil is hoe lang je in één keer betaalt, en hoeveel dat scheelt."
 
-msgid "Most popular"
-msgstr "Populairst"
-
 msgid "Subscribe"
 msgstr "Abonneren"
 
@@ -2076,4 +2098,23 @@ msgstr ""
 #~ "Ontgrendelt de instellingen die hieronder "
 #~ "gemarkeerd zijn. De 18+-verificatie zelf "
 #~ "blijft gratis."
+
+# | msgid "" "Can't reach the bot right now, so we can't tell which of these
+# | it's in. " "Your settings are safe — nothing here has changed. Try again
+# | shortly."
+#~ msgid ""
+#~ "Can't reach the bot right now, so"
+#~ " this page can't be shown. Nothing"
+#~ " has changed. Try again shortly."
+#~ msgstr ""
+#~ "De bot is nu niet bereikbaar, dus"
+#~ " deze pagina kan niet worden getoond."
+#~ " Er is niets gewijzigd. Probeer het"
+#~ " zo meteen opnieuw."
+
+#~ msgid "Sorry"
+#~ msgstr "Sorry"
+
+#~ msgid "Most popular"
+#~ msgstr "Populairst"
 
