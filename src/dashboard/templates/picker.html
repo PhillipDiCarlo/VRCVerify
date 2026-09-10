@@ -1,6 +1,124 @@
 {% extends "base.html" %}
 {% block title %}{% trans %}Your servers — VRCVerify{% endtrans %}{% endblock %}
 
+{# ONE CARD, RENDERED TWICE. The pinned group and the rest are the same object
+   in two places, so this is a macro rather than a copied block -- two copies of
+   a card diverge exactly as two copies of a nav do, and a star that works in
+   one group and not the other is the kind of bug nobody reports. #}
+{% macro server_card(server, csrf_token) %}
+  {# FIVE STATES, DECIDED IN `picker_view` RATHER THAN HERE.
+
+       absent   the bot is not in it, OR you do not administer it. Two answers
+                wearing one name, on purpose -- the bot cannot tell them apart
+                and must not, since telling them apart would let a signed-in
+                user map which communities run 18+ gating.
+       unknown  the bot could not be asked. Every card at once. Offers no
+                install button, because inviting somebody to reinstall a working
+                bot is worse than making them click through and find out.
+       todo     installed, and something required was never configured.
+       broken   configured and NOT working -- the state nothing else surfaces,
+                because the server looks finished until you click in.
+       done     set up and working.
+
+     The state and its wording both arrive on the card. This template picks
+     neither, so adding a sixth is a change in one Python module rather than a
+     new branch scattered through the HTML.
+
+     AND THE STYLESHEET NOW KEEPS THAT PROMISE TOO. It named `.ready` until
+     #286, so from #164's rename until then every working card had quietly lost
+     its whole-card click target while `unknown` kept one. It names
+     `:not(.absent)` now -- the single state that must be excluded, because it
+     is the only one carrying a button. #}
+  {% set state = server.state %}
+  <li class="server-card {{ state }}">
+    {# THE TILE IS THE CARD. The colour is hashed from the guild id in
+       `picker_view.tile_class` and is never stored: twelve hues, and an
+       iconless server gets one instead of the grey capital letter that made
+       every iconless server look like every other one.
+
+       An icon still wins where there is one, and sits ON the hue rather than
+       replacing it -- so an icon that fails to load falls back to that
+       server's own colour rather than to a grey hole. #}
+    <span class="server-tile {{ server.tile }}">
+      {# THE STAR, AND IT IS A FORM RATHER THAN A SCRIPT.
+         Every preference in this app posts -- the sidebar toggle, the theme,
+         the language -- and a pin that needed JavaScript would be the only
+         control here that stopped working without it.
+
+         INSIDE the tile and ABOVE the stretched link, which is what
+         `position: relative` plus a z-index buys in style.css: the link covers
+         the whole tile, so anything meant to stay pressable has to sit over it.
+         Get that wrong and pressing the star silently opens the server. #}
+      <form class="server-pin" method="post"
+            action="{{ url_for('set_favorite') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="guild_id" value="{{ server.id }}">
+        <input type="hidden" name="return_to" value="index">
+        {# The server's name is IN the label, because a screen reader meeting
+           nine of these in a grid otherwise hears "Pin" nine times with no way
+           to tell which is which. `aria-pressed` carries the on/off state, so
+           the label does not have to flip wording as well. #}
+        <button type="submit"
+                class="pin-button{% if server.pinned %} on{% endif %}"
+                aria-pressed="{{ 'true' if server.pinned else 'false' }}"
+                aria-label="{{ _('Pin %(name)s', name=server.name) }}">
+          {# Filled when pinned, outlined when not: a difference in SHAPE as
+             well as in weight, so it survives grayscale and a colour-blind
+             reader. #}
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"
+               fill="{{ 'currentColor' if server.pinned else 'none' }}"
+               stroke="currentColor" stroke-width="1.5"
+               stroke-linejoin="round">
+            <path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"></path>
+          </svg>
+        </button>
+      </form>
+
+      {% if server.icon_url %}
+        <img class="server-icon" src="{{ server.icon_url }}" alt=""
+             width="64" height="64" loading="lazy">
+      {% endif %}
+
+      <p class="server-name">
+        {% if state == 'absent' %}
+          {# Nowhere to go: the bot is not in it, so its pages would refuse.
+             The name is text, and the button below is the only action. #}
+          {{ server.name }}
+        {% else %}
+          {# Stretched by the stylesheet to cover the whole tile, so the target
+             is the tile and the markup is still one honest link. #}
+          <a href="{{ url_for('guild_overview', guild_id=server.id) }}"
+             >{{ server.name }}</a>
+        {% endif %}
+      </p>
+    </span>
+
+    {# THE ONE FACT, and it is below the tile rather than on it.
+
+       #286 asked for a state badge in the tile's top-left corner. It cannot go
+       there: the tile's hue is identity and spans all twelve including a red
+       and an amber, so a red status dot lands on a red tile at 1.59:1 against
+       its own background. Below the tile the ground is themed and known, and
+       both colours clear AA there. style.css carries the measurements.
+
+       "absent" IS STILL TWO ANSWERS WEARING ONE NAME, and its wording must not
+       pick one of them. #}
+    <p class="server-state server-state-{{ state }}">{{ server.note }}</p>
+
+    {% if state == 'absent' %}
+      {# Kept as an OFFER rather than turned into instructions, because an offer
+         is true under both readings of `absent`: Discord refuses the install to
+         anyone without Manage Server, and re-authorizing a bot already in the
+         server changes nothing. A sentence telling somebody to go and install
+         it would only be right under one of the two. #}
+      <p class="server-action">
+        <a class="button" href="{{ server.invite_url }}" rel="noopener">
+          {% trans %}Add to server{% endtrans %}</a>
+      </p>
+    {% endif %}
+  </li>
+{% endmacro %}
+
 {% block content %}
 <section class="panel">
   <h1>{% trans %}Your servers{% endtrans %}</h1>
@@ -11,122 +129,82 @@
     </p>
   {% endif %}
 
-  {% if not servers %}
-    {# The empty state is reachable in a perfectly ordinary way: somebody who
-       administers a server but was promoted after they last signed in. Discord
-       tells us the server list once, at sign-in, so the fix really is to sign
-       in again -- which makes this an empty state with something to do, rather
-       than a sentence apologizing. #}
-    <div class="empty-state">
-      <p class="empty-title">{% trans %}No servers to show{% endtrans %}</p>
-      <p class="empty-body">
-        {% trans %}This page lists servers where you have the Administrator permission. Discord tells us that list when you sign in, so a permission you were given since then will not be in it yet.{% endtrans %}
-      </p>
-      <form method="post" action="{{ url_for('logout') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit" class="button">{% trans %}Sign out and start again{% endtrans %}</button>
-      </form>
-      <p class="empty-note">{% trans %}You'll be asked to sign in with Discord again.{% endtrans %}</p>
-    </div>
+  {# SEARCH IS A GET, and it carries no CSRF token because it changes nothing.
+     A method="get" form is a navigation: it puts `?q=` in the address bar, so a
+     filtered list can be bookmarked and the back button undoes the search. Both
+     come free, and neither would survive doing this in script.
+
+     Hidden when there is nothing to search and no search running -- a search
+     box above an empty page is a control that cannot help. #}
+  {% if servers or pinned or query %}
+    <form class="server-search" method="get" action="{{ url_for('index') }}"
+          role="search">
+      {# aria-label rather than a hidden <label>, following the hamburger and
+         the theme picker. A placeholder is not a label: it disappears the
+         moment somebody types, and it is not announced as the field's name. #}
+      <input type="search" name="q" value="{{ query }}"
+             aria-label="{{ _('Search your servers') }}"
+             placeholder="{{ _('Search servers') }}"
+             autocomplete="off" spellcheck="false">
+      <button type="submit" class="button secondary">{% trans %}Search{% endtrans %}</button>
+    </form>
+  {% endif %}
+
+  {% if not servers and not pinned %}
+    {% if query %}
+      {# A search that matched nothing is NOT the same empty state as an account
+         with no servers, and the wording must not be able to drift into the
+         other one. Telling somebody to sign in again because they mistyped a
+         server name is advice that cannot help. #}
+      <div class="empty-state">
+        <p class="empty-title">{% trans %}No servers match that{% endtrans %}</p>
+        <p class="empty-body">
+          {% trans q=query %}Nothing in your list is called “{{ q }}”.{% endtrans %}
+        </p>
+        <p class="empty-note">
+          <a href="{{ url_for('index') }}">{% trans %}Show all your servers{% endtrans %}</a>
+        </p>
+      </div>
+    {% else %}
+      {# Reachable in a perfectly ordinary way: somebody who administers a
+         server but was promoted after they last signed in. Discord tells us the
+         server list once, at sign-in, so the fix really is to sign in again --
+         which makes this an empty state with something to do, rather than a
+         sentence apologizing. #}
+      <div class="empty-state">
+        <p class="empty-title">{% trans %}No servers to show{% endtrans %}</p>
+        <p class="empty-body">
+          {% trans %}This page lists servers where you have the Administrator permission. Discord tells us that list when you sign in, so a permission you were given since then will not be in it yet.{% endtrans %}
+        </p>
+        <form method="post" action="{{ url_for('logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="button">{% trans %}Sign out and start again{% endtrans %}</button>
+        </form>
+        <p class="empty-note">{% trans %}You'll be asked to sign in with Discord again.{% endtrans %}</p>
+      </div>
+    {% endif %}
   {% else %}
-    <ul class="servers">
-      {% for server in servers %}
-        {# FIVE STATES, DECIDED IN `picker_view` RATHER THAN HERE.
-           They used to be three and computed in this template, from
-           `installed` plus `reachable`. Two of them still mean what they did:
+    {# THE PINNED GROUP EXISTS ONLY WHEN SOMETHING IS IN IT. A heading over an
+       empty row is a permanent instruction to use a feature, which is what a
+       dashboard looks like when it is selling itself to its own user.
 
-             absent   the bot is not in it, OR you do not administer it. Two
-                      answers wearing one name, on purpose -- the bot cannot
-                      tell them apart and must not, since telling them apart
-                      would let a signed-in user map which communities run
-                      18+ gating.
-             unknown  the bot could not be asked. Every card at once. Offers
-                      no install button, because inviting somebody to
-                      reinstall a working bot is worse than making them click
-                      through and find out. That was a real bug on this page.
+       The second heading is likewise conditional: "All servers" over the only
+       group on the page is a label for something that needs no label. #}
+    {% if pinned %}
+      <h2 class="servers-heading">{% trans %}Pinned{% endtrans %}</h2>
+      <ul class="servers">
+        {% for server in pinned %}{{ server_card(server, csrf_token) }}{% endfor %}
+      </ul>
+      {% if servers %}
+        <h2 class="servers-heading">{% trans %}All servers{% endtrans %}</h2>
+      {% endif %}
+    {% endif %}
 
-           The other three replace the single `ready`, which said the same
-           sentence on every working card and so said nothing (#164):
-
-             done     set up and working
-             todo     installed, and something required was never configured
-             broken   configured and NOT working -- the state nothing else
-                      surfaces, because the server looks finished until you
-                      click in
-
-           The state and its wording both arrive on the card. This template
-           picks neither, so adding a sixth is a change in one Python module
-           rather than a new branch scattered through the HTML.
-
-           AND THE STYLESHEET NOW KEEPS THAT PROMISE TOO. It named `.ready`
-           until #286, so from #164's rename until then every working card had
-           quietly lost its whole-card click target while `unknown` kept one.
-           It names `:not(.absent)` now -- the single state that must be
-           excluded, because it is the only one carrying a button. #}
-        {% set state = server.state %}
-        <li class="server-card {{ state }}">
-          {# THE TILE IS THE CARD. The colour is hashed from the guild id in
-             `picker_view.tile_class` and is never stored: twelve hues, and an
-             iconless server gets one instead of the grey capital letter that
-             made every iconless server look like every other one.
-
-             An icon still wins where there is one, and sits ON the hue rather
-             than replacing it -- so an icon that fails to load falls back to
-             that server's own colour rather than to a grey hole. #}
-          <span class="server-tile {{ server.tile }}">
-            {% if server.icon_url %}
-              <img class="server-icon" src="{{ server.icon_url }}" alt=""
-                   width="64" height="64" loading="lazy">
-            {% endif %}
-
-            <p class="server-name">
-              {% if state == 'absent' %}
-                {# Nowhere to go: the bot is not in it, so its pages would
-                   refuse. The name is text, and the button below is the only
-                   action. #}
-                {{ server.name }}
-              {% else %}
-                {# Stretched by the stylesheet to cover the whole tile, so the
-                   target is the tile and the markup is still one honest link.
-                   Safe precisely because these states have no button on the
-                   card to be swallowed by it. #}
-                <a href="{{ url_for('guild_overview', guild_id=server.id) }}"
-                   >{{ server.name }}</a>
-              {% endif %}
-            </p>
-          </span>
-
-          {# THE ONE FACT, and it is below the tile rather than on it.
-
-             #286 asked for a state badge in the tile's top-left corner. It
-             cannot go there: the tile's hue is identity and spans all twelve
-             including a red and an amber, so a red status dot lands on a red
-             tile at 1.59:1 against its own background. Below the tile the
-             ground is --bg, which is themed and known, and both colours clear
-             AA there. style.css carries the measurements.
-
-             "absent" IS STILL TWO ANSWERS WEARING ONE NAME, and its wording
-             must not pick one of them. A guild missing from the summaries
-             means either "bot not there" or "not yours", indistinguishable on
-             purpose, because telling them apart would let a signed-in user map
-             which communities run 18+ gating. #}
-          <p class="server-state server-state-{{ state }}">{{ server.note }}</p>
-
-          {% if state == 'absent' %}
-            {# Kept as an OFFER rather than turned into instructions, because
-               an offer is true under both readings of `absent`: Discord
-               refuses the install to anyone without Manage Server, and
-               re-authorizing a bot already in the server changes nothing.
-               A sentence telling somebody to go and install it would only be
-               right under one of the two. #}
-            <p class="server-action">
-              <a class="button" href="{{ server.invite_url }}" rel="noopener">
-                {% trans %}Add to server{% endtrans %}</a>
-            </p>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
+    {% if servers %}
+      <ul class="servers">
+        {% for server in servers %}{{ server_card(server, csrf_token) }}{% endfor %}
+      </ul>
+    {% endif %}
   {% endif %}
 </section>
 {% endblock %}

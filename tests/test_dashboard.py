@@ -7781,6 +7781,107 @@ class TestTheNextStepRanker:
         assert "214" in step["body"]
 
 
+class TestPinningAServer:
+    """#286 phase 3b. The cookie model, which is pure, plus the route's rules.
+
+    The pins are per browser and that is a signed-off trade, not an oversight:
+    following the account means a bot API change and a new column. The failure
+    mode is somebody pinning three servers on a desktop and seeing them
+    unpinned on a phone.
+    """
+
+    def test_a_hand_edited_cookie_cannot_smuggle_anything_through(self):
+        """The cookie is written by us and then lives in a browser, so what
+        comes back is input rather than something we stored."""
+        assert picker_view.parse_favorites("12.abc..34.12.'; DROP") == ("12", "34")
+        assert picker_view.parse_favorites(None) == ()
+        assert picker_view.parse_favorites("") == ()
+
+    def test_a_pin_does_not_outlive_the_standing_that_created_it(self):
+        """Filtered on the way OUT as well as in.
+
+        An admin demoted since they pinned a server, and somebody hand-editing
+        in an id they never had, are the same case -- and only the read-side
+        filter catches the first, because the cookie has no way to hear about
+        a demotion that happened after it was written.
+        """
+        assert picker_view.parse_favorites("12.34", manageable={"34"}) == ("34",)
+
+    def test_the_cap_evicts_rather_than_refuses(self):
+        """Pressing a star and having nothing happen, because of twenty
+        servers pinned a year ago, is the worse failure."""
+        value = ""
+        for guild_id in range(1000, 1000 + picker_view.MAX_FAVORITES + 5):
+            value = picker_view.toggle_favorite(
+                picker_view.parse_favorites(value), guild_id
+            )
+        pins = picker_view.parse_favorites(value)
+        assert len(pins) == picker_view.MAX_FAVORITES
+        # Newest first, so the newest press is the one that survived.
+        assert pins[0] == str(1000 + picker_view.MAX_FAVORITES + 4)
+
+    def test_the_same_star_pressed_twice_unpins(self):
+        assert picker_view.toggle_favorite(("5", "6"), 5) == "6"
+        assert picker_view.toggle_favorite(("6",), 5) == "5.6"
+
+    def test_pinned_cards_are_split_out_in_order(self):
+        cards = [
+            {"name": "a", "pinned": False},
+            {"name": "b", "pinned": True},
+            {"name": "c", "pinned": False},
+            {"name": "d", "pinned": True},
+        ]
+        pinned, rest = picker_view.split_pinned(cards)
+        assert [c["name"] for c in pinned] == ["b", "d"]
+        assert [c["name"] for c in rest] == ["a", "c"]
+
+
+class TestTheFavoriteRoute:
+    """The route's three rules, which are the half a pure test cannot reach."""
+
+    def _pin(self, test_client, store, guild_id, token=True):
+        session = store.load(test_client.get_cookie(SESSION_COOKIE).value)
+        data = {"guild_id": guild_id, "return_to": "index"}
+        if token:
+            data["csrf_token"] = session.csrf_token
+        return test_client.post("/prefs/favorite", data=data)
+
+    def test_pinning_writes_the_cookie(self, config, store):
+        test_client, _api = settings_client(config, store)
+        response = self._pin(test_client, store, GUILD_IN)
+        assert response.status_code == 302
+        assert GUILD_IN in set_cookie_header(response, "vrcverify_pinned")
+
+    def test_it_needs_the_csrf_token(self, config, store):
+        test_client, _api = settings_client(config, store)
+        assert self._pin(test_client, store, GUILD_IN, token=False).status_code == 400
+
+    def test_a_guild_this_session_does_not_administer_changes_nothing(
+        self, config, store
+    ):
+        """NOT because a pin is dangerous.
+
+        An unchecked id would let a crafted post fill twenty bounded slots
+        with servers that can never match a tile, evicting real pins to hold
+        values that will never render. A bound only protects something if what
+        goes into it has to be real.
+        """
+        test_client, _api = settings_client(config, store)
+        for bogus in (GUILD_NOT_ADMIN, "../../etc", "", "99999999999999999999"):
+            response = self._pin(test_client, store, bogus)
+            with pytest.raises(AssertionError):
+                set_cookie_header(response, "vrcverify_pinned")
+
+    def test_it_never_reaches_the_bot(self, config, store):
+        """A preference toggle that could be made to call the bot is a way to
+        spend its rate limit, and to probe for guilds, from a route whose whole
+        job is writing one cookie."""
+        test_client, api = settings_client(config, store)
+        api.reads.clear()
+        self._pin(test_client, store, GUILD_IN)
+        assert api.reads == []
+
+
 class TestWriteSurface:
     """One save path per group and nothing else. Widening it means editing this."""
 
@@ -7823,6 +7924,18 @@ class TestWriteSurface:
             # rather than trusted, so a crafted post changes nothing and
             # cannot fill a bounded cookie with pairs that match nothing.
             "/prefs/dismiss",
+            # Pinning one server on the picker (#286). One cookie, no bot call,
+            # session and CSRF required -- following /prefs/nav rather than
+            # /prefs/theme, since this only ever renders for a signed-in admin
+            # and there is always a token to require.
+            #
+            # The second route here to take an id from the form, and the reason
+            # it is checked is not that a pin is dangerous. An unchecked id
+            # would let a crafted post fill twenty bounded slots with servers
+            # that can never match a tile, evicting real pins to hold values
+            # that will never render. The bound only protects something if what
+            # goes into it has to be real.
+            "/prefs/favorite",
             # The bell's "Mark all as read" (#136). One cookie, nothing else:
             # no session state, no bot call, and the value written is the
             # newest entry id this process already knows rather than anything

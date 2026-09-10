@@ -1704,6 +1704,86 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 
 .server-action { margin: var(--space-1) 0 0; }
 
+.servers-heading {
+  margin: var(--space-5) 0 0;
+  font-size: var(--text-note);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.servers-heading:first-of-type { margin-top: var(--space-4); }
+
+.server-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  /* CAPPED, because a full-width search bar over a grid of four tiles is a
+   * control drawn at the scale of the page rather than of its job. It is also
+   * a measure argument: a field wider than the longest server name is empty
+   * space that reads as room somebody is supposed to fill. */
+  max-width: 26rem;
+}
+.server-search input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+/* The magnifier and the clear cross WebKit draws inside a `type=search` are
+ * the browser's, not ours: they take their colour from the UA stylesheet and
+ * land dark-on-dark in the dark theme. `appearance: none` gives the field back
+ * to the app's own input rules, and the visible Search button is what replaces
+ * the affordance -- it is also the only one a keyboard reaches. */
+.server-search input[type="search"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.server-search input[type="search"]::-webkit-search-decoration,
+.server-search input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+/* THE STAR SITS OVER THE STRETCHED LINK, which is the whole reason this has a
+ * z-index. `.server-name a::after` covers the tile at z-index auto within the
+ * tile's stacking context, so anything that must stay pressable has to be
+ * lifted above it -- without this the star is a decoration that opens the
+ * server when you press it. */
+.server-pin {
+  position: absolute;
+  z-index: 1;
+  top: var(--space-2);
+  inset-inline-end: var(--space-2);
+  margin: 0;
+  line-height: 0;
+}
+
+.pin-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 24px of target around a 14px glyph, per #286. Padding rather than a bigger
+   * star: the mark stays the size it reads best at, and the thing a finger has
+   * to find grows around it. `@media (pointer: coarse)` further up takes every
+   * button to 44px, which this inherits. */
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--tile-ink);
+  cursor: pointer;
+}
+/* Unpinned stars are quiet until the card is touched, so a grid of nine
+ * servers is not a grid of nine stars competing with the names. The pinned
+ * one stays visible always -- it is state, not an affordance. */
+.pin-button { opacity: 0.55; }
+.pin-button.on,
+.server-card:hover .pin-button,
+.pin-button:focus-visible { opacity: 1; }
+.pin-button:hover { background: rgb(255 255 255 / 0.18); }
+
+
 /* --- the empty picker ---
  *
  * Reachable in an ordinary way -- somebody promoted since they last signed in

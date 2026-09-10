@@ -476,6 +476,19 @@ SEEN_COOKIE_MAX_AGE = 31536000
 DISMISS_COOKIE = "vrcverify_dismissed"
 DISMISS_COOKIE_MAX_AGE = 31536000
 
+# The picker's pins. Per browser, and that trade is signed off in #286 rather
+# than overlooked: making them follow the account means a bot API change and a
+# new column, and the failure mode of not doing it is that somebody who pinned
+# three servers on a desktop sees them unpinned on a phone. Bounded for the
+# same reason DISMISS_COOKIE is -- see picker_view.MAX_FAVORITES, which owns
+# the number and the arithmetic behind it.
+#
+# httponly, unlike the dismiss cookie: nothing on the page reads this, and the
+# only thing that writes it is the form below. There is no enhancement waiting
+# to pin without a navigation, because the pin has to survive one anyway.
+FAVORITE_COOKIE = "vrcverify_pinned"
+FAVORITE_COOKIE_MAX_AGE = 31536000
+
 # What the cookie may say. Anything else is treated as if it were absent, which
 # is what stops a hand-edited value reaching a `data-` attribute unchecked.
 THEMES = frozenset({"dark", "light", "system"})
@@ -1136,6 +1149,18 @@ def _register_routes(app: Flask) -> None:
         # anyone may do.
         candidates = [g_ for g_ in (session.guilds or []) if g_.get("admin_hint")]
 
+        # SEARCH IS A GET WITH NO SCRIPT, like every other control here, and it
+        # narrows the list BEFORE the bot is asked. Filtering afterwards would
+        # be simpler to read and would spend the bot's rate limit summarizing
+        # servers nobody asked about -- on a page whose whole design is one
+        # call. Casefolded on both sides so a search for "vrc" finds "VRChat".
+        query = (request.args.get("q") or "").strip()
+        if query:
+            needle = query.casefold()
+            candidates = [
+                g_ for g_ in candidates if needle in (g_.get("name") or "").casefold()
+            ]
+
         try:
             # ONE CALL, and the only one this page makes. It answers the
             # membership question as well: the bot summarizes only guilds this
@@ -1170,12 +1195,21 @@ def _register_routes(app: Flask) -> None:
             ],
             summaries,
             reachable=reachable,
+            favorites=_favorites(session),
             t=_translator(),
         )
+        pinned, rest = picker_view.split_pinned(servers)
 
         return render_template(
             "picker.html",
-            servers=servers,
+            pinned=pinned,
+            servers=rest,
+            # Whether the page is showing everything, which is not the same
+            # question as "are there any servers". A search that matches
+            # nothing needs to say so and offer a way back; an account with no
+            # servers at all needs the sign-in-again advice instead, and the
+            # two empty states must not be able to render each other's words.
+            query=query,
             reachable=reachable,
             csrf_token=session.csrf_token,
         )
@@ -1905,6 +1939,58 @@ def _register_routes(app: Flask) -> None:
             samesite="Lax",
             path="/",
         )
+        return response
+
+    @app.post("/prefs/favorite")
+    def set_favorite():
+        """Pin or unpin one server on the picker. Writes one cookie.
+
+        Session and CSRF, following `/prefs/nav` rather than `/prefs/theme`:
+        the theme route deliberately requires neither, because it has to work
+        on the sign-in page where there is no session to have a token in. This
+        one only ever renders for a signed-in admin, so there is always a token
+        and requiring it costs nothing.
+
+        THE GUILD ID IS CHECKED AGAINST WHAT THIS SESSION ADMINISTERS, and the
+        reason is not that a pin is dangerous. It is that a cookie is a store
+        somebody else can write to, and an unchecked id would let a crafted
+        post fill twenty slots with servers that will never match a tile --
+        evicting real pins to hold values that can never render. Validating on
+        the way in means the bound protects something.
+
+        `admin_hint` is Discord's answer from authorization time and is stale
+        by design. That is the right source here and would be the wrong one
+        anywhere else: this decides which tiles get drawn first among tiles
+        this page is already drawing, and the bot has already decided which
+        those are. Nothing here grants access to anything.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        response = redirect(_preference_return_url())
+
+        wanted = (request.form.get("guild_id") or "").strip()
+        if not wanted.isdigit() or wanted not in _manageable_ids(session):
+            return response
+
+        value = picker_view.toggle_favorite(_favorites(session), wanted)
+        if value:
+            response.set_cookie(
+                FAVORITE_COOKIE,
+                value,
+                max_age=FAVORITE_COOKIE_MAX_AGE,
+                secure=True,
+                httponly=True,
+                samesite="Lax",
+                path="/",
+            )
+        else:
+            # No pins is the default, so it is the absence of the cookie rather
+            # than an empty value somebody has to parse into the same meaning.
+            response.delete_cookie(FAVORITE_COOKIE, path="/")
         return response
 
     @app.post("/prefs/theme")
@@ -2967,6 +3053,34 @@ def _dismissed() -> tuple:
     about a hand-edited cookie.
     """
     return changelog.parse_dismissed(request.cookies.get(DISMISS_COOKIE))
+
+
+def _manageable_ids(session) -> frozenset:
+    """The guild ids this session's Discord grant said it administers.
+
+    Stale by design, and correct for what it is used for. It decides which
+    tiles the picker draws and which of them may be pinned -- never what
+    anybody may change, which is the bot's answer and is asked separately on
+    every page that acts.
+    """
+    return frozenset(
+        str(guild["id"])
+        for guild in (session.guilds or [])
+        if guild.get("admin_hint")
+    )
+
+
+def _favorites(session) -> tuple:
+    """The guild ids pinned in this browser, filtered to ones still managed.
+
+    Filtered on the way OUT as well as on the way in. A pin written while
+    somebody administered a server outlives the demotion that follows, and the
+    cookie has no way to hear about it -- so the check has to run on read, not
+    only at the moment the star was pressed.
+    """
+    return picker_view.parse_favorites(
+        request.cookies.get(FAVORITE_COOKIE), manageable=_manageable_ids(session)
+    )
 
 
 def _nav_collapsed() -> bool:
