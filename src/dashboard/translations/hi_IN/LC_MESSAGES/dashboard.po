@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 02:10-0400\n"
+"POT-Creation-Date: 2026-09-10 02:32-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: hi_IN\n"
@@ -548,6 +548,25 @@ msgstr "आपकी पुरानी सुविधाएँ मुफ़्
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "VRCVerify Premium में अपग्रेड करें"
+
+msgid "Working"
+msgstr "चालू है"
+
+# | msgid "Setup isn't finished"
+msgid "Setup unfinished"
+msgstr "सेटअप अधूरा"
+
+# | msgid "needs attention"
+msgid "Needs attention"
+msgstr "ध्यान चाहिए"
+
+# | msgid "not set"
+msgid "Not set up"
+msgstr "सेट नहीं है"
+
+# | msgid "Couldn't check"
+msgid "Can't check"
+msgstr "जाँच नहीं हो सकी"
 
 msgid "Set up and working"
 msgstr "सेट है और काम कर रहा है"
@@ -1398,6 +1417,12 @@ msgstr "सर्वर में जोड़ें"
 msgid "Your servers"
 msgstr "आपके सर्वर"
 
+#, python-format
+msgid "One needs something from you."
+msgid_plural "%(count)s need something from you."
+msgstr[0] "एक सर्वर को आपसे कुछ चाहिए।"
+msgstr[1] "%(count)s सर्वरों को आपसे कुछ चाहिए।"
+
 msgid ""
 "Can't reach the bot right now, so we can't tell which of these it's in. "
 "Your settings are safe — nothing here has changed. Try again shortly."
@@ -1417,6 +1442,20 @@ msgstr "सर्वर खोजें"
 
 msgid "Search"
 msgstr "खोजें"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+#, python-format
+msgid "%(count)s server"
+msgid_plural "%(count)s servers"
+msgstr[0] "%(count)s सर्वर"
+msgstr[1] "%(count)s सर्वर"
+
+# | msgid "Premium"
+# | msgid "See Premium"
+#, python-format
+msgid "%(count)s Premium"
+msgstr "%(count)s पर Premium"
 
 # | msgid "No servers to show"
 msgid "No servers match that"

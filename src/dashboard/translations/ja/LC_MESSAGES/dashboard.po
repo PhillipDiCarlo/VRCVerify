@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 02:10-0400\n"
+"POT-Creation-Date: 2026-09-10 02:32-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -488,6 +488,25 @@ msgstr "以前から引き継がれている特典は、どちらを選んでも
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "VRCVerify Premium にアップグレード"
+
+msgid "Working"
+msgstr "稼働中"
+
+# | msgid "Setup isn't finished"
+msgid "Setup unfinished"
+msgstr "セットアップ未完了"
+
+# | msgid "needs attention"
+msgid "Needs attention"
+msgstr "要対応"
+
+# | msgid "not set"
+msgid "Not set up"
+msgstr "未設定"
+
+# | msgid "Couldn't check"
+msgid "Can't check"
+msgstr "確認できません"
 
 msgid "Set up and working"
 msgstr "設定済みで正常"
@@ -1288,6 +1307,11 @@ msgstr "サーバーに追加"
 msgid "Your servers"
 msgstr "あなたのサーバー"
 
+#, python-format
+msgid "One needs something from you."
+msgid_plural "%(count)s need something from you."
+msgstr[0] "%(count)s 件のサーバーが対応を待っています。"
+
 msgid ""
 "Can't reach the bot right now, so we can't tell which of these it's in. "
 "Your settings are safe — nothing here has changed. Try again shortly."
@@ -1306,6 +1330,19 @@ msgstr "サーバーを検索"
 
 msgid "Search"
 msgstr "検索"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+#, python-format
+msgid "%(count)s server"
+msgid_plural "%(count)s servers"
+msgstr[0] "%(count)s 個のサーバー"
+
+# | msgid "Premium"
+# | msgid "See Premium"
+#, python-format
+msgid "%(count)s Premium"
+msgstr "%(count)s 件が Premium"
 
 # | msgid "No servers to show"
 msgid "No servers match that"

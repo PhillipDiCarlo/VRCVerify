@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 02:10-0400\n"
+"POT-Creation-Date: 2026-09-10 02:32-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -471,6 +471,25 @@ msgstr "无论你如何选择，你保留的旧有权益都将继续免费。"
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "升级到 VRCVerify Premium"
+
+msgid "Working"
+msgstr "正常运行"
+
+# | msgid "Setup isn't finished"
+msgid "Setup unfinished"
+msgstr "设置未完成"
+
+# | msgid "needs attention"
+msgid "Needs attention"
+msgstr "需要处理"
+
+# | msgid "not set"
+msgid "Not set up"
+msgstr "未设置"
+
+# | msgid "Couldn't check"
+msgid "Can't check"
+msgstr "无法检查"
 
 msgid "Set up and working"
 msgstr "已设置并正常运行"
@@ -1250,6 +1269,11 @@ msgstr "添加到服务器"
 msgid "Your servers"
 msgstr "你的服务器"
 
+#, python-format
+msgid "One needs something from you."
+msgid_plural "%(count)s need something from you."
+msgstr[0] "%(count)s 台服务器需要你处理。"
+
 msgid ""
 "Can't reach the bot right now, so we can't tell which of these it's in. "
 "Your settings are safe — nothing here has changed. Try again shortly."
@@ -1266,6 +1290,19 @@ msgstr "搜索服务器"
 
 msgid "Search"
 msgstr "搜索"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+#, python-format
+msgid "%(count)s server"
+msgid_plural "%(count)s servers"
+msgstr[0] "%(count)s 台服务器"
+
+# | msgid "Premium"
+# | msgid "See Premium"
+#, python-format
+msgid "%(count)s Premium"
+msgstr "%(count)s 个 Premium"
 
 # | msgid "No servers to show"
 msgid "No servers match that"

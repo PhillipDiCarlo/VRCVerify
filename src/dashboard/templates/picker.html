@@ -40,6 +40,24 @@
        replacing it -- so an icon that fails to load falls back to that
        server's own colour rather than to a grey hole. #}
     <span class="server-tile {{ server.tile }}">
+      {# THE STATE, ON THE TILE, IN A CHIP (#286).
+
+         This lives here after all, and the chip is why. A bare status dot on
+         the tile was measured at 1.59:1 against its own hue -- the ring spans
+         all twelve including a red and an amber, so a red dot lands on a red
+         tile. An OPAQUE chip gives the dot and its word a ground that does not
+         depend on the hue at all: black at 55% over the already-scrimmed top
+         corner puts the white label at 14.76:1 and the worst dot at 5.34:1,
+         measured across all twelve rather than sampled.
+
+         THE WORD AND THE DOT, never the dot alone. Colour is what carries
+         across a grid; the word is what tells a reader who cannot use colour,
+         or who is looking at one card rather than nine, which state this is. #}
+      <span class="tile-top">
+        <span class="tile-chip chip-{{ state }}">
+          <span class="chip-dot" aria-hidden="true"></span>
+          <span class="chip-label">{{ server.status }}</span>
+        </span>
       {# THE STAR, AND IT IS A FORM RATHER THAN A SCRIPT.
          Every preference in this app posts -- the sidebar toggle, the theme,
          the language -- and a pin that needed JavaScript would be the only
@@ -73,6 +91,7 @@
           </svg>
         </button>
       </form>
+      </span>
 
       {% if server.icon_url %}
         <img class="server-icon" src="{{ server.icon_url }}" alt=""
@@ -117,7 +136,7 @@
            The same accident `.empty` / `.empty-state` is commented on in
            style.css. A modifier that is also somebody else's component is a
            rule you did not write applying to markup you did. #}
-        <p class="plan-tag {{ 'plan-paid' if server.premium else 'plan-free' }}">
+        <p class="tile-chip plan-tag {{ 'plan-paid' if server.premium else 'plan-free' }}">
           {%- if server.premium -%}
             {% trans %}Premium{% endtrans %}
           {%- else -%}
@@ -127,17 +146,19 @@
       {% endif %}
     </span>
 
-    {# THE ONE FACT, and it is below the tile rather than on it.
+    {# THE ONE FACT, INSIDE THE CARD (#286).
 
-       #286 asked for a state badge in the tile's top-left corner. It cannot go
-       there: the tile's hue is identity and spans all twelve including a red
-       and an amber, so a red status dot lands on a red tile at 1.59:1 against
-       its own background. Below the tile the ground is themed and known, and
-       both colours clear AA there. style.css carries the measurements.
+       It used to sit on the bare panel under the tile, which read as a caption
+       floating beside a picture rather than as part of the object -- the
+       server's own information, outside the server's own panel. The card has a
+       border and a footer strip now, and the sentence lives in it.
+
+       A SENTENCE, WHERE THE CHIP ABOVE IS A WORD. The chip says which state
+       this is across a grid; this says what that means for this server.
 
        "absent" IS STILL TWO ANSWERS WEARING ONE NAME, and its wording must not
        pick one of them. #}
-    <p class="server-state server-state-{{ state }}">{{ server.note }}</p>
+    <p class="server-foot server-state-{{ state }}">{{ server.note }}</p>
 
     {% if state == 'absent' %}
       {# Kept as an OFFER rather than turned into instructions, because an offer
@@ -155,7 +176,23 @@
 
 {% block content %}
 <section class="panel">
-  <h1>{% trans %}Your servers{% endtrans %}</h1>
+  {# THE HEADING SAYS WHETHER ANYTHING WANTS DOING, and the count sits beside
+     the search rather than under the title.
+
+     `needing` is computed in the route from the same states the chips draw
+     from, so the sentence and the chips can never disagree about how many
+     servers are asking for something. It is absent when the answer is none:
+     "0 need something from you" is a line that exists only to say nothing. #}
+  <div class="servers-head">
+    <div>
+      <h1>{% trans %}Your servers{% endtrans %}</h1>
+      {% if needing %}
+        <p class="muted servers-lede">
+          {% trans count=needing %}One needs something from you.{% pluralize %}{{ count }} need something from you.{% endtrans %}
+        </p>
+      {% endif %}
+    </div>
+  </div>
 
   {% if not reachable %}
     <p class="notice">
@@ -181,6 +218,17 @@
              placeholder="{{ _('Search servers') }}"
              autocomplete="off" spellcheck="false">
       <button type="submit" class="button secondary">{% trans %}Search{% endtrans %}</button>
+      {# A TALLY, NOT A LABEL. It answers "how many do I have, and how many am
+         I paying for" without opening anything, which is the question somebody
+         with several servers actually arrives with. The premium half is
+         omitted when it is zero or unknown -- "0 Premium" beside a list of
+         free servers is an advert wearing a statistic. #}
+      <p class="servers-count muted">
+        {% trans count=total %}{{ count }} server{% pluralize %}{{ count }} servers{% endtrans %}
+        {%- if premium_count %} &middot;
+          {% trans count=premium_count %}{{ count }} Premium{% endtrans %}
+        {%- endif %}
+      </p>
     </form>
   {% endif %}
 

@@ -101,6 +101,23 @@ def tile_class(guild_id) -> str:
 # absent and unknown wordings are the ones the page already shipped -- they are
 # here so that all five live together rather than three in Python and two in
 # the template.
+# The short word on the tile's chip, per state (#286).
+#
+# A SECOND STRING PER STATE, NOT A SHORTENING OF THE FIRST. `_NOTES` is the
+# sentence in the card's footer and it is doing a different job: the chip says
+# WHICH state this is at a glance across a grid, the sentence says what that
+# means for this particular server. Deriving one from the other would give the
+# chip a clause and the footer a label.
+_STATUS = {
+    "done": N_("Working"),
+    "todo": N_("Setup unfinished"),
+    "broken": N_("Needs attention"),
+    # Still two answers wearing one name. "Not set up" is true under both
+    # readings and claims neither.
+    "absent": N_("Not set up"),
+    "unknown": N_("Can't check"),
+}
+
 _NOTES = {
     "done": N_("Set up and working"),
     "todo": N_("Setup isn't finished"),
@@ -244,6 +261,7 @@ def build_cards(
             # and the template must not be able to read one out of it.
             "installed": state not in {"absent", "unknown"},
             "note": t(_NOTES[state]),
+            "status": t(_STATUS[state]),
             # Drawn on every card, including the ones carrying a Discord icon.
             # The icon covers the gradient rather than replacing it, so a
             # server whose icon fails to load falls back to its own colour

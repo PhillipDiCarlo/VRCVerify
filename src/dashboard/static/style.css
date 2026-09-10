@@ -280,6 +280,15 @@
    * screen the product is sold on. */
   --tile-accent: #3FD0E4;
 
+  /* The status dots on a tile's chip. NOT THEMED, for the reason every other
+   * tile value is not: the chip's ground is black at 55% over the same twelve
+   * hues in both themes, so one set of values carries one set of measurements.
+   * Each figure below is the worst of the twelve, not a sample. */
+  --dot-ok: #4ade80;    /* 8.47:1 on the chip */
+  --dot-todo: #fbbf24;  /* 8.84:1 */
+  --dot-bad: #f87171;   /* 5.34:1 */
+  --dot-idle: #9ca3af;  /* 5.82:1 */
+
   /* Broken, and only broken. `todo` keeps --notice, which the setup list also
    * uses, so the two states stop sharing one signal (#286). 5.18:1 on --bg and
    * 6.54:1 on --panel, which is the weight --notice already carries there
@@ -1526,21 +1535,35 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
    * job here is picking one server out of several, which wants more of them
    * on screen and each of them quieter.
    *
-   * 8.5rem RATHER THAN 9.5, AND THE PHONE IS WHY. A phone gives this grid about
-   * 295px of inner width, and two 9.5rem tracks plus their gap need 316 -- so it
-   * fell to a single column, where a 4:3 tile is 281px tall and four servers is
-   * a page and a half of scrolling. At 8.5rem two tracks fit with room to
-   * spare. The wide layout barely notices; the phone stops being a slideshow. */
-  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+   * 12rem, AND THE PHONE GIVES UP ITS SECOND COLUMN FOR IT. The card is a card
+   * again: a chip, a name, a plan bubble and a sentence in a footer, and at
+   * 8.5rem those crowd each other -- the state chip ran into the star. A phone
+   * takes one column at this size rather than two, which is the better trade
+   * now that there is something in each card to read. */
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
   gap: var(--space-4) var(--space-3);
 }
 
+/* THE CARD IS A CARD AGAIN (#286, after looking at it).
+ *
+ * The tile alone was the object and the state sentence sat under it on the
+ * bare panel, which reads as a caption beside a picture rather than as part of
+ * the server -- the server's own information, outside the server's own panel.
+ * So the card has an edge and a ground, the tile is its head, and the sentence
+ * is a footer strip inside it.
+ *
+ * The hairline moves back here from the tile with it: the whole card is the
+ * click target now, so the card's edge is the control's bounds. --card-line is
+ * 3.37:1 light and 3.16:1 dark on --panel, which is what SC 1.4.11 asks of it. */
 .server-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--card-line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
 }
 
 /* THE TWELVE, and they are the same twelve in both themes.
@@ -1588,19 +1611,17 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-end;
-  aspect-ratio: 4 / 3;
+  /* 3:2, not 4:3. A taller tile was fine while the tile WAS the card; with a
+   * footer under it the card became tall enough to fit three per screen. */
+  aspect-ratio: 3 / 2;
   padding: var(--space-3);
-  border-radius: var(--radius-card);
   overflow: hidden;
-  /* THE BOUNDARY, AND IT IS NOT DECORATION. The tile is a whole-card click
-   * target, so its edge is the bounds of a UI component and SC 1.4.11 asks
-   * for 3:1 against what is outside it. The hue cannot supply that on its own:
-   * the darkest of the twelve, under the scrim, is 1.01:1 against --dark-panel
-   * -- a deep blue tile on the dark theme is a control with no perceivable
-   * boundary at all, which is the exact finding of #163 arriving again by a
-   * different route. --card-line is 3.37:1 light and 3.16:1 dark on --panel,
-   * which is the surface these sit on. */
-  border: 1px solid var(--card-line);
+  /* NO BORDER HERE. The boundary moved to `.server-card` with the card, and
+   * the argument moved with it: the darkest of the twelve, under the scrim, is
+   * 1.01:1 against --dark-panel, so the hue can never be the control's edge on
+   * its own. That is #163's finding arriving by a different route, and it is
+   * answered one level up rather than dropped. */
+  border-bottom: 1px solid var(--card-line);
   /* THREE LAYERS, TOP TO BOTTOM: the corner scrims, then the hue.
    *
    * BOTH ENDS ARE SCRIMMED, not just the bottom, and the top one is what makes
@@ -1630,6 +1651,71 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
   display: block;
 }
 
+/* THE CHIPS ON A TILE, both the state one and the plan one.
+ *
+ * Black at 55% over the tile's already-scrimmed corner, which is what makes a
+ * chip legible on any of the twelve hues without being themed: the white label
+ * is 14.76:1 at worst and the worst status dot is 5.34:1, measured across all
+ * twelve rather than sampled. A bare dot on the hue itself was 1.59:1.
+ *
+ * `position: relative` puts them over the stretched link, so they are not
+ * swallowed by it -- they are not pressable, but a tile whose chip is under
+ * the link is a tile whose chip cannot be selected as text either. */
+.tile-chip {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  align-self: flex-start;
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: rgb(0 0 0 / 0.55);
+  color: var(--tile-ink);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* ONE ROW ACROSS THE TOP, holding the state chip and the star.
+ *
+ * Both were absolutely positioned into opposite corners at first, which is
+ * fine until a label is long: "Setup unfinished" on a narrow tile ran straight
+ * under the star. A row with space-between cannot overlap however long the
+ * label gets, and the chip's label ellipsises rather than pushing the star
+ * off the tile. */
+.tile-top {
+  position: absolute;
+  z-index: 1;
+  inset-inline: var(--space-2);
+  top: var(--space-2);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.tile-top .tile-chip { min-width: 0; }
+.chip-label { overflow: hidden; text-overflow: ellipsis; }
+
+.chip-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: currentColor;
+}
+/* THEME-INDEPENDENT, like everything else drawn on a tile: the chip's ground
+ * is the same in both themes, so these are one set of values with one set of
+ * measurements rather than two of each. */
+.chip-done .chip-dot { color: var(--dot-ok); }
+.chip-todo .chip-dot { color: var(--dot-todo); }
+.chip-broken .chip-dot { color: var(--dot-bad); }
+.chip-absent .chip-dot,
+.chip-unknown .chip-dot { color: var(--dot-idle); }
+
 .server-name {
   position: relative;
   margin: 0;
@@ -1643,21 +1729,15 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 }
 .server-name a { color: inherit; text-decoration: none; }
 
-.plan-tag {
-  position: relative;
-  margin: var(--space-1) 0 0;
-  font-size: var(--text-micro);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  line-height: var(--leading-tight);
-}
+.plan-tag { margin: var(--space-2) 0 0; }
 /* Both tags are the same shape and the same size, and only the colour and the
  * word differ. A bigger "Upgrade" than "Premium" would be a nag on every free
  * card; a bigger "Premium" would be a reward nobody asked for. The selling is
  * done by two cards next to each other not matching. */
+/* Both wear the chip; only the colour of the word differs, and only on the
+ * paid one. The free one stays white because "Free" is a statement of fact and
+ * an accent on it would read as a recommendation to stay there. */
 .plan-tag.plan-paid { color: var(--tile-accent); }
-.plan-tag.plan-free { color: var(--tile-ink); opacity: 0.8; }
 
 /* THE WHOLE TILE IS THE TARGET, and the markup stays one honest link around
  * the name (#276).
@@ -1702,8 +1782,9 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
 .server-card.absent .server-tile,
 .server-card.unknown .server-tile { filter: saturate(0.35); opacity: 0.7; }
 
-.server-state {
+.server-foot {
   margin: 0;
+  padding: var(--space-3);
   font-size: var(--text-note);
   color: var(--muted);
   line-height: var(--leading-tight);
@@ -1732,15 +1813,48 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * page. The banner above the grid is what explains it. */
 .server-card.unknown .server-state { color: var(--faint); font-style: italic; }
 
-.server-action { margin: var(--space-1) 0 0; }
+/* Inside the card's padding, not flush to its edges. The footer above sets
+ * that padding on itself; this is a sibling, so it has to state its own. */
+.server-action {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-3);
+}
 
+.servers-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.servers-head h1 { margin: 0; }
+.servers-lede { margin: var(--space-1) 0 0; font-size: var(--text-body); }
+
+.servers-count {
+  margin: 0;
+  align-self: center;
+  font-size: var(--text-note);
+  white-space: nowrap;
+}
+
+/* A rule running out from the label, which is what separates two groups
+ * without spending a heading's worth of weight on either. */
 .servers-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   margin: var(--space-5) 0 0;
   font-size: var(--text-note);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
+}
+.servers-heading::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--line-soft);
 }
 .servers-heading:first-of-type { margin-top: var(--space-4); }
 
@@ -1779,10 +1893,12 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * lifted above it -- without this the star is a decoration that opens the
  * server when you press it. */
 .server-pin {
-  position: absolute;
+  /* Positioned by `.tile-top` now rather than by itself. It keeps its own
+   * z-index because the stretched link covers the whole tile and a star under
+   * it is a star that opens the server when you press it. */
+  position: relative;
   z-index: 1;
-  top: var(--space-2);
-  inset-inline-end: var(--space-2);
+  flex: 0 0 auto;
   margin: 0;
   line-height: 0;
 }

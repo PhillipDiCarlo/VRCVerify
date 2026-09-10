@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 02:10-0400\n"
+"POT-Creation-Date: 2026-09-10 02:32-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es_ES\n"
@@ -563,6 +563,25 @@ msgstr "Tus extras heredados siguen siendo gratis, decidas lo que decidas."
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "Pasar a VRCVerify Premium"
+
+msgid "Working"
+msgstr "Funcionando"
+
+# | msgid "Setup isn't finished"
+msgid "Setup unfinished"
+msgstr "Configuración pendiente"
+
+# | msgid "needs attention"
+msgid "Needs attention"
+msgstr "Necesita atención"
+
+# | msgid "not set"
+msgid "Not set up"
+msgstr "Sin configurar"
+
+# | msgid "Couldn't check"
+msgid "Can't check"
+msgstr "No se puede comprobar"
 
 msgid "Set up and working"
 msgstr "Configurado y funcionando"
@@ -1435,6 +1454,12 @@ msgstr "Añadir al servidor"
 msgid "Your servers"
 msgstr "Tus servidores"
 
+#, python-format
+msgid "One needs something from you."
+msgid_plural "%(count)s need something from you."
+msgstr[0] "Un servidor necesita algo de ti."
+msgstr[1] "%(count)s servidores necesitan algo de ti."
+
 msgid ""
 "Can't reach the bot right now, so we can't tell which of these it's in. "
 "Your settings are safe — nothing here has changed. Try again shortly."
@@ -1454,6 +1479,20 @@ msgstr "Buscar servidores"
 
 msgid "Search"
 msgstr "Buscar"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+#, python-format
+msgid "%(count)s server"
+msgid_plural "%(count)s servers"
+msgstr[0] "%(count)s servidor"
+msgstr[1] "%(count)s servidores"
+
+# | msgid "Premium"
+# | msgid "See Premium"
+#, python-format
+msgid "%(count)s Premium"
+msgstr "%(count)s con Premium"
 
 # | msgid "No servers to show"
 msgid "No servers match that"

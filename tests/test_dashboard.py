@@ -8088,6 +8088,87 @@ class TestPinningAServer:
         assert [c["name"] for c in rest] == ["a", "c"]
 
 
+class TestTheServerCardCarriesItsOwnInformation:
+    """#286, after looking at the rendered page beside the design it came from.
+
+    The first cut made the tile the whole object and put the state sentence
+    under it on the bare panel. That reads as a caption beside a picture rather
+    than as part of the server -- the server's own information, outside the
+    server's own panel.
+    """
+
+    def _cards(self, config, store):
+        test_client, _api = settings_client(config, store)
+        page = test_client.get("/").data.decode()
+        return page, re.findall(r'<li class="server-card .*?</li>', page, re.S)
+
+    def test_every_fact_about_a_server_is_inside_its_card(self, config, store):
+        page, cards = self._cards(config, store)
+        assert cards
+        for card in cards:
+            assert 'class="server-foot' in card, (
+                "a server's state sentence is outside its own card"
+            )
+        # And nothing is left loose between the cards.
+        between = re.sub(r'<li class="server-card .*?</li>', "", page, flags=re.S)
+        assert 'class="server-foot' not in between
+
+    def test_the_state_is_a_chip_on_the_tile_with_a_word_in_it(self, config, store):
+        """THE CHIP IS WHAT MADE THIS POSSIBLE. A bare status dot on the tile
+        measures 1.59:1 against its own hue, because the ring spans all twelve
+        including a red and an amber. An opaque chip gives the dot a ground
+        that does not depend on the hue: 14.76:1 for the label and 5.34:1 for
+        the worst dot, across all twelve.
+
+        The word as well as the dot, always. Colour is what carries across a
+        grid; the word is what a reader who cannot use colour gets instead.
+        """
+        _page, cards = self._cards(config, store)
+        for card in cards:
+            # Sliced on two markers that are in the RENDERED page, not on a
+            # closing tag counted by eye. A non-greedy match to the first
+            # `</span>` closes the dot, which is how a first pass at this test
+            # reported "a dot with no word" about markup that had one; matching
+            # a literal run of whitespace is the same mistake one step later,
+            # because Jinja's output is not indented like its source.
+            top = card[card.index('class="tile-top"'):card.index('class="server-name"')]
+            assert 'class="tile-chip chip-' in top, "a card has no state chip"
+            assert "chip-dot" in top
+            label = re.search(r'<span class="chip-label">(.*?)</span>', top, re.S)
+            assert label and label.group(1).strip(), "the chip is a dot with no word"
+
+    def test_the_chip_and_the_footer_do_not_say_the_same_thing(self, config, store):
+        """Two strings per state, doing two jobs: the chip says WHICH state at a
+        glance across a grid, the footer says what that means for this server.
+        Deriving one from the other gives the chip a clause and the footer a
+        label."""
+        _page, cards = self._cards(config, store)
+        for card in cards:
+            label = re.search(r'<span class="chip-label">(.*?)</span>', card, re.S)
+            foot = re.search(r'<p class="server-foot[^"]*">(.*?)</p>', card, re.S)
+            assert label and foot
+            assert label.group(1).strip() != foot.group(1).strip()
+
+    def test_the_header_count_cannot_disagree_with_the_chips(self, config, store):
+        """Counted in the route from the same cards the chips are drawn from.
+
+        And over the WHOLE list rather than the filtered one: a search that
+        hides two broken servers has not fixed them, and a header dropping to
+        silence while a filter is on would be a comfortable lie.
+        """
+        test_client, _api = settings_client(config, store)
+        unfiltered = test_client.get("/").data.decode()
+        needing = unfiltered.count("chip-todo") + unfiltered.count("chip-broken")
+        if needing:
+            assert "need something from you" in unfiltered
+
+        filtered = test_client.get("/?q=zzzznothing").data.decode()
+        if needing:
+            assert "need something from you" in filtered, (
+                "the tally follows the filter, so a search can hide a problem"
+            )
+
+
 class TestTheFavoriteRoute:
     """The route's three rules, which are the half a pure test cannot reach."""
 

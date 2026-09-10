@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 02:10-0400\n"
+"POT-Creation-Date: 2026-09-10 02:32-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -549,6 +549,25 @@ msgstr "مزاياك المكتسبة سابقًا تبقى مجانية مهم�
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "الترقية إلى VRCVerify Premium"
+
+msgid "Working"
+msgstr "يعمل"
+
+# | msgid "Setup isn't finished"
+msgid "Setup unfinished"
+msgstr "الإعداد غير مكتمل"
+
+# | msgid "needs attention"
+msgid "Needs attention"
+msgstr "يحتاج انتباهك"
+
+# | msgid "not set"
+msgid "Not set up"
+msgstr "غير مُعدّ"
+
+# | msgid "Couldn't check"
+msgid "Can't check"
+msgstr "تعذّر التحقّق"
 
 msgid "Set up and working"
 msgstr "مُعدّ ويعمل"
@@ -1386,6 +1405,16 @@ msgstr "الإضافة إلى الخادم"
 msgid "Your servers"
 msgstr "خوادمك"
 
+#, python-format
+msgid "One needs something from you."
+msgid_plural "%(count)s need something from you."
+msgstr[0] "لا خوادم تحتاج إلى شيء منك."
+msgstr[1] "خادم واحد يحتاج إلى شيء منك."
+msgstr[2] "خادمان يحتاجان إلى شيء منك."
+msgstr[3] "%(count)s خوادم تحتاج إلى شيء منك."
+msgstr[4] "%(count)s خادمًا يحتاج إلى شيء منك."
+msgstr[5] "%(count)s خادم يحتاج إلى شيء منك."
+
 msgid ""
 "Can't reach the bot right now, so we can't tell which of these it's in. "
 "Your settings are safe — nothing here has changed. Try again shortly."
@@ -1404,6 +1433,24 @@ msgstr "ابحث عن خادم"
 
 msgid "Search"
 msgstr "بحث"
+
+# | msgid "Add to your server"
+# | msgid "Your servers"
+#, python-format
+msgid "%(count)s server"
+msgid_plural "%(count)s servers"
+msgstr[0] "لا خوادم"
+msgstr[1] "خادم واحد"
+msgstr[2] "خادمان"
+msgstr[3] "%(count)s خوادم"
+msgstr[4] "%(count)s خادمًا"
+msgstr[5] "%(count)s خادم"
+
+# | msgid "Premium"
+# | msgid "See Premium"
+#, python-format
+msgid "%(count)s Premium"
+msgstr "%(count)s باشتراك Premium"
 
 # | msgid "No servers to show"
 msgid "No servers match that"

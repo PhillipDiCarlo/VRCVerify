@@ -1204,6 +1204,19 @@ def _register_routes(app: Flask) -> None:
             "picker.html",
             pinned=pinned,
             servers=rest,
+            # THE THREE TALLIES THE HEADER READS, counted here from the same
+            # cards the chips are drawn from -- so the sentence at the top and
+            # the chips below it cannot disagree about how many servers are
+            # asking for something.
+            #
+            # Counted over the WHOLE list rather than the filtered one on
+            # purpose: a search that hides two broken servers has not fixed
+            # them, and a header that drops to "nothing needs you" while a
+            # filter is on would be telling a comfortable lie.
+            total=len(servers),
+            needing=sum(1 for card in servers
+                        if card["state"] in ("todo", "broken")),
+            premium_count=sum(1 for card in servers if card["premium"]),
             # Whether the page is showing everything, which is not the same
             # question as "are there any servers". A search that matches
             # nothing needs to say so and offer a way back; an account with no
