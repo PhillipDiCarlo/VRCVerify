@@ -75,6 +75,28 @@ need to be one. Both of these run in a container with the repository mounted:
 `--test-scheduled` exposes the cron at `/__scheduled?cron=*+*+*+*+*`; fetch it
 once and the page has real data in it.
 
+### Just looking at the page
+
+The Worker above is the real thing, and it is the wrong tool for "what does
+this look like": it installs wrangler on every start and begins with an empty
+D1, so the ninety-day strip, the incident banner and the folded timelines are
+all absent until somebody writes rows by hand.
+
+    .venv/bin/python scripts/dev_status.py     -> http://127.0.0.1:5003/
+
+or **Run and Debug** in VS Code, which has three entries for it:
+
+| Entry | What it shows |
+| --- | --- |
+| Status page (local preview) | An incident open, days that went badly, the strip full |
+| ... all clear | Everything up and no incidents, which is the page almost always |
+| ... checker stopped | Every row drawn unknown, the rule the whole page is built on |
+
+Rendered per request, so a save to `render.js` or `style.css` shows on reload.
+It still needs Docker, because the page is JavaScript and this machine has no
+node, but nothing is installed and nothing is built. No `/api/status.json` and
+no `POST /report`: both need D1, so both need the real Worker.
+
 Two things that will waste an hour otherwise:
 
   * Use `node:22-bookworm-slim`, not `alpine`. `workerd` is built against
