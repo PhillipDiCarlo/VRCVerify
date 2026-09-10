@@ -88,6 +88,68 @@
             }
         },
         {
+            // Serves the status page at http://127.0.0.1:5003 with invented
+            // data: an incident open, days that went badly, and the ninety-day
+            // strip full. Also /admin, the incident form.
+            //
+            // NOT `wrangler dev`, which is the real Worker and is what to use
+            // for routing, /api/status.json or the cron. It installs wrangler
+            // on every start and begins with an empty D1, so the history
+            // strip, the banner and the folded timelines -- most of what there
+            // is to look at -- are absent until somebody writes rows by hand.
+            //
+            // The page itself is rendered by node in a container, because
+            // render.js is JavaScript and this machine has no node. Docker has
+            // to be running. See scripts/dev_status.py.
+            "name": "Status page (local preview)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/dev_status.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "serverReadyAction": {
+                "pattern": "Status page preview: (https?://\\S+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        },
+        {
+            // The page as it is almost all of the time: everything up, no
+            // incidents. This is the one to check the empty states on -- the
+            // "nothing has gone wrong" line, and how the incident column
+            // reads with nothing in it.
+            "name": "Status page (local preview, all clear)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/dev_status.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": { "PREVIEW_STATE": "clear" },
+            "serverReadyAction": {
+                "pattern": "Status page preview: (https?://\\S+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        },
+        {
+            // The checker has stopped reporting. Every row is drawn unknown
+            // however good the stored state was, which is the rule the whole
+            // page is built around and the state most likely to be broken by
+            // a change. There is no other way to reach it locally.
+            "name": "Status page (local preview, checker stopped)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/dev_status.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": { "PREVIEW_STATE": "stale" },
+            "serverReadyAction": {
+                "pattern": "Status page preview: (https?://\\S+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        },
+        {
             "name": "Bot.py Debugger",
             "type": "debugpy",
             "request": "launch",
