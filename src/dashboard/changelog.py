@@ -211,18 +211,33 @@ _FIELD_SEPARATOR = ":"
 # usable rather than when the issue was filed. The other four had been
 # reachable for three weeks by then.
 ENTRIES = (
+    # ONE ENTRY FOR THE WHOLE OF #243, which is what that epic decided: five
+    # sub-issues rebuilt the dashboard, the website, the status page and the
+    # mark on one design system, and five bell notifications for one redesign
+    # is four too many.
+    #
+    # It began life narrower, as "A new look for the dashboard" when #286
+    # merged, and was widened here when the last sub-issue closed. The ID DID
+    # NOT CHANGE, deliberately: it is what "already dismissed" is recorded
+    # against in cookies that outlive a deploy, and changing it would re-show
+    # the entry to everybody who had already waved it away. Editing the wording
+    # is free; editing the id is not. The id still says "dashboard" because it
+    # is permanent, not because it is a description -- nothing reads it and
+    # nobody sees it.
     Entry(
         id="2026-09-dashboard-redesign",
         date=date(2026, 9, 10),
-        title=N_("A new look for the dashboard"),
+        title=N_("VRCVerify has a new look"),
         body=(
-            N_("Your server list is now a grid of tiles you can search, pin "
-            "and open with a single click anywhere on the card, and each one "
-            "says whether that server is on Premium. Setup has moved to the "
-            "top of a server's Overview with a progress bar, and retires "
+            N_("The dashboard, the website and the status page have been "
+            "rebuilt on one design. Your server list is now a grid of tiles "
+            "you can search, pin and open from anywhere on the card, and each "
+            "one says whether that server is on Premium. Setup has moved to "
+            "the top of a server's Overview with a progress bar, and retires "
             "itself once everything required is done. Settings puts each "
-            "control directly under its own label, and the pricing page is "
-            "one comparison you can read across.")
+            "control directly under its own label, the pricing page is one "
+            "comparison you can read across, and the status page now shows "
+            "what has gone wrong beside what is working rather than below it.")
         ),
     ),
     Entry(

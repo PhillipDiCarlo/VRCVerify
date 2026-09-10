@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 02:53-0400\n"
+"POT-Creation-Date: 2026-09-10 08:11-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -222,20 +222,30 @@ msgstr "Premium"
 msgid "New"
 msgstr "新"
 
-# | msgid "Open the dashboard"
-msgid "A new look for the dashboard"
-msgstr "控制台的全新外观"
+msgid "VRCVerify has a new look"
+msgstr "VRCVerify 换了新外观"
 
+# | msgid "" "Your server list is now a grid of tiles you can search, pin and
+# | open with" " a single click anywhere on the card, and each one says
+# whether
+# | that " "server is on Premium. Setup has moved to the top of a server's
+# | Overview " "with a progress bar, and retires itself once everything
+# required
+# | is done." " Settings puts each control directly under its own label, and
+# the
+# | pricing" " page is one comparison you can read across."
 msgid ""
-"Your server list is now a grid of tiles you can search, pin and open with"
-" a single click anywhere on the card, and each one says whether that "
-"server is on Premium. Setup has moved to the top of a server's Overview "
-"with a progress bar, and retires itself once everything required is done."
-" Settings puts each control directly under its own label, and the pricing"
-" page is one comparison you can read across."
+"The dashboard, the website and the status page have been rebuilt on one "
+"design. Your server list is now a grid of tiles you can search, pin and "
+"open from anywhere on the card, and each one says whether that server is "
+"on Premium. Setup has moved to the top of a server's Overview with a "
+"progress bar, and retires itself once everything required is done. "
+"Settings puts each control directly under its own label, the pricing page"
+" is one comparison you can read across, and the status page now shows "
+"what has gone wrong beside what is working rather than below it."
 msgstr ""
-"服务器列表现在是磁贴网格，可以搜索、置顶，点击卡片的任意位置即可打开，每张磁贴还会显示该服务器是否为 "
-"Premium。设置流程移到了服务器概览的顶部，带有进度条，所有必需项完成后会自动隐藏。设置页中每个控件都紧挨在自己的标签下方，价格页则变成了一张可以横向对照阅读的对比表。"
+"仪表板、网站和状态页面已按统一设计重新构建。服务器列表现在是磁贴网格，可以搜索、置顶，点击卡片的任意位置即可打开，每张磁贴还会显示该服务器是否为 "
+"Premium。设置流程移到了服务器概览的顶部，带有进度条，所有必需项完成后会自动隐藏。设置页中每个控件都紧挨在自己的标签下方，价格页则变成了一张可以横向对照阅读的对比表。状态页面现在把出过的故障显示在正常服务的旁边，而不是下方。"
 
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
@@ -1855,4 +1865,8 @@ msgstr ""
 
 #~ msgid "Most popular"
 #~ msgstr "最受欢迎"
+
+# | msgid "Open the dashboard"
+#~ msgid "A new look for the dashboard"
+#~ msgstr "控制台的全新外观"
 

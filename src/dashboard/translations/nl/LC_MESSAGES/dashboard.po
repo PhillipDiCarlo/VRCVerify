@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 02:53-0400\n"
+"POT-Creation-Date: 2026-09-10 08:11-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: nl\n"
@@ -270,25 +270,37 @@ msgstr "Premium"
 msgid "New"
 msgstr "Nieuw"
 
-# | msgid "Open the dashboard"
-msgid "A new look for the dashboard"
-msgstr "Een nieuw uiterlijk voor het dashboard"
+msgid "VRCVerify has a new look"
+msgstr "VRCVerify heeft een nieuw uiterlijk"
 
+# | msgid "" "Your server list is now a grid of tiles you can search, pin and
+# | open with" " a single click anywhere on the card, and each one says
+# whether
+# | that " "server is on Premium. Setup has moved to the top of a server's
+# | Overview " "with a progress bar, and retires itself once everything
+# required
+# | is done." " Settings puts each control directly under its own label, and
+# the
+# | pricing" " page is one comparison you can read across."
 msgid ""
-"Your server list is now a grid of tiles you can search, pin and open with"
-" a single click anywhere on the card, and each one says whether that "
-"server is on Premium. Setup has moved to the top of a server's Overview "
-"with a progress bar, and retires itself once everything required is done."
-" Settings puts each control directly under its own label, and the pricing"
-" page is one comparison you can read across."
+"The dashboard, the website and the status page have been rebuilt on one "
+"design. Your server list is now a grid of tiles you can search, pin and "
+"open from anywhere on the card, and each one says whether that server is "
+"on Premium. Setup has moved to the top of a server's Overview with a "
+"progress bar, and retires itself once everything required is done. "
+"Settings puts each control directly under its own label, the pricing page"
+" is one comparison you can read across, and the status page now shows "
+"what has gone wrong beside what is working rather than below it."
 msgstr ""
-"Je serverlijst is nu een raster van tegels die je kunt doorzoeken, "
-"vastzetten en met één klik ergens op de kaart openen, en elke tegel "
-"vermeldt of die server Premium heeft. Instellen staat nu bovenaan het "
-"Overzicht van een server, met een voortgangsbalk, en verdwijnt zodra "
+"Het dashboard, de website en de statuspagina zijn opnieuw opgebouwd op "
+"één ontwerp. Je serverlijst is nu een raster van tegels die je kunt "
+"doorzoeken, vastzetten en met één klik ergens op de kaart openen, en elke"
+" tegel vermeldt of die server Premium heeft. Instellen staat nu bovenaan "
+"het Overzicht van een server, met een voortgangsbalk, en verdwijnt zodra "
 "alles wat verplicht is klaar is. Bij Instellingen staat elk element "
 "direct onder zijn eigen label, en de prijzenpagina is één vergelijking "
-"die je in één keer leest."
+"die je in één keer leest. En op de statuspagina staat wat er misging nu "
+"naast wat werkt, in plaats van eronder."
 
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
@@ -2156,4 +2168,8 @@ msgstr ""
 
 #~ msgid "Most popular"
 #~ msgstr "Populairst"
+
+# | msgid "Open the dashboard"
+#~ msgid "A new look for the dashboard"
+#~ msgstr "Een nieuw uiterlijk voor het dashboard"
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 02:53-0400\n"
+"POT-Creation-Date: 2026-09-10 08:11-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -232,20 +232,31 @@ msgstr "Premium"
 msgid "New"
 msgstr "新着"
 
-# | msgid "Open the dashboard"
-msgid "A new look for the dashboard"
-msgstr "ダッシュボードの新しい見た目"
+msgid "VRCVerify has a new look"
+msgstr "VRCVerify のデザインが新しくなりました"
 
+# | msgid "" "Your server list is now a grid of tiles you can search, pin and
+# | open with" " a single click anywhere on the card, and each one says
+# whether
+# | that " "server is on Premium. Setup has moved to the top of a server's
+# | Overview " "with a progress bar, and retires itself once everything
+# required
+# | is done." " Settings puts each control directly under its own label, and
+# the
+# | pricing" " page is one comparison you can read across."
 msgid ""
-"Your server list is now a grid of tiles you can search, pin and open with"
-" a single click anywhere on the card, and each one says whether that "
-"server is on Premium. Setup has moved to the top of a server's Overview "
-"with a progress bar, and retires itself once everything required is done."
-" Settings puts each control directly under its own label, and the pricing"
-" page is one comparison you can read across."
+"The dashboard, the website and the status page have been rebuilt on one "
+"design. Your server list is now a grid of tiles you can search, pin and "
+"open from anywhere on the card, and each one says whether that server is "
+"on Premium. Setup has moved to the top of a server's Overview with a "
+"progress bar, and retires itself once everything required is done. "
+"Settings puts each control directly under its own label, the pricing page"
+" is one comparison you can read across, and the status page now shows "
+"what has gone wrong beside what is working rather than below it."
 msgstr ""
-"サーバー一覧はタイル表示になり、検索やピン留めができ、カードのどこをクリックしても開けます。各タイルにはそのサーバーが Premium "
-"かどうかも表示されます。セットアップはサーバーの概要の先頭に移動して進捗バーが付き、必須項目がすべて終わると自動的に消えます。設定では各コントロールがそのラベルの真下に並び、料金ページは横に読める一つの比較表になりました。"
+"ダッシュボード、ウェブサイト、ステータスページを一つのデザインで作り直しました。サーバー一覧はタイル表示になり、検索やピン留めができ、カードのどこをクリックしても開けます。各タイルにはそのサーバーが"
+" Premium "
+"かどうかも表示されます。セットアップはサーバーの概要の先頭に移動して進捗バーが付き、必須項目がすべて終わると自動的に消えます。設定では各コントロールがそのラベルの真下に並び、料金ページは横に読める一つの比較表になりました。ステータスページでは、問題が起きたことが、動いているものの下ではなく隣に表示されるようになりました。"
 
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
@@ -1913,4 +1924,8 @@ msgstr ""
 
 #~ msgid "Most popular"
 #~ msgstr "人気"
+
+# | msgid "Open the dashboard"
+#~ msgid "A new look for the dashboard"
+#~ msgstr "ダッシュボードの新しい見た目"
 
