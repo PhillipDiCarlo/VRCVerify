@@ -7372,7 +7372,7 @@ class TestTheHeaderBar:
         picture."""
         page = client.get("/").data.decode()
         mark = re.search(r"<img[^>]*brand-mark[^>]*>", page).group(0)
-        assert 'src="/static/logo.png?v=' in mark
+        assert 'src="/static/logo.svg?v=' in mark
 
     def test_the_logo_is_marked_decorative(self, client):
         """The word "VRCVerify" sits beside it saying the same thing. A screen
@@ -7383,24 +7383,65 @@ class TestTheHeaderBar:
         assert 'alt=""' in mark
         assert "VRCVerify" in page[page.index(mark) : page.index(mark) + 400]
 
+    def test_the_logo_is_well_formed_xml(self):
+        """An SVG that does not parse is a broken image and nothing else.
+
+        THIS SHIPPED ONCE, in the commit that introduced the file. The comment
+        at the top used `--` as a dash, which is how this project writes one
+        everywhere else and which XML forbids inside a comment. There is no
+        warning for it: the server returns 200 with the right content type, the
+        browser reports the image as `complete`, `naturalWidth` is 0, and the
+        header draws the little torn-page icon. A stylesheet with a syntax
+        error still renders the rest of the page; an SVG with one renders
+        nothing, so the whole mark disappears on a mistake with no other
+        symptom.
+        """
+        import xml.etree.ElementTree as ElementTree
+
+        import dashboard
+
+        path = os.path.join(
+            os.path.dirname(dashboard.__file__), "static", "logo.svg"
+        )
+        try:
+            ElementTree.parse(path)
+        except ElementTree.ParseError as error:
+            raise AssertionError(f"static/logo.svg is not well formed: {error}")
+
     def test_the_logo_declares_its_intrinsic_size(self, client):
         """Without these the wordmark jumps sideways when the image lands.
         They are the file's real dimensions, not its rendered ones -- the
-        browser wants the ratio, the stylesheet sets the height."""
+        browser wants the ratio, the stylesheet sets the height.
+
+        Read out of the SVG's viewBox rather than a PNG header since the mark
+        stopped being a raster. The check is the same one and catches the same
+        bug: an <img> whose declared ratio disagrees with the file reserves the
+        wrong box, and the wordmark moves when the image arrives.
+        """
         import dashboard
 
         page = client.get("/").data.decode()
-        mark = re.search(r"<img[^>]*brand-mark[^>]*>", page).group(0)
-        declared = (
-            int(re.search(r'width="(\d+)"', mark).group(1)),
-            int(re.search(r'height="(\d+)"', mark).group(1)),
-        )
+        marks = re.findall(r"<img[^>]*-mark[^>]*>", page)
+        assert marks, "no mark on the page"
+
         path = os.path.join(
-            os.path.dirname(dashboard.__file__), "static", "logo.png"
+            os.path.dirname(dashboard.__file__), "static", "logo.svg"
         )
-        with open(path, "rb") as handle:
-            header = handle.read(24)
-        assert struct.unpack(">II", header[16:24]) == declared
+        with open(path, encoding="utf-8") as handle:
+            svg = handle.read()
+        box = re.search(r'viewBox="[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"', svg)
+        assert box, "the mark has no viewBox, so it carries no ratio at all"
+        ratio = float(box.group(1)) / float(box.group(2))
+
+        for mark in marks:
+            declared = (
+                int(re.search(r'width="(\d+)"', mark).group(1)),
+                int(re.search(r'height="(\d+)"', mark).group(1)),
+            )
+            assert abs(declared[0] / declared[1] - ratio) < 0.005, (
+                f"{mark} declares {declared[0]}x{declared[1]}, a ratio the "
+                f"viewBox does not agree with"
+            )
 
     def test_the_dark_theme_recolors_the_logo_rather_than_swapping_it(self):
         """One file, inverted. The alternative is a second PNG and a standing
