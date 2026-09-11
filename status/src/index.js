@@ -39,7 +39,7 @@ import {
 } from "./logic.js";
 import { verifyAccessToken } from "./access.js";
 import { renderAdmin, renderPage } from "./render.js";
-import { DEFAULT_LOCALE, localeFromPath, negotiate, translator } from "./i18n.js";
+import { localeFromPath, negotiate, pathForLocale, translator } from "./i18n.js";
 
 /** Every id the cron writes a row for: the five public ones and the four upstreams. */
 const ALL_IDS = [...COMPONENT_IDS, ...UPSTREAMS.map((u) => u.id)];
@@ -908,17 +908,37 @@ export default {
     const pathLocale = localeFromPath(path);
     const atRoot = path === "/";
 
-    // ENGLISH HAS ONE URL, and it is `/`. `/en` is accepted because somebody
-    // will construct it by hand from seeing `/ja`, but it is answered with a
-    // permanent redirect rather than a second copy of the page: two addresses
-    // serving identical English is the duplicate-content problem the apex
-    // Worker's `workers_dev = false` was written about, arriving by a
-    // different road.
-    if (pathLocale === DEFAULT_LOCALE) {
-      return new Response(null, { status: 301, headers: { location: "/" } });
+    // A BARE LOCALE PATH, IN ANY CASING: /ja, /JA, /pt-BR, /pt-br.
+    //
+    // `localeFromPath` matches case-insensitively on purpose -- a 404 for a
+    // capital letter is a bad answer to a correct URL -- and the first version
+    // of this guard threw that away by comparing the ORIGINAL path against the
+    // CANONICAL spelling with `===`. Only the exact canonical form survived, so
+    // /pt-br 404'd in production while the unit test for `localeFromPath`
+    // passed, because nothing had ever called this function (#307).
+    //
+    // `path.toLowerCase()` against the canonical, rather than `path !==
+    // canonical`, is what keeps /ja/api/status.json a 404 instead of a
+    // redirect to /ja. Only a path that IS a locale is one.
+    const isBareLocalePath =
+      pathLocale !== null && path.toLowerCase() === `/${pathLocale}`.toLowerCase();
+
+    // ONE ADDRESS PER LANGUAGE. Anything that resolves and is not already the
+    // canonical spelling is redirected to it rather than served: two URLs
+    // carrying identical bytes is the duplicate-content problem the apex
+    // Worker's `workers_dev = false` was written about, and it is the reason
+    // this page emits `canonical` and `hreflang` at all.
+    //
+    // English falls out of the same rule rather than needing its own branch.
+    // `pathForLocale("en")` is "/", so /en and /EN both redirect there.
+    if (isBareLocalePath) {
+      const canonical = pathForLocale(pathLocale);
+      if (path !== canonical) {
+        return new Response(null, { status: 301, headers: { location: canonical } });
+      }
     }
 
-    if (atRoot || (pathLocale && path === `/${pathLocale}`)) {
+    if (atRoot || isBareLocalePath) {
       // ONLY `/` NEGOTIATES. A reader who asked for /ja asked for /ja, and a
       // page that second-guesses that from a header they did not set is a page
       // whose language picker does not work. `/` has no such instruction, so
