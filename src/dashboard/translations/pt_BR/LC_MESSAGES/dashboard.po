@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 02:53-0400\n"
+"POT-Creation-Date: 2026-09-10 08:11-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -275,25 +275,37 @@ msgstr "Premium"
 msgid "New"
 msgstr "Novo"
 
-# | msgid "Open the dashboard"
-msgid "A new look for the dashboard"
-msgstr "Um novo visual para o painel"
+msgid "VRCVerify has a new look"
+msgstr "O VRCVerify tem um novo visual"
 
+# | msgid "" "Your server list is now a grid of tiles you can search, pin and
+# | open with" " a single click anywhere on the card, and each one says
+# whether
+# | that " "server is on Premium. Setup has moved to the top of a server's
+# | Overview " "with a progress bar, and retires itself once everything
+# required
+# | is done." " Settings puts each control directly under its own label, and
+# the
+# | pricing" " page is one comparison you can read across."
 msgid ""
-"Your server list is now a grid of tiles you can search, pin and open with"
-" a single click anywhere on the card, and each one says whether that "
-"server is on Premium. Setup has moved to the top of a server's Overview "
-"with a progress bar, and retires itself once everything required is done."
-" Settings puts each control directly under its own label, and the pricing"
-" page is one comparison you can read across."
+"The dashboard, the website and the status page have been rebuilt on one "
+"design. Your server list is now a grid of tiles you can search, pin and "
+"open from anywhere on the card, and each one says whether that server is "
+"on Premium. Setup has moved to the top of a server's Overview with a "
+"progress bar, and retires itself once everything required is done. "
+"Settings puts each control directly under its own label, the pricing page"
+" is one comparison you can read across, and the status page now shows "
+"what has gone wrong beside what is working rather than below it."
 msgstr ""
-"Sua lista de servidores agora é uma grade de blocos que você pode buscar,"
-" fixar e abrir com um clique em qualquer ponto do cartão, e cada um "
-"informa se aquele servidor tem Premium. A configuração passou para o topo"
-" da Visão geral do servidor, com uma barra de progresso, e desaparece "
-"assim que tudo o que é obrigatório está pronto. Em Configurações, cada "
+"O painel, o site e a página de status foram reconstruídos com um único "
+"design. Sua lista de servidores agora é uma grade de blocos que você pode"
+" buscar, fixar e abrir com um clique em qualquer ponto do cartão, e cada "
+"um informa se aquele servidor tem Premium. A configuração passou para o "
+"topo da Visão geral do servidor, com uma barra de progresso, e desaparece"
+" assim que tudo o que é obrigatório está pronto. Em Configurações, cada "
 "controle fica logo abaixo do próprio rótulo, e a página de preços é uma "
-"comparação única que você lê de uma vez."
+"comparação única que você lê de uma vez. E na página de status, o que deu"
+" errado agora aparece ao lado do que está funcionando, em vez de abaixo."
 
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
@@ -2152,4 +2164,8 @@ msgstr ""
 
 #~ msgid "Most popular"
 #~ msgstr "Mais popular"
+
+# | msgid "Open the dashboard"
+#~ msgid "A new look for the dashboard"
+#~ msgstr "Um novo visual para o painel"
 

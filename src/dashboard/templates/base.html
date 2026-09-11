@@ -292,13 +292,18 @@
        digest and can be cached for a year. `img-src` is already `'self'` plus
        Discord's CDN, so a local file needs no CSP change.
 
-       static/logo.png is Logos/VRCVerify-Logo.png cropped to the artwork and
-       scaled down: the source is 1024x1024 with a third of its height empty,
-       which at this size would be 33KB to draw a 28px mark. Regenerate it from
-       the source rather than from this copy if the logo ever changes. #}
+       static/logo.svg is Logos/VRCVerify-Logo.svg with the viewBox tightened
+       to the artwork's own bounding box. The source is a 1024x1024 canvas that
+       the mark fills 47% of, so drawing it uncropped would spend most of a
+       22px mark on empty margin. Both paths are copied across byte for byte;
+       regenerate from the source rather than from this copy.
+
+       `width`/`height` are the viewBox's dimensions, not the rendered ones --
+       they give the browser the aspect ratio so the wordmark does not jump
+       sideways. The stylesheet sets the height it is actually drawn at. #}
     <a class="brand" href="{{ url_for('index') }}">
-      <img class="brand-mark" src="{{ asset('logo.png') }}" alt=""
-           width="128" height="99">
+      <img class="brand-mark" src="{{ asset('logo.svg') }}" alt=""
+           width="805" height="615">
       <span class="brand-name">VRCVerify</span>
     </a>
 

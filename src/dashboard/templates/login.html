@@ -70,14 +70,17 @@
 <section class="panel signin">
   {# The mark alone, not the lockup: the heading below says the name, and a
      wordmark directly above a heading carrying the same word reads as the page
-     stuttering. Drawn at 48px from a 128px file, so it is still crisp at 2x.
+     stuttering. Drawn at 48px, and being an SVG it is DRAWN at 48px rather
+     than resampled to it -- which is the whole reason this stopped being a
+     PNG, since a raster has to pick a size and this card is where the mark is
+     largest.
 
      alt="" because it is decorative in the strict sense -- the <h1> two lines
      down says "VRCVerify", and a screen reader announcing the logo as well
      would say the product's name twice before reaching the sentence that
      explains the page. #}
-  <img class="signin-mark" src="{{ asset('logo.png') }}" alt=""
-       width="128" height="99">
+  <img class="signin-mark" src="{{ asset('logo.svg') }}" alt=""
+       width="805" height="615">
 
   <h1>{% trans %}Manage your VRCVerify servers{% endtrans %}</h1>
   <p class="signin-lede">

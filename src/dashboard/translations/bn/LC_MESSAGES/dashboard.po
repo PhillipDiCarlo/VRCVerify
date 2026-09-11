@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 02:53-0400\n"
+"POT-Creation-Date: 2026-09-10 08:11-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: bn\n"
@@ -263,24 +263,37 @@ msgstr "Premium"
 msgid "New"
 msgstr "নতুন"
 
-# | msgid "Open the dashboard"
-msgid "A new look for the dashboard"
-msgstr "ড্যাশবোর্ডের নতুন চেহারা"
+msgid "VRCVerify has a new look"
+msgstr "VRCVerify-এর নতুন চেহারা"
 
+# | msgid "" "Your server list is now a grid of tiles you can search, pin and
+# | open with" " a single click anywhere on the card, and each one says
+# whether
+# | that " "server is on Premium. Setup has moved to the top of a server's
+# | Overview " "with a progress bar, and retires itself once everything
+# required
+# | is done." " Settings puts each control directly under its own label, and
+# the
+# | pricing" " page is one comparison you can read across."
 msgid ""
-"Your server list is now a grid of tiles you can search, pin and open with"
-" a single click anywhere on the card, and each one says whether that "
-"server is on Premium. Setup has moved to the top of a server's Overview "
-"with a progress bar, and retires itself once everything required is done."
-" Settings puts each control directly under its own label, and the pricing"
-" page is one comparison you can read across."
+"The dashboard, the website and the status page have been rebuilt on one "
+"design. Your server list is now a grid of tiles you can search, pin and "
+"open from anywhere on the card, and each one says whether that server is "
+"on Premium. Setup has moved to the top of a server's Overview with a "
+"progress bar, and retires itself once everything required is done. "
+"Settings puts each control directly under its own label, the pricing page"
+" is one comparison you can read across, and the status page now shows "
+"what has gone wrong beside what is working rather than below it."
 msgstr ""
-"আপনার সার্ভার তালিকা এখন টাইলের একটি গ্রিড, যেখানে খোঁজা যায়, পিন করা "
-"যায় এবং কার্ডের যেকোনো জায়গায় এক ক্লিকেই খোলা যায়, আর প্রতিটি টাইল "
-"জানায় সেই সার্ভারটি Premium-এ আছে কি না। সেটআপ এখন সার্ভারের ওভারভিউয়ের"
-" একদম উপরে, অগ্রগতি বার সহ, এবং সব আবশ্যিক ধাপ শেষ হলে নিজে থেকেই সরে "
-"যায়। সেটিংসে প্রতিটি নিয়ন্ত্রণ তার নিজের লেবেলের ঠিক নিচে থাকে, আর "
-"মূল্যের পাতা একটিই তুলনা যা আড়াআড়ি পড়া যায়।"
+"ড্যাশবোর্ড, ওয়েবসাইট এবং স্ট্যাটাস পেজ একটি অভিন্ন ডিজাইনে নতুন করে তৈরি"
+" করা হয়েছে। আপনার সার্ভার তালিকা এখন টাইলের একটি গ্রিড, যেখানে খোঁজা "
+"যায়, পিন করা যায় এবং কার্ডের যেকোনো জায়গায় এক ক্লিকেই খোলা যায়, আর "
+"প্রতিটি টাইল জানায় সেই সার্ভারটি Premium-এ আছে কি না। সেটআপ এখন "
+"সার্ভারের ওভারভিউয়ের একদম উপরে, অগ্রগতি বার সহ, এবং সব আবশ্যিক ধাপ শেষ "
+"হলে নিজে থেকেই সরে যায়। সেটিংসে প্রতিটি নিয়ন্ত্রণ তার নিজের লেবেলের ঠিক"
+" নিচে থাকে, আর মূল্যের পাতা একটিই তুলনা যা আড়াআড়ি পড়া যায়। আর "
+"স্ট্যাটাস পেজে যা ভুল হয়েছে তা এখন যা কাজ করছে তার নিচে না থেকে পাশে "
+"দেখানো হয়।"
 
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
@@ -2107,4 +2120,8 @@ msgstr ""
 
 #~ msgid "Most popular"
 #~ msgstr "সবচেয়ে জনপ্রিয়"
+
+# | msgid "Open the dashboard"
+#~ msgid "A new look for the dashboard"
+#~ msgstr "ড্যাশবোর্ডের নতুন চেহারা"
 

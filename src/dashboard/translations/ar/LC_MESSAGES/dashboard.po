@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-10 02:53-0400\n"
+"POT-Creation-Date: 2026-09-10 08:11-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -259,24 +259,35 @@ msgstr "Premium"
 msgid "New"
 msgstr "جديد"
 
-# | msgid "Open the dashboard"
-msgid "A new look for the dashboard"
-msgstr "مظهر جديد للوحة التحكّم"
+msgid "VRCVerify has a new look"
+msgstr "مظهر جديد لـ VRCVerify"
 
+# | msgid "" "Your server list is now a grid of tiles you can search, pin and
+# | open with" " a single click anywhere on the card, and each one says
+# whether
+# | that " "server is on Premium. Setup has moved to the top of a server's
+# | Overview " "with a progress bar, and retires itself once everything
+# required
+# | is done." " Settings puts each control directly under its own label, and
+# the
+# | pricing" " page is one comparison you can read across."
 msgid ""
-"Your server list is now a grid of tiles you can search, pin and open with"
-" a single click anywhere on the card, and each one says whether that "
-"server is on Premium. Setup has moved to the top of a server's Overview "
-"with a progress bar, and retires itself once everything required is done."
-" Settings puts each control directly under its own label, and the pricing"
-" page is one comparison you can read across."
+"The dashboard, the website and the status page have been rebuilt on one "
+"design. Your server list is now a grid of tiles you can search, pin and "
+"open from anywhere on the card, and each one says whether that server is "
+"on Premium. Setup has moved to the top of a server's Overview with a "
+"progress bar, and retires itself once everything required is done. "
+"Settings puts each control directly under its own label, the pricing page"
+" is one comparison you can read across, and the status page now shows "
+"what has gone wrong beside what is working rather than below it."
 msgstr ""
-"صارت قائمة خوادمك شبكة من البطاقات يمكنك البحث فيها وتثبيتها وفتحها بنقرة"
-" واحدة في أي موضع من البطاقة، وتوضّح كل بطاقة ما إذا كان ذلك الخادم "
-"مشتركًا في Premium. انتقل الإعداد إلى أعلى نظرة عامة الخادم مع شريط "
-"تقدّم، ويختفي بنفسه بمجرد اكتمال كل ما هو مطلوب. وفي الإعدادات صار كل "
-"عنصر تحكّم أسفل تسميته مباشرة، وصفحة الأسعار صارت مقارنة واحدة تُقرأ "
-"عرضًا."
+"أُعيد بناء لوحة التحكم والموقع وصفحة الحالة على تصميم واحد. صارت قائمة "
+"خوادمك شبكة من البطاقات يمكنك البحث فيها وتثبيتها وفتحها بنقرة واحدة في "
+"أي موضع من البطاقة، وتوضّح كل بطاقة ما إذا كان ذلك الخادم مشتركًا في "
+"Premium. انتقل الإعداد إلى أعلى نظرة عامة الخادم مع شريط تقدّم، ويختفي "
+"بنفسه بمجرد اكتمال كل ما هو مطلوب. وفي الإعدادات صار كل عنصر تحكّم أسفل "
+"تسميته مباشرة، وصفحة الأسعار صارت مقارنة واحدة تُقرأ عرضًا. وفي صفحة "
+"الحالة، صار ما تعطّل يظهر بجانب ما يعمل بدلاً من أسفله."
 
 # | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
@@ -2082,4 +2093,8 @@ msgstr ""
 
 #~ msgid "Most popular"
 #~ msgstr "الأكثر شيوعًا"
+
+# | msgid "Open the dashboard"
+#~ msgid "A new look for the dashboard"
+#~ msgstr "مظهر جديد للوحة التحكّم"
 
