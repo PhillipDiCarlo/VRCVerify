@@ -401,6 +401,38 @@ A second run of the migration fails with "duplicate column name", which is the
 safe direction to fail in. Fresh databases get the column from `schema.sql` and
 need nothing.
 
+## What CI does with this
+
+`.github/workflows/test.yml` has two jobs that touch this directory, and they
+answer different questions.
+
+`node --test` runs `test/*.test.js`. That is the behavior: does the page say
+the right thing.
+
+`wrangler --dry-run` builds it. That is a separate question, and until #303
+nothing asked it: `status/wrangler.toml` is its own script with its own deploy,
+and no workflow mentioned it. The `Workers Builds: vrcverify` check that
+appears on every pull request is Cloudflare building the APEX Worker, which is
+assets-only and has nothing to bundle.
+
+That job also holds two lines `--dry-run` will not hold by itself, both
+verified by breaking them:
+
+  * **A size budget of 1 MB gzipped.** Cloudflare's real limit is 3 MB and
+    wrangler does not check it on a dry run -- a deliberately bloated bundle
+    reported 8.8 MB and exited 0. This page is about 43 KB. Raising the budget
+    is fine and should come with a commit message saying what arrived.
+  * **A `node:` built-in with no `nodejs_compat` flag is refused.** That
+    combination bundles silently and fails when workerd loads it, which is at
+    deploy or at the first request. Adding the flag to `wrangler.toml` makes
+    the import fine; it is the mismatch that is rejected.
+
+To run what CI runs:
+
+    npx wrangler deploy --config status/wrangler.toml --dry-run --outdir dist
+
+It needs no Cloudflare credentials and publishes nothing.
+
 ## The rules this thing holds
 
 1. **Never render green from missing data.** Absent, stale and unparseable are
