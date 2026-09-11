@@ -278,22 +278,27 @@
       </form>
     {% endif %}
 
-    {# The mark and the word together.
+    {# The mark and the word together. The image carries `alt=""` because it is
+       decorative in the strict sense: the word beside it says the same thing,
+       and a screen reader announcing "VRCVerify logo, VRCVerify" is a worse
+       link than one that just says where it goes.
 
-       INLINE RATHER THAN AN <img> (#288), and not for the request it saves.
-       The mark takes its colour from the theme -- deep cyan on light, bright
-       on dark -- and an <img> cannot be reached by the stylesheet, so the old
-       PNG got there by being monochrome and having invert(1) thrown at it.
-       That works for exactly one kind of artwork and forecloses ever giving
-       the mark a colour. Inlined, it is one `currentColor` declaration.
+       `width`/`height` are the file's intrinsic size, not its rendered size --
+       they give the browser the aspect ratio so the wordmark does not jump
+       sideways when the image lands. The stylesheet sets the height it is
+       actually drawn at.
 
-       It also removes the request, and the 3KB, and the aspect-ratio dance
-       that stopped the wordmark jumping sideways when the image landed: an
-       inline SVG has no intrinsic size to wait for and cannot arrive late.
+       Served through asset() like everything else, so it carries a content
+       digest and can be cached for a year. `img-src` is already `'self'` plus
+       Discord's CDN, so a local file needs no CSP change.
 
-       See _mark.html for the mark itself and why it is one path. #}
+       static/logo.png is Logos/VRCVerify-Logo.png cropped to the artwork and
+       scaled down: the source is 1024x1024 with a third of its height empty,
+       which at this size would be 33KB to draw a 28px mark. Regenerate it from
+       the source rather than from this copy if the logo ever changes. #}
     <a class="brand" href="{{ url_for('index') }}">
-      {% include "_mark.html" %}
+      <img class="brand-mark" src="{{ asset('logo.png') }}" alt=""
+           width="128" height="99">
       <span class="brand-name">VRCVerify</span>
     </a>
 

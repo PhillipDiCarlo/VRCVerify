@@ -18,31 +18,7 @@
 
 <header class="site">
   <div class="wrap">
-    <!-- THE MARK (#288). The age-rating plaque the product has always used,
-         redrawn as one path: the plaque is painted in `currentColor` and the
-         digits are the page showing through it, via fill-rule="evenodd". So
-         the whole mark is one colour, the counters of the 8 fall back to
-         plaque colour on their own, and the stylesheet needs one declaration
-         rather than two tokens.
-
-         The digits are Inter at weight 800, cut from the same font file this
-         site is set in and placed from the font's own metrics, so the mark and
-         the wordmark beside it are the same typeface.
-
-         INLINE, NOT AN <img>, because the colour has to follow the theme and
-         this site's theme is an attribute on <html> that an <img> cannot see.
-         It is also why the old PNG was monochrome with a filter on it.
-
-         IDENTICAL ON ALL SIX PAGES, like the rest of this header, and
-         test_the_header_nav_is_identical_on_every_page fails if it drifts. The
-         same path is in src/dashboard/templates/_mark.html and in
-         status/src/render.js; test_the_mark_is_the_same_drawing_everywhere
-         compares the three.
-
-         aria-hidden because the wordmark says the name. -->
-    <a class="brand" href="/"><svg class="brand-mark" viewBox="0 0 32 24"
-         aria-hidden="true" focusable="false"><path fill="currentColor"
-         fill-rule="evenodd" d="M5.5 0H26.5A5.5 5.5 0 0 1 32.0 5.5V18.5A5.5 5.5 0 0 1 26.5 24.0H5.5A5.5 5.5 0 0 1 0 18.5V5.5A5.5 5.5 0 0 1 5.5 0ZM8.43 6.39V17.61H5.78V8.70H5.70L3.19 10.44V8.11L5.68 6.39ZM14.11 17.76Q12.81 17.76 11.80 17.34Q10.78 16.92 10.20 16.20Q9.62 15.49 9.62 14.58Q9.62 13.88 9.95 13.30Q10.29 12.72 10.85 12.33Q11.42 11.94 12.13 11.83V11.76Q11.20 11.57 10.62 10.88Q10.03 10.19 10.03 9.27Q10.03 8.39 10.56 7.71Q11.09 7.03 12.01 6.64Q12.94 6.24 14.11 6.24Q15.29 6.24 16.22 6.64Q17.15 7.03 17.68 7.71Q18.21 8.40 18.21 9.27Q18.21 10.20 17.61 10.89Q17.02 11.57 16.11 11.76V11.83Q16.81 11.94 17.38 12.33Q17.95 12.72 18.28 13.30Q18.62 13.88 18.62 14.58Q18.62 15.49 18.04 16.20Q17.46 16.92 16.44 17.34Q15.42 17.76 14.11 17.76ZM14.11 15.87Q14.62 15.87 15.01 15.68Q15.39 15.48 15.61 15.14Q15.83 14.80 15.83 14.36Q15.83 13.91 15.61 13.57Q15.38 13.23 15.00 13.04Q14.61 12.84 14.11 12.84Q13.62 12.84 13.24 13.03Q12.85 13.23 12.63 13.57Q12.41 13.91 12.41 14.36Q12.41 14.80 12.62 15.14Q12.84 15.48 13.23 15.67Q13.61 15.87 14.11 15.87ZM14.11 10.95Q14.55 10.95 14.88 10.77Q15.22 10.60 15.42 10.28Q15.61 9.97 15.61 9.57Q15.61 9.16 15.42 8.86Q15.23 8.55 14.89 8.38Q14.55 8.21 14.11 8.21Q13.68 8.21 13.34 8.38Q13.01 8.55 12.82 8.86Q12.63 9.16 12.63 9.57Q12.63 9.97 12.82 10.28Q13.01 10.59 13.35 10.77Q13.68 10.95 14.11 10.95ZM23.13 17.05V9.14H25.30V17.05ZM20.27 14.12V12.06H28.17V14.12Z"/></svg><span>VRCVerify</span></a>
+    <a class="brand" href="/">VRCVerify</a>
     <nav>
       <!-- Pricing leads, and it is an absolute URL to the dashboard on
            purpose (#188): prices come from Stripe on the render that shows

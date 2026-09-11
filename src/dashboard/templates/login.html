@@ -70,14 +70,14 @@
 <section class="panel signin">
   {# The mark alone, not the lockup: the heading below says the name, and a
      wordmark directly above a heading carrying the same word reads as the page
-     stuttering. Drawn at 48px, and being an SVG it is drawn at 48px rather
-     than resampled to it -- the PNG this replaced was a 128px file leaning on
-     having pixels to spare.
+     stuttering. Drawn at 48px from a 128px file, so it is still crisp at 2x.
 
-     `with context` so the include can still see the theme; `mark_class` is how
-     it gets its size, because the same partial is the 22px mark in the top bar
-     on every other page. #}
-  {% with mark_class = "signin-mark" %}{% include "_mark.html" with context %}{% endwith %}
+     alt="" because it is decorative in the strict sense -- the <h1> two lines
+     down says "VRCVerify", and a screen reader announcing the logo as well
+     would say the product's name twice before reaching the sentence that
+     explains the page. #}
+  <img class="signin-mark" src="{{ asset('logo.png') }}" alt=""
+       width="128" height="99">
 
   <h1>{% trans %}Manage your VRCVerify servers{% endtrans %}</h1>
   <p class="signin-lede">
