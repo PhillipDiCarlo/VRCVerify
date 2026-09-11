@@ -1,4 +1,4 @@
-# The tests, on every pull request.
+# The tests on every pull request, and the deploy that follows them on main.
 #
 # THIS DID NOT EXIST UNTIL #297, and the gap was not that the status Worker's
 # tests were missing: nothing ran at all. `codeql.yml` was the only workflow in
@@ -12,13 +12,23 @@
 # class of bug SQLite cannot reproduce; the fourth assembles the Workers, which
 # is a different question from whether their tests pass (#303). Each says why
 # above itself.
-name: Tests
+#
+# AND THEN A FIFTH, WHICH PUBLISHES (#305). It lives here rather than in a file
+# of its own precisely so it can say `needs:` and mean it: a status page is the
+# one surface where shipping something broken is worse than shipping nothing,
+# so the deploy depends on the tests rather than racing them in a second
+# workflow. See the note above the job.
+name: Tests and deploy
 
 on:
   pull_request:
     branches: [ "main" ]
   push:
     branches: [ "main" ]
+  # So a deploy can be re-run by hand without an empty commit, which is what
+  # somebody will want at the exact moment they are least inclined to invent a
+  # reason for one.
+  workflow_dispatch:
 
 # A second push to a pull request makes the first run irrelevant. Without this
 # they both finish, and the older one can report after the newer.
@@ -282,3 +292,145 @@ jobs:
               exit 1
             fi
           fi
+
+  # THE DEPLOY, AND THE THING NOBODY HAD WRITTEN DOWN (#305).
+  #
+  # status.vrcverify.com had no deploy at all. #302 translated the page into
+  # twelve languages, merged with eight green checks, and stayed on `main` for
+  # days while the live page served English -- because `status/wrangler.toml`
+  # is a separate script with a separate deploy, and "separate" turned out to
+  # mean "manual" without anyone saying so.
+  #
+  # WHY IT LOOKED COVERED, which is the part worth remembering. `node --test`
+  # runs the suite on every pull request (#297). `wrangler --dry-run` builds
+  # the Worker on every pull request (#303). status/README.md has a section
+  # headed "What CI does with this". All of that is true and none of it
+  # publishes anything.
+  #
+  # THE APEX IS NOT DEPLOYED HERE and must not be. It is connected to
+  # Cloudflare's own Git integration -- that is what `Workers Builds:
+  # vrcverify` is on every pull request, a build AND a deploy -- so merging
+  # already publishes it. A second mechanism pushing the same script would be
+  # two things racing for one hostname.
+  deploy-status:
+    name: deploy status.vrcverify.com
+    runs-on: ubuntu-latest
+
+    # NOT ON A PULL REQUEST, and not from a fork. Secrets are unavailable to
+    # both, so a guarded job is not what keeps the token safe -- GitHub does --
+    # but a job that could not possibly succeed should not be queued and go
+    # red on every contributor's first pull request.
+    if: >-
+      github.repository == 'PhillipDiCarlo/VRCVerify' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+
+    # ORDERING OVER SPEED. A status page is the one surface where publishing
+    # something broken is worse than publishing nothing, so this waits for all
+    # four rather than starting alongside them. It costs about three minutes
+    # of wall clock and buys the guarantee the whole page is built on.
+    needs: [python, postgres, javascript, workers]
+
+    # ONE DEPLOY AT A TIME, AND cancel-in-progress IS FALSE ON PURPOSE. The
+    # rest of this file cancels superseded runs because a stale test result is
+    # only noise. A cancelled deploy is a half-published script, which is a
+    # different kind of thing entirely.
+    concurrency:
+      group: deploy-status-worker
+      cancel-in-progress: false
+
+    permissions:
+      contents: read
+
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      # An IDENTIFIER, NOT A CREDENTIAL, so it is a repository variable rather
+      # than a secret -- the same reading `status/wrangler.toml` applies to
+      # `database_id`. Reaching the account still needs the token above.
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: "false"
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Two commits, which covers the case this repository actually has:
+          # a pull request merged to main, where `github.event.before` is the
+          # merge commit's first parent and is therefore in the clone. A push
+          # of several commits at once leaves `before` outside it, `git
+          # cat-file` says so, and the step below falls through to deploying.
+          # That is the intended direction to be wrong in.
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      # A MISSING SECRET SHOULD SAY SO. Without this, wrangler fails somewhere
+      # inside an OAuth flow it cannot run headless, and the error names none
+      # of the three things a reader would need to fix it.
+      - name: Check the deploy credentials are present
+        run: |
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN(secret)"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID(variable)"
+          if [ -n "$missing" ]; then
+            echo "::error::cannot deploy: missing$missing. See 'What deploys this' in status/README.md." >&2
+            exit 1
+          fi
+
+      # SKIPPING IS AN OPTIMISATION AND FAILING TO SKIP IS SAFE, so every
+      # uncertain case deploys. A force push, a first push, a `before` outside
+      # a two-commit clone, or a manual run all fall through to "yes", because
+      # a redundant deploy of an identical script costs seventeen seconds and a
+      # missed one costs another week of the page being wrong. #305 is what a
+      # missed one costs.
+      #
+      # `status/` IS THE WHOLE INPUT, which is what makes this safe to scope at
+      # all: the Worker's source, its assets, its config and its catalogs are
+      # all under that directory, and nothing outside it is bundled. If that
+      # ever stops being true this filter becomes a way to not ship.
+      - name: Did anything under status/ change?
+        id: scope
+        run: |
+          before="${{ github.event.before }}"
+          if [ "${{ github.event_name }}" != "push" ] \
+            || [ -z "$before" ] \
+            || [ "$before" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+            echo "reason=cannot compare, deploying" >> "$GITHUB_OUTPUT"
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$before" "${{ github.sha }}" -- status/; then
+            echo "reason=nothing under status/ changed" >> "$GITHUB_OUTPUT"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "reason=status/ changed" >> "$GITHUB_OUTPUT"
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Nothing to publish
+        if: steps.scope.outputs.deploy == 'false'
+        # The inner colon has to go, or YAML reads "Skipped" as a key.
+        run: echo "Skipped, ${{ steps.scope.outputs.reason }}"
+
+      - name: Deploy the status Worker
+        if: steps.scope.outputs.deploy == 'true'
+        run: npx --yes wrangler@4 deploy --config status/wrangler.toml
+
+      # THE DEPLOY IS NOT THE EVIDENCE. wrangler reporting success means
+      # Cloudflare accepted the upload, which is a different claim from the
+      # hostname serving it. This is the check that would have caught #305 on
+      # the day it happened, so it is the one thing here that is not optional.
+      - name: Check the live page is the one that was just built
+        if: steps.scope.outputs.deploy == 'true'
+        run: |
+          for attempt in 1 2 3 4 5; do
+            sleep 5
+            body=$(curl -fsS --max-time 20 https://status.vrcverify.com/ || true)
+            if printf '%s' "$body" | grep -q 'rel="alternate" hreflang='; then
+              echo "live page carries the language alternates"
+              exit 0
+            fi
+            echo "attempt $attempt: not serving the new build yet"
+          done
+          echo "::error::deploy reported success but https://status.vrcverify.com/ is not serving it" >&2
+          exit 1

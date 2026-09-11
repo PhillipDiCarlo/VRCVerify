@@ -401,6 +401,63 @@ A second run of the migration fails with "duplicate column name", which is the
 safe direction to fail in. Fresh databases get the column from `schema.sql` and
 need nothing.
 
+## What deploys this
+
+**A push to `main` deploys it, after the tests pass** (#305). The `deploy-status`
+job in `.github/workflows/test.yml` runs `wrangler deploy`, then fetches
+https://status.vrcverify.com/ and fails if the live page is not serving what
+was just built.
+
+That job did not exist until #305, and the gap it closes is worth stating
+plainly because nothing about the repository made it visible. #302 translated
+this page into twelve languages, merged with eight green checks, and sat on
+`main` for days while the live page served English. Everything looked covered:
+`node --test` ran the suite, `wrangler --dry-run` built the Worker, and the
+section below is headed "What CI does with this". None of it published
+anything.
+
+**The apex Worker is not deployed by that job and must not be.** It is
+connected to Cloudflare's own Git integration, which is what the
+`Workers Builds: vrcverify` check is on every pull request: a build *and* a
+deploy. So `vrcverify.com` publishes itself on merge and this page did not, and
+the difference was invisible from in here. Two mechanisms pushing one script
+would be two things racing for one hostname.
+
+### What the workflow needs
+
+| Where | Name | What |
+| --- | --- | --- |
+| Repository **secret** | `CLOUDFLARE_API_TOKEN` | Workers Scripts: Edit, D1: Edit, Workers Routes: Edit, on this account |
+| Repository **variable** | `CLOUDFLARE_ACCOUNT_ID` | An identifier, not a credential, the same way `database_id` in `wrangler.toml` is. Reaching the account still needs the token. |
+
+Set them in Settings -> Secrets and variables -> Actions. The job checks both
+are present before it calls wrangler, because a missing secret otherwise fails
+somewhere inside an OAuth flow that cannot run headless, and the error names
+none of the three things a reader would need to fix it.
+
+The token needs D1 because the Worker has a D1 binding and wrangler validates
+bindings on deploy, and Workers Routes because `[[routes]]` has
+`custom_domain = true` and the deploy maintains the DNS record.
+
+### Deploying by hand
+
+When the workflow cannot run, or to publish without a commit:
+
+    npx wrangler deploy --config status/wrangler.toml
+
+This prompts for OAuth on a machine that has never done it. There is also
+**Run workflow** on the Actions tab, which is `workflow_dispatch` on the same
+job and wants no local credentials at all.
+
+### When it skips
+
+The job deploys only when something under `status/` changed, and that is safe
+to scope because `status/` is the whole input: the source, the assets, the
+config and the catalogs are all under it and nothing outside it is bundled.
+Every case it cannot determine -- a force push, a first push, a manual run --
+deploys anyway. Failing to skip costs seventeen seconds; failing to deploy cost
+#305.
+
 ## What CI does with this
 
 `.github/workflows/test.yml` has two jobs that touch this directory, and they
