@@ -22,9 +22,26 @@
 import { COMPONENTS, HISTORY_DAYS, UPSTREAMS } from "../status/src/config.js";
 import { recentDays } from "../status/src/logic.js";
 import { renderPage, renderAdmin } from "../status/src/render.js";
+import { DEFAULT_LOCALE, LOCALES, translator } from "../status/src/i18n.js";
 
 // "incident" | "clear" | "stale", from dev_status.py.
 const STATE = process.env.PREVIEW_STATE ?? "incident";
+
+/**
+ * Which of the twelve to draw (#300).
+ *
+ * The point of previewing a language is the LAYOUT, not the words: German
+ * runs about ten percent longer than English and is what overflows a pill,
+ * Japanese is short enough to leave a row looking empty, and Arabic is the
+ * one that arrives under dir="rtl". Reading them in a browser is the only
+ * way to see any of that, and `wrangler dev` will not show it without a
+ * populated D1.
+ */
+const LOCALE = process.env.PREVIEW_LOCALE ?? DEFAULT_LOCALE;
+if (!LOCALES.includes(LOCALE)) {
+  process.stderr.write(`unknown PREVIEW_LOCALE ${LOCALE}; try one of ${LOCALES.join(", ")}\n`);
+  process.exit(2);
+}
 const WHICH = process.argv[2] ?? "page";
 
 // Fixed, not `Date.now()`. A preview whose timestamps move every reload is one
@@ -148,6 +165,7 @@ process.stdout.write(
   WHICH === "admin"
     ? renderAdmin({ incidents, who: "you@example.com", now })
     : renderPage({
+        t: translator(LOCALE),
         components: live.components,
         upstreams: live.upstreams,
         history: { days, byComponent },

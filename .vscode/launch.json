@@ -114,6 +114,27 @@
             }
         },
         {
+            // THE SAME PAGE, RIGHT TO LEFT (#300). Arabic is the only one of
+            // the twelve that arrives under dir="rtl", so it is the only one
+            // where reading the CSS answers nothing: which end of a row a
+            // pill sits at, which way the disclosure chevron points, and
+            // which side the language menu opens on are all things a
+            // screenshot decides. The other eleven are reachable from the
+            // picker in the header once this is running.
+            "name": "Status page (local preview, in Arabic)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/dev_status.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": { "PREVIEW_LOCALE": "ar" },
+            "serverReadyAction": {
+                "pattern": "Status page preview: (https?://\\S+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        },
+        {
             // The page as it is almost all of the time: everything up, no
             // incidents. This is the one to check the empty states on -- the
             // "nothing has gone wrong" line, and how the incident column

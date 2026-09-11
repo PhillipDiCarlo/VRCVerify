@@ -225,6 +225,18 @@ ENTRIES = (
     # is permanent, not because it is a description -- nothing reads it and
     # nobody sees it.
     Entry(
+        id="2026-09-status-page-languages",
+        date=date(2026, 9, 11),
+        title=N_("The status page speaks your language"),
+        body=(
+            N_("status.vrcverify.com is now available in all twelve languages "
+            "the dashboard is, including Arabic read right to left. It picks "
+            "one from your browser, and the globe in its header switches "
+            "between them. Each language has its own address, so you can send "
+            "somebody the status page in the language they read.")
+        ),
+    ),
+    Entry(
         id="2026-09-dashboard-redesign",
         date=date(2026, 9, 10),
         title=N_("VRCVerify has a new look"),
