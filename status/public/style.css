@@ -31,6 +31,13 @@
 /* 1. Dark: the floor, and what an explicit Dark choice pins. */
 :root,
 :root[data-theme="dark"] {
+  /* THE MARK IS BLACK ARTWORK, so dark is the theme that has to act on
+     it and light is the one that leaves it alone. That is the mirror of
+     the dashboard's copy of this token, where the cascade runs the other
+     way, and it is the same one file rather than a second image to keep
+     in step forever. */
+  --logo-filter: invert(1);
+
   /* Per-theme rather than `light dark`, so form controls and scrollbars
      follow the theme the page actually chose rather than the one the OS
      prefers. */
@@ -168,6 +175,7 @@
 
   /* The light halves of the theme-menu tokens. --radius-* and --bar-control do
      not change with the theme, so they are declared once above. */
+  --light-logo-filter: none;
   --light-hover: #e3e5e8;
   --light-shadow-overlay: 0 4px 12px rgb(0 0 0 / 0.12), 0 12px 32px rgb(0 0 0 / 0.10);
 }
@@ -195,6 +203,7 @@
   --accent-text: var(--light-accent-text);
   --control-line: var(--light-control-line);
   --hover: var(--light-hover);
+  --logo-filter: var(--light-logo-filter);
   --shadow-overlay: var(--light-shadow-overlay);
 }
 
@@ -223,6 +232,7 @@
     --accent-text: var(--light-accent-text);
     --control-line: var(--light-control-line);
     --hover: var(--light-hover);
+  --logo-filter: var(--light-logo-filter);
     --shadow-overlay: var(--light-shadow-overlay);
   }
 }
@@ -403,12 +413,36 @@ header.site .wrap {
   padding-bottom: 1.25rem;
 }
 header.site a.brand {
+  /* Flex since the mark joined the wordmark: the brand is two things now, not
+     one. Centred rather than baseline-aligned, because the mark has no
+     baseline to share and centring the plaque on the word is what makes the
+     pair read as one object. */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-weight: 700;
   font-size: 1.05rem;
   color: var(--ink-strong);
   text-decoration: none;
   margin-right: auto;
 }
+/* THE MARK. Sized by height, because it is wider than it is tall and matching
+   its height to the word is what makes the pair a lockup rather than a picture
+   standing beside some text. `width: auto` plus the intrinsic size on the
+   element keeps the ratio and reserves the right box before it arrives, so the
+   wordmark does not jump sideways.
+
+   The same logo.svg the dashboard serves, byte for byte, and the same
+   monochrome-plus-filter arrangement. Three copies for the reason the fonts
+   and theme.js have three: each surface has to keep working when the others
+   are down, so none of them may fetch the mark from another. */
+header.site .brand-mark {
+  height: 1.375rem;
+  width: auto;
+  flex: 0 0 auto;
+  filter: var(--logo-filter);
+}
+
 header.site nav { display: flex; flex-wrap: wrap; gap: 1.25rem; }
 header.site nav a { color: var(--muted); text-decoration: none; font-size: 0.94rem; }
 header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); text-decoration: underline; }

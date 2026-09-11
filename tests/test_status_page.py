@@ -75,6 +75,47 @@ class TestTheCopiedStylesheet:
         assert "site/style.css" in status
         assert "src/dashboard/static/style.css" in status
 
+    def test_the_logo_is_the_same_file_everywhere(self):
+        """One logo, three surfaces, three copies of the file.
+
+        THE SAME BARGAIN THE FONTS AND theme.js MAKE, for the same reason: each
+        surface has to keep working when the others are down, so none of them
+        may fetch the mark from another. The apex is an assets-only Worker, the
+        status page is a Worker rendering strings, the dashboard is Flask, and
+        #243 says a build step must not put a runtime dependency on anything
+        external.
+
+        Byte for byte, because unlike the tokens there is nothing here that
+        legitimately differs between surfaces. It is one drawing.
+        """
+        copies = {
+            "dashboard": ROOT / "src" / "dashboard" / "static" / "logo.svg",
+            "apex": ROOT / "site" / "logo.svg",
+            "status": ROOT / "status" / "public" / "logo.svg",
+        }
+        for label, path in copies.items():
+            assert path.is_file(), f"{label} has no logo.svg at {path}"
+        contents = {label: path.read_bytes() for label, path in copies.items()}
+        assert len(set(contents.values())) == 1, (
+            "the logo has drifted between surfaces: "
+            + ", ".join(f"{k} {len(v)} bytes" for k, v in contents.items())
+        )
+
+    def test_every_header_carries_the_mark(self):
+        """#243 asks the three surfaces to share one header pattern, and the
+        mark is the part of it that was missing: the apex and the status page
+        shipped a bare text wordmark while the dashboard had the logo."""
+        pattern = re.compile(r'<img class="brand-mark"[^>]*src="([^"]+)"')
+        pages = sorted((ROOT / "site").glob("*.html"))
+        assert pages, "no apex pages found"
+        for page in pages:
+            found = pattern.findall(page.read_text(encoding="utf-8"))
+            assert found == ["/logo.svg"], f"{page.name}: {found}"
+
+        render = (ROOT / "status" / "src" / "render.js").read_text(encoding="utf-8")
+        assert render.count("${MARK}") == 2, "both status headers carry the mark"
+        assert 'src="/logo.svg"' in render
+
     def test_the_theme_toggle_is_the_same_script(self):
         """Byte for byte below its header, so the two sites cannot toggle differently."""
         site = SITE_THEME.read_text(encoding="utf-8")

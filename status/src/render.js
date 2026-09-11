@@ -21,6 +21,28 @@ import {
   verdict,
 } from "./logic.js";
 
+/**
+ * THE MARK, as it appears in both headers.
+ *
+ * A constant rather than markup typed twice, and a JS comment rather than an
+ * HTML one, because this file's output is re-rendered on every request and the
+ * reasoning does not need to travel to the reader.
+ *
+ * The same public/logo.svg the apex and the dashboard serve, byte for byte,
+ * and the same arrangement: black artwork, inverted for dark by --logo-filter.
+ * Three copies of the file for the reason the fonts and theme.js have three --
+ * each surface has to keep working when the others are down, so none of them
+ * may fetch the mark from another. `test_the_logo_is_the_same_file_everywhere`
+ * fails if they drift.
+ *
+ * `width`/`height` are the viewBox's dimensions, not the rendered ones: they
+ * give the browser the ratio so the wordmark does not jump sideways when the
+ * image lands. The stylesheet sets the height it is drawn at. `alt=""` because
+ * the word beside it says the same thing.
+ */
+const MARK =
+  '<img class="brand-mark" src="/logo.svg" alt="" width="805" height="615">';
+
 const STATE_LABEL = {
   up: "Operational",
   degraded: "Degraded",
@@ -434,7 +456,7 @@ export function renderPage({
 
 <header class="site">
   <div class="wrap">
-    <a class="brand" href="/">VRCVerify Status</a>
+    <a class="brand" href="/">${MARK}<span>VRCVerify Status</span></a>
     <nav>
       <a href="https://vrcverify.com/">Home</a>
       <a href="https://dashboard.vrcverify.com/">Dashboard</a>
@@ -596,7 +618,7 @@ export function renderAdmin({ incidents, who, now }) {
 
 <header class="site">
   <div class="wrap">
-    <a class="brand" href="/">VRCVerify Status</a>
+    <a class="brand" href="/">${MARK}<span>VRCVerify Status</span></a>
     <nav><a href="/">Public page</a></nav>
     <div class="theme-picker" hidden></div>
   </div>
