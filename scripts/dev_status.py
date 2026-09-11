@@ -47,6 +47,7 @@ import os
 import pathlib
 import socketserver
 import subprocess
+import re
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -59,10 +60,25 @@ HOST, PORT = "127.0.0.1", 5003
 # is the busy page, because an all-clear page is the one that shows least.
 STATE = os.environ.get("PREVIEW_STATE", "incident")
 
+# The twelve, read out of the Worker rather than typed here, so a language
+# added there is previewable without touching this file (#300). A crude regex
+# on purpose: this is a development script, and parsing JavaScript properly to
+# find a list of two-letter strings would be a worse trade than being wrong
+# loudly.
+_I18N = (REPO / "status" / "src" / "i18n.js").read_text(encoding="utf-8")
+LOCALES = ["en", *re.findall(r'"([a-z]{2}(?:-[A-Za-z]{2,4})?)"',
+                             re.search(r"export const LOCALES = \[(.*?)\];",
+                                       _I18N, re.S).group(1))]
+
+# The language `/` is drawn in. The Worker negotiates it from Accept-Language;
+# here it is an environment variable, because the point of this preview is
+# choosing what to look at rather than simulating a browser.
+LOCALE = os.environ.get("PREVIEW_LOCALE", "en")
+
 PAGES = {"/": "page", "/admin": "admin"}
 
 
-def render(which: str) -> bytes:
+def render(which: str, locale: str = LOCALE) -> bytes:
     """Run the renderer in a container and hand back what it printed.
 
     Failures come back AS THE PAGE, in a <pre>, rather than as a 500 with the
@@ -75,6 +91,7 @@ def render(which: str) -> bytes:
         ["docker", "run", "--rm", "-i",
          "-v", f"{REPO}:/repo:ro", "-w", "/repo",
          "-e", f"PREVIEW_STATE={STATE}",
+         "-e", f"PREVIEW_LOCALE={locale}",
          IMAGE, "node", RENDERER, which],
         capture_output=True,
     )
@@ -96,6 +113,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0].split("#", 1)[0]
         if path in PAGES:
             return self.reply(render(PAGES[path]), "text/html; charset=utf-8")
+
+        # `/ja`, `/pt-BR`, and the other nine, exactly as the Worker routes
+        # them. Worth mirroring rather than approximating with a query string:
+        # the language picker in the header renders these paths, so a preview
+        # that answered something else would have a picker that 404s and a
+        # reviewer who concludes the picker is broken.
+        wanted = path.rstrip("/").lstrip("/")
+        match = next((code for code in LOCALES if code.lower() == wanted.lower()), None)
+        if match == "en":
+            # The Worker answers /en with a permanent redirect rather than a
+            # second copy of English, so this does too. A preview that serves
+            # a page where production serves a 301 is a preview that hides the
+            # one thing anybody would check /en for.
+            self.send_response(301)
+            self.send_header("Location", "/")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return None
+        if match:
+            return self.reply(render("page", match), "text/html; charset=utf-8")
 
         # Everything else is a real file from status/public, which is exactly
         # what the Worker serves for these paths. Resolved before the prefix is
@@ -149,6 +186,8 @@ def main() -> None:
         # and a buffered stdout means it never sees it.
         print(f"\n  Status page preview: http://{HOST}:{PORT}/", flush=True)
         print(f"  Showing: {STATE}  (incident | clear | stale, via PREVIEW_STATE)")
+        print(f"  Language: {LOCALE} at /, and all twelve at /<code>, e.g. "
+              f"http://{HOST}:{PORT}/ja and /ar for right to left.")
         print(f"  Also: http://{HOST}:{PORT}/admin, the incident form.")
         print("  Rendered per request, so a save is visible on reload.")
         print("  Ctrl+C to stop.\n")

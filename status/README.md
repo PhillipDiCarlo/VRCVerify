@@ -50,6 +50,9 @@ fail if that leaks.
         logic.js        every decision, with no I/O, so it can be tested
         render.js       the page, as a string
         index.js        the routes and the cron
+        i18n.js         the twelve languages, and how one is chosen
+        locales/        one catalog per language, bundled at deploy time
+          msgids.js     the .pot: every string the page can say, in English
       public/
         style.css       a copy of site/style.css plus the status colors
         theme.js        a copy of site/theme.js, byte for byte
@@ -91,6 +94,11 @@ or **Run and Debug** in VS Code, which has three entries for it:
 | Status page (local preview) | An incident open, days that went badly, the strip full |
 | ... all clear | Everything up and no incidents, which is the page almost always |
 | ... checker stopped | Every row drawn unknown, the rule the whole page is built on |
+| ... in Arabic | The same page under `dir="rtl"`, which nothing else here is |
+
+The preview serves the language routes too, so `/ja`, `/de` and `/ar` all
+answer and the picker in the header works. `PREVIEW_LOCALE=de` changes what
+`/` renders.
 
 Rendered per request, so a save to `render.js` or `style.css` shows on reload.
 It still needs Docker, because the page is JavaScript and this machine has no
@@ -109,6 +117,60 @@ Two things that will waste an hour otherwise:
   * `wrangler dev` ignores a scheduled time supplied on the query string and
     always uses the clock, so the duplicate-delivery guard cannot be exercised
     through it. That one is unit tested instead.
+
+## The twelve languages (#300)
+
+The page is served in English at `/` and in eleven other languages at `/ja`,
+`/de`, `/pt-BR` and so on. `/` reads `Accept-Language` and renders the best
+match; every other path renders what it names and ignores the header, because
+a reader who asked for `/ja` asked for `/ja`.
+
+Three properties are load-bearing and easy to break:
+
+  * **Each language is its own URL**, not a query string or a cookie. That
+    makes it a cache key, which matters on the one page that is read by a
+    crowd during an outage, and it makes "the status page, in Japanese" a link
+    somebody can send.
+  * **`/api/status.json` and `/admin` stay English.** The JSON is a contract
+    with whatever parses it, and the admin form is one signed-in operator who
+    wants it in the language the runbook is written in.
+  * **An incident's own words are never translated.** The four status labels
+    are; the title and the body are what an operator typed at 3am and are
+    shown as written. Machine-translating somebody's account of what is broken
+    is how a status page says something nobody agreed to.
+
+### Changing a sentence
+
+Edit the English in `src/render.js`. The catalogs are keyed by the English
+string, exactly as gettext msgids, so changing one leaves eleven lookups
+missing and every language falls back to the new English -- wrong, but true,
+which is the failure mode this format was picked for. Then:
+
+    docker run --rm -v "$PWD/status:/w" -w /w node:22-bookworm-slim \
+      sh -c 'node --test test/*.test.js'
+
+`every catalog covers every msgid` fails and names what is missing. Translate
+it in all eleven files under `src/locales/` and run it again.
+
+### Adding a language
+
+1. Add the BCP 47 code to `LOCALES` and its name to `ENDONYMS` in
+   `src/i18n.js`, both in the dashboard's order.
+2. Add the same language to `UI_LANGUAGES` in `src/dashboard/i18n.py` and run
+   `./scripts/i18n.sh`, or `test_it_offers_every_language_the_dashboard_does`
+   fails: a reader who sets a language on the dashboard and loses it here has
+   been told the product speaks a language half of it does not.
+3. Copy `src/locales/de.js` to `src/locales/<code>.js`, translate it, and
+   import it in `src/locales/index.js`.
+4. Run the Node suite. It will tell you which plural categories that language
+   needs -- `Intl.PluralRules` decides, and it is six for Arabic and one for
+   Japanese, so this is not a guess.
+5. If it is written right to left, add it to `RTL` in `src/i18n.js`.
+
+Only `dir` follows `RTL`. Mirroring the LAYOUT is a stylesheet job that
+neither this page nor the dashboard has been asked to do; the handful of
+declarations that govern where a line starts are logical properties, and the
+rest are not. Same call `src/dashboard/i18n.py` documents.
 
 ## First deploy
 

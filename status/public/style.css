@@ -424,7 +424,9 @@ header.site a.brand {
   font-size: 1.05rem;
   color: var(--ink-strong);
   text-decoration: none;
-  margin-right: auto;
+  /* Logical, so the brand still sits at the reading start and the controls at
+     the reading end when the page is drawn right to left (#300). */
+  margin-inline-end: auto;
 }
 /* THE MARK. Sized by height, because it is wider than it is tall and matching
    its height to the word is what makes the pair a lockup rather than a picture
@@ -555,7 +557,7 @@ h1 { font-size: var(--text-title); line-height: var(--leading-tight); margin: 2r
 h2 { font-size: var(--text-section); margin: 2.25rem 0 0.5rem; text-wrap: balance; color: var(--ink-strong); }
 h3 { font-size: var(--text-subhead); margin: 1.5rem 0 0.35rem; color: var(--ink-strong); }
 p, li { color: var(--ink); }
-ul, ol { padding-left: 1.35rem; }
+ul, ol { padding-inline-start: 1.35rem; }
 li { margin: 0.3rem 0; }
 
 .lede { font-size: var(--text-blurb); color: var(--muted); }
@@ -594,6 +596,105 @@ a:focus-visible, .cta:focus-visible,
    THE STATUS PAGE ITSELF. Everything above this line is copied from
    site/style.css; everything below is new with issue #170.
    ------------------------------------------------------------------ */
+
+/* THE LANGUAGE PICKER (#300).
+
+   Below the boundary on purpose. Everything above it is a copy of
+   site/style.css, and the apex site has no language picker to copy -- it is
+   six static files with no code on the request path, so it cannot have one
+   yet. When it grows one this block moves up.
+
+   It is a <details> for the same reason the theme menu is: there is no script
+   on this page that a control may depend on, and a status page whose language
+   cannot be changed with JavaScript off is a status page that cannot be read
+   during the outage it exists to describe. Where the theme menu is BUILT by
+   theme.js, this one is server rendered, because the Worker already knows
+   which language it just drew.
+
+   The shape follows .theme-menu deliberately, down to the class names on the
+   rows: two controls sitting a centimetre apart in the same bar should not
+   look like two different products. */
+.langpick { position: relative; }
+
+/* The default disclosure triangle goes from both engines, same as the theme
+   button: `list-style` for Firefox and current Chrome, the pseudo-element for
+   older WebKit. The globe is the marker. */
+.lang-button { list-style: none; }
+.lang-button::-webkit-details-marker { display: none; }
+
+.lang-button {
+  display: grid;
+  place-items: center;
+  width: var(--bar-control);
+  height: var(--bar-control);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  cursor: pointer;
+}
+.lang-button:hover { background: var(--hover); color: var(--ink-strong); }
+.langpick[open] .lang-button { background: var(--hover); color: var(--ink-strong); }
+
+/* A SUMMARY IS NOT IN THE SHARED FOCUS RULE, which enumerates `a`, `.cta`,
+   `.theme-button` and `.theme-item` and is a copy of the apex site's. Without
+   this the control takes Chromium's own ring, which is the same bug
+   `.timeline > summary` had and was found the same way, by tabbing to it. */
+.lang-button:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* Anchored to the inline end, so a panel wider than the globe it hangs from
+   opens inwards rather than off the side of the window. Logical rather than
+   `right`, because this is the one control on the page whose whole job is to
+   be used by somebody about to switch into Arabic. */
+.lang-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  inset-inline-end: 0;
+  z-index: 20;
+  min-width: 12rem;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 0.5rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-overlay);
+  text-align: start;
+}
+.lang-panel ul { list-style: none; margin: 0; padding: 0; }
+.lang-panel li { margin: 0; }
+
+.menu-label {
+  margin: 0.25rem 0.5rem 0.5rem;
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Each row is a LINK, not a button in a form: every language is its own URL,
+   so the browser's own "open in a new tab" and "copy link" work on it, and
+   nothing has to be posted anywhere. */
+.lang-panel .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: var(--text-subhead);
+  line-height: var(--leading-tight);
+}
+.lang-panel .menu-item:hover { background: var(--hover); text-decoration: none; }
+.lang-panel .menu-item.current { color: var(--ink-strong); }
+.lang-panel .menu-item-label { flex: 1 1 auto; }
+/* Each row is set in its OWN language, which is the point of showing endonyms
+   at all. Arabic in an otherwise Latin list is still read right to left. */
+.lang-panel .menu-item[lang="ar"] { direction: rtl; text-align: start; }
+.menu-tick { flex: 0 0 auto; color: var(--accent-text); }
 
 /* THREE STATUS COLORS, in the same four-block order the theme uses above.
 
@@ -1070,8 +1171,12 @@ main.wrap.admin-page { max-width: 48rem; }
   color: var(--ink-strong);
   font-weight: 600;
   font-size: var(--text-note);
-  text-transform: capitalize;
-  margin-right: 0.6rem;
+  /* NO `text-transform: capitalize` HERE ANY MORE. It upper-cased every word,
+     which is right for English and wrong for German's "wird beobachtet" and
+     Dutch's "wordt onderzocht" -- both came out looking like titles. The
+     casing is the translator's to decide now; see UPDATE_STATUS_LABEL in
+     render.js. */
+  margin-inline-end: 0.6rem;
 }
 
 .update time { color: var(--faint); font-size: var(--text-micro); }
@@ -1131,6 +1236,14 @@ main.wrap.admin-page { max-width: 48rem; }
 }
 
 .timeline[open] > summary::before { transform: rotate(45deg); }
+
+/* MIRRORED FOR ARABIC. The chevron is two borders and a rotation, so it cannot
+   follow `dir` on its own the way a logical property would: at -45deg it
+   points east, which in a right-to-left page is the direction the reader came
+   FROM. 135deg points west; open still points down, because down is down in
+   both. Found in a screenshot, which is the only place a rotation is visible. */
+[dir="rtl"] .timeline > summary::before { transform: rotate(135deg); }
+[dir="rtl"] .timeline[open] > summary::before { transform: rotate(45deg); }
 
 @media (prefers-reduced-motion: reduce) {
   .timeline > summary::before { transition: none; }

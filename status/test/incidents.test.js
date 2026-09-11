@@ -19,6 +19,11 @@ import assert from "node:assert/strict";
 import { readIncidentForm, readUpdateForm } from "../src/logic.js";
 import { renderAdmin, renderPage } from "../src/render.js";
 import { COMPONENTS, UPSTREAMS } from "../src/config.js";
+import { DEFAULT_LOCALE, translator } from "../src/i18n.js";
+
+// See the note in render.test.js: English, so these assertions read the
+// same sentences they were written against.
+const EN = translator(DEFAULT_LOCALE);
 
 const NOW = Date.UTC(2026, 8, 1, 12, 0, 0) / 1000;
 
@@ -28,6 +33,7 @@ function pageWith(incidents) {
   const upstreams = {};
   for (const upstream of UPSTREAMS) upstreams[upstream.id] = { state: "up" };
   return renderPage({
+    t: EN,
     components,
     upstreams,
     history: { days: [], byComponent: {} },
@@ -96,6 +102,7 @@ test("a real outage keeps its own words rather than an incident count", () => {
   const upstreams = {};
   for (const upstream of UPSTREAMS) upstreams[upstream.id] = { state: "up" };
   const html = renderPage({
+    t: EN,
     components,
     upstreams,
     history: { days: [], byComponent: {} },

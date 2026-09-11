@@ -204,22 +204,38 @@ export function capabilitiesFromParts(heartbeats, mapping, now, staleSeconds) {
  * There is no wording for "everything is fine except the parts we could not
  * check", because that is not fine and the headline should not imply it is.
  */
+/**
+ * The five sentences `verdict` can return.
+ *
+ * A NAMED OBJECT RATHER THAN FIVE LITERALS INSIDE THE FUNCTION, so that
+ * locales/msgids.js can inventory them from the source instead of holding a
+ * hand-copied list that goes quietly out of date. Every one of these is a
+ * msgid; the page looks each up as it draws it. See locales/index.js.
+ */
+export const HEADLINES = {
+  up: "All systems operational",
+  allDown: "Everything is down",
+  someDown: "Some services are down",
+  degraded: "Some services are degraded",
+  unknown: "Service status is unknown",
+};
+
 export function verdict(states) {
   const overall = worst(states);
   if (overall === "up") {
-    return { level: "up", headline: "All systems operational" };
+    return { level: "up", headline: HEADLINES.up };
   }
   if (overall === "down") {
     const allDown = states.every((s) => s === "down");
     return {
       level: "down",
-      headline: allDown ? "Everything is down" : "Some services are down",
+      headline: allDown ? HEADLINES.allDown : HEADLINES.someDown,
     };
   }
   if (overall === "degraded") {
-    return { level: "degraded", headline: "Some services are degraded" };
+    return { level: "degraded", headline: HEADLINES.degraded };
   }
-  return { level: "unknown", headline: "Service status is unknown" };
+  return { level: "unknown", headline: HEADLINES.unknown };
 }
 
 /**
@@ -246,6 +262,13 @@ export function headlineWithOpenIncidents(measured, openCount) {
   return {
     level: measured.level,
     headline: openCount === 1 ? "1 open incident" : `${openCount} open incidents`,
+    // THE COUNT TRAVELS BESIDE THE SENTENCE, and the sentence keeps its
+    // English. This is the one headline that is not a fixed phrase, so the
+    // renderer cannot look it up as a msgid the way it looks up the other
+    // four -- it has to re-say it, with the reader's plural rule. Everything
+    // that is not the page (the tests, and anything that later wants a
+    // headline in one language) keeps reading `headline` and is unaffected.
+    openIncidents: openCount,
   };
 }
 
@@ -349,19 +372,35 @@ export function recentDays(unixSeconds, count) {
  * observation interval does not support.
  */
 export function humanDuration(seconds) {
-  if (!Number.isFinite(seconds) || seconds < 60) return "less than a minute";
+  const parts = durationParts(seconds);
+  if (!parts) return "less than a minute";
+  return `${parts.count} ${parts.unit}${parts.count === 1 ? "" : "s"}`;
+}
+
+/**
+ * The same decision, without the English.
+ *
+ * `{ unit: "hour", count: 3 }`, or null for anything under a minute. The page
+ * renders this in twelve languages and `humanDuration` renders it in one, and
+ * they must round identically: a row reading "3 hours" beside an alert reading
+ * "2 hours" is two answers to the same question. One function decides, two
+ * format.
+ *
+ * `humanDuration` stays because it is what the Discord alert and the tests
+ * use, and the alert is read by an operator at 3am who wants it in the
+ * language the runbook is written in, not in the reader's.
+ */
+export function durationParts(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 60) return null;
   const units = [
     ["day", 86400],
     ["hour", 3600],
     ["minute", 60],
   ];
-  for (const [name, size] of units) {
-    if (seconds >= size) {
-      const n = Math.floor(seconds / size);
-      return `${n} ${name}${n === 1 ? "" : "s"}`;
-    }
+  for (const [unit, size] of units) {
+    if (seconds >= size) return { unit, count: Math.floor(seconds / size) };
   }
-  return "less than a minute";
+  return null;
 }
 
 /**

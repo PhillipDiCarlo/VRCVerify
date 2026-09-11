@@ -39,6 +39,7 @@ import {
 } from "./logic.js";
 import { verifyAccessToken } from "./access.js";
 import { renderAdmin, renderPage } from "./render.js";
+import { DEFAULT_LOCALE, localeFromPath, negotiate, translator } from "./i18n.js";
 
 /** Every id the cron writes a row for: the five public ones and the four upstreams. */
 const ALL_IDS = [...COMPONENT_IDS, ...UPSTREAMS.map((u) => u.id)];
@@ -889,15 +890,52 @@ export default {
       });
     }
 
-    if (url.pathname === "/") {
+    // THE PAGE, IN ONE OF TWELVE LANGUAGES (#300).
+    //
+    // `/` and `/<locale>` and nothing else. Two routes rather than one with a
+    // query string, because each has to be a separate cache entry: the page is
+    // read during an outage, by a crowd, and a URL whose answer depends on a
+    // header is a URL the edge has to keep a copy of per distinct header. A
+    // path is a cache key for free.
+    //
+    // The explicit paths are also the shareable ones. "The status page, in
+    // Japanese" is a link somebody can send during an incident, which a
+    // preference stored anywhere else would not be.
+    // A single trailing slash is the same page. `/ja/` is what a browser makes
+    // of a typed `/ja` often enough to be worth not 404ing, and normalizing is
+    // cheaper than a redirect the reader has to wait for.
+    const path = url.pathname.length > 1 ? url.pathname.replace(/\/$/, "") : url.pathname;
+    const pathLocale = localeFromPath(path);
+    const atRoot = path === "/";
+
+    // ENGLISH HAS ONE URL, and it is `/`. `/en` is accepted because somebody
+    // will construct it by hand from seeing `/ja`, but it is answered with a
+    // permanent redirect rather than a second copy of the page: two addresses
+    // serving identical English is the duplicate-content problem the apex
+    // Worker's `workers_dev = false` was written about, arriving by a
+    // different road.
+    if (pathLocale === DEFAULT_LOCALE) {
+      return new Response(null, { status: 301, headers: { location: "/" } });
+    }
+
+    if (atRoot || (pathLocale && path === `/${pathLocale}`)) {
+      // ONLY `/` NEGOTIATES. A reader who asked for /ja asked for /ja, and a
+      // page that second-guesses that from a header they did not set is a page
+      // whose language picker does not work. `/` has no such instruction, so
+      // Accept-Language is the only thing it has to go on.
+      const locale = atRoot ? negotiate(request.headers.get("accept-language")) : pathLocale;
       const state = await present(env, now);
-      return new Response(renderPage({ ...state, now }), {
+      return new Response(renderPage({ ...state, now, t: translator(locale) }), {
         headers: {
           "content-type": "text/html; charset=utf-8",
           // Half a minute. Long enough that a burst of readers during an
           // outage is answered from cache instead of from D1, short enough
           // that nobody is looking at a materially old page.
           "cache-control": `public, max-age=${PAGE_CACHE_SECONDS}`,
+          // ONLY ON `/`, which is the only response whose body depends on a
+          // request header. Sending it on /ja as well would split that cache
+          // entry by a header that changes nothing about the answer.
+          ...(atRoot ? { vary: "Accept-Language" } : {}),
           ...SECURITY_HEADERS,
         },
       });

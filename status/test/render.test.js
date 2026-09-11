@@ -13,6 +13,12 @@ import { readFileSync } from "node:fs";
 
 import { renderPage, escapeHtml, utcStamp, WIDE_DAYS, NARROW_DAYS } from "../src/render.js";
 import { COMPONENTS, HISTORY_DAYS, UPSTREAMS } from "../src/config.js";
+import { DEFAULT_LOCALE, translator } from "../src/i18n.js";
+
+// English, which is the page these assertions were written against. The
+// twelve-language behavior has its own file; here the translator is a pass
+// through, because `en` has no catalog and every msgid answers with itself.
+const EN = translator(DEFAULT_LOCALE);
 
 const NOW = Date.UTC(2026, 7, 31, 18, 22, 0) / 1000;
 
@@ -26,6 +32,7 @@ function page(overrides = {}) {
     upstreams[upstream.id] = { state: "up" };
   }
   return renderPage({
+    t: EN,
     components,
     upstreams,
     history: { days: [], byComponent: {} },
@@ -109,6 +116,7 @@ test("stale data is drawn as unknown, however good the stored state was", () => 
 
 test("storage being unreachable is reported as this page's fault, not the bot's", () => {
   const html = renderPage({
+    t: EN,
     components: {},
     upstreams: {},
     checkedAt: null,
@@ -121,6 +129,7 @@ test("storage being unreachable is reported as this page's fault, not the bot's"
 
 test("before the first run the page says so", () => {
   const html = renderPage({
+    t: EN,
     components: {},
     upstreams: {},
     checkedAt: null,
@@ -217,8 +226,13 @@ test("history draws one bar a day, and no-data days are their own state", () => 
   // The axis, once for the card rather than once per row, and clamped to what
   // is actually drawn: four days of history may not be labelled "60 days ago".
   assert.equal(html.match(/class="bars-legend"/g).length, 1, "one axis, labelled once");
-  assert.ok(html.includes('<span class="at-wide">4</span>'));
-  assert.ok(html.includes('<span class="at-narrow">4</span> days ago'));
+  // THE WHOLE PHRASE IS IN EACH SPAN, where this used to assert two bare
+  // numbers sharing one trailing " days ago". English puts the count first and
+  // most of the twelve do not, so a shared tail is a sentence a translator
+  // cannot assemble (#300). Nothing visible changed: the two spans still
+  // differ only in which one CSS is showing.
+  assert.ok(html.includes('<span class="at-wide">4 days ago</span>'));
+  assert.ok(html.includes('<span class="at-narrow">4 days ago</span>'));
 });
 
 /**

@@ -452,3 +452,105 @@ class TestItIsItsOwnDeploy:
         """#170 must not have quietly bound status.vrcverify.com to the site."""
         apex = (ROOT / "wrangler.toml").read_text(encoding="utf-8")
         assert "status.vrcverify.com" not in apex
+
+
+class TestItSpeaksTheDashboardsLanguages:
+    """#300: the status page is translated, and must offer the same twelve.
+
+    The gap this closes was a reader setting Japanese on the dashboard, being
+    given a Japanese dashboard, then clicking Status and landing in English.
+    Closing it once is easy; the thing worth a test is that it STAYS closed --
+    a twelfth language added to the bot and the dashboard, and not here, puts
+    that reader back where they started with nothing failing.
+
+    The catalogs themselves are checked by `node --test status/test`, which
+    can import them. This is the cross-language half, which pytest is the only
+    thing that can see: one list is Python and the other is JavaScript.
+    """
+
+    I18N_JS = ROOT / "status" / "src" / "i18n.js"
+    LOCALES_DIR = ROOT / "status" / "src" / "locales"
+
+    def _worker_locales(self) -> list[str]:
+        source = self.I18N_JS.read_text(encoding="utf-8")
+        block = re.search(r"export const LOCALES = \[(.*?)\];", source, re.S)
+        assert block, "status/src/i18n.js no longer declares LOCALES as a literal list"
+        codes = re.findall(r'"([a-zA-Z-]+)"', block.group(1))
+        # DEFAULT_LOCALE leads the list by name rather than by literal.
+        default = re.search(r'export const DEFAULT_LOCALE = "([a-z-]+)";', source).group(1)
+        return [default, *codes]
+
+    def test_it_offers_every_language_the_dashboard_does(self):
+        from dashboard import i18n
+
+        worker = self._worker_locales()
+        # The dashboard spells its default en-US and the Worker spells it en,
+        # because the Worker's is also a URL and `/en-US` is not a path anybody
+        # would type. Both mean "the msgids themselves", so compare the rest.
+        dashboard = [code for code in i18n.UI_LANGUAGES if code != "en-US"]
+        assert sorted(code for code in worker if code != "en") == sorted(dashboard), (
+            "status/src/i18n.js and src/dashboard/i18n.py no longer offer the same "
+            "languages, so a reader can set one on the dashboard and lose it here"
+        )
+
+    def test_every_offered_language_has_a_catalog_on_disk(self):
+        for code in self._worker_locales():
+            if code == "en":
+                # Its catalog is the msgids. A locales/en.js would be a file of
+                # entries translating English into the same English, with every
+                # one of them a chance to drift. Same rule as the dashboard's
+                # missing en_US directory.
+                assert not (self.LOCALES_DIR / "en.js").exists()
+                continue
+            assert (self.LOCALES_DIR / f"{code}.js").exists(), f"{code} has no catalog"
+
+    def test_the_endonyms_are_the_dashboards_endonyms(self):
+        """The picker is read by somebody who cannot read the page it is on.
+
+        Two surfaces spelling the same language two ways is the one thing that
+        control cannot afford: it is a list of words a reader recognizes, and
+        recognition is the whole mechanism.
+        """
+        from dashboard import i18n
+
+        source = self.I18N_JS.read_text(encoding="utf-8")
+        block = re.search(r"export const ENDONYMS = \{(.*?)\n\};", source, re.S).group(1)
+        worker = dict(re.findall(r'\s*"?([a-zA-Z-]+)"?:\s*"([^"]+)",', block))
+        for code, endonym in i18n.ENDONYMS.items():
+            here = "en" if code == "en-US" else code
+            assert worker.get(here) == endonym, (
+                f"{code} is {endonym!r} on the dashboard and {worker.get(here)!r} here"
+            )
+
+    def test_arabic_is_the_only_right_to_left_language_on_both(self):
+        source = self.I18N_JS.read_text(encoding="utf-8")
+        rtl = re.search(r"const RTL = new Set\(\[(.*?)\]\);", source, re.S).group(1)
+        assert re.findall(r'"([a-z-]+)"', rtl) == ["ar"]
+
+    def test_english_is_served_at_the_root_and_nowhere_else(self):
+        """`/` is the URL on the DNS record, in Stripe, and in every bookmark.
+
+        A default one redirect away from the canonical address is a default
+        that breaks curl, which is the second most likely way anybody consults
+        a status page.
+        """
+        source = self.I18N_JS.read_text(encoding="utf-8")
+        assert 'return locale === DEFAULT_LOCALE ? "/" : `/${locale}`;' in source
+        index = (ROOT / "status" / "src" / "index.js").read_text(encoding="utf-8")
+        assert "status: 301" in index and 'location: "/"' in index, (
+            "/en should redirect to / rather than serve a second copy of English"
+        )
+
+    def test_the_translated_page_still_names_no_infrastructure(self):
+        """TestPublicCopy's rule, applied to eleven files nobody reads in English.
+
+        The private part names -- the queue, the database, the bot API -- are
+        exactly the words a translator would carry across untouched, because
+        they look like product names. A catalog is a new place for one to
+        appear, and it is the place nobody would think to check.
+        """
+        forbidden = ("postgres", "rabbitmq", "tailscale", "tailnet", "cloudflared", "homelab")
+        for path in sorted(self.LOCALES_DIR.glob("*.js")):
+            text = path.read_text(encoding="utf-8").lower()
+            for word in forbidden:
+                assert word not in text, f"{path.name} names {word}"
