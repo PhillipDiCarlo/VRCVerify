@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -40,6 +41,23 @@ THEMES = [("dark", "dark", "dark"), ("light", "light", "light"), ("system", "sys
 # Wide, phone, and one narrow enough to prove the row layout survives the
 # brand, the nav and the theme picker stacking.
 VIEWPORTS = [("wide", 1100, 1000), ("phone", 390, 900), ("narrow", 320, 900)]
+
+# THE TWELVE, READ OUT OF THE WORKER rather than typed here, so a language
+# added there is shot without touching this file (#300).
+_I18N = (pathlib.Path(__file__).resolve().parent.parent
+         / "status" / "src" / "i18n.js").read_text(encoding="utf-8")
+LOCALES = ["en", *re.findall(r'"([a-z]{2}(?:-[A-Za-z]{2,4})?)"',
+                             re.search(r"export const LOCALES = \[(.*?)\];",
+                                       _I18N, re.S).group(1))]
+
+# The three worth looking at narrow, and why. Reading the CSS answers none of
+# these; a 390px screenshot answers all three.
+#
+#   ar  arrives under dir="rtl", which nothing else on this page does.
+#   de  runs about ten percent longer than English and is what overflows a
+#       pill, a nav item or a summary line first.
+#   ja  is short enough that a row can end up looking empty instead of terse.
+NARROW_LOCALES = ["ar", "de", "ja"]
 
 
 def main() -> None:
@@ -84,6 +102,33 @@ def main() -> None:
                     row = page.locator(".card .row").first
                     row.screenshot(path=str(out / "status-row-detail.png"))
                 context.close()
+
+        # EVERY LANGUAGE, ONCE. Twelve full passes would be 108 shots nobody
+        # opens; what changes between languages is the length of the words and,
+        # for Arabic, the direction of the line, and one wide shot shows both.
+        # The three that break layouts first get a phone shot as well.
+        for locale in LOCALES:
+            widths = [("wide", 1100, 1000)]
+            if locale in NARROW_LOCALES:
+                widths.append(("phone", 390, 900))
+            for label, width, height in widths:
+                context = browser.new_context(
+                    viewport={"width": width, "height": height},
+                    device_scale_factor=2,
+                    color_scheme="dark",
+                )
+                page = context.new_page()
+                page.goto(f"{BASE}/{locale}" if locale != "en" else BASE,
+                          wait_until="networkidle")
+                page.screenshot(path=str(out / f"lang-{locale}-{label}.png"), full_page=True)
+
+                # The picker OPEN, on the one language whose reader most needs
+                # it, and the one where it opens into a right-to-left page.
+                if locale == "ar" and label == "wide":
+                    page.locator("details.langpick > summary").click()
+                    page.screenshot(path=str(out / "lang-picker-open-ar.png"))
+                context.close()
+
         browser.close()
 
     print(f"  wrote {len(list(out.glob('*.png')))} shots to {out}")
