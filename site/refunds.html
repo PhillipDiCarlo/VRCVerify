@@ -18,7 +18,22 @@
 
 <header class="site">
   <div class="wrap">
-    <a class="brand" href="/">VRCVerify</a>
+    <!-- THE MARK. The same logo.svg the dashboard serves, byte for byte, and
+         the same monochrome-plus-filter arrangement: black artwork, inverted
+         for dark. Three copies of the file, for the reason the fonts and
+         theme.js have three -- each surface has to keep working when the
+         others are down, so none of them may fetch the mark from another.
+         test_the_logo_is_the_same_file_everywhere fails if they drift.
+
+         `width`/`height` are the viewBox's dimensions, not the rendered ones:
+         they give the browser the ratio so the wordmark does not jump sideways
+         when the image lands. The stylesheet sets the height it is drawn at.
+
+         alt="" because the word beside it says the same thing, and a screen
+         reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
+         that just says where it goes. -->
+    <a class="brand" href="/"><img class="brand-mark" src="/logo.svg" alt=""
+         width="805" height="615"><span>VRCVerify</span></a>
     <nav>
       <!-- Pricing leads, and it is an absolute URL to the dashboard on
            purpose (#188): prices come from Stripe on the render that shows
