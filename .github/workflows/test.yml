@@ -6,10 +6,12 @@
 # passed or failed on one laptop and nowhere else, and a pull request that
 # broke any of them merged green.
 #
-# THREE JOBS, RUNNING IN PARALLEL AND FAILING INDEPENDENTLY, so a broken status
+# FOUR JOBS, RUNNING IN PARALLEL AND FAILING INDEPENDENTLY, so a broken status
 # page does not report itself as a Python failure. Two of them are the two
 # toolchains; the third is the same Python suite again on Postgres, for the one
-# class of bug SQLite cannot reproduce. Each says why above itself.
+# class of bug SQLite cannot reproduce; the fourth assembles the Workers, which
+# is a different question from whether their tests pass (#303). Each says why
+# above itself.
 name: Tests
 
 on:
@@ -166,3 +168,117 @@ jobs:
       # is working.
       - run: node --test test/*.test.js
         working-directory: status
+
+  # DOES IT ASSEMBLE AND WILL IT FIT, which is not what `node --test` answers
+  # (#303).
+  #
+  # That job imports the modules one at a time under Node. A deploy hands the
+  # graph to esbuild and the result to workerd, and nothing in this repository
+  # was doing that: `status/wrangler.toml` is a separate script with a separate
+  # deploy, deliberately, and no workflow mentioned it.
+  #
+  # WHY THE EXISTING GREEN CHECK IS NOT THIS. `Workers Builds: vrcverify` on
+  # every pull request is CLOUDFLARE building the APEX Worker, which is
+  # assets-only: it has no `main`, so there is nothing to bundle and the check
+  # proves that ./site exists.
+  #
+  # WHAT THIS ACTUALLY BUYS, measured rather than assumed, because the first
+  # draft of this job claimed three things that turned out to be false:
+  #
+  #   * The two wrangler.toml files are PARSED. Nothing else reads them. The
+  #     apex one has a recorded near-miss -- a `[[routes]]` table array
+  #     swallowing `not_found_handling`, which would have stopped serving the
+  #     404 page on the URLs Stripe holds -- and wrangler refusing the file was
+  #     the only thing that caught it.
+  #   * The module graph is resolved BY ESBUILD, from `main`, on Linux. Today
+  #     every module under status/src is also reachable from a test, so this
+  #     overlaps the job above almost entirely. It stops overlapping the first
+  #     time somebody adds a module only index.js imports, which is the shape
+  #     #302 came in as.
+  #
+  # WHAT --dry-run DOES NOT DO, both verified by breaking them on purpose:
+  # it bundles a `node:` built-in with no `nodejs_compat` flag and exits 0,
+  # and it reported 8.8 MB gzipped without complaint. Neither is a deploy that
+  # would succeed. The two steps after the build are those two gaps, closed
+  # here rather than left as a claim in a comment.
+  workers:
+    name: wrangler --dry-run
+    runs-on: ubuntu-latest
+    env:
+      # Wrangler asks to phone home on first run and waits for an answer.
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      # NO CREDENTIALS, WHICH IS THE POINT OF --dry-run. It bundles and stops:
+      # no account is read, no token is needed, nothing is published, and the
+      # job therefore runs on a fork the same as it does here. If this ever
+      # starts needing a secret, something has been added that is no longer a
+      # build.
+      #
+      # `wrangler@4` rather than a pinned patch or a bare `wrangler`. The
+      # README's deploy command is unpinned, so pinning tightly here would
+      # test something other than what actually ships; the major is the line
+      # where wrangler makes breaking changes, so it is where this stops
+      # following along on its own.
+      - name: Build the status Worker
+        run: >
+          npx --yes wrangler@4 deploy
+          --config status/wrangler.toml
+          --dry-run --outdir "$RUNNER_TEMP/status-bundle"
+
+      # The apex has no code, so this is a configuration check and is worth
+      # about that much. Kept because wrangler.toml's own comments record the
+      # one time it earned its keep: a `[[routes]]` table array swallowed
+      # `not_found_handling`, which would have quietly stopped serving the 404
+      # page on the URLs Stripe holds, and wrangler refusing the file was the
+      # only thing that caught it.
+      - name: Validate the apex Worker's configuration
+        run: >
+          npx --yes wrangler@4 deploy
+          --dry-run --outdir "$RUNNER_TEMP/apex-bundle"
+
+      # A BUDGET, NOT THE LIMIT. Cloudflare's is 3 MB compressed and wrangler
+      # does not enforce it on a dry run -- a deliberately bloated bundle
+      # reported 8.8 MB gzipped and exited 0. This page is about 43 KB, so a
+      # 1 MB budget is twenty times its current size and a third of the real
+      # ceiling: loose enough never to argue with an honest change, tight
+      # enough to fail the day somebody vendors a library into the one Worker
+      # whose whole argument is that it has no dependencies.
+      #
+      # Raising it is a normal thing to do and should be done in a commit that
+      # says what arrived and why it is worth the bytes on a page read during
+      # an outage.
+      - name: Check the bundle against its size budget
+        run: |
+          bundle="$RUNNER_TEMP/status-bundle/index.js"
+          gzipped=$(gzip -9 -c "$bundle" | wc -c)
+          budget=$((1024 * 1024))
+          printf 'status Worker: %s bytes gzipped, budget %s\n' "$gzipped" "$budget"
+          if [ "$gzipped" -gt "$budget" ]; then
+            echo "::error::the status Worker is over its size budget" >&2
+            exit 1
+          fi
+
+      # A `node:` built-in with no `nodejs_compat` flag bundles silently and
+      # fails when workerd loads it, which is at deploy or at the first
+      # request. esbuild leaves the specifier in the output when it cannot
+      # resolve it to a Workers built-in, so the bundle itself is the evidence.
+      #
+      # This is a CONSISTENCY check, not a ban: add the flag to wrangler.toml
+      # and the import is fine. What it refuses is the combination, which is
+      # the one that looks like it works right up until it is deployed.
+      - name: Refuse a Node built-in without the flag that makes it work
+        run: |
+          bundle="$RUNNER_TEMP/status-bundle/index.js"
+          if grep -qE '(from ?"node:|require\("node:)' "$bundle"; then
+            if ! grep -q 'nodejs_compat' status/wrangler.toml; then
+              echo "::error::the bundle imports a node: built-in and status/wrangler.toml has no nodejs_compat flag" >&2
+              grep -oE '(from ?"node:[a-z/]*|require\("node:[a-z/]*)' "$bundle" | sort -u >&2
+              exit 1
+            fi
+          fi
