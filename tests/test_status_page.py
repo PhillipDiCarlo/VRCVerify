@@ -527,19 +527,26 @@ class TestItSpeaksTheDashboardsLanguages:
         rtl = re.search(r"const RTL = new Set\(\[(.*?)\]\);", source, re.S).group(1)
         assert re.findall(r'"([a-z-]+)"', rtl) == ["ar"]
 
-    def test_english_is_served_at_the_root_and_nowhere_else(self):
+    def test_english_is_served_at_the_root(self):
         """`/` is the URL on the DNS record, in Stripe, and in every bookmark.
 
         A default one redirect away from the canonical address is a default
         that breaks curl, which is the second most likely way anybody consults
         a status page.
+
+        THIS ASSERTS THE URL SHAPE AND NOTHING ELSE. An earlier version also
+        grepped index.js for the literals `status: 301` and `location: "/"`,
+        which is the weakest kind of test and proved it: #307 changed that
+        redirect from a hardcoded "/" to `pathForLocale(...)` -- strictly
+        better, and the same behaviour -- and the assertion failed on the fix.
+        The BEHAVIOUR (that /en, /EN and /en/ all redirect to /, and that a
+        non-canonical casing redirects to the canonical one) is tested against
+        the real request handler in status/test/routes.test.js, which is where
+        a claim about what a URL does belongs.
         """
         source = self.I18N_JS.read_text(encoding="utf-8")
+        assert 'export const DEFAULT_LOCALE = "en";' in source
         assert 'return locale === DEFAULT_LOCALE ? "/" : `/${locale}`;' in source
-        index = (ROOT / "status" / "src" / "index.js").read_text(encoding="utf-8")
-        assert "status: 301" in index and 'location: "/"' in index, (
-            "/en should redirect to / rather than serve a second copy of English"
-        )
 
     def test_the_translated_page_still_names_no_infrastructure(self):
         """TestPublicCopy's rule, applied to eleven files nobody reads in English.
