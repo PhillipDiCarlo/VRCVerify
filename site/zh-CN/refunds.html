@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>退款政策 — VRCVerify</title>
+<link rel="canonical" href="https://vrcverify.com/zh-CN/refunds">
+<link rel="alternate" hreflang="en" href="https://vrcverify.com/refunds">
+<link rel="alternate" hreflang="es-ES" href="https://vrcverify.com/es-ES/refunds">
+<link rel="alternate" hreflang="zh-CN" href="https://vrcverify.com/zh-CN/refunds">
+<link rel="alternate" hreflang="ja" href="https://vrcverify.com/ja/refunds">
+<link rel="alternate" hreflang="de" href="https://vrcverify.com/de/refunds">
+<link rel="alternate" hreflang="nl" href="https://vrcverify.com/nl/refunds">
+<link rel="alternate" hreflang="hi-IN" href="https://vrcverify.com/hi-IN/refunds">
+<link rel="alternate" hreflang="ar" href="https://vrcverify.com/ar/refunds">
+<link rel="alternate" hreflang="bn" href="https://vrcverify.com/bn/refunds">
+<link rel="alternate" hreflang="pt-BR" href="https://vrcverify.com/pt-BR/refunds">
+<link rel="alternate" hreflang="ru" href="https://vrcverify.com/ru/refunds">
+<link rel="alternate" hreflang="pa-IN" href="https://vrcverify.com/pa-IN/refunds">
+<link rel="alternate" hreflang="x-default" href="https://vrcverify.com/refunds">
+<link rel="stylesheet" href="/style.css">
+<!-- Blocking, and in <head>, so a stored Light choice paints light on the
+     first frame rather than flashing dark and correcting itself. Same
+     origin, ~30 lines, and nothing on this page needs it to work. -->
+<script src="/theme.js"></script>
+<script src="/status.js" defer></script>
+</head>
+<!-- `policy` turns on the long-form reading treatment in style.css:
+     a shorter measure, looser leading, and ruled section headings. Terms,
+     Privacy and Refunds carry it; 404 and the landing page do not. -->
+<body class="policy">
+
+<header class="site">
+  <div class="wrap">
+    <!-- THE MARK. The same logo.svg the dashboard serves, byte for byte, and
+         the same monochrome-plus-filter arrangement: black artwork, inverted
+         for dark. Three copies of the file, for the reason the fonts and
+         theme.js have three -- each surface has to keep working when the
+         others are down, so none of them may fetch the mark from another.
+         test_the_logo_is_the_same_file_everywhere fails if they drift.
+
+         `width`/`height` are the viewBox's dimensions, not the rendered ones:
+         they give the browser the ratio so the wordmark does not jump sideways
+         when the image lands. The stylesheet sets the height it is drawn at.
+
+         alt="" because the word beside it says the same thing, and a screen
+         reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
+         that just says where it goes. -->
+    <a class="brand" href="/zh-CN/"><img class="brand-mark" src="/logo.svg" alt=""
+         width="805" height="615"><span>VRCVerify</span></a>
+    <nav>
+      <!-- Pricing leads, and it is an absolute URL to the dashboard on
+           purpose (#188): prices come from Stripe on the render that shows
+           them, and this site is an assets-only Worker with no code on the
+           request path. A price typed here would keep quoting the old number
+           after a price change, on the same domain the Terms live on. -->
+      <a href="https://dashboard.vrcverify.com/pricing">价格</a>
+      <!-- Terms, Privacy and Refunds were here and are not any more (#200).
+           Every page still carries all three in its footer, which is where a
+           reader goes looking for a policy, and the 404 page lists them in its
+           body. Nothing became unreachable; they stopped taking the most
+           valuable row on the page to say something a visitor deciding whether
+           to install the bot is not asking.
+
+           The changelog takes one of the freed slots and moves up out of the
+           footer. #137 phase 5 put it there because the header "already
+           carries three legal links and the dashboard" and there was no room;
+           that sentence is what just stopped being true. -->
+      <a href="/zh-CN/changelog">最新动态</a>
+      <a href="https://dashboard.vrcverify.com">控制台</a>
+    </nav>
+    <!-- THE STATUS DOT (#170). Deliberately not a fourth nav link: #200 held
+         the nav to three items so it holds one line at 320px, and a fourth
+         entry wraps it to three lines and grows the header by 44px there.
+         This sits with the theme picker instead, in the control cluster,
+         where the row it takes was never the nav's.
+
+         Ships as a working link with a neutral dot, and stays exactly that
+         with JavaScript off. /status.js colors the dot from the real
+         verdict and never paints green from a reading it did not get. -->
+    <a class="status-pill" href="https://status.vrcverify.com/" data-state="unknown"><!-- SHAPE AS WELL AS COLOR, which is the status page's rule and matters
+           most here: --ok and --down have relative luminance 0.331 and 0.341,
+           so as two plain dots the "working" and "down" states are the same
+           dot to a red-green colorblind reader. These are that page's own
+           glyphs, so the mark here and the mark one click away agree. --> <svg class="status-glyph" viewBox="0 0 20 20" width="14" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <!-- A dot claims nothing, which is the right mark before a reading
+             arrives and the only one shipped without a script to change it. -->
+        <circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"></circle>
+      </svg> <span class="status-label">状态</span> <!-- Written by /status.js once a verdict is in, so the state is spoken
+           and not only colored. Empty until then, because "unknown" is what
+           the dot already says to somebody who can see it. --> <span class="status-said visually-hidden"></span></a>
+    <!-- The theme control is built by /theme.js into this placeholder (#195
+         phase 7). It is JavaScript-only either way -- there is no server here
+         to post a preference to -- so markup describing it would describe
+         something that may never exist. Ships hidden; the script reveals it. -->
+    <details class="langpick"><summary class="lang-button" title="语言: 简体中文" aria-label="语言: 简体中文. 换一种语言。"><svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4"/><path d="M8 1.8a9.2 9.2 0 0 1 0 12.4a9.2 9.2 0 0 1 0-12.4z"/></svg></summary><div class="lang-panel"><p class="menu-label" id="lang-menu-label">Language</p><ul aria-labelledby="lang-menu-label"><li><a href="/refunds" lang="en" class="menu-item"><span class="menu-item-label">English</span></a></li><li><a href="/es-ES/refunds" lang="es-ES" class="menu-item"><span class="menu-item-label">Español</span></a></li><li><a href="/zh-CN/refunds" lang="zh-CN" class="menu-item current" aria-current="true"><span class="menu-item-label">简体中文</span><svg class="menu-tick" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg></a></li><li><a href="/ja/refunds" lang="ja" class="menu-item"><span class="menu-item-label">日本語</span></a></li><li><a href="/de/refunds" lang="de" class="menu-item"><span class="menu-item-label">Deutsch</span></a></li><li><a href="/nl/refunds" lang="nl" class="menu-item"><span class="menu-item-label">Nederlands</span></a></li><li><a href="/hi-IN/refunds" lang="hi-IN" class="menu-item"><span class="menu-item-label">हिन्दी</span></a></li><li><a href="/ar/refunds" lang="ar" class="menu-item"><span class="menu-item-label">العربية</span></a></li><li><a href="/bn/refunds" lang="bn" class="menu-item"><span class="menu-item-label">বাংলা</span></a></li><li><a href="/pt-BR/refunds" lang="pt-BR" class="menu-item"><span class="menu-item-label">Português (Brasil)</span></a></li><li><a href="/ru/refunds" lang="ru" class="menu-item"><span class="menu-item-label">Русский</span></a></li><li><a href="/pa-IN/refunds" lang="pa-IN" class="menu-item"><span class="menu-item-label">ਪੰਜਾਬੀ</span></a></li></ul></div></details>
+    <div class="theme-picker" hidden></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<h1>退款政策</h1>
+<p class="updated">最后更新于 2026 年 8 月 18 日</p>
+
+<div class="note">
+  <p><strong>简而言之。</strong> 在本站使用银行卡购买的订阅不予退款。你可以随时取消，并保留高级版直到已付费周期结束。通过 Discord 购买的订阅适用 Discord 的退款规则，而非我们的。你依法享有的权利不受影响。</p>
+</div>
+
+<nav class="toc" aria-label="本页内容">
+  <p class="toc-label">本页内容</p>
+  <ol class="toc-list">
+    <li><a href="#card-subscriptions-bought-on-vrcverify-com">在 vrcverify.com 使用银行卡购买的订阅</a></li>
+    <li><a href="#free-trials">免费试用</a></li>
+    <li><a href="#subscriptions-bought-through-discord">通过 Discord 购买的订阅</a></li>
+    <li><a href="#if-we-are-at-fault">如果是我们的问题</a></li>
+    <li><a href="#if-we-discontinue-the-service">如果我们停止服务</a></li>
+    <li><a href="#your-statutory-rights">你的法定权利</a></li>
+    <li><a href="#contact">联系我们</a></li>
+  </ol>
+</nav>
+
+<h2 id="card-subscriptions-bought-on-vrcverify-com">在 vrcverify.com 使用银行卡购买的订阅<a class="anchor" href="#card-subscriptions-bought-on-vrcverify-com" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p><strong>银行卡订阅不提供退款</strong>，包括仅使用了一部分的周期，也包括服务器在周期中途停止使用机器人的情况。</p>
+
+<p>作为替代，你随时可以通过服务器「订阅」页面中链接的账单门户进行以下操作：</p>
+
+<ul>
+  <li><strong>取消。</strong> 订阅不再续订。高级版会持续到你已付费周期结束，然后停止。不会再次扣费。</li>
+  <li><strong>切换套餐。</strong> 在月付、六个月和十二个月套餐之间切换。</li>
+</ul>
+
+<p>因为取消后你始终保留已付费的部分，而且套餐和价格在结账前就已显示，所以退款等于把你仍然可以使用的那段时间的钱退回去。</p>
+
+<h2 id="free-trials">免费试用<a class="anchor" href="#free-trials" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>套餐提供免费试用时，其时长会在购买前于套餐上显示。<strong>在试用结束前取消，则完全不会扣费。</strong> 如果任其超过结束时间，则会收取第一个周期的费用，本政策照常适用。</p>
+
+<p>每个服务器可试用一次，适用于通过任一购买途径都从未使用过高级版的服务器。</p>
+
+<h2 id="subscriptions-bought-through-discord">通过 Discord 购买的订阅<a class="anchor" href="#subscriptions-bought-through-discord" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>如果你是通过 Discord 而不是本站购买的高级版，<strong>那么收款方是 Discord，适用的是 Discord 的退款规则。</strong> 我们不处理这些付款，无法退款，也无法推翻 Discord 的决定。请通过 Discord 自己的支持渠道申请退款，并在 Discord 用户设置的「订阅」中管理或取消订阅。</p>
+
+<h2 id="if-we-are-at-fault">如果是我们的问题<a class="anchor" href="#if-we-are-at-fault" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>本政策针对的是改变主意的情形，不涉及我们的失误。如果同一服务器被重复扣费、取消后仍被扣费，或被收取了你并未购买的套餐费用，请发邮件给我们，我们会纠正。</p>
+
+<p>请注意，<strong>为同一服务器同时在 Discord 和本站购买高级版，会产生两个同时生效的订阅</strong>，因为两个平台都看不到、也无法取消对方的订阅。控制台检测到这种情况时会发出提醒。如果你遇到了，请取消不需要的那个；如果分不清哪个是哪个，可以联系我们。</p>
+
+<h2 id="if-we-discontinue-the-service">如果我们停止服务<a class="anchor" href="#if-we-discontinue-the-service" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>如果我们在你已付费但尚未结束的周期内关闭 VRCVerify，我们会退还未使用的部分。</p>
+
+<h2 id="your-statutory-rights">你的法定权利<a class="anchor" href="#your-statutory-rights" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>本政策中的任何内容都不限制你作为消费者依据适用法律享有的权利。</p>
+
+<p>特别地，如果你是英国或欧洲经济区的消费者，通常有 14 天时间撤回远程合同。对于数字服务，一旦在你明确同意下开始提供，该权利即告终止。<strong>高级版在购买时立即开始，购买即表示你要求我们立刻开始，并接受一旦我们开始，你就失去 14 天撤回权。</strong> 若该权利对你仍然适用，则其效力高于本政策。</p>
+
+<p>本页面以多种语言发布，仅为方便阅读。若译文与英文版存在分歧，<strong>以英文版为准</strong>。</p>
+
+<h2 id="contact">联系我们<a class="anchor" href="#contact" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>任何与计费有关的问题：<a href="mailto:contact@esattotech.com">contact@esattotech.com</a>。请附上订阅所对应的 Discord 服务器 ID。</p>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav>
+      <a href="/zh-CN/changelog">最新动态</a>
+      <a href="https://status.vrcverify.com/">服务状态</a>
+      <a href="/zh-CN/terms">服务条款</a>
+      <a href="/zh-CN/privacy">隐私政策</a>
+      <a href="/zh-CN/refunds">退款政策</a>
+      <a href="mailto:contact@esattotech.com">联系我们</a>
+    </nav>
+    <p>VRCVerify 由美国 Esatto Technologies 运营。<br> 与 VRChat Inc. 和 Discord Inc. 无隶属关系，亦未获得其认可或赞助。</p>
+  </div>
+</footer>
+
+</body>
+</html>

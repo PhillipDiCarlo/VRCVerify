@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ja" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>返金ポリシー — VRCVerify</title>
+<link rel="canonical" href="https://vrcverify.com/ja/refunds">
+<link rel="alternate" hreflang="en" href="https://vrcverify.com/refunds">
+<link rel="alternate" hreflang="es-ES" href="https://vrcverify.com/es-ES/refunds">
+<link rel="alternate" hreflang="zh-CN" href="https://vrcverify.com/zh-CN/refunds">
+<link rel="alternate" hreflang="ja" href="https://vrcverify.com/ja/refunds">
+<link rel="alternate" hreflang="de" href="https://vrcverify.com/de/refunds">
+<link rel="alternate" hreflang="nl" href="https://vrcverify.com/nl/refunds">
+<link rel="alternate" hreflang="hi-IN" href="https://vrcverify.com/hi-IN/refunds">
+<link rel="alternate" hreflang="ar" href="https://vrcverify.com/ar/refunds">
+<link rel="alternate" hreflang="bn" href="https://vrcverify.com/bn/refunds">
+<link rel="alternate" hreflang="pt-BR" href="https://vrcverify.com/pt-BR/refunds">
+<link rel="alternate" hreflang="ru" href="https://vrcverify.com/ru/refunds">
+<link rel="alternate" hreflang="pa-IN" href="https://vrcverify.com/pa-IN/refunds">
+<link rel="alternate" hreflang="x-default" href="https://vrcverify.com/refunds">
+<link rel="stylesheet" href="/style.css">
+<!-- Blocking, and in <head>, so a stored Light choice paints light on the
+     first frame rather than flashing dark and correcting itself. Same
+     origin, ~30 lines, and nothing on this page needs it to work. -->
+<script src="/theme.js"></script>
+<script src="/status.js" defer></script>
+</head>
+<!-- `policy` turns on the long-form reading treatment in style.css:
+     a shorter measure, looser leading, and ruled section headings. Terms,
+     Privacy and Refunds carry it; 404 and the landing page do not. -->
+<body class="policy">
+
+<header class="site">
+  <div class="wrap">
+    <!-- THE MARK. The same logo.svg the dashboard serves, byte for byte, and
+         the same monochrome-plus-filter arrangement: black artwork, inverted
+         for dark. Three copies of the file, for the reason the fonts and
+         theme.js have three -- each surface has to keep working when the
+         others are down, so none of them may fetch the mark from another.
+         test_the_logo_is_the_same_file_everywhere fails if they drift.
+
+         `width`/`height` are the viewBox's dimensions, not the rendered ones:
+         they give the browser the ratio so the wordmark does not jump sideways
+         when the image lands. The stylesheet sets the height it is drawn at.
+
+         alt="" because the word beside it says the same thing, and a screen
+         reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
+         that just says where it goes. -->
+    <a class="brand" href="/ja/"><img class="brand-mark" src="/logo.svg" alt=""
+         width="805" height="615"><span>VRCVerify</span></a>
+    <nav>
+      <!-- Pricing leads, and it is an absolute URL to the dashboard on
+           purpose (#188): prices come from Stripe on the render that shows
+           them, and this site is an assets-only Worker with no code on the
+           request path. A price typed here would keep quoting the old number
+           after a price change, on the same domain the Terms live on. -->
+      <a href="https://dashboard.vrcverify.com/pricing">料金</a>
+      <!-- Terms, Privacy and Refunds were here and are not any more (#200).
+           Every page still carries all three in its footer, which is where a
+           reader goes looking for a policy, and the 404 page lists them in its
+           body. Nothing became unreachable; they stopped taking the most
+           valuable row on the page to say something a visitor deciding whether
+           to install the bot is not asking.
+
+           The changelog takes one of the freed slots and moves up out of the
+           footer. #137 phase 5 put it there because the header "already
+           carries three legal links and the dashboard" and there was no room;
+           that sentence is what just stopped being true. -->
+      <a href="/ja/changelog">新着情報</a>
+      <a href="https://dashboard.vrcverify.com">ダッシュボード</a>
+    </nav>
+    <!-- THE STATUS DOT (#170). Deliberately not a fourth nav link: #200 held
+         the nav to three items so it holds one line at 320px, and a fourth
+         entry wraps it to three lines and grows the header by 44px there.
+         This sits with the theme picker instead, in the control cluster,
+         where the row it takes was never the nav's.
+
+         Ships as a working link with a neutral dot, and stays exactly that
+         with JavaScript off. /status.js colors the dot from the real
+         verdict and never paints green from a reading it did not get. -->
+    <a class="status-pill" href="https://status.vrcverify.com/" data-state="unknown"><!-- SHAPE AS WELL AS COLOR, which is the status page's rule and matters
+           most here: --ok and --down have relative luminance 0.331 and 0.341,
+           so as two plain dots the "working" and "down" states are the same
+           dot to a red-green colorblind reader. These are that page's own
+           glyphs, so the mark here and the mark one click away agree. --> <svg class="status-glyph" viewBox="0 0 20 20" width="14" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <!-- A dot claims nothing, which is the right mark before a reading
+             arrives and the only one shipped without a script to change it. -->
+        <circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"></circle>
+      </svg> <span class="status-label">ステータス</span> <!-- Written by /status.js once a verdict is in, so the state is spoken
+           and not only colored. Empty until then, because "unknown" is what
+           the dot already says to somebody who can see it. --> <span class="status-said visually-hidden"></span></a>
+    <!-- The theme control is built by /theme.js into this placeholder (#195
+         phase 7). It is JavaScript-only either way -- there is no server here
+         to post a preference to -- so markup describing it would describe
+         something that may never exist. Ships hidden; the script reveals it. -->
+    <details class="langpick"><summary class="lang-button" title="言語: 日本語" aria-label="言語: 日本語. ほかの言語を選ぶ。"><svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4"/><path d="M8 1.8a9.2 9.2 0 0 1 0 12.4a9.2 9.2 0 0 1 0-12.4z"/></svg></summary><div class="lang-panel"><p class="menu-label" id="lang-menu-label">Language</p><ul aria-labelledby="lang-menu-label"><li><a href="/refunds" lang="en" class="menu-item"><span class="menu-item-label">English</span></a></li><li><a href="/es-ES/refunds" lang="es-ES" class="menu-item"><span class="menu-item-label">Español</span></a></li><li><a href="/zh-CN/refunds" lang="zh-CN" class="menu-item"><span class="menu-item-label">简体中文</span></a></li><li><a href="/ja/refunds" lang="ja" class="menu-item current" aria-current="true"><span class="menu-item-label">日本語</span><svg class="menu-tick" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg></a></li><li><a href="/de/refunds" lang="de" class="menu-item"><span class="menu-item-label">Deutsch</span></a></li><li><a href="/nl/refunds" lang="nl" class="menu-item"><span class="menu-item-label">Nederlands</span></a></li><li><a href="/hi-IN/refunds" lang="hi-IN" class="menu-item"><span class="menu-item-label">हिन्दी</span></a></li><li><a href="/ar/refunds" lang="ar" class="menu-item"><span class="menu-item-label">العربية</span></a></li><li><a href="/bn/refunds" lang="bn" class="menu-item"><span class="menu-item-label">বাংলা</span></a></li><li><a href="/pt-BR/refunds" lang="pt-BR" class="menu-item"><span class="menu-item-label">Português (Brasil)</span></a></li><li><a href="/ru/refunds" lang="ru" class="menu-item"><span class="menu-item-label">Русский</span></a></li><li><a href="/pa-IN/refunds" lang="pa-IN" class="menu-item"><span class="menu-item-label">ਪੰਜਾਬੀ</span></a></li></ul></div></details>
+    <div class="theme-picker" hidden></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<h1>返金ポリシー</h1>
+<p class="updated">最終更新: 2026 年 8 月 18 日</p>
+
+<div class="note">
+  <p><strong>要点。</strong> 本サイトで購入したカード決済のサブスクリプションは返金されません。いつでも解約でき、お支払い済みの期間の終わりまでプレミアムをご利用いただけます。Discord 経由で購入したサブスクリプションには、当方ではなく Discord の返金規定が適用されます。法定の権利がある場合、それは影響を受けません。</p>
+</div>
+
+<nav class="toc" aria-label="このページの内容">
+  <p class="toc-label">このページの内容</p>
+  <ol class="toc-list">
+    <li><a href="#card-subscriptions-bought-on-vrcverify-com">vrcverify.com で購入したカード決済のサブスクリプション</a></li>
+    <li><a href="#free-trials">無料トライアル</a></li>
+    <li><a href="#subscriptions-bought-through-discord">Discord 経由で購入したサブスクリプション</a></li>
+    <li><a href="#if-we-are-at-fault">当方に非がある場合</a></li>
+    <li><a href="#if-we-discontinue-the-service">サービスを終了する場合</a></li>
+    <li><a href="#your-statutory-rights">法定の権利</a></li>
+    <li><a href="#contact">お問い合わせ</a></li>
+  </ol>
+</nav>
+
+<h2 id="card-subscriptions-bought-on-vrcverify-com">vrcverify.com で購入したカード決済のサブスクリプション<a class="anchor" href="#card-subscriptions-bought-on-vrcverify-com" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p><strong>カード決済のサブスクリプションに返金はありません</strong>。一部だけ利用した期間も、期間の途中でサーバーがボットの利用をやめた場合も同様です。</p>
+
+<p>代わりに、サーバーの「サブスクリプション」ページからリンクされている請求ポータルで、いつでも次のことができます。</p>
+
+<ul>
+  <li><strong>解約する。</strong> サブスクリプションは更新されなくなります。プレミアムはお支払い済みの期間の終わりまで有効で、その後停止します。再度請求されることはありません。</li>
+  <li><strong>プランを変更する。</strong> 月額、6 か月、12 か月の各プラン間で切り替えられます。</li>
+</ul>
+
+<p>解約してもお支払い分は必ず手元に残り、プランと価格は購入前に表示されるため、返金は今も利用できる期間分の代金をお返しすることになってしまいます。</p>
+
+<h2 id="free-trials">無料トライアル<a class="anchor" href="#free-trials" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>プランに無料トライアルがある場合、その期間は購入前にプラン上に表示されます。<strong>トライアル終了前に解約すれば、請求は一切ありません。</strong> 終了を過ぎた場合は最初の期間分が請求され、本ポリシーが通常どおり適用されます。</p>
+
+<p>トライアルはサーバーごとに 1 回、どちらの購入経路でもプレミアムを利用したことがないサーバーに提供されます。</p>
+
+<h2 id="subscriptions-bought-through-discord">Discord 経由で購入したサブスクリプション<a class="anchor" href="#subscriptions-bought-through-discord" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>本サイトではなく Discord 経由でプレミアムを購入した場合、<strong>決済を受け取ったのは Discord であり、Discord の返金規定が適用されます。</strong> 当方はその決済を処理しておらず、返金することも、Discord の判断を覆すこともできません。返金は Discord 自身のサポートへご依頼ください。サブスクリプションの管理や解約は、Discord のユーザー設定の「サブスクリプション」から行えます。</p>
+
+<h2 id="if-we-are-at-fault">当方に非がある場合<a class="anchor" href="#if-we-are-at-fault" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>本ポリシーは気が変わった場合を扱うものであり、当方の誤りを扱うものではありません。同じサーバーで二重に請求された、解約後に請求された、購入していないプランを請求された、といった場合はご連絡ください。是正いたします。</p>
+
+<p>ご注意ください。<strong>同じサーバーについて Discord と本サイトの両方でプレミアムを購入すると、有効なサブスクリプションが 2 つになります</strong>。どちらのプラットフォームも他方の契約を参照したり解約したりできないためです。ダッシュボードはこれを検出すると警告します。該当する場合は不要な方を解約してください。どちらがどちらか分からない場合はご連絡ください。</p>
+
+<h2 id="if-we-discontinue-the-service">サービスを終了する場合<a class="anchor" href="#if-we-discontinue-the-service" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>お支払い済みの期間が終わらないうちに VRCVerify を終了する場合、未使用分を返金します。</p>
+
+<h2 id="your-statutory-rights">法定の権利<a class="anchor" href="#your-statutory-rights" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>本ポリシーのいかなる規定も、消費者としてのお客様に適用される法律上の権利を制限するものではありません。</p>
+
+<p>特に、英国または欧州経済領域の消費者の場合、通常は通信販売契約を解除できる 14 日間があります。デジタルサービスでは、明示的な同意のもとで提供が開始された時点でこの権利は消滅します。<strong>プレミアムは購入と同時に開始されます。購入することで、直ちに提供を開始するよう当方に求め、開始後は 14 日間の解除権を失うことに同意したことになります。</strong> なおその権利がお客様に適用される場合、それは本ポリシーに優先します。</p>
+
+<p>このページは便宜のため複数の言語で公開されています。翻訳版と英語版に相違がある場合は、<strong>英語版が優先されます</strong>。</p>
+
+<h2 id="contact">お問い合わせ<a class="anchor" href="#contact" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>請求に関するお問い合わせ: <a href="mailto:contact@esattotech.com">contact@esattotech.com</a>。対象となる Discord サーバー ID をご記載ください。</p>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav>
+      <a href="/ja/changelog">新着情報</a>
+      <a href="https://status.vrcverify.com/">稼働状況</a>
+      <a href="/ja/terms">利用規約</a>
+      <a href="/ja/privacy">プライバシーポリシー</a>
+      <a href="/ja/refunds">返金ポリシー</a>
+      <a href="mailto:contact@esattotech.com">お問い合わせ</a>
+    </nav>
+    <p>VRCVerify は米国の Esatto Technologies が運営しています。<br> VRChat Inc. および Discord Inc. とは提携しておらず、両社による承認・後援も受けていません。</p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="pa-IN" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ਸਫ਼ਾ ਨਹੀਂ ਮਿਲਿਆ — VRCVerify</title>
+<link rel="canonical" href="https://vrcverify.com/pa-IN/404">
+<link rel="alternate" hreflang="en" href="https://vrcverify.com/404">
+<link rel="alternate" hreflang="es-ES" href="https://vrcverify.com/es-ES/404">
+<link rel="alternate" hreflang="zh-CN" href="https://vrcverify.com/zh-CN/404">
+<link rel="alternate" hreflang="ja" href="https://vrcverify.com/ja/404">
+<link rel="alternate" hreflang="de" href="https://vrcverify.com/de/404">
+<link rel="alternate" hreflang="nl" href="https://vrcverify.com/nl/404">
+<link rel="alternate" hreflang="hi-IN" href="https://vrcverify.com/hi-IN/404">
+<link rel="alternate" hreflang="ar" href="https://vrcverify.com/ar/404">
+<link rel="alternate" hreflang="bn" href="https://vrcverify.com/bn/404">
+<link rel="alternate" hreflang="pt-BR" href="https://vrcverify.com/pt-BR/404">
+<link rel="alternate" hreflang="ru" href="https://vrcverify.com/ru/404">
+<link rel="alternate" hreflang="pa-IN" href="https://vrcverify.com/pa-IN/404">
+<link rel="alternate" hreflang="x-default" href="https://vrcverify.com/404">
+<link rel="stylesheet" href="/style.css">
+<!-- Blocking, and in <head>, so a stored Light choice paints light on the
+     first frame rather than flashing dark and correcting itself. Same
+     origin, ~30 lines, and nothing on this page needs it to work. -->
+<script src="/theme.js"></script>
+<script src="/status.js" defer></script>
+</head>
+<!-- `notfound` does two things and neither is a measure: it puts the wave
+     behind this page as well, and it lifts <main> above it. The landing page's
+     `home` class is deliberately not reused -- that one also unlocks the wide
+     landing layout, and this page is a short list that wants the reading
+     measure every other document page has. -->
+<body class="notfound">
+
+<header class="site">
+  <div class="wrap">
+    <!-- THE MARK. The same logo.svg the dashboard serves, byte for byte, and
+         the same monochrome-plus-filter arrangement: black artwork, inverted
+         for dark. Three copies of the file, for the reason the fonts and
+         theme.js have three -- each surface has to keep working when the
+         others are down, so none of them may fetch the mark from another.
+         test_the_logo_is_the_same_file_everywhere fails if they drift.
+
+         `width`/`height` are the viewBox's dimensions, not the rendered ones:
+         they give the browser the ratio so the wordmark does not jump sideways
+         when the image lands. The stylesheet sets the height it is drawn at.
+
+         alt="" because the word beside it says the same thing, and a screen
+         reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
+         that just says where it goes. -->
+    <a class="brand" href="/pa-IN/"><img class="brand-mark" src="/logo.svg" alt=""
+         width="805" height="615"><span>VRCVerify</span></a>
+    <nav>
+      <!-- Pricing leads, and it is an absolute URL to the dashboard on
+           purpose (#188): prices come from Stripe on the render that shows
+           them, and this site is an assets-only Worker with no code on the
+           request path. A price typed here would keep quoting the old number
+           after a price change, on the same domain the Terms live on. -->
+      <a href="https://dashboard.vrcverify.com/pricing">ਕੀਮਤਾਂ</a>
+      <!-- Terms, Privacy and Refunds were here and are not any more (#200).
+           Every page still carries all three in its footer, which is where a
+           reader goes looking for a policy, and the 404 page lists them in its
+           body. Nothing became unreachable; they stopped taking the most
+           valuable row on the page to say something a visitor deciding whether
+           to install the bot is not asking.
+
+           The changelog takes one of the freed slots and moves up out of the
+           footer. #137 phase 5 put it there because the header "already
+           carries three legal links and the dashboard" and there was no room;
+           that sentence is what just stopped being true. -->
+      <a href="/pa-IN/changelog">ਨਵਾਂ ਕੀ ਹੈ</a>
+      <a href="https://dashboard.vrcverify.com">ਡੈਸ਼ਬੋਰਡ</a>
+    </nav>
+    <!-- THE STATUS DOT (#170). Deliberately not a fourth nav link: #200 held
+         the nav to three items so it holds one line at 320px, and a fourth
+         entry wraps it to three lines and grows the header by 44px there.
+         This sits with the theme picker instead, in the control cluster,
+         where the row it takes was never the nav's.
+
+         Ships as a working link with a neutral dot, and stays exactly that
+         with JavaScript off. /status.js colors the dot from the real
+         verdict and never paints green from a reading it did not get. -->
+    <a class="status-pill" href="https://status.vrcverify.com/" data-state="unknown"><!-- SHAPE AS WELL AS COLOR, which is the status page's rule and matters
+           most here: --ok and --down have relative luminance 0.331 and 0.341,
+           so as two plain dots the "working" and "down" states are the same
+           dot to a red-green colorblind reader. These are that page's own
+           glyphs, so the mark here and the mark one click away agree. --> <svg class="status-glyph" viewBox="0 0 20 20" width="14" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <!-- A dot claims nothing, which is the right mark before a reading
+             arrives and the only one shipped without a script to change it. -->
+        <circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"></circle>
+      </svg> <span class="status-label">ਸਥਿਤੀ</span> <!-- Written by /status.js once a verdict is in, so the state is spoken
+           and not only colored. Empty until then, because "unknown" is what
+           the dot already says to somebody who can see it. --> <span class="status-said visually-hidden"></span></a>
+    <!-- The theme control is built by /theme.js into this placeholder (#195
+         phase 7). It is JavaScript-only either way -- there is no server here
+         to post a preference to -- so markup describing it would describe
+         something that may never exist. Ships hidden; the script reveals it. -->
+    <details class="langpick"><summary class="lang-button" title="ਭਾਸ਼ਾ: ਪੰਜਾਬੀ" aria-label="ਭਾਸ਼ਾ: ਪੰਜਾਬੀ. ਕੋਈ ਹੋਰ ਚੁਣੋ।"><svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4"/><path d="M8 1.8a9.2 9.2 0 0 1 0 12.4a9.2 9.2 0 0 1 0-12.4z"/></svg></summary><div class="lang-panel"><p class="menu-label" id="lang-menu-label">Language</p><ul aria-labelledby="lang-menu-label"><li><a href="/404" lang="en" class="menu-item"><span class="menu-item-label">English</span></a></li><li><a href="/es-ES/404" lang="es-ES" class="menu-item"><span class="menu-item-label">Español</span></a></li><li><a href="/zh-CN/404" lang="zh-CN" class="menu-item"><span class="menu-item-label">简体中文</span></a></li><li><a href="/ja/404" lang="ja" class="menu-item"><span class="menu-item-label">日本語</span></a></li><li><a href="/de/404" lang="de" class="menu-item"><span class="menu-item-label">Deutsch</span></a></li><li><a href="/nl/404" lang="nl" class="menu-item"><span class="menu-item-label">Nederlands</span></a></li><li><a href="/hi-IN/404" lang="hi-IN" class="menu-item"><span class="menu-item-label">हिन्दी</span></a></li><li><a href="/ar/404" lang="ar" class="menu-item"><span class="menu-item-label">العربية</span></a></li><li><a href="/bn/404" lang="bn" class="menu-item"><span class="menu-item-label">বাংলা</span></a></li><li><a href="/pt-BR/404" lang="pt-BR" class="menu-item"><span class="menu-item-label">Português (Brasil)</span></a></li><li><a href="/ru/404" lang="ru" class="menu-item"><span class="menu-item-label">Русский</span></a></li><li><a href="/pa-IN/404" lang="pa-IN" class="menu-item current" aria-current="true"><span class="menu-item-label">ਪੰਜਾਬੀ</span><svg class="menu-tick" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg></a></li></ul></div></details>
+    <div class="theme-picker" hidden></div>
+  </div>
+</header>
+
+<!-- THE SAME WAVE, SHORTER (#285). The drawing is index.html's, byte for byte
+     below the class -- test_site.py fails if the two drift, the same way it
+     fails on a header that drifts. `short` is the only difference and it is a
+     height, set in the stylesheet.
+
+     A 404 is a page somebody landed on by accident, most likely from a rotted
+     legal link held by Stripe or Discord. It gets the same page furniture as
+     everything else so it reads as part of the site rather than as a server
+     error, and a fraction of the height because there is nothing here to sit
+     behind: four links and a sentence. -->
+<svg class="hero-wave short" aria-hidden="true" focusable="false"
+     viewBox="0 0 1440 620" preserveAspectRatio="xMaxYMid slice">
+  <defs>
+    <radialGradient id="wave-glow" cx="0.76" cy="0.34" r="0.58">
+      <stop offset="0" stop-color="var(--accent)" stop-opacity="0.22"></stop>
+      <stop offset="1" stop-color="var(--accent)" stop-opacity="0"></stop>
+    </radialGradient>
+    <!-- userSpaceOnUse so all three arcs are lit by ONE gradient across the
+         viewBox rather than each being faded within its own bounding box,
+         which would put a bright middle on every line at a different x. -->
+    <linearGradient id="wave-edge" gradientUnits="userSpaceOnUse"
+                    x1="380" y1="0" x2="1440" y2="0">
+      <stop offset="0" stop-color="var(--accent)" stop-opacity="0"></stop>
+      <stop offset="0.55" stop-color="var(--accent)" stop-opacity="0.55"></stop>
+      <stop offset="1" stop-color="var(--accent)" stop-opacity="0.12"></stop>
+    </linearGradient>
+  </defs>
+  <!-- A haze and three lines, and nothing filled. A filled band was tried and
+       removed: however soft its gradient, its own outline stayed visible as a
+       crescent through the right of the hero, which is a shape somebody drew
+       rather than atmosphere. The glow has no edge because it has no path. -->
+  <rect width="1440" height="620" fill="url(#wave-glow)"></rect>
+  <g fill="none" stroke="url(#wave-edge)" stroke-width="1.5">
+    <path d="M400 620 C 680 500, 920 360, 1120 228 S 1370 56, 1460 0"></path>
+    <path d="M480 660 C 760 540, 1000 400, 1200 268 S 1450 96, 1540 40" opacity="0.75"></path>
+    <path d="M560 700 C 840 580, 1080 440, 1280 308 S 1530 136, 1620 80" opacity="0.5"></path>
+  </g>
+</svg>
+
+<main class="wrap">
+
+<h1>ਪੰਨਾ ਨਹੀਂ ਮਿਲਿਆ</h1>
+
+<p class="lede">ਉਸ ਪਤੇ ਉੱਤੇ ਕੁਝ ਨਹੀਂ ਹੈ। ਜੇ ਤੁਸੀਂ Discord, Stripe ਜਾਂ ਕਿਸੇ ਬਿਲਿੰਗ ਈਮੇਲ ਦੇ ਲਿੰਕ ਤੋਂ ਆਏ ਹੋ, ਤਾਂ ਹੇਠਲੇ ਸਫ਼ਿਆਂ ਵਿੱਚੋਂ ਕੋਈ ਇੱਕ ਸ਼ਾਇਦ ਉਹੀ ਹੈ ਜੋ ਤੁਸੀਂ ਲੱਭ ਰਹੇ ਸੀ।</p>
+
+<ul>
+  <li><a href="/pa-IN/terms">ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ</a></li>
+  <li><a href="/pa-IN/privacy">ਪਰਦੇਦਾਰੀ ਨੀਤੀ</a> — ਇਸ ਵਿੱਚ ਇਹ ਵੀ ਕਿ ਆਪਣਾ ਡਾਟਾ ਕਿਵੇਂ ਮੰਗਣਾ ਹੈ, ਜਾਂ ਮਿਟਾਉਣ ਲਈ ਕਿਵੇਂ ਕਹਿਣਾ ਹੈ</li>
+  <li><a href="/pa-IN/refunds">ਰਕਮ ਵਾਪਸੀ ਨੀਤੀ</a></li>
+  <li><a href="https://dashboard.vrcverify.com">ਡੈਸ਼ਬੋਰਡ</a> — ਸਰਵਰ ਸੈਟਿੰਗਾਂ ਅਤੇ ਮੈਂਬਰਸ਼ਿਪਾਂ</li>
+</ul>
+
+<p>ਫਿਰ ਵੀ ਅਟਕੇ ਹੋ? <a href="mailto:contact@esattotech.com">contact@esattotech.com</a> ਉੱਤੇ ਲਿਖੋ।</p>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav>
+      <a href="/pa-IN/changelog">ਨਵਾਂ ਕੀ ਹੈ</a>
+      <a href="https://status.vrcverify.com/">ਸਥਿਤੀ</a>
+      <a href="/pa-IN/terms">ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ</a>
+      <a href="/pa-IN/privacy">ਪਰਦੇਦਾਰੀ ਨੀਤੀ</a>
+      <a href="/pa-IN/refunds">ਰਕਮ ਵਾਪਸੀ ਨੀਤੀ</a>
+      <a href="mailto:contact@esattotech.com">ਸੰਪਰਕ</a>
+    </nav>
+    <p>VRCVerify ਨੂੰ Esatto Technologies, ਸੰਯੁਕਤ ਰਾਜ ਅਮਰੀਕਾ ਚਲਾਉਂਦੀ ਹੈ।<br> VRChat Inc. ਜਾਂ Discord Inc. ਨਾਲ ਸੰਬੰਧਿਤ ਨਹੀਂ, ਨਾ ਹੀ ਉਹਨਾਂ ਵੱਲੋਂ ਪ੍ਰਵਾਨਿਤ ਜਾਂ ਸਪਾਂਸਰ ਕੀਤਾ ਗਿਆ।</p>
+  </div>
+</footer>
+
+</body>
+</html>

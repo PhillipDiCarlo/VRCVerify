@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="hi-IN" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>गोपनीयता नीति — VRCVerify</title>
+<link rel="canonical" href="https://vrcverify.com/hi-IN/privacy">
+<link rel="alternate" hreflang="en" href="https://vrcverify.com/privacy">
+<link rel="alternate" hreflang="es-ES" href="https://vrcverify.com/es-ES/privacy">
+<link rel="alternate" hreflang="zh-CN" href="https://vrcverify.com/zh-CN/privacy">
+<link rel="alternate" hreflang="ja" href="https://vrcverify.com/ja/privacy">
+<link rel="alternate" hreflang="de" href="https://vrcverify.com/de/privacy">
+<link rel="alternate" hreflang="nl" href="https://vrcverify.com/nl/privacy">
+<link rel="alternate" hreflang="hi-IN" href="https://vrcverify.com/hi-IN/privacy">
+<link rel="alternate" hreflang="ar" href="https://vrcverify.com/ar/privacy">
+<link rel="alternate" hreflang="bn" href="https://vrcverify.com/bn/privacy">
+<link rel="alternate" hreflang="pt-BR" href="https://vrcverify.com/pt-BR/privacy">
+<link rel="alternate" hreflang="ru" href="https://vrcverify.com/ru/privacy">
+<link rel="alternate" hreflang="pa-IN" href="https://vrcverify.com/pa-IN/privacy">
+<link rel="alternate" hreflang="x-default" href="https://vrcverify.com/privacy">
+<link rel="stylesheet" href="/style.css">
+<!-- Blocking, and in <head>, so a stored Light choice paints light on the
+     first frame rather than flashing dark and correcting itself. Same
+     origin, ~30 lines, and nothing on this page needs it to work. -->
+<script src="/theme.js"></script>
+<script src="/status.js" defer></script>
+</head>
+<!-- `policy` turns on the long-form reading treatment in style.css:
+     a shorter measure, looser leading, and ruled section headings. Terms,
+     Privacy and Refunds carry it; 404 and the landing page do not. -->
+<body class="policy">
+
+<header class="site">
+  <div class="wrap">
+    <!-- THE MARK. The same logo.svg the dashboard serves, byte for byte, and
+         the same monochrome-plus-filter arrangement: black artwork, inverted
+         for dark. Three copies of the file, for the reason the fonts and
+         theme.js have three -- each surface has to keep working when the
+         others are down, so none of them may fetch the mark from another.
+         test_the_logo_is_the_same_file_everywhere fails if they drift.
+
+         `width`/`height` are the viewBox's dimensions, not the rendered ones:
+         they give the browser the ratio so the wordmark does not jump sideways
+         when the image lands. The stylesheet sets the height it is drawn at.
+
+         alt="" because the word beside it says the same thing, and a screen
+         reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
+         that just says where it goes. -->
+    <a class="brand" href="/hi-IN/"><img class="brand-mark" src="/logo.svg" alt=""
+         width="805" height="615"><span>VRCVerify</span></a>
+    <nav>
+      <!-- Pricing leads, and it is an absolute URL to the dashboard on
+           purpose (#188): prices come from Stripe on the render that shows
+           them, and this site is an assets-only Worker with no code on the
+           request path. A price typed here would keep quoting the old number
+           after a price change, on the same domain the Terms live on. -->
+      <a href="https://dashboard.vrcverify.com/pricing">क़ीमतें</a>
+      <!-- Terms, Privacy and Refunds were here and are not any more (#200).
+           Every page still carries all three in its footer, which is where a
+           reader goes looking for a policy, and the 404 page lists them in its
+           body. Nothing became unreachable; they stopped taking the most
+           valuable row on the page to say something a visitor deciding whether
+           to install the bot is not asking.
+
+           The changelog takes one of the freed slots and moves up out of the
+           footer. #137 phase 5 put it there because the header "already
+           carries three legal links and the dashboard" and there was no room;
+           that sentence is what just stopped being true. -->
+      <a href="/hi-IN/changelog">नया क्या है</a>
+      <a href="https://dashboard.vrcverify.com">डैशबोर्ड</a>
+    </nav>
+    <!-- THE STATUS DOT (#170). Deliberately not a fourth nav link: #200 held
+         the nav to three items so it holds one line at 320px, and a fourth
+         entry wraps it to three lines and grows the header by 44px there.
+         This sits with the theme picker instead, in the control cluster,
+         where the row it takes was never the nav's.
+
+         Ships as a working link with a neutral dot, and stays exactly that
+         with JavaScript off. /status.js colors the dot from the real
+         verdict and never paints green from a reading it did not get. -->
+    <a class="status-pill" href="https://status.vrcverify.com/" data-state="unknown"><!-- SHAPE AS WELL AS COLOR, which is the status page's rule and matters
+           most here: --ok and --down have relative luminance 0.331 and 0.341,
+           so as two plain dots the "working" and "down" states are the same
+           dot to a red-green colorblind reader. These are that page's own
+           glyphs, so the mark here and the mark one click away agree. --> <svg class="status-glyph" viewBox="0 0 20 20" width="14" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <!-- A dot claims nothing, which is the right mark before a reading
+             arrives and the only one shipped without a script to change it. -->
+        <circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"></circle>
+      </svg> <span class="status-label">स्थिति</span> <!-- Written by /status.js once a verdict is in, so the state is spoken
+           and not only colored. Empty until then, because "unknown" is what
+           the dot already says to somebody who can see it. --> <span class="status-said visually-hidden"></span></a>
+    <!-- The theme control is built by /theme.js into this placeholder (#195
+         phase 7). It is JavaScript-only either way -- there is no server here
+         to post a preference to -- so markup describing it would describe
+         something that may never exist. Ships hidden; the script reveals it. -->
+    <details class="langpick"><summary class="lang-button" title="भाषा: हिन्दी" aria-label="भाषा: हिन्दी. कोई दूसरी चुनें।"><svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4"/><path d="M8 1.8a9.2 9.2 0 0 1 0 12.4a9.2 9.2 0 0 1 0-12.4z"/></svg></summary><div class="lang-panel"><p class="menu-label" id="lang-menu-label">Language</p><ul aria-labelledby="lang-menu-label"><li><a href="/privacy" lang="en" class="menu-item"><span class="menu-item-label">English</span></a></li><li><a href="/es-ES/privacy" lang="es-ES" class="menu-item"><span class="menu-item-label">Español</span></a></li><li><a href="/zh-CN/privacy" lang="zh-CN" class="menu-item"><span class="menu-item-label">简体中文</span></a></li><li><a href="/ja/privacy" lang="ja" class="menu-item"><span class="menu-item-label">日本語</span></a></li><li><a href="/de/privacy" lang="de" class="menu-item"><span class="menu-item-label">Deutsch</span></a></li><li><a href="/nl/privacy" lang="nl" class="menu-item"><span class="menu-item-label">Nederlands</span></a></li><li><a href="/hi-IN/privacy" lang="hi-IN" class="menu-item current" aria-current="true"><span class="menu-item-label">हिन्दी</span><svg class="menu-tick" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg></a></li><li><a href="/ar/privacy" lang="ar" class="menu-item"><span class="menu-item-label">العربية</span></a></li><li><a href="/bn/privacy" lang="bn" class="menu-item"><span class="menu-item-label">বাংলা</span></a></li><li><a href="/pt-BR/privacy" lang="pt-BR" class="menu-item"><span class="menu-item-label">Português (Brasil)</span></a></li><li><a href="/ru/privacy" lang="ru" class="menu-item"><span class="menu-item-label">Русский</span></a></li><li><a href="/pa-IN/privacy" lang="pa-IN" class="menu-item"><span class="menu-item-label">ਪੰਜਾਬੀ</span></a></li></ul></div></details>
+    <div class="theme-picker" hidden></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<h1>गोपनीयता नीति</h1>
+<p class="updated">अंतिम अद्यतन 18 अगस्त 2026</p>
+
+<p class="lede">VRCVerify एक Discord खाते को VRChat खाते से जोड़ता है ताकि कोई सर्वर VRChat के आयु सत्यापन पर कार्य कर सके। यही जुड़ाव यहाँ सबसे संवेदनशील चीज़ है, और यह पृष्ठ ठीक-ठीक बताता है कि क्या संग्रहित होता है, कितने समय के लिए, और उसे और कौन देखता है।</p>
+
+<div class="note">
+  <p><strong>छोटा जवाब।</strong> हम आपकी Discord यूज़र आईडी, आपकी VRChat यूज़र आईडी, और यह कि VRChat आपको आयु-सत्यापित बताता है या नहीं, यही संग्रहित करते हैं। हम आपका VRChat प्रदर्शित नाम, प्रोफ़ाइल परिचय, ईमेल पता या कोई कार्ड विवरण संग्रहित नहीं करते। कुछ भी बेचा नहीं जाता, और विज्ञापन के लिए कुछ भी साझा नहीं किया जाता।</p>
+</div>
+
+<nav class="toc" aria-label="इस पृष्ठ पर">
+  <p class="toc-label">इस पृष्ठ पर</p>
+  <ol class="toc-list">
+    <li><a href="#who-we-are">हम कौन हैं</a></li>
+    <li><a href="#what-we-collect">हम क्या एकत्र करते हैं</a></li>
+    <li><a href="#who-else-sees-it">इसे और कौन देखता है</a></li>
+    <li><a href="#where-it-is-stored">यह कहाँ संग्रहित होता है</a></li>
+    <li><a href="#how-long-we-keep-it">हम इसे कितने समय तक रखते हैं</a></li>
+    <li><a href="#your-rights">आपके अधिकार</a></li>
+    <li><a href="#our-legal-basis-if-you-are-in-the-uk-or-eea">यदि आप यूके या ईईए में हैं तो हमारा कानूनी आधार</a></li>
+    <li><a href="#children">बच्चे</a></li>
+    <li><a href="#security">सुरक्षा</a></li>
+    <li><a href="#changes">बदलाव</a></li>
+  </ol>
+</nav>
+
+<h2 id="who-we-are">हम कौन हैं<a class="anchor" href="#who-we-are" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>VRCVerify का संचालन Esatto Technologies, संयुक्त राज्य अमेरिका करती है। इस नीति से जुड़ी किसी भी बात के लिए, जिसमें अपना डेटा देखने या मिटाने का अनुरोध भी शामिल है, <a href="mailto:contact@esattotech.com">contact@esattotech.com</a> पर लिखें।</p>
+
+<h2 id="what-we-collect">हम क्या एकत्र करते हैं<a class="anchor" href="#what-we-collect" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<h3 id="when-you-verify">जब आप सत्यापन करते हैं<a class="anchor" href="#when-you-verify" aria-hidden="true" tabindex="-1">#</a></h3>
+
+<div class="scroll">
+<table>
+  <tr><th>डेटा</th><th>किसलिए</th></tr>
+  <tr><td>आपकी Discord यूज़र आईडी</td><td>यह जानने के लिए कि किस खाते ने सत्यापन किया, और भूमिका देने के लिए।</td></tr>
+  <tr><td>आपकी VRChat यूज़र आईडी (<code>usr_...</code>)</td><td>VRChat से यह पूछने के लिए कि वह खाता आयु-सत्यापित है या नहीं।</td></tr>
+  <tr><td>VRChat आपको आयु-सत्यापित बताता है या नहीं</td><td>वही परिणाम जिस पर कार्य करने के लिए पूरी सेवा मौजूद है।</td></tr>
+  <tr><td>आपके सबसे हालिया सत्यापन प्रयास का समय</td><td>दर-सीमा के लिए, ताकि साझा VRChat खाते पर अत्यधिक भार न पड़े।</td></tr>
+  <tr><td>एक छोटा सत्यापन कोड, वह सर्वर जिसके लिए वह जारी हुआ, और उसकी समाप्ति</td><td>यह पुष्टि करने के लिए कि आपने जो VRChat खाता बताया वह आपके नियंत्रण में है। समाप्ति पर कुछ ही मिनटों में स्वतः मिट जाता है।</td></tr>
+</table>
+</div>
+
+<p>एक बार सत्यापित हो जाने पर, आपके Discord और VRChat खातों के बीच का यह जुड़ाव VRCVerify चलाने वाले किसी भी दूसरे सर्वर को आपको पहचानने देता है, बिना प्रक्रिया दोहराए। यही इसका उद्देश्य है, और इसीलिए रिकॉर्ड बना रहता है।</p>
+
+<h3 id="when-a-server-uses-the-bot">जब कोई सर्वर बॉट का उपयोग करता है<a class="anchor" href="#when-a-server-uses-the-bot" aria-hidden="true" tabindex="-1">#</a></h3>
+
+<p>प्रत्येक Discord सर्वर के लिए: सर्वर आईडी, उसके स्वामी की Discord आईडी, उसके द्वारा कॉन्फ़िगर की गई भूमिका व चैनल आईडी, चुनी गई भाषा, सुविधा सेटिंग्स, सत्यापन के बाद का कोई कस्टम संदेश, और पूर्ण हुए सत्यापनों की गिनती। जब कोई प्रशासक डैशबोर्ड पर कोई सेटिंग बदलता है, तो हम दर्ज करते हैं कि किसने, क्या और कब बदला।</p>
+
+<h3 id="when-a-server-subscribes-by-card">जब कोई सर्वर कार्ड से सदस्यता लेता है<a class="anchor" href="#when-a-server-subscribes-by-card" aria-hidden="true" tabindex="-1">#</a></h3>
+
+<p>भुगतान Stripe संसाधित करता है। हम Stripe ग्राहक आईडी, सदस्यता आईडी, मूल्य आईडी, सदस्यता की स्थिति और नवीनीकरण तिथि प्राप्त करके संग्रहित करते हैं, ताकि बॉट को पता रहे कि सर्वर ने भुगतान कर दिया है।</p>
+
+<p><strong>हम कार्ड नंबर कभी प्राप्त या संग्रहित नहीं करते</strong>, और Stripe द्वारा एकत्र किया गया बिलिंग ईमेल पता भी जानबूझकर संग्रहित नहीं करते। कार्ड विवरण Stripe के अपने पृष्ठों पर दर्ज किए जाते हैं, हमारे पृष्ठों पर नहीं।</p>
+
+<h3 id="what-we-deliberately-do-not-collect">हम जानबूझकर क्या एकत्र नहीं करते<a class="anchor" href="#what-we-deliberately-do-not-collect" aria-hidden="true" tabindex="-1">#</a></h3>
+
+<ul>
+  <li>आपका VRChat प्रदर्शित नाम या प्रोफ़ाइल परिचय। आपका परिचय सत्यापन के समय केवल आपका कोड ढूँढने के लिए पढ़ा जाता है, और रखा नहीं जाता।</li>
+  <li>आपका Discord ईमेल पता, भले ही Discord उसे दे सकता हो।</li>
+  <li>कहीं का भी, किसी भी संदेश का विषय-वस्तु।</li>
+  <li>किसी भी प्रकार का कार्ड या बैंक विवरण।</li>
+  <li>पहचान दस्तावेज़ या तस्वीरें। आयु सत्यापन VRChat करता है; VRCVerify केवल हाँ-या-ना का परिणाम पढ़ता है।</li>
+</ul>
+
+<h2 id="who-else-sees-it">इसे और कौन देखता है<a class="anchor" href="#who-else-sees-it" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>हम व्यक्तिगत डेटा नहीं बेचते और न ही उसे विज्ञापन के लिए साझा करते हैं। डेटा का प्रसंस्करण करते हैं:</p>
+
+<ul>
+  <li><strong>Discord</strong> — वह प्लेटफ़ॉर्म जिस पर बॉट चलता है।</li>
+  <li><strong>VRChat</strong> — इससे पूछा जाता है कि कोई खाता आयु-सत्यापित है या नहीं।</li>
+  <li><strong>Stripe</strong> — भुगतान प्रसंस्करण, केवल कार्ड सदस्यताओं के लिए।</li>
+  <li><strong>Cloudflare</strong> — यह साइट और डैशबोर्ड उपलब्ध कराता है।</li>
+</ul>
+
+<p>जहाँ कानून अपेक्षित करता है वहाँ हम डेटा प्रकट भी कर सकते हैं।</p>
+
+<p>आपकी सत्यापन <em>स्थिति</em> बॉट द्वारा दी गई भूमिका के माध्यम से सर्वर को दिखती है, और सर्वर उसी पर कार्य करता है। आपकी VRChat यूज़र आईडी बॉट या डैशबोर्ड में कहीं भी सर्वर प्रशासकों को नहीं दिखाई जाती।</p>
+
+<h2 id="where-it-is-stored">यह कहाँ संग्रहित होता है<a class="anchor" href="#where-it-is-stored" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>डेटा संयुक्त राज्य अमेरिका के सर्वरों पर संग्रहित होता है। यदि आप यूनाइटेड किंगडम या यूरोपीय आर्थिक क्षेत्र में हैं, तो VRCVerify का उपयोग करने में आपका डेटा संयुक्त राज्य अमेरिका भेजा जाना शामिल है।</p>
+
+<h2 id="how-long-we-keep-it">हम इसे कितने समय तक रखते हैं<a class="anchor" href="#how-long-we-keep-it" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<div class="scroll">
+<table>
+  <tr><th>डेटा</th><th>अवधि</th></tr>
+  <tr><td>चल रहे सत्यापन कोड</td><td>कुछ मिनट। समाप्ति पर स्वतः मिट जाता है।</td></tr>
+  <tr><td>आपकी Discord आईडी, VRChat आईडी और सत्यापन स्थिति</td><td>जब तक आप हमसे मिटाने को न कहें।</td></tr>
+  <tr><td>सर्वर सेटिंग्स</td><td>बॉट को सर्वर से हटाने के बाद भी रखा जाता है, ताकि दोबारा आमंत्रित करने पर प्रशासक को सब कुछ फिर से सेट न करना पड़े।</td></tr>
+  <tr><td>सदस्यता रिकॉर्ड</td><td>सदस्यता समाप्त होने के बाद भी रखा जाता है, व्यावसायिक रिकॉर्ड के रूप में और यह जानने के लिए कि किसी सर्वर ने पहले सदस्यता ली थी।</td></tr>
+</table>
+</div>
+
+<h2 id="your-rights">आपके अधिकार<a class="anchor" href="#your-rights" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>आप हमसे कह सकते हैं कि हम आपके बारे में रखा गया डेटा दिखाएँ, उसे सुधारें, या मिटा दें। यदि आप यूके या ईईए में हैं तो आपको प्रसंस्करण पर आपत्ति करने, उसे सीमित करने का अनुरोध करने, अपना डेटा पोर्टेबल रूप में पाने, और अपने स्थानीय डेटा संरक्षण प्राधिकरण से शिकायत करने का भी अधिकार है।</p>
+
+<p>इनमें से किसी का उपयोग करने के लिए, ऐसे पते से <a href="mailto:contact@esattotech.com">contact@esattotech.com</a> पर ईमेल करें जिसे हम आपके Discord खाते से जोड़ सकें, या अपनी Discord यूज़र आईडी लिखें। हम 30 दिनों के भीतर उत्तर देंगे।</p>
+
+<p>अपना सत्यापन रिकॉर्ड मिटाने का अर्थ है कि अगली बार कोई सर्वर पूछेगा तो आपको फिर से सत्यापन करना होगा।</p>
+
+<h2 id="our-legal-basis-if-you-are-in-the-uk-or-eea">यदि आप यूके या ईईए में हैं तो हमारा कानूनी आधार<a class="anchor" href="#our-legal-basis-if-you-are-in-the-uk-or-eea" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<ul>
+  <li>सत्यापन के लिए <strong>सहमति</strong>। इसे आप शुरू करते हैं, और रिकॉर्ड मिटाने का अनुरोध करके वापस ले सकते हैं।</li>
+  <li>सदस्यता और बिलिंग रिकॉर्ड के लिए <strong>अनुबंध का निष्पादन</strong>।</li>
+  <li>सर्वर सेटिंग्स, दर-सीमा और सेवा को चालू व सुरक्षित रखने के लिए <strong>वैध हित</strong>।</li>
+</ul>
+
+<h2 id="children">बच्चे<a class="anchor" href="#children" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>Discord अपने उपयोगकर्ताओं के लिए कम से कम 13 वर्ष की आयु अनिवार्य करता है, और कुछ देशों में उससे अधिक। VRCVerify बच्चों के लिए नहीं है और हम Discord की न्यूनतम आयु से कम किसी का डेटा जानबूझकर एकत्र नहीं करते। यदि आपको लगता है कि यहाँ किसी बच्चे का डेटा रखा है, तो हमें ईमेल करें और हम उसे मिटा देंगे।</p>
+
+<h2 id="security">सुरक्षा<a class="anchor" href="#security" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>डेटाबेस तक पहुँच केवल संचालक तक सीमित है। डैशबोर्ड कोई डेटाबेस क्रेडेंशियल नहीं रखता और बॉट तक केवल पारस्परिक रूप से प्रमाणित निजी नेटवर्क लिंक से पहुँचता है, इसलिए सार्वजनिक वेबसाइट के भंग होने भर से सत्यापन डेटा उजागर नहीं होता।</p>
+
+<h2 id="changes">बदलाव<a class="anchor" href="#changes" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>यदि इस नीति में महत्वपूर्ण बदलाव होता है तो हम ऊपर दी गई तारीख अद्यतन करेंगे और बड़े बदलावों की घोषणा सहायता चैनल में करेंगे। बदलाव के बाद VRCVerify का उपयोग जारी रखने का अर्थ है अद्यतन नीति को स्वीकार करना।</p>
+
+<p>यह पृष्ठ सुविधा के लिए कई भाषाओं में प्रकाशित किया गया है। यदि किसी अनुवाद और अंग्रेज़ी संस्करण में अंतर हो, तो <strong>अंग्रेज़ी संस्करण ही मान्य होगा</strong>।</p>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav>
+      <a href="/hi-IN/changelog">नया क्या है</a>
+      <a href="https://status.vrcverify.com/">स्थिति</a>
+      <a href="/hi-IN/terms">सेवा की शर्तें</a>
+      <a href="/hi-IN/privacy">गोपनीयता नीति</a>
+      <a href="/hi-IN/refunds">धनवापसी नीति</a>
+      <a href="mailto:contact@esattotech.com">संपर्क</a>
+    </nav>
+    <p>VRCVerify का संचालन Esatto Technologies, संयुक्त राज्य अमेरिका करती है।<br> VRChat Inc. या Discord Inc. से संबद्ध नहीं, न ही उनके द्वारा अनुमोदित या प्रायोजित।</p>
+  </div>
+</footer>
+
+</body>
+</html>

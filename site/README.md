@@ -120,6 +120,84 @@ curl -sI --resolve vrcverify.com:443:<cloudflare-ip> https://vrcverify.com/terms
 That override is worth fixing separately -- as it stands, nobody on the home
 network can see the finished site.
 
+## Twelve languages (#300)
+
+The six pages above are the English source and are hand-edited. Eleven
+translated copies of each live under `site/<locale>/` and are **generated**:
+
+    python scripts/gen_site_locales.py            # rewrite site/<locale>/*.html
+    python scripts/gen_site_locales.py --extract  # refresh the msgid inventory
+    python scripts/gen_site_locales.py --check    # exit 1 if the output is stale
+
+Same bargain `gen_changelog.py` makes, for the same reason: this is an
+assets-only Worker with no code on the request path, so twelve versions of a
+page have to exist as twelve files.
+
+### How a sentence becomes translatable
+
+`scripts/site_i18n.py` reports the byte offsets of every translatable span and
+the generator splices replacements in. **Nothing is ever re-serialized.** These
+pages carry long comments explaining why the markup is what it is, and a
+parse-and-rewrite would produce identical HTML and throw all of that away.
+`test_replacing_every_span_with_itself_reproduces_the_file` pins it.
+
+The unit is the innermost **block**, not the text node. Inline elements inside
+it survive into the msgid as numbered placeholders:
+
+    You must comply with the <0>Discord Terms of Service</0>.
+
+A translator moves `<0>...</0>` wherever their language puts it; the generator
+puts the original `<a href=...>` back from the placeholder's position. A URL is
+never exposed to translation and cannot be broken by it. `<svg>`, `<code>` and
+**HTML comments** are opaque: one placeholder each, contents untouchable.
+
+That last one was not a guess. The first version let a comment into a msgid,
+`from_msgid` escaped it on the way back, and the German 404 rendered a
+paragraph about red-green colorblindness as body copy.
+
+### Changing an English sentence
+
+Edit the English page, then:
+
+    python scripts/gen_site_locales.py --extract
+    python scripts/merge_site_locale.py de --missing   # what is now untranslated
+
+Catalogs are `site_locales/<locale>.json`, keyed by the English string exactly
+as a gettext msgid, so a changed sentence falls back to the new English rather
+than serving a fluent translation of something the page no longer says.
+`merge_site_locale.py <locale> < file.json` merges additively and refuses a key
+that is not in the inventory.
+
+### Adding a language
+
+1. Add it to `LOCALES` and `ENDONYMS` in `scripts/gen_site_locales.py`.
+2. Add it to `UI_LANGUAGES` in `src/dashboard/i18n.py` and to `LOCALES` in
+   `status/src/i18n.js`, or `TestTheApexSpeaksTheOtherSurfacesLanguages` fails.
+   One product, one list of languages.
+3. Translate `site_locales/<code>.json`, regenerate, commit the output.
+4. If it is written right to left, add it to `RTL`.
+
+### Right to left
+
+Arabic is the only one. Two rules are opposites and both were got wrong first:
+
+  * Anything that follows the **reading direction** is a logical property. An
+    accent bar written `border-left` ends up on the far side of the page from
+    its own sentence.
+  * Anything that draws a **symbol** must not be. The check mark in the trust
+    strip is two borders and a rotation; written `border-inline-start` it
+    mirrored into a ">" chevron.
+
+Only a screenshot shows either. `TestRightToLeftDoesNotBreakTheDrawing` keeps
+them apart.
+
+### The legal pages
+
+Terms, Privacy and Refunds are translated and each carries a clause saying the
+**English version governs** in case of conflict. That was the decision on #300:
+eleven independently authoritative versions of a policy is real exposure, and
+an English-only policy is the worst place on the site to put a wall.
+
 ## The canonical URLs
 
 Cloudflare's default `html_handling` answers `/terms.html` with a **307 to
@@ -195,8 +273,8 @@ python scripts/gen_changelog.py --check  # exit 1 if it is out of date
 ```
 
 **Re-run it in the same commit as any change to `ENTRIES`.** Nothing
-regenerates it on push — `.github/workflows/` holds CodeQL and nothing else —
-so the guard is `tests/test_site.py::test_the_committed_changelog_matches_the_constant`,
+regenerates it on push, so the guard is
+`tests/test_site.py::test_the_committed_changelog_matches_the_constant`,
 which regenerates in memory and fails if the committed file disagrees. That is
 the price of committing generated output, and it is worth paying: the page
 stays a static asset, so it is live even when the dashboard is not.

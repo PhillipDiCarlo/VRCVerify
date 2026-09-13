@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="pa-IN" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VRCVerify</title>
+<meta name="description" content="VRChat ਦੀ ਆਪਣੀ ਉਮਰ ਤਸਦੀਕ ਵਰਤ ਕੇ Discord ਲਈ 18+ ਤਸਦੀਕ। ਤਸਦੀਕ ਹਮੇਸ਼ਾ ਮੁਫ਼ਤ।">
+<link rel="canonical" href="https://vrcverify.com/pa-IN/">
+<link rel="alternate" hreflang="en" href="https://vrcverify.com/">
+<link rel="alternate" hreflang="es-ES" href="https://vrcverify.com/es-ES/">
+<link rel="alternate" hreflang="zh-CN" href="https://vrcverify.com/zh-CN/">
+<link rel="alternate" hreflang="ja" href="https://vrcverify.com/ja/">
+<link rel="alternate" hreflang="de" href="https://vrcverify.com/de/">
+<link rel="alternate" hreflang="nl" href="https://vrcverify.com/nl/">
+<link rel="alternate" hreflang="hi-IN" href="https://vrcverify.com/hi-IN/">
+<link rel="alternate" hreflang="ar" href="https://vrcverify.com/ar/">
+<link rel="alternate" hreflang="bn" href="https://vrcverify.com/bn/">
+<link rel="alternate" hreflang="pt-BR" href="https://vrcverify.com/pt-BR/">
+<link rel="alternate" hreflang="ru" href="https://vrcverify.com/ru/">
+<link rel="alternate" hreflang="pa-IN" href="https://vrcverify.com/pa-IN/">
+<link rel="alternate" hreflang="x-default" href="https://vrcverify.com/">
+<link rel="stylesheet" href="/style.css">
+<!-- Blocking, and in <head>, so a stored Light choice paints light on the
+     first frame rather than flashing dark and correcting itself. Same
+     origin, ~30 lines, and nothing on this page needs it to work. -->
+<script src="/theme.js"></script>
+<script src="/status.js" defer></script>
+</head>
+<!-- `home` widens .wrap and unlocks the landing-page blocks in style.css. The
+     legal pages deliberately do not carry it: their measure is tuned for
+     reading long-form terms (42rem, set by `policy`) and a wider one would be
+     worse. -->
+<body class="home">
+
+<header class="site">
+  <div class="wrap">
+    <!-- THE MARK. The same logo.svg the dashboard serves, byte for byte, and
+         the same monochrome-plus-filter arrangement: black artwork, inverted
+         for dark. Three copies of the file, for the reason the fonts and
+         theme.js have three -- each surface has to keep working when the
+         others are down, so none of them may fetch the mark from another.
+         test_the_logo_is_the_same_file_everywhere fails if they drift.
+
+         `width`/`height` are the viewBox's dimensions, not the rendered ones:
+         they give the browser the ratio so the wordmark does not jump sideways
+         when the image lands. The stylesheet sets the height it is drawn at.
+
+         alt="" because the word beside it says the same thing, and a screen
+         reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
+         that just says where it goes. -->
+    <a class="brand" href="/pa-IN/"><img class="brand-mark" src="/logo.svg" alt=""
+         width="805" height="615"><span>VRCVerify</span></a>
+    <nav>
+      <!-- Pricing leads, and it is an absolute URL to the dashboard on
+           purpose (#188): prices come from Stripe on the render that shows
+           them, and this site is an assets-only Worker with no code on the
+           request path. A price typed here would keep quoting the old number
+           after a price change, on the same domain the Terms live on. -->
+      <a href="https://dashboard.vrcverify.com/pricing">ਕੀਮਤਾਂ</a>
+      <!-- Terms, Privacy and Refunds were here and are not any more (#200).
+           Every page still carries all three in its footer, which is where a
+           reader goes looking for a policy, and the 404 page lists them in its
+           body. Nothing became unreachable; they stopped taking the most
+           valuable row on the page to say something a visitor deciding whether
+           to install the bot is not asking.
+
+           The changelog takes one of the freed slots and moves up out of the
+           footer. #137 phase 5 put it there because the header "already
+           carries three legal links and the dashboard" and there was no room;
+           that sentence is what just stopped being true. -->
+      <a href="/pa-IN/changelog">ਨਵਾਂ ਕੀ ਹੈ</a>
+      <a href="https://dashboard.vrcverify.com">ਡੈਸ਼ਬੋਰਡ</a>
+    </nav>
+    <!-- THE STATUS DOT (#170). Deliberately not a fourth nav link: #200 held
+         the nav to three items so it holds one line at 320px, and a fourth
+         entry wraps it to three lines and grows the header by 44px there.
+         This sits with the theme picker instead, in the control cluster,
+         where the row it takes was never the nav's.
+
+         Ships as a working link with a neutral dot, and stays exactly that
+         with JavaScript off. /status.js colors the dot from the real
+         verdict and never paints green from a reading it did not get. -->
+    <a class="status-pill" href="https://status.vrcverify.com/" data-state="unknown"><!-- SHAPE AS WELL AS COLOR, which is the status page's rule and matters
+           most here: --ok and --down have relative luminance 0.331 and 0.341,
+           so as two plain dots the "working" and "down" states are the same
+           dot to a red-green colorblind reader. These are that page's own
+           glyphs, so the mark here and the mark one click away agree. --> <svg class="status-glyph" viewBox="0 0 20 20" width="14" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <!-- A dot claims nothing, which is the right mark before a reading
+             arrives and the only one shipped without a script to change it. -->
+        <circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"></circle>
+      </svg> <span class="status-label">ਸਥਿਤੀ</span> <!-- Written by /status.js once a verdict is in, so the state is spoken
+           and not only colored. Empty until then, because "unknown" is what
+           the dot already says to somebody who can see it. --> <span class="status-said visually-hidden"></span></a>
+    <!-- The theme control is built by /theme.js into this placeholder (#195
+         phase 7). It is JavaScript-only either way -- there is no server here
+         to post a preference to -- so markup describing it would describe
+         something that may never exist. Ships hidden; the script reveals it. -->
+    <details class="langpick"><summary class="lang-button" title="ਭਾਸ਼ਾ: ਪੰਜਾਬੀ" aria-label="ਭਾਸ਼ਾ: ਪੰਜਾਬੀ. ਕੋਈ ਹੋਰ ਚੁਣੋ।"><svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4"/><path d="M8 1.8a9.2 9.2 0 0 1 0 12.4a9.2 9.2 0 0 1 0-12.4z"/></svg></summary><div class="lang-panel"><p class="menu-label" id="lang-menu-label">Language</p><ul aria-labelledby="lang-menu-label"><li><a href="/" lang="en" class="menu-item"><span class="menu-item-label">English</span></a></li><li><a href="/es-ES/" lang="es-ES" class="menu-item"><span class="menu-item-label">Español</span></a></li><li><a href="/zh-CN/" lang="zh-CN" class="menu-item"><span class="menu-item-label">简体中文</span></a></li><li><a href="/ja/" lang="ja" class="menu-item"><span class="menu-item-label">日本語</span></a></li><li><a href="/de/" lang="de" class="menu-item"><span class="menu-item-label">Deutsch</span></a></li><li><a href="/nl/" lang="nl" class="menu-item"><span class="menu-item-label">Nederlands</span></a></li><li><a href="/hi-IN/" lang="hi-IN" class="menu-item"><span class="menu-item-label">हिन्दी</span></a></li><li><a href="/ar/" lang="ar" class="menu-item"><span class="menu-item-label">العربية</span></a></li><li><a href="/bn/" lang="bn" class="menu-item"><span class="menu-item-label">বাংলা</span></a></li><li><a href="/pt-BR/" lang="pt-BR" class="menu-item"><span class="menu-item-label">Português (Brasil)</span></a></li><li><a href="/ru/" lang="ru" class="menu-item"><span class="menu-item-label">Русский</span></a></li><li><a href="/pa-IN/" lang="pa-IN" class="menu-item current" aria-current="true"><span class="menu-item-label">ਪੰਜਾਬੀ</span><svg class="menu-tick" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg></a></li></ul></div></details>
+    <div class="theme-picker" hidden></div>
+  </div>
+</header>
+
+<!-- THE WAVE (#285).
+     One atmospheric form, spanning the full width, sitting behind the hero.
+
+     WHAT IT IS FOR. At 1440 this page put a 60rem column in the middle of the
+     viewport and left the outer 480px empty, so the widest screens got the
+     emptiest page -- the opposite of what a landing page should do. The form
+     is what occupies that width. It is decoration and nothing depends on it,
+     which is why it is aria-hidden and why the page reads identically with it
+     removed.
+
+     WHY IT IS A SIBLING OF <main> RATHER THAN A CHILD. It has to reach the
+     viewport edges, and everything inside <main> is held to the page measure
+     by `.wrap`. Putting it here means no `100vw` arithmetic, which is the
+     usual way a full-bleed element ends up with a horizontal scrollbar on any
+     platform that reserves space for one. It is absolutely positioned against
+     the body and drawn under the header, which is opaque and above it.
+
+     WHY INLINE SVG. Same reason the flow's arrows are: no request, no third
+     party, and the fills read the theme tokens directly, so it recolours with
+     the page rather than needing a second file for dark. -->
+<svg class="hero-wave" aria-hidden="true" focusable="false"
+     viewBox="0 0 1440 620" preserveAspectRatio="xMaxYMid slice">
+  <defs>
+    <radialGradient id="wave-glow" cx="0.76" cy="0.34" r="0.58">
+      <stop offset="0" stop-color="var(--accent)" stop-opacity="0.22"></stop>
+      <stop offset="1" stop-color="var(--accent)" stop-opacity="0"></stop>
+    </radialGradient>
+    <!-- userSpaceOnUse so all three arcs are lit by ONE gradient across the
+         viewBox rather than each being faded within its own bounding box,
+         which would put a bright middle on every line at a different x. -->
+    <linearGradient id="wave-edge" gradientUnits="userSpaceOnUse"
+                    x1="380" y1="0" x2="1440" y2="0">
+      <stop offset="0" stop-color="var(--accent)" stop-opacity="0"></stop>
+      <stop offset="0.55" stop-color="var(--accent)" stop-opacity="0.55"></stop>
+      <stop offset="1" stop-color="var(--accent)" stop-opacity="0.12"></stop>
+    </linearGradient>
+  </defs>
+  <!-- A haze and three lines, and nothing filled. A filled band was tried and
+       removed: however soft its gradient, its own outline stayed visible as a
+       crescent through the right of the hero, which is a shape somebody drew
+       rather than atmosphere. The glow has no edge because it has no path. -->
+  <rect width="1440" height="620" fill="url(#wave-glow)"></rect>
+  <g fill="none" stroke="url(#wave-edge)" stroke-width="1.5">
+    <path d="M400 620 C 680 500, 920 360, 1120 228 S 1370 56, 1460 0"></path>
+    <path d="M480 660 C 760 540, 1000 400, 1200 268 S 1450 96, 1540 40" opacity="0.75"></path>
+    <path d="M560 700 C 840 580, 1080 440, 1280 308 S 1530 136, 1620 80" opacity="0.5"></path>
+  </g>
+</svg>
+
+<main class="wrap">
+
+  <!-- HERO.
+       The headline is unchanged: it says exactly what the product is, which is
+       the hardest thing for a landing page to do and this one already did it.
+
+       NO ACCENT ON THE HEADING. The obvious move from the dark-hero references
+       is a two-tone headline with the second line in blurple. The epic forbids
+       it -- blurple means "the page you are on" and "the button that does the
+       thing", never decoration -- so the hierarchy here is carried by size and
+       weight instead, and the only blurple above the fold is the one button
+       that does the thing. -->
+  <h1>VRChat ਦੀ ਆਪਣੀ ਉਮਰ ਜਾਂਚ ਵਰਤ ਕੇ, Discord ਲਈ 18+ ਤਸਦੀਕ</h1>
+
+  <p class="lede">ਮੈਂਬਰ ਆਪਣਾ VRChat ਖਾਤਾ ਜੋੜਦਾ ਹੈ, VRCVerify ਪੜ੍ਹਦਾ ਹੈ ਕਿ VRChat ਨੇ ਉਸ ਦੀ ਉਮਰ ਤਸਦੀਕ ਕੀਤੀ ਹੈ ਜਾਂ ਨਹੀਂ, ਅਤੇ ਬੋਟ ਭੂਮਿਕਾ ਦੇ ਦਿੰਦਾ ਹੈ। ਇੱਥੇ ਨਾ ਕੋਈ ਦਸਤਾਵੇਜ਼ ਸੰਭਾਲੇ ਜਾਂਦੇ ਹਨ, ਨਾ ਤਸਵੀਰਾਂ, ਅਤੇ ਕਿਸੇ ਮੈਂਬਰ ਦੀ ਪਛਾਣ ਬਾਰੇ ਕਿਸੇ ਨੂੰ ਕੁਝ ਨਹੀਂ ਦਿਖਾਇਆ ਜਾਂਦਾ।</p>
+
+  <p class="cta-row"><a class="cta" href="https://discord.com/oauth2/authorize?client_id=1335738139825799188">ਆਪਣੇ ਸਰਵਰ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ</a> <a class="cta secondary" href="https://dashboard.vrcverify.com">ਡੈਸ਼ਬੋਰਡ ਖੋਲ੍ਹੋ</a></p>
+
+  <!-- The three claims from "What it does not do", promoted to sit under the
+       buttons where the decision is made. Deliberately NOT a replacement for
+       that section: this is the headline version, that is the detail, and the
+       section below still carries the full four with their reasons. A visitor
+       who reads nothing else should still leave knowing this much.
+
+       PROMOTED AGAIN IN #285, from 13px grey uppercase separated by middots to
+       body-size text with a marked item each. It was set like a disclaimer --
+       the typographic register a reader has learned to skip -- while saying
+       the strongest thing this product has to say. Uppercase at that size is
+       also the slowest thing on the page to read.
+
+       The marks are drawn in CSS rather than as glyphs or images: Inter is
+       vendored here and a tick character would fall through to whatever the
+       reader's fallback stack supplies, at a different weight and baseline on
+       every machine. Each claim stays one contiguous string so the test that
+       pins these three sentences keeps working on the markup. -->
+  <p class="trust-strip"><span>ਕੋਈ ਪਛਾਣ ਦਸਤਾਵੇਜ਼ ਨਹੀਂ</span> <span>ਕੋਈ ਤਸਵੀਰਾਂ ਨਹੀਂ</span> <span>ਕੋਈ ਹੱਥੀਂ ਛੋਟ ਨਹੀਂ</span></p>
+
+  <!-- HOW IT WORKS.
+       The "visual proof" this page was missing. Built from real HTML text with
+       inline SVG only for the arrows, rather than as one SVG drawing: text in
+       an SVG does not reflow, does not scale with the reader's font size, and
+       would be one more set of English strings that #97 cannot reach. This
+       way the diagram is legible at 390px, selectable, and themed by the same
+       tokens as everything else.
+
+       A SCHEMATIC SINCE #285, and that rule above is why only the LINES moved.
+       The epic asked for the flow to become a schematic in SVG; the words
+       staying in HTML is not a compromise on that, it is the same argument
+       this comment has always made, and it still holds. What changed is that
+       three filled cards became a rail: one hairline weight, the numbers as
+       nodes punched into it, and the arrows reduced from a 2px shafted arrow
+       to a 1px chevron that marks direction and draws nothing else.
+
+       The three cards were the last place on this page where a container was
+       doing work the surface ramp already does. They fenced three short
+       paragraphs off from a page they were not competing with. -->
+  <h2>ਮੈਂਬਰ ਦੀ ਤਸਦੀਕ ਕਿਵੇਂ ਹੁੰਦੀ ਹੈ</h2>
+
+  <ol class="flow">
+    <li class="flow-step">
+      <span class="flow-num">1</span>
+      <h3>VRChat ਉਮਰ ਤਸਦੀਕ ਕਰਦਾ ਹੈ</h3>
+      <p>ਮੈਂਬਰ VRChat ਉੱਤੇ ਹੀ VRChat ਦੀ ਆਪਣੀ ਉਮਰ ਜਾਂਚ ਪੂਰੀ ਕਰਦਾ ਹੈ। ਉਸਦੇ ਦਸਤਾਵੇਜ਼ ਕਦੇ ਉਸ ਪ੍ਰਕਿਰਿਆ ਤੋਂ ਬਾਹਰ ਨਹੀਂ ਜਾਂਦੇ।</p>
+    </li>
+    <li class="flow-arrow" aria-hidden="true">
+      <svg viewBox="0 0 8 12" width="8" height="12" fill="none"
+           stroke="currentColor" stroke-width="1" stroke-linecap="round"
+           stroke-linejoin="round"><path d="M1.5 1 6.5 6 1.5 11"/></svg>
+    </li>
+    <li class="flow-step">
+      <span class="flow-num">2</span>
+      <h3>VRCVerify ਨਤੀਜਾ ਪੜ੍ਹਦਾ ਹੈ</h3>
+      <p>ਮੈਂਬਰ ਆਪਣਾ ਖਾਤਾ ਜੋੜਦਾ ਹੈ ਅਤੇ VRCVerify ਇੱਕੋ ਸਵਾਲ ਪੁੱਛਦਾ ਹੈ: ਕੀ VRChat ਨੇ ਇਸ ਵਿਅਕਤੀ ਨੂੰ 18+ ਵਜੋਂ ਤਸਦੀਕ ਕੀਤਾ ਹੈ?</p>
+    </li>
+    <li class="flow-arrow" aria-hidden="true">
+      <svg viewBox="0 0 8 12" width="8" height="12" fill="none"
+           stroke="currentColor" stroke-width="1" stroke-linecap="round"
+           stroke-linejoin="round"><path d="M1.5 1 6.5 6 1.5 11"/></svg>
+    </li>
+    <li class="flow-step">
+      <span class="flow-num">3</span>
+      <h3>ਬੋਟ ਭੂਮਿਕਾ ਦਿੰਦਾ ਹੈ</h3>
+      <p>ਤੁਹਾਡੇ ਸਰਵਰ ਦੀ ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਲੱਗ ਜਾਂਦੀ ਹੈ। ਕਿਸੇ ਨੂੰ ਕੁਝ ਵੇਖਣਾ ਨਹੀਂ ਪੈਂਦਾ, ਅਤੇ ਕੋਈ ਪ੍ਰਸ਼ਾਸਕ ਕੁਝ ਨਹੀਂ ਵੇਖਦਾ।</p>
+    </li>
+  </ol>
+
+  <p class="flow-note">VRChat ਤੋਂ VRCVerify ਤੱਕ ਸਿਰਫ਼ ਇੱਕ «ਹਾਂ» ਜਾਂ «ਨਾਂਹ» ਪਹੁੰਚਦਾ ਹੈ।</p>
+
+  <!-- WHAT PREMIUM IS, STATED ONCE (#285).
+       This was two cards listing eleven features between them. They are gone,
+       and the page links to the pricing table instead.
+
+       THE REASON IS NOT DRIFT, and it is worth being exact about that
+       because the obvious argument here is wrong. The eight Premium lines
+       were a second copy of the eight in the dashboard's pricing.html, but
+       they were not an unguarded one: TestPricingPagesListEveryFeature in
+       tests/test_premium.py counts both against the FEATURE_ constants the
+       code actually gates, and asserts the two pages sell the same bundle.
+       #265 built that after both lists had quietly fallen two features
+       behind, so the duplicate was the one thing here that was already being
+       kept honest.
+
+       The reason is the epic's: state it ONCE, on the surface that can be
+       right. /pricing is a live route that reads Stripe at render time and is
+       translated into eleven languages. This page is a static asset on a
+       separate pipeline that has always refused to quote a price for exactly
+       that reason. A feature list is a weaker version of the same claim, and
+       the argument that keeps prices off this page applies to it: the page's
+       job is to send people to the pricing table, not to summarise it well
+       enough that a reader never goes.
+
+       WHAT HAD TO SURVIVE THE CUT, because both were load-bearing and both
+       now have their own test rather than riding on a card:
+
+         The free tier must not read as a crippled one. "Core verification is
+         free, forever" is this product's actual promise and its best trust
+         signal, so the section still leads with what free IS.
+
+         Anybody who wants Premium lands on the PRICE, not on the dashboard's
+         front door. #137 phase 2 had to point at the root because the only
+         page with a price was behind OAuth; PR #187 flagged that as a likely
+         drop-off. A button reading "See pricing" that lands on a sign-in
+         screen is the bait-and-switch this epic exists to remove.
+
+       The sentence names three of the eight and is written to read as
+       examples rather than as an inventory, so it does not quietly become the
+       same duplicate in prose. Those three are still checked: the same test
+       class maps each named capability to its FEATURE_ slug and fails if one
+       stops being gated, so this page cannot go on advertising something that
+       has moved to free or been removed. -->
+  <h2>ਤਸਦੀਕ ਮੁਫ਼ਤ ਹੈ, ਅਤੇ ਮੁਫ਼ਤ ਹੀ ਰਹੇਗੀ</h2>
+
+  <div class="offer">
+    <p class="offer-body">ਆਪਣੇ ਮੈਂਬਰਾਂ ਦੀ ਤਸਦੀਕ ਲਈ ਲੋੜੀਂਦਾ ਸਭ ਕੁਝ ਮੁਫ਼ਤ ਹੈ, ਹਰ ਸਰਵਰ ਉੱਤੇ, ਬਿਨਾਂ ਕਿਸੇ ਹੱਦ ਅਤੇ ਬਿਨਾਂ ਕਿਸੇ ਸ਼ੁਰੂਆਤੀ ਖ਼ਰਚ ਦੇ। ਪ੍ਰੀਮੀਅਮ ਇਸਦੇ ਆਲੇ-ਦੁਆਲੇ ਦੀ ਆਟੋਮੇਸ਼ਨ ਜੋੜਦਾ ਹੈ — ਗ਼ੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾਵਾਂ ਸਾਫ਼ ਕਰਨ ਤੋਂ ਲੈ ਕੇ ਉਪਨਾਮ ਮੇਲਣ ਅਤੇ VRChat ਗਰੁੱਪ ਸੱਦੇ ਭੇਜਣ ਤੱਕ।</p>
+
+    <!-- THE ONE CARD LEFT ON THIS PAGE, and it is the one that sells.
+         Everything else went flat in #285: the flow's three cards became a
+         rail and the two plan cards went entirely, because a border, a fill
+         and a radius all say "this is a separate object" and were being spent
+         on prose that was not competing with anything.
+
+         Spending that vocabulary once, here, is the point rather than an
+         inconsistency. On a page with no other cards, the only card is the
+         thing being pointed at.
+
+         It holds how you BUY rather than what you get. What you get is one
+         click away on a live page that reads Stripe; how you pay is a fact
+         about the arrangement, it is short, and it is the question somebody
+         standing at this button actually has next. -->
+    <aside class="offer-buy">
+      <h3>ਪ੍ਰੀਮੀਅਮ ਖ਼ਰੀਦਣਾ</h3>
+      <p class="plans-note">ਪ੍ਰਤੀ ਸਰਵਰ, Discord ਰਾਹੀਂ ਮਹੀਨਾਵਾਰ ਜਾਂ ਡੈਸ਼ਬੋਰਡ ਉੱਤੇ ਕਾਰਡ ਨਾਲ। ਤਸਦੀਕ ਆਪ ਕਦੇ ਇਸ ਵਿੱਚ ਸ਼ਾਮਲ ਨਹੀਂ ਹੁੰਦੀ।</p>
+      <a class="cta" href="https://dashboard.vrcverify.com/pricing">ਵੇਖੋ ਪ੍ਰੀਮੀਅਮ ਕੀ ਜੋੜਦਾ ਹੈ</a>
+    </aside>
+  </div>
+
+  <h2>ਇਹ ਕੀ ਨਹੀਂ ਕਰਦਾ</h2>
+
+  <ul>
+    <li>ਇਹ ਪਛਾਣ ਦਸਤਾਵੇਜ਼ ਨਾ ਵੇਖਦਾ ਹੈ, ਨਾ ਸਾਂਭਦਾ ਹੈ, ਨਾ ਭੇਜਦਾ ਹੈ। ਉਮਰ ਦੀ ਤਸਦੀਕ VRChat ਕਰਦਾ ਹੈ; VRCVerify ਨਤੀਜਾ ਪੜ੍ਹਦਾ ਹੈ।</li>
+    <li>ਇਹ ਤੁਹਾਡਾ VRChat ਦਿਖਾਈ ਦੇਣ ਵਾਲਾ ਨਾਂ ਜਾਂ ਪਰੋਫ਼ਾਈਲ ਜਾਣ-ਪਛਾਣ ਨਹੀਂ ਸਾਂਭਦਾ।</li>
+    <li>ਇਹ ਕਾਰਡ ਦੇ ਵੇਰਵੇ ਨਹੀਂ ਸੰਭਾਲਦਾ। ਭੁਗਤਾਨ Stripe ਜਾਂ Discord ਨੂੰ ਜਾਂਦੇ ਹਨ, ਅਤੇ ਦੋਵਾਂ ਵਿੱਚੋਂ ਕੋਈ ਵੀ ਕਾਰਡ ਡਾਟਾ ਸਾਨੂੰ ਨਹੀਂ ਦਿੰਦਾ।</li>
+    <li>ਇਹ ਸਰਵਰ ਪ੍ਰਸ਼ਾਸਕਾਂ ਨੂੰ ਕਿਸੇ ਨੂੰ ਹੱਥੀਂ ਤਸਦੀਕਸ਼ੁਦਾ ਦੱਸਣ ਦਾ ਕੋਈ ਰਾਹ ਨਹੀਂ ਦਿੰਦਾ। ਛੋਟ ਦੇਣ ਦਾ ਪ੍ਰਬੰਧ ਜਾਣ-ਬੁੱਝ ਕੇ ਨਹੀਂ ਰੱਖਿਆ ਗਿਆ।</li>
+  </ul>
+
+  <h2>ਸੰਪਰਕ</h2>
+
+  <p>ਸਵਾਲ, ਡਾਟੇ ਦੀਆਂ ਬੇਨਤੀਆਂ, ਜਾਂ ਬਿਲਿੰਗ ਬਾਰੇ ਕੁਝ ਵੀ: <a href="mailto:contact@esattotech.com">contact@esattotech.com</a>।</p>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav>
+      <a href="/pa-IN/changelog">ਨਵਾਂ ਕੀ ਹੈ</a>
+      <a href="https://status.vrcverify.com/">ਸਥਿਤੀ</a>
+      <a href="/pa-IN/terms">ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ</a>
+      <a href="/pa-IN/privacy">ਪਰਦੇਦਾਰੀ ਨੀਤੀ</a>
+      <a href="/pa-IN/refunds">ਰਕਮ ਵਾਪਸੀ ਨੀਤੀ</a>
+      <a href="mailto:contact@esattotech.com">ਸੰਪਰਕ</a>
+    </nav>
+    <p>VRCVerify ਨੂੰ Esatto Technologies, ਸੰਯੁਕਤ ਰਾਜ ਅਮਰੀਕਾ ਚਲਾਉਂਦੀ ਹੈ।<br> VRChat Inc. ਜਾਂ Discord Inc. ਨਾਲ ਸੰਬੰਧਿਤ ਨਹੀਂ, ਨਾ ਹੀ ਉਹਨਾਂ ਵੱਲੋਂ ਪ੍ਰਵਾਨਿਤ ਜਾਂ ਸਪਾਂਸਰ ਕੀਤਾ ਗਿਆ।</p>
+  </div>
+</footer>
+
+</body>
+</html>
