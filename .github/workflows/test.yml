@@ -51,7 +51,7 @@ jobs:
       # to "3.x" either, because this suite imports bot.py, which imports
       # discord.py and SQLAlchemy, and a major that those have not caught up
       # with would fail as a mystery rather than as an upgrade.
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           cache: pip
@@ -118,7 +118,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           cache: pip
