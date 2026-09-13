@@ -141,9 +141,9 @@
      response, so there is nothing to leak, and there is nothing on this page
      to lose your place in. #}
   <p class="signin-legal">
-    <a href="https://vrcverify.com/terms">{% trans %}Terms{% endtrans %}</a>
-    <a href="https://vrcverify.com/privacy">{% trans %}Privacy{% endtrans %}</a>
-    <a href="https://vrcverify.com/refunds">{% trans %}Refunds{% endtrans %}</a>
+    <a href="{{ apex_url('/terms') }}">{% trans %}Terms{% endtrans %}</a>
+    <a href="{{ apex_url('/privacy') }}">{% trans %}Privacy{% endtrans %}</a>
+    <a href="{{ apex_url('/refunds') }}">{% trans %}Refunds{% endtrans %}</a>
   </p>
 </section>
 {% endblock %}

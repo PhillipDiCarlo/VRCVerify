@@ -130,6 +130,12 @@ VRCHAT_FILE_ID_RE = re.compile(
     r"^file_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I
 )
 
+# The public site. A constant rather than a setting, because it is where THIS
+# product's Terms live and a deployment cannot point them somewhere else: the
+# bot's WEBSITE_URL is configurable precisely because a self-hoster may have
+# their own site, and this is the opposite case. See apex_url().
+APEX_ORIGIN = "https://vrcverify.com"
+
 # 128 for a 64px slot: the retina size, and the largest that is still served as
 # a real image -- above 512 VRChat falls back to the raw upload as
 # application/octet-stream. Measured 2026-08-19.
@@ -876,6 +882,39 @@ def _register_assets(app: Flask) -> None:
     def current_language() -> str:
         """Which language is in force, as a code. Always one of the twelve."""
         return _lang()
+
+    @app.template_global()
+    def apex_url(slug: str = "") -> str:
+        """A page on the apex site, in the language this page is in (#313).
+
+        `apex_url("/terms")` -> "https://vrcverify.com/ja/terms".
+
+        WHY A HELPER RATHER THAN `/{{ current_language() }}/terms`, which is
+        what this looks like it should be and which would 404 for most readers.
+        English is `en-US` here and `en` on the apex, where it is served
+        unprefixed and there is no `site/en-US/` directory to reach. The other
+        eleven codes are identical across the two, so English is the only case
+        that differs, which is exactly the one a fourth template would get
+        wrong. There is one place to get it wrong now and it is this function.
+
+        THE REST OF THE SHAPE IS NOT OURS TO CHOOSE either. It has to match
+        `picker()` in scripts/gen_site_locales.py exactly: the code keeps its
+        own case, and the index keeps a trailing slash the other pages do not
+        have. The apex is an assets-only Cloudflare Worker with no code on its
+        request path, deliberately -- it is a separate failure domain, so the
+        legal pages resolve when this app does not. Nothing over there forgives
+        a lowercase `pt-br`, so an address that is close is a 404 and not a
+        redirect. `TestTheDashboardLinksAtPagesTheApexHas` walks every address
+        this can produce against the files on disk.
+
+        NOT ESCAPED AND NOT VALIDATED, because `current_language()` has already
+        reduced every input to one of twelve constants -- the same invariant
+        `lang_attrs()` relies on two functions above. `test_no_request_can_
+        steer_this_helper` asserts it rather than leaving it assumed.
+        """
+        code = current_language()
+        prefix = "" if code == i18n.DEFAULT_LANGUAGE else f"/{code}"
+        return f"{APEX_ORIGIN}{prefix}{slug or '/'}"
 
     @app.template_global()
     def language_choices() -> list:

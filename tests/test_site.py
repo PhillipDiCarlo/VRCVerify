@@ -2159,6 +2159,39 @@ class TestTheApexSpeaksTheOtherSurfacesLanguages:
         worker = [c for c in re.findall(r'"([a-zA-Z-]+)"', block) if c != "en"]
         assert sorted(gen_site_locales.LOCALES) == sorted(worker)
 
+    def test_the_dashboard_links_at_pages_the_apex_has(self):
+        """Same guard as the status page's, for the third surface (#313).
+
+        The dashboard reaches the apex through one `apex_url()` helper, so the
+        shape is tested where that helper runs, in test_dashboard.py. What can
+        only be checked from here is the other half: that the pages it names
+        exist, in every language it can render in.
+
+        English is the interesting row. The dashboard calls it `en-US` and the
+        apex serves it unprefixed with no `site/en-US/` directory, so the
+        mapping below is not cosmetic -- it is the case that would 404 for the
+        majority of readers if the helper ever stopped special-casing it.
+        """
+        from dashboard import i18n
+
+        slugs = set()
+        for template in (ROOT / "src" / "dashboard" / "templates").glob("*.html"):
+            slugs |= set(re.findall(r"apex_url\('([^']*)'\)", template.read_text(encoding="utf-8")))
+        assert slugs == {"/terms", "/privacy", "/refunds", "/changelog"}, slugs
+
+        for code in i18n.UI_LANGUAGES:
+            base = SITE if code == i18n.DEFAULT_LANGUAGE else SITE / code
+            assert base.is_dir(), f"the apex has no directory for {code}"
+            for slug in slugs:
+                name = slug.lstrip("/") + ".html"
+                assert (base / name).exists(), f"{code} has no {name}"
+
+    def test_the_dashboard_and_the_apex_agree_on_where_the_site_is(self):
+        """One hostname, not two that happen to match today."""
+        from dashboard import app as dashboard_app
+
+        assert dashboard_app.APEX_ORIGIN == gen_site_locales.ORIGIN
+
     def test_the_status_page_links_at_pages_the_apex_has(self):
         """The status footer's addresses are checked against the files (#311).
 
