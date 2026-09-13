@@ -1,7 +1,7 @@
 discord.py==2.7.1
 python-dotenv==1.2.3
 SQLAlchemy==2.0.52
-psycopg2-binary==2.9.12
+psycopg2-binary==2.9.13
 pika==1.4.4
 # Pinned explicitly even though discord.py already pulls it in: since issue #65
 # this also serves the internal API's TLS listener, and a security-relevant
