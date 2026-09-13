@@ -523,7 +523,8 @@ class TestInstructionsFollowup:
     def test_panel_goes_out_with_the_website_button(self, clean_servers, monkeypatch):
         panel, _ = self._run(monkeypatch)
         assert len(panel) == 1
-        assert panel[0].view.children[-1].url == "https://vrcverify.com"
+        # The trailing slash is the apex index; see website_url (#314).
+        assert panel[0].view.children[-1].url == "https://vrcverify.com/"
 
     def test_panel_location_is_saved(self, clean_servers, monkeypatch):
         self._run(monkeypatch)

@@ -83,7 +83,11 @@ from babel.dates import (
 )
 from babel.numbers import format_decimal as _babel_format_decimal
 
-from i18n_core import Catalogs as _Catalogs, N_ as _N_
+from i18n_core import (
+    Catalogs as _Catalogs,
+    DEFAULT_LANGUAGE as _DEFAULT_LANGUAGE,
+    N_ as _N_,
+)
 
 # The languages this dashboard has catalogs for.
 #
@@ -103,7 +107,12 @@ UI_LANGUAGES = (
 
 # The source language. Its "catalog" is the msgids themselves, so there is no
 # en-US directory under translations/ and there should never be one.
-DEFAULT_LANGUAGE = "en-US"
+#
+# Re-exported rather than defined, since #314: the bot needs the same answer to
+# build the same URLs, and two spellings of "which language needs no prefix"
+# is the drift `i18n_core` exists to prevent. The name stays here because
+# everything in this package reads it from here and always has.
+DEFAULT_LANGUAGE = _DEFAULT_LANGUAGE
 
 # Names in the language they name, not in English.
 #

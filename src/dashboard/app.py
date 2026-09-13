@@ -89,7 +89,8 @@ from dashboard.config import DashboardConfig
 from dashboard.sessions import SessionStore
 from dashboard.stripe_api import StripeAPIError, StripeClient
 
-# Flat import: shipped alongside dashboard/ in the image, like api_tokens.
+# Flat imports: shipped alongside dashboard/ in the image, like api_tokens.
+from i18n_core import localized_path
 from log_safety import install_log_scrubbing
 
 logger = logging.getLogger(__name__)
@@ -912,9 +913,7 @@ def _register_assets(app: Flask) -> None:
         `lang_attrs()` relies on two functions above. `test_no_request_can_
         steer_this_helper` asserts it rather than leaving it assumed.
         """
-        code = current_language()
-        prefix = "" if code == i18n.DEFAULT_LANGUAGE else f"/{code}"
-        return f"{APEX_ORIGIN}{prefix}{slug or '/'}"
+        return f"{APEX_ORIGIN}{localized_path(current_language(), slug)}"
 
     @app.template_global()
     def language_choices() -> list:

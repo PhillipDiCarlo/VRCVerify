@@ -68,6 +68,54 @@ class TestTheLanguageListMatchesTheBot:
         assert not os.path.isdir(os.path.join(i18n.LOCALE_DIR, "en_US"))
 
 
+class TestTheSharedPathRule:
+    """`i18n_core.localized_path`, which three surfaces now depend on (#314).
+
+    The status Worker has its own copy in JavaScript and cannot import this
+    one. The dashboard and the bot can and do, which is the whole reason it
+    moved here: the rule is correct for eleven languages out of twelve by
+    accident, and wrong for the twelfth in a way that 404s for most readers.
+    """
+
+    def test_a_translated_language_is_served_under_its_own_code(self):
+        from i18n_core import localized_path
+
+        assert localized_path("ja", "/terms") == "/ja/terms"
+        assert localized_path("de", "/privacy") == "/de/privacy"
+
+    def test_the_code_keeps_its_case(self):
+        """`/pt-br/terms` is a 404 and not a redirect: the apex is an
+        assets-only Worker with no code on its request path."""
+        from i18n_core import localized_path
+
+        assert localized_path("pt-BR", "/terms") == "/pt-BR/terms"
+        assert localized_path("zh-CN", "/refunds") == "/zh-CN/refunds"
+
+    def test_english_is_unprefixed_because_that_is_where_it_lives(self):
+        """The trap. English is `en-US` on both Python sides and the apex
+        serves it at the root, with no `site/en-US/` directory."""
+        from i18n_core import localized_path
+
+        assert localized_path("en-US", "/terms") == "/terms"
+        assert localized_path("en-US") == "/"
+
+    def test_an_index_keeps_the_trailing_slash_a_page_does_not_have(self):
+        from i18n_core import localized_path
+
+        assert localized_path("ja") == "/ja/"
+        assert localized_path("ja", "") == "/ja/"
+
+    def test_all_three_spellings_of_english_are_the_same_spelling(self):
+        """This is the drift the module exists to prevent. If the bot, the
+        dashboard and this rule ever disagree about which language needs no
+        prefix, one of them starts building addresses that do not exist."""
+        from i18n_core import DEFAULT_LANGUAGE
+        from locales import LANGUAGE_CODES
+
+        assert DEFAULT_LANGUAGE == i18n.DEFAULT_LANGUAGE
+        assert DEFAULT_LANGUAGE == LANGUAGE_CODES[0]
+
+
 class TestEveryCatalogIsCompiledAndLoadable:
     """A .po that was never compiled is a translation that silently does not
     ship: gettext has no way to say "there is a newer translation you did not
