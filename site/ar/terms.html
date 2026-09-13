@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>شروط الخدمة — VRCVerify</title>
+<link rel="canonical" href="https://vrcverify.com/ar/terms">
+<link rel="alternate" hreflang="en" href="https://vrcverify.com/terms">
+<link rel="alternate" hreflang="es-ES" href="https://vrcverify.com/es-ES/terms">
+<link rel="alternate" hreflang="zh-CN" href="https://vrcverify.com/zh-CN/terms">
+<link rel="alternate" hreflang="ja" href="https://vrcverify.com/ja/terms">
+<link rel="alternate" hreflang="de" href="https://vrcverify.com/de/terms">
+<link rel="alternate" hreflang="nl" href="https://vrcverify.com/nl/terms">
+<link rel="alternate" hreflang="hi-IN" href="https://vrcverify.com/hi-IN/terms">
+<link rel="alternate" hreflang="ar" href="https://vrcverify.com/ar/terms">
+<link rel="alternate" hreflang="bn" href="https://vrcverify.com/bn/terms">
+<link rel="alternate" hreflang="pt-BR" href="https://vrcverify.com/pt-BR/terms">
+<link rel="alternate" hreflang="ru" href="https://vrcverify.com/ru/terms">
+<link rel="alternate" hreflang="pa-IN" href="https://vrcverify.com/pa-IN/terms">
+<link rel="alternate" hreflang="x-default" href="https://vrcverify.com/terms">
+<link rel="stylesheet" href="/style.css">
+<!-- Blocking, and in <head>, so a stored Light choice paints light on the
+     first frame rather than flashing dark and correcting itself. Same
+     origin, ~30 lines, and nothing on this page needs it to work. -->
+<script src="/theme.js"></script>
+<script src="/status.js" defer></script>
+</head>
+<!-- `policy` turns on the long-form reading treatment in style.css:
+     a shorter measure, looser leading, and ruled section headings. Terms,
+     Privacy and Refunds carry it; 404 and the landing page do not. -->
+<body class="policy">
+
+<header class="site">
+  <div class="wrap">
+    <!-- THE MARK. The same logo.svg the dashboard serves, byte for byte, and
+         the same monochrome-plus-filter arrangement: black artwork, inverted
+         for dark. Three copies of the file, for the reason the fonts and
+         theme.js have three -- each surface has to keep working when the
+         others are down, so none of them may fetch the mark from another.
+         test_the_logo_is_the_same_file_everywhere fails if they drift.
+
+         `width`/`height` are the viewBox's dimensions, not the rendered ones:
+         they give the browser the ratio so the wordmark does not jump sideways
+         when the image lands. The stylesheet sets the height it is drawn at.
+
+         alt="" because the word beside it says the same thing, and a screen
+         reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
+         that just says where it goes. -->
+    <a class="brand" href="/ar/"><img class="brand-mark" src="/logo.svg" alt=""
+         width="805" height="615"><span>VRCVerify</span></a>
+    <nav>
+      <!-- Pricing leads, and it is an absolute URL to the dashboard on
+           purpose (#188): prices come from Stripe on the render that shows
+           them, and this site is an assets-only Worker with no code on the
+           request path. A price typed here would keep quoting the old number
+           after a price change, on the same domain the Terms live on. -->
+      <a href="https://dashboard.vrcverify.com/pricing">الأسعار</a>
+      <!-- Terms, Privacy and Refunds were here and are not any more (#200).
+           Every page still carries all three in its footer, which is where a
+           reader goes looking for a policy, and the 404 page lists them in its
+           body. Nothing became unreachable; they stopped taking the most
+           valuable row on the page to say something a visitor deciding whether
+           to install the bot is not asking.
+
+           The changelog takes one of the freed slots and moves up out of the
+           footer. #137 phase 5 put it there because the header "already
+           carries three legal links and the dashboard" and there was no room;
+           that sentence is what just stopped being true. -->
+      <a href="/ar/changelog">ما الجديد</a>
+      <a href="https://dashboard.vrcverify.com">لوحة التحكم</a>
+    </nav>
+    <!-- THE STATUS DOT (#170). Deliberately not a fourth nav link: #200 held
+         the nav to three items so it holds one line at 320px, and a fourth
+         entry wraps it to three lines and grows the header by 44px there.
+         This sits with the theme picker instead, in the control cluster,
+         where the row it takes was never the nav's.
+
+         Ships as a working link with a neutral dot, and stays exactly that
+         with JavaScript off. /status.js colors the dot from the real
+         verdict and never paints green from a reading it did not get. -->
+    <a class="status-pill" href="https://status.vrcverify.com/" data-state="unknown"><!-- SHAPE AS WELL AS COLOR, which is the status page's rule and matters
+           most here: --ok and --down have relative luminance 0.331 and 0.341,
+           so as two plain dots the "working" and "down" states are the same
+           dot to a red-green colorblind reader. These are that page's own
+           glyphs, so the mark here and the mark one click away agree. --> <svg class="status-glyph" viewBox="0 0 20 20" width="14" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <!-- A dot claims nothing, which is the right mark before a reading
+             arrives and the only one shipped without a script to change it. -->
+        <circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"></circle>
+      </svg> <span class="status-label">الحالة</span> <!-- Written by /status.js once a verdict is in, so the state is spoken
+           and not only colored. Empty until then, because "unknown" is what
+           the dot already says to somebody who can see it. --> <span class="status-said visually-hidden"></span></a>
+    <!-- The theme control is built by /theme.js into this placeholder (#195
+         phase 7). It is JavaScript-only either way -- there is no server here
+         to post a preference to -- so markup describing it would describe
+         something that may never exist. Ships hidden; the script reveals it. -->
+    <details class="langpick"><summary class="lang-button" title="اللغة: العربية" aria-label="اللغة: العربية. اختر لغة أخرى."><svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4"/><path d="M8 1.8a9.2 9.2 0 0 1 0 12.4a9.2 9.2 0 0 1 0-12.4z"/></svg></summary><div class="lang-panel"><p class="menu-label" id="lang-menu-label">Language</p><ul aria-labelledby="lang-menu-label"><li><a href="/terms" lang="en" class="menu-item"><span class="menu-item-label">English</span></a></li><li><a href="/es-ES/terms" lang="es-ES" class="menu-item"><span class="menu-item-label">Español</span></a></li><li><a href="/zh-CN/terms" lang="zh-CN" class="menu-item"><span class="menu-item-label">简体中文</span></a></li><li><a href="/ja/terms" lang="ja" class="menu-item"><span class="menu-item-label">日本語</span></a></li><li><a href="/de/terms" lang="de" class="menu-item"><span class="menu-item-label">Deutsch</span></a></li><li><a href="/nl/terms" lang="nl" class="menu-item"><span class="menu-item-label">Nederlands</span></a></li><li><a href="/hi-IN/terms" lang="hi-IN" class="menu-item"><span class="menu-item-label">हिन्दी</span></a></li><li><a href="/ar/terms" lang="ar" class="menu-item current" aria-current="true"><span class="menu-item-label">العربية</span><svg class="menu-tick" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg></a></li><li><a href="/bn/terms" lang="bn" class="menu-item"><span class="menu-item-label">বাংলা</span></a></li><li><a href="/pt-BR/terms" lang="pt-BR" class="menu-item"><span class="menu-item-label">Português (Brasil)</span></a></li><li><a href="/ru/terms" lang="ru" class="menu-item"><span class="menu-item-label">Русский</span></a></li><li><a href="/pa-IN/terms" lang="pa-IN" class="menu-item"><span class="menu-item-label">ਪੰਜਾਬੀ</span></a></li></ul></div></details>
+    <div class="theme-picker" hidden></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<h1>شروط الخدمة</h1>
+<p class="updated">آخر تحديث في 18 أغسطس 2026</p>
+
+<p class="lede">تشمل هذه الشروط بوت VRCVerify على Discord، ولوحة التحكم على dashboard.vrcverify.com، وهذا الموقع. واستخدام أي منها يعني قبولها. وتُشغّل الخدمة شركة Esatto Technologies، الولايات المتحدة.</p>
+
+<nav class="toc" aria-label="في هذه الصفحة">
+  <p class="toc-label">في هذه الصفحة</p>
+  <ol class="toc-list">
+    <li><a href="#what-the-service-does">1. ما تقوم به الخدمة</a></li>
+    <li><a href="#who-may-use-it">2. من يحقّ له الاستخدام</a></li>
+    <li><a href="#acceptable-use">3. الاستخدام المقبول</a></li>
+    <li><a href="#free-and-paid-features">4. الميزات المجانية والمدفوعة</a></li>
+    <li><a href="#buying-billing-and-renewal">5. الشراء والفوترة والتجديد</a></li>
+    <li><a href="#availability">6. التوفّر</a></li>
+    <li><a href="#termination">7. الإنهاء</a></li>
+    <li><a href="#disclaimers-and-liability">8. إخلاء المسؤولية والمسؤولية</a></li>
+    <li><a href="#not-affiliated">9. عدم الانتساب</a></li>
+    <li><a href="#changes-to-these-terms">10. تعديل هذه الشروط</a></li>
+    <li><a href="#governing-law">11. القانون الواجب التطبيق</a></li>
+    <li><a href="#contact">12. التواصل</a></li>
+  </ol>
+</nav>
+
+<h2 id="what-the-service-does">1. ما تقوم به الخدمة<a class="anchor" href="#what-the-service-does" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>يتحقّق VRCVerify مما إذا كان حساب VRChat الخاص بعضو قد تحقّق VRChat من عمره، ويمنح دور Discord بناءً على ذلك. كما يوفّر أتمتة ذات صلة يمكن لمسؤول الخادم ضبطها.</p>
+
+<p><strong>لا نُجري التحقّق من العمر بأنفسنا.</strong> بل يُجريه VRChat. ويقرأ VRCVerify النتيجة التي يبلّغ عنها VRChat ويتصرف بناءً عليها. نحن لا نتعامل مع وثائق الهوية، ولا يمكننا أن نضمن دقة ما قرره VRChat، ولا صدق من أجرى التحقّق، ولا أن حساب VRChat يعود لمن يستخدم حساب Discord، فيما يتجاوز فحص الرمز الموضّح في سياسة الخصوصية.</p>
+
+<div class="note">
+  <p><strong>يظل مشغّل الخادم مسؤولًا عن مجتمعه.</strong> VRCVerify إشارة واحدة وليس ضمانًا، وهو لا يغني عن الإشراف. لا تعتمد عليه وحده حيث تكون عواقب الخطأ جسيمة.</p>
+</div>
+
+<h2 id="who-may-use-it">2. من يحقّ له الاستخدام<a class="anchor" href="#who-may-use-it" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<ul>
+  <li>عليك الالتزام بـ<a href="https://discord.com/terms">شروط خدمة Discord</a> واستيفاء الحد الأدنى لعمر Discord في بلدك.</li>
+  <li>عليك الالتزام بشروط VRChat فيما يخص حسابك في VRChat.</li>
+  <li>من يضيف البوت إلى خادم، أو يشتري اشتراكًا لخادم، يجب أن يكون مخوّلًا بالتصرف نيابة عن ذلك الخادم.</li>
+</ul>
+
+<h2 id="acceptable-use">3. الاستخدام المقبول<a class="anchor" href="#acceptable-use" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>لا تستخدم VRCVerify للتحرّش بأحد أو كشف هويته أو تعريضه للخطر؛ ولا تحاول التحقّق من حساب لا تملك التحكم فيه؛ ولا تحاول الالتفاف على عملية التحقّق أو إثقالها أو عكسها؛ ولا تُعِد بيع الوصول إليها.</p>
+
+<p>قد نعلّق عمل البوت في خادم أو نزيله منه، أو نرفض تقديم الخدمة لحساب ما، عند مخالفة هذه الشروط أو عند استخدام الخدمة بطريقة تعرّض للخطر حساب VRChat المشترك الذي تعتمد عليه.</p>
+
+<h2 id="free-and-paid-features">4. الميزات المجانية والمدفوعة<a class="anchor" href="#free-and-paid-features" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>التحقّق نفسه مجاني، وننوي أن يظل كذلك. أما الاشتراك لكل خادم، واسمه الخدمة المميزة، فيفتح أتمتة إضافية. وما تتضمنه كل فئة مذكور في لوحة التحكم وقد يتغيّر؛ وإن أُزيلت ميزة مدفوعة خلال فترة مدفوعة فسنعلن ذلك مسبقًا.</p>
+
+<p>الخدمة المميزة <strong>لكل خادم</strong>، لا لكل شخص. وهي تسري على خادم Discord الذي اشتُريت له ولا يمكن نقلها بين الخوادم.</p>
+
+<h2 id="buying-billing-and-renewal">5. الشراء والفوترة والتجديد<a class="anchor" href="#buying-billing-and-renewal" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>يمكن شراء الخدمة المميزة بطريقتين، والطريقة التي تستخدمها تغيّر الجهة التي تتعاقد معها على الدفع.</p>
+
+<div class="scroll">
+<table>
+  <tr><th>جهة الشراء</th><th>جهة معالجة الدفع</th><th>جهة الإلغاء</th></tr>
+  <tr><td>Discord (شهريًا)</td><td>Discord</td><td>إعدادات المستخدم في Discord ← الاشتراكات</td></tr>
+  <tr><td>بطاقة على dashboard.vrcverify.com (شهريًا، 6 أشهر، 12 شهرًا)</td><td>Stripe</td><td>بوابة الفوترة، المرتبطة من لوحة التحكم</td></tr>
+</table>
+</div>
+
+<ul>
+  <li>تُجدَّد الاشتراكات <strong>تلقائيًا</strong> في نهاية كل فترة إلى أن تُلغى.</li>
+  <li>تُعرض الأسعار غير شاملة للضريبة. وتُحسب الضريبة عند الدفع بناءً على موقع الفوترة الخاص بك.</li>
+  <li>الإلغاء يوقف التجديد التالي. وتستمر الخدمة المميزة حتى نهاية الفترة المدفوعة بالفعل.</li>
+  <li>حيثما تُعرض فترة تجريبية مجانية، يُذكر ذلك في الخطة قبل الشراء. وإن ألغيت قبل انتهائها فلن يُخصم منك شيء.</li>
+  <li>قد نغيّر الأسعار. ولا يؤثر أي تغيير على فترة مدفوعة بالفعل، وسنُشعِرك قبل أن يسري على تجديد.</li>
+  <li><strong>تخضع المشتريات التي تتم عبر Discord لشروط Discord وقواعد الاسترداد الخاصة به</strong>، وهي أمور لا نتحكم فيها ولا يمكننا تجاوزها.</li>
+</ul>
+
+<p>يحكم الاسترداد <a href="/ar/refunds">سياسة الاسترداد</a>، وهي جزء من هذه الشروط.</p>
+
+<h2 id="availability">6. التوفّر<a class="anchor" href="#availability" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>تُقدَّم الخدمة كما هي، دون أي مستوى مضمون من التوفّر. فهي تعتمد على Discord وVRChat، وعلى حساب VRChat مشترك واحد؛ وأيٌّ من هذه قد يتعطّل أو يحدّ من طلباتنا أو يتغيّر دون إشعار. ولا نَعِد بأن التحقّق سيكون متاحًا في أي لحظة بعينها.</p>
+
+<h2 id="termination">7. الإنهاء<a class="anchor" href="#termination" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>يمكنك التوقف عن استخدام VRCVerify في أي وقت بإزالة البوت من خادمك. وهذا لا يلغي الاشتراك تلقائيًا — ألغِه عبر القناة التي اشتريته منها، كما هو موضّح أعلاه.</p>
+
+<p>قد نعلّق الخدمة أو ننهيها، كليًا أو بالنسبة لخادم بعينه، عند مخالفة هذه الشروط، أو عند اقتضاء القانون، أو إذا أوقفنا الخدمة. وإن أوقفناها بينما لديك فترة مدفوعة، فسنردّ الجزء غير المستخدَم من تلك الفترة.</p>
+
+<h2 id="disclaimers-and-liability">8. إخلاء المسؤولية والمسؤولية<a class="anchor" href="#disclaimers-and-liability" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>إلى أقصى حد يسمح به القانون، يُقدَّم VRCVerify دون أي ضمانات من أي نوع، صريحة كانت أم ضمنية، بما في ذلك الملاءمة لغرض معيّن. ولسنا مسؤولين عن الخسائر غير المباشرة أو التبعية، ولا عن فقدان البيانات، ولا عن أي شيء ينشأ عن تصرفات أعضاء خادمك.</p>
+
+<p><strong>تقتصر مسؤوليتنا الإجمالية تجاهك على المبلغ الذي دفعته لنا خلال الاثني عشر شهرًا السابقة للمطالبة.</strong> وإن لم تكن قد دفعت لنا شيئًا، فمسؤوليتنا محدودة إلى أقصى حد يسمح به القانون.</p>
+
+<p>لا شيء هنا يستبعد مسؤولية لا يجوز قانونًا استبعادها، وإن كنت مستهلكًا فلا شيء في هذه الشروط يمسّ حقوقك القانونية.</p>
+
+<h2 id="not-affiliated">9. عدم الانتساب<a class="anchor" href="#not-affiliated" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>VRCVerify مشروع مستقل. وهو غير تابع لشركة VRChat Inc. أو Discord Inc.، ولا معتمد أو مدعوم منهما. وVRChat وDiscord علامتان تجاريتان لمالكيهما.</p>
+
+<h2 id="changes-to-these-terms">10. تعديل هذه الشروط<a class="anchor" href="#changes-to-these-terms" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>قد نحدّث هذه الشروط. وسيتغيّر التاريخ في الأعلى، وستُعلن التغييرات الجوهرية في قناة الدعم. والاستمرار في استخدام VRCVerify بعد تغيير يعني قبوله. وإن لم تقبل تغييرًا، فأزِل البوت وألغِ أي اشتراك.</p>
+
+<h2 id="governing-law">11. القانون الواجب التطبيق<a class="anchor" href="#governing-law" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>تخضع هذه الشروط لقوانين ولاية نيوجيرسي بالولايات المتحدة، ولمحاكمها الاختصاص. وإن كنت مستهلكًا مقيمًا في المملكة المتحدة أو المنطقة الاقتصادية الأوروبية، فإن ذلك لا يحرمك من حماية قوانين حماية المستهلك الآمرة في بلد إقامتك، ولا من حق رفع الدعوى هناك.</p>
+
+<p>تُنشر هذه الصفحة بعدة لغات تيسيرًا. وإذا اختلفت ترجمة عن النسخة الإنجليزية، <strong>فالنسخة الإنجليزية هي المعتمَدة</strong>.</p>
+
+<h2 id="contact">12. التواصل<a class="anchor" href="#contact" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p><a href="mailto:contact@esattotech.com">contact@esattotech.com</a></p>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav>
+      <a href="/ar/changelog">ما الجديد</a>
+      <a href="https://status.vrcverify.com/">الحالة</a>
+      <a href="/ar/terms">شروط الخدمة</a>
+      <a href="/ar/privacy">سياسة الخصوصية</a>
+      <a href="/ar/refunds">سياسة الاسترداد</a>
+      <a href="mailto:contact@esattotech.com">اتصل بنا</a>
+    </nav>
+    <p>يُشغّل VRCVerify شركة Esatto Technologies، الولايات المتحدة.<br> غير تابع لشركة VRChat Inc. أو Discord Inc.، ولا معتمد أو مدعوم منهما.</p>
+  </div>
+</footer>
+
+</body>
+</html>

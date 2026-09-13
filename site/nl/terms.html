@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="nl" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Servicevoorwaarden — VRCVerify</title>
+<link rel="canonical" href="https://vrcverify.com/nl/terms">
+<link rel="alternate" hreflang="en" href="https://vrcverify.com/terms">
+<link rel="alternate" hreflang="es-ES" href="https://vrcverify.com/es-ES/terms">
+<link rel="alternate" hreflang="zh-CN" href="https://vrcverify.com/zh-CN/terms">
+<link rel="alternate" hreflang="ja" href="https://vrcverify.com/ja/terms">
+<link rel="alternate" hreflang="de" href="https://vrcverify.com/de/terms">
+<link rel="alternate" hreflang="nl" href="https://vrcverify.com/nl/terms">
+<link rel="alternate" hreflang="hi-IN" href="https://vrcverify.com/hi-IN/terms">
+<link rel="alternate" hreflang="ar" href="https://vrcverify.com/ar/terms">
+<link rel="alternate" hreflang="bn" href="https://vrcverify.com/bn/terms">
+<link rel="alternate" hreflang="pt-BR" href="https://vrcverify.com/pt-BR/terms">
+<link rel="alternate" hreflang="ru" href="https://vrcverify.com/ru/terms">
+<link rel="alternate" hreflang="pa-IN" href="https://vrcverify.com/pa-IN/terms">
+<link rel="alternate" hreflang="x-default" href="https://vrcverify.com/terms">
+<link rel="stylesheet" href="/style.css">
+<!-- Blocking, and in <head>, so a stored Light choice paints light on the
+     first frame rather than flashing dark and correcting itself. Same
+     origin, ~30 lines, and nothing on this page needs it to work. -->
+<script src="/theme.js"></script>
+<script src="/status.js" defer></script>
+</head>
+<!-- `policy` turns on the long-form reading treatment in style.css:
+     a shorter measure, looser leading, and ruled section headings. Terms,
+     Privacy and Refunds carry it; 404 and the landing page do not. -->
+<body class="policy">
+
+<header class="site">
+  <div class="wrap">
+    <!-- THE MARK. The same logo.svg the dashboard serves, byte for byte, and
+         the same monochrome-plus-filter arrangement: black artwork, inverted
+         for dark. Three copies of the file, for the reason the fonts and
+         theme.js have three -- each surface has to keep working when the
+         others are down, so none of them may fetch the mark from another.
+         test_the_logo_is_the_same_file_everywhere fails if they drift.
+
+         `width`/`height` are the viewBox's dimensions, not the rendered ones:
+         they give the browser the ratio so the wordmark does not jump sideways
+         when the image lands. The stylesheet sets the height it is drawn at.
+
+         alt="" because the word beside it says the same thing, and a screen
+         reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
+         that just says where it goes. -->
+    <a class="brand" href="/nl/"><img class="brand-mark" src="/logo.svg" alt=""
+         width="805" height="615"><span>VRCVerify</span></a>
+    <nav>
+      <!-- Pricing leads, and it is an absolute URL to the dashboard on
+           purpose (#188): prices come from Stripe on the render that shows
+           them, and this site is an assets-only Worker with no code on the
+           request path. A price typed here would keep quoting the old number
+           after a price change, on the same domain the Terms live on. -->
+      <a href="https://dashboard.vrcverify.com/pricing">Prijzen</a>
+      <!-- Terms, Privacy and Refunds were here and are not any more (#200).
+           Every page still carries all three in its footer, which is where a
+           reader goes looking for a policy, and the 404 page lists them in its
+           body. Nothing became unreachable; they stopped taking the most
+           valuable row on the page to say something a visitor deciding whether
+           to install the bot is not asking.
+
+           The changelog takes one of the freed slots and moves up out of the
+           footer. #137 phase 5 put it there because the header "already
+           carries three legal links and the dashboard" and there was no room;
+           that sentence is what just stopped being true. -->
+      <a href="/nl/changelog">Nieuw</a>
+      <a href="https://dashboard.vrcverify.com">Dashboard</a>
+    </nav>
+    <!-- THE STATUS DOT (#170). Deliberately not a fourth nav link: #200 held
+         the nav to three items so it holds one line at 320px, and a fourth
+         entry wraps it to three lines and grows the header by 44px there.
+         This sits with the theme picker instead, in the control cluster,
+         where the row it takes was never the nav's.
+
+         Ships as a working link with a neutral dot, and stays exactly that
+         with JavaScript off. /status.js colors the dot from the real
+         verdict and never paints green from a reading it did not get. -->
+    <a class="status-pill" href="https://status.vrcverify.com/" data-state="unknown">
+      <!-- SHAPE AS WELL AS COLOR, which is the status page's rule and matters
+           most here: --ok and --down have relative luminance 0.331 and 0.341,
+           so as two plain dots the "working" and "down" states are the same
+           dot to a red-green colorblind reader. These are that page's own
+           glyphs, so the mark here and the mark one click away agree. -->
+      <svg class="status-glyph" viewBox="0 0 20 20" width="14" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <!-- A dot claims nothing, which is the right mark before a reading
+             arrives and the only one shipped without a script to change it. -->
+        <circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"></circle>
+      </svg>
+      <span class="status-label">Status</span>
+      <!-- Written by /status.js once a verdict is in, so the state is spoken
+           and not only colored. Empty until then, because "unknown" is what
+           the dot already says to somebody who can see it. -->
+      <span class="status-said visually-hidden"></span>
+    </a>
+    <!-- The theme control is built by /theme.js into this placeholder (#195
+         phase 7). It is JavaScript-only either way -- there is no server here
+         to post a preference to -- so markup describing it would describe
+         something that may never exist. Ships hidden; the script reveals it. -->
+    <details class="langpick"><summary class="lang-button" title="Taal: Nederlands" aria-label="Taal: Nederlands. Kies een andere."><svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4"/><path d="M8 1.8a9.2 9.2 0 0 1 0 12.4a9.2 9.2 0 0 1 0-12.4z"/></svg></summary><div class="lang-panel"><p class="menu-label" id="lang-menu-label">Language</p><ul aria-labelledby="lang-menu-label"><li><a href="/terms" lang="en" class="menu-item"><span class="menu-item-label">English</span></a></li><li><a href="/es-ES/terms" lang="es-ES" class="menu-item"><span class="menu-item-label">Español</span></a></li><li><a href="/zh-CN/terms" lang="zh-CN" class="menu-item"><span class="menu-item-label">简体中文</span></a></li><li><a href="/ja/terms" lang="ja" class="menu-item"><span class="menu-item-label">日本語</span></a></li><li><a href="/de/terms" lang="de" class="menu-item"><span class="menu-item-label">Deutsch</span></a></li><li><a href="/nl/terms" lang="nl" class="menu-item current" aria-current="true"><span class="menu-item-label">Nederlands</span><svg class="menu-tick" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg></a></li><li><a href="/hi-IN/terms" lang="hi-IN" class="menu-item"><span class="menu-item-label">हिन्दी</span></a></li><li><a href="/ar/terms" lang="ar" class="menu-item"><span class="menu-item-label">العربية</span></a></li><li><a href="/bn/terms" lang="bn" class="menu-item"><span class="menu-item-label">বাংলা</span></a></li><li><a href="/pt-BR/terms" lang="pt-BR" class="menu-item"><span class="menu-item-label">Português (Brasil)</span></a></li><li><a href="/ru/terms" lang="ru" class="menu-item"><span class="menu-item-label">Русский</span></a></li><li><a href="/pa-IN/terms" lang="pa-IN" class="menu-item"><span class="menu-item-label">ਪੰਜਾਬੀ</span></a></li></ul></div></details>
+    <div class="theme-picker" hidden></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<h1>Servicevoorwaarden</h1>
+<p class="updated">Laatst bijgewerkt op 18 augustus 2026</p>
+
+<p class="lede">Deze voorwaarden gelden voor de VRCVerify-Discord-bot, het dashboard op dashboard.vrcverify.com en deze website. Elk daarvan gebruiken betekent ze aanvaarden. De dienst wordt beheerd door Esatto Technologies, Verenigde Staten.</p>
+
+<nav class="toc" aria-label="Op deze pagina">
+  <p class="toc-label">Op deze pagina</p>
+  <ol class="toc-list">
+    <li><a href="#what-the-service-does">1. Wat de dienst doet</a></li>
+    <li><a href="#who-may-use-it">2. Wie het mag gebruiken</a></li>
+    <li><a href="#acceptable-use">3. Toegestaan gebruik</a></li>
+    <li><a href="#free-and-paid-features">4. Gratis en betaalde functies</a></li>
+    <li><a href="#buying-billing-and-renewal">5. Kopen, factureren en verlengen</a></li>
+    <li><a href="#availability">6. Beschikbaarheid</a></li>
+    <li><a href="#termination">7. Beëindiging</a></li>
+    <li><a href="#disclaimers-and-liability">8. Uitsluitingen en aansprakelijkheid</a></li>
+    <li><a href="#not-affiliated">9. Geen verbondenheid</a></li>
+    <li><a href="#changes-to-these-terms">10. Wijzigingen van deze voorwaarden</a></li>
+    <li><a href="#governing-law">11. Toepasselijk recht</a></li>
+    <li><a href="#contact">12. Contact</a></li>
+  </ol>
+</nav>
+
+<h2 id="what-the-service-does">1. Wat de dienst doet<a class="anchor" href="#what-the-service-does" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>VRCVerify controleert of het VRChat-account van een lid door VRChat leeftijdsgeverifieerd is, en kent daarnaar een Discord-rol toe. Het biedt ook bijbehorende automatisering die een serverbeheerder kan instellen.</p>
+
+<p><strong>We voeren de leeftijdsverificatie niet zelf uit.</strong> VRChat doet dat. VRCVerify leest het resultaat dat VRChat meldt en handelt daarnaar. Wij verwerken geen identiteitsbewijzen en kunnen niet instaan voor de juistheid van VRChats vaststelling, de eerlijkheid van degene die haar deed, of dat het VRChat-account toebehoort aan de persoon die het Discord-account gebruikt, afgezien van de codecontrole die in het Privacybeleid beschreven staat.</p>
+
+<div class="note">
+  <p><strong>Een serverbeheerder blijft verantwoordelijk voor de eigen community.</strong> VRCVerify is één signaal, geen garantie, en het vervangt geen moderatie. Vertrouw er niet als enige controle op waar de gevolgen van een vergissing ernstig zijn.</p>
+</div>
+
+<h2 id="who-may-use-it">2. Wie het mag gebruiken<a class="anchor" href="#who-may-use-it" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<ul>
+  <li>Je moet de <a href="https://discord.com/terms">Discord-servicevoorwaarden</a> naleven en voldoen aan Discords minimumleeftijd voor jouw land.</li>
+  <li>Je moet VRChats voorwaarden naleven met betrekking tot je VRChat-account.</li>
+  <li>Wie de bot aan een server toevoegt, of er een abonnement voor koopt, moet bevoegd zijn om namens die server te handelen.</li>
+</ul>
+
+<h2 id="acceptable-use">3. Toegestaan gebruik<a class="anchor" href="#acceptable-use" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>Gebruik VRCVerify niet om iemand lastig te vallen, te deanonimiseren of in gevaar te brengen; probeer geen account te verifiëren dat je niet beheert; probeer het verificatieproces niet te omzeilen, te overbelasten of terug te draaien; en verkoop de toegang ertoe niet door.</p>
+
+<p>We kunnen de bot op een server opschorten of verwijderen, of een account de dienst weigeren, wanneer deze voorwaarden worden geschonden of wanneer de dienst zo wordt gebruikt dat het gedeelde VRChat-account waarvan hij afhangt in gevaar komt.</p>
+
+<h2 id="free-and-paid-features">4. Gratis en betaalde functies<a class="anchor" href="#free-and-paid-features" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>De verificatie zelf is gratis en dat willen we zo houden. Een abonnement per server, Premium genoemd, ontgrendelt extra automatisering. Wat elk niveau bevat staat op het dashboard en kan veranderen; wordt een betaalde functie tijdens een betaalde periode verwijderd, dan melden we dat vooraf.</p>
+
+<p>Premium geldt <strong>per server</strong>, niet per persoon. Het geldt voor de Discord-server waarvoor het gekocht is en kan niet tussen servers worden overgedragen.</p>
+
+<h2 id="buying-billing-and-renewal">5. Kopen, factureren en verlengen<a class="anchor" href="#buying-billing-and-renewal" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>Premium kan op twee manieren gekocht worden, en welke je gebruikt bepaalt met wie je voor de betaling een overeenkomst aangaat.</p>
+
+<div class="scroll">
+<table>
+  <tr><th>Gekocht via</th><th>Betaling verwerkt door</th><th>Opzeggen via</th></tr>
+  <tr><td>Discord (maandelijks)</td><td>Discord</td><td>Discord Gebruikersinstellingen → Abonnementen</td></tr>
+  <tr><td>Kaart op dashboard.vrcverify.com (maandelijks, 6 maanden, 12 maanden)</td><td>Stripe</td><td>Het facturatieportaal, met een link op het dashboard</td></tr>
+</table>
+</div>
+
+<ul>
+  <li>Abonnementen <strong>verlengen automatisch</strong> aan het einde van elke periode totdat ze worden opgezegd.</li>
+  <li>Prijzen worden exclusief belasting getoond. De belasting wordt bij het afrekenen berekend op basis van je factuurlocatie.</li>
+  <li>Opzeggen stopt de volgende verlenging. Premium loopt door tot het einde van de periode die je al betaald hebt.</li>
+  <li>Waar een gratis proefperiode wordt aangeboden, staat dat vóór de aankoop bij het pakket. Zeg op voordat hij afloopt en er wordt niets in rekening gebracht.</li>
+  <li>We kunnen prijzen wijzigen. Een wijziging raakt nooit een al betaalde periode, en we kondigen haar aan voordat ze voor een verlenging geldt.</li>
+  <li><strong>Voor aankopen via Discord gelden Discords eigen voorwaarden en terugbetalingsregels</strong>, die wij niet beheren en niet opzij kunnen zetten.</li>
+</ul>
+
+<p>Terugbetalingen vallen onder het <a href="/nl/refunds">Terugbetalingsbeleid</a>, dat deel uitmaakt van deze voorwaarden.</p>
+
+<h2 id="availability">6. Beschikbaarheid<a class="anchor" href="#availability" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>De dienst wordt geleverd zoals hij is, zonder gegarandeerde beschikbaarheid. Hij is afhankelijk van Discord en VRChat, en van één gedeeld VRChat-account; elk daarvan kan uitvallen, ons begrenzen of zonder aankondiging veranderen. We beloven niet dat verificatie op een bepaald moment beschikbaar is.</p>
+
+<h2 id="termination">7. Beëindiging<a class="anchor" href="#termination" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>Je kunt op elk moment stoppen met VRCVerify door de bot van je server te verwijderen. Dat zegt een abonnement niet automatisch op — zeg het op via het kanaal waar je het kocht, zoals hierboven beschreven.</p>
+
+<p>We kunnen de dienst opschorten of beëindigen, geheel of voor een bepaalde server, wanneer deze voorwaarden worden geschonden, wanneer de wet dat vereist, of als we de dienst stopzetten. Zetten we hem stop terwijl je voor een periode hebt betaald, dan betalen we het ongebruikte deel van die periode terug.</p>
+
+<h2 id="disclaimers-and-liability">8. Uitsluitingen en aansprakelijkheid<a class="anchor" href="#disclaimers-and-liability" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>Voor zover de wet dat toestaat wordt VRCVerify geleverd zonder enige garantie, uitdrukkelijk of stilzwijgend, inclusief geschiktheid voor een bepaald doel. Wij zijn niet aansprakelijk voor indirecte schade of gevolgschade, voor gegevensverlies, of voor iets dat voortvloeit uit het handelen van leden van je server.</p>
+
+<p><strong>Onze totale aansprakelijkheid jegens jou is beperkt tot het bedrag dat je ons in de twaalf maanden vóór de claim hebt betaald.</strong> Heb je ons niets betaald, dan is onze aansprakelijkheid beperkt voor zover de wet dat toestaat.</p>
+
+<p>Niets hierin sluit aansprakelijkheid uit die wettelijk niet kan worden uitgesloten, en ben je consument, dan raakt niets in deze voorwaarden je wettelijke rechten.</p>
+
+<h2 id="not-affiliated">9. Geen verbondenheid<a class="anchor" href="#not-affiliated" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>VRCVerify is een onafhankelijk project. Het is niet verbonden met, goedgekeurd door of gesponsord door VRChat Inc. of Discord Inc. VRChat en Discord zijn handelsmerken van hun respectieve eigenaren.</p>
+
+<h2 id="changes-to-these-terms">10. Wijzigingen van deze voorwaarden<a class="anchor" href="#changes-to-these-terms" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>We kunnen deze voorwaarden bijwerken. De datum bovenaan verandert, en wezenlijke wijzigingen worden in het supportkanaal aangekondigd. VRCVerify blijven gebruiken na een wijziging betekent haar aanvaarden. Aanvaard je een wijziging niet, verwijder dan de bot en zeg een eventueel abonnement op.</p>
+
+<h2 id="governing-law">11. Toepasselijk recht<a class="anchor" href="#governing-law" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>Op deze voorwaarden is het recht van de staat New Jersey, Verenigde Staten, van toepassing, en de rechtbanken daar zijn bevoegd. Ben je consument met woonplaats in het Verenigd Koninkrijk of de Europese Economische Ruimte, dan ontneemt dit je niet de bescherming van het dwingende consumentenrecht van je woonland, noch het recht daar een procedure te starten.</p>
+
+<p>Deze pagina wordt voor het gemak in meerdere talen gepubliceerd. Wijken een vertaling en de Engelse versie van elkaar af, dan <strong>is de Engelse versie doorslaggevend</strong>.</p>
+
+<h2 id="contact">12. Contact<a class="anchor" href="#contact" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p><a href="mailto:contact@esattotech.com">contact@esattotech.com</a></p>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav>
+      <a href="/nl/changelog">Nieuw</a>
+      <a href="https://status.vrcverify.com/">Status</a>
+      <a href="/nl/terms">Servicevoorwaarden</a>
+      <a href="/nl/privacy">Privacybeleid</a>
+      <a href="/nl/refunds">Terugbetalingsbeleid</a>
+      <a href="mailto:contact@esattotech.com">Contact</a>
+    </nav>
+    <p>VRCVerify wordt beheerd door Esatto Technologies, Verenigde Staten.<br> Niet verbonden met, goedgekeurd door of gesponsord door VRChat Inc. of Discord Inc.</p>
+  </div>
+</footer>
+
+</body>
+</html>

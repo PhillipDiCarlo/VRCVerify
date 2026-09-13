@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="hi-IN" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>सेवा की शर्तें — VRCVerify</title>
+<link rel="canonical" href="https://vrcverify.com/hi-IN/terms">
+<link rel="alternate" hreflang="en" href="https://vrcverify.com/terms">
+<link rel="alternate" hreflang="es-ES" href="https://vrcverify.com/es-ES/terms">
+<link rel="alternate" hreflang="zh-CN" href="https://vrcverify.com/zh-CN/terms">
+<link rel="alternate" hreflang="ja" href="https://vrcverify.com/ja/terms">
+<link rel="alternate" hreflang="de" href="https://vrcverify.com/de/terms">
+<link rel="alternate" hreflang="nl" href="https://vrcverify.com/nl/terms">
+<link rel="alternate" hreflang="hi-IN" href="https://vrcverify.com/hi-IN/terms">
+<link rel="alternate" hreflang="ar" href="https://vrcverify.com/ar/terms">
+<link rel="alternate" hreflang="bn" href="https://vrcverify.com/bn/terms">
+<link rel="alternate" hreflang="pt-BR" href="https://vrcverify.com/pt-BR/terms">
+<link rel="alternate" hreflang="ru" href="https://vrcverify.com/ru/terms">
+<link rel="alternate" hreflang="pa-IN" href="https://vrcverify.com/pa-IN/terms">
+<link rel="alternate" hreflang="x-default" href="https://vrcverify.com/terms">
+<link rel="stylesheet" href="/style.css">
+<!-- Blocking, and in <head>, so a stored Light choice paints light on the
+     first frame rather than flashing dark and correcting itself. Same
+     origin, ~30 lines, and nothing on this page needs it to work. -->
+<script src="/theme.js"></script>
+<script src="/status.js" defer></script>
+</head>
+<!-- `policy` turns on the long-form reading treatment in style.css:
+     a shorter measure, looser leading, and ruled section headings. Terms,
+     Privacy and Refunds carry it; 404 and the landing page do not. -->
+<body class="policy">
+
+<header class="site">
+  <div class="wrap">
+    <!-- THE MARK. The same logo.svg the dashboard serves, byte for byte, and
+         the same monochrome-plus-filter arrangement: black artwork, inverted
+         for dark. Three copies of the file, for the reason the fonts and
+         theme.js have three -- each surface has to keep working when the
+         others are down, so none of them may fetch the mark from another.
+         test_the_logo_is_the_same_file_everywhere fails if they drift.
+
+         `width`/`height` are the viewBox's dimensions, not the rendered ones:
+         they give the browser the ratio so the wordmark does not jump sideways
+         when the image lands. The stylesheet sets the height it is drawn at.
+
+         alt="" because the word beside it says the same thing, and a screen
+         reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
+         that just says where it goes. -->
+    <a class="brand" href="/hi-IN/"><img class="brand-mark" src="/logo.svg" alt=""
+         width="805" height="615"><span>VRCVerify</span></a>
+    <nav>
+      <!-- Pricing leads, and it is an absolute URL to the dashboard on
+           purpose (#188): prices come from Stripe on the render that shows
+           them, and this site is an assets-only Worker with no code on the
+           request path. A price typed here would keep quoting the old number
+           after a price change, on the same domain the Terms live on. -->
+      <a href="https://dashboard.vrcverify.com/pricing">क़ीमतें</a>
+      <!-- Terms, Privacy and Refunds were here and are not any more (#200).
+           Every page still carries all three in its footer, which is where a
+           reader goes looking for a policy, and the 404 page lists them in its
+           body. Nothing became unreachable; they stopped taking the most
+           valuable row on the page to say something a visitor deciding whether
+           to install the bot is not asking.
+
+           The changelog takes one of the freed slots and moves up out of the
+           footer. #137 phase 5 put it there because the header "already
+           carries three legal links and the dashboard" and there was no room;
+           that sentence is what just stopped being true. -->
+      <a href="/hi-IN/changelog">नया क्या है</a>
+      <a href="https://dashboard.vrcverify.com">डैशबोर्ड</a>
+    </nav>
+    <!-- THE STATUS DOT (#170). Deliberately not a fourth nav link: #200 held
+         the nav to three items so it holds one line at 320px, and a fourth
+         entry wraps it to three lines and grows the header by 44px there.
+         This sits with the theme picker instead, in the control cluster,
+         where the row it takes was never the nav's.
+
+         Ships as a working link with a neutral dot, and stays exactly that
+         with JavaScript off. /status.js colors the dot from the real
+         verdict and never paints green from a reading it did not get. -->
+    <a class="status-pill" href="https://status.vrcverify.com/" data-state="unknown"><!-- SHAPE AS WELL AS COLOR, which is the status page's rule and matters
+           most here: --ok and --down have relative luminance 0.331 and 0.341,
+           so as two plain dots the "working" and "down" states are the same
+           dot to a red-green colorblind reader. These are that page's own
+           glyphs, so the mark here and the mark one click away agree. --> <svg class="status-glyph" viewBox="0 0 20 20" width="14" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <!-- A dot claims nothing, which is the right mark before a reading
+             arrives and the only one shipped without a script to change it. -->
+        <circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"></circle>
+      </svg> <span class="status-label">स्थिति</span> <!-- Written by /status.js once a verdict is in, so the state is spoken
+           and not only colored. Empty until then, because "unknown" is what
+           the dot already says to somebody who can see it. --> <span class="status-said visually-hidden"></span></a>
+    <!-- The theme control is built by /theme.js into this placeholder (#195
+         phase 7). It is JavaScript-only either way -- there is no server here
+         to post a preference to -- so markup describing it would describe
+         something that may never exist. Ships hidden; the script reveals it. -->
+    <details class="langpick"><summary class="lang-button" title="भाषा: हिन्दी" aria-label="भाषा: हिन्दी. कोई दूसरी चुनें।"><svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4"/><path d="M8 1.8a9.2 9.2 0 0 1 0 12.4a9.2 9.2 0 0 1 0-12.4z"/></svg></summary><div class="lang-panel"><p class="menu-label" id="lang-menu-label">Language</p><ul aria-labelledby="lang-menu-label"><li><a href="/terms" lang="en" class="menu-item"><span class="menu-item-label">English</span></a></li><li><a href="/es-ES/terms" lang="es-ES" class="menu-item"><span class="menu-item-label">Español</span></a></li><li><a href="/zh-CN/terms" lang="zh-CN" class="menu-item"><span class="menu-item-label">简体中文</span></a></li><li><a href="/ja/terms" lang="ja" class="menu-item"><span class="menu-item-label">日本語</span></a></li><li><a href="/de/terms" lang="de" class="menu-item"><span class="menu-item-label">Deutsch</span></a></li><li><a href="/nl/terms" lang="nl" class="menu-item"><span class="menu-item-label">Nederlands</span></a></li><li><a href="/hi-IN/terms" lang="hi-IN" class="menu-item current" aria-current="true"><span class="menu-item-label">हिन्दी</span><svg class="menu-tick" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg></a></li><li><a href="/ar/terms" lang="ar" class="menu-item"><span class="menu-item-label">العربية</span></a></li><li><a href="/bn/terms" lang="bn" class="menu-item"><span class="menu-item-label">বাংলা</span></a></li><li><a href="/pt-BR/terms" lang="pt-BR" class="menu-item"><span class="menu-item-label">Português (Brasil)</span></a></li><li><a href="/ru/terms" lang="ru" class="menu-item"><span class="menu-item-label">Русский</span></a></li><li><a href="/pa-IN/terms" lang="pa-IN" class="menu-item"><span class="menu-item-label">ਪੰਜਾਬੀ</span></a></li></ul></div></details>
+    <div class="theme-picker" hidden></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<h1>सेवा की शर्तें</h1>
+<p class="updated">अंतिम अद्यतन 18 अगस्त 2026</p>
+
+<p class="lede">ये शर्तें VRCVerify Discord बॉट, dashboard.vrcverify.com पर स्थित डैशबोर्ड, और इस वेबसाइट पर लागू होती हैं। इनमें से किसी का भी उपयोग करने का अर्थ है इन्हें स्वीकार करना। सेवा का संचालन Esatto Technologies, संयुक्त राज्य अमेरिका करती है।</p>
+
+<nav class="toc" aria-label="इस पृष्ठ पर">
+  <p class="toc-label">इस पृष्ठ पर</p>
+  <ol class="toc-list">
+    <li><a href="#what-the-service-does">1. यह सेवा क्या करती है</a></li>
+    <li><a href="#who-may-use-it">2. इसे कौन इस्तेमाल कर सकता है</a></li>
+    <li><a href="#acceptable-use">3. स्वीकार्य उपयोग</a></li>
+    <li><a href="#free-and-paid-features">4. मुफ़्त और सशुल्क सुविधाएँ</a></li>
+    <li><a href="#buying-billing-and-renewal">5. खरीद, बिलिंग और नवीनीकरण</a></li>
+    <li><a href="#availability">6. उपलब्धता</a></li>
+    <li><a href="#termination">7. समाप्ति</a></li>
+    <li><a href="#disclaimers-and-liability">8. अस्वीकरण और दायित्व</a></li>
+    <li><a href="#not-affiliated">9. कोई संबद्धता नहीं</a></li>
+    <li><a href="#changes-to-these-terms">10. इन शर्तों में बदलाव</a></li>
+    <li><a href="#governing-law">11. लागू कानून</a></li>
+    <li><a href="#contact">12. संपर्क</a></li>
+  </ol>
+</nav>
+
+<h2 id="what-the-service-does">1. यह सेवा क्या करती है<a class="anchor" href="#what-the-service-does" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>VRCVerify जाँचता है कि किसी सदस्य के VRChat खाते की आयु VRChat द्वारा सत्यापित है या नहीं, और उसी के अनुसार Discord भूमिका देता है। यह संबंधित स्वचालन भी देता है जिसे सर्वर प्रशासक कॉन्फ़िगर कर सकता है।</p>
+
+<p><strong>आयु सत्यापन हम स्वयं नहीं करते।</strong> VRChat करता है। VRCVerify वह परिणाम पढ़ता है जो VRChat बताता है और उसी पर कार्य करता है। हम पहचान दस्तावेज़ नहीं संभालते, और न ही VRChat के निर्धारण की सटीकता, उसे कराने वाले की ईमानदारी, या गोपनीयता नीति में वर्णित कोड जाँच से परे यह कि VRChat खाता उसी व्यक्ति का है जो Discord खाता चला रहा है — इनकी ज़मानत ले सकते हैं।</p>
+
+<div class="note">
+  <p><strong>अपने समुदाय के लिए सर्वर संचालक ही ज़िम्मेदार रहता है।</strong> VRCVerify एक संकेत है, गारंटी नहीं, और यह मॉडरेशन का विकल्प नहीं है। जहाँ गलती के परिणाम गंभीर हों, वहाँ इसे अपना इकलौता नियंत्रण न बनाएँ।</p>
+</div>
+
+<h2 id="who-may-use-it">2. इसे कौन इस्तेमाल कर सकता है<a class="anchor" href="#who-may-use-it" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<ul>
+  <li>आपको <a href="https://discord.com/terms">Discord की सेवा शर्तों</a> का पालन करना होगा और अपने देश के लिए Discord की न्यूनतम आयु पूरी करनी होगी।</li>
+  <li>अपने VRChat खाते के संबंध में आपको VRChat की शर्तों का पालन करना होगा।</li>
+  <li>जो व्यक्ति बॉट को किसी सर्वर में जोड़ता है, या किसी सर्वर के लिए सदस्यता खरीदता है, उसे उस सर्वर की ओर से कार्य करने का अधिकार होना चाहिए।</li>
+</ul>
+
+<h2 id="acceptable-use">3. स्वीकार्य उपयोग<a class="anchor" href="#acceptable-use" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>VRCVerify का उपयोग किसी को परेशान करने, उसकी गुमनामी भंग करने या उसे खतरे में डालने के लिए न करें; ऐसे खाते का सत्यापन करने की कोशिश न करें जो आपके नियंत्रण में नहीं है; सत्यापन प्रक्रिया को दरकिनार करने, उस पर अत्यधिक भार डालने या उसे उलटने का प्रयास न करें; और इसकी पहुँच का पुनर्विक्रय न करें।</p>
+
+<p>इन शर्तों के उल्लंघन पर, या जब सेवा का उपयोग इस तरह हो रहा हो कि जिस साझा VRChat खाते पर सेवा निर्भर है उसे खतरा हो, तो हम किसी सर्वर पर बॉट को निलंबित या हटा सकते हैं, या किसी खाते को सेवा देने से मना कर सकते हैं।</p>
+
+<h2 id="free-and-paid-features">4. मुफ़्त और सशुल्क सुविधाएँ<a class="anchor" href="#free-and-paid-features" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>सत्यापन स्वयं मुफ़्त है और हमारा इरादा इसे ऐसा ही रखने का है। प्रीमियम नाम की प्रति-सर्वर सदस्यता अतिरिक्त स्वचालन खोलती है। प्रत्येक स्तर में क्या शामिल है, यह डैशबोर्ड पर दिया गया है और बदल सकता है; यदि किसी सशुल्क अवधि के दौरान कोई सशुल्क सुविधा हटाई जाती है तो हम पहले से बता देंगे।</p>
+
+<p>प्रीमियम <strong>प्रति सर्वर</strong> है, प्रति व्यक्ति नहीं। यह उसी Discord सर्वर पर लागू होता है जिसके लिए खरीदा गया और सर्वरों के बीच स्थानांतरित नहीं किया जा सकता।</p>
+
+<h2 id="buying-billing-and-renewal">5. खरीद, बिलिंग और नवीनीकरण<a class="anchor" href="#buying-billing-and-renewal" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>प्रीमियम दो तरीकों से खरीदा जा सकता है, और आप जो तरीका चुनते हैं उससे यह बदल जाता है कि भुगतान के लिए आपका अनुबंध किसके साथ है।</p>
+
+<div class="scroll">
+<table>
+  <tr><th>कहाँ से खरीदा</th><th>भुगतान संभालने वाला</th><th>कहाँ से रद्द करें</th></tr>
+  <tr><td>Discord (मासिक)</td><td>Discord</td><td>Discord की उपयोगकर्ता सेटिंग्स → सदस्यताएँ</td></tr>
+  <tr><td>dashboard.vrcverify.com पर कार्ड (मासिक, 6 माह, 12 माह)</td><td>Stripe</td><td>बिलिंग पोर्टल, जिसका लिंक डैशबोर्ड पर है</td></tr>
+</table>
+</div>
+
+<ul>
+  <li>सदस्यताएँ रद्द किए जाने तक हर अवधि के अंत में <strong>स्वतः नवीनीकृत</strong> होती हैं।</li>
+  <li>मूल्य कर को छोड़कर दिखाए जाते हैं। कर की गणना भुगतान के समय आपके बिलिंग स्थान के आधार पर की जाती है।</li>
+  <li>रद्द करने से अगला नवीनीकरण रुक जाता है। प्रीमियम उस अवधि के अंत तक चलता रहता है जिसका भुगतान आप पहले ही कर चुके हैं।</li>
+  <li>जहाँ मुफ़्त परीक्षण दिया जाता है, वह खरीदने से पहले योजना पर बताया जाता है। उसके समाप्त होने से पहले रद्द करें और आपसे कोई शुल्क नहीं लिया जाएगा।</li>
+  <li>हम मूल्य बदल सकते हैं। कोई बदलाव पहले से भुगतान की गई अवधि को कभी प्रभावित नहीं करता, और नवीनीकरण पर लागू होने से पहले हम सूचना देंगे।</li>
+  <li><strong>Discord के ज़रिए की गई खरीद पर Discord की अपनी शर्तें और धनवापसी नियम लागू होते हैं</strong>, जिन पर हमारा नियंत्रण नहीं है और जिन्हें हम बदल नहीं सकते।</li>
+</ul>
+
+<p>धनवापसी <a href="/hi-IN/refunds">धनवापसी नीति</a> के अंतर्गत आती है, जो इन शर्तों का हिस्सा है।</p>
+
+<h2 id="availability">6. उपलब्धता<a class="anchor" href="#availability" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>सेवा जैसी है वैसी ही दी जाती है, बिना किसी गारंटीशुदा उपलब्धता स्तर के। यह Discord और VRChat पर, तथा एकमात्र साझा VRChat खाते पर निर्भर है; इनमें से कोई भी विफल हो सकता है, हम पर दर-सीमा लगा सकता है, या बिना सूचना बदल सकता है। हम यह वादा नहीं करते कि सत्यापन किसी विशेष क्षण उपलब्ध होगा।</p>
+
+<h2 id="termination">7. समाप्ति<a class="anchor" href="#termination" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>आप अपने सर्वर से बॉट हटाकर कभी भी VRCVerify का उपयोग बंद कर सकते हैं। ऐसा करने से सदस्यता अपने आप रद्द नहीं होती — उसे उसी माध्यम से रद्द करें जहाँ से आपने खरीदी थी, जैसा ऊपर बताया गया है।</p>
+
+<p>इन शर्तों के उल्लंघन पर, कानून की अपेक्षा पर, या सेवा बंद करने की स्थिति में हम सेवा को पूरी तरह या किसी विशेष सर्वर के लिए निलंबित या समाप्त कर सकते हैं। यदि हम इसे तब बंद करते हैं जब आपने किसी अवधि का भुगतान किया है, तो हम उस अवधि का अप्रयुक्त हिस्सा लौटा देंगे।</p>
+
+<h2 id="disclaimers-and-liability">8. अस्वीकरण और दायित्व<a class="anchor" href="#disclaimers-and-liability" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>कानून द्वारा अनुमत अधिकतम सीमा तक, VRCVerify बिना किसी प्रकार की स्पष्ट या निहित वारंटी के दिया जाता है, जिसमें किसी विशेष उद्देश्य के लिए उपयुक्तता भी शामिल है। हम अप्रत्यक्ष या परिणामी हानि, डेटा की हानि, या आपके सर्वर के सदस्यों के कृत्यों से उत्पन्न किसी भी बात के लिए उत्तरदायी नहीं हैं।</p>
+
+<p><strong>आपके प्रति हमारी कुल देनदारी उस राशि तक सीमित है जो आपने दावे से पहले के बारह महीनों में हमें चुकाई है।</strong> यदि आपने हमें कुछ नहीं चुकाया, तो हमारी देनदारी कानून द्वारा अनुमत अधिकतम सीमा तक सीमित है।</p>
+
+<p>यहाँ कुछ भी ऐसी देनदारी को बाहर नहीं करता जिसे कानूनन बाहर नहीं किया जा सकता, और यदि आप उपभोक्ता हैं तो इन शर्तों में कुछ भी आपके वैधानिक अधिकारों को प्रभावित नहीं करता।</p>
+
+<h2 id="not-affiliated">9. कोई संबद्धता नहीं<a class="anchor" href="#not-affiliated" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>VRCVerify एक स्वतंत्र परियोजना है। यह VRChat Inc. या Discord Inc. से संबद्ध नहीं है, न ही उनके द्वारा अनुमोदित या प्रायोजित है। VRChat और Discord अपने-अपने स्वामियों के ट्रेडमार्क हैं।</p>
+
+<h2 id="changes-to-these-terms">10. इन शर्तों में बदलाव<a class="anchor" href="#changes-to-these-terms" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>हम इन शर्तों को अद्यतन कर सकते हैं। ऊपर दी गई तारीख बदलेगी, और महत्वपूर्ण बदलावों की घोषणा सहायता चैनल में की जाएगी। बदलाव के बाद VRCVerify का उपयोग जारी रखने का अर्थ है उसे स्वीकार करना। यदि आप कोई बदलाव स्वीकार नहीं करते, तो बॉट हटा दें और कोई भी सदस्यता रद्द कर दें।</p>
+
+<h2 id="governing-law">11. लागू कानून<a class="anchor" href="#governing-law" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>ये शर्तें संयुक्त राज्य अमेरिका के न्यू जर्सी राज्य के कानूनों के अधीन हैं, और वहाँ के न्यायालयों को क्षेत्राधिकार प्राप्त है। यदि आप यूनाइटेड किंगडम या यूरोपीय आर्थिक क्षेत्र के निवासी उपभोक्ता हैं, तो इससे आप अपने निवास-देश के अनिवार्य उपभोक्ता कानून के संरक्षण से, या वहाँ कार्यवाही दायर करने के अधिकार से वंचित नहीं होते।</p>
+
+<p>यह पृष्ठ सुविधा के लिए कई भाषाओं में प्रकाशित किया गया है। यदि किसी अनुवाद और अंग्रेज़ी संस्करण में अंतर हो, तो <strong>अंग्रेज़ी संस्करण ही मान्य होगा</strong>।</p>
+
+<h2 id="contact">12. संपर्क<a class="anchor" href="#contact" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p><a href="mailto:contact@esattotech.com">contact@esattotech.com</a></p>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav>
+      <a href="/hi-IN/changelog">नया क्या है</a>
+      <a href="https://status.vrcverify.com/">स्थिति</a>
+      <a href="/hi-IN/terms">सेवा की शर्तें</a>
+      <a href="/hi-IN/privacy">गोपनीयता नीति</a>
+      <a href="/hi-IN/refunds">धनवापसी नीति</a>
+      <a href="mailto:contact@esattotech.com">संपर्क</a>
+    </nav>
+    <p>VRCVerify का संचालन Esatto Technologies, संयुक्त राज्य अमेरिका करती है।<br> VRChat Inc. या Discord Inc. से संबद्ध नहीं, न ही उनके द्वारा अनुमोदित या प्रायोजित।</p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,778 @@
+{
+ "1. What the service does<0>#</0>": [
+  "terms.html"
+ ],
+ "10. Changes to these terms<0>#</0>": [
+  "terms.html"
+ ],
+ "11. Governing law<0>#</0>": [
+  "terms.html"
+ ],
+ "12. Contact<0>#</0>": [
+  "terms.html"
+ ],
+ "18+ verification for Discord, using VRChat's own age check": [
+  "index.html"
+ ],
+ "2. Who may use it<0>#</0>": [
+  "terms.html"
+ ],
+ "3. Acceptable use<0>#</0>": [
+  "terms.html"
+ ],
+ "4. Free and paid features<0>#</0>": [
+  "terms.html"
+ ],
+ "5. Buying, billing and renewal<0>#</0>": [
+  "terms.html"
+ ],
+ "6. Availability<0>#</0>": [
+  "terms.html"
+ ],
+ "7. Termination<0>#</0>": [
+  "terms.html"
+ ],
+ "8. Disclaimers and liability<0>#</0>": [
+  "terms.html"
+ ],
+ "9. Not affiliated<0>#</0>": [
+  "terms.html"
+ ],
+ "<0/> <1/> <2>Status</2> <3/> <4></4>": [
+  "404.html",
+  "changelog.html",
+  "index.html",
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "<0>1. What the service does</0>": [
+  "terms.html"
+ ],
+ "<0>10. Changes to these terms</0>": [
+  "terms.html"
+ ],
+ "<0>11. Governing law</0>": [
+  "terms.html"
+ ],
+ "<0>12. Contact</0>": [
+  "terms.html"
+ ],
+ "<0>2. Who may use it</0>": [
+  "terms.html"
+ ],
+ "<0>3. Acceptable use</0>": [
+  "terms.html"
+ ],
+ "<0>4. Free and paid features</0>": [
+  "terms.html"
+ ],
+ "<0>5. Buying, billing and renewal</0>": [
+  "terms.html"
+ ],
+ "<0>6. Availability</0>": [
+  "terms.html"
+ ],
+ "<0>7. Termination</0>": [
+  "terms.html"
+ ],
+ "<0>8. Disclaimers and liability</0>": [
+  "terms.html"
+ ],
+ "<0>9. Not affiliated</0>": [
+  "terms.html"
+ ],
+ "<0>A server operator remains responsible for its own community.</0> VRCVerify is one signal, not a guarantee, and it is not a substitute for moderation. Do not rely on it as your only control where the consequences of being wrong are serious.": [
+  "terms.html"
+ ],
+ "<0>Add to your server</0> <1>Open the dashboard</1>": [
+  "index.html"
+ ],
+ "<0>Cancel.</0> The subscription stops renewing. Premium stays on until the end of the period you have already paid for, and then stops. You are not charged again.": [
+  "refunds.html"
+ ],
+ "<0>Card subscriptions bought on vrcverify.com</0>": [
+  "refunds.html"
+ ],
+ "<0>Changes</0>": [
+  "privacy.html"
+ ],
+ "<0>Children</0>": [
+  "privacy.html"
+ ],
+ "<0>Cloudflare</0> — serves this site and the dashboard.": [
+  "privacy.html"
+ ],
+ "<0>Consent</0> for the verification itself. You start it, and you can withdraw by asking us to delete the record.": [
+  "privacy.html"
+ ],
+ "<0>Contact</0>": [
+  "refunds.html"
+ ],
+ "<0>Discord</0> — the platform the bot runs on.": [
+  "privacy.html"
+ ],
+ "<0>Free trials</0>": [
+  "refunds.html"
+ ],
+ "<0>How long we keep it</0>": [
+  "privacy.html"
+ ],
+ "<0>If we are at fault</0>": [
+  "refunds.html"
+ ],
+ "<0>If we discontinue the service</0>": [
+  "refunds.html"
+ ],
+ "<0>In short.</0> Card subscriptions bought on this site are not refundable. You can cancel at any time and keep Premium until the end of the period you have already paid for. Subscriptions bought through Discord are governed by Discord's refund rules, not ours. Statutory rights, where you have them, are unaffected.": [
+  "refunds.html"
+ ],
+ "<0>Legitimate interests</0> for server settings, rate limiting, and keeping the service working and secure.": [
+  "privacy.html"
+ ],
+ "<0>New</0> <1/>": [
+  "changelog.html"
+ ],
+ "<0>No identity documents</0> <1>No photographs</1> <2>No manual override</2>": [
+  "index.html"
+ ],
+ "<0>Our legal basis, if you are in the UK or EEA</0>": [
+  "privacy.html"
+ ],
+ "<0>Our total liability to you is capped at the amount you paid us in the twelve months before the claim.</0> Where you have paid us nothing, our liability is limited to the fullest extent the law allows.": [
+  "terms.html"
+ ],
+ "<0>Performance of a contract</0> for subscription and billing records.": [
+  "privacy.html"
+ ],
+ "<0>Premium</0> <1/>": [
+  "changelog.html"
+ ],
+ "<0>Privacy Policy</0> — including how to ask for your data, or ask us to delete it": [
+  "404.html"
+ ],
+ "<0>Purchases made through Discord are governed by Discord's own terms and refund rules</0>, which we do not control and cannot override.": [
+  "terms.html"
+ ],
+ "<0>Refund Policy</0>": [
+  "404.html"
+ ],
+ "<0>Security</0>": [
+  "privacy.html"
+ ],
+ "<0>Stripe</0> — payment processing, for card subscriptions only.": [
+  "privacy.html"
+ ],
+ "<0>Subscriptions bought through Discord</0>": [
+  "refunds.html"
+ ],
+ "<0>Switch plan.</0> Move between the monthly, six-month and twelve-month plans.": [
+  "refunds.html"
+ ],
+ "<0>Terms of Service</0>": [
+  "404.html"
+ ],
+ "<0>The dashboard</0> — server settings and subscriptions": [
+  "404.html"
+ ],
+ "<0>The short version.</0> We store your Discord user ID, your VRChat user ID, and whether VRChat says you are age verified. We do not store your VRChat display name, your profile bio, your email address, or any payment card details. Nothing is sold, and nothing is shared for advertising.": [
+  "privacy.html"
+ ],
+ "<0>VRChat</0> — asked whether an account is age verified.": [
+  "privacy.html"
+ ],
+ "<0>We do not offer refunds on card subscriptions</0>, including part-used periods and including where a server stopped using the bot partway through a period.": [
+  "refunds.html"
+ ],
+ "<0>We do not perform age verification ourselves.</0> VRChat does. VRCVerify reads the result VRChat reports and acts on it. We do not handle identity documents, and we cannot vouch for the accuracy of VRChat's determination, the honesty of the person who made it, or whether the VRChat account belongs to the person using the Discord account beyond the code check described in the Privacy Policy.": [
+  "terms.html"
+ ],
+ "<0>We never receive or store card numbers</0>, and we deliberately do not store the billing email address Stripe collects. Card details are entered on Stripe's own pages, not ours.": [
+  "privacy.html"
+ ],
+ "<0>What we collect</0>": [
+  "privacy.html"
+ ],
+ "<0>Where it is stored</0>": [
+  "privacy.html"
+ ],
+ "<0>Who else sees it</0>": [
+  "privacy.html"
+ ],
+ "<0>Who we are</0>": [
+  "privacy.html"
+ ],
+ "<0>Your rights</0>": [
+  "privacy.html"
+ ],
+ "<0>Your statutory rights</0>": [
+  "refunds.html"
+ ],
+ "<0>contact@esattotech.com</0>": [
+  "terms.html"
+ ],
+ "A member links their VRChat account, VRCVerify reads whether VRChat has age-verified them, and the bot assigns the role. No documents are handled here, no photographs, and nothing about a member's identity is shown to anyone.": [
+  "index.html"
+ ],
+ "A new header and sidebar, servers you can pick from cards instead of a list, switches that show you what is on at a glance, and a warning before you leave a page with unsaved changes.": [
+  "changelog.html"
+ ],
+ "A permission check that was missing": [
+  "changelog.html"
+ ],
+ "A person who adds the bot to a server, or buys a subscription for one, must be authorized to act for that server.": [
+  "terms.html"
+ ],
+ "A short verification code, the server it was issued for, and its expiry": [
+  "privacy.html"
+ ],
+ "A trial is available once per server, to servers that have never had Premium by either purchase route.": [
+  "refunds.html"
+ ],
+ "A website link on your instructions panel": [
+  "changelog.html"
+ ],
+ "Access to the database is limited to the operator. The dashboard holds no database credentials and reaches the bot only over a mutually authenticated private network link, so a compromise of the public website does not by itself expose the verification data.": [
+  "privacy.html"
+ ],
+ "Anything about billing: <0>contact@esattotech.com</0>. Include the Discord server ID the subscription is for.": [
+  "refunds.html"
+ ],
+ "Because canceling always leaves you with what you paid for, and because the plan and its price are shown before checkout, a refund would be returning money for a period you still have the use of.": [
+  "refunds.html"
+ ],
+ "Bought through": [
+  "terms.html"
+ ],
+ "Buying Premium": [
+  "index.html"
+ ],
+ "Cancel through": [
+  "terms.html"
+ ],
+ "Canceling stops the next renewal. Premium continues until the end of the period you have already paid for.": [
+  "terms.html"
+ ],
+ "Card on dashboard.vrcverify.com (monthly, 6 months, 12 months)": [
+  "terms.html"
+ ],
+ "Card or bank details of any kind.": [
+  "privacy.html"
+ ],
+ "Card subscriptions bought on vrcverify.com<0>#</0>": [
+  "refunds.html"
+ ],
+ "Changes<0>#</0>": [
+  "privacy.html"
+ ],
+ "Check whether VRCVerify is working": [
+  "changelog.html"
+ ],
+ "Children<0>#</0>": [
+  "privacy.html"
+ ],
+ "Choose a different one.": [
+  "(the language picker)"
+ ],
+ "Contact": [
+  "404.html",
+  "changelog.html",
+  "index.html",
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "Contact<0>#</0>": [
+  "refunds.html"
+ ],
+ "Dark, light, or whatever your device says": [
+  "changelog.html"
+ ],
+ "Dashboard": [
+  "404.html",
+  "changelog.html",
+  "index.html",
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "Data": [
+  "privacy.html"
+ ],
+ "Data is stored on servers in the United States. If you are in the United Kingdom or the European Economic Area, using VRCVerify involves transferring your data to the United States.": [
+  "privacy.html"
+ ],
+ "Deleting your verification record means you will need to verify again the next time a server asks.": [
+  "privacy.html"
+ ],
+ "Discord (monthly)": [
+  "terms.html"
+ ],
+ "Discord 18+ verification using VRChat's own age verification. Free to verify, always.": [
+  "index.html"
+ ],
+ "Discord requires its users to be at least 13, and older in some countries. VRCVerify is not directed at children and we do not knowingly collect data from anyone below Discord's minimum age. If you believe a child's data is held here, email us and we will delete it.": [
+  "privacy.html"
+ ],
+ "Discord's User Settings → Subscriptions": [
+  "terms.html"
+ ],
+ "Do not use VRCVerify to harass, deanonymize or endanger anyone; do not try to verify an account you do not control; do not attempt to circumvent, overload or reverse the verification process; and do not resell access to it.": [
+  "terms.html"
+ ],
+ "Everything that has shipped in VRCVerify, newest first.": [
+  "changelog.html"
+ ],
+ "Everything you need to verify your members is free, on every server, with no cap and nothing to start. Premium adds the automation around it, from clearing up unverified roles to syncing nicknames and sending VRChat group invites.": [
+  "index.html"
+ ],
+ "For each Discord server: the server ID, its owner's Discord ID, the role and channel IDs it has configured, its chosen language, its feature settings, any custom post-verification message it has written, and a count of completed verifications. Where an administrator changes a setting on the dashboard, we record who changed what and when.": [
+  "privacy.html"
+ ],
+ "Free trials<0>#</0>": [
+  "refunds.html"
+ ],
+ "How a member gets verified": [
+  "index.html"
+ ],
+ "How long we keep it<0>#</0>": [
+  "privacy.html"
+ ],
+ "Identity documents or photographs. VRChat performs age verification; VRCVerify only reads the yes-or-no result.": [
+  "privacy.html"
+ ],
+ "If this policy changes materially we will update the date at the top and, for significant changes, announce it in the support channel. Continuing to use VRCVerify after a change means accepting the updated policy.": [
+  "privacy.html"
+ ],
+ "If we are at fault<0>#</0>": [
+  "refunds.html"
+ ],
+ "If we discontinue the service<0>#</0>": [
+  "refunds.html"
+ ],
+ "If we shut VRCVerify down while you have paid for a period that has not finished, we will refund the unused part of it.": [
+  "refunds.html"
+ ],
+ "If you bought Premium through Discord rather than on this site, <0>Discord took the payment and Discord's refund rules apply.</0> We do not process those payments, cannot refund them, and cannot override Discord's decision. Request a refund through Discord's own support, and manage or cancel the subscription in Discord's User Settings under Subscriptions.": [
+  "refunds.html"
+ ],
+ "In particular, if you are a consumer in the United Kingdom or the European Economic Area you normally have 14 days to withdraw from a distance contract. For digital services this right ends once supply has begun with your express consent. <0>Premium starts immediately on purchase, and by buying it you ask us to begin straight away and accept that you lose the 14-day right of withdrawal once we have.</0> Where that right does still apply to you, it takes precedence over this policy.": [
+  "refunds.html"
+ ],
+ "Invite verified members to your VRChat group": [
+  "changelog.html"
+ ],
+ "It does not handle card details. Payments go to Stripe or to Discord, and neither passes card data to us.": [
+  "index.html"
+ ],
+ "It does not see, store or transmit identity documents. VRChat performs the age verification; VRCVerify reads the result.": [
+  "index.html"
+ ],
+ "It does not store your VRChat display name or your profile bio.": [
+  "index.html"
+ ],
+ "It gives server administrators no way to mark someone verified by hand. There is no override, deliberately.": [
+  "index.html"
+ ],
+ "Kept": [
+  "privacy.html"
+ ],
+ "Kept after a subscription ends, as a business record and to know that a server has previously subscribed.": [
+  "privacy.html"
+ ],
+ "Kept after the bot is removed from a server, so an administrator does not have to reconfigure everything if it is re-invited.": [
+  "privacy.html"
+ ],
+ "Language": [
+  "(the language picker)"
+ ],
+ "Last updated 18 August 2026": [
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "Link a private VRChat group to your server, and members who finish verification are offered an invite to it. Nothing is sent to VRChat unless the member asks for it.": [
+  "changelog.html"
+ ],
+ "Minutes. Deleted automatically on expiry.": [
+  "privacy.html"
+ ],
+ "Note that <0>buying Premium on both Discord and this site for the same server results in two live subscriptions</0>, because neither platform can see or cancel the other's. The dashboard warns when it detects this. If it has happened to you, cancel the one you do not want; get in touch if you need help working out which is which.": [
+  "refunds.html"
+ ],
+ "Nothing here excludes liability that cannot lawfully be excluded, and if you are a consumer, nothing in these terms affects your statutory rights.": [
+  "terms.html"
+ ],
+ "Nothing in this policy limits rights you have under the law that applies to you as a consumer.": [
+  "refunds.html"
+ ],
+ "Nothing lives at that address. If you followed a link from Discord, from Stripe, or from a billing email, one of the pages below is probably what you were looking for.": [
+  "404.html"
+ ],
+ "On this page": [
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "Once you have verified, the link between your Discord and VRChat accounts lets any other server running VRCVerify recognize you without repeating the process. That is the point of it, and it is why the record persists.": [
+  "privacy.html"
+ ],
+ "Our legal basis, if you are in the UK or EEA<0>#</0>": [
+  "privacy.html"
+ ],
+ "Page not found": [
+  "404.html"
+ ],
+ "Page not found — VRCVerify": [
+  "404.html"
+ ],
+ "Payment handled by": [
+  "terms.html"
+ ],
+ "Per server, through Discord monthly or with a card on the dashboard. Verification itself is never part of it.": [
+  "index.html"
+ ],
+ "Premium can be bought two ways, and which one you use changes who you are contracting with for the payment.": [
+  "terms.html"
+ ],
+ "Premium is <0>per server</0>, not per person. It applies to the Discord server it was bought for and cannot be transferred between servers.": [
+  "terms.html"
+ ],
+ "Prices are shown exclusive of tax. Tax is calculated at checkout based on your billing location.": [
+  "terms.html"
+ ],
+ "Pricing": [
+  "404.html",
+  "changelog.html",
+  "index.html",
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "Privacy Policy": [
+  "404.html",
+  "changelog.html",
+  "index.html",
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "Privacy Policy — VRCVerify": [
+  "privacy.html"
+ ],
+ "Questions, data requests, or anything about billing: <0>contact@esattotech.com</0>.": [
+  "index.html"
+ ],
+ "Rate limiting, so the shared VRChat account is not overwhelmed.": [
+  "privacy.html"
+ ],
+ "Refund Policy": [
+  "404.html",
+  "changelog.html",
+  "index.html",
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "Refund Policy — VRCVerify": [
+  "refunds.html"
+ ],
+ "Refunds are covered by the <0>Refund Policy</0>, which forms part of these terms.": [
+  "terms.html"
+ ],
+ "Security<0>#</0>": [
+  "privacy.html"
+ ],
+ "See how verification is going": [
+  "changelog.html"
+ ],
+ "See what Premium adds": [
+  "index.html"
+ ],
+ "See which servers need attention": [
+  "changelog.html"
+ ],
+ "Server settings": [
+  "privacy.html"
+ ],
+ "Status": [
+  "404.html",
+  "changelog.html",
+  "index.html",
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "Still stuck? Write to <0>contact@esattotech.com</0>.": [
+  "404.html"
+ ],
+ "Stripe processes the payment. We receive and store the Stripe customer ID, subscription ID, price ID, subscription status and renewal date, so the bot knows the server has paid.": [
+  "privacy.html"
+ ],
+ "Subscription records": [
+  "privacy.html"
+ ],
+ "Subscriptions <0>renew automatically</0> at the end of each period until canceled.": [
+  "terms.html"
+ ],
+ "Subscriptions bought through Discord<0>#</0>": [
+  "refunds.html"
+ ],
+ "Terms of Service": [
+  "404.html",
+  "changelog.html",
+  "index.html",
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "Terms of Service — VRCVerify": [
+  "terms.html"
+ ],
+ "The Donate button on the instructions panel is now a Learn more button that opens vrcverify.com, so a member who is asked to verify can read what VRCVerify does before they start. The donation reminder that appeared after setup is gone as well. Already-posted panels update the next time they are refreshed.": [
+  "changelog.html"
+ ],
+ "The Overview page now charts the last 30 days of verifications, and checks the things that quietly break a server — a verified role that was deleted, a role the bot cannot assign, an instructions panel that is no longer where it was posted.": [
+  "changelog.html"
+ ],
+ "The billing portal, linked from the dashboard": [
+  "terms.html"
+ ],
+ "The bot assigns the role": [
+  "index.html"
+ ],
+ "The contents of any message, anywhere.": [
+  "privacy.html"
+ ],
+ "The dashboard has been rebuilt": [
+  "changelog.html"
+ ],
+ "The dashboard is dark by default now, with a theme button in the header. Your choice is remembered on this browser.": [
+  "changelog.html"
+ ],
+ "The dashboard, the website and the status page have been rebuilt on one design. Your server list is now a grid of tiles you can search, pin and open from anywhere on the card, and each one says whether that server is on Premium. Setup has moved to the top of a server's Overview with a progress bar, and retires itself once everything required is done. Settings puts each control directly under its own label, the pricing page is one comparison you can read across, and the status page now shows what has gone wrong beside what is working rather than below it.": [
+  "changelog.html"
+ ],
+ "The member completes VRChat's own age check, with VRChat. Their documents never leave that process.": [
+  "index.html"
+ ],
+ "The member links their account and VRCVerify asks one question: has VRChat verified this person as 18+?": [
+  "index.html"
+ ],
+ "The only thing that crosses from VRChat into VRCVerify is a yes or a no.": [
+  "index.html"
+ ],
+ "The result the whole service exists to act on.": [
+  "privacy.html"
+ ],
+ "The service is provided as-is, without any guaranteed level of availability. It depends on Discord and VRChat, and on a single shared VRChat account; any of those can fail, rate limit us, or change without notice. We do not promise that verification will be available at any particular moment.": [
+  "terms.html"
+ ],
+ "The status page speaks your language": [
+  "changelog.html"
+ ],
+ "The time of your most recent verification attempt": [
+  "privacy.html"
+ ],
+ "The website speaks your language": [
+  "changelog.html"
+ ],
+ "There is now a status page at status.vrcverify.com. It shows whether verification, the Discord bot, group invites, the dashboard and the website are working, with 90 days of history, and it says so even when everything else is down. Look for the status link in the header.": [
+  "changelog.html"
+ ],
+ "These terms are governed by the laws of the State of New Jersey, United States, and the courts there have jurisdiction. If you are a consumer resident in the United Kingdom or the European Economic Area, this does not deprive you of the protection of the mandatory consumer law of your country of residence, or of the right to bring proceedings there.": [
+  "terms.html"
+ ],
+ "These terms cover the VRCVerify Discord bot, the dashboard at dashboard.vrcverify.com, and this website. Using any of them means accepting them. The service is operated by Esatto Technologies, United States.": [
+  "terms.html"
+ ],
+ "This page is published in several languages for convenience. If a translation and the English version disagree, <0>the English version governs</0>.": [
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "This policy covers changes of mind. It does not cover our mistakes. If you were charged twice for the same server, charged after canceling, or charged for a plan you did not buy, email us and we will put it right.": [
+  "refunds.html"
+ ],
+ "To ask VRChat whether that account is age verified.": [
+  "privacy.html"
+ ],
+ "To confirm you control the VRChat account you named. Deleted automatically when it expires, within minutes.": [
+  "privacy.html"
+ ],
+ "To exercise any of these, email <0>contact@esattotech.com</0> from an address we can tie to your Discord account, or include your Discord user ID. We will respond within 30 days.": [
+  "privacy.html"
+ ],
+ "To know which account has verified, and to assign the role.": [
+  "privacy.html"
+ ],
+ "To the fullest extent the law allows, VRCVerify is provided without warranties of any kind, express or implied, including fitness for a particular purpose. We are not liable for indirect or consequential loss, for loss of data, or for anything arising from the acts of members of your server.": [
+  "terms.html"
+ ],
+ "Until you ask us to delete it.": [
+  "privacy.html"
+ ],
+ "VRCVerify checks whether a member's VRChat account has been age verified by VRChat, and assigns a Discord role accordingly. It also provides related automation that a server administrator can configure.": [
+  "terms.html"
+ ],
+ "VRCVerify has a new look": [
+  "changelog.html"
+ ],
+ "VRCVerify is an independent project. It is not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord Inc. VRChat and Discord are trademarks of their respective owners.": [
+  "terms.html"
+ ],
+ "VRCVerify is operated by Esatto Technologies, United States. For anything in this policy, including a request to see or delete your data, write to <0>contact@esattotech.com</0>.": [
+  "privacy.html"
+ ],
+ "VRCVerify is operated by Esatto Technologies, United States.<0/> Not affiliated with, endorsed by, or sponsored by VRChat Inc. or Discord Inc.": [
+  "404.html",
+  "changelog.html",
+  "index.html",
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "VRCVerify links a Discord account to a VRChat account so that a server can act on VRChat's age verification. That link is the most sensitive thing here, and this page says exactly what is stored, for how long, and who else sees it.": [
+  "privacy.html"
+ ],
+ "VRCVerify needs Discord's Manage Roles permission to grant a verified role. It was never checking whether it had one, so a server that had lost the permission looked healthy on the Overview while every verification quietly failed to grant anything. The Overview and the role picker now say so, and tell you where to fix it.": [
+  "changelog.html"
+ ],
+ "VRCVerify reads the result": [
+  "index.html"
+ ],
+ "VRChat verifies their age": [
+  "index.html"
+ ],
+ "Verification codes in progress": [
+  "privacy.html"
+ ],
+ "Verification is free, and stays free": [
+  "index.html"
+ ],
+ "Verification itself is free and we intend to keep it that way. A per-server subscription, called Premium, unlocks additional automation. What each tier includes is listed on the dashboard and may change; if a paid feature is removed during a paid period we will say so in advance.": [
+  "terms.html"
+ ],
+ "Want these in your own server? <0>Join the VRCVerify Discord</0> and follow the announcements channel — every update here gets posted there, and Discord crossposts it to any channel you pick.": [
+  "changelog.html"
+ ],
+ "We do not sell personal data and we do not share it for advertising. Data is processed by:": [
+  "privacy.html"
+ ],
+ "We may also disclose data where the law requires it.": [
+  "privacy.html"
+ ],
+ "We may change prices. A change never affects a period already paid for, and we will give notice before it applies to a renewal.": [
+  "terms.html"
+ ],
+ "We may suspend or end the service, in whole or for a particular server, where these terms are broken, where required by law, or if we discontinue the service. If we discontinue it while you have paid for a period, we will refund the unused part of that period.": [
+  "terms.html"
+ ],
+ "We may suspend or remove the bot from a server, or refuse service to an account, where these terms are broken or where the service is being used in a way that risks the shared VRChat account the service depends on.": [
+  "terms.html"
+ ],
+ "We may update these terms. The date at the top will change, and material changes will be announced in the support channel. Continuing to use VRCVerify after a change means accepting it. If you do not accept a change, remove the bot and cancel any subscription.": [
+  "terms.html"
+ ],
+ "What it does not do": [
+  "index.html"
+ ],
+ "What we collect<0>#</0>": [
+  "privacy.html"
+ ],
+ "What we deliberately do not collect<0>#</0>": [
+  "privacy.html"
+ ],
+ "What you can do instead, at any time, through the billing portal linked from your server's Subscriptions page:": [
+  "refunds.html"
+ ],
+ "What's new": [
+  "404.html",
+  "changelog.html",
+  "index.html",
+  "privacy.html",
+  "refunds.html",
+  "terms.html"
+ ],
+ "What's new — VRCVerify": [
+  "changelog.html"
+ ],
+ "When a server subscribes by card<0>#</0>": [
+  "privacy.html"
+ ],
+ "When a server uses the bot<0>#</0>": [
+  "privacy.html"
+ ],
+ "When you verify<0>#</0>": [
+  "privacy.html"
+ ],
+ "Where a free trial is offered, it is stated on the plan before you buy. Cancel before it ends and you are not charged.": [
+  "terms.html"
+ ],
+ "Where a plan offers a free trial, the length is shown on the plan before you buy. <0>Cancel before the trial ends and you are not charged at all.</0> If you let it run past the end, the first period is charged and this policy applies to it in the ordinary way.": [
+  "refunds.html"
+ ],
+ "Where it is stored<0>#</0>": [
+  "privacy.html"
+ ],
+ "Whether VRChat reports you as age verified": [
+  "privacy.html"
+ ],
+ "Who else sees it<0>#</0>": [
+  "privacy.html"
+ ],
+ "Who we are<0>#</0>": [
+  "privacy.html"
+ ],
+ "Why": [
+  "privacy.html"
+ ],
+ "You can ask us to show you the data we hold about you, correct it, or delete it. If you are in the UK or EEA you also have the right to object to processing, to request that we restrict it, to receive your data in a portable form, and to complain to your local data protection authority.": [
+  "privacy.html"
+ ],
+ "You can stop using VRCVerify at any time by removing the bot from your server. Doing so does not automatically cancel a subscription — cancel it through whichever channel you bought it, as set out above.": [
+  "terms.html"
+ ],
+ "You must comply with VRChat's terms in respect of your VRChat account.": [
+  "terms.html"
+ ],
+ "You must comply with the <0>Discord Terms of Service</0> and meet Discord's minimum age for your country.": [
+  "terms.html"
+ ],
+ "Your Discord ID, VRChat ID and verification status": [
+  "privacy.html"
+ ],
+ "Your Discord email address, even though Discord could provide it.": [
+  "privacy.html"
+ ],
+ "Your Discord user ID": [
+  "privacy.html"
+ ],
+ "Your VRChat display name or profile bio. Your bio is read at the moment of verification to find your code, and is not retained.": [
+  "privacy.html"
+ ],
+ "Your VRChat user ID (<0/>)": [
+  "privacy.html"
+ ],
+ "Your rights<0>#</0>": [
+  "privacy.html"
+ ],
+ "Your server list now says how each server is doing rather than the same sentence on every card. A server that was never finished, and one that was set up and has quietly stopped working, are both visible without opening them.": [
+  "changelog.html"
+ ],
+ "Your server's verified role goes on. Nobody has to review anything, and no administrator sees anything.": [
+  "index.html"
+ ],
+ "Your statutory rights<0>#</0>": [
+  "refunds.html"
+ ],
+ "Your verification <0>status</0> is visible to a server through the role the bot assigns, which is how the server acts on it. Your VRChat user ID is not shown to server administrators anywhere in the bot or the dashboard.": [
+  "privacy.html"
+ ],
+ "status.vrcverify.com is now available in all twelve languages the dashboard is, including Arabic read right to left. It picks one from your browser, and the globe in its header switches between them. Each language has its own address, so you can send somebody the status page in the language they read.": [
+  "changelog.html"
+ ],
+ "vrcverify.com is now available in all twelve languages the dashboard is, including Arabic read right to left. That includes the Terms of Service, the Privacy Policy and the Refund Policy, each of which says that the English version governs if a translation disagrees with it. Every page has its own address per language, and the globe in the header switches between them.": [
+  "changelog.html"
+ ]
+}

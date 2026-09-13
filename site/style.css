@@ -863,7 +863,7 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-overlay);
-  text-align: left;
+  text-align: start;
 }
 .theme-panel ul { list-style: none; margin: 0; padding: 0; }
 
@@ -890,7 +890,7 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
   background: none;
   font: inherit;
   color: var(--ink);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .theme-item:hover { background: var(--hover); }
@@ -910,11 +910,115 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
 }
 .theme-tick { flex: 0 0 auto; color: var(--accent-text); }
 
+/* THE LANGUAGE PICKER (#300).
+
+   Shared by both surfaces now. It arrived on the status page first, below the
+   "copied from site/style.css" boundary, with a note saying it would move up
+   when the apex grew a picker of its own. The apex has one, so it did.
+
+   It is a <details> for the same reason the theme menu is: neither surface has
+   a script a control may depend on. The status page cannot POST a preference
+   because it holds no session; the apex cannot because it is an assets-only
+   Worker with no code on the request path at all, and its legal pages are held
+   to rendering with scripting off. A link satisfies both.
+
+   WHERE THE MARKUP COMES FROM DIFFERS, and only that. The status Worker
+   renders it per request because it already knows which language it drew;
+   the apex has it written into all 66 generated files by
+   scripts/gen_site_locales.py, because there is nobody there to render
+   anything.
+
+   The shape follows .theme-menu deliberately, down to the class names on the
+   rows: two controls sitting a centimetre apart in the same bar should not
+   look like two different products. */
+.langpick { position: relative; }
+
+/* The default disclosure triangle goes from both engines, same as the theme
+   button: `list-style` for Firefox and current Chrome, the pseudo-element for
+   older WebKit. The globe is the marker. */
+.lang-button { list-style: none; }
+.lang-button::-webkit-details-marker { display: none; }
+
+.lang-button {
+  display: grid;
+  place-items: center;
+  width: var(--bar-control);
+  height: var(--bar-control);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  cursor: pointer;
+}
+.lang-button:hover { background: var(--hover); color: var(--ink-strong); }
+.langpick[open] .lang-button { background: var(--hover); color: var(--ink-strong); }
+
+/* A SUMMARY IS NOT IN THE SHARED FOCUS RULE, which enumerates `a`, `.cta`,
+   `.theme-button` and `.theme-item` and is a copy of the apex site's. Without
+   this the control takes Chromium's own ring, which is the same bug
+   `.timeline > summary` had and was found the same way, by tabbing to it. */
+.lang-button:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* Anchored to the inline end, so a panel wider than the globe it hangs from
+   opens inwards rather than off the side of the window. Logical rather than
+   `right`, because this is the one control on the page whose whole job is to
+   be used by somebody about to switch into Arabic. */
+.lang-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  inset-inline-end: 0;
+  z-index: 20;
+  min-width: 12rem;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 0.5rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-overlay);
+  text-align: start;
+}
+.lang-panel ul { list-style: none; margin: 0; padding: 0; }
+.lang-panel li { margin: 0; }
+
+.menu-label {
+  margin: 0.25rem 0.5rem 0.5rem;
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Each row is a LINK, not a button in a form: every language is its own URL,
+   so the browser's own "open in a new tab" and "copy link" work on it, and
+   nothing has to be posted anywhere. */
+.lang-panel .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: var(--text-subhead);
+  line-height: var(--leading-tight);
+}
+.lang-panel .menu-item:hover { background: var(--hover); text-decoration: none; }
+.lang-panel .menu-item.current { color: var(--ink-strong); }
+.lang-panel .menu-item-label { flex: 1 1 auto; }
+/* Each row is set in its OWN language, which is the point of showing endonyms
+   at all. Arabic in an otherwise Latin list is still read right to left. */
+.lang-panel .menu-item[lang="ar"] { direction: rtl; text-align: start; }
+.menu-tick { flex: 0 0 auto; color: var(--accent-text); }
+
+
 h1 { font-size: var(--text-title); line-height: var(--leading-tight); margin: 2rem 0 0.35rem; text-wrap: balance; color: var(--ink-strong); }
 h2 { font-size: var(--text-section); margin: 2.25rem 0 0.5rem; text-wrap: balance; color: var(--ink-strong); }
 h3 { font-size: var(--text-subhead); margin: 1.5rem 0 0.35rem; color: var(--ink-strong); }
 p, li { color: var(--ink); }
-ul, ol { padding-left: 1.35rem; }
+ul, ol { padding-inline-start: 1.35rem; }
 li { margin: 0.3rem 0; }
 
 .updated { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.5rem; }
@@ -1031,16 +1135,20 @@ li { margin: 0.3rem 0; }
 a { color: var(--accent-text); }
 
 table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.95rem; }
-th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th, td { text-align: start; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--muted); font-weight: 600; }
 .scroll { overflow-x: auto; }
 
 .note {
   background: var(--panel);
-  border-left: 3px solid var(--accent);
+  border-inline-start: 3px solid var(--accent);
   padding: 0.9rem 1.1rem;
   margin: 1.25rem 0;
-  border-radius: 0 6px 6px 0;
+  /* The square corners belong on the ruled edge, so these are logical too. */
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  border-start-end-radius: 6px;
+  border-end-end-radius: 6px;
 }
 .note p:first-child { margin-top: 0; }
 .note p:last-child { margin-bottom: 0; }
@@ -1190,7 +1298,12 @@ body.notfound > main { position: relative; z-index: 1; }
   height: 0.75rem;
   border: 2px solid var(--accent-text);
   border-top: 0;
-  border-inline-start: 0;
+  /* PHYSICAL, AND THAT IS THE POINT (#300). This was `border-inline-start`,
+     which is right for anything that follows the reading direction and wrong
+     for this: under `dir="rtl"` it dropped the other side, and two borders
+     rotated 45deg came out as a mirrored tick that reads as a ">" chevron.
+     A check mark is a symbol. It has one shape in every language. */
+  border-left: 0;
   rotate: 45deg;
   /* The rotation puts the tick's heel below the text's centre line; this lifts
      it back onto it. Margin rather than translate so the flex gap still
@@ -1300,8 +1413,11 @@ body.notfound > main { position: relative; z-index: 1; }
   margin: 1rem 0 0;
   color: var(--muted);
   font-size: 0.9375rem;
-  border-left: 3px solid var(--accent);
-  padding-left: 0.9rem;
+  /* Logical: the rule belongs beside the sentence it marks, whichever end
+     that sentence starts at. Physical left put the bar on the far side of the
+     page from its own text in Arabic. */
+  border-inline-start: 3px solid var(--accent);
+  padding-inline-start: 0.9rem;
 }
 
 /* THE TWO PLAN CARDS ARE GONE (#285), and so are their rules.
@@ -1463,7 +1579,10 @@ body.notfound > main { position: relative; z-index: 1; }
    of the two, and a `:target` heading is the same statement at a finer grain --
    it is where you are, stated by the navigation that brought you. It is not
    decoration and it is not a link. */
-.policy h2:target, .policy h3:target { border-left: 3px solid var(--accent); padding-left: 0.75rem; }
+.policy h2:target, .policy h3:target {
+  border-inline-start: 3px solid var(--accent);
+  padding-inline-start: 0.75rem;
+}
 
 /* THE ANCHOR AFFORDANCE.
    Hidden until the heading is hovered or the link itself is focused, so it
@@ -1473,7 +1592,7 @@ body.notfound > main { position: relative; z-index: 1; }
    one before every section. It is a convenience for someone who wants to copy
    a link to a clause, and it is only ever that. */
 .policy .anchor {
-  margin-left: 0.4rem;
+  margin-inline-start: 0.4rem;
   color: var(--faint);
   text-decoration: none;
   opacity: 0;
@@ -1505,7 +1624,7 @@ body.notfound > main { position: relative; z-index: 1; }
 }
 
 .policy .lede { font-size: 1.05rem; color: var(--ink); }
-.policy ul { padding-left: 1.5rem; }
+.policy ul { padding-inline-start: 1.5rem; }
 .policy li { margin: 0.5rem 0; }
 .policy .note { margin: 1.75rem 0; }
 .policy table { font-size: 0.9375rem; }

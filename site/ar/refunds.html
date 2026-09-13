@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>سياسة الاسترداد — VRCVerify</title>
+<link rel="canonical" href="https://vrcverify.com/ar/refunds">
+<link rel="alternate" hreflang="en" href="https://vrcverify.com/refunds">
+<link rel="alternate" hreflang="es-ES" href="https://vrcverify.com/es-ES/refunds">
+<link rel="alternate" hreflang="zh-CN" href="https://vrcverify.com/zh-CN/refunds">
+<link rel="alternate" hreflang="ja" href="https://vrcverify.com/ja/refunds">
+<link rel="alternate" hreflang="de" href="https://vrcverify.com/de/refunds">
+<link rel="alternate" hreflang="nl" href="https://vrcverify.com/nl/refunds">
+<link rel="alternate" hreflang="hi-IN" href="https://vrcverify.com/hi-IN/refunds">
+<link rel="alternate" hreflang="ar" href="https://vrcverify.com/ar/refunds">
+<link rel="alternate" hreflang="bn" href="https://vrcverify.com/bn/refunds">
+<link rel="alternate" hreflang="pt-BR" href="https://vrcverify.com/pt-BR/refunds">
+<link rel="alternate" hreflang="ru" href="https://vrcverify.com/ru/refunds">
+<link rel="alternate" hreflang="pa-IN" href="https://vrcverify.com/pa-IN/refunds">
+<link rel="alternate" hreflang="x-default" href="https://vrcverify.com/refunds">
+<link rel="stylesheet" href="/style.css">
+<!-- Blocking, and in <head>, so a stored Light choice paints light on the
+     first frame rather than flashing dark and correcting itself. Same
+     origin, ~30 lines, and nothing on this page needs it to work. -->
+<script src="/theme.js"></script>
+<script src="/status.js" defer></script>
+</head>
+<!-- `policy` turns on the long-form reading treatment in style.css:
+     a shorter measure, looser leading, and ruled section headings. Terms,
+     Privacy and Refunds carry it; 404 and the landing page do not. -->
+<body class="policy">
+
+<header class="site">
+  <div class="wrap">
+    <!-- THE MARK. The same logo.svg the dashboard serves, byte for byte, and
+         the same monochrome-plus-filter arrangement: black artwork, inverted
+         for dark. Three copies of the file, for the reason the fonts and
+         theme.js have three -- each surface has to keep working when the
+         others are down, so none of them may fetch the mark from another.
+         test_the_logo_is_the_same_file_everywhere fails if they drift.
+
+         `width`/`height` are the viewBox's dimensions, not the rendered ones:
+         they give the browser the ratio so the wordmark does not jump sideways
+         when the image lands. The stylesheet sets the height it is drawn at.
+
+         alt="" because the word beside it says the same thing, and a screen
+         reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
+         that just says where it goes. -->
+    <a class="brand" href="/ar/"><img class="brand-mark" src="/logo.svg" alt=""
+         width="805" height="615"><span>VRCVerify</span></a>
+    <nav>
+      <!-- Pricing leads, and it is an absolute URL to the dashboard on
+           purpose (#188): prices come from Stripe on the render that shows
+           them, and this site is an assets-only Worker with no code on the
+           request path. A price typed here would keep quoting the old number
+           after a price change, on the same domain the Terms live on. -->
+      <a href="https://dashboard.vrcverify.com/pricing">الأسعار</a>
+      <!-- Terms, Privacy and Refunds were here and are not any more (#200).
+           Every page still carries all three in its footer, which is where a
+           reader goes looking for a policy, and the 404 page lists them in its
+           body. Nothing became unreachable; they stopped taking the most
+           valuable row on the page to say something a visitor deciding whether
+           to install the bot is not asking.
+
+           The changelog takes one of the freed slots and moves up out of the
+           footer. #137 phase 5 put it there because the header "already
+           carries three legal links and the dashboard" and there was no room;
+           that sentence is what just stopped being true. -->
+      <a href="/ar/changelog">ما الجديد</a>
+      <a href="https://dashboard.vrcverify.com">لوحة التحكم</a>
+    </nav>
+    <!-- THE STATUS DOT (#170). Deliberately not a fourth nav link: #200 held
+         the nav to three items so it holds one line at 320px, and a fourth
+         entry wraps it to three lines and grows the header by 44px there.
+         This sits with the theme picker instead, in the control cluster,
+         where the row it takes was never the nav's.
+
+         Ships as a working link with a neutral dot, and stays exactly that
+         with JavaScript off. /status.js colors the dot from the real
+         verdict and never paints green from a reading it did not get. -->
+    <a class="status-pill" href="https://status.vrcverify.com/" data-state="unknown"><!-- SHAPE AS WELL AS COLOR, which is the status page's rule and matters
+           most here: --ok and --down have relative luminance 0.331 and 0.341,
+           so as two plain dots the "working" and "down" states are the same
+           dot to a red-green colorblind reader. These are that page's own
+           glyphs, so the mark here and the mark one click away agree. --> <svg class="status-glyph" viewBox="0 0 20 20" width="14" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <!-- A dot claims nothing, which is the right mark before a reading
+             arrives and the only one shipped without a script to change it. -->
+        <circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"></circle>
+      </svg> <span class="status-label">الحالة</span> <!-- Written by /status.js once a verdict is in, so the state is spoken
+           and not only colored. Empty until then, because "unknown" is what
+           the dot already says to somebody who can see it. --> <span class="status-said visually-hidden"></span></a>
+    <!-- The theme control is built by /theme.js into this placeholder (#195
+         phase 7). It is JavaScript-only either way -- there is no server here
+         to post a preference to -- so markup describing it would describe
+         something that may never exist. Ships hidden; the script reveals it. -->
+    <details class="langpick"><summary class="lang-button" title="اللغة: العربية" aria-label="اللغة: العربية. اختر لغة أخرى."><svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4"/><path d="M8 1.8a9.2 9.2 0 0 1 0 12.4a9.2 9.2 0 0 1 0-12.4z"/></svg></summary><div class="lang-panel"><p class="menu-label" id="lang-menu-label">Language</p><ul aria-labelledby="lang-menu-label"><li><a href="/refunds" lang="en" class="menu-item"><span class="menu-item-label">English</span></a></li><li><a href="/es-ES/refunds" lang="es-ES" class="menu-item"><span class="menu-item-label">Español</span></a></li><li><a href="/zh-CN/refunds" lang="zh-CN" class="menu-item"><span class="menu-item-label">简体中文</span></a></li><li><a href="/ja/refunds" lang="ja" class="menu-item"><span class="menu-item-label">日本語</span></a></li><li><a href="/de/refunds" lang="de" class="menu-item"><span class="menu-item-label">Deutsch</span></a></li><li><a href="/nl/refunds" lang="nl" class="menu-item"><span class="menu-item-label">Nederlands</span></a></li><li><a href="/hi-IN/refunds" lang="hi-IN" class="menu-item"><span class="menu-item-label">हिन्दी</span></a></li><li><a href="/ar/refunds" lang="ar" class="menu-item current" aria-current="true"><span class="menu-item-label">العربية</span><svg class="menu-tick" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg></a></li><li><a href="/bn/refunds" lang="bn" class="menu-item"><span class="menu-item-label">বাংলা</span></a></li><li><a href="/pt-BR/refunds" lang="pt-BR" class="menu-item"><span class="menu-item-label">Português (Brasil)</span></a></li><li><a href="/ru/refunds" lang="ru" class="menu-item"><span class="menu-item-label">Русский</span></a></li><li><a href="/pa-IN/refunds" lang="pa-IN" class="menu-item"><span class="menu-item-label">ਪੰਜਾਬੀ</span></a></li></ul></div></details>
+    <div class="theme-picker" hidden></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<h1>سياسة الاسترداد</h1>
+<p class="updated">آخر تحديث في 18 أغسطس 2026</p>
+
+<div class="note">
+  <p><strong>باختصار.</strong> الاشتراكات بالبطاقة المشتراة من هذا الموقع غير قابلة للاسترداد. يمكنك الإلغاء في أي وقت والاحتفاظ بالخدمة المميزة حتى نهاية الفترة المدفوعة بالفعل. أما الاشتراكات المشتراة عبر Discord فتخضع لقواعد الاسترداد الخاصة بـ Discord لا لقواعدنا. ولا تتأثر الحقوق القانونية حيثما كانت لك.</p>
+</div>
+
+<nav class="toc" aria-label="في هذه الصفحة">
+  <p class="toc-label">في هذه الصفحة</p>
+  <ol class="toc-list">
+    <li><a href="#card-subscriptions-bought-on-vrcverify-com">الاشتراكات بالبطاقة المشتراة من vrcverify.com</a></li>
+    <li><a href="#free-trials">الفترات التجريبية المجانية</a></li>
+    <li><a href="#subscriptions-bought-through-discord">الاشتراكات المشتراة عبر Discord</a></li>
+    <li><a href="#if-we-are-at-fault">إذا كان الخطأ من طرفنا</a></li>
+    <li><a href="#if-we-discontinue-the-service">إذا أوقفنا الخدمة</a></li>
+    <li><a href="#your-statutory-rights">حقوقك القانونية</a></li>
+    <li><a href="#contact">التواصل</a></li>
+  </ol>
+</nav>
+
+<h2 id="card-subscriptions-bought-on-vrcverify-com">الاشتراكات بالبطاقة المشتراة من vrcverify.com<a class="anchor" href="#card-subscriptions-bought-on-vrcverify-com" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p><strong>لا نقدّم استردادًا على الاشتراكات بالبطاقة</strong>، بما في ذلك الفترات المستخدمة جزئيًا، وبما في ذلك حين يتوقف خادم عن استخدام البوت في منتصف فترة.</p>
+
+<p>ما يمكنك فعله بدلًا من ذلك، في أي وقت، عبر بوابة الفوترة المرتبطة من صفحة «الاشتراكات» الخاصة بخادمك:</p>
+
+<ul>
+  <li><strong>الإلغاء.</strong> يتوقف تجديد الاشتراك. تبقى الخدمة المميزة فعّالة حتى نهاية الفترة المدفوعة بالفعل، ثم تتوقف. ولن تُخصم منك أي مبالغ أخرى.</li>
+  <li><strong>تغيير الخطة.</strong> انتقل بين الخطط الشهرية والستة أشهر والاثني عشر شهرًا.</li>
+</ul>
+
+<p>لأن الإلغاء يُبقي لك دائمًا ما دفعت مقابله، ولأن الخطة وسعرها يُعرضان قبل الدفع، فإن الاسترداد يعني إعادة مال عن فترة ما زلت تنتفع بها.</p>
+
+<h2 id="free-trials">الفترات التجريبية المجانية<a class="anchor" href="#free-trials" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>حيثما تقدّم خطة فترة تجريبية مجانية، تُعرض مدتها في الخطة قبل الشراء. <strong>ألغِ قبل انتهاء الفترة التجريبية ولن يُخصم منك شيء على الإطلاق.</strong> وإن تركتها تتجاوز نهايتها، فستُحتسب الفترة الأولى وتنطبق عليها هذه السياسة على النحو المعتاد.</p>
+
+<p>تتوفّر الفترة التجريبية مرة واحدة لكل خادم، وذلك للخوادم التي لم تحصل على الخدمة المميزة قط بأي من طريقتي الشراء.</p>
+
+<h2 id="subscriptions-bought-through-discord">الاشتراكات المشتراة عبر Discord<a class="anchor" href="#subscriptions-bought-through-discord" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>إن كنت قد اشتريت الخدمة المميزة عبر Discord لا من هذا الموقع، <strong>فإن Discord هو من تلقّى الدفع، وتنطبق قواعد الاسترداد الخاصة بـ Discord.</strong> نحن لا نعالج تلك المدفوعات، ولا يمكننا ردّها، ولا يمكننا تجاوز قرار Discord. اطلب الاسترداد عبر دعم Discord نفسه، وأدِر الاشتراك أو ألغِه من إعدادات المستخدم في Discord ضمن «الاشتراكات».</p>
+
+<h2 id="if-we-are-at-fault">إذا كان الخطأ من طرفنا<a class="anchor" href="#if-we-are-at-fault" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>تتناول هذه السياسة تغيّر الرأي، لا أخطاءنا. فإن جرى خصم مبلغ مرتين عن الخادم نفسه، أو خصم بعد الإلغاء، أو خصم مقابل خطة لم تشترِها، فراسِلنا وسنصحّح الأمر.</p>
+
+<p>لاحِظ أن <strong>شراء الخدمة المميزة على Discord وعلى هذا الموقع معًا للخادم نفسه يؤدي إلى اشتراكين فعّالين</strong>، لأن أيًّا من المنصتين لا يرى اشتراك الأخرى ولا يستطيع إلغاءه. وتنبّه لوحة التحكم حين ترصد ذلك. إن حدث لك هذا فألغِ الاشتراك الذي لا تريده، وراسِلنا إن احتجت مساعدة في تمييز أحدهما عن الآخر.</p>
+
+<h2 id="if-we-discontinue-the-service">إذا أوقفنا الخدمة<a class="anchor" href="#if-we-discontinue-the-service" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>إذا أغلقنا VRCVerify بينما لديك فترة مدفوعة لم تنتهِ بعد، فسنردّ الجزء غير المستخدَم منها.</p>
+
+<h2 id="your-statutory-rights">حقوقك القانونية<a class="anchor" href="#your-statutory-rights" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>لا شيء في هذه السياسة يحدّ من حقوق لك بموجب القانون المنطبق عليك بصفتك مستهلكًا.</p>
+
+<p>وعلى وجه الخصوص، إن كنت مستهلكًا في المملكة المتحدة أو المنطقة الاقتصادية الأوروبية فلديك عادةً 14 يومًا للانسحاب من عقد مبرم عن بُعد. وفي الخدمات الرقمية ينتهي هذا الحق بمجرد بدء التقديم بموافقتك الصريحة. <strong>تبدأ الخدمة المميزة فور الشراء، وبشرائها تطلب منّا البدء فورًا وتقبل أنك تفقد حق الانسحاب خلال 14 يومًا بمجرد أن نبدأ.</strong> وحيثما ظل ذلك الحق منطبقًا عليك، فإنه يعلو على هذه السياسة.</p>
+
+<p>تُنشر هذه الصفحة بعدة لغات تيسيرًا. وإذا اختلفت ترجمة عن النسخة الإنجليزية، <strong>فالنسخة الإنجليزية هي المعتمَدة</strong>.</p>
+
+<h2 id="contact">التواصل<a class="anchor" href="#contact" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>أي أمر يتعلق بالفوترة: <a href="mailto:contact@esattotech.com">contact@esattotech.com</a>. أرفِق معرّف خادم Discord الذي يخصّه الاشتراك.</p>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav>
+      <a href="/ar/changelog">ما الجديد</a>
+      <a href="https://status.vrcverify.com/">الحالة</a>
+      <a href="/ar/terms">شروط الخدمة</a>
+      <a href="/ar/privacy">سياسة الخصوصية</a>
+      <a href="/ar/refunds">سياسة الاسترداد</a>
+      <a href="mailto:contact@esattotech.com">اتصل بنا</a>
+    </nav>
+    <p>يُشغّل VRCVerify شركة Esatto Technologies، الولايات المتحدة.<br> غير تابع لشركة VRChat Inc. أو Discord Inc.، ولا معتمد أو مدعوم منهما.</p>
+  </div>
+</footer>
+
+</body>
+</html>

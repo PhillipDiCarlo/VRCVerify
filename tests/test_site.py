@@ -1785,3 +1785,362 @@ def test_the_preview_serves_the_site_the_way_the_edge_does():
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+# ----------------------------------------------------------------------
+# THE TRANSLATED APEX (#300)
+# ----------------------------------------------------------------------
+
+import gen_site_locales  # noqa: E402
+import site_i18n  # noqa: E402
+
+LOCALE_PAGES = sorted(
+    p for locale in gen_site_locales.LOCALES for p in (SITE / locale).glob("*.html")
+)
+
+
+class TestTheGeneratedPagesAreCurrent:
+    """`site/<locale>/` is generated output, committed, and therefore can go stale.
+
+    Same bargain `gen_changelog.py` makes and for the same reason: the apex is
+    an assets-only Worker with no code on the request path, so the twelve
+    versions of each page have to exist as files. The price of committing
+    generated output is a test that regenerates in memory and compares.
+    """
+
+    def test_every_page_exists_in_every_language(self):
+        expected = {
+            SITE / locale / page
+            for locale in gen_site_locales.LOCALES
+            for page in gen_site_locales.PAGES
+        }
+        assert set(LOCALE_PAGES) == expected
+        assert len(expected) == 66, "eleven languages times six pages"
+
+    def test_the_committed_output_matches_the_generator(self):
+        stale = [
+            path.relative_to(ROOT)
+            for path, text in gen_site_locales.build().items()
+            if not path.exists() or path.read_text(encoding="utf-8") != text
+        ]
+        assert stale == [], (
+            "regenerate with: python scripts/gen_site_locales.py"
+        )
+
+    def test_the_inventory_matches_the_english_pages(self):
+        """`site_locales/messages.json` is the .pot and is also committed."""
+        import json
+
+        committed = json.loads(gen_site_locales.INVENTORY.read_text(encoding="utf-8"))
+        assert committed == gen_site_locales.extract(), (
+            "refresh with: python scripts/gen_site_locales.py --extract"
+        )
+
+
+class TestTheExtractorDoesNotDamageThePages:
+    """The whole design rests on one property: splicing is lossless.
+
+    These pages are hand-written and heavily commented -- the status pill's
+    note runs to a paragraph about relative luminance. A parse-and-reserialize
+    would produce valid HTML and throw all of that away. site_i18n reports byte
+    offsets instead, and every translated page is the English one with those
+    ranges swapped. If that is not exact, nothing else here is trustworthy.
+    """
+
+    @pytest.mark.parametrize("page", PAGES, ids=lambda p: p.name)
+    def test_replacing_every_span_with_itself_reproduces_the_file(self, page):
+        source = page.read_text(encoding="utf-8")
+        out = source
+        for start, end, _kind, raw in sorted(site_i18n.collect(source), reverse=True):
+            out = out[:start] + raw + out[end:]
+        assert out == source
+
+    @pytest.mark.parametrize("page", PAGES, ids=lambda p: p.name)
+    def test_no_span_overlaps_another(self, page):
+        spans = site_i18n.collect(page.read_text(encoding="utf-8"))
+        for (_s1, e1, *_), (s2, *_) in zip(spans, spans[1:]):
+            assert e1 <= s2
+
+    @pytest.mark.parametrize("page", PAGES, ids=lambda p: p.name)
+    def test_a_msgid_survives_a_round_trip_through_the_markup(self, page):
+        """to_msgid -> from_msgid -> to_msgid is the identity.
+
+        It is what makes a translation safe to splice back: the placeholders a
+        translator moves have to map onto the original tags exactly.
+        """
+        for _s, _e, kind, raw in site_i18n.collect(page.read_text(encoding="utf-8")):
+            if kind != "block":
+                continue
+            msgid = site_i18n.to_msgid(raw)
+            assert site_i18n.to_msgid(site_i18n.from_msgid(msgid, raw)) == msgid
+
+    def test_a_comment_never_becomes_visible_text(self):
+        """The bug a stub catalog caught, and nothing else would have.
+
+        The status pill's msgid swallowed the HTML comment sitting inside it.
+        `from_msgid` escapes what it is given, so `<!--` came back as `&lt;!--`
+        and the German 404 rendered a paragraph about red-green colorblindness
+        as body copy.
+        """
+        for page in PAGES:
+            for _s, _e, kind, raw in site_i18n.collect(page.read_text(encoding="utf-8")):
+                if kind == "block":
+                    assert "<!--" not in site_i18n.to_msgid(raw), page.name
+        for page in LOCALE_PAGES:
+            assert "&lt;!--" not in page.read_text(encoding="utf-8"), page
+
+
+class TestTheCatalogs:
+    LOCALES_DIR = ROOT / "site_locales"
+
+    def _inventory(self):
+        import json
+
+        return json.loads(gen_site_locales.INVENTORY.read_text(encoding="utf-8"))
+
+    def _catalog(self, locale):
+        import json
+
+        return json.loads(
+            (self.LOCALES_DIR / f"{locale}.json").read_text(encoding="utf-8")
+        )
+
+    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    def test_every_msgid_is_translated(self, locale):
+        missing = [k for k in self._inventory() if k not in self._catalog(locale)]
+        assert missing == [], f"{locale} is missing {len(missing)} msgids"
+
+    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    def test_nothing_is_translated_that_nothing_asks_for(self, locale):
+        """An entry no msgid matches is a typo in the key.
+
+        Which means the real string is untranslated and looks translated.
+        """
+        inventory = self._inventory()
+        orphans = [k for k in self._catalog(locale) if k not in inventory]
+        assert orphans == [], f"{locale} has {len(orphans)} entries nothing uses"
+
+    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    def test_every_placeholder_survives_translation(self, locale):
+        """`<0>` is a tag the generator puts back. Losing one loses a link.
+
+        Inventing one is worse: `from_msgid` has nothing to map it to, so it is
+        dropped and the sentence quietly loses a word.
+        """
+        for msgid, text in self._catalog(locale).items():
+            assert sorted(re.findall(r"<(/?\d+/?)>", msgid)) == sorted(
+                re.findall(r"<(/?\d+/?)>", text)
+            ), f"{locale}: {msgid[:60]!r}"
+
+    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    def test_no_infrastructure_name_reaches_a_catalog(self, locale):
+        """TestPublicCopy's rule, applied to eleven files nobody reads in English.
+
+        A private part name is exactly what a translator carries across
+        untouched, because it looks like a product name.
+        """
+        text = (self.LOCALES_DIR / f"{locale}.json").read_text(encoding="utf-8").lower()
+        for word in ("postgres", "rabbitmq", "tailscale", "tailnet", "cloudflared", "homelab"):
+            assert word not in text, f"{locale} names {word}"
+
+
+class TestTheTranslatedPagesThemselves:
+    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    def test_the_document_says_which_language_it_is(self, locale):
+        direction = "rtl" if locale in gen_site_locales.RTL else "ltr"
+        for page in gen_site_locales.PAGES:
+            html = (SITE / locale / page).read_text(encoding="utf-8")
+            assert f'<html lang="{locale}" dir="{direction}">' in html, f"{locale}/{page}"
+
+    def test_arabic_is_the_only_right_to_left_language(self):
+        assert gen_site_locales.RTL == {"ar"}
+
+    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    def test_internal_links_point_at_this_language(self, locale):
+        """`/terms` in the Japanese footer has to be `/ja/terms`.
+
+        Otherwise the picker moves a reader into their language and the first
+        link they click moves them straight back out.
+        """
+        for page in gen_site_locales.PAGES:
+            html = (SITE / locale / page).read_text(encoding="utf-8")
+            # THE PICKER IS EXEMPT, and that exemption is the point of it: its
+            # twelve links are the only ones on the page that must leave this
+            # language. The generator inserts it after the rewrite for exactly
+            # that reason, and this test found the distinction by failing on
+            # the English entry's `href="/"`.
+            picker = re.search(r'<details class="langpick".*?</details>', html, re.S)
+            assert picker, f"{locale}/{page} has no picker"
+            body = html.replace(picker.group(0), "")
+            for href in re.findall(r'href="(/[^"#]*)"', body):
+                if gen_site_locales.ASSETS.match(href):
+                    continue
+                assert href.startswith(f"/{locale}"), f"{locale}/{page}: {href}"
+
+    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    def test_the_shared_assets_are_not_prefixed(self, locale):
+        """One stylesheet, one theme.js, one logo, shared by all twelve.
+
+        Prefixing them would ask for `/ja/style.css`, which does not exist, and
+        the page would render unstyled in eleven languages.
+        """
+        html = (SITE / locale / "index.html").read_text(encoding="utf-8")
+        for asset in ('href="/style.css"', 'src="/theme.js"', 'src="/logo.svg"'):
+            assert asset in html, f"{locale}: {asset} was rewritten"
+
+    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    def test_every_page_advertises_all_twelve_to_a_crawler(self, locale):
+        """Without hreflang, twelve URLs of one page are twelve duplicates."""
+        for page in gen_site_locales.PAGES:
+            html = (SITE / locale / page).read_text(encoding="utf-8")
+            for other in [gen_site_locales.DEFAULT_LOCALE, *gen_site_locales.LOCALES]:
+                assert f'hreflang="{other}"' in html, f"{locale}/{page} omits {other}"
+            assert 'hreflang="x-default"' in html
+            assert html.count('rel="canonical"') == 1
+
+    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    def test_the_picker_offers_twelve_and_marks_one(self, locale):
+        for page in gen_site_locales.PAGES:
+            html = (SITE / locale / page).read_text(encoding="utf-8")
+            assert html.count('class="langpick"') == 1
+            assert html.count('aria-current="true"') == 1, f"{locale}/{page}"
+            for other in [gen_site_locales.DEFAULT_LOCALE, *gen_site_locales.LOCALES]:
+                assert f'lang="{other}"' in html, f"{locale}/{page} omits {other}"
+
+    def test_the_picker_needs_no_javascript(self):
+        """The apex has no code on the request path and its legal pages are
+        held to rendering with scripting off. A link is the only affordance
+        that satisfies both."""
+        html = (SITE / "ja" / "terms.html").read_text(encoding="utf-8")
+        picker = html[html.index('<details class="langpick"') : html.index("</details>")]
+        assert "<form" not in picker
+        assert "onclick" not in picker
+        assert picker.count("<a href=") == 12
+
+    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    def test_dates_are_written_the_way_that_language_writes_them(self, locale):
+        """"Sep 11, 2026" is a US spelling of a value already in the markup.
+
+        `<time datetime=...>` carries the ISO date, so the generator reformats
+        from that rather than parsing the English.
+        """
+        html = (SITE / locale / "changelog.html").read_text(encoding="utf-8")
+        shown = re.findall(r"<time[^>]*>([^<]+)</time>", html)
+        assert shown, f"{locale} changelog has no dates"
+        if locale not in ("en",):
+            english = re.findall(
+                r"<time[^>]*>([^<]+)</time>",
+                (SITE / "changelog.html").read_text(encoding="utf-8"),
+            )
+            assert shown != english, f"{locale} dates were not localized"
+
+
+class TestTheLegalPagesSayWhichTextBinds:
+    """Decided on #300: translate, and state that English governs.
+
+    Eleven independently authoritative versions of a policy is real exposure.
+    An English-only policy is the worst place on the site to put a wall. The
+    clause is the standard position and the one the issue records.
+    """
+
+    POLICIES = ("terms.html", "privacy.html", "refunds.html")
+    CLAUSE = "the English version governs"
+
+    @pytest.mark.parametrize("page", POLICIES)
+    def test_the_english_page_carries_it(self, page):
+        assert self.CLAUSE in (SITE / page).read_text(encoding="utf-8")
+
+    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    def test_every_translated_policy_carries_it_too(self, locale):
+        import json
+
+        msgid = (
+            "This page is published in several languages for convenience. "
+            "If a translation and the English version disagree, "
+            "<0>the English version governs</0>."
+        )
+        catalog = json.loads(
+            (ROOT / "site_locales" / f"{locale}.json").read_text(encoding="utf-8")
+        )
+        assert msgid in catalog, f"{locale} has not translated the governing-law clause"
+        translated = catalog[msgid]
+        for page in self.POLICIES:
+            html = (SITE / locale / page).read_text(encoding="utf-8")
+            # The clause is one block; its text survives the splice with the
+            # <strong> restored, so compare on the words outside the tags.
+            without_tags = re.sub(r"</?\d+>", "", translated)
+            first_words = without_tags.split(".")[0]
+            assert first_words in re.sub(r"<[^>]+>", "", html), f"{locale}/{page}"
+
+
+class TestTheApexSpeaksTheOtherSurfacesLanguages:
+    """One product, one list of languages.
+
+    A reader who sets Japanese on the dashboard, clicks Status and gets
+    Japanese, then clicks Terms and gets English, has been told the product
+    speaks a language part of it does not.
+    """
+
+    def test_it_offers_every_language_the_dashboard_does(self):
+        from dashboard import i18n
+
+        dashboard = [c for c in i18n.UI_LANGUAGES if c != "en-US"]
+        assert sorted(gen_site_locales.LOCALES) == sorted(dashboard)
+
+    def test_it_offers_every_language_the_status_page_does(self):
+        source = (ROOT / "status" / "src" / "i18n.js").read_text(encoding="utf-8")
+        block = re.search(r"export const LOCALES = \[(.*?)\];", source, re.S).group(1)
+        worker = [c for c in re.findall(r'"([a-zA-Z-]+)"', block) if c != "en"]
+        assert sorted(gen_site_locales.LOCALES) == sorted(worker)
+
+    def test_the_endonyms_agree_with_both(self):
+        """The picker is read by somebody who cannot read the page it is on.
+
+        Three surfaces spelling one language three ways is the one thing that
+        control cannot afford.
+        """
+        from dashboard import i18n
+
+        for code, endonym in i18n.ENDONYMS.items():
+            here = "en" if code == "en-US" else code
+            assert gen_site_locales.ENDONYMS[here] == endonym, code
+
+
+class TestRightToLeftDoesNotBreakTheDrawing:
+    """Arabic is the only language that arrives under `dir="rtl"` (#300).
+
+    Two bugs shipped in the first pass and both were invisible in the source.
+    They are opposites, which is the useful part: a rule that follows the
+    reading direction must be logical, and a rule that draws a SYMBOL must not
+    be, and getting either backwards is only visible in a screenshot.
+    """
+
+    # COMMENTS STRIPPED FIRST. These rules explain themselves at length and
+    # name the property they replaced, so a scan of the raw file finds the word
+    # it is looking for inside the paragraph saying why it is not used.
+    CSS = re.sub(r"/\*.*?\*/", "", (SITE / "style.css").read_text(encoding="utf-8"), flags=re.S)
+
+    def test_the_check_mark_is_the_same_shape_in_every_language(self):
+        """It was `border-inline-start: 0`, so RTL dropped the other side and
+        two borders rotated 45deg came out as a ">" chevron."""
+        tick = self.CSS[self.CSS.index(".trust-strip span::before") :][:900]
+        assert "border-left: 0;" in tick
+        assert "border-inline-start" not in tick
+
+    @pytest.mark.parametrize("selector", [".flow-note", ".note"])
+    def test_an_accent_rule_sits_beside_the_text_it_marks(self, selector):
+        """These were `border-left`, which in Arabic put the bar on the far
+        side of the page from its own sentence."""
+        block = self.CSS[self.CSS.index(f"\n{selector} {{") :][:600]
+        assert "border-inline-start:" in block
+        assert "border-left:" not in block
+
+    def test_nothing_else_indents_or_aligns_by_a_physical_side(self):
+        """One exception, and it is the tick above."""
+        offenders = [
+            line.strip()
+            for line in self.CSS.splitlines()
+            if re.search(r"(text-align:\s*(left|right)|(border|padding|margin)-(left|right):)", line)
+            and "border-left: 0;" not in line
+        ]
+        assert offenders == [], offenders

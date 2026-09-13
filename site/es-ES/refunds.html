@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="es-ES" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Política de reembolsos — VRCVerify</title>
+<link rel="canonical" href="https://vrcverify.com/es-ES/refunds">
+<link rel="alternate" hreflang="en" href="https://vrcverify.com/refunds">
+<link rel="alternate" hreflang="es-ES" href="https://vrcverify.com/es-ES/refunds">
+<link rel="alternate" hreflang="zh-CN" href="https://vrcverify.com/zh-CN/refunds">
+<link rel="alternate" hreflang="ja" href="https://vrcverify.com/ja/refunds">
+<link rel="alternate" hreflang="de" href="https://vrcverify.com/de/refunds">
+<link rel="alternate" hreflang="nl" href="https://vrcverify.com/nl/refunds">
+<link rel="alternate" hreflang="hi-IN" href="https://vrcverify.com/hi-IN/refunds">
+<link rel="alternate" hreflang="ar" href="https://vrcverify.com/ar/refunds">
+<link rel="alternate" hreflang="bn" href="https://vrcverify.com/bn/refunds">
+<link rel="alternate" hreflang="pt-BR" href="https://vrcverify.com/pt-BR/refunds">
+<link rel="alternate" hreflang="ru" href="https://vrcverify.com/ru/refunds">
+<link rel="alternate" hreflang="pa-IN" href="https://vrcverify.com/pa-IN/refunds">
+<link rel="alternate" hreflang="x-default" href="https://vrcverify.com/refunds">
+<link rel="stylesheet" href="/style.css">
+<!-- Blocking, and in <head>, so a stored Light choice paints light on the
+     first frame rather than flashing dark and correcting itself. Same
+     origin, ~30 lines, and nothing on this page needs it to work. -->
+<script src="/theme.js"></script>
+<script src="/status.js" defer></script>
+</head>
+<!-- `policy` turns on the long-form reading treatment in style.css:
+     a shorter measure, looser leading, and ruled section headings. Terms,
+     Privacy and Refunds carry it; 404 and the landing page do not. -->
+<body class="policy">
+
+<header class="site">
+  <div class="wrap">
+    <!-- THE MARK. The same logo.svg the dashboard serves, byte for byte, and
+         the same monochrome-plus-filter arrangement: black artwork, inverted
+         for dark. Three copies of the file, for the reason the fonts and
+         theme.js have three -- each surface has to keep working when the
+         others are down, so none of them may fetch the mark from another.
+         test_the_logo_is_the_same_file_everywhere fails if they drift.
+
+         `width`/`height` are the viewBox's dimensions, not the rendered ones:
+         they give the browser the ratio so the wordmark does not jump sideways
+         when the image lands. The stylesheet sets the height it is drawn at.
+
+         alt="" because the word beside it says the same thing, and a screen
+         reader announcing "VRCVerify logo, VRCVerify" is a worse link than one
+         that just says where it goes. -->
+    <a class="brand" href="/es-ES/"><img class="brand-mark" src="/logo.svg" alt=""
+         width="805" height="615"><span>VRCVerify</span></a>
+    <nav>
+      <!-- Pricing leads, and it is an absolute URL to the dashboard on
+           purpose (#188): prices come from Stripe on the render that shows
+           them, and this site is an assets-only Worker with no code on the
+           request path. A price typed here would keep quoting the old number
+           after a price change, on the same domain the Terms live on. -->
+      <a href="https://dashboard.vrcverify.com/pricing">Precios</a>
+      <!-- Terms, Privacy and Refunds were here and are not any more (#200).
+           Every page still carries all three in its footer, which is where a
+           reader goes looking for a policy, and the 404 page lists them in its
+           body. Nothing became unreachable; they stopped taking the most
+           valuable row on the page to say something a visitor deciding whether
+           to install the bot is not asking.
+
+           The changelog takes one of the freed slots and moves up out of the
+           footer. #137 phase 5 put it there because the header "already
+           carries three legal links and the dashboard" and there was no room;
+           that sentence is what just stopped being true. -->
+      <a href="/es-ES/changelog">Novedades</a>
+      <a href="https://dashboard.vrcverify.com">Panel</a>
+    </nav>
+    <!-- THE STATUS DOT (#170). Deliberately not a fourth nav link: #200 held
+         the nav to three items so it holds one line at 320px, and a fourth
+         entry wraps it to three lines and grows the header by 44px there.
+         This sits with the theme picker instead, in the control cluster,
+         where the row it takes was never the nav's.
+
+         Ships as a working link with a neutral dot, and stays exactly that
+         with JavaScript off. /status.js colors the dot from the real
+         verdict and never paints green from a reading it did not get. -->
+    <a class="status-pill" href="https://status.vrcverify.com/" data-state="unknown"><!-- SHAPE AS WELL AS COLOR, which is the status page's rule and matters
+           most here: --ok and --down have relative luminance 0.331 and 0.341,
+           so as two plain dots the "working" and "down" states are the same
+           dot to a red-green colorblind reader. These are that page's own
+           glyphs, so the mark here and the mark one click away agree. --> <svg class="status-glyph" viewBox="0 0 20 20" width="14" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <!-- A dot claims nothing, which is the right mark before a reading
+             arrives and the only one shipped without a script to change it. -->
+        <circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"></circle>
+      </svg> <span class="status-label">Estado</span> <!-- Written by /status.js once a verdict is in, so the state is spoken
+           and not only colored. Empty until then, because "unknown" is what
+           the dot already says to somebody who can see it. --> <span class="status-said visually-hidden"></span></a>
+    <!-- The theme control is built by /theme.js into this placeholder (#195
+         phase 7). It is JavaScript-only either way -- there is no server here
+         to post a preference to -- so markup describing it would describe
+         something that may never exist. Ships hidden; the script reveals it. -->
+    <details class="langpick"><summary class="lang-button" title="Idioma: Español" aria-label="Idioma: Español. Elige otro."><svg class="menu-mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4"/><path d="M8 1.8a9.2 9.2 0 0 1 0 12.4a9.2 9.2 0 0 1 0-12.4z"/></svg></summary><div class="lang-panel"><p class="menu-label" id="lang-menu-label">Language</p><ul aria-labelledby="lang-menu-label"><li><a href="/refunds" lang="en" class="menu-item"><span class="menu-item-label">English</span></a></li><li><a href="/es-ES/refunds" lang="es-ES" class="menu-item current" aria-current="true"><span class="menu-item-label">Español</span><svg class="menu-tick" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg></a></li><li><a href="/zh-CN/refunds" lang="zh-CN" class="menu-item"><span class="menu-item-label">简体中文</span></a></li><li><a href="/ja/refunds" lang="ja" class="menu-item"><span class="menu-item-label">日本語</span></a></li><li><a href="/de/refunds" lang="de" class="menu-item"><span class="menu-item-label">Deutsch</span></a></li><li><a href="/nl/refunds" lang="nl" class="menu-item"><span class="menu-item-label">Nederlands</span></a></li><li><a href="/hi-IN/refunds" lang="hi-IN" class="menu-item"><span class="menu-item-label">हिन्दी</span></a></li><li><a href="/ar/refunds" lang="ar" class="menu-item"><span class="menu-item-label">العربية</span></a></li><li><a href="/bn/refunds" lang="bn" class="menu-item"><span class="menu-item-label">বাংলা</span></a></li><li><a href="/pt-BR/refunds" lang="pt-BR" class="menu-item"><span class="menu-item-label">Português (Brasil)</span></a></li><li><a href="/ru/refunds" lang="ru" class="menu-item"><span class="menu-item-label">Русский</span></a></li><li><a href="/pa-IN/refunds" lang="pa-IN" class="menu-item"><span class="menu-item-label">ਪੰਜਾਬੀ</span></a></li></ul></div></details>
+    <div class="theme-picker" hidden></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<h1>Política de reembolsos</h1>
+<p class="updated">Última actualización: 18 de agosto de 2026</p>
+
+<div class="note">
+  <p><strong>En resumen.</strong> Las suscripciones con tarjeta compradas en este sitio no son reembolsables. Puedes cancelar en cualquier momento y conservar Premium hasta el final del periodo que ya has pagado. Las suscripciones compradas a través de Discord se rigen por las normas de reembolso de Discord, no por las nuestras. Los derechos legales, cuando te correspondan, no se ven afectados.</p>
+</div>
+
+<nav class="toc" aria-label="En esta página">
+  <p class="toc-label">En esta página</p>
+  <ol class="toc-list">
+    <li><a href="#card-subscriptions-bought-on-vrcverify-com">Suscripciones con tarjeta compradas en vrcverify.com</a></li>
+    <li><a href="#free-trials">Pruebas gratuitas</a></li>
+    <li><a href="#subscriptions-bought-through-discord">Suscripciones compradas a través de Discord</a></li>
+    <li><a href="#if-we-are-at-fault">Si el fallo es nuestro</a></li>
+    <li><a href="#if-we-discontinue-the-service">Si discontinuamos el servicio</a></li>
+    <li><a href="#your-statutory-rights">Tus derechos legales</a></li>
+    <li><a href="#contact">Contacto</a></li>
+  </ol>
+</nav>
+
+<h2 id="card-subscriptions-bought-on-vrcverify-com">Suscripciones con tarjeta compradas en vrcverify.com<a class="anchor" href="#card-subscriptions-bought-on-vrcverify-com" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p><strong>No ofrecemos reembolsos en las suscripciones con tarjeta</strong>, incluidos los periodos usados en parte y los casos en que un servidor dejó de usar el bot a mitad de un periodo.</p>
+
+<p>Lo que puedes hacer en su lugar, en cualquier momento, desde el portal de facturación enlazado en la página de Suscripciones de tu servidor:</p>
+
+<ul>
+  <li><strong>Cancelar.</strong> La suscripción deja de renovarse. Premium sigue activo hasta el final del periodo que ya has pagado, y luego se detiene. No se te vuelve a cobrar.</li>
+  <li><strong>Cambiar de plan.</strong> Pasa entre los planes mensual, de seis meses y de doce meses.</li>
+</ul>
+
+<p>Como cancelar siempre te deja con lo que pagaste, y como el plan y su precio se muestran antes de pagar, un reembolso sería devolver dinero por un periodo del que sigues disfrutando.</p>
+
+<h2 id="free-trials">Pruebas gratuitas<a class="anchor" href="#free-trials" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>Cuando un plan ofrece una prueba gratuita, su duración se muestra en el plan antes de comprar. <strong>Cancela antes de que termine la prueba y no se te cobra nada en absoluto.</strong> Si dejas que pase del final, se cobra el primer periodo y esta política se le aplica con normalidad.</p>
+
+<p>Hay una prueba disponible una vez por servidor, para servidores que nunca hayan tenido Premium por ninguna de las dos vías de compra.</p>
+
+<h2 id="subscriptions-bought-through-discord">Suscripciones compradas a través de Discord<a class="anchor" href="#subscriptions-bought-through-discord" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>Si compraste Premium a través de Discord y no en este sitio, <strong>Discord cobró el pago y se aplican las normas de reembolso de Discord.</strong> No procesamos esos pagos, no podemos reembolsarlos y no podemos anular la decisión de Discord. Solicita el reembolso a través del soporte de Discord, y gestiona o cancela la suscripción en los Ajustes de usuario de Discord, en Suscripciones.</p>
+
+<h2 id="if-we-are-at-fault">Si el fallo es nuestro<a class="anchor" href="#if-we-are-at-fault" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>Esta política cubre los cambios de opinión. No cubre nuestros errores. Si te cobraron dos veces por el mismo servidor, te cobraron después de cancelar o te cobraron un plan que no compraste, escríbenos y lo arreglaremos.</p>
+
+<p>Ten en cuenta que <strong>comprar Premium tanto en Discord como en este sitio para el mismo servidor da lugar a dos suscripciones activas</strong>, porque ninguna plataforma puede ver ni cancelar la de la otra. El panel avisa cuando lo detecta. Si te ha pasado, cancela la que no quieras; escríbenos si necesitas ayuda para saber cuál es cuál.</p>
+
+<h2 id="if-we-discontinue-the-service">Si discontinuamos el servicio<a class="anchor" href="#if-we-discontinue-the-service" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>Si cerramos VRCVerify mientras has pagado por un periodo que no ha terminado, te reembolsaremos la parte no utilizada.</p>
+
+<h2 id="your-statutory-rights">Tus derechos legales<a class="anchor" href="#your-statutory-rights" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>Nada en esta política limita los derechos que te correspondan conforme a la ley aplicable a ti como consumidor.</p>
+
+<p>En particular, si eres consumidor en el Reino Unido o en el Espacio Económico Europeo, normalmente dispones de 14 días para desistir de un contrato a distancia. En los servicios digitales, este derecho termina una vez que la prestación ha comenzado con tu consentimiento expreso. <strong>Premium empieza inmediatamente con la compra, y al comprarlo nos pides que empecemos de inmediato y aceptas que pierdes el derecho de desistimiento de 14 días una vez que lo hemos hecho.</strong> Cuando ese derecho siga siendo aplicable para ti, prevalece sobre esta política.</p>
+
+<p>Esta página se publica en varios idiomas por comodidad. Si una traducción y la versión en inglés difieren, <strong>prevalece la versión en inglés</strong>.</p>
+
+<h2 id="contact">Contacto<a class="anchor" href="#contact" aria-hidden="true" tabindex="-1">#</a></h2>
+
+<p>Cualquier cosa sobre facturación: <a href="mailto:contact@esattotech.com">contact@esattotech.com</a>. Incluye el ID del servidor de Discord al que corresponde la suscripción.</p>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <nav>
+      <a href="/es-ES/changelog">Novedades</a>
+      <a href="https://status.vrcverify.com/">Estado</a>
+      <a href="/es-ES/terms">Términos del servicio</a>
+      <a href="/es-ES/privacy">Política de privacidad</a>
+      <a href="/es-ES/refunds">Política de reembolsos</a>
+      <a href="mailto:contact@esattotech.com">Contacto</a>
+    </nav>
+    <p>VRCVerify está operado por Esatto Technologies, Estados Unidos.<br> No está afiliado, respaldado ni patrocinado por VRChat Inc. ni Discord Inc.</p>
+  </div>
+</footer>
+
+</body>
+</html>

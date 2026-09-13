@@ -505,7 +505,7 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-overlay);
-  text-align: left;
+  text-align: start;
 }
 .theme-panel ul { list-style: none; margin: 0; padding: 0; }
 
@@ -532,7 +532,7 @@ header.site nav a:hover, header.site nav a:focus { color: var(--ink-strong); tex
   background: none;
   font: inherit;
   color: var(--ink);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .theme-item:hover { background: var(--hover); }
@@ -592,24 +592,23 @@ a:focus-visible, .cta:focus-visible,
   outline-offset: 2px;
 }
 
-/* ------------------------------------------------------------------
-   THE STATUS PAGE ITSELF. Everything above this line is copied from
-   site/style.css; everything below is new with issue #170.
-   ------------------------------------------------------------------ */
-
 /* THE LANGUAGE PICKER (#300).
 
-   Below the boundary on purpose. Everything above it is a copy of
-   site/style.css, and the apex site has no language picker to copy -- it is
-   six static files with no code on the request path, so it cannot have one
-   yet. When it grows one this block moves up.
+   Shared by both surfaces now. It arrived on the status page first, below the
+   "copied from site/style.css" boundary, with a note saying it would move up
+   when the apex grew a picker of its own. The apex has one, so it did.
 
-   It is a <details> for the same reason the theme menu is: there is no script
-   on this page that a control may depend on, and a status page whose language
-   cannot be changed with JavaScript off is a status page that cannot be read
-   during the outage it exists to describe. Where the theme menu is BUILT by
-   theme.js, this one is server rendered, because the Worker already knows
-   which language it just drew.
+   It is a <details> for the same reason the theme menu is: neither surface has
+   a script a control may depend on. The status page cannot POST a preference
+   because it holds no session; the apex cannot because it is an assets-only
+   Worker with no code on the request path at all, and its legal pages are held
+   to rendering with scripting off. A link satisfies both.
+
+   WHERE THE MARKUP COMES FROM DIFFERS, and only that. The status Worker
+   renders it per request because it already knows which language it drew;
+   the apex has it written into all 66 generated files by
+   scripts/gen_site_locales.py, because there is nobody there to render
+   anything.
 
    The shape follows .theme-menu deliberately, down to the class names on the
    rows: two controls sitting a centimetre apart in the same bar should not
@@ -695,6 +694,11 @@ a:focus-visible, .cta:focus-visible,
    at all. Arabic in an otherwise Latin list is still read right to left. */
 .lang-panel .menu-item[lang="ar"] { direction: rtl; text-align: start; }
 .menu-tick { flex: 0 0 auto; color: var(--accent-text); }
+
+/* ------------------------------------------------------------------
+   THE STATUS PAGE ITSELF. Everything above this line is copied from
+   site/style.css; everything below is new with issue #170.
+   ------------------------------------------------------------------ */
 
 /* THREE STATUS COLORS, in the same four-block order the theme uses above.
 
