@@ -102,7 +102,15 @@ def test_every_tag_is_closed(page):
 @pytest.mark.parametrize("page", PAGES, ids=PAGE_NAMES)
 def test_internal_links_resolve(page):
     """A dead link in a footer copied onto four pages is dead four times."""
-    available = set(PAGE_NAMES) | {"style.css"}
+    # RESOLVED AGAINST THE FILESYSTEM, not a hardcoded list of six names. The
+    # language picker adds eleven links per page -- `/ja/terms`, `/ar/terms`
+    # and so on -- and a list that only knew the top level would have had to
+    # be taught to ignore them. Reading the tree instead means those eleven
+    # are now CHECKED: a locale directory that failed to generate is a dead
+    # link on every page, and this is what says so (#300).
+    available = {
+        str(f.relative_to(SITE)) for f in SITE.rglob("*") if f.is_file()
+    }
     dead = []
     for href in parse(page).links:
         if not href.startswith("/") or href.startswith("//"):
@@ -111,6 +119,9 @@ def test_internal_links_resolve(page):
         # -- see test_internal_links_are_canonical -- so both forms resolve to
         # the same file on disk.
         target = href.lstrip("/") or "index.html"
+        # `/ja/` is that language's landing page, the same way `/` is English's.
+        if target.endswith("/"):
+            target += "index.html"
         if target not in available and f"{target}.html" not in available:
             dead.append(href)
     assert not dead, f"{page.name}: {dead}"
@@ -237,12 +248,27 @@ def test_the_wave_is_one_drawing_everywhere_it_appears():
     )
 
 
+# THE LANGUAGE PICKER IS THE ONE PART OF THE HEADER THAT IS PER-PAGE (#300).
+#
+# Every one of its twelve links points at THIS page in another language, so it
+# is `/ja/terms` on Terms and `/ja/privacy` on Privacy. That is the whole
+# function of the control. The tests below are about the hand-written chrome
+# and predate it, so they take it out first rather than being widened to
+# tolerate it -- the rules they enforce ("the nav is the same everywhere", "no
+# policy links in the nav") are all still true of what is left.
+PICKER = re.compile(r'<details class="langpick">.*?</details>\s*', re.S)
+
+
+def without_picker(text: str) -> str:
+    return PICKER.sub("", text)
+
+
 def test_the_header_nav_is_identical_on_every_page():
     headers = {}
     for page in PAGES:
         match = re.search(r'<header class="site">(.*?)</header>', read(page), re.S)
         assert match, f"{page.name} has no site header"
-        headers[page.name] = match.group(1).strip()
+        headers[page.name] = without_picker(match.group(1)).strip()
     assert len(set(headers.values())) == 1, (
         "headers have drifted: " + ", ".join(sorted(headers))
     )
@@ -272,11 +298,18 @@ def test_nothing_is_loaded_from_a_third_party(page):
     convenience.
     """
     text = read(page)
-    loaders = re.findall(r'(?:src|href)="(https?://[^"]+)"', text)
+    # `rel="canonical"` and `rel="alternate" hreflang` are HINTS TO A CRAWLER,
+    # not subresources: nothing is fetched, and they point at this same origin.
+    # This test is about what the browser loads, so they are dropped before the
+    # scan rather than the scan being loosened (#300).
+    text_without_hints = re.sub(
+        r'<link rel="(?:canonical|alternate)"[^>]*>\n?', "", text
+    )
+    loaders = re.findall(r'(?:src|href)="(https?://[^"]+)"', text_without_hints)
     stylesheets_and_scripts = [
         url
         for url in loaders
-        if re.search(rf'<(?:link|script)[^>]*"{re.escape(url)}"', text)
+        if re.search(rf'<(?:link|script)[^>]*"{re.escape(url)}"', text_without_hints)
     ]
     assert not stylesheets_and_scripts, f"{page.name}: {stylesheets_and_scripts}"
 
@@ -872,7 +905,13 @@ def test_the_committed_changelog_matches_the_constant():
     If this fails: python scripts/gen_changelog.py
     """
     assert CHANGELOG.exists(), "site/changelog.html has not been generated"
-    assert CHANGELOG.read_text(encoding="utf-8") == gen_changelog.render(), (
+    # STRIPPED, for the reason gen_changelog.strip_generated exists: the
+    # committed file has been through gen_site_locales.py since this script
+    # last wrote it, and carries a picker and an hreflang block that are not
+    # this script's output. Two generators, run in order (#300).
+    assert gen_changelog.strip_generated(
+        CHANGELOG.read_text(encoding="utf-8")
+    ) == gen_changelog.render(), (
         "site/changelog.html is out of date with changelog.ENTRIES. "
         "Run: python scripts/gen_changelog.py"
     )
@@ -1485,7 +1524,10 @@ def test_the_header_carries_no_legal_links(page):
     """
     header = re.search(r'<header class="site">(.*?)</header>', read(page), re.S)
     assert header, f"{page.name} has no site header"
-    hrefs = re.findall(r'<a href="([^"]+)"', header.group(1))
+    # The picker is not the nav. Its links point at this same page in the
+    # other eleven languages, so on Terms it necessarily contains "/terms" --
+    # which is the control working, not a policy link back in the top nav.
+    hrefs = re.findall(r'<a href="([^"]+)"', without_picker(header.group(1)))
     assert not [h for h in hrefs if h in LEGAL_HREFS], (
         f"{page.name} still links a policy from its header: {hrefs}"
     )
@@ -1798,6 +1840,12 @@ LOCALE_PAGES = sorted(
     p for locale in gen_site_locales.LOCALES for p in (SITE / locale).glob("*.html")
 )
 
+# ENGLISH IS ONE OF THE TWELVE for everything about the CHROME, and is not one
+# of them for anything about the prose. It carries the picker and the hreflang
+# block like the rest; its sentences are the source and are never translated,
+# and its internal links are unprefixed because it is served from the root.
+ALL_LOCALES = [gen_site_locales.DEFAULT_LOCALE, *gen_site_locales.LOCALES]
+
 
 class TestTheGeneratedPagesAreCurrent:
     """`site/<locale>/` is generated output, committed, and therefore can go stale.
@@ -1816,6 +1864,24 @@ class TestTheGeneratedPagesAreCurrent:
         }
         assert set(LOCALE_PAGES) == expected
         assert len(expected) == 66, "eleven languages times six pages"
+        # And the twelfth, at the root.
+        for page in gen_site_locales.PAGES:
+            assert (SITE / page).is_file()
+
+    def test_running_the_generator_again_changes_nothing(self):
+        """THE PROPERTY THE ENGLISH PAGES REST ON.
+
+        English is both the generator's input and one of its outputs, so the
+        chrome is stripped before it is written. Without that, a second run
+        leaves two pickers and two hreflang blocks -- and because the output is
+        committed, the first person to run it twice would commit that.
+        """
+        once = gen_site_locales.build()
+        for path, text in once.items():
+            assert path.read_text(encoding="utf-8") == text
+        # Feed the output back in: `build()` reads from disk, and disk now
+        # holds a generated file.
+        assert gen_site_locales.build() == once
 
     def test_the_committed_output_matches_the_generator(self):
         stale = [
@@ -1945,11 +2011,11 @@ class TestTheCatalogs:
 
 
 class TestTheTranslatedPagesThemselves:
-    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    @pytest.mark.parametrize("locale", ALL_LOCALES)
     def test_the_document_says_which_language_it_is(self, locale):
         direction = "rtl" if locale in gen_site_locales.RTL else "ltr"
         for page in gen_site_locales.PAGES:
-            html = (SITE / locale / page).read_text(encoding="utf-8")
+            html = gen_site_locales.target(locale, page).read_text(encoding="utf-8")
             assert f'<html lang="{locale}" dir="{direction}">' in html, f"{locale}/{page}"
 
     def test_arabic_is_the_only_right_to_left_language(self):
@@ -1988,23 +2054,23 @@ class TestTheTranslatedPagesThemselves:
         for asset in ('href="/style.css"', 'src="/theme.js"', 'src="/logo.svg"'):
             assert asset in html, f"{locale}: {asset} was rewritten"
 
-    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    @pytest.mark.parametrize("locale", ALL_LOCALES)
     def test_every_page_advertises_all_twelve_to_a_crawler(self, locale):
         """Without hreflang, twelve URLs of one page are twelve duplicates."""
         for page in gen_site_locales.PAGES:
-            html = (SITE / locale / page).read_text(encoding="utf-8")
-            for other in [gen_site_locales.DEFAULT_LOCALE, *gen_site_locales.LOCALES]:
+            html = gen_site_locales.target(locale, page).read_text(encoding="utf-8")
+            for other in ALL_LOCALES:
                 assert f'hreflang="{other}"' in html, f"{locale}/{page} omits {other}"
             assert 'hreflang="x-default"' in html
             assert html.count('rel="canonical"') == 1
 
-    @pytest.mark.parametrize("locale", gen_site_locales.LOCALES)
+    @pytest.mark.parametrize("locale", ALL_LOCALES)
     def test_the_picker_offers_twelve_and_marks_one(self, locale):
         for page in gen_site_locales.PAGES:
-            html = (SITE / locale / page).read_text(encoding="utf-8")
+            html = gen_site_locales.target(locale, page).read_text(encoding="utf-8")
             assert html.count('class="langpick"') == 1
             assert html.count('aria-current="true"') == 1, f"{locale}/{page}"
-            for other in [gen_site_locales.DEFAULT_LOCALE, *gen_site_locales.LOCALES]:
+            for other in ALL_LOCALES:
                 assert f'lang="{other}"' in html, f"{locale}/{page} omits {other}"
 
     def test_the_picker_needs_no_javascript(self):
@@ -2144,3 +2210,40 @@ class TestRightToLeftDoesNotBreakTheDrawing:
             and "border-left: 0;" not in line
         ]
         assert offenders == [], offenders
+
+
+class TestTheTwoGeneratorsStayOutOfEachOthersWay:
+    """`gen_changelog.py` writes the prose; `gen_site_locales.py` writes the
+    chrome. They both touch `site/changelog.html`, in that order (#300).
+
+    Before the English pages carried a picker this could not go wrong, because
+    only one generator wrote them. Now `gen_changelog` lifts the header out of
+    `terms.html` verbatim -- and that header holds a picker whose twelve links
+    point at TERMS. Copied unchanged, the changelog would have offered a reader
+    eleven links to the Terms page.
+    """
+
+    def test_the_changelog_does_not_inherit_another_pages_picker(self):
+        html = (SITE / "changelog.html").read_text(encoding="utf-8")
+        picker = re.search(r'<details class="langpick">.*?</details>', html, re.S)
+        assert picker, "changelog.html has no picker"
+        for href in re.findall(r'<a href="([^"]+)"', picker.group(0)):
+            assert href.rstrip("/").endswith("changelog") or href == "/changelog", (
+                f"the changelog's picker links somewhere else: {href}"
+            )
+
+    def test_the_prose_generator_ignores_the_chrome_generators_output(self):
+        """`gen_changelog --check` has to stay usable on a generated tree.
+
+        Without the strip it reports the committed file stale forever, because
+        the chrome it does not write is in it.
+        """
+        assert gen_changelog.main(["--check"]) == 0
+
+    def test_stripping_is_exact_and_leaves_hand_written_markup_alone(self):
+        kept = (
+            '<details class="timeline"><summary>x</summary></details>\n'
+            '<link rel="stylesheet" href="/style.css">\n'
+            '<html lang="en">\n'
+        )
+        assert gen_changelog.strip_generated(kept) == kept

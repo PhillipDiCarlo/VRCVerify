@@ -75,9 +75,41 @@ sys.path.insert(0, str(REPO / "src"))
 from dashboard import changelog  # noqa: E402
 
 
+# WHAT gen_site_locales.py OWNS AND THIS MUST NOT COPY (#300).
+#
+# The header on every English page now carries a language picker, and its
+# twelve links point at THAT page in the other eleven languages. Copied
+# verbatim out of terms.html, the changelog would inherit Terms' picker and
+# offer a reader eleven links to the Terms page.
+#
+# TWO GENERATORS, IN ORDER. This one writes the prose and the chrome MINUS the
+# picker; `gen_site_locales.py` then stamps the right picker and hreflang block
+# into all twelve copies. Run this first, that second -- which is the order
+# site/README.md gives and the order the tests assume.
+GENERATED_CHROME = [
+    re.compile(r'<details class="langpick">.*?</details>\n\s*', re.S),
+    # The canonical and hreflang block, which names this page in all twelve.
+    re.compile(r'<link rel="canonical"[^>]*>\n(?:<link rel="alternate"[^>]*>\n)*'),
+]
+# And the stamp on <html>, which that generator also writes.
+LANG_STAMP = re.compile(r'<html lang="en" dir="ltr">')
+
+
+def strip_generated(text: str) -> str:
+    """Remove chrome that gen_site_locales.py owns, wherever it came from.
+
+    Exact rather than clever: each pattern matches only what that generator
+    emits, so a hand-written `<link>` or a `<details>` somebody adds for their
+    own reasons is left alone.
+    """
+    for pattern in GENERATED_CHROME:
+        text = pattern.sub("", text)
+    return LANG_STAMP.sub('<html lang="en">', text)
+
+
 def _chrome(source: pathlib.Path = CHROME_SOURCE) -> tuple:
     """The shared header and footer, verbatim, from a page that already has them."""
-    text = source.read_text(encoding="utf-8")
+    text = strip_generated(source.read_text(encoding="utf-8"))
     header = re.search(r'<header class="site">.*?</header>', text, re.S)
     footer = re.search(r'<footer class="site">.*?</footer>', text, re.S)
     if not header or not footer:
@@ -196,7 +228,10 @@ def main(argv=None) -> int:
 
     fresh = render()
     if args.check:
-        current = OUTPUT.read_text(encoding="utf-8") if OUTPUT.exists() else ""
+        # Stripped, because the committed file has been through
+        # gen_site_locales.py since this last wrote it and now carries a
+        # picker and an hreflang block that are not this script's to produce.
+        current = strip_generated(OUTPUT.read_text(encoding="utf-8")) if OUTPUT.exists() else ""
         if current == fresh:
             print(f"{_display(OUTPUT)} is up to date")
             return 0

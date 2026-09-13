@@ -22,8 +22,25 @@ the same HTML and throw away every comment explaining why the markup is what it
 is. `site_i18n.py` splices by byte offset instead, so English stays the
 editable source of truth and the translated copies are derived from it.
 
-THE ENGLISH PAGES ARE NOT WRITTEN BY THIS. `site/index.html` and its five
-siblings stay hand-edited. This only ever writes `site/<code>/`.
+WHAT IT WRITES INTO THE ENGLISH PAGES, WHICH IS NOT NOTHING
+------------------------------------------------------------
+`site/index.html` and its five siblings stay hand-edited SOURCE: their prose is
+never touched and never translated. Their CHROME is generated, and it is the
+same chrome the other eleven get -- the language picker and the `hreflang`
+block.
+
+The first version wrote nothing into them at all, reasoning that English is the
+source. That was right about the content and wrong about the chrome, and it
+shipped two bugs: an English visitor had no way to DISCOVER the other eleven
+languages, because the picker only existed once you were already in one; and
+the canonical English pages carried no `hreflang`, which is the one place a
+crawler most needs it, since `/` is the `x-default` every translated page
+points back to.
+
+So: the chrome on all twelve, the prose on eleven. Injection is
+STRIP-THEN-INSERT rather than insert, which is what makes running this on its
+own output idempotent -- the English page is both source and target, and an
+append-only injection would leave two pickers on the second run.
 """
 
 from __future__ import annotations
@@ -96,11 +113,23 @@ def msgids_for(source: str) -> list[str]:
     return out
 
 
+def source_of(page: str) -> str:
+    """The hand-written page, with any previously generated chrome removed.
+
+    EXTRACTION READS THIS AND NOT THE FILE. Since the generator now writes the
+    picker into the English pages, reading them raw feeds its own output back
+    into the inventory: the twelve endonyms and the word "Language" arrive as
+    msgids sourced from `index.html`, and each new run adds more. Stripping
+    first keeps the inventory a description of the PROSE.
+    """
+    return strip_generated((SITE / page).read_text(encoding="utf-8"))
+
+
 def extract() -> dict[str, list[str]]:
     """The inventory: every msgid, and which pages it appears on."""
     where: dict[str, set[str]] = {}
     for name in PAGES:
-        for msgid in msgids_for((SITE / name).read_text(encoding="utf-8")):
+        for msgid in msgids_for(source_of(name)):
             where.setdefault(msgid, set()).add(name)
     for msgid in CHROME_MSGIDS:
         where.setdefault(msgid, set()).add("(the language picker)")
@@ -186,8 +215,29 @@ def alternates(page: str, locale: str) -> str:
     return "\n".join(lines)
 
 
+# Anything a previous run wrote, so it can be taken back out before being
+# written again. These only ever match this generator's own output.
+GENERATED_CHROME = [
+    re.compile(r'<link rel="canonical"[^>]*>\n(?:<link rel="alternate"[^>]*>\n)*'),
+    re.compile(r'<details class="langpick">.*?</details>\n\s*', re.S),
+]
+HTML_TAG = re.compile(r"<html\b[^>]*>")
+
+
+def strip_generated(html: str) -> str:
+    """Remove a previous run's chrome so this run can put it back.
+
+    The English page is read AND written, so without this a second run leaves
+    two pickers and two `hreflang` blocks. The patterns match only what this
+    file emits; hand-written markup is untouched.
+    """
+    for pattern in GENERATED_CHROME:
+        html = pattern.sub("", html)
+    return html
+
+
 def render(page: str, locale: str, catalog: dict[str, str]) -> str:
-    source = (SITE / page).read_text(encoding="utf-8")
+    source = source_of(page)
 
     # 1. Translate, right to left so earlier offsets stay valid.
     replacements = []
@@ -206,7 +256,9 @@ def render(page: str, locale: str, catalog: dict[str, str]) -> str:
     # 2. The document's own language, which a screen reader picks its voice
     #    from and the browser picks hyphenation and quote marks from.
     direction = "rtl" if locale in RTL else "ltr"
-    out = out.replace('<html lang="en">', f'<html lang="{locale}" dir="{direction}">', 1)
+    # A regex rather than a literal swap: on the English page the source
+    # already carries whatever the last run stamped.
+    out = HTML_TAG.sub(f'<html lang="{locale}" dir="{direction}">', out, count=1)
 
     # 3. hreflang for all twelve. Without them, twelve URLs carrying the same
     #    page are twelve competing duplicates to a crawler.
@@ -245,13 +297,24 @@ def localize_dates(html: str, locale: str) -> str:
     return _TIME.sub(one, html)
 
 
+def target(locale: str, page: str) -> pathlib.Path:
+    """English lives at the root; every other language in its own directory."""
+    return (SITE / page) if locale == DEFAULT_LOCALE else (SITE / locale / page)
+
+
 def build() -> dict[pathlib.Path, str]:
-    """Every file this generator is responsible for, and its content."""
+    """Every file this generator is responsible for, and its content.
+
+    ENGLISH IS IN HERE, and it is the file the generator also reads. Its entry
+    is the source page with the chrome replaced and nothing else changed:
+    `load_catalog("en")` is empty by design, so every lookup misses, no prose
+    moves, and `localize_links` returns early.
+    """
     wanted: dict[pathlib.Path, str] = {}
-    for locale in LOCALES:
+    for locale in [DEFAULT_LOCALE, *LOCALES]:
         catalog = load_catalog(locale)
         for page in PAGES:
-            wanted[SITE / locale / page] = render(page, locale, catalog)
+            wanted[target(locale, page)] = render(page, locale, catalog)
     return wanted
 
 
