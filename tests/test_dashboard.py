@@ -7111,6 +7111,85 @@ class TestTheLanguagePicker:
         assert 'lang="de"' in page
 
 
+class TestTheDashboardLinksOutInTheReadersLanguage:
+    """The apex links carry the locale (#313), the way #311 made the status
+    page's carry it.
+
+    WHY THE EXISTING FOOTER TESTS ARE NOT THIS. Four of them already assert
+    these URLs, and not one would have failed while the bug was live: they all
+    render in the default language, and English is served unprefixed, so the
+    address is the same before and after. Every assertion below is therefore in
+    a language that is not English, which is the only place the defect existed.
+    """
+
+    # Three languages rather than one: `ja` is the plain case, `pt-BR` carries
+    # a region whose capital letters the apex is case-sensitive about, and `ar`
+    # is the one that arrives under dir="rtl".
+    TRANSLATED = ["ja", "pt-BR", "ar"]
+    LEGAL = ["terms", "privacy", "refunds"]
+
+    @pytest.mark.parametrize("lang", TRANSLATED)
+    def test_the_footer_sends_a_reader_to_their_own_legal_pages(self, client, store, lang):
+        login_as(client, store)
+        client.set_cookie("vrcverify_lang", lang)
+        footer = client.get("/").data.decode().split("<footer>", 1)[1]
+        for path in self.LEGAL:
+            assert f'href="https://vrcverify.com/{lang}/{path}"' in footer
+            # And the English one is GONE rather than joined by it. A footer
+            # carrying both is the same bug with a second chance to be clicked.
+            assert f'href="https://vrcverify.com/{path}"' not in footer
+
+    @pytest.mark.parametrize("lang", TRANSLATED)
+    def test_the_sign_in_page_does_it_too(self, client, lang):
+        """Signed out, and rendering a different template. login.html had its
+        own copy of these three links and would have kept the English."""
+        client.set_cookie("vrcverify_lang", lang)
+        page = client.get("/").data.decode()
+        for path in self.LEGAL:
+            assert f"https://vrcverify.com/{lang}/{path}" in page, path
+
+    @pytest.mark.parametrize("lang", TRANSLATED)
+    def test_the_public_changelog_link_goes_to_the_translated_one(self, client, store, lang):
+        """This one lived inside a {% trans %} block with the URL typed into
+        the msgid, so it had eleven hardcoded copies rather than one."""
+        login_as(client, store)
+        client.set_cookie("vrcverify_lang", lang)
+        page = client.get("/updates").data.decode()
+        assert f'href="https://vrcverify.com/{lang}/changelog"' in page
+        assert 'href="https://vrcverify.com/changelog"' not in page
+
+    def test_english_is_left_unprefixed_because_that_is_where_it_lives(self, client, store):
+        """THE ONE THAT MATTERS MOST, and the reason apex_url is a function.
+
+        English is `en-US` here and `en` on the apex, where it is served
+        unprefixed. `/{{ current_language() }}/terms` is the obvious way to
+        write this and would send every default-language reader -- most of
+        them -- to a 404 on a Worker with no code on its request path.
+        """
+        login_as(client, store)
+        for cookie in ("en-US", None):
+            if cookie:
+                client.set_cookie("vrcverify_lang", cookie)
+            page = client.get("/").data.decode()
+            for path in self.LEGAL:
+                assert f'href="https://vrcverify.com/{path}"' in page, (cookie, path)
+            assert "vrcverify.com/en-US" not in page, cookie
+            assert "vrcverify.com/en/" not in page, cookie
+
+    def test_no_request_can_steer_this_helper(self, client):
+        """apex_url interpolates the language into an href without escaping
+        it, because an escaped code would 404 on the apex in any case. That is
+        safe only while the code is one of twelve constants, which _lang()
+        guarantees and which is asserted here rather than assumed there.
+        """
+        for nasty in ('"><script>alert(1)</script>', "../../etc/passwd", "en-US/../ja"):
+            client.set_cookie("vrcverify_lang", nasty)
+            page = client.get("/").data.decode()
+            assert 'href="https://vrcverify.com/terms"' in page, nasty
+            assert "alert(1)" not in page, nasty
+            assert ".." not in page.split("<footer>", 1)[-1], nasty
+
+
 class TestTheThemePicker:
     """`/prefs/theme`, and the control that posts to it (issue #123 phase 3).
 

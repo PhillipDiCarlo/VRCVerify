@@ -36,7 +36,12 @@
        Absolute, and no `rel` needed: `Referrer-Policy: no-referrer` is set on
        every response here, so there is nothing to leak -- the same reasoning
        as the footer's three legal links. #}
-    {% trans %}There is a <a href="https://vrcverify.com/changelog">public version of this page</a> you can share with anyone.{% endtrans %}
+    {#- The URL is a PLACEHOLDER rather than part of the sentence (#313). It
+        used to be typed inside the msgid, which put a URL in front of eleven
+        translators and copied it into eleven .po files -- eleven chances to
+        typo an address, and eleven edits every time it moves. It also could
+        not carry the reader's language, which is the bug this fixes. -#}
+    {% trans url=apex_url('/changelog') %}There is a <a href="{{ url }}">public version of this page</a> you can share with anyone.{% endtrans %}
   </p>
 </section>
 

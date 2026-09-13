@@ -917,9 +917,9 @@
          are absolute: it is a different origin, and the whole argument for
          that page is that it stays up when this one does not. #}
       <a href="https://status.vrcverify.com/">{% trans %}Status{% endtrans %}</a>
-      <a href="https://vrcverify.com/terms">{% trans %}Terms{% endtrans %}</a>
-      <a href="https://vrcverify.com/privacy">{% trans %}Privacy{% endtrans %}</a>
-      <a href="https://vrcverify.com/refunds">{% trans %}Refunds{% endtrans %}</a>
+      <a href="{{ apex_url('/terms') }}">{% trans %}Terms{% endtrans %}</a>
+      <a href="{{ apex_url('/privacy') }}">{% trans %}Privacy{% endtrans %}</a>
+      <a href="{{ apex_url('/refunds') }}">{% trans %}Refunds{% endtrans %}</a>
     </p>
     <p>{% trans %}Core 18+ verification is free, forever.{% endtrans %}</p>
     <p>{% trans %}VRCVerify is operated by Esatto Technologies, United States.{% endtrans %}<br>
