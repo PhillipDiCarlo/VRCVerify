@@ -122,8 +122,23 @@ network can see the finished site.
 
 ## Twelve languages (#300)
 
-The six pages above are the English source and are hand-edited. Eleven
-translated copies of each live under `site/<locale>/` and are **generated**:
+The six pages above are the English source and their **prose** is hand-edited.
+Their **chrome** is not: the language picker and the `hreflang` block are
+written into them by the generator, the same ones the other eleven get.
+
+That split was not in the first version, which wrote nothing into the English
+pages at all on the reasoning that English is the source. It shipped two bugs.
+An English visitor had no way to *discover* the other eleven languages, because
+the picker only existed once you were already in one. And the canonical English
+pages carried no `hreflang` — the one place a crawler most needs it, since `/`
+is the `x-default` every translated page points back to.
+
+So the English page is both input and output, which is why injection is
+**strip-then-insert**: a second run would otherwise leave two pickers.
+`test_running_the_generator_again_changes_nothing` pins that.
+
+Eleven translated copies of each live under `site/<locale>/`. All twelve are
+**generated**:
 
     python scripts/gen_site_locales.py            # rewrite site/<locale>/*.html
     python scripts/gen_site_locales.py --extract  # refresh the msgid inventory
@@ -132,6 +147,18 @@ translated copies of each live under `site/<locale>/` and are **generated**:
 Same bargain `gen_changelog.py` makes, for the same reason: this is an
 assets-only Worker with no code on the request path, so twelve versions of a
 page have to exist as twelve files.
+
+### Run them in this order
+
+    python scripts/gen_changelog.py          # the prose
+    python scripts/gen_site_locales.py       # the chrome, in all twelve
+
+Both write `site/changelog.html`. `gen_changelog.py` lifts the header out of
+`terms.html` verbatim — and that header now holds a picker whose twelve links
+point at **Terms**. Copied unchanged, the changelog would offer eleven links to
+the Terms page. So it strips what the other generator owns before copying, and
+compares stripped in `--check`; then `gen_site_locales.py` stamps the right
+picker in. `TestTheTwoGeneratorsStayOutOfEachOthersWay` keeps them apart.
 
 ### How a sentence becomes translatable
 
