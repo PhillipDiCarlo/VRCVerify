@@ -492,6 +492,40 @@ function pastIncident(t, incident) {
 const ORIGIN = "https://status.vrcverify.com";
 
 /**
+ * The apex, in the language the reader is already reading.
+ *
+ * `apexUrl("ja", "/terms")` -> `https://vrcverify.com/ja/terms`.
+ *
+ * THE SHAPE IS NOT OURS TO CHOOSE. It has to match `picker()` in
+ * scripts/gen_site_locales.py exactly: English unprefixed, the other eleven
+ * under `/<code>` with the code's own case, and the index keeping the trailing
+ * slash the other pages do not have. The apex is an assets-only Worker with no
+ * code on its request path, so there is nothing over there to forgive a
+ * lowercase `pt-br` or a missing slash -- an address that is close is a 404
+ * rather than a redirect. `test_the_status_page_links_at_pages_the_apex_has`
+ * walks every one of these against the files on disk.
+ *
+ * NOT `pathForLocale`, which answers for THIS Worker. The two disagree on the
+ * one page that matters: our English is `/` and our Japanese is `/ja`, while
+ * the apex's Japanese index is a directory and needs `/ja/`.
+ *
+ * NOT `env.WEBSITE_URL` either, which is a wrangler.toml binding that happens
+ * to hold this hostname. That one is the address the health check PROBES. A
+ * link the reader clicks and a URL the Worker polls are two facts that are
+ * equal today and have no reason to stay equal, and pointing the footer at the
+ * probe target would make an operator retargeting a health check silently
+ * retarget the navigation.
+ *
+ * The Dashboard link in the header is deliberately not routed through here.
+ * The dashboard has no locale in its URLs at all -- it negotiates from its own
+ * cookie and then `Accept-Language` -- so there is nothing to hand it.
+ */
+export function apexUrl(locale, slug = "") {
+  const prefix = locale === DEFAULT_LOCALE ? "" : `/${locale}`;
+  return `https://vrcverify.com${prefix}${slug || "/"}`;
+}
+
+/**
  * The headline when the data may not be believed, by why it may not be.
  *
  * A NAMED TABLE RATHER THAN A NESTED TERNARY INSIDE renderPage, for the reason
@@ -716,7 +750,7 @@ ${alternates(t.locale)}
   <div class="wrap">
     <a class="brand" href="${pathForLocale(t.locale)}">${MARK}<span>${t("VRCVerify Status")}</span></a>
     <nav>
-      <a href="https://vrcverify.com/">${t("Home")}</a>
+      <a href="${apexUrl(t.locale)}">${t("Home")}</a>
       <a href="https://dashboard.vrcverify.com/">${t("Dashboard")}</a>
     </nav>
     ${languagePicker(t)}
@@ -812,10 +846,10 @@ ${alternates(t.locale)}
 <footer class="site">
   <div class="wrap">
     <nav>
-      <a href="https://vrcverify.com/changelog">${t("What's new")}</a>
-      <a href="https://vrcverify.com/terms">${t("Terms of Service")}</a>
-      <a href="https://vrcverify.com/privacy">${t("Privacy Policy")}</a>
-      <a href="https://vrcverify.com/refunds">${t("Refund Policy")}</a>
+      <a href="${apexUrl(t.locale, "/changelog")}">${t("What's new")}</a>
+      <a href="${apexUrl(t.locale, "/terms")}">${t("Terms of Service")}</a>
+      <a href="${apexUrl(t.locale, "/privacy")}">${t("Privacy Policy")}</a>
+      <a href="${apexUrl(t.locale, "/refunds")}">${t("Refund Policy")}</a>
       <a href="mailto:contact@esattotech.com">${t("Contact")}</a>
     </nav>
     <p>${t("VRCVerify is operated by Esatto Technologies, United States.")}<br>

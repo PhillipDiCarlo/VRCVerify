@@ -2159,6 +2159,51 @@ class TestTheApexSpeaksTheOtherSurfacesLanguages:
         worker = [c for c in re.findall(r'"([a-zA-Z-]+)"', block) if c != "en"]
         assert sorted(gen_site_locales.LOCALES) == sorted(worker)
 
+    def test_the_status_page_links_at_pages_the_apex_has(self):
+        """The status footer's addresses are checked against the files (#311).
+
+        The status Worker builds these itself, because it cannot import a
+        Python generator, which means the two agree only by hand. Both halves
+        are checked here rather than trusting either: the slugs come out of
+        render.js, and the files they name have to exist on disk for all
+        twelve. That is what makes an apex page renamed on this side break on
+        that one, instead of at whatever hour somebody clicks Terms.
+        """
+        source = (ROOT / "status" / "src" / "render.js").read_text(encoding="utf-8")
+        slugs = set(re.findall(r'apexUrl\(t\.locale(?:, "([^"]*)")?\)', source))
+        # The five links. Home passes no second argument, so it arrives as "".
+        assert slugs == {"", "/changelog", "/terms", "/privacy", "/refunds"}, slugs
+
+        for code in [gen_site_locales.DEFAULT_LOCALE, *gen_site_locales.LOCALES]:
+            base = SITE if code == gen_site_locales.DEFAULT_LOCALE else SITE / code
+            for slug in slugs:
+                name = "index.html" if slug == "" else slug.lstrip("/") + ".html"
+                assert (base / name).exists(), f"{code} has no {name}"
+
+    def test_the_status_page_spells_those_addresses_the_way_the_apex_serves_them(self):
+        """Same URL shape as `picker()`, which is the one that is known good.
+
+        The apex is assets-only, so a prefix in the wrong case or an index
+        missing its slash is a 404 and not a redirect. Rather than restate the
+        rule, this builds every address the generator would and asserts the
+        Worker's formula lands on the same string.
+        """
+        source = (ROOT / "status" / "src" / "render.js").read_text(encoding="utf-8")
+        body = re.search(r"export function apexUrl\(.*?\n}", source, re.S).group(0)
+        origin = re.search(r"`(https://[^$]*)\$\{prefix\}", body).group(1)
+
+        for code in [gen_site_locales.DEFAULT_LOCALE, *gen_site_locales.LOCALES]:
+            prefix = "" if code == gen_site_locales.DEFAULT_LOCALE else f"/{code}"
+            for page in ["index.html", "changelog.html", "terms.html", "privacy.html", "refunds.html"]:
+                slug = "" if page == "index.html" else "/" + page.removesuffix(".html")
+                worker = f"{origin}{prefix}{slug or '/'}"
+                theirs = gen_site_locales.ORIGIN + (
+                    (slug or "/")
+                    if code == gen_site_locales.DEFAULT_LOCALE
+                    else f"/{code}{slug or '/'}"
+                )
+                assert worker == theirs, f"{code} {page}"
+
     def test_the_endonyms_agree_with_both(self):
         """The picker is read by somebody who cannot read the page it is on.
 

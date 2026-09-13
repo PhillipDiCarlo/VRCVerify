@@ -31,7 +31,7 @@ import {
   pathForLocale,
   translator,
 } from "../src/i18n.js";
-import { renderPage } from "../src/render.js";
+import { apexUrl, renderPage } from "../src/render.js";
 import { COMPONENTS, HISTORY_DAYS, UPSTREAMS } from "../src/config.js";
 import { recentDays } from "../src/logic.js";
 
@@ -467,5 +467,86 @@ test("an unknown message answers with itself rather than with nothing", () => {
     // A placeholder with no value is left alone, so the gap is visible rather
     // than silently becoming "undefined".
     assert.equal(t("Hello %{who}"), "Hello %{who}");
+  }
+});
+
+// -------------------------------------------------- links off this surface
+
+test("the apex address matches the shape the apex actually serves", () => {
+  // These four cases are the whole contract, and three of them were the bug:
+  // the index needs the trailing slash the other pages must not have, English
+  // must NOT get a prefix (there is no `/en/` over there), and the code keeps
+  // its own case (`/pt-br/terms` is a 404 on an assets-only Worker).
+  assert.equal(apexUrl(DEFAULT_LOCALE), "https://vrcverify.com/");
+  assert.equal(apexUrl(DEFAULT_LOCALE, "/terms"), "https://vrcverify.com/terms");
+  assert.equal(apexUrl("ja"), "https://vrcverify.com/ja/");
+  assert.equal(apexUrl("pt-BR", "/privacy"), "https://vrcverify.com/pt-BR/privacy");
+});
+
+test("a reader who came for their own language keeps it on the way out", () => {
+  // The complaint #300 was opened about, surviving in the one place #300 did
+  // not reach: Japanese link text on a link to the English page.
+  for (const locale of TRANSLATED) {
+    const html = page(locale);
+    for (const slug of ["/", "/changelog", "/terms", "/privacy", "/refunds"]) {
+      const here = slug === "/" ? `/${locale}/` : `/${locale}${slug}`;
+      assert.ok(
+        html.includes(`href="https://vrcverify.com${here}"`),
+        `${locale} does not link to ${here}`,
+      );
+    }
+    // And the English ones are gone rather than merely joined. A footer
+    // carrying both is the same bug with a second chance to be clicked.
+    for (const gone of ["/changelog", "/terms", "/privacy", "/refunds"]) {
+      assert.ok(
+        !html.includes(`href="https://vrcverify.com${gone}"`),
+        `${locale} still links at the English ${gone}`,
+      );
+    }
+    assert.ok(!html.includes('href="https://vrcverify.com/"'), `${locale} still links at English Home`);
+  }
+});
+
+test("English is served unprefixed, so it stays unprefixed", () => {
+  const html = page(DEFAULT_LOCALE);
+  for (const slug of ["/", "/changelog", "/terms", "/privacy", "/refunds"]) {
+    assert.ok(html.includes(`href="https://vrcverify.com${slug}"`), `English lost ${slug}`);
+  }
+  assert.ok(!html.includes("https://vrcverify.com/en"), "there is no /en on the apex");
+});
+
+test("the dashboard link carries no locale, because the dashboard has none", () => {
+  // Not an oversight and not a TODO. The dashboard negotiates from its own
+  // cookie and then Accept-Language; there is no locale in its URLs to carry,
+  // and inventing one here would link at a route that does not exist.
+  for (const locale of LOCALES) {
+    assert.ok(page(locale).includes('href="https://dashboard.vrcverify.com/"'), locale);
+  }
+});
+
+test("nothing a request can say selects a language that is not one of the twelve", () => {
+  // apexUrl interpolates the locale straight into an href, unescaped, because
+  // the apex needs the code spelled its way and an escaped one would 404 in
+  // any case. That is only safe while the locale is one of twelve constants,
+  // which is an invariant of these two functions and of nothing else. So it is
+  // asserted here rather than assumed there.
+  const hostile = [
+    String.raw`"onmouseover=alert(1) x="`,
+    "../../etc/passwd",
+    "ja/../../en",
+    "<script>",
+    "%2e%2e%2f",
+    "en ja",
+    "ja;q=1,<img src=x>",
+    "\u0000ja",
+    "x".repeat(5000),
+  ];
+  for (const nasty of hostile) {
+    assert.ok(LOCALES.includes(negotiate(nasty)), `negotiate leaked on ${nasty.slice(0, 40)}`);
+    const fromPath = localeFromPath(`/${nasty}`);
+    assert.ok(
+      fromPath === null || LOCALES.includes(fromPath),
+      `localeFromPath leaked on ${nasty.slice(0, 40)}`,
+    );
   }
 });
