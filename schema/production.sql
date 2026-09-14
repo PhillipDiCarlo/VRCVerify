@@ -68,6 +68,27 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: calendar_event_sync; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.calendar_event_sync (
+    vrc_event_id character varying(64) NOT NULL,
+    server_id character varying NOT NULL,
+    group_id character varying(64),
+    vrc_series_id character varying(64),
+    discord_event_id character varying(30),
+    starts_at timestamp with time zone,
+    ends_at timestamp with time zone,
+    content_hash character varying(64),
+    state character varying(32),
+    missing_since timestamp with time zone,
+    announced_at timestamp with time zone,
+    join_location character varying,
+    updated_at timestamp with time zone
+);
+
+
+--
 -- Name: dashboard_audit; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -100,6 +121,31 @@ CREATE SEQUENCE public.dashboard_audit_id_seq
 --
 
 ALTER SEQUENCE public.dashboard_audit_id_seq OWNED BY public.dashboard_audit.id;
+
+
+--
+-- Name: group_calendar_link; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.group_calendar_link (
+    server_id character varying NOT NULL,
+    enabled boolean NOT NULL,
+    group_id character varying(64),
+    announce_channel_id character varying(30),
+    ping_role_id character varying(30),
+    include_group_events boolean NOT NULL,
+    poll_job_id character varying(64),
+    poll_started_at timestamp with time zone,
+    next_poll_at timestamp with time zone,
+    last_polled_at timestamp with time zone,
+    last_state character varying(32),
+    last_error character varying,
+    visible_count integer,
+    eligible_count integer,
+    synced_count integer,
+    over_cap_count integer,
+    updated_at timestamp with time zone
+);
 
 
 --
@@ -526,11 +572,27 @@ ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_
 
 
 --
+-- Name: calendar_event_sync calendar_event_sync_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.calendar_event_sync
+    ADD CONSTRAINT calendar_event_sync_pkey PRIMARY KEY (vrc_event_id, server_id);
+
+
+--
 -- Name: dashboard_audit dashboard_audit_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.dashboard_audit
     ADD CONSTRAINT dashboard_audit_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: group_calendar_link group_calendar_link_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.group_calendar_link
+    ADD CONSTRAINT group_calendar_link_pkey PRIMARY KEY (server_id);
 
 
 --
