@@ -59,13 +59,18 @@ esac
 # lines per refresh. A sentinel cannot drift like that.
 SENTINEL="-- (end of note; everything below is pg_dump output)"
 
-if ! grep -qF "$SENTINEL" "$OUT"; then
+# `--` ends grep's options: the sentinel itself starts with "--", which
+# macOS grep otherwise reads as a flag and answers with a usage error.
+if ! grep -qF -- "$SENTINEL" "$OUT"; then
     echo "$OUT has lost its sentinel line. Restore it before refreshing:" >&2
     echo "  $SENTINEL" >&2
     exit 1
 fi
 
-HEADER="$(sed -n "1,/^$(printf '%s' "$SENTINEL" | sed 's/[][\.*^$\/()]/\\&/g')\$/p" "$OUT" |
+# Parentheses are NOT escaped: in a basic regex a bare ( is already literal,
+# and \( starts a group -- which made the end of this range never match, so
+# the whole old file was kept as "header" and the new dump appended under it.
+HEADER="$(sed -n "1,/^$(printf '%s' "$SENTINEL" | sed 's/[][\.*^$\/]/\\&/g')\$/p" "$OUT" |
     sed "s/^-- VRCVerify production schema, captured .*/-- VRCVerify production schema, captured $(date -u +%Y-%m-%d)./")"
 
 {

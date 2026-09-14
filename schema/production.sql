@@ -1,5 +1,5 @@
 --
--- VRCVerify production schema, captured 2026-09-09.
+-- VRCVerify production schema, captured 2026-09-14.
 --
 -- WHAT THIS IS FOR. tests/test_schema_snapshot.py compares the SQLAlchemy
 -- models in src/bot.py against this file and fails when they disagree about a
@@ -141,6 +141,22 @@ CREATE TABLE public.group_invite_request (
     settled_at timestamp with time zone,
     channel_id character varying(30),
     message_id character varying(30),
+    updated_at timestamp with time zone
+);
+
+
+--
+-- Name: group_ownership_proof; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.group_ownership_proof (
+    server_id character varying NOT NULL,
+    group_id character varying(64),
+    state character varying(32),
+    error character varying,
+    job_id character varying(64),
+    requested_at timestamp with time zone,
+    proven_at timestamp with time zone,
     updated_at timestamp with time zone
 );
 
@@ -539,6 +555,14 @@ ALTER TABLE ONLY public.group_invite_config
 
 ALTER TABLE ONLY public.group_invite_request
     ADD CONSTRAINT group_invite_request_pkey PRIMARY KEY (server_id, discord_id);
+
+
+--
+-- Name: group_ownership_proof group_ownership_proof_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.group_ownership_proof
+    ADD CONSTRAINT group_ownership_proof_pkey PRIMARY KEY (server_id);
 
 
 --
