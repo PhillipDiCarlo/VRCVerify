@@ -211,6 +211,25 @@ _FIELD_SEPARATOR = ":"
 # usable rather than when the issue was filed. The other four had been
 # reachable for three weeks by then.
 ENTRIES = (
+    # #320's replacement sweep posted a new panel in about 165 servers on
+    # 2026-09-14 and deleted the old one. Nobody asked for that, so an admin
+    # who finds their panel at the bottom of the channel, or a link to it that
+    # no longer opens, needs somewhere to read why. Deliberately says nothing
+    # about the servers it could not replace: that is a DM to those admins, not
+    # a line every other reader has to parse.
+    Entry(
+        id="2026-09-panels-replaced",
+        date=date(2026, 9, 14),
+        title=N_("Older instruction panels have been replaced"),
+        body=(
+            N_("Instruction panels posted before August could not be edited, "
+            "so they kept their original text and buttons no matter what "
+            "changed. They have now been replaced with panels that can be "
+            "updated, in your server's current language. A replaced panel "
+            "appears at the bottom of its channel, and any link to the old "
+            "panel no longer works.")
+        ),
+    ),
     # ONE ENTRY FOR THE WHOLE OF #243, which is what that epic decided: five
     # sub-issues rebuilt the dashboard, the website, the status page and the
     # mark on one design system, and five bell notifications for one redesign
