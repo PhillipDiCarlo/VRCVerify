@@ -732,6 +732,29 @@ class TestStoringTheClaimAnswer:
         configure_group(group_id=GROUP_ID)
         assert ownership()["proven"] is False
 
+    def test_leaving_the_group_and_coming_back_needs_proof_again(self):
+        """Found attacking the first cut. Between leaving A and coming back,
+        another guild could claim A, and a fresh code is issued on return. A
+        proof that matched on the group id alone counted anyway."""
+        configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        bot.record_group_claim_result(claim_payload(job["jobID"]))
+        configure_group(group_id=OTHER_GROUP_ID)
+        configure_group(group_id=GROUP_ID)
+        assert ownership()["proven"] is False
+        assert bot.begin_group_verification(GUILD_ID)["requireCode"] is True
+
+    def test_an_answer_about_the_previous_code_is_dropped(self):
+        """The same hole with the answer still in flight: the job id matches,
+        and so does the group, but the code it looked for is not the one the
+        guild holds now."""
+        configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        configure_group(group_id=OTHER_GROUP_ID)
+        configure_group(group_id=GROUP_ID)
+        assert bot.record_group_claim_result(claim_payload(job["jobID"])) == "stale"
+        assert ownership()["proven"] is False
+
     def test_a_state_only_this_bot_may_set_is_refused_from_the_worker(self):
         configure_group()
         job = bot.begin_group_claim_check(GUILD_ID)

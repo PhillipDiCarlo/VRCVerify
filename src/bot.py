@@ -1303,10 +1303,11 @@ class GroupOwnershipProof(Base):
     costs no seat. A guild whose invite setup has already succeeded is proven
     by that, and never needs a row here.
 
-    `group_id` is the group this proof is about. It is compared to the guild's
-    CURRENT group on every read rather than being cleared when the group
-    changes, so a proof about a group the admin has since replaced can never be
-    mistaken for a proof about the new one, whichever order the writes land in.
+    `group_id` and `requested_at` are compared to the guild's CURRENT group and
+    the moment its claim code was issued, on every read, rather than the row
+    being cleared when the group changes. A proof about a group or a code the
+    admin has since replaced can never be mistaken for a current one, whichever
+    order the writes land in. See _proof_is_current.
     """
 
     __tablename__ = "group_ownership_proof"
@@ -3928,7 +3929,7 @@ def begin_group_verification(guild_id) -> Optional[dict]:
             # row's, which closes the same release-and-reclaim hole.
             "requireCode": (
                 row.verified_at is None
-                and _proven_at_for(session, key, row.group_id) is None
+                and _proven_at_for(session, key, row) is None
             ),
         }
 
@@ -4059,12 +4060,31 @@ def _utc(value):
     return value
 
 
-def _proven_at_for(session, key, group_id):
-    """When this guild proved it runs `group_id` without joining, or None."""
-    if not group_id:
-        return None
+def _proof_is_current(proof, config) -> bool:
+    """Is this proof about the guild's group AND the claim code it holds now?
+
+    The group alone is not enough. Changing the group issues a fresh code, and
+    going A -> B -> A lands back on the same group id with a code nobody has
+    shown -- while, in between, another guild could have claimed A and the
+    group could have changed hands in VRChat. So a proof counts only if it was
+    asked for after the current code was issued. That covers a finished proof
+    and an answer still in flight alike.
+    """
+    if proof is None or config is None or not config.group_id:
+        return False
+    if proof.group_id != config.group_id:
+        return False
+    issued = _utc(config.claim_code_issued_at)
+    asked = _utc(proof.requested_at)
+    if issued is None or asked is None:
+        return False
+    return asked >= issued
+
+
+def _proven_at_for(session, key, config):
+    """When this guild proved it runs its current group without joining, or None."""
     proof = session.query(GroupOwnershipProof).filter_by(server_id=key).first()
-    if proof is None or proof.group_id != group_id:
+    if not _proof_is_current(proof, config):
         return None
     return _utc(proof.proven_at)
 
@@ -4086,7 +4106,7 @@ def load_group_ownership(guild_id) -> Optional[dict]:
         if config is None or not config.group_id:
             return None
         proof = session.query(GroupOwnershipProof).filter_by(server_id=key).first()
-        if proof is not None and proof.group_id != config.group_id:
+        if not _proof_is_current(proof, config):
             proof = None
         proven_at = _utc(proof.proven_at) if proof else None
         return {
@@ -4141,9 +4161,11 @@ def begin_group_claim_check(guild_id) -> Optional[dict]:
         if proof is None:
             proof = GroupOwnershipProof(server_id=key)
             session.add(proof)
-        if proof.group_id != config.group_id:
-            proof.group_id = config.group_id
+        if proof.proven_at is not None and not _proof_is_current(proof, config):
+            # A proof of an old group or an old code. Kept until now only
+            # because nothing had replaced it; this check does.
             proof.proven_at = None
+        proof.group_id = config.group_id
         proof.state = GROUP_CLAIM_CHECKING
         proof.error = None
         proof.job_id = job_id
@@ -4210,7 +4232,7 @@ def record_group_claim_result(payload: dict) -> str:
         config = session.query(GroupInviteConfig).filter_by(server_id=key).first()
         if proof is None or config is None:
             return "unknown_guild"
-        if proof.job_id != job_id or proof.group_id != config.group_id:
+        if proof.job_id != job_id or not _proof_is_current(proof, config):
             return "stale"
         proof.state = state
         proof.error = payload.get("error_message") or None
