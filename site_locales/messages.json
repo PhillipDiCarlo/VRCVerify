@@ -359,6 +359,9 @@
  "In particular, if you are a consumer in the United Kingdom or the European Economic Area you normally have 14 days to withdraw from a distance contract. For digital services this right ends once supply has begun with your express consent. <0>Premium starts immediately on purchase, and by buying it you ask us to begin straight away and accept that you lose the 14-day right of withdrawal once we have.</0> Where that right does still apply to you, it takes precedence over this policy.": [
   "refunds.html"
  ],
+ "Instruction panels posted before August could not be edited, so they kept their original text and buttons no matter what changed. They have now been replaced with panels that can be updated, in your server's current language. A replaced panel appears at the bottom of its channel, and any link to the old panel no longer works.": [
+  "changelog.html"
+ ],
  "Invite verified members to your VRChat group": [
   "changelog.html"
  ],
@@ -408,6 +411,9 @@
  ],
  "Nothing lives at that address. If you followed a link from Discord, from Stripe, or from a billing email, one of the pages below is probably what you were looking for.": [
   "404.html"
+ ],
+ "Older instruction panels have been replaced": [
+  "changelog.html"
  ],
  "On this page": [
   "privacy.html",
