@@ -274,7 +274,9 @@ ENTRIES = (
             "more button that opens vrcverify.com, so a member who is asked "
             "to verify can read what VRCVerify does before they start. The "
             "donation reminder that appeared after setup is gone as well. "
-            "Already-posted panels update the next time they are refreshed.")
+            "Panels posted since August update the next time they are "
+            "refreshed. Older ones have to be replaced from your server's "
+            "page on the dashboard.")
         ),
     ),
     Entry(
