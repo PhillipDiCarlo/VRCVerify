@@ -234,6 +234,10 @@ class BotAPIDeps:
     # join an arbitrary group. Returns the re-read settings, or None if the
     # request could not be made.
     verify_group: Callable[[int, int], Awaitable[Optional[dict]]]
+    # The third, and the same shape as the second: the claim-code check on its
+    # own, which never joins (#289). A separate capability rather than a mode
+    # of verify_group, so nothing a caller sends can turn one into the other.
+    verify_group_claim: Callable[[int, int], Awaitable[Optional[dict]]]
 
 
 # -------------------------------------------------------------------
@@ -872,6 +876,26 @@ async def handle_post_panel(request: web.Request) -> web.Response:
 async def handle_verify_group(request: web.Request) -> web.Response:
     """Ask the invite worker to join this guild's VRChat group and report back.
 
+    See _run_group_action for why this takes no body.
+    """
+    deps: BotAPIDeps = request.app[DEPS_KEY]
+    return await _run_group_action(request, deps.verify_group)
+
+
+async def handle_verify_group_claim(request: web.Request) -> web.Response:
+    """Ask the invite worker whether the claim code is in the group (#289).
+
+    Never joins. Bodyless for the same reason as handle_verify_group: the job
+    reports the group's name back onto this guild's page, so the group must be
+    the one stored for the guild, not one the caller names.
+    """
+    deps: BotAPIDeps = request.app[DEPS_KEY]
+    return await _run_group_action(request, deps.verify_group_claim)
+
+
+async def _run_group_action(request: web.Request, action) -> web.Response:
+    """The shared body of the two group actions.
+
     Deliberately takes NO body. Every other write here carries what to store;
     this one carries nothing, because the only thing it could carry is a group
     id -- and a group id in a request body is exactly the input that would let
@@ -888,7 +912,6 @@ async def handle_verify_group(request: web.Request) -> web.Response:
     except _Denied as denied:
         return denied.response
 
-    deps: BotAPIDeps = request.app[DEPS_KEY]
     guild_id = int(request.match_info["guild_id"])
 
     if request.can_read_body:
@@ -897,7 +920,7 @@ async def handle_verify_group(request: web.Request) -> web.Response:
             return _deny(request, 400, "unexpected_body", actor=claims.actor_id)
 
     try:
-        result = await deps.verify_group(guild_id, claims.actor_id)
+        result = await action(guild_id, claims.actor_id)
     except SettingRejected as rejected:
         return _deny(
             request,
@@ -1034,6 +1057,9 @@ def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
     app.router.add_post("/api/v1/guilds/{guild_id}/panel", handle_post_panel)
     app.router.add_post(
         "/api/v1/guilds/{guild_id}/verify-group", handle_verify_group
+    )
+    app.router.add_post(
+        "/api/v1/guilds/{guild_id}/verify-group-claim", handle_verify_group_claim
     )
     if config.stripe_enabled:
         app.router.add_put(

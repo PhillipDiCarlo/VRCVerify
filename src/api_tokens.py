@@ -57,6 +57,9 @@ OP_POST_PANEL = "POST /api/v1/guilds/{guild_id}/panel"
 # a group. The group is not in the request -- the bot reads it from the
 # guild's own settings -- so this token authorizes the *asking*, nothing more.
 OP_VERIFY_GROUP = "POST /api/v1/guilds/{guild_id}/verify-group"
+# The ownership proof on its own (#289). Joins nothing, but it is still an
+# action that queues a job, and its token must not be replayable as the join.
+OP_VERIFY_GROUP_CLAIM = "POST /api/v1/guilds/{guild_id}/verify-group-claim"
 # The only operation with no human behind it: a Stripe webhook, verified on the
 # dashboard and forwarded here. See SYSTEM_ACTOR_ID.
 OP_PUT_STRIPE_SUBSCRIPTION = "PUT /api/v1/guilds/{guild_id}/stripe-subscription"

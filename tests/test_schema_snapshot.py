@@ -28,6 +28,21 @@ import pytest
 import bot
 from schema_snapshot import compare, parse_snapshot
 
+# New tables that exist in the models and not yet in production. The snapshot
+# is a dump of the real database, so it cannot contain a table before that
+# table has been deployed, and hand-writing one into it would make it a dump of
+# nothing. create_all() builds a new table complete on the first boot, so there
+# is no ALTER to forget: the entry comes out when the snapshot is refreshed
+# after the deploy, and test_nothing_waits_for_a_deploy_that_already_happened
+# says when.
+NOT_DEPLOYED_YET = {
+    "group_ownership_proof": (
+        "#289: proof that a guild runs its VRChat group without the bot joining"
+        " it. Remove after the bot is deployed and scripts/refresh_schema_snapshot.sh"
+        " has been run."
+    ),
+}
+
 # Every divergence that exists today, keyed by exactly what the comparison
 # prints, so an entry cannot quietly go on covering a different fact than the
 # one it was written for. If a type moves on either side, its entry goes stale
@@ -291,11 +306,25 @@ class TestTheSnapshotItself:
     def test_it_covers_the_tables_the_models_use(self):
         deployed = set(parse_snapshot())
         modelled = {t.name for t in bot.Base.metadata.sorted_tables}
-        missing = sorted(modelled - deployed)
+        missing = sorted(modelled - deployed - set(NOT_DEPLOYED_YET))
         assert not missing, (
             f"Tables in the models but not in the snapshot: {missing}. Either"
             " they have never been deployed, or the snapshot is stale."
         )
+
+    def test_nothing_waits_for_a_deploy_that_already_happened(self):
+        """Once the table is live and the snapshot refreshed, its entry below
+        has done its job, and leaving it would let the next undeployed table
+        hide behind it."""
+        deployed = set(parse_snapshot())
+        assert not deployed & set(NOT_DEPLOYED_YET), (
+            "Deployed now; remove from NOT_DEPLOYED_YET: "
+            f"{sorted(deployed & set(NOT_DEPLOYED_YET))}"
+        )
+
+    def test_every_table_waiting_for_a_deploy_carries_a_reason(self):
+        for table, reason in NOT_DEPLOYED_YET.items():
+            assert len(reason.strip()) > 40, table
 
     def test_it_keeps_the_sentinel_the_refresh_script_reads(self):
         """refresh_schema_snapshot.sh carries the note above this line across a

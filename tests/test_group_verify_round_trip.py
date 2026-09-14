@@ -87,6 +87,7 @@ def clean_db():
         with bot.session_scope() as session:
             session.query(bot.Server).delete()
             session.query(bot.GroupInviteConfig).delete()
+            session.query(bot.GroupOwnershipProof).delete()
             session.query(bot.GroupSeatLease).delete()
             session.query(bot.DashboardAudit).delete()
             session.query(bot.PremiumGrandfatherLine).delete()
@@ -606,3 +607,268 @@ class TestTheGroupIcon:
         with caplog.at_level("ERROR"):
             bot._warn_about_missing_columns()
         assert caplog.text == ""
+
+
+# -------------------------------------------------------------------
+# Proving the group without joining it (#289)
+# -------------------------------------------------------------------
+def claim_payload(job_id, state="proven", **overrides):
+    """Shaped exactly as vrc_group_inviter._claim_result builds it."""
+    payload = {
+        "type": "verify_group_claim",
+        "jobID": job_id,
+        "guildID": str(GUILD_ID),
+        "groupID": GROUP_ID,
+        "ok": state == "proven",
+        "state": state,
+        "group_name": "Club LA",
+        "icon_url": ICON_URL,
+        "error_message": None,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def ownership():
+    return bot.load_group_ownership(GUILD_ID)
+
+
+def seat_rows():
+    with bot.session_scope() as session:
+        return session.query(bot.GroupSeatLease).count()
+
+
+class TestTheClaimJob:
+    def test_a_guild_with_no_group_has_nothing_to_check(self):
+        assert bot.begin_group_claim_check(GUILD_ID) is None
+        configure_group(group_id=None)
+        assert bot.begin_group_claim_check(GUILD_ID) is None
+
+    def test_the_job_is_built_from_the_stored_row_and_nothing_else(self):
+        config = configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        assert set(job) == {"type", "jobID", "guildID", "groupID", "claimCode"}
+        assert job["type"] == bot.JOB_VERIFY_GROUP_CLAIM
+        assert job["groupID"] == GROUP_ID
+        assert job["claimCode"] == config["claim_code"]
+
+    def test_asking_marks_the_proof_as_checking(self):
+        configure_group()
+        bot.begin_group_claim_check(GUILD_ID)
+        assert ownership()["state"] == bot.GROUP_CLAIM_CHECKING
+        assert ownership()["proven"] is False
+
+
+class TestStoringTheClaimAnswer:
+    def test_the_code_being_found_proves_the_group(self):
+        configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        assert bot.record_group_claim_result(claim_payload(job["jobID"])) == "applied"
+        assert ownership()["proven"] is True
+        assert ownership()["proven_at"] is not None
+
+    def test_proof_is_not_a_join(self):
+        """The whole reason this is its own table. verified_at means the bot got
+        into the group, and a displaced group is only left, and a seat only
+        counted, when it is set."""
+        configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        bot.record_group_claim_result(claim_payload(job["jobID"]))
+        assert stored()["verified_at"] is None
+        assert stored()["verify_state"] == bot.GROUP_SETUP_UNVERIFIED
+        assert seat_rows() == 0
+
+    def test_a_missing_code_is_stored_without_proof(self):
+        configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        bot.record_group_claim_result(
+            claim_payload(job["jobID"], state="code_missing", error_message="not there")
+        )
+        assert ownership()["proven"] is False
+        assert ownership()["state"] == bot.GROUP_CLAIM_CODE_MISSING
+        assert ownership()["error"] == "not there"
+
+    def test_a_later_failed_check_of_the_same_group_keeps_the_proof(self):
+        """An admin who tidies the code away has not stopped running the group."""
+        configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        bot.record_group_claim_result(claim_payload(job["jobID"]))
+        again = bot.begin_group_claim_check(GUILD_ID)
+        bot.record_group_claim_result(claim_payload(again["jobID"], state="code_missing"))
+        assert ownership()["proven"] is True
+
+    def test_an_answer_to_an_old_question_is_dropped(self):
+        configure_group()
+        first = bot.begin_group_claim_check(GUILD_ID)
+        bot.begin_group_claim_check(GUILD_ID)
+        assert bot.record_group_claim_result(claim_payload(first["jobID"])) == "stale"
+        assert ownership()["proven"] is False
+
+    def test_an_answer_about_a_replaced_group_is_dropped(self):
+        """The job id still matches, because nothing else was asked since. The
+        group does not, and that is the half that matters."""
+        configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        configure_group(group_id=OTHER_GROUP_ID)
+        assert bot.record_group_claim_result(claim_payload(job["jobID"])) == "stale"
+        assert ownership()["proven"] is False
+
+    def test_changing_the_group_forgets_the_proof(self):
+        configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        bot.record_group_claim_result(claim_payload(job["jobID"]))
+        configure_group(group_id=OTHER_GROUP_ID)
+        assert ownership()["proven"] is False
+        assert ownership()["state"] is None
+
+    def test_going_back_to_the_old_group_does_not_bring_the_proof_back(self):
+        """A fresh claim code is issued whenever the group changes, so a proof of
+        the old code is a proof about a code that no longer exists."""
+        configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        bot.record_group_claim_result(claim_payload(job["jobID"]))
+        configure_group(group_id=OTHER_GROUP_ID)
+        bot.begin_group_claim_check(GUILD_ID)
+        configure_group(group_id=GROUP_ID)
+        assert ownership()["proven"] is False
+
+    def test_a_state_only_this_bot_may_set_is_refused_from_the_worker(self):
+        configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        outcome = bot.record_group_claim_result(
+            claim_payload(job["jobID"], state=bot.GROUP_CLAIM_CHECKING)
+        )
+        assert outcome == "unknown_state"
+
+    def test_the_groups_name_and_icon_are_cached_for_the_page(self):
+        configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        bot.record_group_claim_result(claim_payload(job["jobID"]))
+        assert stored()["group_name"] == "Club LA"
+        assert stored()["group_icon_url"] == ICON_URL
+
+    def test_a_successful_invite_setup_counts_as_proof(self):
+        """Servers that set up invites before this existed are connected already
+        and are never asked for the code."""
+        configure_group()
+        job = bot.begin_group_verification(GUILD_ID)
+        bot.record_group_verification_result(result_payload(job["jobID"]))
+        assert ownership()["proven"] is True
+
+
+class TestProofCarriesIntoTheJoin:
+    def test_a_proven_group_is_not_asked_for_the_code_again_when_joining(self):
+        configure_group()
+        claim = bot.begin_group_claim_check(GUILD_ID)
+        bot.record_group_claim_result(claim_payload(claim["jobID"]))
+        assert bot.begin_group_verification(GUILD_ID)["requireCode"] is False
+
+    def test_an_unproven_group_still_is(self):
+        configure_group()
+        claim = bot.begin_group_claim_check(GUILD_ID)
+        bot.record_group_claim_result(claim_payload(claim["jobID"], state="code_missing"))
+        assert bot.begin_group_verification(GUILD_ID)["requireCode"] is True
+
+    def test_proof_of_a_previous_group_does_not_carry_over(self):
+        """The release-and-reclaim hole begin_group_verification closes for
+        verified_at, closed again for this second kind of proof."""
+        configure_group()
+        claim = bot.begin_group_claim_check(GUILD_ID)
+        bot.record_group_claim_result(claim_payload(claim["jobID"]))
+        configure_group(group_id=OTHER_GROUP_ID)
+        assert bot.begin_group_verification(GUILD_ID)["requireCode"] is True
+
+
+class TestRequestingAClaimCheck:
+    def test_the_happy_path_publishes_and_takes_no_seat(self, published):
+        make_server()
+        configure_group()
+        payload = run(bot.request_group_claim_check(GUILD_ID, ADMIN_ID))
+
+        assert [job["type"] for job in published] == [bot.JOB_VERIFY_GROUP_CLAIM]
+        assert payload["group_ownership"]["claim_state"] == bot.GROUP_CLAIM_CHECKING
+        assert payload["group_ownership"]["proven"] is False
+        assert audit_fields() == ["group_claim"]
+        assert seat_rows() == 0, "the ownership check must never reserve a seat"
+
+    def test_it_works_with_no_invite_account_capacity_at_all(
+        self, monkeypatch, published
+    ):
+        """No seat is needed, so a full or unprovisioned pool is no reason to
+        refuse. The job goes to the default queue."""
+        monkeypatch.setattr(bot, "INVITE_ACCOUNTS", ())
+        monkeypatch.setattr(bot, "INVITE_ACCOUNTS_BY_ID", {})
+        make_server()
+        configure_group()
+        assert run(bot.request_group_claim_check(GUILD_ID, ADMIN_ID)) is not None
+        assert len(published) == 1
+
+    def test_a_free_server_is_refused_and_nothing_is_published(self, free, published):
+        make_server(row_id=9000)
+        configure_group()
+        with pytest.raises(bot.SettingRejected) as caught:
+            run(bot.request_group_claim_check(GUILD_ID, ADMIN_ID))
+        assert caught.value.reason == "requires_premium"
+        assert published == []
+
+    def test_a_guild_with_no_group_is_told_so(self, published):
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            run(bot.request_group_claim_check(GUILD_ID, ADMIN_ID))
+        assert caught.value.reason == "no_group_configured"
+
+    def test_a_publish_failure_says_so_instead_of_spinning(self, publishing_fails):
+        make_server()
+        configure_group()
+        payload = run(bot.request_group_claim_check(GUILD_ID, ADMIN_ID))
+        assert payload["group_ownership"]["claim_state"] == bot.GROUP_CLAIM_WORKER_UNREACHABLE
+        assert audit_fields() == []
+
+    def test_a_result_routes_to_the_proof_not_the_setup(self, published):
+        """Four job types share one result queue, and a claim verdict filed
+        against the invite setup would mark a group ready that the bot never
+        joined."""
+        make_server()
+        configure_group()
+        run(bot.request_group_claim_check(GUILD_ID, ADMIN_ID))
+        run(bot.handle_group_invite_result(claim_payload(published[0]["jobID"])))
+        assert ownership()["proven"] is True
+        assert stored()["verify_state"] == bot.GROUP_SETUP_UNVERIFIED
+
+
+class TestTheClaimTimeout:
+    def test_an_old_request_has_timed_out(self):
+        from datetime import datetime, timedelta, timezone
+
+        old = datetime.now(timezone.utc) - timedelta(
+            seconds=bot.GROUP_VERIFY_TIMEOUT_SECONDS + 5
+        )
+        state = bot.effective_group_claim_state(
+            {"state": bot.GROUP_CLAIM_CHECKING, "requested_at": old}
+        )
+        assert state == bot.GROUP_CLAIM_TIMED_OUT
+
+    def test_no_check_reads_as_none(self):
+        assert bot.effective_group_claim_state(None) is None
+
+
+class TestTheClaimContractWithTheWorker:
+    def test_the_job_type_matches(self):
+        import vrc_group_inviter as inviter
+
+        assert bot.JOB_VERIFY_GROUP_CLAIM == inviter.JOB_VERIFY_CLAIM
+
+    def test_the_vocabularies_match(self):
+        import vrc_group_inviter as inviter
+
+        assert bot.GROUP_CLAIM_WORKER_STATES == inviter.CLAIM_STATES
+
+    def test_a_real_worker_result_is_storable(self):
+        import vrc_group_inviter as inviter
+
+        configure_group()
+        job = bot.begin_group_claim_check(GUILD_ID)
+        payload = inviter._claim_result(job, inviter.CLAIM_PROVEN, group_name="Club LA")
+        assert bot.record_group_claim_result(payload) == "applied"
+        assert ownership()["proven"] is True
+

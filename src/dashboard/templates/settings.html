@@ -45,7 +45,7 @@
    into the rows rendered an empty grey card at the top of every settings page
    a free server opens. Caught in a screenshot; nothing failed, and the panel
    is a `<section>` with no content, which no test was asking about. #}
-{% if saved or group_check or panel_stale or panel_result or save_error
+{% if saved or group_check or group_claim_check or panel_stale or panel_result or save_error
       or not names_resolved or not auto_verify_column_present %}
 <section class="panel">
   {% if saved %}
@@ -56,6 +56,11 @@
   {% if group_check %}
     <p class="notice ok">
       {% trans %}Checking your VRChat group. Reload this page in a moment to see the result.{% endtrans %}
+    </p>
+  {% endif %}
+  {% if group_claim_check %}
+    <p class="notice ok">
+      {% trans %}Checking that the group is yours. Reload this page in a moment to see the result.{% endtrans %}
     </p>
   {% endif %}
   {# Saved, but the live panel did not take it. Almost always a panel posted by
@@ -169,18 +174,24 @@
             </dd>
           </div>
         {% endif %}
-        {% if group.group_setup and group.group_setup.configured %}
+        {# Invites need the group proven first. Until it is, the setup status
+           below would only restate what the card above already says, with a
+           check button that cannot pass. #}
+        {# Not while locked: "connect your group above" is a step a lapsed server
+           has no control to take. #}
+        {% if group.group_setup and not group.group_setup.ownership_proven and not group.group_setup.locked %}
           <div class="setting">
             <dt>{% trans %}Setup{% endtrans %}</dt>
             <dd>
-              {% if group.group_setup.icon_url %}
-                {# The group's icon, not its banner: the banner is a wide
-                   header image and would dwarf a one-line status. alt is
-                   empty because the name is right underneath -- a screen
-                   reader announcing it twice is worse than not at all. #}
-                <img class="group-icon" src="{{ group.group_setup.icon_url }}"
-                     alt="" width="64" height="64" loading="lazy">
-              {% endif %}
+              <p class="value empty">{% trans %}Waiting for your group{% endtrans %}</p>
+              <p class="muted desc">{% trans %}Connect your VRChat group above and confirm it's yours. Invite setup starts once that's done.{% endtrans %}</p>
+            </dd>
+          </div>
+        {% endif %}
+        {% if group.group_setup and group.group_setup.configured and group.group_setup.ownership_proven %}
+          <div class="setting">
+            <dt>{% trans %}Setup{% endtrans %}</dt>
+            <dd>
               <p class="value{% if group.group_setup.tone != 'ok' %} empty{% endif %}">
                 {{- group.group_setup.headline -}}
                 {%- if group.group_setup.group_name %} — {{ group.group_setup.group_name }}{% endif -%}
@@ -195,12 +206,6 @@
                  app has no catalog for it. #}
               <p class="muted desc">{% trans said=group.group_setup.error %}VRChat said: {{ said }}{% endtrans %}</p>
               {% endif %}
-              {% if group.group_setup.show_claim_code %}
-                <p class="value">{% trans %}Setup code:{% endtrans %} <code>{{ group.group_setup.claim_code }}</code></p>
-                <p class="muted desc">
-                  {% trans %}Paste this anywhere in your VRChat group's description. It proves the group is yours, and you can remove it once the check passes.{% endtrans %}
-                </p>
-              {% endif %}
               {% if group.group_setup.show_account %}
                 {# The account id stays outside the msgid: it is data from the
                    bot, not a word. The sentence around it is one string so a
@@ -208,11 +213,6 @@
                    it. #}
                 <p class="muted desc">
                   {% trans account_url=group.group_setup.account_url, account_id=group.group_setup.account_id %}Invite this account to your group: <a href="{{ account_url }}" rel="noopener noreferrer" target="_blank">{{ account_id }}</a> — check the ID matches, because VRChat display names are not unique.{% endtrans %}
-                </p>
-              {% endif %}
-              {% if group.group_setup.group_url %}
-                <p class="muted desc">
-                  {% trans group_url=group.group_setup.group_url %}Your group: <a href="{{ group_url }}" rel="noopener noreferrer" target="_blank">open it on vrchat.com</a>{% endtrans %}
                 </p>
               {% endif %}
               {% for warning in group.group_setup.warnings %}
@@ -444,13 +444,62 @@
 
       {# Its own form for the same reason the panel post below is: it posts to
          a different endpoint, and a form inside a form is not a thing. #}
-      {% if group.group_setup and group.group_setup.configured and editable %}
+      {# After the group field and its Save, not above them: the admin saves
+         the group first, then puts the code in it, then checks. #}
+      {% if group.group_ownership and group.group_ownership.configured %}
+      <dl class="settings">
+          <div class="setting">
+            <dt>{% trans %}Ownership{% endtrans %}</dt>
+            <dd>
+              {% if group.group_ownership.icon_url %}
+                {# The group's icon, not its banner: the banner is a wide
+                   header image and would dwarf a one-line status. alt is
+                   empty because the name is right underneath -- a screen
+                   reader announcing it twice is worse than not at all.
+                   Only on this card: the invites card below is about the
+                   same group, and a second copy of its picture says nothing. #}
+                <img class="group-icon" src="{{ group.group_ownership.icon_url }}"
+                     alt="" width="64" height="64" loading="lazy">
+              {% endif %}
+              <p class="value{% if group.group_ownership.tone != 'ok' %} empty{% endif %}">
+                {{- group.group_ownership.headline -}}
+                {%- if group.group_ownership.group_name %} — {{ group.group_ownership.group_name }}{% endif -%}
+              </p>
+              <p class="muted desc">{{ group.group_ownership.detail }}</p>
+              {% if group.group_ownership.error %}
+              <p class="muted desc">{% trans said=group.group_ownership.error %}VRChat said: {{ said }}{% endtrans %}</p>
+              {% endif %}
+              {% if group.group_ownership.show_claim_code %}
+                <p class="value">{% trans %}Setup code:{% endtrans %} <code>{{ group.group_ownership.claim_code }}</code></p>
+              {% endif %}
+              {% if group.group_ownership.group_url %}
+                <p class="muted desc">
+                  {% trans group_url=group.group_ownership.group_url %}Your group: <a href="{{ group_url }}" rel="noopener noreferrer" target="_blank">open it on vrchat.com</a>{% endtrans %}
+                </p>
+              {% endif %}
+            </dd>
+          </div>
+      </dl>
+      {% endif %}
+
+      {% if group.group_ownership and group.group_ownership.can_check and editable %}
+        <form method="post" action="{{ url_for('verify_group_claim', guild_id=guild_id) }}"
+              class="panel-post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="button">{% trans %}Check ownership{% endtrans %}</button>
+          <span class="muted desc">
+            {% trans %}Looks for the setup code in your group's description. The bot doesn't join the group. This button doesn't save the group above, so save first if you've just changed it.{% endtrans %}
+          </span>
+        </form>
+      {% endif %}
+
+      {% if group.group_setup and group.group_setup.configured and group.group_setup.ownership_proven and editable %}
         <form method="post" action="{{ url_for('verify_group', guild_id=guild_id) }}"
               class="panel-post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button type="submit" class="button">{% trans %}Check group setup{% endtrans %}</button>
           <span class="muted desc">
-            {% trans %}Asks the bot to join your group and report what it can do there. This button doesn't save the settings above — do that first if you've just changed the group.{% endtrans %}
+            {% trans %}Asks the bot to join your group and report what it can do there.{% endtrans %}
           </span>
         </form>
       {% endif %}

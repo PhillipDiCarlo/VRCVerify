@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 03:21-0400\n"
+"POT-Creation-Date: 2026-09-14 07:54-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -684,6 +684,14 @@ msgstr "成员通过确认之后会发生什么。"
 msgid "The message members use to start verification."
 msgstr "成员用来开始验证的那条消息。"
 
+msgid ""
+"Connect your server's VRChat group. Proving it's yours unlocks the group "
+"features below."
+msgstr "连接你服务器的 VRChat 群组。证明群组归你所有后，即可解锁下方的群组功能。"
+
+msgid "Group invites"
+msgstr "群组邀请"
+
 msgid "Invite members to your group once they're verified."
 msgstr "成员验证通过后，邀请他们加入你的群组。"
 
@@ -693,10 +701,8 @@ msgstr "给你的管理员看的验证活动记录。"
 msgid "Not checked yet"
 msgstr "尚未检查"
 
-msgid ""
-"Put the setup code in your group's description, invite the bot to the "
-"group, then run the check."
-msgstr "把设置码放进群组简介，邀请机器人加入群组，然后运行检查。"
+msgid "Invite the bot to the group, then run the check."
+msgstr "邀请机器人加入群组，然后运行检查。"
 
 msgid "Checking…"
 msgstr "正在检查…"
@@ -798,6 +804,33 @@ msgstr "无法确认设置"
 msgid "Run the check again. If it keeps happening, contact support."
 msgstr "请再次运行检查。如果一直如此，请联系支持。"
 
+msgid "Not confirmed yet"
+msgstr "尚未确认"
+
+msgid ""
+"Paste the setup code below anywhere in your VRChat group's description, "
+"then check ownership. The bot doesn't need to join the group for this."
+msgstr "将下方的设置码粘贴到你的 VRChat 群组简介中的任意位置，然后检查所有权。此步骤不需要机器人加入群组。"
+
+msgid "Connected"
+msgstr "已连接"
+
+msgid ""
+"VRCVerify has confirmed this group is yours. You can remove the setup "
+"code from the description now."
+msgstr "VRCVerify 已确认此群组归你所有。你现在可以从简介中删除设置码。"
+
+msgid ""
+"Paste the code below anywhere in your VRChat group's description, then "
+"check ownership again."
+msgstr "将下方的设置码粘贴到你的 VRChat 群组简介中的任意位置，然后再次检查所有权。"
+
+msgid ""
+"VRChat group features are part of VRCVerify Premium. Your group is kept "
+"exactly as it is, and this picks up where it left off if the subscription"
+" is renewed."
+msgstr "VRChat 群组功能是 VRCVerify Premium 的功能。你的群组会原样保留，续订后会从中断处继续。"
+
 msgid ""
 "Group invites are part of VRCVerify Premium. Your group is kept exactly "
 "as it is, and this picks up where it left off if the subscription is "
@@ -815,13 +848,10 @@ msgid ""
 "so the check cannot run. Contact the bot operator."
 msgstr "目前本 VRCVerify 没有可用的邀请账号，因此检查无法运行。请联系机器人运营者。"
 
-# | msgid "" "That doesn't look like a VRChat group. Paste the group's ID (it
-# | starts " "with grp_) or the vrchat.com link to the group."
 msgid ""
-"The group verified members can be invited to. Paste the group's ID (it "
-"starts with grp_) or its vrchat.com link. Leave it empty to disconnect "
-"the group."
-msgstr "已验证成员可被邀请加入的群组。请粘贴群组 ID（以 grp_ 开头）或其 vrchat.com 链接。留空则断开该群组。"
+"Your server's VRChat group. Paste the group's ID (it starts with grp_) or"
+" its vrchat.com link. Leave it empty to disconnect the group."
+msgstr "你服务器的 VRChat 群组。粘贴群组 ID（以 grp_ 开头）或其 vrchat.com 链接。留空即可断开群组连接。"
 
 msgid "No group connected"
 msgstr "未连接群组"
@@ -1506,6 +1536,11 @@ msgid ""
 msgstr "正在检查你的 VRChat 群组。请稍后刷新本页查看结果。"
 
 msgid ""
+"Checking that the group is yours. Reload this page in a moment to see the"
+" result."
+msgstr "正在确认群组是否归你所有。请稍后刷新本页查看结果。"
+
+msgid ""
 "Your settings were saved, but the instructions panel still shows the old "
 "ones. Use <strong>Repost or move panel</strong> below to replace it."
 msgstr "你的设置已保存，但说明面板显示的仍是旧内容。请使用下面的<strong>重新发布或移动面板</strong>来替换它。"
@@ -1544,17 +1579,17 @@ msgstr "成员通过这条消息开始验证。"
 msgid "Setup"
 msgstr "设置"
 
+msgid "Waiting for your group"
+msgstr "正在等待你的群组"
+
+msgid ""
+"Connect your VRChat group above and confirm it's yours. Invite setup "
+"starts once that's done."
+msgstr "请在上方连接你的 VRChat 群组并确认归你所有。完成后即可开始设置邀请。"
+
 #, python-format
 msgid "VRChat said: %(said)s"
 msgstr "VRChat 返回：%(said)s"
-
-msgid "Setup code:"
-msgstr "设置码："
-
-msgid ""
-"Paste this anywhere in your VRChat group's description. It proves the "
-"group is yours, and you can remove it once the check passes."
-msgstr "把它贴到你 VRChat 群组简介的任意位置。它用来证明该群组属于你，检查通过后即可删除。"
 
 #, python-format
 msgid ""
@@ -1564,14 +1599,6 @@ msgid ""
 msgstr ""
 "把这个账号邀请进你的群组：<a href=\"%(account_url)s\" rel=\"noopener noreferrer\" "
 "target=\"_blank\">%(account_id)s</a> —— 请核对 ID 是否一致，因为 VRChat 显示名并不唯一。"
-
-#, python-format
-msgid ""
-"Your group: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
-"target=\"_blank\">open it on vrchat.com</a>"
-msgstr ""
-"你的群组：<a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
-"target=\"_blank\">在 vrchat.com 上打开</a>"
 
 msgid "Not applied"
 msgstr "未生效"
@@ -1613,14 +1640,34 @@ msgstr "保存更改"
 msgid "Unsaved changes in this group"
 msgstr "该分组中有未保存的更改"
 
+msgid "Ownership"
+msgstr "所有权"
+
+msgid "Setup code:"
+msgstr "设置码："
+
+#, python-format
+msgid ""
+"Your group: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">open it on vrchat.com</a>"
+msgstr ""
+"你的群组：<a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">在 vrchat.com 上打开</a>"
+
+msgid "Check ownership"
+msgstr "检查所有权"
+
+msgid ""
+"Looks for the setup code in your group's description. The bot doesn't "
+"join the group. This button doesn't save the group above, so save first "
+"if you've just changed it."
+msgstr "在你的群组简介中查找设置码。机器人不会加入群组。此按钮不会保存上方的群组，如果你刚更改过，请先保存。"
+
 msgid "Check group setup"
 msgstr "检查群组设置"
 
-msgid ""
-"Asks the bot to join your group and report what it can do there. This "
-"button doesn't save the settings above — do that first if you've just "
-"changed the group."
-msgstr "请求机器人加入你的群组并报告它在那里能做什么。此按钮不会保存上面的设置 —— 如果你刚改过群组，请先保存。"
+msgid "Asks the bot to join your group and report what it can do there."
+msgstr "让机器人加入你的群组，并报告它在群组中能做什么。"
 
 msgid "Post the panel in"
 msgstr "把面板发布到"
@@ -1915,4 +1962,17 @@ msgstr ""
 # | msgid "Open the dashboard"
 #~ msgid "A new look for the dashboard"
 #~ msgstr "控制台的全新外观"
+
+#~ msgid ""
+#~ "Put the setup code in your group's"
+#~ " description, invite the bot to the"
+#~ " group, then run the check."
+#~ msgstr "把设置码放进群组简介，邀请机器人加入群组，然后运行检查。"
+
+#~ msgid ""
+#~ "Paste this anywhere in your VRChat "
+#~ "group's description. It proves the group"
+#~ " is yours, and you can remove "
+#~ "it once the check passes."
+#~ msgstr "把它贴到你 VRChat 群组简介的任意位置。它用来证明该群组属于你，检查通过后即可删除。"
 

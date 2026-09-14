@@ -1764,14 +1764,16 @@ def _register_routes(app: Flask) -> None:
         groups = settings_view.build_groups(
             settings, roles, channels, panel, _translator()
         )
-        current = next(one for one in groups if one["slug"] == group)
+        # Usually one card per page. The VRChat group page has one per feature
+        # that depends on the group (#289).
+        current = [one for one in groups if one["slug"] == group]
 
         return render_template(
             "settings.html",
             # A list of one. The template's loop body is unchanged by the
             # split, which is why the field renderer is not duplicated five
             # times -- the page is the same page, given less.
-            groups=[current],
+            groups=current,
             premium=settings.get("premium") or {},
             upgrade=settings_view.build_upgrade(
                 settings, _config().discord_client_id
@@ -1783,6 +1785,7 @@ def _register_routes(app: Flask) -> None:
             # is not in this response. Saying it succeeded would be a claim
             # this page cannot make yet.
             group_check=notice == "group_check",
+            group_claim_check=notice == "group_claim_check",
             panel_result=_panel_result_message(_notice_arg(notice, "panel")),
             panel_stale=notice == "stale",
             save_error=(
@@ -2431,6 +2434,31 @@ def _register_routes(app: Flask) -> None:
             return redirect(_settings_url(guild_id, "vrchat-group"))
 
         _store().set_notice(session.sid, "group_check")
+        return redirect(_settings_url(guild_id, "vrchat-group"))
+
+    @app.post("/guild/<int:guild_id>/group/verify-claim")
+    def verify_group_claim(guild_id: int):
+        """Ask the bot whether the setup code is in this guild's group (#289).
+
+        Sends nothing, for the reason verify_group gives. Unlike that one, the
+        answer never makes the bot join anything.
+        """
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+
+        try:
+            _bot_api().verify_group_claim(int(session.discord_id), guild_id)
+        except BotAPIError as error:
+            logger.warning(
+                "group ownership check refused for guild %s: %s", guild_id, error
+            )
+            _store().set_notice(session.sid, f"error:{_save_error_code(error)}")
+            return redirect(_settings_url(guild_id, "vrchat-group"))
+
+        _store().set_notice(session.sid, "group_claim_check")
         return redirect(_settings_url(guild_id, "vrchat-group"))
 
     @app.post("/logout")

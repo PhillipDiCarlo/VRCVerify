@@ -1056,4 +1056,5 @@ class TestTheLeaveVocabularyMatches:
             inviter.JOB_VERIFY_SETUP,
             inviter.JOB_SEND_INVITE,
             inviter.JOB_LEAVE_GROUP,
+            inviter.JOB_VERIFY_CLAIM,
         }
