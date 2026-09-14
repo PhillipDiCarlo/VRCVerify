@@ -559,8 +559,10 @@ SEAT_SWEEP_INTERVAL = _int_env("SEAT_SWEEP_INTERVAL", 6 * 3600)
 # Calendar sync (#289). How often a linked group's calendar is read, before
 # jitter. Each read is 1 to 8 calendar calls on the invite account (measured on
 # live groups: 52 to 731 events at 100 a page), so this is set by how stale an
-# event may be in Discord, not by how cheap a read is.
-CALENDAR_POLL_INTERVAL_SECONDS = _int_env("CALENDAR_POLL_INTERVAL_SECONDS", 3600, minimum=600)
+# event may be in Discord, not by how cheap a read is. Fifteen minutes, decided
+# on #289 after the first live test: an hour made a VRChat deletion take two
+# hours to clear from Discord. The dashboard tells admins this number.
+CALENDAR_POLL_INTERVAL_SECONDS = _int_env("CALENDAR_POLL_INTERVAL_SECONDS", 900, minimum=600)
 # How long a poll may run before it is treated as lost. A poll is a chain of
 # page jobs, and a bot restart drops the pages collected so far with it.
 CALENDAR_POLL_TIMEOUT_SECONDS = _int_env("CALENDAR_POLL_TIMEOUT_SECONDS", 900)
@@ -11840,6 +11842,9 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
                 "eligible_count": calendar_link.get("eligible_count"),
                 "synced_count": calendar_link.get("synced_count"),
                 "over_cap_count": calendar_link.get("over_cap_count"),
+                # The interval, so the page states the one this bot actually
+                # runs rather than a number of its own that could drift.
+                "poll_interval_minutes": max(1, round(CALENDAR_POLL_INTERVAL_SECONDS / 60)),
                 # From the gateway cache, so it is current even before the next
                 # poll: an admin who just granted it sees the warning go away.
                 "can_manage_events": (

@@ -10802,6 +10802,7 @@ CALENDAR_BLOCK = {
     "synced_count": None,
     "over_cap_count": None,
     "can_manage_events": True,
+    "poll_interval_minutes": 15,
 }
 
 
@@ -10909,6 +10910,23 @@ class TestCalendarSyncCard:
         permissions = int(re.search(r"permissions=(\d+)", url).group(1))
         assert permissions & (1 << 44), "Create Events"
         assert f"guild_id={GUILD_IN}" in url and "disable_guild_select=true" in url
+
+    def test_the_page_says_how_often_the_calendar_is_read(self, config, store):
+        """Asked for on #289, after an admin waited on a deletion without
+        knowing when the next read was."""
+        api = FakeBotAPI(settings=calendar_settings(state="synced", synced_count=3))
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        html = settings_page(test_client, "vrchat-group").data.decode()
+        assert "checked about every 15 minutes" in html
+        assert "it can take about 30 minutes to leave Discord" in html
+
+    def test_an_interval_the_bot_did_not_send_is_not_guessed(self):
+        settings = calendar_settings(state="synced")
+        del settings["calendar_sync"]["poll_interval_minutes"]
+        assert settings_view.calendar_sync_summary(settings)["poll_interval_minutes"] is None
 
     def test_the_general_install_link_still_does_not_ask_for_it(self):
         """Decided on #289: only the card asks, never the general install link."""

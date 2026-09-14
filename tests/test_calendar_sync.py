@@ -879,6 +879,20 @@ class TestTheSwitch:
         assert bot._guild_id_set(None) == frozenset()
 
 
+class TestTheInterval:
+    def test_the_default_is_fifteen_minutes(self, monkeypatch):
+        """Decided on #289. The dashboard states whatever this is."""
+        monkeypatch.delenv("CALENDAR_POLL_INTERVAL_SECONDS", raising=False)
+        assert bot._int_env("CALENDAR_POLL_INTERVAL_SECONDS", 900, minimum=600) == 900
+        assert "\"CALENDAR_POLL_INTERVAL_SECONDS\", 900, minimum=600" in open(bot.__file__).read()
+
+    def test_the_payload_reports_it_in_minutes(self, monkeypatch, preview, premium):
+        monkeypatch.setattr(bot, "CALENDAR_POLL_INTERVAL_SECONDS", 900)
+        make_server()
+        payload = run(bot.read_dashboard_settings(GUILD_ID))
+        assert payload["calendar_sync"]["poll_interval_minutes"] == 15
+
+
 class TestTheContractWithTheWorker:
     def test_the_job_type_matches(self):
         import vrc_group_inviter as inviter

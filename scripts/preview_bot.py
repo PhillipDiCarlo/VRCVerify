@@ -383,7 +383,7 @@ class PreviewBotAPI:
             payload["calendar_sync"] = dict(
                 dict(available=True, error=None, last_synced_at=None, visible_count=None,
                      eligible_count=None, synced_count=None, over_cap_count=None,
-                     can_manage_events=True),
+                     can_manage_events=True, poll_interval_minutes=15),
                 **block,
             )
         if not premium:

@@ -852,6 +852,16 @@ def calendar_sync_summary(
         "ownership_proven": proven,
         "locked": locked,
         "synced_count": synced_count,
+        # How often the calendar is read, as the bot reports it. None from a
+        # bot that predates the field, and the sentence is then left out
+        # rather than guessed.
+        "poll_interval_minutes": (
+            block.get("poll_interval_minutes")
+            if isinstance(block.get("poll_interval_minutes"), int)
+            and not isinstance(block.get("poll_interval_minutes"), bool)
+            and block.get("poll_interval_minutes") > 0
+            else None
+        ),
         "over_cap_count": (
             block.get("over_cap_count")
             if enabled and not locked and proven
