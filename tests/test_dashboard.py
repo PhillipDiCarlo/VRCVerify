@@ -10750,3 +10750,132 @@ class TestTheSmallDefectsFoundAlongsideTheThemingWork(object):
             if name.endswith(".html"):
                 with open(os.path.join(templates, name), encoding="utf-8") as handle:
                     assert "guild-head" not in handle.read(), name
+
+
+# -------------------------------------------------------------------
+# Calendar sync's card (#289, PR 1b)
+# -------------------------------------------------------------------
+CALENDAR_BLOCK = {
+    "available": True,
+    "state": None,
+    "error": None,
+    "last_synced_at": None,
+    "visible_count": None,
+    "eligible_count": None,
+    "synced_count": None,
+    "over_cap_count": None,
+    "can_manage_events": True,
+}
+
+
+def calendar_settings(enabled=True, proven=True, premium=True, **block):
+    settings = make_settings(
+        premium=premium,
+        values={"vrchat_group_id": GROUP_ID},
+        group_ownership=GROUP_OWNERSHIP_PROVEN if proven else GROUP_OWNERSHIP_NONE,
+    )
+    settings["fields"]["calendar_sync_enabled"] = {
+        "value": enabled,
+        "feature": "calendar_sync",
+        "active": premium,
+        "locked": not premium,
+        "writable": True,
+    }
+    settings["calendar_sync"] = dict(CALENDAR_BLOCK, **block)
+    return settings
+
+
+class TestCalendarSyncCard:
+    def cards(self, settings):
+        return [g for g in settings_view.build_groups(settings, [], [], None) if g["slug"] == "vrchat-group"]
+
+    def summary(self, **kwargs):
+        url = kwargs.pop("permission_url", "https://discord.com/oauth2/authorize?x")
+        return settings_view.calendar_sync_summary(
+            calendar_settings(**kwargs), permission_url=url
+        )
+
+    def test_no_card_unless_the_bot_says_this_guild_may_see_it(self):
+        """Unannounced: not a locked teaser, nothing at all."""
+        settings = calendar_settings()
+        settings["calendar_sync"]["available"] = False
+        assert [c["title"] for c in self.cards(settings)] == ["VRChat group", "Group invites"]
+        assert [c["title"] for c in self.cards(make_settings(premium=True))] == ["VRChat group", "Group invites"]
+
+    def test_a_preview_guild_gets_it_as_the_third_card(self):
+        titles = [c["title"] for c in self.cards(calendar_settings())]
+        assert titles == ["VRChat group", "Group invites", "Calendar sync"]
+        assert [f.name for f in self.cards(calendar_settings())[2]["fields"]] == ["calendar_sync_enabled"]
+
+    def test_synced_says_how_many_and_when(self):
+        summary = self.summary(state="synced", synced_count=12, last_synced_at="2026-09-14T11:40:00+00:00")
+        assert summary["tone"] == "ok"
+        assert summary["synced_count"] == 12
+        assert "UTC" in summary["last_synced"]
+
+    def test_the_cap_is_named_with_its_count(self):
+        assert self.summary(state="synced", over_cap_count=70)["over_cap_count"] == 70
+        assert self.summary(state="synced", over_cap_count=0)["over_cap_count"] is None
+
+    def test_an_empty_read_is_never_called_an_empty_calendar(self):
+        """A non-member read cannot tell "no events" from "members-only events"."""
+        summary = self.summary(state="synced", visible_count=0, eligible_count=0, synced_count=0)
+        assert any("No public events were found" in w for w in summary["warnings"])
+        assert not any("has no events" in w for w in summary["warnings"])
+        assert summary["synced_count"] is None
+
+    def test_events_that_exist_but_are_not_public_are_explained(self):
+        summary = self.summary(state="synced", visible_count=40, eligible_count=0)
+        assert any("None of this group's upcoming events are public" in w for w in summary["warnings"])
+
+    def test_a_missing_permission_offers_the_link_once(self):
+        summary = self.summary(state="missing_permission", can_manage_events=False)
+        assert summary["permission_url"]
+        assert summary["detail"] is None, "the link says what to do; saying it twice reads as two problems"
+        assert summary["warnings"] == []
+
+    def test_a_permission_lost_since_the_last_sync_is_warned_about_before_it_fails(self):
+        summary = self.summary(state="synced", can_manage_events=False)
+        assert summary["permission_url"]
+        assert any("Create Events" in w for w in summary["warnings"])
+
+    def test_off_asks_for_nothing(self):
+        summary = self.summary(enabled=False, state="missing_permission", can_manage_events=False, over_cap_count=5)
+        assert summary["headline"] == "Off"
+        assert summary["permission_url"] is None
+        assert summary["over_cap_count"] is None and summary["warnings"] == []
+
+    def test_a_locked_server_is_not_sent_to_discord_for_a_permission(self):
+        summary = self.summary(premium=False, state="synced", can_manage_events=False)
+        assert summary["permission_url"] is None and summary["warnings"] == []
+
+    def test_the_page_renders_the_counts_with_plural_forms(self, config, store):
+        api = FakeBotAPI(settings=calendar_settings(state="synced", synced_count=1, over_cap_count=1))
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        html = settings_page(test_client, "vrchat-group").data.decode()
+        assert "1 upcoming event is in Discord." in html
+        assert "1 more event wasn't added" in html
+
+    def test_the_permission_link_adds_create_events_to_this_server(self, config, store):
+        api = FakeBotAPI(settings=calendar_settings(state="missing_permission", can_manage_events=False))
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        html = settings_page(test_client, "vrchat-group").data.decode()
+        match = re.search(r'href="(https://discord\.com/oauth2/authorize[^"]+)"[^>]*>Give VRCVerify the Create Events permission', html)
+        assert match, "the permission link is missing"
+        url = match.group(1).replace("&amp;", "&")
+        permissions = int(re.search(r"permissions=(\d+)", url).group(1))
+        assert permissions & (1 << 44), "Create Events"
+        assert f"guild_id={GUILD_IN}" in url and "disable_guild_select=true" in url
+
+    def test_the_general_install_link_still_does_not_ask_for_it(self):
+        """Decided on #289: only the card asks, never the general install link."""
+        url = app_module._invite_url("123")
+        permissions = int(re.search(r"permissions=(\d+)", url).group(1))
+        assert not permissions & (1 << 44)
+

@@ -706,6 +706,7 @@ class TestEveryFieldDeclaresItsGate:
         "verification_log_channel_id": (bot.FEATURE_ACTIVITY_LOG, True),
         "vrchat_group_id": (bot.FEATURE_GROUP_INVITE, True),
         "vrchat_group_invite_enabled": (bot.FEATURE_GROUP_INVITE, True),
+        "calendar_sync_enabled": (bot.FEATURE_CALENDAR_SYNC, True),
     }
 
     def test_the_table_is_exactly_this(self):
@@ -742,6 +743,7 @@ class TestEveryFieldDeclaresItsGate:
             "verification_log_channel_id",
             "vrchat_group_id",
             "vrchat_group_invite_enabled",
+            "calendar_sync_enabled",
         }
 
     def test_a_grandfathered_server_keeps_exactly_three(self, enforced):

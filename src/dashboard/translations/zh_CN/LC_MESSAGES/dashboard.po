@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 07:54-0400\n"
+"POT-Creation-Date: 2026-09-14 10:05-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -698,6 +698,23 @@ msgstr "成员验证通过后，邀请他们加入你的群组。"
 msgid "A record of verification activity for your moderators."
 msgstr "给你的管理员看的验证活动记录。"
 
+msgid "Calendar sync"
+msgstr "日历同步"
+
+msgid ""
+"Mirror your VRChat group's public events into Discord's Events tab, where"
+" members get RSVPs, reminders and times in their own time zone."
+msgstr "将你的 VRChat 群组的公开活动同步到 Discord 的活动页，成员可以在那里报名、收到提醒，并以自己的时区查看时间。"
+
+msgid "Sync events to Discord"
+msgstr "将活动同步到 Discord"
+
+msgid ""
+"Creates a Discord event for each upcoming public event on your group's "
+"VRChat calendar, and keeps it up to date. Turning this off removes the "
+"events that haven't started."
+msgstr "为群组 VRChat 日历上的每个即将开始的公开活动创建 Discord 活动，并保持更新。关闭后会移除尚未开始的活动。"
+
 msgid "Not checked yet"
 msgstr "尚未检查"
 
@@ -830,6 +847,69 @@ msgid ""
 "exactly as it is, and this picks up where it left off if the subscription"
 " is renewed."
 msgstr "VRChat 群组功能是 VRCVerify Premium 的功能。你的群组会原样保留，续订后会从中断处继续。"
+
+msgid "Syncing…"
+msgstr "正在同步…"
+
+msgid "Reading your group's calendar. Reload this page in a moment."
+msgstr "正在读取你的群组日历。请稍后刷新本页。"
+
+msgid "Synced"
+msgstr "已同步"
+
+msgid "VRCVerify can't create events in this server"
+msgstr "VRCVerify 无法在此服务器中创建活动"
+
+msgid "Your group's calendar isn't visible"
+msgstr "无法查看你的群组日历"
+
+msgid ""
+"VRChat wouldn't show the bot this group's calendar. Check the group still"
+" exists."
+msgstr "VRChat 没有向机器人显示此群组的日历。请确认该群组仍然存在。"
+
+msgid "Nothing is wrong with your setup. The next sync will try again."
+msgstr "你的设置没有问题。下次同步时会重试。"
+
+msgid "The last sync didn't finish"
+msgstr "上次同步未完成"
+
+msgid "The next sync will try again."
+msgstr "下次同步时会重试。"
+
+msgid "Couldn't start the sync"
+msgstr "无法开始同步"
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"sync will try again."
+msgstr "机器人无法连接到负责与 VRChat 通信的组件。下次同步时会重试。"
+
+msgid "Some events couldn't be updated in Discord"
+msgstr "部分活动无法在 Discord 中更新"
+
+msgid "Waiting for the first sync"
+msgstr "正在等待首次同步"
+
+msgid ""
+"The first sync starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr "开启后一分钟内会开始首次同步。请稍后刷新本页。"
+
+msgid ""
+"VRCVerify doesn't have the Create Events permission in this server, so "
+"the next sync won't be able to add events."
+msgstr "VRCVerify 在此服务器中没有「创建活动」权限，因此下次同步将无法添加活动。"
+
+msgid ""
+"No public events were found on this group. Events visible only to group "
+"members aren't synced yet."
+msgstr "此群组中没有找到公开活动。仅群组成员可见的活动暂不同步。"
+
+msgid ""
+"None of this group's upcoming events are public, so there's nothing to "
+"sync. Events limited to members or to roles aren't synced."
+msgstr "此群组即将开始的活动都不是公开的，因此没有可同步的内容。仅限成员或特定身份组的活动不会同步。"
 
 msgid ""
 "Group invites are part of VRCVerify Premium. Your group is kept exactly "
@@ -1599,6 +1679,46 @@ msgid ""
 msgstr ""
 "把这个账号邀请进你的群组：<a href=\"%(account_url)s\" rel=\"noopener noreferrer\" "
 "target=\"_blank\">%(account_id)s</a> —— 请核对 ID 是否一致，因为 VRChat 显示名并不唯一。"
+
+msgid ""
+"Connect your VRChat group above and confirm it's yours. Syncing starts "
+"once that's done."
+msgstr "请在上方连接你的 VRChat 群组并确认归你所有。完成后即开始同步。"
+
+#, python-format
+msgid "%(count)s upcoming event is in Discord."
+msgid_plural "%(count)s upcoming events are in Discord."
+msgstr[0] "Discord 中有 %(count)s 个即将开始的活动。"
+
+#, python-format
+msgid "Last synced %(when)s"
+msgstr "上次同步：%(when)s"
+
+#, python-format
+msgid "The last error: %(said)s"
+msgstr "上次错误：%(said)s"
+
+#, python-format
+msgid ""
+"<a href=\"%(url)s\" rel=\"noopener noreferrer\" target=\"_blank\">Give "
+"VRCVerify the Create Events permission</a> in Discord. Nothing else about"
+" the bot changes."
+msgstr ""
+"在 Discord 中<a href=\"%(url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">授予 VRCVerify「创建活动」权限</a>。机器人的其他设置不会改变。"
+
+#, python-format
+msgid ""
+"%(count)s more event wasn't added, because Discord allows 100 events per "
+"server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgid_plural ""
+"%(count)s more events weren't added, because Discord allows 100 events "
+"per server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgstr[0] ""
+"还有 %(count)s 个活动未添加，因为 Discord 每个服务器最多允许 100 "
+"个活动。最近的活动已同步，其余的会在这些活动结束后陆续添加。"
 
 msgid "Not applied"
 msgstr "未生效"

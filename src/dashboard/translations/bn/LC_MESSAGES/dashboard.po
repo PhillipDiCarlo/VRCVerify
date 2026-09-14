@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 07:54-0400\n"
+"POT-Creation-Date: 2026-09-14 10:05-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: bn\n"
@@ -796,6 +796,29 @@ msgstr "সদস্যরা ভেরিফাই হলেই তাঁদে
 msgid "A record of verification activity for your moderators."
 msgstr "আপনার মডারেটরদের জন্য ভেরিফিকেশন কার্যকলাপের একটি রেকর্ড।"
 
+msgid "Calendar sync"
+msgstr "ক্যালেন্ডার সিঙ্ক"
+
+msgid ""
+"Mirror your VRChat group's public events into Discord's Events tab, where"
+" members get RSVPs, reminders and times in their own time zone."
+msgstr ""
+"আপনার VRChat গ্রুপের পাবলিক ইভেন্টগুলো Discord-এর Events ট্যাবে আনুন, "
+"যেখানে সদস্যরা RSVP করতে, রিমাইন্ডার পেতে এবং নিজের টাইম জোনে সময় দেখতে "
+"পারেন।"
+
+msgid "Sync events to Discord"
+msgstr "ইভেন্ট Discord-এ সিঙ্ক করুন"
+
+msgid ""
+"Creates a Discord event for each upcoming public event on your group's "
+"VRChat calendar, and keeps it up to date. Turning this off removes the "
+"events that haven't started."
+msgstr ""
+"আপনার গ্রুপের VRChat ক্যালেন্ডারের প্রতিটি আসন্ন পাবলিক ইভেন্টের জন্য "
+"একটি Discord ইভেন্ট তৈরি করে এবং সেটি হালনাগাদ রাখে। এটি বন্ধ করলে যে "
+"ইভেন্টগুলো এখনও শুরু হয়নি সেগুলো সরিয়ে দেওয়া হয়।"
+
 msgid "Not checked yet"
 msgstr "এখনও দেখা হয়নি"
 
@@ -951,6 +974,79 @@ msgstr ""
 "VRChat গ্রুপ ফিচারগুলো VRCVerify Premium-এর অংশ। আপনার গ্রুপ ঠিক যেমন আছে"
 " তেমনই থাকবে, আর সাবস্ক্রিপশন নবায়ন করলে এটি যেখানে থেমেছিল সেখান থেকেই "
 "চলবে।"
+
+msgid "Syncing…"
+msgstr "সিঙ্ক হচ্ছে…"
+
+msgid "Reading your group's calendar. Reload this page in a moment."
+msgstr "আপনার গ্রুপের ক্যালেন্ডার পড়া হচ্ছে। একটু পরে এই পাতাটি রিলোড করুন।"
+
+msgid "Synced"
+msgstr "সিঙ্ক হয়েছে"
+
+msgid "VRCVerify can't create events in this server"
+msgstr "VRCVerify এই সার্ভারে ইভেন্ট তৈরি করতে পারছে না"
+
+msgid "Your group's calendar isn't visible"
+msgstr "আপনার গ্রুপের ক্যালেন্ডার দেখা যাচ্ছে না"
+
+msgid ""
+"VRChat wouldn't show the bot this group's calendar. Check the group still"
+" exists."
+msgstr "VRChat বটকে এই গ্রুপের ক্যালেন্ডার দেখায়নি। গ্রুপটি এখনও আছে কি না দেখুন।"
+
+msgid "Nothing is wrong with your setup. The next sync will try again."
+msgstr "আপনার সেটআপে কোনো সমস্যা নেই। পরের সিঙ্ক আবার চেষ্টা করবে।"
+
+msgid "The last sync didn't finish"
+msgstr "শেষ সিঙ্কটি শেষ হয়নি"
+
+msgid "The next sync will try again."
+msgstr "পরের সিঙ্ক আবার চেষ্টা করবে।"
+
+msgid "Couldn't start the sync"
+msgstr "সিঙ্ক শুরু করা যায়নি"
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"sync will try again."
+msgstr ""
+"বট তার সেই অংশে পৌঁছাতে পারেনি যা VRChat-এর সঙ্গে কথা বলে। পরের সিঙ্ক "
+"আবার চেষ্টা করবে।"
+
+msgid "Some events couldn't be updated in Discord"
+msgstr "কিছু ইভেন্ট Discord-এ হালনাগাদ করা যায়নি"
+
+msgid "Waiting for the first sync"
+msgstr "প্রথম সিঙ্কের অপেক্ষায়"
+
+msgid ""
+"The first sync starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr ""
+"এটি চালু করার এক মিনিটের মধ্যে প্রথম সিঙ্ক শুরু হয়। একটু পরে এই পাতাটি "
+"রিলোড করুন।"
+
+msgid ""
+"VRCVerify doesn't have the Create Events permission in this server, so "
+"the next sync won't be able to add events."
+msgstr ""
+"এই সার্ভারে VRCVerify-এর “ইভেন্ট তৈরি করুন” অনুমতি নেই, তাই পরের সিঙ্ক "
+"ইভেন্ট যোগ করতে পারবে না।"
+
+msgid ""
+"No public events were found on this group. Events visible only to group "
+"members aren't synced yet."
+msgstr ""
+"এই গ্রুপে কোনো পাবলিক ইভেন্ট পাওয়া যায়নি। শুধু গ্রুপ সদস্যদের কাছে "
+"দৃশ্যমান ইভেন্ট এখনও সিঙ্ক হয় না।"
+
+msgid ""
+"None of this group's upcoming events are public, so there's nothing to "
+"sync. Events limited to members or to roles aren't synced."
+msgstr ""
+"এই গ্রুপের আসন্ন কোনো ইভেন্টই পাবলিক নয়, তাই সিঙ্ক করার কিছু নেই। সদস্য "
+"বা রোলে সীমিত ইভেন্ট সিঙ্ক হয় না।"
 
 msgid ""
 "Group invites are part of VRCVerify Premium. Your group is kept exactly "
@@ -1795,6 +1891,55 @@ msgstr ""
 "href=\"%(account_url)s\" rel=\"noopener noreferrer\" "
 "target=\"_blank\">%(account_id)s</a> — ID মিলছে কি না দেখে নিন, কারণ "
 "VRChat-এর প্রদর্শিত নাম অনন্য নয়।"
+
+msgid ""
+"Connect your VRChat group above and confirm it's yours. Syncing starts "
+"once that's done."
+msgstr ""
+"উপরে আপনার VRChat গ্রুপ যুক্ত করুন এবং নিশ্চিত করুন যে এটি আপনার। তা হয়ে"
+" গেলে সিঙ্ক শুরু হবে।"
+
+#, python-format
+msgid "%(count)s upcoming event is in Discord."
+msgid_plural "%(count)s upcoming events are in Discord."
+msgstr[0] "Discord-এ %(count)sটি আসন্ন ইভেন্ট আছে।"
+msgstr[1] "Discord-এ %(count)sটি আসন্ন ইভেন্ট আছে।"
+
+#, python-format
+msgid "Last synced %(when)s"
+msgstr "শেষ সিঙ্ক: %(when)s"
+
+#, python-format
+msgid "The last error: %(said)s"
+msgstr "শেষ ত্রুটি: %(said)s"
+
+#, python-format
+msgid ""
+"<a href=\"%(url)s\" rel=\"noopener noreferrer\" target=\"_blank\">Give "
+"VRCVerify the Create Events permission</a> in Discord. Nothing else about"
+" the bot changes."
+msgstr ""
+"Discord-এ <a href=\"%(url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">VRCVerify-কে “ইভেন্ট তৈরি করুন” অনুমতি দিন</a>। বটের আর"
+" কিছু বদলায় না।"
+
+#, python-format
+msgid ""
+"%(count)s more event wasn't added, because Discord allows 100 events per "
+"server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgid_plural ""
+"%(count)s more events weren't added, because Discord allows 100 events "
+"per server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgstr[0] ""
+"আরও %(count)sটি ইভেন্ট যোগ করা হয়নি, কারণ Discord প্রতি সার্ভারে 100টি "
+"ইভেন্টের অনুমতি দেয়। সবচেয়ে কাছের ইভেন্টগুলো সিঙ্ক হয়, আর বাকিগুলো "
+"সেগুলো শেষ হলে যোগ হয়।"
+msgstr[1] ""
+"আরও %(count)sটি ইভেন্ট যোগ করা হয়নি, কারণ Discord প্রতি সার্ভারে 100টি "
+"ইভেন্টের অনুমতি দেয়। সবচেয়ে কাছের ইভেন্টগুলো সিঙ্ক হয়, আর বাকিগুলো "
+"সেগুলো শেষ হলে যোগ হয়।"
 
 msgid "Not applied"
 msgstr "প্রয়োগ হয়নি"

@@ -173,6 +173,30 @@ PREVIEW_SUB = os.environ.get("PREVIEW_SUB", "")
 #   PREVIEW_GROUP=ready          invites set up and working
 PREVIEW_GROUP = os.environ.get("PREVIEW_GROUP", "")
 
+# Calendar sync (#289), on the premium server's VRChat group page. Implies a
+# proven group, since the card has nothing else to show without one.
+#
+#   PREVIEW_CALENDAR=off          the switch is off
+#   PREVIEW_CALENDAR=first        on, waiting for the first sync
+#   PREVIEW_CALENDAR=synced       synced, with some events over Discord's cap
+#   PREVIEW_CALENDAR=permission   on, but the bot lacks Create Events
+#   PREVIEW_CALENDAR=empty        synced, and no public events were found
+PREVIEW_CALENDAR = os.environ.get("PREVIEW_CALENDAR", "")
+
+_CALENDAR_STATES = {
+    "off": (False, dict(state=None)),
+    "first": (True, dict(state=None)),
+    "synced": (True, dict(
+        state="synced", last_synced_at="2026-09-14T11:40:00+00:00",
+        visible_count=731, eligible_count=260, synced_count=80, over_cap_count=70,
+    )),
+    "permission": (True, dict(state="missing_permission", can_manage_events=False)),
+    "empty": (True, dict(
+        state="synced", last_synced_at="2026-09-14T11:40:00+00:00",
+        visible_count=0, eligible_count=0, synced_count=0, over_cap_count=0,
+    )),
+}
+
 _PREVIEW_GROUP_ID = "grp_0e1d4755-2f87-4129-a192-5587068cbf73"
 _GROUP_STATES = {
     "unproven": (dict(), dict(proven=False, claim_state=None)),
@@ -348,6 +372,20 @@ class PreviewBotAPI:
                 payload.get("group_invite") or {}, claim_code="VRCG-7K2M4P", **invite
             )
             payload["group_ownership"] = dict(ownership, claim_error=None, proven_at=None)
+        if premium and PREVIEW_CALENDAR in _CALENDAR_STATES:
+            enabled, block = _CALENDAR_STATES[PREVIEW_CALENDAR]
+            payload["fields"]["vrchat_group_id"]["value"] = _PREVIEW_GROUP_ID
+            payload["group_invite"] = dict(payload.get("group_invite") or {}, group_name="Club LA")
+            payload["group_ownership"] = dict(proven=True, claim_state="proven", claim_error=None, proven_at=None)
+            payload["fields"]["calendar_sync_enabled"] = dict(
+                value=enabled, feature="calendar_sync", active=True, locked=False, writable=True
+            )
+            payload["calendar_sync"] = dict(
+                dict(available=True, error=None, last_synced_at=None, visible_count=None,
+                     eligible_count=None, synced_count=None, over_cap_count=None,
+                     can_manage_events=True),
+                **block,
+            )
         if not premium:
             # Enabled, saveable, and not acted on -- see FORCED_INACTIVE.
             payload["fields"][FORCED_INACTIVE].update(active=False, locked=False)

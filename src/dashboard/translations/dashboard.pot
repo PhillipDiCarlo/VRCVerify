@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 07:54-0400\n"
+"POT-Creation-Date: 2026-09-14 10:05-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -630,6 +630,23 @@ msgstr ""
 msgid "A record of verification activity for your moderators."
 msgstr ""
 
+msgid "Calendar sync"
+msgstr ""
+
+msgid ""
+"Mirror your VRChat group's public events into Discord's Events tab, where"
+" members get RSVPs, reminders and times in their own time zone."
+msgstr ""
+
+msgid "Sync events to Discord"
+msgstr ""
+
+msgid ""
+"Creates a Discord event for each upcoming public event on your group's "
+"VRChat calendar, and keeps it up to date. Turning this off removes the "
+"events that haven't started."
+msgstr ""
+
 msgid "Not checked yet"
 msgstr ""
 
@@ -756,6 +773,69 @@ msgid ""
 "VRChat group features are part of VRCVerify Premium. Your group is kept "
 "exactly as it is, and this picks up where it left off if the subscription"
 " is renewed."
+msgstr ""
+
+msgid "Syncing…"
+msgstr ""
+
+msgid "Reading your group's calendar. Reload this page in a moment."
+msgstr ""
+
+msgid "Synced"
+msgstr ""
+
+msgid "VRCVerify can't create events in this server"
+msgstr ""
+
+msgid "Your group's calendar isn't visible"
+msgstr ""
+
+msgid ""
+"VRChat wouldn't show the bot this group's calendar. Check the group still"
+" exists."
+msgstr ""
+
+msgid "Nothing is wrong with your setup. The next sync will try again."
+msgstr ""
+
+msgid "The last sync didn't finish"
+msgstr ""
+
+msgid "The next sync will try again."
+msgstr ""
+
+msgid "Couldn't start the sync"
+msgstr ""
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"sync will try again."
+msgstr ""
+
+msgid "Some events couldn't be updated in Discord"
+msgstr ""
+
+msgid "Waiting for the first sync"
+msgstr ""
+
+msgid ""
+"The first sync starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr ""
+
+msgid ""
+"VRCVerify doesn't have the Create Events permission in this server, so "
+"the next sync won't be able to add events."
+msgstr ""
+
+msgid ""
+"No public events were found on this group. Events visible only to group "
+"members aren't synced yet."
+msgstr ""
+
+msgid ""
+"None of this group's upcoming events are public, so there's nothing to "
+"sync. Events limited to members or to roles aren't synced."
 msgstr ""
 
 msgid ""
@@ -1473,6 +1553,44 @@ msgid ""
 "rel=\"noopener noreferrer\" target=\"_blank\">%(account_id)s</a> — check "
 "the ID matches, because VRChat display names are not unique."
 msgstr ""
+
+msgid ""
+"Connect your VRChat group above and confirm it's yours. Syncing starts "
+"once that's done."
+msgstr ""
+
+#, python-format
+msgid "%(count)s upcoming event is in Discord."
+msgid_plural "%(count)s upcoming events are in Discord."
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "Last synced %(when)s"
+msgstr ""
+
+#, python-format
+msgid "The last error: %(said)s"
+msgstr ""
+
+#, python-format
+msgid ""
+"<a href=\"%(url)s\" rel=\"noopener noreferrer\" target=\"_blank\">Give "
+"VRCVerify the Create Events permission</a> in Discord. Nothing else about"
+" the bot changes."
+msgstr ""
+
+#, python-format
+msgid ""
+"%(count)s more event wasn't added, because Discord allows 100 events per "
+"server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgid_plural ""
+"%(count)s more events weren't added, because Discord allows 100 events "
+"per server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Not applied"
 msgstr ""

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 07:54-0400\n"
+"POT-Creation-Date: 2026-09-14 10:05-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -797,6 +797,28 @@ msgstr "ادعُ الأعضاء إلى مجموعتك بمجرّد توثيقه�
 msgid "A record of verification activity for your moderators."
 msgstr "سجلّ بنشاط التوثيق لمشرفيك."
 
+msgid "Calendar sync"
+msgstr "مزامنة التقويم"
+
+msgid ""
+"Mirror your VRChat group's public events into Discord's Events tab, where"
+" members get RSVPs, reminders and times in their own time zone."
+msgstr ""
+"انقل الفعاليات العامة لمجموعتك في VRChat إلى تبويب الفعاليات في Discord، "
+"حيث يستطيع الأعضاء تأكيد الحضور وتلقّي التذكيرات ورؤية المواعيد بتوقيتهم "
+"المحلي."
+
+msgid "Sync events to Discord"
+msgstr "مزامنة الفعاليات مع Discord"
+
+msgid ""
+"Creates a Discord event for each upcoming public event on your group's "
+"VRChat calendar, and keeps it up to date. Turning this off removes the "
+"events that haven't started."
+msgstr ""
+"ينشئ فعالية في Discord لكل فعالية عامة قادمة في تقويم مجموعتك على VRChat "
+"ويبقيها محدَّثة. إيقاف هذا يزيل الفعاليات التي لم تبدأ بعد."
+
 msgid "Not checked yet"
 msgstr "لم يُفحص بعد"
 
@@ -947,6 +969,79 @@ msgid ""
 msgstr ""
 "ميزات مجموعة VRChat جزء من VRCVerify Premium. تبقى مجموعتك كما هي تمامًا،"
 " ويُستأنف هذا من حيث توقّف إن جُدّد الاشتراك."
+
+msgid "Syncing…"
+msgstr "جارٍ المزامنة…"
+
+msgid "Reading your group's calendar. Reload this page in a moment."
+msgstr "جارٍ قراءة تقويم مجموعتك. أعد تحميل هذه الصفحة بعد قليل."
+
+msgid "Synced"
+msgstr "تمت المزامنة"
+
+msgid "VRCVerify can't create events in this server"
+msgstr "لا يستطيع VRCVerify إنشاء فعاليات في هذا الخادم"
+
+msgid "Your group's calendar isn't visible"
+msgstr "تقويم مجموعتك غير ظاهر"
+
+msgid ""
+"VRChat wouldn't show the bot this group's calendar. Check the group still"
+" exists."
+msgstr ""
+"لم يُظهر VRChat للبوت تقويم هذه المجموعة. تأكّد من أن المجموعة ما زالت "
+"موجودة."
+
+msgid "Nothing is wrong with your setup. The next sync will try again."
+msgstr "لا خطأ في إعدادك. ستعيد المزامنة التالية المحاولة."
+
+msgid "The last sync didn't finish"
+msgstr "لم تكتمل المزامنة الأخيرة"
+
+msgid "The next sync will try again."
+msgstr "ستعيد المزامنة التالية المحاولة."
+
+msgid "Couldn't start the sync"
+msgstr "تعذّر بدء المزامنة"
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"sync will try again."
+msgstr ""
+"لم يتمكّن البوت من الوصول إلى الجزء المسؤول عن التواصل مع VRChat. ستعيد "
+"المزامنة التالية المحاولة."
+
+msgid "Some events couldn't be updated in Discord"
+msgstr "تعذّر تحديث بعض الفعاليات في Discord"
+
+msgid "Waiting for the first sync"
+msgstr "بانتظار المزامنة الأولى"
+
+msgid ""
+"The first sync starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr "تبدأ المزامنة الأولى خلال دقيقة من تشغيلها. أعد تحميل هذه الصفحة بعد قليل."
+
+msgid ""
+"VRCVerify doesn't have the Create Events permission in this server, so "
+"the next sync won't be able to add events."
+msgstr ""
+"لا يملك VRCVerify صلاحية «إنشاء الفعاليات» في هذا الخادم، لذا لن تتمكّن "
+"المزامنة التالية من إضافة فعاليات."
+
+msgid ""
+"No public events were found on this group. Events visible only to group "
+"members aren't synced yet."
+msgstr ""
+"لم يُعثر على فعاليات عامة في هذه المجموعة. الفعاليات الظاهرة لأعضاء "
+"المجموعة فقط لا تُزامَن بعد."
+
+msgid ""
+"None of this group's upcoming events are public, so there's nothing to "
+"sync. Events limited to members or to roles aren't synced."
+msgstr ""
+"لا توجد بين الفعاليات القادمة لهذه المجموعة أي فعالية عامة، لذا لا يوجد "
+"ما يُزامَن. الفعاليات المقصورة على الأعضاء أو على رتب معيّنة لا تُزامَن."
 
 msgid ""
 "Group invites are part of VRCVerify Premium. Your group is kept exactly "
@@ -1788,6 +1883,65 @@ msgstr ""
 "ادعُ هذا الحساب إلى مجموعتك: <a href=\"%(account_url)s\" rel=\"noopener "
 "noreferrer\" target=\"_blank\">%(account_id)s</a> — وتحقّق من تطابق "
 "المعرّف، فالأسماء الظاهرة في VRChat ليست فريدة."
+
+msgid ""
+"Connect your VRChat group above and confirm it's yours. Syncing starts "
+"once that's done."
+msgstr "اربط مجموعتك في VRChat أعلاه وأكّد أنها ملكك. تبدأ المزامنة بعد ذلك."
+
+#, python-format
+msgid "%(count)s upcoming event is in Discord."
+msgid_plural "%(count)s upcoming events are in Discord."
+msgstr[0] "لا توجد فعاليات قادمة في Discord."
+msgstr[1] "توجد فعالية قادمة واحدة في Discord."
+msgstr[2] "توجد فعاليتان قادمتان في Discord."
+msgstr[3] "توجد %(count)s فعاليات قادمة في Discord."
+msgstr[4] "توجد %(count)s فعاليةً قادمة في Discord."
+msgstr[5] "توجد %(count)s فعالية قادمة في Discord."
+
+#, python-format
+msgid "Last synced %(when)s"
+msgstr "آخر مزامنة: %(when)s"
+
+#, python-format
+msgid "The last error: %(said)s"
+msgstr "آخر خطأ: %(said)s"
+
+#, python-format
+msgid ""
+"<a href=\"%(url)s\" rel=\"noopener noreferrer\" target=\"_blank\">Give "
+"VRCVerify the Create Events permission</a> in Discord. Nothing else about"
+" the bot changes."
+msgstr ""
+"<a href=\"%(url)s\" rel=\"noopener noreferrer\" target=\"_blank\">امنح "
+"VRCVerify صلاحية «إنشاء الفعاليات»</a> في Discord. لا يتغيّر شيء آخر في "
+"البوت."
+
+#, python-format
+msgid ""
+"%(count)s more event wasn't added, because Discord allows 100 events per "
+"server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgid_plural ""
+"%(count)s more events weren't added, because Discord allows 100 events "
+"per server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgstr[0] "لم تُضَف أي فعاليات أخرى."
+msgstr[1] ""
+"لم تُضَف فعالية أخرى واحدة، لأن Discord يسمح بـ 100 فعالية لكل خادم. "
+"تُزامَن الأقرب موعدًا، ويُضاف الباقي كلما انتهت."
+msgstr[2] ""
+"لم تُضَف فعاليتان أخريان، لأن Discord يسمح بـ 100 فعالية لكل خادم. "
+"تُزامَن الأقرب موعدًا، ويُضاف الباقي كلما انتهت."
+msgstr[3] ""
+"لم تُضَف %(count)s فعاليات أخرى، لأن Discord يسمح بـ 100 فعالية لكل خادم."
+" تُزامَن الأقرب موعدًا، ويُضاف الباقي كلما انتهت."
+msgstr[4] ""
+"لم تُضَف %(count)s فعاليةً أخرى، لأن Discord يسمح بـ 100 فعالية لكل خادم."
+" تُزامَن الأقرب موعدًا، ويُضاف الباقي كلما انتهت."
+msgstr[5] ""
+"لم تُضَف %(count)s فعالية أخرى، لأن Discord يسمح بـ 100 فعالية لكل خادم. "
+"تُزامَن الأقرب موعدًا، ويُضاف الباقي كلما انتهت."
 
 msgid "Not applied"
 msgstr "غير مطبَّق"

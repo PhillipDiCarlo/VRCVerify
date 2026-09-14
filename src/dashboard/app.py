@@ -1762,7 +1762,17 @@ def _register_routes(app: Flask) -> None:
             )
 
         groups = settings_view.build_groups(
-            settings, roles, channels, panel, _translator()
+            settings,
+            roles,
+            channels,
+            panel,
+            _translator(),
+            lang=_lang(),
+            # Re-running the install flow for an installed bot adds the missing
+            # permission to its role; nothing else about the bot changes.
+            permission_url=_invite_url(
+                _config().discord_client_id, str(guild_id), CREATE_EVENTS_PERMISSION
+            ),
         )
         # Usually one card per page. The VRChat group page has one per feature
         # that depends on the group (#289).
@@ -3456,7 +3466,14 @@ def _optional_read(call, what: str, guild_id: int):
         return None
 
 
-def _invite_url(client_id: str, guild_id: Optional[str] = None) -> str:
+# Create Events (1 << 44). Asked for only by the calendar sync card, for a
+# server that has turned the sync on (#289), never by the general install link.
+CREATE_EVENTS_PERMISSION = 1 << 44
+
+
+def _invite_url(
+    client_id: str, guild_id: Optional[str] = None, extra_permissions: int = 0
+) -> str:
     """The bot's install flow, at one specific server or at none.
 
     `disable_guild_select` plus `guild_id` means the admin lands on the right
@@ -3485,6 +3502,7 @@ def _invite_url(client_id: str, guild_id: Optional[str] = None) -> str:
         | 0x4000  # Embed Links
         | 0x10000  # Read Message History
         | 0x400  # View Channel
+        | extra_permissions
     )
     url = (
         "https://discord.com/oauth2/authorize"

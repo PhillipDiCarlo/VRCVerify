@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 07:54-0400\n"
+"POT-Creation-Date: 2026-09-14 10:05-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -718,6 +718,27 @@ msgstr "認証が済んだメンバーをグループに招待します。"
 msgid "A record of verification activity for your moderators."
 msgstr "モデレーター向けの、認証アクティビティの記録です。"
 
+msgid "Calendar sync"
+msgstr "カレンダー同期"
+
+msgid ""
+"Mirror your VRChat group's public events into Discord's Events tab, where"
+" members get RSVPs, reminders and times in their own time zone."
+msgstr ""
+"VRChat グループの公開イベントを Discord "
+"のイベントタブに反映します。メンバーは参加表明やリマインダーを使え、時刻も自分のタイムゾーンで表示されます。"
+
+msgid "Sync events to Discord"
+msgstr "イベントを Discord に同期"
+
+msgid ""
+"Creates a Discord event for each upcoming public event on your group's "
+"VRChat calendar, and keeps it up to date. Turning this off removes the "
+"events that haven't started."
+msgstr ""
+"グループの VRChat カレンダーにある今後の公開イベントごとに Discord "
+"のイベントを作成し、最新の状態に保ちます。オフにすると、まだ始まっていないイベントは削除されます。"
+
 msgid "Not checked yet"
 msgstr "未確認"
 
@@ -856,6 +877,69 @@ msgid ""
 msgstr ""
 "VRChat グループ機能は VRCVerify Premium "
 "の機能です。グループはそのまま保持され、サブスクリプションを更新すれば中断したところから再開します。"
+
+msgid "Syncing…"
+msgstr "同期しています…"
+
+msgid "Reading your group's calendar. Reload this page in a moment."
+msgstr "グループのカレンダーを読み込んでいます。少ししてからこのページを再読み込みしてください。"
+
+msgid "Synced"
+msgstr "同期済み"
+
+msgid "VRCVerify can't create events in this server"
+msgstr "VRCVerify はこのサーバーでイベントを作成できません"
+
+msgid "Your group's calendar isn't visible"
+msgstr "グループのカレンダーを表示できません"
+
+msgid ""
+"VRChat wouldn't show the bot this group's calendar. Check the group still"
+" exists."
+msgstr "VRChat がこのグループのカレンダーをボットに表示しませんでした。グループがまだ存在するか確認してください。"
+
+msgid "Nothing is wrong with your setup. The next sync will try again."
+msgstr "設定に問題はありません。次回の同期で再試行します。"
+
+msgid "The last sync didn't finish"
+msgstr "前回の同期が完了しませんでした"
+
+msgid "The next sync will try again."
+msgstr "次回の同期で再試行します。"
+
+msgid "Couldn't start the sync"
+msgstr "同期を開始できませんでした"
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"sync will try again."
+msgstr "ボットが VRChat と通信する部分に接続できませんでした。次回の同期で再試行します。"
+
+msgid "Some events couldn't be updated in Discord"
+msgstr "一部のイベントを Discord で更新できませんでした"
+
+msgid "Waiting for the first sync"
+msgstr "最初の同期を待っています"
+
+msgid ""
+"The first sync starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr "オンにしてから 1 分以内に最初の同期が始まります。少ししてからこのページを再読み込みしてください。"
+
+msgid ""
+"VRCVerify doesn't have the Create Events permission in this server, so "
+"the next sync won't be able to add events."
+msgstr "VRCVerify にはこのサーバーで「イベントを作成」権限がないため、次回の同期ではイベントを追加できません。"
+
+msgid ""
+"No public events were found on this group. Events visible only to group "
+"members aren't synced yet."
+msgstr "このグループに公開イベントは見つかりませんでした。グループメンバーだけに表示されるイベントは、まだ同期されません。"
+
+msgid ""
+"None of this group's upcoming events are public, so there's nothing to "
+"sync. Events limited to members or to roles aren't synced."
+msgstr "このグループの今後のイベントはどれも公開されていないため、同期するものがありません。メンバーやロールに限定されたイベントは同期されません。"
 
 msgid ""
 "Group invites are part of VRCVerify Premium. Your group is kept exactly "
@@ -1649,6 +1733,46 @@ msgstr ""
 "このアカウントをグループに招待してください: <a href=\"%(account_url)s\" rel=\"noopener "
 "noreferrer\" target=\"_blank\">%(account_id)s</a> — VRChat "
 "の表示名は一意ではないため、ID が一致しているか確認してください。"
+
+msgid ""
+"Connect your VRChat group above and confirm it's yours. Syncing starts "
+"once that's done."
+msgstr "上で VRChat グループを接続し、自分のグループであることを確認してください。完了すると同期が始まります。"
+
+#, python-format
+msgid "%(count)s upcoming event is in Discord."
+msgid_plural "%(count)s upcoming events are in Discord."
+msgstr[0] "Discord に今後のイベントが %(count)s 件あります。"
+
+#, python-format
+msgid "Last synced %(when)s"
+msgstr "最終同期: %(when)s"
+
+#, python-format
+msgid "The last error: %(said)s"
+msgstr "前回のエラー: %(said)s"
+
+#, python-format
+msgid ""
+"<a href=\"%(url)s\" rel=\"noopener noreferrer\" target=\"_blank\">Give "
+"VRCVerify the Create Events permission</a> in Discord. Nothing else about"
+" the bot changes."
+msgstr ""
+"Discord で <a href=\"%(url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">VRCVerify に「イベントを作成」権限を付与</a>してください。ボットのそれ以外の設定は変わりません。"
+
+#, python-format
+msgid ""
+"%(count)s more event wasn't added, because Discord allows 100 events per "
+"server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgid_plural ""
+"%(count)s more events weren't added, because Discord allows 100 events "
+"per server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgstr[0] ""
+"Discord ではサーバーごとに 100 件までしかイベントを作成できないため、あと %(count)s "
+"件は追加されませんでした。直近のイベントから同期され、終わったものから順に残りが追加されます。"
 
 msgid "Not applied"
 msgstr "未適用"
