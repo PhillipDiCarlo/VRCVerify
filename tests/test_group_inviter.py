@@ -531,6 +531,86 @@ class TestTheClaimCode:
         assert inviter.verify_group_setup(JOB)["state"] == inviter.STATE_BANNED
 
 
+CLAIM_JOB = {
+    "type": "verify_group_claim",
+    "jobID": "c1",
+    "guildID": "123",
+    "groupID": GROUP_ID,
+    "claimCode": CLAIM_CODE,
+}
+
+
+class TestTheClaimCheck:
+    """The ownership proof on its own (#289). It reads, and it never joins."""
+
+    def test_the_code_proves_the_group(self, api):
+        api.groups = [group(membership_status=None)]
+        result = inviter.verify_group_claim(CLAIM_JOB)
+        assert result["state"] == inviter.CLAIM_PROVEN
+        assert result["ok"] is True
+        assert result["type"] == inviter.JOB_VERIFY_CLAIM
+        assert result["group_name"] == "Club LA"
+
+    @pytest.mark.parametrize("membership", [None, "inactive", "invited", "requested"])
+    def test_it_never_joins_whatever_the_membership(self, api, membership):
+        api.groups = [group(membership_status=membership)]
+        inviter.verify_group_claim(CLAIM_JOB)
+        assert api.joined() == []
+        assert [c[0] for c in api.calls] == ["get_group"]
+
+    def test_a_missing_code_is_reported(self, api):
+        api.groups = [group(description="Nothing in here")]
+        result = inviter.verify_group_claim(CLAIM_JOB)
+        assert result["state"] == inviter.CLAIM_CODE_MISSING
+        assert result["ok"] is False
+
+    def test_a_job_without_a_code_proves_nothing(self, api):
+        """No requireCode here: this job IS the proof."""
+        job = {k: v for k, v in CLAIM_JOB.items() if k != "claimCode"}
+        assert inviter.verify_group_claim(job)["state"] == inviter.CLAIM_CODE_MISSING
+
+    def test_being_a_member_is_not_proof(self, api):
+        """The release-and-reclaim case: the account is still in a group another
+        guild used to hold."""
+        api.groups = [group(permissions=READY_PERMISSIONS, description="No code")]
+        assert inviter.verify_group_claim(CLAIM_JOB)["state"] == inviter.CLAIM_CODE_MISSING
+
+    @pytest.mark.parametrize("status", [403, 404])
+    def test_an_unknown_or_invisible_group(self, api, status):
+        api.get_group_error = FakeApiException(status=status, body="nope")
+        assert inviter.verify_group_claim(CLAIM_JOB)["state"] == inviter.CLAIM_GROUP_NOT_FOUND
+
+    def test_no_vrchat_session(self, monkeypatch):
+        monkeypatch.setattr(
+            inviter.vrchat_session, "get",
+            lambda: (None, {"error_message": "VRChat session not active"}),
+        )
+        assert inviter.verify_group_claim(CLAIM_JOB)["state"] == inviter.CLAIM_VRCHAT_UNAVAILABLE
+
+    def test_a_job_that_names_no_group(self, api):
+        result = inviter.verify_group_claim(dict(CLAIM_JOB, groupID=None))
+        assert result["state"] == inviter.CLAIM_BAD_JOB
+        assert api.calls == []
+
+    def test_it_is_dispatched(self):
+        assert inviter.HANDLERS[inviter.JOB_VERIFY_CLAIM] is inviter.verify_group_claim
+
+    def test_a_dropped_claim_job_is_apologized_for_as_a_claim(self, monkeypatch):
+        """Four types share the result queue, and the bot routes on `type`. A
+        setup-shaped apology would be filed against the invite setup."""
+        published = []
+        monkeypatch.setattr(inviter, "publish_result", published.append)
+
+        def boom(job):
+            raise RuntimeError("bug")
+
+        monkeypatch.setitem(inviter.HANDLERS, inviter.JOB_VERIFY_CLAIM, boom)
+        ch = TestJobDispatch.Chan()
+        body = b'{"type": "verify_group_claim", "groupID": "grp_x"}'
+        inviter.process_job(ch, SimpleNamespace(delivery_tag=9, redelivered=True), None, body)
+        assert [p["type"] for p in published] == [inviter.JOB_VERIFY_CLAIM]
+
+
 class TestTheWorkerNamesItself:
     def test_every_result_says_which_account_produced_it(self, api, monkeypatch):
         """One invite account today; the 100/200-group seat cap guarantees

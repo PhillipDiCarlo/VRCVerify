@@ -860,6 +860,34 @@ GROUP_SETUP_STATES = frozenset(
 GROUP_SETUP_SUCCESS_STATES = frozenset({GROUP_SETUP_READY})
 
 
+# group_ownership_proof.state -- the claim-code check on its own, with no join
+# (issue #289). The worker's verdicts mirror vrc_group_inviter.CLAIM_STATES and
+# a test holds the two together, for the reason the setup states above give.
+# The failures reuse the setup strings because they mean the same thing, and
+# the dashboard already has a sentence for each.
+GROUP_CLAIM_CHECKING = GROUP_SETUP_CHECKING
+GROUP_CLAIM_TIMED_OUT = GROUP_SETUP_TIMED_OUT
+GROUP_CLAIM_WORKER_UNREACHABLE = GROUP_SETUP_WORKER_UNREACHABLE
+
+GROUP_CLAIM_PROVEN = "proven"
+GROUP_CLAIM_CODE_MISSING = GROUP_SETUP_CODE_MISSING
+GROUP_CLAIM_GROUP_NOT_FOUND = GROUP_SETUP_GROUP_NOT_FOUND
+GROUP_CLAIM_VRCHAT_UNAVAILABLE = GROUP_SETUP_VRCHAT_UNAVAILABLE
+GROUP_CLAIM_BAD_JOB = GROUP_SETUP_BAD_JOB
+
+# What the worker can report. The bot's own three are not in here, because a
+# payload claiming one of them did not come from the worker.
+GROUP_CLAIM_WORKER_STATES = frozenset(
+    {
+        GROUP_CLAIM_PROVEN,
+        GROUP_CLAIM_CODE_MISSING,
+        GROUP_CLAIM_GROUP_NOT_FOUND,
+        GROUP_CLAIM_VRCHAT_UNAVAILABLE,
+        GROUP_CLAIM_BAD_JOB,
+    }
+)
+
+
 # group_invite_request.state -- what happened when ONE member asked for ONE
 # invite (issue #49, phase 5).
 #
@@ -1253,6 +1281,51 @@ class GroupSeatLease(Base):
     # what happened to it, which is the difference between "never set up" and
     # "set up, then reclaimed" on a support ticket.
     released_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class GroupOwnershipProof(Base):
+    """Proof that a guild runs its VRChat group, without the bot joining it (#289).
+
+    A separate table for the same reason as the others: create_all() adds
+    missing tables but never columns.
+
+    Not columns on group_invite_config, and not `verified_at` either, because
+    `verified_at` means something narrower than "proven": the bot got INTO the
+    group. save_group_invite_config reads it to decide whether there is a group
+    to leave, and the seat sweep reads it to decide whether a seat is held.
+    Setting it for a proof that never joined would send leave jobs for groups
+    the bot was never in.
+
+    Calendar sync of public events needs the proof and nothing else, so it
+    costs no seat. A guild whose invite setup has already succeeded is proven
+    by that, and never needs a row here.
+
+    `group_id` and `requested_at` are compared to the guild's CURRENT group and
+    the moment its claim code was issued, on every read, rather than the row
+    being cleared when the group changes. A proof about a group or a code the
+    admin has since replaced can never be mistaken for a current one, whichever
+    order the writes land in. See _proof_is_current.
+    """
+
+    __tablename__ = "group_ownership_proof"
+    server_id = Column(String, primary_key=True)
+    group_id = Column(String(64), nullable=True)
+    # One of the GROUP_CLAIM_* states: what the last check concluded.
+    state = Column(String(32), nullable=True)
+    # The worker's sentence, unbounded for the reason group_invite_config's
+    # verify_error gives.
+    error = Column(String, nullable=True)
+    # The job the last check went out with, so a slow answer to an old question
+    # is dropped rather than applied. Same hazard as verify_job_id.
+    job_id = Column(String(64), nullable=True)
+    requested_at = Column(DateTime(timezone=True), nullable=True)
+    # Set when the code was found, and kept through later failed checks of the
+    # SAME group: an admin who tidies the code out of the description has not
+    # stopped running the group.
+    proven_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -3850,7 +3923,14 @@ def begin_group_verification(guild_id) -> Optional[dict]:
             # The flip side is the reason it is not simply "always": an admin
             # who has tidied the code out of their description must not find
             # re-verification failing for it afterwards.
-            "requireCode": row.verified_at is None,
+            #
+            # A proof without a join counts too (#289), but only a proof about
+            # THIS group: _proven_at_for checks the proof's group against the
+            # row's, which closes the same release-and-reclaim hole.
+            "requireCode": (
+                row.verified_at is None
+                and _proven_at_for(session, key, row) is None
+            ),
         }
 
 
@@ -3966,6 +4046,208 @@ def effective_group_setup_state(config: Optional[dict]) -> str:
     if (datetime.now(timezone.utc) - asked).total_seconds() > GROUP_VERIFY_TIMEOUT_SECONDS:
         return GROUP_SETUP_TIMED_OUT
     return state
+
+
+# -------------------------------------------------------------------
+# Proving a group is the guild's own, without joining it (issue #289)
+# -------------------------------------------------------------------
+JOB_VERIFY_GROUP_CLAIM = "verify_group_claim"
+
+
+def _utc(value):
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def _proof_is_current(proof, config) -> bool:
+    """Is this proof about the guild's group AND the claim code it holds now?
+
+    The group alone is not enough. Changing the group issues a fresh code, and
+    going A -> B -> A lands back on the same group id with a code nobody has
+    shown -- while, in between, another guild could have claimed A and the
+    group could have changed hands in VRChat. So a proof counts only if it was
+    asked for after the current code was issued. That covers a finished proof
+    and an answer still in flight alike.
+    """
+    if proof is None or config is None or not config.group_id:
+        return False
+    if proof.group_id != config.group_id:
+        return False
+    issued = _utc(config.claim_code_issued_at)
+    asked = _utc(proof.requested_at)
+    if issued is None or asked is None:
+        return False
+    return asked >= issued
+
+
+def _proven_at_for(session, key, config):
+    """When this guild proved it runs its current group without joining, or None."""
+    proof = session.query(GroupOwnershipProof).filter_by(server_id=key).first()
+    if not _proof_is_current(proof, config):
+        return None
+    return _utc(proof.proven_at)
+
+
+def load_group_ownership(guild_id) -> Optional[dict]:
+    """Whether this guild has proven its CURRENT group, and how the check went.
+
+    None when the guild has no group. `proven` is true for either kind of
+    proof: a successful invite setup (`verified_at`) or a claim check that
+    found the code. `state` is the claim check's own, and only about the
+    current group: a check about a group the admin has since replaced reads as
+    never having happened.
+    """
+    if guild_id is None:
+        return None
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        config = session.query(GroupInviteConfig).filter_by(server_id=key).first()
+        if config is None or not config.group_id:
+            return None
+        proof = session.query(GroupOwnershipProof).filter_by(server_id=key).first()
+        if not _proof_is_current(proof, config):
+            proof = None
+        proven_at = _utc(proof.proven_at) if proof else None
+        return {
+            "group_id": config.group_id,
+            "proven": config.verified_at is not None or proven_at is not None,
+            "state": proof.state if proof else None,
+            "error": proof.error if proof else None,
+            "requested_at": _utc(proof.requested_at) if proof else None,
+            "proven_at": proven_at,
+            "job_id": proof.job_id if proof else None,
+        }
+
+
+def effective_group_claim_state(ownership: Optional[dict]) -> Optional[str]:
+    """The claim check's state, with "checking" expired on read.
+
+    Same reasoning as effective_group_setup_state: a state that expires on its
+    own needs no sweep to be correct.
+    """
+    if not ownership:
+        return None
+    state = ownership.get("state")
+    if state != GROUP_CLAIM_CHECKING:
+        return state
+    asked = ownership.get("requested_at")
+    if asked is None:
+        return GROUP_CLAIM_TIMED_OUT
+    if (datetime.now(timezone.utc) - asked).total_seconds() > GROUP_VERIFY_TIMEOUT_SECONDS:
+        return GROUP_CLAIM_TIMED_OUT
+    return state
+
+
+def begin_group_claim_check(guild_id) -> Optional[dict]:
+    """Stamp this guild's proof as "checking" and return the job to publish.
+
+    Built from the stored row, never from a request, for the reason
+    begin_group_verification gives. This job cannot join anything, but it
+    reports a group's name and icon back onto the guild's page, and the group
+    it asks about must still be the one the admin configured.
+
+    None when there is nothing to check: no group, or a row from before claim
+    codes existed.
+    """
+    key = panel_view_key(guild_id)
+    job_id = secrets.token_hex(16)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        config = session.query(GroupInviteConfig).filter_by(server_id=key).first()
+        if config is None or not config.group_id or not config.claim_code:
+            return None
+        proof = session.query(GroupOwnershipProof).filter_by(server_id=key).first()
+        if proof is None:
+            proof = GroupOwnershipProof(server_id=key)
+            session.add(proof)
+        if proof.proven_at is not None and not _proof_is_current(proof, config):
+            # A proof of an old group or an old code. Kept until now only
+            # because nothing had replaced it; this check does.
+            proof.proven_at = None
+        proof.group_id = config.group_id
+        proof.state = GROUP_CLAIM_CHECKING
+        proof.error = None
+        proof.job_id = job_id
+        proof.requested_at = now
+        proof.updated_at = now
+        return {
+            "type": JOB_VERIFY_GROUP_CLAIM,
+            "jobID": job_id,
+            "guildID": str(guild_id),
+            "groupID": config.group_id,
+            "claimCode": config.claim_code,
+        }
+
+
+def abandon_group_claim_check(guild_id, job_id: str, message: str) -> None:
+    """Undo a "checking" stamp for a claim job that was never sent."""
+    key = panel_view_key(guild_id)
+    try:
+        with session_scope() as session:
+            proof = (
+                session.query(GroupOwnershipProof).filter_by(server_id=key).first()
+            )
+            if proof is None or proof.job_id != job_id:
+                return
+            proof.state = GROUP_CLAIM_WORKER_UNREACHABLE
+            proof.error = message
+            proof.job_id = None
+            proof.updated_at = datetime.now(timezone.utc)
+    except Exception:
+        logger.warning(
+            "Could not clear the group claim check state for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+
+
+def record_group_claim_result(payload: dict) -> str:
+    """Store one claim verdict from the invite worker. Returns what it did.
+
+    Dropped as "stale" unless it answers the job this guild is waiting on AND
+    that job was about the group the guild still has. The second half is not
+    redundant: the admin can change the group while the job is in flight, and
+    the job id alone would still match.
+    """
+    if not isinstance(payload, dict):
+        return "bad_payload"
+    guild_id = payload.get("guildID")
+    job_id = payload.get("jobID")
+    state = payload.get("state")
+    if not guild_id or not job_id:
+        return "bad_payload"
+    if state not in GROUP_CLAIM_WORKER_STATES:
+        logger.warning(
+            "Invite worker reported an unknown claim state %r for guild %s.",
+            state,
+            guild_id,
+        )
+        return "unknown_state"
+
+    key = panel_view_key(guild_id)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        proof = session.query(GroupOwnershipProof).filter_by(server_id=key).first()
+        config = session.query(GroupInviteConfig).filter_by(server_id=key).first()
+        if proof is None or config is None:
+            return "unknown_guild"
+        if proof.job_id != job_id or not _proof_is_current(proof, config):
+            return "stale"
+        proof.state = state
+        proof.error = payload.get("error_message") or None
+        proof.job_id = None
+        if state == GROUP_CLAIM_PROVEN:
+            proof.proven_at = now
+        proof.updated_at = now
+        # What the group looks like, for the page. A cache of what the worker
+        # saw, like the setup result writes, and only ever about the group the
+        # row still holds -- checked just above.
+        if payload.get("group_name"):
+            config.group_name = payload.get("group_name")
+            config.group_icon_url = payload.get("icon_url") or None
+            config.updated_at = now
+        return "applied"
 
 
 # -------------------------------------------------------------------
@@ -7912,6 +8194,77 @@ async def request_group_verification(guild_id, actor_id):
     return await read_dashboard_settings(guild_id)
 
 
+async def request_group_claim_check(guild_id, actor_id):
+    """Ask the invite worker whether the claim code is in the group (#289).
+
+    The dashboard's "check ownership" button. Same contract as
+    request_group_verification: the re-read settings on success, None when the
+    request could not be made, SettingRejected for anything the caller got
+    wrong. Nothing about the group comes from the caller.
+
+    NO SEAT IS ASSIGNED. That is the point of this path: the check reads a
+    group description, which any account can do without being in the group,
+    so it goes to the default queue rather than to an account holding a seat.
+    """
+    try:
+        flags = await resolve_premium_flags(guild_id)
+    except Exception:
+        logger.warning(
+            "Could not resolve premium flags while checking the group claim "
+            "for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        return None
+    if not flags.allows(FEATURE_GROUP_INVITE):
+        raise SettingRejected("vrchat_group_id", "requires_premium", locked=True)
+
+    try:
+        job = begin_group_claim_check(guild_id)
+    except Exception:
+        logger.warning(
+            "Could not start a group claim check for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        return None
+    if job is None:
+        raise SettingRejected("vrchat_group_id", "no_group_configured")
+
+    loop = asyncio.get_running_loop()
+    published = await loop.run_in_executor(None, publish_group_invite_job, job)
+    if not published:
+        abandon_group_claim_check(
+            guild_id,
+            job["jobID"],
+            "The bot could not reach the group-invite worker. Try again shortly.",
+        )
+    else:
+        try:
+            with session_scope() as session:
+                _record_dashboard_audit(
+                    session,
+                    guild_id,
+                    actor_id,
+                    [("group_claim", "requested", job["groupID"])],
+                )
+        except Exception:
+            logger.warning(
+                "Could not record the group claim check for guild %s.",
+                guild_id,
+                exc_info=True,
+            )
+        logger.info(
+            "dashboard CHECK-GROUP-CLAIM actor=%s guild=%s group=%s job=%s",
+            actor_id,
+            guild_id,
+            job["groupID"],
+            job["jobID"],
+        )
+
+    return await read_dashboard_settings(guild_id)
+
+
 # -------------------------------------------------------------------
 # RabbitMQ Consumer - handle group-invite results
 # -------------------------------------------------------------------
@@ -8002,6 +8355,24 @@ async def handle_group_invite_result(data: dict):
 
     if isinstance(data, dict) and data.get("type") == JOB_LEAVE_GROUP:
         await handle_seat_release_result(data)
+        return
+
+    if isinstance(data, dict) and data.get("type") == JOB_VERIFY_GROUP_CLAIM:
+        try:
+            outcome = record_group_claim_result(data)
+        except Exception:
+            logger.exception(
+                "Could not store a group claim result for guild %s.",
+                data.get("guildID"),
+            )
+            return
+        logger.info(
+            "group-claim result guild=%s job=%s state=%s -> %s",
+            data.get("guildID"),
+            data.get("jobID"),
+            data.get("state"),
+            outcome,
+        )
         return
 
     try:
@@ -10252,6 +10623,8 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
         # of this function turns it into "could not read", which the website
         # renders as an error instead of as an unconfigured group.
         group_invite = load_group_invite_config(guild_id) or {}
+        # Same refusal to swallow errors, for the same reason.
+        ownership = load_group_ownership(guild_id) or {}
         # Which account THIS guild should invite -- their own if they hold a
         # seat, otherwise the one they would be assigned. Read-only: rendering
         # the settings page must never spend capacity.
@@ -10366,6 +10739,21 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
                 "requested_at": (
                     group_invite["verify_requested_at"].isoformat()
                     if group_invite.get("verify_requested_at")
+                    else None
+                ),
+            },
+            # Whether the guild has proven it runs its group (#289), by either
+            # route: a claim check that found the code without joining, or an
+            # invite setup that succeeded. Calendar sync needs this and no
+            # seat. `claim_state` is the claim check's own progress, None when
+            # this group has never had one.
+            "group_ownership": {
+                "proven": bool(ownership.get("proven")),
+                "claim_state": effective_group_claim_state(ownership),
+                "claim_error": ownership.get("error"),
+                "proven_at": (
+                    ownership["proven_at"].isoformat()
+                    if ownership.get("proven_at")
                     else None
                 ),
             },
@@ -11963,6 +12351,7 @@ def build_bot_api_deps() -> bot_api.BotAPIDeps:
         write_stripe_subscription=write_dashboard_stripe_subscription,
         post_panel=post_dashboard_panel,
         verify_group=request_group_verification,
+        verify_group_claim=request_group_claim_check,
     )
 
 

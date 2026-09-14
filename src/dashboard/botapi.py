@@ -29,6 +29,7 @@ from api_tokens import (
     OP_GUILD_OVERVIEW,
     OP_GUILD_PANEL,
     OP_VERIFY_GROUP,
+    OP_VERIFY_GROUP_CLAIM,
     OP_GUILD_ROLES,
     OP_GUILD_SETTINGS,
     OP_GUILD_AUDIT,
@@ -265,15 +266,28 @@ class BotAPIClient:
         talked into naming a different one -- which is the whole point, since
         the answer to this call makes a VRChat account join a group.
         """
+        return self._group_action(actor_id, guild_id, OP_VERIFY_GROUP, "verify-group")
+
+    def verify_group_claim(self, actor_id: int, guild_id) -> dict:
+        """Ask the bot to check the claim code is in this guild's group (#289).
+
+        Never makes the bot join anything. Bodyless for the same reason as
+        verify_group.
+        """
+        return self._group_action(
+            actor_id, guild_id, OP_VERIFY_GROUP_CLAIM, "verify-group-claim"
+        )
+
+    def _group_action(self, actor_id, guild_id, operation: str, path: str) -> dict:
         token = mint_token(
             self.signing_key,
             actor_id=int(actor_id),
-            operation=OP_VERIFY_GROUP,
+            operation=operation,
             guild_id=int(guild_id),
         )
         try:
             response = self._session.post(
-                f"{self.base_url}/api/v1/guilds/{int(guild_id)}/verify-group",
+                f"{self.base_url}/api/v1/guilds/{int(guild_id)}/{path}",
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=self.timeout,
             )
@@ -291,8 +305,8 @@ class BotAPIClient:
         except ValueError:
             pass
         logger.warning(
-            "bot API refused a group verification for actor=%s guild=%s: %s %s",
-            actor_id, guild_id, response.status_code, reason,
+            "bot API refused %s for actor=%s guild=%s: %s %s",
+            path, actor_id, guild_id, response.status_code, reason,
         )
         raise BotAPIError(
             reason or "bot API refused the group check", response.status_code

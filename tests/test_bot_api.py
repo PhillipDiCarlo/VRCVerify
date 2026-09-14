@@ -149,6 +149,10 @@ def make_deps(written=None, posted=None, mirrored=None, checked=None, **override
         checked.append((guild_id, actor_id))
         return {"guild_id": str(guild_id), "group_invite": {"state": "checking"}}
 
+    async def verify_group_claim(guild_id, actor_id):
+        checked.append((guild_id, actor_id))
+        return {"guild_id": str(guild_id), "group_ownership": {"claim_state": "checking"}}
+
     async def write_settings(guild_id, actor_id, changes):
         written.append((int(guild_id), int(actor_id), dict(changes)))
         return {"guild_id": str(guild_id), "fields": {}, "written": dict(changes)}
@@ -172,6 +176,7 @@ def make_deps(written=None, posted=None, mirrored=None, checked=None, **override
         write_stripe_subscription=write_stripe_subscription,
         post_panel=post_panel,
         verify_group=verify_group,
+        verify_group_claim=verify_group_claim,
     )
     defaults.update(overrides)
     return bot_api.BotAPIDeps(**defaults)
@@ -1491,6 +1496,8 @@ class TestTheWriteSurfaceIsExactlyThis:
             # stops this being a way to make a VRChat account join any group
             # the caller names.
             ("POST", "/api/v1/guilds/{guild_id}/verify-group"),
+            # The same, and never joins: the ownership proof on its own (#289).
+            ("POST", "/api/v1/guilds/{guild_id}/verify-group-claim"),
         }, f"an unexpected write route appeared: {writes}"
 
     def test_the_stripe_route_appears_only_when_stripe_is_switched_on(self):
@@ -1510,6 +1517,7 @@ class TestTheWriteSurfaceIsExactlyThis:
             ("PATCH", "/api/v1/guilds/{guild_id}/settings"),
             ("POST", "/api/v1/guilds/{guild_id}/panel"),
             ("POST", "/api/v1/guilds/{guild_id}/verify-group"),
+            ("POST", "/api/v1/guilds/{guild_id}/verify-group-claim"),
             ("PUT", "/api/v1/guilds/{guild_id}/stripe-subscription"),
         }, f"an unexpected write route appeared: {writes}"
 
@@ -1533,6 +1541,7 @@ class TestTheWriteSurfaceIsExactlyThis:
                 "write_stripe_subscription",
                 "post_panel",
                 "verify_group",
+                "verify_group_claim",
             }
         )
 
@@ -3933,17 +3942,21 @@ class TestVerifyGroupRoute:
     from the guild's own settings row, on the bot's side of the wire.
     """
 
+    PATH = VERIFY_GROUP_PATH
+    OP = VERIFY_GROUP_OP
+    CAPABILITY = "verify_group"
+
     def test_an_authorized_admin_may_ask(self):
         checked = []
 
         async def scenario(client):
             return await post(
-                client, VERIFY_GROUP_PATH, token_for(VERIFY_GROUP_OP)
+                client, self.PATH, token_for(self.OP)
             )
 
         status, body = serve(scenario, deps=make_deps(checked=checked))
         assert status == 200
-        assert body["group_invite"]["state"] == "checking"
+        assert body["guild_id"] == str(GUILD_ID)
         assert checked == [(GUILD_ID, ADMIN_ID)]
 
     def test_a_body_is_refused_rather_than_ignored(self):
@@ -3954,8 +3967,8 @@ class TestVerifyGroupRoute:
         async def scenario(client):
             return await post(
                 client,
-                VERIFY_GROUP_PATH,
-                token_for(VERIFY_GROUP_OP),
+                self.PATH,
+                token_for(self.OP),
                 json={"group_id": "grp_deadbeef-0000-0000-0000-000000000000"},
             )
 
@@ -3969,7 +3982,7 @@ class TestVerifyGroupRoute:
 
         async def scenario(client):
             return await post(
-                client, VERIFY_GROUP_PATH, token_for(SETTINGS_OP)
+                client, self.PATH, token_for(SETTINGS_OP)
             )
 
         status, body = serve(scenario, deps=make_deps(checked=checked))
@@ -3982,8 +3995,8 @@ class TestVerifyGroupRoute:
         async def scenario(client):
             return await post(
                 client,
-                VERIFY_GROUP_PATH,
-                token_for(VERIFY_GROUP_OP, actor_id=MEMBER_ID),
+                self.PATH,
+                token_for(self.OP, actor_id=MEMBER_ID),
             )
 
         status, _body = serve(scenario, deps=make_deps(checked=checked))
@@ -3992,7 +4005,7 @@ class TestVerifyGroupRoute:
 
     def test_no_token_is_refused(self):
         async def scenario(client):
-            return await post(client, VERIFY_GROUP_PATH)
+            return await post(client, self.PATH)
 
         status, _body = serve(scenario)
         assert status == 401
@@ -4003,10 +4016,10 @@ class TestVerifyGroupRoute:
 
         async def scenario(client):
             return await post(
-                client, VERIFY_GROUP_PATH, token_for(VERIFY_GROUP_OP)
+                client, self.PATH, token_for(self.OP)
             )
 
-        status, body = serve(scenario, deps=make_deps(verify_group=refuse))
+        status, body = serve(scenario, deps=make_deps(**{self.CAPABILITY: refuse}))
         assert status == 400
         assert body["error"] == "no_group_configured"
 
@@ -4018,10 +4031,10 @@ class TestVerifyGroupRoute:
 
         async def scenario(client):
             return await post(
-                client, VERIFY_GROUP_PATH, token_for(VERIFY_GROUP_OP)
+                client, self.PATH, token_for(self.OP)
             )
 
-        status, body = serve(scenario, deps=make_deps(verify_group=refuse))
+        status, body = serve(scenario, deps=make_deps(**{self.CAPABILITY: refuse}))
         assert status == 403
         assert body["error"] == "requires_premium"
 
@@ -4031,10 +4044,10 @@ class TestVerifyGroupRoute:
 
         async def scenario(client):
             return await post(
-                client, VERIFY_GROUP_PATH, token_for(VERIFY_GROUP_OP)
+                client, self.PATH, token_for(self.OP)
             )
 
-        status, body = serve(scenario, deps=make_deps(verify_group=unavailable))
+        status, body = serve(scenario, deps=make_deps(**{self.CAPABILITY: unavailable}))
         assert status == 503
         assert body["error"] == "unavailable"
 
@@ -4042,3 +4055,35 @@ class TestVerifyGroupRoute:
         """Both ends derive the token binding from the same constant; a typo
         in either would only show up as a 403 nobody could explain."""
         assert api_tokens.OP_VERIFY_GROUP == VERIFY_GROUP_OP
+
+
+VERIFY_GROUP_CLAIM_PATH = f"/api/v1/guilds/{GUILD_ID}/verify-group-claim"
+VERIFY_GROUP_CLAIM_OP = "POST /api/v1/guilds/{guild_id}/verify-group-claim"
+
+
+class TestVerifyGroupClaimRoute(TestVerifyGroupRoute):
+    """The ownership check (#289), held to every rule the join check is.
+
+    It never makes the account join anything, but it does report a group's name
+    back onto the guild's page, so the group must still come from the stored
+    row and never from the request.
+    """
+
+    PATH = VERIFY_GROUP_CLAIM_PATH
+    OP = VERIFY_GROUP_CLAIM_OP
+    CAPABILITY = "verify_group_claim"
+
+    def test_the_operation_string_matches_the_route(self):
+        assert api_tokens.OP_VERIFY_GROUP_CLAIM == VERIFY_GROUP_CLAIM_OP
+
+    def test_the_join_token_cannot_be_replayed_here(self):
+        """The two actions share a shape, and a token for one must not open the
+        other."""
+        checked = []
+
+        async def scenario(client):
+            return await post(client, self.PATH, token_for(VERIFY_GROUP_OP))
+
+        status, _body = serve(scenario, deps=make_deps(checked=checked))
+        assert status == 403
+        assert checked == []

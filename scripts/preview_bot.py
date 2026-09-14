@@ -163,6 +163,30 @@ INSTALLED = {PREMIUM, FREE, UNREACHABLE}
 # every premium call-to-action in #133, #135 and #136.
 PREVIEW_SUB = os.environ.get("PREVIEW_SUB", "")
 
+# THE VRCHAT GROUP PAGE HAS NO NATURAL EXAMPLE EITHER (#289). Every server
+# above has no group, which renders the page's least interesting state. Applied
+# to the PREMIUM server, where the group features are unlocked.
+#
+#   PREVIEW_GROUP=unproven       a group saved, the code not checked yet
+#   PREVIEW_GROUP=code_missing   checked, and the code was not there
+#   PREVIEW_GROUP=proven         ownership confirmed, invites not set up
+#   PREVIEW_GROUP=ready          invites set up and working
+PREVIEW_GROUP = os.environ.get("PREVIEW_GROUP", "")
+
+_PREVIEW_GROUP_ID = "grp_0e1d4755-2f87-4129-a192-5587068cbf73"
+_GROUP_STATES = {
+    "unproven": (dict(), dict(proven=False, claim_state=None)),
+    "code_missing": (
+        dict(group_name="Club LA"),
+        dict(proven=False, claim_state="code_missing"),
+    ),
+    "proven": (dict(group_name="Club LA"), dict(proven=True, claim_state="proven")),
+    "ready": (
+        dict(group_name="Club LA", state="ready", can_invite=True, can_see_members=True),
+        dict(proven=True, claim_state=None),
+    ),
+}
+
 _SUB_STATES = {
     "card": dict(premium=True, active=True, status="active"),
     "canceled": dict(premium=True, active=True, status="active", cancel=True),
@@ -317,6 +341,13 @@ class PreviewBotAPI:
             writable=WRITABLE - {WITHHELD} if premium else WRITABLE,
         )
         payload["guild_id"] = guild_id
+        if premium and PREVIEW_GROUP in _GROUP_STATES:
+            invite, ownership = _GROUP_STATES[PREVIEW_GROUP]
+            payload["fields"]["vrchat_group_id"]["value"] = _PREVIEW_GROUP_ID
+            payload["group_invite"] = dict(
+                payload.get("group_invite") or {}, claim_code="VRCG-7K2M4P", **invite
+            )
+            payload["group_ownership"] = dict(ownership, claim_error=None, proven_at=None)
         if not premium:
             # Enabled, saveable, and not acted on -- see FORCED_INACTIVE.
             payload["fields"][FORCED_INACTIVE].update(active=False, locked=False)
@@ -417,6 +448,10 @@ class PreviewBotAPI:
     def verify_group(self, actor_id, guild_id) -> dict:
         guild_id = self._check(guild_id)
         return {"guild_id": guild_id, "group_invite": {"state": "checking"}}
+
+    def verify_group_claim(self, actor_id, guild_id) -> dict:
+        guild_id = self._check(guild_id)
+        return {"guild_id": guild_id, "group_ownership": {"claim_state": "checking"}}
 
     def put_stripe_subscription(self, guild_id, subscription: dict) -> dict:
         return {"guild_id": str(guild_id), "applied": True}

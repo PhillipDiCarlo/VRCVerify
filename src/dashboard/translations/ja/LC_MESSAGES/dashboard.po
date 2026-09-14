@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 03:21-0400\n"
+"POT-Creation-Date: 2026-09-14 07:54-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -704,6 +704,14 @@ msgstr "メンバーの確認が済んだあとの動作です。"
 msgid "The message members use to start verification."
 msgstr "メンバーが認証を始めるためのメッセージです。"
 
+msgid ""
+"Connect your server's VRChat group. Proving it's yours unlocks the group "
+"features below."
+msgstr "サーバーの VRChat グループを接続します。自分のグループであることを確認すると、下のグループ機能が使えるようになります。"
+
+msgid "Group invites"
+msgstr "グループ招待"
+
 msgid "Invite members to your group once they're verified."
 msgstr "認証が済んだメンバーをグループに招待します。"
 
@@ -713,10 +721,8 @@ msgstr "モデレーター向けの、認証アクティビティの記録です
 msgid "Not checked yet"
 msgstr "未確認"
 
-msgid ""
-"Put the setup code in your group's description, invite the bot to the "
-"group, then run the check."
-msgstr "グループの説明にセットアップコードを入れ、Bot をグループに招待してから、確認を実行してください。"
+msgid "Invite the bot to the group, then run the check."
+msgstr "ボットをグループに招待してから、確認を実行してください。"
 
 msgid "Checking…"
 msgstr "確認中…"
@@ -820,6 +826,37 @@ msgstr "セットアップを確認できませんでした"
 msgid "Run the check again. If it keeps happening, contact support."
 msgstr "もう一度確認を実行してください。繰り返し起きる場合はサポートまでご連絡ください。"
 
+msgid "Not confirmed yet"
+msgstr "未確認"
+
+msgid ""
+"Paste the setup code below anywhere in your VRChat group's description, "
+"then check ownership. The bot doesn't need to join the group for this."
+msgstr ""
+"下のセットアップコードを VRChat "
+"グループの説明のどこかに貼り付けてから、所有権を確認してください。この確認のためにボットがグループに参加する必要はありません。"
+
+msgid "Connected"
+msgstr "接続済み"
+
+msgid ""
+"VRCVerify has confirmed this group is yours. You can remove the setup "
+"code from the description now."
+msgstr "VRCVerify がこのグループの所有を確認しました。説明からセットアップコードを削除してかまいません。"
+
+msgid ""
+"Paste the code below anywhere in your VRChat group's description, then "
+"check ownership again."
+msgstr "下のコードを VRChat グループの説明のどこかに貼り付けてから、もう一度所有権を確認してください。"
+
+msgid ""
+"VRChat group features are part of VRCVerify Premium. Your group is kept "
+"exactly as it is, and this picks up where it left off if the subscription"
+" is renewed."
+msgstr ""
+"VRChat グループ機能は VRCVerify Premium "
+"の機能です。グループはそのまま保持され、サブスクリプションを更新すれば中断したところから再開します。"
+
 msgid ""
 "Group invites are part of VRCVerify Premium. Your group is kept exactly "
 "as it is, and this picks up where it left off if the subscription is "
@@ -841,15 +878,12 @@ msgid ""
 "so the check cannot run. Contact the bot operator."
 msgstr "現在この VRCVerify には使用できる招待用アカウントがないため、確認を実行できません。Bot の運営者にご連絡ください。"
 
-# | msgid "" "That doesn't look like a VRChat group. Paste the group's ID (it
-# | starts " "with grp_) or the vrchat.com link to the group."
 msgid ""
-"The group verified members can be invited to. Paste the group's ID (it "
-"starts with grp_) or its vrchat.com link. Leave it empty to disconnect "
-"the group."
+"Your server's VRChat group. Paste the group's ID (it starts with grp_) or"
+" its vrchat.com link. Leave it empty to disconnect the group."
 msgstr ""
-"認証済みメンバーを招待するグループです。グループの ID（grp_ で始まります）か、その vrchat.com "
-"のリンクを貼り付けてください。空欄にするとグループの連携を解除します。"
+"サーバーの VRChat グループです。グループの ID（grp_ で始まります）または vrchat.com "
+"のリンクを貼り付けてください。空欄にするとグループの接続を解除します。"
 
 msgid "No group connected"
 msgstr "グループ未連携"
@@ -1549,6 +1583,11 @@ msgid ""
 msgstr "VRChat グループを確認しています。結果を見るには、少ししてからこのページを再読み込みしてください。"
 
 msgid ""
+"Checking that the group is yours. Reload this page in a moment to see the"
+" result."
+msgstr "グループの所有を確認しています。結果を見るには、少ししてからこのページを再読み込みしてください。"
+
+msgid ""
 "Your settings were saved, but the instructions panel still shows the old "
 "ones. Use <strong>Repost or move panel</strong> below to replace it."
 msgstr "設定は保存されましたが、案内パネルにはまだ以前の内容が表示されています。下の<strong>パネルを再投稿または移動</strong>から置き換えてください。"
@@ -1589,17 +1628,17 @@ msgstr "メンバーはこのメッセージから認証を始めます。"
 msgid "Setup"
 msgstr "セットアップ"
 
+msgid "Waiting for your group"
+msgstr "グループを待っています"
+
+msgid ""
+"Connect your VRChat group above and confirm it's yours. Invite setup "
+"starts once that's done."
+msgstr "上で VRChat グループを接続し、自分のグループであることを確認してください。完了すると招待のセットアップを始められます。"
+
 #, python-format
 msgid "VRChat said: %(said)s"
 msgstr "VRChat からの応答: %(said)s"
-
-msgid "Setup code:"
-msgstr "セットアップコード:"
-
-msgid ""
-"Paste this anywhere in your VRChat group's description. It proves the "
-"group is yours, and you can remove it once the check passes."
-msgstr "これを VRChat グループの説明のどこかに貼り付けてください。そのグループがあなたのものであることの証明になり、確認が通れば削除して構いません。"
 
 #, python-format
 msgid ""
@@ -1610,14 +1649,6 @@ msgstr ""
 "このアカウントをグループに招待してください: <a href=\"%(account_url)s\" rel=\"noopener "
 "noreferrer\" target=\"_blank\">%(account_id)s</a> — VRChat "
 "の表示名は一意ではないため、ID が一致しているか確認してください。"
-
-#, python-format
-msgid ""
-"Your group: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
-"target=\"_blank\">open it on vrchat.com</a>"
-msgstr ""
-"あなたのグループ: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
-"target=\"_blank\">vrchat.com で開く</a>"
 
 msgid "Not applied"
 msgstr "未適用"
@@ -1659,16 +1690,34 @@ msgstr "変更を保存"
 msgid "Unsaved changes in this group"
 msgstr "このグループに未保存の変更があります"
 
+msgid "Ownership"
+msgstr "所有権"
+
+msgid "Setup code:"
+msgstr "セットアップコード:"
+
+#, python-format
+msgid ""
+"Your group: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">open it on vrchat.com</a>"
+msgstr ""
+"あなたのグループ: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">vrchat.com で開く</a>"
+
+msgid "Check ownership"
+msgstr "所有権を確認"
+
+msgid ""
+"Looks for the setup code in your group's description. The bot doesn't "
+"join the group. This button doesn't save the group above, so save first "
+"if you've just changed it."
+msgstr "グループの説明からセットアップコードを探します。ボットはグループに参加しません。このボタンでは上のグループは保存されないため、変更したばかりの場合は先に保存してください。"
+
 msgid "Check group setup"
 msgstr "グループ設定を確認"
 
-msgid ""
-"Asks the bot to join your group and report what it can do there. This "
-"button doesn't save the settings above — do that first if you've just "
-"changed the group."
-msgstr ""
-"Bot "
-"にグループへの参加を依頼し、そこで何ができるかを報告させます。このボタンは上の設定を保存しません。グループを変更した直後であれば、先に保存してください。"
+msgid "Asks the bot to join your group and report what it can do there."
+msgstr "ボットにグループへ参加してもらい、そこで何ができるかを報告させます。"
 
 msgid "Post the panel in"
 msgstr "パネルの投稿先"
@@ -1972,4 +2021,19 @@ msgstr ""
 # | msgid "Open the dashboard"
 #~ msgid "A new look for the dashboard"
 #~ msgstr "ダッシュボードの新しい見た目"
+
+#~ msgid ""
+#~ "Put the setup code in your group's"
+#~ " description, invite the bot to the"
+#~ " group, then run the check."
+#~ msgstr "グループの説明にセットアップコードを入れ、Bot をグループに招待してから、確認を実行してください。"
+
+#~ msgid ""
+#~ "Paste this anywhere in your VRChat "
+#~ "group's description. It proves the group"
+#~ " is yours, and you can remove "
+#~ "it once the check passes."
+#~ msgstr ""
+#~ "これを VRChat "
+#~ "グループの説明のどこかに貼り付けてください。そのグループがあなたのものであることの証明になり、確認が通れば削除して構いません。"
 

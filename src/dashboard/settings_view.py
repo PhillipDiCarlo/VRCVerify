@@ -472,11 +472,28 @@ def build_groups(
             # read-only without this side needing to know why.
             "save_endpoint": "save_panel_settings",
         },
+        # TWO CARDS ON ONE PAGE (#289). Proving the group is the admin's own
+        # used to be a step inside the invite setup, because invites were the
+        # only thing that needed it. Calendar sync needs the proof and no seat,
+        # so the proof is its own card, and every feature that depends on it is
+        # a card below it. Both carry the page's slug; the first one's title is
+        # the page's title.
         {
             "title": t(SETTINGS_TITLES["vrchat-group"]),
             "slug": "vrchat-group",
+            "blurb": t(N_(
+                "Connect your server's VRChat group. Proving it's yours unlocks "
+                "the group features below."
+            )),
+            "fields": [vrchat_group],
+            "group_ownership": group_ownership_summary(settings, t),
+            "save_endpoint": "save_group_settings",
+        },
+        {
+            "title": t(N_("Group invites")),
+            "slug": "vrchat-group",
             "blurb": t(N_("Invite members to your group once they're verified.")),
-            "fields": [vrchat_group, group_enabled],
+            "fields": [group_enabled],
             "group_setup": group_setup_summary(settings, t),
             "save_endpoint": "save_group_settings",
         },
@@ -502,8 +519,7 @@ GROUP_SETUP_COPY = {
     "unverified": (
         "pending",
         N_("Not checked yet"),
-        N_("Put the setup code in your group's description, invite the bot to the "
-        "group, then run the check."),
+        N_("Invite the bot to the group, then run the check."),
     ),
     "checking": (
         "pending",
@@ -597,6 +613,90 @@ GROUP_SETUP_FALLBACK = (
     N_("Setup couldn't be confirmed"),
     N_("Run the check again. If it keeps happening, contact support."),
 )
+
+
+# What the ownership check means, for the first card on the VRChat group page (#289).
+# Only the states that read differently from the invite setup's are here; the
+# rest (timed out, unreachable, not found, VRChat down) mean the same thing
+# for either check and borrow GROUP_SETUP_COPY's sentences.
+GROUP_OWNERSHIP_COPY = {
+    None: (
+        "pending",
+        N_("Not confirmed yet"),
+        N_("Paste the setup code below anywhere in your VRChat group's "
+        "description, then check ownership. The bot doesn't need to join the "
+        "group for this."),
+    ),
+    "proven": (
+        "ok",
+        N_("Connected"),
+        N_("VRCVerify has confirmed this group is yours. You can remove the setup "
+        "code from the description now."),
+    ),
+    "code_missing": (
+        "warn",
+        N_("The setup code isn't in the group description"),
+        N_("Paste the code below anywhere in your VRChat group's description, "
+        "then check ownership again."),
+    ),
+}
+
+
+def group_ownership_summary(
+    settings: dict, t: Callable[[str], str] = _untranslated
+) -> dict:
+    """Whether this server has proven its VRChat group is its own, ready to render.
+
+    Either proof counts: the ownership check, or an invite setup that already
+    succeeded. A server that set up invites before this card existed is
+    therefore connected on its first visit, and is never asked for the code.
+    """
+    ownership = settings.get("group_ownership") or {}
+    block = settings.get("group_invite") or {}
+    proven = bool(ownership.get("proven"))
+    state = "proven" if proven else ownership.get("claim_state")
+    tone, headline, detail = (
+        GROUP_OWNERSHIP_COPY.get(state)
+        or GROUP_SETUP_COPY.get(state)
+        or GROUP_SETUP_FALLBACK
+    )
+    headline, detail = t(headline), t(detail)
+
+    group_id = _value(settings, "vrchat_group_id")
+    # Same rule as the invite setup's: a lapsed server keeps what it proved,
+    # and loses the instructions for a check this card gives it no button for.
+    locked = bool(_state(settings, "vrchat_group_id").get("locked"))
+    if locked and not proven:
+        detail = t(N_(
+            "VRChat group features are part of VRCVerify Premium. Your group is "
+            "kept exactly as it is, and this picks up where it left off if the "
+            "subscription is renewed."
+        ))
+
+    return {
+        "state": state,
+        "tone": tone,
+        "headline": headline,
+        "detail": detail,
+        "proven": proven,
+        "configured": bool(group_id),
+        "locked": locked,
+        "error": (
+            None if locked or proven
+            else _clip(ownership.get("claim_error"), GROUP_ERROR_MAX_LEN)
+        ),
+        "group_name": block.get("group_name"),
+        "icon_url": _vrchat_image(block.get("icon_url")),
+        "group_url": f"https://vrchat.com/home/group/{group_id}" if group_id else None,
+        "claim_code": block.get("claim_code"),
+        # Until it is proven. After that the code has done its job, and leaving
+        # it on screen invites someone to leave it in their description forever.
+        "show_claim_code": bool(block.get("claim_code")) and not proven and not locked,
+        # The check button. Not offered once proven: there is nothing left for
+        # it to find out, and a button that can only repeat a success reads as
+        # something still to do.
+        "can_check": bool(group_id) and not proven and not locked,
+    }
 
 
 def group_setup_summary(
@@ -703,12 +803,11 @@ def group_setup_summary(
         "show_account": bool(
             account and not locked and state not in GROUP_STATES_ALREADY_IN
         ),
-        "claim_code": block.get("claim_code"),
-        # Once it is working the code has done its job, and leaving it on
-        # screen invites someone to leave it in their group description for
-        # ever. The bot stops demanding it after a successful check.
-        "show_claim_code": (
-            bool(block.get("claim_code")) and state != "ready" and not locked
+        # Whether the server has proven the group is its own (#289). The code
+        # and the check for that live on the card above; until it passes, this
+        # card has no next step of its own to offer.
+        "ownership_proven": bool(
+            (settings.get("group_ownership") or {}).get("proven")
         ),
         "warnings": warnings,
     }
@@ -778,9 +877,9 @@ def _group_invite_fields(settings: dict, t: Callable[[str], str] = _untranslated
         "vrchat_group_id",
         t(N_("VRChat group")),
         t(N_(
-            "The group verified members can be invited to. Paste the group's ID "
-            "(it starts with grp_) or its vrchat.com link. Leave it empty to "
-            "disconnect the group."
+            "Your server's VRChat group. Paste the group's ID (it starts with "
+            "grp_) or its vrchat.com link. Leave it empty to disconnect the "
+            "group."
         )),
         "line",
         str(raw) if raw else t(N_("No group connected")),

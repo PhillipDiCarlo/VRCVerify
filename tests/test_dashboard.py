@@ -161,6 +161,17 @@ GROUP_INVITE_NONE = {
 }
 
 
+GROUP_OWNERSHIP_NONE = {
+    "proven": False,
+    "claim_state": None,
+    "claim_error": None,
+    "proven_at": None,
+}
+
+# A group this server has proven is its own, by either route (#289).
+GROUP_OWNERSHIP_PROVEN = dict(GROUP_OWNERSHIP_NONE, proven=True, claim_state="proven")
+
+
 def group_invite_block(**overrides):
     block = dict(GROUP_INVITE_NONE)
     block.update(overrides)
@@ -176,6 +187,7 @@ def make_settings(
     enforced=True,
     sku_id=SKU_ID,
     group_invite=None,
+    group_ownership=None,
 ):
     """A settings payload shaped exactly like read_dashboard_settings returns."""
     merged = dict(DEFAULT_VALUES)
@@ -201,6 +213,9 @@ def make_settings(
         "auto_verify_column_present": auto_verify_column,
         "choices": {"instructions_locale": list(LOCALES)},
         "group_invite": group_invite if group_invite is not None else GROUP_INVITE_NONE,
+        "group_ownership": (
+            group_ownership if group_ownership is not None else GROUP_OWNERSHIP_NONE
+        ),
         "fields": fields,
     }
 
@@ -3066,8 +3081,14 @@ class TestTheGroupSlugs:
     """
 
     def test_every_group_carries_its_slug_in_table_order(self):
+        """In order, with no slug left out. A page may hold more than one card
+        (the VRChat group page does since #289), so repeats are collapsed."""
         groups = settings_view.build_groups({}, [], [], None)
-        assert [g["slug"] for g in groups] == list(settings_view.SETTINGS_SLUGS)
+        slugs = [g["slug"] for g in groups]
+        assert list(dict.fromkeys(slugs)) == list(settings_view.SETTINGS_SLUGS)
+        assert slugs == sorted(slugs, key=list(settings_view.SETTINGS_SLUGS).index), (
+            "a page's cards must sit together"
+        )
 
     def test_no_group_is_missing_one(self):
         """A group without a slug is a group phase 2 cannot route to."""
@@ -3193,10 +3214,12 @@ class TestTheSettingsSubNav:
         """One table, so renaming a group renames its nav entry by the same
         edit. Two lists is how a nav starts describing a page it no longer
         matches."""
-        assert settings_view.SETTINGS_TITLES == {
-            group["slug"]: group["title"]
-            for group in settings_view.build_groups({}, [], [], None)
-        }
+        # The FIRST card on each page names it. Later cards on the same page
+        # (the VRChat group page's feature cards, #289) carry their own titles.
+        first = {}
+        for group in settings_view.build_groups({}, [], [], None):
+            first.setdefault(group["slug"], group["title"])
+        assert settings_view.SETTINGS_TITLES == first
 
     def test_the_open_group_is_marked_current(self, config, store):
         test_client, _api = settings_client(config, store)
@@ -3358,14 +3381,19 @@ class TestSettingsIsAPagePerGroup:
         # hazard on these two pages.
         # The panel's wording depends on whether one is already posted, so it
         # is matched rather than quoted; the group check has one sentence.
+        #
+        # The VRChat group page has two cards since #289, each with its own
+        # save, and the ownership check is the action that can be pressed with
+        # a group typed but not yet saved.
         warning = {
             "panel": r"the settings (saved )?above",
-            "vrchat-group": r"doesn't save the settings above",
+            "vrchat-group": r"doesn't save the group above",
         }
+        forms = {"panel": 2, "vrchat-group": 3}
         for group in ("panel", "vrchat-group"):
             page = settings_page(test_client, group).data.decode()
             main = re.search(r"<main>(.*?)</main>", page, re.S).group(1)
-            assert main.count("<form") == 2, group
+            assert main.count("<form") == forms[group], group
             assert re.search(warning[group], main), group
 
     # ----- a group shows its own fields and no others -----
@@ -8496,8 +8524,9 @@ class TestWriteSurface:
             "/guild/<int:guild_id>/panel",
             "/guild/<int:guild_id>/logging",
             "/guild/<int:guild_id>/group",
-            # The two that make the bot act rather than store.
+            # The three that make the bot act rather than store.
             "/guild/<int:guild_id>/panel/post",
+            "/guild/<int:guild_id>/group/verify-claim",
             # Sends no body at all: the group it checks comes from the guild's
             # stored settings on the bot's side, never from this form.
             "/guild/<int:guild_id>/group/verify",
@@ -8687,13 +8716,6 @@ class TestGroupSetupSummary:
         assert summary["tone"] == "warn"
         assert "admin" in summary["detail"].lower()
 
-    def test_the_claim_code_is_shown_until_the_check_passes(self):
-        pending = self.summary(state="code_missing", claim_code="VRCG-7K2M4P")
-        assert pending["show_claim_code"] is True
-        ready = self.summary(state="ready", claim_code="VRCG-7K2M4P")
-        # It has done its job, and leaving it up invites someone to leave it in
-        # their group description for ever.
-        assert ready["show_claim_code"] is False
 
     def test_the_account_to_invite_is_linked_by_id(self):
         """Display names are not unique, so the usr_ id is the part that
@@ -8895,7 +8917,13 @@ class TestALockedSectionStopsGivingInstructions:
         return settings_view.group_setup_summary(settings)
 
     def test_the_setup_code_is_not_shown(self):
-        assert self.summary(claim_code="VRCG-7K2M4P")["show_claim_code"] is False
+        settings = make_settings(
+            premium=False,
+            values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(claim_code="VRCG-7K2M4P"),
+        )
+        assert settings_view.group_ownership_summary(settings)["show_claim_code"] is False
+        assert settings_view.group_ownership_summary(settings)["can_check"] is False
 
     def test_the_account_to_invite_is_not_named(self):
         summary = self.summary()
@@ -8919,6 +8947,40 @@ class TestALockedSectionStopsGivingInstructions:
         """A link to a group they own is not an instruction."""
         assert self.summary()["group_url"].endswith(GROUP_ID)
 
+    def test_the_invites_card_does_not_ask_for_a_step_it_cannot_take(
+        self, config, store
+    ):
+        """#289's waiting line tells the admin to connect the group above, and a
+        locked section has no control for that."""
+        api = FakeBotAPI(settings=make_settings(
+            premium=False, values={"vrchat_group_id": GROUP_ID}
+        ))
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        html = settings_page(test_client, "vrchat-group").data.decode()
+        assert "Waiting for your group" not in html
+        assert "Check ownership" not in html
+
+    def test_an_unproven_premium_server_is_told_what_invites_wait_for(
+        self, config, store
+    ):
+        api = FakeBotAPI(settings=make_settings(
+            premium=True, values={"vrchat_group_id": GROUP_ID},
+            group_invite=group_invite_block(claim_code="VRCG-7K2M4P"),
+        ))
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        html = settings_page(test_client, "vrchat-group").data.decode()
+        assert "Waiting for your group" in html
+        assert "Check ownership" in html
+        assert "VRCG-7K2M4P" in html
+        # No join check until the group is proven: it could only fail.
+        assert "Check group setup" not in html
+
     def test_a_premium_server_still_gets_the_instructions(self):
         """The other half of the pair, so this cannot pass by suppressing
         everything for everybody."""
@@ -8928,7 +8990,7 @@ class TestALockedSectionStopsGivingInstructions:
             group_invite=group_invite_block(claim_code="VRCG-7K2M4P"),
         )
         summary = settings_view.group_setup_summary(settings)
-        assert summary["show_claim_code"] is True
+        assert settings_view.group_ownership_summary(settings)["show_claim_code"] is True
         assert summary["account_id"] == INVITE_ACCOUNT
         assert summary["locked"] is False
 
@@ -8987,9 +9049,11 @@ class TestValuesCarryNoTemplateWhitespace:
                     state="ready", can_invite=True, can_see_members=True,
                     group_name="Club LA",
                 ),
+                group_ownership=GROUP_OWNERSHIP_PROVEN,
             ),
         )
         assert '<p class="value">Ready — Club LA</p>' in html
+        assert '<p class="value">Connected — Club LA</p>' in html
 
     def test_an_admins_own_line_breaks_still_survive(self, config, store):
         """The reason the CSS is what it is. Stripping the template's
@@ -9141,6 +9205,7 @@ class TestTheGroupIconOnThePage:
                 state="ready", can_invite=True, can_see_members=True,
                 group_name="Club LA", icon_url=ICON_URL,
             ),
+            group_ownership=GROUP_OWNERSHIP_PROVEN,
         ))
         app = create_app(config, store=store, client=api)
         app.config.update(TESTING=True)
@@ -9149,7 +9214,9 @@ class TestTheGroupIconOnThePage:
         html = settings_page(test_client, "vrchat-group").data.decode()
 
         assert f'<img class="group-icon" src="{ICON_DISPLAY_URL}"' in html
-        assert html.index("group-icon") < html.index("Ready — Club LA")
+        assert html.index("group-icon") < html.index("Connected — Club LA")
+        # Once, on the card that is about the group, not again on invites.
+        assert html.count('class="group-icon"') == 1
 
     def test_the_csp_never_had_to_be_widened_for_vrchat(self, config, store):
         """The point of proxying. A same-origin image needs no exception, so

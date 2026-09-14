@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 03:21-0400\n"
+"POT-Creation-Date: 2026-09-14 07:54-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -616,6 +616,14 @@ msgstr ""
 msgid "The message members use to start verification."
 msgstr ""
 
+msgid ""
+"Connect your server's VRChat group. Proving it's yours unlocks the group "
+"features below."
+msgstr ""
+
+msgid "Group invites"
+msgstr ""
+
 msgid "Invite members to your group once they're verified."
 msgstr ""
 
@@ -625,9 +633,7 @@ msgstr ""
 msgid "Not checked yet"
 msgstr ""
 
-msgid ""
-"Put the setup code in your group's description, invite the bot to the "
-"group, then run the check."
+msgid "Invite the bot to the group, then run the check."
 msgstr ""
 
 msgid "Checking…"
@@ -725,6 +731,33 @@ msgstr ""
 msgid "Run the check again. If it keeps happening, contact support."
 msgstr ""
 
+msgid "Not confirmed yet"
+msgstr ""
+
+msgid ""
+"Paste the setup code below anywhere in your VRChat group's description, "
+"then check ownership. The bot doesn't need to join the group for this."
+msgstr ""
+
+msgid "Connected"
+msgstr ""
+
+msgid ""
+"VRCVerify has confirmed this group is yours. You can remove the setup "
+"code from the description now."
+msgstr ""
+
+msgid ""
+"Paste the code below anywhere in your VRChat group's description, then "
+"check ownership again."
+msgstr ""
+
+msgid ""
+"VRChat group features are part of VRCVerify Premium. Your group is kept "
+"exactly as it is, and this picks up where it left off if the subscription"
+" is renewed."
+msgstr ""
+
 msgid ""
 "Group invites are part of VRCVerify Premium. Your group is kept exactly "
 "as it is, and this picks up where it left off if the subscription is "
@@ -743,9 +776,8 @@ msgid ""
 msgstr ""
 
 msgid ""
-"The group verified members can be invited to. Paste the group's ID (it "
-"starts with grp_) or its vrchat.com link. Leave it empty to disconnect "
-"the group."
+"Your server's VRChat group. Paste the group's ID (it starts with grp_) or"
+" its vrchat.com link. Leave it empty to disconnect the group."
 msgstr ""
 
 msgid "No group connected"
@@ -1384,6 +1416,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"Checking that the group is yours. Reload this page in a moment to see the"
+" result."
+msgstr ""
+
+msgid ""
 "Your settings were saved, but the instructions panel still shows the old "
 "ones. Use <strong>Repost or move panel</strong> below to replace it."
 msgstr ""
@@ -1418,16 +1455,16 @@ msgstr ""
 msgid "Setup"
 msgstr ""
 
-#, python-format
-msgid "VRChat said: %(said)s"
-msgstr ""
-
-msgid "Setup code:"
+msgid "Waiting for your group"
 msgstr ""
 
 msgid ""
-"Paste this anywhere in your VRChat group's description. It proves the "
-"group is yours, and you can remove it once the check passes."
+"Connect your VRChat group above and confirm it's yours. Invite setup "
+"starts once that's done."
+msgstr ""
+
+#, python-format
+msgid "VRChat said: %(said)s"
 msgstr ""
 
 #, python-format
@@ -1435,12 +1472,6 @@ msgid ""
 "Invite this account to your group: <a href=\"%(account_url)s\" "
 "rel=\"noopener noreferrer\" target=\"_blank\">%(account_id)s</a> — check "
 "the ID matches, because VRChat display names are not unique."
-msgstr ""
-
-#, python-format
-msgid ""
-"Your group: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
-"target=\"_blank\">open it on vrchat.com</a>"
 msgstr ""
 
 msgid "Not applied"
@@ -1480,13 +1511,31 @@ msgstr ""
 msgid "Unsaved changes in this group"
 msgstr ""
 
-msgid "Check group setup"
+msgid "Ownership"
+msgstr ""
+
+msgid "Setup code:"
+msgstr ""
+
+#, python-format
+msgid ""
+"Your group: <a href=\"%(group_url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">open it on vrchat.com</a>"
+msgstr ""
+
+msgid "Check ownership"
 msgstr ""
 
 msgid ""
-"Asks the bot to join your group and report what it can do there. This "
-"button doesn't save the settings above — do that first if you've just "
-"changed the group."
+"Looks for the setup code in your group's description. The bot doesn't "
+"join the group. This button doesn't save the group above, so save first "
+"if you've just changed it."
+msgstr ""
+
+msgid "Check group setup"
+msgstr ""
+
+msgid "Asks the bot to join your group and report what it can do there."
 msgstr ""
 
 msgid "Post the panel in"

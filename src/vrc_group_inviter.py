@@ -23,6 +23,13 @@ above. `send_group_invite` is the member-facing one: a verified member presses
 a button in their post-verification DM, and this worker checks whether they
 are already in the group before inviting them. It never invites anyone who did
 not ask, and it never overrides a block -- see send_group_invite.
+
+`verify_group_claim` (issue #289) is the ownership proof on its own: it reads
+the group and looks for the claim code, and it never joins. Calendar sync of
+public events needs a proven group but no seat, so the proof had to stop being
+a step inside the join. It is a separate job type rather than a flag on
+`verify_group_setup` because a flag that went missing would fail open into a
+join.
 """
 
 import json
@@ -133,6 +140,7 @@ PERMISSION_WILDCARD = "*"
 JOB_VERIFY_SETUP = "verify_group_setup"
 JOB_SEND_INVITE = "send_group_invite"
 JOB_LEAVE_GROUP = "leave_group"
+JOB_VERIFY_CLAIM = "verify_group_claim"
 
 # Outcomes the dashboard renders. Each names one specific thing an admin can
 # act on, because "setup failed" tells them nothing about what to do next.
@@ -198,6 +206,26 @@ LEAVE_DONE = "left"
 LEAVE_FAILED = "leave_failed"
 
 LEAVE_STATES = frozenset({LEAVE_DONE, LEAVE_FAILED})
+
+# Outcomes of the ownership proof alone (issue #289). Not STATE_* names, so a
+# sweep of the setup vocabulary by prefix does not pick them up, but the
+# strings for the failures are the same ones the setup check reports: they
+# mean the same thing, and the dashboard already has a sentence for each.
+CLAIM_PROVEN = "proven"
+CLAIM_CODE_MISSING = STATE_CODE_MISSING
+CLAIM_GROUP_NOT_FOUND = STATE_GROUP_NOT_FOUND
+CLAIM_VRCHAT_UNAVAILABLE = STATE_VRCHAT_UNAVAILABLE
+CLAIM_BAD_JOB = STATE_BAD_JOB
+
+CLAIM_STATES = frozenset(
+    {
+        CLAIM_PROVEN,
+        CLAIM_CODE_MISSING,
+        CLAIM_GROUP_NOT_FOUND,
+        CLAIM_VRCHAT_UNAVAILABLE,
+        CLAIM_BAD_JOB,
+    }
+)
 
 INVITE_STATES = frozenset(
     {
@@ -727,6 +755,71 @@ def _leave_result(job: dict, state: str, **extra) -> dict:
     return payload
 
 
+def _claim_result(job: dict, state: str, **extra) -> dict:
+    """One ownership-proof outcome. Carries `type` so the bot can route it."""
+    payload = {
+        "type": JOB_VERIFY_CLAIM,
+        "jobID": job.get("jobID"),
+        "guildID": job.get("guildID"),
+        "groupID": job.get("groupID"),
+        "ok": state == CLAIM_PROVEN,
+        "state": state,
+        "group_name": None,
+        "icon_url": None,
+        "error_message": None,
+    }
+    payload.update(extra)
+    return payload
+
+
+def verify_group_claim(job: dict) -> dict:
+    """Is the guild's claim code in this group's description? Never joins.
+
+    The same proof verify_group_setup checks before it joins, asked on its
+    own. get_group returns `description` to a non-member (confirmed
+    2026-08-19), so nothing here needs the account to be in the group, and
+    nothing here may put it there.
+
+    There is no requireCode here. This job IS the proof, so a job without a
+    code is a job that proves nothing, and it says so.
+    """
+    group_id = job.get("groupID")
+    if not isinstance(group_id, str) or not group_id.startswith("grp_"):
+        return _claim_result(
+            job, CLAIM_BAD_JOB, error_message="That is not a VRChat group ID (they start with grp_)"
+        )
+    client, session_error = vrchat_session.get()
+    if client is None:
+        meta = session_error or default_session_error()
+        return _claim_result(job, CLAIM_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message"))
+    groups = GroupsApi(client)
+    try:
+        group = _call_with_retry(groups.get_group, group_id, _request_timeout=request_timeout())
+    except UnauthorizedException as e:
+        vrchat_session.invalidate(classify_api_error(e))
+        return _claim_result(job, CLAIM_VRCHAT_UNAVAILABLE, error_message="VRChat session expired")
+    except ApiException as e:
+        if getattr(e, "status", None) == 404:
+            return _claim_result(job, CLAIM_GROUP_NOT_FOUND, error_message="No VRChat group with that ID")
+        if getattr(e, "status", None) in {401, 403}:
+            return _claim_result(
+                job, CLAIM_GROUP_NOT_FOUND, error_message="That VRChat group is not visible to the bot"
+            )
+        meta = classify_api_error(e)
+        return _claim_result(job, CLAIM_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message"))
+    if not claim_code_present(group, job.get("claimCode")):
+        return _claim_result(
+            job,
+            CLAIM_CODE_MISSING,
+            **_display(group),
+            error_message=(
+                "The setup code is not in the group's description yet. Add it, "
+                "then check again."
+            ),
+        )
+    return _claim_result(job, CLAIM_PROVEN, **_display(group))
+
+
 def _invite_result(job: dict, state: str, **extra) -> dict:
     """One invite outcome, shaped for the bot's result consumer.
 
@@ -1184,6 +1277,7 @@ HANDLERS = {
     JOB_VERIFY_SETUP: verify_group_setup,
     JOB_SEND_INVITE: send_group_invite,
     JOB_LEAVE_GROUP: leave_group,
+    JOB_VERIFY_CLAIM: verify_group_claim,
 }
 
 
@@ -1323,6 +1417,14 @@ def process_job(ch, method, properties, body):
                             failed,
                             LEAVE_FAILED,
                             error_message="The leave failed unexpectedly.",
+                        )
+                    )
+                elif failed.get("type") == JOB_VERIFY_CLAIM:
+                    publish_result(
+                        _claim_result(
+                            failed,
+                            CLAIM_VRCHAT_UNAVAILABLE,
+                            error_message="The ownership check failed unexpectedly. Please try again.",
                         )
                     )
                 elif failed.get("type") == JOB_SEND_INVITE:
