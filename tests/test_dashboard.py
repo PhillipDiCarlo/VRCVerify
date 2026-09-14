@@ -8817,6 +8817,43 @@ class TestSavingTheGroup:
         )
         assert api.saves[-1][2] == {"vrchat_group_invite_enabled": True}
 
+    def test_the_calendar_switch_travels_as_a_bool(self, config, store):
+        """#289, and a bug that shipped in #333: this route read the group and
+        the invite switch only, so saving the calendar card sent nothing and
+        the switch sprang back to off."""
+        test_client, api, session = self.logged_in(config, store)
+        self.post(
+            test_client,
+            session,
+            present_calendar_sync_enabled="1",
+            calendar_sync_enabled="on",
+        )
+        assert api.saves[-1][2] == {"calendar_sync_enabled": True}
+
+    def test_every_card_on_the_page_saves_what_its_form_holds(self, config, store):
+        """The shape of that bug, closed for every card rather than one: take
+        each save form exactly as the page renders it, submit it with every
+        switch turned on, and require each of its fields to reach the bot."""
+        settings = calendar_settings(enabled=False)
+        settings["fields"]["vrchat_group_invite_enabled"]["value"] = False
+        test_client, api, session = self.logged_in(config, store, settings=settings)
+        page = settings_page(test_client, "vrchat-group").data.decode()
+        forms = re.findall(
+            r'<form method="post" data-guard\s+action="/guild/\d+/group">(.*?)</form>', page, re.S
+        )
+        assert len(forms) == 3, "one save form per card"
+        for form in forms:
+            names = set(re.findall(r'name="(?!csrf_token|present_)([a-z_]+)"', form))
+            data = {"csrf_token": session.csrf_token}
+            for marker in re.findall(r'name="(present_[a-z_]+)"', form):
+                data[marker] = "1"
+            for name in names:
+                data[name] = GROUP_ID if name == "vrchat_group_id" else "on"
+            before = len(api.saves)
+            test_client.post(f"/guild/{GUILD_IN}/group", data=data)
+            assert len(api.saves) == before + 1, f"nothing was sent for {sorted(names)}"
+            assert set(api.saves[-1][2]) == names
+
     def test_a_missing_csrf_token_is_refused(self, config, store):
         test_client, api, session = self.logged_in(config, store)
         response = test_client.post(
