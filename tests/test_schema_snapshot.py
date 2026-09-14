@@ -35,13 +35,7 @@ from schema_snapshot import compare, parse_snapshot
 # is no ALTER to forget: the entry comes out when the snapshot is refreshed
 # after the deploy, and test_nothing_waits_for_a_deploy_that_already_happened
 # says when.
-NOT_DEPLOYED_YET = {
-    "group_ownership_proof": (
-        "#289: proof that a guild runs its VRChat group without the bot joining"
-        " it. Remove after the bot is deployed and scripts/refresh_schema_snapshot.sh"
-        " has been run."
-    ),
-}
+NOT_DEPLOYED_YET: dict = {}
 
 # Every divergence that exists today, keyed by exactly what the comparison
 # prints, so an entry cannot quietly go on covering a different fact than the
