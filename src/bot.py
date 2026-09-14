@@ -2574,6 +2574,51 @@ PANEL_REPLACE_MAX_FAILURES = _int_env("PANEL_REPLACE_MAX_FAILURES", 3)
 # the change to whichever admin happened to own it.
 SYSTEM_ACTOR_ID = "vrcverify-system"
 
+# Telling the owners of the panels the replacement sweep could not fix (#320).
+#
+# ITS OWN TRIGGER, for the reason the sweep has its own: this one sends a
+# one-shot message to a person, which cannot be taken back, and must not be
+# startable by touching a file meant for something else.
+PANEL_NOTICE_TRIGGER_PATH = os.getenv(
+    "PANEL_NOTICE_TRIGGER_PATH", "/tmp/notify_frozen_panels.trigger"
+)
+PANEL_NOTICE_MAX_PER_SWEEP = _int_env("PANEL_NOTICE_MAX_PER_SWEEP", 20)
+PANEL_NOTICE_SPACING = _float_env("PANEL_NOTICE_SPACING", 2.0)
+PANEL_NOTICE_MAX_FAILURES = _int_env("PANEL_NOTICE_MAX_FAILURES", 3)
+
+# Every panel message created before this instant is webhook-owned, provably,
+# without reading it.
+#
+# The only code that could create a panel is `/vrcverify_instructions` and the
+# dashboard's post button. Before PR #78 merged, `/vrcverify_instructions`
+# REPLIED with the panel (webhook-owned), and the dashboard button -- which
+# uses `channel.send` and so makes editable panels -- did not exist on main.
+# Both changes, 50e5317 and 7ad17a7, reached main in that one merge
+# (b64fb39, 2026-08-11 07:00 -04:00). This assumes production only ever runs
+# images built from main, which is the deployment model.
+#
+# WHY A DATE AND NOT JUST THE PROBE. A bot that cannot read a channel cannot
+# fetch the panel to ask whether it is webhook-owned, and those are exactly the
+# servers this campaign is for. A message id is a snowflake, so its creation
+# time is known with no API call. After the cutoff it proves nothing and the
+# probe has to answer instead; a panel neither can vouch for is skipped, never
+# guessed, because the DM tells its reader something specific about their panel.
+PANEL_FROZEN_BEFORE = datetime(2026, 8, 11, 11, 0, tzinfo=timezone.utc)
+
+# The four permissions the in-place repair needs, in the order an admin grants
+# them, with the names Discord's own permission screen uses.
+#
+# READ MESSAGE HISTORY IS THE EASY ONE TO MISS. `_post_dashboard_panel` probes
+# the old panel before it replaces it, and a probe that cannot read the message
+# returns None and the button does nothing. An admin told only "Send Messages
+# and Embed Links" would grant exactly those and press a button that fails.
+PANEL_REPAIR_PERMISSIONS = (
+    ("view_channel", "View Channel"),
+    ("read_message_history", "Read Message History"),
+    ("send_messages", "Send Messages"),
+    ("embed_links", "Embed Links"),
+)
+
 # Verification activity log. Entries are buffered and posted in batches rather
 # than one message per verification: Discord allows roughly 5 messages per 5s
 # per channel, and that budget is shared with verification DMs and command
@@ -9468,6 +9513,351 @@ async def watch_panel_replace_trigger(
         await asyncio.sleep(poll_interval)
 
 
+_MONTH_NAMES = (
+    "January", "February", "March", "April", "May", "June", "July",
+    "August", "September", "October", "November", "December",
+)
+
+
+def missing_panel_permissions(channel, me) -> list:
+    """Discord's names for whichever of the four repair permissions are missing.
+
+    From the gateway cache, with no API call. This is what tells a channel the
+    bot has lost apart from a request that merely failed: `_panel_is_webhook_
+    owned` answers None for both, and only one of them is a reason to message a
+    person.
+    """
+    perms = channel.permissions_for(me)
+    return [label for attr, label in PANEL_REPAIR_PERMISSIONS if not getattr(perms, attr, False)]
+
+
+def _join_names(names) -> str:
+    """"A", "A and B", "A, B and C"."""
+    names = list(names)
+    if len(names) <= 1:
+        return "".join(names)
+    return ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def frozen_panel_notice_text(*, server, channel, posted, permissions, link, dashboard) -> str:
+    """The DM, in English, and only in English (#320).
+
+    One-off operational messages are not translated; that was decided, not
+    skipped. What's New entries still ship in all twelve languages.
+
+    `posted` IS THE PANEL'S OWN DATE rather than "before August", which is what
+    the approved draft said and which is false for anything posted August 1-10:
+    the change that made panels editable reached main on the 11th. The message
+    id carries the real date, so the DM can be exact instead of approximately
+    right.
+
+    Names are escaped because a server or thread name is free text, and a pair
+    of asterisks in one would bold the rest of the message.
+    """
+    server = discord.utils.escape_markdown(str(server))
+    channel = discord.utils.escape_markdown(str(channel))
+    names = _join_names(permissions)
+    when = f"{_MONTH_NAMES[posted.month - 1]} {posted.day}, {posted.year}"
+    return (
+        f"**Your VRCVerify panel in {server} is out of date**\n\n"
+        f"It was posted on {when}, in a way Discord doesn't let VRCVerify edit, "
+        "so it still shows its original text and buttons. Members can still use "
+        "it to verify.\n\n"
+        f"VRCVerify can't replace it for you, because it's missing **{names}** "
+        f"in **#{channel}**.\n\n"
+        "To fix it:\n"
+        f"1. Open your server's settings on the dashboard: {link}\n"
+        f"2. Press **Repost or move panel**. To keep the panel in #{channel}, "
+        f"give VRCVerify {names} there first. Or choose a channel VRCVerify can "
+        "already post in.\n"
+        "3. Once the new panel is up, delete the old one if it's still there.\n\n"
+        f"If you haven't used it yet, the VRCVerify dashboard at {dashboard} lets "
+        "you manage your server's roles, panel and language from a browser, "
+        "without slash commands."
+    )
+
+
+def _servers_already_notified() -> set:
+    """Servers whose owner has had the frozen-panel DM, from the audit table.
+
+    NO TABLE OF ITS OWN, deliberately. A new model would fail
+    `test_it_covers_the_tables_the_models_use` until the schema snapshot was
+    re-dumped from production after a deploy, and the refresh script reads
+    production. `dashboard_audit` is already deployed, append-only by design, and
+    already holds the sweep's `replaced` rows under the same system actor, so a
+    `notified` row beside them is the same kind of record. Presence means told.
+
+    Matched in Python rather than joined in SQL, for the reason
+    count_pending_cutover_notices gives: the id columns disagree on type between
+    SQLite and the deployed database.
+    """
+    with session_scope() as session:
+        rows = (
+            session.query(DashboardAudit.server_id)
+            .filter(
+                DashboardAudit.actor_id == SYSTEM_ACTOR_ID,
+                DashboardAudit.field == "instructions_panel",
+                DashboardAudit.old_value == "notified",
+            )
+            .all()
+        )
+        return {panel_view_key(row.server_id) for row in rows}
+
+
+def _record_panel_notice(server_id, channel_id) -> None:
+    """Mark a server as told. RAISES on failure, and that is the point.
+
+    Written before the DM goes out, like every other one-shot DM here. But
+    unlike `_audit_panel`, which swallows its own errors because a missing audit
+    row costs nothing, this row IS the thing that stops a second DM. A failure
+    that was swallowed would send a message nothing remembers sending, and the
+    next run would send it again.
+    """
+    with session_scope() as session:
+        session.add(
+            DashboardAudit(
+                server_id=panel_view_key(server_id),
+                actor_id=SYSTEM_ACTOR_ID,
+                field="instructions_panel",
+                old_value="notified",
+                new_value=str(channel_id),
+            )
+        )
+
+
+def _panel_owner_ids() -> dict:
+    """Who ran setup, per server, so the DM goes where the cutover DM goes."""
+    with session_scope() as session:
+        return {
+            panel_view_key(server.server_id): server.owner_id
+            for server in session.query(Server)
+            .filter(Server.instructions_message_id != None)  # noqa: E711
+            .all()
+        }
+
+
+async def assess_frozen_panel_notice(entry, before_api=None):
+    """Whether this server's owner should get the DM, and what it would say.
+
+    Returns `(outcome, context)`. Only `"notify"` carries a context.
+
+    The DM tells its reader two specific things -- that their panel is frozen,
+    and exactly which permissions are missing -- so both have to be KNOWN, not
+    likely. Anything this cannot vouch for is skipped with a name for why:
+
+    * `fixable`: all four permissions are present, so the replacement sweep can
+      repair it and there is nothing to ask a person to do
+    * `unprovable`: posted after the cutoff, and the bot cannot read the channel
+      to check
+    * `editable`: the probe says it is not frozen at all
+    * `unreadable`: the probe could not tell, which is never rounded to yes
+    """
+    server_id = entry["server_id"]
+    try:
+        guild = bot.get_guild(int(server_id))
+        channel_id = int(entry["channel_id"])
+        message_id = int(entry["message_id"])
+    except (TypeError, ValueError):
+        return "malformed", None
+    if guild is None or guild.me is None:
+        return "departed", None
+
+    channel = guild.get_channel_or_thread(channel_id)
+    if channel is None:
+        return "channel_unknown", None
+
+    missing = missing_panel_permissions(channel, guild.me)
+    if not missing:
+        return "fixable", None
+
+    posted = discord.utils.snowflake_time(message_id)
+    if posted >= PANEL_FROZEN_BEFORE:
+        if "View Channel" in missing or "Read Message History" in missing:
+            return "unprovable", None
+        if before_api is not None:
+            await before_api()
+        stuck = await _panel_is_webhook_owned(channel, message_id)
+        if stuck is None:
+            return "unreadable", None
+        if not stuck:
+            return "editable", None
+
+    return "notify", {"guild": guild, "channel": channel, "posted": posted, "missing": missing}
+
+
+async def send_frozen_panel_notice(entry, context, owner_id) -> str:
+    """Resolve the recipient, record the notice, then send it. In that order.
+
+    The recipient is resolved BEFORE the row is written, unlike the cutover DM:
+    a server whose admin cannot be found is skipped without being marked, so a
+    later run can still reach them. Once the row is written the one DM is spent
+    whatever happens next, including a closed inbox.
+    """
+    link = dashboard_guild_url(entry["server_id"])
+    if not link or not DASHBOARD_URL:
+        # The whole fix is a button on the dashboard. Without an address for it
+        # the message has nothing to offer, so nothing is sent or marked.
+        return "no_dashboard"
+
+    guild = context["guild"]
+    member = await resolve_config_admin(guild, owner_id)
+    if member is None:
+        return "no_recipient"
+
+    try:
+        _record_panel_notice(entry["server_id"], entry["channel_id"])
+    except Exception:
+        logger.exception(
+            "Could not record the frozen-panel notice for guild %s; not sending.",
+            entry["server_id"],
+        )
+        return "record_failed"
+
+    text = frozen_panel_notice_text(
+        server=guild.name,
+        channel=context["channel"].name,
+        posted=context["posted"],
+        permissions=context["missing"],
+        link=link,
+        dashboard=DASHBOARD_URL,
+    )
+    try:
+        await member.send(text)
+    except discord.Forbidden:
+        return "dm_closed"
+    except Exception:
+        logger.warning(
+            "Frozen-panel notice to guild %s's admin failed after it was recorded; "
+            "it will not be retried.",
+            entry["server_id"],
+            exc_info=True,
+        )
+        return "dm_failed"
+    return "notified"
+
+
+# Outcomes that spent a server's one DM, whether or not it landed.
+PANEL_NOTICE_SPENT = frozenset({"notified", "dm_closed", "dm_failed"})
+
+
+async def notify_frozen_panels(reason: str):
+    """DM the owners of the frozen panels the sweep could not repair (#320).
+
+    Behind `instruction_refresh_lock`, like the sweep, so this never assesses a
+    panel while the replacement sweep is in the middle of changing it.
+
+    Capped on messages sent, not servers examined, for the reason the sweep
+    caps on repairs: a first run of twenty can be read before the rest go out.
+    Rerunning is safe because a server that has been told has a `notified` row
+    and is skipped.
+    """
+    async with instruction_refresh_lock:
+        panels, departed = partition_reachable_panels(load_instruction_panels())
+        notified = _servers_already_notified()
+        owners = _panel_owner_ids()
+        logger.info(
+            "Frozen panel notices (%s): %s panel(s) to examine, %s already "
+            "notified, %s skipped (bot no longer in the guild).",
+            reason,
+            len(panels),
+            len(notified),
+            len(departed),
+        )
+
+        calls = 0
+
+        async def before_api():
+            # Spacing only between the calls that reach Discord. Most panels are
+            # decided from the cache alone, and pacing those would turn a pass
+            # of seconds into one of minutes for no benefit.
+            nonlocal calls
+            if calls:
+                await asyncio.sleep(PANEL_NOTICE_SPACING)
+            calls += 1
+
+        tally = {}
+        failures = 0
+        spent = 0
+        stopped_early = False
+        for entry in panels:
+            if spent >= PANEL_NOTICE_MAX_PER_SWEEP:
+                stopped_early = True
+                break
+            key = panel_view_key(entry["server_id"])
+            if key in notified:
+                tally["already_notified"] = tally.get("already_notified", 0) + 1
+                continue
+            try:
+                outcome, context = await assess_frozen_panel_notice(entry, before_api)
+                if outcome == "notify":
+                    await before_api()
+                    outcome = await send_frozen_panel_notice(entry, context, owners.get(key))
+                failures = 0
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("Frozen panel notice crashed for guild %s", entry["server_id"])
+                outcome = "error"
+                failures += 1
+            tally[outcome] = tally.get(outcome, 0) + 1
+            if outcome in PANEL_NOTICE_SPENT:
+                spent += 1
+            if failures >= PANEL_NOTICE_MAX_FAILURES:
+                logger.error(
+                    "Giving up after %s consecutive failures. Re-create %s to "
+                    "resume; servers already told are skipped.",
+                    failures,
+                    PANEL_NOTICE_TRIGGER_PATH,
+                )
+                break
+
+        if stopped_early:
+            logger.info(
+                "Stopped after %s message(s), the per-sweep cap. Touch %s again "
+                "to continue; servers already told are skipped.",
+                spent,
+                PANEL_NOTICE_TRIGGER_PATH,
+            )
+        logger.info(
+            "Frozen panel notices (%s) finished: %s",
+            reason,
+            ", ".join(f"{count} {name}" for name, count in sorted(tally.items()))
+            or "nothing to do",
+        )
+        return tally
+
+
+async def watch_panel_notice_trigger(path: str = None, poll_interval: int = 30):
+    """Wait for the trigger file, then send one batch of frozen-panel notices.
+
+    INSIDE THE CONTAINER:
+
+        docker compose exec discord-bot touch /tmp/notify_frozen_panels.trigger
+
+    Removed before the batch runs, so a crash does not restart it on every poll.
+    Re-creating it is safe at any point, because told servers are skipped.
+    """
+    trigger_path = path or PANEL_NOTICE_TRIGGER_PATH
+    logger.info(f"Frozen panel notice watcher started (path={trigger_path})")
+    while True:
+        try:
+            if os.path.exists(trigger_path):
+                logger.info("Frozen panel notice trigger detected — starting notices.")
+                try:
+                    os.remove(trigger_path)
+                except Exception:
+                    logger.warning(
+                        "Could not remove the frozen panel notice trigger file; "
+                        "manual cleanup may be required."
+                    )
+                await notify_frozen_panels(reason="manual trigger")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Unexpected error in the frozen panel notice watcher.")
+        await asyncio.sleep(poll_interval)
+
+
 async def update_all_instruction_messages():
     """Rebuild and edit saved instruction messages for all servers (uses DB-stored locale)."""
     await refresh_all_instruction_panels(rebuild_embed=True, reason="manual trigger")
@@ -11753,6 +12143,13 @@ async def on_ready():
     # delete by touching the wrong path.
     start_background_task(
         "panel_replace_watcher", watch_panel_replace_trigger()
+    )
+
+    # And the DMs to the owners of what that sweep could not fix (#320). A
+    # third switch rather than a mode of the second: a replacement can be run
+    # again at no cost, and a message to a person cannot be unsent.
+    start_background_task(
+        "panel_notice_watcher", watch_panel_notice_trigger()
     )
 
     # The dashboard's door. Does nothing at all unless BOT_API_ENABLED is set,

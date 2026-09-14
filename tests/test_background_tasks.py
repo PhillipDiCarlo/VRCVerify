@@ -61,6 +61,7 @@ def stub_startup(monkeypatch):
         ("watch_update_trigger_file", "instructions_trigger_watcher"),
         ("watch_premium_cutover_trigger", "premium_cutover_watcher"),
         ("watch_panel_replace_trigger", "panel_replace_watcher"),
+        ("watch_panel_notice_trigger", "panel_notice_watcher"),
         ("verification_log_flush_task", "verification_log_flush"),
         ("sweep_entitlement_history", "entitlement_history_sweep"),
     ]:
@@ -182,6 +183,9 @@ class TestOnReadyReentry:
         # that trigger re-edits panels, this one deletes and re-posts them, and
         # two different risks must not share one switch.
         "panel_replace_watcher",
+        # Its own switch again (#320): replacing can be rerun at no cost, a DM
+        # to a person cannot be unsent.
+        "panel_notice_watcher",
         "verification_log_flush",
         # run_once, like instruction_panel_refresh: it backfills the ever-paid
         # ledger from Discord's entitlement list and must not run again on
