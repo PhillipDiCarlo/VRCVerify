@@ -2395,7 +2395,7 @@ def _register_routes(app: Flask) -> None:
 
     @app.post("/guild/<int:guild_id>/group")
     def save_group_settings(guild_id: int):
-        """The VRChat group a server invites verified members to.
+        """Every card on the VRChat group page: the group, invites, calendar sync.
 
         The group field is submitted exactly as typed. Parsing it -- bare id or
         vrchat.com URL, case folding, refusing vrc.group short links -- is the
@@ -2415,6 +2415,9 @@ def _register_routes(app: Flask) -> None:
             # the claim, so another server could then connect it.
             changes["vrchat_group_id"] = request.form.get("vrchat_group_id") or None
         _read_checkbox(changes, "vrchat_group_invite_enabled")
+        # The calendar sync card (#289) saves through this route too. The bot
+        # refuses it for a guild that may not use calendar sync yet.
+        _read_checkbox(changes, "calendar_sync_enabled")
 
         return _save(guild_id, session, changes, "vrchat-group")
 
