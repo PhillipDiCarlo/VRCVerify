@@ -161,7 +161,7 @@
  "Subscriptions bought through Discord<0>#</0>": "通过 Discord 购买的订阅<0>#</0>",
  "Terms of Service": "服务条款",
  "Terms of Service — VRCVerify": "服务条款 — VRCVerify",
- "The Donate button on the instructions panel is now a Learn more button that opens vrcverify.com, so a member who is asked to verify can read what VRCVerify does before they start. The donation reminder that appeared after setup is gone as well. Panels posted since August update the next time they are refreshed. Older ones have to be replaced from your server's page on the dashboard.": "说明面板上的“捐赠”按钮现已改为“了解更多”按钮，点击后会打开 vrcverify.com，这样被要求验证的成员可以在开始之前了解 VRCVerify 的用途。设置完成后出现的捐赠提醒也已移除。8 月之后发布的面板会在下次刷新时更新。更早发布的面板需要在控制台中你的服务器页面上替换。",
+ "The Donate button on the instructions panel is now a Learn more button that opens vrcverify.com, so a member who is asked to verify can read what VRCVerify does before they start. The donation reminder that appeared after setup is gone as well. Panels posted since August update the next time they are refreshed. Older ones cannot be edited by Discord at all, so they are replaced rather than refreshed.": "说明面板上的“捐赠”按钮现已改为“了解更多”按钮，点击后会打开 vrcverify.com，这样被要求验证的成员可以在开始之前了解 VRCVerify 的用途。设置完成后出现的捐赠提醒也已移除。8 月之后发布的面板会在下次刷新时更新。更早发布的面板 Discord 根本不允许编辑，因此会被替换而不是刷新。",
  "The Overview page now charts the last 30 days of verifications, and checks the things that quietly break a server — a verified role that was deleted, a role the bot cannot assign, an instructions panel that is no longer where it was posted.": "概览页面现在会用图表展示最近 30 天的验证，并检查那些悄悄让服务器失灵的问题：被删除的已验证身份组、机器人无法授予的身份组、已经不在发布位置的说明面板。",
  "The billing portal, linked from the dashboard": "账单门户，可从控制台进入",
  "The bot assigns the role": "机器人分配身份组",

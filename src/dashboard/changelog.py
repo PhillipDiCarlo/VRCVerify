@@ -275,8 +275,8 @@ ENTRIES = (
             "to verify can read what VRCVerify does before they start. The "
             "donation reminder that appeared after setup is gone as well. "
             "Panels posted since August update the next time they are "
-            "refreshed. Older ones have to be replaced from your server's "
-            "page on the dashboard.")
+            "refreshed. Older ones cannot be edited by Discord at all, so "
+            "they are replaced rather than refreshed.")
         ),
     ),
     Entry(
