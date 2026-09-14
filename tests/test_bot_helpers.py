@@ -348,8 +348,76 @@ class TestTheWebsiteIsOptional:
         assert bot.website_url() is None
 
     def test_a_configured_site_is_returned(self, monkeypatch):
+        """The trailing slash is the apex index, which is a directory (#314).
+
+        `localized_path` supplies it for the same reason the language picker
+        on the site does: `/ja` and `/ja/` are one page, and `/` is the only
+        spelling of the English index the apex actually serves.
+        """
         monkeypatch.setattr(bot, "WEBSITE_URL", "https://vrcverify.com")
-        assert bot.website_url() == "https://vrcverify.com"
+        assert bot.website_url() == "https://vrcverify.com/"
+
+
+class TestTheWebsiteButtonSpeaksThePanelsLanguage:
+    """The label was translated and the link was not (#314).
+
+    A panel posted in Japanese carried a Japanese button that opened the
+    English homepage -- for the member who was just asked to hand over an age
+    check and wanted to know what this bot is first, which is the reader least
+    able to afford landing in a language they do not read.
+    """
+
+    APEX = "https://vrcverify.com"
+
+    @pytest.mark.parametrize("locale", ["ja", "pt-BR", "ar", "de"])
+    def test_our_own_site_is_opened_in_the_panels_language(self, monkeypatch, locale):
+        monkeypatch.setattr(bot, "WEBSITE_URL", self.APEX)
+        assert bot.website_url(locale) == f"{self.APEX}/{locale}/"
+
+    def test_english_is_left_unprefixed_because_that_is_where_it_lives(self, monkeypatch):
+        """`en-US` here, `en` and unprefixed on the apex. There is no
+        /en-US/ directory and a link button pointing at one is a 404."""
+        monkeypatch.setattr(bot, "WEBSITE_URL", self.APEX)
+        assert bot.website_url("en-US") == f"{self.APEX}/"
+        # And the default is English, so an un-localized caller is unchanged.
+        assert bot.website_url() == bot.website_url("en-US")
+
+    @pytest.mark.parametrize(
+        "configured",
+        [
+            "https://example.com",
+            "https://vrcverify.example.com",
+            "http://localhost:8080",
+            # Close, and still not ours. A different host is a different site.
+            "https://www.vrcverify.com",
+        ],
+    )
+    @pytest.mark.parametrize("locale", ["ja", "en-US"])
+    def test_somebody_elses_site_is_returned_exactly_as_configured(
+        self, monkeypatch, configured, locale
+    ):
+        """THE POINT OF DOING THIS AT ALL rather than appending the locale.
+
+        WHOEVER RUNS THE BOT OWNS THIS VALUE. A self-hoster's site has no
+        /ja/, so a link button pointing at one would be a 404 where a working
+        English page used to be -- worse than the bug being fixed. Not even a
+        trailing slash is added: their URL comes back the way they typed it.
+        """
+        monkeypatch.setattr(bot, "WEBSITE_URL", configured)
+        assert bot.website_url(locale) == configured
+
+    def test_the_host_is_matched_without_regard_to_case(self, monkeypatch):
+        """It is typed into a .env by hand and hostnames are case-insensitive,
+        so a capital letter must not quietly cost every panel its language."""
+        monkeypatch.setattr(bot, "WEBSITE_URL", "https://VRCVerify.com")
+        assert bot.website_url("ja") == "https://VRCVerify.com/ja/"
+
+    def test_an_unusable_url_is_still_refused_in_every_language(self, monkeypatch):
+        """The scheme check runs before any of this. A locale must not turn a
+        value Discord would 400 on into one that reaches a link button."""
+        for value in ("vrcverify.com", "https://", ""):
+            monkeypatch.setattr(bot, "WEBSITE_URL", value)
+            assert bot.website_url("ja") is None, value
 
     @pytest.mark.parametrize(
         "value",
@@ -394,7 +462,28 @@ class TestThePanelDegradesWithoutAWebsite:
         monkeypatch.setattr(bot, "WEBSITE_URL", "https://vrcverify.com")
         view = bot.VRCVerifyInstructionView(locale="en-US")
         assert len(view.children) == 3
-        assert view.children[-1].url == "https://vrcverify.com"
+        assert view.children[-1].url == "https://vrcverify.com/"
+
+    @pytest.mark.parametrize("locale", ["ja", "pt-BR", "ar"])
+    def test_the_button_on_the_panel_carries_the_panels_language(
+        self, monkeypatch, locale
+    ):
+        """THE BUG ITSELF, at the place it actually lived (#314).
+
+        `website_url` being able to localize is not the fix; the view asking
+        it to is. This was `website_url()` with no argument sitting two lines
+        under a label built from `locale`, so the button read in Japanese and
+        opened English. Reverting that one call passes every other test in
+        this file.
+        """
+        monkeypatch.setattr(bot, "WEBSITE_URL", "https://vrcverify.com")
+        view = bot.VRCVerifyInstructionView(locale=locale)
+        assert view.children[-1].url == f"https://vrcverify.com/{locale}/"
+
+    def test_an_english_panel_still_gets_the_unprefixed_site(self, monkeypatch):
+        monkeypatch.setattr(bot, "WEBSITE_URL", "https://vrcverify.com")
+        view = bot.VRCVerifyInstructionView(locale="en-US")
+        assert view.children[-1].url == "https://vrcverify.com/"
 
     def test_a_malformed_website_adds_nothing(self, monkeypatch):
         # The refusal has to reach the view, not just the helper: a button

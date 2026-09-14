@@ -2186,6 +2186,32 @@ class TestTheApexSpeaksTheOtherSurfacesLanguages:
                 name = slug.lstrip("/") + ".html"
                 assert (base / name).exists(), f"{code} has no {name}"
 
+    def test_the_bot_links_at_an_index_the_apex_has(self):
+        """The instruction panel's Learn more button (#314).
+
+        It links at the index rather than at a document, so what has to exist
+        is `site/<code>/index.html` for every language the bot can post a panel
+        in. The bot picks the address with the same `localized_path` the
+        dashboard uses, so the rule is tested once in test_i18n.py; this is the
+        half only the filesystem can answer.
+        """
+        from i18n_core import localized_path
+        from locales import LANGUAGE_CODES
+
+        for code in LANGUAGE_CODES:
+            path = localized_path(code)
+            assert path.endswith("/"), path
+            base = SITE if path == "/" else SITE / path.strip("/")
+            assert (base / "index.html").exists(), f"{code} has no index at {path}"
+
+    def test_the_bot_and_the_apex_agree_on_where_the_site_is(self):
+        """`LOCALIZED_WEBSITE` is what the bot compares WEBSITE_URL against
+        before it localizes anything. If it drifts from the real apex, every
+        panel silently goes back to English rather than breaking."""
+        import bot
+
+        assert bot.LOCALIZED_WEBSITE == gen_site_locales.ORIGIN
+
     def test_the_dashboard_and_the_apex_agree_on_where_the_site_is(self):
         """One hostname, not two that happen to match today."""
         from dashboard import app as dashboard_app

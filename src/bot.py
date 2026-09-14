@@ -41,7 +41,7 @@ from datetime import date, datetime, timezone, timedelta
 from dotenv import load_dotenv
 import locales
 from locales import LANGUAGE_CODES
-from i18n_core import Catalogs
+from i18n_core import Catalogs, DEFAULT_LANGUAGE as DEFAULT_LOCALE, localized_path
 import bot_api
 import heartbeat
 from log_safety import install_log_scrubbing
@@ -1933,8 +1933,13 @@ def support_invite_url() -> Optional[str]:
 WEBSITE_URL = (os.getenv("WEBSITE_URL") or "").strip().rstrip("/") or None
 
 
-def website_url() -> Optional[str]:
-    """The public site, or None if there is no usable URL.
+# The one site whose pages we know exist in twelve languages, because we
+# publish them. `website_url` localizes a link only when it points here.
+LOCALIZED_WEBSITE = "https://vrcverify.com"
+
+
+def website_url(locale: str = DEFAULT_LOCALE) -> Optional[str]:
+    """The public site in `locale`, or None if there is no usable URL.
 
     Scheme-checked for the reason _dashboard_page gives: Discord rejects a link
     button whose URL has no scheme with a 400 that fails the whole interaction,
@@ -1962,7 +1967,15 @@ def website_url() -> Optional[str]:
             WEBSITE_URL,
         )
         return None
-    return WEBSITE_URL
+    # ONLY OUR OWN SITE GETS A LANGUAGE (#314). The button's label is already
+    # translated, so it read in Japanese and opened English -- but the fix
+    # cannot be "append the locale", because this value belongs to whoever runs
+    # the bot. A self-hoster's site has no /ja/ and a link button pointing at
+    # one would be a 404 where an English page used to be, which is worse than
+    # the bug. They keep exactly what they configured.
+    if WEBSITE_URL.lower() != LOCALIZED_WEBSITE:
+        return WEBSITE_URL
+    return WEBSITE_URL + localized_path(locale)
 
 
 def dashboard_guild_url(guild_id) -> Optional[str]:
@@ -5370,7 +5383,7 @@ class VRCVerifyInstructionView(View):
         #
         # Omitted entirely when no site is configured. A link button needs a
         # URL, so there is nothing to render without one.
-        site = website_url()
+        site = website_url(locale)
         if site:
             learn_more_label = translate(locales.BTN_LEARN_MORE, locale)
             learn_more_btn = Button(

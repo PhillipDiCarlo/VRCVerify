@@ -81,6 +81,52 @@ def N_(text: str) -> str:
     return text
 
 
+# The source language, and the one the public site serves unprefixed.
+#
+# Both callers spell English this way -- `locales.LANGUAGE_CODES[0]` and
+# `dashboard.i18n.DEFAULT_LANGUAGE` -- and neither has a catalog for it,
+# because its "catalog" is the msgids themselves. Defined here so that the two
+# cannot drift into disagreeing about which language needs no translating.
+DEFAULT_LANGUAGE = "en-US"
+
+
+def localized_path(code: str, slug: str = "") -> str:
+    """Where a page of the public site lives, in one language.
+
+    `localized_path("ja", "/terms")` -> "/ja/terms"
+    `localized_path("en-US", "/terms")` -> "/terms"
+    `localized_path("ja")` -> "/ja/"
+
+    WHY THIS IS SHARED RATHER THAN WRITTEN AT EACH CALL SITE, which is the
+    question this module's docstring asks of everything in it.
+
+    Three surfaces link at those pages -- the status Worker (#311), the
+    dashboard (#313) and the bot (#314) -- and the rule they need has a trap in
+    it that only bites one language. English is `en-US` on both Python sides
+    and the apex serves it UNPREFIXED, with no `site/en-US/` directory and
+    never one. The other eleven codes are identical everywhere. So
+    `f"/{code}{slug}"` is correct for eleven languages out of twelve and sends
+    every default-language reader, who are most of them, to a 404 on a Worker
+    with no code on its request path to catch it.
+
+    That is exactly the divergence this module exists to prevent: a copy that
+    works the day it is written, and a fallback added to one copy a year later
+    that nobody notices because both halves still work.
+
+    THE REST OF THE SHAPE IS NOT OURS EITHER. It has to match `picker()` in
+    scripts/gen_site_locales.py: the code keeps its own case, because
+    `/pt-br/terms` is a 404 rather than a redirect on an assets-only Worker,
+    and the index keeps a trailing slash the other pages do not have.
+
+    The ORIGIN is deliberately not here. The dashboard always means our apex;
+    the bot means whatever `WEBSITE_URL` is set to, which for a self-hoster is
+    their own site. Whether an origin should be localized at all is a
+    deployment question, and it is answered at the call site.
+    """
+    prefix = "" if code == DEFAULT_LANGUAGE else f"/{code}"
+    return f"{prefix}{slug or '/'}"
+
+
 class Catalogs:
     """The compiled catalogs for one domain, read once and kept.
 
