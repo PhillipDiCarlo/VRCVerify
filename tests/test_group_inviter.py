@@ -611,6 +611,149 @@ class TestTheClaimCheck:
         assert [p["type"] for p in published] == [inviter.JOB_VERIFY_CLAIM]
 
 
+CALENDAR_JOB = {
+    "type": "fetch_group_calendar_page",
+    "jobID": "p1",
+    "guildID": "123",
+    "groupID": GROUP_ID,
+    "offset": 0,
+    "n": 100,
+}
+
+# One raw event as VRChat returned it on 2026-09-14, camelCase, including the
+# fields vrchatapi 1.20.7 silently dropped.
+RAW_EVENT = {
+    "accessType": "public",
+    "category": "other",
+    "deletedAt": None,
+    "description": "Come hang out",
+    "durationInMs": 7200000,
+    "endsAt": "2026-09-18T13:15:00.000Z",
+    "id": "cal_3970fbbc-0000-0000-0000-000000000000",
+    "isDraft": False,
+    "occurrenceKind": "occurrence",
+    "ownerId": GROUP_ID,
+    "roleIds": None,
+    "seriesId": "cal_e05f0109-ca6f-4f20-87ef-c27d2b12c21a",
+    "startsAt": "2026-09-18T11:15:00.000Z",
+    "title": "Weekly meetup",
+}
+
+
+class FakeCalendarApi:
+    def __init__(self):
+        self.calls = []
+        self.body = [RAW_EVENT]
+        self.error = None
+
+    def get_group_calendar_events(self, group_id, **kwargs):
+        self.calls.append((group_id, kwargs))
+        if self.error:
+            raise self.error
+        data = self.body if isinstance(self.body, bytes) else __import__("json").dumps(self.body).encode()
+        return SimpleNamespace(data=data)
+
+
+@pytest.fixture
+def calendar(monkeypatch):
+    fake = FakeCalendarApi()
+    monkeypatch.setattr(inviter, "CalendarApi", lambda client=None: fake)
+    return fake
+
+
+class TestTheCalendarPage:
+    """One page of a group calendar for calendar sync (#289)."""
+
+    def test_a_page_is_read_raw_and_trimmed(self, api, calendar):
+        result = inviter.fetch_group_calendar_page(CALENDAR_JOB)
+        assert result["state"] == inviter.CALENDAR_PAGE_OK
+        assert result["type"] == inviter.JOB_FETCH_CALENDAR_PAGE
+        assert result["count"] == 1 and result["offset"] == 0
+        assert result["events"] == [
+            {
+                "id": RAW_EVENT["id"],
+                "series_id": RAW_EVENT["seriesId"],
+                "kind": "occurrence",
+                "access": "public",
+                "role_ids": None,
+                "draft": False,
+                "deleted": False,
+                "title": "Weekly meetup",
+                "description": "Come hang out",
+                "starts_at": RAW_EVENT["startsAt"],
+                "ends_at": RAW_EVENT["endsAt"],
+            }
+        ]
+        # Raw, so a vrchatapi upgrade cannot change which fields the sync sees.
+        assert calendar.calls[0][1]["_preload_content"] is False
+
+    def test_it_asks_for_exactly_the_page_it_was_given(self, api, calendar):
+        inviter.fetch_group_calendar_page(dict(CALENDAR_JOB, offset=300))
+        group_id, kwargs = calendar.calls[0]
+        assert group_id == GROUP_ID and kwargs["offset"] == 300 and kwargs["n"] == 100
+
+    @pytest.mark.parametrize("n", [0, 101, 10_000, "100", True, None])
+    def test_a_page_size_out_of_range_is_clamped(self, api, calendar, n):
+        inviter.fetch_group_calendar_page(dict(CALENDAR_JOB, n=n))
+        assert calendar.calls[0][1]["n"] == 100
+
+    @pytest.mark.parametrize(
+        "bad", [{"groupID": None}, {"groupID": "not_a_group"}, {"offset": -1}, {"offset": "0"}, {"offset": True}]
+    )
+    def test_a_malformed_job_calls_nothing(self, api, calendar, bad):
+        result = inviter.fetch_group_calendar_page(dict(CALENDAR_JOB, **bad))
+        assert result["state"] == inviter.CALENDAR_PAGE_BAD_JOB
+        assert calendar.calls == []
+
+    def test_a_wrapped_page_is_read_too(self, api, calendar):
+        calendar.body = {"results": [RAW_EVENT, RAW_EVENT]}
+        assert inviter.fetch_group_calendar_page(CALENDAR_JOB)["count"] == 2
+
+    @pytest.mark.parametrize("body", [b"not json", {"unexpected": True}])
+    def test_an_unreadable_page_is_not_mistaken_for_an_empty_calendar(self, api, calendar, body):
+        """An empty page ends the poll and deletes every synced event whose
+        occurrence vanished. Garbage must never read as "no events"."""
+        calendar.body = body
+        result = inviter.fetch_group_calendar_page(CALENDAR_JOB)
+        assert result["state"] == inviter.CALENDAR_PAGE_VRCHAT_UNAVAILABLE
+        assert result["events"] == []
+
+    @pytest.mark.parametrize("status", [403, 404])
+    def test_an_invisible_calendar(self, api, calendar, status):
+        calendar.error = FakeApiException(status=status, body="nope")
+        assert inviter.fetch_group_calendar_page(CALENDAR_JOB)["state"] == inviter.CALENDAR_PAGE_GROUP_NOT_FOUND
+
+    def test_a_transient_failure_is_retried_then_reported(self, api, calendar):
+        calendar.error = FakeApiException(status=503, body="upstream")
+        result = inviter.fetch_group_calendar_page(CALENDAR_JOB)
+        assert result["state"] == inviter.CALENDAR_PAGE_VRCHAT_UNAVAILABLE
+        assert len(calendar.calls) == inviter.VRCHAT_CALL_RETRIES
+
+    def test_no_session(self, monkeypatch, calendar):
+        monkeypatch.setattr(
+            inviter.vrchat_session, "get", lambda: (None, {"error_message": "VRChat session not active"})
+        )
+        assert inviter.fetch_group_calendar_page(CALENDAR_JOB)["state"] == inviter.CALENDAR_PAGE_VRCHAT_UNAVAILABLE
+        assert calendar.calls == []
+
+    def test_it_never_joins_anything(self, api, calendar):
+        inviter.fetch_group_calendar_page(CALENDAR_JOB)
+        assert api.joined() == [] and api.calls == []
+
+    def test_it_is_dispatched_and_apologized_for_in_its_own_shape(self, monkeypatch):
+        assert inviter.HANDLERS[inviter.JOB_FETCH_CALENDAR_PAGE] is inviter.fetch_group_calendar_page
+        published = []
+        monkeypatch.setattr(inviter, "publish_result", published.append)
+
+        def boom(job):
+            raise RuntimeError("bug")
+
+        monkeypatch.setitem(inviter.HANDLERS, inviter.JOB_FETCH_CALENDAR_PAGE, boom)
+        body = b'{"type": "fetch_group_calendar_page", "groupID": "grp_x", "offset": 0}'
+        inviter.process_job(TestJobDispatch.Chan(), SimpleNamespace(delivery_tag=5, redelivered=True), None, body)
+        assert [p["type"] for p in published] == [inviter.JOB_FETCH_CALENDAR_PAGE]
+
+
 class TestTheWorkerNamesItself:
     def test_every_result_says_which_account_produced_it(self, api, monkeypatch):
         """One invite account today; the 100/200-group seat cap guarantees

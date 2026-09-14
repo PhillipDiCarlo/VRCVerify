@@ -221,6 +221,47 @@
             </dd>
           </div>
         {% endif %}
+        {% if group.calendar_sync %}
+          {% set cal = group.calendar_sync %}
+          {% if not cal.ownership_proven and not cal.locked %}
+          <div class="setting">
+            <dt>{% trans %}Status{% endtrans %}</dt>
+            <dd>
+              <p class="value empty">{% trans %}Waiting for your group{% endtrans %}</p>
+              <p class="muted desc">{% trans %}Connect your VRChat group above and confirm it's yours. Syncing starts once that's done.{% endtrans %}</p>
+            </dd>
+          </div>
+          {% else %}
+          <div class="setting">
+            <dt>{% trans %}Status{% endtrans %}</dt>
+            <dd>
+              <p class="value{% if cal.tone != 'ok' %} empty{% endif %}">{{ cal.headline }}</p>
+              {% if cal.synced_count is not none %}
+                <p class="muted desc">{% trans count=cal.synced_count %}{{ count }} upcoming event is in Discord.{% pluralize %}{{ count }} upcoming events are in Discord.{% endtrans %}</p>
+              {% elif cal.detail %}
+                <p class="muted desc">{{ cal.detail }}</p>
+              {% endif %}
+              {% if cal.last_synced %}
+                <p class="muted desc">{% trans when=cal.last_synced %}Last synced {{ when }}{% endtrans %}</p>
+              {% endif %}
+              {% if cal.error %}
+                <p class="muted desc">{% trans said=cal.error %}The last error: {{ said }}{% endtrans %}</p>
+              {% endif %}
+              {% if cal.permission_url %}
+                <p class="warn">
+                  {% trans url=cal.permission_url %}<a href="{{ url }}" rel="noopener noreferrer" target="_blank">Give VRCVerify the Create Events permission</a> in Discord. Nothing else about the bot changes.{% endtrans %}
+                </p>
+              {% endif %}
+              {% if cal.over_cap_count %}
+                <p class="warn">{% trans count=cal.over_cap_count %}{{ count }} more event wasn't added, because Discord allows 100 events per server. The soonest ones are synced, and the rest are added as those finish.{% pluralize %}{{ count }} more events weren't added, because Discord allows 100 events per server. The soonest ones are synced, and the rest are added as those finish.{% endtrans %}</p>
+              {% endif %}
+              {% for warning in cal.warnings %}
+                <p class="warn">{{ warning }}</p>
+              {% endfor %}
+            </dd>
+          </div>
+          {% endif %}
+        {% endif %}
         {% for field in group.fields %}
           <div class="setting{% if field.locked %} locked{% endif %}">
             {# TWO JOBS, AND THEY ARE NOT THE SAME JOB.

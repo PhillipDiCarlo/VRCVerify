@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 07:54-0400\n"
+"POT-Creation-Date: 2026-09-14 10:05-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pa_Guru_IN\n"
@@ -806,6 +806,29 @@ msgstr "ਮੈਂਬਰਾਂ ਦੇ ਤਸਦੀਕ ਹੁੰਦੇ ਹੀ ਉ�
 msgid "A record of verification activity for your moderators."
 msgstr "ਤੁਹਾਡੇ ਮਾਡਰੇਟਰਾਂ ਲਈ ਤਸਦੀਕ ਗਤੀਵਿਧੀ ਦਾ ਰਿਕਾਰਡ।"
 
+msgid "Calendar sync"
+msgstr "ਕੈਲੰਡਰ ਸਿੰਕ"
+
+msgid ""
+"Mirror your VRChat group's public events into Discord's Events tab, where"
+" members get RSVPs, reminders and times in their own time zone."
+msgstr ""
+"ਆਪਣੇ VRChat ਗਰੁੱਪ ਦੇ ਜਨਤਕ ਇਵੈਂਟ Discord ਦੇ Events ਟੈਬ ਵਿੱਚ ਲਿਆਓ, ਜਿੱਥੇ "
+"ਮੈਂਬਰ RSVP ਕਰ ਸਕਦੇ ਹਨ, ਯਾਦ-ਦਹਾਨੀਆਂ ਲੈ ਸਕਦੇ ਹਨ ਅਤੇ ਸਮਾਂ ਆਪਣੇ ਟਾਈਮ ਜ਼ੋਨ "
+"ਵਿੱਚ ਵੇਖ ਸਕਦੇ ਹਨ।"
+
+msgid "Sync events to Discord"
+msgstr "ਇਵੈਂਟ Discord ਵਿੱਚ ਸਿੰਕ ਕਰੋ"
+
+msgid ""
+"Creates a Discord event for each upcoming public event on your group's "
+"VRChat calendar, and keeps it up to date. Turning this off removes the "
+"events that haven't started."
+msgstr ""
+"ਤੁਹਾਡੇ ਗਰੁੱਪ ਦੇ VRChat ਕੈਲੰਡਰ ਦੇ ਹਰ ਆਉਣ ਵਾਲੇ ਜਨਤਕ ਇਵੈਂਟ ਲਈ ਇੱਕ Discord "
+"ਇਵੈਂਟ ਬਣਾਉਂਦਾ ਹੈ ਅਤੇ ਉਸਨੂੰ ਅੱਪਡੇਟ ਰੱਖਦਾ ਹੈ। ਇਸਨੂੰ ਬੰਦ ਕਰਨ ਨਾਲ ਉਹ ਇਵੈਂਟ ਹਟ"
+" ਜਾਂਦੇ ਹਨ ਜੋ ਹਾਲੇ ਸ਼ੁਰੂ ਨਹੀਂ ਹੋਏ।"
+
 msgid "Not checked yet"
 msgstr "ਹਾਲੇ ਜਾਂਚਿਆ ਨਹੀਂ"
 
@@ -962,6 +985,83 @@ msgstr ""
 "VRChat ਗਰੁੱਪ ਸਹੂਲਤਾਂ VRCVerify Premium ਦਾ ਹਿੱਸਾ ਹਨ। ਤੁਹਾਡਾ ਗਰੁੱਪ ਬਿਲਕੁਲ "
 "ਉਵੇਂ ਹੀ ਰਹੇਗਾ, ਅਤੇ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਨਵਿਆਉਣ 'ਤੇ ਇਹ ਉੱਥੋਂ ਹੀ ਅੱਗੇ ਚੱਲੇਗਾ ਜਿੱਥੇ "
 "ਛੁੱਟਿਆ ਸੀ।"
+
+msgid "Syncing…"
+msgstr "ਸਿੰਕ ਹੋ ਰਿਹਾ ਹੈ…"
+
+msgid "Reading your group's calendar. Reload this page in a moment."
+msgstr ""
+"ਤੁਹਾਡੇ ਗਰੁੱਪ ਦਾ ਕੈਲੰਡਰ ਪੜ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ। ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਇਹ ਪੰਨਾ ਦੁਬਾਰਾ "
+"ਲੋਡ ਕਰੋ।"
+
+msgid "Synced"
+msgstr "ਸਿੰਕ ਹੋ ਗਿਆ"
+
+msgid "VRCVerify can't create events in this server"
+msgstr "VRCVerify ਇਸ ਸਰਵਰ ਵਿੱਚ ਇਵੈਂਟ ਨਹੀਂ ਬਣਾ ਸਕਦਾ"
+
+msgid "Your group's calendar isn't visible"
+msgstr "ਤੁਹਾਡੇ ਗਰੁੱਪ ਦਾ ਕੈਲੰਡਰ ਨਹੀਂ ਦਿਸ ਰਿਹਾ"
+
+msgid ""
+"VRChat wouldn't show the bot this group's calendar. Check the group still"
+" exists."
+msgstr ""
+"VRChat ਨੇ ਬੋਟ ਨੂੰ ਇਸ ਗਰੁੱਪ ਦਾ ਕੈਲੰਡਰ ਨਹੀਂ ਵਿਖਾਇਆ। ਜਾਂਚੋ ਕਿ ਗਰੁੱਪ ਹਾਲੇ ਵੀ "
+"ਮੌਜੂਦ ਹੈ।"
+
+msgid "Nothing is wrong with your setup. The next sync will try again."
+msgstr "ਤੁਹਾਡੇ ਸੈੱਟਅੱਪ ਵਿੱਚ ਕੋਈ ਗੜਬੜ ਨਹੀਂ ਹੈ। ਅਗਲਾ ਸਿੰਕ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੇਗਾ।"
+
+msgid "The last sync didn't finish"
+msgstr "ਪਿਛਲਾ ਸਿੰਕ ਪੂਰਾ ਨਹੀਂ ਹੋਇਆ"
+
+msgid "The next sync will try again."
+msgstr "ਅਗਲਾ ਸਿੰਕ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੇਗਾ।"
+
+msgid "Couldn't start the sync"
+msgstr "ਸਿੰਕ ਸ਼ੁਰੂ ਨਹੀਂ ਹੋ ਸਕਿਆ"
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"sync will try again."
+msgstr ""
+"ਬੋਟ ਆਪਣੇ ਉਸ ਹਿੱਸੇ ਤੱਕ ਨਹੀਂ ਪਹੁੰਚ ਸਕਿਆ ਜੋ VRChat ਨਾਲ ਗੱਲ ਕਰਦਾ ਹੈ। ਅਗਲਾ "
+"ਸਿੰਕ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੇਗਾ।"
+
+msgid "Some events couldn't be updated in Discord"
+msgstr "ਕੁਝ ਇਵੈਂਟ Discord ਵਿੱਚ ਅੱਪਡੇਟ ਨਹੀਂ ਹੋ ਸਕੇ"
+
+msgid "Waiting for the first sync"
+msgstr "ਪਹਿਲੇ ਸਿੰਕ ਦੀ ਉਡੀਕ ਹੈ"
+
+msgid ""
+"The first sync starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr ""
+"ਇਸਨੂੰ ਚਾਲੂ ਕਰਨ ਦੇ ਇੱਕ ਮਿੰਟ ਦੇ ਅੰਦਰ ਪਹਿਲਾ ਸਿੰਕ ਸ਼ੁਰੂ ਹੁੰਦਾ ਹੈ। ਥੋੜ੍ਹੀ ਦੇਰ "
+"ਬਾਅਦ ਇਹ ਪੰਨਾ ਦੁਬਾਰਾ ਲੋਡ ਕਰੋ।"
+
+msgid ""
+"VRCVerify doesn't have the Create Events permission in this server, so "
+"the next sync won't be able to add events."
+msgstr ""
+"ਇਸ ਸਰਵਰ ਵਿੱਚ VRCVerify ਕੋਲ “ਇਵੈਂਟ ਬਣਾਓ” ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ, ਇਸ ਲਈ ਅਗਲਾ ਸਿੰਕ "
+"ਇਵੈਂਟ ਨਹੀਂ ਜੋੜ ਸਕੇਗਾ।"
+
+msgid ""
+"No public events were found on this group. Events visible only to group "
+"members aren't synced yet."
+msgstr ""
+"ਇਸ ਗਰੁੱਪ ਵਿੱਚ ਕੋਈ ਜਨਤਕ ਇਵੈਂਟ ਨਹੀਂ ਮਿਲਿਆ। ਸਿਰਫ਼ ਗਰੁੱਪ ਮੈਂਬਰਾਂ ਨੂੰ ਦਿਸਣ "
+"ਵਾਲੇ ਇਵੈਂਟ ਹਾਲੇ ਸਿੰਕ ਨਹੀਂ ਹੁੰਦੇ।"
+
+msgid ""
+"None of this group's upcoming events are public, so there's nothing to "
+"sync. Events limited to members or to roles aren't synced."
+msgstr ""
+"ਇਸ ਗਰੁੱਪ ਦਾ ਕੋਈ ਵੀ ਆਉਣ ਵਾਲਾ ਇਵੈਂਟ ਜਨਤਕ ਨਹੀਂ ਹੈ, ਇਸ ਲਈ ਸਿੰਕ ਕਰਨ ਲਈ ਕੁਝ "
+"ਨਹੀਂ ਹੈ। ਮੈਂਬਰਾਂ ਜਾਂ ਰੋਲਾਂ ਤੱਕ ਸੀਮਤ ਇਵੈਂਟ ਸਿੰਕ ਨਹੀਂ ਹੁੰਦੇ।"
 
 msgid ""
 "Group invites are part of VRCVerify Premium. Your group is kept exactly "
@@ -1813,6 +1913,55 @@ msgstr ""
 "rel=\"noopener noreferrer\" target=\"_blank\">%(account_id)s</a> — ਜਾਂਚ "
 "ਲਓ ਕਿ ID ਮੇਲ ਖਾਂਦੀ ਹੈ, ਕਿਉਂਕਿ VRChat ਦੇ ਦਿਖਾਈ ਦਿੰਦੇ ਨਾਮ ਵਿਲੱਖਣ ਨਹੀਂ "
 "ਹੁੰਦੇ।"
+
+msgid ""
+"Connect your VRChat group above and confirm it's yours. Syncing starts "
+"once that's done."
+msgstr ""
+"ਉੱਪਰ ਆਪਣਾ VRChat ਗਰੁੱਪ ਜੋੜੋ ਅਤੇ ਪੁਸ਼ਟੀ ਕਰੋ ਕਿ ਇਹ ਤੁਹਾਡਾ ਹੈ। ਇਹ ਹੋਣ ਤੋਂ "
+"ਬਾਅਦ ਸਿੰਕ ਸ਼ੁਰੂ ਹੁੰਦਾ ਹੈ।"
+
+#, python-format
+msgid "%(count)s upcoming event is in Discord."
+msgid_plural "%(count)s upcoming events are in Discord."
+msgstr[0] "Discord ਵਿੱਚ %(count)s ਆਉਣ ਵਾਲਾ ਇਵੈਂਟ ਹੈ।"
+msgstr[1] "Discord ਵਿੱਚ %(count)s ਆਉਣ ਵਾਲੇ ਇਵੈਂਟ ਹਨ।"
+
+#, python-format
+msgid "Last synced %(when)s"
+msgstr "ਪਿਛਲਾ ਸਿੰਕ: %(when)s"
+
+#, python-format
+msgid "The last error: %(said)s"
+msgstr "ਪਿਛਲੀ ਗੜਬੜ: %(said)s"
+
+#, python-format
+msgid ""
+"<a href=\"%(url)s\" rel=\"noopener noreferrer\" target=\"_blank\">Give "
+"VRCVerify the Create Events permission</a> in Discord. Nothing else about"
+" the bot changes."
+msgstr ""
+"Discord ਵਿੱਚ <a href=\"%(url)s\" rel=\"noopener noreferrer\" "
+"target=\"_blank\">VRCVerify ਨੂੰ “ਇਵੈਂਟ ਬਣਾਓ” ਇਜਾਜ਼ਤ ਦਿਓ</a>। ਬੋਟ ਬਾਰੇ ਹੋਰ"
+" ਕੁਝ ਨਹੀਂ ਬਦਲਦਾ।"
+
+#, python-format
+msgid ""
+"%(count)s more event wasn't added, because Discord allows 100 events per "
+"server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgid_plural ""
+"%(count)s more events weren't added, because Discord allows 100 events "
+"per server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgstr[0] ""
+"%(count)s ਹੋਰ ਇਵੈਂਟ ਨਹੀਂ ਜੋੜਿਆ ਗਿਆ, ਕਿਉਂਕਿ Discord ਹਰ ਸਰਵਰ ਵਿੱਚ 100 "
+"ਇਵੈਂਟਾਂ ਦੀ ਇਜਾਜ਼ਤ ਦਿੰਦਾ ਹੈ। ਸਭ ਤੋਂ ਨੇੜਲੇ ਇਵੈਂਟ ਸਿੰਕ ਹੁੰਦੇ ਹਨ, ਅਤੇ ਬਾਕੀ "
+"ਉਹਨਾਂ ਦੇ ਖ਼ਤਮ ਹੁੰਦੇ ਹੀ ਜੁੜਦੇ ਜਾਂਦੇ ਹਨ।"
+msgstr[1] ""
+"%(count)s ਹੋਰ ਇਵੈਂਟ ਨਹੀਂ ਜੋੜੇ ਗਏ, ਕਿਉਂਕਿ Discord ਹਰ ਸਰਵਰ ਵਿੱਚ 100 ਇਵੈਂਟਾਂ"
+" ਦੀ ਇਜਾਜ਼ਤ ਦਿੰਦਾ ਹੈ। ਸਭ ਤੋਂ ਨੇੜਲੇ ਇਵੈਂਟ ਸਿੰਕ ਹੁੰਦੇ ਹਨ, ਅਤੇ ਬਾਕੀ ਉਹਨਾਂ ਦੇ "
+"ਖ਼ਤਮ ਹੁੰਦੇ ਹੀ ਜੁੜਦੇ ਜਾਂਦੇ ਹਨ।"
 
 msgid "Not applied"
 msgstr "ਲਾਗੂ ਨਹੀਂ"

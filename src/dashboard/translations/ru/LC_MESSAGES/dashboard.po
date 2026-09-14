@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 07:54-0400\n"
+"POT-Creation-Date: 2026-09-14 10:05-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
@@ -811,6 +811,29 @@ msgstr "Приглашайте участников в свою группу, к
 msgid "A record of verification activity for your moderators."
 msgstr "Запись о проверках для ваших модераторов."
 
+msgid "Calendar sync"
+msgstr "Синхронизация календаря"
+
+msgid ""
+"Mirror your VRChat group's public events into Discord's Events tab, where"
+" members get RSVPs, reminders and times in their own time zone."
+msgstr ""
+"Переносит публичные события вашей группы VRChat во вкладку «События» в "
+"Discord, где участники могут отметиться, получить напоминания и видеть "
+"время в своём часовом поясе."
+
+msgid "Sync events to Discord"
+msgstr "Синхронизировать события с Discord"
+
+msgid ""
+"Creates a Discord event for each upcoming public event on your group's "
+"VRChat calendar, and keeps it up to date. Turning this off removes the "
+"events that haven't started."
+msgstr ""
+"Создаёт событие Discord для каждого предстоящего публичного события в "
+"календаре вашей группы VRChat и поддерживает его в актуальном состоянии. "
+"Если выключить, события, которые ещё не начались, будут удалены."
+
 msgid "Not checked yet"
 msgstr "Ещё не проверено"
 
@@ -965,6 +988,82 @@ msgid ""
 msgstr ""
 "Функции группы VRChat входят в VRCVerify Premium. Ваша группа сохраняется"
 " как есть, и всё продолжится с того же места, если подписку возобновить."
+
+msgid "Syncing…"
+msgstr "Синхронизация…"
+
+msgid "Reading your group's calendar. Reload this page in a moment."
+msgstr "Читаем календарь вашей группы. Обновите эту страницу через минуту."
+
+msgid "Synced"
+msgstr "Синхронизировано"
+
+msgid "VRCVerify can't create events in this server"
+msgstr "VRCVerify не может создавать события на этом сервере"
+
+msgid "Your group's calendar isn't visible"
+msgstr "Календарь вашей группы не виден"
+
+msgid ""
+"VRChat wouldn't show the bot this group's calendar. Check the group still"
+" exists."
+msgstr ""
+"VRChat не показал боту календарь этой группы. Проверьте, что группа ещё "
+"существует."
+
+msgid "Nothing is wrong with your setup. The next sync will try again."
+msgstr "С вашей настройкой всё в порядке. Следующая синхронизация попробует снова."
+
+msgid "The last sync didn't finish"
+msgstr "Последняя синхронизация не завершилась"
+
+msgid "The next sync will try again."
+msgstr "Следующая синхронизация попробует снова."
+
+msgid "Couldn't start the sync"
+msgstr "Не удалось начать синхронизацию"
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"sync will try again."
+msgstr ""
+"Бот не смог связаться с той своей частью, которая общается с VRChat. "
+"Следующая синхронизация попробует снова."
+
+msgid "Some events couldn't be updated in Discord"
+msgstr "Некоторые события не удалось обновить в Discord"
+
+msgid "Waiting for the first sync"
+msgstr "Ждём первую синхронизацию"
+
+msgid ""
+"The first sync starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr ""
+"Первая синхронизация начинается в течение минуты после включения. "
+"Обновите эту страницу чуть позже."
+
+msgid ""
+"VRCVerify doesn't have the Create Events permission in this server, so "
+"the next sync won't be able to add events."
+msgstr ""
+"У VRCVerify нет права «Создавать события» на этом сервере, поэтому "
+"следующая синхронизация не сможет добавить события."
+
+msgid ""
+"No public events were found on this group. Events visible only to group "
+"members aren't synced yet."
+msgstr ""
+"В этой группе не найдено публичных событий. События, видимые только "
+"участникам группы, пока не синхронизируются."
+
+msgid ""
+"None of this group's upcoming events are public, so there's nothing to "
+"sync. Events limited to members or to roles aren't synced."
+msgstr ""
+"Ни одно из предстоящих событий этой группы не публичное, поэтому "
+"синхронизировать нечего. События, доступные только участникам или "
+"отдельным ролям, не синхронизируются."
 
 msgid ""
 "Group invites are part of VRCVerify Premium. Your group is kept exactly "
@@ -1823,6 +1922,60 @@ msgstr ""
 "Пригласите этот аккаунт в свою группу: <a href=\"%(account_url)s\" "
 "rel=\"noopener noreferrer\" target=\"_blank\">%(account_id)s</a> — "
 "сверьте ID, потому что отображаемые имена в VRChat не уникальны."
+
+msgid ""
+"Connect your VRChat group above and confirm it's yours. Syncing starts "
+"once that's done."
+msgstr ""
+"Подключите группу VRChat выше и подтвердите, что она ваша. После этого "
+"начнётся синхронизация."
+
+#, python-format
+msgid "%(count)s upcoming event is in Discord."
+msgid_plural "%(count)s upcoming events are in Discord."
+msgstr[0] "В Discord %(count)s предстоящее событие."
+msgstr[1] "В Discord %(count)s предстоящих события."
+msgstr[2] "В Discord %(count)s предстоящих событий."
+
+#, python-format
+msgid "Last synced %(when)s"
+msgstr "Последняя синхронизация: %(when)s"
+
+#, python-format
+msgid "The last error: %(said)s"
+msgstr "Последняя ошибка: %(said)s"
+
+#, python-format
+msgid ""
+"<a href=\"%(url)s\" rel=\"noopener noreferrer\" target=\"_blank\">Give "
+"VRCVerify the Create Events permission</a> in Discord. Nothing else about"
+" the bot changes."
+msgstr ""
+"<a href=\"%(url)s\" rel=\"noopener noreferrer\" target=\"_blank\">Выдайте"
+" VRCVerify право «Создавать события»</a> в Discord. Больше ничего в боте "
+"не изменится."
+
+#, python-format
+msgid ""
+"%(count)s more event wasn't added, because Discord allows 100 events per "
+"server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgid_plural ""
+"%(count)s more events weren't added, because Discord allows 100 events "
+"per server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgstr[0] ""
+"Ещё %(count)s событие не добавлено, потому что Discord разрешает 100 "
+"событий на сервер. Ближайшие синхронизированы, остальные добавятся по "
+"мере их завершения."
+msgstr[1] ""
+"Ещё %(count)s события не добавлены, потому что Discord разрешает 100 "
+"событий на сервер. Ближайшие синхронизированы, остальные добавятся по "
+"мере их завершения."
+msgstr[2] ""
+"Ещё %(count)s событий не добавлено, потому что Discord разрешает 100 "
+"событий на сервер. Ближайшие синхронизированы, остальные добавятся по "
+"мере их завершения."
 
 msgid "Not applied"
 msgstr "Не применяется"

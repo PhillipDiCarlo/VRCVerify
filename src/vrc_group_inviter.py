@@ -24,6 +24,10 @@ a button in their post-verification DM, and this worker checks whether they
 are already in the group before inviting them. It never invites anyone who did
 not ask, and it never overrides a block -- see send_group_invite.
 
+`fetch_group_calendar_page` (issue #289) reads one page of a group's calendar
+for calendar sync. One page per job, so a 731-event calendar is eight short
+jobs with member invites free to run between them, not one long one.
+
 `verify_group_claim` (issue #289) is the ownership proof on its own: it reads
 the group and looks for the claim code, and it never joins. Calendar sync of
 public events needs a proven group but no seat, so the proof had to stop being
@@ -44,6 +48,7 @@ from dotenv import load_dotenv
 from pika.exceptions import AMQPError
 
 from log_safety import install_log_scrubbing
+from vrchatapi.api.calendar_api import CalendarApi
 from vrchatapi.api.groups_api import GroupsApi
 from vrchatapi.exceptions import ApiException, UnauthorizedException
 from vrchatapi.models.create_group_invite_request import CreateGroupInviteRequest
@@ -141,6 +146,7 @@ JOB_VERIFY_SETUP = "verify_group_setup"
 JOB_SEND_INVITE = "send_group_invite"
 JOB_LEAVE_GROUP = "leave_group"
 JOB_VERIFY_CLAIM = "verify_group_claim"
+JOB_FETCH_CALENDAR_PAGE = "fetch_group_calendar_page"
 
 # Outcomes the dashboard renders. Each names one specific thing an admin can
 # act on, because "setup failed" tells them nothing about what to do next.
@@ -216,6 +222,23 @@ CLAIM_CODE_MISSING = STATE_CODE_MISSING
 CLAIM_GROUP_NOT_FOUND = STATE_GROUP_NOT_FOUND
 CLAIM_VRCHAT_UNAVAILABLE = STATE_VRCHAT_UNAVAILABLE
 CLAIM_BAD_JOB = STATE_BAD_JOB
+
+# Outcomes of reading one calendar page (#289).
+CALENDAR_PAGE_OK = "ok"
+CALENDAR_PAGE_GROUP_NOT_FOUND = STATE_GROUP_NOT_FOUND
+CALENDAR_PAGE_VRCHAT_UNAVAILABLE = STATE_VRCHAT_UNAVAILABLE
+CALENDAR_PAGE_BAD_JOB = STATE_BAD_JOB
+CALENDAR_PAGE_STATES = frozenset(
+    {
+        CALENDAR_PAGE_OK,
+        CALENDAR_PAGE_GROUP_NOT_FOUND,
+        CALENDAR_PAGE_VRCHAT_UNAVAILABLE,
+        CALENDAR_PAGE_BAD_JOB,
+    }
+)
+# The page size the API allows and the bot asks for. Anything else in a job is
+# clamped to this, so a job cannot make one call fetch an unbounded page.
+CALENDAR_PAGE_MAX = 100
 
 CLAIM_STATES = frozenset(
     {
@@ -820,6 +843,115 @@ def verify_group_claim(job: dict) -> dict:
     return _claim_result(job, CLAIM_PROVEN, **_display(group))
 
 
+def _calendar_result(job: dict, state: str, **extra) -> dict:
+    """One calendar page outcome. Carries `type` so the bot can route it."""
+    payload = {
+        "type": JOB_FETCH_CALENDAR_PAGE,
+        "jobID": job.get("jobID"),
+        "guildID": job.get("guildID"),
+        "groupID": job.get("groupID"),
+        "offset": job.get("offset"),
+        "ok": state == CALENDAR_PAGE_OK,
+        "state": state,
+        "events": [],
+        "count": 0,
+        "error_message": None,
+    }
+    payload.update(extra)
+    return payload
+
+
+def _trim_calendar_event(raw: dict) -> dict:
+    """The fields calendar sync reads, from VRChat's raw camelCase JSON.
+
+    Raw rather than the vrchatapi model on purpose: vrchatapi 1.20.7 silently
+    dropped `seriesId` and `occurrenceKind` while VRChat was already sending
+    them, which is how the first probe for #289 concluded there was no series
+    linkage. Reading the JSON keeps a library upgrade from changing what the
+    sync sees. Trimmed, so a page on the result queue is a few dozen kilobytes
+    rather than every field VRChat returns.
+    """
+    return {
+        "id": raw.get("id"),
+        "series_id": raw.get("seriesId"),
+        "kind": raw.get("occurrenceKind"),
+        "access": raw.get("accessType"),
+        "role_ids": raw.get("roleIds"),
+        "draft": bool(raw.get("isDraft")),
+        "deleted": raw.get("deletedAt") is not None,
+        "title": raw.get("title"),
+        # Discord allows 1,000; the bot clips again to leave room for its link.
+        "description": (raw.get("description") or "")[:1000],
+        "starts_at": raw.get("startsAt"),
+        "ends_at": raw.get("endsAt"),
+    }
+
+
+def fetch_group_calendar_page(job: dict) -> dict:
+    """Read one page of a group's calendar. Reads only; never joins.
+
+    The bot owns the poll: it asks for offset 0, and asks for the next page only
+    when this one came back full. Nothing here decides what to sync.
+    """
+    group_id = job.get("groupID")
+    offset = job.get("offset")
+    if (
+        not isinstance(group_id, str)
+        or not group_id.startswith("grp_")
+        or not isinstance(offset, int)
+        or isinstance(offset, bool)
+        or offset < 0
+    ):
+        return _calendar_result(job, CALENDAR_PAGE_BAD_JOB, error_message="Not a calendar page job")
+    size = job.get("n")
+    if not isinstance(size, int) or isinstance(size, bool) or not 1 <= size <= CALENDAR_PAGE_MAX:
+        size = CALENDAR_PAGE_MAX
+
+    client, session_error = vrchat_session.get()
+    if client is None:
+        meta = session_error or default_session_error()
+        return _calendar_result(job, CALENDAR_PAGE_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message"))
+    calendar = CalendarApi(client)
+    try:
+        response = _call_with_retry(
+            calendar.get_group_calendar_events,
+            group_id,
+            n=size,
+            offset=offset,
+            _preload_content=False,
+            _request_timeout=request_timeout(),
+        )
+    except UnauthorizedException as e:
+        vrchat_session.invalidate(classify_api_error(e))
+        return _calendar_result(job, CALENDAR_PAGE_VRCHAT_UNAVAILABLE, error_message="VRChat session expired")
+    except ApiException as e:
+        if getattr(e, "status", None) in {403, 404}:
+            return _calendar_result(
+                job, CALENDAR_PAGE_GROUP_NOT_FOUND, error_message="That VRChat group's calendar is not visible to the bot"
+            )
+        logging.warning("Calendar page for group %s failed: %s", group_id, _api_detail(e))
+        meta = classify_api_error(e)
+        return _calendar_result(job, CALENDAR_PAGE_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message"))
+
+    try:
+        body = json.loads(getattr(response, "data", b"") or b"[]")
+    except ValueError:
+        return _calendar_result(
+            job, CALENDAR_PAGE_VRCHAT_UNAVAILABLE, error_message="VRChat returned a calendar page that is not JSON"
+        )
+    # A list today. Accepted wrapped as well, since the other list endpoints in
+    # this API come back as {"results": [...]} and this one may follow.
+    rows = body.get("results") if isinstance(body, dict) else body
+    if not isinstance(rows, list):
+        return _calendar_result(
+            job, CALENDAR_PAGE_VRCHAT_UNAVAILABLE, error_message="VRChat returned a calendar page in an unknown shape"
+        )
+    events = [_trim_calendar_event(row) for row in rows if isinstance(row, dict)]
+    # `count` is what VRChat returned, before anything was dropped, because it
+    # is what tells the bot whether there is another page.
+    return _calendar_result(job, CALENDAR_PAGE_OK, events=events, count=len(rows), n=size)
+
+
 def _invite_result(job: dict, state: str, **extra) -> dict:
     """One invite outcome, shaped for the bot's result consumer.
 
@@ -1278,6 +1410,7 @@ HANDLERS = {
     JOB_SEND_INVITE: send_group_invite,
     JOB_LEAVE_GROUP: leave_group,
     JOB_VERIFY_CLAIM: verify_group_claim,
+    JOB_FETCH_CALENDAR_PAGE: fetch_group_calendar_page,
 }
 
 
@@ -1417,6 +1550,14 @@ def process_job(ch, method, properties, body):
                             failed,
                             LEAVE_FAILED,
                             error_message="The leave failed unexpectedly.",
+                        )
+                    )
+                elif failed.get("type") == JOB_FETCH_CALENDAR_PAGE:
+                    publish_result(
+                        _calendar_result(
+                            failed,
+                            CALENDAR_PAGE_VRCHAT_UNAVAILABLE,
+                            error_message="The calendar read failed unexpectedly.",
                         )
                     )
                 elif failed.get("type") == JOB_VERIFY_CLAIM:

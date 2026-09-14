@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 07:54-0400\n"
+"POT-Creation-Date: 2026-09-14 10:05-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: nl\n"
@@ -810,6 +810,29 @@ msgstr "Nodig leden uit voor je groep zodra ze geverifieerd zijn."
 msgid "A record of verification activity for your moderators."
 msgstr "Een overzicht van de verificatieactiviteit voor je moderators."
 
+msgid "Calendar sync"
+msgstr "Agendasynchronisatie"
+
+msgid ""
+"Mirror your VRChat group's public events into Discord's Events tab, where"
+" members get RSVPs, reminders and times in their own time zone."
+msgstr ""
+"Zet de openbare evenementen van je VRChat-groep in het tabblad "
+"Evenementen van Discord, waar leden zich kunnen aanmelden, herinneringen "
+"krijgen en tijden in hun eigen tijdzone zien."
+
+msgid "Sync events to Discord"
+msgstr "Evenementen synchroniseren met Discord"
+
+msgid ""
+"Creates a Discord event for each upcoming public event on your group's "
+"VRChat calendar, and keeps it up to date. Turning this off removes the "
+"events that haven't started."
+msgstr ""
+"Maakt een Discord-evenement voor elk komend openbaar evenement in de "
+"VRChat-agenda van je groep en houdt het bij. Als je dit uitzet, worden de"
+" evenementen verwijderd die nog niet zijn begonnen."
+
 msgid "Not checked yet"
 msgstr "Nog niet gecontroleerd"
 
@@ -974,6 +997,84 @@ msgstr ""
 "VRChat-groepsfuncties horen bij VRCVerify Premium. Je groep blijft "
 "precies zoals hij is, en dit pakt de draad weer op als het abonnement "
 "wordt verlengd."
+
+msgid "Syncing…"
+msgstr "Bezig met synchroniseren…"
+
+msgid "Reading your group's calendar. Reload this page in a moment."
+msgstr "De agenda van je groep wordt gelezen. Herlaad deze pagina zo meteen."
+
+msgid "Synced"
+msgstr "Gesynchroniseerd"
+
+msgid "VRCVerify can't create events in this server"
+msgstr "VRCVerify kan in deze server geen evenementen aanmaken"
+
+msgid "Your group's calendar isn't visible"
+msgstr "De agenda van je groep is niet zichtbaar"
+
+msgid ""
+"VRChat wouldn't show the bot this group's calendar. Check the group still"
+" exists."
+msgstr ""
+"VRChat liet de bot de agenda van deze groep niet zien. Controleer of de "
+"groep nog bestaat."
+
+msgid "Nothing is wrong with your setup. The next sync will try again."
+msgstr ""
+"Er is niets mis met je instellingen. De volgende synchronisatie probeert "
+"het opnieuw."
+
+msgid "The last sync didn't finish"
+msgstr "De laatste synchronisatie is niet afgerond"
+
+msgid "The next sync will try again."
+msgstr "De volgende synchronisatie probeert het opnieuw."
+
+msgid "Couldn't start the sync"
+msgstr "De synchronisatie kon niet starten"
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"sync will try again."
+msgstr ""
+"De bot kon het deel van zichzelf dat met VRChat praat niet bereiken. De "
+"volgende synchronisatie probeert het opnieuw."
+
+msgid "Some events couldn't be updated in Discord"
+msgstr "Sommige evenementen konden niet worden bijgewerkt in Discord"
+
+msgid "Waiting for the first sync"
+msgstr "Wacht op de eerste synchronisatie"
+
+msgid ""
+"The first sync starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr ""
+"De eerste synchronisatie begint binnen een minuut nadat je dit aanzet. "
+"Herlaad deze pagina zo meteen."
+
+msgid ""
+"VRCVerify doesn't have the Create Events permission in this server, so "
+"the next sync won't be able to add events."
+msgstr ""
+"VRCVerify heeft in deze server niet de machtiging ‘Evenementen aanmaken’,"
+" dus de volgende synchronisatie kan geen evenementen toevoegen."
+
+msgid ""
+"No public events were found on this group. Events visible only to group "
+"members aren't synced yet."
+msgstr ""
+"Er zijn geen openbare evenementen gevonden in deze groep. Evenementen die"
+" alleen groepsleden zien, worden nog niet gesynchroniseerd."
+
+msgid ""
+"None of this group's upcoming events are public, so there's nothing to "
+"sync. Events limited to members or to roles aren't synced."
+msgstr ""
+"Geen van de komende evenementen van deze groep is openbaar, dus er valt "
+"niets te synchroniseren. Evenementen die beperkt zijn tot leden of rollen"
+" worden niet gesynchroniseerd."
 
 msgid ""
 "Group invites are part of VRCVerify Premium. Your group is kept exactly "
@@ -1834,6 +1935,55 @@ msgstr ""
 "Nodig dit account uit voor je groep: <a href=\"%(account_url)s\" "
 "rel=\"noopener noreferrer\" target=\"_blank\">%(account_id)s</a> – "
 "controleer of de ID klopt, want VRChat-weergavenamen zijn niet uniek."
+
+msgid ""
+"Connect your VRChat group above and confirm it's yours. Syncing starts "
+"once that's done."
+msgstr ""
+"Koppel hierboven je VRChat-groep en bevestig dat hij van jou is. Daarna "
+"begint de synchronisatie."
+
+#, python-format
+msgid "%(count)s upcoming event is in Discord."
+msgid_plural "%(count)s upcoming events are in Discord."
+msgstr[0] "%(count)s komend evenement staat in Discord."
+msgstr[1] "%(count)s komende evenementen staan in Discord."
+
+#, python-format
+msgid "Last synced %(when)s"
+msgstr "Laatst gesynchroniseerd: %(when)s"
+
+#, python-format
+msgid "The last error: %(said)s"
+msgstr "Laatste fout: %(said)s"
+
+#, python-format
+msgid ""
+"<a href=\"%(url)s\" rel=\"noopener noreferrer\" target=\"_blank\">Give "
+"VRCVerify the Create Events permission</a> in Discord. Nothing else about"
+" the bot changes."
+msgstr ""
+"<a href=\"%(url)s\" rel=\"noopener noreferrer\" target=\"_blank\">Geef "
+"VRCVerify de machtiging ‘Evenementen aanmaken’</a> in Discord. Verder "
+"verandert er niets aan de bot."
+
+#, python-format
+msgid ""
+"%(count)s more event wasn't added, because Discord allows 100 events per "
+"server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgid_plural ""
+"%(count)s more events weren't added, because Discord allows 100 events "
+"per server. The soonest ones are synced, and the rest are added as those "
+"finish."
+msgstr[0] ""
+"%(count)s evenement is niet toegevoegd, omdat Discord 100 evenementen per"
+" server toestaat. De eerstvolgende worden gesynchroniseerd en de rest "
+"wordt toegevoegd zodra die voorbij zijn."
+msgstr[1] ""
+"%(count)s evenementen zijn niet toegevoegd, omdat Discord 100 evenementen"
+" per server toestaat. De eerstvolgende worden gesynchroniseerd en de rest"
+" wordt toegevoegd zodra die voorbij zijn."
 
 msgid "Not applied"
 msgstr "Niet toegepast"

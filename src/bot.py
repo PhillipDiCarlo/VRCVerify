@@ -555,6 +555,34 @@ SEAT_CAPACITY_WARN_FREE = _int_env("SEAT_CAPACITY_WARN_FREE", 10, minimum=0)
 # the reclaim timely -- the grace period is -- so this is set by how fresh the
 # capacity warning should be, not by how fast a seat comes back.
 SEAT_SWEEP_INTERVAL = _int_env("SEAT_SWEEP_INTERVAL", 6 * 3600)
+
+# Calendar sync (#289). How often a linked group's calendar is read, before
+# jitter. Each read is 1 to 8 calendar calls on the invite account (measured on
+# live groups: 52 to 731 events at 100 a page), so this is set by how stale an
+# event may be in Discord, not by how cheap a read is.
+CALENDAR_POLL_INTERVAL_SECONDS = _int_env("CALENDAR_POLL_INTERVAL_SECONDS", 3600, minimum=600)
+# How long a poll may run before it is treated as lost. A poll is a chain of
+# page jobs, and a bot restart drops the pages collected so far with it.
+CALENDAR_POLL_TIMEOUT_SECONDS = _int_env("CALENDAR_POLL_TIMEOUT_SECONDS", 900)
+# How many pages one poll may read. 20 is 2,000 events, nearly three times the
+# largest calendar measured. A calendar past that is synced from its first
+# 2,000, soonest first, which is all the caps below would keep anyway.
+CALENDAR_MAX_PAGES = _int_env("CALENDAR_MAX_PAGES", 20)
+CALENDAR_PAGE_SIZE = 100
+# Soonest N occurrences per series. Ten covers a weekly series about two months
+# out and caps a daily one at ten days.
+CALENDAR_SERIES_CAP = _int_env("CALENDAR_SERIES_CAP", 10)
+# What the bot adds to a guild at most. Discord allows 100 scheduled or active
+# events per guild, counting the ones the server's own staff made.
+CALENDAR_GUILD_CEILING = _int_env("CALENDAR_GUILD_CEILING", 80)
+DISCORD_SCHEDULED_EVENT_LIMIT = 100
+# Discord refuses an event whose start is already past (measured 2026-09-14:
+# GUILD_SCHEDULED_EVENT_SCHEDULE_PAST). An occurrence starting within this
+# margin is skipped rather than sent to be refused.
+CALENDAR_START_MARGIN_SECONDS = _int_env("CALENDAR_START_MARGIN_SECONDS", 300)
+# Spacing between two Discord writes in one sync, so a series moving to a new
+# day is a trickle of PATCHes rather than a burst. discord.py still honors 429s.
+CALENDAR_WRITE_SPACING_SECONDS = _float_env("CALENDAR_WRITE_SPACING_SECONDS", 1.0)
 # Capped and spaced for the same reason panel nudges are: a backlog, a clock
 # jump or a long outage must trickle out rather than becoming a burst of VRChat
 # writes from one account.
@@ -1326,6 +1354,93 @@ class GroupOwnershipProof(Base):
     # SAME group: an admin who tidies the code out of the description has not
     # stopped running the group.
     proven_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class GroupCalendarLink(Base):
+    """A guild's calendar sync: the switch, and where its polling has got (#289).
+
+    A separate table for the reason the others give: create_all() adds missing
+    tables but never columns. Several columns below are for phases not written
+    yet (the join-link announcement, group-scoped events), declared now because
+    adding one later is a hand-run ALTER against the live database.
+
+    One row per guild, and the group is NOT stored here as configuration. The
+    guild's group is group_invite_config.group_id, proven by
+    group_ownership_proof. `group_id` below is only the group the synced events
+    came from, so the sync can tell that the admin has changed group and clear
+    out the old group's events.
+    """
+
+    __tablename__ = "group_calendar_link"
+    server_id = Column(String, primary_key=True)
+    # The admin's switch. Never the gate on its own: a lapsed server keeps it on
+    # (the field is write_locked), so the sync also resolves the plan.
+    enabled = Column(Boolean, nullable=False, default=False)
+    # The group the rows in calendar_event_sync were built from.
+    group_id = Column(String(64), nullable=True)
+    # PR 2: where the join link is announced, and who is pinged.
+    announce_channel_id = Column(String(30), nullable=True)
+    ping_role_id = Column(String(30), nullable=True)
+    # PR 3: also sync group-scoped events, for a group the bot is a member of.
+    include_group_events = Column(Boolean, nullable=False, default=False)
+    # The poll in flight, if any. Its pages are collected in memory, so a poll
+    # older than CALENDAR_POLL_TIMEOUT_SECONDS is treated as lost.
+    poll_job_id = Column(String(64), nullable=True)
+    poll_started_at = Column(DateTime(timezone=True), nullable=True)
+    next_poll_at = Column(DateTime(timezone=True), nullable=True)
+    last_polled_at = Column(DateTime(timezone=True), nullable=True)
+    # One of CALENDAR_SYNC_STATES: how the last poll and sync went.
+    last_state = Column(String(32), nullable=True)
+    # The worker's or Discord's own sentence, unbounded for the reason
+    # group_invite_config.verify_error gives.
+    last_error = Column(String, nullable=True)
+    # What the last poll found, for the dashboard. `visible` is every event the
+    # read returned, `eligible` the ones that could be synced, `synced` the ones
+    # that are, and `over_cap` the eligible ones the caps left out.
+    visible_count = Column(Integer, nullable=True)
+    eligible_count = Column(Integer, nullable=True)
+    synced_count = Column(Integer, nullable=True)
+    over_cap_count = Column(Integer, nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class CalendarEventSync(Base):
+    """One VRChat calendar occurrence, and the Discord event mirroring it (#289).
+
+    VRChat expands a recurring event into independent occurrences with their
+    own `cal_` ids (measured: one weekly series is 52 of them), so one
+    `vrc_event_id` is exactly one Discord event and no occurrence date is needed
+    in the key.
+    """
+
+    __tablename__ = "calendar_event_sync"
+    vrc_event_id = Column(String(64), primary_key=True)
+    server_id = Column(String, primary_key=True)
+    group_id = Column(String(64), nullable=True)
+    # The series the occurrence belongs to, or None for a one-off event. The
+    # per-series cap counts against it.
+    vrc_series_id = Column(String(64), nullable=True)
+    discord_event_id = Column(String(30), nullable=True)
+    starts_at = Column(DateTime(timezone=True), nullable=True)
+    ends_at = Column(DateTime(timezone=True), nullable=True)
+    # A hash of exactly what was sent to Discord. A different hash on the next
+    # poll is an edit to push; the same hash is nothing to do.
+    content_hash = Column(String(64), nullable=True)
+    # One of CALENDAR_EVENT_STATES.
+    state = Column(String(32), nullable=True)
+    # The first poll that did not see this occurrence. A Discord event is only
+    # deleted when a SECOND poll still does not see it: recreating one loses
+    # every member's "Interested", so a single empty or short answer from
+    # VRChat must never be enough to take events down.
+    missing_since = Column(DateTime(timezone=True), nullable=True)
+    # PR 2: when the join link was announced, and what it pointed at.
+    announced_at = Column(DateTime(timezone=True), nullable=True)
+    join_location = Column(String, nullable=True)
     updated_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -2187,6 +2302,10 @@ FEATURE_BRANDED_PANEL = "branded_panel"
 # them (200 with VRC+). Opening it to the free tier means buying accounts
 # for servers that pay nothing, which is how a seat cap becomes an outage.
 FEATURE_GROUP_INVITE = "group_invite"
+# Issue #289: a linked VRChat group's calendar, mirrored into Discord Scheduled
+# Events. Not grandfathered either, for the same reason: it did not exist at
+# the cutover, and its cost is the invite account's VRChat call budget.
+FEATURE_CALENDAR_SYNC = "calendar_sync"
 
 # Servers configured before the cutover keep these three for free, forever.
 # The reduced cooldown and the activity log are new, so nobody is losing them.
@@ -2210,10 +2329,39 @@ GRANDFATHERED_FEATURES = frozenset(
 # Each of those has a test that fails the moment a name leaves this set, so
 # taking the entry out is what forces all three to be built -- in the same
 # change that makes the feature real, and it cannot be forgotten afterwards.
-# Empty, and normally is. The group invite came out of it when the settings
-# page gained controls for it, which is exactly the sequence the comment above
-# describes: the name leaves in the change that makes the feature reachable.
-UNANNOUNCED_FEATURES = frozenset()
+# Normally empty. The group invite came out of it when the settings page gained
+# controls for it, which is exactly the sequence the comment above describes:
+# the name leaves in the change that makes the feature reachable.
+#
+# Calendar sync (#289) is the exception to that sequence, by decision: it has
+# controls from its second PR, but it is announced once, after its last phase
+# ships. Until then only the guilds in CALENDAR_SYNC_PREVIEW_GUILDS can reach
+# it -- see feature_is_reachable.
+UNANNOUNCED_FEATURES = frozenset({FEATURE_CALENDAR_SYNC})
+
+
+def _guild_id_set(raw) -> frozenset:
+    return frozenset(
+        part.strip() for part in (raw or "").split(",") if part.strip().isdigit()
+    )
+
+
+# Guilds that may use an unannounced feature anyway, for live testing before it
+# is announced. An operator setting, never something a guild can ask for.
+CALENDAR_SYNC_PREVIEW_GUILDS = _guild_id_set(os.getenv("CALENDAR_SYNC_PREVIEW_GUILDS"))
+
+
+def feature_is_reachable(feature: Optional[str], guild_id) -> bool:
+    """May THIS guild see and use the feature at all, plan aside?
+
+    Announced features are reachable by everyone. An unannounced one only by the
+    preview guilds, which is what lets a phased feature be tested in a real
+    server without appearing in the pitch, the pricing page or anyone else's
+    dashboard.
+    """
+    if feature not in UNANNOUNCED_FEATURES:
+        return True
+    return feature == FEATURE_CALENDAR_SYNC and str(guild_id) in CALENDAR_SYNC_PREVIEW_GUILDS
 
 
 class SettingsField:
@@ -2282,6 +2430,10 @@ SETTINGS_FIELDS = (
     SettingsField(
         "vrchat_group_invite_enabled", FEATURE_GROUP_INVITE, write_locked=True
     ),
+    # write_locked for the reason vrchat_group_id gives. The switch is the
+    # admin's; whether anything is synced also needs a proven group, the plan
+    # and the Discord permission, and the dashboard says which is missing.
+    SettingsField("calendar_sync_enabled", FEATURE_CALENDAR_SYNC, write_locked=True),
 )
 
 SETTINGS_FIELDS_BY_NAME = {field.name: field for field in SETTINGS_FIELDS}
@@ -2324,6 +2476,7 @@ DASHBOARD_WRITABLE_FIELDS = frozenset(
         "verification_log_channel_id",
         "vrchat_group_id",
         "vrchat_group_invite_enabled",
+        "calendar_sync_enabled",
     }
 )
 
@@ -2547,6 +2700,7 @@ SETTING_COERCERS = {
     ),
     "vrchat_group_id": parse_vrchat_group_id,
     "vrchat_group_invite_enabled": _bool_coercer("vrchat_group_invite_enabled"),
+    "calendar_sync_enabled": _bool_coercer("calendar_sync_enabled"),
 }
 
 # Fields whose value has to name a real role in *this* guild.
@@ -4248,6 +4402,476 @@ def record_group_claim_result(payload: dict) -> str:
             config.group_icon_url = payload.get("icon_url") or None
             config.updated_at = now
         return "applied"
+
+
+# -------------------------------------------------------------------
+# Calendar sync: what to mirror, decided without touching Discord (#289)
+# -------------------------------------------------------------------
+JOB_FETCH_CALENDAR_PAGE = "fetch_group_calendar_page"
+
+# group_calendar_link.last_state. The worker's page verdicts mirror
+# vrc_group_inviter.CALENDAR_PAGE_STATES; the rest are this side's.
+CALENDAR_PAGE_OK = "ok"
+CALENDAR_PAGE_GROUP_NOT_FOUND = GROUP_SETUP_GROUP_NOT_FOUND
+CALENDAR_PAGE_VRCHAT_UNAVAILABLE = GROUP_SETUP_VRCHAT_UNAVAILABLE
+CALENDAR_PAGE_BAD_JOB = GROUP_SETUP_BAD_JOB
+CALENDAR_PAGE_STATES = frozenset(
+    {
+        CALENDAR_PAGE_OK,
+        CALENDAR_PAGE_GROUP_NOT_FOUND,
+        CALENDAR_PAGE_VRCHAT_UNAVAILABLE,
+        CALENDAR_PAGE_BAD_JOB,
+    }
+)
+CALENDAR_SYNCED = "synced"
+CALENDAR_POLLING = "polling"
+CALENDAR_TIMED_OUT = GROUP_SETUP_TIMED_OUT
+CALENDAR_WORKER_UNREACHABLE = GROUP_SETUP_WORKER_UNREACHABLE
+# The bot lacks Create Events in the guild. Nothing is written until it has it.
+CALENDAR_MISSING_PERMISSION = "missing_permission"
+CALENDAR_DISCORD_ERROR = "discord_error"
+
+# calendar_event_sync.state.
+CALENDAR_EVENT_SYNCED = "synced"
+# Somebody deleted the Discord event by hand. Recreating it on every poll would
+# be the bot arguing with a moderator, so it is left deleted for as long as the
+# VRChat occurrence exists.
+CALENDAR_EVENT_REMOVED_BY_ADMIN = "removed_by_admin"
+
+
+def parse_calendar_time(value) -> Optional[datetime]:
+    """VRChat's `2026-09-11T11:15:00.000Z`, as an aware datetime, or None."""
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def calendar_event_is_eligible(event: dict, now: datetime) -> bool:
+    """Could this occurrence be mirrored into Discord at all, caps aside?
+
+    Mode 1 (PR 1b) syncs public events only, and says so here rather than
+    trusting a non-member read to have filtered them: the invite account is a
+    member of some groups, and a member's read includes group-scoped events.
+
+    `role_ids` measured as either [] or null on public events, and both mean
+    "not restricted". The series parent is never an event of its own -- the
+    group list does not return it, but the discovery endpoints do.
+    """
+    if not isinstance(event, dict) or not event.get("id"):
+        return False
+    if event.get("kind") not in ("occurrence", "single"):
+        return False
+    if event.get("draft") or event.get("deleted"):
+        return False
+    if event.get("access") != "public":
+        return False
+    if event.get("role_ids"):
+        return False
+    starts = parse_calendar_time(event.get("starts_at"))
+    ends = parse_calendar_time(event.get("ends_at"))
+    if starts is None or ends is None or ends <= starts:
+        return False
+    # Discord refuses a start in the past, so an occurrence about to begin is
+    # skipped rather than sent to be refused.
+    return starts > now + timedelta(seconds=CALENDAR_START_MARGIN_SECONDS)
+
+
+def calendar_event_budget(foreign_active: int) -> int:
+    """How many events the bot may hold in a guild right now.
+
+    Discord's 100 counts the server's own events too, so the bot's ceiling is
+    whatever of CALENDAR_GUILD_CEILING is left after those.
+    """
+    room = DISCORD_SCHEDULED_EVENT_LIMIT - max(0, int(foreign_active))
+    return max(0, min(CALENDAR_GUILD_CEILING, room))
+
+
+def select_calendar_events(events, now: datetime, budget: int):
+    """The occurrences to mirror, soonest first, and what was left out.
+
+    Two caps, in this order: the soonest CALENDAR_SERIES_CAP per series (a
+    one-off event is a series of one), then the soonest `budget` overall. The
+    series cap goes first so one daily series cannot crowd a weekly one out of
+    the guild entirely.
+    """
+    visible = [e for e in events if isinstance(e, dict)]
+    eligible = sorted(
+        (e for e in visible if calendar_event_is_eligible(e, now)),
+        key=lambda e: (parse_calendar_time(e["starts_at"]), e["id"]),
+    )
+    # A calendar read across pages could in principle return one id twice.
+    unique, seen = [], set()
+    for event in eligible:
+        if event["id"] not in seen:
+            seen.add(event["id"])
+            unique.append(event)
+
+    per_series = {}
+    series_capped = []
+    for event in unique:
+        key = event.get("series_id") or event["id"]
+        per_series[key] = per_series.get(key, 0) + 1
+        if per_series[key] <= CALENDAR_SERIES_CAP:
+            series_capped.append(event)
+
+    chosen = series_capped[: max(0, budget)]
+    stats = {
+        "visible": len(visible),
+        "eligible": len(unique),
+        "chosen": len(chosen),
+        # Left out by the per-guild ceiling, which is the one worth warning
+        # about: the per-series cap is policy, this one is Discord's limit.
+        "over_cap": len(series_capped) - len(chosen),
+    }
+    return chosen, stats
+
+
+# Discord's limits, from the Guild Scheduled Event reference and measured for
+# location on 2026-09-14 (100 accepted, 101 refused).
+DISCORD_EVENT_NAME_MAX = 100
+DISCORD_EVENT_DESCRIPTION_MAX = 1000
+DISCORD_EVENT_LOCATION_MAX = 100
+
+
+def _clip_text(text, limit: int) -> str:
+    text = (text or "").strip()
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "\u2026"
+
+
+def build_discord_event_fields(event: dict, group_id: str, group_name) -> dict:
+    """What the Discord event for one occurrence says.
+
+    `location` cannot hold a link: a join link is past 170 characters and even
+    the event's VRChat page is past 100. So it names the group, and the group's
+    page goes at the end of the description, where 1,000 characters is room.
+    The link is added after clipping, so a long VRChat description can never
+    push it off the end.
+    """
+    link = f"https://vrchat.com/home/group/{group_id}"
+    footer = f"\n\nVRChat group: {link}"
+    body = _clip_text(
+        event.get("description"), DISCORD_EVENT_DESCRIPTION_MAX - len(footer)
+    )
+    name = _clip_text(group_name, DISCORD_EVENT_LOCATION_MAX - len("VRChat: "))
+    return {
+        "name": _clip_text(event.get("title"), DISCORD_EVENT_NAME_MAX) or "VRChat event",
+        "description": (body + footer).strip(),
+        "location": f"VRChat: {name}" if name else "VRChat",
+        "start_time": parse_calendar_time(event.get("starts_at")),
+        "end_time": parse_calendar_time(event.get("ends_at")),
+    }
+
+
+def calendar_content_hash(fields: dict) -> str:
+    """A hash of exactly what the Discord event says, to tell an edit from none.
+
+    The start and end are hashed as instants, so an occurrence crossing a DST
+    change (its UTC time moves by an hour, measured on the probe series) is an
+    edit only if the instant VRChat reports has actually changed.
+    """
+    parts = [
+        fields["name"],
+        fields["description"],
+        fields["location"],
+        fields["start_time"].astimezone(timezone.utc).isoformat(),
+        fields["end_time"].astimezone(timezone.utc).isoformat(),
+    ]
+    return hashlib.sha256("\x1f".join(parts).encode("utf-8")).hexdigest()
+
+
+def plan_calendar_changes(rows: dict, chosen, group_id: str, group_name, now: datetime):
+    """What to create, update and delete in Discord to match `chosen`.
+
+    `rows` is this guild's calendar_event_sync rows keyed by vrc_event_id. Rows
+    for occurrences that have already started are never touched: Discord moves
+    them to active and completed on its own, and a finished event cannot be
+    edited (error 180000).
+    """
+    wanted = {}
+    for event in chosen:
+        fields = build_discord_event_fields(event, group_id, group_name)
+        wanted[event["id"]] = (event, fields, calendar_content_hash(fields))
+
+    create, update, delete, missing, seen_again = [], [], [], [], []
+    for event_id, (event, fields, digest) in wanted.items():
+        if rows.get(event_id, {}).get("missing_since") is not None:
+            seen_again.append(event_id)
+        row = rows.get(event_id)
+        started = row is not None and row.get("starts_at") is not None and row["starts_at"] <= now
+        if row is None:
+            create.append((event, fields, digest))
+        elif row.get("state") == CALENDAR_EVENT_REMOVED_BY_ADMIN:
+            continue
+        elif started:
+            # The Discord event already ran (and may be completed, which cannot
+            # be edited), yet VRChat now reports the same occurrence in the
+            # future: it was moved after the fact. That is a new Discord event.
+            create.append((event, fields, digest))
+        elif row.get("content_hash") != digest:
+            update.append((event, fields, digest, row))
+
+    # An occurrence about to start drops out of `chosen` because of the start
+    # margin, not because it went away. Deleting it then would take the event
+    # down minutes before it begins, so the margin protects rows as well.
+    protected_until = now + timedelta(seconds=CALENDAR_START_MARGIN_SECONDS)
+    for event_id, row in rows.items():
+        if event_id in wanted:
+            continue
+        starts = row.get("starts_at")
+        if starts is not None and starts <= protected_until:
+            continue
+        # Deleted only on the second poll that does not see it. See
+        # calendar_event_sync.missing_since for why one is not enough.
+        if row.get("missing_since") is None:
+            missing.append(row)
+        else:
+            delete.append(row)
+    return {
+        "create": create,
+        "update": update,
+        "delete": delete,
+        "missing": missing,
+        "seen_again": seen_again,
+    }
+
+
+# -------------------------------------------------------------------
+# Calendar sync: storage (#289)
+# -------------------------------------------------------------------
+def _calendar_link_dict(row) -> dict:
+    return {
+        "server_id": row.server_id,
+        "enabled": bool(row.enabled),
+        "group_id": row.group_id,
+        "poll_job_id": row.poll_job_id,
+        "poll_started_at": _utc(row.poll_started_at),
+        "next_poll_at": _utc(row.next_poll_at),
+        "last_polled_at": _utc(row.last_polled_at),
+        "last_state": row.last_state,
+        "last_error": row.last_error,
+        "visible_count": row.visible_count,
+        "eligible_count": row.eligible_count,
+        "synced_count": row.synced_count,
+        "over_cap_count": row.over_cap_count,
+    }
+
+
+def load_calendar_link(guild_id) -> Optional[dict]:
+    """This guild's calendar sync row, or None. Raises on a database error,
+    for the reason load_group_invite_config gives."""
+    if guild_id is None:
+        return None
+    with session_scope() as session:
+        row = (
+            session.query(GroupCalendarLink)
+            .filter_by(server_id=panel_view_key(guild_id))
+            .first()
+        )
+        return _calendar_link_dict(row) if row else None
+
+
+def load_calendar_links() -> list:
+    with session_scope() as session:
+        return [_calendar_link_dict(row) for row in session.query(GroupCalendarLink).all()]
+
+
+def save_calendar_enabled(guild_id, enabled: bool) -> None:
+    """Store the admin's switch. Turning it on asks for a poll straight away."""
+    key = panel_view_key(guild_id)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = session.query(GroupCalendarLink).filter_by(server_id=key).first()
+        if row is None:
+            row = GroupCalendarLink(server_id=key, enabled=False, include_group_events=False)
+            session.add(row)
+        if enabled and not row.enabled:
+            row.next_poll_at = None
+        row.enabled = bool(enabled)
+        row.updated_at = now
+
+
+def load_calendar_event_rows(guild_id) -> dict:
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        rows = session.query(CalendarEventSync).filter_by(server_id=key).all()
+        return {
+            row.vrc_event_id: {
+                "vrc_event_id": row.vrc_event_id,
+                "group_id": row.group_id,
+                "vrc_series_id": row.vrc_series_id,
+                "discord_event_id": row.discord_event_id,
+                "starts_at": _utc(row.starts_at),
+                "ends_at": _utc(row.ends_at),
+                "content_hash": row.content_hash,
+                "state": row.state,
+                "missing_since": _utc(row.missing_since),
+            }
+            for row in rows
+        }
+
+
+def store_calendar_event_row(guild_id, group_id, event: dict, fields: dict, digest, discord_event_id, state) -> None:
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        row = (
+            session.query(CalendarEventSync)
+            .filter_by(server_id=key, vrc_event_id=event["id"])
+            .first()
+        )
+        if row is None:
+            row = CalendarEventSync(server_id=key, vrc_event_id=event["id"])
+            session.add(row)
+        row.group_id = group_id
+        row.vrc_series_id = event.get("series_id")
+        row.discord_event_id = discord_event_id
+        row.starts_at = fields["start_time"]
+        row.ends_at = fields["end_time"]
+        row.content_hash = digest
+        row.state = state
+        row.missing_since = None
+        row.updated_at = datetime.now(timezone.utc)
+
+
+def set_calendar_events_missing(guild_id, vrc_event_ids, missing: bool) -> None:
+    """Mark occurrences as not seen by this poll, or seen again."""
+    ids = list(vrc_event_ids)
+    if not ids:
+        return
+    key = panel_view_key(guild_id)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        for row in (
+            session.query(CalendarEventSync)
+            .filter_by(server_id=key)
+            .filter(CalendarEventSync.vrc_event_id.in_(ids))
+        ):
+            if missing and row.missing_since is None:
+                row.missing_since = now
+            elif not missing and row.missing_since is not None:
+                row.missing_since = None
+            row.updated_at = now
+
+
+def mark_calendar_event_removed(guild_id, vrc_event_id) -> None:
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        row = (
+            session.query(CalendarEventSync)
+            .filter_by(server_id=key, vrc_event_id=vrc_event_id)
+            .first()
+        )
+        if row is not None:
+            row.state = CALENDAR_EVENT_REMOVED_BY_ADMIN
+            row.discord_event_id = None
+            row.updated_at = datetime.now(timezone.utc)
+
+
+def delete_calendar_event_rows(guild_id, vrc_event_ids=None) -> None:
+    """Forget sync rows: the named ones, or every one this guild has.
+
+    Rows, not a table. A row describes one Discord event the bot made, and it
+    goes when that event does.
+    """
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        query = session.query(CalendarEventSync).filter_by(server_id=key)
+        if vrc_event_ids is not None:
+            ids = list(vrc_event_ids)
+            if not ids:
+                return
+            query = query.filter(CalendarEventSync.vrc_event_id.in_(ids))
+        query.delete(synchronize_session=False)
+
+
+def calendar_poll_is_due(link: dict, now: datetime) -> bool:
+    """No poll in flight (or the one in flight is lost), and the time has come."""
+    started = link.get("poll_started_at")
+    if link.get("poll_job_id") and started is not None:
+        if (now - started).total_seconds() <= CALENDAR_POLL_TIMEOUT_SECONDS:
+            return False
+    due = link.get("next_poll_at")
+    return due is None or due <= now
+
+
+def begin_calendar_poll(guild_id, group_id) -> dict:
+    """Stamp a poll as in flight and return its first page job."""
+    key = panel_view_key(guild_id)
+    job_id = secrets.token_hex(16)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = session.query(GroupCalendarLink).filter_by(server_id=key).first()
+        if row.poll_job_id and row.last_state == CALENDAR_POLLING:
+            # The previous poll was lost (it is past its timeout, or this would
+            # not be called). Said so, rather than silently replaced.
+            logger.info("Calendar poll %s for guild %s was lost; starting another.", row.poll_job_id, guild_id)
+        row.poll_job_id = job_id
+        row.poll_started_at = now
+        row.last_state = CALENDAR_POLLING
+        # Stamped when the poll starts, not when it succeeds: the sync may write
+        # Discord events for this group before the poll is recorded as done,
+        # and a group change in between must still find them.
+        row.group_id = group_id
+        row.updated_at = now
+    return {
+        "type": JOB_FETCH_CALENDAR_PAGE,
+        "jobID": job_id,
+        "guildID": str(guild_id),
+        "groupID": group_id,
+        "offset": 0,
+        "n": CALENDAR_PAGE_SIZE,
+    }
+
+
+def end_calendar_poll(guild_id, job_id, state: str, *, error=None, stats=None) -> bool:
+    """Record how a poll ended and when the next one is due. False if stale.
+
+    Every ending schedules the next poll at the interval with jitter, failures
+    included: VRChat being down is not a reason to ask it more often, and the
+    jitter is what keeps a fleet of links from polling in step.
+    """
+    key = panel_view_key(guild_id)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = session.query(GroupCalendarLink).filter_by(server_id=key).first()
+        if row is None or row.poll_job_id != job_id:
+            return False
+        row.poll_job_id = None
+        row.poll_started_at = None
+        row.last_state = state
+        row.last_error = error
+        row.next_poll_at = now + timedelta(
+            seconds=CALENDAR_POLL_INTERVAL_SECONDS * random.uniform(0.8, 1.2)
+        )
+        if state == CALENDAR_SYNCED:
+            row.last_polled_at = now
+        if stats is not None:
+            row.visible_count = stats.get("visible")
+            row.eligible_count = stats.get("eligible")
+            row.synced_count = stats.get("synced")
+            row.over_cap_count = stats.get("over_cap")
+        row.updated_at = now
+        return True
+
+
+def reset_calendar_link_group(guild_id) -> None:
+    """The events for the link's old group are gone; forget which group it was."""
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        row = session.query(GroupCalendarLink).filter_by(server_id=key).first()
+        if row is None:
+            return
+        row.group_id = None
+        row.poll_job_id = None
+        row.poll_started_at = None
+        row.next_poll_at = None
+        row.visible_count = row.eligible_count = row.synced_count = row.over_cap_count = None
+        row.last_state = None
+        row.last_error = None
+        row.updated_at = datetime.now(timezone.utc)
 
 
 # -------------------------------------------------------------------
@@ -8216,7 +8840,14 @@ async def request_group_claim_check(guild_id, actor_id):
             exc_info=True,
         )
         return None
-    if not flags.allows(FEATURE_GROUP_INVITE):
+    # Either feature that rests on the proof opens the check (#289).
+    if not (
+        flags.allows(FEATURE_GROUP_INVITE)
+        or (
+            flags.allows(FEATURE_CALENDAR_SYNC)
+            and feature_is_reachable(FEATURE_CALENDAR_SYNC, guild_id)
+        )
+    ):
         raise SettingRejected("vrchat_group_id", "requires_premium", locked=True)
 
     try:
@@ -8263,6 +8894,429 @@ async def request_group_claim_check(guild_id, actor_id):
         )
 
     return await read_dashboard_settings(guild_id)
+
+
+# -------------------------------------------------------------------
+# Calendar sync: polling VRChat and writing Discord (#289)
+# -------------------------------------------------------------------
+# Pages of the polls in flight, keyed by poll id. In memory on purpose: a poll
+# is at most a few minutes of pages, and one lost to a restart is simply run
+# again, which is cheaper than storing hundreds of events per guild to survive
+# something that rarely happens.
+_calendar_polls: dict = {}
+# One sync at a time per guild. A poll finishing while a cleanup for the same
+# guild is running must not interleave its creates with the cleanup's deletes.
+_calendar_locks: dict = {}
+
+CALENDAR_SYNC_PASS_SECONDS = 60
+CALENDAR_POLL_START_SPACING_SECONDS = 2.0
+CALENDAR_AUDIT_REASON = "VRCVerify calendar sync (VRChat group calendar)"
+
+
+def _calendar_lock(guild_id) -> asyncio.Lock:
+    key = panel_view_key(guild_id)
+    lock = _calendar_locks.get(key)
+    if lock is None:
+        lock = _calendar_locks[key] = asyncio.Lock()
+    return lock
+
+
+def bot_can_manage_calendar_events(guild) -> bool:
+    """Create Events is enough for everything the sync does, including editing
+    and deleting its own events (Discord's permission table)."""
+    me = getattr(guild, "me", None)
+    perms = getattr(me, "guild_permissions", None)
+    return bool(
+        getattr(perms, "create_events", False) or getattr(perms, "manage_events", False)
+    )
+
+
+async def _fetch_calendar_event(guild, discord_event_id):
+    """The Discord event, from the cache or the API, or None if it is gone."""
+    if not discord_event_id:
+        return None
+    event = guild.get_scheduled_event(int(discord_event_id))
+    if event is not None:
+        return event
+    try:
+        return await guild.fetch_scheduled_event(int(discord_event_id))
+    except discord.NotFound:
+        return None
+
+
+async def clear_calendar_events(guild, guild_id) -> int:
+    """Delete the bot's Discord events that have not started, and forget them all.
+
+    For turning sync off and for changing the group, never for a lapse (decided
+    on #289). Started events are left: Discord completes them on its own, and
+    deleting one mid-event would pull it from under the people attending.
+    """
+    now = datetime.now(timezone.utc)
+    rows = load_calendar_event_rows(guild_id)
+    deleted = 0
+    for row in rows.values():
+        starts = row.get("starts_at")
+        if row.get("state") != CALENDAR_EVENT_SYNCED or starts is None or starts <= now:
+            continue
+        if guild is None:
+            continue
+        try:
+            event = await _fetch_calendar_event(guild, row.get("discord_event_id"))
+            if event is not None:
+                await event.delete(reason=CALENDAR_AUDIT_REASON)
+                deleted += 1
+                await asyncio.sleep(CALENDAR_WRITE_SPACING_SECONDS)
+        except discord.HTTPException:
+            logger.warning(
+                "Could not delete calendar event %s in guild %s.",
+                row.get("discord_event_id"),
+                guild_id,
+                exc_info=True,
+            )
+    delete_calendar_event_rows(guild_id)
+    reset_calendar_link_group(guild_id)
+    return deleted
+
+
+async def calendar_sync_pass() -> dict:
+    """One look at every link: clean up what needs cleaning, start what is due."""
+    outcome = {"started": 0, "cleared": 0}
+    now = datetime.now(timezone.utc)
+    for link in load_calendar_links():
+        guild_id = link["server_id"]
+        # One guild's failure is logged and skipped, never the whole pass.
+        try:
+            await _calendar_sync_one(link, now, outcome)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Calendar sync failed for guild %s; skipping it this pass.", guild_id)
+    # Pages of polls that will never finish, so memory cannot grow without end.
+    cutoff = now - timedelta(seconds=CALENDAR_POLL_TIMEOUT_SECONDS)
+    for job_id in [j for j, poll in _calendar_polls.items() if poll["started"] < cutoff]:
+        _calendar_polls.pop(job_id, None)
+    return outcome
+
+
+async def _calendar_sync_one(link: dict, now: datetime, outcome: dict) -> None:
+    guild_id = link["server_id"]
+    guild = bot.get_guild(int(guild_id)) if str(guild_id).isdigit() else None
+    if guild is None:
+        return
+    lock = _calendar_lock(guild_id)
+    if lock.locked():
+        # A sync for this guild is still writing. It is looked at next pass
+        # rather than waited on, so one long sync cannot stall every guild.
+        return
+    config = load_group_invite_config(guild_id) or {}
+    current_group = config.get("group_id")
+
+    async with lock:
+        # The admin changed or cleared the group: the old group's events go.
+        if link["group_id"] and link["group_id"] != current_group:
+            await clear_calendar_events(guild, guild_id)
+            outcome["cleared"] += 1
+            link = load_calendar_link(guild_id) or link
+        if not link["enabled"]:
+            if load_calendar_event_rows(guild_id):
+                await clear_calendar_events(guild, guild_id)
+                outcome["cleared"] += 1
+            return
+
+    if not current_group or not feature_is_reachable(FEATURE_CALENDAR_SYNC, guild_id):
+        return
+    # A lapse stops the sync and leaves the events alone (decided on #289).
+    flags = await resolve_premium_flags(guild_id)
+    if not flags.allows(FEATURE_CALENDAR_SYNC):
+        return
+    if not (load_group_ownership(guild_id) or {}).get("proven"):
+        return
+    if not calendar_poll_is_due(link, now):
+        return
+
+    job = begin_calendar_poll(guild_id, current_group)
+    _calendar_polls[job["jobID"]] = {
+        "guild_id": str(guild_id),
+        "group_id": current_group,
+        "next_offset": 0,
+        "pages": 0,
+        "events": [],
+        "started": now,
+    }
+    loop = asyncio.get_running_loop()
+    published = await loop.run_in_executor(None, publish_group_invite_job, job)
+    if not published:
+        _calendar_polls.pop(job["jobID"], None)
+        end_calendar_poll(
+            guild_id,
+            job["jobID"],
+            CALENDAR_WORKER_UNREACHABLE,
+            error="The bot could not reach the group-invite worker.",
+        )
+        return
+    outcome["started"] += 1
+    # Spaced, so a restart with many links due does not queue them all at once
+    # in front of member invites.
+    await asyncio.sleep(CALENDAR_POLL_START_SPACING_SECONDS)
+
+
+async def calendar_sync_task(interval_seconds: int = CALENDAR_SYNC_PASS_SECONDS):
+    """Look for due polls every minute. Per-link jitter lives in next_poll_at."""
+    while True:
+        try:
+            outcome = await calendar_sync_pass()
+            if outcome["started"] or outcome["cleared"]:
+                logger.info(
+                    "Calendar sync: started %s poll(s), cleared %s guild(s).",
+                    outcome["started"],
+                    outcome["cleared"],
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Calendar sync pass failed; retrying next interval.")
+        await asyncio.sleep(interval_seconds + random.uniform(0, 10))
+
+
+async def handle_calendar_page_result(data: dict) -> str:
+    """One page back from the worker: keep it, ask for the next, or sync."""
+    if not isinstance(data, dict):
+        return "bad_payload"
+    job_id = data.get("jobID")
+    guild_id = data.get("guildID")
+    group_id = data.get("groupID")
+    offset = data.get("offset")
+    if not job_id or not guild_id or not str(guild_id).isdigit():
+        return "bad_payload"
+
+    link = load_calendar_link(guild_id)
+    if link is None or link["poll_job_id"] != job_id:
+        _calendar_polls.pop(job_id, None)
+        return "stale"
+    poll = _calendar_polls.get(job_id)
+    if (
+        poll is not None
+        and poll["group_id"] == group_id
+        and isinstance(offset, int)
+        and not isinstance(offset, bool)
+        and offset < poll["next_offset"]
+    ):
+        # A page this poll already has, delivered again: RabbitMQ redelivers a
+        # result whose ack was lost. Behind the poll, not out of order.
+        return "duplicate"
+    if poll is None or poll["group_id"] != group_id or poll["next_offset"] != offset:
+        # A restart dropped the pages collected so far, or the answer is not
+        # the page this poll is waiting for. Either way the poll cannot finish.
+        _calendar_polls.pop(job_id, None)
+        end_calendar_poll(
+            guild_id, job_id, CALENDAR_TIMED_OUT, error="The calendar read was interrupted."
+        )
+        return "lost"
+
+    state = data.get("state")
+    if state != CALENDAR_PAGE_OK:
+        _calendar_polls.pop(job_id, None)
+        if state not in CALENDAR_PAGE_STATES:
+            state = CALENDAR_PAGE_VRCHAT_UNAVAILABLE
+        end_calendar_poll(guild_id, job_id, state, error=data.get("error_message") or None)
+        return state
+
+    events = data.get("events")
+    if isinstance(events, list):
+        poll["events"].extend(e for e in events if isinstance(e, dict))
+    poll["pages"] += 1
+    count = data.get("count") if isinstance(data.get("count"), int) else 0
+    size = data.get("n") if isinstance(data.get("n"), int) and data.get("n") > 0 else CALENDAR_PAGE_SIZE
+
+    if count >= size and poll["pages"] < CALENDAR_MAX_PAGES:
+        poll["next_offset"] = offset + size
+        job = {
+            "type": JOB_FETCH_CALENDAR_PAGE,
+            "jobID": job_id,
+            "guildID": str(guild_id),
+            "groupID": group_id,
+            "offset": poll["next_offset"],
+            "n": size,
+        }
+        loop = asyncio.get_running_loop()
+        if not await loop.run_in_executor(None, publish_group_invite_job, job):
+            _calendar_polls.pop(job_id, None)
+            end_calendar_poll(
+                guild_id,
+                job_id,
+                CALENDAR_WORKER_UNREACHABLE,
+                error="The bot could not reach the group-invite worker.",
+            )
+            return CALENDAR_WORKER_UNREACHABLE
+        return "next_page"
+
+    _calendar_polls.pop(job_id, None)
+    return await sync_calendar_to_discord(guild_id, group_id, poll["events"], job_id)
+
+
+async def sync_calendar_to_discord(guild_id, group_id, events, job_id) -> str:
+    """Make the guild's Discord events match the group's calendar. Returns the state."""
+    guild = bot.get_guild(int(guild_id))
+    if guild is None:
+        end_calendar_poll(guild_id, job_id, CALENDAR_DISCORD_ERROR, error="The bot is not in this server.")
+        return CALENDAR_DISCORD_ERROR
+
+    async with _calendar_lock(guild_id):
+        # Everything could have changed while the pages were being read.
+        link = load_calendar_link(guild_id)
+        config = load_group_invite_config(guild_id) or {}
+        if (
+            link is None
+            or link["poll_job_id"] != job_id
+            or not link["enabled"]
+            or config.get("group_id") != group_id
+        ):
+            return "stale"
+        if not bot_can_manage_calendar_events(guild):
+            end_calendar_poll(guild_id, job_id, CALENDAR_MISSING_PERMISSION)
+            return CALENDAR_MISSING_PERMISSION
+
+        now = datetime.now(timezone.utc)
+        rows = load_calendar_event_rows(guild_id)
+        ours = {str(r["discord_event_id"]) for r in rows.values() if r.get("discord_event_id")}
+        foreign = sum(
+            1
+            for event in guild.scheduled_events
+            if str(event.id) not in ours
+            and event.status in (discord.EventStatus.scheduled, discord.EventStatus.active)
+        )
+        chosen, stats = select_calendar_events(events, now, calendar_event_budget(foreign))
+        plan = plan_calendar_changes(rows, chosen, group_id, config.get("group_name"), now)
+
+        error = None
+        permission_lost = False
+
+        async def write(action):
+            nonlocal error, permission_lost
+            try:
+                await action()
+                return True
+            except discord.Forbidden as caught:
+                permission_lost = True
+                error = str(caught)
+            except discord.HTTPException as caught:
+                error = str(caught)
+                logger.warning("Calendar sync write failed in guild %s: %s", guild_id, caught)
+            except Exception as caught:
+                # Anything else -- the database, most likely -- is recorded and
+                # the sync carries on, so the poll is still ended below rather
+                # than left in flight until its timeout.
+                error = "An internal error interrupted the sync."
+                logger.exception("Calendar sync step failed in guild %s", guild_id)
+            finally:
+                await asyncio.sleep(CALENDAR_WRITE_SPACING_SECONDS)
+            return False
+
+        set_calendar_events_missing(guild_id, [r["vrc_event_id"] for r in plan["missing"]], True)
+        set_calendar_events_missing(guild_id, plan["seen_again"], False)
+
+        # Deletes first: they free slots under Discord's 100 for the creates.
+        gone = []
+        for row in plan["delete"]:
+            if permission_lost:
+                break
+            if row.get("state") != CALENDAR_EVENT_SYNCED:
+                gone.append(row["vrc_event_id"])
+                continue
+
+            async def remove(row=row):
+                event = await _fetch_calendar_event(guild, row.get("discord_event_id"))
+                if event is not None:
+                    await event.delete(reason=CALENDAR_AUDIT_REASON)
+
+            if await write(remove):
+                gone.append(row["vrc_event_id"])
+        delete_calendar_event_rows(guild_id, gone)
+
+        for event, fields, digest, row in plan["update"]:
+            if permission_lost:
+                break
+
+            async def edit(event=event, fields=fields, digest=digest, row=row):
+                existing = await _fetch_calendar_event(guild, row.get("discord_event_id"))
+                if existing is None:
+                    mark_calendar_event_removed(guild_id, event["id"])
+                    return
+                await existing.edit(
+                    name=fields["name"],
+                    description=fields["description"],
+                    location=fields["location"],
+                    start_time=fields["start_time"],
+                    end_time=fields["end_time"],
+                    entity_type=discord.EntityType.external,
+                    reason=CALENDAR_AUDIT_REASON,
+                )
+                store_calendar_event_row(
+                    guild_id, group_id, event, fields, digest, row.get("discord_event_id"), CALENDAR_EVENT_SYNCED
+                )
+
+            await write(edit)
+
+        for event, fields, digest in plan["create"]:
+            if permission_lost:
+                break
+
+            async def create(event=event, fields=fields, digest=digest):
+                made = await guild.create_scheduled_event(
+                    name=fields["name"],
+                    description=fields["description"],
+                    location=fields["location"],
+                    start_time=fields["start_time"],
+                    end_time=fields["end_time"],
+                    entity_type=discord.EntityType.external,
+                    privacy_level=discord.PrivacyLevel.guild_only,
+                    reason=CALENDAR_AUDIT_REASON,
+                )
+                try:
+                    store_calendar_event_row(
+                        guild_id, group_id, event, fields, digest, str(made.id), CALENDAR_EVENT_SYNCED
+                    )
+                except Exception:
+                    # Nothing remembers an event whose row was not stored, so
+                    # the next poll would create it again and members would see
+                    # it twice. Take it back down instead.
+                    try:
+                        await made.delete(reason=CALENDAR_AUDIT_REASON)
+                    except discord.HTTPException:
+                        logger.error(
+                            "Calendar event %s in guild %s could not be recorded or removed; "
+                            "it may be duplicated on the next sync.",
+                            made.id,
+                            guild_id,
+                        )
+                    raise
+
+            await write(create)
+
+        # Rows for occurrences that ended a day ago have nothing left to do.
+        stale_before = now - timedelta(days=1)
+        try:
+            rows = load_calendar_event_rows(guild_id)
+            delete_calendar_event_rows(
+                guild_id,
+                [r["vrc_event_id"] for r in rows.values() if r.get("ends_at") and r["ends_at"] < stale_before],
+            )
+            stats["synced"] = sum(
+                1
+                for r in load_calendar_event_rows(guild_id).values()
+                if r.get("state") == CALENDAR_EVENT_SYNCED and r.get("starts_at") and r["starts_at"] > now
+            )
+        except Exception:
+            logger.exception("Could not tidy calendar rows for guild %s", guild_id)
+
+        if permission_lost:
+            state = CALENDAR_MISSING_PERMISSION
+        elif error:
+            state = CALENDAR_DISCORD_ERROR
+        else:
+            state = CALENDAR_SYNCED
+        end_calendar_poll(guild_id, job_id, state, error=error, stats=stats)
+        return state
 
 
 # -------------------------------------------------------------------
@@ -8355,6 +9409,24 @@ async def handle_group_invite_result(data: dict):
 
     if isinstance(data, dict) and data.get("type") == JOB_LEAVE_GROUP:
         await handle_seat_release_result(data)
+        return
+
+    if isinstance(data, dict) and data.get("type") == JOB_FETCH_CALENDAR_PAGE:
+        try:
+            outcome = await handle_calendar_page_result(data)
+        except Exception:
+            logger.exception(
+                "Could not handle a calendar page for guild %s.", data.get("guildID")
+            )
+            return
+        logger.info(
+            "calendar page guild=%s job=%s offset=%s state=%s -> %s",
+            data.get("guildID"),
+            data.get("jobID"),
+            data.get("offset"),
+            data.get("state"),
+            outcome,
+        )
         return
 
     if isinstance(data, dict) and data.get("type") == JOB_VERIFY_GROUP_CLAIM:
@@ -10631,6 +11703,9 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
         shown_account = invite_account_to_show(guild_id)
         values["vrchat_group_id"] = group_invite.get("group_id")
         values["vrchat_group_invite_enabled"] = bool(group_invite.get("enabled"))
+        # Same refusal to swallow errors as the group config above.
+        calendar_link = load_calendar_link(guild_id) or {}
+        values["calendar_sync_enabled"] = bool(calendar_link.get("enabled"))
 
         subscription = load_stripe_subscription(guild_id)
         if subscription is STRIPE_UNREADABLE:
@@ -10747,6 +11822,32 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
             # invite setup that succeeded. Calendar sync needs this and no
             # seat. `claim_state` is the claim check's own progress, None when
             # this group has never had one.
+            # Calendar sync (#289). `available` is the bot's decision about
+            # whether this guild may see the feature at all -- it is
+            # unannounced, so only the preview guilds may -- and the website
+            # renders nothing for it otherwise. The rest is how the last poll
+            # went, for the page to explain.
+            "calendar_sync": {
+                "available": feature_is_reachable(FEATURE_CALENDAR_SYNC, guild_id),
+                "state": calendar_link.get("last_state"),
+                "error": calendar_link.get("last_error"),
+                "last_synced_at": (
+                    calendar_link["last_polled_at"].isoformat()
+                    if calendar_link.get("last_polled_at")
+                    else None
+                ),
+                "visible_count": calendar_link.get("visible_count"),
+                "eligible_count": calendar_link.get("eligible_count"),
+                "synced_count": calendar_link.get("synced_count"),
+                "over_cap_count": calendar_link.get("over_cap_count"),
+                # From the gateway cache, so it is current even before the next
+                # poll: an admin who just granted it sees the warning go away.
+                "can_manage_events": (
+                    bot_can_manage_calendar_events(bot.get_guild(int(guild_id)))
+                    if bot.get_guild(int(guild_id)) is not None
+                    else None
+                ),
+            },
             "group_ownership": {
                 "proven": bool(ownership.get("proven")),
                 "claim_state": effective_group_claim_state(ownership),
@@ -11729,6 +12830,10 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
             raise SettingRejected(str(name), "unknown_field")
         if name not in DASHBOARD_WRITABLE_FIELDS:
             raise SettingRejected(name, "not_writable_yet")
+        # An unannounced feature is not on anyone's page but the preview
+        # guilds', and a crafted request must not reach it either.
+        if not feature_is_reachable(SETTINGS_FIELDS_BY_NAME[name].feature, guild_id):
+            raise SettingRejected(name, "not_writable_yet")
         coerced[name] = SETTING_COERCERS[name](value)
 
     # --- The plan gate, decided here and never by the website ---
@@ -11923,6 +13028,16 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
                         guild_id,
                         exc_info=True,
                     )
+
+        # --- Calendar sync's switch (#289) ---
+        if "calendar_sync_enabled" in coerced:
+            old_calendar = bool((load_calendar_link(guild_id) or {}).get("enabled"))
+            new_calendar = bool(coerced["calendar_sync_enabled"])
+            if new_calendar != old_calendar:
+                changed.append(("calendar_sync_enabled", old_calendar, new_calendar))
+                # Turning it off is acted on by the next sync pass, which
+                # deletes the bot's events that have not started.
+                save_calendar_enabled(guild_id, new_calendar)
 
         # --- Everything else lives on the servers row ---
         row_fields = {
@@ -12461,6 +13576,9 @@ async def on_ready():
     # scheduler: nothing reads a lapsed guild's row, so nothing else would ever
     # notice that its seat should go back in the pool.
     start_background_task("seat_sweep", seat_sweep_task())
+    # #289: mirrors linked VRChat group calendars into Discord Scheduled Events.
+    # Does nothing for a guild until an admin has turned it on.
+    start_background_task("calendar_sync", calendar_sync_task())
 
     # Drains buffered verification log entries into each guild's log channel.
     start_background_task(

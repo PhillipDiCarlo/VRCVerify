@@ -361,6 +361,8 @@ def build_groups(
     channels: Optional[list],
     panel: Optional[dict] = None,
     t: Callable[[str], str] = _untranslated,
+    lang: str = DEFAULT_LANGUAGE,
+    permission_url: Optional[str] = None,
 ) -> list:
     """The settings page, grouped the way an admin thinks about them.
 
@@ -435,7 +437,7 @@ def build_groups(
     color, icon = _panel_fields(settings, t)
     vrchat_group, group_enabled = _group_invite_fields(settings, t)
 
-    return [
+    groups = [
         {
             "title": t(SETTINGS_TITLES["verification"]),
             "slug": "verification",
@@ -505,6 +507,36 @@ def build_groups(
             "save_endpoint": "save_logging_settings",
         },
     ]
+    # Calendar sync (#289) is unannounced. The bot says per guild whether this
+    # one may see it, and for every other guild the card simply does not exist
+    # -- no locked teaser, because there is nothing yet to upgrade into.
+    if (settings.get("calendar_sync") or {}).get("available"):
+        index = next(i for i, g in enumerate(groups) if g["slug"] == "logging")
+        groups.insert(index, {
+            "title": t(N_("Calendar sync")),
+            "slug": "vrchat-group",
+            "blurb": t(N_(
+                "Mirror your VRChat group's public events into Discord's Events "
+                "tab, where members get RSVPs, reminders and times in their own "
+                "time zone."
+            )),
+            "fields": [_bool_field(
+                settings,
+                "calendar_sync_enabled",
+                N_("Sync events to Discord"),
+                N_(
+                    "Creates a Discord event for each upcoming public event on "
+                    "your group's VRChat calendar, and keeps it up to date. "
+                    "Turning this off removes the events that haven't started."
+                ),
+                on=N_("On"),
+                off=N_("Off"),
+                t=t,
+            )],
+            "calendar_sync": calendar_sync_summary(settings, t, lang, permission_url),
+            "save_endpoint": "save_group_settings",
+        })
+    return groups
 
 
 # What each setup state means, as a headline and the next thing to do. Keyed
@@ -696,6 +728,139 @@ def group_ownership_summary(
         # it to find out, and a button that can only repeat a success reads as
         # something still to do.
         "can_check": bool(group_id) and not proven and not locked,
+    }
+
+
+# How the last calendar poll went, as a headline and what to do about it.
+CALENDAR_SYNC_COPY = {
+    "polling": (
+        "pending",
+        N_("Syncing\u2026"),
+        N_("Reading your group's calendar. Reload this page in a moment."),
+    ),
+    "synced": ("ok", N_("Synced"), None),
+    "missing_permission": (
+        "warn",
+        N_("VRCVerify can't create events in this server"),
+        # No sentence of its own: the permission link right below says what to
+        # do, and saying it twice reads as two problems.
+        None,
+    ),
+    "group_not_found": (
+        "warn",
+        N_("Your group's calendar isn't visible"),
+        N_("VRChat wouldn't show the bot this group's calendar. Check the group still exists."),
+    ),
+    "vrchat_unavailable": (
+        "warn",
+        N_("VRChat didn't answer"),
+        N_("Nothing is wrong with your setup. The next sync will try again."),
+    ),
+    "timed_out": (
+        "warn",
+        N_("The last sync didn't finish"),
+        N_("The next sync will try again."),
+    ),
+    "worker_unreachable": (
+        "warn",
+        N_("Couldn't start the sync"),
+        N_("The bot couldn't reach the part of itself that talks to VRChat. The next sync will try again."),
+    ),
+    "discord_error": (
+        "warn",
+        N_("Some events couldn't be updated in Discord"),
+        N_("The next sync will try again."),
+    ),
+}
+
+
+def calendar_sync_summary(
+    settings: dict,
+    t: Callable[[str], str] = _untranslated,
+    lang: str = DEFAULT_LANGUAGE,
+    permission_url: Optional[str] = None,
+) -> dict:
+    """Calendar sync's status and warnings, ready to render (#289)."""
+    block = settings.get("calendar_sync") or {}
+    ownership = settings.get("group_ownership") or {}
+    enabled = bool(_value(settings, "calendar_sync_enabled"))
+    locked = bool(_state(settings, "calendar_sync_enabled").get("locked"))
+    proven = bool(ownership.get("proven"))
+    state = block.get("state")
+
+    if not enabled:
+        tone, headline, detail = "pending", t(N_("Off")), None
+    elif state is None:
+        tone, headline, detail = (
+            "pending",
+            t(N_("Waiting for the first sync")),
+            t(N_("The first sync starts within a minute of turning this on. Reload this page shortly.")),
+        )
+    else:
+        tone, headline, detail = CALENDAR_SYNC_COPY.get(state, GROUP_SETUP_FALLBACK)
+        headline, detail = t(headline), (t(detail) if detail else None)
+
+    # Counted sentences are rendered in the template, which has ngettext:
+    # "1 upcoming events" is wrong in English and worse in languages with more
+    # than two plural forms.
+    synced = block.get("synced_count")
+    synced_count = (
+        synced if enabled and state == "synced" and isinstance(synced, int) and synced > 0 else None
+    )
+
+    warnings = []
+    if enabled and not locked and proven:
+        # From the live gateway cache rather than the last poll, so granting the
+        # permission clears this on the next page load.
+        if block.get("can_manage_events") is False and state != "missing_permission":
+            warnings.append(t(N_(
+                "VRCVerify doesn't have the Create Events permission in this "
+                "server, so the next sync won't be able to add events."
+            )))
+        if state == "synced" and block.get("visible_count") == 0:
+            # The ambiguity the issue warns about: an empty read from a group
+            # the bot is not in looks exactly like a group whose events are
+            # all members-only. Never "this group has no events".
+            warnings.append(t(N_(
+                "No public events were found on this group. Events visible only "
+                "to group members aren't synced yet."
+            )))
+        elif state == "synced" and block.get("visible_count") and block.get("eligible_count") == 0:
+            warnings.append(t(N_(
+                "None of this group's upcoming events are public, so there's "
+                "nothing to sync. Events limited to members or to roles aren't "
+                "synced."
+            )))
+
+    needs_permission = bool(
+        enabled and proven and not locked
+        and (block.get("can_manage_events") is False or state == "missing_permission")
+    )
+    return {
+        "enabled": enabled,
+        "tone": tone,
+        "headline": headline,
+        "detail": detail,
+        "error": (
+            None if tone == "ok" or not enabled
+            else _clip(block.get("error"), GROUP_ERROR_MAX_LEN)
+        ),
+        "last_synced": (
+            format_timestamp(block.get("last_synced_at"), lang)
+            if enabled and block.get("last_synced_at") else None
+        ),
+        "ownership_proven": proven,
+        "locked": locked,
+        "synced_count": synced_count,
+        "over_cap_count": (
+            block.get("over_cap_count")
+            if enabled and not locked and proven
+            and isinstance(block.get("over_cap_count"), int)
+            and block.get("over_cap_count") > 0
+            else None
+        ),
+        "warnings": warnings,
+        "permission_url": permission_url if needs_permission else None,
     }
 
 
