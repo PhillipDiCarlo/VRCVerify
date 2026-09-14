@@ -2543,6 +2543,37 @@ PREMIUM_CUTOVER_MAX_PER_SWEEP = _int_env("PREMIUM_CUTOVER_MAX_PER_SWEEP", 20)
 PREMIUM_CUTOVER_DM_SPACING = _float_env("PREMIUM_CUTOVER_DM_SPACING", 2.0)
 PREMIUM_CUTOVER_MAX_FAILURES = _int_env("PREMIUM_CUTOVER_MAX_FAILURES", 3)
 
+# Replacing the panels that predate 50e5317 (#320).
+#
+# WHY A ONE-SHOT SWEEP AND NOT PART OF THE STARTUP REFRESH. The startup pass
+# re-edits stale panels, and editing is exactly what cannot fix these: they
+# were posted as slash-command replies, Discord takes an embed edit on a
+# webhook-owned message, answers 200, and keeps the old embed. Repairing one
+# means posting a replacement and deleting the original, which deletes
+# something in somebody's server. That is not a thing to do because a container
+# restarted, so it happens on a trigger file, like the cutover campaign.
+#
+# SPACING RATHER THAN CONCURRENCY, unlike refresh_all_instruction_panels. Each
+# repair is a fetch, a send and a delete against three different channels in
+# three different guilds, and the send is the one Discord is strictest about.
+# The refresh sweep can afford ten at once because an edit is cheap; this one
+# trickles deliberately.
+PANEL_REPLACE_TRIGGER_PATH = os.getenv(
+    "PANEL_REPLACE_TRIGGER_PATH", "/tmp/replace_frozen_panels.trigger"
+)
+PANEL_REPLACE_MAX_PER_SWEEP = _int_env("PANEL_REPLACE_MAX_PER_SWEEP", 20)
+PANEL_REPLACE_SPACING = _float_env("PANEL_REPLACE_SPACING", 2.0)
+PANEL_REPLACE_MAX_FAILURES = _int_env("PANEL_REPLACE_MAX_FAILURES", 3)
+
+# Who the audit row names when nobody clicked anything.
+#
+# A STRING, AND DELIBERATELY NOT A SNOWFLAKE. read_dashboard_audit resolves
+# actor ids against the gateway cache inside a try/except for ValueError, so a
+# non-numeric id renders as itself with no display name -- which is the honest
+# answer here, because there is no person to name. A real id would attribute
+# the change to whichever admin happened to own it.
+SYSTEM_ACTOR_ID = "vrcverify-system"
+
 # Verification activity log. Entries are buffered and posted in batches rather
 # than one message per verification: Discord allows roughly 5 messages per 5s
 # per channel, and that budget is shared with verification DMs and command
@@ -9240,6 +9271,203 @@ async def refresh_all_instruction_panels(
         )
 
 
+async def replace_one_frozen_panel(entry) -> str:
+    """Repair one panel that Discord will not let us edit.
+
+    Returns why it went the way it did, not a boolean, because the sweep has to
+    report four different things and one of them is the input to the follow-up
+    campaign.
+
+    THE PROBE IS THE LEDGER. This asks `_panel_is_webhook_owned` at the moment
+    of acting rather than trusting a list collected earlier, which is what makes
+    the whole sweep idempotent with no marker table behind it: a panel that has
+    already been replaced is not webhook-owned any more, so a second run sees
+    nothing to do. A snapshot taken during one run and acted on during the next
+    would replace panels that had been fixed in between, and a server would end
+    up with two.
+
+    `None` is not `False`. It means the message could not be read at all, which
+    is the one answer that must never be rounded to "safe to replace" -- see
+    _panel_is_webhook_owned's own docstring. Skipped, and the next run asks
+    again.
+    """
+    server_id = entry["server_id"]
+    channel_id = entry.get("channel_id")
+    message_id = entry.get("message_id")
+    if not channel_id or not message_id:
+        return "missing_ids"
+
+    try:
+        channel = bot.get_partial_messageable(int(channel_id))
+    except (TypeError, ValueError):
+        return "malformed"
+
+    stuck = await _panel_is_webhook_owned(channel, message_id)
+    if stuck is None:
+        return "unreadable"
+    if not stuck:
+        # Editable, so the ordinary refresh owns it and has already been here.
+        # Touching it would cost an edit and an audit row saying nothing.
+        return "editable"
+
+    try:
+        result = await post_dashboard_panel(server_id, SYSTEM_ACTOR_ID, channel_id)
+    except SettingRejected as rejected:
+        # NOTHING HAS BEEN TOUCHED in either case: post_dashboard_panel checks
+        # send permissions before it posts, and deletes the old message only
+        # after the new one is recorded.
+        #
+        # THE TWO REASONS ARE KEPT APART because the follow-up DM has to say
+        # something true. `channel_not_writable` is a permission an admin can
+        # give back. `channel_not_in_guild` is this path resolving the channel
+        # out of `guild.text_channels`, which a panel living in a THREAD is not
+        # in -- telling that admin to check the bot's permissions would send
+        # them looking for a problem they do not have.
+        if rejected.reason == "channel_not_writable":
+            return "not_writable"
+        logger.warning(
+            "The panel for guild %s is in a channel this path cannot resolve "
+            "(%s); it is still frozen and was left alone.",
+            server_id,
+            rejected.reason,
+        )
+        return "channel_unusable"
+    except Exception:
+        logger.exception("Failed to replace the frozen panel for guild %s", server_id)
+        return "error"
+
+    if result is None:
+        return "error"
+    return result.get("action") or "error"
+
+
+async def replace_frozen_panels(reason: str):
+    """Repair every panel that predates 50e5317, a few at a time (#320).
+
+    Serialized behind `instruction_refresh_lock`, the same one the refresh
+    passes take. A refresh editing a panel while this deletes it is a race over
+    the same message, and the refresh would log a success for an edit applied to
+    something that no longer exists.
+    """
+    async with instruction_refresh_lock:
+        panels, departed = partition_reachable_panels(load_instruction_panels())
+        logger.info(
+            "Frozen panel replacement (%s): %s panel(s) to examine, %s skipped "
+            "(bot no longer in the guild).",
+            reason,
+            len(panels),
+            len(departed),
+        )
+        tally = {}
+        failures = 0
+        repaired = 0
+        stopped_early = False
+        for index, entry in enumerate(panels):
+            # CAPPED ON REPAIRS, NOT ON PANELS EXAMINED. A cap consumed by the
+            # panels that turn out to need nothing would make the first run look
+            # like it had done twenty repairs when it had done none. This is the
+            # knob that lets a cautious first pass fix twenty, be inspected, and
+            # be resumed by touching the file again -- which is safe precisely
+            # because the probe makes an already-repaired panel a non-candidate.
+            if repaired >= PANEL_REPLACE_MAX_PER_SWEEP:
+                stopped_early = True
+                break
+            if index:
+                await asyncio.sleep(PANEL_REPLACE_SPACING)
+            try:
+                outcome = await replace_one_frozen_panel(entry)
+                failures = 0
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # One guild can never abort the pass. The probe makes a rerun
+                # free, so the cost of giving up here is a panel that stays
+                # broken until the trigger is touched again.
+                logger.exception(
+                    "Frozen panel replacement crashed for guild %s", entry["server_id"]
+                )
+                outcome = "error"
+                failures += 1
+            # Tallied BEFORE the breaker, or the failure that trips it is the
+            # one the summary does not mention -- an operator reading "1 error"
+            # after two would go looking for the wrong thing.
+            tally[outcome] = tally.get(outcome, 0) + 1
+            if outcome == "replaced":
+                repaired += 1
+            if failures >= PANEL_REPLACE_MAX_FAILURES:
+                logger.error(
+                    "Giving up after %s consecutive failures. Re-create %s "
+                    "to resume; panels already replaced are skipped.",
+                    failures,
+                    PANEL_REPLACE_TRIGGER_PATH,
+                )
+                break
+
+        if stopped_early:
+            logger.info(
+                "Stopped after %s repair(s), the per-sweep cap. Touch %s again "
+                "to continue; panels already replaced are not candidates.",
+                repaired,
+                PANEL_REPLACE_TRIGGER_PATH,
+            )
+        logger.info(
+            "Frozen panel replacement (%s) finished: %s",
+            reason,
+            ", ".join(f"{count} {name}" for name, count in sorted(tally.items()))
+            or "nothing to do",
+        )
+        if tally.get("not_writable"):
+            # The only outcome a person has to do something about, so it gets
+            # its own line rather than sitting inside a summary.
+            logger.warning(
+                "%s panel(s) could not be replaced because VRCVerify cannot "
+                "post in their channel. Those servers still have a frozen "
+                "panel and have to be told.",
+                tally["not_writable"],
+            )
+        return tally
+
+
+async def watch_panel_replace_trigger(
+    path: str = None, poll_interval: int = 30
+):
+    """Wait for the trigger file, then run the replacement sweep once.
+
+    Deliberately not started from on_ready on its own, for the reason the
+    cutover watcher gives: this one deletes a message in every server it
+    touches, and that happens because you decided it was time, not because a
+    container restarted.
+
+    INSIDE THE CONTAINER, not on the host -- the same half hour the
+    instructions trigger already cost somebody. The command is:
+
+        docker compose exec discord-bot touch /tmp/replace_frozen_panels.trigger
+
+    The file is removed before the sweep runs, so a crash part-way through
+    leaves the rest unrepaired with nothing left to fire. Re-creating it is safe
+    at any point: the probe means an already-replaced panel is not a candidate.
+    """
+    trigger_path = path or PANEL_REPLACE_TRIGGER_PATH
+    logger.info(f"Frozen panel replacement watcher started (path={trigger_path})")
+    while True:
+        try:
+            if os.path.exists(trigger_path):
+                logger.info("Frozen panel trigger detected — starting replacement.")
+                try:
+                    os.remove(trigger_path)
+                except Exception:
+                    logger.warning(
+                        "Could not remove the frozen panel trigger file; manual "
+                        "cleanup may be required."
+                    )
+                await replace_frozen_panels(reason="manual trigger")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Unexpected error in the frozen panel watcher.")
+        await asyncio.sleep(poll_interval)
+
+
 async def update_all_instruction_messages():
     """Rebuild and edit saved instruction messages for all servers (uses DB-stored locale)."""
     await refresh_all_instruction_panels(rebuild_embed=True, reason="manual trigger")
@@ -11515,6 +11743,16 @@ async def on_ready():
     poll = int(os.getenv("INSTRUCTIONS_TRIGGER_POLL", "5"))
     start_background_task(
         "instructions_trigger_watcher", watch_update_trigger_file(trigger_path, poll)
+    )
+
+    # Its own watcher and its own file, next to that one but deliberately not
+    # the same trigger (#320). The refresh above re-edits every panel and is
+    # safe to fire on a whim; this one deletes a message in every server it
+    # repairs. Two different risks should not share one switch, and an operator
+    # reaching for a cosmetic refresh must not be able to start a fleet-wide
+    # delete by touching the wrong path.
+    start_background_task(
+        "panel_replace_watcher", watch_panel_replace_trigger()
     )
 
     # The dashboard's door. Does nothing at all unless BOT_API_ENABLED is set,
