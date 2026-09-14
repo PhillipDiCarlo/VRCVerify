@@ -115,7 +115,7 @@ services:
       # ids listed here (comma-separated) see and use it anyway, for live
       # testing. Empty means nobody.
       CALENDAR_SYNC_PREVIEW_GUILDS: ${CALENDAR_SYNC_PREVIEW_GUILDS:-}
-      CALENDAR_POLL_INTERVAL_SECONDS: ${CALENDAR_POLL_INTERVAL_SECONDS:-3600}
+      CALENDAR_POLL_INTERVAL_SECONDS: ${CALENDAR_POLL_INTERVAL_SECONDS:-900}
       # Heartbeats for the status page (issue #170). Unset by default, so no
       # thread starts and no file is written. Set it here and mount the volume
       # below on a deployment that runs status-reporter.
