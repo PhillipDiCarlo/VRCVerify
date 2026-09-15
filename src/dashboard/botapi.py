@@ -50,9 +50,11 @@ MAX_GUILD_IDS = 200
 class BotAPIError(Exception):
     """The bot API could not be reached, or refused the request."""
 
-    def __init__(self, message: str, status: Optional[int] = None):
+    def __init__(self, message: str, status: Optional[int] = None, field: Optional[str] = None):
         super().__init__(message)
         self.status = status
+        # The setting a save was refused over, when the bot says (#289).
+        self.field = field
 
 
 class BotAPIClient:
@@ -204,9 +206,11 @@ class BotAPIClient:
         if response.status_code == 200:
             return response.json()
 
-        reason = ""
+        reason, field = "", None
         try:
-            reason = response.json().get("error", "")
+            body = response.json()
+            reason = body.get("error", "")
+            field = body.get("field") if isinstance(body.get("field"), str) else None
         except ValueError:
             pass
         logger.warning(
@@ -216,7 +220,7 @@ class BotAPIClient:
             response.status_code,
             reason,
         )
-        raise BotAPIError(reason or "bot API refused the save", response.status_code)
+        raise BotAPIError(reason or "bot API refused the save", response.status_code, field=field)
 
     def post_panel(self, actor_id: int, guild_id, channel_id) -> dict:
         """Ask the bot to put the instructions panel in this channel.

@@ -11003,6 +11003,60 @@ class TestCalendarSyncCard:
             settings_page(test_client, "vrchat-group")
             assert {what for what, _a, _g in api.reads} - {"settings"} == expected, in_group
 
+    def announce_settings(self, **block):
+        settings = calendar_settings(**block)
+        for name in ("calendar_announce_channel_id", "calendar_ping_role_id"):
+            settings["fields"][name] = {"value": None, "feature": "calendar_sync", "active": True, "locked": False, "writable": True}
+        return settings
+
+    def test_a_refused_channel_is_explained_on_the_field_not_the_top(self, config, store):
+        """#289: the refusal sat at the top of a long page and was missed; the
+        admin only saw the channel spring back to the old one."""
+        refusal = BotAPIError("channel_not_writable", 400, field="calendar_announce_channel_id")
+        api = FakeBotAPI(settings=self.announce_settings(), errors={"update_settings": refusal})
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        session = login_as(test_client, store)
+        response = test_client.post(f"/guild/{GUILD_IN}/group", data={
+            "csrf_token": session.csrf_token, "calendar_announce_channel_id": "5551",
+        })
+        assert response.headers["Location"].endswith("#l-calendar_announce_channel_id")
+        html = settings_page(test_client, "vrchat-group").data.decode()
+        main = __import__("html").unescape(re.search(r"<main>(.*?)</main>", html, re.S).group(1))
+        message = "so it can't announce join links there"
+        assert message in main
+        # On the field: after its label, inside the same card.
+        assert main.index('id="l-calendar_announce_channel_id"') < main.index(message)
+        assert 'role="alert"' in main
+        # And not also as a notice at the top.
+        assert main.count(message) == 1
+
+    def test_a_refusal_naming_a_field_not_on_the_page_still_shows_at_the_top(self, config, store):
+        refusal = BotAPIError("channel_not_writable", 400, field="verification_log_channel_id")
+        api = FakeBotAPI(settings=self.announce_settings(), errors={"update_settings": refusal})
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        session = login_as(test_client, store)
+        # A field this route never sends does not become a notice about itself.
+        test_client.post(f"/guild/{GUILD_IN}/group", data={
+            "csrf_token": session.csrf_token, "calendar_announce_channel_id": "5551",
+        })
+        html = __import__("html").unescape(settings_page(test_client, "vrchat-group").data.decode())
+        assert "VRCVerify can't post in that channel" in html
+
+    def test_the_channel_picker_leaves_out_channels_the_bot_cannot_post_in(self):
+        settings = self.announce_settings()
+        settings["fields"]["calendar_announce_channel_id"]["value"] = "3"
+        channels = [
+            {"id": "1", "name": "general", "can_send": True},
+            {"id": "2", "name": "rules", "can_send": False},
+            {"id": "3", "name": "old-choice", "can_send": False},
+        ]
+        fields = {f.name: f for f in settings_view._calendar_announce_fields(settings, [], channels, settings_view._untranslated)}
+        assert [cid for cid, _ in fields["calendar_announce_channel_id"].choices] == ["1", "3"]
+
     def test_the_general_install_link_still_does_not_ask_for_it(self):
         """Decided on #289: only the card asks, never the general install link."""
         url = app_module._invite_url("123")

@@ -151,6 +151,8 @@ class Field:
         self.name = name
         self.label = label
         self.description = description
+        # A save refused over this setting, set by the route after the redirect.
+        self.error = None
         self.kind = kind
         self.display = display
         self.empty = empty
@@ -816,8 +818,12 @@ def _calendar_announce_fields(settings: dict, roles, channels, t) -> list:
         warnings=channel_warnings,
         # Announcement channels are offered here, unlike for the verification
         # log: a join link names nobody, and those channels suit it.
+        # Only channels VRCVerify can post in, plus the one already saved, so a
+        # choice the bot will refuse is not offered in the first place.
         choices=[
-            (str(c.get("id")), f"#{c.get('name') or c.get('id')}") for c in (channels or [])
+            (str(c.get("id")), f"#{c.get('name') or c.get('id')}")
+            for c in (channels or [])
+            if c.get("can_send") is not False or str(c.get("id")) == str(channel_raw or "")
         ],
         value="" if channel_raw is None else str(channel_raw),
         **_plan(channel_state),
