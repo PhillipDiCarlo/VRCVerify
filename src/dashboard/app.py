@@ -539,6 +539,9 @@ SETTINGS_GROUP_READS = {
     "verification": ("roles",),
     "after-verifying": (),
     "panel": ("channels", "panel"),
+    # Plus roles and channels when calendar sync's announcement pickers are on
+    # the page (#289, PR 2) -- decided per request in guild_settings, so every
+    # other server's visit still costs one read.
     "vrchat-group": (),
     "logging": ("channels",),
     "activity": ("roles", "channels", "audit"),
@@ -1718,6 +1721,9 @@ def _register_routes(app: Flask) -> None:
         # rendering defaults an admin never chose would be a lie the save path
         # could persist.
         needs = SETTINGS_GROUP_READS[group]
+        calendar = settings.get("calendar_sync") or {}
+        if group == "vrchat-group" and calendar.get("available") and calendar.get("bot_in_group"):
+            needs = tuple(needs) + ("roles", "channels")
         roles = channels = panel = audit = None
         if "roles" in needs:
             roles = _optional_read(
@@ -2418,6 +2424,10 @@ def _register_routes(app: Flask) -> None:
         # The calendar sync card (#289) saves through this route too. The bot
         # refuses it for a guild that may not use calendar sync yet.
         _read_checkbox(changes, "calendar_sync_enabled")
+        for name in ("calendar_announce_channel_id", "calendar_ping_role_id"):
+            if name in request.form:
+                # Empty is a choice: no announcement, or no ping.
+                changes[name] = request.form.get(name) or None
 
         return _save(guild_id, session, changes, "vrchat-group")
 

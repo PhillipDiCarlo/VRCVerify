@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 10:57-0400\n"
+"POT-Creation-Date: 2026-09-15 00:39-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pa_Guru_IN\n"
@@ -1032,6 +1032,52 @@ msgstr ""
 msgid "Some events couldn't be updated in Discord"
 msgstr "ਕੁਝ ਇਵੈਂਟ Discord ਵਿੱਚ ਅੱਪਡੇਟ ਨਹੀਂ ਹੋ ਸਕੇ"
 
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr "ਅਣਜਾਣ ਚੈਨਲ (%(id)s)"
+
+msgid "This channel no longer exists in the server."
+msgstr "ਇਹ ਚੈਨਲ ਹੁਣ ਸਰਵਰ ਵਿੱਚ ਨਹੀਂ ਹੈ।"
+
+msgid "VRCVerify cannot post in this channel."
+msgstr "VRCVerify ਇਸ ਚੈਨਲ ਵਿੱਚ ਪੋਸਟ ਨਹੀਂ ਕਰ ਸਕਦਾ।"
+
+msgid "Announce join links in"
+msgstr "ਸ਼ਾਮਲ ਹੋਣ ਦੇ ਲਿੰਕਾਂ ਦੀ ਘੋਸ਼ਣਾ ਇੱਥੇ ਕਰੋ"
+
+msgid ""
+"When a synced event's VRChat instance opens, VRCVerify posts its join "
+"link here and adds it to the Discord event. When you create the instance "
+"in VRChat, attach it to the event (VRChat offers this in the hours around"
+" the event) so VRCVerify can find it. Choose Off to skip announcements."
+msgstr ""
+"ਜਦੋਂ ਕਿਸੇ ਸਿੰਕ ਕੀਤੇ ਇਵੈਂਟ ਦਾ VRChat ਇੰਸਟੈਂਸ ਖੁੱਲ੍ਹਦਾ ਹੈ, VRCVerify ਇੱਥੇ "
+"ਉਸਦਾ ਸ਼ਾਮਲ ਹੋਣ ਦਾ ਲਿੰਕ ਪੋਸਟ ਕਰਦਾ ਹੈ ਅਤੇ ਉਸਨੂੰ Discord ਇਵੈਂਟ ਵਿੱਚ ਜੋੜਦਾ "
+"ਹੈ। VRChat ਵਿੱਚ ਇੰਸਟੈਂਸ ਬਣਾਉਂਦੇ ਸਮੇਂ ਉਸਨੂੰ ਇਵੈਂਟ ਨਾਲ ਜੋੜੋ (VRChat ਇਹ "
+"ਇਵੈਂਟ ਦੇ ਆਲੇ-ਦੁਆਲੇ ਦੇ ਕੁਝ ਘੰਟਿਆਂ ਵਿੱਚ ਦਿੰਦਾ ਹੈ), ਤਾਂ ਜੋ VRCVerify ਉਸਨੂੰ "
+"ਲੱਭ ਸਕੇ। ਘੋਸ਼ਣਾਵਾਂ ਨਾ ਕਰਨ ਲਈ ਬੰਦ ਚੁਣੋ।"
+
+msgid "None"
+msgstr "ਕੋਈ ਨਹੀਂ"
+
+msgid ""
+"This role doesn't allow anyone to mention it, so its members won't be "
+"notified unless VRCVerify has Discord's Mention Everyone permission."
+msgstr ""
+"ਇਸ ਰੋਲ ਨੂੰ ਕੋਈ ਮੈਨਸ਼ਨ ਨਹੀਂ ਕਰ ਸਕਦਾ, ਇਸ ਲਈ ਇਸਦੇ ਮੈਂਬਰਾਂ ਨੂੰ ਸੂਚਨਾ ਨਹੀਂ "
+"ਮਿਲੇਗੀ, ਜਦੋਂ ਤੱਕ VRCVerify ਕੋਲ Discord ਦੀ “@everyone, @here ਅਤੇ ਸਾਰੇ ਰੋਲ "
+"ਮੈਨਸ਼ਨ ਕਰੋ” ਇਜਾਜ਼ਤ ਨਾ ਹੋਵੇ।"
+
+msgid "Ping with the announcement"
+msgstr "ਘੋਸ਼ਣਾ ਨਾਲ ਪਿੰਗ ਕਰੋ"
+
+msgid ""
+"Optional. The role mentioned when a join link is posted. Nobody else is "
+"pinged."
+msgstr ""
+"ਵਿਕਲਪਿਕ। ਸ਼ਾਮਲ ਹੋਣ ਦਾ ਲਿੰਕ ਪੋਸਟ ਹੋਣ 'ਤੇ ਮੈਨਸ਼ਨ ਹੋਣ ਵਾਲਾ ਰੋਲ। ਹੋਰ ਕਿਸੇ ਨੂੰ"
+" ਪਿੰਗ ਨਹੀਂ ਕੀਤਾ ਜਾਂਦਾ।"
+
 msgid "Waiting for the first sync"
 msgstr "ਪਹਿਲੇ ਸਿੰਕ ਦੀ ਉਡੀਕ ਹੈ"
 
@@ -1152,13 +1198,6 @@ msgstr "ਵਿਖਾਇਆ"
 msgid "Hidden"
 msgstr "ਲੁਕਾਇਆ"
 
-#, python-format
-msgid "Unknown channel (%(id)s)"
-msgstr "ਅਣਜਾਣ ਚੈਨਲ (%(id)s)"
-
-msgid "This channel no longer exists in the server."
-msgstr "ਇਹ ਚੈਨਲ ਹੁਣ ਸਰਵਰ ਵਿੱਚ ਨਹੀਂ ਹੈ।"
-
 # | msgid "" "Verification logs can't go in an announcement channel -- other
 # | servers " "can follow one, which would republish your members' age
 # status."
@@ -1170,9 +1209,6 @@ msgstr ""
 "ਇਹ ਇੱਕ ਐਲਾਨ ਚੈਨਲ ਹੈ। ਹੋਰ ਸਰਵਰ ਇਸਨੂੰ ਫਾਲੋ ਕਰ ਸਕਦੇ ਹਨ, ਜਿਸ ਨਾਲ ਤੁਹਾਡੇ "
 "ਮੈਂਬਰਾਂ ਦੀ ਉਮਰ ਦੀ ਸਥਿਤੀ ਦੁਬਾਰਾ ਪ੍ਰਕਾਸ਼ਿਤ ਹੋ ਜਾਵੇਗੀ। VRCVerify ਇੱਥੇ ਲਾਗ "
 "ਨਹੀਂ ਰੱਖੇਗਾ।"
-
-msgid "VRCVerify cannot post in this channel."
-msgstr "VRCVerify ਇਸ ਚੈਨਲ ਵਿੱਚ ਪੋਸਟ ਨਹੀਂ ਕਰ ਸਕਦਾ।"
 
 # | msgid "A verification log channel"
 msgid "Verification log channel"
@@ -1933,10 +1969,10 @@ msgstr "ਪਿਛਲਾ ਸਿੰਕ: %(when)s"
 
 #, python-format
 msgid ""
-"Your group's calendar is checked about every minute, so new and changed "
-"events reach Discord within a minute or so. A deleted event is checked "
-"twice before it's removed, so it can take about %(twice)s minutes to "
-"leave Discord."
+"Your group's calendar is checked about every %(count)s minute, so new and"
+" changed events reach Discord within %(count)s minute or so. A deleted "
+"event is checked twice before it's removed, so it can take about "
+"%(twice)s minutes to leave Discord."
 msgid_plural ""
 "Your group's calendar is checked about every %(count)s minutes, so new "
 "and changed events reach Discord within %(count)s minutes or so. A "
@@ -1985,11 +2021,16 @@ msgstr[1] ""
 " ਦੀ ਇਜਾਜ਼ਤ ਦਿੰਦਾ ਹੈ। ਸਭ ਤੋਂ ਨੇੜਲੇ ਇਵੈਂਟ ਸਿੰਕ ਹੁੰਦੇ ਹਨ, ਅਤੇ ਬਾਕੀ ਉਹਨਾਂ ਦੇ "
 "ਖ਼ਤਮ ਹੁੰਦੇ ਹੀ ਜੁੜਦੇ ਜਾਂਦੇ ਹਨ।"
 
+msgid ""
+"To post join links when an event starts, VRCVerify needs to be in your "
+"VRChat group. Setting up group invites above adds it."
+msgstr ""
+"ਇਵੈਂਟ ਸ਼ੁਰੂ ਹੋਣ 'ਤੇ ਸ਼ਾਮਲ ਹੋਣ ਦੇ ਲਿੰਕ ਪੋਸਟ ਕਰਨ ਲਈ VRCVerify ਨੂੰ ਤੁਹਾਡੇ "
+"VRChat ਗਰੁੱਪ ਵਿੱਚ ਹੋਣਾ ਲਾਜ਼ਮੀ ਹੈ। ਉੱਪਰ ਗਰੁੱਪ ਸੱਦੇ ਸੈੱਟ ਅੱਪ ਕਰਨ ਨਾਲ ਉਹ ਜੁੜ"
+" ਜਾਂਦਾ ਹੈ।"
+
 msgid "Not applied"
 msgstr "ਲਾਗੂ ਨਹੀਂ"
-
-msgid "None"
-msgstr "ਕੋਈ ਨਹੀਂ"
 
 msgid "Use the default blue"
 msgstr "ਮੂਲ ਨੀਲਾ ਵਰਤੋ"

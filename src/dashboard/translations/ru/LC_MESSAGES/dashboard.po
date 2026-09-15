@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 10:57-0400\n"
+"POT-Creation-Date: 2026-09-15 00:39-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
@@ -1033,6 +1033,52 @@ msgstr ""
 msgid "Some events couldn't be updated in Discord"
 msgstr "Некоторые события не удалось обновить в Discord"
 
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr "Неизвестный канал (%(id)s)"
+
+msgid "This channel no longer exists in the server."
+msgstr "Этого канала больше нет на сервере."
+
+msgid "VRCVerify cannot post in this channel."
+msgstr "VRCVerify не может писать в этот канал."
+
+msgid "Announce join links in"
+msgstr "Объявлять ссылки для входа в"
+
+msgid ""
+"When a synced event's VRChat instance opens, VRCVerify posts its join "
+"link here and adds it to the Discord event. When you create the instance "
+"in VRChat, attach it to the event (VRChat offers this in the hours around"
+" the event) so VRCVerify can find it. Choose Off to skip announcements."
+msgstr ""
+"Когда открывается экземпляр VRChat для синхронизированного события, "
+"VRCVerify публикует здесь ссылку для входа и добавляет её в событие "
+"Discord. При создании экземпляра в VRChat привяжите его к событию (VRChat"
+" предлагает это за несколько часов до и после события), чтобы VRCVerify "
+"смог его найти. Выберите «Выкл.», чтобы не публиковать объявления."
+
+msgid "None"
+msgstr "Нет"
+
+msgid ""
+"This role doesn't allow anyone to mention it, so its members won't be "
+"notified unless VRCVerify has Discord's Mention Everyone permission."
+msgstr ""
+"Эту роль никому нельзя упоминать, поэтому её участники не получат "
+"уведомление, если у VRCVerify нет права Discord «Упоминать @everyone, "
+"@here и все роли»."
+
+msgid "Ping with the announcement"
+msgstr "Упоминать в объявлении"
+
+msgid ""
+"Optional. The role mentioned when a join link is posted. Nobody else is "
+"pinged."
+msgstr ""
+"Необязательно. Роль, которая упоминается при публикации ссылки для входа."
+" Больше никого не упоминают."
+
 msgid "Waiting for the first sync"
 msgstr "Ждём первую синхронизацию"
 
@@ -1154,13 +1200,6 @@ msgstr "Показан"
 msgid "Hidden"
 msgstr "Скрыт"
 
-#, python-format
-msgid "Unknown channel (%(id)s)"
-msgstr "Неизвестный канал (%(id)s)"
-
-msgid "This channel no longer exists in the server."
-msgstr "Этого канала больше нет на сервере."
-
 # | msgid "" "Verification logs can't go in an announcement channel -- other
 # | servers " "can follow one, which would republish your members' age
 # status."
@@ -1172,9 +1211,6 @@ msgstr ""
 "Это канал-объявление. Другие серверы могут на него подписаться, и "
 "возрастной статус ваших участников будет опубликован заново. VRCVerify не"
 " будет вести здесь журнал."
-
-msgid "VRCVerify cannot post in this channel."
-msgstr "VRCVerify не может писать в этот канал."
 
 # | msgid "A verification log channel"
 msgid "Verification log channel"
@@ -1943,10 +1979,10 @@ msgstr "Последняя синхронизация: %(when)s"
 
 #, python-format
 msgid ""
-"Your group's calendar is checked about every minute, so new and changed "
-"events reach Discord within a minute or so. A deleted event is checked "
-"twice before it's removed, so it can take about %(twice)s minutes to "
-"leave Discord."
+"Your group's calendar is checked about every %(count)s minute, so new and"
+" changed events reach Discord within %(count)s minute or so. A deleted "
+"event is checked twice before it's removed, so it can take about "
+"%(twice)s minutes to leave Discord."
 msgid_plural ""
 "Your group's calendar is checked about every %(count)s minutes, so new "
 "and changed events reach Discord within %(count)s minutes or so. A "
@@ -2004,11 +2040,16 @@ msgstr[2] ""
 "событий на сервер. Ближайшие синхронизированы, остальные добавятся по "
 "мере их завершения."
 
+msgid ""
+"To post join links when an event starts, VRCVerify needs to be in your "
+"VRChat group. Setting up group invites above adds it."
+msgstr ""
+"Чтобы публиковать ссылки для входа при начале события, VRCVerify должен "
+"быть в вашей группе VRChat. Настройка приглашений в группу выше добавит "
+"его."
+
 msgid "Not applied"
 msgstr "Не применяется"
-
-msgid "None"
-msgstr "Нет"
 
 msgid "Use the default blue"
 msgstr "Использовать синий по умолчанию"

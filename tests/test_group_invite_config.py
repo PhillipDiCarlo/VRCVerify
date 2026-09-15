@@ -718,4 +718,8 @@ class TestEverySettingReachesThePage:
         # The gap is calendar sync alone (#289), which is unannounced by
         # decision until its last phase ships. It renders only for the preview
         # guilds the bot names, and this payload names none.
-        assert self.not_yet_on_the_page() == {"calendar_sync_enabled"}
+        assert self.not_yet_on_the_page() == {
+            "calendar_sync_enabled",
+            "calendar_announce_channel_id",
+            "calendar_ping_role_id",
+        }

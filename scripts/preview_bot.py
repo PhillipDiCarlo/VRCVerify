@@ -380,10 +380,14 @@ class PreviewBotAPI:
             payload["fields"]["calendar_sync_enabled"] = dict(
                 value=enabled, feature="calendar_sync", active=True, locked=False, writable=True
             )
+            for name in ("calendar_announce_channel_id", "calendar_ping_role_id"):
+                payload["fields"][name] = dict(
+                    value=None, feature="calendar_sync", active=True, locked=False, writable=True
+                )
             payload["calendar_sync"] = dict(
                 dict(available=True, error=None, last_synced_at=None, visible_count=None,
                      eligible_count=None, synced_count=None, over_cap_count=None,
-                     can_manage_events=True, poll_interval_minutes=15),
+                     can_manage_events=True, poll_interval_minutes=15, bot_in_group=True),
                 **block,
             )
         if not premium:

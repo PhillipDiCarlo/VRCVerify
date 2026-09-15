@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 10:57-0400\n"
+"POT-Creation-Date: 2026-09-15 00:39-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: nl\n"
@@ -1044,6 +1044,52 @@ msgstr ""
 msgid "Some events couldn't be updated in Discord"
 msgstr "Sommige evenementen konden niet worden bijgewerkt in Discord"
 
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr "Onbekend kanaal (%(id)s)"
+
+msgid "This channel no longer exists in the server."
+msgstr "Dit kanaal bestaat niet meer op de server."
+
+msgid "VRCVerify cannot post in this channel."
+msgstr "VRCVerify kan niet in dit kanaal plaatsen."
+
+msgid "Announce join links in"
+msgstr "Deelnamelinks aankondigen in"
+
+msgid ""
+"When a synced event's VRChat instance opens, VRCVerify posts its join "
+"link here and adds it to the Discord event. When you create the instance "
+"in VRChat, attach it to the event (VRChat offers this in the hours around"
+" the event) so VRCVerify can find it. Choose Off to skip announcements."
+msgstr ""
+"Wanneer de VRChat-instantie van een gesynchroniseerd evenement opent, "
+"plaatst VRCVerify hier de deelnamelink en voegt die toe aan het Discord-"
+"evenement. Koppel het evenement aan de instantie wanneer je die in VRChat"
+" aanmaakt (VRChat biedt dat aan in de uren rond het evenement), zodat "
+"VRCVerify hem kan vinden. Kies Uit om geen aankondigingen te sturen."
+
+msgid "None"
+msgstr "Geen"
+
+msgid ""
+"This role doesn't allow anyone to mention it, so its members won't be "
+"notified unless VRCVerify has Discord's Mention Everyone permission."
+msgstr ""
+"Niemand mag deze rol vermelden, dus de leden krijgen geen melding tenzij "
+"VRCVerify de Discord-machtiging ‘@everyone, @here en alle rollen "
+"vermelden’ heeft."
+
+msgid "Ping with the announcement"
+msgstr "Pingen bij de aankondiging"
+
+msgid ""
+"Optional. The role mentioned when a join link is posted. Nobody else is "
+"pinged."
+msgstr ""
+"Optioneel. De rol die wordt vermeld wanneer een deelnamelink wordt "
+"geplaatst. Verder wordt niemand gepingd."
+
 msgid "Waiting for the first sync"
 msgstr "Wacht op de eerste synchronisatie"
 
@@ -1170,13 +1216,6 @@ msgstr "Getoond"
 msgid "Hidden"
 msgstr "Verborgen"
 
-#, python-format
-msgid "Unknown channel (%(id)s)"
-msgstr "Onbekend kanaal (%(id)s)"
-
-msgid "This channel no longer exists in the server."
-msgstr "Dit kanaal bestaat niet meer op de server."
-
 # | msgid "" "Verification logs can't go in an announcement channel -- other
 # | servers " "can follow one, which would republish your members' age
 # status."
@@ -1188,9 +1227,6 @@ msgstr ""
 "Dit is een aankondigingskanaal. Andere servers kunnen het volgen, "
 "waardoor leeftijdsgegevens van je leden opnieuw gepubliceerd zouden "
 "worden. VRCVerify logt hier niet."
-
-msgid "VRCVerify cannot post in this channel."
-msgstr "VRCVerify kan niet in dit kanaal plaatsen."
 
 # | msgid "A verification log channel"
 msgid "Verification log channel"
@@ -1955,10 +1991,10 @@ msgstr "Laatst gesynchroniseerd: %(when)s"
 
 #, python-format
 msgid ""
-"Your group's calendar is checked about every minute, so new and changed "
-"events reach Discord within a minute or so. A deleted event is checked "
-"twice before it's removed, so it can take about %(twice)s minutes to "
-"leave Discord."
+"Your group's calendar is checked about every %(count)s minute, so new and"
+" changed events reach Discord within %(count)s minute or so. A deleted "
+"event is checked twice before it's removed, so it can take about "
+"%(twice)s minutes to leave Discord."
 msgid_plural ""
 "Your group's calendar is checked about every %(count)s minutes, so new "
 "and changed events reach Discord within %(count)s minutes or so. A "
@@ -2009,11 +2045,16 @@ msgstr[1] ""
 " per server toestaat. De eerstvolgende worden gesynchroniseerd en de rest"
 " wordt toegevoegd zodra die voorbij zijn."
 
+msgid ""
+"To post join links when an event starts, VRCVerify needs to be in your "
+"VRChat group. Setting up group invites above adds it."
+msgstr ""
+"Om deelnamelinks te plaatsen wanneer een evenement begint, moet VRCVerify"
+" in je VRChat-groep zitten. Het instellen van groepsuitnodigingen "
+"hierboven voegt het toe."
+
 msgid "Not applied"
 msgstr "Niet toegepast"
-
-msgid "None"
-msgstr "Geen"
 
 msgid "Use the default blue"
 msgstr "Het standaardblauw gebruiken"

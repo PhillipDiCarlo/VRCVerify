@@ -148,6 +148,15 @@ class FakeEvent:
         self.status = fields.pop("status", discord.EventStatus.scheduled)
         self.fields = fields
 
+    # Attributes, as discord.py's ScheduledEvent has them.
+    @property
+    def name(self):
+        return self.fields.get("name")
+
+    @property
+    def description(self):
+        return self.fields.get("description")
+
     async def edit(self, **fields):
         if self.guild.forbid:
             raise http_error(discord.Forbidden, 403)
@@ -893,6 +902,289 @@ class TestTheInterval:
         assert payload["calendar_sync"]["poll_interval_minutes"] == 15
 
 
+# -------------------------------------------------------------------
+# The join-link announcer (#289, PR 2)
+# -------------------------------------------------------------------
+CHANNEL_ID = 5551
+ROLE_ID = 7771
+WORLD = "wrld_4432ea9b-729c-46e3-8eaf-846aa0a37fdd"
+INSTANCE = "12345~group(grp_0e1d4755-2f87-4129-a192-5587068cbf73)~groupAccessType(plus)~region(use)"
+
+
+class FakeChannel:
+    def __init__(self, fail=False):
+        self.id = CHANNEL_ID
+        self.sent = []
+        self.fail = fail
+
+    async def send(self, content, allowed_mentions=None):
+        if self.fail:
+            raise http_error(discord.Forbidden, 403)
+        self.sent.append((content, allowed_mentions))
+
+
+@pytest.fixture
+def channel(guild):
+    fake = FakeChannel()
+    guild.get_channel = lambda cid: fake if int(cid) == CHANNEL_ID else None
+    return fake
+
+
+def in_group(state="no_invite_permission"):
+    """The invite account's last setup check found it inside the group."""
+    with bot.session_scope() as session:
+        row = session.query(bot.GroupInviteConfig).first()
+        row.verify_state = state
+
+
+def instance(entry="cal_a_0", **overrides):
+    found = {
+        "location": f"{WORLD}:{INSTANCE}",
+        "world_id": WORLD,
+        "instance_id": INSTANCE,
+        "calendar_entry_id": entry,
+        "role_restricted": False,
+        "age_gate": False,
+        "group_access_type": "plus",
+    }
+    found.update(overrides)
+    return found
+
+
+class TestTheAnnouncer:
+    def synced(self, guild, starts=None):
+        make_server()
+        connect_group()
+        enable()
+        bot.save_calendar_announce(GUILD_ID, channel_id=str(CHANNEL_ID), role_id=str(ROLE_ID))
+        job = bot.begin_calendar_poll(GUILD_ID, GROUP_ID)
+        start = starts or NOW + timedelta(minutes=30)
+        run(bot.sync_calendar_to_discord(str(GUILD_ID), GROUP_ID, weekly("a", start, 1), job["jobID"]))
+        in_group()
+
+    def check(self, now=NOW):
+        return run(bot.maybe_check_event_instances(
+            GUILD_ID, GROUP_ID, bot.load_group_invite_config(GUILD_ID), link(), now
+        ))
+
+    def result(self, published, instances, **overrides):
+        payload = {
+            "type": bot.JOB_FETCH_EVENT_INSTANCES,
+            "jobID": published[-1]["jobID"],
+            "guildID": str(GUILD_ID),
+            "groupID": GROUP_ID,
+            "state": "ok",
+            "instances": instances,
+        }
+        payload.update(overrides)
+        return run(bot.handle_calendar_instances_result(payload))
+
+    @pytest.fixture(autouse=True)
+    def fresh(self):
+        bot._calendar_instance_checks.clear()
+        bot._calendar_unlinked_instances.clear()
+        yield
+        bot._calendar_instance_checks.clear()
+        bot._calendar_unlinked_instances.clear()
+
+    # --- when it looks ---
+    def test_it_looks_while_an_event_is_in_its_window(self, guild, clock, channel, published):
+        self.synced(guild)
+        assert self.check() is True
+        assert published[-1]["type"] == bot.JOB_FETCH_EVENT_INSTANCES
+        assert published[-1]["groupID"] == GROUP_ID
+
+    def test_the_window_opens_an_hour_before_the_start(self, guild, clock, channel, published):
+        self.synced(guild, starts=NOW + timedelta(minutes=61))
+        assert self.check() is False
+        assert self.check(NOW + timedelta(minutes=2)) is True
+
+    def test_not_for_a_group_the_bot_is_not_in(self, guild, clock, channel, published):
+        """VRChat lists instances to members only (measured on #289)."""
+        self.synced(guild)
+        in_group("unverified")
+        assert self.check() is False
+
+    def test_not_without_an_announcement_channel(self, guild, clock, channel, published):
+        self.synced(guild)
+        bot.save_calendar_announce(GUILD_ID, channel_id=None, role_id=None)
+        assert self.check() is False
+
+    def test_not_more_often_than_the_check_interval(self, guild, clock, channel, published):
+        self.synced(guild)
+        assert self.check() is True
+        assert self.check(NOW + timedelta(seconds=30)) is False
+        assert self.check(NOW + timedelta(seconds=bot.CALENDAR_INSTANCE_CHECK_SECONDS + 1)) is True
+
+    def test_instances_found_unlinked_are_not_read_again(self, guild, clock, channel, published):
+        self.synced(guild)
+        self.check()
+        self.result(published, [instance(entry=None)])
+        self.check(NOW + timedelta(seconds=bot.CALENDAR_INSTANCE_CHECK_SECONDS + 1))
+        assert published[-1]["skip"] == [f"{WORLD}:{INSTANCE}"]
+
+    # --- what it posts ---
+    def test_a_linked_instance_is_announced_with_only_the_role_pinged(self, guild, clock, channel, published):
+        self.synced(guild)
+        self.check()
+        assert self.result(published, [instance()]) == "announced 1"
+        content, mentions = channel.sent[0]
+        assert content.startswith(f"<@&{ROLE_ID}> ")
+        assert "https://vrchat.com/home/launch?worldId=" in content
+        assert "(18+)" not in content
+        assert mentions.everyone is False and mentions.users is False
+        assert [r.id for r in mentions.roles] == [ROLE_ID]
+
+    def test_an_age_gated_instance_is_marked_18_plus(self, guild, clock, channel, published):
+        self.synced(guild)
+        self.check()
+        self.result(published, [instance(age_gate=True)])
+        assert "(18+)" in channel.sent[0][0]
+
+    def test_a_role_restricted_instance_is_never_announced(self, guild, clock, channel, published):
+        """Decided on #289."""
+        self.synced(guild)
+        self.check()
+        assert self.result(published, [instance(role_restricted=True)]) == "announced 0"
+        assert channel.sent == []
+        assert rows()["cal_a_0"]["announced_at"] is None
+
+    def test_it_is_announced_once(self, guild, clock, channel, published):
+        self.synced(guild)
+        self.check()
+        self.result(published, [instance()])
+        self.check(NOW + timedelta(seconds=bot.CALENDAR_INSTANCE_CHECK_SECONDS + 1))
+        assert self.result(published, [instance()]) == "announced 0"
+        assert len(channel.sent) == 1
+
+    def test_two_checks_racing_over_one_instance_post_it_once(self, guild, clock, channel, published):
+        """The claim in the database, not the in-memory filter, is what stops a
+        double post when two results for the same instance overlap."""
+        self.synced(guild)
+        assert bot.claim_calendar_announcement(GUILD_ID, "cal_a_0", "https://one") is True
+        assert bot.claim_calendar_announcement(GUILD_ID, "cal_a_0", "https://two") is False
+        assert rows()["cal_a_0"]["join_location"] == "https://one"
+
+    def test_an_instance_for_an_event_this_server_did_not_sync_is_ignored(self, guild, clock, channel, published):
+        self.synced(guild)
+        self.check()
+        assert self.result(published, [instance(entry="cal_someone_else")]) == "announced 0"
+        assert channel.sent == []
+
+    def test_the_join_link_goes_into_the_discord_event(self, guild, clock, channel, published):
+        self.synced(guild)
+        self.check()
+        self.result(published, [instance()])
+        event = next(iter(guild.events.values()))
+        description = guild.edits[-1][1]["description"]
+        assert "Join in VRChat: https://vrchat.com/home/launch" in description
+        assert description.index("Join in VRChat") < description.index("VRChat group:")
+        assert rows()["cal_a_0"]["join_location"].startswith("https://vrchat.com/home/launch")
+
+    def test_a_finished_discord_event_is_not_edited(self, guild, clock, channel, published):
+        self.synced(guild)
+        next(iter(guild.events.values())).status = discord.EventStatus.completed
+        self.check()
+        self.result(published, [instance()])
+        assert len(channel.sent) == 1 and guild.edits == []
+
+    def test_a_post_that_fails_is_tried_again_later(self, guild, clock, channel, published):
+        self.synced(guild)
+        channel.fail = True
+        self.check()
+        assert self.result(published, [instance()]) == "announced 0"
+        assert rows()["cal_a_0"]["announced_at"] is None, "the claim was given back"
+
+    def test_the_next_poll_keeps_the_join_link_in_the_description(self, guild, clock, channel, published):
+        """The stored link is part of what the sync writes, so a VRChat edit
+        after the announcement does not wipe the link out of Discord."""
+        self.synced(guild)
+        self.check()
+        self.result(published, [instance()])
+        job = bot.begin_calendar_poll(GUILD_ID, GROUP_ID)
+        edited = [dict(weekly("a", NOW + timedelta(minutes=30), 1)[0], title="Renamed")]
+        run(bot.sync_calendar_to_discord(str(GUILD_ID), GROUP_ID, edited, job["jobID"]))
+        assert "Join in VRChat:" in guild.edits[-1][1]["description"]
+
+    def test_an_answer_to_another_check_is_stale(self, guild, clock, channel, published):
+        self.synced(guild)
+        self.check()
+        assert self.result(published, [instance()], jobID="old") == "stale"
+        assert channel.sent == []
+
+    def test_not_a_member_is_reported_not_announced(self, guild, clock, channel, published):
+        self.synced(guild)
+        self.check()
+        assert self.result(published, [], state="not_member") == "not_member"
+
+    def test_it_is_routed_from_the_shared_result_queue(self, monkeypatch):
+        handled = []
+
+        async def fake(data):
+            handled.append(data)
+            return "ok"
+
+        monkeypatch.setattr(bot, "handle_calendar_instances_result", fake)
+        run(bot.handle_group_invite_result({"type": bot.JOB_FETCH_EVENT_INSTANCES, "jobID": "x"}))
+        assert len(handled) == 1
+
+
+class TestTheLaunchLink:
+    def test_the_instance_id_keeps_its_readable_characters(self):
+        url = bot.vrchat_launch_url(WORLD, INSTANCE)
+        assert url.startswith(f"https://vrchat.com/home/launch?worldId={WORLD}&instanceId=12345~group(")
+
+    def test_the_event_description_puts_the_join_link_first(self):
+        fields = bot.build_discord_event_fields(
+            occurrence("cal_1", NOW + timedelta(days=1)), GROUP_ID, "Club LA", join_link="https://j"
+        )
+        assert fields["description"].endswith(
+            "Join in VRChat: https://j\nVRChat group: https://vrchat.com/home/group/" + GROUP_ID
+        )
+
+
+class TestTheAnnouncementSettings:
+    def test_a_channel_outside_the_server_is_refused(self, guild, preview, premium):
+        guild.text_channels = []
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            run(bot.write_dashboard_settings(GUILD_ID, ADMIN_ID, {"calendar_announce_channel_id": "123"}))
+        assert caught.value.reason == "channel_not_in_guild"
+
+    def test_a_channel_the_bot_cannot_post_in_is_refused(self, guild, preview, premium):
+        mute = SimpleNamespace(view_channel=True, send_messages=False)
+        guild.text_channels = [SimpleNamespace(id=CHANNEL_ID, permissions_for=lambda me: mute)]
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            run(bot.write_dashboard_settings(GUILD_ID, ADMIN_ID, {"calendar_announce_channel_id": str(CHANNEL_ID)}))
+        assert caught.value.reason == "channel_not_writable"
+
+    def test_a_writable_channel_and_a_real_role_are_saved(self, guild, preview, premium):
+        ok = SimpleNamespace(view_channel=True, send_messages=True)
+        guild.text_channels = [SimpleNamespace(id=CHANNEL_ID, permissions_for=lambda me: ok)]
+        guild.roles = [SimpleNamespace(id=ROLE_ID, is_default=lambda: False)]
+        make_server()
+        run(bot.write_dashboard_settings(
+            GUILD_ID, ADMIN_ID,
+            {"calendar_announce_channel_id": str(CHANNEL_ID), "calendar_ping_role_id": str(ROLE_ID)},
+        ))
+        assert link()["announce_channel_id"] == str(CHANNEL_ID)
+        assert link()["ping_role_id"] == str(ROLE_ID)
+
+    def test_a_role_from_elsewhere_is_refused(self, guild, preview, premium):
+        guild.roles = []
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            run(bot.write_dashboard_settings(GUILD_ID, ADMIN_ID, {"calendar_ping_role_id": str(ROLE_ID)}))
+        assert caught.value.reason == "role_not_in_guild"
+
+    def test_outside_the_preview_neither_can_be_set(self, guild, premium):
+        make_server()
+        with pytest.raises(bot.SettingRejected) as caught:
+            run(bot.write_dashboard_settings(GUILD_ID, ADMIN_ID, {"calendar_ping_role_id": str(ROLE_ID)}))
+        assert caught.value.reason == "not_writable_yet"
+
+
 class TestTheContractWithTheWorker:
     def test_the_job_type_matches(self):
         import vrc_group_inviter as inviter
@@ -903,6 +1195,12 @@ class TestTheContractWithTheWorker:
         import vrc_group_inviter as inviter
 
         assert bot.CALENDAR_PAGE_STATES == inviter.CALENDAR_PAGE_STATES
+
+    def test_the_instance_job_and_states_match(self):
+        import vrc_group_inviter as inviter
+
+        assert bot.JOB_FETCH_EVENT_INSTANCES == inviter.JOB_FETCH_EVENT_INSTANCES
+        assert bot.INSTANCES_STATES == inviter.INSTANCES_STATES
 
     def test_the_page_size_matches(self):
         import vrc_group_inviter as inviter
