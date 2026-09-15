@@ -590,8 +590,9 @@ CALENDAR_WRITE_SPACING_SECONDS = _float_env("CALENDAR_WRITE_SPACING_SECONDS", 1.
 # default), so the bot starts looking for it that early and stops at the end.
 CALENDAR_ANNOUNCE_EARLY_MINUTES = _int_env("CALENDAR_ANNOUNCE_EARLY_MINUTES", 60)
 # How often a group's instances are checked while one of its events is in that
-# window. One list call plus one call per instance not already ruled out.
-CALENDAR_INSTANCE_CHECK_SECONDS = _int_env("CALENDAR_INSTANCE_CHECK_SECONDS", 180, minimum=60)
+# window. One list call plus one call per instance not already ruled out. Two
+# minutes, decided on #289 after the first live announcement.
+CALENDAR_INSTANCE_CHECK_SECONDS = _int_env("CALENDAR_INSTANCE_CHECK_SECONDS", 120, minimum=60)
 # Capped and spaced for the same reason panel nudges are: a backlog, a clock
 # jump or a long outage must trickle out rather than becoming a burst of VRChat
 # writes from one account.
@@ -4569,6 +4570,21 @@ def _clip_text(text, limit: int) -> str:
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "\u2026"
 
 
+# VRChat stores some ASCII punctuation in user text as look-alike characters.
+# Measured 2026-08-19 on a group description: `.` `,` `!` come back as U+2024,
+# U+201A and U+01C3. VRChat's own error text on 2026-09-14 also showed `:` as
+# U+02F8 and `+` as U+FF0B. In Discord they render as odd, slightly wrong
+# punctuation, so they are turned back before an event is mirrored (#289).
+_VRCHAT_PUNCTUATION = str.maketrans(
+    {"\u2024": ".", "\u201a": ",", "\u01c3": "!", "\u02f8": ":", "\uff0b": "+"}
+)
+
+
+def restore_vrchat_punctuation(text):
+    """VRChat's look-alike punctuation as the ASCII it stands for. None stays None."""
+    return text.translate(_VRCHAT_PUNCTUATION) if isinstance(text, str) else text
+
+
 def vrchat_launch_url(world_id: str, instance_id: str) -> str:
     """The link that opens VRChat into one instance."""
     from urllib.parse import quote
@@ -4595,11 +4611,15 @@ def build_discord_event_fields(event: dict, group_id: str, group_name, join_link
     if join_link:
         footer = f"\n\nJoin in VRChat: {join_link}" + footer.replace("\n\n", "\n", 1)
     body = _clip_text(
-        event.get("description"), DISCORD_EVENT_DESCRIPTION_MAX - len(footer)
+        restore_vrchat_punctuation(event.get("description")),
+        DISCORD_EVENT_DESCRIPTION_MAX - len(footer),
     )
-    name = _clip_text(group_name, DISCORD_EVENT_LOCATION_MAX - len("VRChat: "))
+    name = _clip_text(
+        restore_vrchat_punctuation(group_name), DISCORD_EVENT_LOCATION_MAX - len("VRChat: ")
+    )
     return {
-        "name": _clip_text(event.get("title"), DISCORD_EVENT_NAME_MAX) or "VRChat event",
+        "name": _clip_text(restore_vrchat_punctuation(event.get("title")), DISCORD_EVENT_NAME_MAX)
+        or "VRChat event",
         "description": (body + footer).strip(),
         "location": f"VRChat: {name}" if name else "VRChat",
         "start_time": parse_calendar_time(event.get("starts_at")),

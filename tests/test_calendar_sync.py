@@ -1129,6 +1129,35 @@ class TestTheAnnouncer:
         assert len(handled) == 1
 
 
+class TestTheInstanceCheckInterval:
+    def test_the_default_is_two_minutes(self):
+        """Decided on #289."""
+        assert '"CALENDAR_INSTANCE_CHECK_SECONDS", 120, minimum=60' in open(bot.__file__).read()
+
+
+class TestVRChatPunctuation:
+    """Seen live in ClubLA on 2026-09-15: "this is a test event\u2024 plz ignore
+    thank you\u2024" mirrored into Discord with VRChat's look-alike dots."""
+
+    def test_the_measured_substitutions_are_turned_back(self):
+        assert bot.restore_vrchat_punctuation("hi\u2024 a\u201a b\u01c3 c\u02f8 d\uff0b") == "hi. a, b! c: d+"
+
+    def test_the_event_title_description_and_group_name_are_restored(self):
+        event = occurrence(
+            "cal_1", NOW + timedelta(days=1),
+            title="Meetup\u01c3", description="this is a test event\u2024 plz ignore thank you\u2024",
+        )
+        fields = bot.build_discord_event_fields(event, GROUP_ID, "Club\u2024LA")
+        assert fields["name"] == "Meetup!"
+        assert fields["description"].startswith("this is a test event. plz ignore thank you.")
+        assert fields["location"] == "VRChat: Club.LA"
+
+    def test_other_text_is_untouched(self):
+        text = "日本語のイベント 🎉 … and a normal sentence."
+        assert bot.restore_vrchat_punctuation(text) == text
+        assert bot.restore_vrchat_punctuation(None) is None
+
+
 class TestTheLaunchLink:
     def test_the_instance_id_keeps_its_readable_characters(self):
         url = bot.vrchat_launch_url(WORLD, INSTANCE)
