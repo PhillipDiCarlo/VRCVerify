@@ -467,6 +467,11 @@
                 </p>
               {% endif %}
 
+              {% if field.error %}
+                {# role="alert" so the refusal is read out on arrival: the page
+                   has just scrolled here and nothing else announces why. #}
+                <p class="warn" role="alert">{{ field.error }}</p>
+              {% endif %}
               {% for warning in field.warnings %}
                 <p class="warn">{{ warning }}</p>
               {% endfor %}

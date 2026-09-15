@@ -1784,6 +1784,17 @@ def _register_routes(app: Flask) -> None:
         # that depends on the group (#289).
         current = [one for one in groups if one["slug"] == group]
 
+        # A refusal about one setting goes on that setting. If the setting is
+        # not on this page after all, it falls back to the notice at the top.
+        error_field, field_error = _field_save_error(notice)
+        placed = False
+        if error_field:
+            for card in current:
+                for field in card["fields"]:
+                    if field.name == error_field:
+                        field.error = field_error
+                        placed = True
+
         return render_template(
             "settings.html",
             # A list of one. The template's loop body is unchanged by the
@@ -1807,6 +1818,7 @@ def _register_routes(app: Flask) -> None:
             save_error=(
                 _save_error_message(_notice_arg(notice, "error"))
                 or _panel_error_message(_notice_arg(notice, "panel_error"))
+                or (field_error if error_field and not placed else None)
             ),
             **_guild_chrome(session, guild_id, "settings", group),
         )
@@ -2942,6 +2954,13 @@ def _save(guild_id: int, session, changes: dict, group: str):
             return redirect(_settings_url(guild_id, group))
     except BotAPIError as error:
         logger.warning("save refused for guild %s: %s", guild_id, error)
+        field = getattr(error, "field", None)
+        if isinstance(field, str) and _FIELD_NAME.fullmatch(field) and field in changes:
+            # Shown beside the setting it is about, and the page lands there
+            # (#289): on a long page the notice at the top was simply missed,
+            # and the admin saw only their choice spring back.
+            _store().set_notice(session.sid, f"field_error:{field}:{_save_error_code(error)}")
+            return redirect(_settings_url(guild_id, group) + f"#l-{field}")
         # A code, never the bot's text. What comes back is a fixed reason
         # string today, but round-tripping it through a URL and into a page
         # would make the bot's error strings part of this app's HTML, and the
@@ -3010,6 +3029,32 @@ def _notice_arg(notice: Optional[str], kind: str) -> Optional[str]:
         return None
     prefix, _, value = notice.partition(":")
     return value if prefix == kind else None
+
+
+# A settings field name as the bot spells them. Checked before one goes into a
+# notice or a URL fragment, since it arrived from the other side of the wire.
+_FIELD_NAME = re.compile(r"[a-z][a-z_]{0,63}")
+
+# Where a refusal needs wording about the setting it is on rather than the
+# general sentence for its code.
+FIELD_SAVE_ERRORS = {
+    ("calendar_announce_channel_id", "channel_not_writable"): N_(
+        "VRCVerify can't post in that channel, so it can't announce join links "
+        "there. It needs View Channel and Send Messages in it."
+    ),
+}
+
+
+def _field_save_error(notice: Optional[str]):
+    """`field_error:<field>:<code>` as (field, message), or (None, None)."""
+    if not notice or not notice.startswith("field_error:"):
+        return None, None
+    _, field, code = (notice.split(":", 2) + ["", ""])[:3]
+    if not _FIELD_NAME.fullmatch(field or ""):
+        return None, None
+    code = code if code in SAVE_ERRORS else "unknown"
+    text = FIELD_SAVE_ERRORS.get((field, code)) or SAVE_ERRORS.get(code, GENERIC_SAVE_ERROR)
+    return field, _translator()(text)
 
 
 def _save_error_code(error: BotAPIError) -> str:

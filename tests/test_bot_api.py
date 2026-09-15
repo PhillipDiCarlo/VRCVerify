@@ -3932,6 +3932,26 @@ VERIFY_GROUP_PATH = f"/api/v1/guilds/{GUILD_ID}/verify-group"
 VERIFY_GROUP_OP = "POST /api/v1/guilds/{guild_id}/verify-group"
 
 
+class TestARefusedSaveNamesItsField:
+    """#289: the website puts a refusal beside the setting it is about."""
+
+    def test_the_field_travels_with_the_reason(self):
+        async def refuse(guild_id, actor_id, changes):
+            raise bot_api.SettingRejected("calendar_announce_channel_id", "channel_not_writable")
+
+        async def scenario(client):
+            return await patch(
+                client,
+                f"/api/v1/guilds/{GUILD_ID}/settings",
+                token_for("PATCH /api/v1/guilds/{guild_id}/settings"),
+                json={"fields": {"calendar_announce_channel_id": "5551"}},
+            )
+
+        status, body = serve(scenario, deps=make_deps(write_settings=refuse))
+        assert status == 400
+        assert body == {"error": "channel_not_writable", "field": "calendar_announce_channel_id"}
+
+
 class TestVerifyGroupRoute:
     """The second endpoint whose effect is a real-world action.
 

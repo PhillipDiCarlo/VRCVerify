@@ -498,11 +498,15 @@ def _peer_identities(request: web.Request) -> set[str]:
     return names
 
 
-def _deny(request: web.Request, status: int, reason: str, actor: Any = "unknown"):
+def _deny(request: web.Request, status: int, reason: str, actor: Any = "unknown", field: Optional[str] = None):
     """Refuse a request and leave the reason in the log.
 
     Every denial is logged. Under an assume-breach model these lines are the
     forensic record, and a run of them is the thing worth alerting on.
+
+    `field` names the setting a save was refused over, so the website can show
+    the refusal beside that setting rather than at the top of a long page. It
+    is the caller's own field name, so it discloses nothing new.
     """
     logger.warning(
         "bot-api DENY actor=%s guild=%s op=%s reason=%s",
@@ -511,9 +515,10 @@ def _deny(request: web.Request, status: int, reason: str, actor: Any = "unknown"
         _operation_for(request),
         reason,
     )
-    return web.json_response(
-        {"error": reason}, status=status, headers={"Cache-Control": "no-store"}
-    )
+    body = {"error": reason}
+    if field:
+        body["field"] = field
+    return web.json_response(body, status=status, headers={"Cache-Control": "no-store"})
 
 
 def _operation_for(request: web.Request) -> str:
@@ -821,6 +826,7 @@ async def handle_update_settings(request: web.Request) -> web.Response:
             403 if rejected.locked else 400,
             rejected.reason,
             actor=claims.actor_id,
+            field=rejected.field or None,
         )
 
     if payload is None:
