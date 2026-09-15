@@ -1580,11 +1580,12 @@ def make_server(server_id=str(GUILD_ID), row_id=10, **overrides):
 
 
 class FakeRole:
-    def __init__(self, role_id, name, position, managed=False, default=False):
+    def __init__(self, role_id, name, position, managed=False, default=False, mentionable=False):
         self.id = role_id
         self.name = name
         self.position = position
         self.managed = managed
+        self.mentionable = mentionable
         self.color = SimpleNamespace(value=0x5865F2)
         self._default = default
 

@@ -28,6 +28,12 @@ not ask, and it never overrides a block -- see send_group_invite.
 for calendar sync. One page per job, so a 731-event calendar is eight short
 jobs with member invites free to run between them, not one long one.
 
+`fetch_group_event_instances` (issue #289, PR 2) lists a group's open instances
+and reads each one the bot has not already ruled out, so the bot can find the
+instance an admin opened for a calendar event and announce its join link.
+VRChat only lists a group's instances to a member, so this works only for
+groups this account is in.
+
 `verify_group_claim` (issue #289) is the ownership proof on its own: it reads
 the group and looks for the claim code, and it never joins. Calendar sync of
 public events needs a proven group but no seat, so the proof had to stop being
@@ -50,6 +56,7 @@ from pika.exceptions import AMQPError
 from log_safety import install_log_scrubbing
 from vrchatapi.api.calendar_api import CalendarApi
 from vrchatapi.api.groups_api import GroupsApi
+from vrchatapi.api.instances_api import InstancesApi
 from vrchatapi.exceptions import ApiException, UnauthorizedException
 from vrchatapi.models.create_group_invite_request import CreateGroupInviteRequest
 
@@ -147,6 +154,7 @@ JOB_SEND_INVITE = "send_group_invite"
 JOB_LEAVE_GROUP = "leave_group"
 JOB_VERIFY_CLAIM = "verify_group_claim"
 JOB_FETCH_CALENDAR_PAGE = "fetch_group_calendar_page"
+JOB_FETCH_EVENT_INSTANCES = "fetch_group_event_instances"
 
 # Outcomes the dashboard renders. Each names one specific thing an admin can
 # act on, because "setup failed" tells them nothing about what to do next.
@@ -236,6 +244,27 @@ CALENDAR_PAGE_STATES = frozenset(
         CALENDAR_PAGE_BAD_JOB,
     }
 )
+# Outcomes of listing a group's instances (#289, PR 2). `not_member` is its own
+# answer: measured 2026-09-14, VRChat refuses the list with 403 "You're not a
+# member." to anyone outside the group, and that is not the group being gone.
+INSTANCES_OK = "ok"
+INSTANCES_NOT_MEMBER = "not_member"
+INSTANCES_GROUP_NOT_FOUND = STATE_GROUP_NOT_FOUND
+INSTANCES_VRCHAT_UNAVAILABLE = STATE_VRCHAT_UNAVAILABLE
+INSTANCES_BAD_JOB = STATE_BAD_JOB
+INSTANCES_STATES = frozenset(
+    {
+        INSTANCES_OK,
+        INSTANCES_NOT_MEMBER,
+        INSTANCES_GROUP_NOT_FOUND,
+        INSTANCES_VRCHAT_UNAVAILABLE,
+        INSTANCES_BAD_JOB,
+    }
+)
+# How many instances one job reads. Each is a call, and a group running more
+# than this many at once is rare; the rest are read on the next check.
+INSTANCES_READ_MAX = 10
+
 # The page size the API allows and the bot asks for. Anything else in a job is
 # clamped to this, so a job cannot make one call fetch an unbounded page.
 CALENDAR_PAGE_MAX = 100
@@ -952,6 +981,115 @@ def fetch_group_calendar_page(job: dict) -> dict:
     return _calendar_result(job, CALENDAR_PAGE_OK, events=events, count=len(rows), n=size)
 
 
+def _instances_result(job: dict, state: str, **extra) -> dict:
+    payload = {
+        "type": JOB_FETCH_EVENT_INSTANCES,
+        "jobID": job.get("jobID"),
+        "guildID": job.get("guildID"),
+        "groupID": job.get("groupID"),
+        "ok": state == INSTANCES_OK,
+        "state": state,
+        "instances": [],
+        "listed": 0,
+        "error_message": None,
+    }
+    payload.update(extra)
+    return payload
+
+
+def fetch_group_event_instances(job: dict) -> dict:
+    """List a group's open instances and read the ones worth reading. Reads only.
+
+    `GroupInstance` has no calendar link, so each listed instance costs a second
+    call to `get_instance` for its `calendarEntryId` (measured live on Club LA,
+    2026-09-15: an event-linked instance returns the event's id there). The bot
+    sends the locations it has already found unlinked as `skip`, so a long
+    event with a busy group does not re-read the same instances every check.
+
+    An instance nobody is in is not listed at all (measured on the probe group),
+    which is fine: an event's instance has its host in it.
+    """
+    group_id = job.get("groupID")
+    if not isinstance(group_id, str) or not group_id.startswith("grp_"):
+        return _instances_result(job, INSTANCES_BAD_JOB, error_message="Not an instances job")
+    skip = job.get("skip")
+    skip = {str(x) for x in skip if isinstance(x, str)} if isinstance(skip, list) else set()
+
+    client, session_error = vrchat_session.get()
+    if client is None:
+        meta = session_error or default_session_error()
+        return _instances_result(job, INSTANCES_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message"))
+
+    try:
+        response = _call_with_retry(
+            GroupsApi(client).get_group_instances,
+            group_id,
+            _preload_content=False,
+            _request_timeout=request_timeout(),
+        )
+        listed = json.loads(getattr(response, "data", b"") or b"[]")
+    except UnauthorizedException as e:
+        vrchat_session.invalidate(classify_api_error(e))
+        return _instances_result(job, INSTANCES_VRCHAT_UNAVAILABLE, error_message="VRChat session expired")
+    except ApiException as e:
+        status = getattr(e, "status", None)
+        if status == 403:
+            return _instances_result(
+                job, INSTANCES_NOT_MEMBER, error_message="The bot is not a member of this group"
+            )
+        if status == 404:
+            return _instances_result(job, INSTANCES_GROUP_NOT_FOUND, error_message="No VRChat group with that ID")
+        logging.warning("Instance list for group %s failed: %s", group_id, _api_detail(e))
+        meta = classify_api_error(e)
+        return _instances_result(job, INSTANCES_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message"))
+    except ValueError:
+        return _instances_result(
+            job, INSTANCES_VRCHAT_UNAVAILABLE, error_message="VRChat returned an instance list that is not JSON"
+        )
+    if not isinstance(listed, list):
+        return _instances_result(
+            job, INSTANCES_VRCHAT_UNAVAILABLE, error_message="VRChat returned an instance list in an unknown shape"
+        )
+
+    instances = []
+    instances_api = InstancesApi(client)
+    for entry in listed:
+        if len(instances) >= INSTANCES_READ_MAX:
+            break
+        location = entry.get("location") if isinstance(entry, dict) else None
+        if not isinstance(location, str) or ":" not in location or location in skip:
+            continue
+        world_id, _, instance_id = location.partition(":")
+        try:
+            detail = json.loads(
+                _call_with_retry(
+                    instances_api.get_instance,
+                    world_id,
+                    instance_id,
+                    _preload_content=False,
+                    _request_timeout=request_timeout(),
+                ).data
+            )
+        except (ApiException, ValueError):
+            # One unreadable instance is skipped, not the whole check. It is
+            # read again next time, since it was not reported as unlinked.
+            continue
+        if not isinstance(detail, dict):
+            continue
+        instances.append(
+            {
+                "location": location,
+                "world_id": world_id,
+                "instance_id": instance_id,
+                "calendar_entry_id": detail.get("calendarEntryId"),
+                "role_restricted": bool(detail.get("roleRestricted")),
+                "age_gate": bool(detail.get("ageGate")),
+                "group_access_type": detail.get("groupAccessType"),
+            }
+        )
+    return _instances_result(job, INSTANCES_OK, instances=instances, listed=len(listed))
+
+
 def _invite_result(job: dict, state: str, **extra) -> dict:
     """One invite outcome, shaped for the bot's result consumer.
 
@@ -1411,6 +1549,7 @@ HANDLERS = {
     JOB_LEAVE_GROUP: leave_group,
     JOB_VERIFY_CLAIM: verify_group_claim,
     JOB_FETCH_CALENDAR_PAGE: fetch_group_calendar_page,
+    JOB_FETCH_EVENT_INSTANCES: fetch_group_event_instances,
 }
 
 
@@ -1550,6 +1689,14 @@ def process_job(ch, method, properties, body):
                             failed,
                             LEAVE_FAILED,
                             error_message="The leave failed unexpectedly.",
+                        )
+                    )
+                elif failed.get("type") == JOB_FETCH_EVENT_INSTANCES:
+                    publish_result(
+                        _instances_result(
+                            failed,
+                            INSTANCES_VRCHAT_UNAVAILABLE,
+                            error_message="The instance check failed unexpectedly.",
                         )
                     )
                 elif failed.get("type") == JOB_FETCH_CALENDAR_PAGE:

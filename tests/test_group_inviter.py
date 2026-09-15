@@ -754,6 +754,94 @@ class TestTheCalendarPage:
         assert [p["type"] for p in published] == [inviter.JOB_FETCH_CALENDAR_PAGE]
 
 
+INSTANCES_JOB = {
+    "type": "fetch_group_event_instances",
+    "jobID": "i1",
+    "guildID": "123",
+    "groupID": GROUP_ID,
+    "skip": [],
+}
+LOCATION = "wrld_4432ea9b-729c-46e3-8eaf-846aa0a37fdd:12345~group(grp_x)~groupAccessType(plus)~region(use)"
+
+
+class FakeInstancesSide:
+    """get_group_instances on the groups API, get_instance on the instances API."""
+
+    def __init__(self):
+        self.listed = [{"location": LOCATION, "memberCount": 1}]
+        self.list_error = None
+        self.details = {LOCATION: {"calendarEntryId": "cal_1", "roleRestricted": False, "ageGate": True, "groupAccessType": "plus"}}
+        self.read = []
+
+    def get_group_instances(self, group_id, **kwargs):
+        if self.list_error:
+            raise self.list_error
+        return SimpleNamespace(data=__import__("json").dumps(self.listed).encode())
+
+    def get_instance(self, world_id, instance_id, **kwargs):
+        location = f"{world_id}:{instance_id}"
+        self.read.append(location)
+        if location not in self.details:
+            raise FakeApiException(status=404, body="gone")
+        return SimpleNamespace(data=__import__("json").dumps(self.details[location]).encode())
+
+
+@pytest.fixture
+def instances_side(monkeypatch):
+    fake = FakeInstancesSide()
+    monkeypatch.setattr(inviter, "GroupsApi", lambda client=None: fake)
+    monkeypatch.setattr(inviter, "InstancesApi", lambda client=None: fake)
+    return fake
+
+
+class TestTheInstanceCheck:
+    """#289, PR 2: find the instance an admin opened for a calendar event."""
+
+    def test_a_linked_instance_is_reported_with_its_calendar_entry(self, api, instances_side):
+        result = inviter.fetch_group_event_instances(INSTANCES_JOB)
+        assert result["state"] == inviter.INSTANCES_OK
+        assert result["instances"] == [{
+            "location": LOCATION,
+            "world_id": LOCATION.split(":")[0],
+            "instance_id": LOCATION.split(":", 1)[1],
+            "calendar_entry_id": "cal_1",
+            "role_restricted": False,
+            "age_gate": True,
+            "group_access_type": "plus",
+        }]
+
+    def test_a_non_member_is_told_so_not_that_the_group_is_gone(self, api, instances_side):
+        """Measured: 403 "You're not a member." for a group the account is not in."""
+        instances_side.list_error = FakeApiException(status=403, body="You're not a member")
+        assert inviter.fetch_group_event_instances(INSTANCES_JOB)["state"] == inviter.INSTANCES_NOT_MEMBER
+
+    def test_instances_the_bot_ruled_out_are_not_read_again(self, api, instances_side):
+        result = inviter.fetch_group_event_instances(dict(INSTANCES_JOB, skip=[LOCATION]))
+        assert result["instances"] == [] and instances_side.read == []
+
+    def test_one_unreadable_instance_does_not_sink_the_rest(self, api, instances_side):
+        other = LOCATION.replace("12345", "67890")
+        instances_side.listed = [{"location": other}, {"location": LOCATION}]
+        result = inviter.fetch_group_event_instances(INSTANCES_JOB)
+        assert [i["location"] for i in result["instances"]] == [LOCATION]
+
+    def test_reads_are_capped_per_job(self, api, instances_side, monkeypatch):
+        monkeypatch.setattr(inviter, "INSTANCES_READ_MAX", 2)
+        many = [LOCATION.replace("12345", str(n)) for n in range(5)]
+        instances_side.listed = [{"location": loc} for loc in many]
+        instances_side.details = {loc: {"calendarEntryId": None} for loc in many}
+        assert len(inviter.fetch_group_event_instances(INSTANCES_JOB)["instances"]) == 2
+
+    def test_a_job_naming_no_group_calls_nothing(self, api, instances_side):
+        assert inviter.fetch_group_event_instances(dict(INSTANCES_JOB, groupID=None))["state"] == inviter.INSTANCES_BAD_JOB
+        assert instances_side.read == []
+
+    def test_it_is_dispatched_and_never_joins(self, api, instances_side):
+        assert inviter.HANDLERS[inviter.JOB_FETCH_EVENT_INSTANCES] is inviter.fetch_group_event_instances
+        inviter.fetch_group_event_instances(INSTANCES_JOB)
+        assert api.joined() == []
+
+
 class TestTheWorkerNamesItself:
     def test_every_result_says_which_account_produced_it(self, api, monkeypatch):
         """One invite account today; the 100/200-group seat cap guarantees

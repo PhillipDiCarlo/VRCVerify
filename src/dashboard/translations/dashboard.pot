@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 10:57-0400\n"
+"POT-Creation-Date: 2026-09-15 00:39-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -815,6 +815,42 @@ msgstr ""
 msgid "Some events couldn't be updated in Discord"
 msgstr ""
 
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr ""
+
+msgid "This channel no longer exists in the server."
+msgstr ""
+
+msgid "VRCVerify cannot post in this channel."
+msgstr ""
+
+msgid "Announce join links in"
+msgstr ""
+
+msgid ""
+"When a synced event's VRChat instance opens, VRCVerify posts its join "
+"link here and adds it to the Discord event. When you create the instance "
+"in VRChat, attach it to the event (VRChat offers this in the hours around"
+" the event) so VRCVerify can find it. Choose Off to skip announcements."
+msgstr ""
+
+msgid "None"
+msgstr ""
+
+msgid ""
+"This role doesn't allow anyone to mention it, so its members won't be "
+"notified unless VRCVerify has Discord's Mention Everyone permission."
+msgstr ""
+
+msgid "Ping with the announcement"
+msgstr ""
+
+msgid ""
+"Optional. The role mentioned when a join link is posted. Nobody else is "
+"pinged."
+msgstr ""
+
 msgid "Waiting for the first sync"
 msgstr ""
 
@@ -910,20 +946,10 @@ msgstr ""
 msgid "Hidden"
 msgstr ""
 
-#, python-format
-msgid "Unknown channel (%(id)s)"
-msgstr ""
-
-msgid "This channel no longer exists in the server."
-msgstr ""
-
 msgid ""
 "This is an announcement channel. Other servers can follow it, which would"
 " republish age disclosures about your members. VRCVerify will not log "
 "here."
-msgstr ""
-
-msgid "VRCVerify cannot post in this channel."
 msgstr ""
 
 msgid "Verification log channel"
@@ -1571,10 +1597,10 @@ msgstr ""
 
 #, python-format
 msgid ""
-"Your group's calendar is checked about every minute, so new and changed "
-"events reach Discord within a minute or so. A deleted event is checked "
-"twice before it's removed, so it can take about %(twice)s minutes to "
-"leave Discord."
+"Your group's calendar is checked about every %(count)s minute, so new and"
+" changed events reach Discord within %(count)s minute or so. A deleted "
+"event is checked twice before it's removed, so it can take about "
+"%(twice)s minutes to leave Discord."
 msgid_plural ""
 "Your group's calendar is checked about every %(count)s minutes, so new "
 "and changed events reach Discord within %(count)s minutes or so. A "
@@ -1606,10 +1632,12 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "Not applied"
+msgid ""
+"To post join links when an event starts, VRCVerify needs to be in your "
+"VRChat group. Setting up group invites above adds it."
 msgstr ""
 
-msgid "None"
+msgid "Not applied"
 msgstr ""
 
 msgid "Use the default blue"

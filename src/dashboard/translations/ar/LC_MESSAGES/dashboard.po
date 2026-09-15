@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 10:57-0400\n"
+"POT-Creation-Date: 2026-09-15 00:39-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -1014,6 +1014,51 @@ msgstr ""
 msgid "Some events couldn't be updated in Discord"
 msgstr "تعذّر تحديث بعض الفعاليات في Discord"
 
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr "قناة غير معروفة (%(id)s)"
+
+msgid "This channel no longer exists in the server."
+msgstr "لم تعد هذه القناة موجودة في الخادم."
+
+msgid "VRCVerify cannot post in this channel."
+msgstr "لا يستطيع VRCVerify النشر في هذه القناة."
+
+msgid "Announce join links in"
+msgstr "أعلن روابط الانضمام في"
+
+msgid ""
+"When a synced event's VRChat instance opens, VRCVerify posts its join "
+"link here and adds it to the Discord event. When you create the instance "
+"in VRChat, attach it to the event (VRChat offers this in the hours around"
+" the event) so VRCVerify can find it. Choose Off to skip announcements."
+msgstr ""
+"عندما يُفتح مثيل VRChat لفعالية تمت مزامنتها، ينشر VRCVerify رابط "
+"الانضمام هنا ويضيفه إلى فعالية Discord. عند إنشاء المثيل في VRChat، اربطه"
+" بالفعالية (يتيح VRChat ذلك في الساعات المحيطة بموعدها) ليتمكّن VRCVerify"
+" من العثور عليه. اختر «إيقاف» لعدم نشر إعلانات."
+
+msgid "None"
+msgstr "بلا"
+
+msgid ""
+"This role doesn't allow anyone to mention it, so its members won't be "
+"notified unless VRCVerify has Discord's Mention Everyone permission."
+msgstr ""
+"لا يسمح هذا الدور لأحد بالإشارة إليه، لذا لن يتلقى أعضاؤه إشعارًا ما لم "
+"يملك VRCVerify صلاحية Discord «الإشارة إلى ‎@everyone و‎@here وجميع "
+"الرتب»."
+
+msgid "Ping with the announcement"
+msgstr "الإشارة مع الإعلان"
+
+msgid ""
+"Optional. The role mentioned when a join link is posted. Nobody else is "
+"pinged."
+msgstr ""
+"اختياري. الرتبة التي يُشار إليها عند نشر رابط انضمام. لا يُشار إلى أحد "
+"غيرها."
+
 msgid "Waiting for the first sync"
 msgstr "بانتظار المزامنة الأولى"
 
@@ -1131,13 +1176,6 @@ msgstr "ظاهرة"
 msgid "Hidden"
 msgstr "مخفيّة"
 
-#, python-format
-msgid "Unknown channel (%(id)s)"
-msgstr "قناة غير معروفة (%(id)s)"
-
-msgid "This channel no longer exists in the server."
-msgstr "لم تعد هذه القناة موجودة في الخادم."
-
 # | msgid "" "Verification logs can't go in an announcement channel -- other
 # | servers " "can follow one, which would republish your members' age
 # status."
@@ -1148,9 +1186,6 @@ msgid ""
 msgstr ""
 "هذه قناة إعلانات. يمكن للخوادم الأخرى متابعتها، ما يعيد نشر حالة أعمار "
 "أعضائك، ولذلك لن يسجّل VRCVerify هنا."
-
-msgid "VRCVerify cannot post in this channel."
-msgstr "لا يستطيع VRCVerify النشر في هذه القناة."
 
 # | msgid "A verification log channel"
 msgid "Verification log channel"
@@ -1905,10 +1940,10 @@ msgstr "آخر مزامنة: %(when)s"
 
 #, python-format
 msgid ""
-"Your group's calendar is checked about every minute, so new and changed "
-"events reach Discord within a minute or so. A deleted event is checked "
-"twice before it's removed, so it can take about %(twice)s minutes to "
-"leave Discord."
+"Your group's calendar is checked about every %(count)s minute, so new and"
+" changed events reach Discord within %(count)s minute or so. A deleted "
+"event is checked twice before it's removed, so it can take about "
+"%(twice)s minutes to leave Discord."
 msgid_plural ""
 "Your group's calendar is checked about every %(count)s minutes, so new "
 "and changed events reach Discord within %(count)s minutes or so. A "
@@ -1982,11 +2017,15 @@ msgstr[5] ""
 "لم تُضَف %(count)s فعالية أخرى، لأن Discord يسمح بـ 100 فعالية لكل خادم. "
 "تُزامَن الأقرب موعدًا، ويُضاف الباقي كلما انتهت."
 
+msgid ""
+"To post join links when an event starts, VRCVerify needs to be in your "
+"VRChat group. Setting up group invites above adds it."
+msgstr ""
+"لنشر روابط الانضمام عند بدء فعالية، يجب أن يكون VRCVerify في مجموعتك على "
+"VRChat. إعداد دعوات المجموعة أعلاه يضيفه."
+
 msgid "Not applied"
 msgstr "غير مطبَّق"
-
-msgid "None"
-msgstr "بلا"
 
 msgid "Use the default blue"
 msgstr "استخدام الأزرق الافتراضي"

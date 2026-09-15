@@ -707,6 +707,8 @@ class TestEveryFieldDeclaresItsGate:
         "vrchat_group_id": (bot.FEATURE_GROUP_INVITE, True),
         "vrchat_group_invite_enabled": (bot.FEATURE_GROUP_INVITE, True),
         "calendar_sync_enabled": (bot.FEATURE_CALENDAR_SYNC, True),
+        "calendar_announce_channel_id": (bot.FEATURE_CALENDAR_SYNC, True),
+        "calendar_ping_role_id": (bot.FEATURE_CALENDAR_SYNC, True),
     }
 
     def test_the_table_is_exactly_this(self):
@@ -744,6 +746,8 @@ class TestEveryFieldDeclaresItsGate:
             "vrchat_group_id",
             "vrchat_group_invite_enabled",
             "calendar_sync_enabled",
+            "calendar_announce_channel_id",
+            "calendar_ping_role_id",
         }
 
     def test_a_grandfathered_server_keeps_exactly_three(self, enforced):

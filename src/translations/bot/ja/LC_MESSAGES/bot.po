@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-11 03:46-0400\n"
+"POT-Creation-Date: 2026-09-15 00:39-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -815,6 +815,14 @@ msgid ""
 msgstr ""
 "この招待は、現在リンクされているものとは別の VRChat "
 "アカウント宛てに送られたものです。現在のアカウントで新しい招待を受け取るには、もう一度認証してください。"
+
+#, python-brace-format
+msgid "**{event}** is open in VRChat. Join here: {link}"
+msgstr "**{event}** が VRChat で始まりました。参加はこちら: {link}"
+
+#, python-brace-format
+msgid "**{event}** is open in VRChat (18+). Join here: {link}"
+msgstr "**{event}** が VRChat で始まりました（18+）。参加はこちら: {link}"
 
 #~ msgid "Donate"
 #~ msgstr "寄付"

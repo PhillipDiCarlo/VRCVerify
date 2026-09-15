@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 10:57-0400\n"
+"POT-Creation-Date: 2026-09-15 00:39-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -888,6 +888,46 @@ msgstr "机器人无法连接到负责与 VRChat 通信的组件。下次同步�
 msgid "Some events couldn't be updated in Discord"
 msgstr "部分活动无法在 Discord 中更新"
 
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr "未知频道（%(id)s）"
+
+msgid "This channel no longer exists in the server."
+msgstr "该频道已不在服务器中。"
+
+msgid "VRCVerify cannot post in this channel."
+msgstr "VRCVerify 无法在此频道发言。"
+
+msgid "Announce join links in"
+msgstr "在此发布加入链接"
+
+msgid ""
+"When a synced event's VRChat instance opens, VRCVerify posts its join "
+"link here and adds it to the Discord event. When you create the instance "
+"in VRChat, attach it to the event (VRChat offers this in the hours around"
+" the event) so VRCVerify can find it. Choose Off to skip announcements."
+msgstr ""
+"同步活动的 VRChat 实例开启时，VRCVerify 会在这里发布加入链接，并将其添加到 Discord 活动中。在 VRChat "
+"中创建实例时，请将其关联到该活动（VRChat 会在活动前后几小时内提供此选项），以便 VRCVerify 找到它。选择“关闭”则不发布通知。"
+
+msgid "None"
+msgstr "无"
+
+msgid ""
+"This role doesn't allow anyone to mention it, so its members won't be "
+"notified unless VRCVerify has Discord's Mention Everyone permission."
+msgstr ""
+"此身份组不允许任何人提及，因此除非 VRCVerify 拥有 Discord 的「提及 @everyone、@here "
+"和所有身份组」权限，否则其成员不会收到通知。"
+
+msgid "Ping with the announcement"
+msgstr "通知时提及"
+
+msgid ""
+"Optional. The role mentioned when a join link is posted. Nobody else is "
+"pinged."
+msgstr "可选。发布加入链接时提及的身份组。不会提及其他任何人。"
+
 msgid "Waiting for the first sync"
 msgstr "正在等待首次同步"
 
@@ -986,13 +1026,6 @@ msgstr "显示"
 msgid "Hidden"
 msgstr "隐藏"
 
-#, python-format
-msgid "Unknown channel (%(id)s)"
-msgstr "未知频道（%(id)s）"
-
-msgid "This channel no longer exists in the server."
-msgstr "该频道已不在服务器中。"
-
 # | msgid "" "Verification logs can't go in an announcement channel -- other
 # | servers " "can follow one, which would republish your members' age
 # status."
@@ -1001,9 +1034,6 @@ msgid ""
 " republish age disclosures about your members. VRCVerify will not log "
 "here."
 msgstr "这是一个公告频道。其他服务器可以关注它，从而把你成员的年龄状态转发出去，因此 VRCVerify 不会在这里记录。"
-
-msgid "VRCVerify cannot post in this channel."
-msgstr "VRCVerify 无法在此频道发言。"
 
 # | msgid "A verification log channel"
 msgid "Verification log channel"
@@ -1696,10 +1726,10 @@ msgstr "上次同步：%(when)s"
 
 #, python-format
 msgid ""
-"Your group's calendar is checked about every minute, so new and changed "
-"events reach Discord within a minute or so. A deleted event is checked "
-"twice before it's removed, so it can take about %(twice)s minutes to "
-"leave Discord."
+"Your group's calendar is checked about every %(count)s minute, so new and"
+" changed events reach Discord within %(count)s minute or so. A deleted "
+"event is checked twice before it's removed, so it can take about "
+"%(twice)s minutes to leave Discord."
 msgid_plural ""
 "Your group's calendar is checked about every %(count)s minutes, so new "
 "and changed events reach Discord within %(count)s minutes or so. A "
@@ -1735,11 +1765,13 @@ msgstr[0] ""
 "还有 %(count)s 个活动未添加，因为 Discord 每个服务器最多允许 100 "
 "个活动。最近的活动已同步，其余的会在这些活动结束后陆续添加。"
 
+msgid ""
+"To post join links when an event starts, VRCVerify needs to be in your "
+"VRChat group. Setting up group invites above adds it."
+msgstr "要在活动开始时发布加入链接，VRCVerify 需要在你的 VRChat 群组中。完成上方的群组邀请设置即可将其加入。"
+
 msgid "Not applied"
 msgstr "未生效"
-
-msgid "None"
-msgstr "无"
 
 msgid "Use the default blue"
 msgstr "使用默认蓝色"

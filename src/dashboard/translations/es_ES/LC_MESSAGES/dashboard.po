@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 10:57-0400\n"
+"POT-Creation-Date: 2026-09-15 00:39-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es_ES\n"
@@ -1050,6 +1050,52 @@ msgstr ""
 msgid "Some events couldn't be updated in Discord"
 msgstr "Algunos eventos no se pudieron actualizar en Discord"
 
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr "Canal desconocido (%(id)s)"
+
+msgid "This channel no longer exists in the server."
+msgstr "Este canal ya no existe en el servidor."
+
+msgid "VRCVerify cannot post in this channel."
+msgstr "VRCVerify no puede publicar en este canal."
+
+msgid "Announce join links in"
+msgstr "Anunciar enlaces para unirse en"
+
+msgid ""
+"When a synced event's VRChat instance opens, VRCVerify posts its join "
+"link here and adds it to the Discord event. When you create the instance "
+"in VRChat, attach it to the event (VRChat offers this in the hours around"
+" the event) so VRCVerify can find it. Choose Off to skip announcements."
+msgstr ""
+"Cuando se abre la instancia de VRChat de un evento sincronizado, "
+"VRCVerify publica aquí su enlace para unirse y lo añade al evento de "
+"Discord. Al crear la instancia en VRChat, vincúlala al evento (VRChat lo "
+"ofrece en las horas cercanas al evento) para que VRCVerify pueda "
+"encontrarla. Elige Desactivado para no enviar anuncios."
+
+msgid "None"
+msgstr "Ninguno"
+
+msgid ""
+"This role doesn't allow anyone to mention it, so its members won't be "
+"notified unless VRCVerify has Discord's Mention Everyone permission."
+msgstr ""
+"Nadie puede mencionar este rol, así que sus miembros no recibirán "
+"notificación a menos que VRCVerify tenga el permiso «Mencionar @everyone,"
+" @here y todos los roles» de Discord."
+
+msgid "Ping with the announcement"
+msgstr "Mencionar con el anuncio"
+
+msgid ""
+"Optional. The role mentioned when a join link is posted. Nobody else is "
+"pinged."
+msgstr ""
+"Opcional. El rol que se menciona cuando se publica un enlace para unirse."
+" No se menciona a nadie más."
+
 msgid "Waiting for the first sync"
 msgstr "Esperando la primera sincronización"
 
@@ -1175,13 +1221,6 @@ msgstr "Mostrado"
 msgid "Hidden"
 msgstr "Oculto"
 
-#, python-format
-msgid "Unknown channel (%(id)s)"
-msgstr "Canal desconocido (%(id)s)"
-
-msgid "This channel no longer exists in the server."
-msgstr "Este canal ya no existe en el servidor."
-
 # | msgid "" "Verification logs can't go in an announcement channel -- other
 # | servers " "can follow one, which would republish your members' age
 # status."
@@ -1193,9 +1232,6 @@ msgstr ""
 "Este es un canal de anuncios. Otros servidores pueden seguirlo, lo que "
 "volvería a publicar datos de edad de tus miembros. VRCVerify no "
 "registrará aquí."
-
-msgid "VRCVerify cannot post in this channel."
-msgstr "VRCVerify no puede publicar en este canal."
 
 # | msgid "A verification log channel"
 msgid "Verification log channel"
@@ -1965,10 +2001,10 @@ msgstr "Última sincronización: %(when)s"
 
 #, python-format
 msgid ""
-"Your group's calendar is checked about every minute, so new and changed "
-"events reach Discord within a minute or so. A deleted event is checked "
-"twice before it's removed, so it can take about %(twice)s minutes to "
-"leave Discord."
+"Your group's calendar is checked about every %(count)s minute, so new and"
+" changed events reach Discord within %(count)s minute or so. A deleted "
+"event is checked twice before it's removed, so it can take about "
+"%(twice)s minutes to leave Discord."
 msgid_plural ""
 "Your group's calendar is checked about every %(count)s minutes, so new "
 "and changed events reach Discord within %(count)s minutes or so. A "
@@ -2018,11 +2054,16 @@ msgstr[1] ""
 "por servidor. Se sincronizan los más próximos y el resto se añade a "
 "medida que terminan."
 
+msgid ""
+"To post join links when an event starts, VRCVerify needs to be in your "
+"VRChat group. Setting up group invites above adds it."
+msgstr ""
+"Para publicar enlaces para unirse cuando empieza un evento, VRCVerify "
+"tiene que estar en tu grupo de VRChat. Configurar las invitaciones de "
+"grupo de arriba lo añade."
+
 msgid "Not applied"
 msgstr "Sin aplicar"
-
-msgid "None"
-msgstr "Ninguno"
 
 msgid "Use the default blue"
 msgstr "Usar el azul predeterminado"

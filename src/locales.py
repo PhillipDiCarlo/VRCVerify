@@ -554,3 +554,12 @@ def __getattr__(name: str):
             if key.isupper() and isinstance(value, str)
         )
     return _all_messages
+
+
+# Calendar sync's join-link announcement (#289). Posted in the channel a
+# server's admin chose when the VRChat instance for a synced event opens.
+# {event} is the event's name and {link} the VRChat launch link.
+CALENDAR_INSTANCE_OPEN = N_("**{event}** is open in VRChat. Join here: {link}")
+# The same, for an instance VRChat age-gates to 18+.
+CALENDAR_INSTANCE_OPEN_AGE_GATED = N_("**{event}** is open in VRChat (18+). Join here: {link}")
+

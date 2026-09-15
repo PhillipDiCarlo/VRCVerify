@@ -585,6 +585,13 @@ CALENDAR_START_MARGIN_SECONDS = _int_env("CALENDAR_START_MARGIN_SECONDS", 300)
 # Spacing between two Discord writes in one sync, so a series moving to a new
 # day is a trickle of PATCHes rather than a burst. discord.py still honors 429s.
 CALENDAR_WRITE_SPACING_SECONDS = _float_env("CALENDAR_WRITE_SPACING_SECONDS", 1.0)
+# The join-link announcer (#289, PR 2). An event's instance can open as early as
+# the event's host early-join time before its start (measured: 60 minutes, the
+# default), so the bot starts looking for it that early and stops at the end.
+CALENDAR_ANNOUNCE_EARLY_MINUTES = _int_env("CALENDAR_ANNOUNCE_EARLY_MINUTES", 60)
+# How often a group's instances are checked while one of its events is in that
+# window. One list call plus one call per instance not already ruled out.
+CALENDAR_INSTANCE_CHECK_SECONDS = _int_env("CALENDAR_INSTANCE_CHECK_SECONDS", 180, minimum=60)
 # Capped and spaced for the same reason panel nudges are: a backlog, a clock
 # jump or a long outage must trickle out rather than becoming a burst of VRChat
 # writes from one account.
@@ -2436,6 +2443,9 @@ SETTINGS_FIELDS = (
     # admin's; whether anything is synced also needs a proven group, the plan
     # and the Discord permission, and the dashboard says which is missing.
     SettingsField("calendar_sync_enabled", FEATURE_CALENDAR_SYNC, write_locked=True),
+    # Where an event's join link is announced, and who is pinged (#289, PR 2).
+    SettingsField("calendar_announce_channel_id", FEATURE_CALENDAR_SYNC, write_locked=True),
+    SettingsField("calendar_ping_role_id", FEATURE_CALENDAR_SYNC, write_locked=True),
 )
 
 SETTINGS_FIELDS_BY_NAME = {field.name: field for field in SETTINGS_FIELDS}
@@ -2479,6 +2489,8 @@ DASHBOARD_WRITABLE_FIELDS = frozenset(
         "vrchat_group_id",
         "vrchat_group_invite_enabled",
         "calendar_sync_enabled",
+        "calendar_announce_channel_id",
+        "calendar_ping_role_id",
     }
 )
 
@@ -2703,6 +2715,8 @@ SETTING_COERCERS = {
     "vrchat_group_id": parse_vrchat_group_id,
     "vrchat_group_invite_enabled": _bool_coercer("vrchat_group_invite_enabled"),
     "calendar_sync_enabled": _bool_coercer("calendar_sync_enabled"),
+    "calendar_announce_channel_id": _role_coercer("calendar_announce_channel_id", required=False),
+    "calendar_ping_role_id": _role_coercer("calendar_ping_role_id", required=False),
 }
 
 # Fields whose value has to name a real role in *this* guild.
@@ -2717,7 +2731,7 @@ SETTING_COERCERS = {
 # Existence is different: it is the guarantee Discord's picker provides for
 # free and the dashboard has to provide for itself, because it submits a raw
 # id rather than a choice from a list the platform vouched for.
-ROLE_FIELDS = frozenset({"role_id", "unverified_role_id"})
+ROLE_FIELDS = frozenset({"role_id", "unverified_role_id", "calendar_ping_role_id"})
 
 # The log channel, which unlike a role has rules beyond existing.
 #
@@ -4410,6 +4424,17 @@ def record_group_claim_result(payload: dict) -> str:
 # Calendar sync: what to mirror, decided without touching Discord (#289)
 # -------------------------------------------------------------------
 JOB_FETCH_CALENDAR_PAGE = "fetch_group_calendar_page"
+JOB_FETCH_EVENT_INSTANCES = "fetch_group_event_instances"
+# vrc_group_inviter.INSTANCES_STATES, held together by a test.
+INSTANCES_OK = "ok"
+INSTANCES_NOT_MEMBER = "not_member"
+INSTANCES_STATES = frozenset(
+    {INSTANCES_OK, INSTANCES_NOT_MEMBER, GROUP_SETUP_GROUP_NOT_FOUND, GROUP_SETUP_VRCHAT_UNAVAILABLE, GROUP_SETUP_BAD_JOB}
+)
+# The setup verdicts that mean the invite account is inside the group. VRChat
+# lists a group's instances only to a member, so these are what make a join
+# link possible at all.
+CALENDAR_MEMBER_STATES = frozenset({GROUP_SETUP_READY, GROUP_SETUP_NO_INVITE_PERMISSION})
 
 # group_calendar_link.last_state. The worker's page verdicts mirror
 # vrc_group_inviter.CALENDAR_PAGE_STATES; the rest are this side's.
@@ -4544,7 +4569,17 @@ def _clip_text(text, limit: int) -> str:
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "\u2026"
 
 
-def build_discord_event_fields(event: dict, group_id: str, group_name) -> dict:
+def vrchat_launch_url(world_id: str, instance_id: str) -> str:
+    """The link that opens VRChat into one instance."""
+    from urllib.parse import quote
+
+    return (
+        "https://vrchat.com/home/launch"
+        f"?worldId={quote(world_id, safe='')}&instanceId={quote(instance_id, safe='~()')}"
+    )
+
+
+def build_discord_event_fields(event: dict, group_id: str, group_name, join_link=None) -> dict:
     """What the Discord event for one occurrence says.
 
     `location` cannot hold a link: a join link is past 170 characters and even
@@ -4555,6 +4590,10 @@ def build_discord_event_fields(event: dict, group_id: str, group_name) -> dict:
     """
     link = f"https://vrchat.com/home/group/{group_id}"
     footer = f"\n\nVRChat group: {link}"
+    # Once the event's instance is open (#289, PR 2), its join link goes first
+    # in the footer: it is the one link a member arriving from Discord wants.
+    if join_link:
+        footer = f"\n\nJoin in VRChat: {join_link}" + footer.replace("\n\n", "\n", 1)
     body = _clip_text(
         event.get("description"), DISCORD_EVENT_DESCRIPTION_MAX - len(footer)
     )
@@ -4595,7 +4634,8 @@ def plan_calendar_changes(rows: dict, chosen, group_id: str, group_name, now: da
     """
     wanted = {}
     for event in chosen:
-        fields = build_discord_event_fields(event, group_id, group_name)
+        join_link = (rows.get(event["id"]) or {}).get("join_location")
+        fields = build_discord_event_fields(event, group_id, group_name, join_link)
         wanted[event["id"]] = (event, fields, calendar_content_hash(fields))
 
     create, update, delete, missing, seen_again = [], [], [], [], []
@@ -4659,6 +4699,8 @@ def _calendar_link_dict(row) -> dict:
         "eligible_count": row.eligible_count,
         "synced_count": row.synced_count,
         "over_cap_count": row.over_cap_count,
+        "announce_channel_id": row.announce_channel_id,
+        "ping_role_id": row.ping_role_id,
     }
 
 
@@ -4696,6 +4738,19 @@ def save_calendar_enabled(guild_id, enabled: bool) -> None:
         row.updated_at = now
 
 
+def save_calendar_announce(guild_id, *, channel_id, role_id) -> None:
+    """Store where join links are announced and who is pinged (#289, PR 2)."""
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        row = session.query(GroupCalendarLink).filter_by(server_id=key).first()
+        if row is None:
+            row = GroupCalendarLink(server_id=key, enabled=False, include_group_events=False)
+            session.add(row)
+        row.announce_channel_id = channel_id or None
+        row.ping_role_id = role_id or None
+        row.updated_at = datetime.now(timezone.utc)
+
+
 def load_calendar_event_rows(guild_id) -> dict:
     key = panel_view_key(guild_id)
     with session_scope() as session:
@@ -4711,6 +4766,8 @@ def load_calendar_event_rows(guild_id) -> dict:
                 "content_hash": row.content_hash,
                 "state": row.state,
                 "missing_since": _utc(row.missing_since),
+                "announced_at": _utc(row.announced_at),
+                "join_location": row.join_location,
             }
             for row in rows
         }
@@ -9033,6 +9090,9 @@ async def _calendar_sync_one(link: dict, now: datetime, outcome: dict) -> None:
         return
     if not (load_group_ownership(guild_id) or {}).get("proven"):
         return
+    # Independent of the calendar poll's own schedule: an event's instance opens
+    # at a moment the poll interval knows nothing about.
+    await maybe_check_event_instances(guild_id, current_group, config, link, now)
     if not calendar_poll_is_due(link, now):
         return
 
@@ -9060,6 +9120,206 @@ async def _calendar_sync_one(link: dict, now: datetime, outcome: dict) -> None:
     # Spaced, so a restart with many links due does not queue them all at once
     # in front of member invites.
     await asyncio.sleep(CALENDAR_POLL_START_SPACING_SECONDS)
+
+
+# The instance check in flight per guild, and the instance locations already
+# read and found not linked to any event, so they are not read again.
+_calendar_instance_checks: dict = {}
+_calendar_unlinked_instances: dict = {}
+
+
+def calendar_events_awaiting_link(rows: dict, now: datetime) -> list:
+    """Synced events whose instance may be open now and has not been announced.
+
+    From CALENDAR_ANNOUNCE_EARLY_MINUTES before the start until the end.
+    """
+    early = timedelta(minutes=CALENDAR_ANNOUNCE_EARLY_MINUTES)
+    return [
+        row
+        for row in rows.values()
+        if row.get("state") == CALENDAR_EVENT_SYNCED
+        and row.get("announced_at") is None
+        and row.get("starts_at") is not None
+        and row.get("ends_at") is not None
+        and row["starts_at"] - early <= now <= row["ends_at"]
+    ]
+
+
+async def maybe_check_event_instances(guild_id, group_id, config: dict, link: dict, now: datetime) -> bool:
+    """Ask the worker for the group's instances if an event could need its link.
+
+    Only for a group the invite account is in (VRChat lists instances to members
+    only), only with an announcement channel set, and only while at least one
+    synced, unannounced event is inside its window. Returns whether it asked.
+    """
+    key = panel_view_key(guild_id)
+    if not link.get("announce_channel_id"):
+        return False
+    if effective_group_setup_state(config) not in CALENDAR_MEMBER_STATES:
+        return False
+    if not calendar_events_awaiting_link(load_calendar_event_rows(guild_id), now):
+        # Nothing to look for, so nothing remembered from the last event.
+        _calendar_unlinked_instances.pop(key, None)
+        return False
+    pending = _calendar_instance_checks.get(key)
+    if pending and (now - pending["at"]).total_seconds() < CALENDAR_INSTANCE_CHECK_SECONDS:
+        return False
+
+    job = {
+        "type": JOB_FETCH_EVENT_INSTANCES,
+        "jobID": secrets.token_hex(16),
+        "guildID": str(guild_id),
+        "groupID": group_id,
+        "skip": sorted(_calendar_unlinked_instances.get(key, set()))[:50],
+    }
+    _calendar_instance_checks[key] = {"job_id": job["jobID"], "at": now, "group_id": group_id}
+    loop = asyncio.get_running_loop()
+    if not await loop.run_in_executor(None, publish_group_invite_job, job):
+        logger.warning("Could not ask for group instances for guild %s.", guild_id)
+        return False
+    return True
+
+
+async def handle_calendar_instances_result(data: dict) -> str:
+    """Match open instances to synced events, and announce each once."""
+    if not isinstance(data, dict):
+        return "bad_payload"
+    guild_id = data.get("guildID")
+    if not guild_id or not str(guild_id).isdigit():
+        return "bad_payload"
+    key = panel_view_key(guild_id)
+    pending = _calendar_instance_checks.get(key)
+    if not pending or pending["job_id"] != data.get("jobID") or pending["group_id"] != data.get("groupID"):
+        return "stale"
+
+    state = data.get("state")
+    if state != INSTANCES_OK:
+        if state == INSTANCES_NOT_MEMBER:
+            logger.warning(
+                "Guild %s's VRChat group refused the instance list: the invite account is not a member.",
+                guild_id,
+            )
+        return state if state in INSTANCES_STATES else "unknown_state"
+
+    guild = bot.get_guild(int(guild_id))
+    link = load_calendar_link(guild_id) or {}
+    if guild is None or not link.get("enabled") or not link.get("announce_channel_id"):
+        return "stale"
+    rows = load_calendar_event_rows(guild_id)
+    now = datetime.now(timezone.utc)
+    awaiting = {row["vrc_event_id"]: row for row in calendar_events_awaiting_link(rows, now)}
+    unlinked = _calendar_unlinked_instances.setdefault(key, set())
+
+    announced = 0
+    for instance in data.get("instances") or []:
+        if not isinstance(instance, dict) or not instance.get("location"):
+            continue
+        entry = instance.get("calendar_entry_id")
+        if not entry:
+            unlinked.add(instance["location"])
+            continue
+        row = awaiting.pop(entry, None)
+        if row is None:
+            # Linked to an event this guild did not sync, or already announced.
+            unlinked.add(instance["location"])
+            continue
+        if instance.get("role_restricted"):
+            # Decided on #289: never a public link to a role-restricted instance.
+            # Not remembered as unlinked: its restriction can be lifted.
+            continue
+        if await announce_calendar_instance(guild, guild_id, link, row, instance):
+            announced += 1
+    return f"announced {announced}"
+
+
+async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, instance: dict) -> bool:
+    """Post one event's join link, and put it in the Discord event's description.
+
+    Claimed in the database before anything is sent, so two checks racing over
+    the same instance cannot post it twice. A post that fails gives the claim
+    back, so the next check can try again once whatever blocked it is fixed.
+    """
+    join_link = vrchat_launch_url(instance["world_id"], instance["instance_id"])
+    if not claim_calendar_announcement(guild_id, row["vrc_event_id"], join_link):
+        return False
+
+    event = None
+    try:
+        event = await _fetch_calendar_event(guild, row.get("discord_event_id"))
+    except discord.HTTPException:
+        event = None
+    # Escaped: the name is the organizer's text, and it sits inside bold markup.
+    name = discord.utils.escape_markdown(getattr(event, "name", None) or "VRChat event")
+    locale = get_server_locale_code(str(guild_id), guild)
+    text = translate(
+        locales.CALENDAR_INSTANCE_OPEN_AGE_GATED if instance.get("age_gate") else locales.CALENDAR_INSTANCE_OPEN,
+        locale,
+        event=name,
+        link=join_link,
+    )
+    role_id = link.get("ping_role_id")
+    channel = guild.get_channel(int(link["announce_channel_id"])) if str(link["announce_channel_id"]).isdigit() else None
+    try:
+        if channel is None:
+            raise LookupError("announcement channel not found")
+        await channel.send(
+            f"<@&{role_id}> {text}" if role_id else text,
+            # Exactly the chosen role, and nobody else, whatever the event's
+            # title or description contains.
+            allowed_mentions=discord.AllowedMentions(
+                everyone=False,
+                users=False,
+                roles=[discord.Object(int(role_id))] if role_id else False,
+            ),
+        )
+    except (discord.HTTPException, LookupError):
+        logger.warning("Could not announce the join link for guild %s.", guild_id, exc_info=True)
+        release_calendar_announcement(guild_id, row["vrc_event_id"])
+        return False
+
+    # The description too, straight away rather than on the next poll. A
+    # finished event cannot be edited, and a missing one was deleted by hand.
+    if event is not None and getattr(event, "status", None) not in (
+        discord.EventStatus.completed,
+        discord.EventStatus.canceled,
+    ):
+        description = getattr(event, "description", None) or ""
+        marker = "\n\nVRChat group: "
+        if marker in description:
+            description = description.replace(marker, f"\n\nJoin in VRChat: {join_link}\nVRChat group: ", 1)
+        else:
+            description = f"{description}\n\nJoin in VRChat: {join_link}".strip()
+        try:
+            await event.edit(description=description[:DISCORD_EVENT_DESCRIPTION_MAX], reason=CALENDAR_AUDIT_REASON)
+        except discord.HTTPException:
+            # The announcement went out; the next poll writes the link into the
+            # description anyway, since the stored join link is part of its hash.
+            logger.warning("Could not add the join link to event %s in guild %s.", event.id, guild_id)
+    return True
+
+
+def claim_calendar_announcement(guild_id, vrc_event_id, join_link) -> bool:
+    key = panel_view_key(guild_id)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        claimed = (
+            session.query(CalendarEventSync)
+            .filter_by(server_id=key, vrc_event_id=vrc_event_id)
+            .filter(CalendarEventSync.announced_at.is_(None))
+            .update(
+                {"announced_at": now, "join_location": join_link, "updated_at": now},
+                synchronize_session=False,
+            )
+        )
+        return claimed == 1
+
+
+def release_calendar_announcement(guild_id, vrc_event_id) -> None:
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        session.query(CalendarEventSync).filter_by(server_id=key, vrc_event_id=vrc_event_id).update(
+            {"announced_at": None, "join_location": None}, synchronize_session=False
+        )
 
 
 async def calendar_sync_task(interval_seconds: int = CALENDAR_SYNC_PASS_SECONDS):
@@ -9411,6 +9671,21 @@ async def handle_group_invite_result(data: dict):
 
     if isinstance(data, dict) and data.get("type") == JOB_LEAVE_GROUP:
         await handle_seat_release_result(data)
+        return
+
+    if isinstance(data, dict) and data.get("type") == JOB_FETCH_EVENT_INSTANCES:
+        try:
+            outcome = await handle_calendar_instances_result(data)
+        except Exception:
+            logger.exception("Could not handle group instances for guild %s.", data.get("guildID"))
+            return
+        logger.info(
+            "calendar instances guild=%s job=%s state=%s -> %s",
+            data.get("guildID"),
+            data.get("jobID"),
+            data.get("state"),
+            outcome,
+        )
         return
 
     if isinstance(data, dict) and data.get("type") == JOB_FETCH_CALENDAR_PAGE:
@@ -11708,6 +11983,8 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
         # Same refusal to swallow errors as the group config above.
         calendar_link = load_calendar_link(guild_id) or {}
         values["calendar_sync_enabled"] = bool(calendar_link.get("enabled"))
+        values["calendar_announce_channel_id"] = calendar_link.get("announce_channel_id")
+        values["calendar_ping_role_id"] = calendar_link.get("ping_role_id")
 
         subscription = load_stripe_subscription(guild_id)
         if subscription is STRIPE_UNREADABLE:
@@ -11845,6 +12122,10 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
                 # The interval, so the page states the one this bot actually
                 # runs rather than a number of its own that could drift.
                 "poll_interval_minutes": max(1, round(CALENDAR_POLL_INTERVAL_SECONDS / 60)),
+                # Whether the invite account is inside the group, from its last
+                # setup check. VRChat lists a group's instances only to members,
+                # so join links depend on it (#289, PR 2).
+                "bot_in_group": effective_group_setup_state(group_invite) in CALENDAR_MEMBER_STATES,
                 # From the gateway cache, so it is current even before the next
                 # poll: an admin who just granted it sees the warning go away.
                 "can_manage_events": (
@@ -11945,6 +12226,11 @@ async def read_dashboard_roles(guild_id) -> Optional[list]:
                     "position": role.position,
                     "color": role.color.value,
                     "managed": bool(role.managed),
+                    # Whether anyone may ping it. Calendar sync's join-link
+                    # announcement pings a role (#289, PR 2), and Discord only
+                    # notifies its members if the role allows mentions or the
+                    # bot has Mention Everyone.
+                    "mentionable": bool(getattr(role, "mentionable", False)),
                     "assignable": assignable,
                     # None whenever `assignable` is not False: there is no
                     # reason to give for a role that can be granted, and none
@@ -12897,6 +13183,23 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
         if not (perms.view_channel and perms.send_messages):
             raise SettingRejected(name, "channel_not_writable")
 
+    # --- The join-link channel (#289): somewhere the bot can post ---
+    #
+    # Its own check rather than CHANNEL_FIELDS: that set refuses announcement
+    # channels because the verification log names members, and an event's join
+    # link names nobody. An announcement channel is a natural home for it.
+    if coerced.get("calendar_announce_channel_id"):
+        guild = bot.get_guild(int(guild_id))
+        if guild is None or guild.me is None:
+            return None
+        wanted = coerced["calendar_announce_channel_id"]
+        channel = next((c for c in guild.text_channels if str(c.id) == wanted), None)
+        if channel is None:
+            raise SettingRejected("calendar_announce_channel_id", "channel_not_in_guild")
+        perms = channel.permissions_for(guild.me)
+        if not (perms.view_channel and perms.send_messages):
+            raise SettingRejected("calendar_announce_channel_id", "channel_not_writable")
+
     # --- The VRChat group: read once here, applied further down ---
     #
     # Resolved during validation rather than at apply time so that a refused
@@ -13043,6 +13346,21 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
                 # Turning it off is acted on by the next sync pass, which
                 # deletes the bot's events that have not started.
                 save_calendar_enabled(guild_id, new_calendar)
+
+        announce_names = {"calendar_announce_channel_id", "calendar_ping_role_id"}
+        if announce_names & set(coerced):
+            current_link = load_calendar_link(guild_id) or {}
+            for name, column in (
+                ("calendar_announce_channel_id", "announce_channel_id"),
+                ("calendar_ping_role_id", "ping_role_id"),
+            ):
+                if name in coerced and coerced[name] != current_link.get(column):
+                    changed.append((name, current_link.get(column), coerced[name]))
+            save_calendar_announce(
+                guild_id,
+                channel_id=coerced.get("calendar_announce_channel_id", current_link.get("announce_channel_id")),
+                role_id=coerced.get("calendar_ping_role_id", current_link.get("ping_role_id")),
+            )
 
         # --- Everything else lives on the servers row ---
         row_fields = {

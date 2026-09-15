@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 10:57-0400\n"
+"POT-Creation-Date: 2026-09-15 00:39-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: hi_IN\n"
@@ -1022,6 +1022,52 @@ msgstr ""
 msgid "Some events couldn't be updated in Discord"
 msgstr "कुछ इवेंट Discord में अपडेट नहीं हो सके"
 
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr "अज्ञात चैनल (%(id)s)"
+
+msgid "This channel no longer exists in the server."
+msgstr "यह चैनल अब सर्वर में नहीं है।"
+
+msgid "VRCVerify cannot post in this channel."
+msgstr "VRCVerify इस चैनल में पोस्ट नहीं कर सकता।"
+
+msgid "Announce join links in"
+msgstr "जुड़ने के लिंक की घोषणा यहाँ करें"
+
+msgid ""
+"When a synced event's VRChat instance opens, VRCVerify posts its join "
+"link here and adds it to the Discord event. When you create the instance "
+"in VRChat, attach it to the event (VRChat offers this in the hours around"
+" the event) so VRCVerify can find it. Choose Off to skip announcements."
+msgstr ""
+"जब किसी सिंक किए गए इवेंट का VRChat इंस्टेंस खुलता है, VRCVerify उसका "
+"जुड़ने का लिंक यहाँ पोस्ट करता है और उसे Discord इवेंट में जोड़ता है। "
+"VRChat में इंस्टेंस बनाते समय उसे इवेंट से जोड़ें (VRChat यह इवेंट के "
+"आसपास के कुछ घंटों में देता है), ताकि VRCVerify उसे ढूँढ सके। घोषणाएँ न "
+"करने के लिए बंद चुनें।"
+
+msgid "None"
+msgstr "कोई नहीं"
+
+msgid ""
+"This role doesn't allow anyone to mention it, so its members won't be "
+"notified unless VRCVerify has Discord's Mention Everyone permission."
+msgstr ""
+"इस रोल को कोई मेंशन नहीं कर सकता, इसलिए इसके सदस्यों को सूचना नहीं "
+"मिलेगी, जब तक VRCVerify के पास Discord की “@everyone, @here और सभी रोल "
+"मेंशन करें” अनुमति न हो।"
+
+msgid "Ping with the announcement"
+msgstr "घोषणा के साथ पिंग करें"
+
+msgid ""
+"Optional. The role mentioned when a join link is posted. Nobody else is "
+"pinged."
+msgstr ""
+"वैकल्पिक। जुड़ने का लिंक पोस्ट होने पर मेंशन होने वाला रोल। किसी और को "
+"पिंग नहीं किया जाता।"
+
 msgid "Waiting for the first sync"
 msgstr "पहले सिंक का इंतज़ार है"
 
@@ -1141,13 +1187,6 @@ msgstr "दिखाया गया"
 msgid "Hidden"
 msgstr "छिपाया गया"
 
-#, python-format
-msgid "Unknown channel (%(id)s)"
-msgstr "अज्ञात चैनल (%(id)s)"
-
-msgid "This channel no longer exists in the server."
-msgstr "यह चैनल अब सर्वर में नहीं है।"
-
 # | msgid "" "Verification logs can't go in an announcement channel -- other
 # | servers " "can follow one, which would republish your members' age
 # status."
@@ -1159,9 +1198,6 @@ msgstr ""
 "यह एक अनाउंसमेंट चैनल है। दूसरे सर्वर इसे फ़ॉलो कर सकते हैं, जिससे आपके "
 "सदस्यों की आयु-स्थिति दोबारा प्रकाशित हो जाएगी। VRCVerify यहाँ लॉग नहीं "
 "करेगा।"
-
-msgid "VRCVerify cannot post in this channel."
-msgstr "VRCVerify इस चैनल में पोस्ट नहीं कर सकता।"
 
 # | msgid "A verification log channel"
 msgid "Verification log channel"
@@ -1922,10 +1958,10 @@ msgstr "पिछला सिंक: %(when)s"
 
 #, python-format
 msgid ""
-"Your group's calendar is checked about every minute, so new and changed "
-"events reach Discord within a minute or so. A deleted event is checked "
-"twice before it's removed, so it can take about %(twice)s minutes to "
-"leave Discord."
+"Your group's calendar is checked about every %(count)s minute, so new and"
+" changed events reach Discord within %(count)s minute or so. A deleted "
+"event is checked twice before it's removed, so it can take about "
+"%(twice)s minutes to leave Discord."
 msgid_plural ""
 "Your group's calendar is checked about every %(count)s minutes, so new "
 "and changed events reach Discord within %(count)s minutes or so. A "
@@ -1974,11 +2010,16 @@ msgstr[1] ""
 "की अनुमति देता है। सबसे नज़दीकी इवेंट सिंक होते हैं, और बाकी उनके ख़त्म "
 "होते ही जुड़ते जाते हैं।"
 
+msgid ""
+"To post join links when an event starts, VRCVerify needs to be in your "
+"VRChat group. Setting up group invites above adds it."
+msgstr ""
+"इवेंट शुरू होने पर जुड़ने के लिंक पोस्ट करने के लिए VRCVerify को आपके "
+"VRChat ग्रुप में होना ज़रूरी है। ऊपर ग्रुप निमंत्रण सेट अप करने से वह "
+"जुड़ जाता है।"
+
 msgid "Not applied"
 msgstr "लागू नहीं"
-
-msgid "None"
-msgstr "कोई नहीं"
 
 msgid "Use the default blue"
 msgstr "डिफ़ॉल्ट नीला इस्तेमाल करें"

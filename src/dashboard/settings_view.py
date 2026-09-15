@@ -532,7 +532,7 @@ def build_groups(
                 on=N_("On"),
                 off=N_("Off"),
                 t=t,
-            )],
+            )] + _calendar_announce_fields(settings, roles, channels, t),
             "calendar_sync": calendar_sync_summary(settings, t, lang, permission_url),
             "save_endpoint": "save_group_settings",
         })
@@ -774,6 +774,93 @@ CALENDAR_SYNC_COPY = {
 }
 
 
+def _calendar_announce_fields(settings: dict, roles, channels, t) -> list:
+    """Where join links are announced, and who is pinged (#289, PR 2).
+
+    Only when the invite account is inside the group: VRChat lists a group's
+    instances to members only, so for any other group there is nothing these
+    could ever do, and the card says why instead of offering them.
+    """
+    if not (settings.get("calendar_sync") or {}).get("bot_in_group"):
+        return []
+
+    channel_state = _state(settings, "calendar_announce_channel_id")
+    channel_raw = channel_state.get("value")
+    channel_warnings = []
+    if not channel_raw:
+        channel_display, channel_empty = t(N_("Not set")), True
+    else:
+        channel_empty = False
+        channel = _lookup(channels, channel_raw)
+        if channel is None:
+            channel_display = t(N_("Unknown channel (%(id)s)")) % {"id": channel_raw}
+            if channels is not None:
+                channel_warnings.append(t(N_("This channel no longer exists in the server.")))
+        else:
+            channel_display = f"#{channel.get('name') or channel_raw}"
+            if channel.get("can_send") is False:
+                channel_warnings.append(t(N_("VRCVerify cannot post in this channel.")))
+    announce = Field(
+        "calendar_announce_channel_id",
+        t(N_("Announce join links in")),
+        t(N_(
+            "When a synced event's VRChat instance opens, VRCVerify posts its join "
+            "link here and adds it to the Discord event. When you create the "
+            "instance in VRChat, attach it to the event (VRChat offers this in the "
+            "hours around the event) so VRCVerify can find it. Choose Off to skip "
+            "announcements."
+        )),
+        "channel",
+        channel_display,
+        empty=channel_empty,
+        warnings=channel_warnings,
+        # Announcement channels are offered here, unlike for the verification
+        # log: a join link names nobody, and those channels suit it.
+        choices=[
+            (str(c.get("id")), f"#{c.get('name') or c.get('id')}") for c in (channels or [])
+        ],
+        value="" if channel_raw is None else str(channel_raw),
+        **_plan(channel_state),
+    )
+
+    role_state = _state(settings, "calendar_ping_role_id")
+    role_raw = role_state.get("value")
+    role_warnings = []
+    if not role_raw:
+        role_display, role_empty = t(N_("None")), True
+    else:
+        role_empty = False
+        role = _lookup(roles, role_raw)
+        if role is None:
+            role_display = t(N_("Unknown role (%(id)s)")) % {"id": role_raw}
+            if roles is not None:
+                role_warnings.append(t(N_(
+                    "This role no longer exists in the server. VRCVerify will "
+                    "not be able to use it."
+                )))
+        else:
+            role_display = role.get("name") or f"Role {role_raw}"
+            if role.get("mentionable") is False:
+                role_warnings.append(t(N_(
+                    "This role doesn't allow anyone to mention it, so its members "
+                    "won't be notified unless VRCVerify has Discord's Mention "
+                    "Everyone permission."
+                )))
+    ping = Field(
+        "calendar_ping_role_id",
+        t(N_("Ping with the announcement")),
+        t(N_("Optional. The role mentioned when a join link is posted. Nobody else is pinged.")),
+        "role_optional",
+        role_display,
+        empty=role_empty,
+        warnings=role_warnings,
+        choices=[(str(r.get("id")), r.get("name") or f"Role {r.get('id')}") for r in (roles or [])],
+        value="" if role_raw is None else str(role_raw),
+        **_plan(role_state),
+    )
+    return [announce, ping]
+
+
 def calendar_sync_summary(
     settings: dict,
     t: Callable[[str], str] = _untranslated,
@@ -851,6 +938,8 @@ def calendar_sync_summary(
         ),
         "ownership_proven": proven,
         "locked": locked,
+        # Whether join links are possible for this group at all (#289, PR 2).
+        "join_links_possible": bool(block.get("bot_in_group")),
         "synced_count": synced_count,
         # How often the calendar is read, as the bot reports it. None from a
         # bot that predates the field, and the sentence is then left out

@@ -10803,6 +10803,7 @@ CALENDAR_BLOCK = {
     "over_cap_count": None,
     "can_manage_events": True,
     "poll_interval_minutes": 15,
+    "bot_in_group": True,
 }
 
 
@@ -10843,7 +10844,7 @@ class TestCalendarSyncCard:
     def test_a_preview_guild_gets_it_as_the_third_card(self):
         titles = [c["title"] for c in self.cards(calendar_settings())]
         assert titles == ["VRChat group", "Group invites", "Calendar sync"]
-        assert [f.name for f in self.cards(calendar_settings())[2]["fields"]] == ["calendar_sync_enabled"]
+        assert [f.name for f in self.cards(calendar_settings(bot_in_group=False))[2]["fields"]] == ["calendar_sync_enabled"]
 
     def test_synced_says_how_many_and_when(self):
         summary = self.summary(state="synced", synced_count=12, last_synced_at="2026-09-14T11:40:00+00:00")
@@ -10927,6 +10928,60 @@ class TestCalendarSyncCard:
         settings = calendar_settings(state="synced")
         del settings["calendar_sync"]["poll_interval_minutes"]
         assert settings_view.calendar_sync_summary(settings)["poll_interval_minutes"] is None
+
+    def test_the_announcement_pickers_appear_only_when_the_bot_is_in_the_group(self):
+        """#289, PR 2: VRChat lists a group's instances to members only."""
+        inside = [f.name for f in self.cards(calendar_settings())[2]["fields"]]
+        assert inside == ["calendar_sync_enabled", "calendar_announce_channel_id", "calendar_ping_role_id"]
+        outside = calendar_settings(bot_in_group=False)
+        assert [f.name for f in self.cards(outside)[2]["fields"]] == ["calendar_sync_enabled"]
+        assert settings_view.calendar_sync_summary(outside)["join_links_possible"] is False
+
+    def test_the_page_explains_why_join_links_are_missing(self, config, store):
+        api = FakeBotAPI(settings=calendar_settings(state="synced", bot_in_group=False))
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        html = settings_page(test_client, "vrchat-group").data.decode()
+        assert "VRCVerify needs to be in your VRChat group" in html
+        assert 'name="calendar_announce_channel_id"' not in html
+
+    def test_a_role_nobody_may_ping_is_warned_about(self):
+        settings = calendar_settings()
+        settings["fields"]["calendar_ping_role_id"] = {
+            "value": "77", "feature": "calendar_sync", "active": True, "locked": False, "writable": True,
+        }
+        roles = [{"id": "77", "name": "Event pings", "mentionable": False}]
+        fields = {f.name: f for f in settings_view._calendar_announce_fields(settings, roles, [], settings_view._untranslated)}
+        assert any("Mention Everyone" in w for w in fields["calendar_ping_role_id"].warnings)
+
+    def test_the_announcement_settings_travel_to_the_bot(self, config, store):
+        settings = calendar_settings()
+        for name in ("calendar_announce_channel_id", "calendar_ping_role_id"):
+            settings["fields"][name] = {"value": None, "feature": "calendar_sync", "active": True, "locked": False, "writable": True}
+        api = FakeBotAPI(settings=settings)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        session = login_as(test_client, store)
+        test_client.post(f"/guild/{GUILD_IN}/group", data={
+            "csrf_token": session.csrf_token,
+            "calendar_announce_channel_id": "5551",
+            "calendar_ping_role_id": "",
+        })
+        assert api.saves[-1][2] == {"calendar_announce_channel_id": "5551", "calendar_ping_role_id": None}
+
+    def test_only_a_page_with_the_pickers_reads_roles_and_channels(self, config, store):
+        """Every other server's VRChat group page still costs one bot read."""
+        for in_group, expected in ((True, {"roles", "channels"}), (False, set())):
+            api = FakeBotAPI(settings=calendar_settings(bot_in_group=in_group))
+            app = create_app(config, store=store, client=api)
+            app.config.update(TESTING=True)
+            test_client = app.test_client()
+            login_as(test_client, store)
+            settings_page(test_client, "vrchat-group")
+            assert {what for what, _a, _g in api.reads} - {"settings"} == expected, in_group
 
     def test_the_general_install_link_still_does_not_ask_for_it(self):
         """Decided on #289: only the card asks, never the general install link."""

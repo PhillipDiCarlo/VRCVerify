@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-14 10:57-0400\n"
+"POT-Creation-Date: 2026-09-15 00:39-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -918,6 +918,47 @@ msgstr "ボットが VRChat と通信する部分に接続できませんでし�
 msgid "Some events couldn't be updated in Discord"
 msgstr "一部のイベントを Discord で更新できませんでした"
 
+#, python-format
+msgid "Unknown channel (%(id)s)"
+msgstr "不明なチャンネル（%(id)s）"
+
+msgid "This channel no longer exists in the server."
+msgstr "このチャンネルはサーバーに存在しなくなりました。"
+
+msgid "VRCVerify cannot post in this channel."
+msgstr "VRCVerify はこのチャンネルに投稿できません。"
+
+msgid "Announce join links in"
+msgstr "参加リンクの告知先"
+
+msgid ""
+"When a synced event's VRChat instance opens, VRCVerify posts its join "
+"link here and adds it to the Discord event. When you create the instance "
+"in VRChat, attach it to the event (VRChat offers this in the hours around"
+" the event) so VRCVerify can find it. Choose Off to skip announcements."
+msgstr ""
+"同期したイベントの VRChat インスタンスが開くと、VRCVerify がここに参加リンクを投稿し、Discord "
+"のイベントにも追加します。VRChat でインスタンスを作成するときにイベントを紐付けてください（イベント前後の数時間に選択できます）。そうすると"
+" VRCVerify が見つけられます。告知しない場合は「オフ」を選んでください。"
+
+msgid "None"
+msgstr "なし"
+
+msgid ""
+"This role doesn't allow anyone to mention it, so its members won't be "
+"notified unless VRCVerify has Discord's Mention Everyone permission."
+msgstr ""
+"このロールは誰もメンションできない設定のため、VRCVerify に Discord "
+"の「@everyone、@here、全てのロールにメンション」権限がない限り、メンバーには通知されません。"
+
+msgid "Ping with the announcement"
+msgstr "告知時にメンション"
+
+msgid ""
+"Optional. The role mentioned when a join link is posted. Nobody else is "
+"pinged."
+msgstr "任意。参加リンクを投稿するときにメンションするロールです。それ以外の人にはメンションしません。"
+
 msgid "Waiting for the first sync"
 msgstr "最初の同期を待っています"
 
@@ -1024,13 +1065,6 @@ msgstr "表示"
 msgid "Hidden"
 msgstr "非表示"
 
-#, python-format
-msgid "Unknown channel (%(id)s)"
-msgstr "不明なチャンネル（%(id)s）"
-
-msgid "This channel no longer exists in the server."
-msgstr "このチャンネルはサーバーに存在しなくなりました。"
-
 # | msgid "" "Verification logs can't go in an announcement channel -- other
 # | servers " "can follow one, which would republish your members' age
 # status."
@@ -1041,9 +1075,6 @@ msgid ""
 msgstr ""
 "これはアナウンスチャンネルです。他のサーバーがフォローでき、メンバーの年齢確認状況が再公開されてしまうため、VRCVerify "
 "はここには記録しません。"
-
-msgid "VRCVerify cannot post in this channel."
-msgstr "VRCVerify はこのチャンネルに投稿できません。"
 
 # | msgid "A verification log channel"
 msgid "Verification log channel"
@@ -1750,10 +1781,10 @@ msgstr "最終同期: %(when)s"
 
 #, python-format
 msgid ""
-"Your group's calendar is checked about every minute, so new and changed "
-"events reach Discord within a minute or so. A deleted event is checked "
-"twice before it's removed, so it can take about %(twice)s minutes to "
-"leave Discord."
+"Your group's calendar is checked about every %(count)s minute, so new and"
+" changed events reach Discord within %(count)s minute or so. A deleted "
+"event is checked twice before it's removed, so it can take about "
+"%(twice)s minutes to leave Discord."
 msgid_plural ""
 "Your group's calendar is checked about every %(count)s minutes, so new "
 "and changed events reach Discord within %(count)s minutes or so. A "
@@ -1790,11 +1821,15 @@ msgstr[0] ""
 "Discord ではサーバーごとに 100 件までしかイベントを作成できないため、あと %(count)s "
 "件は追加されませんでした。直近のイベントから同期され、終わったものから順に残りが追加されます。"
 
+msgid ""
+"To post join links when an event starts, VRCVerify needs to be in your "
+"VRChat group. Setting up group invites above adds it."
+msgstr ""
+"イベント開始時に参加リンクを投稿するには、VRCVerify が VRChat "
+"グループに参加している必要があります。上のグループ招待を設定すると参加します。"
+
 msgid "Not applied"
 msgstr "未適用"
-
-msgid "None"
-msgstr "なし"
 
 msgid "Use the default blue"
 msgstr "既定のブルーを使う"

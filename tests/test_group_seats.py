@@ -1058,4 +1058,5 @@ class TestTheLeaveVocabularyMatches:
             inviter.JOB_LEAVE_GROUP,
             inviter.JOB_VERIFY_CLAIM,
             inviter.JOB_FETCH_CALENDAR_PAGE,
+            inviter.JOB_FETCH_EVENT_INSTANCES,
         }
