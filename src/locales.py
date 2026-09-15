@@ -562,4 +562,10 @@ def __getattr__(name: str):
 CALENDAR_INSTANCE_OPEN = N_("**{event}** is open in VRChat. Join here: {link}")
 # The same, for an instance VRChat age-gates to 18+.
 CALENDAR_INSTANCE_OPEN_AGE_GATED = N_("**{event}** is open in VRChat (18+). Join here: {link}")
+# The same, for an instance only group members can join: Group access, or
+# limited to member roles (#289, Mode 2).
+CALENDAR_INSTANCE_OPEN_MEMBERS = N_("**{event}** is open in VRChat (members only). Join here: {link}")
+CALENDAR_INSTANCE_OPEN_MEMBERS_AGE_GATED = N_(
+    "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
+)
 

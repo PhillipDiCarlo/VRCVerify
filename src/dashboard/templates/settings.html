@@ -264,10 +264,16 @@
               {% for warning in cal.warnings %}
                 <p class="warn">{{ warning }}</p>
               {% endfor %}
-              {% if not cal.join_links_possible and not cal.locked %}
-                {# VRChat lists a group's instances to members only (measured on
-                   #289), so the announcement settings are not offered at all. #}
-                <p class="muted desc">{% trans %}To post join links when an event starts, VRCVerify needs to be in your VRChat group. Setting up group invites above adds it.{% endtrans %}</p>
+              {% if cal.enabled and not cal.locked %}
+                {% if cal.join_links_possible %}
+                  <p class="muted desc">{% trans %}Public events, members-only events and events for member roles are synced. Events limited to management roles aren't.{% endtrans %}</p>
+                {% else %}
+                  {# VRChat shows members-only events and a group's instances to
+                     members only (measured on #289), so both wait on the bot
+                     being in the group, and the announcement settings are not
+                     offered at all. #}
+                  <p class="muted desc">{% trans %}Only public events are synced. To also sync members-only events and post join links when an event starts, VRCVerify needs to be in your VRChat group. Setting up group invites above adds it.{% endtrans %}</p>
+                {% endif %}
               {% endif %}
             </dd>
           </div>

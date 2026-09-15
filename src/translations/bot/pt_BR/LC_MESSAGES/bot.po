@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-15 00:39-0400\n"
+"POT-Creation-Date: 2026-09-15 03:09-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -950,6 +950,14 @@ msgstr "**{event}** está aberto no VRChat. Entre aqui: {link}"
 #, python-brace-format
 msgid "**{event}** is open in VRChat (18+). Join here: {link}"
 msgstr "**{event}** está aberto no VRChat (18+). Entre aqui: {link}"
+
+#, python-brace-format
+msgid "**{event}** is open in VRChat (members only). Join here: {link}"
+msgstr "**{event}** está aberto no VRChat (só membros). Entre aqui: {link}"
+
+#, python-brace-format
+msgid "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
+msgstr "**{event}** está aberto no VRChat (só membros, 18+). Entre aqui: {link}"
 
 #~ msgid "Donate"
 #~ msgstr "Doar"

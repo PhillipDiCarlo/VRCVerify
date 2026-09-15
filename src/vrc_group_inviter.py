@@ -976,9 +976,39 @@ def fetch_group_calendar_page(job: dict) -> dict:
             job, CALENDAR_PAGE_VRCHAT_UNAVAILABLE, error_message="VRChat returned a calendar page in an unknown shape"
         )
     events = [_trim_calendar_event(row) for row in rows if isinstance(row, dict)]
+    extra = {}
+    if job.get("includeRoles") is True and offset == 0:
+        # For a group this account is in (Mode 2, #289): which of the group's
+        # roles are management roles, so the bot can sync events limited to
+        # member roles and skip staff ones. Once per poll, on the first page.
+        # A plain Member can read this (measured on Club LA, 2026-09-15). A
+        # failure is reported as unknown roles, never as "no roles", so the bot
+        # falls back to syncing public events only.
+        extra["roles"] = _read_group_roles(client, group_id)
     # `count` is what VRChat returned, before anything was dropped, because it
     # is what tells the bot whether there is another page.
-    return _calendar_result(job, CALENDAR_PAGE_OK, events=events, count=len(rows), n=size)
+    return _calendar_result(job, CALENDAR_PAGE_OK, events=events, count=len(rows), n=size, **extra)
+
+
+def _read_group_roles(client, group_id):
+    """[{"id", "management"}] for the group's roles, or None if unreadable."""
+    try:
+        response = _call_with_retry(
+            GroupsApi(client).get_group_roles,
+            group_id,
+            _preload_content=False,
+            _request_timeout=request_timeout(),
+        )
+        roles = json.loads(getattr(response, "data", b"") or b"[]")
+    except (ApiException, ValueError):
+        return None
+    if not isinstance(roles, list):
+        return None
+    return [
+        {"id": role.get("id"), "management": bool(role.get("isManagementRole"))}
+        for role in roles
+        if isinstance(role, dict) and isinstance(role.get("id"), str)
+    ]
 
 
 def _instances_result(job: dict, state: str, **extra) -> dict:

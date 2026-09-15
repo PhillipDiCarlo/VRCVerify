@@ -4478,12 +4478,38 @@ def parse_calendar_time(value) -> Optional[datetime]:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
-def calendar_event_is_eligible(event: dict, now: datetime) -> bool:
+def calendar_scope(member: bool = False, roles=None) -> dict:
+    """What a sync may include, from the group's side (#289).
+
+    `member`: the invite account is inside the group (Mode 2). `roles`: the
+    group's roles as the worker read them, [{"id", "management"}], or None when
+    they could not be read.
+    """
+    known = None
+    management = set()
+    if isinstance(roles, list):
+        known = set()
+        for role in roles:
+            if isinstance(role, dict) and isinstance(role.get("id"), str):
+                known.add(role["id"])
+                if role.get("management"):
+                    management.add(role["id"])
+    return {"member": bool(member), "known_roles": known, "management_roles": management}
+
+
+def calendar_event_is_eligible(event: dict, now: datetime, scope: Optional[dict] = None) -> bool:
     """Could this occurrence be mirrored into Discord at all, caps aside?
 
-    Mode 1 (PR 1b) syncs public events only, and says so here rather than
-    trusting a non-member read to have filtered them: the invite account is a
-    member of some groups, and a member's read includes group-scoped events.
+    Mode 1 (PR 1b), for a group the bot is not in, syncs public events only,
+    and says so here rather than trusting a non-member read to have filtered
+    them.
+
+    Mode 2, for a group the bot is in (decided on #289): an event on the group
+    calendar is assumed to be for the whole group, so events visible only to
+    members sync too, and so do events limited to member roles. Events limited
+    to a management role never do. A role the bot cannot place -- the roles
+    were unreadable, or the id is not among them -- counts as management, so an
+    unknown is never published.
 
     `role_ids` measured as either [] or null on public events, and both mean
     "not restricted". The series parent is never an event of its own -- the
@@ -4495,10 +4521,21 @@ def calendar_event_is_eligible(event: dict, now: datetime) -> bool:
         return False
     if event.get("draft") or event.get("deleted"):
         return False
-    if event.get("access") != "public":
-        return False
-    if event.get("role_ids"):
-        return False
+    scope = scope or calendar_scope()
+    access = event.get("access")
+    role_ids = [r for r in (event.get("role_ids") or []) if isinstance(r, str)]
+    if not scope["member"]:
+        if access != "public" or role_ids:
+            return False
+    else:
+        if access not in ("public", "group"):
+            return False
+        if role_ids:
+            known = scope["known_roles"]
+            if known is None:
+                return False
+            if any(r not in known or r in scope["management_roles"] for r in role_ids):
+                return False
     starts = parse_calendar_time(event.get("starts_at"))
     ends = parse_calendar_time(event.get("ends_at"))
     if starts is None or ends is None or ends <= starts:
@@ -4518,7 +4555,7 @@ def calendar_event_budget(foreign_active: int) -> int:
     return max(0, min(CALENDAR_GUILD_CEILING, room))
 
 
-def select_calendar_events(events, now: datetime, budget: int):
+def select_calendar_events(events, now: datetime, budget: int, scope: Optional[dict] = None):
     """The occurrences to mirror, soonest first, and what was left out.
 
     Two caps, in this order: the soonest CALENDAR_SERIES_CAP per series (a
@@ -4528,7 +4565,7 @@ def select_calendar_events(events, now: datetime, budget: int):
     """
     visible = [e for e in events if isinstance(e, dict)]
     eligible = sorted(
-        (e for e in visible if calendar_event_is_eligible(e, now)),
+        (e for e in visible if calendar_event_is_eligible(e, now, scope)),
         key=lambda e: (parse_calendar_time(e["starts_at"]), e["id"]),
     )
     # A calendar read across pages could in principle return one id twice.
@@ -9117,6 +9154,10 @@ async def _calendar_sync_one(link: dict, now: datetime, outcome: dict) -> None:
         return
 
     job = begin_calendar_poll(guild_id, current_group)
+    # Mode 2 (#289): for a group the invite account is in, the first page also
+    # brings the group's roles, so member-role events can sync.
+    member = effective_group_setup_state(config) in CALENDAR_MEMBER_STATES
+    job["includeRoles"] = member
     _calendar_polls[job["jobID"]] = {
         "guild_id": str(guild_id),
         "group_id": current_group,
@@ -9124,6 +9165,8 @@ async def _calendar_sync_one(link: dict, now: datetime, outcome: dict) -> None:
         "pages": 0,
         "events": [],
         "started": now,
+        "member": member,
+        "roles": None,
     }
     loop = asyncio.get_running_loop()
     published = await loop.run_in_executor(None, publish_group_invite_job, job)
@@ -9243,10 +9286,9 @@ async def handle_calendar_instances_result(data: dict) -> str:
             # Linked to an event this guild did not sync, or already announced.
             unlinked.add(instance["location"])
             continue
-        if instance.get("role_restricted"):
-            # Decided on #289: never a public link to a role-restricted instance.
-            # Not remembered as unlinked: its restriction can be lifted.
-            continue
+        # Role-restricted and Group-only instances are announced too, labeled
+        # members only (decided on #289): an event on the group calendar is for
+        # the group, and staff events are not put there.
         if await announce_calendar_instance(guild, guild_id, link, row, instance):
             announced += 1
     return f"announced {announced}"
@@ -9271,12 +9313,14 @@ async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, ins
     # Escaped: the name is the organizer's text, and it sits inside bold markup.
     name = discord.utils.escape_markdown(getattr(event, "name", None) or "VRChat event")
     locale = get_server_locale_code(str(guild_id), guild)
-    text = translate(
-        locales.CALENDAR_INSTANCE_OPEN_AGE_GATED if instance.get("age_gate") else locales.CALENDAR_INSTANCE_OPEN,
-        locale,
-        event=name,
-        link=join_link,
-    )
+    members_only = bool(instance.get("role_restricted")) or instance.get("group_access_type") == "members"
+    message = {
+        (False, False): locales.CALENDAR_INSTANCE_OPEN,
+        (False, True): locales.CALENDAR_INSTANCE_OPEN_AGE_GATED,
+        (True, False): locales.CALENDAR_INSTANCE_OPEN_MEMBERS,
+        (True, True): locales.CALENDAR_INSTANCE_OPEN_MEMBERS_AGE_GATED,
+    }[(members_only, bool(instance.get("age_gate")))]
+    text = translate(message, locale, event=name, link=join_link)
     role_id = link.get("ping_role_id")
     channel = guild.get_channel(int(link["announce_channel_id"])) if str(link["announce_channel_id"]).isdigit() else None
     try:
@@ -9406,6 +9450,8 @@ async def handle_calendar_page_result(data: dict) -> str:
     events = data.get("events")
     if isinstance(events, list):
         poll["events"].extend(e for e in events if isinstance(e, dict))
+    if offset == 0 and isinstance(data.get("roles"), list):
+        poll["roles"] = data["roles"]
     poll["pages"] += 1
     count = data.get("count") if isinstance(data.get("count"), int) else 0
     size = data.get("n") if isinstance(data.get("n"), int) and data.get("n") > 0 else CALENDAR_PAGE_SIZE
@@ -9419,6 +9465,7 @@ async def handle_calendar_page_result(data: dict) -> str:
             "groupID": group_id,
             "offset": poll["next_offset"],
             "n": size,
+            "includeRoles": False,
         }
         loop = asyncio.get_running_loop()
         if not await loop.run_in_executor(None, publish_group_invite_job, job):
@@ -9433,10 +9480,16 @@ async def handle_calendar_page_result(data: dict) -> str:
         return "next_page"
 
     _calendar_polls.pop(job_id, None)
-    return await sync_calendar_to_discord(guild_id, group_id, poll["events"], job_id)
+    return await sync_calendar_to_discord(
+        guild_id,
+        group_id,
+        poll["events"],
+        job_id,
+        scope=calendar_scope(poll.get("member", False), poll.get("roles")),
+    )
 
 
-async def sync_calendar_to_discord(guild_id, group_id, events, job_id) -> str:
+async def sync_calendar_to_discord(guild_id, group_id, events, job_id, scope: Optional[dict] = None) -> str:
     """Make the guild's Discord events match the group's calendar. Returns the state."""
     guild = bot.get_guild(int(guild_id))
     if guild is None:
@@ -9467,7 +9520,7 @@ async def sync_calendar_to_discord(guild_id, group_id, events, job_id) -> str:
             if str(event.id) not in ours
             and event.status in (discord.EventStatus.scheduled, discord.EventStatus.active)
         )
-        chosen, stats = select_calendar_events(events, now, calendar_event_budget(foreign))
+        chosen, stats = select_calendar_events(events, now, calendar_event_budget(foreign), scope)
         plan = plan_calendar_changes(rows, chosen, group_id, config.get("group_name"), now)
 
         error = None

@@ -794,6 +794,42 @@ def instances_side(monkeypatch):
     return fake
 
 
+class TestTheCalendarPageRoles:
+    """#289, Mode 2: the first page of a member group's poll brings its roles."""
+
+    @pytest.fixture
+    def roles_side(self, monkeypatch, calendar):
+        side = SimpleNamespace(error=None, calls=0)
+
+        def get_group_roles(group_id, **kwargs):
+            side.calls += 1
+            if side.error:
+                raise side.error
+            return SimpleNamespace(data=__import__("json").dumps([
+                {"id": "grol_host", "name": "Host", "isManagementRole": True},
+                {"id": "grol_member", "name": "Member", "isManagementRole": False},
+            ]).encode())
+
+        monkeypatch.setattr(inviter, "GroupsApi", lambda client=None: SimpleNamespace(get_group_roles=get_group_roles))
+        return side
+
+    def test_roles_come_with_the_first_page_when_asked(self, api, roles_side):
+        result = inviter.fetch_group_calendar_page(dict(CALENDAR_JOB, includeRoles=True))
+        assert result["roles"] == [{"id": "grol_host", "management": True}, {"id": "grol_member", "management": False}]
+
+    def test_not_on_later_pages_and_not_unless_asked(self, api, roles_side):
+        inviter.fetch_group_calendar_page(dict(CALENDAR_JOB, includeRoles=True, offset=100))
+        inviter.fetch_group_calendar_page(CALENDAR_JOB)
+        assert roles_side.calls == 0
+
+    def test_unreadable_roles_are_unknown_not_empty(self, api, roles_side):
+        """An empty list would read as "no management roles"."""
+        roles_side.error = FakeApiException(status=403, body="nope")
+        result = inviter.fetch_group_calendar_page(dict(CALENDAR_JOB, includeRoles=True))
+        assert result["state"] == inviter.CALENDAR_PAGE_OK
+        assert result["roles"] is None
+
+
 class TestTheInstanceCheck:
     """#289, PR 2: find the instance an admin opened for a calendar event."""
 
