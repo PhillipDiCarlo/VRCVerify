@@ -319,6 +319,90 @@ class TestEligibility:
         assert not bot.calendar_event_is_eligible(self.event(**bad), NOW)
 
 
+MEMBER_ROLE = "grol_member"
+MANAGEMENT_ROLE = "grol_host"
+CLUB_LA_ROLES = [{"id": MEMBER_ROLE, "management": False}, {"id": MANAGEMENT_ROLE, "management": True}]
+
+
+class TestModeTwoEligibility:
+    """#289, for a group the bot is in: everything on the calendar except events
+    limited to a management role (measured: isManagementRole per role)."""
+
+    def event(self, **overrides):
+        return occurrence("cal_1", NOW + timedelta(days=2), **overrides)
+
+    def member(self, roles=CLUB_LA_ROLES):
+        return bot.calendar_scope(member=True, roles=roles)
+
+    def test_a_members_only_event_syncs_for_a_group_the_bot_is_in(self):
+        assert bot.calendar_event_is_eligible(self.event(access="group"), NOW, self.member())
+
+    def test_but_never_for_a_group_the_bot_is_not_in(self):
+        assert not bot.calendar_event_is_eligible(self.event(access="group"), NOW, bot.calendar_scope())
+
+    def test_an_event_for_member_roles_syncs(self):
+        event = self.event(access="group", role_ids=[MEMBER_ROLE])
+        assert bot.calendar_event_is_eligible(event, NOW, self.member())
+
+    def test_an_event_including_a_management_role_does_not(self):
+        event = self.event(access="group", role_ids=[MEMBER_ROLE, MANAGEMENT_ROLE])
+        assert not bot.calendar_event_is_eligible(event, NOW, self.member())
+
+    def test_a_role_the_bot_cannot_place_counts_as_management(self):
+        event = self.event(role_ids=["grol_created_after_the_read"])
+        assert not bot.calendar_event_is_eligible(event, NOW, self.member())
+
+    def test_unreadable_roles_fall_back_to_events_without_roles(self):
+        scope = self.member(roles=None)
+        assert bot.calendar_event_is_eligible(self.event(access="group"), NOW, scope)
+        assert not bot.calendar_event_is_eligible(self.event(role_ids=[MEMBER_ROLE]), NOW, scope)
+
+    def test_the_rest_of_the_rules_still_apply(self):
+        scope = self.member()
+        assert not bot.calendar_event_is_eligible(self.event(access="group", draft=True), NOW, scope)
+        assert not bot.calendar_event_is_eligible(self.event(access="group", kind="series"), NOW, scope)
+        assert not bot.calendar_event_is_eligible(self.event(access="something_new"), NOW, scope)
+
+
+class TestModeTwoPolls:
+    def start(self, member):
+        make_server()
+        connect_group()
+        enable()
+        if member:
+            with bot.session_scope() as session:
+                session.query(bot.GroupInviteConfig).first().verify_state = "ready"
+
+    def test_a_group_the_bot_is_in_asks_for_its_roles(self, guild, preview, premium, published):
+        self.start(member=True)
+        run(bot.calendar_sync_pass())
+        assert published[0]["includeRoles"] is True
+
+    def test_a_group_the_bot_is_not_in_does_not(self, guild, preview, premium, published):
+        self.start(member=False)
+        run(bot.calendar_sync_pass())
+        assert published[0]["includeRoles"] is False
+
+    def test_the_roles_from_the_first_page_decide_the_sync(self, guild, preview, premium, published, monkeypatch):
+        self.start(member=True)
+        run(bot.calendar_sync_pass())
+        job = published[0]
+        seen = {}
+
+        async def fake_sync(guild_id, group_id, events, job_id, scope=None):
+            seen["scope"] = scope
+            return "synced"
+
+        monkeypatch.setattr(bot, "sync_calendar_to_discord", fake_sync)
+        run(bot.handle_calendar_page_result({
+            "type": bot.JOB_FETCH_CALENDAR_PAGE, "jobID": job["jobID"], "guildID": str(GUILD_ID),
+            "groupID": GROUP_ID, "offset": 0, "state": "ok", "events": [], "count": 0, "n": 100,
+            "roles": CLUB_LA_ROLES,
+        }))
+        assert seen["scope"]["member"] is True
+        assert seen["scope"]["management_roles"] == {MANAGEMENT_ROLE}
+
+
 class TestTheCaps:
     def test_soonest_ten_per_series(self):
         chosen, stats = bot.select_calendar_events(weekly("a", NOW + timedelta(days=1), 52), NOW, 80)
@@ -571,7 +655,7 @@ class TestPages:
         job = self.start(published)
         seen = {}
 
-        async def fake_sync(guild_id, group_id, events, job_id):
+        async def fake_sync(guild_id, group_id, events, job_id, scope=None):
             seen.update(events=events, job_id=job_id)
             return "synced"
 
@@ -585,7 +669,7 @@ class TestPages:
         monkeypatch.setattr(bot, "CALENDAR_MAX_PAGES", 2)
         synced = []
 
-        async def fake_sync(*args):
+        async def fake_sync(*args, **kwargs):
             synced.append(args)
             return "synced"
 
@@ -1041,13 +1125,27 @@ class TestTheAnnouncer:
         self.result(published, [instance(age_gate=True)])
         assert "(18+)" in channel.sent[0][0]
 
-    def test_a_role_restricted_instance_is_never_announced(self, guild, clock, channel, published):
-        """Decided on #289."""
+    def test_a_role_restricted_instance_is_announced_as_members_only(self, guild, clock, channel, published):
+        """Decided on #289: an event on the group calendar is for the group, so
+        its restricted instance is announced and labeled. VRChat does not say
+        which roles restrict an instance (measured), so there is nothing finer
+        to go on."""
         self.synced(guild)
         self.check()
-        assert self.result(published, [instance(role_restricted=True)]) == "announced 0"
-        assert channel.sent == []
-        assert rows()["cal_a_0"]["announced_at"] is None
+        assert self.result(published, [instance(role_restricted=True, group_access_type="members")]) == "announced 1"
+        assert "(members only)" in channel.sent[0][0]
+
+    def test_a_group_only_instance_is_labeled_too(self, guild, clock, channel, published):
+        self.synced(guild)
+        self.check()
+        self.result(published, [instance(group_access_type="members", age_gate=True)])
+        assert "(members only, 18+)" in channel.sent[0][0]
+
+    def test_group_plus_and_public_instances_carry_no_members_label(self, guild, clock, channel, published):
+        self.synced(guild)
+        self.check()
+        self.result(published, [instance(group_access_type="plus")])
+        assert "members only" not in channel.sent[0][0]
 
     def test_it_is_announced_once(self, guild, clock, channel, published):
         self.synced(guild)

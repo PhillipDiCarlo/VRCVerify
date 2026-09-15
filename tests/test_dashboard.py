@@ -10858,14 +10858,34 @@ class TestCalendarSyncCard:
 
     def test_an_empty_read_is_never_called_an_empty_calendar(self):
         """A non-member read cannot tell "no events" from "members-only events"."""
-        summary = self.summary(state="synced", visible_count=0, eligible_count=0, synced_count=0)
+        summary = self.summary(state="synced", visible_count=0, eligible_count=0, synced_count=0, bot_in_group=False)
         assert any("No public events were found" in w for w in summary["warnings"])
         assert not any("has no events" in w for w in summary["warnings"])
         assert summary["synced_count"] is None
 
     def test_events_that_exist_but_are_not_public_are_explained(self):
-        summary = self.summary(state="synced", visible_count=40, eligible_count=0)
+        summary = self.summary(state="synced", visible_count=40, eligible_count=0, bot_in_group=False)
         assert any("None of this group's upcoming events are public" in w for w in summary["warnings"])
+
+    def test_a_group_the_bot_is_in_gets_the_member_wording(self):
+        """Mode 2 syncs members-only and member-role events, so "not public"
+        is no longer the reason an empty sync is empty."""
+        empty = self.summary(state="synced", visible_count=0, eligible_count=0)
+        assert any("No upcoming events were found" in w for w in empty["warnings"])
+        staff = self.summary(state="synced", visible_count=5, eligible_count=0)
+        assert any("management roles" in w for w in staff["warnings"])
+
+    def test_the_page_says_what_is_synced_for_this_group(self, config, store):
+        for in_group, sentence in (
+            (True, "Events limited to management roles aren't."),
+            (False, "Only public events are synced."),
+        ):
+            api = FakeBotAPI(settings=calendar_settings(state="synced", bot_in_group=in_group))
+            app = create_app(config, store=store, client=api)
+            app.config.update(TESTING=True)
+            test_client = app.test_client()
+            login_as(test_client, store)
+            assert sentence in settings_page(test_client, "vrchat-group").data.decode(), in_group
 
     def test_a_missing_permission_offers_the_link_once(self):
         summary = self.summary(state="missing_permission", can_manage_events=False)

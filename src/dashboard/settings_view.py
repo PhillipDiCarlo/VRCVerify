@@ -516,18 +516,18 @@ def build_groups(
             "title": t(N_("Calendar sync")),
             "slug": "vrchat-group",
             "blurb": t(N_(
-                "Mirror your VRChat group's public events into Discord's Events "
-                "tab, where members get RSVPs, reminders and times in their own "
-                "time zone."
+                "Mirror your VRChat group's calendar into Discord's Events tab, "
+                "where members get RSVPs, reminders and times in their own time "
+                "zone."
             )),
             "fields": [_bool_field(
                 settings,
                 "calendar_sync_enabled",
                 N_("Sync events to Discord"),
                 N_(
-                    "Creates a Discord event for each upcoming public event on "
-                    "your group's VRChat calendar, and keeps it up to date. "
-                    "Turning this off removes the events that haven't started."
+                    "Creates a Discord event for each upcoming event on your "
+                    "group's VRChat calendar, and keeps it up to date. Turning "
+                    "this off removes the events that haven't started."
                 ),
                 on=N_("On"),
                 off=N_("Off"),
@@ -904,20 +904,31 @@ def calendar_sync_summary(
                 "VRCVerify doesn't have the Create Events permission in this "
                 "server, so the next sync won't be able to add events."
             )))
+        in_group = bool(block.get("bot_in_group"))
         if state == "synced" and block.get("visible_count") == 0:
-            # The ambiguity the issue warns about: an empty read from a group
-            # the bot is not in looks exactly like a group whose events are
-            # all members-only. Never "this group has no events".
-            warnings.append(t(N_(
-                "No public events were found on this group. Events visible only "
-                "to group members aren't synced yet."
-            )))
+            if in_group:
+                warnings.append(t(N_("No upcoming events were found on this group's calendar.")))
+            else:
+                # The ambiguity the issue warns about: an empty read from a
+                # group the bot is not in looks exactly like a group whose
+                # events are all members-only. Never "this group has no events".
+                warnings.append(t(N_(
+                    "No public events were found on this group. Events visible "
+                    "only to group members can't be synced until VRCVerify is in "
+                    "your group."
+                )))
         elif state == "synced" and block.get("visible_count") and block.get("eligible_count") == 0:
-            warnings.append(t(N_(
-                "None of this group's upcoming events are public, so there's "
-                "nothing to sync. Events limited to members or to roles aren't "
-                "synced."
-            )))
+            if in_group:
+                warnings.append(t(N_(
+                    "None of this group's upcoming events can be synced. Events "
+                    "limited to management roles aren't synced."
+                )))
+            else:
+                warnings.append(t(N_(
+                    "None of this group's upcoming events are public, so there's "
+                    "nothing to sync. Events visible only to group members can't "
+                    "be synced until VRCVerify is in your group."
+                )))
 
     needs_permission = bool(
         enabled and proven and not locked
