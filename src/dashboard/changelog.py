@@ -211,6 +211,27 @@ _FIELD_SEPARATOR = ":"
 # usable rather than when the issue was filed. The other four had been
 # reachable for three weeks by then.
 ENTRIES = (
+    # ONE ENTRY FOR ALL OF #289, as decided on that issue: calendar sync shipped
+    # across several PRs (the ownership proof, public sync, join links, members-
+    # only events) behind a preview allowlist, and is announced once, now that
+    # every phase has been tested live.
+    Entry(
+        id="2026-09-calendar-sync",
+        date=date(2026, 9, 16),
+        title=N_("Your VRChat group's calendar, in Discord"),
+        body=(
+            N_("Your VRChat group's calendar events now appear in your server's "
+            "Events tab, where members can mark themselves interested, get "
+            "Discord's reminders and see times in their own time zone. Events "
+            "stay in step as they change in VRChat. If VRCVerify is in your "
+            "group, members-only events sync too, and when an event's instance "
+            "opens, its join link is posted in a channel you choose. Turn it on "
+            "under Settings, VRChat group.")
+        ),
+        premium=True,
+        cta_endpoint="guild_subscription",
+        cta_label=N_("See Premium"),
+    ),
     # #320's replacement sweep posted a new panel in about 165 servers on
     # 2026-09-14 and deleted the old one. Nobody asked for that, so an admin
     # who finds their panel at the bottom of the channel, or a link to it that

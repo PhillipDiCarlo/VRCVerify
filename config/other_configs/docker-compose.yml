@@ -70,10 +70,6 @@ services:
       SEAT_SWEEP_INTERVAL: ${SEAT_SWEEP_INTERVAL:-21600}
       SEAT_SWEEP_MAX_PER_PASS: ${SEAT_SWEEP_MAX_PER_PASS:-25}
       SEAT_SWEEP_SPACING: ${SEAT_SWEEP_SPACING:-2}
-      # Calendar sync (#289) is unannounced until its last phase ships. Guild
-      # ids listed here (comma-separated) see and use it anyway, for live
-      # testing. Empty means nobody.
-      CALENDAR_SYNC_PREVIEW_GUILDS: ${CALENDAR_SYNC_PREVIEW_GUILDS:-}
       CALENDAR_POLL_INTERVAL_SECONDS: ${CALENDAR_POLL_INTERVAL_SECONDS:-900}
       HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
     volumes:

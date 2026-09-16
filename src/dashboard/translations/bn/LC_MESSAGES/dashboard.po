@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 03:16-0400\n"
+"POT-Creation-Date: 2026-09-16 05:38-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: bn\n"
@@ -271,6 +271,28 @@ msgstr "Premium"
 msgid "New"
 msgstr "ওয়েবসাইট এখন আপনার ভাষায়"
 
+msgid "Your VRChat group's calendar, in Discord"
+msgstr "আপনার VRChat গ্রুপের ক্যালেন্ডার, এখন Discord-এ"
+
+msgid ""
+"Your VRChat group's calendar events now appear in your server's Events "
+"tab, where members can mark themselves interested, get Discord's "
+"reminders and see times in their own time zone. Events stay in step as "
+"they change in VRChat. If VRCVerify is in your group, members-only events"
+" sync too, and when an event's instance opens, its join link is posted in"
+" a channel you choose. Turn it on under Settings, VRChat group."
+msgstr ""
+"আপনার VRChat গ্রুপের ক্যালেন্ডারের ইভেন্ট এখন আপনার সার্ভারের Events "
+"ট্যাবে দেখা যায়, যেখানে সদস্যরা আগ্রহ জানাতে, Discord-এর রিমাইন্ডার পেতে"
+" এবং নিজের টাইম জোনে সময় দেখতে পারেন। VRChat-এ বদলালে ইভেন্টগুলোও "
+"হালনাগাদ থাকে। VRCVerify আপনার গ্রুপে থাকলে শুধু সদস্যদের ইভেন্টও সিঙ্ক "
+"হয়, আর কোনো ইভেন্টের ইনস্ট্যান্স খুললে তার যোগ দেওয়ার লিংক আপনার বেছে "
+"নেওয়া চ্যানেলে পোস্ট হয়। সেটিংস, VRChat গ্রুপ থেকে এটি চালু করুন।"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "Premium দেখুন"
+
 msgid "Older instruction panels have been replaced"
 msgstr "পুরোনো নির্দেশাবলী প্যানেলগুলি বদলে দেওয়া হয়েছে"
 
@@ -468,10 +490,6 @@ msgstr ""
 "একটি প্রাইভেট VRChat গ্রুপ আপনার সার্ভারের সঙ্গে যুক্ত করুন, তাহলে "
 "ভেরিফিকেশন শেষ করা সদস্যদের সেটিতে যোগ দেওয়ার আমন্ত্রণ দেওয়া হবে। সদস্য"
 " নিজে না চাইলে VRChat-এ কিছুই পাঠানো হয় না।"
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "Premium দেখুন"
 
 #, python-format
 msgid "New in your plan: %(title)s"
@@ -1834,6 +1852,9 @@ msgstr "যাচাইয়ের কুলডাউন কমানো"
 
 msgid "VRChat group invites for verified members"
 msgstr "যাচাই হওয়া সদস্যদের জন্য VRChat গ্রুপ আমন্ত্রণ"
+
+msgid "Your VRChat group calendar in Discord Events, with join links"
+msgstr "Discord ইভেন্টে আপনার VRChat গ্রুপের ক্যালেন্ডার, যোগ দেওয়ার লিংকসহ"
 
 # | msgid "Not applied"
 msgid "Not included"

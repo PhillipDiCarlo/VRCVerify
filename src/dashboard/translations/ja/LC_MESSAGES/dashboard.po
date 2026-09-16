@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 03:16-0400\n"
+"POT-Creation-Date: 2026-09-16 05:38-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -239,6 +239,28 @@ msgstr "Premium"
 msgid "New"
 msgstr "ウェブサイトがあなたの言語に対応しました"
 
+msgid "Your VRChat group's calendar, in Discord"
+msgstr "VRChat グループのカレンダーを Discord に"
+
+msgid ""
+"Your VRChat group's calendar events now appear in your server's Events "
+"tab, where members can mark themselves interested, get Discord's "
+"reminders and see times in their own time zone. Events stay in step as "
+"they change in VRChat. If VRCVerify is in your group, members-only events"
+" sync too, and when an event's instance opens, its join link is posted in"
+" a channel you choose. Turn it on under Settings, VRChat group."
+msgstr ""
+"VRChat "
+"グループのカレンダーのイベントが、サーバーのイベントタブに表示されるようになりました。メンバーは「興味あり」を付けたり、Discord "
+"のリマインダーを受け取ったり、自分のタイムゾーンで時刻を確認したりできます。イベントは VRChat "
+"で変更されると同期されます。VRCVerify "
+"がグループに参加していれば、メンバー限定イベントも同期され、イベントのインスタンスが開くと、選んだチャンネルに参加リンクが投稿されます。「設定」の「VRChat"
+" グループ」でオンにしてください。"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "Premium を見る"
+
 msgid "Older instruction panels have been replaced"
 msgstr "古い説明パネルを置き換えました"
 
@@ -404,10 +426,6 @@ msgstr ""
 "非公開の VRChat "
 "グループをサーバーに紐づけると、認証を終えたメンバーにそのグループへの招待が案内されます。メンバーが希望しない限り、VRChat "
 "には何も送信されません。"
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "Premium を見る"
 
 #, python-format
 msgid "New in your plan: %(title)s"
@@ -1687,6 +1705,9 @@ msgstr "認証クールダウンの短縮"
 
 msgid "VRChat group invites for verified members"
 msgstr "認証済みメンバーへの VRChat グループ招待"
+
+msgid "Your VRChat group calendar in Discord Events, with join links"
+msgstr "VRChat グループのカレンダーを Discord イベントに、参加リンク付きで"
 
 # | msgid "Not applied"
 msgid "Not included"

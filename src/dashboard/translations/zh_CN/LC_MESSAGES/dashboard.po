@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 03:16-0400\n"
+"POT-Creation-Date: 2026-09-16 05:38-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -227,6 +227,25 @@ msgstr "Premium"
 msgid "New"
 msgstr "网站支持你的语言了"
 
+msgid "Your VRChat group's calendar, in Discord"
+msgstr "你的 VRChat 群组日历，现已进入 Discord"
+
+msgid ""
+"Your VRChat group's calendar events now appear in your server's Events "
+"tab, where members can mark themselves interested, get Discord's "
+"reminders and see times in their own time zone. Events stay in step as "
+"they change in VRChat. If VRCVerify is in your group, members-only events"
+" sync too, and when an event's instance opens, its join link is posted in"
+" a channel you choose. Turn it on under Settings, VRChat group."
+msgstr ""
+"你的 VRChat 群组日历中的活动现在会显示在服务器的活动页中，成员可以标记感兴趣、收到 Discord 的提醒，并以自己的时区查看时间。活动在"
+" VRChat 中更改后会同步更新。如果 VRCVerify "
+"在你的群组中，仅成员可见的活动也会同步；活动的实例开启时，加入链接会发布到你选择的频道。在“设置 > VRChat 群组”中开启。"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "查看 Premium"
+
 msgid "Older instruction panels have been replaced"
 msgstr "旧的说明面板已被替换"
 
@@ -388,10 +407,6 @@ msgid ""
 "verification are offered an invite to it. Nothing is sent to VRChat "
 "unless the member asks for it."
 msgstr "把一个私密的 VRChat 群组关联到你的服务器，完成验证的成员就会收到加入邀请。除非成员主动要求，否则不会向 VRChat 发送任何内容。"
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "查看 Premium"
 
 #, python-format
 msgid "New in your plan: %(title)s"
@@ -1628,6 +1643,9 @@ msgstr "更短的验证冷却时间"
 
 msgid "VRChat group invites for verified members"
 msgstr "为已验证成员提供的 VRChat 群组邀请"
+
+msgid "Your VRChat group calendar in Discord Events, with join links"
+msgstr "在 Discord 活动中显示你的 VRChat 群组日历，并附加入链接"
 
 # | msgid "Not applied"
 msgid "Not included"

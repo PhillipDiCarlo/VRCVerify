@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 03:16-0400\n"
+"POT-Creation-Date: 2026-09-16 05:38-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -213,6 +213,21 @@ msgstr ""
 msgid "New"
 msgstr ""
 
+msgid "Your VRChat group's calendar, in Discord"
+msgstr ""
+
+msgid ""
+"Your VRChat group's calendar events now appear in your server's Events "
+"tab, where members can mark themselves interested, get Discord's "
+"reminders and see times in their own time zone. Events stay in step as "
+"they change in VRChat. If VRCVerify is in your group, members-only events"
+" sync too, and when an event's instance opens, its join link is posted in"
+" a channel you choose. Turn it on under Settings, VRChat group."
+msgstr ""
+
+msgid "See Premium"
+msgstr ""
+
 msgid "Older instruction panels have been replaced"
 msgstr ""
 
@@ -338,9 +353,6 @@ msgid ""
 "Link a private VRChat group to your server, and members who finish "
 "verification are offered an invite to it. Nothing is sent to VRChat "
 "unless the member asks for it."
-msgstr ""
-
-msgid "See Premium"
 msgstr ""
 
 #, python-format
@@ -1506,6 +1518,9 @@ msgid "A shorter verification cooldown"
 msgstr ""
 
 msgid "VRChat group invites for verified members"
+msgstr ""
+
+msgid "Your VRChat group calendar in Discord Events, with join links"
 msgstr ""
 
 msgid "Not included"

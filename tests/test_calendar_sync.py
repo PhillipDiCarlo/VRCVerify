@@ -97,11 +97,6 @@ def fast(monkeypatch):
 
 
 @pytest.fixture
-def preview(monkeypatch):
-    monkeypatch.setattr(bot, "CALENDAR_SYNC_PREVIEW_GUILDS", frozenset({str(GUILD_ID)}))
-
-
-@pytest.fixture
 def premium(monkeypatch):
     async def flags(guild_id):
         return bot.PremiumFlags(premium=True, grandfathered=False)
@@ -373,17 +368,17 @@ class TestModeTwoPolls:
             with bot.session_scope() as session:
                 session.query(bot.GroupInviteConfig).first().verify_state = "ready"
 
-    def test_a_group_the_bot_is_in_asks_for_its_roles(self, guild, preview, premium, published):
+    def test_a_group_the_bot_is_in_asks_for_its_roles(self, guild, premium, published):
         self.start(member=True)
         run(bot.calendar_sync_pass())
         assert published[0]["includeRoles"] is True
 
-    def test_a_group_the_bot_is_not_in_does_not(self, guild, preview, premium, published):
+    def test_a_group_the_bot_is_not_in_does_not(self, guild, premium, published):
         self.start(member=False)
         run(bot.calendar_sync_pass())
         assert published[0]["includeRoles"] is False
 
-    def test_the_roles_from_the_first_page_decide_the_sync(self, guild, preview, premium, published, monkeypatch):
+    def test_the_roles_from_the_first_page_decide_the_sync(self, guild, premium, published, monkeypatch):
         self.start(member=True)
         run(bot.calendar_sync_pass())
         job = published[0]
@@ -867,7 +862,7 @@ class TestThePass:
         ))
         assert len(guild.events) == 3
 
-    def test_a_due_preview_guild_is_polled(self, guild, preview, premium, published):
+    def test_a_due_guild_is_polled(self, guild, premium, published):
         make_server()
         connect_group()
         enable()
@@ -876,20 +871,13 @@ class TestThePass:
         assert published[0]["type"] == bot.JOB_FETCH_CALENDAR_PAGE
         assert published[0]["groupID"] == GROUP_ID and published[0]["offset"] == 0
 
-    def test_an_unannounced_feature_is_not_polled_for_anyone_else(self, guild, premium, published):
-        make_server()
-        connect_group()
-        enable()
-        assert run(bot.calendar_sync_pass())["started"] == 0
-        assert published == []
-
-    def test_an_unproven_group_is_not_polled(self, guild, preview, premium, published):
+    def test_an_unproven_group_is_not_polled(self, guild, premium, published):
         make_server()
         connect_group(proven=False)
         enable()
         assert run(bot.calendar_sync_pass())["started"] == 0
 
-    def test_a_publish_failure_is_recorded(self, guild, preview, premium, monkeypatch):
+    def test_a_publish_failure_is_recorded(self, guild, premium, monkeypatch):
         monkeypatch.setattr(bot, "publish_group_invite_job", lambda job, queue=None: False)
         make_server()
         connect_group()
@@ -898,14 +886,14 @@ class TestThePass:
         assert link()["last_state"] == bot.CALENDAR_WORKER_UNREACHABLE
         assert link()["poll_job_id"] is None
 
-    def test_turning_it_off_deletes_the_upcoming_events(self, guild, clock, preview, premium, published):
+    def test_turning_it_off_deletes_the_upcoming_events(self, guild, clock, premium, published):
         self.synced_guild(guild)
         bot.save_calendar_enabled(GUILD_ID, False)
         run(bot.calendar_sync_pass())
         assert guild.events == {}
         assert rows() == {}
 
-    def test_changing_the_group_deletes_the_old_groups_events(self, guild, clock, preview, premium, published):
+    def test_changing_the_group_deletes_the_old_groups_events(self, guild, clock, premium, published):
         self.synced_guild(guild)
         bot.save_group_invite_config(GUILD_ID, group_id=OTHER_GROUP_ID, enabled=False)
         run(bot.calendar_sync_pass())
@@ -913,7 +901,7 @@ class TestThePass:
         assert rows() == {}
         assert link()["group_id"] is None
 
-    def test_a_lapse_leaves_the_events_alone(self, guild, clock, preview, lapsed, published):
+    def test_a_lapse_leaves_the_events_alone(self, guild, clock, lapsed, published):
         """Decided on #289: syncing stops, and the events run out on their own."""
         self.synced_guild(guild)
         # Due now, so the only thing that can stop a poll is the lapse itself.
@@ -923,7 +911,7 @@ class TestThePass:
         assert len(guild.events) == 3
         assert published == []
 
-    def test_turning_it_off_never_deletes_one_that_is_running(self, guild, clock, preview, premium, published):
+    def test_turning_it_off_never_deletes_one_that_is_running(self, guild, clock, premium, published):
         self.synced_guild(guild)
         with bot.session_scope() as session:
             row = session.query(bot.CalendarEventSync).filter_by(vrc_event_id="cal_a_0").first()
@@ -932,7 +920,7 @@ class TestThePass:
         run(bot.calendar_sync_pass())
         assert len(guild.events) == 1
 
-    def test_one_guilds_failure_does_not_stop_the_pass(self, guild, preview, published, monkeypatch):
+    def test_one_guilds_failure_does_not_stop_the_pass(self, guild, published, monkeypatch):
         async def boom(guild_id):
             raise RuntimeError("entitlements down")
 
@@ -947,14 +935,7 @@ class TestThePass:
 # The settings gate
 # -------------------------------------------------------------------
 class TestTheSwitch:
-    def test_a_guild_outside_the_preview_cannot_set_it(self, premium):
-        make_server()
-        with pytest.raises(bot.SettingRejected) as caught:
-            run(bot.write_dashboard_settings(GUILD_ID, ADMIN_ID, {"calendar_sync_enabled": True}))
-        assert caught.value.reason == "not_writable_yet"
-        assert link() is None
-
-    def test_a_preview_guild_can_and_it_is_audited(self, preview, premium, monkeypatch):
+    def test_it_can_be_set_and_it_is_audited(self, premium, monkeypatch):
         make_server()
         run(bot.write_dashboard_settings(GUILD_ID, ADMIN_ID, {"calendar_sync_enabled": True}))
         assert link()["enabled"] is True
@@ -962,14 +943,11 @@ class TestTheSwitch:
             fields = [r.field for r in session.query(bot.DashboardAudit).all()]
         assert fields == ["calendar_sync_enabled"]
 
-    def test_it_is_not_reachable_by_default(self):
-        assert bot.FEATURE_CALENDAR_SYNC in bot.UNANNOUNCED_FEATURES
-        assert not bot.feature_is_reachable(bot.FEATURE_CALENDAR_SYNC, GUILD_ID)
-        assert bot.feature_is_reachable(bot.FEATURE_GROUP_INVITE, GUILD_ID)
-
-    def test_the_preview_list_is_read_strictly(self):
-        assert bot._guild_id_set(" 1, 2 ,abc,,3 ") == frozenset({"1", "2", "3"})
-        assert bot._guild_id_set(None) == frozenset()
+    def test_it_is_announced(self):
+        """#289 launched: calendar sync is reachable by every server, plan aside."""
+        assert bot.FEATURE_CALENDAR_SYNC not in bot.UNANNOUNCED_FEATURES
+        assert bot.feature_is_reachable(bot.FEATURE_CALENDAR_SYNC, GUILD_ID)
+        assert not hasattr(bot, "CALENDAR_SYNC_PREVIEW_GUILDS")
 
 
 class TestTheInterval:
@@ -979,7 +957,7 @@ class TestTheInterval:
         assert bot._int_env("CALENDAR_POLL_INTERVAL_SECONDS", 900, minimum=600) == 900
         assert "\"CALENDAR_POLL_INTERVAL_SECONDS\", 900, minimum=600" in open(bot.__file__).read()
 
-    def test_the_payload_reports_it_in_minutes(self, monkeypatch, preview, premium):
+    def test_the_payload_reports_it_in_minutes(self, monkeypatch, premium):
         monkeypatch.setattr(bot, "CALENDAR_POLL_INTERVAL_SECONDS", 900)
         make_server()
         payload = run(bot.read_dashboard_settings(GUILD_ID))
@@ -1301,14 +1279,14 @@ class TestTheLaunchLink:
 
 
 class TestTheAnnouncementSettings:
-    def test_a_channel_outside_the_server_is_refused(self, guild, preview, premium):
+    def test_a_channel_outside_the_server_is_refused(self, guild, premium):
         guild.text_channels = []
         make_server()
         with pytest.raises(bot.SettingRejected) as caught:
             run(bot.write_dashboard_settings(GUILD_ID, ADMIN_ID, {"calendar_announce_channel_id": "123"}))
         assert caught.value.reason == "channel_not_in_guild"
 
-    def test_a_channel_the_bot_cannot_post_in_is_refused(self, guild, preview, premium):
+    def test_a_channel_the_bot_cannot_post_in_is_refused(self, guild, premium):
         mute = SimpleNamespace(view_channel=True, send_messages=False)
         guild.text_channels = [SimpleNamespace(id=CHANNEL_ID, permissions_for=lambda me: mute)]
         make_server()
@@ -1316,7 +1294,7 @@ class TestTheAnnouncementSettings:
             run(bot.write_dashboard_settings(GUILD_ID, ADMIN_ID, {"calendar_announce_channel_id": str(CHANNEL_ID)}))
         assert caught.value.reason == "channel_not_writable"
 
-    def test_a_writable_channel_and_a_real_role_are_saved(self, guild, preview, premium):
+    def test_a_writable_channel_and_a_real_role_are_saved(self, guild, premium):
         ok = SimpleNamespace(view_channel=True, send_messages=True)
         guild.text_channels = [SimpleNamespace(id=CHANNEL_ID, permissions_for=lambda me: ok)]
         guild.roles = [SimpleNamespace(id=ROLE_ID, is_default=lambda: False)]
@@ -1328,18 +1306,13 @@ class TestTheAnnouncementSettings:
         assert link()["announce_channel_id"] == str(CHANNEL_ID)
         assert link()["ping_role_id"] == str(ROLE_ID)
 
-    def test_a_role_from_elsewhere_is_refused(self, guild, preview, premium):
+    def test_a_role_from_elsewhere_is_refused(self, guild, premium):
         guild.roles = []
         make_server()
         with pytest.raises(bot.SettingRejected) as caught:
             run(bot.write_dashboard_settings(GUILD_ID, ADMIN_ID, {"calendar_ping_role_id": str(ROLE_ID)}))
         assert caught.value.reason == "role_not_in_guild"
 
-    def test_outside_the_preview_neither_can_be_set(self, guild, premium):
-        make_server()
-        with pytest.raises(bot.SettingRejected) as caught:
-            run(bot.write_dashboard_settings(GUILD_ID, ADMIN_ID, {"calendar_ping_role_id": str(ROLE_ID)}))
-        assert caught.value.reason == "not_writable_yet"
 
 
 class TestTheContractWithTheWorker:

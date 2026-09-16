@@ -1186,6 +1186,7 @@ class TestPricingPagesListEveryFeature:
         ("clearing up unverified roles", "unverified_role_removal"),
         ("syncing nicknames", "nickname_sync"),
         ("sending VRChat group invites", "group_invite"),
+        ("bringing your group's calendar", "calendar_sync"),
     )
 
     @staticmethod
