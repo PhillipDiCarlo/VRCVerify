@@ -1113,17 +1113,47 @@ class TestTheAnnouncer:
         self.check()
         assert self.result(published, [instance()]) == "announced 1"
         content, mentions = channel.sent[0]
-        assert content.startswith(f"<@&{ROLE_ID}> ")
+        assert content.endswith(f"\n<@&{ROLE_ID}>")
         assert "https://vrchat.com/home/launch?worldId=" in content
         assert "(18+)" not in content
         assert mentions.everyone is False and mentions.users is False
         assert [r.id for r in mentions.roles] == [ROLE_ID]
 
+    def test_the_announcement_is_laid_out_as_decided(self, guild, clock, channel, published):
+        """#289: name, heading, join line, then the role ping."""
+        self.synced(guild)
+        self.check()
+        self.result(published, [instance(age_gate=True, group_access_type="members")])
+        lines = channel.sent[0][0].split("\n")
+        assert lines[0] == "## Weekly meetup"
+        assert lines[1] == "### Instance Open (Members Only, 18+)"
+        assert lines[2].startswith("Join here: https://vrchat.com/home/launch?worldId=")
+        assert lines[3] == f"<@&{ROLE_ID}>"
+        assert len(lines) == 4
+
+    def test_no_role_means_no_ping_line(self, guild, clock, channel, published):
+        self.synced(guild)
+        bot.save_calendar_announce(GUILD_ID, channel_id=str(CHANNEL_ID), role_id=None)
+        self.check()
+        self.result(published, [instance()])
+        assert channel.sent[0][0].split("\n")[-1].startswith("Join here:")
+
+    def test_an_event_name_cannot_break_the_layout(self, guild, clock, channel, published):
+        self.synced(guild)
+        event = next(iter(guild.events.values()))
+        event.fields["name"] = "# big\n**text**"
+        self.check()
+        self.result(published, [instance()])
+        first = channel.sent[0][0].split("\n")[0]
+        assert first.startswith("## ") and "\n" not in first
+        assert not first[3:].startswith("#")
+        assert "\\*\\*text\\*\\*" in first
+
     def test_an_age_gated_instance_is_marked_18_plus(self, guild, clock, channel, published):
         self.synced(guild)
         self.check()
         self.result(published, [instance(age_gate=True)])
-        assert "(18+)" in channel.sent[0][0]
+        assert "### Instance Open (18+)\n" in channel.sent[0][0]
 
     def test_a_role_restricted_instance_is_announced_as_members_only(self, guild, clock, channel, published):
         """Decided on #289: an event on the group calendar is for the group, so
@@ -1133,19 +1163,19 @@ class TestTheAnnouncer:
         self.synced(guild)
         self.check()
         assert self.result(published, [instance(role_restricted=True, group_access_type="members")]) == "announced 1"
-        assert "(members only)" in channel.sent[0][0]
+        assert "### Instance Open (Members Only)\n" in channel.sent[0][0]
 
     def test_a_group_only_instance_is_labeled_too(self, guild, clock, channel, published):
         self.synced(guild)
         self.check()
         self.result(published, [instance(group_access_type="members", age_gate=True)])
-        assert "(members only, 18+)" in channel.sent[0][0]
+        assert "### Instance Open (Members Only, 18+)\n" in channel.sent[0][0]
 
     def test_group_plus_and_public_instances_carry_no_members_label(self, guild, clock, channel, published):
         self.synced(guild)
         self.check()
         self.result(published, [instance(group_access_type="plus")])
-        assert "members only" not in channel.sent[0][0]
+        assert "Members Only" not in channel.sent[0][0]
 
     def test_it_is_announced_once(self, guild, clock, channel, published):
         self.synced(guild)

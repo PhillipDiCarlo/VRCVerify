@@ -3550,9 +3550,14 @@ def _invite_url(
     living in exactly one place here matters.
 
     The permissions integer is what the bot actually needs: Manage Roles (to
-    assign the verified role), and Send Messages / Embed Links / Read History
-    (to post and maintain the instructions panel). Asking for more would be a
-    worse pitch and a bigger blast radius.
+    assign the verified role), Send Messages / Embed Links / Read History (to
+    post and maintain the instructions panel), and Mention @everyone, @here and
+    All Roles (#289), so calendar sync's join-link announcement can ping a role
+    that is not open to mentions. That last one is a permission, not a ping:
+    every announcement is sent with AllowedMentions limited to the one chosen
+    role, which Discord enforces. It matches the Developer Portal's default
+    install permissions, which the apex site's link uses. Asking for more than
+    this would be a worse pitch and a bigger blast radius.
     """
     permissions = (
         0x10000000  # Manage Roles
@@ -3560,6 +3565,7 @@ def _invite_url(
         | 0x4000  # Embed Links
         | 0x10000  # Read Message History
         | 0x400  # View Channel
+        | 0x20000  # Mention @everyone, @here and All Roles
         | extra_permissions
     )
     url = (

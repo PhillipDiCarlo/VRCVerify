@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-15 03:57-0400\n"
+"POT-Creation-Date: 2026-09-16 03:16-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -886,21 +886,21 @@ msgstr ""
 "كانت هذه الدعوة لحساب VRChat مختلف عن الحساب المرتبط بك الآن. تحقّق مرة "
 "أخرى للحصول على دعوة جديدة لحسابك الحالي."
 
-#, python-brace-format
-msgid "**{event}** is open in VRChat. Join here: {link}"
-msgstr "**{event}** مفتوحة الآن في VRChat. انضم من هنا: {link}"
+msgid "Instance Open"
+msgstr "المثيل مفتوح"
+
+msgid "Instance Open (18+)"
+msgstr "المثيل مفتوح (18+)"
+
+msgid "Instance Open (Members Only)"
+msgstr "المثيل مفتوح (للأعضاء فقط)"
+
+msgid "Instance Open (Members Only, 18+)"
+msgstr "المثيل مفتوح (للأعضاء فقط، 18+)"
 
 #, python-brace-format
-msgid "**{event}** is open in VRChat (18+). Join here: {link}"
-msgstr "**{event}** مفتوحة الآن في VRChat ‏(18+). انضم من هنا: {link}"
-
-#, python-brace-format
-msgid "**{event}** is open in VRChat (members only). Join here: {link}"
-msgstr "**{event}** مفتوحة الآن في VRChat ‏(للأعضاء فقط). انضم من هنا: {link}"
-
-#, python-brace-format
-msgid "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
-msgstr "**{event}** مفتوحة الآن في VRChat ‏(للأعضاء فقط، 18+). انضم من هنا: {link}"
+msgid "Join here: {link}"
+msgstr "انضم من هنا: {link}"
 
 #~ msgid "Donate"
 #~ msgstr "تبرع"
@@ -917,4 +917,19 @@ msgstr "**{event}** مفتوحة الآن في VRChat ‏(للأعضاء فقط�
 #~ "☕ VRCVerify مجاني بفضل التبرعات. إذا "
 #~ "كان يساعد مجتمعك، يمكنك دعمه هنا: "
 #~ "{kofi_link}"
+
+#~ msgid "**{event}** is open in VRChat. Join here: {link}"
+#~ msgstr "**{event}** مفتوحة الآن في VRChat. انضم من هنا: {link}"
+
+#~ msgid "**{event}** is open in VRChat (18+). Join here: {link}"
+#~ msgstr "**{event}** مفتوحة الآن في VRChat ‏(18+). انضم من هنا: {link}"
+
+#~ msgid "**{event}** is open in VRChat (members only). Join here: {link}"
+#~ msgstr "**{event}** مفتوحة الآن في VRChat ‏(للأعضاء فقط). انضم من هنا: {link}"
+
+#~ msgid "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
+#~ msgstr ""
+#~ "**{event}** مفتوحة الآن في VRChat "
+#~ "‏(للأعضاء فقط، 18+). انضم من هنا: "
+#~ "{link}"
 
