@@ -10957,6 +10957,19 @@ class TestCalendarSyncCard:
         assert "checked about every 15 minutes" in html
         assert "it can take about 30 minutes to leave Discord" in html
 
+    def test_the_deletion_minutes_take_their_own_plural(self, config, store):
+        """#344. One sentence pluralized on the interval gave Russian "22 минут"
+        where 22 takes "минуты"."""
+        api = FakeBotAPI(settings=calendar_settings(state="synced", synced_count=3, poll_interval_minutes=11))
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        login_as(test_client, store)
+        test_client.set_cookie("vrcverify_lang", "ru")
+        html = settings_page(test_client, "vrchat-group").data.decode()
+        assert "примерно через 11 минут." in html
+        assert "примерно через 22 минуты." in html
+
     def test_an_interval_the_bot_did_not_send_is_not_guessed(self):
         settings = calendar_settings(state="synced")
         del settings["calendar_sync"]["poll_interval_minutes"]
@@ -11004,6 +11017,18 @@ class TestCalendarSyncCard:
 
     def test_no_warning_for_a_mentionable_role(self):
         assert self.ping_warnings(mentionable=True, can_mention_all=False) == []
+
+    def test_a_deleted_announcement_channel_says_announcements_stopped(self):
+        """#344: the bot stops looking for join links until another is chosen."""
+        settings = calendar_settings()
+        settings["fields"]["calendar_announce_channel_id"] = {
+            "value": "5551", "feature": "calendar_sync", "active": True, "locked": False, "writable": True,
+        }
+        channels = [{"id": "6000", "name": "general", "can_send": True}]
+        fields = {f.name: f for f in settings_view._calendar_announce_fields(settings, [], channels, settings_view._untranslated)}
+        assert fields["calendar_announce_channel_id"].warnings == [
+            "This channel no longer exists in the server, so join links aren't announced. Choose another channel."
+        ]
 
     def test_the_announcement_settings_travel_to_the_bot(self, config, store):
         settings = calendar_settings()

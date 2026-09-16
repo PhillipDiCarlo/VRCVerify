@@ -84,10 +84,12 @@ def clean_db():
     wipe()
     bot._calendar_polls.clear()
     bot._calendar_locks.clear()
+    bot._calendar_clear_retry_at.clear()
     yield
     wipe()
     bot._calendar_polls.clear()
     bot._calendar_locks.clear()
+    bot._calendar_clear_retry_at.clear()
 
 
 @pytest.fixture(autouse=True)
@@ -300,14 +302,23 @@ class TestEligibility:
     def test_drafts_and_deleted_events_are_not(self, flag):
         assert not bot.calendar_event_is_eligible(self.event(**{flag: True}), NOW)
 
-    def test_an_occurrence_that_has_started_is_not(self):
-        """Discord refuses a start in the past (measured 2026-09-14)."""
-        started = occurrence("cal_1", NOW - timedelta(minutes=10))
-        assert not bot.calendar_event_is_eligible(started, NOW)
+    def test_an_occurrence_already_running_is(self):
+        """#344: added late, or missed while VRChat was unreachable, it still
+        belongs in Discord for the time it has left."""
+        running = occurrence("cal_1", NOW - timedelta(minutes=10))
+        assert bot.calendar_event_is_eligible(running, NOW)
 
-    def test_one_about_to_start_is_not_sent_to_be_refused(self):
+    def test_one_about_to_start_is(self):
         soon = occurrence("cal_1", NOW + timedelta(seconds=bot.CALENDAR_START_MARGIN_SECONDS - 1))
-        assert not bot.calendar_event_is_eligible(soon, NOW)
+        assert bot.calendar_event_is_eligible(soon, NOW)
+
+    def test_one_about_to_end_is_not(self):
+        ending = occurrence("cal_1", NOW - timedelta(hours=2), hours=2)
+        ending["ends_at"] = iso(NOW + timedelta(seconds=bot.CALENDAR_START_MARGIN_SECONDS - 1))
+        assert not bot.calendar_event_is_eligible(ending, NOW)
+
+    def test_one_that_has_ended_is_not(self):
+        assert not bot.calendar_event_is_eligible(occurrence("cal_1", NOW - timedelta(hours=3), hours=2), NOW)
 
     @pytest.mark.parametrize("bad", [{"starts_at": "not a date"}, {"ends_at": None}, {"id": None}])
     def test_an_unreadable_event_is_not(self, bad):
@@ -558,6 +569,23 @@ class TestThePlan:
         event = occurrence("cal_1", NOW + timedelta(seconds=60))
         plan = self.plan({"cal_1": self.row_for(event, missing_since=NOW)}, [])
         assert plan["delete"] == [] and plan["missing"] == []
+
+    def test_a_running_one_already_mirrored_is_left_alone(self):
+        """Without this, every poll during an event would create it again."""
+        event = occurrence("cal_1", NOW - timedelta(minutes=30))
+        plan = self.plan({"cal_1": self.row_for(event, content_hash="old")}, [event])
+        assert not any(plan.values())
+
+    def test_one_about_to_start_is_not_edited(self):
+        """The edit could land after the start, which Discord refuses."""
+        event = occurrence("cal_1", NOW + timedelta(seconds=60))
+        row = self.row_for(event)
+        plan = self.plan({"cal_1": row}, [dict(event, title="Renamed at the last minute")])
+        assert not any(plan.values())
+
+    def test_a_running_one_not_yet_mirrored_is_created(self):
+        event = occurrence("cal_1", NOW - timedelta(minutes=30))
+        assert len(self.plan({}, [event])["create"]) == 1
 
     def test_an_occurrence_moved_after_it_already_ran_is_a_new_event(self):
         """A finished Discord event cannot be edited (error 180000)."""
@@ -811,6 +839,25 @@ class TestTheSync:
         assert state == bot.CALENDAR_DISCORD_ERROR
         assert link()["poll_job_id"] is None, "the poll is ended, not left hanging"
 
+    def test_a_running_event_is_created_to_start_just_after_the_write(self, guild, clock):
+        """#344. Discord refuses a past start; the end stays VRChat's."""
+        running = occurrence("cal_1", NOW - timedelta(hours=1), hours=3, series=None)
+        self.sync([running])
+        made = guild.created[0]
+        assert made["start_time"] == NOW + timedelta(seconds=bot.CALENDAR_LATE_START_SECONDS)
+        assert made["end_time"] == NOW + timedelta(hours=2)
+        assert rows()["cal_1"]["starts_at"] == NOW - timedelta(hours=1), "the row keeps VRChat's start"
+
+    def test_and_the_next_poll_does_not_touch_it(self, guild, clock):
+        running = occurrence("cal_1", NOW - timedelta(hours=1), hours=3, series=None)
+        self.sync([running])
+        self.sync([running])
+        assert len(guild.created) == 1 and guild.edits == [] and guild.deleted == []
+
+    def test_an_upcoming_event_keeps_its_own_start(self, guild, clock):
+        self.sync([occurrence("cal_1", NOW + timedelta(days=1), series=None)])
+        assert guild.created[0]["start_time"] == NOW + timedelta(days=1)
+
     def test_without_create_events_nothing_is_written(self, guild, clock):
         guild.me.guild_permissions.create_events = False
         state = self.sync(weekly("a", NOW + timedelta(days=1), 3))
@@ -901,6 +948,49 @@ class TestThePass:
         assert rows() == {}
         assert link()["group_id"] is None
 
+    def test_an_event_discord_would_not_delete_is_kept_not_forgotten(self, guild, clock, premium, published):
+        """#344. Forgotten, it stays in Discord untracked, and switching back to
+        the same group creates it a second time."""
+        self.synced_guild(guild)
+        guild.forbid = True
+        bot.save_calendar_enabled(GUILD_ID, False)
+        run(bot.calendar_sync_pass())
+        assert len(guild.events) == 3
+        assert set(rows()) == {"cal_a_0", "cal_a_1", "cal_a_2"}
+
+    def test_and_turning_it_back_on_does_not_duplicate_it(self, guild, clock, premium, published):
+        self.synced_guild(guild)
+        guild.forbid = True
+        bot.save_calendar_enabled(GUILD_ID, False)
+        run(bot.calendar_sync_pass())
+        guild.forbid = False
+        enable()
+        job = bot.begin_calendar_poll(GUILD_ID, GROUP_ID)
+        run(bot.sync_calendar_to_discord(
+            str(GUILD_ID), GROUP_ID, weekly("a", NOW + timedelta(days=1), 3), job["jobID"]
+        ))
+        assert len(guild.events) == 3 and len(guild.created) == 3
+
+    def test_the_failed_delete_is_retried_once_an_interval_not_every_pass(
+        self, guild, clock, premium, published, monkeypatch
+    ):
+        self.synced_guild(guild)
+        guild.forbid = True
+        bot.save_calendar_enabled(GUILD_ID, False)
+        assert run(bot.calendar_sync_pass())["cleared"] == 1
+        assert run(bot.calendar_sync_pass())["cleared"] == 0
+        guild.forbid = False
+        later = NOW + timedelta(seconds=bot.CALENDAR_POLL_INTERVAL_SECONDS + 1)
+
+        class Later(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return later if tz is None else later.astimezone(tz)
+
+        monkeypatch.setattr(bot, "datetime", Later)
+        assert run(bot.calendar_sync_pass())["cleared"] == 1
+        assert guild.events == {} and rows() == {}
+
     def test_a_lapse_leaves_the_events_alone(self, guild, clock, lapsed, published):
         """Decided on #289: syncing stops, and the events run out on their own."""
         self.synced_guild(guild)
@@ -951,11 +1041,11 @@ class TestTheSwitch:
 
 
 class TestTheInterval:
-    def test_the_default_is_fifteen_minutes(self, monkeypatch):
-        """Decided on #289. The dashboard states whatever this is."""
+    def test_the_default_is_ten_minutes(self, monkeypatch):
+        """Fifteen on #289, ten (the minimum) on #344. The dashboard states whatever this is."""
         monkeypatch.delenv("CALENDAR_POLL_INTERVAL_SECONDS", raising=False)
-        assert bot._int_env("CALENDAR_POLL_INTERVAL_SECONDS", 900, minimum=600) == 900
-        assert "\"CALENDAR_POLL_INTERVAL_SECONDS\", 900, minimum=600" in open(bot.__file__).read()
+        assert bot._int_env("CALENDAR_POLL_INTERVAL_SECONDS", 600, minimum=600) == 600
+        assert "\"CALENDAR_POLL_INTERVAL_SECONDS\", 600, minimum=600" in open(bot.__file__).read()
 
     def test_the_payload_reports_it_in_minutes(self, monkeypatch, premium):
         monkeypatch.setattr(bot, "CALENDAR_POLL_INTERVAL_SECONDS", 900)
@@ -1072,6 +1162,14 @@ class TestTheAnnouncer:
         bot.save_calendar_announce(GUILD_ID, channel_id=None, role_id=None)
         assert self.check() is False
 
+    def test_not_once_the_channel_was_deleted(self, guild, clock, channel, published):
+        """#344: announcements are off until another channel is chosen, instead
+        of a VRChat read and a failed post every check."""
+        self.synced(guild)
+        guild.get_channel = lambda cid: None
+        assert self.check() is False
+        assert all(job["type"] != bot.JOB_FETCH_EVENT_INSTANCES for job in published)
+
     def test_not_more_often_than_the_check_interval(self, guild, clock, channel, published):
         self.synced(guild)
         assert self.check() is True
@@ -1108,6 +1206,25 @@ class TestTheAnnouncer:
         assert lines[2].startswith("Join here: https://vrchat.com/home/launch?worldId=")
         assert lines[3] == f"<@&{ROLE_ID}>"
         assert len(lines) == 4
+
+    @pytest.mark.parametrize(
+        "sent, shown",
+        [("Good", "\U0001F7E2 Good or better"), ("Medium", "\U0001F7E0 Medium or better"), ("Poor", "\U0001F534 Poor or better")],
+    )
+    def test_a_minimum_avatar_performance_joins_the_heading(self, guild, clock, channel, published, sent, shown):
+        """#344, on the heading's own line, with the colors asked for."""
+        self.synced(guild)
+        self.check()
+        self.result(published, [instance(age_gate=True, group_access_type="members", minimum_avatar_performance=sent)])
+        assert channel.sent[0][0].split("\n")[1] == f"### Instance Open (Members Only, 18+) \u00b7 {shown}"
+
+    @pytest.mark.parametrize("sent", ["None", None, "Excellent", 7])
+    def test_no_minimum_leaves_the_heading_as_it_was(self, guild, clock, channel, published, sent):
+        """VRChat sends the string "None" when no minimum is set (measured)."""
+        self.synced(guild)
+        self.check()
+        self.result(published, [instance(minimum_avatar_performance=sent)])
+        assert channel.sent[0][0].split("\n")[1] == "### Instance Open"
 
     def test_no_role_means_no_ping_line(self, guild, clock, channel, published):
         self.synced(guild)
@@ -1186,6 +1303,55 @@ class TestTheAnnouncer:
         assert "Join in VRChat: https://vrchat.com/home/launch" in description
         assert description.index("Join in VRChat") < description.index("VRChat group:")
         assert rows()["cal_a_0"]["join_location"].startswith("https://vrchat.com/home/launch")
+
+    # --- following the instance (#344) ---
+    SECOND = INSTANCE.replace("12345", "67890")
+
+    def announced(self, guild, published):
+        self.synced(guild)
+        self.check()
+        self.result(published, [instance()])
+        return rows()["cal_a_0"]["join_location"]
+
+    def later(self, published, minutes=3):
+        assert self.check(NOW + timedelta(minutes=minutes)) is True
+        return published[-1]
+
+    def test_the_announced_instance_is_asked_about_while_the_event_runs(self, guild, clock, channel, published):
+        self.announced(guild, published)
+        assert f"{WORLD}:{INSTANCE}" in self.later(published)["skip"]
+
+    def test_when_it_closes_the_link_moves_to_another_instance_of_the_event(self, guild, clock, channel, published):
+        old = self.announced(guild, published)
+        self.later(published)
+        second = instance(location=f"{WORLD}:{self.SECOND}", instance_id=self.SECOND)
+        assert self.result(published, [second], still_listed=[]) == "announced 0, moved 1"
+        new = rows()["cal_a_0"]["join_location"]
+        assert new != old and "67890" in new
+        description = guild.edits[-1][1]["description"]
+        assert new in description and old not in description
+        assert len(channel.sent) == 1, "one link, and no new post (decided on #344)"
+
+    def test_while_it_is_open_another_instance_does_not_take_the_link(self, guild, clock, channel, published):
+        """Overflow stays unlisted; #345 is the option for that."""
+        old = self.announced(guild, published)
+        self.later(published)
+        second = instance(location=f"{WORLD}:{self.SECOND}", instance_id=self.SECOND)
+        self.result(published, [second], still_listed=[f"{WORLD}:{INSTANCE}"])
+        assert rows()["cal_a_0"]["join_location"] == old
+
+    def test_a_closed_instance_with_nothing_to_replace_it_keeps_its_link(self, guild, clock, channel, published):
+        old = self.announced(guild, published)
+        self.later(published)
+        self.result(published, [], still_listed=[])
+        assert rows()["cal_a_0"]["join_location"] == old
+
+    def test_a_worker_that_does_not_say_what_is_open_moves_nothing(self, guild, clock, channel, published):
+        old = self.announced(guild, published)
+        self.later(published)
+        second = instance(location=f"{WORLD}:{self.SECOND}", instance_id=self.SECOND)
+        self.result(published, [second])
+        assert rows()["cal_a_0"]["join_location"] == old
 
     def test_a_finished_discord_event_is_not_edited(self, guild, clock, channel, published):
         self.synced(guild)

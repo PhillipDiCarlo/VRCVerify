@@ -247,8 +247,12 @@
               {% if cal.poll_interval_minutes %}
                 {# Deletions are confirmed by a second read before the Discord
                    event is removed (a single read can miss an event that still
-                   exists), so they take two intervals, and the page says so. #}
-                <p class="muted desc">{% trans count=cal.poll_interval_minutes, twice=cal.poll_interval_minutes * 2 %}Your group's calendar is checked about every {{ count }} minute, so new and changed events reach Discord within {{ count }} minute or so. A deleted event is checked twice before it's removed, so it can take about {{ twice }} minutes to leave Discord.{% pluralize %}Your group's calendar is checked about every {{ count }} minutes, so new and changed events reach Discord within {{ count }} minutes or so. A deleted event is checked twice before it's removed, so it can take about {{ twice }} minutes to leave Discord.{% endtrans %}</p>
+                   exists), so they take two intervals, and the page says so.
+                   Two sentences, each with its own plural, because a language
+                   like Russian or Arabic inflects "minutes" by its own number
+                   (#344). #}
+                <p class="muted desc">{% trans count=cal.poll_interval_minutes %}Your group's calendar is checked about every {{ count }} minute, so new and changed events reach Discord within {{ count }} minute or so.{% pluralize %}Your group's calendar is checked about every {{ count }} minutes, so new and changed events reach Discord within {{ count }} minutes or so.{% endtrans %}
+                {% trans count=cal.poll_interval_minutes * 2 %}A deleted event is checked twice before it's removed, so it can take about {{ count }} minute to leave Discord.{% pluralize %}A deleted event is checked twice before it's removed, so it can take about {{ count }} minutes to leave Discord.{% endtrans %}</p>
               {% endif %}
               {% if cal.error %}
                 <p class="muted desc">{% trans said=cal.error %}The last error: {{ said }}{% endtrans %}</p>

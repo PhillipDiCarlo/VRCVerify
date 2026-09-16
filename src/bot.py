@@ -561,8 +561,9 @@ SEAT_SWEEP_INTERVAL = _int_env("SEAT_SWEEP_INTERVAL", 6 * 3600)
 # live groups: 52 to 731 events at 100 a page), so this is set by how stale an
 # event may be in Discord, not by how cheap a read is. Fifteen minutes, decided
 # on #289 after the first live test: an hour made a VRChat deletion take two
-# hours to clear from Discord. The dashboard tells admins this number.
-CALENDAR_POLL_INTERVAL_SECONDS = _int_env("CALENDAR_POLL_INTERVAL_SECONDS", 900, minimum=600)
+# hours to clear from Discord. Lowered to ten, the minimum, on #344. The
+# dashboard tells admins this number.
+CALENDAR_POLL_INTERVAL_SECONDS = _int_env("CALENDAR_POLL_INTERVAL_SECONDS", 600, minimum=600)
 # How long a poll may run before it is treated as lost. A poll is a chain of
 # page jobs, and a bot restart drops the pages collected so far with it.
 CALENDAR_POLL_TIMEOUT_SECONDS = _int_env("CALENDAR_POLL_TIMEOUT_SECONDS", 900)
@@ -580,8 +581,10 @@ CALENDAR_GUILD_CEILING = _int_env("CALENDAR_GUILD_CEILING", 80)
 DISCORD_SCHEDULED_EVENT_LIMIT = 100
 # Discord refuses an event whose start is already past (measured 2026-09-14:
 # GUILD_SCHEDULED_EVENT_SCHEDULE_PAST). An occurrence starting within this
-# margin is skipped rather than sent to be refused.
+# margin is created to start CALENDAR_LATE_START_SECONDS from the write instead
+# of at its own start, and one ending within it is not created at all.
 CALENDAR_START_MARGIN_SECONDS = _int_env("CALENDAR_START_MARGIN_SECONDS", 300)
+CALENDAR_LATE_START_SECONDS = _int_env("CALENDAR_LATE_START_SECONDS", 120)
 # Spacing between two Discord writes in one sync, so a series moving to a new
 # day is a trickle of PATCHes rather than a burst. discord.py still honors 429s.
 CALENDAR_WRITE_SPACING_SECONDS = _float_env("CALENDAR_WRITE_SPACING_SECONDS", 1.0)
@@ -4523,9 +4526,11 @@ def calendar_event_is_eligible(event: dict, now: datetime, scope: Optional[dict]
     ends = parse_calendar_time(event.get("ends_at"))
     if starts is None or ends is None or ends <= starts:
         return False
-    # Discord refuses a start in the past, so an occurrence about to begin is
-    # skipped rather than sent to be refused.
-    return starts > now + timedelta(seconds=CALENDAR_START_MARGIN_SECONDS)
+    # An occurrence already running still syncs, so an event added late, or
+    # missed while VRChat was unreachable, reaches Discord (#344). Discord
+    # refuses a start in the past, so it is created starting shortly after the
+    # write; see discord_start_time. One about to end is not worth creating.
+    return ends > now + timedelta(seconds=CALENDAR_START_MARGIN_SECONDS)
 
 
 def calendar_event_budget(foreign_active: int) -> int:
@@ -4647,6 +4652,17 @@ def build_discord_event_fields(event: dict, group_id: str, group_name, join_link
     }
 
 
+def discord_start_time(start: datetime, now: datetime) -> datetime:
+    """The start to create a Discord event with: its own, unless that is too soon.
+
+    Discord refuses a start in the past, and a write can take seconds to land,
+    so an occurrence already running or about to begin is created to start
+    CALENDAR_LATE_START_SECONDS from now. Only the Discord event moves: the row
+    and the hash keep VRChat's start, so the next poll sees no change.
+    """
+    return max(start, now + timedelta(seconds=CALENDAR_LATE_START_SECONDS))
+
+
 def calendar_content_hash(fields: dict) -> str:
     """A hash of exactly what the Discord event says, to tell an edit from none.
 
@@ -4670,8 +4686,10 @@ def plan_calendar_changes(rows: dict, chosen, group_id: str, group_name, now: da
     `rows` is this guild's calendar_event_sync rows keyed by vrc_event_id. Rows
     for occurrences that have already started are never touched: Discord moves
     them to active and completed on its own, and a finished event cannot be
-    edited (error 180000).
+    edited (error 180000). Nor are rows whose occurrence VRChat says begins
+    within the start margin, since an edit could land after the start.
     """
+    margin_end = now + timedelta(seconds=CALENDAR_START_MARGIN_SECONDS)
     wanted = {}
     for event in chosen:
         join_link = (rows.get(event["id"]) or {}).get("join_location")
@@ -4692,19 +4710,22 @@ def plan_calendar_changes(rows: dict, chosen, group_id: str, group_name, now: da
             # The Discord event already ran (and may be completed, which cannot
             # be edited), yet VRChat now reports the same occurrence in the
             # future: it was moved after the fact. That is a new Discord event.
-            create.append((event, fields, digest))
+            # Still running per VRChat, it is the event already mirrored.
+            if fields["start_time"] > margin_end:
+                create.append((event, fields, digest))
+        elif fields["start_time"] <= margin_end:
+            continue
         elif row.get("content_hash") != digest:
             update.append((event, fields, digest, row))
 
     # An occurrence about to start drops out of `chosen` because of the start
     # margin, not because it went away. Deleting it then would take the event
     # down minutes before it begins, so the margin protects rows as well.
-    protected_until = now + timedelta(seconds=CALENDAR_START_MARGIN_SECONDS)
     for event_id, row in rows.items():
         if event_id in wanted:
             continue
         starts = row.get("starts_at")
-        if starts is not None and starts <= protected_until:
+        if starts is not None and starts <= margin_end:
             continue
         # Deleted only on the second poll that does not see it. See
         # calendar_event_sync.missing_since for why one is not enough.
@@ -9046,21 +9067,30 @@ async def _fetch_calendar_event(guild, discord_event_id):
         return None
 
 
+# When a cleanup that could not delete everything may be tried again, per guild.
+_calendar_clear_retry_at: dict = {}
+
+
 async def clear_calendar_events(guild, guild_id) -> int:
-    """Delete the bot's Discord events that have not started, and forget them all.
+    """Delete the bot's Discord events that have not started, and forget them.
 
     For turning sync off and for changing the group, never for a lapse (decided
     on #289). Started events are left: Discord completes them on its own, and
     deleting one mid-event would pull it from under the people attending.
+
+    An event Discord would not delete keeps its row (#344). Forgotten, it would
+    stay in Discord untracked, and switching back to the same group would
+    create it a second time. Kept, the next cleanup tries again, and a sync for
+    the same group finds it instead of creating it.
     """
     now = datetime.now(timezone.utc)
     rows = load_calendar_event_rows(guild_id)
     deleted = 0
+    forget = []
     for row in rows.values():
         starts = row.get("starts_at")
         if row.get("state") != CALENDAR_EVENT_SYNCED or starts is None or starts <= now:
-            continue
-        if guild is None:
+            forget.append(row["vrc_event_id"])
             continue
         try:
             event = await _fetch_calendar_event(guild, row.get("discord_event_id"))
@@ -9068,14 +9098,20 @@ async def clear_calendar_events(guild, guild_id) -> int:
                 await event.delete(reason=CALENDAR_AUDIT_REASON)
                 deleted += 1
                 await asyncio.sleep(CALENDAR_WRITE_SPACING_SECONDS)
+            forget.append(row["vrc_event_id"])
         except discord.HTTPException:
             logger.warning(
-                "Could not delete calendar event %s in guild %s.",
+                "Could not delete calendar event %s in guild %s; it is kept and tried again later.",
                 row.get("discord_event_id"),
                 guild_id,
                 exc_info=True,
             )
-    delete_calendar_event_rows(guild_id)
+    delete_calendar_event_rows(guild_id, forget)
+    key = panel_view_key(guild_id)
+    if len(forget) < len(rows):
+        _calendar_clear_retry_at[key] = now + timedelta(seconds=CALENDAR_POLL_INTERVAL_SECONDS)
+    else:
+        _calendar_clear_retry_at.pop(key, None)
     reset_calendar_link_group(guild_id)
     return deleted
 
@@ -9120,7 +9156,11 @@ async def _calendar_sync_one(link: dict, now: datetime, outcome: dict) -> None:
             outcome["cleared"] += 1
             link = load_calendar_link(guild_id) or link
         if not link["enabled"]:
-            if load_calendar_event_rows(guild_id):
+            retry_at = _calendar_clear_retry_at.get(panel_view_key(guild_id))
+            # Events a cleanup could not delete are tried again once a poll
+            # interval, not every pass, since what blocked them is usually a
+            # permission that stays missing.
+            if load_calendar_event_rows(guild_id) and (retry_at is None or retry_at <= now):
                 await clear_calendar_events(guild, guild_id)
                 outcome["cleared"] += 1
             return
@@ -9194,6 +9234,34 @@ def calendar_events_awaiting_link(rows: dict, now: datetime) -> list:
     ]
 
 
+def calendar_events_following_link(rows: dict, now: datetime) -> list:
+    """Synced events already announced and still running, whose link may need
+    to move to another instance of the same event (#344)."""
+    early = timedelta(minutes=CALENDAR_ANNOUNCE_EARLY_MINUTES)
+    return [
+        row
+        for row in rows.values()
+        if row.get("state") == CALENDAR_EVENT_SYNCED
+        and row.get("announced_at") is not None
+        and row.get("join_location")
+        and row.get("starts_at") is not None
+        and row.get("ends_at") is not None
+        and row["starts_at"] - early <= now <= row["ends_at"]
+    ]
+
+
+def launch_url_location(url) -> Optional[str]:
+    """The "world:instance" a vrchat_launch_url points at, or None."""
+    from urllib.parse import parse_qs, urlparse
+
+    if not isinstance(url, str):
+        return None
+    query = parse_qs(urlparse(url).query)
+    world = (query.get("worldId") or [None])[0]
+    instance = (query.get("instanceId") or [None])[0]
+    return f"{world}:{instance}" if world and instance else None
+
+
 async def maybe_check_event_instances(guild_id, group_id, config: dict, link: dict, now: datetime) -> bool:
     """Ask the worker for the group's instances if an event could need its link.
 
@@ -9202,11 +9270,21 @@ async def maybe_check_event_instances(guild_id, group_id, config: dict, link: di
     synced, unannounced event is inside its window. Returns whether it asked.
     """
     key = panel_view_key(guild_id)
-    if not link.get("announce_channel_id"):
+    channel_id = str(link.get("announce_channel_id") or "")
+    if not channel_id:
+        return False
+    # A deleted channel turns announcements off until another is chosen (#344),
+    # rather than asking VRChat every check for a link that cannot be posted.
+    # The dashboard says the channel no longer exists. Discord sends every
+    # channel to the bot whatever it may see, so missing here means deleted.
+    guild = bot.get_guild(int(guild_id)) if str(guild_id).isdigit() else None
+    if guild is None or not channel_id.isdigit() or guild.get_channel(int(channel_id)) is None:
         return False
     if effective_group_setup_state(config) not in CALENDAR_MEMBER_STATES:
         return False
-    if not calendar_events_awaiting_link(load_calendar_event_rows(guild_id), now):
+    rows = load_calendar_event_rows(guild_id)
+    following = calendar_events_following_link(rows, now)
+    if not calendar_events_awaiting_link(rows, now) and not following:
         # Nothing to look for, so nothing remembered from the last event.
         _calendar_unlinked_instances.pop(key, None)
         return False
@@ -9219,7 +9297,12 @@ async def maybe_check_event_instances(guild_id, group_id, config: dict, link: di
         "jobID": secrets.token_hex(16),
         "guildID": str(guild_id),
         "groupID": group_id,
-        "skip": sorted(_calendar_unlinked_instances.get(key, set()))[:50],
+        # The announced instances first: the worker says which of these are
+        # still open, which is how a closed one is noticed (#344).
+        "skip": (
+            sorted({launch_url_location(r["join_location"]) for r in following} - {None})
+            + sorted(_calendar_unlinked_instances.get(key, set()))
+        )[:50],
     }
     _calendar_instance_checks[key] = {"job_id": job["jobID"], "at": now, "group_id": group_id}
     loop = asyncio.get_running_loop()
@@ -9257,7 +9340,10 @@ async def handle_calendar_instances_result(data: dict) -> str:
     rows = load_calendar_event_rows(guild_id)
     now = datetime.now(timezone.utc)
     awaiting = {row["vrc_event_id"]: row for row in calendar_events_awaiting_link(rows, now)}
+    following = {row["vrc_event_id"]: row for row in calendar_events_following_link(rows, now)}
     unlinked = _calendar_unlinked_instances.setdefault(key, set())
+    # Other open instances of an announced event, in case its own closes.
+    spares: dict = {}
 
     announced = 0
     for instance in data.get("instances") or []:
@@ -9267,9 +9353,14 @@ async def handle_calendar_instances_result(data: dict) -> str:
         if not entry:
             unlinked.add(instance["location"])
             continue
+        if entry in following:
+            # Not ruled out: read again each check, since it may become the link.
+            if instance["location"] != launch_url_location(following[entry]["join_location"]):
+                spares.setdefault(entry, []).append(instance)
+            continue
         row = awaiting.pop(entry, None)
         if row is None:
-            # Linked to an event this guild did not sync, or already announced.
+            # Linked to an event this guild did not sync.
             unlinked.add(instance["location"])
             continue
         # Role-restricted and Group-only instances are announced too, labeled
@@ -9277,7 +9368,28 @@ async def handle_calendar_instances_result(data: dict) -> str:
         # the group, and staff events are not put there.
         if await announce_calendar_instance(guild, guild_id, link, row, instance):
             announced += 1
-    return f"announced {announced}"
+
+    moved = 0
+    still_listed = data.get("still_listed")
+    # A worker from before #344 does not say, and a guess could move a link
+    # away from an instance that is still open.
+    if isinstance(still_listed, list):
+        for entry, row in following.items():
+            if launch_url_location(row["join_location"]) in still_listed or not spares.get(entry):
+                continue
+            if await follow_calendar_instance(guild, guild_id, row, spares[entry][0]):
+                moved += 1
+    return f"announced {announced}" + (f", moved {moved}" if moved else "")
+
+
+# An instance's minimum avatar performance as the announcement shows it (#344),
+# for the three minimums VRChat offers. Anything else, "None" included, shows
+# nothing.
+CALENDAR_AVATAR_MINIMUMS = {
+    "good": ("\U0001F7E2", locales.CALENDAR_AVATAR_MINIMUM_GOOD),
+    "medium": ("\U0001F7E0", locales.CALENDAR_AVATAR_MINIMUM_MEDIUM),
+    "poor": ("\U0001F534", locales.CALENDAR_AVATAR_MINIMUM_POOR),
+}
 
 
 async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, instance: dict) -> bool:
@@ -9310,15 +9422,20 @@ async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, ins
         (True, False): locales.CALENDAR_INSTANCE_OPEN_MEMBERS,
         (True, True): locales.CALENDAR_INSTANCE_OPEN_MEMBERS_AGE_GATED,
     }[(members_only, bool(instance.get("age_gate")))]
+    heading = translate(message, locale)
+    performance = instance.get("minimum_avatar_performance")
+    minimum = CALENDAR_AVATAR_MINIMUMS.get(performance.lower()) if isinstance(performance, str) else None
+    if minimum is not None:
+        heading = f"{heading} \u00b7 {minimum[0]} {translate(minimum[1], locale)}"
     role_id = link.get("ping_role_id")
-    # Layout decided on #289:
+    # Layout decided on #289, with the avatar minimum added on #344:
     #   ## Event name
-    #   ### Instance Open (Members Only, 18+)
+    #   ### Instance Open (Members Only, 18+) · 🟢 Good or better
     #   Join here: <link>
     #   @role
     lines = [
         f"## {name}",
-        f"### {translate(message, locale)}",
+        f"### {heading}",
         translate(locales.CALENDAR_INSTANCE_JOIN, locale, link=join_link),
     ]
     if role_id:
@@ -9361,6 +9478,44 @@ async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, ins
             # The announcement went out; the next poll writes the link into the
             # description anyway, since the stored join link is part of its hash.
             logger.warning("Could not add the join link to event %s in guild %s.", event.id, guild_id)
+    return True
+
+
+async def follow_calendar_instance(guild, guild_id, row: dict, instance: dict) -> bool:
+    """Point an announced event at another of its instances, the first having closed.
+
+    One link, and no new post (decided on #344): the Discord event's description
+    changes, and the channel is left alone. Moved in the database first, only
+    if nothing else moved it, so two checks cannot both edit.
+    """
+    old_link = row["join_location"]
+    new_link = vrchat_launch_url(instance["world_id"], instance["instance_id"])
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        moved = (
+            session.query(CalendarEventSync)
+            .filter_by(server_id=key, vrc_event_id=row["vrc_event_id"], join_location=old_link)
+            .update(
+                {"join_location": new_link, "updated_at": datetime.now(timezone.utc)},
+                synchronize_session=False,
+            )
+        )
+    if moved != 1:
+        return False
+    try:
+        event = await _fetch_calendar_event(guild, row.get("discord_event_id"))
+    except discord.HTTPException:
+        event = None
+    if event is not None and getattr(event, "status", None) not in (
+        discord.EventStatus.completed,
+        discord.EventStatus.canceled,
+    ):
+        description = (getattr(event, "description", None) or "").replace(old_link, new_link)
+        try:
+            await event.edit(description=description[:DISCORD_EVENT_DESCRIPTION_MAX], reason=CALENDAR_AUDIT_REASON)
+        except discord.HTTPException:
+            # The next poll writes it anyway: the stored link is part of the hash.
+            logger.warning("Could not move the join link on event %s in guild %s.", event.id, guild_id)
     return True
 
 
@@ -9603,7 +9758,9 @@ async def sync_calendar_to_discord(guild_id, group_id, events, job_id, scope: Op
                     name=fields["name"],
                     description=fields["description"],
                     location=fields["location"],
-                    start_time=fields["start_time"],
+                    # Taken at the write, not when the plan was made: creates
+                    # are spaced, and a late start must still be in the future.
+                    start_time=discord_start_time(fields["start_time"], datetime.now(timezone.utc)),
                     end_time=fields["end_time"],
                     entity_type=discord.EntityType.external,
                     privacy_level=discord.PrivacyLevel.guild_only,

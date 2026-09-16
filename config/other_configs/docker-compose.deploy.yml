@@ -111,7 +111,7 @@ services:
       SEAT_SWEEP_INTERVAL: ${SEAT_SWEEP_INTERVAL:-21600}
       SEAT_SWEEP_MAX_PER_PASS: ${SEAT_SWEEP_MAX_PER_PASS:-25}
       SEAT_SWEEP_SPACING: ${SEAT_SWEEP_SPACING:-2}
-      CALENDAR_POLL_INTERVAL_SECONDS: ${CALENDAR_POLL_INTERVAL_SECONDS:-900}
+      CALENDAR_POLL_INTERVAL_SECONDS: ${CALENDAR_POLL_INTERVAL_SECONDS:-600}
       # Heartbeats for the status page (issue #170). Unset by default, so no
       # thread starts and no file is written. Set it here and mount the volume
       # below on a deployment that runs status-reporter.

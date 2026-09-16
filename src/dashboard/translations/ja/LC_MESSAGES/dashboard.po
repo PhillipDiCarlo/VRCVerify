@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 05:38-0400\n"
+"POT-Creation-Date: 2026-09-16 09:12-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -947,8 +947,10 @@ msgstr "一部のイベントを Discord で更新できませんでした"
 msgid "Unknown channel (%(id)s)"
 msgstr "不明なチャンネル（%(id)s）"
 
-msgid "This channel no longer exists in the server."
-msgstr "このチャンネルはサーバーに存在しなくなりました。"
+msgid ""
+"This channel no longer exists in the server, so join links aren't "
+"announced. Choose another channel."
+msgstr "このチャンネルはサーバーに存在しなくなったため、参加リンクは告知されません。別のチャンネルを選んでください。"
 
 msgid "VRCVerify cannot post in this channel."
 msgstr "VRCVerify はこのチャンネルに投稿できません。"
@@ -1105,6 +1107,9 @@ msgstr "表示"
 
 msgid "Hidden"
 msgstr "非表示"
+
+msgid "This channel no longer exists in the server."
+msgstr "このチャンネルはサーバーに存在しなくなりました。"
 
 # | msgid "" "Verification logs can't go in an announcement channel -- other
 # | servers " "can follow one, which would republish your members' age
@@ -1826,18 +1831,22 @@ msgstr "最終同期: %(when)s"
 #, python-format
 msgid ""
 "Your group's calendar is checked about every %(count)s minute, so new and"
-" changed events reach Discord within %(count)s minute or so. A deleted "
-"event is checked twice before it's removed, so it can take about "
-"%(twice)s minutes to leave Discord."
+" changed events reach Discord within %(count)s minute or so."
 msgid_plural ""
 "Your group's calendar is checked about every %(count)s minutes, so new "
-"and changed events reach Discord within %(count)s minutes or so. A "
-"deleted event is checked twice before it's removed, so it can take about "
-"%(twice)s minutes to leave Discord."
+"and changed events reach Discord within %(count)s minutes or so."
 msgstr[0] ""
 "グループのカレンダーは約 %(count)s 分ごとに確認されるため、新しいイベントや変更は約 %(count)s 分以内に Discord "
-"に反映されます。削除されたイベントは取り除く前に 2 回確認するため、Discord から消えるまで約 %(twice)s "
-"分かかることがあります。"
+"に反映されます。"
+
+#, python-format
+msgid ""
+"A deleted event is checked twice before it's removed, so it can take "
+"about %(count)s minute to leave Discord."
+msgid_plural ""
+"A deleted event is checked twice before it's removed, so it can take "
+"about %(count)s minutes to leave Discord."
+msgstr[0] "削除されたイベントは取り除く前に 2 回確認するため、Discord から消えるまで約 %(count)s 分かかることがあります。"
 
 #, python-format
 msgid "The last error: %(said)s"
