@@ -41,6 +41,15 @@ from vrchatapi.models.two_factor_email_code import TwoFactorEmailCode
 # that are already set.
 load_dotenv()
 
+# The generated models reject None in any field the spec marks required, and
+# VRChat sends nulls anyway: an empty bio stopped the invite account logging in
+# at all (#346). Models build their settings from this default, not from the
+# client's Configuration, so it is switched off here, for every service that
+# talks to VRChat through this module.
+_model_defaults = vrchatapi.Configuration()
+_model_defaults.client_side_validation = False
+vrchatapi.Configuration.set_default(_model_defaults)
+
 # -------------------------------------------------------------------
 # Shared configuration
 #
