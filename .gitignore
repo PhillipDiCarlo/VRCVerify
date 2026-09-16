@@ -254,3 +254,6 @@ status/node_modules/
 # wrangler reads local secrets from here. Never committed: it is the file
 # that holds the status reporter's signing key on a development machine.
 status/.dev.vars
+
+# macOS Finder metadata, written into any folder opened in Finder
+.DS_Store
