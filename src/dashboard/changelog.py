@@ -243,7 +243,7 @@ ENTRIES = (
         date=date(2026, 9, 14),
         title=N_("Older instruction panels have been replaced"),
         body=(
-            N_("Instruction panels posted before August could not be edited, "
+            N_("Instruction panels posted before August 11 could not be edited, "
             "so they kept their original text and buttons no matter what "
             "changed. They have now been replaced with panels that can be "
             "updated, in your server's current language. A replaced panel "
@@ -314,7 +314,7 @@ ENTRIES = (
             "more button that opens vrcverify.com, so a member who is asked "
             "to verify can read what VRCVerify does before they start. The "
             "donation reminder that appeared after setup is gone as well. "
-            "Panels posted since August update the next time they are "
+            "Panels posted since August 11 update the next time they are "
             "refreshed. Older ones cannot be edited by Discord at all, so "
             "they are replaced rather than refreshed.")
         ),
