@@ -846,11 +846,16 @@ def _calendar_announce_fields(settings: dict, roles, channels, t) -> list:
                 )))
         else:
             role_display = role.get("name") or f"Role {role_raw}"
-            if role.get("mentionable") is False:
+            announce_channel = _lookup(channels, channel_raw) if channel_raw else None
+            # Discord lets VRCVerify ping a role nobody may mention only where
+            # it has Mention @everyone, @here and All Roles. Checked in the
+            # chosen channel, so a server that fixed it either way is not warned.
+            if role.get("mentionable") is False and not (announce_channel or {}).get("can_mention_all_roles"):
                 role_warnings.append(t(N_(
-                    "This role doesn't allow anyone to mention it, so its members "
-                    "won't be notified unless VRCVerify has Discord's Mention "
-                    "Everyone permission."
+                    "This role can't be mentioned by everyone, so the ping won't "
+                    "notify its members. In Discord, turn on \u201cAllow anyone to "
+                    "@mention this role\u201d in the role's settings, or give VRCVerify "
+                    "Mention @everyone, @here and All Roles in the announcement channel."
                 )))
     ping = Field(
         "calendar_ping_role_id",

@@ -557,15 +557,17 @@ def __getattr__(name: str):
 
 
 # Calendar sync's join-link announcement (#289). Posted in the channel a
-# server's admin chose when the VRChat instance for a synced event opens.
-# {event} is the event's name and {link} the VRChat launch link.
-CALENDAR_INSTANCE_OPEN = N_("**{event}** is open in VRChat. Join here: {link}")
-# The same, for an instance VRChat age-gates to 18+.
-CALENDAR_INSTANCE_OPEN_AGE_GATED = N_("**{event}** is open in VRChat (18+). Join here: {link}")
-# The same, for an instance only group members can join: Group access, or
-# limited to member roles (#289, Mode 2).
-CALENDAR_INSTANCE_OPEN_MEMBERS = N_("**{event}** is open in VRChat (members only). Join here: {link}")
-CALENDAR_INSTANCE_OPEN_MEMBERS_AGE_GATED = N_(
-    "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
-)
+# server's admin chose when the VRChat instance for a synced event opens, laid
+# out as the event's name, then one of these headings, then the join line, then
+# the optional role ping. Four whole headings rather than a heading plus
+# labels, so each language can order and capitalize them naturally.
+CALENDAR_INSTANCE_OPEN = N_("Instance Open")
+# An instance VRChat age-gates to 18+.
+CALENDAR_INSTANCE_OPEN_AGE_GATED = N_("Instance Open (18+)")
+# An instance only group members can join: Group access, or limited to member
+# roles (Mode 2).
+CALENDAR_INSTANCE_OPEN_MEMBERS = N_("Instance Open (Members Only)")
+CALENDAR_INSTANCE_OPEN_MEMBERS_AGE_GATED = N_("Instance Open (Members Only, 18+)")
+# {link} is the VRChat launch link.
+CALENDAR_INSTANCE_JOIN = N_("Join here: {link}")
 

@@ -10967,14 +10967,30 @@ class TestCalendarSyncCard:
         assert "VRCVerify needs to be in your VRChat group" in html
         assert 'name="calendar_announce_channel_id"' not in html
 
-    def test_a_role_nobody_may_ping_is_warned_about(self):
+    def ping_warnings(self, mentionable, can_mention_all):
         settings = calendar_settings()
         settings["fields"]["calendar_ping_role_id"] = {
             "value": "77", "feature": "calendar_sync", "active": True, "locked": False, "writable": True,
         }
-        roles = [{"id": "77", "name": "Event pings", "mentionable": False}]
-        fields = {f.name: f for f in settings_view._calendar_announce_fields(settings, roles, [], settings_view._untranslated)}
-        assert any("Mention Everyone" in w for w in fields["calendar_ping_role_id"].warnings)
+        settings["fields"]["calendar_announce_channel_id"] = {
+            "value": "5551", "feature": "calendar_sync", "active": True, "locked": False, "writable": True,
+        }
+        roles = [{"id": "77", "name": "Event pings", "mentionable": mentionable}]
+        channels = [{"id": "5551", "name": "events", "can_send": True, "can_mention_all_roles": can_mention_all}]
+        fields = {f.name: f for f in settings_view._calendar_announce_fields(settings, roles, channels, settings_view._untranslated)}
+        return fields["calendar_ping_role_id"].warnings
+
+    def test_a_role_nobody_may_ping_is_warned_about(self):
+        warnings = self.ping_warnings(mentionable=False, can_mention_all=False)
+        assert any("Allow anyone to @mention this role" in w for w in warnings)
+        assert any("Mention @everyone, @here and All Roles" in w for w in warnings)
+
+    def test_no_warning_when_the_bot_may_ping_any_role_in_that_channel(self):
+        """Found live in ClubLA: the warning stayed after the permission was granted."""
+        assert self.ping_warnings(mentionable=False, can_mention_all=True) == []
+
+    def test_no_warning_for_a_mentionable_role(self):
+        assert self.ping_warnings(mentionable=True, can_mention_all=False) == []
 
     def test_the_announcement_settings_travel_to_the_bot(self, config, store):
         settings = calendar_settings()
@@ -11056,6 +11072,12 @@ class TestCalendarSyncCard:
         ]
         fields = {f.name: f for f in settings_view._calendar_announce_fields(settings, [], channels, settings_view._untranslated)}
         assert [cid for cid, _ in fields["calendar_announce_channel_id"].choices] == ["1", "3"]
+
+    def test_the_install_link_asks_for_mention_all_roles_and_nothing_new_besides(self):
+        """#289: matches the Developer Portal's default install permissions."""
+        url = app_module._invite_url("123")
+        permissions = int(re.search(r"permissions=(\d+)", url).group(1))
+        assert permissions == 0x10000000 | 0x800 | 0x4000 | 0x10000 | 0x400 | 0x20000
 
     def test_the_general_install_link_still_does_not_ask_for_it(self):
         """Decided on #289: only the card asks, never the general install link."""

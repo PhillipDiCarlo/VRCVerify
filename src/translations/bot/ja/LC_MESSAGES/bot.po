@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-15 03:57-0400\n"
+"POT-Creation-Date: 2026-09-16 03:16-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -816,21 +816,21 @@ msgstr ""
 "この招待は、現在リンクされているものとは別の VRChat "
 "アカウント宛てに送られたものです。現在のアカウントで新しい招待を受け取るには、もう一度認証してください。"
 
-#, python-brace-format
-msgid "**{event}** is open in VRChat. Join here: {link}"
-msgstr "**{event}** が VRChat で始まりました。参加はこちら: {link}"
+msgid "Instance Open"
+msgstr "インスタンス開始"
+
+msgid "Instance Open (18+)"
+msgstr "インスタンス開始（18+）"
+
+msgid "Instance Open (Members Only)"
+msgstr "インスタンス開始（メンバー限定）"
+
+msgid "Instance Open (Members Only, 18+)"
+msgstr "インスタンス開始（メンバー限定、18+）"
 
 #, python-brace-format
-msgid "**{event}** is open in VRChat (18+). Join here: {link}"
-msgstr "**{event}** が VRChat で始まりました（18+）。参加はこちら: {link}"
-
-#, python-brace-format
-msgid "**{event}** is open in VRChat (members only). Join here: {link}"
-msgstr "**{event}** が VRChat で始まりました（メンバー限定）。参加はこちら: {link}"
-
-#, python-brace-format
-msgid "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
-msgstr "**{event}** が VRChat で始まりました（メンバー限定、18+）。参加はこちら: {link}"
+msgid "Join here: {link}"
+msgstr "参加はこちら: {link}"
 
 #~ msgid "Donate"
 #~ msgstr "寄付"
@@ -846,4 +846,16 @@ msgstr "**{event}** が VRChat で始まりました（メンバー限定、18+�
 #~ "\n"
 #~ "☕ "
 #~ "VRCVerifyは寄付のおかげで無料で提供されています。コミュニティのお役に立てましたら、こちらからご支援ください:{kofi_link}"
+
+#~ msgid "**{event}** is open in VRChat. Join here: {link}"
+#~ msgstr "**{event}** が VRChat で始まりました。参加はこちら: {link}"
+
+#~ msgid "**{event}** is open in VRChat (18+). Join here: {link}"
+#~ msgstr "**{event}** が VRChat で始まりました（18+）。参加はこちら: {link}"
+
+#~ msgid "**{event}** is open in VRChat (members only). Join here: {link}"
+#~ msgstr "**{event}** が VRChat で始まりました（メンバー限定）。参加はこちら: {link}"
+
+#~ msgid "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
+#~ msgstr "**{event}** が VRChat で始まりました（メンバー限定、18+）。参加はこちら: {link}"
 

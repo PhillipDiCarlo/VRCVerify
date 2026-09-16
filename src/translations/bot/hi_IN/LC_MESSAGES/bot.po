@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-15 03:57-0400\n"
+"POT-Creation-Date: 2026-09-16 03:16-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: hi_IN\n"
@@ -919,21 +919,21 @@ msgstr ""
 "भिन्न है। अपने वर्तमान खाते के लिए नया आमंत्रण पाने हेतु दोबारा सत्यापन "
 "करें।"
 
-#, python-brace-format
-msgid "**{event}** is open in VRChat. Join here: {link}"
-msgstr "**{event}** VRChat में खुल गया है। यहाँ जुड़ें: {link}"
+msgid "Instance Open"
+msgstr "इंस्टेंस खुला"
+
+msgid "Instance Open (18+)"
+msgstr "इंस्टेंस खुला (18+)"
+
+msgid "Instance Open (Members Only)"
+msgstr "इंस्टेंस खुला (सिर्फ़ सदस्य)"
+
+msgid "Instance Open (Members Only, 18+)"
+msgstr "इंस्टेंस खुला (सिर्फ़ सदस्य, 18+)"
 
 #, python-brace-format
-msgid "**{event}** is open in VRChat (18+). Join here: {link}"
-msgstr "**{event}** VRChat में खुल गया है (18+)। यहाँ जुड़ें: {link}"
-
-#, python-brace-format
-msgid "**{event}** is open in VRChat (members only). Join here: {link}"
-msgstr "**{event}** VRChat में खुल गया है (सिर्फ़ सदस्य)। यहाँ जुड़ें: {link}"
-
-#, python-brace-format
-msgid "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
-msgstr "**{event}** VRChat में खुल गया है (सिर्फ़ सदस्य, 18+)। यहाँ जुड़ें: {link}"
+msgid "Join here: {link}"
+msgstr "यहाँ जुड़ें: {link}"
 
 #~ msgid "Donate"
 #~ msgstr "दान करें"
@@ -951,4 +951,18 @@ msgstr "**{event}** VRChat में खुल गया है (सिर्फ
 #~ "है। यदि यह आपके समुदाय की मदद "
 #~ "करता है, तो आप यहाँ समर्थन कर "
 #~ "सकते हैं: {kofi_link}"
+
+#~ msgid "**{event}** is open in VRChat. Join here: {link}"
+#~ msgstr "**{event}** VRChat में खुल गया है। यहाँ जुड़ें: {link}"
+
+#~ msgid "**{event}** is open in VRChat (18+). Join here: {link}"
+#~ msgstr "**{event}** VRChat में खुल गया है (18+)। यहाँ जुड़ें: {link}"
+
+#~ msgid "**{event}** is open in VRChat (members only). Join here: {link}"
+#~ msgstr "**{event}** VRChat में खुल गया है (सिर्फ़ सदस्य)। यहाँ जुड़ें: {link}"
+
+#~ msgid "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
+#~ msgstr ""
+#~ "**{event}** VRChat में खुल गया है "
+#~ "(सिर्फ़ सदस्य, 18+)। यहाँ जुड़ें: {link}"
 

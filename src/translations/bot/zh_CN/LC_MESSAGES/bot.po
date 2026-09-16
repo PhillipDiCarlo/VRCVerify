@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-15 03:57-0400\n"
+"POT-Creation-Date: 2026-09-16 03:16-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_CN\n"
@@ -784,21 +784,21 @@ msgid ""
 "account."
 msgstr "此邀请是为另一个 VRChat 账号发出的，与你当前绑定的账号不同。请重新验证，以便为你当前的账号获得新的邀请。"
 
-#, python-brace-format
-msgid "**{event}** is open in VRChat. Join here: {link}"
-msgstr "**{event}** 已在 VRChat 中开放。点此加入：{link}"
+msgid "Instance Open"
+msgstr "实例已开放"
+
+msgid "Instance Open (18+)"
+msgstr "实例已开放（18+）"
+
+msgid "Instance Open (Members Only)"
+msgstr "实例已开放（仅限成员）"
+
+msgid "Instance Open (Members Only, 18+)"
+msgstr "实例已开放（仅限成员，18+）"
 
 #, python-brace-format
-msgid "**{event}** is open in VRChat (18+). Join here: {link}"
-msgstr "**{event}** 已在 VRChat 中开放（18+）。点此加入：{link}"
-
-#, python-brace-format
-msgid "**{event}** is open in VRChat (members only). Join here: {link}"
-msgstr "**{event}** 已在 VRChat 中开放（仅限成员）。点此加入：{link}"
-
-#, python-brace-format
-msgid "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
-msgstr "**{event}** 已在 VRChat 中开放（仅限成员，18+）。点此加入：{link}"
+msgid "Join here: {link}"
+msgstr "点此加入：{link}"
 
 #~ msgid "Donate"
 #~ msgstr "捐赠"
@@ -813,4 +813,16 @@ msgstr "**{event}** 已在 VRChat 中开放（仅限成员，18+）。点此加�
 #~ "\n"
 #~ "\n"
 #~ "☕ VRCVerify 依靠捐赠免费提供。如果它对您的社区有帮助,您可以在这里支持我们:{kofi_link}"
+
+#~ msgid "**{event}** is open in VRChat. Join here: {link}"
+#~ msgstr "**{event}** 已在 VRChat 中开放。点此加入：{link}"
+
+#~ msgid "**{event}** is open in VRChat (18+). Join here: {link}"
+#~ msgstr "**{event}** 已在 VRChat 中开放（18+）。点此加入：{link}"
+
+#~ msgid "**{event}** is open in VRChat (members only). Join here: {link}"
+#~ msgstr "**{event}** 已在 VRChat 中开放（仅限成员）。点此加入：{link}"
+
+#~ msgid "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
+#~ msgstr "**{event}** 已在 VRChat 中开放（仅限成员，18+）。点此加入：{link}"
 

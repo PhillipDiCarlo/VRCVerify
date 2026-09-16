@@ -9310,8 +9310,12 @@ async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, ins
         event = await _fetch_calendar_event(guild, row.get("discord_event_id"))
     except discord.HTTPException:
         event = None
-    # Escaped: the name is the organizer's text, and it sits inside bold markup.
-    name = discord.utils.escape_markdown(getattr(event, "name", None) or "VRChat event")
+    # Escaped, and kept to one line: the name is the organizer's text, and it
+    # becomes a heading, so neither markdown nor a line break in it may change
+    # the layout of the message.
+    name = discord.utils.escape_markdown(
+        " ".join((getattr(event, "name", None) or "VRChat event").split())
+    ).lstrip("#").strip() or "VRChat event"
     locale = get_server_locale_code(str(guild_id), guild)
     members_only = bool(instance.get("role_restricted")) or instance.get("group_access_type") == "members"
     message = {
@@ -9320,14 +9324,26 @@ async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, ins
         (True, False): locales.CALENDAR_INSTANCE_OPEN_MEMBERS,
         (True, True): locales.CALENDAR_INSTANCE_OPEN_MEMBERS_AGE_GATED,
     }[(members_only, bool(instance.get("age_gate")))]
-    text = translate(message, locale, event=name, link=join_link)
     role_id = link.get("ping_role_id")
+    # Layout decided on #289:
+    #   ## Event name
+    #   ### Instance Open (Members Only, 18+)
+    #   Join here: <link>
+    #   @role
+    lines = [
+        f"## {name}",
+        f"### {translate(message, locale)}",
+        translate(locales.CALENDAR_INSTANCE_JOIN, locale, link=join_link),
+    ]
+    if role_id:
+        lines.append(f"<@&{role_id}>")
+    text = "\n".join(lines)
     channel = guild.get_channel(int(link["announce_channel_id"])) if str(link["announce_channel_id"]).isdigit() else None
     try:
         if channel is None:
             raise LookupError("announcement channel not found")
         await channel.send(
-            f"<@&{role_id}> {text}" if role_id else text,
+            text,
             # Exactly the chosen role, and nobody else, whatever the event's
             # title or description contains.
             allowed_mentions=discord.AllowedMentions(
@@ -12343,10 +12359,14 @@ async def read_dashboard_channels(guild_id) -> Optional[list]:
             if me is None:
                 can_send = None
                 can_embed = None
+                can_mention_all = None
             else:
                 perms = channel.permissions_for(me)
                 can_send = bool(perms.view_channel and perms.send_messages)
                 can_embed = bool(can_send and perms.embed_links)
+                # Whether VRCVerify may ping a role that is not mentionable
+                # here, which calendar sync's announcement relies on (#289).
+                can_mention_all = bool(getattr(perms, "mention_everyone", False))
             channels.append(
                 {
                     "id": str(channel.id),
@@ -12356,6 +12376,7 @@ async def read_dashboard_channels(guild_id) -> Optional[list]:
                     "is_news": bool(channel.is_news()),
                     "can_send": can_send,
                     "can_embed": can_embed,
+                    "can_mention_all_roles": can_mention_all,
                 }
             )
         channels.sort(key=lambda entry: entry["position"])

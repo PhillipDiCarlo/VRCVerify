@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-15 03:57-0400\n"
+"POT-Creation-Date: 2026-09-16 03:16-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pa_IN\n"
@@ -921,25 +921,21 @@ msgstr ""
 "ਇਹ ਸੱਦਾ ਇੱਕ ਵੱਖਰੇ VRChat ਖਾਤੇ ਲਈ ਸੀ, ਜੋ ਹੁਣ ਤੁਹਾਡੇ ਜੁੜੇ ਖਾਤੇ ਤੋਂ ਵੱਖਰਾ "
 "ਹੈ। ਆਪਣੇ ਮੌਜੂਦਾ ਖਾਤੇ ਲਈ ਨਵਾਂ ਸੱਦਾ ਲੈਣ ਲਈ ਦੁਬਾਰਾ ਤਸਦੀਕ ਕਰੋ।"
 
-#, python-brace-format
-msgid "**{event}** is open in VRChat. Join here: {link}"
-msgstr "**{event}** VRChat ਵਿੱਚ ਖੁੱਲ੍ਹ ਗਿਆ ਹੈ। ਇੱਥੇ ਸ਼ਾਮਲ ਹੋਵੋ: {link}"
+msgid "Instance Open"
+msgstr "ਇੰਸਟੈਂਸ ਖੁੱਲ੍ਹਾ"
+
+msgid "Instance Open (18+)"
+msgstr "ਇੰਸਟੈਂਸ ਖੁੱਲ੍ਹਾ (18+)"
+
+msgid "Instance Open (Members Only)"
+msgstr "ਇੰਸਟੈਂਸ ਖੁੱਲ੍ਹਾ (ਸਿਰਫ਼ ਮੈਂਬਰ)"
+
+msgid "Instance Open (Members Only, 18+)"
+msgstr "ਇੰਸਟੈਂਸ ਖੁੱਲ੍ਹਾ (ਸਿਰਫ਼ ਮੈਂਬਰ, 18+)"
 
 #, python-brace-format
-msgid "**{event}** is open in VRChat (18+). Join here: {link}"
-msgstr "**{event}** VRChat ਵਿੱਚ ਖੁੱਲ੍ਹ ਗਿਆ ਹੈ (18+)। ਇੱਥੇ ਸ਼ਾਮਲ ਹੋਵੋ: {link}"
-
-#, python-brace-format
-msgid "**{event}** is open in VRChat (members only). Join here: {link}"
-msgstr ""
-"**{event}** VRChat ਵਿੱਚ ਖੁੱਲ੍ਹ ਗਿਆ ਹੈ (ਸਿਰਫ਼ ਮੈਂਬਰ)। ਇੱਥੇ ਸ਼ਾਮਲ ਹੋਵੋ: "
-"{link}"
-
-#, python-brace-format
-msgid "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
-msgstr ""
-"**{event}** VRChat ਵਿੱਚ ਖੁੱਲ੍ਹ ਗਿਆ ਹੈ (ਸਿਰਫ਼ ਮੈਂਬਰ, 18+)। ਇੱਥੇ ਸ਼ਾਮਲ "
-"ਹੋਵੋ: {link}"
+msgid "Join here: {link}"
+msgstr "ਇੱਥੇ ਸ਼ਾਮਲ ਹੋਵੋ: {link}"
 
 #~ msgid "Donate"
 #~ msgstr "ਦਾਨ ਕਰੋ"
@@ -957,4 +953,22 @@ msgstr ""
 #~ " ਇਹ ਤੁਹਾਡੀ ਕਮਿਊਨਿਟੀ ਦੀ ਮਦਦ ਕਰਦਾ "
 #~ "ਹੈ, ਤਾਂ ਤੁਸੀਂ ਇੱਥੇ ਸਮਰਥਨ ਕਰ ਸਕਦੇ"
 #~ " ਹੋ: {kofi_link}"
+
+#~ msgid "**{event}** is open in VRChat. Join here: {link}"
+#~ msgstr "**{event}** VRChat ਵਿੱਚ ਖੁੱਲ੍ਹ ਗਿਆ ਹੈ। ਇੱਥੇ ਸ਼ਾਮਲ ਹੋਵੋ: {link}"
+
+#~ msgid "**{event}** is open in VRChat (18+). Join here: {link}"
+#~ msgstr "**{event}** VRChat ਵਿੱਚ ਖੁੱਲ੍ਹ ਗਿਆ ਹੈ (18+)। ਇੱਥੇ ਸ਼ਾਮਲ ਹੋਵੋ: {link}"
+
+#~ msgid "**{event}** is open in VRChat (members only). Join here: {link}"
+#~ msgstr ""
+#~ "**{event}** VRChat ਵਿੱਚ ਖੁੱਲ੍ਹ ਗਿਆ ਹੈ"
+#~ " (ਸਿਰਫ਼ ਮੈਂਬਰ)। ਇੱਥੇ ਸ਼ਾਮਲ ਹੋਵੋ: "
+#~ "{link}"
+
+#~ msgid "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
+#~ msgstr ""
+#~ "**{event}** VRChat ਵਿੱਚ ਖੁੱਲ੍ਹ ਗਿਆ ਹੈ"
+#~ " (ਸਿਰਫ਼ ਮੈਂਬਰ, 18+)। ਇੱਥੇ ਸ਼ਾਮਲ ਹੋਵੋ:"
+#~ " {link}"
 
