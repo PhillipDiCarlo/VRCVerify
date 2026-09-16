@@ -4703,10 +4703,11 @@ def plan_calendar_changes(rows: dict, chosen, group_id: str, group_name, now: da
     """What to create, update and delete in Discord to match `chosen`.
 
     `rows` is this guild's calendar_event_sync rows keyed by vrc_event_id. Rows
-    for occurrences that have already started are never touched: Discord moves
+    for occurrences that have already started are never edited: Discord moves
     them to active and completed on its own, and a finished event cannot be
     edited (error 180000). Nor are rows whose occurrence VRChat says begins
-    within the start margin, since an edit could land after the start.
+    within the start margin, since an edit could land after the start. A
+    started one is still deleted once VRChat no longer has it.
     """
     margin_end = now + timedelta(seconds=CALENDAR_START_MARGIN_SECONDS)
     wanted = {}
@@ -4737,14 +4738,17 @@ def plan_calendar_changes(rows: dict, chosen, group_id: str, group_name, now: da
         elif row.get("content_hash") != digest:
             update.append((event, fields, digest, row))
 
-    # An occurrence about to start drops out of `chosen` because of the start
-    # margin, not because it went away. Deleting it then would take the event
-    # down minutes before it begins, so the margin protects rows as well.
+    # An occurrence about to end drops out of `chosen` because of the margin,
+    # not because it went away, and one that has ended is Discord's to
+    # complete. Anything else missing from VRChat goes, running events included:
+    # an organizer who deletes an event under way has cancelled it (decided on
+    # #344). Turning sync off still leaves running events; see
+    # clear_calendar_events.
     for event_id, row in rows.items():
         if event_id in wanted:
             continue
-        starts = row.get("starts_at")
-        if starts is not None and starts <= margin_end:
+        ends = row.get("ends_at")
+        if ends is None or ends <= margin_end:
             continue
         # Deleted only on the second poll that does not see it. See
         # calendar_event_sync.missing_since for why one is not enough.
