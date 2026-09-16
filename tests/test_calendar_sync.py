@@ -77,6 +77,7 @@ def clean_db():
                 bot.GroupOwnershipProof,
                 bot.GroupCalendarLink,
                 bot.CalendarEventSync,
+                bot.CalendarAnnouncementMessage,
                 bot.DashboardAudit,
             ):
                 session.query(model).delete()
@@ -1067,12 +1068,26 @@ class FakeChannel:
     def __init__(self, fail=False):
         self.id = CHANNEL_ID
         self.sent = []
+        self.edited = []
+        self.deleted_messages = set()
         self.fail = fail
 
     async def send(self, content, allowed_mentions=None):
         if self.fail:
             raise http_error(discord.Forbidden, 403)
         self.sent.append((content, allowed_mentions))
+        return SimpleNamespace(id=9_000 + len(self.sent))
+
+    def get_partial_message(self, message_id):
+        channel = self
+
+        class Partial:
+            async def edit(self, content=None, allowed_mentions=None):
+                if message_id in channel.deleted_messages:
+                    raise http_error(discord.NotFound, 404)
+                channel.edited.append((message_id, content, allowed_mentions))
+
+        return Partial()
 
 
 @pytest.fixture
@@ -1331,6 +1346,47 @@ class TestTheAnnouncer:
         description = guild.edits[-1][1]["description"]
         assert new in description and old not in description
         assert len(channel.sent) == 1, "one link, and no new post (decided on #344)"
+
+    def test_the_post_is_edited_to_the_new_instance_too(self, guild, clock, channel, published):
+        """Asked for live on #344: the post kept the dead link. Rebuilt whole,
+        since the new instance can differ in access, age gate or avatar minimum."""
+        self.announced(guild, published)
+        self.later(published)
+        second = instance(
+            location=f"{WORLD}:{self.SECOND}", instance_id=self.SECOND,
+            group_access_type="members", age_gate=True, minimum_avatar_performance="Medium",
+        )
+        self.result(published, [second], still_listed=[])
+        message_id, content, mentions = channel.edited[-1]
+        assert message_id == 9_001
+        lines = content.split("\n")
+        assert lines[1] == "### Instance Open (Members Only, 18+) \u00b7 \U0001F7E0 Medium or better"
+        assert rows()["cal_a_0"]["join_location"] in lines[2]
+        assert [r.id for r in mentions.roles] == [ROLE_ID] and mentions.everyone is False
+        assert len(channel.sent) == 1
+
+    def test_a_post_deleted_by_hand_is_left_alone(self, guild, clock, channel, published):
+        """Decided on #344: someone deleted it for a reason."""
+        self.announced(guild, published)
+        channel.deleted_messages.add(9_001)
+        self.later(published)
+        second = instance(location=f"{WORLD}:{self.SECOND}", instance_id=self.SECOND)
+        assert self.result(published, [second], still_listed=[]) == "announced 0, moved 1"
+        assert channel.edited == [] and len(channel.sent) == 1
+
+    def test_a_post_from_before_the_table_only_moves_the_description(self, guild, clock, channel, published):
+        self.announced(guild, published)
+        with bot.session_scope() as session:
+            session.query(bot.CalendarAnnouncementMessage).delete()
+        self.later(published)
+        second = instance(location=f"{WORLD}:{self.SECOND}", instance_id=self.SECOND)
+        assert self.result(published, [second], still_listed=[]) == "announced 0, moved 1"
+        assert channel.edited == []
+
+    def test_the_posts_record_goes_with_its_row(self, guild, clock, channel, published):
+        self.announced(guild, published)
+        bot.delete_calendar_event_rows(GUILD_ID, ["cal_a_0"])
+        assert bot.load_calendar_announcement_message(GUILD_ID, "cal_a_0") is None
 
     def test_while_it_is_open_another_instance_does_not_take_the_link(self, guild, clock, channel, published):
         """Overflow stays unlisted; #345 is the option for that."""

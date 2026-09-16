@@ -1459,6 +1459,25 @@ class CalendarEventSync(Base):
     )
 
 
+class CalendarAnnouncementMessage(Base):
+    """The channel post announcing one event's join link (#344).
+
+    Its own table because create_all() adds tables and never columns. Kept so
+    the post can be edited when the event's link moves to another instance;
+    an announcement made before this table existed has no row, and only its
+    Discord event's description follows the link.
+    """
+
+    __tablename__ = "calendar_announcement_message"
+    vrc_event_id = Column(String(64), primary_key=True)
+    server_id = Column(String, primary_key=True)
+    channel_id = Column(String(30), nullable=False)
+    message_id = Column(String(30), nullable=False)
+    posted_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
 class DashboardAudit(Base):
     """Who changed which setting, from the website, and to what.
 
@@ -4899,12 +4918,15 @@ def delete_calendar_event_rows(guild_id, vrc_event_ids=None) -> None:
     key = panel_view_key(guild_id)
     with session_scope() as session:
         query = session.query(CalendarEventSync).filter_by(server_id=key)
+        posts = session.query(CalendarAnnouncementMessage).filter_by(server_id=key)
         if vrc_event_ids is not None:
             ids = list(vrc_event_ids)
             if not ids:
                 return
             query = query.filter(CalendarEventSync.vrc_event_id.in_(ids))
+            posts = posts.filter(CalendarAnnouncementMessage.vrc_event_id.in_(ids))
         query.delete(synchronize_session=False)
+        posts.delete(synchronize_session=False)
 
 
 def calendar_poll_is_due(link: dict, now: datetime) -> bool:
@@ -9377,7 +9399,7 @@ async def handle_calendar_instances_result(data: dict) -> str:
         for entry, row in following.items():
             if launch_url_location(row["join_location"]) in still_listed or not spares.get(entry):
                 continue
-            if await follow_calendar_instance(guild, guild_id, row, spares[entry][0]):
+            if await follow_calendar_instance(guild, guild_id, link, row, spares[entry][0]):
                 moved += 1
     return f"announced {announced}" + (f", moved {moved}" if moved else "")
 
@@ -9392,22 +9414,8 @@ CALENDAR_AVATAR_MINIMUMS = {
 }
 
 
-async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, instance: dict) -> bool:
-    """Post one event's join link, and put it in the Discord event's description.
-
-    Claimed in the database before anything is sent, so two checks racing over
-    the same instance cannot post it twice. A post that fails gives the claim
-    back, so the next check can try again once whatever blocked it is fixed.
-    """
-    join_link = vrchat_launch_url(instance["world_id"], instance["instance_id"])
-    if not claim_calendar_announcement(guild_id, row["vrc_event_id"], join_link):
-        return False
-
-    event = None
-    try:
-        event = await _fetch_calendar_event(guild, row.get("discord_event_id"))
-    except discord.HTTPException:
-        event = None
+def calendar_announcement_text(guild, guild_id, event, instance: dict, join_link: str, role_id) -> str:
+    """The channel post for one instance of one event."""
     # Escaped, and kept to one line: the name is the organizer's text, and it
     # becomes a heading, so neither markdown nor a line break in it may change
     # the layout of the message.
@@ -9427,7 +9435,6 @@ async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, ins
     minimum = CALENDAR_AVATAR_MINIMUMS.get(performance.lower()) if isinstance(performance, str) else None
     if minimum is not None:
         heading = f"{heading} \u00b7 {minimum[0]} {translate(minimum[1], locale)}"
-    role_id = link.get("ping_role_id")
     # Layout decided on #289, with the avatar minimum added on #344:
     #   ## Event name
     #   ### Instance Open (Members Only, 18+) · 🟢 Good or better
@@ -9440,25 +9447,51 @@ async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, ins
     ]
     if role_id:
         lines.append(f"<@&{role_id}>")
-    text = "\n".join(lines)
+    return "\n".join(lines)
+
+
+def calendar_announcement_mentions(role_id) -> "discord.AllowedMentions":
+    """Exactly the chosen role, and nobody else, whatever the event's title or
+    description contains."""
+    return discord.AllowedMentions(
+        everyone=False,
+        users=False,
+        roles=[discord.Object(int(role_id))] if role_id else False,
+    )
+
+
+async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, instance: dict) -> bool:
+    """Post one event's join link, and put it in the Discord event's description.
+
+    Claimed in the database before anything is sent, so two checks racing over
+    the same instance cannot post it twice. A post that fails gives the claim
+    back, so the next check can try again once whatever blocked it is fixed.
+    """
+    join_link = vrchat_launch_url(instance["world_id"], instance["instance_id"])
+    if not claim_calendar_announcement(guild_id, row["vrc_event_id"], join_link):
+        return False
+
+    event = None
+    try:
+        event = await _fetch_calendar_event(guild, row.get("discord_event_id"))
+    except discord.HTTPException:
+        event = None
+    role_id = link.get("ping_role_id")
+    text = calendar_announcement_text(guild, guild_id, event, instance, join_link, role_id)
     channel = guild.get_channel(int(link["announce_channel_id"])) if str(link["announce_channel_id"]).isdigit() else None
     try:
         if channel is None:
             raise LookupError("announcement channel not found")
-        await channel.send(
-            text,
-            # Exactly the chosen role, and nobody else, whatever the event's
-            # title or description contains.
-            allowed_mentions=discord.AllowedMentions(
-                everyone=False,
-                users=False,
-                roles=[discord.Object(int(role_id))] if role_id else False,
-            ),
-        )
+        posted = await channel.send(text, allowed_mentions=calendar_announcement_mentions(role_id))
     except (discord.HTTPException, LookupError):
         logger.warning("Could not announce the join link for guild %s.", guild_id, exc_info=True)
         release_calendar_announcement(guild_id, row["vrc_event_id"])
         return False
+    try:
+        store_calendar_announcement_message(guild_id, row["vrc_event_id"], channel.id, posted.id)
+    except Exception:
+        # The post went out; only a later edit of it is lost.
+        logger.warning("Could not record the announcement for guild %s.", guild_id, exc_info=True)
 
     # The description too, straight away rather than on the next poll. A
     # finished event cannot be edited, and a missing one was deleted by hand.
@@ -9481,12 +9514,35 @@ async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, ins
     return True
 
 
-async def follow_calendar_instance(guild, guild_id, row: dict, instance: dict) -> bool:
+def store_calendar_announcement_message(guild_id, vrc_event_id, channel_id, message_id) -> None:
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        session.merge(
+            CalendarAnnouncementMessage(
+                server_id=key,
+                vrc_event_id=vrc_event_id,
+                channel_id=str(channel_id),
+                message_id=str(message_id),
+                posted_at=datetime.now(timezone.utc),
+            )
+        )
+
+
+def load_calendar_announcement_message(guild_id, vrc_event_id) -> Optional[dict]:
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        row = session.query(CalendarAnnouncementMessage).filter_by(server_id=key, vrc_event_id=vrc_event_id).first()
+        return {"channel_id": row.channel_id, "message_id": row.message_id} if row else None
+
+
+async def follow_calendar_instance(guild, guild_id, link: dict, row: dict, instance: dict) -> bool:
     """Point an announced event at another of its instances, the first having closed.
 
     One link, and no new post (decided on #344): the Discord event's description
-    changes, and the channel is left alone. Moved in the database first, only
-    if nothing else moved it, so two checks cannot both edit.
+    and the announcement itself are edited in place. The whole post is rebuilt,
+    since the new instance can differ in access, age gate or avatar minimum.
+    An edit adds no ping. Moved in the database first, only if nothing else
+    moved it, so two checks cannot both edit.
     """
     old_link = row["join_location"]
     new_link = vrchat_launch_url(instance["world_id"], instance["instance_id"])
@@ -9516,6 +9572,19 @@ async def follow_calendar_instance(guild, guild_id, row: dict, instance: dict) -
         except discord.HTTPException:
             # The next poll writes it anyway: the stored link is part of the hash.
             logger.warning("Could not move the join link on event %s in guild %s.", event.id, guild_id)
+
+    post = load_calendar_announcement_message(guild_id, row["vrc_event_id"])
+    channel = guild.get_channel(int(post["channel_id"])) if post and post["channel_id"].isdigit() else None
+    if channel is not None:
+        role_id = link.get("ping_role_id")
+        try:
+            await channel.get_partial_message(int(post["message_id"])).edit(
+                content=calendar_announcement_text(guild, guild_id, event, instance, new_link, role_id),
+                allowed_mentions=calendar_announcement_mentions(role_id),
+            )
+        except discord.HTTPException:
+            # Deleted by hand, most likely, which is left alone (decided on #344).
+            logger.info("Could not edit the announcement for event %s in guild %s.", row["vrc_event_id"], guild_id)
     return True
 
 

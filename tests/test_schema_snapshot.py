@@ -35,7 +35,12 @@ from schema_snapshot import compare, parse_snapshot
 # is no ALTER to forget: the entry comes out when the snapshot is refreshed
 # after the deploy, and test_nothing_waits_for_a_deploy_that_already_happened
 # says when.
-NOT_DEPLOYED_YET: dict = {}
+NOT_DEPLOYED_YET: dict = {
+    "calendar_announcement_message": (
+        "#344: the channel post announcing an event's join link, kept so the post "
+        "can be edited when the link moves to another instance."
+    ),
+}
 
 # Every divergence that exists today, keyed by exactly what the comparison
 # prints, so an entry cannot quietly go on covering a different fact than the
