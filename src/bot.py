@@ -9234,6 +9234,34 @@ def calendar_events_awaiting_link(rows: dict, now: datetime) -> list:
     ]
 
 
+def calendar_events_following_link(rows: dict, now: datetime) -> list:
+    """Synced events already announced and still running, whose link may need
+    to move to another instance of the same event (#344)."""
+    early = timedelta(minutes=CALENDAR_ANNOUNCE_EARLY_MINUTES)
+    return [
+        row
+        for row in rows.values()
+        if row.get("state") == CALENDAR_EVENT_SYNCED
+        and row.get("announced_at") is not None
+        and row.get("join_location")
+        and row.get("starts_at") is not None
+        and row.get("ends_at") is not None
+        and row["starts_at"] - early <= now <= row["ends_at"]
+    ]
+
+
+def launch_url_location(url) -> Optional[str]:
+    """The "world:instance" a vrchat_launch_url points at, or None."""
+    from urllib.parse import parse_qs, urlparse
+
+    if not isinstance(url, str):
+        return None
+    query = parse_qs(urlparse(url).query)
+    world = (query.get("worldId") or [None])[0]
+    instance = (query.get("instanceId") or [None])[0]
+    return f"{world}:{instance}" if world and instance else None
+
+
 async def maybe_check_event_instances(guild_id, group_id, config: dict, link: dict, now: datetime) -> bool:
     """Ask the worker for the group's instances if an event could need its link.
 
@@ -9254,7 +9282,9 @@ async def maybe_check_event_instances(guild_id, group_id, config: dict, link: di
         return False
     if effective_group_setup_state(config) not in CALENDAR_MEMBER_STATES:
         return False
-    if not calendar_events_awaiting_link(load_calendar_event_rows(guild_id), now):
+    rows = load_calendar_event_rows(guild_id)
+    following = calendar_events_following_link(rows, now)
+    if not calendar_events_awaiting_link(rows, now) and not following:
         # Nothing to look for, so nothing remembered from the last event.
         _calendar_unlinked_instances.pop(key, None)
         return False
@@ -9267,7 +9297,12 @@ async def maybe_check_event_instances(guild_id, group_id, config: dict, link: di
         "jobID": secrets.token_hex(16),
         "guildID": str(guild_id),
         "groupID": group_id,
-        "skip": sorted(_calendar_unlinked_instances.get(key, set()))[:50],
+        # The announced instances first: the worker says which of these are
+        # still open, which is how a closed one is noticed (#344).
+        "skip": (
+            sorted({launch_url_location(r["join_location"]) for r in following} - {None})
+            + sorted(_calendar_unlinked_instances.get(key, set()))
+        )[:50],
     }
     _calendar_instance_checks[key] = {"job_id": job["jobID"], "at": now, "group_id": group_id}
     loop = asyncio.get_running_loop()
@@ -9305,7 +9340,10 @@ async def handle_calendar_instances_result(data: dict) -> str:
     rows = load_calendar_event_rows(guild_id)
     now = datetime.now(timezone.utc)
     awaiting = {row["vrc_event_id"]: row for row in calendar_events_awaiting_link(rows, now)}
+    following = {row["vrc_event_id"]: row for row in calendar_events_following_link(rows, now)}
     unlinked = _calendar_unlinked_instances.setdefault(key, set())
+    # Other open instances of an announced event, in case its own closes.
+    spares: dict = {}
 
     announced = 0
     for instance in data.get("instances") or []:
@@ -9315,9 +9353,14 @@ async def handle_calendar_instances_result(data: dict) -> str:
         if not entry:
             unlinked.add(instance["location"])
             continue
+        if entry in following:
+            # Not ruled out: read again each check, since it may become the link.
+            if instance["location"] != launch_url_location(following[entry]["join_location"]):
+                spares.setdefault(entry, []).append(instance)
+            continue
         row = awaiting.pop(entry, None)
         if row is None:
-            # Linked to an event this guild did not sync, or already announced.
+            # Linked to an event this guild did not sync.
             unlinked.add(instance["location"])
             continue
         # Role-restricted and Group-only instances are announced too, labeled
@@ -9325,7 +9368,18 @@ async def handle_calendar_instances_result(data: dict) -> str:
         # the group, and staff events are not put there.
         if await announce_calendar_instance(guild, guild_id, link, row, instance):
             announced += 1
-    return f"announced {announced}"
+
+    moved = 0
+    still_listed = data.get("still_listed")
+    # A worker from before #344 does not say, and a guess could move a link
+    # away from an instance that is still open.
+    if isinstance(still_listed, list):
+        for entry, row in following.items():
+            if launch_url_location(row["join_location"]) in still_listed or not spares.get(entry):
+                continue
+            if await follow_calendar_instance(guild, guild_id, row, spares[entry][0]):
+                moved += 1
+    return f"announced {announced}" + (f", moved {moved}" if moved else "")
 
 
 # An instance's minimum avatar performance as the announcement shows it (#344),
@@ -9424,6 +9478,44 @@ async def announce_calendar_instance(guild, guild_id, link: dict, row: dict, ins
             # The announcement went out; the next poll writes the link into the
             # description anyway, since the stored join link is part of its hash.
             logger.warning("Could not add the join link to event %s in guild %s.", event.id, guild_id)
+    return True
+
+
+async def follow_calendar_instance(guild, guild_id, row: dict, instance: dict) -> bool:
+    """Point an announced event at another of its instances, the first having closed.
+
+    One link, and no new post (decided on #344): the Discord event's description
+    changes, and the channel is left alone. Moved in the database first, only
+    if nothing else moved it, so two checks cannot both edit.
+    """
+    old_link = row["join_location"]
+    new_link = vrchat_launch_url(instance["world_id"], instance["instance_id"])
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        moved = (
+            session.query(CalendarEventSync)
+            .filter_by(server_id=key, vrc_event_id=row["vrc_event_id"], join_location=old_link)
+            .update(
+                {"join_location": new_link, "updated_at": datetime.now(timezone.utc)},
+                synchronize_session=False,
+            )
+        )
+    if moved != 1:
+        return False
+    try:
+        event = await _fetch_calendar_event(guild, row.get("discord_event_id"))
+    except discord.HTTPException:
+        event = None
+    if event is not None and getattr(event, "status", None) not in (
+        discord.EventStatus.completed,
+        discord.EventStatus.canceled,
+    ):
+        description = (getattr(event, "description", None) or "").replace(old_link, new_link)
+        try:
+            await event.edit(description=description[:DISCORD_EVENT_DESCRIPTION_MAX], reason=CALENDAR_AUDIT_REASON)
+        except discord.HTTPException:
+            # The next poll writes it anyway: the stored link is part of the hash.
+            logger.warning("Could not move the join link on event %s in guild %s.", event.id, guild_id)
     return True
 
 

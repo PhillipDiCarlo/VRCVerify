@@ -856,6 +856,12 @@ class TestTheInstanceCheck:
         result = inviter.fetch_group_event_instances(dict(INSTANCES_JOB, skip=[LOCATION]))
         assert result["instances"] == [] and instances_side.read == []
 
+    def test_it_says_which_skipped_instances_are_still_open(self, api, instances_side):
+        """#344: how the bot notices that the instance it announced has closed."""
+        gone = LOCATION.replace("12345", "99999")
+        result = inviter.fetch_group_event_instances(dict(INSTANCES_JOB, skip=[LOCATION, gone]))
+        assert result["still_listed"] == [LOCATION]
+
     def test_one_unreadable_instance_does_not_sink_the_rest(self, api, instances_side):
         other = LOCATION.replace("12345", "67890")
         instances_side.listed = [{"location": other}, {"location": LOCATION}]

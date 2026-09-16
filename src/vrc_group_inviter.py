@@ -1081,6 +1081,16 @@ def fetch_group_event_instances(job: dict) -> dict:
             job, INSTANCES_VRCHAT_UNAVAILABLE, error_message="VRChat returned an instance list in an unknown shape"
         )
 
+    # Which of the skipped locations are still open (#344). The bot skips the
+    # instance it announced, and needs to know when that one is gone so it can
+    # move the event's link to another instance of the same event. Closed and
+    # empty instances both drop out of this list (measured on Club LA,
+    # 2026-09-16), and either way the old link is no use to someone arriving.
+    listed_locations = {
+        entry.get("location") for entry in listed if isinstance(entry, dict) and isinstance(entry.get("location"), str)
+    }
+    still_listed = sorted(skip & listed_locations)
+
     instances = []
     instances_api = InstancesApi(client)
     for entry in listed:
@@ -1121,7 +1131,7 @@ def fetch_group_event_instances(job: dict) -> dict:
                 "minimum_avatar_performance": detail.get("minimumAvatarPerformance"),
             }
         )
-    return _instances_result(job, INSTANCES_OK, instances=instances, listed=len(listed))
+    return _instances_result(job, INSTANCES_OK, instances=instances, listed=len(listed), still_listed=still_listed)
 
 
 def _invite_result(job: dict, state: str, **extra) -> dict:

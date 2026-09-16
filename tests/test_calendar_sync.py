@@ -1304,6 +1304,55 @@ class TestTheAnnouncer:
         assert description.index("Join in VRChat") < description.index("VRChat group:")
         assert rows()["cal_a_0"]["join_location"].startswith("https://vrchat.com/home/launch")
 
+    # --- following the instance (#344) ---
+    SECOND = INSTANCE.replace("12345", "67890")
+
+    def announced(self, guild, published):
+        self.synced(guild)
+        self.check()
+        self.result(published, [instance()])
+        return rows()["cal_a_0"]["join_location"]
+
+    def later(self, published, minutes=3):
+        assert self.check(NOW + timedelta(minutes=minutes)) is True
+        return published[-1]
+
+    def test_the_announced_instance_is_asked_about_while_the_event_runs(self, guild, clock, channel, published):
+        self.announced(guild, published)
+        assert f"{WORLD}:{INSTANCE}" in self.later(published)["skip"]
+
+    def test_when_it_closes_the_link_moves_to_another_instance_of_the_event(self, guild, clock, channel, published):
+        old = self.announced(guild, published)
+        self.later(published)
+        second = instance(location=f"{WORLD}:{self.SECOND}", instance_id=self.SECOND)
+        assert self.result(published, [second], still_listed=[]) == "announced 0, moved 1"
+        new = rows()["cal_a_0"]["join_location"]
+        assert new != old and "67890" in new
+        description = guild.edits[-1][1]["description"]
+        assert new in description and old not in description
+        assert len(channel.sent) == 1, "one link, and no new post (decided on #344)"
+
+    def test_while_it_is_open_another_instance_does_not_take_the_link(self, guild, clock, channel, published):
+        """Overflow stays unlisted; #345 is the option for that."""
+        old = self.announced(guild, published)
+        self.later(published)
+        second = instance(location=f"{WORLD}:{self.SECOND}", instance_id=self.SECOND)
+        self.result(published, [second], still_listed=[f"{WORLD}:{INSTANCE}"])
+        assert rows()["cal_a_0"]["join_location"] == old
+
+    def test_a_closed_instance_with_nothing_to_replace_it_keeps_its_link(self, guild, clock, channel, published):
+        old = self.announced(guild, published)
+        self.later(published)
+        self.result(published, [], still_listed=[])
+        assert rows()["cal_a_0"]["join_location"] == old
+
+    def test_a_worker_that_does_not_say_what_is_open_moves_nothing(self, guild, clock, channel, published):
+        old = self.announced(guild, published)
+        self.later(published)
+        second = instance(location=f"{WORLD}:{self.SECOND}", instance_id=self.SECOND)
+        self.result(published, [second])
+        assert rows()["cal_a_0"]["join_location"] == old
+
     def test_a_finished_discord_event_is_not_edited(self, guild, clock, channel, published):
         self.synced(guild)
         next(iter(guild.events.values())).status = discord.EventStatus.completed
