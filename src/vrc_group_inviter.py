@@ -1115,6 +1115,10 @@ def fetch_group_event_instances(job: dict) -> dict:
                 "role_restricted": bool(detail.get("roleRestricted")),
                 "age_gate": bool(detail.get("ageGate")),
                 "group_access_type": detail.get("groupAccessType"),
+                # "None" (a string) when no minimum is set, measured on Club LA
+                # 2026-09-16. Passed through as VRChat sends it; the bot decides
+                # what it can label.
+                "minimum_avatar_performance": detail.get("minimumAvatarPerformance"),
             }
         )
     return _instances_result(job, INSTANCES_OK, instances=instances, listed=len(listed))

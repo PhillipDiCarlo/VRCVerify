@@ -770,7 +770,7 @@ class FakeInstancesSide:
     def __init__(self):
         self.listed = [{"location": LOCATION, "memberCount": 1}]
         self.list_error = None
-        self.details = {LOCATION: {"calendarEntryId": "cal_1", "roleRestricted": False, "ageGate": True, "groupAccessType": "plus"}}
+        self.details = {LOCATION: {"calendarEntryId": "cal_1", "roleRestricted": False, "ageGate": True, "groupAccessType": "plus", "minimumAvatarPerformance": "Good"}}
         self.read = []
 
     def get_group_instances(self, group_id, **kwargs):
@@ -844,6 +844,7 @@ class TestTheInstanceCheck:
             "role_restricted": False,
             "age_gate": True,
             "group_access_type": "plus",
+            "minimum_avatar_performance": "Good",
         }]
 
     def test_a_non_member_is_told_so_not_that_the_group_is_gone(self, api, instances_side):

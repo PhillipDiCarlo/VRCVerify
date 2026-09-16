@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 05:38-0400\n"
+"POT-Creation-Date: 2026-09-16 09:12-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: bn\n"
@@ -953,6 +953,15 @@ msgstr "ইনস্ট্যান্স খোলা (শুধু সদস�
 
 msgid "Instance Open (Members Only, 18+)"
 msgstr "ইনস্ট্যান্স খোলা (শুধু সদস্যদের জন্য, 18+)"
+
+msgid "Good or better"
+msgstr "ভালো বা তার বেশি"
+
+msgid "Medium or better"
+msgstr "মাঝারি বা তার বেশি"
+
+msgid "Poor or better"
+msgstr "দুর্বল বা তার বেশি"
 
 #, python-brace-format
 msgid "Join here: {link}"

@@ -797,7 +797,10 @@ def _calendar_announce_fields(settings: dict, roles, channels, t) -> list:
         if channel is None:
             channel_display = t(N_("Unknown channel (%(id)s)")) % {"id": channel_raw}
             if channels is not None:
-                channel_warnings.append(t(N_("This channel no longer exists in the server.")))
+                channel_warnings.append(t(N_(
+                    "This channel no longer exists in the server, so join links "
+                    "aren't announced. Choose another channel."
+                )))
         else:
             channel_display = f"#{channel.get('name') or channel_raw}"
             if channel.get("can_send") is False:

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 05:38-0400\n"
+"POT-Creation-Date: 2026-09-16 09:12-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -839,6 +839,15 @@ msgstr "インスタンス開始（メンバー限定）"
 
 msgid "Instance Open (Members Only, 18+)"
 msgstr "インスタンス開始（メンバー限定、18+）"
+
+msgid "Good or better"
+msgstr "Good 以上"
+
+msgid "Medium or better"
+msgstr "Medium 以上"
+
+msgid "Poor or better"
+msgstr "Poor 以上"
 
 #, python-brace-format
 msgid "Join here: {link}"

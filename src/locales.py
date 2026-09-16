@@ -572,6 +572,12 @@ CALENDAR_INSTANCE_OPEN_AGE_GATED = N_("Instance Open (18+)")
 # roles (Mode 2).
 CALENDAR_INSTANCE_OPEN_MEMBERS = N_("Instance Open (Members Only)")
 CALENDAR_INSTANCE_OPEN_MEMBERS_AGE_GATED = N_("Instance Open (Members Only, 18+)")
+# The instance's minimum avatar performance, after the heading and a colored
+# dot (#344). VRChat offers Good, Medium and Poor; each admits that rating and
+# every better one.
+CALENDAR_AVATAR_MINIMUM_GOOD = N_("Good or better")
+CALENDAR_AVATAR_MINIMUM_MEDIUM = N_("Medium or better")
+CALENDAR_AVATAR_MINIMUM_POOR = N_("Poor or better")
 # {link} is the VRChat launch link.
 CALENDAR_INSTANCE_JOIN = N_("Join here: {link}")
 
