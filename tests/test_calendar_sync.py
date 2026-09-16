@@ -558,16 +558,22 @@ class TestThePlan:
         row = self.row_for(event, missing_since=NOW - timedelta(hours=1))
         assert self.plan({"cal_1": row}, [event])["seen_again"] == ["cal_1"]
 
-    def test_one_that_has_started_is_never_deleted(self):
-        """Discord completes it; deleting it would pull it mid-event."""
+    def test_a_running_one_deleted_in_vrchat_is_deleted_too(self):
+        """Decided on #344, after a deleted event stayed in Discord until its end."""
         event = occurrence("cal_1", NOW - timedelta(minutes=30))
+        assert len(self.plan({"cal_1": self.row_for(event)}, [])["missing"]) == 1
         plan = self.plan({"cal_1": self.row_for(event, missing_since=NOW)}, [])
+        assert len(plan["delete"]) == 1
+
+    def test_one_about_to_end_is_not_deleted_for_dropping_out_of_the_margin(self):
+        """It leaves `chosen` because of the margin, not because it went away."""
+        event = occurrence("cal_1", NOW - timedelta(hours=2), hours=2)
+        row = self.row_for(event, missing_since=NOW, ends_at=NOW + timedelta(seconds=60))
+        plan = self.plan({"cal_1": row}, [])
         assert plan["delete"] == [] and plan["missing"] == []
 
-    def test_one_about_to_start_is_not_deleted_for_dropping_out_of_the_margin(self):
-        """It leaves `chosen` because of the start margin, not because it went
-        away. Found reading the first cut, before any test existed."""
-        event = occurrence("cal_1", NOW + timedelta(seconds=60))
+    def test_one_that_has_ended_is_left_to_discord(self):
+        event = occurrence("cal_1", NOW - timedelta(hours=3), hours=2)
         plan = self.plan({"cal_1": self.row_for(event, missing_since=NOW)}, [])
         assert plan["delete"] == [] and plan["missing"] == []
 
@@ -803,6 +809,16 @@ class TestTheSync:
         self.sync(events[:1])
         assert len(guild.deleted) == 1
         assert set(rows()) == {"cal_a_0"}
+
+    def test_a_running_event_deleted_in_vrchat_leaves_discord_on_the_second_poll(self, guild, clock):
+        """#344: found live, "Final test of VRCVerify" stayed after its deletion."""
+        running = occurrence("cal_1", NOW - timedelta(hours=1), hours=3, series=None)
+        self.sync([running])
+        next(iter(guild.events.values())).status = discord.EventStatus.active
+        self.sync([])
+        assert guild.deleted == []
+        self.sync([])
+        assert len(guild.deleted) == 1 and rows() == {}
 
     def test_one_empty_answer_from_vrchat_deletes_nothing(self, guild, clock):
         """Recreating an event loses every member's Interested. A single empty
