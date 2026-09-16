@@ -338,7 +338,9 @@ def fetch_profile_snapshot(client, vrc_user_id: str) -> tuple[str, str, str | No
 
     vrc_user = _get_vrchat_user_with_retry(users_api.UsersApi(client), vrc_user_id)
     return (
-        getattr(vrc_user, "bio", "") or "",
+        # None, not "": VRChat stopped sending `bio` from /users/{id} (measured
+        # 2026-09-16, #346), and a bio that was never read is not an empty one.
+        getattr(vrc_user, "bio", None),
         getattr(vrc_user, "age_verification_status", "unknown"),
         getattr(vrc_user, "display_name", None),
         "users",
@@ -480,6 +482,19 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
 
     code_found = False
     if verification_code is not None:
+        if bio is None:
+            # Telling the user their code is not in a bio nobody read would send
+            # them to fix a bio that is already right.
+            logging.warning("[verify_and_build_result] user=%s: VRChat returned no bio (source=%s)", vrc_user_id, source)
+            return _result_payload(
+                discord_id,
+                vrc_user_id,
+                guild_id,
+                verification_code,
+                lookup_ok=False,
+                error_type="vrchat_error",
+                error_message="VRChat did not return the user's bio",
+            )
         code_found = bio_contains_code(bio, verification_code)
 
     # Bios are third-party PII; keep them out of INFO logs (full bio at DEBUG only).

@@ -205,6 +205,33 @@ class TestLoginRobustness:
         assert client is None
         assert err["error_type"] == "vrchat_auth_error"
 
+    def test_null_bio_does_not_fail_the_login(self, monkeypatch):
+        """VRChat sends `bio: null` for an account with no bio (#346).
+
+        The generated model rejected it, so the invite account could not log in
+        at all. Runs the real client and model; only the HTTP call is faked.
+        """
+        import json
+
+        body = json.dumps({"id": "usr_test", "displayName": "Bot", "bio": None}).encode()
+
+        def request(self, method, url, **kwargs):
+            return SimpleNamespace(
+                status=200,
+                reason="OK",
+                data=body,
+                getheaders=lambda: {"Content-Type": "application/json"},
+                getheader=lambda name, default=None: (
+                    "application/json" if name.lower() == "content-type" else default
+                ),
+            )
+
+        monkeypatch.setattr(vrcs.vrchatapi.rest.RESTClientObject, "request", request)
+
+        client, err = vrcs.login(account())
+        assert err is None
+        assert client is not None
+
     def test_relogin_loop_body_guards_exceptions(self):
         """The retry call must be wrapped so the thread cannot die."""
         import inspect

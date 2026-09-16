@@ -198,6 +198,19 @@ class TestFetchProfileSnapshot:
         assert source == "users"
         assert bio == "from users"
 
+    def test_users_without_bio_is_a_failed_lookup_not_a_missing_code(self, monkeypatch):
+        """/users/{id} stopped sending `bio` (#346).
+
+        Read as "", every fallback would tell the user their code is not in a
+        bio that was never read.
+        """
+        client = self._client(exc=RuntimeError("boom"))
+        user = SimpleNamespace(age_verification_status="18+", bio=None, display_name="U")
+        monkeypatch.setattr(checker, "get_vrchat_session", lambda: (client, None))
+        monkeypatch.setattr(checker.users_api, "UsersApi", fake_users_api(user))
+        result = checker.verify_and_build_result("d1", "usr_1", "g1", "VRC-ABC123")
+        assert result["lookup_ok"] is False
+
     def test_non_string_age_status_falls_back(self, monkeypatch):
         client = self._client({"bio": "ok", "ageVerificationStatus": {"v": "18+"}})
         user = SimpleNamespace(
@@ -354,12 +367,13 @@ class TestVerifyAndBuildResult:
         assert result["verificationCode"] is None
 
     def test_user_with_none_bio_does_not_crash(self, monkeypatch):
+        """An age-only check never reads the bio, so a missing one is fine (#346)."""
         user = SimpleNamespace(age_verification_status="18+", bio=None, display_name="T")
         monkeypatch.setattr(checker, "get_vrchat_session", lambda: (object(), None))
         monkeypatch.setattr(checker.users_api, "UsersApi", fake_users_api(user))
-        result = checker.verify_and_build_result("d1", "usr_nonebio", "g1", "VRC-ABC123")
+        result = checker.verify_and_build_result("d1", "usr_nonebio", "g1", None)
+        assert result["lookup_ok"] is True
         assert result["is_18_plus"] is True
-        assert result["code_found"] is False
 
 
 class TestStatusProbe:
