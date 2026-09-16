@@ -1,5 +1,5 @@
 --
--- VRCVerify production schema, captured 2026-09-14.
+-- VRCVerify production schema, captured 2026-09-16.
 --
 -- WHAT THIS IS FOR. tests/test_schema_snapshot.py compares the SQLAlchemy
 -- models in src/bot.py against this file and fails when they disagree about a
@@ -66,6 +66,19 @@ $$;
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+--
+-- Name: calendar_announcement_message; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.calendar_announcement_message (
+    vrc_event_id character varying(64) NOT NULL,
+    server_id character varying NOT NULL,
+    channel_id character varying(30) NOT NULL,
+    message_id character varying(30) NOT NULL,
+    posted_at timestamp with time zone
+);
+
 
 --
 -- Name: calendar_event_sync; Type: TABLE; Schema: public; Owner: -
@@ -569,6 +582,14 @@ ALTER TABLE ONLY public.servers ALTER COLUMN id SET DEFAULT nextval('public.serv
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+
+--
+-- Name: calendar_announcement_message calendar_announcement_message_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.calendar_announcement_message
+    ADD CONSTRAINT calendar_announcement_message_pkey PRIMARY KEY (vrc_event_id, server_id);
 
 
 --
