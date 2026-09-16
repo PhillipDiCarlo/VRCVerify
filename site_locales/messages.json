@@ -323,7 +323,7 @@
  "Everything that has shipped in VRCVerify, newest first.": [
   "changelog.html"
  ],
- "Everything you need to verify your members is free, on every server, with no cap and nothing to start. Premium adds the automation around it, from clearing up unverified roles to syncing nicknames and sending VRChat group invites.": [
+ "Everything you need to verify your members is free, on every server, with no cap and nothing to start. Premium adds the automation around it, from clearing up unverified roles to syncing nicknames, sending VRChat group invites and bringing your group's calendar into Discord.": [
   "index.html"
  ],
  "For each Discord server: the server ID, its owner's Discord ID, the role and channel IDs it has configured, its chosen language, its feature settings, any custom post-verification message it has written, and a count of completed verifications. Where an administrator changes a setting on the dashboard, we record who changed what and when.": [
@@ -756,6 +756,12 @@
  ],
  "Your VRChat display name or profile bio. Your bio is read at the moment of verification to find your code, and is not retained.": [
   "privacy.html"
+ ],
+ "Your VRChat group's calendar events now appear in your server's Events tab, where members can mark themselves interested, get Discord's reminders and see times in their own time zone. Events stay in step as they change in VRChat. If VRCVerify is in your group, members-only events sync too, and when an event's instance opens, its join link is posted in a channel you choose. Turn it on under Settings, VRChat group.": [
+  "changelog.html"
+ ],
+ "Your VRChat group's calendar, in Discord": [
+  "changelog.html"
  ],
  "Your VRChat user ID (<0/>)": [
   "privacy.html"

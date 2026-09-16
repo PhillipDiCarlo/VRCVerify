@@ -180,9 +180,17 @@ class TestTheGroupInviteEntry:
 
     @staticmethod
     def entry():
-        found = [item for item in changelog.ENTRIES if item.premium]
-        assert len(found) == 1, "this class assumes exactly one premium entry"
+        found = [item for item in changelog.ENTRIES if item.id == "2026-08-group-invite"]
+        assert len(found) == 1
         return found[0]
+
+    @staticmethod
+    def newer_dismissed():
+        """Calendar sync (#289) is the newer premium entry and takes the slot
+        first; with it put away, this one is what a server is pitched."""
+        return changelog.parse_dismissed(
+            changelog.add_dismissal((), GUILD, "2026-09-calendar-sync")
+        )
 
     def test_it_is_the_group_invite(self):
         assert self.entry().id == "2026-08-group-invite"
@@ -208,7 +216,7 @@ class TestTheGroupInviteEntry:
         assert self.entry() in changelog.public_entries()
 
     def test_a_free_server_is_pitched_it(self):
-        card = changelog.build_premium_card(GUILD)
+        card = changelog.build_premium_card(GUILD, dismissed=self.newer_dismissed())
         assert card["title"] == (
             "New in Premium: Invite verified members to your VRChat group"
         )
@@ -216,7 +224,7 @@ class TestTheGroupInviteEntry:
         assert card["cta_label"] == "See Premium"
 
     def test_a_premium_server_is_shown_how_to_turn_it_on(self):
-        card = changelog.build_premium_card(GUILD, premium=True)
+        card = changelog.build_premium_card(GUILD, premium=True, dismissed=self.newer_dismissed())
         assert card["action"] == "settings"
         assert card["cta_label"] == "Set it up"
         assert "included in your subscription" in card["body"]
@@ -225,16 +233,41 @@ class TestTheGroupInviteEntry:
         # The group invite was deliberately kept OUT of GRANDFATHERED_FEATURES
         # (#49), so this server really would be buying something new. The
         # opening sentence is true as well as kind.
-        card = changelog.build_premium_card(GUILD, grandfathered=True)
+        card = changelog.build_premium_card(GUILD, grandfathered=True, dismissed=self.newer_dismissed())
         assert card["body"].startswith(
             "Your grandfathered extras stay free whatever you decide."
         )
 
     def test_dismissing_it_clears_the_slot(self):
-        dismissed = changelog.parse_dismissed(
-            changelog.add_dismissal((), GUILD, self.entry().id)
+        both = changelog.add_dismissal(
+            changelog.parse_dismissed(changelog.add_dismissal((), GUILD, "2026-09-calendar-sync")),
+            GUILD,
+            self.entry().id,
         )
-        assert changelog.build_premium_card(GUILD, dismissed=dismissed) is None
+        assert changelog.build_premium_card(GUILD, dismissed=changelog.parse_dismissed(both)) is None
+
+
+class TestTheCalendarSyncEntry:
+    """#289's one announcement, and the newest premium entry in the feed."""
+
+    @staticmethod
+    def entry():
+        return next(item for item in changelog.ENTRIES if item.id == "2026-09-calendar-sync")
+
+    def test_it_is_the_newest_premium_entry(self):
+        assert next(item for item in changelog.ENTRIES if item.premium) is self.entry()
+
+    def test_a_free_server_is_pitched_it_first(self):
+        card = changelog.build_premium_card(GUILD)
+        assert card["title"] == "New in Premium: Your VRChat group's calendar, in Discord"
+        assert card["action"] == "subscription"
+
+    def test_it_is_public_and_says_where_to_turn_it_on(self):
+        assert self.entry().public is True
+        assert "Settings, VRChat group" in self.entry().body
+
+    def test_it_uses_no_em_dashes(self):
+        assert "\u2014" not in self.entry().title + self.entry().body
 
 
 class TestTheDismissalCookie:

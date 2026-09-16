@@ -698,6 +698,9 @@ class TestEverySettingReachesThePage:
             },
             "auto_verify_column_present": True,
             "choices": {"instructions_locale": list(bot.LANGUAGE_CODES)},
+            # A server whose bot is in its group, so every calendar sync
+            # setting has a control on the page (#289).
+            "calendar_sync": {"available": True, "bot_in_group": True},
             "fields": {
                 field.name: {
                     "value": None,
@@ -715,11 +718,6 @@ class TestEverySettingReachesThePage:
             for field in group["fields"]
         }
         assert set(payload["fields"]) - rendered == self.not_yet_on_the_page()
-        # The gap is calendar sync alone (#289), which is unannounced by
-        # decision until its last phase ships. It renders only for the preview
-        # guilds the bot names, and this payload names none.
-        assert self.not_yet_on_the_page() == {
-            "calendar_sync_enabled",
-            "calendar_announce_channel_id",
-            "calendar_ping_role_id",
-        }
+        # ...and there is no gap any more: calendar sync (#289) left it when it
+        # was announced.
+        assert self.not_yet_on_the_page() == set()

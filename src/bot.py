@@ -2341,37 +2341,20 @@ GRANDFATHERED_FEATURES = frozenset(
 # change that makes the feature real, and it cannot be forgotten afterwards.
 # Normally empty. The group invite came out of it when the settings page gained
 # controls for it, which is exactly the sequence the comment above describes:
-# the name leaves in the change that makes the feature reachable.
-#
-# Calendar sync (#289) is the exception to that sequence, by decision: it has
-# controls from its second PR, but it is announced once, after its last phase
-# ships. Until then only the guilds in CALENDAR_SYNC_PREVIEW_GUILDS can reach
-# it -- see feature_is_reachable.
-UNANNOUNCED_FEATURES = frozenset({FEATURE_CALENDAR_SYNC})
-
-
-def _guild_id_set(raw) -> frozenset:
-    return frozenset(
-        part.strip() for part in (raw or "").split(",") if part.strip().isdigit()
-    )
-
-
-# Guilds that may use an unannounced feature anyway, for live testing before it
-# is announced. An operator setting, never something a guild can ask for.
-CALENDAR_SYNC_PREVIEW_GUILDS = _guild_id_set(os.getenv("CALENDAR_SYNC_PREVIEW_GUILDS"))
+# the name leaves in the change that makes the feature reachable. Calendar sync
+# (#289) left it when it was announced, after all of its phases had shipped and
+# been tested live behind a preview allowlist that is now gone.
+UNANNOUNCED_FEATURES = frozenset()
 
 
 def feature_is_reachable(feature: Optional[str], guild_id) -> bool:
     """May THIS guild see and use the feature at all, plan aside?
 
-    Announced features are reachable by everyone. An unannounced one only by the
-    preview guilds, which is what lets a phased feature be tested in a real
-    server without appearing in the pitch, the pricing page or anyone else's
-    dashboard.
+    An unannounced feature is reachable by nobody. `guild_id` is kept so a
+    future phased feature can grant a preview to named guilds again, the way
+    calendar sync was tested before it launched.
     """
-    if feature not in UNANNOUNCED_FEATURES:
-        return True
-    return feature == FEATURE_CALENDAR_SYNC and str(guild_id) in CALENDAR_SYNC_PREVIEW_GUILDS
+    return feature not in UNANNOUNCED_FEATURES
 
 
 class SettingsField:
@@ -6571,10 +6554,13 @@ SETTINGS_SUMMARY_LABELS = (
     ("verification_log_channel_id", "Activity log"),
     ("vrchat_group_id", "VRChat group"),
     ("vrchat_group_invite_enabled", "Group invites"),
+    ("calendar_sync_enabled", "Calendar sync"),
+    ("calendar_announce_channel_id", "Join link channel"),
+    ("calendar_ping_role_id", "Join link ping"),
 )
 
-ROLE_SUMMARY_FIELDS = frozenset({"role_id", "unverified_role_id"})
-CHANNEL_SUMMARY_FIELDS = frozenset({"verification_log_channel_id"})
+ROLE_SUMMARY_FIELDS = frozenset({"role_id", "unverified_role_id", "calendar_ping_role_id"})
+CHANNEL_SUMMARY_FIELDS = frozenset({"verification_log_channel_id", "calendar_announce_channel_id"})
 
 
 class DashboardLinkView(View):

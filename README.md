@@ -201,20 +201,28 @@ unlocks the automation around it, and there are two ways to buy the same thing
 — Discord App Subscriptions (guild-scoped SKU, monthly) or a card on the web
 dashboard. See [Two ways to pay](#two-ways-to-pay).
 
-| Feature | Free | Grandfathered\* | Premium |
-| --- | :---: | :---: | :---: |
-| 18+ verification | ✅ | ✅ | ✅ |
-| **Auto-verify-on-join** | ✅ | ✅ | ✅ |
-| Manual **Update Nickname** button | ✅ | ✅ | ✅ |
-| Instructions language | ✅ | ✅ | ✅ |
-| Unverified-role auto-removal | — | ✅ | ✅ |
-| Auto-nickname sync | — | ✅ | ✅ |
-| Custom post-verification DM | — | ✅ | ✅ |
-| Reduced verification cooldown | — | — | ✅ |
-| Verification activity log channel | — | — | ✅ |
-| Priority placement in the verification queue | — | — | ✅ |
-| Branded instructions panel (color + icon) | — | — | ✅ |
-| VRChat group invites for verified members | — | — | ✅ |
+| Feature | Free | Grandfathered\* | Premium | Gate (`FEATURE_*` in `bot.py`) | Added in |
+| --- | :---: | :---: | :---: | --- | --- |
+| 18+ verification | ✅ | ✅ | ✅ | not gated | |
+| **Auto-verify-on-join** | ✅ | ✅ | ✅ | not gated | |
+| Manual **Update Nickname** button | ✅ | ✅ | ✅ | not gated | |
+| Instructions language | ✅ | ✅ | ✅ | not gated | |
+| Unverified-role auto-removal | — | ✅ | ✅ | `unverified_role_removal` | #46 |
+| Auto-nickname sync | — | ✅ | ✅ | `nickname_sync` | #46 |
+| Custom post-verification DM | — | ✅ | ✅ | `custom_dm` | #46 |
+| Reduced verification cooldown | — | — | ✅ | `reduced_cooldown` | #46 |
+| Verification activity log channel | — | — | ✅ | `activity_log` | #55 |
+| Priority placement in the verification queue | — | — | ✅ | `priority_queue` | #56 |
+| Branded instructions panel (color + icon) | — | — | ✅ | `branded_panel` | #58 |
+| VRChat group invites for verified members | — | — | ✅ | `group_invite` | #49 |
+| VRChat group calendar in Discord Events, with join links | — | — | ✅ | `calendar_sync` | #289 |
+
+**Keep this table current.** It is the list of every premium feature that has
+actually shipped. When an issue that adds a premium feature is closed as
+completed, add its row here in the same change: the gate's `FEATURE_*` value
+and the issue number. Features still in `UNANNOUNCED_FEATURES`, or only
+proposed in an open issue, do not get a row yet. A feature that is removed or
+made free again gets its row updated, not deleted silently.
 
 Auto-verify-on-join is free for everyone and is deliberately not gated at all —
 `on_member_join` never so much as reads an entitlement. Users read "the bot

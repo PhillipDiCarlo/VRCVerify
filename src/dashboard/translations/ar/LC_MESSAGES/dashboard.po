@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 03:16-0400\n"
+"POT-Creation-Date: 2026-09-16 05:38-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -266,6 +266,28 @@ msgstr "Premium"
 msgid "New"
 msgstr "الموقع يتحدث لغتك"
 
+msgid "Your VRChat group's calendar, in Discord"
+msgstr "تقويم مجموعتك في VRChat، داخل Discord"
+
+msgid ""
+"Your VRChat group's calendar events now appear in your server's Events "
+"tab, where members can mark themselves interested, get Discord's "
+"reminders and see times in their own time zone. Events stay in step as "
+"they change in VRChat. If VRCVerify is in your group, members-only events"
+" sync too, and when an event's instance opens, its join link is posted in"
+" a channel you choose. Turn it on under Settings, VRChat group."
+msgstr ""
+"تظهر فعاليات تقويم مجموعتك في VRChat الآن في تبويب الفعاليات في خادمك، "
+"حيث يستطيع الأعضاء إبداء اهتمامهم وتلقّي تذكيرات Discord ورؤية المواعيد "
+"بتوقيتهم المحلي. تبقى الفعاليات محدَّثة كلما تغيّرت في VRChat. وإن كان "
+"VRCVerify في مجموعتك، تُزامَن أيضًا الفعاليات المقصورة على الأعضاء، وعند "
+"فتح مثيل فعالية يُنشر رابط الانضمام في قناة تختارها. فعّله من الإعدادات، "
+"مجموعة VRChat."
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "استعرض Premium"
+
 msgid "Older instruction panels have been replaced"
 msgstr "استُبدلت لوحات التعليمات الأقدم"
 
@@ -456,10 +478,6 @@ msgid ""
 msgstr ""
 "اربط مجموعة VRChat خاصة بخادمك، فيُعرض على الأعضاء الذين يُنهون التوثيق "
 "دعوةٌ إليها. ولا يُرسَل شيء إلى VRChat ما لم يطلبه العضو."
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "استعرض Premium"
 
 #, python-format
 msgid "New in your plan: %(title)s"
@@ -1828,6 +1846,9 @@ msgstr "مدة انتظار أقصر بين عمليات التحقق"
 
 msgid "VRChat group invites for verified members"
 msgstr "دعوات إلى مجموعة VRChat للأعضاء الموثّقين"
+
+msgid "Your VRChat group calendar in Discord Events, with join links"
+msgstr "تقويم مجموعتك في VRChat ضمن فعاليات Discord، مع روابط الانضمام"
 
 # | msgid "Not applied"
 msgid "Not included"

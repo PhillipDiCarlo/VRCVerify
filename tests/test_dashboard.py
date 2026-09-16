@@ -50,15 +50,25 @@ ACTOR = "424242424242"
 
 
 def _premium_entry():
-    """The one premium entry in the shipped feed.
+    """The premium entry a server is pitched first: the newest one.
 
-    Asserted rather than assumed: several tests below read as nonsense if the
-    feed ever carries two, and a helper quietly returning the first would hide
-    that rather than say so.
+    The feed carried exactly one until calendar sync (#289) launched. The card
+    shows the newest undismissed premium entry, so that is the one these tests
+    mean; tests that need the slot empty dismiss all of them.
     """
     found = [entry for entry in changelog.ENTRIES if entry.premium]
-    assert len(found) == 1, "these tests assume exactly one premium entry"
+    assert found, "these tests need a premium entry in the feed"
     return found[0]
+
+
+def _dismiss_every_premium_entry(guild_id):
+    value = ()
+    for entry in changelog.ENTRIES:
+        if entry.premium:
+            value = changelog.add_dismissal(
+                changelog.parse_dismissed(value) if value else (), guild_id, entry.id
+            )
+    return value
 GUILD_IN = "111111111111"
 GUILD_OUT = "222222222222"
 GUILD_NOT_ADMIN = "333333333333"
@@ -1618,7 +1628,7 @@ class TestTheBell:
         login_as(client, store)
         page = client.get("/").data.decode()
         newest = changelog.ENTRIES[0]
-        assert newest.title in page
+        assert newest.title in __import__("html").unescape(page)
         assert newest.display_date in page
         assert f'datetime="{newest.date.isoformat()}"' in page
 
@@ -1796,7 +1806,7 @@ class TestDismissingAPremiumCard:
         self._dismiss(test_client, store)
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
         slot = page.split('class="panel group next-step"', 1)[1].split("</section>", 1)[0]
-        assert _premium_entry().title not in slot
+        assert _premium_entry().title not in __import__("html").unescape(slot)
 
     def test_dismissing_one_guild_leaves_another_showing(self, config, store):
         """The property the whole per-guild design exists for: an admin
@@ -1855,7 +1865,7 @@ class TestDismissingAPremiumCard:
         )
         page = test_client.get(f"/guild/{GUILD_IN}").data.decode()
         slot = page.split('class="panel group next-step"', 1)[1].split("</section>", 1)[0]
-        assert _premium_entry().title in slot
+        assert _premium_entry().title in __import__("html").unescape(slot)
         assert "<script>" not in slot
 
     def test_an_unfinished_server_has_nothing_here_to_dismiss(self, config, store):
@@ -4853,7 +4863,7 @@ class TestThePremiumPitchOnThePage:
             # passing against a shape the app no longer writes.
             test_client.set_cookie(
                 "vrcverify_dismissed",
-                changelog.add_dismissal((), GUILD_IN, _premium_entry().id),
+                _dismiss_every_premium_entry(GUILD_IN),
                 domain="localhost",
             )
         return test_client.get(f"/guild/{GUILD_IN}").data.decode()
@@ -4862,7 +4872,7 @@ class TestThePremiumPitchOnThePage:
         """The whole point of #136 phase 4. An undismissed premium entry takes
         the slot from a demo that would otherwise have it."""
         slot = self._slot(self._page(config, store, dismissed=False, last_30_days=214))
-        assert _premium_entry().title in slot
+        assert _premium_entry().title in __import__("html").unescape(slot)
         assert "214 members verified" not in slot
 
     def test_the_demo_returns_once_the_entry_is_dismissed(self, config, store):
@@ -4901,7 +4911,7 @@ class TestThePremiumPitchOnThePage:
         slot = self._slot(self._page(config, store, dismissed=False,
                                      last_30_days=214, grandfathered=True))
         assert "grandfathered extras stay free" in slot
-        assert _premium_entry().title in slot
+        assert _premium_entry().title in __import__("html").unescape(slot)
 
     def test_a_quiet_server_sees_no_pitch(self, config, store):
         page = self._page(config, store, last_30_days=0)
@@ -4926,7 +4936,10 @@ class TestThePremiumPitchOnThePage:
             configured={"verified_role": False},
         )
         assert 'class="panel group next-step"' not in page
-        assert _premium_entry().title not in page
+        # The pitch's own framing, not the bare title: since calendar sync
+        # (#289) the newest premium entry is also in the bell, which lists
+        # recent entries for everyone and is not a sale.
+        assert "New in Premium:" not in page
 
     def test_only_ever_one_item_in_the_slot(self, config, store):
         page = self._page(config, store, dismissed=False, last_30_days=214)
