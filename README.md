@@ -939,6 +939,27 @@ it.
   refreshed more than once, so a same-day change is represented by the latest
   observed counts rather than duplicate points.
 
+   **Premium subscription history (`premium_subscription_daily`).** One UTC-day
+   snapshot of servers holding live premium: `discord_count` (Discord App
+   Subscriptions), `stripe_count` (card subscriptions) and `total_count`
+   (distinct servers, so one paying both ways counts once). A subscription that
+   was canceled but whose paid period has not ended still counts, matching the
+   premium gate. Written by the same task as the membership snapshot: once when
+   it starts, then at each UTC midnight. A day on which the Discord entitlement
+   listing cannot be read is skipped rather than written as zero. Created
+   automatically, no manual migration needed.
+
+   ```sql
+   SELECT
+     day AS "time",
+     total_count AS "total",
+     discord_count AS "discord",
+     stripe_count AS "stripe"
+   FROM premium_subscription_daily
+   WHERE $__timeFilter(day)
+   ORDER BY day;
+   ```
+
    **Guild locales (`guild_locale`).** One row per guild holding the server's
    configured Discord language and the UTC date it was last observed, written
    by the same sweep as the membership snapshot above: once on startup, then

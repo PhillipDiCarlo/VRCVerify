@@ -1577,6 +1577,26 @@ class ServerMembershipDaily(Base):
     inaccessible_count = Column(Integer, nullable=False, default=0)
 
 
+class PremiumSubscriptionDaily(Base):
+    """Daily snapshot of live premium subscriptions, for the Grafana panel (#352).
+
+    Neither source keeps history on its own: `stripe_subscription` holds only
+    each subscription's latest state, and Discord entitlements are not stored
+    at all. So a trend has to be written down as it happens.
+
+    "Live" is the premium gate's own definition, which means a subscription
+    that was canceled but whose paid period has not run out still counts.
+    ``total_count`` is distinct guilds, so a server paying through both
+    Discord and Stripe is counted once there and once in each source column.
+    """
+
+    __tablename__ = "premium_subscription_daily"
+    day = Column(Date, primary_key=True)
+    discord_count = Column(Integer, nullable=False, default=0)
+    stripe_count = Column(Integer, nullable=False, default=0)
+    total_count = Column(Integer, nullable=False, default=0)
+
+
 class GuildLocale(Base):
     """Each guild's configured Discord language, as a rough "where is this
     used" signal (issue #132).
@@ -6934,6 +6954,9 @@ def _record_guild_locales() -> None:
 
 async def server_membership_snapshot_task() -> None:
     """Record one server-membership snapshot at each UTC day boundary."""
+    # The startup premium snapshot lives here rather than in on_ready: it waits
+    # on a Discord listing, and on_ready starts every other background task.
+    await _record_premium_subscription_day()
     while True:
         now = datetime.now(timezone.utc)
         next_day = now.date() + timedelta(days=1)
@@ -6942,6 +6965,44 @@ async def server_membership_snapshot_task() -> None:
         ).total_seconds()
         await asyncio.sleep(max(1, seconds_until_next_day))
         _record_server_membership_day()
+        await _record_premium_subscription_day()
+
+
+async def _record_premium_subscription_day() -> None:
+    """Snapshot how many guilds hold live premium, by source."""
+    today = datetime.now(timezone.utc).date()
+    try:
+        discord_ids = await entitled_guild_ids()
+        if discord_ids is None:
+            # The listing failed or premium is not configured. Skipping the day
+            # leaves a gap in the chart; writing zero would draw a false drop.
+            return
+        now = datetime.now(timezone.utc)
+        with session_scope() as session:
+            stripe_ids = set()
+            if STRIPE_ENABLED:
+                stripe_ids = {
+                    row.server_id
+                    for row in session.query(
+                        StripeSubscription.server_id,
+                        StripeSubscription.status,
+                        StripeSubscription.current_period_end,
+                    )
+                    if _stripe_row_is_paid(row.status, row.current_period_end, now)
+                }
+            values = {
+                "discord_count": len(discord_ids),
+                "stripe_count": len(stripe_ids),
+                "total_count": len(discord_ids | stripe_ids),
+            }
+            snapshot = session.get(PremiumSubscriptionDaily, today)
+            if snapshot is None:
+                session.add(PremiumSubscriptionDaily(day=today, **values))
+            else:
+                for field, value in values.items():
+                    setattr(snapshot, field, value)
+    except Exception:
+        logger.warning("Could not record the premium subscription snapshot.", exc_info=True)
 
 
 async def record_guild_verification(guild_id: str, guild: Optional[discord.Guild]):
