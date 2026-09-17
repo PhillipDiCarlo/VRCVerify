@@ -709,6 +709,9 @@ class TestEveryFieldDeclaresItsGate:
         "calendar_sync_enabled": (bot.FEATURE_CALENDAR_SYNC, True),
         "calendar_announce_channel_id": (bot.FEATURE_CALENDAR_SYNC, True),
         "calendar_ping_role_id": (bot.FEATURE_CALENDAR_SYNC, True),
+        "join_request_triage_enabled": (bot.FEATURE_JOIN_REQUEST_TRIAGE, True),
+        "join_request_channel_id": (bot.FEATURE_JOIN_REQUEST_TRIAGE, True),
+        "join_request_mod_role_ids": (bot.FEATURE_JOIN_REQUEST_TRIAGE, True),
     }
 
     def test_the_table_is_exactly_this(self):
@@ -748,6 +751,9 @@ class TestEveryFieldDeclaresItsGate:
             "calendar_sync_enabled",
             "calendar_announce_channel_id",
             "calendar_ping_role_id",
+            "join_request_triage_enabled",
+            "join_request_channel_id",
+            "join_request_mod_role_ids",
         }
 
     def test_a_grandfathered_server_keeps_exactly_three(self, enforced):

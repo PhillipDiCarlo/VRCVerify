@@ -11123,3 +11123,201 @@ class TestCalendarSyncCard:
         permissions = int(re.search(r"permissions=(\d+)", url).group(1))
         assert not permissions & (1 << 44)
 
+
+
+# -------------------------------------------------------------------
+# Join-request triage (#291, PR 2)
+# -------------------------------------------------------------------
+JOIN_REQUEST_BLOCK = {
+    "available": True,
+    "group_ready": True,
+    "state": None,
+    "error": None,
+    "last_polled_at": None,
+    "pending_count": None,
+    "poll_interval_minutes": 10,
+}
+
+
+def join_request_settings(enabled=True, channel=LOG_CHANNEL, roles=(VERIFIED_ROLE,), premium=True, **block):
+    settings = make_settings(
+        premium=premium,
+        values={"vrchat_group_id": GROUP_ID},
+        group_ownership=GROUP_OWNERSHIP_PROVEN,
+    )
+    for name, value in (
+        ("join_request_triage_enabled", enabled),
+        ("join_request_channel_id", channel),
+        ("join_request_mod_role_ids", list(roles)),
+    ):
+        settings["fields"][name] = {
+            "value": value,
+            "feature": "join_request_triage",
+            "active": premium,
+            "locked": not premium,
+            "writable": True,
+        }
+    settings["join_request_triage"] = dict(JOIN_REQUEST_BLOCK, **block)
+    return settings
+
+
+class TestJoinRequestCard:
+    def cards(self, settings, roles=None, channels=None):
+        return [
+            g for g in settings_view.build_groups(
+                settings, DEFAULT_ROLES if roles is None else roles, DEFAULT_CHANNELS if channels is None else channels, None
+            )
+            if g["slug"] == "vrchat-group"
+        ]
+
+    def card(self, settings, **kwargs):
+        return next(c for c in self.cards(settings, **kwargs) if c["title"] == "Join requests")
+
+    def fields(self, settings, **kwargs):
+        return {f.name: f for f in self.card(settings, **kwargs)["fields"]}
+
+    def page(self, config, store, settings, lang=None):
+        api = FakeBotAPI(settings=settings)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        session = login_as(test_client, store)
+        if lang:
+            test_client.set_cookie("vrcverify_lang", lang)
+        return api, test_client, session
+
+    def test_no_card_unless_the_bot_says_this_guild_may_see_it(self):
+        settings = join_request_settings()
+        settings["join_request_triage"]["available"] = False
+        assert "Join requests" not in [c["title"] for c in self.cards(settings)]
+
+    def test_a_preview_guild_gets_it_after_the_group_cards(self):
+        titles = [c["title"] for c in self.cards(join_request_settings())]
+        assert titles == ["VRChat group", "Group invites", "Join requests"]
+
+    def test_the_controls_wait_for_group_invites(self, config, store):
+        settings = join_request_settings(group_ready=False)
+        assert self.card(settings)["fields"] == []
+        _api, test_client, _s = self.page(config, store, settings)
+        html = settings_page(test_client, "vrchat-group").data.decode()
+        assert "Set up group invites above first." in html
+        assert 'name="join_request_channel_id"' not in html
+
+    def test_announcement_channels_and_ones_the_bot_cannot_use_are_not_offered(self):
+        channels = [
+            {"id": "1", "name": "mods", "is_news": False, "can_send": True, "can_embed": True},
+            {"id": "2", "name": "news", "is_news": True, "can_send": True, "can_embed": True},
+            {"id": "3", "name": "no-embeds", "is_news": False, "can_send": True, "can_embed": False},
+        ]
+        field = self.fields(join_request_settings(channel=None), channels=channels)["join_request_channel_id"]
+        assert [c[0] for c in field.choices] == ["1"]
+
+    def test_the_role_picker_is_a_checkbox_per_role(self, config, store):
+        _api, test_client, _s = self.page(config, store, join_request_settings())
+        html = settings_page(test_client, "vrchat-group").data.decode()
+        assert 'name="present_join_request_mod_role_ids"' in html
+        assert re.search(rf'name="join_request_mod_role_ids" value="{VERIFIED_ROLE}"\s+checked', html)
+        assert re.search(rf'name="join_request_mod_role_ids" value="{UNVERIFIED_ROLE}">', html)
+
+    def test_no_roles_while_on_is_warned_about(self):
+        field = self.fields(join_request_settings(roles=()))["join_request_mod_role_ids"]
+        assert field.warnings == ["Nobody can approve or deny requests until you choose at least one role."]
+        assert self.fields(join_request_settings(enabled=False, roles=()))["join_request_mod_role_ids"].warnings == []
+
+    def test_a_deleted_role_is_warned_about(self):
+        field = self.fields(join_request_settings(roles=("123",)))["join_request_mod_role_ids"]
+        assert "Unknown role (123)" in field.display
+        assert field.warnings == ["A chosen role no longer exists in the server. Choose the roles again."]
+
+    def test_no_channel_while_on_is_warned_about(self):
+        summary = settings_view.join_request_summary(join_request_settings(channel=None))
+        assert summary["warnings"] == ["Choose a channel so join requests have somewhere to go."]
+
+    def test_a_checked_group_says_how_many_are_waiting(self, config, store):
+        settings = join_request_settings(state="synced", pending_count=3, last_polled_at="2026-09-17T11:40:00+00:00")
+        _api, test_client, _s = self.page(config, store, settings)
+        html = settings_page(test_client, "vrchat-group").data.decode()
+        assert "3 join requests are waiting in VRChat." in html
+        assert "checked about every 10 minutes" in html
+        assert "Last checked" in html
+
+    def test_the_waiting_count_takes_its_plural_in_russian(self, config, store):
+        settings = join_request_settings(state="synced", pending_count=3)
+        _api, test_client, _s = self.page(config, store, settings, lang="ru")
+        html = settings_page(test_client, "vrchat-group").data.decode()
+        assert "ожидают 3 заявки" in html
+
+    @pytest.mark.parametrize(
+        "state, headline",
+        [
+            ("no_invite_permission", "VRCVerify can't see this group's join requests"),
+            ("channel_unusable", "VRCVerify can't post in the chosen channel"),
+            ("worker_unreachable", "Couldn't start the check"),
+            ("something_new", None),
+        ],
+    )
+    def test_each_state_has_a_headline(self, state, headline):
+        summary = settings_view.join_request_summary(join_request_settings(state=state, error="VRChat said no"))
+        if headline:
+            assert summary["headline"] == headline
+        assert summary["tone"] == "warn" or state == "something_new"
+        assert summary["error"] == "VRChat said no"
+
+    def test_the_settings_travel_to_the_bot(self, config, store):
+        api, test_client, session = self.page(config, store, join_request_settings())
+        test_client.post(f"/guild/{GUILD_IN}/group", data={
+            "csrf_token": session.csrf_token,
+            "present_join_request_triage_enabled": "1",
+            "join_request_triage_enabled": "on",
+            "join_request_channel_id": LOG_CHANNEL,
+            "present_join_request_mod_role_ids": "1",
+            "join_request_mod_role_ids": [VERIFIED_ROLE, UNVERIFIED_ROLE],
+        })
+        assert api.saves[-1][2] == {
+            "join_request_triage_enabled": True,
+            "join_request_channel_id": LOG_CHANNEL,
+            "join_request_mod_role_ids": [VERIFIED_ROLE, UNVERIFIED_ROLE],
+        }
+
+    def test_unticking_every_role_is_sent_as_an_empty_list(self, config, store):
+        api, test_client, session = self.page(config, store, join_request_settings())
+        test_client.post(f"/guild/{GUILD_IN}/group", data={
+            "csrf_token": session.csrf_token,
+            "present_join_request_mod_role_ids": "1",
+        })
+        assert api.saves[-1][2] == {"join_request_mod_role_ids": []}
+
+    def test_a_form_without_the_role_list_does_not_clear_it(self, config, store):
+        api, test_client, session = self.page(config, store, join_request_settings())
+        test_client.post(f"/guild/{GUILD_IN}/group", data={
+            "csrf_token": session.csrf_token, "vrchat_group_id": GROUP_ID,
+        })
+        assert "join_request_mod_role_ids" not in api.saves[-1][2]
+
+    def test_only_a_page_with_the_pickers_reads_roles_and_channels(self, config, store):
+        for ready, expected in ((True, {"roles", "channels"}), (False, set())):
+            api, test_client, _s = self.page(config, store, join_request_settings(group_ready=ready))
+            settings_page(test_client, "vrchat-group")
+            assert {what for what, _a, _g in api.reads} - {"settings"} == expected, ready
+
+    def test_an_announcement_channel_refusal_names_the_reason(self, config, store):
+        refusal = BotAPIError("channel_is_announcement", 400, field="join_request_channel_id")
+        api = FakeBotAPI(settings=join_request_settings(), errors={"update_settings": refusal})
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        session = login_as(test_client, store)
+        test_client.post(f"/guild/{GUILD_IN}/group", data={
+            "csrf_token": session.csrf_token, "join_request_channel_id": NEWS_CHANNEL,
+        })
+        html = __import__("html").unescape(settings_page(test_client, "vrchat-group").data.decode())
+        assert html.count("Join requests can't go in an announcement channel.") == 1
+
+    def test_the_audit_names_the_roles(self):
+        rows = settings_view.build_audit(
+            [{"field": "join_request_mod_role_ids", "old_value": None, "new_value": f"{VERIFIED_ROLE},{UNVERIFIED_ROLE}",
+              "actor_id": "1", "changed_at": "2026-09-17T11:40:00+00:00"}],
+            DEFAULT_ROLES, DEFAULT_CHANNELS,
+        )
+        assert rows[0]["label"] == "Who can approve or deny join requests"
+        assert rows[0]["new"] == "Verified, Unverified"

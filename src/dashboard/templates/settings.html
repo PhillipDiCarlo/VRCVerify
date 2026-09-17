@@ -283,6 +283,37 @@
           </div>
           {% endif %}
         {% endif %}
+        {% if group.join_requests %}
+          {% set jr = group.join_requests %}
+          <div class="setting">
+            <dt>{% trans %}Status{% endtrans %}</dt>
+            <dd>
+              {% if not jr.group_ready and not jr.locked %}
+                <p class="value empty">{% trans %}Waiting for group invites{% endtrans %}</p>
+                <p class="muted desc">{% trans %}Join requests are read and answered by the VRCVerify account in your group. Set up group invites above first.{% endtrans %}</p>
+              {% else %}
+                <p class="value{% if jr.tone != 'ok' %} empty{% endif %}">{{ jr.headline }}</p>
+                {% if jr.pending_count is not none %}
+                  <p class="muted desc">{% trans count=jr.pending_count %}{{ count }} join request is waiting in VRChat.{% pluralize %}{{ count }} join requests are waiting in VRChat.{% endtrans %}</p>
+                {% elif jr.detail %}
+                  <p class="muted desc">{{ jr.detail }}</p>
+                {% endif %}
+                {% if jr.last_checked %}
+                  <p class="muted desc">{% trans when=jr.last_checked %}Last checked {{ when }}{% endtrans %}</p>
+                {% endif %}
+                {% if jr.enabled and jr.poll_interval_minutes %}
+                  <p class="muted desc">{% trans count=jr.poll_interval_minutes %}Your group is checked about every {{ count }} minute, so a new request reaches Discord within {{ count }} minute or so.{% pluralize %}Your group is checked about every {{ count }} minutes, so a new request reaches Discord within {{ count }} minutes or so.{% endtrans %}</p>
+                {% endif %}
+                {% if jr.error %}
+                  <p class="muted desc">{% trans said=jr.error %}The last error: {{ said }}{% endtrans %}</p>
+                {% endif %}
+                {% for warning in jr.warnings %}
+                  <p class="warn">{{ warning }}</p>
+                {% endfor %}
+              {% endif %}
+            </dd>
+          </div>
+        {% endif %}
         {% for field in group.fields %}
           <div class="setting{% if field.locked %} locked{% endif %}">
             {# TWO JOBS, AND THEY ARE NOT THE SAME JOB.
@@ -348,6 +379,20 @@
                         {%- if role_id == field.value %} selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                   </select>
+                {% elif field.kind == 'roles' %}
+                  {# Checkboxes rather than <select multiple>, which needs a
+                     modifier key to pick a second option and gives no hint
+                     that it can. Scrolls when a server has many roles. #}
+                  {{ present(field) }}
+                  <div class="role-list" role="group" aria-labelledby="l-{{ field.name }}" id="f-{{ field.name }}">
+                    {% for role_id, label in field.choices %}
+                      <label class="check">
+                        <input type="checkbox" name="{{ field.name }}" value="{{ role_id }}"
+                               {%- if role_id in field.value %} checked{% endif %}>
+                        {{ label }}
+                      </label>
+                    {% endfor %}
+                  </div>
                 {% elif field.kind == 'locale' %}
                   <select name="{{ field.name }}"
                           aria-labelledby="l-{{ field.name }}"

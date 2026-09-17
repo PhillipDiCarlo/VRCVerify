@@ -681,10 +681,13 @@ class TestEverySettingReachesThePage:
     def not_yet_on_the_page():
         """Derived, not typed: one entry in UNANNOUNCED_FEATURES hides a field
         from the pitch, from /vrcverify_settings and from here alike."""
+        # The payload below is a preview guild's, so its unannounced features
+        # ARE on its page.
+        previewed = {bot.FEATURE_JOIN_REQUEST_TRIAGE}
         return {
             field.name
             for field in bot.SETTINGS_FIELDS
-            if field.feature in bot.UNANNOUNCED_FEATURES
+            if field.feature in bot.UNANNOUNCED_FEATURES and field.feature not in previewed
         }
 
     def test_the_page_renders_every_field_except_the_declared_gap(self):
@@ -701,6 +704,9 @@ class TestEverySettingReachesThePage:
             # A server whose bot is in its group, so every calendar sync
             # setting has a control on the page (#289).
             "calendar_sync": {"available": True, "bot_in_group": True},
+            # And one whose group is ready for join requests (#291), which is
+            # a preview guild while that feature is unannounced.
+            "join_request_triage": {"available": True, "group_ready": True},
             "fields": {
                 field.name: {
                     "value": None,

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 15:51-0400\n"
+"POT-Creation-Date: 2026-09-17 03:47-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -107,6 +107,9 @@ msgid ""
 "channel's permissions and try again."
 msgstr "VRCVerify 无法在该频道发言，因此无法在那里记录日志。请检查该频道的权限后重试。"
 
+msgid "That's more roles than can be chosen. Pick up to 10 and try again."
+msgstr "选择的身份组太多了。最多选择 10 个，然后重试。"
+
 msgid ""
 "This bot's database is missing the column for that setting. Contact the "
 "bot operator."
@@ -181,6 +184,16 @@ msgstr "我们暂时无法连接 Stripe，因此未产生任何费用。请稍�
 
 msgid "There's no card subscription on this server to manage."
 msgstr "此服务器没有可管理的银行卡订阅。"
+
+msgid ""
+"VRCVerify can't post join requests in that channel. It needs View "
+"Channel, Send Messages and Embed Links in it."
+msgstr "VRCVerify 无法在该频道发布加入申请。它需要该频道的查看频道、发送消息和嵌入链接权限。"
+
+msgid ""
+"Join requests can't go in an announcement channel. Other servers can "
+"follow one, which would republish who is verified 18+."
+msgstr "加入申请不能发布在公告频道。其他服务器可以关注公告频道，这会把谁已验证 18+ 转发出去。"
 
 msgid ""
 "VRCVerify can't post in that channel, so it can't announce join links "
@@ -735,6 +748,15 @@ msgid ""
 "that haven't started."
 msgstr "为群组 VRChat 日历上的每个即将开始的活动创建 Discord 活动，并保持更新。关闭后会移除尚未开始的活动。"
 
+msgid "Join requests"
+msgstr "加入申请"
+
+msgid ""
+"Post your VRChat group's join requests in Discord, so moderators can "
+"approve or deny them there and see whether they already know the person "
+"asking."
+msgstr "在 Discord 中发布你的 VRChat 群组的加入申请，让管理员可以在那里批准或拒绝，并看到自己是否已经认识申请人。"
+
 msgid "Not checked yet"
 msgstr "尚未检查"
 
@@ -952,6 +974,100 @@ msgid ""
 "pinged."
 msgstr "可选。发布加入链接时提及的身份组。不会提及其他任何人。"
 
+#, python-format
+msgid "Post join requests in Discord"
+msgstr "在 Discord 中发布加入申请"
+
+msgid ""
+"Checks your group for new join requests and posts each one with Approve "
+"and Deny buttons."
+msgstr "检查你的群组是否有新的加入申请，并为每个申请发布带有批准和拒绝按钮的帖子。"
+
+msgid ""
+"This channel no longer exists in the server, so join requests aren't "
+"posted. Choose another channel."
+msgstr "此频道已不在服务器中，因此不会发布加入申请。请选择其他频道。"
+
+msgid ""
+"VRCVerify can't post in this channel. It needs View Channel, Send "
+"Messages and Embed Links there."
+msgstr "VRCVerify 无法在此频道发布内容。它需要该频道的查看频道、发送消息和嵌入链接权限。"
+
+msgid "Post requests in"
+msgstr "发布申请到"
+
+msgid ""
+"Pick a channel only your moderators can see. Each post shows the person's"
+" linked Discord account, and whether they're verified 18+, when they're a"
+" member of this server."
+msgstr "请选择只有管理员能看到的频道。当申请人是本服务器成员时，每个帖子会显示其关联的 Discord 账号以及是否已验证 18+。"
+
+msgid "A chosen role no longer exists in the server. Choose the roles again."
+msgstr "所选的某个身份组已不在服务器中。请重新选择身份组。"
+
+msgid "Nobody can approve or deny requests until you choose at least one role."
+msgstr "在你至少选择一个身份组之前，没有人可以批准或拒绝申请。"
+
+msgid "Who can approve or deny"
+msgstr "谁可以批准或拒绝"
+
+msgid ""
+"Members with any of these roles can press Approve or Deny. Server admins "
+"aren't included unless they have one of them."
+msgstr "拥有其中任一身份组的成员可以点击批准或拒绝。服务器管理员除非拥有其中一个身份组，否则不包括在内。"
+
+msgid "None chosen"
+msgstr "未选择"
+
+msgid "Reading your group's join requests. Reload this page in a moment."
+msgstr "正在读取你的群组的加入申请。请稍后重新加载此页面。"
+
+msgid "Checked"
+msgstr "已检查"
+
+msgid "VRCVerify can't see this group's join requests"
+msgstr "VRCVerify 无法查看此群组的加入申请"
+
+msgid "Give the bot's role the “Manage Group Invites” permission in VRChat."
+msgstr "在 VRChat 中给机器人的角色授予“Manage Group Invites”权限。"
+
+msgid "Your group couldn't be found"
+msgstr "找不到你的群组"
+
+msgid "VRChat couldn't find this group. Check the group still exists."
+msgstr "VRChat 找不到此群组。请检查群组是否仍然存在。"
+
+msgid "Nothing is wrong with your setup. The next check will try again."
+msgstr "你的设置没有问题。下次检查时会再试一次。"
+
+msgid "The last check didn't finish"
+msgstr "上次检查没有完成"
+
+msgid "The next check will try again."
+msgstr "下次检查时会再试一次。"
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"check will try again."
+msgstr "机器人无法连接负责与 VRChat 通信的部分。下次检查时会再试一次。"
+
+msgid "VRCVerify can't post in the chosen channel"
+msgstr "VRCVerify 无法在所选频道发布内容"
+
+msgid "It needs View Channel, Send Messages and Embed Links there."
+msgstr "它需要该频道的查看频道、发送消息和嵌入链接权限。"
+
+msgid "Waiting for the first check"
+msgstr "等待首次检查"
+
+msgid ""
+"The first check starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr "开启后一分钟内会开始首次检查。请稍后重新加载此页面。"
+
+msgid "Choose a channel so join requests have somewhere to go."
+msgstr "请选择一个频道，这样加入申请才有地方发布。"
+
 msgid "Waiting for the first sync"
 msgstr "正在等待首次同步"
 
@@ -1081,6 +1197,12 @@ msgstr "每一次验证尝试，包括那些静默失败的。"
 # | msgid "VRChat group"
 msgid "VRChat group invites"
 msgstr "VRChat 群组邀请"
+
+msgid "Join request channel"
+msgstr "加入申请频道"
+
+msgid "Who can approve or deny join requests"
+msgstr "谁可以批准或拒绝加入申请"
 
 # | msgid "VRChat group"
 msgid "VRChat group setup check"
@@ -1819,6 +1941,32 @@ msgid ""
 msgstr ""
 "目前只同步公开活动。要同时同步仅成员可见的活动并在活动开始时发布加入链接，VRCVerify 需要在你的 VRChat "
 "群组中。完成上方的群组邀请设置即可将其加入。"
+
+msgid "Waiting for group invites"
+msgstr "等待群组邀请设置"
+
+msgid ""
+"Join requests are read and answered by the VRCVerify account in your "
+"group. Set up group invites above first."
+msgstr "加入申请由你群组中的 VRCVerify 账号读取和回复。请先在上方设置群组邀请。"
+
+#, python-format
+msgid "%(count)s join request is waiting in VRChat."
+msgid_plural "%(count)s join requests are waiting in VRChat."
+msgstr[0] "VRChat 中有 %(count)s 个加入申请正在等待。"
+
+#, python-format
+msgid "Last checked %(when)s"
+msgstr "上次检查于 %(when)s"
+
+#, python-format
+msgid ""
+"Your group is checked about every %(count)s minute, so a new request "
+"reaches Discord within %(count)s minute or so."
+msgid_plural ""
+"Your group is checked about every %(count)s minutes, so a new request "
+"reaches Discord within %(count)s minutes or so."
+msgstr[0] "你的群组大约每 %(count)s 分钟检查一次，因此新申请会在大约 %(count)s 分钟内出现在 Discord 中。"
 
 msgid "Not applied"
 msgstr "未生效"

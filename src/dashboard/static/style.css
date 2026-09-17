@@ -2384,6 +2384,18 @@ body.atmospheric > footer { position: relative; z-index: 1; }
   margin-bottom: 0.35rem;
 }
 
+/* The join request moderator roles (#291): a checkbox per role, scrolling
+ * inside its own box so a server with fifty roles does not push the rest of
+ * the card off the screen. */
+.role-list {
+  max-height: 14rem;
+  overflow-y: auto;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius-control);
+}
+.role-list .check:last-child { margin-bottom: 0; }
+
 /* --- the toggle switch ---
  *
  * A REAL <input type="checkbox">, restyled. Not a div with a click handler:

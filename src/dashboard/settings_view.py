@@ -61,7 +61,7 @@ DEFAULT_PANEL_SWATCH = "#5865f2"
 CUSTOM_MESSAGE_MAX_LEN = 1000
 
 # Field kinds rendered as a <select>, which is only usable with options.
-CHOICE_KINDS = frozenset({"role", "role_optional", "locale", "channel"})
+CHOICE_KINDS = frozenset({"role", "role_optional", "locale", "channel", "roles"})
 
 # A VRChat group id is 40 characters. The input allows a bit more so pasting
 # the full vrchat.com URL -- which the bot accepts and reduces to the id --
@@ -538,6 +538,21 @@ def build_groups(
             "calendar_sync": calendar_sync_summary(settings, t, lang, permission_url),
             "save_endpoint": "save_group_settings",
         })
+    # Join-request triage (#291), unannounced like calendar sync was.
+    if (settings.get("join_request_triage") or {}).get("available"):
+        index = next(i for i, g in enumerate(groups) if g["slug"] == "logging")
+        groups.insert(index, {
+            "title": t(N_("Join requests")),
+            "slug": "vrchat-group",
+            "blurb": t(N_(
+                "Post your VRChat group's join requests in Discord, so moderators "
+                "can approve or deny them there and see whether they already know "
+                "the person asking."
+            )),
+            "fields": _join_request_fields(settings, roles, channels, t),
+            "join_requests": join_request_summary(settings, t, lang),
+            "save_endpoint": "save_group_settings",
+        })
     return groups
 
 
@@ -873,6 +888,212 @@ def _calendar_announce_fields(settings: dict, roles, channels, t) -> list:
         **_plan(role_state),
     )
     return [announce, ping]
+
+
+def _join_request_fields(settings: dict, roles, channels, t) -> list:
+    """The switch, where posts go, and who may decide (#291).
+
+    Offered only once the invite account is in the group with the invite
+    permission, which is what reading and answering requests needs. Before
+    that the card's status says to set up invites first.
+    """
+    if not (settings.get("join_request_triage") or {}).get("group_ready"):
+        return []
+    enabled = _bool_field(
+        settings,
+        "join_request_triage_enabled",
+        N_("Post join requests in Discord"),
+        N_(
+            "Checks your group for new join requests and posts each one with "
+            "Approve and Deny buttons."
+        ),
+        on=N_("On"),
+        off=N_("Off"),
+        t=t,
+    )
+
+    channel_state = _state(settings, "join_request_channel_id")
+    channel_raw = channel_state.get("value")
+    channel_warnings = []
+    if not channel_raw:
+        channel_display, channel_empty = t(N_("Not set")), True
+    else:
+        channel_empty = False
+        channel = _lookup(channels, channel_raw)
+        if channel is None:
+            channel_display = t(N_("Unknown channel (%(id)s)")) % {"id": channel_raw}
+            if channels is not None:
+                channel_warnings.append(t(N_(
+                    "This channel no longer exists in the server, so join requests "
+                    "aren't posted. Choose another channel."
+                )))
+        else:
+            channel_display = f"#{channel.get('name') or channel_raw}"
+            if channel.get("can_send") is False or channel.get("can_embed") is False:
+                channel_warnings.append(t(N_(
+                    "VRCVerify can't post in this channel. It needs View Channel, "
+                    "Send Messages and Embed Links there."
+                )))
+    channel_field = Field(
+        "join_request_channel_id",
+        t(N_("Post requests in")),
+        t(N_(
+            "Pick a channel only your moderators can see. Each post shows the "
+            "person's linked Discord account, and whether they're verified 18+, "
+            "when they're a member of this server."
+        )),
+        "channel",
+        channel_display,
+        empty=channel_empty,
+        warnings=channel_warnings,
+        # No announcement channels, for the verification log's reason: other
+        # servers can follow one, and these posts say who is 18+. Only channels
+        # VRCVerify can post embeds in, plus the one already saved.
+        choices=[
+            (str(c.get("id")), f"#{c.get('name') or c.get('id')}")
+            for c in (channels or [])
+            if str(c.get("id")) == str(channel_raw or "")
+            or (not c.get("is_news") and c.get("can_send") is not False and c.get("can_embed") is not False)
+        ],
+        value="" if channel_raw is None else str(channel_raw),
+        **_plan(channel_state),
+    )
+
+    roles_state = _state(settings, "join_request_mod_role_ids")
+    chosen = [str(r) for r in (roles_state.get("value") or [])]
+    role_warnings = []
+    names = []
+    missing = False
+    for role_id in chosen:
+        role = _lookup(roles, role_id)
+        if role is None:
+            names.append(t(N_("Unknown role (%(id)s)")) % {"id": role_id})
+            missing = missing or roles is not None
+        else:
+            names.append(role.get("name") or f"Role {role_id}")
+    if missing:
+        role_warnings.append(t(N_(
+            "A chosen role no longer exists in the server. Choose the roles again."
+        )))
+    if not chosen and _value(settings, "join_request_triage_enabled"):
+        role_warnings.append(t(N_(
+            "Nobody can approve or deny requests until you choose at least one role."
+        )))
+    roles_field = Field(
+        "join_request_mod_role_ids",
+        t(N_("Who can approve or deny")),
+        t(N_(
+            "Members with any of these roles can press Approve or Deny. Server "
+            "admins aren't included unless they have one of them."
+        )),
+        "roles",
+        ", ".join(names) if names else t(N_("None chosen")),
+        empty=not chosen,
+        warnings=role_warnings,
+        choices=[(str(r.get("id")), r.get("name") or f"Role {r.get('id')}") for r in (roles or [])],
+        value=chosen,
+        **_plan(roles_state),
+    )
+    return [enabled, channel_field, roles_field]
+
+
+# How the last join request check went, as a headline and what to do about it.
+JOIN_REQUEST_COPY = {
+    "polling": (
+        "pending",
+        N_("Checking\u2026"),
+        N_("Reading your group's join requests. Reload this page in a moment."),
+    ),
+    "synced": ("ok", N_("Checked"), None),
+    "no_invite_permission": (
+        "warn",
+        N_("VRCVerify can't see this group's join requests"),
+        N_("Give the bot's role the \u201cManage Group Invites\u201d permission in VRChat."),
+    ),
+    "group_not_found": (
+        "warn",
+        N_("Your group couldn't be found"),
+        N_("VRChat couldn't find this group. Check the group still exists."),
+    ),
+    "vrchat_unavailable": (
+        "warn",
+        N_("VRChat didn't answer"),
+        N_("Nothing is wrong with your setup. The next check will try again."),
+    ),
+    "timed_out": (
+        "warn",
+        N_("The last check didn't finish"),
+        N_("The next check will try again."),
+    ),
+    "worker_unreachable": (
+        "warn",
+        N_("Couldn't start the check"),
+        N_("The bot couldn't reach the part of itself that talks to VRChat. The next check will try again."),
+    ),
+    "channel_unusable": (
+        "warn",
+        N_("VRCVerify can't post in the chosen channel"),
+        N_("It needs View Channel, Send Messages and Embed Links there."),
+    ),
+}
+
+
+def join_request_summary(
+    settings: dict,
+    t: Callable[[str], str] = _untranslated,
+    lang: str = DEFAULT_LANGUAGE,
+) -> dict:
+    """Join-request triage's status and warnings, ready to render (#291)."""
+    block = settings.get("join_request_triage") or {}
+    enabled = bool(_value(settings, "join_request_triage_enabled"))
+    locked = bool(_state(settings, "join_request_triage_enabled").get("locked"))
+    ready = bool(block.get("group_ready"))
+    state = block.get("state")
+
+    if not enabled:
+        tone, headline, detail = "pending", t(N_("Off")), None
+    elif state is None:
+        tone, headline, detail = (
+            "pending",
+            t(N_("Waiting for the first check")),
+            t(N_("The first check starts within a minute of turning this on. Reload this page shortly.")),
+        )
+    else:
+        tone, headline, detail = JOIN_REQUEST_COPY.get(state, GROUP_SETUP_FALLBACK)
+        headline, detail = t(headline), (t(detail) if detail else None)
+
+    warnings = []
+    if enabled and ready and not locked and not _value(settings, "join_request_channel_id"):
+        warnings.append(t(N_("Choose a channel so join requests have somewhere to go.")))
+
+    pending = block.get("pending_count")
+    interval = block.get("poll_interval_minutes")
+    return {
+        "group_ready": ready,
+        "enabled": enabled,
+        "locked": locked,
+        "tone": tone,
+        "headline": headline,
+        "detail": detail,
+        "error": (
+            None if tone == "ok" or not enabled
+            else _clip(block.get("error"), GROUP_ERROR_MAX_LEN)
+        ),
+        "last_checked": (
+            format_timestamp(block.get("last_polled_at"), lang)
+            if enabled and block.get("last_polled_at") else None
+        ),
+        # Counted in the template, which has ngettext.
+        "pending_count": (
+            pending if enabled and state == "synced"
+            and isinstance(pending, int) and not isinstance(pending, bool) and pending >= 0
+            else None
+        ),
+        "poll_interval_minutes": (
+            interval if isinstance(interval, int) and not isinstance(interval, bool) and interval > 0 else None
+        ),
+        "warnings": warnings,
+    }
 
 
 def calendar_sync_summary(
@@ -1401,6 +1622,9 @@ AUDIT_LABELS = {
     "verification_log_channel_id": N_("Verification log channel"),
     "vrchat_group_id": N_("VRChat group"),
     "vrchat_group_invite_enabled": N_("VRChat group invites"),
+    "join_request_triage_enabled": N_("Post join requests in Discord"),
+    "join_request_channel_id": N_("Join request channel"),
+    "join_request_mod_role_ids": N_("Who can approve or deny join requests"),
     # An action rather than a setting, like instructions_panel above: the
     # bot stores (what it did, which group), not (old value, new value).
     "group_verify": N_("VRChat group setup check"),
@@ -1506,7 +1730,13 @@ def _audit_value(
         if role is None:
             return t(N_("a role that no longer exists (%(id)s)")) % {"id": raw}
         return role.get("name") or t(N_("Role %(id)s")) % {"id": raw}
-    if field in {"verification_log_channel_id", "instructions_panel_channel"}:
+    if field == "join_request_mod_role_ids":
+        names = []
+        for role_id in str(raw).split(","):
+            role = _lookup(roles, role_id) if roles is not None else None
+            names.append(role.get("name") if role and role.get("name") else t(N_("role %(id)s")) % {"id": role_id})
+        return ", ".join(names)
+    if field in {"verification_log_channel_id", "instructions_panel_channel", "join_request_channel_id"}:
         if channels is None:
             return t(N_("channel %(id)s")) % {"id": raw}
         channel = _lookup(channels, raw)

@@ -596,6 +596,25 @@ CALENDAR_ANNOUNCE_EARLY_MINUTES = _int_env("CALENDAR_ANNOUNCE_EARLY_MINUTES", 60
 # window. One list call plus one call per instance not already ruled out. Two
 # minutes, decided on #289 after the first live announcement.
 CALENDAR_INSTANCE_CHECK_SECONDS = _int_env("CALENDAR_INSTANCE_CHECK_SECONDS", 120, minimum=60)
+# Join-request triage (#291). Polled on the calendar's schedule, decided on
+# #291: ten minutes, jittered. A read is one call per 100 pending requests.
+JOIN_REQUEST_POLL_INTERVAL_SECONDS = _int_env("JOIN_REQUEST_POLL_INTERVAL_SECONDS", 600, minimum=600)
+JOIN_REQUEST_POLL_TIMEOUT_SECONDS = _int_env("JOIN_REQUEST_POLL_TIMEOUT_SECONDS", 900)
+# 10 pages is 1,000 pending requests. A poll that stops at the cap is
+# incomplete, and an incomplete poll never closes a post for a request it
+# did not see.
+JOIN_REQUEST_MAX_PAGES = _int_env("JOIN_REQUEST_MAX_PAGES", 10)
+JOIN_REQUEST_PAGE_SIZE = 100
+# New posts per poll. On the first poll the rest of the backlog is summed up in
+# one message and never posted (decided on #291); after that, anything over the
+# cap waits for the next poll.
+JOIN_REQUEST_POST_CAP = _int_env("JOIN_REQUEST_POST_CAP", 25)
+JOIN_REQUEST_POST_SPACING_SECONDS = _float_env("JOIN_REQUEST_POST_SPACING_SECONDS", 1.0)
+# How long a moderator's decision may wait for the worker before its buttons
+# come back. The worker answers in seconds; this covers a restart or a lost job.
+JOIN_REQUEST_RESPOND_TIMEOUT_SECONDS = _int_env("JOIN_REQUEST_RESPOND_TIMEOUT_SECONDS", 600)
+# How many accounts linked to one VRChat account are looked up for one post.
+JOIN_REQUEST_LINKED_MEMBERS_MAX = 5
 # Capped and spaced for the same reason panel nudges are: a backlog, a clock
 # jump or a long outage must trickle out rather than becoming a burst of VRChat
 # writes from one account.
@@ -1521,6 +1540,87 @@ class CalendarAnnouncementMessage(Base):
     )
 
 
+class JoinRequestTriage(Base):
+    """A guild's join-request triage: the switch, the channel, its polling (#291).
+
+    Like group_calendar_link, the group is not configuration here. The guild's
+    group is group_invite_config.group_id; `group_id` below is only the group
+    the posts came from, so a group change can close the old group's posts.
+    """
+
+    __tablename__ = "join_request_triage"
+    server_id = Column(String, primary_key=True)
+    enabled = Column(Boolean, nullable=False, default=False)
+    channel_id = Column(String(30), nullable=True)
+    group_id = Column(String(64), nullable=True)
+    # When the first complete poll for this group was handled. Until then the
+    # backlog rule applies: the first JOIN_REQUEST_POST_CAP are posted and the
+    # rest summed up. Cleared when triage is switched on again or the group
+    # changes, since either way the queue in front of the admin is a backlog.
+    seeded_at = Column(DateTime(timezone=True), nullable=True)
+    poll_job_id = Column(String(64), nullable=True)
+    poll_started_at = Column(DateTime(timezone=True), nullable=True)
+    next_poll_at = Column(DateTime(timezone=True), nullable=True)
+    last_polled_at = Column(DateTime(timezone=True), nullable=True)
+    # One of JOIN_REQUEST_TRIAGE_STATES.
+    last_state = Column(String(32), nullable=True)
+    last_error = Column(String, nullable=True)
+    # How many requests the last complete poll saw waiting, for the dashboard.
+    pending_count = Column(Integer, nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class JoinRequestTriageRole(Base):
+    """A Discord role whose members may approve or deny join requests (#291)."""
+
+    __tablename__ = "join_request_triage_role"
+    server_id = Column(String, primary_key=True)
+    role_id = Column(String(30), primary_key=True)
+
+
+class JoinRequestPost(Base):
+    """One applicant's join request, and the Discord post triaging it (#291).
+
+    One row per (server, applicant), rewritten when the same person asks again
+    after an earlier request was settled. This is the minimum the buttons need:
+    who to answer for, in which group, and what has happened so far. The
+    applicant's Discord identity is looked up when the post is made and is
+    never stored.
+
+    `decided_by` is the moderator who pressed the button, kept because #291
+    requires recording who made each decision.
+    """
+
+    __tablename__ = "join_request_post"
+    server_id = Column(String, primary_key=True)
+    vrc_user_id = Column(String(50), primary_key=True)
+    group_id = Column(String(64), nullable=False)
+    # One of JOIN_REQUEST_POST_STATES.
+    state = Column(String(32), nullable=False)
+    display_name = Column(String, nullable=True)
+    channel_id = Column(String(30), nullable=True)
+    message_id = Column(String(30), nullable=True)
+    first_seen_at = Column(DateTime(timezone=True), nullable=True)
+    # The first complete poll that did not see this request. The post is only
+    # closed when a second one still does not, so one short answer from VRChat
+    # cannot close a request that is still waiting.
+    missing_since = Column(DateTime(timezone=True), nullable=True)
+    # The decision in flight or made: the job it went out with, "accept" or
+    # "reject", and who asked for it when.
+    job_id = Column(String(64), nullable=True)
+    action = Column(String(16), nullable=True)
+    decided_by = Column(String(30), nullable=True)
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+    # Why the last decision did not go through, shown on the post until the
+    # next one does. One of the worker's respond states.
+    failure = Column(String(32), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
 class DashboardAudit(Base):
     """Who changed which setting, from the website, and to what.
 
@@ -2068,6 +2168,9 @@ class VRCVerifyBot(discord.Client):
         # routes every offer DM ever sent, in every server, without the bot
         # holding any of them in memory.
         self.add_dynamic_items(GroupInviteButton)
+        # Approve and Deny on join request posts (#291). The post is found from
+        # the message, so one registration serves every post.
+        self.add_dynamic_items(JoinRequestButton)
         # Sync slash commands to the server
         await self.tree.sync()
 
@@ -2406,6 +2509,9 @@ FEATURE_GROUP_INVITE = "group_invite"
 # Events. Not grandfathered either, for the same reason: it did not exist at
 # the cutover, and its cost is the invite account's VRChat call budget.
 FEATURE_CALENDAR_SYNC = "calendar_sync"
+# Issue #291: a linked VRChat group's pending join requests, posted in Discord
+# with Approve and Deny. Not grandfathered, for the reason calendar sync gives.
+FEATURE_JOIN_REQUEST_TRIAGE = "join_request_triage"
 
 # Servers configured before the cutover keep these three for free, forever.
 # The reduced cooldown and the activity log are new, so nobody is losing them.
@@ -2433,18 +2539,38 @@ GRANDFATHERED_FEATURES = frozenset(
 # controls for it, which is exactly the sequence the comment above describes:
 # the name leaves in the change that makes the feature reachable. Calendar sync
 # (#289) left it when it was announced, after all of its phases had shipped and
-# been tested live behind a preview allowlist that is now gone.
-UNANNOUNCED_FEATURES = frozenset()
+# been tested live behind a preview allowlist.
+#
+# Join-request triage (#291) follows calendar sync's sequence: hidden from its
+# first PR, reachable only by the preview guilds below, and announced in its
+# last.
+UNANNOUNCED_FEATURES = frozenset({FEATURE_JOIN_REQUEST_TRIAGE})
+
+
+def _guild_id_set(raw) -> frozenset:
+    return frozenset(
+        part.strip() for part in (raw or "").split(",") if part.strip().isdigit()
+    )
+
+
+# Guilds that may use an unannounced feature anyway, for live testing before it
+# is announced. An operator setting, never something a guild can ask for.
+FEATURE_PREVIEW_GUILDS = {
+    FEATURE_JOIN_REQUEST_TRIAGE: _guild_id_set(os.getenv("JOIN_REQUEST_TRIAGE_PREVIEW_GUILDS")),
+}
 
 
 def feature_is_reachable(feature: Optional[str], guild_id) -> bool:
     """May THIS guild see and use the feature at all, plan aside?
 
-    An unannounced feature is reachable by nobody. `guild_id` is kept so a
-    future phased feature can grant a preview to named guilds again, the way
-    calendar sync was tested before it launched.
+    Announced features are reachable by everyone. An unannounced one only by
+    its preview guilds, which is what lets a phased feature be tested in a real
+    server without appearing in the pitch, the pricing page or anyone else's
+    dashboard.
     """
-    return feature not in UNANNOUNCED_FEATURES
+    if feature not in UNANNOUNCED_FEATURES:
+        return True
+    return str(guild_id) in FEATURE_PREVIEW_GUILDS.get(feature, frozenset())
 
 
 class SettingsField:
@@ -2520,6 +2646,12 @@ SETTINGS_FIELDS = (
     # Where an event's join link is announced, and who is pinged (#289, PR 2).
     SettingsField("calendar_announce_channel_id", FEATURE_CALENDAR_SYNC, write_locked=True),
     SettingsField("calendar_ping_role_id", FEATURE_CALENDAR_SYNC, write_locked=True),
+    # Join-request triage (#291). write_locked for the reason calendar sync's
+    # switch gives.
+    SettingsField("join_request_triage_enabled", FEATURE_JOIN_REQUEST_TRIAGE, write_locked=True),
+    SettingsField("join_request_channel_id", FEATURE_JOIN_REQUEST_TRIAGE, write_locked=True),
+    # The one list-valued setting: every role whose members may approve or deny.
+    SettingsField("join_request_mod_role_ids", FEATURE_JOIN_REQUEST_TRIAGE, write_locked=True),
 )
 
 SETTINGS_FIELDS_BY_NAME = {field.name: field for field in SETTINGS_FIELDS}
@@ -2565,6 +2697,9 @@ DASHBOARD_WRITABLE_FIELDS = frozenset(
         "calendar_sync_enabled",
         "calendar_announce_channel_id",
         "calendar_ping_role_id",
+        "join_request_triage_enabled",
+        "join_request_channel_id",
+        "join_request_mod_role_ids",
     }
 )
 
@@ -2670,6 +2805,35 @@ def _role_coercer(field_name: str, *, required: bool):
         return value
 
     return coerce
+
+
+# How many roles may approve or deny join requests. Enough for any real mod
+# team; a cap so the list cannot be used to store an unbounded payload.
+JOIN_REQUEST_MOD_ROLES_MAX = 10
+
+
+def _coerce_role_list(value):
+    """The moderator roles for join requests: digit strings, deduplicated and
+    sorted, so saving the same choice twice reads as no change."""
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise SettingRejected("join_request_mod_role_ids", "not_a_role")
+    one = _role_coercer("join_request_mod_role_ids", required=False)
+    if any(item is None or item == "" for item in value):
+        # Not role_required: that refusal's message is about the verified role.
+        raise SettingRejected("join_request_mod_role_ids", "not_a_role")
+    roles = {one(item) for item in value}
+    # ASCII and snowflake-sized. str.isdigit() also accepts superscripts and
+    # other scripts' digits, and int() refuses those and anything over 4,300
+    # digits, so sorting by int() let a crafted save raise instead of being
+    # refused (found in the adversarial pass on #291).
+    if any(not (role.isascii() and 1 <= len(role) <= 20) for role in roles):
+        raise SettingRejected("join_request_mod_role_ids", "not_a_role")
+    roles = sorted(roles, key=lambda role: (len(role), role))
+    if len(roles) > JOIN_REQUEST_MOD_ROLES_MAX:
+        raise SettingRejected("join_request_mod_role_ids", "too_many_roles")
+    return roles
 
 
 def _bool_coercer(field_name: str):
@@ -2791,6 +2955,9 @@ SETTING_COERCERS = {
     "calendar_sync_enabled": _bool_coercer("calendar_sync_enabled"),
     "calendar_announce_channel_id": _role_coercer("calendar_announce_channel_id", required=False),
     "calendar_ping_role_id": _role_coercer("calendar_ping_role_id", required=False),
+    "join_request_triage_enabled": _bool_coercer("join_request_triage_enabled"),
+    "join_request_channel_id": _role_coercer("join_request_channel_id", required=False),
+    "join_request_mod_role_ids": _coerce_role_list,
 }
 
 # Fields whose value has to name a real role in *this* guild.
@@ -4539,6 +4706,80 @@ CALENDAR_EVENT_SYNCED = "synced"
 # VRChat occurrence exists.
 CALENDAR_EVENT_REMOVED_BY_ADMIN = "removed_by_admin"
 
+# Join-request triage (#291). The worker's verdicts mirror
+# vrc_group_inviter.JOIN_REQUESTS_STATES and RESPOND_STATES, held together by a
+# test.
+JOB_FETCH_JOIN_REQUESTS = "fetch_group_join_requests"
+JOB_RESPOND_JOIN_REQUEST = "respond_group_join_request"
+JOIN_REQUESTS_OK = "ok"
+JOIN_REQUESTS_STATES = frozenset(
+    {
+        JOIN_REQUESTS_OK,
+        GROUP_SETUP_NO_INVITE_PERMISSION,
+        GROUP_SETUP_GROUP_NOT_FOUND,
+        GROUP_SETUP_VRCHAT_UNAVAILABLE,
+        GROUP_SETUP_BAD_JOB,
+    }
+)
+RESPOND_DONE = "done"
+RESPOND_NOT_PENDING = "not_pending"
+RESPOND_STATES = frozenset(
+    {
+        RESPOND_DONE,
+        RESPOND_NOT_PENDING,
+        GROUP_SETUP_NO_INVITE_PERMISSION,
+        GROUP_SETUP_GROUP_NOT_FOUND,
+        GROUP_SETUP_VRCHAT_UNAVAILABLE,
+        GROUP_SETUP_BAD_JOB,
+    }
+)
+# join_request_triage.last_state: the worker's page verdicts, and these.
+JOIN_REQUEST_TRIAGE_SYNCED = "synced"
+JOIN_REQUEST_TRIAGE_POLLING = "polling"
+JOIN_REQUEST_TRIAGE_TIMED_OUT = GROUP_SETUP_TIMED_OUT
+JOIN_REQUEST_TRIAGE_WORKER_UNREACHABLE = GROUP_SETUP_WORKER_UNREACHABLE
+# The channel is gone, or the bot cannot post embeds in it.
+JOIN_REQUEST_TRIAGE_CHANNEL_UNUSABLE = "channel_unusable"
+JOIN_REQUEST_TRIAGE_STATES = JOIN_REQUESTS_STATES | frozenset(
+    {
+        JOIN_REQUEST_TRIAGE_SYNCED,
+        JOIN_REQUEST_TRIAGE_POLLING,
+        JOIN_REQUEST_TRIAGE_TIMED_OUT,
+        JOIN_REQUEST_TRIAGE_WORKER_UNREACHABLE,
+        JOIN_REQUEST_TRIAGE_CHANNEL_UNUSABLE,
+    }
+)
+
+# join_request_post.state.
+JOIN_REQUEST_PENDING = "pending"
+# A moderator pressed a button and the worker has not answered yet.
+JOIN_REQUEST_RESPONDING = "responding"
+JOIN_REQUEST_APPROVED = "approved"
+JOIN_REQUEST_DENIED = "denied"
+# Gone from the queue without a decision made here: settled in VRChat,
+# withdrawn, or admitted by the invite button (#213).
+JOIN_REQUEST_ELSEWHERE = "handled_elsewhere"
+# Part of the first poll's backlog past the cap. Never posted; the row only
+# stops it being posted later as though it were new.
+JOIN_REQUEST_BACKLOG = "backlog"
+# The server changed its VRChat group while this request was open.
+JOIN_REQUEST_CLOSED = "closed"
+JOIN_REQUEST_POST_STATES = frozenset(
+    {
+        JOIN_REQUEST_PENDING,
+        JOIN_REQUEST_RESPONDING,
+        JOIN_REQUEST_APPROVED,
+        JOIN_REQUEST_DENIED,
+        JOIN_REQUEST_ELSEWHERE,
+        JOIN_REQUEST_BACKLOG,
+        JOIN_REQUEST_CLOSED,
+    }
+)
+JOIN_REQUEST_SETTLED_STATES = frozenset(
+    {JOIN_REQUEST_APPROVED, JOIN_REQUEST_DENIED, JOIN_REQUEST_ELSEWHERE, JOIN_REQUEST_CLOSED}
+)
+JOIN_REQUEST_ACTIONS = {"approve": "accept", "deny": "reject"}
+
 
 def parse_calendar_time(value) -> Optional[datetime]:
     """VRChat's `2026-09-11T11:15:00.000Z`, as an aware datetime, or None."""
@@ -5086,6 +5327,329 @@ def reset_calendar_link_group(guild_id) -> None:
         row.last_state = None
         row.last_error = None
         row.updated_at = datetime.now(timezone.utc)
+
+
+# -------------------------------------------------------------------
+# Join-request triage storage (issue #291)
+# -------------------------------------------------------------------
+def _triage_link_dict(row) -> dict:
+    return {
+        "server_id": row.server_id,
+        "enabled": bool(row.enabled),
+        "channel_id": row.channel_id,
+        "group_id": row.group_id,
+        "seeded_at": _utc(row.seeded_at),
+        "poll_job_id": row.poll_job_id,
+        "poll_started_at": _utc(row.poll_started_at),
+        "next_poll_at": _utc(row.next_poll_at),
+        "last_polled_at": _utc(row.last_polled_at),
+        "last_state": row.last_state,
+        "last_error": row.last_error,
+        "pending_count": row.pending_count,
+    }
+
+
+def load_triage_link(guild_id) -> Optional[dict]:
+    """This guild's triage row, or None. Raises on a database error, for the
+    reason load_group_invite_config gives."""
+    if guild_id is None:
+        return None
+    with session_scope() as session:
+        row = session.query(JoinRequestTriage).filter_by(server_id=panel_view_key(guild_id)).first()
+        return _triage_link_dict(row) if row else None
+
+
+def load_triage_links() -> list:
+    with session_scope() as session:
+        return [_triage_link_dict(row) for row in session.query(JoinRequestTriage).all()]
+
+
+def save_triage_settings(guild_id, *, enabled=None, channel_id=..., role_ids=None) -> None:
+    """Store the admin's settings. Anything left out is left as it is.
+
+    Switching triage on asks for a poll straight away and treats what is
+    waiting as a backlog, since whatever arrived while it was off is exactly
+    that.
+    """
+    key = panel_view_key(guild_id)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = session.query(JoinRequestTriage).filter_by(server_id=key).first()
+        if row is None:
+            row = JoinRequestTriage(server_id=key, enabled=False)
+            session.add(row)
+        if enabled is not None:
+            if enabled and not row.enabled:
+                row.next_poll_at = None
+                row.seeded_at = None
+            row.enabled = bool(enabled)
+        if channel_id is not ...:
+            row.channel_id = str(channel_id) if channel_id else None
+        if role_ids is not None:
+            session.query(JoinRequestTriageRole).filter_by(server_id=key).delete()
+            for role_id in sorted({str(r) for r in role_ids if str(r).isdigit()}):
+                session.add(JoinRequestTriageRole(server_id=key, role_id=role_id))
+        row.updated_at = now
+
+
+def load_triage_role_ids(guild_id) -> frozenset:
+    with session_scope() as session:
+        return frozenset(
+            row.role_id
+            for row in session.query(JoinRequestTriageRole).filter_by(server_id=panel_view_key(guild_id))
+        )
+
+
+def triage_poll_is_due(link: dict, now: datetime) -> bool:
+    """No poll in flight (or the one in flight is lost), and the time has come."""
+    started = link.get("poll_started_at")
+    if link.get("poll_job_id") and started is not None:
+        if (now - started).total_seconds() <= JOIN_REQUEST_POLL_TIMEOUT_SECONDS:
+            return False
+    due = link.get("next_poll_at")
+    return due is None or due <= now
+
+
+def begin_triage_poll(guild_id, group_id) -> dict:
+    """Stamp a poll as in flight and return its first page job."""
+    key = panel_view_key(guild_id)
+    job_id = secrets.token_hex(16)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = session.query(JoinRequestTriage).filter_by(server_id=key).first()
+        if row.poll_job_id and row.last_state == JOIN_REQUEST_TRIAGE_POLLING:
+            logger.info("Join request poll %s for guild %s was lost; starting another.", row.poll_job_id, guild_id)
+        row.poll_job_id = job_id
+        row.poll_started_at = now
+        row.last_state = JOIN_REQUEST_TRIAGE_POLLING
+        row.group_id = group_id
+        row.updated_at = now
+    return {
+        "type": JOB_FETCH_JOIN_REQUESTS,
+        "jobID": job_id,
+        "guildID": str(guild_id),
+        "groupID": group_id,
+        "offset": 0,
+        "n": JOIN_REQUEST_PAGE_SIZE,
+    }
+
+
+def end_triage_poll(guild_id, job_id, state: str, *, error=None, pending=None, seeded=False) -> bool:
+    """Record how a poll ended and when the next one is due. False if stale.
+
+    Failures are scheduled at the same jittered interval as successes, for the
+    reason end_calendar_poll gives.
+    """
+    key = panel_view_key(guild_id)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = session.query(JoinRequestTriage).filter_by(server_id=key).first()
+        if row is None or row.poll_job_id != job_id:
+            return False
+        row.poll_job_id = None
+        row.poll_started_at = None
+        row.last_state = state
+        row.last_error = error
+        row.next_poll_at = now + timedelta(
+            seconds=JOIN_REQUEST_POLL_INTERVAL_SECONDS * random.uniform(0.8, 1.2)
+        )
+        if state == JOIN_REQUEST_TRIAGE_SYNCED:
+            row.last_polled_at = now
+            row.pending_count = pending
+        if seeded and row.seeded_at is None:
+            row.seeded_at = now
+        row.updated_at = now
+        return True
+
+
+def reset_triage_group(guild_id) -> None:
+    """The old group's posts are closed; start again as though newly enabled."""
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        row = session.query(JoinRequestTriage).filter_by(server_id=key).first()
+        if row is None:
+            return
+        row.group_id = None
+        row.seeded_at = None
+        row.poll_job_id = None
+        row.poll_started_at = None
+        row.next_poll_at = None
+        row.pending_count = None
+        row.last_state = None
+        row.last_error = None
+        row.updated_at = datetime.now(timezone.utc)
+
+
+def _join_request_post_dict(row) -> dict:
+    return {
+        "server_id": row.server_id,
+        "vrc_user_id": row.vrc_user_id,
+        "group_id": row.group_id,
+        "state": row.state,
+        "display_name": row.display_name,
+        "channel_id": row.channel_id,
+        "message_id": row.message_id,
+        "first_seen_at": _utc(row.first_seen_at),
+        "missing_since": _utc(row.missing_since),
+        "job_id": row.job_id,
+        "action": row.action,
+        "decided_by": row.decided_by,
+        "decided_at": _utc(row.decided_at),
+        "failure": row.failure,
+    }
+
+
+def load_join_request_posts(guild_id) -> dict:
+    """{vrc_user_id: row} for the guild."""
+    with session_scope() as session:
+        return {
+            row.vrc_user_id: _join_request_post_dict(row)
+            for row in session.query(JoinRequestPost).filter_by(server_id=panel_view_key(guild_id))
+        }
+
+
+def load_join_request_post_by_message(guild_id, message_id) -> Optional[dict]:
+    with session_scope() as session:
+        row = (
+            session.query(JoinRequestPost)
+            .filter_by(server_id=panel_view_key(guild_id), message_id=str(message_id))
+            .first()
+        )
+        return _join_request_post_dict(row) if row else None
+
+
+def store_join_request_post(guild_id, group_id, request: dict, state: str, *, channel_id=None, message_id=None) -> None:
+    """Record a newly seen request, replacing whatever an earlier one left."""
+    key = panel_view_key(guild_id)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = session.query(JoinRequestPost).filter_by(server_id=key, vrc_user_id=request["user_id"]).first()
+        if row is None:
+            row = JoinRequestPost(server_id=key, vrc_user_id=request["user_id"])
+            session.add(row)
+        row.group_id = group_id
+        row.state = state
+        row.display_name = request.get("display_name")
+        row.channel_id = str(channel_id) if channel_id else None
+        row.message_id = str(message_id) if message_id else None
+        row.first_seen_at = now
+        row.missing_since = None
+        row.job_id = row.action = row.decided_by = row.decided_at = row.failure = None
+        row.updated_at = now
+
+
+def update_join_request_post(guild_id, vrc_user_id, *, only_if_state: Optional[str] = None, **fields) -> bool:
+    """Set fields on one post. With `only_if_state`, only while it is still in
+    that state, so a poll working from an earlier read cannot overwrite a
+    moderator's press that landed since. True if the row was changed."""
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        query = session.query(JoinRequestPost).filter_by(server_id=key, vrc_user_id=vrc_user_id)
+        if only_if_state is not None:
+            query = query.filter_by(state=only_if_state)
+        row = query.first()
+        if row is None:
+            return False
+        for name, value in fields.items():
+            setattr(row, name, value)
+        row.updated_at = datetime.now(timezone.utc)
+        return True
+
+
+def delete_join_request_posts(guild_id, vrc_user_ids) -> None:
+    if not vrc_user_ids:
+        return
+    with session_scope() as session:
+        session.query(JoinRequestPost).filter(
+            JoinRequestPost.server_id == panel_view_key(guild_id),
+            JoinRequestPost.vrc_user_id.in_(list(vrc_user_ids)),
+        ).delete(synchronize_session=False)
+
+
+def claim_join_request_post(guild_id, message_id, action: str, moderator_id, job_id: str) -> Optional[dict]:
+    """Move one pending post to responding, or None if it is not pending.
+
+    A conditional UPDATE rather than read-then-write, so two moderators
+    pressing at once produce one decision and one "already handled".
+    """
+    key = panel_view_key(guild_id)
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        claimed = (
+            session.query(JoinRequestPost)
+            .filter_by(server_id=key, message_id=str(message_id), state=JOIN_REQUEST_PENDING)
+            .update(
+                {
+                    JoinRequestPost.state: JOIN_REQUEST_RESPONDING,
+                    JoinRequestPost.action: action,
+                    JoinRequestPost.job_id: job_id,
+                    JoinRequestPost.decided_by: str(moderator_id),
+                    JoinRequestPost.decided_at: now,
+                    JoinRequestPost.failure: None,
+                    JoinRequestPost.updated_at: now,
+                },
+                synchronize_session=False,
+            )
+        )
+    if not claimed:
+        return None
+    return load_join_request_post_by_message(guild_id, message_id)
+
+
+def release_join_request_post(guild_id, job_id, failure: Optional[str]) -> Optional[dict]:
+    """Put a decision that did not go through back to pending. None if stale.
+
+    A decision given back because nobody answered in time (failure
+    GROUP_SETUP_TIMED_OUT) keeps its job, action and moderator. The worker
+    takes one job at a time, so its answer can simply be late, and if VRChat
+    did act, settle_join_request_post still records who decided. A new press
+    replaces the job, which is what stops that late answer overriding it.
+    """
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        row = (
+            session.query(JoinRequestPost)
+            .filter_by(server_id=key, job_id=job_id, state=JOIN_REQUEST_RESPONDING)
+            .first()
+        )
+        if row is None:
+            return None
+        row.state = JOIN_REQUEST_PENDING
+        row.failure = failure
+        if failure != GROUP_SETUP_TIMED_OUT:
+            row.job_id = row.action = row.decided_by = row.decided_at = None
+        row.updated_at = datetime.now(timezone.utc)
+        return _join_request_post_dict(row)
+
+
+def settle_join_request_post(guild_id, job_id, state: str) -> Optional[dict]:
+    """Record the worker's answer to a decision. None if stale.
+
+    Also accepted for a decision given back on timeout whose job has not been
+    replaced by a newer press; see release_join_request_post.
+    """
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        row = (
+            session.query(JoinRequestPost)
+            .filter_by(server_id=key, job_id=job_id)
+            .first()
+        )
+        if row is None or not (
+            row.state == JOIN_REQUEST_RESPONDING
+            or (row.state == JOIN_REQUEST_PENDING and row.failure == GROUP_SETUP_TIMED_OUT)
+        ):
+            return None
+        row.state = state
+        row.failure = None
+        row.missing_since = None
+        now = datetime.now(timezone.utc)
+        if state == JOIN_REQUEST_ELSEWHERE:
+            # Nobody here made this decision, so nobody is named for it.
+            row.decided_by = None
+        row.decided_at = now
+        row.updated_at = now
+        return _join_request_post_dict(row)
 
 
 # -------------------------------------------------------------------
@@ -10068,6 +10632,699 @@ async def consume_group_invite_results():
     await loop.run_in_executor(None, do_blocking_consume)
 
 
+# -------------------------------------------------------------------
+# Join-request triage (issue #291)
+# -------------------------------------------------------------------
+JOIN_REQUEST_TRIAGE_PASS_SECONDS = 60
+JOIN_REQUEST_POLL_START_SPACING_SECONDS = 2.0
+JOIN_REQUEST_VIEW_VERSION = 1
+JOIN_REQUEST_CUSTOM_ID_PREFIX = f"vrcverify:joinreq:v{JOIN_REQUEST_VIEW_VERSION}:"
+
+# The poll in flight per job id: the pages collected so far.
+_triage_polls: dict = {}
+_triage_locks: dict = {}
+
+JOIN_REQUEST_FAILURE_MESSAGES = {
+    GROUP_SETUP_NO_INVITE_PERMISSION: locales.JOIN_REQUEST_FAILED_PERMISSION,
+    GROUP_SETUP_GROUP_NOT_FOUND: locales.JOIN_REQUEST_FAILED_GROUP,
+}
+
+JOIN_REQUEST_COLORS = {
+    JOIN_REQUEST_PENDING: discord.Color.blurple(),
+    JOIN_REQUEST_RESPONDING: discord.Color.light_grey(),
+    JOIN_REQUEST_APPROVED: discord.Color.green(),
+    JOIN_REQUEST_DENIED: discord.Color.red(),
+    JOIN_REQUEST_ELSEWHERE: discord.Color.dark_grey(),
+    JOIN_REQUEST_CLOSED: discord.Color.dark_grey(),
+}
+
+
+def _triage_lock(guild_id) -> asyncio.Lock:
+    key = panel_view_key(guild_id)
+    lock = _triage_locks.get(key)
+    if lock is None:
+        lock = _triage_locks[key] = asyncio.Lock()
+    return lock
+
+
+async def triage_account(guild_id, config: Optional[dict] = None) -> Optional["InviteAccount"]:
+    """The invite account that may act on this guild's join requests, or None.
+
+    Triage runs only in the group the guild already set up for invites: proven
+    (`verified_at`), joined, and holding the invite permission, which is the
+    permission responding needs (measured 2026-09-17). The plan and the preview
+    allowlist are checked here too, so every entry point asks one question.
+    """
+    if not feature_is_reachable(FEATURE_JOIN_REQUEST_TRIAGE, guild_id):
+        return None
+    config = config if config is not None else (load_group_invite_config(guild_id) or {})
+    if not config.get("group_id") or config.get("verified_at") is None:
+        return None
+    if effective_group_setup_state(config) != GROUP_SETUP_READY:
+        return None
+    flags = await resolve_premium_flags(guild_id)
+    if not flags.allows(FEATURE_JOIN_REQUEST_TRIAGE):
+        return None
+    return invite_account_for_guild(guild_id)
+
+
+def _vrchat_name(name) -> str:
+    """An applicant's display name, safe to put in bold or a title."""
+    text = " ".join(str(name or "").split()) or "VRChat user"
+    return discord.utils.escape_markdown(discord.utils.escape_mentions(text))[:200]
+
+
+async def join_request_identity_lines(guild, guild_id, vrc_user_id: str, locale: str) -> list:
+    """The applicant's linked Discord accounts, as lines, for members of THIS guild.
+
+    Only members of this guild are shown, decided on #291: naming an account
+    from another server would hand this server's moderators someone's identity
+    from a community they never shared with them.
+    """
+    with session_scope() as session:
+        linked = [
+            (str(user.discord_id), bool(user.verification_status))
+            for user in session.query(User).filter_by(vrc_user_id=vrc_user_id).limit(JOIN_REQUEST_LINKED_MEMBERS_MAX)
+        ]
+        server = session.query(Server).filter_by(server_id=int(guild_id)).first()
+        verified_role_id = int(server.role_id) if server and server.role_id else None
+    lines = []
+    for discord_id, verified in linked:
+        member = guild.get_member(int(discord_id))
+        if member is None:
+            try:
+                member = await guild.fetch_member(int(discord_id))
+            except discord.HTTPException:
+                # NotFound is "not in this server", the common case. Anything
+                # else is treated the same: an identity is shown only when it
+                # could be confirmed.
+                continue
+        parts = [translate(
+            locales.JOIN_REQUEST_LINKED_MEMBER,
+            locale,
+            member=member.mention,
+            since=f"<t:{int(member.joined_at.timestamp())}:D>" if member.joined_at else "?",
+        )]
+        parts.append(translate(locales.JOIN_REQUEST_VERIFIED if verified else locales.JOIN_REQUEST_NOT_VERIFIED, locale))
+        if verified_role_id and member.get_role(verified_role_id) is not None:
+            parts.append(translate(locales.JOIN_REQUEST_HAS_ROLE, locale, role=f"<@&{verified_role_id}>"))
+        lines.append(" · ".join(parts))
+    return lines
+
+
+def join_request_status_text(row: dict, locale: str) -> Optional[str]:
+    state = row["state"]
+    moderator = f"<@{row['decided_by']}>" if row.get("decided_by") else "?"
+    when = f"<t:{int(row['decided_at'].timestamp())}:R>" if row.get("decided_at") else ""
+    if state == JOIN_REQUEST_RESPONDING:
+        msgid = locales.JOIN_REQUEST_STATUS_APPROVING if row.get("action") == "accept" else locales.JOIN_REQUEST_STATUS_DENYING
+        return translate(msgid, locale, moderator=moderator)
+    if state == JOIN_REQUEST_APPROVED:
+        return translate(locales.JOIN_REQUEST_STATUS_APPROVED, locale, moderator=moderator, when=when)
+    if state == JOIN_REQUEST_DENIED:
+        return translate(locales.JOIN_REQUEST_STATUS_DENIED, locale, moderator=moderator, when=when)
+    if state == JOIN_REQUEST_ELSEWHERE:
+        return translate(locales.JOIN_REQUEST_STATUS_ELSEWHERE, locale)
+    if state == JOIN_REQUEST_CLOSED:
+        return translate(locales.JOIN_REQUEST_STATUS_CLOSED, locale)
+    if row.get("failure"):
+        msgid = JOIN_REQUEST_FAILURE_MESSAGES.get(row["failure"], locales.JOIN_REQUEST_FAILED_UNAVAILABLE)
+        return translate(msgid, locale)
+    return None
+
+
+def build_join_request_embed(row: dict, locale: str, identity_lines: list, icon_url=None) -> discord.Embed:
+    """The post's embed. Its first two fields are fixed; the status is third."""
+    embed = discord.Embed(
+        title=translate(locales.JOIN_REQUEST_TITLE, locale, name=_vrchat_name(row.get("display_name"))),
+        description=f"[{translate(locales.JOIN_REQUEST_PROFILE, locale)}](https://vrchat.com/home/user/{row['vrc_user_id']})",
+        color=JOIN_REQUEST_COLORS.get(row["state"], discord.Color.blurple()),
+    )
+    if icon_url:
+        embed.set_thumbnail(url=icon_url)
+    embed.add_field(
+        name=translate(locales.JOIN_REQUEST_DISCORD_HEADING, locale),
+        value="\n".join(identity_lines) if identity_lines else translate(locales.JOIN_REQUEST_NO_LINK, locale),
+        inline=False,
+    )
+    seen = row.get("first_seen_at")
+    embed.add_field(
+        name=translate(locales.JOIN_REQUEST_SEEN_HEADING, locale),
+        value=f"<t:{int(seen.timestamp())}:R>" if seen else "?",
+        inline=False,
+    )
+    _set_join_request_status(embed, row, locale)
+    return embed
+
+
+def _set_join_request_status(embed: discord.Embed, row: dict, locale: str) -> discord.Embed:
+    """Rewrite the status field and color in place, keeping the rest.
+
+    Edits reuse the posted embed rather than rebuilding it, so settling a
+    decision costs no member lookups and the identity shown is the one the
+    moderator decided on.
+    """
+    fields = embed.fields[:2]
+    embed.clear_fields()
+    for field in fields:
+        embed.add_field(name=field.name, value=field.value, inline=field.inline)
+    status = join_request_status_text(row, locale)
+    if status:
+        embed.add_field(name=translate(locales.JOIN_REQUEST_STATUS_HEADING, locale), value=status, inline=False)
+    embed.color = JOIN_REQUEST_COLORS.get(row["state"], discord.Color.blurple())
+    return embed
+
+
+class JoinRequestButton(
+    discord.ui.DynamicItem[Button],
+    template=rf"vrcverify:joinreq:v{JOIN_REQUEST_VIEW_VERSION}:(?P<choice>approve|deny):(?P<guild_id>[0-9]{{1,20}})",
+):
+    """Approve or Deny on one join request post.
+
+    The post is found from the message the button is on, never from the
+    custom_id, so a button can only ever act on the request its own post is
+    about.
+    """
+
+    def __init__(self, guild_id: int, choice: str, locale: str = "en-US"):
+        self.guild_id = guild_id
+        self.choice = choice
+        super().__init__(
+            Button(
+                label=translate(
+                    locales.JOIN_REQUEST_APPROVE if choice == "approve" else locales.JOIN_REQUEST_DENY, locale
+                ),
+                style=discord.ButtonStyle.success if choice == "approve" else discord.ButtonStyle.danger,
+                custom_id=f"{JOIN_REQUEST_CUSTOM_ID_PREFIX}{choice}:{guild_id}",
+            )
+        )
+
+    @classmethod
+    async def from_custom_id(cls, interaction, item, match, /):
+        return cls(int(match["guild_id"]), match["choice"])
+
+    async def callback(self, interaction: discord.Interaction):
+        await handle_join_request_press(interaction, self.guild_id, self.choice)
+
+
+class JoinRequestView(View):
+    def __init__(self, guild_id: int, locale: str = "en-US"):
+        super().__init__(timeout=None)
+        self.add_item(JoinRequestButton(guild_id, "approve", locale))
+        self.add_item(JoinRequestButton(guild_id, "deny", locale))
+
+
+class JoinRequestDenyConfirmView(View):
+    """The private "are you sure" for Deny. Not persistent: it lives a minute."""
+
+    def __init__(self, guild_id: int, message_id: int, moderator_id: int, locale: str):
+        super().__init__(timeout=60)
+        self.guild_id = guild_id
+        self.message_id = message_id
+        self.moderator_id = moderator_id
+        confirm = Button(label=translate(locales.JOIN_REQUEST_CONFIRM_DENY_BUTTON, locale), style=discord.ButtonStyle.danger)
+        cancel = Button(label=translate(locales.JOIN_REQUEST_CANCEL, locale), style=discord.ButtonStyle.secondary)
+        confirm.callback = self.confirm
+        cancel.callback = self.cancel
+        self.add_item(confirm)
+        self.add_item(cancel)
+
+    async def confirm(self, interaction: discord.Interaction):
+        await interaction.response.edit_message(view=None)
+        await submit_join_request_decision(interaction, self.guild_id, self.message_id, "deny")
+
+    async def cancel(self, interaction: discord.Interaction):
+        await interaction.response.edit_message(
+            content=get_message(locales.JOIN_REQUEST_CANCELLED, interaction), view=None
+        )
+
+
+def _may_triage(member, role_ids: frozenset) -> bool:
+    roles = getattr(member, "roles", None) or []
+    return bool(role_ids) and any(str(role.id) in role_ids for role in roles)
+
+
+async def handle_join_request_press(interaction: discord.Interaction, guild_id: int, choice: str) -> None:
+    async def reply(msgid, **kwargs):
+        await interaction.response.send_message(get_message(msgid, interaction, **kwargs), ephemeral=True)
+
+    if interaction.guild_id != guild_id or interaction.message is None:
+        await reply(locales.JOIN_REQUEST_UNAVAILABLE)
+        return
+    if not _may_triage(interaction.user, load_triage_role_ids(guild_id)):
+        await reply(locales.JOIN_REQUEST_NOT_ALLOWED)
+        return
+    row = load_join_request_post_by_message(guild_id, interaction.message.id)
+    if row is None or row["state"] != JOIN_REQUEST_PENDING:
+        await reply(locales.JOIN_REQUEST_ALREADY_HANDLED)
+        return
+    if choice == "deny":
+        # Deny cannot be undone from the applicant's side, so it is confirmed.
+        await interaction.response.send_message(
+            get_message(locales.JOIN_REQUEST_CONFIRM_DENY, interaction, name=_vrchat_name(row.get("display_name"))),
+            view=JoinRequestDenyConfirmView(
+                guild_id, interaction.message.id, interaction.user.id, str(interaction.locale)
+            ),
+            ephemeral=True,
+        )
+        return
+    await interaction.response.defer(ephemeral=True, thinking=True)
+    await submit_join_request_decision(interaction, guild_id, interaction.message.id, choice)
+
+
+async def submit_join_request_decision(interaction: discord.Interaction, guild_id: int, message_id: int, choice: str) -> None:
+    """Claim the post and send the decision to the worker. The interaction has
+    already been responded to, so everything here answers by follow-up."""
+
+    async def follow(msgid):
+        await interaction.followup.send(get_message(msgid, interaction), ephemeral=True)
+
+    # Asked again: a minute can pass on the confirm screen.
+    if not _may_triage(interaction.user, load_triage_role_ids(guild_id)):
+        await follow(locales.JOIN_REQUEST_NOT_ALLOWED)
+        return
+    config = load_group_invite_config(guild_id) or {}
+    account = await triage_account(guild_id, config)
+    row = load_join_request_post_by_message(guild_id, message_id)
+    if row is None or row["state"] != JOIN_REQUEST_PENDING:
+        await follow(locales.JOIN_REQUEST_ALREADY_HANDLED)
+        return
+    if account is None or config.get("group_id") != row["group_id"]:
+        await follow(locales.JOIN_REQUEST_UNAVAILABLE)
+        return
+
+    job_id = secrets.token_hex(16)
+    action = JOIN_REQUEST_ACTIONS[choice]
+    row = claim_join_request_post(guild_id, message_id, action, interaction.user.id, job_id)
+    if row is None:
+        await follow(locales.JOIN_REQUEST_ALREADY_HANDLED)
+        return
+    job = {
+        "type": JOB_RESPOND_JOIN_REQUEST,
+        "jobID": job_id,
+        "guildID": str(guild_id),
+        "groupID": row["group_id"],
+        "userID": row["vrc_user_id"],
+        "action": action,
+    }
+    loop = asyncio.get_running_loop()
+    if not await loop.run_in_executor(None, publish_group_invite_job, job, account.queue):
+        release_join_request_post(guild_id, job_id, None)
+        await follow(locales.JOIN_REQUEST_WORKER_DOWN)
+        return
+    await refresh_join_request_post(interaction.guild, guild_id, row)
+    await follow(locales.JOIN_REQUEST_SENT)
+
+
+async def refresh_join_request_post(guild, guild_id, row: dict) -> None:
+    """Edit a post to show its row's state. Buttons only while it is pending."""
+    if guild is None or not row.get("channel_id") or not row.get("message_id"):
+        return
+    locale = get_server_locale_code(str(guild_id), guild)
+    channel = guild.get_channel(int(row["channel_id"]))
+    if channel is None:
+        return
+    view = JoinRequestView(int(guild_id), locale) if row["state"] == JOIN_REQUEST_PENDING else None
+    try:
+        try:
+            message = await channel.fetch_message(int(row["message_id"]))
+            embed = message.embeds[0] if message.embeds else None
+        except discord.Forbidden:
+            # Fetching needs Read Message History, which posting does not, and a
+            # private mod channel may deny it. The bot may still edit its own
+            # message by id, so the embed is rebuilt instead (found in the
+            # adversarial pass on #291). The applicant's picture is not stored,
+            # so a rebuilt post goes without it.
+            message, embed = channel.get_partial_message(int(row["message_id"])), None
+        if embed is None:
+            lines = await join_request_identity_lines(guild, guild_id, row["vrc_user_id"], locale)
+            embed = build_join_request_embed(row, locale, lines)
+        else:
+            _set_join_request_status(embed, row, locale)
+        await message.edit(embed=embed, view=view)
+    except discord.NotFound:
+        pass
+    except discord.HTTPException:
+        logger.warning("Could not update join request post %s in guild %s.", row.get("message_id"), guild_id, exc_info=True)
+
+
+async def handle_join_request_response_result(data: dict) -> str:
+    """The worker's answer to a moderator's decision."""
+    if not isinstance(data, dict):
+        return "bad_payload"
+    job_id = data.get("jobID")
+    guild_id = data.get("guildID")
+    if not job_id or not guild_id or not str(guild_id).isdigit():
+        return "bad_payload"
+    state = data.get("state")
+    if state == RESPOND_DONE:
+        row = settle_join_request_post(
+            guild_id,
+            job_id,
+            JOIN_REQUEST_APPROVED if data.get("action") == "accept" else JOIN_REQUEST_DENIED,
+        )
+    elif state == RESPOND_NOT_PENDING:
+        row = settle_join_request_post(guild_id, job_id, JOIN_REQUEST_ELSEWHERE)
+    else:
+        row = release_join_request_post(
+            guild_id, job_id, state if state in RESPOND_STATES else GROUP_SETUP_VRCHAT_UNAVAILABLE
+        )
+    if row is None:
+        return "stale"
+    guild = bot.get_guild(int(guild_id))
+    await refresh_join_request_post(guild, guild_id, row)
+    if row["state"] in (JOIN_REQUEST_APPROVED, JOIN_REQUEST_DENIED):
+        await log_join_request_decision(guild, guild_id, row)
+    return row["state"]
+
+
+async def log_join_request_decision(guild, guild_id, row: dict) -> None:
+    """One line in the Activity log, when the server has one."""
+    try:
+        channel_id = await log_channel_if_allowed(guild_id, load_log_channel_id(guild_id))
+        if not channel_id:
+            return
+        locale = get_server_locale_code(str(guild_id), guild)
+        msgid = locales.JOIN_REQUEST_LOG_APPROVED if row["state"] == JOIN_REQUEST_APPROVED else locales.JOIN_REQUEST_LOG_DENIED
+        verification_log_buffer.add(
+            str(guild_id),
+            translate(
+                msgid,
+                locale,
+                moderator=f"<@{row['decided_by']}>",
+                name=_vrchat_name(row.get("display_name")),
+                when=f"<t:{int(datetime.now(timezone.utc).timestamp())}:f>",
+            ),
+        )
+    except Exception:
+        logger.warning("Could not log a join request decision for guild %s.", guild_id, exc_info=True)
+
+
+async def close_join_request_posts(guild, guild_id, group_id) -> None:
+    """The server changed group: close the old group's open posts."""
+    rows = [r for r in load_join_request_posts(guild_id).values() if r["group_id"] == group_id]
+    delete_join_request_posts(guild_id, [r["vrc_user_id"] for r in rows if r["state"] == JOIN_REQUEST_BACKLOG])
+    for row in rows:
+        if row["state"] in (JOIN_REQUEST_PENDING, JOIN_REQUEST_RESPONDING):
+            update_join_request_post(guild_id, row["vrc_user_id"], state=JOIN_REQUEST_CLOSED)
+            await refresh_join_request_post(guild, guild_id, dict(row, state=JOIN_REQUEST_CLOSED))
+            await asyncio.sleep(JOIN_REQUEST_POST_SPACING_SECONDS)
+
+
+async def expire_join_request_decisions(guild, guild_id, now: datetime) -> None:
+    """Give the buttons back on a decision the worker never answered."""
+    for row in load_join_request_posts(guild_id).values():
+        decided = row.get("decided_at")
+        if row["state"] != JOIN_REQUEST_RESPONDING or decided is None:
+            continue
+        if (now - decided).total_seconds() <= JOIN_REQUEST_RESPOND_TIMEOUT_SECONDS:
+            continue
+        released = release_join_request_post(guild_id, row["job_id"], GROUP_SETUP_TIMED_OUT)
+        if released is not None:
+            await refresh_join_request_post(guild, guild_id, released)
+
+
+async def join_request_triage_pass() -> dict:
+    """One look at every triage link: close, expire, and start what is due."""
+    outcome = {"started": 0, "closed": 0}
+    now = datetime.now(timezone.utc)
+    for link in load_triage_links():
+        try:
+            await _join_request_triage_one(link, now, outcome)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Join request triage failed for guild %s; skipping it this pass.", link["server_id"])
+    cutoff = now - timedelta(seconds=JOIN_REQUEST_POLL_TIMEOUT_SECONDS)
+    for job_id in [j for j, poll in _triage_polls.items() if poll["started"] < cutoff]:
+        _triage_polls.pop(job_id, None)
+    return outcome
+
+
+async def _join_request_triage_one(link: dict, now: datetime, outcome: dict) -> None:
+    guild_id = link["server_id"]
+    guild = bot.get_guild(int(guild_id)) if str(guild_id).isdigit() else None
+    if guild is None:
+        return
+    lock = _triage_lock(guild_id)
+    if lock.locked():
+        return
+    config = load_group_invite_config(guild_id) or {}
+    current_group = config.get("group_id")
+    async with lock:
+        if link["group_id"] and link["group_id"] != current_group:
+            await close_join_request_posts(guild, guild_id, link["group_id"])
+            reset_triage_group(guild_id)
+            outcome["closed"] += 1
+            link = load_triage_link(guild_id) or link
+        await expire_join_request_decisions(guild, guild_id, now)
+
+    if not link["enabled"] or not link["channel_id"] or not current_group:
+        return
+    account = await triage_account(guild_id, config)
+    if account is None or not triage_poll_is_due(link, now):
+        return
+    job = begin_triage_poll(guild_id, current_group)
+    _triage_polls[job["jobID"]] = {
+        "guild_id": str(guild_id),
+        "group_id": current_group,
+        "next_offset": 0,
+        "pages": 0,
+        "requests": [],
+        "started": now,
+    }
+    loop = asyncio.get_running_loop()
+    if not await loop.run_in_executor(None, publish_group_invite_job, job, account.queue):
+        _triage_polls.pop(job["jobID"], None)
+        end_triage_poll(
+            guild_id,
+            job["jobID"],
+            JOIN_REQUEST_TRIAGE_WORKER_UNREACHABLE,
+            error="The bot could not reach the group-invite worker.",
+        )
+        return
+    outcome["started"] += 1
+    await asyncio.sleep(JOIN_REQUEST_POLL_START_SPACING_SECONDS)
+
+
+async def join_request_triage_task(interval_seconds: int = JOIN_REQUEST_TRIAGE_PASS_SECONDS):
+    """Look for due polls every minute. Per-link jitter lives in next_poll_at."""
+    while True:
+        try:
+            outcome = await join_request_triage_pass()
+            if outcome["started"] or outcome["closed"]:
+                logger.info(
+                    "Join request triage: started %s poll(s), closed %s group(s).",
+                    outcome["started"],
+                    outcome["closed"],
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Join request triage pass failed; retrying next interval.")
+        await asyncio.sleep(interval_seconds + random.uniform(0, 10))
+
+
+async def handle_join_requests_page_result(data: dict) -> str:
+    """One page back from the worker: keep it, ask for the next, or sync."""
+    if not isinstance(data, dict):
+        return "bad_payload"
+    job_id = data.get("jobID")
+    guild_id = data.get("guildID")
+    group_id = data.get("groupID")
+    offset = data.get("offset")
+    if not job_id or not guild_id or not str(guild_id).isdigit():
+        return "bad_payload"
+    link = load_triage_link(guild_id)
+    if link is None or link["poll_job_id"] != job_id:
+        _triage_polls.pop(job_id, None)
+        return "stale"
+    poll = _triage_polls.get(job_id)
+    if (
+        poll is not None
+        and poll["group_id"] == group_id
+        and isinstance(offset, int)
+        and not isinstance(offset, bool)
+        and offset < poll["next_offset"]
+    ):
+        return "duplicate"
+    if poll is None or poll["group_id"] != group_id or poll["next_offset"] != offset:
+        _triage_polls.pop(job_id, None)
+        end_triage_poll(guild_id, job_id, JOIN_REQUEST_TRIAGE_TIMED_OUT, error="The join request read was interrupted.")
+        return "lost"
+
+    state = data.get("state")
+    if state != JOIN_REQUESTS_OK:
+        _triage_polls.pop(job_id, None)
+        if state not in JOIN_REQUESTS_STATES:
+            state = GROUP_SETUP_VRCHAT_UNAVAILABLE
+        end_triage_poll(guild_id, job_id, state, error=data.get("error_message") or None)
+        return state
+
+    requests = data.get("requests")
+    if isinstance(requests, list):
+        poll["requests"].extend(
+            r for r in requests if isinstance(r, dict) and isinstance(r.get("user_id"), str)
+        )
+    poll["pages"] += 1
+    count = data.get("count") if isinstance(data.get("count"), int) else 0
+    size = data.get("n") if isinstance(data.get("n"), int) and data.get("n") > 0 else JOIN_REQUEST_PAGE_SIZE
+    full = count >= size
+
+    if full and poll["pages"] < JOIN_REQUEST_MAX_PAGES:
+        account = invite_account_for_guild(guild_id)
+        poll["next_offset"] = offset + size
+        job = {
+            "type": JOB_FETCH_JOIN_REQUESTS,
+            "jobID": job_id,
+            "guildID": str(guild_id),
+            "groupID": group_id,
+            "offset": poll["next_offset"],
+            "n": size,
+        }
+        loop = asyncio.get_running_loop()
+        if account is None or not await loop.run_in_executor(None, publish_group_invite_job, job, account.queue):
+            _triage_polls.pop(job_id, None)
+            end_triage_poll(
+                guild_id,
+                job_id,
+                JOIN_REQUEST_TRIAGE_WORKER_UNREACHABLE,
+                error="The bot could not reach the group-invite worker.",
+            )
+            return JOIN_REQUEST_TRIAGE_WORKER_UNREACHABLE
+        return "next_page"
+
+    _triage_polls.pop(job_id, None)
+    # A last page that came back full means the page cap stopped the read, so
+    # there may be requests this poll never saw.
+    return await sync_join_requests(guild_id, group_id, poll["requests"], job_id, poll["started"], complete=not full)
+
+
+def _usable_triage_channel(guild, channel_id):
+    channel = guild.get_channel(int(channel_id)) if channel_id and str(channel_id).isdigit() else None
+    if channel is None or not hasattr(channel, "send"):
+        return None
+    perms = channel.permissions_for(guild.me)
+    if not (perms.view_channel and perms.send_messages and perms.embed_links):
+        return None
+    return channel
+
+
+async def sync_join_requests(guild_id, group_id, requests, job_id, started: datetime, complete: bool = True) -> str:
+    """Make the guild's posts match the group's pending requests. Returns the state."""
+    guild = bot.get_guild(int(guild_id))
+    if guild is None:
+        end_triage_poll(guild_id, job_id, JOIN_REQUEST_TRIAGE_CHANNEL_UNUSABLE, error="The bot is not in this server.")
+        return JOIN_REQUEST_TRIAGE_CHANNEL_UNUSABLE
+
+    async with _triage_lock(guild_id):
+        link = load_triage_link(guild_id)
+        config = load_group_invite_config(guild_id) or {}
+        if (
+            link is None
+            or link["poll_job_id"] != job_id
+            or not link["enabled"]
+            or config.get("group_id") != group_id
+        ):
+            return "stale"
+        channel = _usable_triage_channel(guild, link["channel_id"])
+        if channel is None:
+            end_triage_poll(
+                guild_id,
+                job_id,
+                JOIN_REQUEST_TRIAGE_CHANNEL_UNUSABLE,
+                error="The channel is gone, or the bot can't post embeds in it.",
+            )
+            return JOIN_REQUEST_TRIAGE_CHANNEL_UNUSABLE
+
+        now = datetime.now(timezone.utc)
+        locale = get_server_locale_code(str(guild_id), guild)
+        waiting = {}
+        for request in requests:
+            waiting.setdefault(request["user_id"], request)
+        rows = load_join_request_posts(guild_id)
+
+        # Requests that left the queue.
+        gone_backlog = []
+        for user_id, row in rows.items():
+            if row["group_id"] != group_id:
+                continue
+            if user_id in waiting:
+                if row["missing_since"] is not None:
+                    update_join_request_post(guild_id, user_id, missing_since=None)
+                continue
+            if not complete:
+                continue
+            if row["state"] == JOIN_REQUEST_BACKLOG:
+                gone_backlog.append(user_id)
+            elif row["state"] == JOIN_REQUEST_PENDING:
+                if row["missing_since"] is None:
+                    update_join_request_post(
+                        guild_id, user_id, only_if_state=JOIN_REQUEST_PENDING, missing_since=now
+                    )
+                elif update_join_request_post(
+                    guild_id, user_id, only_if_state=JOIN_REQUEST_PENDING,
+                    state=JOIN_REQUEST_ELSEWHERE, missing_since=None,
+                ):
+                    await refresh_join_request_post(guild, guild_id, dict(row, state=JOIN_REQUEST_ELSEWHERE))
+        delete_join_request_posts(guild_id, gone_backlog)
+
+        def is_new(user_id):
+            row = rows.get(user_id)
+            if row is None or row["group_id"] != group_id:
+                return True
+            if row["state"] not in JOIN_REQUEST_SETTLED_STATES:
+                return False
+            # Settled after this poll started: the read predates the decision,
+            # so seeing them here is the old request, not a new one.
+            decided = row.get("decided_at")
+            return decided is None or decided < started
+
+        new = [request for user_id, request in waiting.items() if is_new(user_id)]
+        seeding = link["seeded_at"] is None
+        posted = 0
+        for request in new[:JOIN_REQUEST_POST_CAP]:
+            row = {
+                "vrc_user_id": request["user_id"],
+                "display_name": request.get("display_name"),
+                "state": JOIN_REQUEST_PENDING,
+                "first_seen_at": now,
+            }
+            try:
+                lines = await join_request_identity_lines(guild, guild_id, request["user_id"], locale)
+                message = await channel.send(
+                    embed=build_join_request_embed(row, locale, lines, request.get("icon_url")),
+                    view=JoinRequestView(int(guild_id), locale),
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+            except discord.HTTPException as e:
+                logger.warning("Could not post a join request in guild %s.", guild_id, exc_info=True)
+                end_triage_poll(guild_id, job_id, JOIN_REQUEST_TRIAGE_CHANNEL_UNUSABLE, error=str(e)[:300])
+                return JOIN_REQUEST_TRIAGE_CHANNEL_UNUSABLE
+            store_join_request_post(
+                guild_id, group_id, request, JOIN_REQUEST_PENDING, channel_id=channel.id, message_id=message.id
+            )
+            posted += 1
+            await asyncio.sleep(JOIN_REQUEST_POST_SPACING_SECONDS)
+
+        rest = new[JOIN_REQUEST_POST_CAP:]
+        if seeding and rest:
+            for request in rest:
+                store_join_request_post(guild_id, group_id, request, JOIN_REQUEST_BACKLOG)
+            try:
+                await channel.send(
+                    translate(locales.JOIN_REQUEST_BACKLOG, locale, count=len(rest)),
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+            except discord.HTTPException:
+                logger.warning("Could not post the join request backlog note in guild %s.", guild_id, exc_info=True)
+
+        end_triage_poll(
+            guild_id, job_id, JOIN_REQUEST_TRIAGE_SYNCED, pending=len(waiting), seeded=seeding and complete
+        )
+        return JOIN_REQUEST_TRIAGE_SYNCED
+
+
 async def handle_group_invite_result(data: dict):
     """One verdict from the invite worker.
 
@@ -10086,6 +11343,37 @@ async def handle_group_invite_result(data: dict):
 
     if isinstance(data, dict) and data.get("type") == JOB_LEAVE_GROUP:
         await handle_seat_release_result(data)
+        return
+
+    if isinstance(data, dict) and data.get("type") == JOB_FETCH_JOIN_REQUESTS:
+        try:
+            outcome = await handle_join_requests_page_result(data)
+        except Exception:
+            logger.exception("Could not handle join requests for guild %s.", data.get("guildID"))
+            return
+        logger.info(
+            "join requests guild=%s job=%s offset=%s state=%s -> %s",
+            data.get("guildID"),
+            data.get("jobID"),
+            data.get("offset"),
+            data.get("state"),
+            outcome,
+        )
+        return
+
+    if isinstance(data, dict) and data.get("type") == JOB_RESPOND_JOIN_REQUEST:
+        try:
+            outcome = await handle_join_request_response_result(data)
+        except Exception:
+            logger.exception("Could not handle a join request response for guild %s.", data.get("guildID"))
+            return
+        logger.info(
+            "join request response guild=%s job=%s state=%s -> %s",
+            data.get("guildID"),
+            data.get("jobID"),
+            data.get("state"),
+            outcome,
+        )
         return
 
     if isinstance(data, dict) and data.get("type") == JOB_FETCH_EVENT_INSTANCES:
@@ -12401,6 +13689,11 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
         values["calendar_sync_enabled"] = bool(calendar_link.get("enabled"))
         values["calendar_announce_channel_id"] = calendar_link.get("announce_channel_id")
         values["calendar_ping_role_id"] = calendar_link.get("ping_role_id")
+        # Same refusal to swallow errors as the group config above.
+        triage_link = load_triage_link(guild_id) or {}
+        values["join_request_triage_enabled"] = bool(triage_link.get("enabled"))
+        values["join_request_channel_id"] = triage_link.get("channel_id")
+        values["join_request_mod_role_ids"] = sorted(load_triage_role_ids(guild_id), key=int)
 
         subscription = load_stripe_subscription(guild_id)
         if subscription is STRIPE_UNREADABLE:
@@ -12549,6 +13842,27 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
                     if bot.get_guild(int(guild_id)) is not None
                     else None
                 ),
+            },
+            # Join-request triage (#291). `available` as for calendar sync.
+            # `group_ready` is whether the invite account is in the group with
+            # the invite permission, which is what reading and answering join
+            # requests needs; without it the card says to set up invites first.
+            "join_request_triage": {
+                "available": feature_is_reachable(FEATURE_JOIN_REQUEST_TRIAGE, guild_id),
+                "group_ready": bool(
+                    group_invite.get("group_id")
+                    and group_invite.get("verified_at") is not None
+                    and effective_group_setup_state(group_invite) == GROUP_SETUP_READY
+                ),
+                "state": triage_link.get("last_state"),
+                "error": triage_link.get("last_error"),
+                "last_polled_at": (
+                    triage_link["last_polled_at"].isoformat()
+                    if triage_link.get("last_polled_at")
+                    else None
+                ),
+                "pending_count": triage_link.get("pending_count"),
+                "poll_interval_minutes": max(1, round(JOIN_REQUEST_POLL_INTERVAL_SECONDS / 60)),
             },
             "group_ownership": {
                 "proven": bool(ownership.get("proven")),
@@ -13604,6 +14918,34 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
         if not (perms.view_channel and perms.send_messages):
             raise SettingRejected(name, "channel_not_writable")
 
+    if coerced.get("join_request_mod_role_ids"):
+        guild = bot.get_guild(int(guild_id))
+        if guild is None or guild.me is None:
+            return None
+        known = {str(role.id) for role in guild.roles if not role.is_default()}
+        if any(role_id not in known for role_id in coerced["join_request_mod_role_ids"]):
+            raise SettingRejected("join_request_mod_role_ids", "role_not_in_guild")
+
+    # --- The join request channel (#291) ---
+    #
+    # Refused in an announcement channel for the verification log's reason: a
+    # post names the applicant's Discord account and whether they are 18+, and
+    # a followed channel would republish that into other servers. Embed Links
+    # as well as Send Messages, because every post is an embed.
+    if coerced.get("join_request_channel_id"):
+        guild = bot.get_guild(int(guild_id))
+        if guild is None or guild.me is None:
+            return None
+        wanted = coerced["join_request_channel_id"]
+        channel = next((c for c in guild.text_channels if str(c.id) == wanted), None)
+        if channel is None:
+            raise SettingRejected("join_request_channel_id", "channel_not_in_guild")
+        if channel.is_news():
+            raise SettingRejected("join_request_channel_id", "channel_is_announcement")
+        perms = channel.permissions_for(guild.me)
+        if not (perms.view_channel and perms.send_messages and perms.embed_links):
+            raise SettingRejected("join_request_channel_id", "channel_not_writable")
+
     # --- The join-link channel (#289): somewhere the bot can post ---
     #
     # Its own check rather than CHANNEL_FIELDS: that set refuses announcement
@@ -13781,6 +15123,32 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
                 guild_id,
                 channel_id=coerced.get("calendar_announce_channel_id", current_link.get("announce_channel_id")),
                 role_id=coerced.get("calendar_ping_role_id", current_link.get("ping_role_id")),
+            )
+
+        # --- Join-request triage (#291) ---
+        triage_names = {"join_request_triage_enabled", "join_request_channel_id", "join_request_mod_role_ids"}
+        if triage_names & set(coerced):
+            current_triage = load_triage_link(guild_id) or {}
+            current_roles = sorted(load_triage_role_ids(guild_id), key=int)
+            if "join_request_triage_enabled" in coerced:
+                old = bool(current_triage.get("enabled"))
+                if coerced["join_request_triage_enabled"] != old:
+                    changed.append(("join_request_triage_enabled", old, coerced["join_request_triage_enabled"]))
+            if "join_request_channel_id" in coerced and coerced["join_request_channel_id"] != current_triage.get("channel_id"):
+                changed.append(("join_request_channel_id", current_triage.get("channel_id"), coerced["join_request_channel_id"]))
+            if "join_request_mod_role_ids" in coerced and coerced["join_request_mod_role_ids"] != current_roles:
+                # Audited as a comma-separated list: the audit columns are text,
+                # and the dashboard resolves each id back to a role name.
+                changed.append((
+                    "join_request_mod_role_ids",
+                    ",".join(current_roles) or None,
+                    ",".join(coerced["join_request_mod_role_ids"]) or None,
+                ))
+            save_triage_settings(
+                guild_id,
+                enabled=coerced.get("join_request_triage_enabled"),
+                channel_id=coerced["join_request_channel_id"] if "join_request_channel_id" in coerced else ...,
+                role_ids=coerced.get("join_request_mod_role_ids"),
             )
 
         # --- Everything else lives on the servers row ---
@@ -14323,6 +15691,9 @@ async def on_ready():
     # #289: mirrors linked VRChat group calendars into Discord Scheduled Events.
     # Does nothing for a guild until an admin has turned it on.
     start_background_task("calendar_sync", calendar_sync_task())
+    # #291: posts linked VRChat groups' join requests for moderators to triage.
+    # Does nothing for a guild until an admin has turned it on.
+    start_background_task("join_request_triage", join_request_triage_task())
 
     # Drains buffered verification log entries into each guild's log channel.
     start_background_task(

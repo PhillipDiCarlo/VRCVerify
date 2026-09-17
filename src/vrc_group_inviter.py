@@ -34,6 +34,11 @@ instance an admin opened for a calendar event and announce its join link.
 VRChat only lists a group's instances to a member, so this works only for
 groups this account is in.
 
+`fetch_group_join_requests` and `respond_group_join_request` (issue #291) read
+a group's pending join requests one page at a time, and answer one of them when
+a moderator presses Approve or Deny in Discord. The answer is always a named
+person's decision relayed by the bot; nothing here decides who gets in.
+
 `verify_group_claim` (issue #289) is the ownership proof on its own: it reads
 the group and looks for the claim code, and it never joins. Calendar sync of
 public events needs a proven group but no seat, so the proof had to stop being
@@ -59,6 +64,7 @@ from vrchatapi.api.groups_api import GroupsApi
 from vrchatapi.api.instances_api import InstancesApi
 from vrchatapi.exceptions import ApiException, UnauthorizedException
 from vrchatapi.models.create_group_invite_request import CreateGroupInviteRequest
+from vrchatapi.models.respond_group_join_request import RespondGroupJoinRequest
 
 from vrc_session import (
     TRANSIENT_HTTP_STATUSES,
@@ -155,6 +161,8 @@ JOB_LEAVE_GROUP = "leave_group"
 JOB_VERIFY_CLAIM = "verify_group_claim"
 JOB_FETCH_CALENDAR_PAGE = "fetch_group_calendar_page"
 JOB_FETCH_EVENT_INSTANCES = "fetch_group_event_instances"
+JOB_FETCH_JOIN_REQUESTS = "fetch_group_join_requests"
+JOB_RESPOND_JOIN_REQUEST = "respond_group_join_request"
 
 # Outcomes the dashboard renders. Each names one specific thing an admin can
 # act on, because "setup failed" tells them nothing about what to do next.
@@ -264,6 +272,54 @@ INSTANCES_STATES = frozenset(
 # How many instances one job reads. Each is a call, and a group running more
 # than this many at once is rare; the rest are read on the next check.
 INSTANCES_READ_MAX = 10
+
+# Outcomes of reading one page of a group's join requests (#291). No separate
+# permission state: `get_group_requests` works with the invite permission set
+# (measured 2026-08-27), so a 403 means the account lost its role, which is the
+# same thing the dashboard already says for a missing invite permission.
+JOIN_REQUESTS_OK = "ok"
+JOIN_REQUESTS_NO_PERMISSION = STATE_NO_INVITE_PERMISSION
+JOIN_REQUESTS_GROUP_NOT_FOUND = STATE_GROUP_NOT_FOUND
+JOIN_REQUESTS_VRCHAT_UNAVAILABLE = STATE_VRCHAT_UNAVAILABLE
+JOIN_REQUESTS_BAD_JOB = STATE_BAD_JOB
+JOIN_REQUESTS_STATES = frozenset(
+    {
+        JOIN_REQUESTS_OK,
+        JOIN_REQUESTS_NO_PERMISSION,
+        JOIN_REQUESTS_GROUP_NOT_FOUND,
+        JOIN_REQUESTS_VRCHAT_UNAVAILABLE,
+        JOIN_REQUESTS_BAD_JOB,
+    }
+)
+JOIN_REQUESTS_PAGE_MAX = 100
+
+# Outcomes of answering one join request (#291). Measured on the probe group,
+# 2026-09-17: `group-invites-manage` alone is enough to respond, and answering a
+# request that is no longer there is a 400 naming exactly that.
+RESPOND_DONE = "done"
+# Somebody got there first: a moderator in VRChat, the applicant withdrawing,
+# or the invite button admitting them (#213). Not a failure.
+RESPOND_NOT_PENDING = "not_pending"
+RESPOND_NO_PERMISSION = STATE_NO_INVITE_PERMISSION
+RESPOND_GROUP_NOT_FOUND = STATE_GROUP_NOT_FOUND
+RESPOND_VRCHAT_UNAVAILABLE = STATE_VRCHAT_UNAVAILABLE
+RESPOND_BAD_JOB = STATE_BAD_JOB
+RESPOND_STATES = frozenset(
+    {
+        RESPOND_DONE,
+        RESPOND_NOT_PENDING,
+        RESPOND_NO_PERMISSION,
+        RESPOND_GROUP_NOT_FOUND,
+        RESPOND_VRCHAT_UNAVAILABLE,
+        RESPOND_BAD_JOB,
+    }
+)
+RESPOND_ACTIONS = frozenset({"accept", "reject"})
+# The end of VRChat's sentence for a request that is gone, for either action:
+# "You can't accept a join request for a user who hasn't requested to join."
+# Matched on the tail, as the invite path does, and without the full stop,
+# because VRChat ends it with U+2024 rather than an ASCII period.
+NOT_PENDING_MARKER = "hasn't requested to join"
 
 # The page size the API allows and the bot asks for. Anything else in a job is
 # clamped to this, so a job cannot make one call fetch an unbounded page.
@@ -1134,6 +1190,193 @@ def fetch_group_event_instances(job: dict) -> dict:
     return _instances_result(job, INSTANCES_OK, instances=instances, listed=len(listed), still_listed=still_listed)
 
 
+def _join_requests_result(job: dict, state: str, **extra) -> dict:
+    payload = {
+        "type": JOB_FETCH_JOIN_REQUESTS,
+        "jobID": job.get("jobID"),
+        "guildID": job.get("guildID"),
+        "groupID": job.get("groupID"),
+        "offset": job.get("offset"),
+        "ok": state == JOIN_REQUESTS_OK,
+        "state": state,
+        "requests": [],
+        "count": 0,
+        "error_message": None,
+    }
+    payload.update(extra)
+    return payload
+
+
+def _trim_join_request(raw: dict):
+    """The fields triage shows, from VRChat's raw camelCase JSON, or None.
+
+    Raw for the reason _trim_calendar_event gives. `createdAt` is deliberately
+    not passed on: it is when the applicant's member record was first created,
+    which can be months before this request (measured 2026-09-17), and a
+    moderator reading it as "asked at" would be misled.
+    """
+    user = raw.get("user") if isinstance(raw.get("user"), dict) else {}
+    user_id = raw.get("userId") or user.get("id")
+    if not isinstance(user_id, str) or not user_id.startswith("usr_"):
+        return None
+    name = user.get("displayName")
+    icon = user.get("iconUrl")
+    return {
+        "user_id": user_id,
+        "display_name": name if isinstance(name, str) else None,
+        "icon_url": icon if isinstance(icon, str) and icon.startswith("https://") else None,
+    }
+
+
+def fetch_group_join_requests(job: dict) -> dict:
+    """Read one page of a group's pending join requests. Reads only.
+
+    The bot owns the poll, as it does for the calendar: it asks for offset 0
+    and for the next page only when this one came back full.
+    """
+    group_id = job.get("groupID")
+    offset = job.get("offset")
+    if (
+        not isinstance(group_id, str)
+        or not group_id.startswith("grp_")
+        or not isinstance(offset, int)
+        or isinstance(offset, bool)
+        or offset < 0
+    ):
+        return _join_requests_result(job, JOIN_REQUESTS_BAD_JOB, error_message="Not a join requests job")
+    size = job.get("n")
+    if not isinstance(size, int) or isinstance(size, bool) or not 1 <= size <= JOIN_REQUESTS_PAGE_MAX:
+        size = JOIN_REQUESTS_PAGE_MAX
+
+    client, session_error = vrchat_session.get()
+    if client is None:
+        meta = session_error or default_session_error()
+        return _join_requests_result(job, JOIN_REQUESTS_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message"))
+    try:
+        response = _call_with_retry(
+            GroupsApi(client).get_group_requests,
+            group_id,
+            n=size,
+            offset=offset,
+            _preload_content=False,
+            _request_timeout=request_timeout(),
+        )
+    except UnauthorizedException as e:
+        vrchat_session.invalidate(classify_api_error(e))
+        return _join_requests_result(job, JOIN_REQUESTS_VRCHAT_UNAVAILABLE, error_message="VRChat session expired")
+    except ApiException as e:
+        status = getattr(e, "status", None)
+        if status == 403:
+            return _join_requests_result(
+                job,
+                JOIN_REQUESTS_NO_PERMISSION,
+                error_message="The bot can't see this group's join requests",
+            )
+        if status == 404:
+            return _join_requests_result(job, JOIN_REQUESTS_GROUP_NOT_FOUND, error_message="No VRChat group with that ID")
+        logging.warning("Join requests for group %s failed: %s", group_id, _api_detail(e))
+        meta = classify_api_error(e)
+        return _join_requests_result(job, JOIN_REQUESTS_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message"))
+
+    try:
+        body = json.loads(getattr(response, "data", b"") or b"[]")
+    except ValueError:
+        return _join_requests_result(
+            job, JOIN_REQUESTS_VRCHAT_UNAVAILABLE, error_message="VRChat returned join requests that are not JSON"
+        )
+    rows = body.get("results") if isinstance(body, dict) else body
+    if not isinstance(rows, list):
+        # Never an empty page: the bot closes the posts of requests a complete
+        # poll no longer sees, so garbage must not read as "nobody is waiting".
+        return _join_requests_result(
+            job, JOIN_REQUESTS_VRCHAT_UNAVAILABLE, error_message="VRChat returned join requests in an unknown shape"
+        )
+    requests = [r for r in (_trim_join_request(row) for row in rows if isinstance(row, dict)) if r]
+    return _join_requests_result(job, JOIN_REQUESTS_OK, requests=requests, count=len(rows), n=size)
+
+
+def _respond_result(job: dict, state: str, **extra) -> dict:
+    payload = {
+        "type": JOB_RESPOND_JOIN_REQUEST,
+        "jobID": job.get("jobID"),
+        "guildID": job.get("guildID"),
+        "groupID": job.get("groupID"),
+        "action": job.get("action"),
+        "ok": state == RESPOND_DONE,
+        "state": state,
+        "error_message": None,
+    }
+    payload.update(extra)
+    return payload
+
+
+def _throttled_respond(groups, group_id, user_id, action):
+    """One respond call, spaced from the last write like an invite.
+
+    Shares the invite spacing rather than having its own: it is the same
+    account writing to somebody else's group, and VRChat sees one budget.
+    """
+    global _last_invite_call
+    _space_invite_calls()
+    try:
+        # The action goes in as a plain string. vrchatapi 1.21.0 serializes
+        # the GroupJoinRequestAction model as "[object Object]", which VRChat
+        # refuses with a 400 (measured 2026-09-17).
+        return groups.respond_group_join_request(
+            group_id,
+            user_id,
+            RespondGroupJoinRequest(action=action),
+            _preload_content=False,
+            _request_timeout=request_timeout(),
+        )
+    finally:
+        _last_invite_call = time.monotonic()
+
+
+def respond_group_join_request(job: dict) -> dict:
+    """Accept or reject one pending join request, as a moderator asked.
+
+    A redelivered job runs this again. That is safe: the second answer to a
+    request the first one already settled is RESPOND_NOT_PENDING, never a
+    second decision.
+    """
+    group_id = job.get("groupID")
+    user_id = job.get("userID")
+    action = job.get("action")
+    if (
+        not isinstance(group_id, str)
+        or not group_id.startswith("grp_")
+        or not isinstance(user_id, str)
+        or not user_id.startswith("usr_")
+        or action not in RESPOND_ACTIONS
+    ):
+        return _respond_result(job, RESPOND_BAD_JOB, error_message="Not a join request response job")
+
+    client, session_error = vrchat_session.get()
+    if client is None:
+        meta = session_error or default_session_error()
+        return _respond_result(job, RESPOND_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message"))
+    groups = GroupsApi(client)
+    try:
+        _call_with_retry(_throttled_respond, groups, group_id, user_id, action)
+    except UnauthorizedException as e:
+        vrchat_session.invalidate(classify_api_error(e))
+        return _respond_result(job, RESPOND_VRCHAT_UNAVAILABLE, error_message="VRChat session expired")
+    except ApiException as e:
+        status = getattr(e, "status", None)
+        detail = _api_detail(e)
+        if status == 400 and NOT_PENDING_MARKER in detail:
+            return _respond_result(job, RESPOND_NOT_PENDING)
+        if status == 403:
+            return _respond_result(job, RESPOND_NO_PERMISSION, error_message=detail)
+        if status == 404:
+            return _respond_result(job, RESPOND_GROUP_NOT_FOUND, error_message=detail)
+        logging.warning("Responding to a join request in %s failed (status=%s): %s", group_id, status, detail)
+        meta = classify_api_error(e)
+        return _respond_result(job, RESPOND_VRCHAT_UNAVAILABLE, error_message=meta.get("error_message"))
+    return _respond_result(job, RESPOND_DONE)
+
+
 def _invite_result(job: dict, state: str, **extra) -> dict:
     """One invite outcome, shaped for the bot's result consumer.
 
@@ -1594,6 +1837,8 @@ HANDLERS = {
     JOB_VERIFY_CLAIM: verify_group_claim,
     JOB_FETCH_CALENDAR_PAGE: fetch_group_calendar_page,
     JOB_FETCH_EVENT_INSTANCES: fetch_group_event_instances,
+    JOB_FETCH_JOIN_REQUESTS: fetch_group_join_requests,
+    JOB_RESPOND_JOIN_REQUEST: respond_group_join_request,
 }
 
 
@@ -1733,6 +1978,22 @@ def process_job(ch, method, properties, body):
                             failed,
                             LEAVE_FAILED,
                             error_message="The leave failed unexpectedly.",
+                        )
+                    )
+                elif failed.get("type") == JOB_FETCH_JOIN_REQUESTS:
+                    publish_result(
+                        _join_requests_result(
+                            failed,
+                            JOIN_REQUESTS_VRCHAT_UNAVAILABLE,
+                            error_message="The join request read failed unexpectedly.",
+                        )
+                    )
+                elif failed.get("type") == JOB_RESPOND_JOIN_REQUEST:
+                    publish_result(
+                        _respond_result(
+                            failed,
+                            RESPOND_VRCHAT_UNAVAILABLE,
+                            error_message="The response failed unexpectedly.",
                         )
                     )
                 elif failed.get("type") == JOB_FETCH_EVENT_INSTANCES:

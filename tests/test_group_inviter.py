@@ -978,3 +978,239 @@ class TestTheGeneratedGroupModels:
             "GroupMember",
         )
         assert inviter._membership_status(member) == "member"
+
+
+JOIN_REQUESTS_JOB = {
+    "type": "fetch_group_join_requests",
+    "jobID": "r1",
+    "guildID": "123",
+    "groupID": GROUP_ID,
+    "offset": 0,
+    "n": 100,
+}
+
+# Shaped as get_group_requests answered on the probe group, 2026-09-17.
+RAW_REQUEST = {
+    "acceptedByDisplayName": None,
+    "acceptedById": None,
+    "bannedAt": None,
+    "createdAt": "2026-08-28T00:39:08.429Z",
+    "groupId": GROUP_ID,
+    "id": "gmem_1a88f5b3-47cb-4465-aff9-24e208fd2cb4",
+    "joinedAt": None,
+    "membershipStatus": "requested",
+    "roleIds": [],
+    "userId": "usr_656fd5b8-a5fa-4b26-9f9f-03b85e6e4375",
+    "user": {
+        "bannerColor": None,
+        "displayName": "ClubLA Bot",
+        "iconUrl": "https://api.vrchat.cloud/api/1/file/file_1/1/file",
+        "id": "usr_656fd5b8-a5fa-4b26-9f9f-03b85e6e4375",
+        "profileEffect": None,
+    },
+}
+
+
+@pytest.fixture
+def requests_api(api):
+    """get_group_requests and respond_group_join_request on the fake groups API."""
+    import json
+
+    api.request_calls = []
+    api.request_body = [RAW_REQUEST]
+    api.request_error = None
+    api.respond_calls = []
+    api.respond_error = None
+
+    def get_group_requests(group_id, **kwargs):
+        api.request_calls.append((group_id, kwargs))
+        if api.request_error:
+            raise api.request_error
+        body = api.request_body
+        return SimpleNamespace(data=body if isinstance(body, bytes) else json.dumps(body).encode())
+
+    def respond_group_join_request(group_id, user_id, request, **kwargs):
+        api.respond_calls.append((group_id, user_id, request, kwargs))
+        if api.respond_error:
+            raise api.respond_error
+        return SimpleNamespace(data=b'{"success": {"status_code": 200}}')
+
+    api.get_group_requests = get_group_requests
+    api.respond_group_join_request = respond_group_join_request
+    return api
+
+
+class TestTheJoinRequestPage:
+    """One page of a group's pending join requests, for triage (#291)."""
+
+    def test_a_page_is_read_raw_and_trimmed(self, requests_api):
+        result = inviter.fetch_group_join_requests(JOIN_REQUESTS_JOB)
+        assert result["type"] == inviter.JOB_FETCH_JOIN_REQUESTS
+        assert result["state"] == inviter.JOIN_REQUESTS_OK
+        assert result["count"] == 1 and result["offset"] == 0
+        assert result["requests"] == [
+            {
+                "user_id": RAW_REQUEST["userId"],
+                "display_name": "ClubLA Bot",
+                "icon_url": RAW_REQUEST["user"]["iconUrl"],
+            }
+        ]
+        assert requests_api.request_calls[0][1]["_preload_content"] is False
+
+    def test_the_member_records_age_is_not_passed_off_as_the_request_time(self, requests_api):
+        """createdAt was months older than the request it came with."""
+        request = inviter.fetch_group_join_requests(JOIN_REQUESTS_JOB)["requests"][0]
+        assert "created_at" not in request and "createdAt" not in request
+
+    def test_it_asks_for_exactly_the_page_it_was_given(self, requests_api):
+        inviter.fetch_group_join_requests(dict(JOIN_REQUESTS_JOB, offset=200, n=7))
+        group_id, kwargs = requests_api.request_calls[0]
+        assert group_id == GROUP_ID and kwargs["offset"] == 200 and kwargs["n"] == 7
+
+    @pytest.mark.parametrize("n", [0, 101, "100", True, None])
+    def test_a_page_size_out_of_range_is_clamped(self, requests_api, n):
+        inviter.fetch_group_join_requests(dict(JOIN_REQUESTS_JOB, n=n))
+        assert requests_api.request_calls[0][1]["n"] == 100
+
+    @pytest.mark.parametrize(
+        "bad", [{"groupID": None}, {"groupID": "usr_x"}, {"offset": -1}, {"offset": "0"}, {"offset": True}]
+    )
+    def test_a_malformed_job_calls_nothing(self, requests_api, bad):
+        assert inviter.fetch_group_join_requests(dict(JOIN_REQUESTS_JOB, **bad))["state"] == inviter.JOIN_REQUESTS_BAD_JOB
+        assert requests_api.request_calls == []
+
+    def test_a_row_without_a_usable_user_id_is_dropped_but_still_counted(self, requests_api):
+        """`count` decides whether there is another page, so it is what VRChat
+        sent, not what survived."""
+        requests_api.request_body = [RAW_REQUEST, {"userId": None, "user": {}}, {"userId": "grp_nope"}]
+        result = inviter.fetch_group_join_requests(JOIN_REQUESTS_JOB)
+        assert result["count"] == 3 and len(result["requests"]) == 1
+
+    def test_an_icon_that_is_not_https_is_dropped(self, requests_api):
+        raw = dict(RAW_REQUEST, user=dict(RAW_REQUEST["user"], iconUrl="javascript:alert(1)"))
+        requests_api.request_body = [raw]
+        assert inviter.fetch_group_join_requests(JOIN_REQUESTS_JOB)["requests"][0]["icon_url"] is None
+
+    @pytest.mark.parametrize("body", [b"not json", {"unexpected": True}])
+    def test_an_unreadable_page_is_not_mistaken_for_an_empty_queue(self, requests_api, body):
+        requests_api.request_body = body
+        result = inviter.fetch_group_join_requests(JOIN_REQUESTS_JOB)
+        assert result["state"] == inviter.JOIN_REQUESTS_VRCHAT_UNAVAILABLE
+        assert result["requests"] == []
+
+    @pytest.mark.parametrize(
+        "status, state",
+        [(403, inviter.JOIN_REQUESTS_NO_PERMISSION), (404, inviter.JOIN_REQUESTS_GROUP_NOT_FOUND)],
+    )
+    def test_a_refusal_names_what_went_wrong(self, requests_api, status, state):
+        requests_api.request_error = FakeApiException(status=status, body="nope")
+        assert inviter.fetch_group_join_requests(JOIN_REQUESTS_JOB)["state"] == state
+
+    def test_it_never_joins_or_answers_anything(self, requests_api):
+        inviter.fetch_group_join_requests(JOIN_REQUESTS_JOB)
+        assert requests_api.joined() == [] and requests_api.respond_calls == []
+
+
+RESPOND_JOB = {
+    "type": "respond_group_join_request",
+    "jobID": "a1",
+    "guildID": "123",
+    "groupID": GROUP_ID,
+    "userID": "usr_656fd5b8-a5fa-4b26-9f9f-03b85e6e4375",
+    "action": "accept",
+}
+
+
+class TestAnsweringAJoinRequest:
+    """A moderator's Approve or Deny, relayed to VRChat (#291)."""
+
+    @pytest.mark.parametrize("action", ["accept", "reject"])
+    def test_the_decision_is_sent_for_exactly_that_person(self, requests_api, action):
+        result = inviter.respond_group_join_request(dict(RESPOND_JOB, action=action))
+        assert result["state"] == inviter.RESPOND_DONE and result["action"] == action
+        group_id, user_id, request, _ = requests_api.respond_calls[0]
+        assert (group_id, user_id) == (GROUP_ID, RESPOND_JOB["userID"])
+        assert request.action == action
+
+    def test_the_action_serializes_as_the_string_vrchat_expects(self):
+        """vrchatapi 1.21.0 sends the enum model as "[object Object]", which
+        VRChat refuses. Run through the real serializer, not a fake."""
+        import vrchatapi
+
+        body = vrchatapi.ApiClient().sanitize_for_serialization(
+            inviter.RespondGroupJoinRequest(action="reject")
+        )
+        assert body == {"action": "reject"}
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            {"action": "approve"},
+            {"action": None},
+            {"userID": "grp_x"},
+            {"userID": None},
+            {"groupID": "usr_x"},
+        ],
+    )
+    def test_a_malformed_job_decides_nothing(self, requests_api, bad):
+        assert inviter.respond_group_join_request(dict(RESPOND_JOB, **bad))["state"] == inviter.RESPOND_BAD_JOB
+        assert requests_api.respond_calls == []
+
+    @pytest.mark.parametrize("verb", ["accept", "reject"])
+    def test_a_request_that_is_already_gone_is_not_a_failure(self, requests_api, verb):
+        requests_api.respond_error = FakeApiException(
+            status=400,
+            body='{"error":{"message":"You can\'t %s a join request for a user who hasn\'t requested to join․","status_code":400}}'
+            % verb,
+        )
+        assert inviter.respond_group_join_request(RESPOND_JOB)["state"] == inviter.RESPOND_NOT_PENDING
+
+    def test_some_other_400_is_not_read_as_already_gone(self, requests_api):
+        requests_api.respond_error = FakeApiException(
+            status=400, body='{"error":{"message":"action is required","status_code":400}}'
+        )
+        assert inviter.respond_group_join_request(RESPOND_JOB)["state"] == inviter.RESPOND_VRCHAT_UNAVAILABLE
+
+    @pytest.mark.parametrize(
+        "status, state",
+        [(403, inviter.RESPOND_NO_PERMISSION), (404, inviter.RESPOND_GROUP_NOT_FOUND)],
+    )
+    def test_a_refusal_names_what_went_wrong(self, requests_api, status, state):
+        requests_api.respond_error = FakeApiException(status=status, body="nope")
+        assert inviter.respond_group_join_request(RESPOND_JOB)["state"] == state
+
+    def test_a_transient_failure_is_retried_then_reported(self, requests_api):
+        requests_api.respond_error = FakeApiException(status=503, body="upstream")
+        assert inviter.respond_group_join_request(RESPOND_JOB)["state"] == inviter.RESPOND_VRCHAT_UNAVAILABLE
+        assert len(requests_api.respond_calls) == inviter.VRCHAT_CALL_RETRIES
+
+    def test_it_is_spaced_like_an_invite(self, requests_api, monkeypatch):
+        spaced = []
+        monkeypatch.setattr(inviter, "_space_invite_calls", lambda: spaced.append(True))
+        inviter.respond_group_join_request(RESPOND_JOB)
+        assert spaced == [True]
+
+    def test_no_session(self, requests_api, monkeypatch):
+        monkeypatch.setattr(inviter.vrchat_session, "get", lambda: (None, {"error_message": "down"}))
+        assert inviter.respond_group_join_request(RESPOND_JOB)["state"] == inviter.RESPOND_VRCHAT_UNAVAILABLE
+        assert requests_api.respond_calls == []
+
+    @pytest.mark.parametrize(
+        "job_type, handler",
+        [
+            ("fetch_group_join_requests", "fetch_group_join_requests"),
+            ("respond_group_join_request", "respond_group_join_request"),
+        ],
+    )
+    def test_both_are_dispatched_and_apologized_for_in_their_own_shape(self, monkeypatch, job_type, handler):
+        assert inviter.HANDLERS[job_type] is getattr(inviter, handler)
+        published = []
+        monkeypatch.setattr(inviter, "publish_result", published.append)
+
+        def boom(job):
+            raise RuntimeError("bug")
+
+        monkeypatch.setitem(inviter.HANDLERS, job_type, boom)
+        body = ('{"type": "%s", "groupID": "grp_x"}' % job_type).encode()
+        inviter.process_job(TestJobDispatch.Chan(), SimpleNamespace(delivery_tag=6, redelivered=True), None, body)
+        assert [p["type"] for p in published] == [job_type]

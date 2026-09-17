@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 09:12-0400\n"
+"POT-Creation-Date: 2026-09-17 03:47-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es_ES\n"
@@ -989,6 +989,145 @@ msgstr "Bajo o mejor"
 #, python-brace-format
 msgid "Join here: {link}"
 msgstr "Únete aquí: {link}"
+
+#, python-brace-format
+msgid "Join request: {name}"
+msgstr "Solicitud de ingreso: {name}"
+
+msgid "View VRChat profile"
+msgstr "Ver perfil de VRChat"
+
+msgid "Linked on Discord"
+msgstr "Vinculado en Discord"
+
+#, python-brace-format
+msgid "{member}, in this server since {since}"
+msgstr "{member}, en este servidor desde {since}"
+
+msgid "verified 18+"
+msgstr "verificado como mayor de 18"
+
+msgid "not verified 18+"
+msgstr "no verificado como mayor de 18"
+
+#, python-brace-format
+msgid "has {role}"
+msgstr "tiene {role}"
+
+msgid "No linked Discord account in this server."
+msgstr "No hay ninguna cuenta de Discord vinculada en este servidor."
+
+msgid "First seen by the bot"
+msgstr "Visto por primera vez por el bot"
+
+msgid "Status"
+msgstr "Estado"
+
+msgid "Approve"
+msgstr "Aprobar"
+
+msgid "Deny"
+msgstr "Rechazar"
+
+#, python-brace-format
+msgid "Approving, asked by {moderator}…"
+msgstr "Aprobando, a petición de {moderator}…"
+
+#, python-brace-format
+msgid "Denying, asked by {moderator}…"
+msgstr "Rechazando, a petición de {moderator}…"
+
+#, python-brace-format
+msgid "Approved by {moderator} {when}"
+msgstr "Aprobada por {moderator} {when}"
+
+#, python-brace-format
+msgid "Denied by {moderator} {when}"
+msgstr "Rechazada por {moderator} {when}"
+
+msgid "No longer waiting. It was handled in VRChat or withdrawn."
+msgstr "Ya no está pendiente. Se gestionó en VRChat o se retiró."
+
+msgid "Closed. This server now uses a different VRChat group."
+msgstr "Cerrada. Este servidor ahora usa otro grupo de VRChat."
+
+msgid ""
+"That didn't go through: the bot no longer has permission to manage this "
+"group's invites and join requests."
+msgstr ""
+"No se pudo completar: el bot ya no tiene permiso para gestionar las "
+"invitaciones y solicitudes de ingreso de este grupo."
+
+msgid "That didn't go through: VRChat couldn't find this group."
+msgstr "No se pudo completar: VRChat no encontró este grupo."
+
+msgid "That didn't go through: VRChat didn't answer. Please try again."
+msgstr "No se pudo completar: VRChat no respondió. Inténtalo de nuevo."
+
+#, python-brace-format
+msgid ""
+"More join requests are waiting in VRChat than are posted here. Not shown:"
+" {count}. New requests will be posted as they arrive."
+msgstr ""
+"Hay más solicitudes de ingreso esperando en VRChat de las que se publican"
+" aquí. Sin mostrar: {count}. Las solicitudes nuevas se publicarán a "
+"medida que lleguen."
+
+msgid ""
+"Only the roles this server chose for join requests can approve or deny "
+"them."
+msgstr ""
+"Solo los roles que este servidor eligió para las solicitudes de ingreso "
+"pueden aprobarlas o rechazarlas."
+
+msgid "This request has already been handled."
+msgstr "Esta solicitud ya se ha gestionado."
+
+msgid "Join request triage isn't available for this server right now."
+msgstr ""
+"La gestión de solicitudes de ingreso no está disponible para este "
+"servidor ahora mismo."
+
+#, python-brace-format
+msgid ""
+"Deny **{name}**'s request to join the VRChat group? They can request "
+"again later."
+msgstr ""
+"¿Rechazar la solicitud de **{name}** para unirse al grupo de VRChat? "
+"Podrá volver a solicitarlo más adelante."
+
+msgid "Deny request"
+msgstr "Rechazar solicitud"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Nothing was changed."
+msgstr "No se ha cambiado nada."
+
+msgid "Sent to VRChat. The post will update when VRChat answers."
+msgstr "Enviado a VRChat. La publicación se actualizará cuando VRChat responda."
+
+msgid "The bot couldn't reach VRChat just now. Please try again in a minute."
+msgstr ""
+"El bot no pudo contactar con VRChat en este momento. Inténtalo de nuevo "
+"en un minuto."
+
+#, python-brace-format
+msgid ""
+"✅ {moderator} approved **{name}**'s request to join the VRChat group · "
+"{when}"
+msgstr ""
+"✅ {moderator} aprobó la solicitud de **{name}** para unirse al grupo de "
+"VRChat · {when}"
+
+#, python-brace-format
+msgid ""
+"🚫 {moderator} denied **{name}**'s request to join the VRChat group · "
+"{when}"
+msgstr ""
+"🚫 {moderator} rechazó la solicitud de **{name}** para unirse al grupo de "
+"VRChat · {when}"
 
 #~ msgid "Donate"
 #~ msgstr "Donar"

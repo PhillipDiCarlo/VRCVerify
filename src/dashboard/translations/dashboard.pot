@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 15:51-0400\n"
+"POT-Creation-Date: 2026-09-17 03:47-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -102,6 +102,9 @@ msgid ""
 "channel's permissions and try again."
 msgstr ""
 
+msgid "That's more roles than can be chosen. Pick up to 10 and try again."
+msgstr ""
+
 msgid ""
 "This bot's database is missing the column for that setting. Contact the "
 "bot operator."
@@ -175,6 +178,16 @@ msgid ""
 msgstr ""
 
 msgid "There's no card subscription on this server to manage."
+msgstr ""
+
+msgid ""
+"VRCVerify can't post join requests in that channel. It needs View "
+"Channel, Send Messages and Embed Links in it."
+msgstr ""
+
+msgid ""
+"Join requests can't go in an announcement channel. Other servers can "
+"follow one, which would republish who is verified 18+."
 msgstr ""
 
 msgid ""
@@ -664,6 +677,15 @@ msgid ""
 "that haven't started."
 msgstr ""
 
+msgid "Join requests"
+msgstr ""
+
+msgid ""
+"Post your VRChat group's join requests in Discord, so moderators can "
+"approve or deny them there and see whether they already know the person "
+"asking."
+msgstr ""
+
 msgid "Not checked yet"
 msgstr ""
 
@@ -872,6 +894,99 @@ msgid ""
 "pinged."
 msgstr ""
 
+msgid "Post join requests in Discord"
+msgstr ""
+
+msgid ""
+"Checks your group for new join requests and posts each one with Approve "
+"and Deny buttons."
+msgstr ""
+
+msgid ""
+"This channel no longer exists in the server, so join requests aren't "
+"posted. Choose another channel."
+msgstr ""
+
+msgid ""
+"VRCVerify can't post in this channel. It needs View Channel, Send "
+"Messages and Embed Links there."
+msgstr ""
+
+msgid "Post requests in"
+msgstr ""
+
+msgid ""
+"Pick a channel only your moderators can see. Each post shows the person's"
+" linked Discord account, and whether they're verified 18+, when they're a"
+" member of this server."
+msgstr ""
+
+msgid "A chosen role no longer exists in the server. Choose the roles again."
+msgstr ""
+
+msgid "Nobody can approve or deny requests until you choose at least one role."
+msgstr ""
+
+msgid "Who can approve or deny"
+msgstr ""
+
+msgid ""
+"Members with any of these roles can press Approve or Deny. Server admins "
+"aren't included unless they have one of them."
+msgstr ""
+
+msgid "None chosen"
+msgstr ""
+
+msgid "Reading your group's join requests. Reload this page in a moment."
+msgstr ""
+
+msgid "Checked"
+msgstr ""
+
+msgid "VRCVerify can't see this group's join requests"
+msgstr ""
+
+msgid "Give the bot's role the “Manage Group Invites” permission in VRChat."
+msgstr ""
+
+msgid "Your group couldn't be found"
+msgstr ""
+
+msgid "VRChat couldn't find this group. Check the group still exists."
+msgstr ""
+
+msgid "Nothing is wrong with your setup. The next check will try again."
+msgstr ""
+
+msgid "The last check didn't finish"
+msgstr ""
+
+msgid "The next check will try again."
+msgstr ""
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"check will try again."
+msgstr ""
+
+msgid "VRCVerify can't post in the chosen channel"
+msgstr ""
+
+msgid "It needs View Channel, Send Messages and Embed Links there."
+msgstr ""
+
+msgid "Waiting for the first check"
+msgstr ""
+
+msgid ""
+"The first check starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr ""
+
+msgid "Choose a channel so join requests have somewhere to go."
+msgstr ""
+
 msgid "Waiting for the first sync"
 msgstr ""
 
@@ -992,6 +1107,12 @@ msgid "Every verification attempt, including the ones that fail silently."
 msgstr ""
 
 msgid "VRChat group invites"
+msgstr ""
+
+msgid "Join request channel"
+msgstr ""
+
+msgid "Who can approve or deny join requests"
 msgstr ""
 
 msgid "VRChat group setup check"
@@ -1684,6 +1805,34 @@ msgid ""
 "join links when an event starts, VRCVerify needs to be in your VRChat "
 "group. Setting up group invites above adds it."
 msgstr ""
+
+msgid "Waiting for group invites"
+msgstr ""
+
+msgid ""
+"Join requests are read and answered by the VRCVerify account in your "
+"group. Set up group invites above first."
+msgstr ""
+
+#, python-format
+msgid "%(count)s join request is waiting in VRChat."
+msgid_plural "%(count)s join requests are waiting in VRChat."
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "Last checked %(when)s"
+msgstr ""
+
+#, python-format
+msgid ""
+"Your group is checked about every %(count)s minute, so a new request "
+"reaches Discord within %(count)s minute or so."
+msgid_plural ""
+"Your group is checked about every %(count)s minutes, so a new request "
+"reaches Discord within %(count)s minutes or so."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Not applied"
 msgstr ""
