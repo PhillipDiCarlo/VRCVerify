@@ -1,5 +1,5 @@
 --
--- VRCVerify production schema, captured 2026-09-16.
+-- VRCVerify production schema, captured 2026-09-17.
 --
 -- WHAT THIS IS FOR. tests/test_schema_snapshot.py compares the SQLAlchemy
 -- models in src/bot.py against this file and fails when they disagree about a
@@ -316,6 +316,60 @@ CREATE TABLE public.instruction_panel_views (
 
 
 --
+-- Name: join_request_post; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.join_request_post (
+    server_id character varying NOT NULL,
+    vrc_user_id character varying(50) NOT NULL,
+    group_id character varying(64) NOT NULL,
+    state character varying(32) NOT NULL,
+    display_name character varying,
+    channel_id character varying(30),
+    message_id character varying(30),
+    first_seen_at timestamp with time zone,
+    missing_since timestamp with time zone,
+    job_id character varying(64),
+    action character varying(16),
+    decided_by character varying(30),
+    decided_at timestamp with time zone,
+    failure character varying(32),
+    updated_at timestamp with time zone
+);
+
+
+--
+-- Name: join_request_triage; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.join_request_triage (
+    server_id character varying NOT NULL,
+    enabled boolean NOT NULL,
+    channel_id character varying(30),
+    group_id character varying(64),
+    seeded_at timestamp with time zone,
+    poll_job_id character varying(64),
+    poll_started_at timestamp with time zone,
+    next_poll_at timestamp with time zone,
+    last_polled_at timestamp with time zone,
+    last_state character varying(32),
+    last_error character varying,
+    pending_count integer,
+    updated_at timestamp with time zone
+);
+
+
+--
+-- Name: join_request_triage_role; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.join_request_triage_role (
+    server_id character varying NOT NULL,
+    role_id character varying(30) NOT NULL
+);
+
+
+--
 -- Name: pending_verifications; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -400,6 +454,18 @@ CREATE SEQUENCE public.premium_grandfather_line_id_seq
 --
 
 ALTER SEQUENCE public.premium_grandfather_line_id_seq OWNED BY public.premium_grandfather_line.id;
+
+
+--
+-- Name: premium_subscription_daily; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.premium_subscription_daily (
+    day date NOT NULL,
+    discord_count integer NOT NULL,
+    stripe_count integer NOT NULL,
+    total_count integer NOT NULL
+);
 
 
 --
@@ -705,6 +771,30 @@ ALTER TABLE ONLY public.instruction_panel_views
 
 
 --
+-- Name: join_request_post join_request_post_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.join_request_post
+    ADD CONSTRAINT join_request_post_pkey PRIMARY KEY (server_id, vrc_user_id);
+
+
+--
+-- Name: join_request_triage join_request_triage_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.join_request_triage
+    ADD CONSTRAINT join_request_triage_pkey PRIMARY KEY (server_id);
+
+
+--
+-- Name: join_request_triage_role join_request_triage_role_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.join_request_triage_role
+    ADD CONSTRAINT join_request_triage_role_pkey PRIMARY KEY (server_id, role_id);
+
+
+--
 -- Name: pending_verifications pending_verifications_discord_id_guild_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -742,6 +832,14 @@ ALTER TABLE ONLY public.premium_entitlement_seen
 
 ALTER TABLE ONLY public.premium_grandfather_line
     ADD CONSTRAINT premium_grandfather_line_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: premium_subscription_daily premium_subscription_daily_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.premium_subscription_daily
+    ADD CONSTRAINT premium_subscription_daily_pkey PRIMARY KEY (day);
 
 
 --
