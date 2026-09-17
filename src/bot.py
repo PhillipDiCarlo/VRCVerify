@@ -602,10 +602,53 @@ CALENDAR_INSTANCE_CHECK_SECONDS = _int_env("CALENDAR_INSTANCE_CHECK_SECONDS", 12
 SEAT_SWEEP_MAX_PER_PASS = _int_env("SEAT_SWEEP_MAX_PER_PASS", 25)
 SEAT_SWEEP_SPACING = _float_env("SEAT_SWEEP_SPACING", 2.0)
 
+# The longest discord.py may wait between two attempts to reach the gateway
+# (#325). Its own backoff doubles to a random wait of up to 1,024 seconds and
+# only resets after 2,048 quiet seconds, so after an hours-long outage the bot
+# could sit offline for another seventeen minutes once the network was back.
+DISCORD_RECONNECT_MAX_DELAY = _float_env("DISCORD_RECONNECT_MAX_DELAY", 60.0)
+
+
+class _CappedBackoff(discord.backoff.ExponentialBackoff):
+    """discord.py's backoff, jitter kept, never longer than the cap."""
+
+    def delay(self):
+        return min(super().delay(), DISCORD_RECONNECT_MAX_DELAY)
+
+
+# Client.connect builds its backoff from this module-level name on every call,
+# so replacing the name is what reaches it. A private detail of discord.py:
+# tests/test_outage_recovery.py fails if an upgrade stops using it.
+discord.client.ExponentialBackoff = _CappedBackoff
+
 # -------------------------------------------------------------------
 # SQLAlchemy setup
 # -------------------------------------------------------------------
-engine = create_engine(DATABASE_URL)
+def _engine_options(url: str) -> dict:
+    """Connections that fail fast rather than hang (#325).
+
+    The bot calls the database synchronously from the event loop, so one query
+    on a connection whose TCP link silently died could freeze everything for
+    about fifteen minutes, heartbeat to Discord included. pool_pre_ping drops a
+    dead pooled connection before it is used, and libpq's keepalives and
+    connect timeout bound how long a query or a connect can wait. Postgres
+    only: SQLite, which the tests use, has no such options.
+    """
+    if not url.startswith("postgres"):
+        return {}
+    return {
+        "pool_pre_ping": True,
+        "connect_args": {
+            "connect_timeout": 10,
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 3,
+        },
+    }
+
+
+engine = create_engine(DATABASE_URL, **_engine_options(DATABASE_URL))
 Session = sessionmaker(bind=engine)
 Base = declarative_base()
 
@@ -2009,6 +2052,11 @@ class VRCVerifyBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
+        # The loop the watchdog pings (#325). Recorded here because this is the
+        # first code that runs on it.
+        global _bot_loop, _bot_loop_seen_at
+        _bot_loop = asyncio.get_running_loop()
+        _bot_loop_seen_at = time.monotonic()
         # One persistent registration handles button clicks on every panel in
         # every guild. Only the custom_ids are matched, so this instance's
         # locale (and therefore its labels) never reaches a user — each panel
@@ -9977,6 +10025,7 @@ async def consume_group_invite_results():
             connection = None
             try:
                 connection = _rabbitmq_connect_with_retry(max_tries=0)
+                _consumer_connections["group-invite-results-queue"] = connection
                 channel = connection.channel()
                 channel.queue_declare(
                     queue=RABBITMQ_GROUP_INVITE_RESULT_QUEUE, durable=True
@@ -10285,6 +10334,7 @@ async def consume_results_queue():
             connection = None
             try:
                 connection = _rabbitmq_connect_with_retry(max_tries=0)
+                _consumer_connections["results-queue"] = connection
                 channel = connection.channel()
                 channel.queue_declare(queue=RABBITMQ_RESULT_QUEUE, durable=True)
                 channel.basic_qos(prefetch_count=10)
@@ -14501,6 +14551,83 @@ async def on_member_join(member: discord.Member):
 # -------------------------------------------------------------------
 # Main
 # -------------------------------------------------------------------
+# What the watchdog reads (#325). Written by the consumer threads and
+# setup_hook, read by the watchdog thread; plain assignments, like the
+# workers' _live_connection.
+_consumer_connections: dict = {}
+_bot_loop = None
+_bot_loop_seen_at = 0.0
+# How long the event loop may go without running a ping before it counts as
+# frozen. Well past any honest pause, and a frozen loop still takes the full
+# WATCHDOG_STALL_SECONDS to restart.
+BOT_LOOP_UNRESPONSIVE_SECONDS = 90
+BOT_WATCHED_PARTS = ("discord-bot", "event-loop", "results-queue", "group-invite-results-queue")
+
+
+def _mark_bot_loop_alive() -> None:
+    global _bot_loop_seen_at
+    _bot_loop_seen_at = time.monotonic()
+
+
+# Whether a gateway session is live right now. NOT bot.is_ready(): discord.py
+# sets that once and clears it only on close, so it stays True through every
+# failed reconnect of an hours-long outage (read in discord.py 2.7.1's
+# Client.connect). `connect` fires when a session is established and `resumed`
+# when one is picked back up; `disconnect` fires on every drop.
+_gateway_connected = False
+
+
+@bot.event
+async def on_connect():
+    global _gateway_connected
+    _gateway_connected = True
+
+
+@bot.event
+async def on_resumed():
+    global _gateway_connected
+    _gateway_connected = True
+
+
+@bot.event
+async def on_disconnect():
+    global _gateway_connected
+    _gateway_connected = False
+
+
+def _watchdog_probe() -> dict[str, tuple[bool, str | None]]:
+    """The parts of the bot a restart can fix (#325). Never touches the database.
+
+    The gateway, because discord.py can give up or wait far too long; the event
+    loop, because a blocking call can freeze it while is_ready() still says
+    True; and the two queue consumers. Not the database, and not the bot API:
+    a new process would find those just as broken.
+    """
+    parts: dict[str, tuple[bool, str | None]] = {}
+    parts["discord-bot"] = (
+        (True, None) if bot.is_ready() and _gateway_connected else (False, "no gateway session")
+    )
+
+    loop = _bot_loop
+    if loop is None or loop.is_closed():
+        parts["event-loop"] = (False, "not running")
+    else:
+        silent = time.monotonic() - _bot_loop_seen_at
+        parts["event-loop"] = (
+            (True, None) if silent <= BOT_LOOP_UNRESPONSIVE_SECONDS else (False, f"no response for {int(silent)}s")
+        )
+        try:
+            loop.call_soon_threadsafe(_mark_bot_loop_alive)
+        except RuntimeError:
+            parts["event-loop"] = (False, "closed")
+
+    for name in ("results-queue", "group-invite-results-queue"):
+        connection = _consumer_connections.get(name)
+        open_now = bool(connection is not None and connection.is_open)
+        parts[name] = (open_now, None if open_now else "no broker connection")
+    return parts
+
+
 def _status_probe() -> dict[str, tuple[bool, str | None]]:
     """What this process can honestly answer for (issue #170 phase 2).
 
@@ -14524,11 +14651,20 @@ def _status_probe() -> dict[str, tuple[bool, str | None]]:
     """
     parts: dict[str, tuple[bool, str | None]] = {}
 
+    # Two parts since #325. discord-bot is the process: if this runs, it is up,
+    # and a dead process is caught by its heartbeat going stale. The gateway is
+    # the connection to Discord, which the status page caps at degraded,
+    # because a bot reconnecting is still there and recovers on its own. It
+    # needs _gateway_connected as well as is_ready(): the flag alone stays True
+    # through every failed reconnect, so an outage used to read as up.
+    parts["discord-bot"] = (True, None)
     latency = bot.latency
-    if bot.is_ready() and latency == latency and latency != float("inf"):
-        parts["discord-bot"] = (True, f"gateway ready, {int(latency * 1000)}ms")
+    if bot.is_ready() and _gateway_connected and latency == latency and latency != float("inf"):
+        parts["discord-gateway"] = (True, f"gateway ready, {int(latency * 1000)}ms")
+    elif bot.is_ready():
+        parts["discord-gateway"] = (False, "gateway disconnected, reconnecting")
     else:
-        parts["discord-bot"] = (False, "gateway not ready")
+        parts["discord-gateway"] = (False, "gateway not ready")
 
     try:
         with engine.connect() as connection:
@@ -14553,10 +14689,29 @@ if __name__ == "__main__":
     # bad reports before it publishes an outage, so an ordinary restart passes
     # through this state without ever appearing on the page.
     heartbeat.start_heartbeat("discord-bot", _status_probe)
+    heartbeat.start_watchdog("discord-bot", _watchdog_probe, BOT_WATCHED_PARTS)
 
     # log_handler=None or discord.py calls its own setup_logging, which adds
     # a SECOND StreamHandler to the root logger -- after install_log_scrubbing
     # ran, so without this filter. Every discord.* record then goes out
     # unescaped (and twice), and Docker merges the streams, so a forged line
     # lands in the same place the escaped one does.
-    bot.run(DISCORD_BOT_TOKEN, log_handler=None)
+    try:
+        bot.run(DISCORD_BOT_TOKEN, log_handler=None)
+        logger.error("bot.run returned; exiting so Docker restarts the bot.")
+    except BaseException:
+        # Logged here because os._exit below leaves before Python would print
+        # the traceback, and the reason is the one thing worth reading (found
+        # in the #325 repro: logging in with the network down).
+        logger.exception("bot.run raised; exiting so Docker restarts the bot.")
+    finally:
+        # bot.run returning, cleanly or not, means the bot is offline for good
+        # (#325). A normal exit would then hang joining the consumer threads,
+        # which loop forever, and leave the container "Up" and useless. Exit
+        # hard, with 1, so Docker restarts it. See heartbeat.exit_for_restart.
+        for handler in logging.getLogger().handlers:
+            try:
+                handler.flush()
+            except Exception:
+                pass
+        os._exit(1)

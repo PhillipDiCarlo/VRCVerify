@@ -116,6 +116,11 @@ services:
       # thread starts and no file is written. Set it here and mount the volume
       # below on a deployment that runs status-reporter.
       HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
+      # Recovery after a network outage (issue #325). The longest wait between
+      # two attempts to reach Discord, and how long a stuck part may stay down
+      # before the process exits so Docker restarts it. 0 turns the watchdog off.
+      DISCORD_RECONNECT_MAX_DELAY: ${DISCORD_RECONNECT_MAX_DELAY:-60}
+      WATCHDOG_STALL_SECONDS: ${WATCHDOG_STALL_SECONDS:-900}
     restart: unless-stopped
     # Docker's json-file driver does not rotate by default, so container logs
     # grow without bound until the disk does. Especially worth having here:
@@ -194,6 +199,13 @@ services:
       # thread starts and no file is written. Set it here and mount the volume
       # below on a deployment that runs status-reporter.
       HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
+      # Recovery after a network outage (issue #325). How long the broker
+      # connection may stay down before the worker exits so Docker restarts it
+      # (0 turns it off), and the wait before retrying a VRChat login that never
+      # reached VRChat. A login VRChat refused still waits
+      # VRCHAT_RELOGIN_INTERVAL_SECONDS.
+      WATCHDOG_STALL_SECONDS: ${WATCHDOG_STALL_SECONDS:-900}
+      VRCHAT_NETWORK_RETRY_SECONDS: ${VRCHAT_NETWORK_RETRY_SECONDS:-60}
     volumes:
       - vrchat-session:/data
       - status-heartbeats:/heartbeats
@@ -248,6 +260,13 @@ services:
       # thread starts and no file is written. Set it here and mount the volume
       # below on a deployment that runs status-reporter.
       HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
+      # Recovery after a network outage (issue #325). How long the broker
+      # connection may stay down before the worker exits so Docker restarts it
+      # (0 turns it off), and the wait before retrying a VRChat login that never
+      # reached VRChat. A login VRChat refused still waits
+      # VRCHAT_RELOGIN_INTERVAL_SECONDS.
+      WATCHDOG_STALL_SECONDS: ${WATCHDOG_STALL_SECONDS:-900}
+      VRCHAT_NETWORK_RETRY_SECONDS: ${VRCHAT_NETWORK_RETRY_SECONDS:-60}
     volumes:
       - vrchat-invite-session:/data
       - status-heartbeats:/heartbeats

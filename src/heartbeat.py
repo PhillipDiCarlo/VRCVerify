@@ -135,3 +135,129 @@ def start_heartbeat(
     thread.start()
     logger.info("Heartbeat for %s every %ss -> %s", service, interval, path)
     return thread
+
+
+# -------------------------------------------------------------------
+# The watchdog (issue #325)
+# -------------------------------------------------------------------
+# A process that is running but stuck is invisible to Docker: `restart:`
+# only acts when the process exits. After a long network outage the bot sat
+# "Up" and offline until somebody restarted it by hand. So each service names
+# the parts of itself that a restart can actually fix, and when one of them has
+# been down without a break for WATCHDOG_STALL_SECONDS the process exits and
+# Docker starts a fresh one.
+#
+# ITS OWN THREAD, NOT THE HEARTBEAT'S. The heartbeat only runs when
+# HEARTBEAT_DIR is set, and the bot's heartbeat probe runs a real SELECT that a
+# dead database connection can hold for minutes. A watchdog sharing that thread
+# would be switched off with the status page and frozen by the very hang it is
+# meant to notice.
+#
+# NOTHING A RESTART CANNOT FIX. The database being down, or the bot API being
+# off, is not watched: a fresh process would find them exactly as broken.
+
+DEFAULT_WATCHDOG_STALL_SECONDS = 900
+WATCHDOG_INTERVAL = 30.0
+
+
+def watchdog_stall_seconds() -> int:
+    """WATCHDOG_STALL_SECONDS, 900 by default. 0 (or less) turns it off."""
+    raw = os.getenv("WATCHDOG_STALL_SECONDS", "").strip()
+    try:
+        return int(raw) if raw else DEFAULT_WATCHDOG_STALL_SECONDS
+    except ValueError:
+        return DEFAULT_WATCHDOG_STALL_SECONDS
+
+
+class StallTracker:
+    """How long each watched part has been down without a break.
+
+    Every part starts out down as of `started`: a service that never becomes
+    healthy (the network is still gone when it boots) is restarted once the
+    stall time has passed since boot, not straight away and not never. One
+    healthy reading resets a part, so a part that flaps is not a stall.
+    """
+
+    def __init__(self, parts, stall_seconds: float, started: float):
+        self.stall_seconds = stall_seconds
+        self.down_since = {part: started for part in parts}
+
+    def observe(self, readings: ProbeResult, now: float) -> Optional[Tuple[str, float, Optional[str]]]:
+        """Record one probe. Returns (part, seconds down, detail) for a stall, else None.
+
+        A watched part missing from the readings counts as down: a probe that
+        stopped mentioning it has stopped vouching for it.
+        """
+        stalled = None
+        for part in self.down_since:
+            up, detail = readings.get(part, (False, "not reported"))
+            if up:
+                self.down_since[part] = None
+                continue
+            if self.down_since[part] is None:
+                self.down_since[part] = now
+            down_for = now - self.down_since[part]
+            if down_for >= self.stall_seconds and (stalled is None or down_for > stalled[1]):
+                stalled = (part, down_for, detail)
+        return stalled
+
+
+def exit_for_restart(service: str, part: str, down_for: float, detail: Optional[str]) -> None:
+    """Log why, then leave with code 1 so Docker starts the service again.
+
+    os._exit, not sys.exit. A normal exit joins every thread of the default
+    executor at interpreter shutdown, and the RabbitMQ consumers there loop
+    forever, so sys.exit would hang in exactly the state it is meant to end.
+    Code 1 because both `unless-stopped` and `on-failure` restart on it.
+    """
+    logger.error(
+        "Watchdog: %s part %r has been down for %ds (%s). Exiting so Docker restarts it.",
+        service,
+        part,
+        int(down_for),
+        detail or "no detail",
+    )
+    for handler in logging.getLogger().handlers:
+        try:
+            handler.flush()
+        except Exception:
+            pass
+    os._exit(1)
+
+
+def start_watchdog(
+    service: str,
+    probe: Callable[[], ProbeResult],
+    parts,
+    stall_seconds: Optional[int] = None,
+    interval: float = WATCHDOG_INTERVAL,
+    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+    on_stall: Callable[[str, str, float, Optional[str]], None] = exit_for_restart,
+) -> Optional[threading.Thread]:
+    """Watch `parts` of `probe` on a daemon thread. None when turned off.
+
+    `probe` must answer quickly and must not touch anything a restart cannot
+    fix. A probe that raises counts as every watched part being down.
+    """
+    stall = watchdog_stall_seconds() if stall_seconds is None else stall_seconds
+    parts = tuple(parts)
+    if stall <= 0 or not parts:
+        return None
+    tracker = StallTracker(parts, stall, clock())
+
+    def loop() -> None:
+        while True:
+            try:
+                readings = probe()
+            except Exception as error:
+                readings = {part: (False, f"probe raised {type(error).__name__}") for part in parts}
+            found = tracker.observe(readings, clock())
+            if found is not None:
+                on_stall(service, *found)
+            sleep(interval)
+
+    thread = threading.Thread(target=loop, name=f"watchdog-{service}", daemon=True)
+    thread.start()
+    logger.info("Watchdog for %s: restarts after %ss down: %s", service, stall, ", ".join(parts))
+    return thread

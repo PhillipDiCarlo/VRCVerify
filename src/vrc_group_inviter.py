@@ -1868,5 +1868,8 @@ if __name__ == "__main__":
     vrchat_session.start_relogin_thread()
 
     heartbeat.start_heartbeat("vrc-group-inviter", _status_probe)
+    # Restarted if its broker connection stays down (#325). Not the VRChat
+    # login: that has its own retry, and a restart would only add a login.
+    heartbeat.start_watchdog("vrc-group-inviter", _status_probe, ("vrc-group-inviter",))
 
     listen_for_jobs()
