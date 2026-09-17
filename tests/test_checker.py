@@ -230,16 +230,43 @@ class TestFetchProfileSnapshot:
         assert display_name is None
 
     def test_verify_survives_malformed_profile_bio(self, monkeypatch):
-        """End-to-end: a bad payload degrades, it does not raise."""
+        """End-to-end: a bad payload degrades to a failed lookup, it does not
+        raise. It no longer falls back to /users, which has no bio (#349)."""
         client = self._client({"bio": {"t": "x"}, "ageVerificationStatus": "18+"})
-        user = SimpleNamespace(
-            age_verification_status="18+", bio="my bio", display_name="U"
-        )
+        monkeypatch.setattr(checker, "get_vrchat_session", lambda: (client, None))
+        monkeypatch.setattr(checker.users_api, "UsersApi", fake_users_api(None))
+        result = checker.verify_and_build_result("d1", "usr_1", "g1", "VRC-ABC123")
+        assert result["lookup_ok"] is False
+        assert result["code_found"] is False
+
+    def test_a_code_check_does_not_ask_users_once_profile_fails(self, monkeypatch):
+        """/users/{id} has no bio (#346), so the call could only end in the same
+        failure. /profile's own error is the one reported (#349)."""
+        limited = FakeApiException(status=429, reason="Too Many Requests")
+        limited.headers = None  # read when the error is formatted for the log
+        client = self._client(exc=limited)
+
+        class NeverCalled:
+            def __init__(self, client):
+                pass
+
+            def get_user(self, *args, **kwargs):
+                raise AssertionError("/users must not be read for a code check")
+
+        monkeypatch.setattr(checker, "get_vrchat_session", lambda: (client, None))
+        monkeypatch.setattr(checker, "_get_vrchat_profile_with_retry", lambda c, u: client.call_api())
+        monkeypatch.setattr(checker.users_api, "UsersApi", NeverCalled)
+        result = checker.verify_and_build_result("d1", "usr_1", "g1", "VRC-ABC123")
+        assert result["lookup_ok"] is False
+        assert result["error_type"] == "vrchat_rate_limited"
+
+    def test_an_age_only_check_still_falls_back_to_users(self, monkeypatch):
+        client = self._client(exc=RuntimeError("boom"))
+        user = SimpleNamespace(age_verification_status="18+", bio=None, display_name="U")
         monkeypatch.setattr(checker, "get_vrchat_session", lambda: (client, None))
         monkeypatch.setattr(checker.users_api, "UsersApi", fake_users_api(user))
-        result = checker.verify_and_build_result("d1", "usr_1", "g1", "VRC-ABC123")
-        assert result["lookup_ok"] is True
-        assert result["code_found"] is False
+        result = checker.verify_and_build_result("d1", "usr_1", "g1", None)
+        assert result["lookup_ok"] is True and result["is_18_plus"] is True
 
     def test_unauthorized_propagates(self, monkeypatch):
         # Must not be swallowed: the caller invalidates the session on this.
@@ -336,13 +363,10 @@ class TestVerifyAndBuildResult:
         assert result["error_type"] == "vrchat_session_unavailable"
 
     def test_verified_user_with_code(self, monkeypatch):
-        user = SimpleNamespace(
-            age_verification_status="18+",
-            bio="hello\nVRC-ABC123",
-            display_name="Tester",
-        )
+        # A code check reads the bio from /profile only (#349).
+        profile = {"ageVerificationStatus": "18+", "bio": "hello\nVRC-ABC123", "displayName": "Tester"}
         monkeypatch.setattr(checker, "get_vrchat_session", lambda: (object(), None))
-        monkeypatch.setattr(checker.users_api, "UsersApi", fake_users_api(user))
+        monkeypatch.setattr(checker, "_get_vrchat_profile_with_retry", lambda c, u: profile)
         result = checker.verify_and_build_result("d1", "usr_ok_code", "g1", "VRC-ABC123")
         assert result["lookup_ok"] is True
         assert result["is_18_plus"] is True
@@ -350,9 +374,9 @@ class TestVerifyAndBuildResult:
         assert result["display_name"] == "Tester"
 
     def test_unverified_age_status(self, monkeypatch):
-        user = SimpleNamespace(age_verification_status="none", bio="VRC-ABC123", display_name="T")
+        profile = {"ageVerificationStatus": "none", "bio": "VRC-ABC123", "displayName": "T"}
         monkeypatch.setattr(checker, "get_vrchat_session", lambda: (object(), None))
-        monkeypatch.setattr(checker.users_api, "UsersApi", fake_users_api(user))
+        monkeypatch.setattr(checker, "_get_vrchat_profile_with_retry", lambda c, u: profile)
         result = checker.verify_and_build_result("d1", "usr_not18", "g1", "VRC-ABC123")
         assert result["is_18_plus"] is False
         assert result["code_found"] is True

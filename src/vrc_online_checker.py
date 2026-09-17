@@ -228,10 +228,13 @@ def _get_vrchat_user_with_retry(users_api_instance, vrc_user_id: str):
 # play) while GET /profile/{id} reflects the edit immediately. Verification
 # reads the bio, so we must use /profile/{id}.
 #
-# That endpoint is not in the OpenAPI spec yet, so vrchatapi has no model for
-# it and we call it raw. Because it is undocumented it could change shape or
-# disappear without notice, so every failure falls back to /users/{id}: a
-# stale bio only costs a retry, but a hard failure blocks verification.
+# The endpoint is documented since spec 1.21.0 as getPublicProfile, and on
+# 2026-09-16 VRChat took the bio off /users/{id} entirely (#346), so it is now
+# the only place a bio can be read. It is still called raw rather than through
+# the generated model: the model is what broke login when VRChat changed a
+# field, and raw JSON checked by type here does not. When /profile fails, a
+# check that needs the bio fails with it (#349); an age-only check still falls
+# back to /users/{id}, which has the age status.
 # Set VRCHAT_USE_PROFILE_ENDPOINT=false to force the old behavior.
 # -------------------------------------------------------------------
 VRCHAT_USE_PROFILE_ENDPOINT = os.getenv(
@@ -291,13 +294,17 @@ def _get_vrchat_profile_with_retry(client, vrc_user_id: str) -> dict:
     raise RuntimeError("VRChat /profile retry loop exited without a result")
 
 
-def fetch_profile_snapshot(client, vrc_user_id: str) -> tuple[str, str, str | None, str]:
+def fetch_profile_snapshot(
+    client, vrc_user_id: str, need_bio: bool = False
+) -> tuple[str, str, str | None, str]:
     """Return (bio, age_status, display_name, source) for a VRChat user.
 
-    Reads /profile/{id} first since it is the only endpoint currently
-    reflecting recent bio edits, falling back to /users/{id} when the newer
-    endpoint fails or omits a field we need. UnauthorizedException is never
-    swallowed: it means the session is dead and the caller must handle it.
+    Reads /profile/{id} first, the only endpoint with a bio, falling back to
+    /users/{id} when it fails or omits a field we need. With `need_bio` there
+    is no fallback: /users/{id} has no bio (#346), so it could only end in the
+    same failure one call later, and /profile's own error is the one worth
+    reporting (#349). UnauthorizedException is never swallowed: it means the
+    session is dead and the caller must handle it.
     """
     if VRCHAT_USE_PROFILE_ENDPOINT:
         profile = None
@@ -306,6 +313,8 @@ def fetch_profile_snapshot(client, vrc_user_id: str) -> tuple[str, str, str | No
         except UnauthorizedException:
             raise
         except Exception:
+            if need_bio:
+                raise
             logging.warning(
                 "VRChat /profile lookup failed for %s; falling back to /users",
                 vrc_user_id,
@@ -330,11 +339,14 @@ def fetch_profile_snapshot(client, vrc_user_id: str) -> tuple[str, str, str | No
                 )
             logging.warning(
                 "VRChat /profile for %s has unusable fields "
-                "(bio=%s, ageVerificationStatus=%s); falling back to /users",
+                "(bio=%s, ageVerificationStatus=%s)%s",
                 vrc_user_id,
                 type(bio).__name__,
                 type(age_status).__name__,
+                "" if need_bio else "; falling back to /users",
             )
+            if need_bio:
+                raise ValueError("VRChat /profile response has no usable bio")
 
     vrc_user = _get_vrchat_user_with_retry(users_api.UsersApi(client), vrc_user_id)
     return (
@@ -440,7 +452,9 @@ def verify_and_build_result(discord_id, vrc_user_id, guild_id, verification_code
         )
 
     try:
-        bio, age_status, display_name, source = fetch_profile_snapshot(client, vrc_user_id)
+        bio, age_status, display_name, source = fetch_profile_snapshot(
+            client, vrc_user_id, need_bio=verification_code is not None
+        )
     except UnauthorizedException as e:
         logging.warning("VRChat session unauthorized; deferring relogin to background worker")
         meta = classify_api_error(e)
