@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-17 03:47-0400\n"
+"POT-Creation-Date: 2026-09-17 04:36-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -240,6 +240,22 @@ msgstr "Premium"
 msgid "New"
 msgstr "网站支持你的语言了"
 
+msgid "Your VRChat group's join requests, in Discord"
+msgstr "你的 VRChat 群组加入申请，现在在 Discord 中"
+
+msgid ""
+"Join requests to your VRChat group are now posted in a Discord channel "
+"you choose, with Approve and Deny buttons for the roles you pick. Each "
+"post shows whether the person asking is already a member of your server, "
+"and whether they're verified 18+, so your moderators can decide without "
+"leaving Discord. Turn it on under Settings, VRChat group, once group "
+"invites are set up."
+msgstr "你的 VRChat 群组的加入申请现在会发布到你选择的 Discord 频道，并为你选择的身份组提供批准和拒绝按钮。每个帖子会显示申请人是否已是你服务器的成员，以及是否已验证 18+，让管理员无需离开 Discord 就能做出决定。设置好群组邀请后，在设置的 VRChat 群组中开启。"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "查看 Premium"
+
 msgid "Your VRChat group's calendar, in Discord"
 msgstr "你的 VRChat 群组日历，现已进入 Discord"
 
@@ -254,10 +270,6 @@ msgstr ""
 "你的 VRChat 群组日历中的活动现在会显示在服务器的活动页中，成员可以标记感兴趣、收到 Discord 的提醒，并以自己的时区查看时间。活动在"
 " VRChat 中更改后会同步更新。如果 VRCVerify "
 "在你的群组中，仅成员可见的活动也会同步；活动的实例开启时，加入链接会发布到你选择的频道。在“设置 > VRChat 群组”中开启。"
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "查看 Premium"
 
 msgid "Older instruction panels have been replaced"
 msgstr "旧的说明面板已被替换"
@@ -974,7 +986,6 @@ msgid ""
 "pinged."
 msgstr "可选。发布加入链接时提及的身份组。不会提及其他任何人。"
 
-#, python-format
 msgid "Post join requests in Discord"
 msgstr "在 Discord 中发布加入申请"
 
@@ -1773,6 +1784,9 @@ msgstr "为已验证成员提供的 VRChat 群组邀请"
 
 msgid "Your VRChat group calendar in Discord Events, with join links"
 msgstr "在 Discord 活动中显示你的 VRChat 群组日历，并附加入链接"
+
+msgid "Your VRChat group's join requests in Discord, with Approve and Deny"
+msgstr "在 Discord 中处理你的 VRChat 群组加入申请，支持批准和拒绝"
 
 # | msgid "Not applied"
 msgid "Not included"

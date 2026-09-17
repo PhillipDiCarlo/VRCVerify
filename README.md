@@ -217,6 +217,7 @@ dashboard. See [Two ways to pay](#two-ways-to-pay).
 | Branded instructions panel (color + icon) | — | — | ✅ | `branded_panel` | #58 |
 | VRChat group invites for verified members | — | — | ✅ | `group_invite` | #49 |
 | VRChat group calendar in Discord Events, with join links | — | — | ✅ | `calendar_sync` | #289 |
+| VRChat group join requests in Discord, with Approve and Deny | — | — | ✅ | `join_request_triage` | #291 |
 
 **Keep this table current.** It is the list of every premium feature that has
 actually shipped. When an issue that adds a premium feature is closed as

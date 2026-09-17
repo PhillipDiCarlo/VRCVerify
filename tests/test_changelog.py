@@ -186,11 +186,12 @@ class TestTheGroupInviteEntry:
 
     @staticmethod
     def newer_dismissed():
-        """Calendar sync (#289) is the newer premium entry and takes the slot
-        first; with it put away, this one is what a server is pitched."""
-        return changelog.parse_dismissed(
-            changelog.add_dismissal((), GUILD, "2026-09-calendar-sync")
-        )
+        """Join-request triage (#291) and calendar sync (#289) are the newer
+        premium entries and take the slot first; with both put away, this one
+        is what a server is pitched."""
+        value = changelog.add_dismissal((), GUILD, "2026-09-join-request-triage")
+        value = changelog.add_dismissal(changelog.parse_dismissed(value), GUILD, "2026-09-calendar-sync")
+        return changelog.parse_dismissed(value)
 
     def test_it_is_the_group_invite(self):
         assert self.entry().id == "2026-08-group-invite"
@@ -239,26 +240,49 @@ class TestTheGroupInviteEntry:
         )
 
     def test_dismissing_it_clears_the_slot(self):
-        both = changelog.add_dismissal(
-            changelog.parse_dismissed(changelog.add_dismissal((), GUILD, "2026-09-calendar-sync")),
-            GUILD,
-            self.entry().id,
-        )
-        assert changelog.build_premium_card(GUILD, dismissed=changelog.parse_dismissed(both)) is None
+        all_three = changelog.add_dismissal(self.newer_dismissed(), GUILD, self.entry().id)
+        assert changelog.build_premium_card(GUILD, dismissed=changelog.parse_dismissed(all_three)) is None
 
 
-class TestTheCalendarSyncEntry:
-    """#289's one announcement, and the newest premium entry in the feed."""
+class TestTheJoinRequestTriageEntry:
+    """#291's one announcement, and the newest premium entry in the feed."""
 
     @staticmethod
     def entry():
-        return next(item for item in changelog.ENTRIES if item.id == "2026-09-calendar-sync")
+        return next(item for item in changelog.ENTRIES if item.id == "2026-09-join-request-triage")
 
     def test_it_is_the_newest_premium_entry(self):
         assert next(item for item in changelog.ENTRIES if item.premium) is self.entry()
 
     def test_a_free_server_is_pitched_it_first(self):
         card = changelog.build_premium_card(GUILD)
+        assert card["title"] == "New in Premium: Your VRChat group's join requests, in Discord"
+        assert card["action"] == "subscription"
+
+    def test_it_is_public_and_says_where_to_turn_it_on(self):
+        assert self.entry().public is True
+        assert "Settings, VRChat group" in self.entry().body
+
+    def test_it_says_group_invites_come_first(self):
+        """The card has no controls until invites are set up (#291, PR 2)."""
+        assert "once group invites are set up" in self.entry().body
+
+    def test_it_uses_no_em_dashes(self):
+        assert "\u2014" not in self.entry().title + self.entry().body
+
+
+class TestTheCalendarSyncEntry:
+    """#289's one announcement."""
+
+    @staticmethod
+    def entry():
+        return next(item for item in changelog.ENTRIES if item.id == "2026-09-calendar-sync")
+
+    def test_a_free_server_is_pitched_it_once_triage_is_put_away(self):
+        dismissed = changelog.parse_dismissed(
+            changelog.add_dismissal((), GUILD, "2026-09-join-request-triage")
+        )
+        card = changelog.build_premium_card(GUILD, dismissed=dismissed)
         assert card["title"] == "New in Premium: Your VRChat group's calendar, in Discord"
         assert card["action"] == "subscription"
 

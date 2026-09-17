@@ -211,6 +211,25 @@ _FIELD_SEPARATOR = ":"
 # usable rather than when the issue was filed. The other four had been
 # reachable for three weeks by then.
 ENTRIES = (
+    # ONE ENTRY FOR ALL OF #291, as calendar sync had one for #289: triage
+    # shipped as a worker and bot PR and a dashboard PR behind a preview
+    # allowlist, and is announced once.
+    Entry(
+        id="2026-09-join-request-triage",
+        date=date(2026, 9, 17),
+        title=N_("Your VRChat group's join requests, in Discord"),
+        body=(
+            N_("Join requests to your VRChat group are now posted in a Discord "
+            "channel you choose, with Approve and Deny buttons for the roles you "
+            "pick. Each post shows whether the person asking is already a member "
+            "of your server, and whether they're verified 18+, so your moderators "
+            "can decide without leaving Discord. Turn it on under Settings, "
+            "VRChat group, once group invites are set up.")
+        ),
+        premium=True,
+        cta_endpoint="guild_subscription",
+        cta_label=N_("See Premium"),
+    ),
     # ONE ENTRY FOR ALL OF #289, as decided on that issue: calendar sync shipped
     # across several PRs (the ownership proof, public sync, join links, members-
     # only events) behind a preview allowlist, and is announced once, now that

@@ -596,9 +596,11 @@ CALENDAR_ANNOUNCE_EARLY_MINUTES = _int_env("CALENDAR_ANNOUNCE_EARLY_MINUTES", 60
 # window. One list call plus one call per instance not already ruled out. Two
 # minutes, decided on #289 after the first live announcement.
 CALENDAR_INSTANCE_CHECK_SECONDS = _int_env("CALENDAR_INSTANCE_CHECK_SECONDS", 120, minimum=60)
-# Join-request triage (#291). Polled on the calendar's schedule, decided on
-# #291: ten minutes, jittered. A read is one call per 100 pending requests.
-JOIN_REQUEST_POLL_INTERVAL_SECONDS = _int_env("JOIN_REQUEST_POLL_INTERVAL_SECONDS", 600, minimum=600)
+# Join-request triage (#291). Five minutes, jittered, and that is also the
+# floor: decided after the live test on 2026-09-17, because during an event ten
+# minutes is far too long for someone waiting at the door. A read is one call
+# per 100 pending requests, so this is twelve calls an hour for most groups.
+JOIN_REQUEST_POLL_INTERVAL_SECONDS = _int_env("JOIN_REQUEST_POLL_INTERVAL_SECONDS", 300, minimum=300)
 JOIN_REQUEST_POLL_TIMEOUT_SECONDS = _int_env("JOIN_REQUEST_POLL_TIMEOUT_SECONDS", 900)
 # 10 pages is 1,000 pending requests. A poll that stops at the cap is
 # incomplete, and an incomplete poll never closes a post for a request it
@@ -2539,12 +2541,9 @@ GRANDFATHERED_FEATURES = frozenset(
 # controls for it, which is exactly the sequence the comment above describes:
 # the name leaves in the change that makes the feature reachable. Calendar sync
 # (#289) left it when it was announced, after all of its phases had shipped and
-# been tested live behind a preview allowlist.
-#
-# Join-request triage (#291) follows calendar sync's sequence: hidden from its
-# first PR, reachable only by the preview guilds below, and announced in its
-# last.
-UNANNOUNCED_FEATURES = frozenset({FEATURE_JOIN_REQUEST_TRIAGE})
+# been tested live behind a preview allowlist. Join-request triage (#291) left
+# it the same way, when it was announced.
+UNANNOUNCED_FEATURES = frozenset()
 
 
 def _guild_id_set(raw) -> frozenset:
@@ -2554,10 +2553,11 @@ def _guild_id_set(raw) -> frozenset:
 
 
 # Guilds that may use an unannounced feature anyway, for live testing before it
-# is announced. An operator setting, never something a guild can ask for.
-FEATURE_PREVIEW_GUILDS = {
-    FEATURE_JOIN_REQUEST_TRIAGE: _guild_id_set(os.getenv("JOIN_REQUEST_TRIAGE_PREVIEW_GUILDS")),
-}
+# is announced. An operator setting, never something a guild can ask for. Kept,
+# though empty, because the next phased feature will need it again; a feature
+# gets an entry here, read from its own env var, while it is in
+# UNANNOUNCED_FEATURES.
+FEATURE_PREVIEW_GUILDS: dict = {}
 
 
 def feature_is_reachable(feature: Optional[str], guild_id) -> bool:
@@ -7236,10 +7236,19 @@ SETTINGS_SUMMARY_LABELS = (
     ("calendar_sync_enabled", "Calendar sync"),
     ("calendar_announce_channel_id", "Join link channel"),
     ("calendar_ping_role_id", "Join link ping"),
+    ("join_request_triage_enabled", "Join requests"),
+    ("join_request_channel_id", "Join request channel"),
+    ("join_request_mod_role_ids", "Join request roles"),
 )
 
 ROLE_SUMMARY_FIELDS = frozenset({"role_id", "unverified_role_id", "calendar_ping_role_id"})
-CHANNEL_SUMMARY_FIELDS = frozenset({"verification_log_channel_id", "calendar_announce_channel_id"})
+# The one list-valued setting (see the SettingsField comment above): every
+# role that may approve or deny, rendered as one mention per role rather than
+# forced through the single-role path above.
+LIST_ROLE_SUMMARY_FIELDS = frozenset({"join_request_mod_role_ids"})
+CHANNEL_SUMMARY_FIELDS = frozenset(
+    {"verification_log_channel_id", "calendar_announce_channel_id", "join_request_channel_id"}
+)
 
 
 class DashboardLinkView(View):
@@ -7259,8 +7268,14 @@ def _summary_value(name: str, value, guild: discord.Guild) -> str:
     paste a snowflake somewhere to find out what it is has not been told
     anything.
     """
-    if value is None or value == "":
+    if value is None or value == "" or value == []:
         return "Not set"
+    if name in LIST_ROLE_SUMMARY_FIELDS:
+        mentions = []
+        for role_id in value:
+            role = guild.get_role(int(role_id)) if str(role_id).isdigit() else None
+            mentions.append(role.mention if role else f"Deleted role ({role_id})")
+        return ", ".join(mentions)
     if name in ROLE_SUMMARY_FIELDS:
         role = guild.get_role(int(value)) if str(value).isdigit() else None
         return role.mention if role else f"Deleted role ({value})"

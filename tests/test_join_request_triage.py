@@ -177,8 +177,7 @@ def clean_db():
 
 @pytest.fixture(autouse=True)
 def setting(monkeypatch):
-    """A preview guild with premium, one invite account, and no pauses."""
-    monkeypatch.setitem(bot.FEATURE_PREVIEW_GUILDS, bot.FEATURE_JOIN_REQUEST_TRIAGE, frozenset({str(GUILD_ID)}))
+    """A premium server, one invite account, and no pauses."""
     account = bot.InviteAccount(user_id=ACCOUNT_ID, queue=QUEUE, seats=100)
     monkeypatch.setattr(bot, "INVITE_ACCOUNTS", (account,))
     monkeypatch.setattr(bot, "INVITE_ACCOUNTS_BY_ID", {ACCOUNT_ID: account})
@@ -277,18 +276,23 @@ class TestTheVocabularyMatchesTheWorker:
 # -------------------------------------------------------------------
 # Who may use it at all
 # -------------------------------------------------------------------
-class TestItIsHiddenUntilAnnounced:
-    def test_nobody_outside_the_preview_can_reach_it(self, monkeypatch):
-        monkeypatch.setitem(bot.FEATURE_PREVIEW_GUILDS, bot.FEATURE_JOIN_REQUEST_TRIAGE, frozenset())
-        assert bot.FEATURE_JOIN_REQUEST_TRIAGE in bot.UNANNOUNCED_FEATURES
-        assert not bot.feature_is_reachable(bot.FEATURE_JOIN_REQUEST_TRIAGE, GUILD_ID)
+class TestItIsAnnounced:
+    """#291's last PR: every server can reach it, and the allowlist is empty."""
 
-    def test_a_preview_guild_can(self):
-        assert bot.feature_is_reachable(bot.FEATURE_JOIN_REQUEST_TRIAGE, GUILD_ID)
-        assert not bot.feature_is_reachable(bot.FEATURE_JOIN_REQUEST_TRIAGE, 1234)
+    def test_every_server_can_reach_it(self):
+        assert bot.FEATURE_JOIN_REQUEST_TRIAGE not in bot.UNANNOUNCED_FEATURES
+        assert bot.feature_is_reachable(bot.FEATURE_JOIN_REQUEST_TRIAGE, 1234)
 
-    def test_announced_features_are_untouched(self):
-        assert bot.feature_is_reachable(bot.FEATURE_CALENDAR_SYNC, 1234)
+    def test_no_preview_allowlist_is_left_behind(self):
+        assert bot.FEATURE_PREVIEW_GUILDS == {}
+        assert "JOIN_REQUEST_TRIAGE_PREVIEW_GUILDS" not in open(bot.__file__).read()
+
+    def test_an_unannounced_feature_would_still_be_hidden(self, monkeypatch):
+        """The mechanism stays for the next phased feature."""
+        monkeypatch.setattr(bot, "UNANNOUNCED_FEATURES", frozenset({"future"}))
+        monkeypatch.setitem(bot.FEATURE_PREVIEW_GUILDS, "future", frozenset({str(GUILD_ID)}))
+        assert bot.feature_is_reachable("future", GUILD_ID)
+        assert not bot.feature_is_reachable("future", 1234)
 
 
 class TestTheGroupItRunsIn:
@@ -873,7 +877,7 @@ class TestTheSettings:
         assert settings["fields"]["join_request_mod_role_ids"]["value"] == [str(MOD_ROLE_ID)]
         block = settings["join_request_triage"]
         assert block["available"] and block["group_ready"]
-        assert block["poll_interval_minutes"] == 10
+        assert block["poll_interval_minutes"] == 5
 
     def test_an_unready_group_is_reported_as_such(self, settings_guild):
         ready_group(state=bot.GROUP_SETUP_NO_INVITE_PERMISSION)
@@ -915,9 +919,6 @@ class TestTheSettings:
         many = [str(1000 + i) for i in range(11)]
         assert refused({"join_request_mod_role_ids": many}).reason == "too_many_roles"
 
-    def test_a_guild_outside_the_preview_cannot_write_them(self, settings_guild, monkeypatch):
-        monkeypatch.setitem(bot.FEATURE_PREVIEW_GUILDS, bot.FEATURE_JOIN_REQUEST_TRIAGE, frozenset())
-        assert refused({"join_request_triage_enabled": True}).reason == "not_writable_yet"
 
     def test_a_lapsed_server_cannot_change_them(self, settings_guild, monkeypatch):
         monkeypatch.setattr(bot, "PREMIUM_ENFORCED", True)
@@ -1047,3 +1048,10 @@ class TestTheAdversarialPass:
         assert "Approved by" in embed.fields[-1].value
         # Rebuilt, so the identity the moderator decided on is still there.
         assert "<@4242>" in embed.fields[0].value
+
+
+class TestThePollInterval:
+    def test_the_default_and_the_floor_are_five_minutes(self):
+        """Decided after the live test on #291: ten minutes is far too long
+        during an event."""
+        assert '"JOIN_REQUEST_POLL_INTERVAL_SECONDS", 300, minimum=300' in open(bot.__file__).read()

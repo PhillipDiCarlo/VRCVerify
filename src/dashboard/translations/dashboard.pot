@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-17 03:47-0400\n"
+"POT-Creation-Date: 2026-09-17 04:36-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -226,6 +226,21 @@ msgstr ""
 msgid "New"
 msgstr ""
 
+msgid "Your VRChat group's join requests, in Discord"
+msgstr ""
+
+msgid ""
+"Join requests to your VRChat group are now posted in a Discord channel "
+"you choose, with Approve and Deny buttons for the roles you pick. Each "
+"post shows whether the person asking is already a member of your server, "
+"and whether they're verified 18+, so your moderators can decide without "
+"leaving Discord. Turn it on under Settings, VRChat group, once group "
+"invites are set up."
+msgstr ""
+
+msgid "See Premium"
+msgstr ""
+
 msgid "Your VRChat group's calendar, in Discord"
 msgstr ""
 
@@ -236,9 +251,6 @@ msgid ""
 "they change in VRChat. If VRCVerify is in your group, members-only events"
 " sync too, and when an event's instance opens, its join link is posted in"
 " a channel you choose. Turn it on under Settings, VRChat group."
-msgstr ""
-
-msgid "See Premium"
 msgstr ""
 
 msgid "Older instruction panels have been replaced"
@@ -1647,6 +1659,9 @@ msgid "VRChat group invites for verified members"
 msgstr ""
 
 msgid "Your VRChat group calendar in Discord Events, with join links"
+msgstr ""
+
+msgid "Your VRChat group's join requests in Discord, with Approve and Deny"
 msgstr ""
 
 msgid "Not included"
