@@ -72,6 +72,8 @@ services:
       SEAT_SWEEP_SPACING: ${SEAT_SWEEP_SPACING:-2}
       CALENDAR_POLL_INTERVAL_SECONDS: ${CALENDAR_POLL_INTERVAL_SECONDS:-600}
       HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
+      DISCORD_RECONNECT_MAX_DELAY: ${DISCORD_RECONNECT_MAX_DELAY:-60}
+      WATCHDOG_STALL_SECONDS: ${WATCHDOG_STALL_SECONDS:-900}
     volumes:
       # Where the bot drops its heartbeat for the status page (issue #170).
       - status-heartbeats:/heartbeats
@@ -106,6 +108,8 @@ services:
       # 2FA email (and risk a 429 lockout). Unset to disable.
       VRCHAT_SESSION_FILE: ${VRCHAT_SESSION_FILE-/data/vrchat_session.txt}
       HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
+      WATCHDOG_STALL_SECONDS: ${WATCHDOG_STALL_SECONDS:-900}
+      VRCHAT_NETWORK_RETRY_SECONDS: ${VRCHAT_NETWORK_RETRY_SECONDS:-60}
     volumes:
       - vrchat-session:/data
       - status-heartbeats:/heartbeats
@@ -153,6 +157,8 @@ services:
       INVITE_GMAIL_APP_PASSWORD: ${INVITE_GMAIL_APP_PASSWORD:-}
       INVITE_VRCHAT_SESSION_FILE: ${INVITE_VRCHAT_SESSION_FILE-/data/vrchat_invite_session.txt}
       HEARTBEAT_DIR: ${HEARTBEAT_DIR:-}
+      WATCHDOG_STALL_SECONDS: ${WATCHDOG_STALL_SECONDS:-900}
+      VRCHAT_NETWORK_RETRY_SECONDS: ${VRCHAT_NETWORK_RETRY_SECONDS:-60}
     volumes:
       - vrchat-invite-session:/data
       - status-heartbeats:/heartbeats

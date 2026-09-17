@@ -59,6 +59,12 @@ vrchatapi.Configuration.set_default(_model_defaults)
 VRCHAT_API_CONNECT_TIMEOUT_SECONDS = float(os.getenv("VRCHAT_API_CONNECT_TIMEOUT_SECONDS", "10"))
 VRCHAT_API_READ_TIMEOUT_SECONDS = float(os.getenv("VRCHAT_API_READ_TIMEOUT_SECONDS", "20"))
 VRCHAT_RELOGIN_INTERVAL_SECONDS = int(os.getenv("VRCHAT_RELOGIN_INTERVAL_SECONDS", "600"))
+# The wait after a login that never reached VRChat: no route, DNS failing, a
+# connection refused or timed out (#325). Nothing was asked of VRChat, so there
+# is nothing to be polite about, and ten minutes on top of a network outage is
+# ten minutes of jobs failing after the network is back. A login VRChat
+# actually answered, refused or errored keeps the longer wait.
+VRCHAT_NETWORK_RETRY_SECONDS = int(os.getenv("VRCHAT_NETWORK_RETRY_SECONDS", "60"))
 
 VRCHAT_STATUS_SUMMARY_URL = os.getenv("VRCHAT_STATUS_SUMMARY_URL", "https://status.vrchat.com/api/v2/summary.json")
 VRCHAT_STATUS_CACHE_SECONDS = int(os.getenv("VRCHAT_STATUS_CACHE_SECONDS", "120"))
@@ -624,7 +630,7 @@ def login(account: VRChatAccount, load_stored_session: bool = True):
             VRCHAT_API_READ_TIMEOUT_SECONDS,
             e,
         )
-        return None, classify_api_error(e)
+        return None, _mark_network_failure(classify_api_error(e), e)
     except Exception as e:
         logging.error(
             "Unexpected VRChat login error (timeout=%ss/%ss): %s",
@@ -633,7 +639,33 @@ def login(account: VRChatAccount, load_stored_session: bool = True):
             e,
             exc_info=True,
         )
-        return None, classify_api_error(e)
+        return None, _mark_network_failure(classify_api_error(e), e)
+
+
+# Set on a login error that never reached VRChat, and taken off again by
+# VRChatSession before the error is stored, so it never travels in a result.
+NETWORK_FAILURE_KEY = "_network_failure"
+
+
+def is_network_failure(exc: Exception) -> bool:
+    """True if the request never got an answer from VRChat (#325).
+
+    urllib3's own errors and OSError cover refused and reset connections, DNS
+    failures, unreachable networks and timeouts. The generated client wraps a
+    few of those in an ApiException with no HTTP status, so that counts too. An
+    ApiException carrying a status is VRChat answering, and does not.
+    """
+    import urllib3
+
+    if isinstance(exc, ApiException):
+        return not getattr(exc, "status", None)
+    return isinstance(exc, (urllib3.exceptions.HTTPError, OSError))
+
+
+def _mark_network_failure(meta: dict, exc: Exception) -> dict:
+    if is_network_failure(exc):
+        meta[NETWORK_FAILURE_KEY] = True
+    return meta
 
 
 # -------------------------------------------------------------------
@@ -692,8 +724,14 @@ class VRChatSession:
             self._set_state(client, None)
             return client, None
 
-        self._set_state(None, error_meta or default_session_error())
-        return None, error_meta or default_session_error()
+        error_meta = dict(error_meta or default_session_error())
+        network = bool(error_meta.pop(NETWORK_FAILURE_KEY, False))
+        self._set_state(
+            None,
+            error_meta,
+            next_retry_delay_seconds=VRCHAT_NETWORK_RETRY_SECONDS if network else None,
+        )
+        return None, error_meta
 
     def get(self) -> tuple[vrchatapi.ApiClient | None, dict | None]:
         """Return the current VRChat session without triggering a relogin attempt."""
