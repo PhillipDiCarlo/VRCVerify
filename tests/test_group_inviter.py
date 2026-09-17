@@ -950,3 +950,31 @@ class TestStatusProbe:
         parts = inviter._status_probe()
         assert parts["vrc-group-inviter"][0] is False
         assert parts["queue"][0] is False
+
+
+class TestTheGeneratedGroupModels:
+    """vrchatapi 1.21.0 made several GroupMember fields optional (#349).
+
+    The invite path reads membership_status off the typed model. These run the
+    real client's deserializer, since a fake would not notice a field the
+    library stopped filling in.
+    """
+
+    def deserialize(self, body, klass):
+        import json
+
+        import vrchatapi
+
+        response = SimpleNamespace(data=json.dumps(body))
+        return vrchatapi.ApiClient().deserialize(response, klass)
+
+    def test_a_member_record_without_a_status_means_go_and_try_the_invite(self):
+        member = self.deserialize({"id": "gmem_1", "groupId": "grp_1", "userId": "usr_1"}, "GroupMember")
+        assert inviter._membership_status(member) is None
+
+    def test_a_status_still_reads_as_a_plain_string(self):
+        member = self.deserialize(
+            {"id": "gmem_1", "groupId": "grp_1", "userId": "usr_1", "membershipStatus": "member"},
+            "GroupMember",
+        )
+        assert inviter._membership_status(member) == "member"

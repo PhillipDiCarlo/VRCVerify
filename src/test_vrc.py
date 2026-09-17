@@ -134,13 +134,15 @@ def check_vrc_user_info(vrc_user_id):
     users_api_instance = users_api.UsersApi(api_client)
 
     try:
-        vrc_user = users_api_instance.get_user(vrc_user_id)
+        # The public profile, not get_user: VRChat took the bio off /users/{id}
+        # on 2026-09-16 (#346, #349).
+        profile = users_api_instance.get_public_profile(vrc_user_id)
     except vrchatapi.ApiException as e:
         print(f"❌ Failed to fetch VRChat user {vrc_user_id}. Error: {e}")
         return
 
-    age_verification_status = getattr(vrc_user, "age_verification_status", "unknown")
-    user_bio = getattr(vrc_user, "bio", "No bio available")
+    age_verification_status = getattr(profile, "age_verification_status", "unknown")
+    user_bio = getattr(profile, "bio", None) or "No bio available"
 
     print(f"User {vrc_user_id} age verification status: {age_verification_status}")
     print(f"User {vrc_user_id} bio: {user_bio}")
