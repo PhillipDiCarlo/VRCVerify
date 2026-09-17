@@ -14651,9 +14651,13 @@ def _status_probe() -> dict[str, tuple[bool, str | None]]:
     """
     parts: dict[str, tuple[bool, str | None]] = {}
 
+    # _gateway_connected as well as is_ready(): the flag alone stays True
+    # through every failed reconnect, so an outage read as up (#325).
     latency = bot.latency
-    if bot.is_ready() and latency == latency and latency != float("inf"):
+    if bot.is_ready() and _gateway_connected and latency == latency and latency != float("inf"):
         parts["discord-bot"] = (True, f"gateway ready, {int(latency * 1000)}ms")
+    elif bot.is_ready():
+        parts["discord-bot"] = (False, "gateway disconnected, reconnecting")
     else:
         parts["discord-bot"] = (False, "gateway not ready")
 

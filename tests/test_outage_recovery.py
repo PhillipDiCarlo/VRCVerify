@@ -199,6 +199,19 @@ class TestTheBotsWatchedParts:
         assert bot._watchdog_probe()["discord-bot"] == (True, None)
         assert bot.bot.on_disconnect is bot.on_disconnect, "registered with discord.py"
 
+    def test_the_status_page_sees_the_drop_too(self, monkeypatch):
+        """The status page's heartbeat read is_ready() alone and reported the
+        bot as up through the whole outage."""
+        import asyncio
+
+        monkeypatch.setattr(bot.bot, "is_ready", lambda: True)
+        monkeypatch.setattr(type(bot.bot), "latency", property(lambda self: 0.05))
+        monkeypatch.setattr(bot.engine, "connect", lambda: (_ for _ in ()).throw(RuntimeError("no db here")))
+        asyncio.run(bot.on_connect())
+        assert bot._status_probe()["discord-bot"] == (True, "gateway ready, 50ms")
+        asyncio.run(bot.on_disconnect())
+        assert bot._status_probe()["discord-bot"] == (False, "gateway disconnected, reconnecting")
+
     def test_discord_py_still_clears_ready_only_on_close(self):
         """The reason the listeners exist. If discord.py starts clearing it on
         a drop, is_ready() alone would do, and this says so."""
