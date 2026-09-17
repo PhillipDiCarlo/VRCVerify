@@ -35,15 +35,7 @@ from schema_snapshot import compare, parse_snapshot
 # is no ALTER to forget: the entry comes out when the snapshot is refreshed
 # after the deploy, and test_nothing_waits_for_a_deploy_that_already_happened
 # says when.
-NOT_DEPLOYED_YET: dict = {
-    "premium_subscription_daily": (
-        "#352: a daily count of live Discord and Stripe premium subscriptions, "
-        "written by the bot for the Grafana panel."
-    ),
-    "join_request_triage": "#291: a guild's join-request triage switch, channel and polling.",
-    "join_request_triage_role": "#291: the Discord roles allowed to approve or deny join requests.",
-    "join_request_post": "#291: one pending join request and the Discord post triaging it.",
-}
+NOT_DEPLOYED_YET: dict = {}
 
 # Every divergence that exists today, keyed by exactly what the comparison
 # prints, so an entry cannot quietly go on covering a different fact than the
