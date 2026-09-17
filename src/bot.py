@@ -615,8 +615,6 @@ JOIN_REQUEST_POST_SPACING_SECONDS = _float_env("JOIN_REQUEST_POST_SPACING_SECOND
 # How long a moderator's decision may wait for the worker before its buttons
 # come back. The worker answers in seconds; this covers a restart or a lost job.
 JOIN_REQUEST_RESPOND_TIMEOUT_SECONDS = _int_env("JOIN_REQUEST_RESPOND_TIMEOUT_SECONDS", 600)
-# How many accounts linked to one VRChat account are looked up for one post.
-JOIN_REQUEST_LINKED_MEMBERS_MAX = 5
 # Capped and spaced for the same reason panel nudges are: a backlog, a clock
 # jump or a long outage must trickle out rather than becoming a burst of VRChat
 # writes from one account.
@@ -10710,17 +10708,19 @@ def _vrchat_name(name) -> str:
 
 
 async def join_request_identity_lines(guild, guild_id, vrc_user_id: str, locale: str) -> list:
-    """The applicant's linked Discord accounts, as lines, for members of THIS guild.
+    """The applicant's linked Discord account, as lines, if they are in THIS guild.
 
     Only members of this guild are shown, decided on #291: naming an account
     from another server would hand this server's moderators someone's identity
     from a community they never shared with them.
+
+    At most one account: `users.vrc_user_id` is UNIQUE in the deployed schema
+    (users_vrc_user_id_key), though the model does not declare it. A list, so a
+    post with nobody to name is an empty one rather than a special case.
     """
     with session_scope() as session:
-        linked = [
-            (str(user.discord_id), bool(user.verification_status))
-            for user in session.query(User).filter_by(vrc_user_id=vrc_user_id).limit(JOIN_REQUEST_LINKED_MEMBERS_MAX)
-        ]
+        user = session.query(User).filter_by(vrc_user_id=vrc_user_id).first()
+        linked = [(str(user.discord_id), bool(user.verification_status))] if user else []
         server = session.query(Server).filter_by(server_id=int(guild_id)).first()
         verified_role_id = int(server.role_id) if server and server.role_id else None
     lines = []

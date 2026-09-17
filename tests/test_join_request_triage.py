@@ -495,14 +495,10 @@ class TestTheDiscordIdentity:
         poll_once([request()])
         assert "not verified 18+" in self.field(ready)
 
-    def test_every_linked_member_here_is_shown(self, ready):
-        """users.vrc_user_id is not unique."""
-        for discord_id in (4242, 4343):
-            link_user(discord_id=discord_id)
-            ready.members[discord_id] = FakeMember(discord_id)
+    def test_an_applicant_nobody_linked_is_looked_up_no_further(self, ready):
         poll_once([request()])
-        value = self.field(ready)
-        assert "<@4242>" in value and "<@4343>" in value
+        assert self.field(ready) == "No linked Discord account in this server."
+        assert ready.fetched == []
 
 
 class TestRequestsThatLeaveTheQueue:
