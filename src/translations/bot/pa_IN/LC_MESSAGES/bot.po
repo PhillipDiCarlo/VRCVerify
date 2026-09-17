@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 09:12-0400\n"
+"POT-Creation-Date: 2026-09-17 04:37-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pa_IN\n"
@@ -523,6 +523,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "Appearance and automation settings live in `/vrcverify_settings`.\n"
 "\n"
@@ -543,6 +545,8 @@ msgstr ""
 "• ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਨੂੰ ਸਿੱਧਾ ਆਪਣੇ ਸਰਵਰ ਦੇ VRChat ਗਰੁੱਪ ਵਿੱਚ ਸੱਦੋ\n"
 "• ਤੁਹਾਡੇ VRChat ਗਰੁੱਪ ਦਾ ਕੈਲੰਡਰ Discord ਦੇ Events ਟੈਬ ਵਿੱਚ, ਹਰ ਇਵੈਂਟ "
 "ਸ਼ੁਰੂ ਹੋਣ 'ਤੇ ਸ਼ਾਮਲ ਹੋਣ ਦੇ ਲਿੰਕ ਨਾਲ\n"
+"• ਤੁਹਾਡੇ VRChat ਗਰੁੱਪ ਦੀਆਂ ਸ਼ਾਮਲ ਹੋਣ ਦੀਆਂ ਬੇਨਤੀਆਂ Discord ਵਿੱਚ ਪੋਸਟ ਕੀਤੀਆਂ "
+"ਜਾਂਦੀਆਂ ਹਨ, ਤੁਹਾਡੇ ਮਾਡਰੇਟਰਾਂ ਲਈ ਮਨਜ਼ੂਰ ਕਰੋ ਅਤੇ ਅਸਵੀਕਾਰ ਕਰੋ ਨਾਲ\n"
 "\n"
 "ਦਿੱਖ ਅਤੇ ਸਵੈਚਲਿਤ ਸੈਟਿੰਗਾਂ `/vrcverify_settings` ਵਿੱਚ ਹਨ।\n"
 "\n"
@@ -565,6 +569,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "Appearance and automation settings live in `/vrcverify_settings`.\n"
 "\n"
@@ -585,6 +591,8 @@ msgstr ""
 "• ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਨੂੰ ਸਿੱਧਾ ਆਪਣੇ ਸਰਵਰ ਦੇ VRChat ਗਰੁੱਪ ਵਿੱਚ ਸੱਦੋ\n"
 "• ਤੁਹਾਡੇ VRChat ਗਰੁੱਪ ਦਾ ਕੈਲੰਡਰ Discord ਦੇ Events ਟੈਬ ਵਿੱਚ, ਹਰ ਇਵੈਂਟ "
 "ਸ਼ੁਰੂ ਹੋਣ 'ਤੇ ਸ਼ਾਮਲ ਹੋਣ ਦੇ ਲਿੰਕ ਨਾਲ\n"
+"• ਤੁਹਾਡੇ VRChat ਗਰੁੱਪ ਦੀਆਂ ਸ਼ਾਮਲ ਹੋਣ ਦੀਆਂ ਬੇਨਤੀਆਂ Discord ਵਿੱਚ ਪੋਸਟ ਕੀਤੀਆਂ "
+"ਜਾਂਦੀਆਂ ਹਨ, ਤੁਹਾਡੇ ਮਾਡਰੇਟਰਾਂ ਲਈ ਮਨਜ਼ੂਰ ਕਰੋ ਅਤੇ ਅਸਵੀਕਾਰ ਕਰੋ ਨਾਲ\n"
 "\n"
 "ਦਿੱਖ ਅਤੇ ਸਵੈਚਲਿਤ ਸੈਟਿੰਗਾਂ `/vrcverify_settings` ਵਿੱਚ ਹਨ।\n"
 "\n"
@@ -646,6 +654,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "One subscription covers the whole server, and there are two ways to buy "
 "it:\n"
@@ -669,6 +679,8 @@ msgstr ""
 "• ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਨੂੰ ਸਿੱਧਾ ਆਪਣੇ ਸਰਵਰ ਦੇ VRChat ਗਰੁੱਪ ਵਿੱਚ ਸੱਦੋ\n"
 "• ਤੁਹਾਡੇ VRChat ਗਰੁੱਪ ਦਾ ਕੈਲੰਡਰ Discord ਦੇ Events ਟੈਬ ਵਿੱਚ, ਹਰ ਇਵੈਂਟ "
 "ਸ਼ੁਰੂ ਹੋਣ 'ਤੇ ਸ਼ਾਮਲ ਹੋਣ ਦੇ ਲਿੰਕ ਨਾਲ\n"
+"• ਤੁਹਾਡੇ VRChat ਗਰੁੱਪ ਦੀਆਂ ਸ਼ਾਮਲ ਹੋਣ ਦੀਆਂ ਬੇਨਤੀਆਂ Discord ਵਿੱਚ ਪੋਸਟ ਕੀਤੀਆਂ "
+"ਜਾਂਦੀਆਂ ਹਨ, ਤੁਹਾਡੇ ਮਾਡਰੇਟਰਾਂ ਲਈ ਮਨਜ਼ੂਰ ਕਰੋ ਅਤੇ ਅਸਵੀਕਾਰ ਕਰੋ ਨਾਲ\n"
 "\n"
 "ਇੱਕੋ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਪੂਰੇ ਸਰਵਰ ਲਈ ਕੰਮ ਕਰਦੀ ਹੈ, ਅਤੇ ਇਸਨੂੰ ਲੈਣ ਦੇ ਦੋ ਤਰੀਕੇ ਹਨ:\n"
 "• **Discord ਵਿੱਚ** — ਹੇਠਾਂ ਦਿੱਤਾ ਬਟਨ। ਮਹੀਨਾਵਾਰ ਬਿਲਿੰਗ।\n"
@@ -696,6 +708,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "**Premium is available two ways:**\n"
 "• **In Discord** — the button below. Billed monthly.\n"
@@ -721,6 +735,8 @@ msgstr ""
 "• ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਨੂੰ ਸਿੱਧਾ ਆਪਣੇ ਸਰਵਰ ਦੇ VRChat ਗਰੁੱਪ ਵਿੱਚ ਸੱਦੋ\n"
 "• ਤੁਹਾਡੇ VRChat ਗਰੁੱਪ ਦਾ ਕੈਲੰਡਰ Discord ਦੇ Events ਟੈਬ ਵਿੱਚ, ਹਰ ਇਵੈਂਟ "
 "ਸ਼ੁਰੂ ਹੋਣ 'ਤੇ ਸ਼ਾਮਲ ਹੋਣ ਦੇ ਲਿੰਕ ਨਾਲ\n"
+"• ਤੁਹਾਡੇ VRChat ਗਰੁੱਪ ਦੀਆਂ ਸ਼ਾਮਲ ਹੋਣ ਦੀਆਂ ਬੇਨਤੀਆਂ Discord ਵਿੱਚ ਪੋਸਟ ਕੀਤੀਆਂ "
+"ਜਾਂਦੀਆਂ ਹਨ, ਤੁਹਾਡੇ ਮਾਡਰੇਟਰਾਂ ਲਈ ਮਨਜ਼ੂਰ ਕਰੋ ਅਤੇ ਅਸਵੀਕਾਰ ਕਰੋ ਨਾਲ\n"
 "\n"
 "**Premium ਦੋ ਤਰੀਕਿਆਂ ਨਾਲ ਲਿਆ ਜਾ ਸਕਦਾ ਹੈ:**\n"
 "• **Discord ਵਿੱਚ** — ਹੇਠਾਂ ਦਿੱਤਾ ਬਟਨ। ਮਹੀਨਾਵਾਰ ਬਿਲਿੰਗ।\n"
@@ -961,6 +977,144 @@ msgstr "ਕਮਜ਼ੋਰ ਜਾਂ ਬਿਹਤਰ"
 #, python-brace-format
 msgid "Join here: {link}"
 msgstr "ਇੱਥੇ ਸ਼ਾਮਲ ਹੋਵੋ: {link}"
+
+#, python-brace-format
+msgid "Join request: {name}"
+msgstr "ਸ਼ਾਮਲ ਹੋਣ ਦੀ ਬੇਨਤੀ: {name}"
+
+msgid "View VRChat profile"
+msgstr "VRChat ਪ੍ਰੋਫਾਈਲ ਵੇਖੋ"
+
+msgid "Linked on Discord"
+msgstr "Discord 'ਤੇ ਲਿੰਕ"
+
+#, python-brace-format
+msgid "{member}, in this server since {since}"
+msgstr "{member}, {since} ਤੋਂ ਇਸ ਸਰਵਰ ਵਿੱਚ"
+
+msgid "verified 18+"
+msgstr "18+ ਤਸਦੀਕਸ਼ੁਦਾ"
+
+msgid "not verified 18+"
+msgstr "18+ ਤਸਦੀਕਸ਼ੁਦਾ ਨਹੀਂ"
+
+#, python-brace-format
+msgid "has {role}"
+msgstr "{role} ਹੈ"
+
+msgid "No linked Discord account in this server."
+msgstr "ਇਸ ਸਰਵਰ ਵਿੱਚ ਕੋਈ ਲਿੰਕ ਕੀਤਾ Discord ਖਾਤਾ ਨਹੀਂ ਹੈ।"
+
+msgid "First seen by the bot"
+msgstr "ਬੋਟ ਨੇ ਪਹਿਲੀ ਵਾਰ ਵੇਖਿਆ"
+
+msgid "Status"
+msgstr "ਸਥਿਤੀ"
+
+msgid "Approve"
+msgstr "ਮਨਜ਼ੂਰ ਕਰੋ"
+
+msgid "Deny"
+msgstr "ਅਸਵੀਕਾਰ ਕਰੋ"
+
+#, python-brace-format
+msgid "Approving, asked by {moderator}…"
+msgstr "ਮਨਜ਼ੂਰ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ, {moderator} ਦੇ ਕਹਿਣ ਤੇ…"
+
+#, python-brace-format
+msgid "Denying, asked by {moderator}…"
+msgstr "ਅਸਵੀਕਾਰ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ, {moderator} ਦੇ ਕਹਿਣ ਤੇ…"
+
+#, python-brace-format
+msgid "Approved by {moderator} {when}"
+msgstr "{moderator} ਨੇ ਮਨਜ਼ੂਰ ਕੀਤਾ {when}"
+
+#, python-brace-format
+msgid "Denied by {moderator} {when}"
+msgstr "{moderator} ਨੇ ਅਸਵੀਕਾਰ ਕੀਤਾ {when}"
+
+msgid "No longer waiting. It was handled in VRChat or withdrawn."
+msgstr ""
+"ਹੁਣ ਉਡੀਕ ਵਿੱਚ ਨਹੀਂ ਹੈ। ਇਸਨੂੰ VRChat ਵਿੱਚ ਨਿਪਟਾ ਦਿੱਤਾ ਗਿਆ ਜਾਂ ਵਾਪਸ ਲੈ ਲਿਆ "
+"ਗਿਆ।"
+
+msgid "Closed. This server now uses a different VRChat group."
+msgstr "ਬੰਦ। ਇਹ ਸਰਵਰ ਹੁਣ ਕਿਸੇ ਹੋਰ VRChat ਗਰੁੱਪ ਦੀ ਵਰਤੋਂ ਕਰਦਾ ਹੈ।"
+
+msgid ""
+"That didn't go through: the bot no longer has permission to manage this "
+"group's invites and join requests."
+msgstr ""
+"ਇਹ ਪੂਰਾ ਨਹੀਂ ਹੋਇਆ: ਬੋਟ ਕੋਲ ਹੁਣ ਇਸ ਗਰੁੱਪ ਦੇ ਸੱਦੇ ਅਤੇ ਸ਼ਾਮਲ ਹੋਣ ਦੀਆਂ "
+"ਬੇਨਤੀਆਂ ਸੰਭਾਲਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।"
+
+msgid "That didn't go through: VRChat couldn't find this group."
+msgstr "ਇਹ ਪੂਰਾ ਨਹੀਂ ਹੋਇਆ: VRChat ਨੂੰ ਇਹ ਗਰੁੱਪ ਨਹੀਂ ਮਿਲਿਆ।"
+
+msgid "That didn't go through: VRChat didn't answer. Please try again."
+msgstr "ਇਹ ਪੂਰਾ ਨਹੀਂ ਹੋਇਆ: VRChat ਨੇ ਜਵਾਬ ਨਹੀਂ ਦਿੱਤਾ। ਕਿਰਪਾ ਕਰਕੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+
+#, python-brace-format
+msgid ""
+"More join requests are waiting in VRChat than are posted here. Not shown:"
+" {count}. New requests will be posted as they arrive."
+msgstr ""
+"ਇੱਥੇ ਪੋਸਟ ਕੀਤੀਆਂ ਬੇਨਤੀਆਂ ਨਾਲੋਂ ਵੱਧ ਬੇਨਤੀਆਂ VRChat ਵਿੱਚ ਉਡੀਕ ਕਰ ਰਹੀਆਂ ਹਨ। "
+"ਨਹੀਂ ਵਿਖਾਈਆਂ: {count}। ਨਵੀਆਂ ਬੇਨਤੀਆਂ ਆਉਂਦੇ ਹੀ ਪੋਸਟ ਕੀਤੀਆਂ ਜਾਣਗੀਆਂ।"
+
+msgid ""
+"Only the roles this server chose for join requests can approve or deny "
+"them."
+msgstr ""
+"ਸਿਰਫ਼ ਉਹ ਰੋਲ ਜੋ ਇਸ ਸਰਵਰ ਨੇ ਸ਼ਾਮਲ ਹੋਣ ਦੀਆਂ ਬੇਨਤੀਆਂ ਲਈ ਚੁਣੇ ਹਨ, ਉਹਨਾਂ ਨੂੰ "
+"ਮਨਜ਼ੂਰ ਜਾਂ ਅਸਵੀਕਾਰ ਕਰ ਸਕਦੇ ਹਨ।"
+
+msgid "This request has already been handled."
+msgstr "ਇਹ ਬੇਨਤੀ ਪਹਿਲਾਂ ਹੀ ਨਿਪਟਾਈ ਜਾ ਚੁੱਕੀ ਹੈ।"
+
+msgid "Join request triage isn't available for this server right now."
+msgstr "ਇਸ ਸਰਵਰ ਲਈ ਇਸ ਵੇਲੇ ਸ਼ਾਮਲ ਹੋਣ ਦੀਆਂ ਬੇਨਤੀਆਂ ਦੀ ਸਮੀਖਿਆ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।"
+
+#, python-brace-format
+msgid ""
+"Deny **{name}**'s request to join the VRChat group? They can request "
+"again later."
+msgstr ""
+"VRChat ਗਰੁੱਪ ਵਿੱਚ ਸ਼ਾਮਲ ਹੋਣ ਦੀ **{name}** ਦੀ ਬੇਨਤੀ ਅਸਵੀਕਾਰ ਕਰਨੀ ਹੈ? ਉਹ "
+"ਬਾਅਦ ਵਿੱਚ ਮੁੜ ਬੇਨਤੀ ਕਰ ਸਕਦੇ ਹਨ।"
+
+msgid "Deny request"
+msgstr "ਬੇਨਤੀ ਅਸਵੀਕਾਰ ਕਰੋ"
+
+msgid "Cancel"
+msgstr "ਰੱਦ ਕਰੋ"
+
+msgid "Nothing was changed."
+msgstr "ਕੁਝ ਵੀ ਨਹੀਂ ਬਦਲਿਆ ਗਿਆ।"
+
+msgid "Sent to VRChat. The post will update when VRChat answers."
+msgstr "VRChat ਨੂੰ ਭੇਜ ਦਿੱਤਾ ਗਿਆ। VRChat ਦੇ ਜਵਾਬ ਦੇਣ ਤੇ ਪੋਸਟ ਅੱਪਡੇਟ ਹੋ ਜਾਵੇਗੀ।"
+
+msgid "The bot couldn't reach VRChat just now. Please try again in a minute."
+msgstr ""
+"ਬੋਟ ਇਸ ਵੇਲੇ VRChat ਤੱਕ ਨਹੀਂ ਪਹੁੰਚ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਮਿੰਟ ਬਾਅਦ ਮੁੜ "
+"ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+
+#, python-brace-format
+msgid ""
+"✅ {moderator} approved **{name}**'s request to join the VRChat group · "
+"{when}"
+msgstr ""
+"✅ {moderator} ਨੇ VRChat ਗਰੁੱਪ ਵਿੱਚ ਸ਼ਾਮਲ ਹੋਣ ਦੀ **{name}** ਦੀ ਬੇਨਤੀ "
+"ਮਨਜ਼ੂਰ ਕੀਤੀ · {when}"
+
+#, python-brace-format
+msgid ""
+"🚫 {moderator} denied **{name}**'s request to join the VRChat group · "
+"{when}"
+msgstr ""
+"🚫 {moderator} ਨੇ VRChat ਗਰੁੱਪ ਵਿੱਚ ਸ਼ਾਮਲ ਹੋਣ ਦੀ **{name}** ਦੀ ਬੇਨਤੀ "
+"ਅਸਵੀਕਾਰ ਕੀਤੀ · {when}"
 
 #~ msgid "Donate"
 #~ msgstr "ਦਾਨ ਕਰੋ"

@@ -1722,7 +1722,11 @@ def _register_routes(app: Flask) -> None:
         # could persist.
         needs = SETTINGS_GROUP_READS[group]
         calendar = settings.get("calendar_sync") or {}
-        if group == "vrchat-group" and calendar.get("available") and calendar.get("bot_in_group"):
+        triage = settings.get("join_request_triage") or {}
+        if group == "vrchat-group" and (
+            (calendar.get("available") and calendar.get("bot_in_group"))
+            or (triage.get("available") and triage.get("group_ready"))
+        ):
             needs = tuple(needs) + ("roles", "channels")
         roles = channels = panel = audit = None
         if "roles" in needs:
@@ -2440,6 +2444,14 @@ def _register_routes(app: Flask) -> None:
             if name in request.form:
                 # Empty is a choice: no announcement, or no ping.
                 changes[name] = request.form.get(name) or None
+        # Join-request triage (#291), the same way.
+        _read_checkbox(changes, "join_request_triage_enabled")
+        if "join_request_channel_id" in request.form:
+            changes["join_request_channel_id"] = request.form.get("join_request_channel_id") or None
+        # A list of checkboxes, so it needs the presence marker a single
+        # checkbox does: no box ticked submits nothing at all.
+        if request.form.get("present_join_request_mod_role_ids"):
+            changes["join_request_mod_role_ids"] = request.form.getlist("join_request_mod_role_ids")
 
         return _save(guild_id, session, changes, "vrchat-group")
 
@@ -2632,6 +2644,9 @@ SAVE_ERRORS = {
     "channel_not_writable": (
         N_("VRCVerify can't post in that channel, so it can't log there. Check the "
         "channel's permissions and try again.")
+    ),
+    "too_many_roles": (
+        N_("That's more roles than can be chosen. Pick up to 10 and try again.")
     ),
     "column_missing": (
         N_("This bot's database is missing the column for that setting. Contact "
@@ -3038,6 +3053,14 @@ _FIELD_NAME = re.compile(r"[a-z][a-z_]{0,63}")
 # Where a refusal needs wording about the setting it is on rather than the
 # general sentence for its code.
 FIELD_SAVE_ERRORS = {
+    ("join_request_channel_id", "channel_not_writable"): N_(
+        "VRCVerify can't post join requests in that channel. It needs View "
+        "Channel, Send Messages and Embed Links in it."
+    ),
+    ("join_request_channel_id", "channel_is_announcement"): N_(
+        "Join requests can't go in an announcement channel. Other servers can "
+        "follow one, which would republish who is verified 18+."
+    ),
     ("calendar_announce_channel_id", "channel_not_writable"): N_(
         "VRCVerify can't post in that channel, so it can't announce join links "
         "there. It needs View Channel and Send Messages in it."

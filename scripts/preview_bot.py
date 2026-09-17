@@ -58,6 +58,7 @@ try:
         DEFAULT_CHANNELS,
         DEFAULT_ROLES,
         LOG_CHANNEL,
+        VERIFIED_ROLE,
         WRITABLE,
         make_overview,
         make_settings,
@@ -194,6 +195,28 @@ _CALENDAR_STATES = {
     "empty": (True, dict(
         state="synced", last_synced_at="2026-09-14T11:40:00+00:00",
         visible_count=0, eligible_count=0, synced_count=0, over_cap_count=0,
+    )),
+}
+
+# Join-request triage (#291), on the premium server's VRChat group page. Implies
+# a group set up for invites, except in `unready`.
+#
+#   PREVIEW_JOIN_REQUESTS=unready    invites not set up yet, so no controls
+#   PREVIEW_JOIN_REQUESTS=off        ready, and the switch is off
+#   PREVIEW_JOIN_REQUESTS=synced     on, checked, requests waiting, roles chosen
+#   PREVIEW_JOIN_REQUESTS=no_roles   on, with no channel and no roles chosen
+#   PREVIEW_JOIN_REQUESTS=channel    on, and the channel became unusable
+PREVIEW_JOIN_REQUESTS = os.environ.get("PREVIEW_JOIN_REQUESTS", "")
+
+_JOIN_REQUEST_STATES = {
+    "unready": (False, None, [], dict(group_ready=False)),
+    "off": (False, None, [], dict()),
+    "synced": (True, LOG_CHANNEL, [VERIFIED_ROLE], dict(
+        state="synced", last_polled_at="2026-09-17T11:40:00+00:00", pending_count=4,
+    )),
+    "no_roles": (True, None, [], dict(state=None)),
+    "channel": (True, LOG_CHANNEL, [VERIFIED_ROLE], dict(
+        state="channel_unusable", error="Missing Permissions",
     )),
 }
 
@@ -388,6 +411,27 @@ class PreviewBotAPI:
                 dict(available=True, error=None, last_synced_at=None, visible_count=None,
                      eligible_count=None, synced_count=None, over_cap_count=None,
                      can_manage_events=True, poll_interval_minutes=10, bot_in_group=True),
+                **block,
+            )
+        if premium and PREVIEW_JOIN_REQUESTS in _JOIN_REQUEST_STATES:
+            enabled, channel, roles, block = _JOIN_REQUEST_STATES[PREVIEW_JOIN_REQUESTS]
+            payload["fields"]["vrchat_group_id"]["value"] = _PREVIEW_GROUP_ID
+            payload["group_invite"] = dict(
+                payload.get("group_invite") or {},
+                group_name="Club LA", state="ready", can_invite=True, can_see_members=True,
+            )
+            payload["group_ownership"] = dict(proven=True, claim_state=None, claim_error=None, proven_at=None)
+            for name, value in (
+                ("join_request_triage_enabled", enabled),
+                ("join_request_channel_id", channel),
+                ("join_request_mod_role_ids", roles),
+            ):
+                payload["fields"][name] = dict(
+                    value=value, feature="join_request_triage", active=True, locked=False, writable=True
+                )
+            payload["join_request_triage"] = dict(
+                dict(available=True, group_ready=True, state=None, error=None, last_polled_at=None,
+                     pending_count=None, poll_interval_minutes=10),
                 **block,
             )
         if not premium:

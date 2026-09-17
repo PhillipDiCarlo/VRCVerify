@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 15:51-0400\n"
+"POT-Creation-Date: 2026-09-17 04:36-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -107,6 +107,9 @@ msgid ""
 "channel's permissions and try again."
 msgstr "VRCVerify はそのチャンネルに投稿できないため、そこにログを記録できません。チャンネルの権限を確認してもう一度お試しください。"
 
+msgid "That's more roles than can be chosen. Pick up to 10 and try again."
+msgstr "選択できるロールの数を超えています。10 個までにしてからもう一度お試しください。"
+
 msgid ""
 "This bot's database is missing the column for that setting. Contact the "
 "bot operator."
@@ -193,6 +196,16 @@ msgid "There's no card subscription on this server to manage."
 msgstr "このサーバーには管理できるカード決済のサブスクリプションがありません。"
 
 msgid ""
+"VRCVerify can't post join requests in that channel. It needs View "
+"Channel, Send Messages and Embed Links in it."
+msgstr "VRCVerify はそのチャンネルに参加リクエストを投稿できません。チャンネルの閲覧、メッセージの送信、埋め込みリンクの権限が必要です。"
+
+msgid ""
+"Join requests can't go in an announcement channel. Other servers can "
+"follow one, which would republish who is verified 18+."
+msgstr "参加リクエストはアナウンスチャンネルには投稿できません。他のサーバーがフォローでき、誰が 18 歳以上として認証済みかが転載されてしまいます。"
+
+msgid ""
 "VRCVerify can't post in that channel, so it can't announce join links "
 "there. It needs View Channel and Send Messages in it."
 msgstr ""
@@ -239,6 +252,22 @@ msgstr "Premium"
 msgid "New"
 msgstr "ウェブサイトがあなたの言語に対応しました"
 
+msgid "Your VRChat group's join requests, in Discord"
+msgstr "VRChat グループの参加リクエストを Discord で"
+
+msgid ""
+"Join requests to your VRChat group are now posted in a Discord channel "
+"you choose, with Approve and Deny buttons for the roles you pick. Each "
+"post shows whether the person asking is already a member of your server, "
+"and whether they're verified 18+, so your moderators can decide without "
+"leaving Discord. Turn it on under Settings, VRChat group, once group "
+"invites are set up."
+msgstr "VRChat グループへの参加リクエストが、選んだ Discord チャンネルに、選んだロール向けの承認と拒否のボタン付きで投稿されるようになりました。各投稿には、申請者がすでにサーバーのメンバーかどうかと 18 歳以上の認証状況が表示されるので、モデレーターは Discord を離れずに判断できます。グループ招待を設定したら、設定の VRChat グループでオンにしてください。"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "Premium を見る"
+
 msgid "Your VRChat group's calendar, in Discord"
 msgstr "VRChat グループのカレンダーを Discord に"
 
@@ -256,10 +285,6 @@ msgstr ""
 "で変更されると同期されます。VRCVerify "
 "がグループに参加していれば、メンバー限定イベントも同期され、イベントのインスタンスが開くと、選んだチャンネルに参加リンクが投稿されます。「設定」の「VRChat"
 " グループ」でオンにしてください。"
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "Premium を見る"
 
 msgid "Older instruction panels have been replaced"
 msgstr "古い説明パネルを置き換えました"
@@ -764,6 +789,17 @@ msgstr ""
 "グループの VRChat カレンダーにある今後のイベントごとに Discord "
 "のイベントを作成し、最新の状態に保ちます。オフにすると、まだ始まっていないイベントは削除されます。"
 
+msgid "Join requests"
+msgstr "参加リクエスト"
+
+msgid ""
+"Post your VRChat group's join requests in Discord, so moderators can "
+"approve or deny them there and see whether they already know the person "
+"asking."
+msgstr ""
+"VRChat グループへの参加リクエストを Discord "
+"に投稿し、モデレーターがそこで承認・拒否したり、申請者が既知の人か確認したりできるようにします。"
+
 msgid "Not checked yet"
 msgstr "未確認"
 
@@ -989,6 +1025,101 @@ msgid ""
 "pinged."
 msgstr "任意。参加リンクを投稿するときにメンションするロールです。それ以外の人にはメンションしません。"
 
+msgid "Post join requests in Discord"
+msgstr "参加リクエストを Discord に投稿"
+
+msgid ""
+"Checks your group for new join requests and posts each one with Approve "
+"and Deny buttons."
+msgstr "グループに新しい参加リクエストがないか確認し、承認と拒否のボタン付きで 1 件ずつ投稿します。"
+
+msgid ""
+"This channel no longer exists in the server, so join requests aren't "
+"posted. Choose another channel."
+msgstr "このチャンネルはサーバーに存在しないため、参加リクエストは投稿されません。別のチャンネルを選んでください。"
+
+msgid ""
+"VRCVerify can't post in this channel. It needs View Channel, Send "
+"Messages and Embed Links there."
+msgstr "VRCVerify はこのチャンネルに投稿できません。チャンネルの閲覧、メッセージの送信、埋め込みリンクの権限が必要です。"
+
+msgid "Post requests in"
+msgstr "リクエストの投稿先"
+
+msgid ""
+"Pick a channel only your moderators can see. Each post shows the person's"
+" linked Discord account, and whether they're verified 18+, when they're a"
+" member of this server."
+msgstr ""
+"モデレーターだけが見られるチャンネルを選んでください。申請者がこのサーバーのメンバーの場合、投稿にはリンクされた Discord アカウントと "
+"18 歳以上の認証状況が表示されます。"
+
+msgid "A chosen role no longer exists in the server. Choose the roles again."
+msgstr "選択したロールの一部がサーバーに存在しません。ロールを選び直してください。"
+
+msgid "Nobody can approve or deny requests until you choose at least one role."
+msgstr "ロールを 1 つ以上選ぶまで、誰もリクエストを承認・拒否できません。"
+
+msgid "Who can approve or deny"
+msgstr "承認・拒否できる人"
+
+msgid ""
+"Members with any of these roles can press Approve or Deny. Server admins "
+"aren't included unless they have one of them."
+msgstr "これらのロールのいずれかを持つメンバーが承認または拒否を押せます。サーバー管理者も、これらのロールを持っていなければ含まれません。"
+
+msgid "None chosen"
+msgstr "未選択"
+
+msgid "Reading your group's join requests. Reload this page in a moment."
+msgstr "グループの参加リクエストを読み込んでいます。少ししてからこのページを再読み込みしてください。"
+
+msgid "Checked"
+msgstr "確認済み"
+
+msgid "VRCVerify can't see this group's join requests"
+msgstr "VRCVerify はこのグループの参加リクエストを確認できません"
+
+msgid "Give the bot's role the “Manage Group Invites” permission in VRChat."
+msgstr "VRChat でボットのロールに“Manage Group Invites”権限を付与してください。"
+
+msgid "Your group couldn't be found"
+msgstr "グループが見つかりませんでした"
+
+msgid "VRChat couldn't find this group. Check the group still exists."
+msgstr "VRChat がこのグループを見つけられませんでした。グループが存在するか確認してください。"
+
+msgid "Nothing is wrong with your setup. The next check will try again."
+msgstr "設定に問題はありません。次回の確認で再試行されます。"
+
+msgid "The last check didn't finish"
+msgstr "前回の確認が完了しませんでした"
+
+msgid "The next check will try again."
+msgstr "次回の確認で再試行されます。"
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"check will try again."
+msgstr "ボットが VRChat と通信する部分に接続できませんでした。次回の確認で再試行されます。"
+
+msgid "VRCVerify can't post in the chosen channel"
+msgstr "VRCVerify は選択したチャンネルに投稿できません"
+
+msgid "It needs View Channel, Send Messages and Embed Links there."
+msgstr "チャンネルの閲覧、メッセージの送信、埋め込みリンクの権限が必要です。"
+
+msgid "Waiting for the first check"
+msgstr "最初の確認を待っています"
+
+msgid ""
+"The first check starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr "オンにしてから 1 分以内に最初の確認が始まります。少ししてからこのページを再読み込みしてください。"
+
+msgid "Choose a channel so join requests have somewhere to go."
+msgstr "参加リクエストの投稿先となるチャンネルを選んでください。"
+
 msgid "Waiting for the first sync"
 msgstr "最初の同期を待っています"
 
@@ -1132,6 +1263,12 @@ msgstr "すべての認証の試行。静かに失敗したものも含みます
 # | msgid "VRChat group"
 msgid "VRChat group invites"
 msgstr "VRChat グループ招待"
+
+msgid "Join request channel"
+msgstr "参加リクエストのチャンネル"
+
+msgid "Who can approve or deny join requests"
+msgstr "参加リクエストを承認・拒否できる人"
 
 # | msgid "VRChat group"
 msgid "VRChat group setup check"
@@ -1714,6 +1851,9 @@ msgstr "認証済みメンバーへの VRChat グループ招待"
 msgid "Your VRChat group calendar in Discord Events, with join links"
 msgstr "VRChat グループのカレンダーを Discord イベントに、参加リンク付きで"
 
+msgid "Your VRChat group's join requests in Discord, with Approve and Deny"
+msgstr "VRChat グループの参加リクエストを Discord で承認・拒否"
+
 # | msgid "Not applied"
 msgid "Not included"
 msgstr "含まれない"
@@ -1886,6 +2026,32 @@ msgid ""
 msgstr ""
 "現在は公開イベントのみ同期されます。メンバー限定イベントも同期し、イベント開始時に参加リンクを投稿するには、VRCVerify が VRChat "
 "グループに参加している必要があります。上のグループ招待を設定すると参加します。"
+
+msgid "Waiting for group invites"
+msgstr "グループ招待の設定を待っています"
+
+msgid ""
+"Join requests are read and answered by the VRCVerify account in your "
+"group. Set up group invites above first."
+msgstr "参加リクエストは、グループ内の VRCVerify アカウントが読み取って回答します。先に上でグループ招待を設定してください。"
+
+#, python-format
+msgid "%(count)s join request is waiting in VRChat."
+msgid_plural "%(count)s join requests are waiting in VRChat."
+msgstr[0] "VRChat で %(count)s 件の参加リクエストが待機中です。"
+
+#, python-format
+msgid "Last checked %(when)s"
+msgstr "最終確認: %(when)s"
+
+#, python-format
+msgid ""
+"Your group is checked about every %(count)s minute, so a new request "
+"reaches Discord within %(count)s minute or so."
+msgid_plural ""
+"Your group is checked about every %(count)s minutes, so a new request "
+"reaches Discord within %(count)s minutes or so."
+msgstr[0] "グループは約 %(count)s 分ごとに確認されるため、新しいリクエストはおよそ %(count)s 分以内に Discord に届きます。"
 
 msgid "Not applied"
 msgstr "未適用"

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 09:12-0400\n"
+"POT-Creation-Date: 2026-09-17 04:37-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: nl\n"
@@ -525,6 +525,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "Appearance and automation settings live in `/vrcverify_settings`.\n"
 "\n"
@@ -547,6 +549,8 @@ msgstr ""
 " server\n"
 "• De agenda van je VRChat-groep in het tabblad Evenementen van Discord, "
 "met een deelnamelink zodra elk evenement begint\n"
+"• De aanvragen om lid te worden van je VRChat-groep, geplaatst in "
+"Discord, met Goedkeuren en Afwijzen voor je moderators\n"
 "\n"
 "Weergave- en automatiseringsinstellingen staan in `/vrcverify_settings`.\n"
 "\n"
@@ -569,6 +573,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "Appearance and automation settings live in `/vrcverify_settings`.\n"
 "\n"
@@ -591,6 +597,8 @@ msgstr ""
 " server\n"
 "• De agenda van je VRChat-groep in het tabblad Evenementen van Discord, "
 "met een deelnamelink zodra elk evenement begint\n"
+"• De aanvragen om lid te worden van je VRChat-groep, geplaatst in "
+"Discord, met Goedkeuren en Afwijzen voor je moderators\n"
 "\n"
 "Weergave- en automatiseringsinstellingen staan in `/vrcverify_settings`.\n"
 "\n"
@@ -652,6 +660,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "One subscription covers the whole server, and there are two ways to buy "
 "it:\n"
@@ -677,6 +687,8 @@ msgstr ""
 " server\n"
 "• De agenda van je VRChat-groep in het tabblad Evenementen van Discord, "
 "met een deelnamelink zodra elk evenement begint\n"
+"• De aanvragen om lid te worden van je VRChat-groep, geplaatst in "
+"Discord, met Goedkeuren en Afwijzen voor je moderators\n"
 "\n"
 "Één abonnement dekt de hele server, en er zijn twee manieren om het af te"
 " sluiten:\n"
@@ -706,6 +718,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "**Premium is available two ways:**\n"
 "• **In Discord** — the button below. Billed monthly.\n"
@@ -733,6 +747,8 @@ msgstr ""
 " server\n"
 "• De agenda van je VRChat-groep in het tabblad Evenementen van Discord, "
 "met een deelnamelink zodra elk evenement begint\n"
+"• De aanvragen om lid te worden van je VRChat-groep, geplaatst in "
+"Discord, met Goedkeuren en Afwijzen voor je moderators\n"
 "\n"
 "**Premium is op twee manieren te krijgen:**\n"
 "• **In Discord** — de knop hieronder. Maandelijkse facturatie.\n"
@@ -980,6 +996,142 @@ msgstr "Zwak of beter"
 #, python-brace-format
 msgid "Join here: {link}"
 msgstr "Doe hier mee: {link}"
+
+#, python-brace-format
+msgid "Join request: {name}"
+msgstr "Aanvraag om lid te worden: {name}"
+
+msgid "View VRChat profile"
+msgstr "VRChat-profiel bekijken"
+
+msgid "Linked on Discord"
+msgstr "Gekoppeld op Discord"
+
+#, python-brace-format
+msgid "{member}, in this server since {since}"
+msgstr "{member}, in deze server sinds {since}"
+
+msgid "verified 18+"
+msgstr "geverifieerd als 18+"
+
+msgid "not verified 18+"
+msgstr "niet geverifieerd als 18+"
+
+#, python-brace-format
+msgid "has {role}"
+msgstr "heeft {role}"
+
+msgid "No linked Discord account in this server."
+msgstr "Geen gekoppeld Discord-account in deze server."
+
+msgid "First seen by the bot"
+msgstr "Voor het eerst gezien door de bot"
+
+msgid "Status"
+msgstr "Stand van zaken"
+
+msgid "Approve"
+msgstr "Goedkeuren"
+
+msgid "Deny"
+msgstr "Afwijzen"
+
+#, python-brace-format
+msgid "Approving, asked by {moderator}…"
+msgstr "Bezig met goedkeuren, gevraagd door {moderator}…"
+
+#, python-brace-format
+msgid "Denying, asked by {moderator}…"
+msgstr "Bezig met afwijzen, gevraagd door {moderator}…"
+
+#, python-brace-format
+msgid "Approved by {moderator} {when}"
+msgstr "Goedgekeurd door {moderator} {when}"
+
+#, python-brace-format
+msgid "Denied by {moderator} {when}"
+msgstr "Afgewezen door {moderator} {when}"
+
+msgid "No longer waiting. It was handled in VRChat or withdrawn."
+msgstr "Wacht niet meer. De aanvraag is in VRChat afgehandeld of ingetrokken."
+
+msgid "Closed. This server now uses a different VRChat group."
+msgstr "Gesloten. Deze server gebruikt nu een andere VRChat-groep."
+
+msgid ""
+"That didn't go through: the bot no longer has permission to manage this "
+"group's invites and join requests."
+msgstr ""
+"Dat is niet gelukt: de bot heeft geen toestemming meer om de "
+"uitnodigingen en aanvragen van deze groep te beheren."
+
+msgid "That didn't go through: VRChat couldn't find this group."
+msgstr "Dat is niet gelukt: VRChat kon deze groep niet vinden."
+
+msgid "That didn't go through: VRChat didn't answer. Please try again."
+msgstr "Dat is niet gelukt: VRChat gaf geen antwoord. Probeer het opnieuw."
+
+#, python-brace-format
+msgid ""
+"More join requests are waiting in VRChat than are posted here. Not shown:"
+" {count}. New requests will be posted as they arrive."
+msgstr ""
+"Er wachten meer aanvragen in VRChat dan hier geplaatst zijn. Niet "
+"getoond: {count}. Nieuwe aanvragen worden geplaatst zodra ze binnenkomen."
+
+msgid ""
+"Only the roles this server chose for join requests can approve or deny "
+"them."
+msgstr ""
+"Alleen de rollen die deze server voor aanvragen heeft gekozen, kunnen ze "
+"goedkeuren of afwijzen."
+
+msgid "This request has already been handled."
+msgstr "Deze aanvraag is al afgehandeld."
+
+msgid "Join request triage isn't available for this server right now."
+msgstr "Het beoordelen van aanvragen is nu niet beschikbaar voor deze server."
+
+#, python-brace-format
+msgid ""
+"Deny **{name}**'s request to join the VRChat group? They can request "
+"again later."
+msgstr ""
+"De aanvraag van **{name}** om lid te worden van de VRChat-groep afwijzen?"
+" Diegene kan later opnieuw aanvragen."
+
+msgid "Deny request"
+msgstr "Aanvraag afwijzen"
+
+msgid "Cancel"
+msgstr "Annuleren"
+
+msgid "Nothing was changed."
+msgstr "Er is niets gewijzigd."
+
+msgid "Sent to VRChat. The post will update when VRChat answers."
+msgstr ""
+"Verstuurd naar VRChat. Het bericht wordt bijgewerkt zodra VRChat "
+"antwoordt."
+
+msgid "The bot couldn't reach VRChat just now. Please try again in a minute."
+msgstr "De bot kon VRChat nu niet bereiken. Probeer het over een minuut opnieuw."
+
+#, python-brace-format
+msgid ""
+"✅ {moderator} approved **{name}**'s request to join the VRChat group · "
+"{when}"
+msgstr ""
+"✅ {moderator} heeft de aanvraag van **{name}** om lid te worden van de "
+"VRChat-groep goedgekeurd · {when}"
+
+#, python-brace-format
+msgid ""
+"🚫 {moderator} denied **{name}**'s request to join the VRChat group · "
+"{when}"
+msgstr ""
+"🚫 {moderator} heeft de aanvraag van **{name}** om lid te worden van de "
+"VRChat-groep afgewezen · {when}"
 
 #~ msgid "Donate"
 #~ msgstr "Doneren"

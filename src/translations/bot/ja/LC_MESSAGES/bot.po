@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 09:12-0400\n"
+"POT-Creation-Date: 2026-09-17 04:37-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -457,6 +457,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "Appearance and automation settings live in `/vrcverify_settings`.\n"
 "\n"
@@ -476,6 +478,7 @@ msgstr ""
 "• 認証クールダウンの短縮\n"
 "• 認証済みメンバーをサーバーの VRChat グループへ直接招待\n"
 "• VRChat グループのカレンダーを Discord のイベントタブに表示し、各イベントの開始時に参加リンクを投稿\n"
+"• VRChat グループの参加リクエストを Discord に投稿し、モデレーターが承認・拒否できます\n"
 "\n"
 "外観と自動化の設定は `/vrcverify_settings` にあります。\n"
 "\n"
@@ -497,6 +500,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "Appearance and automation settings live in `/vrcverify_settings`.\n"
 "\n"
@@ -516,6 +521,7 @@ msgstr ""
 "• 認証クールダウンの短縮\n"
 "• 認証済みメンバーをサーバーの VRChat グループへ直接招待\n"
 "• VRChat グループのカレンダーを Discord のイベントタブに表示し、各イベントの開始時に参加リンクを投稿\n"
+"• VRChat グループの参加リクエストを Discord に投稿し、モデレーターが承認・拒否できます\n"
 "\n"
 "外観と自動化の設定は `/vrcverify_settings` にあります。\n"
 "\n"
@@ -572,6 +578,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "One subscription covers the whole server, and there are two ways to buy "
 "it:\n"
@@ -592,6 +600,7 @@ msgstr ""
 "• 認証クールダウンの短縮\n"
 "• 認証済みメンバーをサーバーの VRChat グループへ直接招待\n"
 "• VRChat グループのカレンダーを Discord のイベントタブに表示し、各イベントの開始時に参加リンクを投稿\n"
+"• VRChat グループの参加リクエストを Discord に投稿し、モデレーターが承認・拒否できます\n"
 "\n"
 "1 つのサブスクリプションでサーバー全体がカバーされます。登録方法は 2 つあります:\n"
 "• **Discord で** — 下のボタンから。月額課金です。\n"
@@ -618,6 +627,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "**Premium is available two ways:**\n"
 "• **In Discord** — the button below. Billed monthly.\n"
@@ -639,6 +650,7 @@ msgstr ""
 "• 認証クールダウンの短縮\n"
 "• 認証済みメンバーをサーバーの VRChat グループへ直接招待\n"
 "• VRChat グループのカレンダーを Discord のイベントタブに表示し、各イベントの開始時に参加リンクを投稿\n"
+"• VRChat グループの参加リクエストを Discord に投稿し、モデレーターが承認・拒否できます\n"
 "\n"
 "**Premium の登録方法は 2 つあります:**\n"
 "• **Discord で** — 下のボタンから。月額課金です。\n"
@@ -852,6 +864,128 @@ msgstr "Poor 以上"
 #, python-brace-format
 msgid "Join here: {link}"
 msgstr "参加はこちら: {link}"
+
+#, python-brace-format
+msgid "Join request: {name}"
+msgstr "参加リクエスト: {name}"
+
+msgid "View VRChat profile"
+msgstr "VRChat プロフィールを見る"
+
+msgid "Linked on Discord"
+msgstr "Discord の連携"
+
+#, python-brace-format
+msgid "{member}, in this server since {since}"
+msgstr "{member}、{since} からこのサーバーに参加"
+
+msgid "verified 18+"
+msgstr "18歳以上として認証済み"
+
+msgid "not verified 18+"
+msgstr "18歳以上の認証なし"
+
+#, python-brace-format
+msgid "has {role}"
+msgstr "{role} を持っています"
+
+msgid "No linked Discord account in this server."
+msgstr "このサーバーにリンクされた Discord アカウントはありません。"
+
+msgid "First seen by the bot"
+msgstr "ボットが最初に確認した日時"
+
+msgid "Status"
+msgstr "状態"
+
+msgid "Approve"
+msgstr "承認"
+
+msgid "Deny"
+msgstr "拒否"
+
+#, python-brace-format
+msgid "Approving, asked by {moderator}…"
+msgstr "承認中（{moderator} による操作）…"
+
+#, python-brace-format
+msgid "Denying, asked by {moderator}…"
+msgstr "拒否中（{moderator} による操作）…"
+
+#, python-brace-format
+msgid "Approved by {moderator} {when}"
+msgstr "{moderator} が承認しました {when}"
+
+#, python-brace-format
+msgid "Denied by {moderator} {when}"
+msgstr "{moderator} が拒否しました {when}"
+
+msgid "No longer waiting. It was handled in VRChat or withdrawn."
+msgstr "待機中ではなくなりました。VRChat で処理されたか、取り下げられました。"
+
+msgid "Closed. This server now uses a different VRChat group."
+msgstr "終了しました。このサーバーは別の VRChat グループを使用しています。"
+
+msgid ""
+"That didn't go through: the bot no longer has permission to manage this "
+"group's invites and join requests."
+msgstr "完了できませんでした: ボットにこのグループの招待と参加リクエストを管理する権限がなくなりました。"
+
+msgid "That didn't go through: VRChat couldn't find this group."
+msgstr "完了できませんでした: VRChat がこのグループを見つけられませんでした。"
+
+msgid "That didn't go through: VRChat didn't answer. Please try again."
+msgstr "完了できませんでした: VRChat から応答がありませんでした。もう一度お試しください。"
+
+#, python-brace-format
+msgid ""
+"More join requests are waiting in VRChat than are posted here. Not shown:"
+" {count}. New requests will be posted as they arrive."
+msgstr "ここに投稿されている数より多くの参加リクエストが VRChat で待機しています。未表示: {count}。新しいリクエストは届き次第投稿されます。"
+
+msgid ""
+"Only the roles this server chose for join requests can approve or deny "
+"them."
+msgstr "このサーバーが参加リクエスト用に選んだロールのみが承認または拒否できます。"
+
+msgid "This request has already been handled."
+msgstr "このリクエストはすでに処理されています。"
+
+msgid "Join request triage isn't available for this server right now."
+msgstr "現在、このサーバーでは参加リクエストの審査を利用できません。"
+
+#, python-brace-format
+msgid ""
+"Deny **{name}**'s request to join the VRChat group? They can request "
+"again later."
+msgstr "**{name}** さんの VRChat グループへの参加リクエストを拒否しますか？後で再度リクエストできます。"
+
+msgid "Deny request"
+msgstr "リクエストを拒否"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Nothing was changed."
+msgstr "何も変更されていません。"
+
+msgid "Sent to VRChat. The post will update when VRChat answers."
+msgstr "VRChat に送信しました。VRChat が応答すると投稿が更新されます。"
+
+msgid "The bot couldn't reach VRChat just now. Please try again in a minute."
+msgstr "現在ボットが VRChat に接続できませんでした。1分ほどしてからもう一度お試しください。"
+
+#, python-brace-format
+msgid ""
+"✅ {moderator} approved **{name}**'s request to join the VRChat group · "
+"{when}"
+msgstr "✅ {moderator} が **{name}** さんの VRChat グループへの参加リクエストを承認しました · {when}"
+
+#, python-brace-format
+msgid ""
+"🚫 {moderator} denied **{name}**'s request to join the VRChat group · "
+"{when}"
+msgstr "🚫 {moderator} が **{name}** さんの VRChat グループへの参加リクエストを拒否しました · {when}"
 
 #~ msgid "Donate"
 #~ msgstr "寄付"

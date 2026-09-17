@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 15:51-0400\n"
+"POT-Creation-Date: 2026-09-17 04:36-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt_BR\n"
@@ -129,6 +129,11 @@ msgstr ""
 "O VRCVerify não consegue publicar nesse canal, então não consegue "
 "registrar lá. Confira as permissões do canal e tente de novo."
 
+msgid "That's more roles than can be chosen. Pick up to 10 and try again."
+msgstr ""
+"São mais cargos do que é possível escolher. Escolha até 10 e tente "
+"novamente."
+
 msgid ""
 "This bot's database is missing the column for that setting. Contact the "
 "bot operator."
@@ -232,6 +237,21 @@ msgid "There's no card subscription on this server to manage."
 msgstr "Não há assinatura por cartão neste servidor para gerenciar."
 
 msgid ""
+"VRCVerify can't post join requests in that channel. It needs View "
+"Channel, Send Messages and Embed Links in it."
+msgstr ""
+"O VRCVerify não pode publicar pedidos de entrada nesse canal. Ele precisa"
+" de Ver canal, Enviar mensagens e Inserir links nele."
+
+msgid ""
+"Join requests can't go in an announcement channel. Other servers can "
+"follow one, which would republish who is verified 18+."
+msgstr ""
+"Pedidos de entrada não podem ir para um canal de anúncios. Outros "
+"servidores podem segui-lo, o que republicaria quem é verificado como "
+"maior de 18."
+
+msgid ""
 "VRCVerify can't post in that channel, so it can't announce join links "
 "there. It needs View Channel and Send Messages in it."
 msgstr ""
@@ -283,6 +303,22 @@ msgstr "Premium"
 msgid "New"
 msgstr "O site fala o seu idioma"
 
+msgid "Your VRChat group's join requests, in Discord"
+msgstr "Os pedidos de entrada do seu grupo do VRChat, no Discord"
+
+msgid ""
+"Join requests to your VRChat group are now posted in a Discord channel "
+"you choose, with Approve and Deny buttons for the roles you pick. Each "
+"post shows whether the person asking is already a member of your server, "
+"and whether they're verified 18+, so your moderators can decide without "
+"leaving Discord. Turn it on under Settings, VRChat group, once group "
+"invites are set up."
+msgstr "Os pedidos de entrada no seu grupo do VRChat agora são publicados em um canal do Discord que você escolher, com botões de Aprovar e Recusar para os cargos que você selecionar. Cada publicação mostra se a pessoa que está pedindo já é membro do seu servidor e se é verificada como maior de 18, para que seus moderadores decidam sem sair do Discord. Ative em Configurações, Grupo do VRChat, depois de configurar os convites do grupo."
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "Ver o Premium"
+
 msgid "Your VRChat group's calendar, in Discord"
 msgstr "A agenda do seu grupo do VRChat, no Discord"
 
@@ -301,10 +337,6 @@ msgstr ""
 "grupo, os eventos só para membros também são sincronizados, e quando a "
 "instância de um evento abre, o link de entrada é publicado no canal que "
 "você escolher. Ative em Configurações, Grupo do VRChat."
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "Ver o Premium"
 
 msgid "Older instruction panels have been replaced"
 msgstr "Os painéis de instruções antigos foram substituídos"
@@ -870,6 +902,18 @@ msgstr ""
 " no VRChat e o mantém atualizado. Desativar remove os eventos que ainda "
 "não começaram."
 
+msgid "Join requests"
+msgstr "Pedidos de entrada"
+
+msgid ""
+"Post your VRChat group's join requests in Discord, so moderators can "
+"approve or deny them there and see whether they already know the person "
+"asking."
+msgstr ""
+"Publique no Discord os pedidos de entrada do seu grupo do VRChat, para "
+"que os moderadores possam aprová-los ou recusá-los ali e ver se já "
+"conhecem quem está pedindo."
+
 msgid "Not checked yet"
 msgstr "Ainda não checado"
 
@@ -1130,6 +1174,123 @@ msgstr ""
 "Opcional. O cargo mencionado quando um link de entrada é publicado. "
 "Ninguém mais é mencionado."
 
+msgid "Post join requests in Discord"
+msgstr "Publicar pedidos de entrada no Discord"
+
+msgid ""
+"Checks your group for new join requests and posts each one with Approve "
+"and Deny buttons."
+msgstr ""
+"Verifica se há novos pedidos de entrada no seu grupo e publica cada um "
+"com botões de Aprovar e Recusar."
+
+msgid ""
+"This channel no longer exists in the server, so join requests aren't "
+"posted. Choose another channel."
+msgstr ""
+"Este canal não existe mais no servidor, então os pedidos de entrada não "
+"são publicados. Escolha outro canal."
+
+msgid ""
+"VRCVerify can't post in this channel. It needs View Channel, Send "
+"Messages and Embed Links there."
+msgstr ""
+"O VRCVerify não pode publicar neste canal. Ele precisa de Ver canal, "
+"Enviar mensagens e Inserir links ali."
+
+msgid "Post requests in"
+msgstr "Publicar pedidos em"
+
+msgid ""
+"Pick a channel only your moderators can see. Each post shows the person's"
+" linked Discord account, and whether they're verified 18+, when they're a"
+" member of this server."
+msgstr ""
+"Escolha um canal que só seus moderadores vejam. Cada publicação mostra a "
+"conta do Discord vinculada da pessoa, e se ela é verificada como maior de"
+" 18, quando ela é membro deste servidor."
+
+msgid "A chosen role no longer exists in the server. Choose the roles again."
+msgstr ""
+"Um dos cargos escolhidos não existe mais no servidor. Escolha os cargos "
+"novamente."
+
+msgid "Nobody can approve or deny requests until you choose at least one role."
+msgstr ""
+"Ninguém pode aprovar ou recusar pedidos até você escolher pelo menos um "
+"cargo."
+
+msgid "Who can approve or deny"
+msgstr "Quem pode aprovar ou recusar"
+
+msgid ""
+"Members with any of these roles can press Approve or Deny. Server admins "
+"aren't included unless they have one of them."
+msgstr ""
+"Membros com qualquer um destes cargos podem apertar Aprovar ou Recusar. "
+"Administradores do servidor não estão incluídos a menos que tenham um "
+"deles."
+
+msgid "None chosen"
+msgstr "Nenhum escolhido"
+
+msgid "Reading your group's join requests. Reload this page in a moment."
+msgstr ""
+"Lendo os pedidos de entrada do seu grupo. Recarregue esta página em "
+"instantes."
+
+msgid "Checked"
+msgstr "Verificado"
+
+msgid "VRCVerify can't see this group's join requests"
+msgstr "O VRCVerify não consegue ver os pedidos de entrada deste grupo"
+
+msgid "Give the bot's role the “Manage Group Invites” permission in VRChat."
+msgstr "Dê ao cargo do bot a permissão “Manage Group Invites” no VRChat."
+
+msgid "Your group couldn't be found"
+msgstr "Seu grupo não foi encontrado"
+
+msgid "VRChat couldn't find this group. Check the group still exists."
+msgstr "O VRChat não encontrou este grupo. Verifique se o grupo ainda existe."
+
+msgid "Nothing is wrong with your setup. The next check will try again."
+msgstr ""
+"Não há nada errado com sua configuração. A próxima verificação tentará de"
+" novo."
+
+msgid "The last check didn't finish"
+msgstr "A última verificação não terminou"
+
+msgid "The next check will try again."
+msgstr "A próxima verificação tentará de novo."
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"check will try again."
+msgstr ""
+"O bot não conseguiu acessar a parte dele que conversa com o VRChat. A "
+"próxima verificação tentará de novo."
+
+msgid "VRCVerify can't post in the chosen channel"
+msgstr "O VRCVerify não pode publicar no canal escolhido"
+
+msgid "It needs View Channel, Send Messages and Embed Links there."
+msgstr "Ele precisa de Ver canal, Enviar mensagens e Inserir links ali."
+
+msgid "Waiting for the first check"
+msgstr "Aguardando a primeira verificação"
+
+msgid ""
+"The first check starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr ""
+"A primeira verificação começa em até um minuto depois de ativar isto. "
+"Recarregue esta página em breve."
+
+msgid "Choose a channel so join requests have somewhere to go."
+msgstr "Escolha um canal para que os pedidos de entrada tenham para onde ir."
+
 msgid "Waiting for the first sync"
 msgstr "Aguardando a primeira sincronização"
 
@@ -1289,6 +1450,12 @@ msgstr "Toda tentativa de verificação, inclusive as que falham em silêncio."
 # | msgid "VRChat group"
 msgid "VRChat group invites"
 msgstr "Convites do grupo do VRChat"
+
+msgid "Join request channel"
+msgstr "Canal de pedidos de entrada"
+
+msgid "Who can approve or deny join requests"
+msgstr "Quem pode aprovar ou recusar pedidos de entrada"
 
 # | msgid "VRChat group"
 msgid "VRChat group setup check"
@@ -1910,6 +2077,9 @@ msgstr ""
 "A agenda do seu grupo do VRChat nos Eventos do Discord, com links de "
 "entrada"
 
+msgid "Your VRChat group's join requests in Discord, with Approve and Deny"
+msgstr "Os pedidos de entrada do seu grupo do VRChat no Discord, com Aprovar e Recusar"
+
 # | msgid "Not applied"
 msgid "Not included"
 msgstr "Não incluído"
@@ -2124,6 +2294,40 @@ msgstr ""
 "eventos só para membros e publicar links de entrada quando um evento "
 "começa, o VRCVerify precisa estar no seu grupo do VRChat. Configurar os "
 "convites de grupo acima o adiciona."
+
+msgid "Waiting for group invites"
+msgstr "Aguardando os convites do grupo"
+
+msgid ""
+"Join requests are read and answered by the VRCVerify account in your "
+"group. Set up group invites above first."
+msgstr ""
+"Os pedidos de entrada são lidos e respondidos pela conta do VRCVerify no "
+"seu grupo. Configure primeiro os convites do grupo acima."
+
+#, python-format
+msgid "%(count)s join request is waiting in VRChat."
+msgid_plural "%(count)s join requests are waiting in VRChat."
+msgstr[0] "%(count)s pedido de entrada está aguardando no VRChat."
+msgstr[1] "%(count)s pedidos de entrada estão aguardando no VRChat."
+
+#, python-format
+msgid "Last checked %(when)s"
+msgstr "Última verificação %(when)s"
+
+#, python-format
+msgid ""
+"Your group is checked about every %(count)s minute, so a new request "
+"reaches Discord within %(count)s minute or so."
+msgid_plural ""
+"Your group is checked about every %(count)s minutes, so a new request "
+"reaches Discord within %(count)s minutes or so."
+msgstr[0] ""
+"Seu grupo é verificado a cada %(count)s minuto, aproximadamente, então um"
+" novo pedido chega ao Discord em cerca de %(count)s minuto."
+msgstr[1] ""
+"Seu grupo é verificado a cada %(count)s minutos, aproximadamente, então "
+"um novo pedido chega ao Discord em cerca de %(count)s minutos."
 
 msgid "Not applied"
 msgstr "Não aplicado"

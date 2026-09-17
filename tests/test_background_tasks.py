@@ -58,6 +58,7 @@ def stub_startup(monkeypatch):
         ("panel_nudge_sweep_task", "panel_nudge_sweep"),
         ("seat_sweep_task", "seat_sweep"),
         ("calendar_sync_task", "calendar_sync"),
+        ("join_request_triage_task", "join_request_triage"),
         ("refresh_all_instruction_panels", "instruction_panel_refresh"),
         ("watch_update_trigger_file", "instructions_trigger_watcher"),
         ("watch_premium_cutover_trigger", "premium_cutover_watcher"),
@@ -195,6 +196,7 @@ class TestOnReadyReentry:
         "entitlement_history_sweep",
         # #289: polls linked VRChat group calendars into Discord events.
         "calendar_sync",
+        "join_request_triage",
     }
 
     def test_first_ready_starts_every_task(self, stub_startup):

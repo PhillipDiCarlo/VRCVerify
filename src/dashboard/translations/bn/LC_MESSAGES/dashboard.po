@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 15:51-0400\n"
+"POT-Creation-Date: 2026-09-17 04:36-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: bn\n"
@@ -123,6 +123,11 @@ msgstr ""
 "VRCVerify ওই চ্যানেলে পোস্ট করতে পারে না, তাই সেখানে লগও রাখতে পারে না। "
 "চ্যানেলের অনুমতিগুলো দেখে আবার চেষ্টা করুন।"
 
+msgid "That's more roles than can be chosen. Pick up to 10 and try again."
+msgstr ""
+"যতগুলো রোল বেছে নেওয়া যায় তার চেয়ে বেশি হয়ে গেছে। সর্বোচ্চ 10টি বেছে "
+"নিয়ে আবার চেষ্টা করুন।"
+
 msgid ""
 "This bot's database is missing the column for that setting. Contact the "
 "bot operator."
@@ -222,6 +227,20 @@ msgid "There's no card subscription on this server to manage."
 msgstr "এই সার্ভারে পরিচালনা করার মতো কোনো কার্ড সাবস্ক্রিপশন নেই।"
 
 msgid ""
+"VRCVerify can't post join requests in that channel. It needs View "
+"Channel, Send Messages and Embed Links in it."
+msgstr ""
+"VRCVerify ওই চ্যানেলে যোগদানের অনুরোধ পোস্ট করতে পারে না। সেখানে চ্যানেল "
+"দেখা, মেসেজ পাঠানো এবং লিঙ্ক এমবেড করার অনুমতি লাগবে।"
+
+msgid ""
+"Join requests can't go in an announcement channel. Other servers can "
+"follow one, which would republish who is verified 18+."
+msgstr ""
+"যোগদানের অনুরোধ কোনো ঘোষণা চ্যানেলে যেতে পারে না। অন্য সার্ভার সেটি ফলো "
+"করতে পারে, যার ফলে কে 18+ যাচাইকৃত তা আবার প্রকাশিত হবে।"
+
+msgid ""
 "VRCVerify can't post in that channel, so it can't announce join links "
 "there. It needs View Channel and Send Messages in it."
 msgstr ""
@@ -271,6 +290,22 @@ msgstr "Premium"
 msgid "New"
 msgstr "ওয়েবসাইট এখন আপনার ভাষায়"
 
+msgid "Your VRChat group's join requests, in Discord"
+msgstr "আপনার VRChat গ্রুপে যোগদানের অনুরোধ, এখন Discord-এ"
+
+msgid ""
+"Join requests to your VRChat group are now posted in a Discord channel "
+"you choose, with Approve and Deny buttons for the roles you pick. Each "
+"post shows whether the person asking is already a member of your server, "
+"and whether they're verified 18+, so your moderators can decide without "
+"leaving Discord. Turn it on under Settings, VRChat group, once group "
+"invites are set up."
+msgstr "আপনার VRChat গ্রুপে যোগদানের অনুরোধগুলো এখন আপনার বেছে নেওয়া Discord চ্যানেলে পোস্ট হয়, আপনার বেছে নেওয়া রোলগুলোর জন্য অনুমোদন ও প্রত্যাখ্যান বোতামসহ। প্রতিটি পোস্টে দেখানো হয় অনুরোধকারী ইতিমধ্যে আপনার সার্ভারের সদস্য কি না এবং তিনি 18+ যাচাইকৃত কি না, যাতে আপনার মডারেটররা Discord না ছেড়েই সিদ্ধান্ত নিতে পারেন। গ্রুপ আমন্ত্রণ সেট আপ হওয়ার পর সেটিংস, VRChat গ্রুপ থেকে এটি চালু করুন।"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "Premium দেখুন"
+
 msgid "Your VRChat group's calendar, in Discord"
 msgstr "আপনার VRChat গ্রুপের ক্যালেন্ডার, এখন Discord-এ"
 
@@ -288,10 +323,6 @@ msgstr ""
 "হালনাগাদ থাকে। VRCVerify আপনার গ্রুপে থাকলে শুধু সদস্যদের ইভেন্টও সিঙ্ক "
 "হয়, আর কোনো ইভেন্টের ইনস্ট্যান্স খুললে তার যোগ দেওয়ার লিংক আপনার বেছে "
 "নেওয়া চ্যানেলে পোস্ট হয়। সেটিংস, VRChat গ্রুপ থেকে এটি চালু করুন।"
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "Premium দেখুন"
 
 msgid "Older instruction panels have been replaced"
 msgstr "পুরোনো নির্দেশাবলী প্যানেলগুলি বদলে দেওয়া হয়েছে"
@@ -844,6 +875,18 @@ msgstr ""
 "Discord ইভেন্ট তৈরি করে এবং সেটি হালনাগাদ রাখে। এটি বন্ধ করলে যে "
 "ইভেন্টগুলো এখনও শুরু হয়নি সেগুলো সরিয়ে দেওয়া হয়।"
 
+msgid "Join requests"
+msgstr "যোগদানের অনুরোধ"
+
+msgid ""
+"Post your VRChat group's join requests in Discord, so moderators can "
+"approve or deny them there and see whether they already know the person "
+"asking."
+msgstr ""
+"আপনার VRChat গ্রুপে যোগদানের অনুরোধগুলো Discord-এ পোস্ট করুন, যাতে "
+"মডারেটররা সেখানেই অনুমোদন বা প্রত্যাখ্যান করতে পারেন এবং দেখতে পারেন "
+"অনুরোধকারীকে তারা আগে থেকে চেনেন কি না।"
+
 msgid "Not checked yet"
 msgstr "এখনও দেখা হয়নি"
 
@@ -1095,6 +1138,116 @@ msgstr ""
 "ঐচ্ছিক। যোগ দেওয়ার লিংক পোস্ট হলে যে রোল মেনশন হবে। আর কাউকে পিং করা হয়"
 " না।"
 
+msgid "Post join requests in Discord"
+msgstr "যোগদানের অনুরোধ Discord-এ পোস্ট করুন"
+
+msgid ""
+"Checks your group for new join requests and posts each one with Approve "
+"and Deny buttons."
+msgstr ""
+"আপনার গ্রুপে নতুন যোগদানের অনুরোধ আছে কি না দেখে এবং প্রতিটি অনুমোদন ও "
+"প্রত্যাখ্যান বোতামসহ পোস্ট করে।"
+
+msgid ""
+"This channel no longer exists in the server, so join requests aren't "
+"posted. Choose another channel."
+msgstr ""
+"এই চ্যানেলটি আর সার্ভারে নেই, তাই যোগদানের অনুরোধ পোস্ট হচ্ছে না। অন্য "
+"একটি চ্যানেল বেছে নিন।"
+
+msgid ""
+"VRCVerify can't post in this channel. It needs View Channel, Send "
+"Messages and Embed Links there."
+msgstr ""
+"VRCVerify এই চ্যানেলে পোস্ট করতে পারে না। সেখানে চ্যানেল দেখা, মেসেজ "
+"পাঠানো এবং লিঙ্ক এমবেড করার অনুমতি লাগবে।"
+
+msgid "Post requests in"
+msgstr "অনুরোধ পোস্ট করুন"
+
+msgid ""
+"Pick a channel only your moderators can see. Each post shows the person's"
+" linked Discord account, and whether they're verified 18+, when they're a"
+" member of this server."
+msgstr ""
+"এমন একটি চ্যানেল বেছে নিন যা শুধু আপনার মডারেটররা দেখতে পান। ব্যক্তি এই "
+"সার্ভারের সদস্য হলে প্রতিটি পোস্টে তার লিঙ্ক করা Discord অ্যাকাউন্ট এবং "
+"তিনি 18+ যাচাইকৃত কি না দেখানো হয়।"
+
+msgid "A chosen role no longer exists in the server. Choose the roles again."
+msgstr "বেছে নেওয়া একটি রোল আর সার্ভারে নেই। রোলগুলো আবার বেছে নিন।"
+
+msgid "Nobody can approve or deny requests until you choose at least one role."
+msgstr ""
+"আপনি অন্তত একটি রোল বেছে না নেওয়া পর্যন্ত কেউ অনুরোধ অনুমোদন বা "
+"প্রত্যাখ্যান করতে পারবে না।"
+
+msgid "Who can approve or deny"
+msgstr "কে অনুমোদন বা প্রত্যাখ্যান করতে পারে"
+
+msgid ""
+"Members with any of these roles can press Approve or Deny. Server admins "
+"aren't included unless they have one of them."
+msgstr ""
+"এই রোলগুলোর যেকোনোটি থাকা সদস্যরা অনুমোদন বা প্রত্যাখ্যান চাপতে পারেন। "
+"সার্ভার অ্যাডমিনরা এর একটি না থাকলে অন্তর্ভুক্ত নন।"
+
+msgid "None chosen"
+msgstr "কিছুই বেছে নেওয়া হয়নি"
+
+msgid "Reading your group's join requests. Reload this page in a moment."
+msgstr "আপনার গ্রুপের যোগদানের অনুরোধ পড়া হচ্ছে। একটু পরে এই পেজটি আবার লোড করুন।"
+
+msgid "Checked"
+msgstr "যাচাই করা হয়েছে"
+
+msgid "VRCVerify can't see this group's join requests"
+msgstr "VRCVerify এই গ্রুপের যোগদানের অনুরোধ দেখতে পারছে না"
+
+msgid "Give the bot's role the “Manage Group Invites” permission in VRChat."
+msgstr "VRChat-এ বটের রোলকে “Manage Group Invites” অনুমতি দিন।"
+
+msgid "Your group couldn't be found"
+msgstr "আপনার গ্রুপ খুঁজে পাওয়া যায়নি"
+
+msgid "VRChat couldn't find this group. Check the group still exists."
+msgstr "VRChat এই গ্রুপটি খুঁজে পায়নি। গ্রুপটি এখনো আছে কি না দেখুন।"
+
+msgid "Nothing is wrong with your setup. The next check will try again."
+msgstr "আপনার সেটআপে কোনো সমস্যা নেই। পরের যাচাই আবার চেষ্টা করবে।"
+
+msgid "The last check didn't finish"
+msgstr "শেষ যাচাই শেষ হয়নি"
+
+msgid "The next check will try again."
+msgstr "পরের যাচাই আবার চেষ্টা করবে।"
+
+msgid ""
+"The bot couldn't reach the part of itself that talks to VRChat. The next "
+"check will try again."
+msgstr ""
+"বট তার সেই অংশে পৌঁছাতে পারেনি যা VRChat-এর সাথে কথা বলে। পরের যাচাই আবার"
+" চেষ্টা করবে।"
+
+msgid "VRCVerify can't post in the chosen channel"
+msgstr "VRCVerify বেছে নেওয়া চ্যানেলে পোস্ট করতে পারে না"
+
+msgid "It needs View Channel, Send Messages and Embed Links there."
+msgstr "সেখানে চ্যানেল দেখা, মেসেজ পাঠানো এবং লিঙ্ক এমবেড করার অনুমতি লাগবে।"
+
+msgid "Waiting for the first check"
+msgstr "প্রথম যাচাইয়ের অপেক্ষায়"
+
+msgid ""
+"The first check starts within a minute of turning this on. Reload this "
+"page shortly."
+msgstr ""
+"এটি চালু করার এক মিনিটের মধ্যে প্রথম যাচাই শুরু হয়। একটু পরে এই পেজটি "
+"আবার লোড করুন।"
+
+msgid "Choose a channel so join requests have somewhere to go."
+msgstr "একটি চ্যানেল বেছে নিন যাতে যোগদানের অনুরোধগুলোর যাওয়ার জায়গা থাকে।"
+
 msgid "Waiting for the first sync"
 msgstr "প্রথম সিঙ্কের অপেক্ষায়"
 
@@ -1251,6 +1404,12 @@ msgstr "প্রতিটি ভেরিফিকেশন চেষ্টা,
 # | msgid "VRChat group"
 msgid "VRChat group invites"
 msgstr "VRChat গ্রুপ আমন্ত্রণ"
+
+msgid "Join request channel"
+msgstr "যোগদানের অনুরোধের চ্যানেল"
+
+msgid "Who can approve or deny join requests"
+msgstr "কে যোগদানের অনুরোধ অনুমোদন বা প্রত্যাখ্যান করতে পারে"
 
 # | msgid "VRChat group"
 msgid "VRChat group setup check"
@@ -1863,6 +2022,9 @@ msgstr "যাচাই হওয়া সদস্যদের জন্য VR
 msgid "Your VRChat group calendar in Discord Events, with join links"
 msgstr "Discord ইভেন্টে আপনার VRChat গ্রুপের ক্যালেন্ডার, যোগ দেওয়ার লিংকসহ"
 
+msgid "Your VRChat group's join requests in Discord, with Approve and Deny"
+msgstr "আপনার VRChat গ্রুপে যোগদানের অনুরোধ Discord-এ, অনুমোদন ও প্রত্যাখ্যানসহ"
+
 # | msgid "Not applied"
 msgid "Not included"
 msgstr "অন্তর্ভুক্ত নয়"
@@ -2070,6 +2232,40 @@ msgstr ""
 "এখন শুধু পাবলিক ইভেন্ট সিঙ্ক হয়। শুধু সদস্যদের ইভেন্টও সিঙ্ক করতে এবং "
 "ইভেন্ট শুরু হলে যোগ দেওয়ার লিংক পোস্ট করতে VRCVerify-কে আপনার VRChat "
 "গ্রুপে থাকতে হবে। উপরে গ্রুপ আমন্ত্রণ সেট আপ করলে সেটি যুক্ত হয়।"
+
+msgid "Waiting for group invites"
+msgstr "গ্রুপ আমন্ত্রণের অপেক্ষায়"
+
+msgid ""
+"Join requests are read and answered by the VRCVerify account in your "
+"group. Set up group invites above first."
+msgstr ""
+"যোগদানের অনুরোধগুলো আপনার গ্রুপে থাকা VRCVerify অ্যাকাউন্ট পড়ে এবং উত্তর"
+" দেয়। আগে উপরে গ্রুপ আমন্ত্রণ সেট আপ করুন।"
+
+#, python-format
+msgid "%(count)s join request is waiting in VRChat."
+msgid_plural "%(count)s join requests are waiting in VRChat."
+msgstr[0] "VRChat-এ %(count)sটি যোগদানের অনুরোধ অপেক্ষায় আছে।"
+msgstr[1] "VRChat-এ %(count)sটি যোগদানের অনুরোধ অপেক্ষায় আছে।"
+
+#, python-format
+msgid "Last checked %(when)s"
+msgstr "শেষ যাচাই %(when)s"
+
+#, python-format
+msgid ""
+"Your group is checked about every %(count)s minute, so a new request "
+"reaches Discord within %(count)s minute or so."
+msgid_plural ""
+"Your group is checked about every %(count)s minutes, so a new request "
+"reaches Discord within %(count)s minutes or so."
+msgstr[0] ""
+"আপনার গ্রুপ প্রায় প্রতি %(count)s মিনিটে যাচাই করা হয়, তাই নতুন অনুরোধ "
+"প্রায় %(count)s মিনিটের মধ্যে Discord-এ পৌঁছায়।"
+msgstr[1] ""
+"আপনার গ্রুপ প্রায় প্রতি %(count)s মিনিটে যাচাই করা হয়, তাই নতুন অনুরোধ "
+"প্রায় %(count)s মিনিটের মধ্যে Discord-এ পৌঁছায়।"
 
 msgid "Not applied"
 msgstr "প্রয়োগ হয়নি"

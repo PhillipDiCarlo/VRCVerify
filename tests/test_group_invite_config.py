@@ -701,6 +701,8 @@ class TestEverySettingReachesThePage:
             # A server whose bot is in its group, so every calendar sync
             # setting has a control on the page (#289).
             "calendar_sync": {"available": True, "bot_in_group": True},
+            # And one whose group is ready for join requests (#291).
+            "join_request_triage": {"available": True, "group_ready": True},
             "fields": {
                 field.name: {
                     "value": None,

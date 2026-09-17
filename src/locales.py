@@ -329,6 +329,7 @@ PREMIUM_STATUS_ACTIVE = N_(
     "• Reduced verification cooldown\n"
     "• Invite verified members straight into your server's VRChat group\n"
     "• Your VRChat group's calendar in Discord's Events tab, with a join link when each event starts\n"
+    "• Your VRChat group's join requests posted in Discord, with Approve and Deny for your moderators\n"
     "\n"
     "Appearance and automation settings live in `/vrcverify_settings`.\n"
     "\n"
@@ -349,6 +350,7 @@ PREMIUM_STATUS_ACTIVE_CARD = N_(
     "• Reduced verification cooldown\n"
     "• Invite verified members straight into your server's VRChat group\n"
     "• Your VRChat group's calendar in Discord's Events tab, with a join link when each event starts\n"
+    "• Your VRChat group's join requests posted in Discord, with Approve and Deny for your moderators\n"
     "\n"
     "Appearance and automation settings live in `/vrcverify_settings`.\n"
     "\n"
@@ -383,6 +385,7 @@ PREMIUM_STATUS_INACTIVE = N_(
     "• Reduced verification cooldown\n"
     "• Invite verified members straight into your server's VRChat group\n"
     "• Your VRChat group's calendar in Discord's Events tab, with a join link when each event starts\n"
+    "• Your VRChat group's join requests posted in Discord, with Approve and Deny for your moderators\n"
     "\n"
     "One subscription covers the whole server, and there are two ways to buy it:\n"
     "• **In Discord** — the button below. Billed monthly.\n"
@@ -404,6 +407,7 @@ PREMIUM_STATUS_GRANDFATHERED = N_(
     "• Reduced verification cooldown\n"
     "• Invite verified members straight into your server's VRChat group\n"
     "• Your VRChat group's calendar in Discord's Events tab, with a join link when each event starts\n"
+    "• Your VRChat group's join requests posted in Discord, with Approve and Deny for your moderators\n"
     "\n"
     "**Premium is available two ways:**\n"
     "• **In Discord** — the button below. Billed monthly.\n"
@@ -581,3 +585,58 @@ CALENDAR_AVATAR_MINIMUM_POOR = N_("Poor or better")
 # {link} is the VRChat launch link.
 CALENDAR_INSTANCE_JOIN = N_("Join here: {link}")
 
+
+# Join-request triage (#291). One post per applicant to a server's VRChat
+# group, in the channel its admin chose, with Approve and Deny.
+# {name} is the applicant's VRChat display name.
+JOIN_REQUEST_TITLE = N_("Join request: {name}")
+JOIN_REQUEST_PROFILE = N_("View VRChat profile")
+# The heading over the applicant's linked Discord account(s) in this server.
+JOIN_REQUEST_DISCORD_HEADING = N_("Linked on Discord")
+# {member} is a mention, {since} a Discord timestamp.
+JOIN_REQUEST_LINKED_MEMBER = N_("{member}, in this server since {since}")
+JOIN_REQUEST_VERIFIED = N_("verified 18+")
+JOIN_REQUEST_NOT_VERIFIED = N_("not verified 18+")
+# {role} is a role mention.
+JOIN_REQUEST_HAS_ROLE = N_("has {role}")
+JOIN_REQUEST_NO_LINK = N_("No linked Discord account in this server.")
+JOIN_REQUEST_SEEN_HEADING = N_("First seen by the bot")
+JOIN_REQUEST_STATUS_HEADING = N_("Status")
+JOIN_REQUEST_APPROVE = N_("Approve")
+JOIN_REQUEST_DENY = N_("Deny")
+# {moderator} is a mention, {when} a Discord timestamp.
+JOIN_REQUEST_STATUS_APPROVING = N_("Approving, asked by {moderator}…")
+JOIN_REQUEST_STATUS_DENYING = N_("Denying, asked by {moderator}…")
+JOIN_REQUEST_STATUS_APPROVED = N_("Approved by {moderator} {when}")
+JOIN_REQUEST_STATUS_DENIED = N_("Denied by {moderator} {when}")
+JOIN_REQUEST_STATUS_ELSEWHERE = N_("No longer waiting. It was handled in VRChat or withdrawn.")
+JOIN_REQUEST_STATUS_CLOSED = N_("Closed. This server now uses a different VRChat group.")
+# Shown on a post whose last decision did not go through; the buttons are back.
+JOIN_REQUEST_FAILED_PERMISSION = N_(
+    "That didn't go through: the bot no longer has permission to manage this group's invites and join requests."
+)
+JOIN_REQUEST_FAILED_GROUP = N_("That didn't go through: VRChat couldn't find this group.")
+JOIN_REQUEST_FAILED_UNAVAILABLE = N_("That didn't go through: VRChat didn't answer. Please try again.")
+# Posted once, when triage starts on a group with more requests waiting than
+# it posts. {count} is a number.
+JOIN_REQUEST_BACKLOG = N_(
+    "More join requests are waiting in VRChat than are posted here. Not shown: {count}. New requests will be posted as they arrive."
+)
+# Private replies to the moderator who pressed a button.
+JOIN_REQUEST_NOT_ALLOWED = N_(
+    "Only the roles this server chose for join requests can approve or deny them."
+)
+JOIN_REQUEST_ALREADY_HANDLED = N_("This request has already been handled.")
+JOIN_REQUEST_UNAVAILABLE = N_("Join request triage isn't available for this server right now.")
+JOIN_REQUEST_CONFIRM_DENY = N_(
+    "Deny **{name}**'s request to join the VRChat group? They can request again later."
+)
+JOIN_REQUEST_CONFIRM_DENY_BUTTON = N_("Deny request")
+JOIN_REQUEST_CANCEL = N_("Cancel")
+JOIN_REQUEST_CANCELLED = N_("Nothing was changed.")
+JOIN_REQUEST_SENT = N_("Sent to VRChat. The post will update when VRChat answers.")
+JOIN_REQUEST_WORKER_DOWN = N_("The bot couldn't reach VRChat just now. Please try again in a minute.")
+# Activity log lines. {moderator} is a mention, {name} the applicant's VRChat
+# display name, {when} a Discord timestamp.
+JOIN_REQUEST_LOG_APPROVED = N_("✅ {moderator} approved **{name}**'s request to join the VRChat group · {when}")
+JOIN_REQUEST_LOG_DENIED = N_("🚫 {moderator} denied **{name}**'s request to join the VRChat group · {when}")

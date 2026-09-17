@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 09:12-0400\n"
+"POT-Creation-Date: 2026-09-17 04:37-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_CN\n"
@@ -443,6 +443,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "Appearance and automation settings live in `/vrcverify_settings`.\n"
 "\n"
@@ -462,6 +464,7 @@ msgstr ""
 "• 更短的验证冷却时间\n"
 "• 将已验证的成员直接邀请到你服务器的 VRChat 群组\n"
 "• 在 Discord 活动页显示你的 VRChat 群组日历，每个活动开始时附上加入链接\n"
+"• 在 Discord 中发布你的 VRChat 群组加入申请，让管理员批准或拒绝\n"
 "\n"
 "外观和自动化设置位于 `/vrcverify_settings`。\n"
 "\n"
@@ -483,6 +486,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "Appearance and automation settings live in `/vrcverify_settings`.\n"
 "\n"
@@ -502,6 +507,7 @@ msgstr ""
 "• 更短的验证冷却时间\n"
 "• 将已验证的成员直接邀请到你服务器的 VRChat 群组\n"
 "• 在 Discord 活动页显示你的 VRChat 群组日历，每个活动开始时附上加入链接\n"
+"• 在 Discord 中发布你的 VRChat 群组加入申请，让管理员批准或拒绝\n"
 "\n"
 "外观和自动化设置位于 `/vrcverify_settings`。\n"
 "\n"
@@ -556,6 +562,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "One subscription covers the whole server, and there are two ways to buy "
 "it:\n"
@@ -576,6 +584,7 @@ msgstr ""
 "• 更短的验证冷却时间\n"
 "• 将已验证的成员直接邀请到你服务器的 VRChat 群组\n"
 "• 在 Discord 活动页显示你的 VRChat 群组日历，每个活动开始时附上加入链接\n"
+"• 在 Discord 中发布你的 VRChat 群组加入申请，让管理员批准或拒绝\n"
 "\n"
 "一次订阅即可覆盖整个服务器，有两种购买方式：\n"
 "• **在 Discord 中** — 点击下方按钮，按月计费。\n"
@@ -601,6 +610,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "**Premium is available two ways:**\n"
 "• **In Discord** — the button below. Billed monthly.\n"
@@ -622,6 +633,7 @@ msgstr ""
 "• 更短的验证冷却时间\n"
 "• 将已验证的成员直接邀请到你服务器的 VRChat 群组\n"
 "• 在 Discord 活动页显示你的 VRChat 群组日历，每个活动开始时附上加入链接\n"
+"• 在 Discord 中发布你的 VRChat 群组加入申请，让管理员批准或拒绝\n"
 "\n"
 "**获取高级版有两种方式：**\n"
 "• **在 Discord 中** — 点击下方按钮，按月计费。\n"
@@ -820,6 +832,128 @@ msgstr "较差及以上"
 #, python-brace-format
 msgid "Join here: {link}"
 msgstr "点此加入：{link}"
+
+#, python-brace-format
+msgid "Join request: {name}"
+msgstr "加入申请：{name}"
+
+msgid "View VRChat profile"
+msgstr "查看 VRChat 个人资料"
+
+msgid "Linked on Discord"
+msgstr "Discord 关联"
+
+#, python-brace-format
+msgid "{member}, in this server since {since}"
+msgstr "{member}，自 {since} 起在本服务器"
+
+msgid "verified 18+"
+msgstr "已验证 18+"
+
+msgid "not verified 18+"
+msgstr "未验证 18+"
+
+#, python-brace-format
+msgid "has {role}"
+msgstr "拥有 {role}"
+
+msgid "No linked Discord account in this server."
+msgstr "本服务器中没有关联的 Discord 账号。"
+
+msgid "First seen by the bot"
+msgstr "机器人首次发现时间"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Approve"
+msgstr "批准"
+
+msgid "Deny"
+msgstr "拒绝"
+
+#, python-brace-format
+msgid "Approving, asked by {moderator}…"
+msgstr "正在批准，由 {moderator} 发起…"
+
+#, python-brace-format
+msgid "Denying, asked by {moderator}…"
+msgstr "正在拒绝，由 {moderator} 发起…"
+
+#, python-brace-format
+msgid "Approved by {moderator} {when}"
+msgstr "已由 {moderator} 批准 {when}"
+
+#, python-brace-format
+msgid "Denied by {moderator} {when}"
+msgstr "已由 {moderator} 拒绝 {when}"
+
+msgid "No longer waiting. It was handled in VRChat or withdrawn."
+msgstr "已不再等待。该申请已在 VRChat 中处理或已撤回。"
+
+msgid "Closed. This server now uses a different VRChat group."
+msgstr "已关闭。本服务器现在使用另一个 VRChat 群组。"
+
+msgid ""
+"That didn't go through: the bot no longer has permission to manage this "
+"group's invites and join requests."
+msgstr "操作未完成：机器人已不再拥有管理此群组邀请和加入申请的权限。"
+
+msgid "That didn't go through: VRChat couldn't find this group."
+msgstr "操作未完成：VRChat 找不到此群组。"
+
+msgid "That didn't go through: VRChat didn't answer. Please try again."
+msgstr "操作未完成：VRChat 没有响应。请重试。"
+
+#, python-brace-format
+msgid ""
+"More join requests are waiting in VRChat than are posted here. Not shown:"
+" {count}. New requests will be posted as they arrive."
+msgstr "VRChat 中等待的加入申请多于此处发布的数量。未显示：{count}。新的申请到达时会发布在这里。"
+
+msgid ""
+"Only the roles this server chose for join requests can approve or deny "
+"them."
+msgstr "只有本服务器为加入申请指定的身份组才能批准或拒绝申请。"
+
+msgid "This request has already been handled."
+msgstr "此申请已被处理。"
+
+msgid "Join request triage isn't available for this server right now."
+msgstr "本服务器目前无法使用加入申请审核功能。"
+
+#, python-brace-format
+msgid ""
+"Deny **{name}**'s request to join the VRChat group? They can request "
+"again later."
+msgstr "要拒绝 **{name}** 加入 VRChat 群组的申请吗？对方之后可以再次申请。"
+
+msgid "Deny request"
+msgstr "拒绝申请"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Nothing was changed."
+msgstr "未做任何更改。"
+
+msgid "Sent to VRChat. The post will update when VRChat answers."
+msgstr "已发送到 VRChat。VRChat 回复后此帖子会更新。"
+
+msgid "The bot couldn't reach VRChat just now. Please try again in a minute."
+msgstr "机器人暂时无法连接 VRChat。请稍后一分钟再试。"
+
+#, python-brace-format
+msgid ""
+"✅ {moderator} approved **{name}**'s request to join the VRChat group · "
+"{when}"
+msgstr "✅ {moderator} 批准了 **{name}** 加入 VRChat 群组的申请 · {when}"
+
+#, python-brace-format
+msgid ""
+"🚫 {moderator} denied **{name}**'s request to join the VRChat group · "
+"{when}"
+msgstr "🚫 {moderator} 拒绝了 **{name}** 加入 VRChat 群组的申请 · {when}"
 
 #~ msgid "Donate"
 #~ msgstr "捐赠"

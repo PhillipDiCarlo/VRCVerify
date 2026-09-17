@@ -323,7 +323,7 @@
  "Everything that has shipped in VRCVerify, newest first.": [
   "changelog.html"
  ],
- "Everything you need to verify your members is free, on every server, with no cap and nothing to start. Premium adds the automation around it, from clearing up unverified roles to syncing nicknames, sending VRChat group invites and bringing your group's calendar into Discord.": [
+ "Everything you need to verify your members is free, on every server, with no cap and nothing to start. Premium adds the automation around it, from clearing up unverified roles to syncing nicknames, sending VRChat group invites, bringing your group's calendar into Discord and posting its join requests for your moderators.": [
   "index.html"
  ],
  "For each Discord server: the server ID, its owner's Discord ID, the role and channel IDs it has configured, its chosen language, its feature settings, any custom post-verification message it has written, and a count of completed verifications. Where an administrator changes a setting on the dashboard, we record who changed what and when.": [
@@ -376,6 +376,9 @@
  ],
  "It gives server administrators no way to mark someone verified by hand. There is no override, deliberately.": [
   "index.html"
+ ],
+ "Join requests to your VRChat group are now posted in a Discord channel you choose, with Approve and Deny buttons for the roles you pick. Each post shows whether the person asking is already a member of your server, and whether they're verified 18+, so your moderators can decide without leaving Discord. Turn it on under Settings, VRChat group, once group invites are set up.": [
+  "changelog.html"
  ],
  "Kept": [
   "privacy.html"
@@ -761,6 +764,9 @@
   "changelog.html"
  ],
  "Your VRChat group's calendar, in Discord": [
+  "changelog.html"
+ ],
+ "Your VRChat group's join requests, in Discord": [
   "changelog.html"
  ],
  "Your VRChat user ID (<0/>)": [

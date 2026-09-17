@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-16 09:12-0400\n"
+"POT-Creation-Date: 2026-09-17 04:37-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
@@ -525,6 +525,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "Appearance and automation settings live in `/vrcverify_settings`.\n"
 "\n"
@@ -546,6 +548,8 @@ msgstr ""
 "\n"
 "• Календарь вашей группы VRChat во вкладке «События» в Discord со ссылкой"
 " для входа, когда начинается каждое событие\n"
+"• Заявки на вступление в вашу группу VRChat публикуются в Discord, с "
+"кнопками «Одобрить» и «Отклонить» для ваших модераторов\n"
 "\n"
 "Настройки оформления и автоматизации — в `/vrcverify_settings`.\n"
 "\n"
@@ -568,6 +572,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "Appearance and automation settings live in `/vrcverify_settings`.\n"
 "\n"
@@ -589,6 +595,8 @@ msgstr ""
 "\n"
 "• Календарь вашей группы VRChat во вкладке «События» в Discord со ссылкой"
 " для входа, когда начинается каждое событие\n"
+"• Заявки на вступление в вашу группу VRChat публикуются в Discord, с "
+"кнопками «Одобрить» и «Отклонить» для ваших модераторов\n"
 "\n"
 "Настройки оформления и автоматизации — в `/vrcverify_settings`.\n"
 "\n"
@@ -648,6 +656,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "One subscription covers the whole server, and there are two ways to buy "
 "it:\n"
@@ -674,6 +684,8 @@ msgstr ""
 "\n"
 "• Календарь вашей группы VRChat во вкладке «События» в Discord со ссылкой"
 " для входа, когда начинается каждое событие\n"
+"• Заявки на вступление в вашу группу VRChat публикуются в Discord, с "
+"кнопками «Одобрить» и «Отклонить» для ваших модераторов\n"
 "\n"
 "Одна подписка покрывает весь сервер, и оформить её можно двумя способами:"
 "\n"
@@ -702,6 +714,8 @@ msgid ""
 "• Invite verified members straight into your server's VRChat group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
+"• Your VRChat group's join requests posted in Discord, with Approve and "
+"Deny for your moderators\n"
 "\n"
 "**Premium is available two ways:**\n"
 "• **In Discord** — the button below. Billed monthly.\n"
@@ -729,6 +743,8 @@ msgstr ""
 "\n"
 "• Календарь вашей группы VRChat во вкладке «События» в Discord со ссылкой"
 " для входа, когда начинается каждое событие\n"
+"• Заявки на вступление в вашу группу VRChat публикуются в Discord, с "
+"кнопками «Одобрить» и «Отклонить» для ваших модераторов\n"
 "\n"
 "**Premium можно оформить двумя способами:**\n"
 "• **В Discord** — кнопка ниже. Ежемесячная оплата.\n"
@@ -974,6 +990,142 @@ msgstr "Низкая и выше"
 #, python-brace-format
 msgid "Join here: {link}"
 msgstr "Присоединиться: {link}"
+
+#, python-brace-format
+msgid "Join request: {name}"
+msgstr "Заявка на вступление: {name}"
+
+msgid "View VRChat profile"
+msgstr "Открыть профиль VRChat"
+
+msgid "Linked on Discord"
+msgstr "Привязка в Discord"
+
+#, python-brace-format
+msgid "{member}, in this server since {since}"
+msgstr "{member}, на этом сервере с {since}"
+
+msgid "verified 18+"
+msgstr "подтверждён возраст 18+"
+
+msgid "not verified 18+"
+msgstr "возраст 18+ не подтверждён"
+
+#, python-brace-format
+msgid "has {role}"
+msgstr "есть роль {role}"
+
+msgid "No linked Discord account in this server."
+msgstr "На этом сервере нет привязанного аккаунта Discord."
+
+msgid "First seen by the bot"
+msgstr "Бот впервые увидел"
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "Approve"
+msgstr "Одобрить"
+
+msgid "Deny"
+msgstr "Отклонить"
+
+#, python-brace-format
+msgid "Approving, asked by {moderator}…"
+msgstr "Одобряется по запросу {moderator}…"
+
+#, python-brace-format
+msgid "Denying, asked by {moderator}…"
+msgstr "Отклоняется по запросу {moderator}…"
+
+#, python-brace-format
+msgid "Approved by {moderator} {when}"
+msgstr "Одобрено: {moderator} {when}"
+
+#, python-brace-format
+msgid "Denied by {moderator} {when}"
+msgstr "Отклонено: {moderator} {when}"
+
+msgid "No longer waiting. It was handled in VRChat or withdrawn."
+msgstr "Больше не ожидает. Заявку обработали в VRChat или отозвали."
+
+msgid "Closed. This server now uses a different VRChat group."
+msgstr "Закрыто. Этот сервер теперь использует другую группу VRChat."
+
+msgid ""
+"That didn't go through: the bot no longer has permission to manage this "
+"group's invites and join requests."
+msgstr ""
+"Не получилось: у бота больше нет права управлять приглашениями и заявками"
+" этой группы."
+
+msgid "That didn't go through: VRChat couldn't find this group."
+msgstr "Не получилось: VRChat не нашёл эту группу."
+
+msgid "That didn't go through: VRChat didn't answer. Please try again."
+msgstr "Не получилось: VRChat не ответил. Попробуйте ещё раз."
+
+#, python-brace-format
+msgid ""
+"More join requests are waiting in VRChat than are posted here. Not shown:"
+" {count}. New requests will be posted as they arrive."
+msgstr ""
+"В VRChat ожидает больше заявок, чем опубликовано здесь. Не показано: "
+"{count}. Новые заявки будут публиковаться по мере поступления."
+
+msgid ""
+"Only the roles this server chose for join requests can approve or deny "
+"them."
+msgstr ""
+"Одобрять и отклонять заявки могут только роли, выбранные этим сервером "
+"для заявок на вступление."
+
+msgid "This request has already been handled."
+msgstr "Эта заявка уже обработана."
+
+msgid "Join request triage isn't available for this server right now."
+msgstr "Обработка заявок на вступление сейчас недоступна для этого сервера."
+
+#, python-brace-format
+msgid ""
+"Deny **{name}**'s request to join the VRChat group? They can request "
+"again later."
+msgstr ""
+"Отклонить заявку **{name}** на вступление в группу VRChat? Позже можно "
+"будет подать заявку снова."
+
+msgid "Deny request"
+msgstr "Отклонить заявку"
+
+msgid "Cancel"
+msgstr "Отмена"
+
+msgid "Nothing was changed."
+msgstr "Ничего не изменено."
+
+msgid "Sent to VRChat. The post will update when VRChat answers."
+msgstr "Отправлено в VRChat. Сообщение обновится, когда VRChat ответит."
+
+msgid "The bot couldn't reach VRChat just now. Please try again in a minute."
+msgstr ""
+"Боту сейчас не удалось связаться с VRChat. Попробуйте ещё раз через "
+"минуту."
+
+#, python-brace-format
+msgid ""
+"✅ {moderator} approved **{name}**'s request to join the VRChat group · "
+"{when}"
+msgstr ""
+"✅ {moderator} одобрил(а) заявку **{name}** на вступление в группу VRChat "
+"· {when}"
+
+#, python-brace-format
+msgid ""
+"🚫 {moderator} denied **{name}**'s request to join the VRChat group · "
+"{when}"
+msgstr ""
+"🚫 {moderator} отклонил(а) заявку **{name}** на вступление в группу VRChat"
+" · {when}"
 
 #~ msgid "Donate"
 #~ msgstr "Поддержать"

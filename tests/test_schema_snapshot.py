@@ -40,6 +40,9 @@ NOT_DEPLOYED_YET: dict = {
         "#352: a daily count of live Discord and Stripe premium subscriptions, "
         "written by the bot for the Grafana panel."
     ),
+    "join_request_triage": "#291: a guild's join-request triage switch, channel and polling.",
+    "join_request_triage_role": "#291: the Discord roles allowed to approve or deny join requests.",
+    "join_request_post": "#291: one pending join request and the Discord post triaging it.",
 }
 
 # Every divergence that exists today, keyed by exactly what the comparison
