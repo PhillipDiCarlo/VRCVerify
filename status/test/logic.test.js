@@ -179,6 +179,34 @@ test("one broken part shows up as every capability a reader would notice", () =>
   assert.match(result.verification.detail, /queue/);
 });
 
+test("a bot reconnecting to Discord is degraded, and a dead bot is still down", () => {
+  // #325: the process running with its gateway session lost is a reconnect in
+  // progress, not an outage of the bot.
+  const now = 1_700_000_000;
+  const reconnecting = capabilitiesFromParts(
+    {
+      "discord-bot": { at: now - 10, up: true },
+      "discord-gateway": { at: now - 10, up: false, detail: "gateway disconnected, reconnecting" },
+    },
+    PART_CAPABILITIES,
+    now,
+    HEARTBEAT_STALE_SECONDS,
+  );
+  assert.equal(reconnecting.bot.state, "degraded");
+  assert.equal(reconnecting.verification.state, "degraded");
+  assert.equal(reconnecting.invites.state, "degraded");
+  assert.match(reconnecting.bot.detail, /discord-gateway/);
+
+  const dead = now - (HEARTBEAT_STALE_SECONDS + 1);
+  const gone = capabilitiesFromParts(
+    { "discord-bot": { at: dead, up: true }, "discord-gateway": { at: dead, up: true } },
+    PART_CAPABILITIES,
+    now,
+    HEARTBEAT_STALE_SECONDS,
+  );
+  assert.equal(gone.bot.state, "down");
+});
+
 test("the homelab going quiet degrades the dashboard rather than downing it", () => {
   // Both facts are true at once: dashboard.vrcverify.com answers 200, and
   // every page needing the bot behind it fails. A reader watching the site

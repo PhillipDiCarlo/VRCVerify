@@ -14651,15 +14651,20 @@ def _status_probe() -> dict[str, tuple[bool, str | None]]:
     """
     parts: dict[str, tuple[bool, str | None]] = {}
 
-    # _gateway_connected as well as is_ready(): the flag alone stays True
-    # through every failed reconnect, so an outage read as up (#325).
+    # Two parts since #325. discord-bot is the process: if this runs, it is up,
+    # and a dead process is caught by its heartbeat going stale. The gateway is
+    # the connection to Discord, which the status page caps at degraded,
+    # because a bot reconnecting is still there and recovers on its own. It
+    # needs _gateway_connected as well as is_ready(): the flag alone stays True
+    # through every failed reconnect, so an outage used to read as up.
+    parts["discord-bot"] = (True, None)
     latency = bot.latency
     if bot.is_ready() and _gateway_connected and latency == latency and latency != float("inf"):
-        parts["discord-bot"] = (True, f"gateway ready, {int(latency * 1000)}ms")
+        parts["discord-gateway"] = (True, f"gateway ready, {int(latency * 1000)}ms")
     elif bot.is_ready():
-        parts["discord-bot"] = (False, "gateway disconnected, reconnecting")
+        parts["discord-gateway"] = (False, "gateway disconnected, reconnecting")
     else:
-        parts["discord-bot"] = (False, "gateway not ready")
+        parts["discord-gateway"] = (False, "gateway not ready")
 
     try:
         with engine.connect() as connection:

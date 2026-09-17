@@ -201,16 +201,21 @@ class TestTheBotsWatchedParts:
 
     def test_the_status_page_sees_the_drop_too(self, monkeypatch):
         """The status page's heartbeat read is_ready() alone and reported the
-        bot as up through the whole outage."""
+        bot as up through the whole outage. It is now its own part, which the
+        Worker shows as degraded (status/src/config.js)."""
         import asyncio
 
         monkeypatch.setattr(bot.bot, "is_ready", lambda: True)
         monkeypatch.setattr(type(bot.bot), "latency", property(lambda self: 0.05))
         monkeypatch.setattr(bot.engine, "connect", lambda: (_ for _ in ()).throw(RuntimeError("no db here")))
         asyncio.run(bot.on_connect())
-        assert bot._status_probe()["discord-bot"] == (True, "gateway ready, 50ms")
+        assert bot._status_probe()["discord-gateway"] == (True, "gateway ready, 50ms")
         asyncio.run(bot.on_disconnect())
-        assert bot._status_probe()["discord-bot"] == (False, "gateway disconnected, reconnecting")
+        parts = bot._status_probe()
+        assert parts["discord-gateway"] == (False, "gateway disconnected, reconnecting")
+        # The process is still running, and the status page caps a lost
+        # gateway at degraded rather than calling the bot down.
+        assert parts["discord-bot"] == (True, None)
 
     def test_discord_py_still_clears_ready_only_on_close(self):
         """The reason the listeners exist. If discord.py starts clearing it on

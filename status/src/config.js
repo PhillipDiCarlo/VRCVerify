@@ -67,6 +67,16 @@ export const COMPONENT_IDS = COMPONENTS.map((c) => c.id);
  */
 export const PART_CAPABILITIES = {
   "discord-bot": ["bot", "verification", "invites"],
+  // The bot's connection to Discord, reported apart from the process (#325).
+  // Losing it while the process runs is a reconnect in progress: the bot is
+  // still there and comes back on its own, so the rows go amber, not red. A
+  // bot whose process has died goes quiet instead, and "discord-bot" above
+  // turns those rows down.
+  "discord-gateway": [
+    { capability: "bot", as: "degraded" },
+    { capability: "verification", as: "degraded" },
+    { capability: "invites", as: "degraded" },
+  ],
   "vrc-online-checker": ["verification"],
   "vrc-group-inviter": ["invites"],
   // NOT "down". A capability may be listed as `{ capability, as: "degraded" }`,
