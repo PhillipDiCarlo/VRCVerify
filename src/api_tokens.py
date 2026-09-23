@@ -60,6 +60,11 @@ OP_VERIFY_GROUP = "POST /api/v1/guilds/{guild_id}/verify-group"
 # The ownership proof on its own (#289). Joins nothing, but it is still an
 # action that queues a job, and its token must not be replayable as the join.
 OP_VERIFY_GROUP_CLAIM = "POST /api/v1/guilds/{guild_id}/verify-group-claim"
+# Verifying a server's existing members (#292). Two operations rather than a
+# mode in a body, so a token for the free count can never start the apply,
+# which is the one that edits roles.
+OP_MEMBER_BACKFILL_COUNT = "POST /api/v1/guilds/{guild_id}/member-backfill/count"
+OP_MEMBER_BACKFILL_APPLY = "POST /api/v1/guilds/{guild_id}/member-backfill/apply"
 # The only operation with no human behind it: a Stripe webhook, verified on the
 # dashboard and forwarded here. See SYSTEM_ACTOR_ID.
 OP_PUT_STRIPE_SUBSCRIPTION = "PUT /api/v1/guilds/{guild_id}/stripe-subscription"

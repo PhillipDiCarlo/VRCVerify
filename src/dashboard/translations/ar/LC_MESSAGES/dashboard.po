@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-17 04:36-0400\n"
+"POT-Creation-Date: 2026-09-23 17:46-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -293,7 +293,12 @@ msgid ""
 "and whether they're verified 18+, so your moderators can decide without "
 "leaving Discord. Turn it on under Settings, VRChat group, once group "
 "invites are set up."
-msgstr "تُنشر طلبات الانضمام إلى مجموعتك في VRChat الآن في قناة Discord تختارها، مع زري القبول والرفض للأدوار التي تحددها. يعرض كل منشور ما إذا كان مقدم الطلب عضوًا في خادمك بالفعل، وما إذا تم التحقق من أنه فوق 18، ليتمكن المشرفون من اتخاذ القرار دون مغادرة Discord. فعّلها من الإعدادات، مجموعة VRChat، بعد إعداد دعوات المجموعة."
+msgstr ""
+"تُنشر طلبات الانضمام إلى مجموعتك في VRChat الآن في قناة Discord تختارها، "
+"مع زري القبول والرفض للأدوار التي تحددها. يعرض كل منشور ما إذا كان مقدم "
+"الطلب عضوًا في خادمك بالفعل، وما إذا تم التحقق من أنه فوق 18، ليتمكن "
+"المشرفون من اتخاذ القرار دون مغادرة Discord. فعّلها من الإعدادات، مجموعة "
+"VRChat، بعد إعداد دعوات المجموعة."
 
 # | msgid "Premium"
 msgid "See Premium"
@@ -666,6 +671,189 @@ msgstr "مزاياك المكتسبة سابقًا تبقى مجانية مهم�
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "الترقية إلى VRCVerify Premium"
+
+msgid ""
+"VRCVerify needs the Manage Roles permission in this server before it can "
+"give anyone the verified role."
+msgstr ""
+"يحتاج VRCVerify إلى صلاحية «إدارة الرتب» في هذا الخادم قبل أن يستطيع منح "
+"أي أحد رتبة «موثَّق»."
+
+msgid ""
+"Move VRCVerify's role above the verified role in Server Settings, Roles, "
+"then try again."
+msgstr ""
+"انقل رتبة VRCVerify فوق رتبة «موثَّق» من إعدادات الخادم، الرتب، ثم حاول "
+"مرة أخرى."
+
+msgid ""
+"Move VRCVerify's role above the unverified role in Server Settings, "
+"Roles, then try again."
+msgstr ""
+"انقل رتبة VRCVerify فوق رتبة «غير موثَّق» من إعدادات الخادم، الرتب، ثم "
+"حاول مرة أخرى."
+
+msgid ""
+"Discord refused to let VRCVerify change a member's roles, so it stopped. "
+"Check that VRCVerify's role is above the verified role and has Manage "
+"Roles, then count again."
+msgstr ""
+"رفض Discord السماح لـ VRCVerify بتغيير رتب أحد الأعضاء، فتوقّف. تأكد أن "
+"رتبة VRCVerify أعلى من رتبة «موثَّق» وتملك صلاحية «إدارة الرتب»، ثم أعد "
+"العدّ."
+
+msgid "It stopped because this server no longer has Premium."
+msgstr "توقّف لأن هذا الخادم لم يعد لديه Premium."
+
+msgid ""
+"VRCVerify couldn't check its permissions in this server just now. Try "
+"again in a minute."
+msgstr ""
+"تعذّر على VRCVerify التحقق من صلاحياته في هذا الخادم الآن. حاول مرة أخرى "
+"بعد دقيقة."
+
+msgid ""
+"Something went wrong partway through, so it stopped. Count again to see "
+"where things stand."
+msgstr "حدث خطأ ما في منتصف العملية، فتوقّفت. أعد العدّ لترى أين وصلت الأمور."
+
+msgid "That can't run again yet. The card says when it can."
+msgstr "لا يمكن تشغيل هذا مرة أخرى بعد. البطاقة تخبرك بالوقت المناسب."
+
+msgid "It's already running."
+msgstr "إنه قيد التشغيل بالفعل."
+
+msgid "Count members first, so you can see who would be verified."
+msgstr "عدّ الأعضاء أولًا، لترى من سيُوثَّق."
+
+msgid "Nobody here can be verified right now."
+msgstr "لا يوجد هنا أحد يمكن توثيقه الآن."
+
+msgid "Giving members the role is part of Premium."
+msgstr "منح الأعضاء الرتبة جزء من Premium."
+
+msgid "Choose a verified role in Settings first."
+msgstr "اختر رتبة «موثَّق» من الإعدادات أولًا."
+
+msgid "The verified role no longer exists. Choose another in Settings."
+msgstr "رتبة «موثَّق» لم تعد موجودة. اختر رتبة أخرى من الإعدادات."
+
+msgid "That didn't go through. Try again in a minute."
+msgstr "لم يتم تنفيذ ذلك. حاول مرة أخرى بعد دقيقة."
+
+#, python-format
+msgid "You can count again after %(when)s."
+msgstr "يمكنك العدّ مرة أخرى بعد %(when)s."
+
+#, python-format
+msgid "%(count)s member given the role so far"
+msgid_plural "%(count)s members given the role so far"
+msgstr[0] "لم يُمنح أي عضو الرتبة حتى الآن"
+msgstr[1] "مُنح عضو واحد الرتبة حتى الآن"
+msgstr[2] "مُنح عضوان الرتبة حتى الآن"
+msgstr[3] "مُنح %(count)s أعضاء الرتبة حتى الآن"
+msgstr[4] "مُنح %(count)s عضوًا الرتبة حتى الآن"
+msgstr[5] "مُنح %(count)s عضو الرتبة حتى الآن"
+
+#, python-format
+msgid "Last checked %(when)s."
+msgstr "آخر تحقق %(when)s."
+
+#, python-format
+msgid "%(count)s member was given the verified role before it stopped."
+msgid_plural "%(count)s members were given the verified role before it stopped."
+msgstr[0] "لم يحصل أي عضو على رتبة «موثَّق» قبل التوقف."
+msgstr[1] "حصل عضو واحد على رتبة «موثَّق» قبل التوقف."
+msgstr[2] "حصل عضوان على رتبة «موثَّق» قبل التوقف."
+msgstr[3] "حصل %(count)s أعضاء على رتبة «موثَّق» قبل التوقف."
+msgstr[4] "حصل %(count)s عضوًا على رتبة «موثَّق» قبل التوقف."
+msgstr[5] "حصل %(count)s عضو على رتبة «موثَّق» قبل التوقف."
+
+#, python-format
+msgid "%(count)s member can be verified now"
+msgid_plural "%(count)s members can be verified now"
+msgstr[0] "لا أعضاء يمكن توثيقهم الآن"
+msgstr[1] "عضو واحد يمكن توثيقه الآن"
+msgstr[2] "عضوان يمكن توثيقهما الآن"
+msgstr[3] "%(count)s أعضاء يمكن توثيقهم الآن"
+msgstr[4] "%(count)s عضوًا يمكن توثيقهم الآن"
+msgstr[5] "%(count)s عضو يمكن توثيقهم الآن"
+
+#, python-format
+msgid "%(count)s member already has the verified role"
+msgid_plural "%(count)s members already have the verified role"
+msgstr[0] "لا أعضاء يملكون رتبة «موثَّق» بالفعل"
+msgstr[1] "عضو واحد يملك رتبة «موثَّق» بالفعل"
+msgstr[2] "عضوان يملكان رتبة «موثَّق» بالفعل"
+msgstr[3] "%(count)s أعضاء يملكون رتبة «موثَّق» بالفعل"
+msgstr[4] "%(count)s عضوًا يملكون رتبة «موثَّق» بالفعل"
+msgstr[5] "%(count)s عضو يملكون رتبة «موثَّق» بالفعل"
+
+#, python-format
+msgid "%(count)s member is linked to VRChat but not 18+ verified"
+msgid_plural "%(count)s members are linked to VRChat but not 18+ verified"
+msgstr[0] "لا أعضاء مرتبطون بـ VRChat دون توثيق 18+"
+msgstr[1] "عضو واحد مرتبط بـ VRChat لكنه غير موثَّق 18+"
+msgstr[2] "عضوان مرتبطان بـ VRChat لكنهما غير موثَّقين 18+"
+msgstr[3] "%(count)s أعضاء مرتبطون بـ VRChat لكنهم غير موثَّقين 18+"
+msgstr[4] "%(count)s عضوًا مرتبطون بـ VRChat لكنهم غير موثَّقين 18+"
+msgstr[5] "%(count)s عضو مرتبطون بـ VRChat لكنهم غير موثَّقين 18+"
+
+msgid ""
+"They can press Begin Verification on the instructions panel to be checked"
+" again."
+msgstr "يمكنهم الضغط على «بدء التحقق» في لوحة الإرشادات ليُفحَصوا مرة أخرى."
+
+#, python-format
+msgid "%(count)s member hasn't verified with VRCVerify yet"
+msgid_plural "%(count)s members haven't verified with VRCVerify yet"
+msgstr[0] "لم يوثّق أي عضو نفسه بعد عبر VRCVerify"
+msgstr[1] "عضو واحد لم يوثّق نفسه بعد عبر VRCVerify"
+msgstr[2] "عضوان لم يوثّقا أنفسهما بعد عبر VRCVerify"
+msgstr[3] "%(count)s أعضاء لم يوثّقوا أنفسهم بعد عبر VRCVerify"
+msgstr[4] "%(count)s عضوًا لم يوثّقوا أنفسهم بعد عبر VRCVerify"
+msgstr[5] "%(count)s عضو لم يوثّقوا أنفسهم بعد عبر VRCVerify"
+
+msgid ""
+"Nobody can do this step for them: they verify once, with the instructions"
+" panel, and every server using VRCVerify recognizes them after that."
+msgstr ""
+"لا يستطيع أحد القيام بهذه الخطوة نيابة عنهم: يوثّقون أنفسهم مرة واحدة عبر"
+" لوحة الإرشادات، ويتعرّف عليهم بعدها كل خادم يستخدم VRCVerify."
+
+#, python-format
+msgid "Done. %(count)s member was given the verified role."
+msgid_plural "Done. %(count)s members were given the verified role."
+msgstr[0] "تم. لم يحصل أي عضو على رتبة «موثَّق»."
+msgstr[1] "تم. حصل عضو واحد على رتبة «موثَّق»."
+msgstr[2] "تم. حصل عضوان على رتبة «موثَّق»."
+msgstr[3] "تم. حصل %(count)s أعضاء على رتبة «موثَّق»."
+msgstr[4] "تم. حصل %(count)s عضوًا على رتبة «موثَّق»."
+msgstr[5] "تم. حصل %(count)s عضو على رتبة «موثَّق»."
+
+#, python-format
+msgid "%(count)s member couldn't be updated and can still verify with the panel."
+msgid_plural "%(count)s members couldn't be updated and can still verify with the panel."
+msgstr[0] "لم يتعذّر تحديث أي عضو، وكلهم يمكنهم التوثيق عبر اللوحة."
+msgstr[1] "تعذّر تحديث عضو واحد، وما زال بإمكانه التوثيق عبر اللوحة."
+msgstr[2] "تعذّر تحديث عضوين، وما زال بإمكانهما التوثيق عبر اللوحة."
+msgstr[3] "تعذّر تحديث %(count)s أعضاء، وما زال بإمكانهم التوثيق عبر اللوحة."
+msgstr[4] "تعذّر تحديث %(count)s عضوًا، وما زال بإمكانهم التوثيق عبر اللوحة."
+msgstr[5] "تعذّر تحديث %(count)s عضو، وما زال بإمكانهم التوثيق عبر اللوحة."
+
+#, python-format
+msgid "You can verify members again after %(when)s."
+msgstr "يمكنك توثيق الأعضاء مرة أخرى بعد %(when)s."
+
+#, python-format
+msgid "Give %(count)s member the verified role"
+msgid_plural "Give %(count)s members the verified role"
+msgstr[0] "امنح رتبة «موثَّق» للأعضاء"
+msgstr[1] "امنح رتبة «موثَّق» لعضو واحد"
+msgstr[2] "امنح رتبة «موثَّق» لعضوين"
+msgstr[3] "امنح رتبة «موثَّق» لـ %(count)s أعضاء"
+msgstr[4] "امنح رتبة «موثَّق» لـ %(count)s عضوًا"
+msgstr[5] "امنح رتبة «موثَّق» لـ %(count)s عضو"
 
 msgid "Working"
 msgstr "يعمل"
@@ -1403,6 +1591,15 @@ msgstr "من يمكنه قبول طلبات الانضمام أو رفضها"
 msgid "VRChat group setup check"
 msgstr "فحص إعداد مجموعة VRChat"
 
+msgid "Verify existing members"
+msgstr "توثيق الأعضاء الحاليين"
+
+msgid "finished"
+msgstr "انتهى"
+
+msgid "stopped early"
+msgstr "توقّف مبكرًا"
+
 msgid "posted in"
 msgstr "نُشرت في"
 
@@ -1421,6 +1618,10 @@ msgstr "المعرّف %(id)s"
 
 msgid "not set"
 msgstr "غير محدَّد"
+
+#, python-format
+msgid "verified role given: %(count)s"
+msgstr "رتبة «موثَّق» مُنحت: %(count)s"
 
 #, python-format
 msgid "role %(id)s"
@@ -1780,6 +1981,68 @@ msgstr "عرض الخطط والاشتراك"
 
 msgid "Dismiss"
 msgstr "إخفاء"
+
+msgid "Couldn't check this just now. Try again shortly."
+msgstr "تعذّر التحقق من هذا الآن. حاول مرة أخرى بعد قليل."
+
+msgid ""
+"Give the verified role to members who have already verified with "
+"VRCVerify, here or in any other server, without asking them to do "
+"anything. Start by counting who that is. Counting changes nothing."
+msgstr ""
+"امنح رتبة «موثَّق» للأعضاء الذين سبق أن وثّقوا أنفسهم عبر VRCVerify، هنا "
+"أو في أي خادم آخر، من دون أن تطلب منهم فعل أي شيء. ابدأ بعدّ من هم. العدّ"
+" لا يغيّر شيئًا."
+
+msgid ""
+"It can only find people who have verified with VRCVerify before. Everyone"
+" else still verifies with the instructions panel."
+msgstr ""
+"لا يمكنه إيجاد سوى من وثّق نفسه عبر VRCVerify من قبل. أما الباقون فلا "
+"يزالون بحاجة إلى التوثيق عبر لوحة الإرشادات."
+
+msgid "Counting members…"
+msgstr "جارٍ عدّ الأعضاء…"
+
+msgid "Giving members the verified role…"
+msgstr "جارٍ منح الأعضاء رتبة «موثَّق»…"
+
+#, python-format
+msgid "%(checked)s of %(total)s checked"
+msgstr "تم فحص %(checked)s من %(total)s"
+
+msgid ""
+"This page refreshes itself until it's done. You can leave it; the work "
+"carries on without you."
+msgstr ""
+"تُحدَّث هذه الصفحة تلقائيًا حتى الانتهاء. يمكنك مغادرتها، فالعمل يستمر من"
+" دونك."
+
+msgid "Refresh"
+msgstr "تحديث"
+
+msgid ""
+"Giving them the role is part of Premium. They won't be messaged, and "
+"nobody has to do anything."
+msgstr ""
+"منحهم الرتبة جزء من Premium. لن تُرسَل إليهم أي رسالة، ولا يحتاج أحد إلى "
+"فعل أي شيء."
+
+msgid "This includes anyone whose verified role was removed by hand."
+msgstr "يشمل ذلك كل من أُزيلت منه رتبة «موثَّق» يدويًا."
+
+msgid "Count members"
+msgstr "عدّ الأعضاء"
+
+msgid "Count again"
+msgstr "أعد العدّ"
+
+msgid ""
+"Nobody is messaged about it. Members who left or joined since the count "
+"are checked again as it goes."
+msgstr ""
+"لا تُرسَل أي رسالة لأحد بشأن ذلك. الأعضاء الذين غادروا أو انضمّوا بعد "
+"العدّ يُفحَصون مرة أخرى أثناء التنفيذ."
 
 # | msgid "A verification log channel"
 # | msgid "Verification"

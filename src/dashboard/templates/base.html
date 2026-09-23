@@ -177,6 +177,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}VRCVerify{% endblock %}</title>
+  {% block head %}{% endblock %}
   {# `asset()` rather than `url_for`: it appends a digest of the file's
      contents, which is what lets these be cached for a year without a deploy
      leaving anyone on a stale stylesheet. See _register_assets in app.py. #}

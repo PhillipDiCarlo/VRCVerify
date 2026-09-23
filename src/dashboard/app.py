@@ -1426,14 +1426,35 @@ def _register_routes(app: Flask) -> None:
             t=_translator(),
         )
 
+        next_step = overview_view.build_next_step(
+            overview, changelog_entry, _translator(), _ngettext(), _lang()
+        )
+        backfill = overview_view.build_backfill(
+            overview, _translator(), _ngettext(), _lang()
+        )
+        # One Premium pitch per page. A free server shown how many of its own
+        # members Premium would verify right now is shown the better one.
+        if backfill and backfill.get("pitch") and next_step and next_step.get("action") == "subscription":
+            next_step = None
+
+        # Only this card posts back to the Overview, so any notice waiting is
+        # its refusal. Read once and cleared, so a reload does not repeat it.
+        notice = _store().take_notice(session.sid) or ""
+        backfill_notice = None
+        if notice.startswith("backfill:"):
+            backfill_notice = overview_view.backfill_refusal(
+                notice.split(":", 1)[1], _translator()
+            )
+
         return render_template(
             "overview.html",
             tiles=overview_view.build_tiles(overview, _translator(), _lang()),
             chart=overview_view.build_chart(overview, _translator(), _lang()),
-            next_step=overview_view.build_next_step(
-                overview, changelog_entry, _translator(), _ngettext(), _lang()
-            ),
+            next_step=next_step,
             setup=overview_view.build_setup(overview, _translator()),
+            backfill=backfill,
+            backfill_notice=backfill_notice,
+            backfill_refresh_seconds=overview_view.BACKFILL_REFRESH_SECONDS,
             premium=premium,
             **_guild_chrome(session, guild_id, "overview"),
         )
@@ -2482,6 +2503,47 @@ def _register_routes(app: Flask) -> None:
 
         _store().set_notice(session.sid, "group_check")
         return redirect(_settings_url(guild_id, "vrchat-group"))
+
+    @app.post("/guild/<int:guild_id>/members/count")
+    def count_existing_members(guild_id: int):
+        """Ask the bot to count this server's members by bucket (#292).
+
+        Changes nothing, and free. Carries no body: the role counted is the
+        one stored for the guild.
+        """
+        return _backfill_action(guild_id, "count_existing_members")
+
+    @app.post("/guild/<int:guild_id>/members/verify")
+    def verify_existing_members(guild_id: int):
+        """Ask the bot to give the verified role to members already verified.
+
+        The one control on the Overview that changes anything in the server.
+        Who qualifies is decided by the bot from its own records, which is why
+        nothing but the CSRF token is posted.
+        """
+        return _backfill_action(guild_id, "verify_existing_members")
+
+    def _backfill_action(guild_id: int, method: str):
+        session = _require_login()
+        if session is None:
+            return redirect(url_for("index"))
+        if not _csrf_ok(session):
+            abort(400)
+        try:
+            getattr(_bot_api(), method)(int(session.discord_id), guild_id)
+        except BotAPIError as error:
+            logger.warning(
+                "member backfill refused for guild %s: %s", guild_id, error
+            )
+            # Clamped to a code the page knows before it is stored, like the
+            # panel's: nothing from over the wire is echoed back unchecked.
+            reason = str(error)
+            known = (
+                reason in overview_view.BACKFILL_REFUSALS
+                or reason in overview_view.BACKFILL_PROBLEMS
+            )
+            _store().set_notice(session.sid, f"backfill:{reason if known else 'unknown'}")
+        return redirect(url_for("guild_overview", guild_id=guild_id) + "#existing-members")
 
     @app.post("/guild/<int:guild_id>/group/verify-claim")
     def verify_group_claim(guild_id: int):

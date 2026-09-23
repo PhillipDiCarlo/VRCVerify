@@ -1633,6 +1633,14 @@ AUDIT_LABELS = {
     # this entry the branch's own headline feature rendered its history as the
     # raw column name and a bare channel id.
     "instructions_panel": N_("Instructions panel"),
+    # An action again (#292): (how the run ended, how many got the role).
+    "member_backfill": N_("Verify existing members"),
+}
+
+# How a member_backfill row's run ended, as its first half reads.
+BACKFILL_OUTCOMES = {
+    "done": N_("finished"),
+    "failed": N_("stopped early"),
 }
 
 # What the bot writes into old_value for an instructions_panel row, as a phrase
@@ -1671,7 +1679,10 @@ def build_audit(
         # An instructions_panel row is (what happened, where) rather than
         # (before, after), so its halves resolve differently -- the second one
         # is a channel id, not another action.
-        new_field = "instructions_panel_channel" if field == "instructions_panel" else field
+        new_field = {
+            "instructions_panel": "instructions_panel_channel",
+            "member_backfill": "member_backfill_granted",
+        }.get(field, field)
         rows.append(
             {
                 "label": t(AUDIT_LABELS[field]) if field in AUDIT_LABELS else field,
@@ -1723,6 +1734,15 @@ def _audit_value(
     if field == "instructions_panel":
         key = str(raw)
         return t(PANEL_ACTIONS[key]) if key in PANEL_ACTIONS else key
+    if field == "member_backfill":
+        key = str(raw)
+        return t(BACKFILL_OUTCOMES[key]) if key in BACKFILL_OUTCOMES else key
+    if field == "member_backfill_granted":
+        try:
+            count = int(raw)
+        except (TypeError, ValueError):
+            return str(raw)
+        return t(N_("verified role given: %(count)s")) % {"count": count}
     if field in {"role_id", "unverified_role_id"}:
         if roles is None:
             return t(N_("role %(id)s")) % {"id": raw}

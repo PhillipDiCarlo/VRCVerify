@@ -3117,6 +3117,37 @@ footer p + p { margin-top: var(--space-2); }
   white-space: nowrap;
 }
 
+/* --- verify existing members (#292) --- */
+.backfill-buckets { list-style: none; margin: 0 0 var(--space-3); padding: 0; }
+
+.backfill-bucket {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.backfill-bucket:first-child { border-top: 0; padding-top: 0; }
+
+/* The one bucket the buttons below act on, so it reads first. */
+.backfill-bucket-eligible .backfill-bucket-text { font-weight: 600; color: var(--ink-strong); }
+
+.backfill-outcome,
+.backfill-running { font-weight: 600; color: var(--ink-strong); margin: 0 0 var(--space-2); }
+
+/* A native bar: the CSP drops inline styles, so a div with a width is not an
+ * option, and this needs none. Colored with accent-color where supported. */
+.backfill-progress {
+  display: block;
+  width: 100%;
+  height: 0.5rem;
+  margin: 0 0 var(--space-2);
+  accent-color: var(--accent);
+}
+
+.backfill-pitch .setup-premium { margin-inline: 0 0.4rem; }
+
 /* --- change history --- */
 .audit { list-style: none; margin: 0; padding: 0; }
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-17 04:37-0400\n"
+"POT-Creation-Date: 2026-09-23 17:46-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_CN\n"
@@ -686,6 +686,12 @@ msgstr "⚠️ {user} — 已验证 18+，但无法分配身份组。请检查 V
 #, python-brace-format
 msgid "❌ {user} — not 18+ according to VRChat · {when}"
 msgstr "❌ {user} — 根据 VRChat 未满 18 岁 · {when}"
+
+#, python-brace-format
+msgid ""
+"🧾 {user} verified the server's existing members: {count} given the "
+"verified role · {when}"
+msgstr "🧾 {user} 验证了服务器的现有成员：{count} 人获得了已验证身份组 · {when}"
 
 #, python-brace-format
 msgid "…{count} earlier entries could not be recorded."

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-17 04:36-0400\n"
+"POT-Creation-Date: 2026-09-23 17:46-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -329,7 +329,14 @@ msgid ""
 "and whether they're verified 18+, so your moderators can decide without "
 "leaving Discord. Turn it on under Settings, VRChat group, once group "
 "invites are set up."
-msgstr "Beitrittsanfragen für deine VRChat-Gruppe werden jetzt in einem Discord-Kanal deiner Wahl gepostet, mit Schaltflächen zum Annehmen und Ablehnen für die Rollen, die du auswählst. Jeder Beitrag zeigt, ob die anfragende Person schon Mitglied deines Servers ist und ob sie als 18+ verifiziert ist, damit deine Moderatoren entscheiden können, ohne Discord zu verlassen. Schalte es unter Einstellungen, VRChat-Gruppe ein, sobald die Gruppeneinladungen eingerichtet sind."
+msgstr ""
+"Beitrittsanfragen für deine VRChat-Gruppe werden jetzt in einem Discord-"
+"Kanal deiner Wahl gepostet, mit Schaltflächen zum Annehmen und Ablehnen "
+"für die Rollen, die du auswählst. Jeder Beitrag zeigt, ob die anfragende "
+"Person schon Mitglied deines Servers ist und ob sie als 18+ verifiziert "
+"ist, damit deine Moderatoren entscheiden können, ohne Discord zu "
+"verlassen. Schalte es unter Einstellungen, VRChat-Gruppe ein, sobald die "
+"Gruppeneinladungen eingerichtet sind."
 
 # | msgid "Premium"
 msgid "See Premium"
@@ -713,6 +720,175 @@ msgstr "Deine Bestandsvorteile bleiben kostenlos, wie du dich auch entscheidest.
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "Auf VRCVerify Premium upgraden"
+
+msgid ""
+"VRCVerify needs the Manage Roles permission in this server before it can "
+"give anyone the verified role."
+msgstr ""
+"VRCVerify braucht die Berechtigung „Rollen verwalten“ auf diesem Server, "
+"bevor es jemandem die Verifiziert-Rolle geben kann."
+
+msgid ""
+"Move VRCVerify's role above the verified role in Server Settings, Roles, "
+"then try again."
+msgstr ""
+"Verschiebe die VRCVerify-Rolle in den Servereinstellungen, Rollen, über "
+"die Verifiziert-Rolle und versuche es erneut."
+
+msgid ""
+"Move VRCVerify's role above the unverified role in Server Settings, "
+"Roles, then try again."
+msgstr ""
+"Verschiebe die VRCVerify-Rolle in den Servereinstellungen, Rollen, über "
+"die Unverifiziert-Rolle und versuche es erneut."
+
+msgid ""
+"Discord refused to let VRCVerify change a member's roles, so it stopped. "
+"Check that VRCVerify's role is above the verified role and has Manage "
+"Roles, then count again."
+msgstr ""
+"Discord hat VRCVerify nicht erlaubt, die Rollen eines Mitglieds zu "
+"ändern, deshalb wurde abgebrochen. Prüfe, ob die VRCVerify-Rolle über der"
+" Verifiziert-Rolle steht und die Berechtigung „Rollen verwalten“ hat, "
+"dann zähle erneut."
+
+msgid "It stopped because this server no longer has Premium."
+msgstr "Es wurde abgebrochen, weil dieser Server kein Premium mehr hat."
+
+msgid ""
+"VRCVerify couldn't check its permissions in this server just now. Try "
+"again in a minute."
+msgstr ""
+"VRCVerify konnte seine Berechtigungen auf diesem Server gerade nicht "
+"prüfen. Versuche es in einer Minute erneut."
+
+msgid ""
+"Something went wrong partway through, so it stopped. Count again to see "
+"where things stand."
+msgstr ""
+"Mittendrin ist etwas schiefgelaufen, deshalb wurde abgebrochen. Zähle "
+"erneut, um den aktuellen Stand zu sehen."
+
+msgid "That can't run again yet. The card says when it can."
+msgstr ""
+"Das kann noch nicht erneut ausgeführt werden. Die Karte zeigt an, wann es"
+" wieder geht."
+
+msgid "It's already running."
+msgstr "Es läuft bereits."
+
+msgid "Count members first, so you can see who would be verified."
+msgstr "Zähle zuerst die Mitglieder, um zu sehen, wer verifiziert würde."
+
+msgid "Nobody here can be verified right now."
+msgstr "Hier kann gerade niemand verifiziert werden."
+
+msgid "Giving members the role is part of Premium."
+msgstr "Mitgliedern die Rolle zu geben, ist Teil von Premium."
+
+msgid "Choose a verified role in Settings first."
+msgstr "Wähle zuerst eine Verifiziert-Rolle in den Einstellungen."
+
+msgid "The verified role no longer exists. Choose another in Settings."
+msgstr ""
+"Die Verifiziert-Rolle existiert nicht mehr. Wähle eine andere in den "
+"Einstellungen."
+
+msgid "That didn't go through. Try again in a minute."
+msgstr "Das hat nicht geklappt. Versuche es in einer Minute erneut."
+
+#, python-format
+msgid "You can count again after %(when)s."
+msgstr "Du kannst nach %(when)s erneut zählen."
+
+#, python-format
+msgid "%(count)s member given the role so far"
+msgid_plural "%(count)s members given the role so far"
+msgstr[0] "%(count)s Mitglied hat die Rolle bisher erhalten"
+msgstr[1] "%(count)s Mitglieder haben die Rolle bisher erhalten"
+
+#, python-format
+msgid "Last checked %(when)s."
+msgstr "Zuletzt geprüft: %(when)s."
+
+#, python-format
+msgid "%(count)s member was given the verified role before it stopped."
+msgid_plural "%(count)s members were given the verified role before it stopped."
+msgstr[0] ""
+"%(count)s Mitglied hat die Verifiziert-Rolle erhalten, bevor abgebrochen "
+"wurde."
+msgstr[1] ""
+"%(count)s Mitglieder haben die Verifiziert-Rolle erhalten, bevor "
+"abgebrochen wurde."
+
+#, python-format
+msgid "%(count)s member can be verified now"
+msgid_plural "%(count)s members can be verified now"
+msgstr[0] "%(count)s Mitglied kann jetzt verifiziert werden"
+msgstr[1] "%(count)s Mitglieder können jetzt verifiziert werden"
+
+#, python-format
+msgid "%(count)s member already has the verified role"
+msgid_plural "%(count)s members already have the verified role"
+msgstr[0] "%(count)s Mitglied hat die Verifiziert-Rolle bereits"
+msgstr[1] "%(count)s Mitglieder haben die Verifiziert-Rolle bereits"
+
+#, python-format
+msgid "%(count)s member is linked to VRChat but not 18+ verified"
+msgid_plural "%(count)s members are linked to VRChat but not 18+ verified"
+msgstr[0] ""
+"%(count)s Mitglied ist mit VRChat verknüpft, aber nicht als 18+ "
+"verifiziert"
+msgstr[1] ""
+"%(count)s Mitglieder sind mit VRChat verknüpft, aber nicht als 18+ "
+"verifiziert"
+
+msgid ""
+"They can press Begin Verification on the instructions panel to be checked"
+" again."
+msgstr ""
+"Sie können im Anleitungs-Panel auf Verifizierung starten klicken, um "
+"erneut geprüft zu werden."
+
+#, python-format
+msgid "%(count)s member hasn't verified with VRCVerify yet"
+msgid_plural "%(count)s members haven't verified with VRCVerify yet"
+msgstr[0] "%(count)s Mitglied hat sich noch nicht mit VRCVerify verifiziert"
+msgstr[1] "%(count)s Mitglieder haben sich noch nicht mit VRCVerify verifiziert"
+
+msgid ""
+"Nobody can do this step for them: they verify once, with the instructions"
+" panel, and every server using VRCVerify recognizes them after that."
+msgstr ""
+"Niemand kann diesen Schritt für sie erledigen: Sie verifizieren sich "
+"einmal, mit dem Anleitungs-Panel, und danach erkennt sie jeder Server, "
+"der VRCVerify nutzt."
+
+#, python-format
+msgid "Done. %(count)s member was given the verified role."
+msgid_plural "Done. %(count)s members were given the verified role."
+msgstr[0] "Fertig. %(count)s Mitglied hat die Verifiziert-Rolle erhalten."
+msgstr[1] "Fertig. %(count)s Mitglieder haben die Verifiziert-Rolle erhalten."
+
+#, python-format
+msgid "%(count)s member couldn't be updated and can still verify with the panel."
+msgid_plural "%(count)s members couldn't be updated and can still verify with the panel."
+msgstr[0] ""
+"%(count)s Mitglied konnte nicht aktualisiert werden und kann sich "
+"weiterhin über das Panel verifizieren."
+msgstr[1] ""
+"%(count)s Mitglieder konnten nicht aktualisiert werden und können sich "
+"weiterhin über das Panel verifizieren."
+
+#, python-format
+msgid "You can verify members again after %(when)s."
+msgstr "Du kannst Mitglieder nach %(when)s erneut verifizieren."
+
+#, python-format
+msgid "Give %(count)s member the verified role"
+msgid_plural "Give %(count)s members the verified role"
+msgstr[0] "%(count)s Mitglied die Verifiziert-Rolle geben"
+msgstr[1] "%(count)s Mitgliedern die Verifiziert-Rolle geben"
 
 msgid "Working"
 msgstr "Läuft"
@@ -1500,6 +1676,15 @@ msgstr "Wer Beitrittsanfragen annehmen oder ablehnen kann"
 msgid "VRChat group setup check"
 msgstr "Prüfung der VRChat-Gruppeneinrichtung"
 
+msgid "Verify existing members"
+msgstr "Bestehende Mitglieder verifizieren"
+
+msgid "finished"
+msgstr "abgeschlossen"
+
+msgid "stopped early"
+msgstr "vorzeitig gestoppt"
+
 msgid "posted in"
 msgstr "gepostet in"
 
@@ -1518,6 +1703,10 @@ msgstr "ID %(id)s"
 
 msgid "not set"
 msgstr "nicht gesetzt"
+
+#, python-format
+msgid "verified role given: %(count)s"
+msgstr "Verifiziert-Rolle vergeben: %(count)s"
 
 #, python-format
 msgid "role %(id)s"
@@ -1891,6 +2080,71 @@ msgstr "Tarife ansehen und abonnieren"
 msgid "Dismiss"
 msgstr "Ausblenden"
 
+# | msgid "The panel couldn't be posted just now. Try again shortly."
+msgid "Couldn't check this just now. Try again shortly."
+msgstr "Konnte das gerade nicht prüfen. Versuche es in Kürze erneut."
+
+msgid ""
+"Give the verified role to members who have already verified with "
+"VRCVerify, here or in any other server, without asking them to do "
+"anything. Start by counting who that is. Counting changes nothing."
+msgstr ""
+"Gib Mitgliedern, die sich bereits mit VRCVerify verifiziert haben, hier "
+"oder auf einem anderen Server, die Verifiziert-Rolle, ohne dass sie etwas"
+" tun müssen. Zähle zuerst, wer das ist. Zählen ändert nichts."
+
+msgid ""
+"It can only find people who have verified with VRCVerify before. Everyone"
+" else still verifies with the instructions panel."
+msgstr ""
+"Es findet nur Leute, die sich zuvor mit VRCVerify verifiziert haben. Alle"
+" anderen verifizieren sich weiterhin über das Anleitungs-Panel."
+
+msgid "Counting members…"
+msgstr "Mitglieder werden gezählt…"
+
+msgid "Giving members the verified role…"
+msgstr "Mitglieder erhalten die Verifiziert-Rolle…"
+
+#, python-format
+msgid "%(checked)s of %(total)s checked"
+msgstr "%(checked)s von %(total)s geprüft"
+
+msgid ""
+"This page refreshes itself until it's done. You can leave it; the work "
+"carries on without you."
+msgstr ""
+"Diese Seite aktualisiert sich selbst, bis sie fertig ist. Du kannst sie "
+"verlassen; die Arbeit läuft ohne dich weiter."
+
+msgid "Refresh"
+msgstr "Aktualisieren"
+
+msgid ""
+"Giving them the role is part of Premium. They won't be messaged, and "
+"nobody has to do anything."
+msgstr ""
+"Ihnen die Rolle zu geben, ist Teil von Premium. Sie erhalten keine "
+"Nachricht, und niemand muss etwas tun."
+
+msgid "This includes anyone whose verified role was removed by hand."
+msgstr ""
+"Das schließt alle ein, denen die Verifiziert-Rolle von Hand entfernt "
+"wurde."
+
+msgid "Count members"
+msgstr "Mitglieder zählen"
+
+msgid "Count again"
+msgstr "Erneut zählen"
+
+msgid ""
+"Nobody is messaged about it. Members who left or joined since the count "
+"are checked again as it goes."
+msgstr ""
+"Niemand wird darüber benachrichtigt. Mitglieder, die seit der Zählung "
+"ausgetreten oder beigetreten sind, werden währenddessen erneut geprüft."
+
 # | msgid "A verification log channel"
 # | msgid "Verification"
 msgid "Verifications"
@@ -2122,7 +2376,9 @@ msgid "Your VRChat group calendar in Discord Events, with join links"
 msgstr "Der Kalender deiner VRChat-Gruppe in Discord-Events, mit Beitrittslinks"
 
 msgid "Your VRChat group's join requests in Discord, with Approve and Deny"
-msgstr "Die Beitrittsanfragen deiner VRChat-Gruppe in Discord, mit Annehmen und Ablehnen"
+msgstr ""
+"Die Beitrittsanfragen deiner VRChat-Gruppe in Discord, mit Annehmen und "
+"Ablehnen"
 
 # | msgid "Not applied"
 msgid "Not included"

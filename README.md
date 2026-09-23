@@ -154,6 +154,7 @@ See the sections below for details and configuration.
   - **StripeSubscription:** A guild's card subscription, mirrored from Stripe so the premium gate stays a database read rather than an API call. Stripe remains the source of truth; the bot holds no Stripe credential and never talks to Stripe — the dashboard verifies each webhook signature and forwards a normalized summary over the existing mTLS channel. Premium is granted if **either** this or a Discord entitlement is live.
   - **StripeEvent:** Every webhook event id already acted on. Stripe retries a delivery for up to three days, so duplicates are expected traffic; this is what makes applying one idempotent.
   - **PremiumEntitlementSeen:** Which guilds have ever held a Discord entitlement for the premium SKU, including ones that have since ended. Discord's gateway only reports entitlements that change while the bot is connected, so this is filled by a sweep on every boot that walks ended entitlements too. It exists for one question — whether a server has ever paid — and the free trial is the only thing that asks it.
+  - **MemberBackfill:** A server's latest run of "verify existing members" from the dashboard (#292): whether it was a count or an apply, how far it got (the last member id handled, so a restart carries on from there), the counts per bucket, and when roles were last given, which the cooldown between applied runs is measured from. Counts only; no member id other than the cursor is stored.
 
 - **Messaging with RabbitMQ:**  
   Uses the pika library to handle two queues:

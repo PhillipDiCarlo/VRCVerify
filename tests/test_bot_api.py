@@ -153,6 +153,14 @@ def make_deps(written=None, posted=None, mirrored=None, checked=None, **override
         checked.append((guild_id, actor_id))
         return {"guild_id": str(guild_id), "group_ownership": {"claim_state": "checking"}}
 
+    async def count_existing_members(guild_id, actor_id):
+        checked.append((guild_id, actor_id))
+        return {"available": True, "run": {"kind": "count", "state": "running"}}
+
+    async def verify_existing_members(guild_id, actor_id):
+        checked.append((guild_id, actor_id))
+        return {"available": True, "run": {"kind": "apply", "state": "running"}}
+
     async def write_settings(guild_id, actor_id, changes):
         written.append((int(guild_id), int(actor_id), dict(changes)))
         return {"guild_id": str(guild_id), "fields": {}, "written": dict(changes)}
@@ -177,6 +185,8 @@ def make_deps(written=None, posted=None, mirrored=None, checked=None, **override
         post_panel=post_panel,
         verify_group=verify_group,
         verify_group_claim=verify_group_claim,
+        count_existing_members=count_existing_members,
+        verify_existing_members=verify_existing_members,
     )
     defaults.update(overrides)
     return bot_api.BotAPIDeps(**defaults)
@@ -1498,6 +1508,8 @@ class TestTheWriteSurfaceIsExactlyThis:
             ("POST", "/api/v1/guilds/{guild_id}/verify-group"),
             # The same, and never joins: the ownership proof on its own (#289).
             ("POST", "/api/v1/guilds/{guild_id}/verify-group-claim"),
+            ("POST", "/api/v1/guilds/{guild_id}/member-backfill/count"),
+            ("POST", "/api/v1/guilds/{guild_id}/member-backfill/apply"),
         }, f"an unexpected write route appeared: {writes}"
 
     def test_the_stripe_route_appears_only_when_stripe_is_switched_on(self):
@@ -1518,6 +1530,8 @@ class TestTheWriteSurfaceIsExactlyThis:
             ("POST", "/api/v1/guilds/{guild_id}/panel"),
             ("POST", "/api/v1/guilds/{guild_id}/verify-group"),
             ("POST", "/api/v1/guilds/{guild_id}/verify-group-claim"),
+            ("POST", "/api/v1/guilds/{guild_id}/member-backfill/count"),
+            ("POST", "/api/v1/guilds/{guild_id}/member-backfill/apply"),
             ("PUT", "/api/v1/guilds/{guild_id}/stripe-subscription"),
         }, f"an unexpected write route appeared: {writes}"
 
@@ -1542,13 +1556,15 @@ class TestTheWriteSurfaceIsExactlyThis:
                 "post_panel",
                 "verify_group",
                 "verify_group_claim",
+                "count_existing_members",
+                "verify_existing_members",
             }
         )
 
     def test_every_capability_is_named_for_what_it_does(self):
         for field in dataclass_fields(bot_api.BotAPIDeps):
             assert field.name.startswith(
-                ("read_", "is_", "guild_", "write_", "post_", "verify_")
+                ("read_", "is_", "guild_", "write_", "post_", "verify_", "count_")
             )
 
     def test_the_module_decides_nothing_about_which_fields_are_writable(self):
@@ -4104,6 +4120,58 @@ class TestVerifyGroupClaimRoute(TestVerifyGroupRoute):
 
         async def scenario(client):
             return await post(client, self.PATH, token_for(VERIFY_GROUP_OP))
+
+        status, _body = serve(scenario, deps=make_deps(checked=checked))
+        assert status == 403
+        assert checked == []
+
+
+MEMBER_BACKFILL_COUNT_PATH = f"/api/v1/guilds/{GUILD_ID}/member-backfill/count"
+MEMBER_BACKFILL_COUNT_OP = "POST /api/v1/guilds/{guild_id}/member-backfill/count"
+MEMBER_BACKFILL_APPLY_PATH = f"/api/v1/guilds/{GUILD_ID}/member-backfill/apply"
+MEMBER_BACKFILL_APPLY_OP = "POST /api/v1/guilds/{guild_id}/member-backfill/apply"
+
+
+class TestMemberBackfillCountRoute(TestVerifyGroupRoute):
+    """Counting existing members (#292), held to every rule the group check is.
+
+    Bodyless for its own reason: the role counted is the guild's stored one.
+    """
+
+    PATH = MEMBER_BACKFILL_COUNT_PATH
+    OP = MEMBER_BACKFILL_COUNT_OP
+    CAPABILITY = "count_existing_members"
+
+    def test_an_authorized_admin_may_ask(self):
+        checked = []
+
+        async def scenario(client):
+            return await post(client, self.PATH, token_for(self.OP))
+
+        status, body = serve(scenario, deps=make_deps(checked=checked))
+        assert status == 200
+        assert body["run"]["state"] == "running"
+        assert checked == [(GUILD_ID, ADMIN_ID)]
+
+    def test_the_operation_string_matches_the_route(self):
+        assert api_tokens.OP_MEMBER_BACKFILL_COUNT == MEMBER_BACKFILL_COUNT_OP
+
+
+class TestMemberBackfillApplyRoute(TestMemberBackfillCountRoute):
+    """Applying it: the one that edits roles, so its token must be its own."""
+
+    PATH = MEMBER_BACKFILL_APPLY_PATH
+    OP = MEMBER_BACKFILL_APPLY_OP
+    CAPABILITY = "verify_existing_members"
+
+    def test_the_operation_string_matches_the_route(self):
+        assert api_tokens.OP_MEMBER_BACKFILL_APPLY == MEMBER_BACKFILL_APPLY_OP
+
+    def test_the_free_count_token_cannot_start_the_apply(self):
+        checked = []
+
+        async def scenario(client):
+            return await post(client, self.PATH, token_for(MEMBER_BACKFILL_COUNT_OP))
 
         status, _body = serve(scenario, deps=make_deps(checked=checked))
         assert status == 403

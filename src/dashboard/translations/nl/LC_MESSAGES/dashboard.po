@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-17 04:36-0400\n"
+"POT-Creation-Date: 2026-09-23 17:46-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: nl\n"
@@ -308,7 +308,13 @@ msgid ""
 "and whether they're verified 18+, so your moderators can decide without "
 "leaving Discord. Turn it on under Settings, VRChat group, once group "
 "invites are set up."
-msgstr "Aanvragen om lid te worden van je VRChat-groep worden nu geplaatst in een Discord-kanaal naar keuze, met knoppen om goed te keuren en af te wijzen voor de rollen die je kiest. Elk bericht toont of de aanvrager al lid is van je server en of die als 18+ is geverifieerd, zodat je moderators kunnen beslissen zonder Discord te verlaten. Zet het aan onder Instellingen, VRChat-groep, zodra groepsuitnodigingen zijn ingesteld."
+msgstr ""
+"Aanvragen om lid te worden van je VRChat-groep worden nu geplaatst in een"
+" Discord-kanaal naar keuze, met knoppen om goed te keuren en af te wijzen"
+" voor de rollen die je kiest. Elk bericht toont of de aanvrager al lid is"
+" van je server en of die als 18+ is geverifieerd, zodat je moderators "
+"kunnen beslissen zonder Discord te verlaten. Zet het aan onder "
+"Instellingen, VRChat-groep, zodra groepsuitnodigingen zijn ingesteld."
 
 # | msgid "Premium"
 msgid "See Premium"
@@ -684,6 +690,164 @@ msgstr "Je overgenomen extra's blijven gratis, wat je ook besluit."
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "Upgraden naar VRCVerify Premium"
+
+msgid ""
+"VRCVerify needs the Manage Roles permission in this server before it can "
+"give anyone the verified role."
+msgstr ""
+"VRCVerify heeft het recht 'Rollen beheren' nodig op deze server voordat "
+"het iemand de geverifieerd-rol kan geven."
+
+msgid ""
+"Move VRCVerify's role above the verified role in Server Settings, Roles, "
+"then try again."
+msgstr ""
+"Zet de VRCVerify-rol boven de geverifieerd-rol in Serverinstellingen, "
+"Rollen, en probeer het opnieuw."
+
+msgid ""
+"Move VRCVerify's role above the unverified role in Server Settings, "
+"Roles, then try again."
+msgstr ""
+"Zet de VRCVerify-rol boven de niet-geverifieerd-rol in "
+"Serverinstellingen, Rollen, en probeer het opnieuw."
+
+msgid ""
+"Discord refused to let VRCVerify change a member's roles, so it stopped. "
+"Check that VRCVerify's role is above the verified role and has Manage "
+"Roles, then count again."
+msgstr ""
+"Discord liet VRCVerify de rollen van een lid niet wijzigen, dus is het "
+"gestopt. Controleer of de VRCVerify-rol boven de geverifieerd-rol staat "
+"en het recht 'Rollen beheren' heeft, en tel dan opnieuw."
+
+msgid "It stopped because this server no longer has Premium."
+msgstr "Het is gestopt omdat deze server geen Premium meer heeft."
+
+msgid ""
+"VRCVerify couldn't check its permissions in this server just now. Try "
+"again in a minute."
+msgstr ""
+"VRCVerify kon zijn rechten op deze server nu niet controleren. Probeer "
+"het over een minuut opnieuw."
+
+msgid ""
+"Something went wrong partway through, so it stopped. Count again to see "
+"where things stand."
+msgstr ""
+"Er ging halverwege iets mis, dus is het gestopt. Tel opnieuw om te zien "
+"hoe het ervoor staat."
+
+msgid "That can't run again yet. The card says when it can."
+msgstr ""
+"Dat kan nog niet opnieuw worden uitgevoerd. De kaart laat zien wanneer "
+"het weer kan."
+
+msgid "It's already running."
+msgstr "Het is al bezig."
+
+msgid "Count members first, so you can see who would be verified."
+msgstr "Tel eerst de leden, zodat je ziet wie geverifieerd zou worden."
+
+msgid "Nobody here can be verified right now."
+msgstr "Hier kan nu niemand geverifieerd worden."
+
+msgid "Giving members the role is part of Premium."
+msgstr "Leden de rol geven maakt deel uit van Premium."
+
+msgid "Choose a verified role in Settings first."
+msgstr "Kies eerst een geverifieerd-rol in Instellingen."
+
+msgid "The verified role no longer exists. Choose another in Settings."
+msgstr "De geverifieerd-rol bestaat niet meer. Kies een andere in Instellingen."
+
+msgid "That didn't go through. Try again in a minute."
+msgstr "Dat is niet gelukt. Probeer het over een minuut opnieuw."
+
+#, python-format
+msgid "You can count again after %(when)s."
+msgstr "Je kunt na %(when)s opnieuw tellen."
+
+#, python-format
+msgid "%(count)s member given the role so far"
+msgid_plural "%(count)s members given the role so far"
+msgstr[0] "%(count)s lid heeft de rol tot nu toe gekregen"
+msgstr[1] "%(count)s leden hebben de rol tot nu toe gekregen"
+
+#, python-format
+msgid "Last checked %(when)s."
+msgstr "Laatst gecontroleerd: %(when)s."
+
+#, python-format
+msgid "%(count)s member was given the verified role before it stopped."
+msgid_plural "%(count)s members were given the verified role before it stopped."
+msgstr[0] "%(count)s lid kreeg de geverifieerd-rol voordat het stopte."
+msgstr[1] "%(count)s leden kregen de geverifieerd-rol voordat het stopte."
+
+#, python-format
+msgid "%(count)s member can be verified now"
+msgid_plural "%(count)s members can be verified now"
+msgstr[0] "%(count)s lid kan nu geverifieerd worden"
+msgstr[1] "%(count)s leden kunnen nu geverifieerd worden"
+
+#, python-format
+msgid "%(count)s member already has the verified role"
+msgid_plural "%(count)s members already have the verified role"
+msgstr[0] "%(count)s lid heeft de geverifieerd-rol al"
+msgstr[1] "%(count)s leden hebben de geverifieerd-rol al"
+
+#, python-format
+msgid "%(count)s member is linked to VRChat but not 18+ verified"
+msgid_plural "%(count)s members are linked to VRChat but not 18+ verified"
+msgstr[0] "%(count)s lid is gekoppeld aan VRChat, maar niet als 18+ geverifieerd"
+msgstr[1] "%(count)s leden zijn gekoppeld aan VRChat, maar niet als 18+ geverifieerd"
+
+msgid ""
+"They can press Begin Verification on the instructions panel to be checked"
+" again."
+msgstr ""
+"Ze kunnen op Verificatie starten drukken in het instructiepaneel om "
+"opnieuw gecontroleerd te worden."
+
+#, python-format
+msgid "%(count)s member hasn't verified with VRCVerify yet"
+msgid_plural "%(count)s members haven't verified with VRCVerify yet"
+msgstr[0] "%(count)s lid heeft zich nog niet met VRCVerify geverifieerd"
+msgstr[1] "%(count)s leden hebben zich nog niet met VRCVerify geverifieerd"
+
+msgid ""
+"Nobody can do this step for them: they verify once, with the instructions"
+" panel, and every server using VRCVerify recognizes them after that."
+msgstr ""
+"Niemand kan deze stap voor ze doen: ze verifiëren zich één keer, met het "
+"instructiepaneel, en daarna herkent elke server die VRCVerify gebruikt "
+"hen."
+
+#, python-format
+msgid "Done. %(count)s member was given the verified role."
+msgid_plural "Done. %(count)s members were given the verified role."
+msgstr[0] "Klaar. %(count)s lid heeft de geverifieerd-rol gekregen."
+msgstr[1] "Klaar. %(count)s leden hebben de geverifieerd-rol gekregen."
+
+#, python-format
+msgid "%(count)s member couldn't be updated and can still verify with the panel."
+msgid_plural "%(count)s members couldn't be updated and can still verify with the panel."
+msgstr[0] ""
+"%(count)s lid kon niet worden bijgewerkt en kan zich nog steeds "
+"verifiëren via het paneel."
+msgstr[1] ""
+"%(count)s leden konden niet worden bijgewerkt en kunnen zich nog steeds "
+"verifiëren via het paneel."
+
+#, python-format
+msgid "You can verify members again after %(when)s."
+msgstr "Je kunt leden na %(when)s opnieuw verifiëren."
+
+#, python-format
+msgid "Give %(count)s member the verified role"
+msgid_plural "Give %(count)s members the verified role"
+msgstr[0] "Geef %(count)s lid de geverifieerd-rol"
+msgstr[1] "Geef %(count)s leden de geverifieerd-rol"
 
 msgid "Working"
 msgstr "Werkt"
@@ -1458,6 +1622,15 @@ msgstr "Wie aanvragen kan goedkeuren of afwijzen"
 msgid "VRChat group setup check"
 msgstr "Controle van de VRChat-groepsinstelling"
 
+msgid "Verify existing members"
+msgstr "Bestaande leden verifiëren"
+
+msgid "finished"
+msgstr "voltooid"
+
+msgid "stopped early"
+msgstr "vroegtijdig gestopt"
+
 msgid "posted in"
 msgstr "geplaatst in"
 
@@ -1476,6 +1649,10 @@ msgstr "ID %(id)s"
 
 msgid "not set"
 msgstr "niet ingesteld"
+
+#, python-format
+msgid "verified role given: %(count)s"
+msgstr "geverifieerd-rol gegeven: %(count)s"
 
 #, python-format
 msgid "role %(id)s"
@@ -1842,6 +2019,70 @@ msgstr "Abonnementen bekijken en afsluiten"
 
 msgid "Dismiss"
 msgstr "Sluiten"
+
+msgid "Couldn't check this just now. Try again shortly."
+msgstr "Kon dit nu niet controleren. Probeer het straks opnieuw."
+
+msgid ""
+"Give the verified role to members who have already verified with "
+"VRCVerify, here or in any other server, without asking them to do "
+"anything. Start by counting who that is. Counting changes nothing."
+msgstr ""
+"Geef de geverifieerd-rol aan leden die al met VRCVerify geverifieerd "
+"zijn, hier of op een andere server, zonder dat ze iets hoeven te doen. "
+"Begin met tellen wie dat zijn. Tellen verandert niets."
+
+msgid ""
+"It can only find people who have verified with VRCVerify before. Everyone"
+" else still verifies with the instructions panel."
+msgstr ""
+"Het kan alleen mensen vinden die eerder met VRCVerify geverifieerd zijn. "
+"Iedereen anders verifieert zich nog steeds via het instructiepaneel."
+
+msgid "Counting members…"
+msgstr "Leden tellen…"
+
+msgid "Giving members the verified role…"
+msgstr "Leden krijgen de geverifieerd-rol…"
+
+#, python-format
+msgid "%(checked)s of %(total)s checked"
+msgstr "%(checked)s van %(total)s gecontroleerd"
+
+msgid ""
+"This page refreshes itself until it's done. You can leave it; the work "
+"carries on without you."
+msgstr ""
+"Deze pagina ververst zichzelf tot het klaar is. Je kunt weggaan; het werk"
+" gaat door zonder jou."
+
+msgid "Refresh"
+msgstr "Vernieuwen"
+
+msgid ""
+"Giving them the role is part of Premium. They won't be messaged, and "
+"nobody has to do anything."
+msgstr ""
+"Hun de rol geven maakt deel uit van Premium. Ze krijgen geen bericht, en "
+"niemand hoeft iets te doen."
+
+msgid "This includes anyone whose verified role was removed by hand."
+msgstr ""
+"Dit geldt ook voor iedereen bij wie de geverifieerd-rol handmatig is "
+"verwijderd."
+
+msgid "Count members"
+msgstr "Leden tellen"
+
+msgid "Count again"
+msgstr "Opnieuw tellen"
+
+msgid ""
+"Nobody is messaged about it. Members who left or joined since the count "
+"are checked again as it goes."
+msgstr ""
+"Niemand krijgt hier bericht over. Leden die sinds de telling zijn "
+"vertrokken of toegetreden, worden onderweg opnieuw gecontroleerd."
 
 # | msgid "A verification log channel"
 # | msgid "Verification"

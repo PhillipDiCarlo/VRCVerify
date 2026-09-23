@@ -438,6 +438,12 @@ LOG_ROLE_FAILED = N_(
 
 LOG_NOT_18 = N_("❌ {user} — not 18+ according to VRChat · {when}")
 
+# One line for a whole run of "verify existing members" (#292), in place of a
+# line per member, which on a large server would bury everything else.
+LOG_BACKFILL_DONE = N_(
+    "🧾 {user} verified the server's existing members: {count} given the verified role · {when}"
+)
+
 LOG_ENTRIES_DROPPED = N_("…{count} earlier entries could not be recorded.")
 
 LOG_CHANNEL_READY = N_(

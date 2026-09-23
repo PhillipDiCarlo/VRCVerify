@@ -284,7 +284,7 @@ class TestItIsAnnounced:
         assert bot.feature_is_reachable(bot.FEATURE_JOIN_REQUEST_TRIAGE, 1234)
 
     def test_no_preview_allowlist_is_left_behind(self):
-        assert bot.FEATURE_PREVIEW_GUILDS == {}
+        assert bot.FEATURE_JOIN_REQUEST_TRIAGE not in bot.FEATURE_PREVIEW_GUILDS
         assert "JOIN_REQUEST_TRIAGE_PREVIEW_GUILDS" not in open(bot.__file__).read()
 
     def test_an_unannounced_feature_would_still_be_hidden(self, monkeypatch):

@@ -34,7 +34,14 @@ from typing import Callable, Optional
 # hold msgids and the lookup happens per request against the callable passed
 # in. This module is pure -- no Flask, no network, no clock -- and i18n.py is
 # too, so importing `N_` costs it nothing it promises.
-from dashboard.i18n import DEFAULT_LANGUAGE, N_, format_date, format_day, format_number
+from dashboard.i18n import (
+    DEFAULT_LANGUAGE,
+    N_,
+    format_date,
+    format_day,
+    format_number,
+    format_timestamp,
+)
 
 
 def _untranslated(text: str) -> str:
@@ -846,3 +853,258 @@ def build_next_step(
         return changelog_entry
 
     return _demo_step(overview, t, ngettext, lang)
+
+
+# -------------------------------------------------------------------
+# Verify existing members (#292)
+# -------------------------------------------------------------------
+# How often the page reloads itself while a run is going. A meta refresh
+# rather than a script: the CSP has no `connect-src`, deliberately, and a page
+# that reloads needs no exception to it.
+BACKFILL_REFRESH_SECONDS = 10
+
+# Why a run cannot start, or why it stopped. Keyed by the bot's
+# MEMBER_BACKFILL_ERRORS; anything else gets the generic line.
+BACKFILL_PROBLEMS = {
+    "cannot_manage": N_(
+        "VRCVerify needs the Manage Roles permission in this server before it "
+        "can give anyone the verified role."
+    ),
+    "role_too_high": N_(
+        "Move VRCVerify's role above the verified role in Server Settings, "
+        "Roles, then try again."
+    ),
+    "unverified_role_too_high": N_(
+        "Move VRCVerify's role above the unverified role in Server Settings, "
+        "Roles, then try again."
+    ),
+    "forbidden": N_(
+        "Discord refused to let VRCVerify change a member's roles, so it "
+        "stopped. Check that VRCVerify's role is above the verified role and "
+        "has Manage Roles, then count again."
+    ),
+    "not_premium": N_("It stopped because this server no longer has Premium."),
+    "guild_unavailable": N_(
+        "VRCVerify couldn't check its permissions in this server just now. "
+        "Try again in a minute."
+    ),
+}
+GENERIC_BACKFILL_PROBLEM = N_(
+    "Something went wrong partway through, so it stopped. Count again to see "
+    "where things stand."
+)
+
+# What a refused button press is told. The codes are the bot's refusals; the
+# route stores only the code and this table picks the words.
+BACKFILL_REFUSALS = {
+    "cooldown": N_("That can't run again yet. The card says when it can."),
+    "already_running": N_("It's already running."),
+    "count_first": N_("Count members first, so you can see who would be verified."),
+    "nothing_to_do": N_("Nobody here can be verified right now."),
+    "requires_premium": N_("Giving members the role is part of Premium."),
+    "no_role": N_("Choose a verified role in Settings first."),
+    "role_missing": N_("The verified role no longer exists. Choose another in Settings."),
+}
+GENERIC_BACKFILL_REFUSAL = N_("That didn't go through. Try again in a minute.")
+
+
+def backfill_refusal(code: Optional[str], t: Callable[[str], str] = _untranslated) -> Optional[str]:
+    """The sentence for a refused count or apply. The code is only a lookup key."""
+    if not code:
+        return None
+    if code in BACKFILL_PROBLEMS:
+        return t(BACKFILL_PROBLEMS[code])
+    return t(BACKFILL_REFUSALS.get(code, GENERIC_BACKFILL_REFUSAL))
+
+
+def build_backfill(
+    overview: Optional[dict],
+    t: Callable[[str], str] = _untranslated,
+    ngettext: Optional[Callable] = None,
+    lang: str = DEFAULT_LANGUAGE,
+) -> Optional[dict]:
+    """The "Verify existing members" card, or None when it should not show.
+
+    Hidden when the bot does not send it (an older bot), when this server
+    cannot see the feature yet, and when there is no verified role to count:
+    the setup checklist above already says so, and a card that can only say
+    "set up a role first" is a second copy of that row.
+
+    `state` is what the template switches on:
+
+    * `unknown`: the bot could not read it. Says so, like every tile here.
+    * `idle`: never run. Explains, and offers a count.
+    * `counting` / `applying`: in progress. The page reloads itself.
+    * `counted` / `applied` / `failed`: the last run's result.
+    """
+    if ngettext is None:
+        def ngettext(one, many, n):
+            return one if n == 1 else many
+
+    if not overview or "backfill" not in overview:
+        return None
+    card = overview.get("backfill")
+    if card is None:
+        return {"state": "unknown", "refresh": False}
+    if not card.get("available"):
+        return None
+    if card.get("count_blocker") in ("no_role", "role_missing"):
+        return None
+
+    run = card.get("run")
+    result = {
+        "state": "idle",
+        "refresh": False,
+        "can_count": card.get("count_blocker") is None
+        and not card.get("count_available_at"),
+        "count_wait": None,
+        "progress": None,
+        "buckets": [],
+        "finished": None,
+        "outcome": None,
+        "problem": None,
+        "apply": None,
+        "apply_wait": None,
+        "pitch": False,
+    }
+    if card.get("count_blocker"):
+        # Only a reason the checklist does not already give reaches here, and
+        # without it the card would sit there with no button and no reason.
+        result["problem"] = t(
+            BACKFILL_PROBLEMS.get(card["count_blocker"], GENERIC_BACKFILL_PROBLEM)
+        )
+    if card.get("count_available_at"):
+        result["count_wait"] = t(N_("You can count again after %(when)s.")) % {
+            "when": format_timestamp(card["count_available_at"], lang)
+        }
+    if run is None:
+        return result
+
+    def number(key):
+        return run.get(key) or 0
+
+    if run.get("state") == "running":
+        applying = run.get("kind") == "apply"
+        total = card.get("member_count")
+        checked = number("scanned")
+        progress = {
+            "checked": format_number(checked, lang),
+            "total": format_number(total, lang) if total else None,
+            "percent": min(100, round(100 * checked / total)) if total else None,
+        }
+        if applying:
+            progress["granted"] = ngettext(
+                "%(count)s member given the role so far",
+                "%(count)s members given the role so far",
+                number("granted"),
+            ) % {"count": format_number(number("granted"), lang)}
+        result.update(
+            state="applying" if applying else "counting",
+            refresh=True,
+            can_count=False,
+            count_wait=None,
+            progress=progress,
+        )
+        return result
+
+    finished = format_timestamp(run.get("finished_at"), lang)
+    if finished:
+        result["finished"] = t(N_("Last checked %(when)s.")) % {"when": finished}
+
+    if run.get("state") == "failed":
+        result["state"] = "failed"
+        result["problem"] = t(
+            BACKFILL_PROBLEMS.get(run.get("error"), GENERIC_BACKFILL_PROBLEM)
+        )
+        if run.get("kind") == "apply" and number("granted"):
+            # They keep the role, so the admin should know it was not nothing.
+            result["outcome"] = ngettext(
+                "%(count)s member was given the verified role before it stopped.",
+                "%(count)s members were given the verified role before it stopped.",
+                number("granted"),
+            ) % {"count": format_number(number("granted"), lang)}
+        return result
+
+    applied = run.get("kind") == "apply"
+    result["state"] = "applied" if applied else "counted"
+
+    # A finished apply has already given the role to the eligible bucket, so
+    # listing them as "can be verified now" would be untrue.
+    buckets = [] if applied else [("eligible", ngettext(
+        "%(count)s member can be verified now",
+        "%(count)s members can be verified now",
+        number("eligible"),
+    ), None)]
+    buckets += [
+        ("has_role", ngettext(
+            "%(count)s member already has the verified role",
+            "%(count)s members already have the verified role",
+            number("has_role"),
+        ), None),
+        ("linked_unverified", ngettext(
+            "%(count)s member is linked to VRChat but not 18+ verified",
+            "%(count)s members are linked to VRChat but not 18+ verified",
+            number("linked_unverified"),
+        ), t(N_(
+            "They can press Begin Verification on the instructions panel to "
+            "be checked again."
+        ))),
+        ("unknown", ngettext(
+            "%(count)s member hasn't verified with VRCVerify yet",
+            "%(count)s members haven't verified with VRCVerify yet",
+            number("unknown"),
+        ), t(N_(
+            "Nobody can do this step for them: they verify once, with the "
+            "instructions panel, and every server using VRCVerify recognizes "
+            "them after that."
+        ))),
+    ]
+    result["buckets"] = [
+        {
+            "key": key,
+            "text": text % {"count": format_number(number(key), lang)},
+            "hint": hint if number(key) else None,
+        }
+        for key, text, hint in buckets
+    ]
+
+    if applied:
+        result["outcome"] = ngettext(
+            "Done. %(count)s member was given the verified role.",
+            "Done. %(count)s members were given the verified role.",
+            number("granted"),
+        ) % {"count": format_number(number("granted"), lang)}
+        if number("failed"):
+            result["outcome"] += " " + ngettext(
+                "%(count)s member couldn't be updated and can still verify "
+                "with the panel.",
+                "%(count)s members couldn't be updated and can still verify "
+                "with the panel.",
+                number("failed"),
+            ) % {"count": format_number(number("failed"), lang)}
+        return result
+
+    eligible = number("eligible")
+    if not eligible:
+        return result
+    if not card.get("can_apply"):
+        # The only Premium pitch this card makes, and the one worth making:
+        # the number is this server's own.
+        result["pitch"] = True
+        return result
+    blocker = card.get("apply_blocker")
+    if blocker:
+        result["problem"] = t(BACKFILL_PROBLEMS.get(blocker, GENERIC_BACKFILL_PROBLEM))
+        return result
+    if card.get("apply_available_at"):
+        # Not a fault, so not in the warning box.
+        result["apply_wait"] = t(N_("You can verify members again after %(when)s.")) % {
+            "when": format_timestamp(card["apply_available_at"], lang)
+        }
+        return result
+    result["apply"] = ngettext(
+        "Give %(count)s member the verified role",
+        "Give %(count)s members the verified role",
+        eligible,
+    ) % {"count": format_number(eligible, lang)}
+    return result
