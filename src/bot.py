@@ -2600,9 +2600,9 @@ GRANDFATHERED_FEATURES = frozenset(
 # the name leaves in the change that makes the feature reachable. Calendar sync
 # (#289) left it when it was announced, after all of its phases had shipped and
 # been tested live behind a preview allowlist. Join-request triage (#291) left
-# it the same way, when it was announced. Verifying existing members (#292) is
-# in it until it has been run on a real server.
-UNANNOUNCED_FEATURES = frozenset({FEATURE_MEMBER_BACKFILL})
+# it the same way, when it was announced. So did verifying existing members
+# (#292), after its first live run on 2026-09-23.
+UNANNOUNCED_FEATURES = frozenset()
 
 
 def _guild_id_set(raw) -> frozenset:
@@ -2616,9 +2616,7 @@ def _guild_id_set(raw) -> frozenset:
 # though empty, because the next phased feature will need it again; a feature
 # gets an entry here, read from its own env var, while it is in
 # UNANNOUNCED_FEATURES.
-FEATURE_PREVIEW_GUILDS: dict = {
-    FEATURE_MEMBER_BACKFILL: _guild_id_set(os.getenv("MEMBER_BACKFILL_PREVIEW_GUILDS")),
-}
+FEATURE_PREVIEW_GUILDS: dict = {}
 
 
 def feature_is_reachable(feature: Optional[str], guild_id) -> bool:

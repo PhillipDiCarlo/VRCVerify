@@ -211,6 +211,22 @@ _FIELD_SEPARATOR = ":"
 # usable rather than when the issue was filed. The other four had been
 # reachable for three weeks by then.
 ENTRIES = (
+    # #292, announced after its preview run on 2026-09-23.
+    Entry(
+        id="2026-09-verify-existing-members",
+        date=date(2026, 9, 23),
+        title=N_("Verify the members you already have"),
+        body=(
+            N_("Give the verified role to every member of your server who has "
+            "already verified with VRCVerify, here or in any other server, all "
+            "at once. Nobody has to do anything, and nobody is messaged. Find it "
+            "on your server's Overview: counting who can be verified is free, "
+            "and giving them the role is part of Premium.")
+        ),
+        premium=True,
+        cta_endpoint="guild_subscription",
+        cta_label=N_("See Premium"),
+    ),
     # ONE ENTRY FOR ALL OF #291, as calendar sync had one for #289: triage
     # shipped as a worker and bot PR and a dashboard PR behind a preview
     # allowlist, and is announced once.

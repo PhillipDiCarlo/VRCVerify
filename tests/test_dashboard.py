@@ -11441,9 +11441,9 @@ class TestVerifyExistingMembers:
     def overview_page(self, test_client):
         return test_client.get(f"/guild/{GUILD_IN}").data.decode()
 
-    def test_hidden_from_servers_outside_the_preview(self, config, store):
+    def test_hidden_when_the_bot_says_unavailable(self, config, store):
         test_client, _api, _session = self.logged_in(config, store)
-        assert "existing-members" not in self.overview_page(test_client)
+        assert 'id="existing-members"' not in self.overview_page(test_client)
 
     def test_a_server_that_never_ran_it_is_offered_a_count(self, config, store):
         test_client, _api, _session = self.logged_in(config, store, backfill=make_backfill())

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 17:46-0400\n"
+"POT-Creation-Date: 2026-09-23 18:36-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -252,6 +252,24 @@ msgstr "Premium"
 msgid "New"
 msgstr "ウェブサイトがあなたの言語に対応しました"
 
+msgid "Verify the members you already have"
+msgstr "今いるメンバーを認証"
+
+msgid ""
+"Give the verified role to every member of your server who has already "
+"verified with VRCVerify, here or in any other server, all at once. Nobody"
+" has to do anything, and nobody is messaged. Find it on your server's "
+"Overview: counting who can be verified is free, and giving them the role "
+"is part of Premium."
+msgstr ""
+"サーバーにいる、VRCVerify "
+"ですでに認証済みのメンバー全員に、ここでも他のどのサーバーでも、まとめて認証済みロールを付与します。本人にメッセージは届かず、何もする必要もありません。サーバーの「概要」ページから使えます。対象を数えるのは無料で、ロールの付与は"
+" Premium の機能です。"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "Premium を見る"
+
 msgid "Your VRChat group's join requests, in Discord"
 msgstr "VRChat グループの参加リクエストを Discord で"
 
@@ -267,10 +285,6 @@ msgstr ""
 "チャンネルに、選んだロール向けの承認と拒否のボタン付きで投稿されるようになりました。各投稿には、申請者がすでにサーバーのメンバーかどうかと 18 "
 "歳以上の認証状況が表示されるので、モデレーターは Discord を離れずに判断できます。グループ招待を設定したら、設定の VRChat "
 "グループでオンにしてください。"
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "Premium を見る"
 
 msgid "Your VRChat group's calendar, in Discord"
 msgstr "VRChat グループのカレンダーを Discord に"
@@ -2050,6 +2064,11 @@ msgstr "VRChat グループのカレンダーを Discord イベントに、参�
 
 msgid "Your VRChat group's join requests in Discord, with Approve and Deny"
 msgstr "VRChat グループの参加リクエストを Discord で承認・拒否"
+
+msgid ""
+"Give the verified role to members already verified with VRCVerify, all at"
+" once"
+msgstr "VRCVerify で認証済みのメンバーにまとめて認証済みロールを付与"
 
 # | msgid "Not applied"
 msgid "Not included"

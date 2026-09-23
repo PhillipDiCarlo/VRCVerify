@@ -140,10 +140,7 @@ def clean_db():
 
 @pytest.fixture(autouse=True)
 def setting(monkeypatch):
-    """A premium server in the preview allowlist, and no pauses."""
-    monkeypatch.setitem(
-        bot.FEATURE_PREVIEW_GUILDS, bot.FEATURE_MEMBER_BACKFILL, frozenset({str(GUILD_ID)})
-    )
+    """A premium server, and no pauses."""
     monkeypatch.setattr(bot, "MEMBER_BACKFILL_EDIT_SPACING", 0)
     monkeypatch.setattr(bot, "MEMBER_BACKFILL_BATCH", 2)
     set_premium(monkeypatch, True)
@@ -272,16 +269,16 @@ def audit_rows():
 # -------------------------------------------------------------------
 # Who may see it
 # -------------------------------------------------------------------
-class TestItIsInPreview:
-    def test_it_is_hidden_from_servers_outside_the_allowlist(self, monkeypatch):
-        assert bot.FEATURE_MEMBER_BACKFILL in bot.UNANNOUNCED_FEATURES
-        assert run(bot.read_member_backfill(OTHER_GUILD_ID)) == {"available": False}
-        with pytest.raises(bot.SettingRejected) as caught:
-            run(bot.request_member_backfill_count(OTHER_GUILD_ID, ADMIN_ID))
-        assert caught.value.reason == "not_available"
+class TestItIsAnnounced:
+    """Announced after its preview run on 2026-09-23."""
 
-    def test_the_allowlist_is_read_from_its_own_env_var(self):
-        assert "MEMBER_BACKFILL_PREVIEW_GUILDS" in open(bot.__file__).read()
+    def test_every_server_can_reach_it(self):
+        assert bot.FEATURE_MEMBER_BACKFILL not in bot.UNANNOUNCED_FEATURES
+        assert bot.feature_is_reachable(bot.FEATURE_MEMBER_BACKFILL, OTHER_GUILD_ID)
+
+    def test_no_preview_allowlist_is_left_behind(self):
+        assert bot.FEATURE_MEMBER_BACKFILL not in bot.FEATURE_PREVIEW_GUILDS
+        assert "MEMBER_BACKFILL_PREVIEW_GUILDS" not in open(bot.__file__).read()
 
     def test_it_is_not_grandfathered(self):
         assert bot.FEATURE_MEMBER_BACKFILL not in bot.GRANDFATHERED_FEATURES
@@ -676,9 +673,6 @@ class TestUnderPressure:
         """Everything else here stubs _start_member_backfill_task. This does
         not: the request starts a real background task, which runs to done."""
         monkeypatch.undo()
-        monkeypatch.setitem(
-            bot.FEATURE_PREVIEW_GUILDS, bot.FEATURE_MEMBER_BACKFILL, frozenset({str(GUILD_ID)})
-        )
         monkeypatch.setattr(bot, "MEMBER_BACKFILL_EDIT_SPACING", 0)
         monkeypatch.setattr(
             bot.bot, "get_guild", lambda gid: guild if int(gid) == GUILD_ID else None

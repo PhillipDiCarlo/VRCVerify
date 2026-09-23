@@ -323,7 +323,7 @@
  "Everything that has shipped in VRCVerify, newest first.": [
   "changelog.html"
  ],
- "Everything you need to verify your members is free, on every server, with no cap and nothing to start. Premium adds the automation around it, from clearing up unverified roles to syncing nicknames, sending VRChat group invites, bringing your group's calendar into Discord and posting its join requests for your moderators.": [
+ "Everything you need to verify your members is free, on every server, with no cap and nothing to start. Premium adds the automation around it, from verifying the members you already have in one go to clearing up unverified roles, syncing nicknames, sending VRChat group invites, bringing your group's calendar into Discord and posting its join requests for your moderators.": [
   "index.html"
  ],
  "For each Discord server: the server ID, its owner's Discord ID, the role and channel IDs it has configured, its chosen language, its feature settings, any custom post-verification message it has written, and a count of completed verifications. Where an administrator changes a setting on the dashboard, we record who changed what and when.": [
@@ -331,6 +331,9 @@
  ],
  "Free trials<0>#</0>": [
   "refunds.html"
+ ],
+ "Give the verified role to every member of your server who has already verified with VRCVerify, here or in any other server, all at once. Nobody has to do anything, and nobody is messaged. Find it on your server's Overview: counting who can be verified is free, and giving them the role is part of Premium.": [
+  "changelog.html"
  ],
  "How a member gets verified": [
   "index.html"
@@ -661,6 +664,9 @@
  ],
  "Verification itself is free and we intend to keep it that way. A per-server subscription, called Premium, unlocks additional automation. What each tier includes is listed on the dashboard and may change; if a paid feature is removed during a paid period we will say so in advance.": [
   "terms.html"
+ ],
+ "Verify the members you already have": [
+  "changelog.html"
  ],
  "Want these in your own server? <0>Join the VRCVerify Discord</0> and follow the announcements channel — every update here gets posted there, and Discord crossposts it to any channel you pick.": [
   "changelog.html"
