@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-17 04:36-0400\n"
+"POT-Creation-Date: 2026-09-23 18:36-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
@@ -293,6 +293,26 @@ msgstr "Premium"
 msgid "New"
 msgstr "Сайт говорит на вашем языке"
 
+msgid "Verify the members you already have"
+msgstr "Проверьте участников, которые у вас уже есть"
+
+msgid ""
+"Give the verified role to every member of your server who has already "
+"verified with VRCVerify, here or in any other server, all at once. Nobody"
+" has to do anything, and nobody is messaged. Find it on your server's "
+"Overview: counting who can be verified is free, and giving them the role "
+"is part of Premium."
+msgstr ""
+"Выдайте роль «проверен» сразу всем участникам вашего сервера, которые уже"
+" прошли проверку через VRCVerify, здесь или на любом другом сервере. Им "
+"не придёт сообщение, и делать ничего не нужно. Найдите это на странице "
+"«Обзор» вашего сервера: подсчёт бесплатен, а выдача роли входит в "
+"Premium."
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "Посмотреть Premium"
+
 msgid "Your VRChat group's join requests, in Discord"
 msgstr "Заявки на вступление в вашу группу VRChat теперь в Discord"
 
@@ -303,11 +323,13 @@ msgid ""
 "and whether they're verified 18+, so your moderators can decide without "
 "leaving Discord. Turn it on under Settings, VRChat group, once group "
 "invites are set up."
-msgstr "Заявки на вступление в вашу группу VRChat теперь публикуются в выбранном вами канале Discord с кнопками «Одобрить» и «Отклонить» для выбранных ролей. В каждом сообщении видно, состоит ли человек уже на вашем сервере и подтверждён ли его возраст 18+, чтобы модераторы могли принять решение, не выходя из Discord. Включите это в разделе «Настройки», «Группа VRChat» после настройки приглашений в группу."
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "Посмотреть Premium"
+msgstr ""
+"Заявки на вступление в вашу группу VRChat теперь публикуются в выбранном "
+"вами канале Discord с кнопками «Одобрить» и «Отклонить» для выбранных "
+"ролей. В каждом сообщении видно, состоит ли человек уже на вашем сервере "
+"и подтверждён ли его возраст 18+, чтобы модераторы могли принять решение,"
+" не выходя из Discord. Включите это в разделе «Настройки», «Группа "
+"VRChat» после настройки приглашений в группу."
 
 msgid "Your VRChat group's calendar, in Discord"
 msgstr "Календарь вашей группы VRChat теперь в Discord"
@@ -683,6 +705,173 @@ msgstr ""
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "Перейти на VRCVerify Premium"
+
+msgid ""
+"VRCVerify needs the Manage Roles permission in this server before it can "
+"give anyone the verified role."
+msgstr ""
+"Чтобы выдать кому-либо роль «проверен» на этом сервере, VRCVerify нужно "
+"право «Управление ролями»."
+
+msgid ""
+"Move VRCVerify's role above the verified role in Server Settings, Roles, "
+"then try again."
+msgstr ""
+"Поднимите роль VRCVerify выше роли «проверен» в настройках сервера, в "
+"разделе «Роли», и попробуйте снова."
+
+msgid ""
+"Move VRCVerify's role above the unverified role in Server Settings, "
+"Roles, then try again."
+msgstr ""
+"Поднимите роль VRCVerify выше роли «не проверен» в настройках сервера, в "
+"разделе «Роли», и попробуйте снова."
+
+msgid ""
+"Discord refused to let VRCVerify change a member's roles, so it stopped. "
+"Check that VRCVerify's role is above the verified role and has Manage "
+"Roles, then count again."
+msgstr ""
+"Discord не позволил VRCVerify изменить роли участника, и проверка "
+"остановилась. Убедитесь, что роль VRCVerify находится выше роли "
+"«проверен» и имеет право «Управление ролями», затем посчитайте снова."
+
+msgid "It stopped because this server no longer has Premium."
+msgstr "Проверка остановилась, потому что у этого сервера больше нет Premium."
+
+msgid ""
+"VRCVerify couldn't check its permissions in this server just now. Try "
+"again in a minute."
+msgstr ""
+"VRCVerify не удалось проверить свои права на этом сервере прямо сейчас. "
+"Попробуйте ещё раз через минуту."
+
+msgid ""
+"Something went wrong partway through, so it stopped. Count again to see "
+"where things stand."
+msgstr ""
+"Что-то пошло не так на середине процесса, и он остановился. Посчитайте "
+"снова, чтобы увидеть текущее состояние."
+
+msgid "That can't run again yet. The card says when it can."
+msgstr "Это пока нельзя запустить снова. Когда будет можно, покажет карточка."
+
+msgid "It's already running."
+msgstr "Уже выполняется."
+
+msgid "Count members first, so you can see who would be verified."
+msgstr "Сначала посчитайте участников, чтобы увидеть, кто будет проверен."
+
+msgid "Nobody here can be verified right now."
+msgstr "Сейчас здесь некого проверять."
+
+msgid "Giving members the role is part of Premium."
+msgstr "Выдача роли участникам входит в Premium."
+
+msgid "Choose a verified role in Settings first."
+msgstr "Сначала выберите роль «проверен» в настройках."
+
+msgid "The verified role no longer exists. Choose another in Settings."
+msgstr "Роли «проверен» больше не существует. Выберите другую в настройках."
+
+msgid "That didn't go through. Try again in a minute."
+msgstr "Не получилось отправить запрос. Попробуйте ещё раз через минуту."
+
+#, python-format
+msgid "You can count again after %(when)s."
+msgstr "Вы сможете посчитать снова после %(when)s."
+
+#, python-format
+msgid "%(count)s member given the role so far"
+msgid_plural "%(count)s members given the role so far"
+msgstr[0] "%(count)s участник уже получил роль"
+msgstr[1] "%(count)s участника уже получили роль"
+msgstr[2] "%(count)s участников уже получили роль"
+
+#, python-format
+msgid "Last checked %(when)s."
+msgstr "Последняя проверка: %(when)s."
+
+#, python-format
+msgid "%(count)s member was given the verified role before it stopped."
+msgid_plural "%(count)s members were given the verified role before it stopped."
+msgstr[0] "До остановки роль «проверен» успел получить %(count)s участник."
+msgstr[1] "До остановки роль «проверен» успели получить %(count)s участника."
+msgstr[2] "До остановки роль «проверен» успели получить %(count)s участников."
+
+#, python-format
+msgid "%(count)s member can be verified now"
+msgid_plural "%(count)s members can be verified now"
+msgstr[0] "%(count)s участник может быть проверен сейчас"
+msgstr[1] "%(count)s участника могут быть проверены сейчас"
+msgstr[2] "%(count)s участников могут быть проверены сейчас"
+
+#, python-format
+msgid "%(count)s member already has the verified role"
+msgid_plural "%(count)s members already have the verified role"
+msgstr[0] "%(count)s участник уже имеет роль «проверен»"
+msgstr[1] "%(count)s участника уже имеют роль «проверен»"
+msgstr[2] "%(count)s участников уже имеют роль «проверен»"
+
+#, python-format
+msgid "%(count)s member is linked to VRChat but not 18+ verified"
+msgid_plural "%(count)s members are linked to VRChat but not 18+ verified"
+msgstr[0] "%(count)s участник привязал VRChat, но не прошёл проверку 18+"
+msgstr[1] "%(count)s участника привязали VRChat, но не прошли проверку 18+"
+msgstr[2] "%(count)s участников привязали VRChat, но не прошли проверку 18+"
+
+msgid ""
+"They can press Begin Verification on the instructions panel to be checked"
+" again."
+msgstr ""
+"Они могут нажать «Начать проверку» на панели инструкций, чтобы пройти "
+"проверку снова."
+
+#, python-format
+msgid "%(count)s member hasn't verified with VRCVerify yet"
+msgid_plural "%(count)s members haven't verified with VRCVerify yet"
+msgstr[0] "%(count)s участник ещё не проходил проверку через VRCVerify"
+msgstr[1] "%(count)s участника ещё не проходили проверку через VRCVerify"
+msgstr[2] "%(count)s участников ещё не проходили проверку через VRCVerify"
+
+msgid ""
+"Nobody can do this step for them: they verify once, with the instructions"
+" panel, and every server using VRCVerify recognizes them after that."
+msgstr ""
+"Никто не может сделать этот шаг за них: они проходят проверку один раз "
+"через панель инструкций, и после этого их узнаёт любой сервер, "
+"использующий VRCVerify."
+
+#, python-format
+msgid "Done. %(count)s member was given the verified role."
+msgid_plural "Done. %(count)s members were given the verified role."
+msgstr[0] "Готово. Роль «проверен» получил %(count)s участник."
+msgstr[1] "Готово. Роль «проверен» получили %(count)s участника."
+msgstr[2] "Готово. Роль «проверен» получили %(count)s участников."
+
+#, python-format
+msgid "%(count)s member couldn't be updated and can still verify with the panel."
+msgid_plural "%(count)s members couldn't be updated and can still verify with the panel."
+msgstr[0] ""
+"%(count)s участнику не удалось обновить роль, но проверка через панель "
+"по-прежнему доступна."
+msgstr[1] ""
+"%(count)s участникам не удалось обновить роль, но проверка через панель "
+"по-прежнему доступна."
+msgstr[2] ""
+"%(count)s участникам не удалось обновить роль, но проверка через панель "
+"по-прежнему доступна."
+
+#, python-format
+msgid "You can verify members again after %(when)s."
+msgstr "Вы сможете снова проверить участников после %(when)s."
+
+#, python-format
+msgid "Give %(count)s member the verified role"
+msgid_plural "Give %(count)s members the verified role"
+msgstr[0] "Выдать роль «проверен» %(count)s участнику"
+msgstr[1] "Выдать роль «проверен» %(count)s участникам"
+msgstr[2] "Выдать роль «проверен» %(count)s участникам"
 
 msgid "Working"
 msgstr "Работает"
@@ -1438,6 +1627,15 @@ msgstr "Кто может одобрять или отклонять заявк�
 msgid "VRChat group setup check"
 msgstr "Проверка настройки группы VRChat"
 
+msgid "Verify existing members"
+msgstr "Проверка существующих участников"
+
+msgid "finished"
+msgstr "завершено"
+
+msgid "stopped early"
+msgstr "остановлено досрочно"
+
 msgid "posted in"
 msgstr "опубликовано в"
 
@@ -1456,6 +1654,10 @@ msgstr "ID %(id)s"
 
 msgid "not set"
 msgstr "не задано"
+
+#, python-format
+msgid "verified role given: %(count)s"
+msgstr "роль «проверен» выдана: %(count)s"
 
 #, python-format
 msgid "role %(id)s"
@@ -1826,6 +2028,68 @@ msgstr "Посмотреть тарифы и подписаться"
 msgid "Dismiss"
 msgstr "Скрыть"
 
+msgid "Couldn't check this just now. Try again shortly."
+msgstr "Сейчас не удалось это проверить. Попробуйте ещё раз чуть позже."
+
+msgid ""
+"Give the verified role to members who have already verified with "
+"VRCVerify, here or in any other server, without asking them to do "
+"anything. Start by counting who that is. Counting changes nothing."
+msgstr ""
+"Выдайте роль «проверен» участникам, которые уже прошли проверку через "
+"VRCVerify, здесь или на любом другом сервере, не прося их ничего делать. "
+"Начните с подсчёта, кто это. Подсчёт ничего не меняет."
+
+msgid ""
+"It can only find people who have verified with VRCVerify before. Everyone"
+" else still verifies with the instructions panel."
+msgstr ""
+"Он может найти только тех, кто уже проходил проверку через VRCVerify "
+"раньше. Остальным по-прежнему нужно проверяться через панель инструкций."
+
+msgid "Counting members…"
+msgstr "Подсчёт участников…"
+
+msgid "Giving members the verified role…"
+msgstr "Выдача участникам роли «проверен»…"
+
+#, python-format
+msgid "%(checked)s of %(total)s checked"
+msgstr "%(checked)s из %(total)s проверено"
+
+msgid ""
+"This page refreshes itself until it's done. You can leave it; the work "
+"carries on without you."
+msgstr ""
+"Эта страница обновляется сама, пока процесс не завершится. Можете её "
+"закрыть, работа продолжится без вас."
+
+msgid "Refresh"
+msgstr "Обновить"
+
+msgid ""
+"Giving them the role is part of Premium. They won't be messaged, and "
+"nobody has to do anything."
+msgstr ""
+"Выдача им роли входит в Premium. Им не придёт сообщение, и делать ничего "
+"не нужно."
+
+msgid "This includes anyone whose verified role was removed by hand."
+msgstr "Сюда входят и те, у кого роль «проверен» была снята вручную."
+
+msgid "Count members"
+msgstr "Посчитать участников"
+
+msgid "Count again"
+msgstr "Посчитать снова"
+
+msgid ""
+"Nobody is messaged about it. Members who left or joined since the count "
+"are checked again as it goes."
+msgstr ""
+"Никому не приходит сообщение об этом. Участники, которые вышли или "
+"присоединились после подсчёта, проверяются заново по ходу процесса."
+
 # | msgid "A verification log channel"
 # | msgid "Verification"
 msgid "Verifications"
@@ -2056,7 +2320,16 @@ msgid "Your VRChat group calendar in Discord Events, with join links"
 msgstr "Календарь вашей группы VRChat в событиях Discord со ссылками для входа"
 
 msgid "Your VRChat group's join requests in Discord, with Approve and Deny"
-msgstr "Заявки на вступление в вашу группу VRChat в Discord с кнопками «Одобрить» и «Отклонить»"
+msgstr ""
+"Заявки на вступление в вашу группу VRChat в Discord с кнопками «Одобрить»"
+" и «Отклонить»"
+
+msgid ""
+"Give the verified role to members already verified with VRCVerify, all at"
+" once"
+msgstr ""
+"Выдача роли «проверен» участникам, уже прошедшим проверку через "
+"VRCVerify, всем сразу"
 
 # | msgid "Not applied"
 msgid "Not included"

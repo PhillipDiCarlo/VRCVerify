@@ -1621,6 +1621,45 @@ class JoinRequestPost(Base):
     )
 
 
+class MemberBackfill(Base):
+    """A server's latest run of "verify existing members" (#292).
+
+    One row per server, rewritten by each run. A run is a count (free) or an
+    apply (premium). Both page through the member list in id order and add up
+    the same buckets; an apply also gives the role. `cursor` is the last member
+    id handled, so a run a restart interrupts carries on from there.
+
+    `last_applied_at` survives later counts, because the cooldown between
+    applied runs is measured from it.
+    """
+
+    __tablename__ = "member_backfill"
+    server_id = Column(String, primary_key=True)
+    # "count" or "apply".
+    kind = Column(String(8), nullable=False)
+    # One of MEMBER_BACKFILL_STATES.
+    state = Column(String(16), nullable=False)
+    # Why a run stopped early, one of MEMBER_BACKFILL_ERRORS.
+    error = Column(String(32), nullable=True)
+    actor_id = Column(String(30), nullable=True)
+    cursor = Column(String(30), nullable=True)
+    # Every member paged through, bots included, for the progress bar. The
+    # buckets below are people only.
+    scanned = Column(Integer, nullable=False, default=0)
+    has_role = Column(Integer, nullable=False, default=0)
+    eligible = Column(Integer, nullable=False, default=0)
+    linked_unverified = Column(Integer, nullable=False, default=0)
+    unknown = Column(Integer, nullable=False, default=0)
+    granted = Column(Integer, nullable=False, default=0)
+    failed = Column(Integer, nullable=False, default=0)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    last_applied_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
 class DashboardAudit(Base):
     """Who changed which setting, from the website, and to what.
 
@@ -2467,6 +2506,23 @@ STRIPE_STATUS_TTL = _int_env("STRIPE_STATUS_TTL", 900)
 # about what canceling means.
 STRIPE_PAID_STATUSES = frozenset({"active", "trialing", "past_due"})
 
+# Verifying a server's existing members (#292). Only role edits are paced:
+# counting is list-members pages, one REST call per thousand members.
+#
+# The cooldown is between applied runs, which are the ones that edit roles. A
+# count can be refreshed sooner, but not on every page load, because on a
+# large server each one pages through the whole member list.
+MEMBER_BACKFILL_COOLDOWN_HOURS = _int_env("MEMBER_BACKFILL_COOLDOWN_HOURS", 24, minimum=0)
+MEMBER_BACKFILL_RECOUNT_SECONDS = _int_env("MEMBER_BACKFILL_RECOUNT_SECONDS", 300, minimum=0)
+# How many servers may sweep at once. Role edits from every sweep share the
+# bot's global Discord rate limit with everything else it does.
+MEMBER_BACKFILL_CONCURRENCY = _int_env("MEMBER_BACKFILL_CONCURRENCY", 2)
+# Gap after each role edit. discord.py waits out a 429 on its own; this is so
+# a sweep never gets that far and leaves room for live verifications.
+MEMBER_BACKFILL_EDIT_SPACING = _float_env("MEMBER_BACKFILL_EDIT_SPACING", 0.5)
+# Members looked up per database query, and how often progress is saved.
+MEMBER_BACKFILL_BATCH = _int_env("MEMBER_BACKFILL_BATCH", 100)
+
 # How long a processed webhook event id is kept before the ledger forgets it.
 #
 # Its only job is to recognize a redelivery, and Stripe stops retrying after
@@ -2512,6 +2568,10 @@ FEATURE_CALENDAR_SYNC = "calendar_sync"
 # Issue #291: a linked VRChat group's pending join requests, posted in Discord
 # with Approve and Deny. Not grandfathered, for the reason calendar sync gives.
 FEATURE_JOIN_REQUEST_TRIAGE = "join_request_triage"
+# Issue #292: give the verified role to a server's existing members who are
+# already verified in our database. Counting them is free; applying is this
+# feature. Not grandfathered: it did not exist at the cutover.
+FEATURE_MEMBER_BACKFILL = "member_backfill"
 
 # Servers configured before the cutover keep these three for free, forever.
 # The reduced cooldown and the activity log are new, so nobody is losing them.
@@ -2540,7 +2600,8 @@ GRANDFATHERED_FEATURES = frozenset(
 # the name leaves in the change that makes the feature reachable. Calendar sync
 # (#289) left it when it was announced, after all of its phases had shipped and
 # been tested live behind a preview allowlist. Join-request triage (#291) left
-# it the same way, when it was announced.
+# it the same way, when it was announced. So did verifying existing members
+# (#292), after its first live run on 2026-09-23.
 UNANNOUNCED_FEATURES = frozenset()
 
 
@@ -14697,6 +14758,8 @@ async def read_dashboard_overview(guild_id) -> Optional[dict]:
         # Enough to tell an admin why nothing is happening, which is the most
         # common reason to open this page at all.
         "configured": _overview_configuration(settings, guild),
+        # Verifying existing members (#292). None when it could not be read.
+        "backfill": await read_member_backfill(guild_id),
     }
 
 
@@ -15569,6 +15632,530 @@ async def write_dashboard_stripe_subscription(guild_id, payload: dict):
     return {"applied": True, "status": status, "premium": grants_premium}
 
 
+# -------------------------------------------------------------------
+# Verify existing members (#292)
+# -------------------------------------------------------------------
+# on_member_join, run over the members a server already has. It is not that
+# handler in a loop, for two reasons:
+#
+# * The bot caches no members (MemberCacheFlags.none(), no chunking), so
+#   guild.members is empty. The list comes from guild.fetch_members(), which
+#   pages over REST in id order, and that order is what makes a run resumable.
+# * It does not call assign_role. That is the member-initiated path: it DMs
+#   the member, offers the group invite, logs a line per member, and does a
+#   premium lookup and a REST fetch every time. Over thousands of members that
+#   is a DM blast, which is how a bot gets flagged. A sweep gives roles only.
+#
+# Two kinds of member it cannot help, and counts so the admin knows: linked
+# but not 18+ (a recheck costs a VRChat call each, and #57 showed a hidden
+# badge makes most of them fail again), and anybody we have never seen, who
+# has to put a code in their VRChat bio.
+
+MEMBER_BACKFILL_STATES = ("running", "done", "failed")
+MEMBER_BACKFILL_ERRORS = (
+    "no_role",  # no verified role configured
+    "role_missing",  # the configured role was deleted
+    "cannot_manage",  # the bot lacks Manage Roles
+    "role_too_high",  # the verified role is managed or not below the bot's top role
+    "unverified_role_too_high",  # the same, for the unverified role
+    "not_premium",  # the plan lapsed before an apply started or resumed
+    "forbidden",  # Discord refused a role edit anyway
+    "guild_unavailable",  # the bot is not in the server, or cannot see itself there
+    "fetch_failed",  # listing members failed partway
+    "unexpected",  # anything else; the log has the traceback
+)
+MEMBER_BACKFILL_COUNTERS = (
+    "has_role",
+    "eligible",
+    "linked_unverified",
+    "unknown",
+    "granted",
+    "failed",
+)
+MEMBER_BACKFILL_REASON = "VRCVerify: verifying existing members"
+
+_member_backfill_slots = asyncio.Semaphore(MEMBER_BACKFILL_CONCURRENCY)
+
+
+def _guild_role(guild, role_id):
+    try:
+        return guild.get_role(int(role_id))
+    except (TypeError, ValueError):
+        return None
+
+
+def _member_backfill_roles(guild_id) -> tuple:
+    """The server's verified and unverified role ids, either possibly None."""
+    with session_scope() as session:
+        server = session.query(Server).filter_by(server_id=int(guild_id)).first()
+        if server is None:
+            return None, None
+        return server.role_id, getattr(server, "unverified_role_id", None)
+
+
+def member_backfill_blocker(
+    guild, role_id, unverified_role_id, *, applying: bool
+) -> Optional[str]:
+    """Why a run cannot start, or None.
+
+    A count needs only a role to count holders of. An apply needs the three
+    things Discord needs to grant it (see bot_can_manage_roles), checked up
+    front so a misconfigured server gets one clear reason instead of a run
+    that fails on its first member.
+    """
+    if guild is None:
+        return "guild_unavailable"
+    if not role_id:
+        return "no_role"
+    role = _guild_role(guild, role_id)
+    if role is None:
+        return "role_missing"
+    if not applying:
+        return None
+
+    can_manage = bot_can_manage_roles(guild)
+    if can_manage is None:
+        return "guild_unavailable"
+    if not can_manage:
+        return "cannot_manage"
+    top_role = guild.me.top_role
+    if role.managed or not top_role > role:
+        return "role_too_high"
+    # A deleted unverified role is nothing to remove, not a reason to stop.
+    unverified_role = _guild_role(guild, unverified_role_id) if unverified_role_id else None
+    if unverified_role is not None and (
+        unverified_role.managed or not top_role > unverified_role
+    ):
+        return "unverified_role_too_high"
+    return None
+
+
+def _member_backfill_available_at(row, kind: str, now: datetime) -> Optional[datetime]:
+    """When `kind` may run again, or None if it may run now."""
+    if kind == "apply":
+        since, wait = row.last_applied_at, MEMBER_BACKFILL_COOLDOWN_HOURS * 3600
+    else:
+        since, wait = row.finished_at, MEMBER_BACKFILL_RECOUNT_SECONDS
+    if since is None or not wait:
+        return None
+    at = _utc(since) + timedelta(seconds=wait)
+    return at if at > now else None
+
+
+def _iso(value) -> Optional[str]:
+    return _utc(value).isoformat() if value is not None else None
+
+
+async def read_member_backfill(guild_id) -> Optional[dict]:
+    """The Overview card: the latest run, and what the admin may do next.
+
+    None when it could not be read. `available` False when this server cannot
+    see the feature at all yet, which the dashboard renders as nothing.
+    """
+    if not feature_is_reachable(FEATURE_MEMBER_BACKFILL, guild_id):
+        return {"available": False}
+    guild = bot.get_guild(int(guild_id))
+    now = datetime.now(timezone.utc)
+    try:
+        flags = await resolve_premium_flags(guild_id)
+        role_id, unverified_role_id = _member_backfill_roles(guild_id)
+        with session_scope() as session:
+            row = session.get(MemberBackfill, str(guild_id))
+            run = None
+            count_at = apply_at = None
+            if row is not None:
+                run = {
+                    "kind": row.kind,
+                    "state": row.state,
+                    "error": row.error,
+                    "scanned": row.scanned or 0,
+                    **{name: getattr(row, name) or 0 for name in MEMBER_BACKFILL_COUNTERS},
+                    "started_at": _iso(row.started_at),
+                    "finished_at": _iso(row.finished_at),
+                }
+                count_at = _member_backfill_available_at(row, "count", now)
+                apply_at = _member_backfill_available_at(row, "apply", now)
+    except Exception:
+        logger.warning(
+            "Could not read the member backfill for guild %s.", guild_id, exc_info=True
+        )
+        return None
+
+    return {
+        "available": True,
+        "can_apply": flags.allows(FEATURE_MEMBER_BACKFILL),
+        # The progress bar's denominator. Bots included, like `scanned`.
+        "member_count": getattr(guild, "member_count", None),
+        "count_blocker": member_backfill_blocker(
+            guild, role_id, unverified_role_id, applying=False
+        ),
+        "apply_blocker": member_backfill_blocker(
+            guild, role_id, unverified_role_id, applying=True
+        ),
+        "run": run,
+        "count_available_at": count_at.isoformat() if count_at else None,
+        "apply_available_at": apply_at.isoformat() if apply_at else None,
+    }
+
+
+async def request_member_backfill_count(guild_id, actor_id) -> Optional[dict]:
+    """Count the server's members by bucket. Any plan; changes nothing."""
+    return await _request_member_backfill(guild_id, actor_id, "count")
+
+
+async def request_member_backfill_apply(guild_id, actor_id) -> Optional[dict]:
+    """Give the verified role to every member the last count found eligible.
+
+    Premium. Needs a finished count first: that count is the confirmation step,
+    since the button that starts this carries its number.
+    """
+    return await _request_member_backfill(guild_id, actor_id, "apply")
+
+
+async def _request_member_backfill(guild_id, actor_id, kind: str) -> Optional[dict]:
+    """Start a run, returning the re-read card, the way the other actions do.
+
+    Raises SettingRejected for a refusal the admin can act on, returns None
+    when the bot could not answer.
+    """
+    if not feature_is_reachable(FEATURE_MEMBER_BACKFILL, guild_id):
+        raise SettingRejected("member_backfill", "not_available")
+    guild = bot.get_guild(int(guild_id))
+    if guild is None:
+        return None
+    applying = kind == "apply"
+    try:
+        if applying:
+            flags = await resolve_premium_flags(guild_id)
+            if not flags.allows(FEATURE_MEMBER_BACKFILL):
+                raise SettingRejected("member_backfill", "requires_premium", locked=True)
+        role_id, unverified_role_id = _member_backfill_roles(guild_id)
+    except SettingRejected:
+        raise
+    except Exception:
+        logger.warning(
+            "Could not check the member backfill for guild %s.", guild_id, exc_info=True
+        )
+        return None
+
+    blocker = member_backfill_blocker(
+        guild, role_id, unverified_role_id, applying=applying
+    )
+    if blocker:
+        raise SettingRejected("member_backfill", blocker)
+
+    # Nothing is awaited between reading the row and marking it running, so
+    # two clicks cannot both pass the checks and start two runs.
+    try:
+        refusal = _claim_member_backfill(guild_id, kind, actor_id)
+    except Exception:
+        logger.warning(
+            "Could not start a member backfill for guild %s.", guild_id, exc_info=True
+        )
+        return None
+    if refusal:
+        raise SettingRejected("member_backfill", refusal)
+
+    logger.info(
+        "Member backfill (%s) started for guild %s by %s.", kind, guild_id, actor_id
+    )
+    _start_member_backfill_task(guild_id)
+    return await read_member_backfill(guild_id)
+
+
+def _claim_member_backfill(guild_id, kind: str, actor_id) -> Optional[str]:
+    """Mark a new run as started, or say why not."""
+    now = datetime.now(timezone.utc)
+    key = str(guild_id)
+    with session_scope() as session:
+        row = session.get(MemberBackfill, key)
+        if row is not None and row.state == "running":
+            return "already_running"
+        if kind == "apply":
+            if row is None or row.kind != "count" or row.state != "done":
+                return "count_first"
+            if not row.eligible:
+                return "nothing_to_do"
+        if row is not None and _member_backfill_available_at(row, kind, now):
+            return "cooldown"
+
+        if row is None:
+            row = MemberBackfill(server_id=key)
+            session.add(row)
+        row.kind = kind
+        row.state = "running"
+        row.error = None
+        row.actor_id = str(actor_id)
+        row.cursor = None
+        row.scanned = 0
+        for name in MEMBER_BACKFILL_COUNTERS:
+            setattr(row, name, 0)
+        row.started_at = now
+        row.finished_at = None
+        row.updated_at = now
+    return None
+
+
+def _start_member_backfill_task(guild_id) -> None:
+    start_background_task(
+        f"member_backfill:{guild_id}", run_member_backfill(str(guild_id))
+    )
+
+
+async def resume_member_backfills() -> None:
+    """Carry on with every run a restart interrupted, from its cursor."""
+    try:
+        with session_scope() as session:
+            guild_ids = [
+                row.server_id
+                for row in session.query(MemberBackfill.server_id).filter_by(
+                    state="running"
+                )
+            ]
+    except Exception:
+        logger.warning("Could not look for member backfills to resume.", exc_info=True)
+        return
+    for guild_id in guild_ids:
+        logger.info("Resuming the member backfill for guild %s.", guild_id)
+        _start_member_backfill_task(guild_id)
+
+
+async def run_member_backfill(guild_id: str) -> None:
+    """Carry out this server's running row, from its cursor, then close it."""
+    async with _member_backfill_slots:
+        with session_scope() as session:
+            row = session.get(MemberBackfill, guild_id)
+            if row is None or row.state != "running":
+                return
+            kind, cursor = row.kind, row.cursor
+        try:
+            error = await _sweep_members(guild_id, kind == "apply", cursor)
+        except Exception:
+            logger.exception("Member backfill for guild %s failed.", guild_id)
+            error = "unexpected"
+        await _finish_member_backfill(guild_id, error)
+
+
+async def _sweep_members(guild_id: str, applying: bool, cursor) -> Optional[str]:
+    """Page through the members after `cursor`. Returns why it stopped early."""
+    guild = bot.get_guild(int(guild_id))
+    role_id, unverified_role_id = _member_backfill_roles(guild_id)
+    # Checked again rather than trusted from when the run was requested: a run
+    # resumed after a restart may find the role moved or the plan lapsed.
+    blocker = member_backfill_blocker(
+        guild, role_id, unverified_role_id, applying=applying
+    )
+    if blocker:
+        return blocker
+    role = _guild_role(guild, role_id)
+    unverified_role = None
+    if applying:
+        flags = await resolve_premium_flags(guild_id)
+        if not flags.allows(FEATURE_MEMBER_BACKFILL):
+            return "not_premium"
+        if unverified_role_id and flags.allows(FEATURE_UNVERIFIED_ROLE_REMOVAL):
+            unverified_role = _guild_role(guild, unverified_role_id)
+
+    options = {"limit": None}
+    if cursor:
+        options["after"] = discord.Object(id=int(cursor))
+    batch = []
+    try:
+        async for member in guild.fetch_members(**options):
+            batch.append(member)
+            if len(batch) >= MEMBER_BACKFILL_BATCH:
+                error = await _member_backfill_batch(
+                    guild_id, batch, role, unverified_role, applying
+                )
+                if error:
+                    return error
+                batch = []
+    except discord.HTTPException:
+        logger.warning(
+            "Listing members failed during the backfill for guild %s.",
+            guild_id,
+            exc_info=True,
+        )
+        return "fetch_failed"
+    if batch:
+        return await _member_backfill_batch(
+            guild_id, batch, role, unverified_role, applying
+        )
+    return None
+
+
+def _member_backfill_records(discord_ids: list) -> dict:
+    """{discord id: (verified 18+, has a linked VRChat account)} for those we know.
+
+    One query per batch. `users.discord_id` has no guild column, so a member
+    verified in any server is found here.
+    """
+    if not discord_ids:
+        return {}
+    with session_scope() as session:
+        rows = (
+            session.query(User.discord_id, User.verification_status, User.vrc_user_id)
+            .filter(User.discord_id.in_(discord_ids))
+            .all()
+        )
+    return {int(did): (bool(status), bool(vrc_id)) for did, status, vrc_id in rows}
+
+
+async def _member_backfill_batch(
+    guild_id: str, members: list, role, unverified_role, applying: bool
+) -> Optional[str]:
+    """Sort one page of members into buckets, granting as it goes when applying.
+
+    Saves the counts and the cursor before returning, including when a refused
+    edit stops the run partway through the page.
+    """
+    records = _member_backfill_records([m.id for m in members if not m.bot])
+    counts = dict.fromkeys(MEMBER_BACKFILL_COUNTERS, 0)
+    scanned = 0
+    last_id = None
+    error = None
+    for member in members:
+        if not member.bot:
+            verified, linked = records.get(member.id, (False, False))
+            if member.get_role(role.id) is not None:
+                counts["has_role"] += 1
+                # Verified and still carrying the unverified role: assign_role
+                # would have removed it, so the sweep does too.
+                if applying and verified and unverified_role is not None:
+                    await _member_backfill_remove_unverified(member, unverified_role)
+            elif verified:
+                counts["eligible"] += 1
+                if applying:
+                    outcome = await _member_backfill_grant(member, role, unverified_role)
+                    if outcome == "forbidden":
+                        error = "forbidden"
+                        break
+                    if outcome in ("granted", "failed"):
+                        counts[outcome] += 1
+            elif linked:
+                counts["linked_unverified"] += 1
+            else:
+                counts["unknown"] += 1
+        scanned += 1
+        last_id = member.id
+
+    if last_id is not None:
+        _save_member_backfill_progress(guild_id, counts, scanned, last_id)
+    return error
+
+
+async def _member_backfill_grant(member, role, unverified_role) -> str:
+    """Give one member the role: "granted", "gone", "failed" or "forbidden"."""
+    try:
+        await member.add_roles(role, reason=MEMBER_BACKFILL_REASON)
+    except discord.Forbidden:
+        return "forbidden"
+    except discord.NotFound:
+        # Left the server since the page was listed.
+        return "gone"
+    except discord.HTTPException:
+        logger.warning(
+            "Could not give %s the verified role during a backfill.",
+            member.id,
+            exc_info=True,
+        )
+        return "failed"
+    finally:
+        await asyncio.sleep(MEMBER_BACKFILL_EDIT_SPACING)
+    if unverified_role is not None:
+        await _member_backfill_remove_unverified(member, unverified_role)
+    return "granted"
+
+
+async def _member_backfill_remove_unverified(member, unverified_role) -> None:
+    """Best effort. The verified role is what matters, and it is already on."""
+    if member.get_role(unverified_role.id) is None:
+        return
+    try:
+        await member.remove_roles(unverified_role, reason=MEMBER_BACKFILL_REASON)
+    except discord.HTTPException:
+        logger.warning(
+            "Could not remove the unverified role from %s during a backfill.",
+            member.id,
+            exc_info=True,
+        )
+    finally:
+        await asyncio.sleep(MEMBER_BACKFILL_EDIT_SPACING)
+
+
+def _save_member_backfill_progress(guild_id, counts: dict, scanned: int, cursor) -> None:
+    now = datetime.now(timezone.utc)
+    with session_scope() as session:
+        row = session.get(MemberBackfill, guild_id)
+        if row is None or row.state != "running":
+            return
+        for name, value in counts.items():
+            setattr(row, name, (getattr(row, name) or 0) + value)
+        row.scanned = (row.scanned or 0) + scanned
+        row.cursor = str(cursor)
+        row.updated_at = now
+
+
+async def _finish_member_backfill(guild_id: str, error: Optional[str]) -> None:
+    """Close the run. An apply is audited, and on success logged as one line."""
+    now = datetime.now(timezone.utc)
+    summary = None
+    with session_scope() as session:
+        row = session.get(MemberBackfill, guild_id)
+        if row is None or row.state != "running":
+            return
+        row.state = "failed" if error else "done"
+        row.error = error
+        row.finished_at = now
+        row.updated_at = now
+        if row.kind == "apply":
+            if not error:
+                row.last_applied_at = now
+                summary = (row.actor_id, row.granted or 0)
+            # Recorded when it ends rather than when it starts, so the row
+            # carries the outcome as well as who asked for it.
+            _record_dashboard_audit(
+                session,
+                guild_id,
+                row.actor_id,
+                [("member_backfill", row.state, str(row.granted or 0))],
+            )
+    logger.info(
+        "Member backfill for guild %s finished: %s.", guild_id, error or "done"
+    )
+    if summary is not None:
+        await _log_member_backfill(guild_id, *summary)
+
+
+async def _log_member_backfill(guild_id: str, actor_id, granted: int) -> None:
+    """One line in the activity log for the whole run, if the server has one."""
+    try:
+        with session_scope() as session:
+            log_row = (
+                session.query(VerificationLogChannel)
+                .filter_by(server_id=panel_view_key(guild_id))
+                .first()
+            )
+            log_channel_id = log_row.channel_id if log_row else None
+        if not await log_channel_if_allowed(guild_id, log_channel_id):
+            return
+        locale_code = get_server_locale_code(guild_id, bot.get_guild(int(guild_id)))
+        verification_log_buffer.add(
+            guild_id,
+            get_message(
+                locales.LOG_BACKFILL_DONE,
+                SimpleNamespace(locale=locale_code),
+                user=f"<@{actor_id}>",
+                count=granted,
+                when=f"<t:{int(datetime.now(timezone.utc).timestamp())}:f>",
+            ),
+        )
+    except Exception:
+        logger.warning(
+            "Could not log the member backfill for guild %s.", guild_id, exc_info=True
+        )
+
+
 def build_bot_api_deps() -> bot_api.BotAPIDeps:
     """Hand the API its complete set of capabilities.
 
@@ -15594,6 +16181,8 @@ def build_bot_api_deps() -> bot_api.BotAPIDeps:
         post_panel=post_dashboard_panel,
         verify_group=request_group_verification,
         verify_group_claim=request_group_claim_check,
+        count_existing_members=request_member_backfill_count,
+        verify_existing_members=request_member_backfill_apply,
     )
 
 
@@ -15709,6 +16298,10 @@ async def on_ready():
     # #291: posts linked VRChat groups' join requests for moderators to triage.
     # Does nothing for a guild until an admin has turned it on.
     start_background_task("join_request_triage", join_request_triage_task())
+    # #292: a restart must not leave a sweep marked running forever.
+    start_background_task(
+        "member_backfill_resume", resume_member_backfills(), run_once=True
+    )
 
     # Drains buffered verification log entries into each guild's log channel.
     start_background_task(

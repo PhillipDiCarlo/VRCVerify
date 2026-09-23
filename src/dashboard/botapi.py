@@ -30,6 +30,8 @@ from api_tokens import (
     OP_GUILD_PANEL,
     OP_VERIFY_GROUP,
     OP_VERIFY_GROUP_CLAIM,
+    OP_MEMBER_BACKFILL_APPLY,
+    OP_MEMBER_BACKFILL_COUNT,
     OP_GUILD_ROLES,
     OP_GUILD_SETTINGS,
     OP_GUILD_AUDIT,
@@ -282,6 +284,23 @@ class BotAPIClient:
             actor_id, guild_id, OP_VERIFY_GROUP_CLAIM, "verify-group-claim"
         )
 
+    def count_existing_members(self, actor_id: int, guild_id) -> dict:
+        """Ask the bot to count this guild's members by bucket (#292).
+
+        Bodyless: the role counted is the one stored for the guild.
+        """
+        return self._group_action(
+            actor_id, guild_id, OP_MEMBER_BACKFILL_COUNT, "member-backfill/count"
+        )
+
+    def verify_existing_members(self, actor_id: int, guild_id) -> dict:
+        """Ask the bot to give the verified role to the members its last count
+        found already verified. Bodyless: who qualifies is the bot's call.
+        """
+        return self._group_action(
+            actor_id, guild_id, OP_MEMBER_BACKFILL_APPLY, "member-backfill/apply"
+        )
+
     def _group_action(self, actor_id, guild_id, operation: str, path: str) -> dict:
         token = mint_token(
             self.signing_key,
@@ -313,7 +332,7 @@ class BotAPIClient:
             path, actor_id, guild_id, response.status_code, reason,
         )
         raise BotAPIError(
-            reason or "bot API refused the group check", response.status_code
+            reason or f"bot API refused {path}", response.status_code
         )
 
     def put_stripe_subscription(self, guild_id, subscription: dict) -> dict:

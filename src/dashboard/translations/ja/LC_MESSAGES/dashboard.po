@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-17 04:36-0400\n"
+"POT-Creation-Date: 2026-09-23 18:36-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -252,6 +252,24 @@ msgstr "Premium"
 msgid "New"
 msgstr "ウェブサイトがあなたの言語に対応しました"
 
+msgid "Verify the members you already have"
+msgstr "今いるメンバーを認証"
+
+msgid ""
+"Give the verified role to every member of your server who has already "
+"verified with VRCVerify, here or in any other server, all at once. Nobody"
+" has to do anything, and nobody is messaged. Find it on your server's "
+"Overview: counting who can be verified is free, and giving them the role "
+"is part of Premium."
+msgstr ""
+"サーバーにいる、VRCVerify "
+"ですでに認証済みのメンバー全員に、ここでも他のどのサーバーでも、まとめて認証済みロールを付与します。本人にメッセージは届かず、何もする必要もありません。サーバーの「概要」ページから使えます。対象を数えるのは無料で、ロールの付与は"
+" Premium の機能です。"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "Premium を見る"
+
 msgid "Your VRChat group's join requests, in Discord"
 msgstr "VRChat グループの参加リクエストを Discord で"
 
@@ -262,11 +280,11 @@ msgid ""
 "and whether they're verified 18+, so your moderators can decide without "
 "leaving Discord. Turn it on under Settings, VRChat group, once group "
 "invites are set up."
-msgstr "VRChat グループへの参加リクエストが、選んだ Discord チャンネルに、選んだロール向けの承認と拒否のボタン付きで投稿されるようになりました。各投稿には、申請者がすでにサーバーのメンバーかどうかと 18 歳以上の認証状況が表示されるので、モデレーターは Discord を離れずに判断できます。グループ招待を設定したら、設定の VRChat グループでオンにしてください。"
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "Premium を見る"
+msgstr ""
+"VRChat グループへの参加リクエストが、選んだ Discord "
+"チャンネルに、選んだロール向けの承認と拒否のボタン付きで投稿されるようになりました。各投稿には、申請者がすでにサーバーのメンバーかどうかと 18 "
+"歳以上の認証状況が表示されるので、モデレーターは Discord を離れずに判断できます。グループ招待を設定したら、設定の VRChat "
+"グループでオンにしてください。"
 
 msgid "Your VRChat group's calendar, in Discord"
 msgstr "VRChat グループのカレンダーを Discord に"
@@ -592,6 +610,133 @@ msgstr "以前から引き継がれている特典は、どちらを選んでも
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "VRCVerify Premium にアップグレード"
+
+msgid ""
+"VRCVerify needs the Manage Roles permission in this server before it can "
+"give anyone the verified role."
+msgstr "VRCVerify がこのサーバーで誰かに認証済みロールを付与するには、「ロールの管理」権限が必要です。"
+
+msgid ""
+"Move VRCVerify's role above the verified role in Server Settings, Roles, "
+"then try again."
+msgstr "サーバー設定のロールで、VRCVerify のロールを認証済みロールより上に移動してから、もう一度お試しください。"
+
+msgid ""
+"Move VRCVerify's role above the unverified role in Server Settings, "
+"Roles, then try again."
+msgstr "サーバー設定のロールで、VRCVerify のロールを未認証ロールより上に移動してから、もう一度お試しください。"
+
+msgid ""
+"Discord refused to let VRCVerify change a member's roles, so it stopped. "
+"Check that VRCVerify's role is above the verified role and has Manage "
+"Roles, then count again."
+msgstr ""
+"Discord が VRCVerify によるメンバーのロール変更を拒否したため、停止しました。VRCVerify "
+"のロールが認証済みロールより上にあり、「ロールの管理」権限を持っているか確認してから、もう一度カウントしてください。"
+
+msgid "It stopped because this server no longer has Premium."
+msgstr "このサーバーの Premium が終了したため、停止しました。"
+
+msgid ""
+"VRCVerify couldn't check its permissions in this server just now. Try "
+"again in a minute."
+msgstr "VRCVerify はこのサーバーでの権限をただいま確認できませんでした。1 分ほどしてからもう一度お試しください。"
+
+msgid ""
+"Something went wrong partway through, so it stopped. Count again to see "
+"where things stand."
+msgstr "途中で問題が発生したため、停止しました。もう一度カウントして、状況を確認してください。"
+
+msgid "That can't run again yet. The card says when it can."
+msgstr "まだ再実行できません。実行できるようになる時刻はカードに表示されます。"
+
+msgid "It's already running."
+msgstr "すでに実行中です。"
+
+msgid "Count members first, so you can see who would be verified."
+msgstr "まずメンバーをカウントして、誰が認証されるかを確認してください。"
+
+msgid "Nobody here can be verified right now."
+msgstr "今すぐ認証できるメンバーはいません。"
+
+msgid "Giving members the role is part of Premium."
+msgstr "メンバーへのロール付与は Premium の機能です。"
+
+msgid "Choose a verified role in Settings first."
+msgstr "まず設定で認証済みロールを選んでください。"
+
+msgid "The verified role no longer exists. Choose another in Settings."
+msgstr "認証済みロールはもう存在しません。設定で別のロールを選んでください。"
+
+msgid "That didn't go through. Try again in a minute."
+msgstr "送信できませんでした。1 分ほどしてからもう一度お試しください。"
+
+#, python-format
+msgid "You can count again after %(when)s."
+msgstr "%(when)s 以降にもう一度カウントできます。"
+
+#, python-format
+msgid "%(count)s member given the role so far"
+msgid_plural "%(count)s members given the role so far"
+msgstr[0] "これまでに %(count)s 人のメンバーがロールを付与されました"
+
+#, python-format
+msgid "Last checked %(when)s."
+msgstr "最終確認: %(when)s。"
+
+#, python-format
+msgid "%(count)s member was given the verified role before it stopped."
+msgid_plural "%(count)s members were given the verified role before it stopped."
+msgstr[0] "停止するまでに %(count)s 人のメンバーが認証済みロールを付与されました。"
+
+#, python-format
+msgid "%(count)s member can be verified now"
+msgid_plural "%(count)s members can be verified now"
+msgstr[0] "今すぐ認証できるメンバーは %(count)s 人です"
+
+#, python-format
+msgid "%(count)s member already has the verified role"
+msgid_plural "%(count)s members already have the verified role"
+msgstr[0] "%(count)s 人のメンバーがすでに認証済みロールを持っています"
+
+#, python-format
+msgid "%(count)s member is linked to VRChat but not 18+ verified"
+msgid_plural "%(count)s members are linked to VRChat but not 18+ verified"
+msgstr[0] "%(count)s 人のメンバーは VRChat に連携済みですが、18+ 認証は済んでいません"
+
+msgid ""
+"They can press Begin Verification on the instructions panel to be checked"
+" again."
+msgstr "案内パネルの「認証を開始」を押すと、もう一度確認できます。"
+
+#, python-format
+msgid "%(count)s member hasn't verified with VRCVerify yet"
+msgid_plural "%(count)s members haven't verified with VRCVerify yet"
+msgstr[0] "%(count)s 人のメンバーはまだ VRCVerify で認証していません"
+
+msgid ""
+"Nobody can do this step for them: they verify once, with the instructions"
+" panel, and every server using VRCVerify recognizes them after that."
+msgstr "この手順は本人以外にはできません。案内パネルで一度認証すれば、以降は VRCVerify を使うすべてのサーバーがその人を認識します。"
+
+#, python-format
+msgid "Done. %(count)s member was given the verified role."
+msgid_plural "Done. %(count)s members were given the verified role."
+msgstr[0] "完了しました。%(count)s 人のメンバーに認証済みロールが付与されました。"
+
+#, python-format
+msgid "%(count)s member couldn't be updated and can still verify with the panel."
+msgid_plural "%(count)s members couldn't be updated and can still verify with the panel."
+msgstr[0] "%(count)s 人のメンバーは更新できませんでしたが、引き続きパネルから認証できます。"
+
+#, python-format
+msgid "You can verify members again after %(when)s."
+msgstr "%(when)s 以降にもう一度メンバーを認証できます。"
+
+#, python-format
+msgid "Give %(count)s member the verified role"
+msgid_plural "Give %(count)s members the verified role"
+msgstr[0] "%(count)s 人のメンバーに認証済みロールを付与"
 
 msgid "Working"
 msgstr "稼働中"
@@ -1274,6 +1419,15 @@ msgstr "参加リクエストを承認・拒否できる人"
 msgid "VRChat group setup check"
 msgstr "VRChat グループ設定の確認"
 
+msgid "Verify existing members"
+msgstr "既存メンバーを認証"
+
+msgid "finished"
+msgstr "完了"
+
+msgid "stopped early"
+msgstr "途中で停止"
+
 msgid "posted in"
 msgstr "投稿先"
 
@@ -1292,6 +1446,10 @@ msgstr "ID %(id)s"
 
 msgid "not set"
 msgstr "未設定"
+
+#, python-format
+msgid "verified role given: %(count)s"
+msgstr "認証済みロールの付与数: %(count)s"
 
 #, python-format
 msgid "role %(id)s"
@@ -1639,6 +1797,59 @@ msgstr "プランを見て登録する"
 msgid "Dismiss"
 msgstr "閉じる"
 
+msgid "Couldn't check this just now. Try again shortly."
+msgstr "ただいま確認できませんでした。少ししてからもう一度お試しください。"
+
+msgid ""
+"Give the verified role to members who have already verified with "
+"VRCVerify, here or in any other server, without asking them to do "
+"anything. Start by counting who that is. Counting changes nothing."
+msgstr ""
+"すでに VRCVerify "
+"で認証済みのメンバーに、ここでも他のどのサーバーでも、何も頼むことなく認証済みロールを付与します。まずはカウントして、対象を確認しましょう。カウントしても何も変わりません。"
+
+msgid ""
+"It can only find people who have verified with VRCVerify before. Everyone"
+" else still verifies with the instructions panel."
+msgstr "これは以前に VRCVerify で認証したことがある人しか見つけられません。それ以外の人は、引き続き案内パネルで認証する必要があります。"
+
+msgid "Counting members…"
+msgstr "メンバーをカウントしています…"
+
+msgid "Giving members the verified role…"
+msgstr "メンバーに認証済みロールを付与しています…"
+
+#, python-format
+msgid "%(checked)s of %(total)s checked"
+msgstr "%(total)s 件中 %(checked)s 件確認済み"
+
+msgid ""
+"This page refreshes itself until it's done. You can leave it; the work "
+"carries on without you."
+msgstr "このページは完了するまで自動的に更新されます。離れても大丈夫です。作業はそのまま続きます。"
+
+msgid "Refresh"
+msgstr "更新"
+
+msgid ""
+"Giving them the role is part of Premium. They won't be messaged, and "
+"nobody has to do anything."
+msgstr "ロール付与は Premium の機能です。本人にメッセージは届かず、何もする必要はありません。"
+
+msgid "This includes anyone whose verified role was removed by hand."
+msgstr "認証済みロールを手動で外されたメンバーも含まれます。"
+
+msgid "Count members"
+msgstr "メンバーをカウント"
+
+msgid "Count again"
+msgstr "もう一度カウント"
+
+msgid ""
+"Nobody is messaged about it. Members who left or joined since the count "
+"are checked again as it goes."
+msgstr "誰にもメッセージは届きません。カウント後にサーバーを離れたり参加したりしたメンバーは、処理中にもう一度確認されます。"
+
 # | msgid "A verification log channel"
 # | msgid "Verification"
 msgid "Verifications"
@@ -1853,6 +2064,11 @@ msgstr "VRChat グループのカレンダーを Discord イベントに、参�
 
 msgid "Your VRChat group's join requests in Discord, with Approve and Deny"
 msgstr "VRChat グループの参加リクエストを Discord で承認・拒否"
+
+msgid ""
+"Give the verified role to members already verified with VRCVerify, all at"
+" once"
+msgstr "VRCVerify で認証済みのメンバーにまとめて認証済みロールを付与"
 
 # | msgid "Not applied"
 msgid "Not included"

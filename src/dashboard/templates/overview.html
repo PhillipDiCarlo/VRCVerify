@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 {% block title %}{{ guild_name }} — VRCVerify{% endblock %}
+{% block head %}
+  {# Only while a count or an apply is running, so the progress moves without
+     a script, and stops the moment the work is done. #}
+  {% if backfill and backfill.refresh %}
+    <meta http-equiv="refresh" content="{{ backfill_refresh_seconds }}">
+  {% endif %}
+{% endblock %}
 
 {# ONE DRAWING, TWO SIZES (#286). The bars are the same bars whether they are
    sitting inside the "Last 30 days" tile or filling a panel of their own, so
@@ -262,6 +269,128 @@
         </form>
       {% endif %}
     </div>
+    {% endif %}
+  </section>
+{% endif %}
+
+{# VERIFY EXISTING MEMBERS (#292). Above the numbers because it is the one
+   thing on this page that can change them in bulk.
+
+   Everything it says is decided in overview_view.build_backfill; this only
+   lays it out. Both buttons post nothing but the CSRF token: which role, and
+   which members, the bot decides from its own records.
+
+   A `<progress>` element, not a div with a width. The CSP drops inline
+   styles, and a native bar needs none. #}
+{% if backfill %}
+  <section class="panel group backfill" id="existing-members">
+    <h2>{% trans %}Verify existing members{% endtrans %}</h2>
+
+    {% if backfill.state == 'unknown' %}
+      <p class="muted">{% trans %}Couldn't check this just now. Try again shortly.{% endtrans %}</p>
+    {% else %}
+      {% if backfill.state == 'idle' %}
+        <p class="muted blurb">
+          {% trans %}Give the verified role to members who have already verified with VRCVerify, here or in any other server, without asking them to do anything. Start by counting who that is. Counting changes nothing.{% endtrans %}
+        </p>
+        <p class="muted blurb">
+          {% trans %}It can only find people who have verified with VRCVerify before. Everyone else still verifies with the instructions panel.{% endtrans %}
+        </p>
+      {% endif %}
+
+      {% if backfill_notice %}
+        <p class="notice" role="status">{{ backfill_notice }}</p>
+      {% endif %}
+
+      {% if backfill.state in ('counting', 'applying') %}
+        <p class="backfill-running">
+          {% if backfill.state == 'counting' %}{% trans %}Counting members…{% endtrans %}
+          {% else %}{% trans %}Giving members the verified role…{% endtrans %}{% endif %}
+        </p>
+        {% if backfill.progress.percent is not none %}
+          <progress class="backfill-progress" max="100" value="{{ backfill.progress.percent }}"></progress>
+          <p class="muted">
+            {% trans checked=backfill.progress.checked, total=backfill.progress.total %}{{ checked }} of {{ total }} checked{% endtrans %}
+            {% if backfill.progress.granted %} · {{ backfill.progress.granted }}{% endif %}
+          </p>
+        {% else %}
+          <progress class="backfill-progress"></progress>
+        {% endif %}
+        <p class="muted">
+          {% trans %}This page refreshes itself until it's done. You can leave it; the work carries on without you.{% endtrans %}
+        </p>
+        <div class="actions">
+          <a class="button secondary" href="{{ url_for('guild_overview', guild_id=guild_id) }}#existing-members">{% trans %}Refresh{% endtrans %}</a>
+        </div>
+      {% endif %}
+
+      {% if backfill.outcome %}
+        <p class="backfill-outcome">{{ backfill.outcome }}</p>
+      {% endif %}
+
+      {% if backfill.buckets %}
+        <ul class="backfill-buckets">
+          {% for bucket in backfill.buckets %}
+            <li class="backfill-bucket backfill-bucket-{{ bucket.key }}">
+              <span class="backfill-bucket-text">{{ bucket.text }}</span>
+              {% if bucket.hint %}<span class="muted backfill-bucket-hint">{{ bucket.hint }}</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      {% if backfill.problem %}
+        <p class="notice">{{ backfill.problem }}</p>
+      {% endif %}
+      {% if backfill.apply_wait %}
+        <p class="muted">{{ backfill.apply_wait }}</p>
+      {% endif %}
+
+      {% if backfill.pitch %}
+        <p class="backfill-pitch">
+          <span class="setup-premium">{% trans %}Premium{% endtrans %}</span>
+          {% trans %}Giving them the role is part of Premium. They won't be messaged, and nobody has to do anything.{% endtrans %}
+        </p>
+      {% endif %}
+
+      {% if backfill.finished %}
+        <p class="muted">{{ backfill.finished }}{% if backfill.count_wait %} {{ backfill.count_wait }}{% endif %}</p>
+      {% elif backfill.count_wait %}
+        <p class="muted">{{ backfill.count_wait }}</p>
+      {% endif %}
+
+      {% if backfill.apply %}
+        {# There is no record of who verified in which server, so a role a
+           moderator took away by hand cannot be told apart from one this
+           server never gave. Said before the click, not after. #}
+        <p class="muted">{% trans %}This includes anyone whose verified role was removed by hand.{% endtrans %}</p>
+      {% endif %}
+
+      {% if backfill.apply or backfill.pitch or backfill.can_count %}
+        {# A <div>, for the reason the next-step card gives: a <form> closes
+           an open <p>. #}
+        <div class="actions">
+          {% if backfill.apply %}
+            <form method="post" action="{{ url_for('verify_existing_members', guild_id=guild_id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="button">{{ backfill.apply }}</button>
+            </form>
+          {% elif backfill.pitch %}
+            <a class="button" href="{{ url_for('guild_subscription', guild_id=guild_id) }}">{% trans %}See plans and subscribe{% endtrans %}</a>
+          {% endif %}
+          {% if backfill.can_count %}
+            <form method="post" action="{{ url_for('count_existing_members', guild_id=guild_id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="button{% if backfill.apply or backfill.pitch %} secondary{% endif %}">
+                {%- if backfill.state == 'idle' %}{% trans %}Count members{% endtrans %}{% else %}{% trans %}Count again{% endtrans %}{% endif -%}
+              </button>
+            </form>
+          {% endif %}
+        </div>
+        {% if backfill.apply %}
+          <p class="muted">{% trans %}Nobody is messaged about it. Members who left or joined since the count are checked again as it goes.{% endtrans %}</p>
+        {% endif %}
+      {% endif %}
     {% endif %}
   </section>
 {% endif %}

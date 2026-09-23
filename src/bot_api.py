@@ -238,6 +238,12 @@ class BotAPIDeps:
     # own, which never joins (#289). A separate capability rather than a mode
     # of verify_group, so nothing a caller sends can turn one into the other.
     verify_group_claim: Callable[[int, int], Awaitable[Optional[dict]]]
+    # Verifying existing members (#292), the same (guild_id, actor_id) shape.
+    # The count changes nothing; the apply gives the verified role to members
+    # the count found already verified. Separate capabilities for the reason
+    # verify_group_claim is one. Both return the Overview's backfill card.
+    count_existing_members: Callable[[int, int], Awaitable[Optional[dict]]]
+    verify_existing_members: Callable[[int, int], Awaitable[Optional[dict]]]
 
 
 # -------------------------------------------------------------------
@@ -900,7 +906,8 @@ async def handle_verify_group_claim(request: web.Request) -> web.Response:
 
 
 async def _run_group_action(request: web.Request, action) -> web.Response:
-    """The shared body of the two group actions.
+    """The shared body of the bodyless actions: the two group checks, and the
+    member backfill's count and apply (#292).
 
     Deliberately takes NO body. Every other write here carries what to store;
     this one carries nothing, because the only thing it could carry is a group
@@ -938,6 +945,26 @@ async def _run_group_action(request: web.Request, action) -> web.Response:
     if result is None:
         return _deny(request, 503, "unavailable", actor=claims.actor_id)
     return _json(result)
+
+
+async def handle_member_backfill_count(request: web.Request) -> web.Response:
+    """Count a guild's members by what the sweep could do for them (#292).
+
+    Bodyless: there is nothing to choose. The role counted is the guild's own.
+    """
+    deps: BotAPIDeps = request.app[DEPS_KEY]
+    return await _run_group_action(request, deps.count_existing_members)
+
+
+async def handle_member_backfill_apply(request: web.Request) -> web.Response:
+    """Give the verified role to the members the last count found eligible.
+
+    Bodyless for the same reason as the count, and more so: which members get
+    the role is decided by the bot from its own records, never by a list sent
+    here.
+    """
+    deps: BotAPIDeps = request.app[DEPS_KEY]
+    return await _run_group_action(request, deps.verify_existing_members)
 
 
 # The normalized subscription payload's complete field set. Listed here so the
@@ -1066,6 +1093,14 @@ def create_app(config: BotAPIConfig, deps: BotAPIDeps) -> web.Application:
     )
     app.router.add_post(
         "/api/v1/guilds/{guild_id}/verify-group-claim", handle_verify_group_claim
+    )
+    app.router.add_post(
+        "/api/v1/guilds/{guild_id}/member-backfill/count",
+        handle_member_backfill_count,
+    )
+    app.router.add_post(
+        "/api/v1/guilds/{guild_id}/member-backfill/apply",
+        handle_member_backfill_apply,
     )
     if config.stripe_enabled:
         app.router.add_put(

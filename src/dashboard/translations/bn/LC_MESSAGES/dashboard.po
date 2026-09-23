@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-17 04:36-0400\n"
+"POT-Creation-Date: 2026-09-23 18:36-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: bn\n"
@@ -290,6 +290,26 @@ msgstr "Premium"
 msgid "New"
 msgstr "ওয়েবসাইট এখন আপনার ভাষায়"
 
+msgid "Verify the members you already have"
+msgstr "আপনার বিদ্যমান সদস্যদের ভেরিফাই করুন"
+
+msgid ""
+"Give the verified role to every member of your server who has already "
+"verified with VRCVerify, here or in any other server, all at once. Nobody"
+" has to do anything, and nobody is messaged. Find it on your server's "
+"Overview: counting who can be verified is free, and giving them the role "
+"is part of Premium."
+msgstr ""
+"আপনার সার্ভারের এমন প্রতিটি সদস্যকে একসঙ্গে ভেরিফায়েড রোল দিন, যিনি "
+"ইতিমধ্যে VRCVerify দিয়ে ভেরিফাই করেছেন, এখানে বা অন্য যেকোনো সার্ভারে। "
+"কাউকে কিছু করতে হবে না, আর কাউকে কোনো বার্তা পাঠানো হবে না। এটি আপনার "
+"সার্ভারের সারসংক্ষেপে পাবেন: কে ভেরিফাই হতে পারেন তা গোনা ফ্রি, আর তাঁদের"
+" রোল দেওয়া Premium-এর অংশ।"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "Premium দেখুন"
+
 msgid "Your VRChat group's join requests, in Discord"
 msgstr "আপনার VRChat গ্রুপে যোগদানের অনুরোধ, এখন Discord-এ"
 
@@ -300,11 +320,13 @@ msgid ""
 "and whether they're verified 18+, so your moderators can decide without "
 "leaving Discord. Turn it on under Settings, VRChat group, once group "
 "invites are set up."
-msgstr "আপনার VRChat গ্রুপে যোগদানের অনুরোধগুলো এখন আপনার বেছে নেওয়া Discord চ্যানেলে পোস্ট হয়, আপনার বেছে নেওয়া রোলগুলোর জন্য অনুমোদন ও প্রত্যাখ্যান বোতামসহ। প্রতিটি পোস্টে দেখানো হয় অনুরোধকারী ইতিমধ্যে আপনার সার্ভারের সদস্য কি না এবং তিনি 18+ যাচাইকৃত কি না, যাতে আপনার মডারেটররা Discord না ছেড়েই সিদ্ধান্ত নিতে পারেন। গ্রুপ আমন্ত্রণ সেট আপ হওয়ার পর সেটিংস, VRChat গ্রুপ থেকে এটি চালু করুন।"
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "Premium দেখুন"
+msgstr ""
+"আপনার VRChat গ্রুপে যোগদানের অনুরোধগুলো এখন আপনার বেছে নেওয়া Discord "
+"চ্যানেলে পোস্ট হয়, আপনার বেছে নেওয়া রোলগুলোর জন্য অনুমোদন ও "
+"প্রত্যাখ্যান বোতামসহ। প্রতিটি পোস্টে দেখানো হয় অনুরোধকারী ইতিমধ্যে আপনার"
+" সার্ভারের সদস্য কি না এবং তিনি 18+ যাচাইকৃত কি না, যাতে আপনার মডারেটররা "
+"Discord না ছেড়েই সিদ্ধান্ত নিতে পারেন। গ্রুপ আমন্ত্রণ সেট আপ হওয়ার পর "
+"সেটিংস, VRChat গ্রুপ থেকে এটি চালু করুন।"
 
 msgid "Your VRChat group's calendar, in Discord"
 msgstr "আপনার VRChat গ্রুপের ক্যালেন্ডার, এখন Discord-এ"
@@ -668,6 +690,160 @@ msgstr "আপনার পুরোনো সুবিধাগুলো ফ্
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "VRCVerify Premium-এ আপগ্রেড করুন"
+
+msgid ""
+"VRCVerify needs the Manage Roles permission in this server before it can "
+"give anyone the verified role."
+msgstr ""
+"কাউকে ভেরিফায়েড রোল দেওয়ার আগে VRCVerify-এর এই সার্ভারে «রোল পরিচালনা» "
+"অনুমতি দরকার।"
+
+msgid ""
+"Move VRCVerify's role above the verified role in Server Settings, Roles, "
+"then try again."
+msgstr ""
+"সার্ভার সেটিংস, রোলে গিয়ে VRCVerify-এর রোলকে ভেরিফায়েড রোলের উপরে নিয়ে"
+" যান, তারপর আবার চেষ্টা করুন।"
+
+msgid ""
+"Move VRCVerify's role above the unverified role in Server Settings, "
+"Roles, then try again."
+msgstr ""
+"সার্ভার সেটিংস, রোলে গিয়ে VRCVerify-এর রোলকে আন-ভেরিফায়েড রোলের উপরে "
+"নিয়ে যান, তারপর আবার চেষ্টা করুন।"
+
+msgid ""
+"Discord refused to let VRCVerify change a member's roles, so it stopped. "
+"Check that VRCVerify's role is above the verified role and has Manage "
+"Roles, then count again."
+msgstr ""
+"Discord VRCVerify-কে কোনো সদস্যের রোল বদলাতে দেয়নি, তাই এটি থেমে গেছে। "
+"দেখে নিন VRCVerify-এর রোল ভেরিফায়েড রোলের উপরে আছে এবং তার «রোল "
+"পরিচালনা» অনুমতি আছে কি না, তারপর আবার গুনুন।"
+
+msgid "It stopped because this server no longer has Premium."
+msgstr "এটি থেমে গেছে কারণ এই সার্ভারে আর Premium নেই।"
+
+msgid ""
+"VRCVerify couldn't check its permissions in this server just now. Try "
+"again in a minute."
+msgstr ""
+"VRCVerify এখন এই সার্ভারে নিজের অনুমতি যাচাই করতে পারেনি। এক মিনিট পরে "
+"আবার চেষ্টা করুন।"
+
+msgid ""
+"Something went wrong partway through, so it stopped. Count again to see "
+"where things stand."
+msgstr "মাঝপথে কিছু একটা ভুল হয়েছে, তাই এটি থেমে গেছে। অবস্থা দেখতে আবার গুনুন।"
+
+msgid "That can't run again yet. The card says when it can."
+msgstr "এটি এখনই আবার চালানো যাবে না। কখন চালানো যাবে তা কার্ডে লেখা আছে।"
+
+msgid "It's already running."
+msgstr "এটি ইতিমধ্যেই চলছে।"
+
+msgid "Count members first, so you can see who would be verified."
+msgstr "প্রথমে সদস্য গুনুন, যাতে আপনি দেখতে পারেন কাকে ভেরিফাই করা হবে।"
+
+msgid "Nobody here can be verified right now."
+msgstr "এখানে এখন কাউকে ভেরিফাই করা যাচ্ছে না।"
+
+msgid "Giving members the role is part of Premium."
+msgstr "সদস্যদের রোল দেওয়া Premium-এর অংশ।"
+
+msgid "Choose a verified role in Settings first."
+msgstr "প্রথমে সেটিংসে একটি ভেরিফায়েড রোল বেছে নিন।"
+
+msgid "The verified role no longer exists. Choose another in Settings."
+msgstr "ভেরিফায়েড রোলটি আর নেই। সেটিংসে অন্য একটি বেছে নিন।"
+
+msgid "That didn't go through. Try again in a minute."
+msgstr "সেটি সম্পন্ন হয়নি। এক মিনিট পরে আবার চেষ্টা করুন।"
+
+#, python-format
+msgid "You can count again after %(when)s."
+msgstr "%(when)s এর পরে আপনি আবার গুনতে পারবেন।"
+
+#, python-format
+msgid "%(count)s member given the role so far"
+msgid_plural "%(count)s members given the role so far"
+msgstr[0] "এখন পর্যন্ত %(count)s জন সদস্যকে রোল দেওয়া হয়েছে"
+msgstr[1] "এখন পর্যন্ত %(count)s জন সদস্যকে রোল দেওয়া হয়েছে"
+
+#, python-format
+msgid "Last checked %(when)s."
+msgstr "শেষ যাচাই %(when)s।"
+
+#, python-format
+msgid "%(count)s member was given the verified role before it stopped."
+msgid_plural "%(count)s members were given the verified role before it stopped."
+msgstr[0] "থামার আগে %(count)s জন সদস্যকে ভেরিফায়েড রোল দেওয়া হয়েছে।"
+msgstr[1] "থামার আগে %(count)s জন সদস্যকে ভেরিফায়েড রোল দেওয়া হয়েছে।"
+
+#, python-format
+msgid "%(count)s member can be verified now"
+msgid_plural "%(count)s members can be verified now"
+msgstr[0] "%(count)s জন সদস্যকে এখন ভেরিফাই করা যাবে"
+msgstr[1] "%(count)s জন সদস্যকে এখন ভেরিফাই করা যাবে"
+
+#, python-format
+msgid "%(count)s member already has the verified role"
+msgid_plural "%(count)s members already have the verified role"
+msgstr[0] "%(count)s জন সদস্যের কাছে আগে থেকেই ভেরিফায়েড রোল আছে"
+msgstr[1] "%(count)s জন সদস্যের কাছে আগে থেকেই ভেরিফায়েড রোল আছে"
+
+#, python-format
+msgid "%(count)s member is linked to VRChat but not 18+ verified"
+msgid_plural "%(count)s members are linked to VRChat but not 18+ verified"
+msgstr[0] "%(count)s জন সদস্য VRChat-এর সাথে যুক্ত কিন্তু 18+ যাচাইকৃত নন"
+msgstr[1] "%(count)s জন সদস্য VRChat-এর সাথে যুক্ত কিন্তু 18+ যাচাইকৃত নন"
+
+msgid ""
+"They can press Begin Verification on the instructions panel to be checked"
+" again."
+msgstr ""
+"তারা আবার যাচাই হওয়ার জন্য নির্দেশনা প্যানেলে যাচাই শুরু করুন চাপতে "
+"পারেন।"
+
+#, python-format
+msgid "%(count)s member hasn't verified with VRCVerify yet"
+msgid_plural "%(count)s members haven't verified with VRCVerify yet"
+msgstr[0] "%(count)s জন সদস্য এখনও VRCVerify দিয়ে ভেরিফাই করেননি"
+msgstr[1] "%(count)s জন সদস্য এখনও VRCVerify দিয়ে ভেরিফাই করেননি"
+
+msgid ""
+"Nobody can do this step for them: they verify once, with the instructions"
+" panel, and every server using VRCVerify recognizes them after that."
+msgstr ""
+"এই ধাপটি তাদের হয়ে আর কেউ করতে পারে না: তারা একবার নির্দেশনা প্যানেল "
+"দিয়ে ভেরিফাই করে, আর তারপর VRCVerify ব্যবহার করে এমন প্রতিটি সার্ভার "
+"তাদের চিনে নেয়।"
+
+#, python-format
+msgid "Done. %(count)s member was given the verified role."
+msgid_plural "Done. %(count)s members were given the verified role."
+msgstr[0] "সম্পন্ন হয়েছে। %(count)s জন সদস্যকে ভেরিফায়েড রোল দেওয়া হয়েছে।"
+msgstr[1] "সম্পন্ন হয়েছে। %(count)s জন সদস্যকে ভেরিফায়েড রোল দেওয়া হয়েছে।"
+
+#, python-format
+msgid "%(count)s member couldn't be updated and can still verify with the panel."
+msgid_plural "%(count)s members couldn't be updated and can still verify with the panel."
+msgstr[0] ""
+"%(count)s জন সদস্যকে আপডেট করা যায়নি, তারা এখনও প্যানেল দিয়ে ভেরিফাই "
+"করতে পারবেন।"
+msgstr[1] ""
+"%(count)s জন সদস্যকে আপডেট করা যায়নি, তারা এখনও প্যানেল দিয়ে ভেরিফাই "
+"করতে পারবেন।"
+
+#, python-format
+msgid "You can verify members again after %(when)s."
+msgstr "%(when)s এর পরে আপনি সদস্যদের আবার ভেরিফাই করতে পারবেন।"
+
+#, python-format
+msgid "Give %(count)s member the verified role"
+msgid_plural "Give %(count)s members the verified role"
+msgstr[0] "%(count)s জন সদস্যকে ভেরিফায়েড রোল দিন"
+msgstr[1] "%(count)s জন সদস্যকে ভেরিফায়েড রোল দিন"
 
 msgid "Working"
 msgstr "চলছে"
@@ -1415,6 +1591,15 @@ msgstr "কে যোগদানের অনুরোধ অনুমোদন
 msgid "VRChat group setup check"
 msgstr "VRChat গ্রুপ সেটআপ পরীক্ষা"
 
+msgid "Verify existing members"
+msgstr "বিদ্যমান সদস্যদের ভেরিফাই করুন"
+
+msgid "finished"
+msgstr "সম্পন্ন হয়েছে"
+
+msgid "stopped early"
+msgstr "আগেই থেমে গেছে"
+
 msgid "posted in"
 msgstr "পোস্ট হয়েছে"
 
@@ -1433,6 +1618,10 @@ msgstr "ID %(id)s"
 
 msgid "not set"
 msgstr "ঠিক করা নেই"
+
+#, python-format
+msgid "verified role given: %(count)s"
+msgstr "ভেরিফায়েড রোল দেওয়া হয়েছে: %(count)s"
 
 #, python-format
 msgid "role %(id)s"
@@ -1799,6 +1988,68 @@ msgstr "প্ল্যান দেখুন ও সাবস্ক্রাই
 msgid "Dismiss"
 msgstr "সরান"
 
+msgid "Couldn't check this just now. Try again shortly."
+msgstr "এখন এটি যাচাই করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।"
+
+msgid ""
+"Give the verified role to members who have already verified with "
+"VRCVerify, here or in any other server, without asking them to do "
+"anything. Start by counting who that is. Counting changes nothing."
+msgstr ""
+"যেসব সদস্য আগেই VRCVerify দিয়ে ভেরিফাই করেছেন, এখানে বা অন্য যেকোনো "
+"সার্ভারে, তাদের কিছু করতে না বলেই ভেরিফায়েড রোল দিন। শুরু করুন তারা কারা"
+" তা গুনে দেখে। গোনায় কিছু বদলায় না।"
+
+msgid ""
+"It can only find people who have verified with VRCVerify before. Everyone"
+" else still verifies with the instructions panel."
+msgstr ""
+"এটি শুধু তাদেরই খুঁজে পায় যারা আগে VRCVerify দিয়ে ভেরিফাই করেছেন। বাকি "
+"সবাই এখনও নির্দেশনা প্যানেল দিয়ে ভেরিফাই করেন।"
+
+msgid "Counting members…"
+msgstr "সদস্য গোনা হচ্ছে…"
+
+msgid "Giving members the verified role…"
+msgstr "সদস্যদের ভেরিফায়েড রোল দেওয়া হচ্ছে…"
+
+#, python-format
+msgid "%(checked)s of %(total)s checked"
+msgstr "%(total)s এর মধ্যে %(checked)s জন যাচাই হয়েছে"
+
+msgid ""
+"This page refreshes itself until it's done. You can leave it; the work "
+"carries on without you."
+msgstr ""
+"কাজ শেষ না হওয়া পর্যন্ত এই পাতা নিজে থেকেই রিফ্রেশ হতে থাকে। আপনি এটি "
+"ছেড়ে যেতে পারেন; কাজ আপনাকে ছাড়াই চলতে থাকবে।"
+
+msgid "Refresh"
+msgstr "রিফ্রেশ করুন"
+
+msgid ""
+"Giving them the role is part of Premium. They won't be messaged, and "
+"nobody has to do anything."
+msgstr ""
+"তাদের রোল দেওয়া Premium-এর অংশ। তাদের কোনো বার্তা পাঠানো হবে না, আর "
+"কাউকে কিছু করতে হবে না।"
+
+msgid "This includes anyone whose verified role was removed by hand."
+msgstr "যাদের ভেরিফায়েড রোল হাতে সরিয়ে দেওয়া হয়েছিল, তারাও এর মধ্যে আছেন।"
+
+msgid "Count members"
+msgstr "সদস্য গুনুন"
+
+msgid "Count again"
+msgstr "আবার গুনুন"
+
+msgid ""
+"Nobody is messaged about it. Members who left or joined since the count "
+"are checked again as it goes."
+msgstr ""
+"এই বিষয়ে কাউকে বার্তা পাঠানো হয় না। গোনার পর যেসব সদস্য চলে গেছেন বা "
+"যোগ দিয়েছেন, তাদের কাজ চলাকালীন আবার যাচাই করা হয়।"
+
 # | msgid "A verification log channel"
 # | msgid "Verification"
 msgid "Verifications"
@@ -2024,6 +2275,13 @@ msgstr "Discord ইভেন্টে আপনার VRChat গ্রুপে�
 
 msgid "Your VRChat group's join requests in Discord, with Approve and Deny"
 msgstr "আপনার VRChat গ্রুপে যোগদানের অনুরোধ Discord-এ, অনুমোদন ও প্রত্যাখ্যানসহ"
+
+msgid ""
+"Give the verified role to members already verified with VRCVerify, all at"
+" once"
+msgstr ""
+"যেসব সদস্য ইতিমধ্যে VRCVerify দিয়ে ভেরিফাই করেছেন, তাঁদের একসঙ্গে "
+"ভেরিফায়েড রোল দিন"
 
 # | msgid "Not applied"
 msgid "Not included"

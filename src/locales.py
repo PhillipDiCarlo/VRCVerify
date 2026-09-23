@@ -330,6 +330,7 @@ PREMIUM_STATUS_ACTIVE = N_(
     "• Invite verified members straight into your server's VRChat group\n"
     "• Your VRChat group's calendar in Discord's Events tab, with a join link when each event starts\n"
     "• Your VRChat group's join requests posted in Discord, with Approve and Deny for your moderators\n"
+    "• Give the verified role to members already verified with VRCVerify, all at once from the dashboard\n"
     "\n"
     "Appearance and automation settings live in `/vrcverify_settings`.\n"
     "\n"
@@ -351,6 +352,7 @@ PREMIUM_STATUS_ACTIVE_CARD = N_(
     "• Invite verified members straight into your server's VRChat group\n"
     "• Your VRChat group's calendar in Discord's Events tab, with a join link when each event starts\n"
     "• Your VRChat group's join requests posted in Discord, with Approve and Deny for your moderators\n"
+    "• Give the verified role to members already verified with VRCVerify, all at once from the dashboard\n"
     "\n"
     "Appearance and automation settings live in `/vrcverify_settings`.\n"
     "\n"
@@ -386,6 +388,7 @@ PREMIUM_STATUS_INACTIVE = N_(
     "• Invite verified members straight into your server's VRChat group\n"
     "• Your VRChat group's calendar in Discord's Events tab, with a join link when each event starts\n"
     "• Your VRChat group's join requests posted in Discord, with Approve and Deny for your moderators\n"
+    "• Give the verified role to members already verified with VRCVerify, all at once from the dashboard\n"
     "\n"
     "One subscription covers the whole server, and there are two ways to buy it:\n"
     "• **In Discord** — the button below. Billed monthly.\n"
@@ -408,6 +411,7 @@ PREMIUM_STATUS_GRANDFATHERED = N_(
     "• Invite verified members straight into your server's VRChat group\n"
     "• Your VRChat group's calendar in Discord's Events tab, with a join link when each event starts\n"
     "• Your VRChat group's join requests posted in Discord, with Approve and Deny for your moderators\n"
+    "• Give the verified role to members already verified with VRCVerify, all at once from the dashboard\n"
     "\n"
     "**Premium is available two ways:**\n"
     "• **In Discord** — the button below. Billed monthly.\n"
@@ -437,6 +441,12 @@ LOG_ROLE_FAILED = N_(
 )
 
 LOG_NOT_18 = N_("❌ {user} — not 18+ according to VRChat · {when}")
+
+# One line for a whole run of "verify existing members" (#292), in place of a
+# line per member, which on a large server would bury everything else.
+LOG_BACKFILL_DONE = N_(
+    "🧾 {user} verified the server's existing members: {count} given the verified role · {when}"
+)
 
 LOG_ENTRIES_DROPPED = N_("…{count} earlier entries could not be recorded.")
 

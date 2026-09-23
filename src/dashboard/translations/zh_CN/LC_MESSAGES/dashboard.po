@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-17 04:36-0400\n"
+"POT-Creation-Date: 2026-09-23 18:36-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -240,6 +240,24 @@ msgstr "Premium"
 msgid "New"
 msgstr "网站支持你的语言了"
 
+msgid "Verify the members you already have"
+msgstr "验证你已有的成员"
+
+msgid ""
+"Give the verified role to every member of your server who has already "
+"verified with VRCVerify, here or in any other server, all at once. Nobody"
+" has to do anything, and nobody is messaged. Find it on your server's "
+"Overview: counting who can be verified is free, and giving them the role "
+"is part of Premium."
+msgstr ""
+"一次性把已验证身份组授予服务器中所有已经通过 VRCVerify "
+"验证过的成员，无论是在这里还是在其他任何服务器。不会给他们发消息，也不需要他们做任何事。在服务器的“概览”页面即可找到：计数谁可以被验证是免费的，授予身份组则是"
+" Premium 功能的一部分。"
+
+# | msgid "Premium"
+msgid "See Premium"
+msgstr "查看 Premium"
+
 msgid "Your VRChat group's join requests, in Discord"
 msgstr "你的 VRChat 群组加入申请，现在在 Discord 中"
 
@@ -250,11 +268,10 @@ msgid ""
 "and whether they're verified 18+, so your moderators can decide without "
 "leaving Discord. Turn it on under Settings, VRChat group, once group "
 "invites are set up."
-msgstr "你的 VRChat 群组的加入申请现在会发布到你选择的 Discord 频道，并为你选择的身份组提供批准和拒绝按钮。每个帖子会显示申请人是否已是你服务器的成员，以及是否已验证 18+，让管理员无需离开 Discord 就能做出决定。设置好群组邀请后，在设置的 VRChat 群组中开启。"
-
-# | msgid "Premium"
-msgid "See Premium"
-msgstr "查看 Premium"
+msgstr ""
+"你的 VRChat 群组的加入申请现在会发布到你选择的 Discord "
+"频道，并为你选择的身份组提供批准和拒绝按钮。每个帖子会显示申请人是否已是你服务器的成员，以及是否已验证 18+，让管理员无需离开 Discord "
+"就能做出决定。设置好群组邀请后，在设置的 VRChat 群组中开启。"
 
 msgid "Your VRChat group's calendar, in Discord"
 msgstr "你的 VRChat 群组日历，现已进入 Discord"
@@ -571,6 +588,133 @@ msgstr "无论你如何选择，你保留的旧有权益都将继续免费。"
 
 msgid "Upgrade to VRCVerify Premium"
 msgstr "升级到 VRCVerify Premium"
+
+msgid ""
+"VRCVerify needs the Manage Roles permission in this server before it can "
+"give anyone the verified role."
+msgstr "VRCVerify 需要在此服务器拥有「管理身份组」权限，才能把已验证身份组授予任何人。"
+
+msgid ""
+"Move VRCVerify's role above the verified role in Server Settings, Roles, "
+"then try again."
+msgstr "在服务器设置的身份组中，把 VRCVerify 的身份组移到已验证身份组之上，然后重试。"
+
+msgid ""
+"Move VRCVerify's role above the unverified role in Server Settings, "
+"Roles, then try again."
+msgstr "在服务器设置的身份组中，把 VRCVerify 的身份组移到未验证身份组之上，然后重试。"
+
+msgid ""
+"Discord refused to let VRCVerify change a member's roles, so it stopped. "
+"Check that VRCVerify's role is above the verified role and has Manage "
+"Roles, then count again."
+msgstr ""
+"Discord 拒绝让 VRCVerify 更改某位成员的身份组，因此已停止。请检查 VRCVerify "
+"的身份组是否高于已验证身份组并拥有「管理身份组」权限，然后重新计数。"
+
+msgid "It stopped because this server no longer has Premium."
+msgstr "已停止，因为此服务器已不再拥有 Premium。"
+
+msgid ""
+"VRCVerify couldn't check its permissions in this server just now. Try "
+"again in a minute."
+msgstr "VRCVerify 刚才无法检查它在此服务器中的权限。请稍后重试。"
+
+msgid ""
+"Something went wrong partway through, so it stopped. Count again to see "
+"where things stand."
+msgstr "过程中出了点问题，因此已停止。请重新计数以查看当前情况。"
+
+msgid "That can't run again yet. The card says when it can."
+msgstr "现在还不能再次运行。卡片上会显示可以运行的时间。"
+
+msgid "It's already running."
+msgstr "已经在运行了。"
+
+msgid "Count members first, so you can see who would be verified."
+msgstr "请先计数成员，这样你才能看到谁会被验证。"
+
+msgid "Nobody here can be verified right now."
+msgstr "目前这里没有人可以被验证。"
+
+msgid "Giving members the role is part of Premium."
+msgstr "给成员授予身份组是 Premium 功能的一部分。"
+
+msgid "Choose a verified role in Settings first."
+msgstr "请先在设置中选择一个已验证身份组。"
+
+msgid "The verified role no longer exists. Choose another in Settings."
+msgstr "已验证身份组已不存在。请在设置中重新选择一个。"
+
+msgid "That didn't go through. Try again in a minute."
+msgstr "没有成功提交。请稍后重试。"
+
+#, python-format
+msgid "You can count again after %(when)s."
+msgstr "你可以在 %(when)s 之后重新计数。"
+
+#, python-format
+msgid "%(count)s member given the role so far"
+msgid_plural "%(count)s members given the role so far"
+msgstr[0] "目前已有 %(count)s 名成员获得了该身份组"
+
+#, python-format
+msgid "Last checked %(when)s."
+msgstr "上次检查时间：%(when)s。"
+
+#, python-format
+msgid "%(count)s member was given the verified role before it stopped."
+msgid_plural "%(count)s members were given the verified role before it stopped."
+msgstr[0] "在停止之前，已有 %(count)s 名成员获得了已验证身份组。"
+
+#, python-format
+msgid "%(count)s member can be verified now"
+msgid_plural "%(count)s members can be verified now"
+msgstr[0] "%(count)s 名成员现在可以被验证"
+
+#, python-format
+msgid "%(count)s member already has the verified role"
+msgid_plural "%(count)s members already have the verified role"
+msgstr[0] "%(count)s 名成员已经拥有已验证身份组"
+
+#, python-format
+msgid "%(count)s member is linked to VRChat but not 18+ verified"
+msgid_plural "%(count)s members are linked to VRChat but not 18+ verified"
+msgstr[0] "%(count)s 名成员已关联 VRChat，但尚未通过 18+ 验证"
+
+msgid ""
+"They can press Begin Verification on the instructions panel to be checked"
+" again."
+msgstr "他们可以在说明面板上按下「开始验证」，重新接受检查。"
+
+#, python-format
+msgid "%(count)s member hasn't verified with VRCVerify yet"
+msgid_plural "%(count)s members haven't verified with VRCVerify yet"
+msgstr[0] "%(count)s 名成员尚未通过 VRCVerify 验证"
+
+msgid ""
+"Nobody can do this step for them: they verify once, with the instructions"
+" panel, and every server using VRCVerify recognizes them after that."
+msgstr "没有人能替他们完成这一步：他们只需通过说明面板验证一次，之后使用 VRCVerify 的每个服务器都会认出他们。"
+
+#, python-format
+msgid "Done. %(count)s member was given the verified role."
+msgid_plural "Done. %(count)s members were given the verified role."
+msgstr[0] "完成。%(count)s 名成员获得了已验证身份组。"
+
+#, python-format
+msgid "%(count)s member couldn't be updated and can still verify with the panel."
+msgid_plural "%(count)s members couldn't be updated and can still verify with the panel."
+msgstr[0] "%(count)s 名成员未能更新，但仍可以通过面板完成验证。"
+
+#, python-format
+msgid "You can verify members again after %(when)s."
+msgstr "你可以在 %(when)s 之后重新验证成员。"
+
+#, python-format
+msgid "Give %(count)s member the verified role"
+msgid_plural "Give %(count)s members the verified role"
+msgstr[0] "给 %(count)s 名成员授予已验证身份组"
 
 msgid "Working"
 msgstr "正常运行"
@@ -1219,6 +1363,15 @@ msgstr "谁可以批准或拒绝加入申请"
 msgid "VRChat group setup check"
 msgstr "VRChat 群组设置检查"
 
+msgid "Verify existing members"
+msgstr "验证现有成员"
+
+msgid "finished"
+msgstr "已完成"
+
+msgid "stopped early"
+msgstr "提前停止"
+
 msgid "posted in"
 msgstr "发布于"
 
@@ -1237,6 +1390,10 @@ msgstr "ID %(id)s"
 
 msgid "not set"
 msgstr "未设置"
+
+#, python-format
+msgid "verified role given: %(count)s"
+msgstr "已授予已验证身份组：%(count)s"
 
 #, python-format
 msgid "role %(id)s"
@@ -1579,6 +1736,59 @@ msgstr "查看套餐并订阅"
 msgid "Dismiss"
 msgstr "忽略"
 
+msgid "Couldn't check this just now. Try again shortly."
+msgstr "刚才无法检查这一项。请稍后重试。"
+
+msgid ""
+"Give the verified role to members who have already verified with "
+"VRCVerify, here or in any other server, without asking them to do "
+"anything. Start by counting who that is. Counting changes nothing."
+msgstr ""
+"把已验证身份组授予已经通过 VRCVerify "
+"验证过的成员，无论是在这里还是在其他任何服务器，都不需要他们做任何事。先从计数开始，看看有哪些人符合条件。计数不会改变任何东西。"
+
+msgid ""
+"It can only find people who have verified with VRCVerify before. Everyone"
+" else still verifies with the instructions panel."
+msgstr "它只能找到之前已经通过 VRCVerify 验证过的人。其他人仍然需要通过说明面板完成验证。"
+
+msgid "Counting members…"
+msgstr "正在计数成员…"
+
+msgid "Giving members the verified role…"
+msgstr "正在给成员授予已验证身份组…"
+
+#, python-format
+msgid "%(checked)s of %(total)s checked"
+msgstr "已检查 %(checked)s / %(total)s"
+
+msgid ""
+"This page refreshes itself until it's done. You can leave it; the work "
+"carries on without you."
+msgstr "本页面会自动刷新，直到完成为止。你可以离开这里，工作会在后台继续进行。"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid ""
+"Giving them the role is part of Premium. They won't be messaged, and "
+"nobody has to do anything."
+msgstr "给他们授予身份组是 Premium 功能的一部分。不会给他们发消息，也不需要他们做任何事。"
+
+msgid "This includes anyone whose verified role was removed by hand."
+msgstr "这也包括已验证身份组曾被手动移除的成员。"
+
+msgid "Count members"
+msgstr "计数成员"
+
+msgid "Count again"
+msgstr "重新计数"
+
+msgid ""
+"Nobody is messaged about it. Members who left or joined since the count "
+"are checked again as it goes."
+msgstr "不会给任何人发消息。计数之后退出或加入的成员，会在过程中被重新检查。"
+
 # | msgid "A verification log channel"
 # | msgid "Verification"
 msgid "Verifications"
@@ -1787,6 +1997,11 @@ msgstr "在 Discord 活动中显示你的 VRChat 群组日历，并附加入链�
 
 msgid "Your VRChat group's join requests in Discord, with Approve and Deny"
 msgstr "在 Discord 中处理你的 VRChat 群组加入申请，支持批准和拒绝"
+
+msgid ""
+"Give the verified role to members already verified with VRCVerify, all at"
+" once"
+msgstr "一次性把已验证身份组授予已通过 VRCVerify 验证的成员"
 
 # | msgid "Not applied"
 msgid "Not included"

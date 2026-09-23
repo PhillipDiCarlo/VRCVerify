@@ -246,6 +246,7 @@ def make_overview(
     configured=None,
     premium=False,
     grandfathered=False,
+    backfill=None,
 ):
     """A payload shaped exactly like read_dashboard_overview returns.
 
@@ -301,6 +302,57 @@ def make_overview(
             if configured is None
             else configured
         ),
+        # Hidden unless a test asks for it, which is what every server outside
+        # the preview allowlist is sent (#292). See make_backfill.
+        "backfill": {"available": False} if backfill is None else backfill,
+    }
+
+
+def make_backfill(
+    state=None,
+    kind="count",
+    eligible=1204,
+    has_role=380,
+    linked_unverified=61,
+    unknown=3167,
+    granted=0,
+    failed=0,
+    scanned=4812,
+    member_count=4812,
+    error=None,
+    can_apply=True,
+    count_blocker=None,
+    apply_blocker=None,
+    count_available_at=None,
+    apply_available_at=None,
+):
+    """The Overview's "verify existing members" card, shaped like
+    bot.read_member_backfill. `state=None` is a server that never ran it."""
+    run = None
+    if state is not None:
+        run = {
+            "kind": kind,
+            "state": state,
+            "error": error,
+            "scanned": scanned,
+            "has_role": has_role,
+            "eligible": eligible,
+            "linked_unverified": linked_unverified,
+            "unknown": unknown,
+            "granted": granted,
+            "failed": failed,
+            "started_at": "2026-09-23T18:00:00+00:00",
+            "finished_at": None if state == "running" else "2026-09-23T18:04:00+00:00",
+        }
+    return {
+        "available": True,
+        "can_apply": can_apply,
+        "member_count": member_count,
+        "count_blocker": count_blocker,
+        "apply_blocker": apply_blocker,
+        "run": run,
+        "count_available_at": count_available_at,
+        "apply_available_at": apply_available_at,
     }
 
 
@@ -423,6 +475,7 @@ class FakeBotAPI:
         self.saves = []
         self.panel_posts = []
         self.group_checks = []
+        self.backfill_calls = []
         self._settings = settings
         self._roles = DEFAULT_ROLES if roles is None else roles
         self._channels = DEFAULT_CHANNELS if channels is None else channels
@@ -506,6 +559,18 @@ class FakeBotAPI:
         if "verify_group" in self.errors:
             raise self.errors["verify_group"]
         return {"guild_id": str(guild_id), "group_invite": {"state": "checking"}}
+
+    def count_existing_members(self, actor_id, guild_id):
+        return self._backfill("count_existing_members", actor_id, guild_id)
+
+    def verify_existing_members(self, actor_id, guild_id):
+        return self._backfill("verify_existing_members", actor_id, guild_id)
+
+    def _backfill(self, method, actor_id, guild_id):
+        self.backfill_calls.append((method, str(actor_id), str(guild_id)))
+        if method in self.errors:
+            raise self.errors[method]
+        return make_backfill(state="running")
 
     def update_settings(self, actor_id, guild_id, changes):
         self.saves.append((str(actor_id), str(guild_id), dict(changes)))
@@ -4306,6 +4371,34 @@ class TestPostingThePanel:
         page = test_client.get(response.headers["Location"]).data.decode()
         assert leak not in page
         assert "couldn&#39;t be posted" in page
+
+
+class TestTheChangeHistoryOfMemberBackfills:
+    """An applied run of "verify existing members" (#292) is recorded as
+    (how it ended, how many got the role), not (before, after)."""
+
+    def row(self, outcome, granted):
+        return settings_view.build_audit(
+            [{
+                "field": "member_backfill",
+                "old_value": outcome,
+                "new_value": granted,
+                "actor_id": ACTOR,
+                "actor_name": "Sasha",
+                "changed_at": "2026-09-23T18:04:00+00:00",
+            }],
+            DEFAULT_ROLES,
+            DEFAULT_CHANNELS,
+        )[0]
+
+    def test_a_finished_run(self):
+        row = self.row("done", "1204")
+        assert row["label"] == "Verify existing members"
+        assert row["old"] == "finished"
+        assert row["new"] == "verified role given: 1204"
+
+    def test_a_run_that_stopped(self):
+        assert self.row("failed", "12")["old"] == "stopped early"
 
 
 class TestTheChangeHistoryOfPanelActions:
@@ -8543,6 +8636,11 @@ class TestWriteSurface:
             # Sends no body at all: the group it checks comes from the guild's
             # stored settings on the bot's side, never from this form.
             "/guild/<int:guild_id>/group/verify",
+            # Verifying existing members (#292): count, then apply. Neither
+            # sends anything but the CSRF token; the role and the members are
+            # the bot's to decide.
+            "/guild/<int:guild_id>/members/count",
+            "/guild/<int:guild_id>/members/verify",
             # Writes a cookie and nothing else. It is in this list because the
             # list is meant to be complete, not because it reaches the bot --
             # test_the_nav_preference_never_reaches_the_bot pins that it does
@@ -11321,3 +11419,160 @@ class TestJoinRequestCard:
         )
         assert rows[0]["label"] == "Who can approve or deny join requests"
         assert rows[0]["new"] == "Verified, Unverified"
+
+
+# -------------------------------------------------------------------
+# Verify existing members (#292)
+# -------------------------------------------------------------------
+class TestVerifyExistingMembers:
+    """The Overview card. What it says is overview_view's; these pin that the
+    page shows it, that the two buttons carry nothing but the CSRF token, and
+    that a refusal comes back as our words."""
+
+    def logged_in(self, config, store, backfill=None, premium=False, **kwargs):
+        overview = make_overview(backfill=backfill, premium=premium)
+        api = FakeBotAPI(overview=overview, **kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        session = login_as(test_client, store)
+        return test_client, api, session
+
+    def overview_page(self, test_client):
+        return test_client.get(f"/guild/{GUILD_IN}").data.decode()
+
+    def test_hidden_when_the_bot_says_unavailable(self, config, store):
+        test_client, _api, _session = self.logged_in(config, store)
+        assert 'id="existing-members"' not in self.overview_page(test_client)
+
+    def test_a_server_that_never_ran_it_is_offered_a_count(self, config, store):
+        test_client, _api, _session = self.logged_in(config, store, backfill=make_backfill())
+        page = self.overview_page(test_client)
+        assert "Verify existing members" in page
+        assert "Count members" in page
+        assert f"/guild/{GUILD_IN}/members/count" in page
+        assert f"/guild/{GUILD_IN}/members/verify" not in page
+        # Says plainly that it can only find people already verified.
+        assert "It can only find people who have verified with VRCVerify before" in page
+
+    def test_a_premium_server_is_offered_the_number_it_counted(self, config, store):
+        test_client, _api, _session = self.logged_in(
+            config, store, backfill=make_backfill(state="done"), premium=True
+        )
+        page = self.overview_page(test_client)
+        assert "1,204 members can be verified now" in page
+        assert "Give 1,204 members the verified role" in page
+        assert f"/guild/{GUILD_IN}/members/verify" in page
+        # Said before the click: a role removed by hand comes back too.
+        assert "whose verified role was removed by hand" in page
+
+    def test_a_free_server_sees_its_own_number_and_the_one_pitch(self, config, store):
+        test_client, _api, _session = self.logged_in(
+            config, store, backfill=make_backfill(state="done", can_apply=False)
+        )
+        page = self.overview_page(test_client)
+        assert "1,204 members can be verified now" in page
+        assert "Giving them the role is part of Premium" in page
+        assert f"/guild/{GUILD_IN}/members/verify" not in page
+        # The next-step card would otherwise be a second pitch on the page.
+        assert page.count("See plans and subscribe") == 1
+
+    def test_a_running_count_refreshes_the_page(self, config, store):
+        test_client, _api, _session = self.logged_in(
+            config, store, backfill=make_backfill(state="running", scanned=2406)
+        )
+        page = self.overview_page(test_client)
+        assert "Counting members" in page
+        assert '<meta http-equiv="refresh"' in page
+        assert '<progress class="backfill-progress" max="100" value="50">' in page
+
+    def test_a_finished_page_does_not_refresh(self, config, store):
+        test_client, _api, _session = self.logged_in(
+            config, store, backfill=make_backfill(state="done")
+        )
+        assert 'http-equiv="refresh"' not in self.overview_page(test_client)
+
+    def test_a_finished_apply_reports_what_it_did(self, config, store):
+        test_client, _api, _session = self.logged_in(
+            config, store,
+            backfill=make_backfill(state="done", kind="apply", granted=1203, failed=1),
+            premium=True,
+        )
+        page = self.overview_page(test_client)
+        assert "Done. 1,203 members were given the verified role." in page
+        assert "1 member couldn&#39;t be updated" in page
+        assert "can be verified now" not in page
+
+    def test_a_blocker_is_explained_instead_of_offered(self, config, store):
+        test_client, _api, _session = self.logged_in(
+            config, store,
+            backfill=make_backfill(state="done", apply_blocker="role_too_high"),
+            premium=True,
+        )
+        page = self.overview_page(test_client)
+        assert "Move VRCVerify&#39;s role above the verified role" in page
+        assert f"/guild/{GUILD_IN}/members/verify" not in page
+
+    def test_the_count_button_asks_the_bot_and_nothing_else(self, config, store):
+        test_client, api, session = self.logged_in(config, store, backfill=make_backfill())
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/members/count",
+            data={"csrf_token": session.csrf_token, "role_id": "999"},
+        )
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("#existing-members")
+        assert api.backfill_calls == [("count_existing_members", ACTOR, GUILD_IN)]
+
+    def test_the_apply_button_asks_the_bot(self, config, store):
+        test_client, api, session = self.logged_in(config, store, backfill=make_backfill())
+        test_client.post(
+            f"/guild/{GUILD_IN}/members/verify", data={"csrf_token": session.csrf_token}
+        )
+        assert api.backfill_calls == [("verify_existing_members", ACTOR, GUILD_IN)]
+
+    def test_a_missing_csrf_token_is_refused(self, config, store):
+        test_client, api, _session = self.logged_in(config, store, backfill=make_backfill())
+        for path in ("count", "verify"):
+            response = test_client.post(f"/guild/{GUILD_IN}/members/{path}", data={})
+            assert response.status_code == 400
+        assert api.backfill_calls == []
+
+    def test_a_refusal_becomes_our_copy(self, config, store):
+        test_client, _api, session = self.logged_in(
+            config, store, backfill=make_backfill(state="done"), premium=True,
+            errors={"verify_existing_members": BotAPIError("cooldown", 400)},
+        )
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/members/verify", data={"csrf_token": session.csrf_token}
+        )
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "can&#39;t run again yet" in page
+
+    def test_an_unknown_refusal_is_not_echoed(self, config, store):
+        test_client, _api, session = self.logged_in(
+            config, store, backfill=make_backfill(state="done"),
+            errors={"count_existing_members": BotAPIError("<script>", 400)},
+        )
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/members/count", data={"csrf_token": session.csrf_token}
+        )
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "&lt;script&gt;" not in page and "<script>" not in page.split("</head>")[1]
+        assert "didn&#39;t go through" in page
+
+    def test_no_verified_role_means_no_card(self):
+        """The setup checklist already says to choose a role."""
+        for blocker in ("no_role", "role_missing"):
+            payload = make_overview(backfill=make_backfill(count_blocker=blocker))
+            assert overview_view.build_backfill(payload) is None
+
+    def test_a_failed_read_says_so(self):
+        payload = make_overview()
+        payload["backfill"] = None
+        assert overview_view.build_backfill(payload)["state"] == "unknown"
+
+    def test_a_count_that_cannot_start_says_why(self):
+        payload = make_overview(backfill=make_backfill(count_blocker="guild_unavailable"))
+        card = overview_view.build_backfill(payload)
+        assert card["can_count"] is False
+        assert "couldn't check its permissions" in card["problem"]

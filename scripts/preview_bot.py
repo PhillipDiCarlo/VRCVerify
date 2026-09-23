@@ -60,6 +60,7 @@ try:
         LOG_CHANNEL,
         VERIFIED_ROLE,
         WRITABLE,
+        make_backfill,
         make_overview,
         make_settings,
     )
@@ -218,6 +219,30 @@ _JOIN_REQUEST_STATES = {
     "channel": (True, LOG_CHANNEL, [VERIFIED_ROLE], dict(
         state="channel_unusable", error="Missing Permissions",
     )),
+}
+
+# Verifying existing members (#292), on every server's Overview. The premium
+# server may apply; the others see the pitch.
+#
+#   PREVIEW_BACKFILL=idle        never run
+#   PREVIEW_BACKFILL=counting    a count halfway through
+#   PREVIEW_BACKFILL=counted     counted, with members to verify
+#   PREVIEW_BACKFILL=applying    giving the role, halfway through
+#   PREVIEW_BACKFILL=applied     done, one member could not be updated
+#   PREVIEW_BACKFILL=failed      stopped by Discord refusing a role edit
+#   PREVIEW_BACKFILL=blocked     counted, but the role is above the bot's
+#   PREVIEW_BACKFILL=cooldown    counted again inside the apply cooldown
+PREVIEW_BACKFILL = os.environ.get("PREVIEW_BACKFILL", "")
+
+_BACKFILL_STATES = {
+    "idle": dict(),
+    "counting": dict(state="running", scanned=2406),
+    "counted": dict(state="done", count_available_at="2099-01-01T00:00:00+00:00"),
+    "applying": dict(state="running", kind="apply", scanned=2406, granted=603),
+    "applied": dict(state="done", kind="apply", granted=1203, failed=1, eligible=1204),
+    "failed": dict(state="failed", kind="apply", error="forbidden", granted=12),
+    "blocked": dict(state="done", apply_blocker="role_too_high"),
+    "cooldown": dict(state="done", apply_available_at="2099-01-01T00:00:00+00:00"),
 }
 
 _PREVIEW_GROUP_ID = "grp_0e1d4755-2f87-4129-a192-5587068cbf73"
@@ -462,6 +487,10 @@ class PreviewBotAPI:
         guild_id = self._check(guild_id)
         payload = make_overview(premium=guild_id == PREMIUM)
         payload["guild_id"] = guild_id
+        if PREVIEW_BACKFILL in _BACKFILL_STATES:
+            payload["backfill"] = make_backfill(
+                can_apply=guild_id == PREMIUM, **_BACKFILL_STATES[PREVIEW_BACKFILL]
+            )
         # THE SAME OVERRIDES `guild_summaries` APPLIES, because the two are
         # answers to the same question and the preview was letting them
         # disagree: the picker drew the free server as "Setup isn't finished"
@@ -486,6 +515,14 @@ class PreviewBotAPI:
             payload["configured"]["bot_can_manage_roles"] = False
             payload["configured"]["verified_role_assignable"] = False
         return payload
+
+    def count_existing_members(self, actor_id, guild_id) -> dict:
+        self._check(guild_id)
+        return make_backfill(state="running")
+
+    def verify_existing_members(self, actor_id, guild_id) -> dict:
+        self._check(guild_id)
+        return make_backfill(state="running", kind="apply")
 
     def roles(self, actor_id, guild_id) -> list:
         self._check(guild_id)
