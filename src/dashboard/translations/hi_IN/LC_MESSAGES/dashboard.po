@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-24 14:56-0400\n"
+"POT-Creation-Date: 2026-09-24 15:27-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: hi_IN\n"
@@ -36,12 +36,9 @@ msgstr "यह साइन-इन लिंक समाप्त हो चु
 msgid "That login could not be verified. Please try again."
 msgstr "इस साइन-इन को सत्यापित नहीं किया जा सका। फिर से कोशिश करें।"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
 msgid "Discord could not complete the login. Please try again."
 msgstr "Discord साइन-इन पूरा नहीं कर सका। फिर से कोशिश करें।"
 
-# | msgid "Page not found."
 msgid "Page not found"
 msgstr "पेज नहीं मिला"
 
@@ -52,7 +49,6 @@ msgstr ""
 "इस पते से यहाँ कुछ भी मेल नहीं खाता। शायद टाइप करने में ग़लती हुई हो, या "
 "यह किसी ऐसी चीज़ का लिंक हो जो अब हट चुकी है।"
 
-# | msgid "Something went wrong."
 msgid "Something went wrong"
 msgstr "कुछ ग़लत हो गया"
 
@@ -282,20 +278,16 @@ msgstr ""
 msgid "Overview"
 msgstr "अवलोकन"
 
-# | msgid "Sections"
 msgid "Settings"
 msgstr "सेटिंग्स"
 
 msgid "Subscriptions"
 msgstr "सदस्यताएँ"
 
-# | msgid "That group ID wasn't usable"
 msgid "That server isn't available"
 msgstr "वह सर्वर उपलब्ध नहीं है"
 
-# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
 # you
-# | don't " "have the Administrator permission there."
 msgid ""
 "Either VRCVerify isn't in it, or you don't have the Administrator "
 "permission there."
@@ -306,9 +298,6 @@ msgstr ""
 msgid "Can't reach the bot"
 msgstr "बॉट से संपर्क नहीं हो पा रहा"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
-# | msgid "The bot didn't answer this one. Try again shortly."
 msgid ""
 "This page needs the bot to answer and it isn't answering right now. "
 "Nothing has changed. Try again shortly."
@@ -319,9 +308,25 @@ msgstr ""
 msgid "Premium"
 msgstr "Premium"
 
-# | msgid "Renews"
 msgid "New"
 msgstr "वेबसाइट अब आपकी भाषा बोलती है"
+
+msgid "A Linked role, for servers that aren't only 18+"
+msgstr "लिंक की गई भूमिका, उन सर्वरों के लिए जो सिर्फ़ 18+ नहीं हैं"
+
+msgid ""
+"You can now give a Linked role to every member who links their VRChat "
+"account, whether or not VRChat shows them as 18+. Your 18+ role still "
+"goes only to members VRChat has age verified, and they get both. Set it "
+"under Settings, Verification. With Premium, your VRChat group invites can"
+" also go to any linked member, not only 18+ ones."
+msgstr ""
+"अब आप हर उस सदस्य को लिंक की गई भूमिका दे सकते हैं जो अपना VRChat खाता "
+"लिंक करता है, चाहे VRChat उसे 18+ दिखाए या नहीं। आपकी 18+ भूमिका अब भी "
+"सिर्फ़ उन सदस्यों को मिलती है जिनकी उम्र VRChat ने सत्यापित की है, और "
+"उन्हें दोनों मिलती हैं। इसे सेटिंग्स, वेरिफ़िकेशन में सेट करें। Premium "
+"के साथ, आपके VRChat ग्रुप के आमंत्रण किसी भी लिंक किए गए सदस्य को भी जा "
+"सकते हैं, सिर्फ़ 18+ सदस्यों को नहीं।"
 
 msgid "Verify the members you already have"
 msgstr "अपने मौजूदा सदस्यों को वेरिफ़ाई करें"
@@ -339,7 +344,6 @@ msgstr ""
 "अवलोकन पर पाएँ: कौन वेरिफ़ाई हो सकता है यह गिनना मुफ़्त है, और उन्हें "
 "भूमिका देना Premium का हिस्सा है।"
 
-# | msgid "Premium"
 msgid "See Premium"
 msgstr "Premium देखें"
 
@@ -396,7 +400,6 @@ msgstr ""
 "सर्वर की मौजूदा भाषा में। बदला गया पैनल अपने चैनल में सबसे नीचे दिखता है,"
 " और पुराने पैनल का कोई भी लिंक अब काम नहीं करता।"
 
-# | msgid "The status page speaks your language"
 msgid "The website speaks your language"
 msgstr "स्थिति पेज अब आपकी भाषा बोलता है"
 
@@ -433,15 +436,9 @@ msgstr ""
 msgid "VRCVerify has a new look"
 msgstr "VRCVerify का नया रूप"
 
-# | msgid "" "Your server list is now a grid of tiles you can search, pin and
-# | open with" " a single click anywhere on the card, and each one says
 # whether
-# | that " "server is on Premium. Setup has moved to the top of a server's
-# | Overview " "with a progress bar, and retires itself once everything
 # required
-# | is done." " Settings puts each control directly under its own label, and
 # the
-# | pricing" " page is one comparison you can read across."
 msgid ""
 "The dashboard, the website and the status page have been rebuilt on one "
 "design. Your server list is now a grid of tiles you can search, pin and "
@@ -461,7 +458,6 @@ msgstr ""
 "का पन्ना एक ही तुलना है जिसे आर-पार पढ़ा जा सकता है। और स्टेटस पेज पर जो "
 "गड़बड़ हुआ वह अब जो काम कर रहा है उसके नीचे नहीं, बल्कि बगल में दिखता है।"
 
-# | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
 msgstr "आपके निर्देश पैनल पर वेबसाइट लिंक"
 
@@ -480,7 +476,6 @@ msgstr ""
 "रिफ़्रेश होने पर अपडेट हो जाएंगे। इससे पुराने पैनल Discord संपादित करने "
 "ही नहीं देता, इसलिए उन्हें रिफ़्रेश करने के बजाय बदल दिया जाता है।"
 
-# | msgid "The verified role needs attention"
 msgid "See which servers need attention"
 msgstr "देखें किन सर्वरों पर ध्यान चाहिए"
 
@@ -510,7 +505,6 @@ msgstr ""
 "जबकि हर वेरिफ़िकेशन चुपचाप भूमिका देने में विफल हो रहा था। अब अवलोकन और "
 "भूमिका चयनकर्ता दोनों यह बताते हैं, और कहाँ ठीक करना है यह भी।"
 
-# | msgid "Couldn't check whether VRCVerify can manage this role."
 msgid "Check whether VRCVerify is working"
 msgstr "देखें कि VRCVerify काम कर रहा है या नहीं"
 
@@ -525,9 +519,6 @@ msgstr ""
 " 90 दिनों के इतिहास के साथ, और बाकी सब बंद होने पर भी यह बताता है। हेडर "
 "में स्टेटस लिंक देखें।"
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
-# | msgid "Verification log"
 msgid "See how verification is going"
 msgstr "देखें कि वेरिफ़िकेशन कैसा चल रहा है"
 
@@ -584,11 +575,9 @@ msgstr "आपके प्लान में नया: %(title)s"
 msgid "%(body)s It's included in your subscription."
 msgstr "%(body)s यह आपकी सदस्यता में शामिल है।"
 
-# | msgid "Setup"
 msgid "Set it up"
 msgstr "इसे सेट करें"
 
-# | msgid "Your grandfathered extras stay free whatever you decide."
 #, python-format
 msgid "Your grandfathered extras stay free whatever you decide. %(body)s"
 msgstr "आपकी पुरानी सुविधाएँ मुफ़्त ही रहेंगी, आप जो भी तय करें। %(body)s"
@@ -622,8 +611,6 @@ msgstr "केवल %(date)s से गिना जा रहा है।"
 msgid "Members"
 msgstr "सदस्य"
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
 msgid "Verified, all time"
 msgstr "कुल वेरिफ़ाइड"
 
@@ -645,17 +632,12 @@ msgstr "अन-वेरिफ़ाइड भूमिका"
 msgid "Optional. Removed once someone verifies."
 msgstr "वैकल्पिक। कोई वेरिफ़ाई होते ही हट जाती है।"
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
 msgid "Verification log"
 msgstr "वेरिफ़िकेशन लॉग"
 
-# | msgid "Optional. Premium."
 msgid "Optional."
 msgstr "वैकल्पिक।"
 
-# | msgid "Sections"
-# | msgid "Settings"
 msgid "Go to Settings"
 msgstr "सेटिंग्स पर जाएँ"
 
@@ -694,7 +676,6 @@ msgstr "दोनों सेट हैं, और VRCVerify इन्हें
 msgid "Set, and VRCVerify can grant it."
 msgstr "सेट है, और VRCVerify इसे दे सकता है।"
 
-# | msgid "A branded instructions panel"
 msgid "Instructions panel"
 msgstr "निर्देश पैनल"
 
@@ -897,19 +878,15 @@ msgstr[1] "%(count)s सदस्यों को वेरिफ़ाइड �
 msgid "Working"
 msgstr "चालू है"
 
-# | msgid "Setup isn't finished"
 msgid "Setup unfinished"
 msgstr "सेटअप अधूरा"
 
-# | msgid "needs attention"
 msgid "Needs attention"
 msgstr "ध्यान चाहिए"
 
-# | msgid "not set"
 msgid "Not set up"
 msgstr "सेट नहीं है"
 
-# | msgid "Couldn't check"
 msgid "Can't check"
 msgstr "जाँच नहीं हो सकी"
 
@@ -919,7 +896,6 @@ msgstr "सेट है और काम कर रहा है"
 msgid "Setup isn't finished"
 msgstr "सेटअप पूरा नहीं हुआ"
 
-# | msgid "Something went wrong."
 msgid "Something isn't working"
 msgstr "कुछ काम नहीं कर रहा"
 
@@ -929,7 +905,6 @@ msgstr "यहाँ सेट नहीं है, या आपके प्�
 msgid "Can't check this server right now"
 msgstr "अभी इस सर्वर की जाँच नहीं हो सकती"
 
-# | msgid "A verification log channel"
 msgid "Verification"
 msgstr "वेरिफ़िकेशन"
 
@@ -942,7 +917,6 @@ msgstr "VRChat ग्रुप"
 msgid "Logging"
 msgstr "लॉगिंग"
 
-# | msgid "Active"
 msgid "Activity"
 msgstr "गतिविधि"
 
@@ -1066,7 +1040,6 @@ msgstr "चालू"
 msgid "Off"
 msgstr "बंद"
 
-# | msgid "Nickname syncing"
 msgid "Nickname sync"
 msgstr "उपनाम सिंक"
 
@@ -1154,8 +1127,6 @@ msgstr "जाँच भेजी गई थी पर कुछ वापस �
 msgid "Couldn't start the check"
 msgstr "जाँच शुरू नहीं हो सकी"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
 msgid ""
 "The bot couldn't reach the part of itself that talks to VRChat. Try again"
 " shortly."
@@ -1221,7 +1192,6 @@ msgstr ""
 "नीचे दिया कोड अपने VRChat ग्रुप के विवरण में कहीं भी चिपकाएँ, फिर जाँच "
 "दोबारा चलाएँ। जाँच पास होते ही आप इसे हटा सकते हैं।"
 
-# | msgid "VRChat group"
 msgid "No VRChat group with that ID"
 msgstr "उस ID वाला कोई VRChat ग्रुप नहीं है"
 
@@ -1616,7 +1586,6 @@ msgstr ""
 msgid "Using the default message"
 msgstr "डिफ़ॉल्ट संदेश इस्तेमाल हो रहा है"
 
-# | msgid "A custom post-verification message"
 msgid "Custom verification message"
 msgstr "अपना वेरिफ़िकेशन संदेश"
 
@@ -1638,14 +1607,12 @@ msgstr "निर्देश पैनल और सदस्यों को �
 msgid "Panel color"
 msgstr "पैनल का रंग"
 
-# | msgid "A branded instructions panel"
 msgid "The color bar down the side of the instructions panel."
 msgstr "निर्देश पैनल के किनारे की रंगीन पट्टी।"
 
 msgid "Default blue"
 msgstr "डिफ़ॉल्ट नीला"
 
-# | msgid "A verification log channel"
 msgid "Server icon on the panel"
 msgstr "पैनल पर सर्वर आइकन"
 
@@ -1661,8 +1628,6 @@ msgstr "छिपाया गया"
 msgid "This channel no longer exists in the server."
 msgstr "यह चैनल अब सर्वर में नहीं है।"
 
-# | msgid "" "Verification logs can't go in an announcement channel -- other
-# | servers " "can follow one, which would republish your members' age
 # status."
 msgid ""
 "This is an announcement channel. Other servers can follow it, which would"
@@ -1673,14 +1638,12 @@ msgstr ""
 "सदस्यों की आयु-स्थिति दोबारा प्रकाशित हो जाएगी। VRCVerify यहाँ लॉग नहीं "
 "करेगा।"
 
-# | msgid "A verification log channel"
 msgid "Verification log channel"
 msgstr "वेरिफ़िकेशन लॉग चैनल"
 
 msgid "Every verification attempt, including the ones that fail silently."
 msgstr "हर वेरिफ़िकेशन प्रयास, वे भी जो चुपचाप विफल होते हैं।"
 
-# | msgid "VRChat group"
 msgid "VRChat group invites"
 msgstr "VRChat ग्रुप निमंत्रण"
 
@@ -1690,7 +1653,6 @@ msgstr "शामिल होने के अनुरोधों का च�
 msgid "Who can approve or deny join requests"
 msgstr "कौन शामिल होने के अनुरोध स्वीकार या अस्वीकार कर सकता है"
 
-# | msgid "VRChat group"
 msgid "VRChat group setup check"
 msgstr "VRChat ग्रुप सेटअप जाँच"
 
@@ -1771,11 +1733,8 @@ msgstr ""
 "जिस चैनल में यह पैनल पोस्ट हुआ था वह अब मौजूद नहीं है, इसलिए सदस्यों के "
 "पास वेरिफ़ाई शुरू करने का कोई रास्ता नहीं है।"
 
-# | msgid "" "VRCVerify can't post the panel in that channel. It needs both
 # Send
-# | " "Messages and Embed Links there -- Embed Links is the one that's usually
 # "
-# | "missing, because the panel is an embed."
 msgid ""
 "VRCVerify can't post a new message in that channel — it needs both Send "
 "Messages and Embed Links there. The panel still works and can still be "
@@ -1881,7 +1840,6 @@ msgstr ""
 "यह सर्वर Premium शुरू होने से पहले सेट किया गया था, इसलिए इसे कई सुविधाएँ"
 " हमेशा के लिए मुफ़्त मिलती रहती हैं।"
 
-# | msgid "Core 18+ verification is free, forever."
 msgid "18+ verification is free on this server, and always will be."
 msgstr "इस सर्वर पर 18+ वेरिफ़िकेशन मुफ़्त है, और हमेशा रहेगा।"
 
@@ -1900,7 +1858,6 @@ msgstr ""
 "इस वेबसाइट से बदली गई सेटिंग्स। Discord में स्लैश कमांड से किए गए बदलाव "
 "यहाँ नहीं दिखते।"
 
-# | msgid "The panel couldn't be posted just now. Try again shortly."
 msgid "Couldn't load the history just now. Try again shortly."
 msgstr "इतिहास अभी लोड नहीं हो सका। थोड़ी देर बाद फिर कोशिश करें।"
 
@@ -1998,7 +1955,6 @@ msgid ""
 "Inc."
 msgstr "VRChat Inc. या Discord Inc. से न कोई संबंध है, न उनका समर्थन या प्रायोजन।"
 
-# | msgid "Pricing · VRCVerify"
 msgid "What's new · VRCVerify"
 msgstr "नया क्या है · VRCVerify"
 
@@ -2025,7 +1981,6 @@ msgstr ""
 "अनाउंसमेंट चैनल फ़ॉलो करें — यहाँ का हर अपडेट वहाँ पोस्ट होता है, और "
 "Discord उसे आपकी चुनी किसी भी चैनल में भेज देता है।"
 
-# | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "अपने सर्वरों पर वापस"
 
@@ -2059,7 +2014,6 @@ msgstr ""
 "यह साइट <strong>यह नहीं देख सकती कि किसने वेरिफ़ाई किया</strong> — सिर्फ़"
 " आपके सर्वर की सेटिंग्स देख सकती है।"
 
-# | msgid "Buy inside Discord"
 msgid "Sign in with Discord"
 msgstr "Discord से साइन इन करें"
 
@@ -2172,8 +2126,6 @@ msgstr ""
 "इसके बारे में किसी को संदेश नहीं भेजा जाता। गिनती के बाद जो सदस्य छोड़ गए"
 " या जुड़े हैं, उन्हें आगे बढ़ते हुए दोबारा जाँचा जाता है।"
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
 msgid "Verifications"
 msgstr "वेरिफ़िकेशन"
 
@@ -2184,7 +2136,6 @@ msgstr ""
 "इस सर्वर में कितने सदस्यों ने 18+ वेरिफ़िकेशन पूरा किया। सिर्फ़ गिनती — "
 "VRCVerify यह रिकॉर्ड नहीं रखता कि किसने कब वेरिफ़ाई किया।"
 
-# | msgid "The panel couldn't be posted just now. Try again shortly."
 msgid "Couldn't load this server's numbers just now. Try again shortly."
 msgstr "इस सर्वर के आँकड़े अभी लोड नहीं हो सके। थोड़ी देर बाद फिर कोशिश करें।"
 
@@ -2223,11 +2174,9 @@ msgstr "%(name)s पिन करें"
 msgid "Upgrade"
 msgstr "अपग्रेड"
 
-# | msgid "Add to your server"
 msgid "Add to server"
 msgstr "सर्वर में जोड़ें"
 
-# | msgid "Add to your server"
 msgid "Your servers"
 msgstr "आपके सर्वर"
 
@@ -2245,33 +2194,25 @@ msgstr ""
 "किन सर्वरों में है। आपकी सेटिंग्स सुरक्षित हैं — यहाँ कुछ नहीं बदला। "
 "थोड़ी देर बाद फिर कोशिश करें।"
 
-# | msgid "Add to your server"
-# | msgid "Your servers"
 msgid "Search your servers"
 msgstr "अपने सर्वर खोजें"
 
-# | msgid "Per server"
 msgid "Search servers"
 msgstr "सर्वर खोजें"
 
 msgid "Search"
 msgstr "खोजें"
 
-# | msgid "Add to your server"
-# | msgid "Your servers"
 #, python-format
 msgid "%(count)s server"
 msgid_plural "%(count)s servers"
 msgstr[0] "%(count)s सर्वर"
 msgstr[1] "%(count)s सर्वर"
 
-# | msgid "Premium"
-# | msgid "See Premium"
 #, python-format
 msgid "%(count)s Premium"
 msgstr "%(count)s पर Premium"
 
-# | msgid "No servers to show"
 msgid "No servers match that"
 msgstr "कोई सर्वर मेल नहीं खाता"
 
@@ -2279,8 +2220,6 @@ msgstr "कोई सर्वर मेल नहीं खाता"
 msgid "Nothing in your list is called “%(q)s”."
 msgstr "आपकी सूची में “%(q)s” नाम का कुछ नहीं है।"
 
-# | msgid "Add to your server"
-# | msgid "Your servers"
 msgid "Show all your servers"
 msgstr "अपने सारे सर्वर दिखाएँ"
 
@@ -2302,14 +2241,12 @@ msgstr "साइन आउट करके फिर से शुरू कर
 msgid "You'll be asked to sign in with Discord again."
 msgstr "आपसे दोबारा Discord से साइन इन करने को कहा जाएगा।"
 
-# | msgid "None"
 msgid "Pinned"
 msgstr "पिन किए गए"
 
 msgid "Pricing · VRCVerify"
 msgstr "क़ीमतें · VRCVerify"
 
-# | msgid "Canceled"
 msgid "Included"
 msgstr "शामिल है"
 
@@ -2342,8 +2279,6 @@ msgstr "बिलिंग अवधि"
 msgid "Price unavailable"
 msgstr "क़ीमत उपलब्ध नहीं"
 
-# | msgid "" "Every plan below unlocks exactly the same features — the only
-# | difference " "is how long you pay for at once, and how much that saves."
 msgid ""
 "Per server. Every term unlocks exactly the same features — the only "
 "difference is how long you pay for at once."
@@ -2362,6 +2297,11 @@ msgstr "मुफ़्त"
 
 msgid "Verify members as 18+"
 msgstr "सदस्यों को 18+ के रूप में वेरिफ़ाई करें"
+
+msgid "A Linked role for everyone who links their VRChat account, 18+ or not"
+msgstr ""
+"हर उस व्यक्ति के लिए एक लिंक की गई भूमिका जो अपना VRChat खाता लिंक करता "
+"है, चाहे 18+ हो या नहीं"
 
 msgid "Auto-verify people who verified in another server"
 msgstr ""
@@ -2392,8 +2332,8 @@ msgstr "आपके सर्वर के रंग और आइकन वा
 msgid "A shorter verification cooldown"
 msgstr "घटा हुआ सत्यापन कूलडाउन"
 
-msgid "VRChat group invites for verified members"
-msgstr "सत्यापित सदस्यों के लिए VRChat ग्रुप आमंत्रण"
+msgid "VRChat group invites for verified or linked members"
+msgstr "सत्यापित या लिंक किए गए सदस्यों के लिए VRChat ग्रुप आमंत्रण"
 
 msgid "Your VRChat group calendar in Discord Events, with join links"
 msgstr "Discord इवेंट में आपके VRChat ग्रुप का कैलेंडर, जुड़ने के लिंक के साथ"
@@ -2410,7 +2350,6 @@ msgstr ""
 "जो सदस्य VRCVerify से पहले ही वेरिफ़ाई कर चुके हैं, उन्हें एक साथ "
 "वेरिफ़ाइड भूमिका दें"
 
-# | msgid "Not applied"
 msgid "Not included"
 msgstr "शामिल नहीं"
 
@@ -2508,8 +2447,6 @@ msgstr ""
 "इस सर्वर की भूमिकाएँ और चैनल अभी लोड नहीं हो सके, इसलिए नीचे कुछ सेटिंग्स"
 " नाम के बजाय ID दिखा रही हैं। मान ख़ुद सही हैं।"
 
-# | msgid "" "This bot's database is missing the column for that setting.
-# | Contact the " "bot operator."
 msgid ""
 "This bot's database is missing the auto-verify column, so that setting "
 "isn't in effect regardless of what it shows. Contact the bot operator."
@@ -2520,8 +2457,6 @@ msgstr ""
 msgid "Where it's posted"
 msgstr "कहाँ पोस्ट है"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
 msgid "The bot didn't answer this one. Try again shortly."
 msgstr "बॉट ने इसका जवाब नहीं दिया। थोड़ी देर बाद फिर कोशिश करें।"
 
@@ -2708,18 +2643,15 @@ msgstr ""
 msgid "Use the default blue"
 msgstr "डिफ़ॉल्ट नीला इस्तेमाल करें"
 
-# | msgid "Premium until"
 msgid "Premium only."
 msgstr "सिर्फ़ Premium में।"
 
 msgid "Your saved value is kept, and comes back if the subscription is renewed."
 msgstr "आपका सहेजा हुआ मान बना रहता है, और सदस्यता नवीनीकृत होने पर लौट आता है।"
 
-# | msgid "Premium"
 msgid "Add Premium"
 msgstr "Premium जोड़ें"
 
-# | msgid "Spanish"
 msgid "See plans"
 msgstr "प्लान देखें"
 
@@ -2780,11 +2712,9 @@ msgstr ""
 msgid "Post the panel in"
 msgstr "पैनल यहाँ पोस्ट करें"
 
-# | msgid "Post the panel in"
 msgid "Repost or move panel"
 msgstr "पैनल दोबारा पोस्ट करें या हटाएँ"
 
-# | msgid "Post the panel in"
 msgid "Post panel"
 msgstr "पैनल पोस्ट करें"
 
@@ -3039,13 +2969,9 @@ msgstr ""
 #~ msgid "The verified role needs attention"
 #~ msgstr "वेरिफ़ाइड भूमिका पर ध्यान देने की ज़रूरत है"
 
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
 #~ msgid "No instructions panel is posted"
 #~ msgstr "कोई निर्देश पैनल पोस्ट नहीं है"
 
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
 #~ msgid "The instructions panel needs attention"
 #~ msgstr "निर्देश पैनल पर ध्यान देने की ज़रूरत है"
 
@@ -3123,9 +3049,6 @@ msgstr ""
 #~ "18+ वेरिफ़िकेशन ख़ुद मुफ़्त ही रहता "
 #~ "है।"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
 #~ msgid ""
 #~ "Can't reach the bot right now, so"
 #~ " this page can't be shown. Nothing"
@@ -3142,7 +3065,6 @@ msgstr ""
 #~ msgid "Most popular"
 #~ msgstr "सबसे लोकप्रिय"
 
-# | msgid "Open the dashboard"
 #~ msgid "A new look for the dashboard"
 #~ msgstr "डैशबोर्ड का नया रूप"
 
@@ -3179,7 +3101,6 @@ msgstr ""
 #~ "पास Discord की “@everyone, @here और "
 #~ "सभी रोल मेंशन करें” अनुमति न हो।"
 
-# | msgid "Pick a verified role -- verification can't run without one."
 #~ msgid "Required — verification can't finish without one."
 #~ msgstr "ज़रूरी — इसके बिना वेरिफ़िकेशन पूरा नहीं हो सकता।"
 

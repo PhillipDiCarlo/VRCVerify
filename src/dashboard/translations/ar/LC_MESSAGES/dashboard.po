@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-24 14:56-0400\n"
+"POT-Creation-Date: 2026-09-24 15:27-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -37,12 +37,9 @@ msgstr "انتهت صلاحية رابط تسجيل الدخول هذا. حاو�
 msgid "That login could not be verified. Please try again."
 msgstr "تعذّر التحقّق من تسجيل الدخول هذا. حاول مرة أخرى."
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
 msgid "Discord could not complete the login. Please try again."
 msgstr "لم يتمكّن Discord من إتمام تسجيل الدخول. حاول مرة أخرى."
 
-# | msgid "Page not found."
 msgid "Page not found"
 msgstr "الصفحة غير موجودة"
 
@@ -53,7 +50,6 @@ msgstr ""
 "هذا العنوان لا يطابق أي شيء هنا. ربما كان خطأً في الكتابة، أو رابطًا إلى "
 "شيء انتقل منذ ذلك الحين."
 
-# | msgid "Something went wrong."
 msgid "Something went wrong"
 msgstr "حدث خطأ ما"
 
@@ -273,20 +269,16 @@ msgstr ""
 msgid "Overview"
 msgstr "نظرة عامة"
 
-# | msgid "Sections"
 msgid "Settings"
 msgstr "الإعدادات"
 
 msgid "Subscriptions"
 msgstr "الاشتراكات"
 
-# | msgid "That group ID wasn't usable"
 msgid "That server isn't available"
 msgstr "هذا الخادم غير متاح"
 
-# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
 # you
-# | don't " "have the Administrator permission there."
 msgid ""
 "Either VRCVerify isn't in it, or you don't have the Administrator "
 "permission there."
@@ -295,9 +287,6 @@ msgstr "إمّا أن VRCVerify ليس فيه، أو أنك لا تملك صلا
 msgid "Can't reach the bot"
 msgstr "تعذّر الوصول إلى البوت"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
-# | msgid "The bot didn't answer this one. Try again shortly."
 msgid ""
 "This page needs the bot to answer and it isn't answering right now. "
 "Nothing has changed. Try again shortly."
@@ -308,9 +297,24 @@ msgstr ""
 msgid "Premium"
 msgstr "Premium"
 
-# | msgid "Renews"
 msgid "New"
 msgstr "الموقع يتحدث لغتك"
+
+msgid "A Linked role, for servers that aren't only 18+"
+msgstr "رتبة المرتبط، للخوادم التي لا تقتصر على 18+"
+
+msgid ""
+"You can now give a Linked role to every member who links their VRChat "
+"account, whether or not VRChat shows them as 18+. Your 18+ role still "
+"goes only to members VRChat has age verified, and they get both. Set it "
+"under Settings, Verification. With Premium, your VRChat group invites can"
+" also go to any linked member, not only 18+ ones."
+msgstr ""
+"يمكنك الآن منح رتبة المرتبط لكل عضو يربط حساب VRChat الخاص به، سواء أظهر "
+"VRChat أنه 18+ أم لا. تبقى رتبة 18+ مقتصرة على الأعضاء الذين تحقق VRChat "
+"من أعمارهم، وهم يحصلون على الرتبتين معًا. اضبطها من الإعدادات، التوثيق. "
+"مع Premium، يمكن أيضًا أن تصل دعوات مجموعة VRChat الخاصة بك إلى أي عضو "
+"مرتبط، وليس فقط أعضاء 18+."
 
 msgid "Verify the members you already have"
 msgstr "وثّق الأعضاء الذين لديك بالفعل"
@@ -327,7 +331,6 @@ msgstr ""
 "إلى فعل أي شيء. ستجد هذا في صفحة «نظرة عامة» لخادمك: عدّ من يمكن توثيقهم "
 "مجاني، ومنحهم الرتبة جزء من Premium."
 
-# | msgid "Premium"
 msgid "See Premium"
 msgstr "استعرض Premium"
 
@@ -381,7 +384,6 @@ msgstr ""
 "تحديثها، بلغة خادمك الحالية. تظهر اللوحة البديلة في أسفل قناتها، ولم يعد "
 "أي رابط إلى اللوحة القديمة يعمل."
 
-# | msgid "The status page speaks your language"
 msgid "The website speaks your language"
 msgstr "صفحة الحالة تتحدث لغتك"
 
@@ -418,15 +420,9 @@ msgstr ""
 msgid "VRCVerify has a new look"
 msgstr "مظهر جديد لـ VRCVerify"
 
-# | msgid "" "Your server list is now a grid of tiles you can search, pin and
-# | open with" " a single click anywhere on the card, and each one says
 # whether
-# | that " "server is on Premium. Setup has moved to the top of a server's
-# | Overview " "with a progress bar, and retires itself once everything
 # required
-# | is done." " Settings puts each control directly under its own label, and
 # the
-# | pricing" " page is one comparison you can read across."
 msgid ""
 "The dashboard, the website and the status page have been rebuilt on one "
 "design. Your server list is now a grid of tiles you can search, pin and "
@@ -445,7 +441,6 @@ msgstr ""
 "تسميته مباشرة، وصفحة الأسعار صارت مقارنة واحدة تُقرأ عرضًا. وفي صفحة "
 "الحالة، صار ما تعطّل يظهر بجانب ما يعمل بدلاً من أسفله."
 
-# | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
 msgstr "رابط الموقع على لوحة التعليمات"
 
@@ -464,7 +459,6 @@ msgstr ""
 "اللوحات الأقدم فلا يسمح Discord بتعديلها إطلاقًا، لذا يجري استبدالها "
 "بدلًا من تحديثها."
 
-# | msgid "The verified role needs attention"
 msgid "See which servers need attention"
 msgstr "اعرف أي الخوادم يحتاج إلى انتباه"
 
@@ -493,7 +487,6 @@ msgstr ""
 " سليمًا في «نظرة عامة» بينما يفشل كل توثيق بصمت في منح الرتبة. الآن تُظهر"
 " «نظرة عامة» ومحدِّد الرتب ذلك، وتدلّك على مكان الإصلاح."
 
-# | msgid "Couldn't check whether VRCVerify can manage this role."
 msgid "Check whether VRCVerify is working"
 msgstr "تحقّق مما إذا كان VRCVerify يعمل"
 
@@ -508,9 +501,6 @@ msgstr ""
 "يغطي 90 يومًا، وتخبرك بذلك حتى عندما يكون كل شيء آخر متوقفًا. ستجد رابط "
 "الحالة في أعلى الصفحة."
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
-# | msgid "Verification log"
 msgid "See how verification is going"
 msgstr "اطّلع على سير التوثيق"
 
@@ -565,11 +555,9 @@ msgstr "جديد في خطتك: %(title)s"
 msgid "%(body)s It's included in your subscription."
 msgstr "%(body)s وهو مشمول في اشتراكك."
 
-# | msgid "Setup"
 msgid "Set it up"
 msgstr "اضبطه الآن"
 
-# | msgid "Your grandfathered extras stay free whatever you decide."
 #, python-format
 msgid "Your grandfathered extras stay free whatever you decide. %(body)s"
 msgstr "مزاياك المكتسبة سابقًا تبقى مجانية مهما قرّرت. %(body)s"
@@ -603,8 +591,6 @@ msgstr "يُحتسب فقط منذ %(date)s."
 msgid "Members"
 msgstr "الأعضاء"
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
 msgid "Verified, all time"
 msgstr "موثَّقون، منذ البداية"
 
@@ -626,17 +612,12 @@ msgstr "رتبة «غير موثَّق»"
 msgid "Optional. Removed once someone verifies."
 msgstr "اختياري. تُزال بمجرّد أن يوثّق أحدهم نفسه."
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
 msgid "Verification log"
 msgstr "سجلّ التوثيق"
 
-# | msgid "Optional. Premium."
 msgid "Optional."
 msgstr "اختياري."
 
-# | msgid "Sections"
-# | msgid "Settings"
 msgid "Go to Settings"
 msgstr "الانتقال إلى الإعدادات"
 
@@ -673,7 +654,6 @@ msgstr "محدَّدتان، وVRCVerify قادر على منحهما."
 msgid "Set, and VRCVerify can grant it."
 msgstr "محدَّدة، وVRCVerify قادر على منحها."
 
-# | msgid "A branded instructions panel"
 msgid "Instructions panel"
 msgstr "لوحة الإرشادات"
 
@@ -915,19 +895,15 @@ msgstr[5] "امنح رتبة «موثَّق» لـ %(count)s عضو"
 msgid "Working"
 msgstr "يعمل"
 
-# | msgid "Setup isn't finished"
 msgid "Setup unfinished"
 msgstr "الإعداد غير مكتمل"
 
-# | msgid "needs attention"
 msgid "Needs attention"
 msgstr "يحتاج انتباهك"
 
-# | msgid "not set"
 msgid "Not set up"
 msgstr "غير مُعدّ"
 
-# | msgid "Couldn't check"
 msgid "Can't check"
 msgstr "تعذّر التحقّق"
 
@@ -937,7 +913,6 @@ msgstr "مُعدّ ويعمل"
 msgid "Setup isn't finished"
 msgstr "الإعداد غير مكتمل"
 
-# | msgid "Something went wrong."
 msgid "Something isn't working"
 msgstr "هناك ما لا يعمل"
 
@@ -947,7 +922,6 @@ msgstr "غير مُعدّ هنا، أو ليس من إدارتك"
 msgid "Can't check this server right now"
 msgstr "لا يمكن فحص هذا الخادم الآن"
 
-# | msgid "A verification log channel"
 msgid "Verification"
 msgstr "التوثيق"
 
@@ -960,7 +934,6 @@ msgstr "مجموعة VRChat"
 msgid "Logging"
 msgstr "السجلّات"
 
-# | msgid "Active"
 msgid "Activity"
 msgstr "النشاط"
 
@@ -1082,7 +1055,6 @@ msgstr "مفعَّل"
 msgid "Off"
 msgstr "معطَّل"
 
-# | msgid "Nickname syncing"
 msgid "Nickname sync"
 msgstr "مزامنة الألقاب"
 
@@ -1167,8 +1139,6 @@ msgstr "أُرسل الفحص لكن لم يعد شيء. حاول مرة أخر�
 msgid "Couldn't start the check"
 msgstr "تعذّر بدء الفحص"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
 msgid ""
 "The bot couldn't reach the part of itself that talks to VRChat. Try again"
 " shortly."
@@ -1234,7 +1204,6 @@ msgstr ""
 "الصق الرمز أدناه في أي موضع من وصف مجموعتك في VRChat، ثم شغّل الفحص مرة "
 "أخرى. ويمكنك إزالته بمجرّد نجاح الفحص."
 
-# | msgid "VRChat group"
 msgid "No VRChat group with that ID"
 msgstr "لا توجد مجموعة VRChat بهذا المعرّف"
 
@@ -1614,7 +1583,6 @@ msgstr "تذهب الدعوات إلى أعضاء 18+ فقط إلى أن تُع�
 msgid "Using the default message"
 msgstr "تُستخدم الرسالة الافتراضية"
 
-# | msgid "A custom post-verification message"
 msgid "Custom verification message"
 msgstr "رسالة توثيق مخصّصة"
 
@@ -1636,14 +1604,12 @@ msgstr "لغة لوحة الإرشادات وردود البوت على الأع
 msgid "Panel color"
 msgstr "لون اللوحة"
 
-# | msgid "A branded instructions panel"
 msgid "The color bar down the side of the instructions panel."
 msgstr "الشريط الملوّن على جانب لوحة الإرشادات."
 
 msgid "Default blue"
 msgstr "الأزرق الافتراضي"
 
-# | msgid "A verification log channel"
 msgid "Server icon on the panel"
 msgstr "أيقونة الخادم على اللوحة"
 
@@ -1659,8 +1625,6 @@ msgstr "مخفيّة"
 msgid "This channel no longer exists in the server."
 msgstr "لم تعد هذه القناة موجودة في الخادم."
 
-# | msgid "" "Verification logs can't go in an announcement channel -- other
-# | servers " "can follow one, which would republish your members' age
 # status."
 msgid ""
 "This is an announcement channel. Other servers can follow it, which would"
@@ -1670,14 +1634,12 @@ msgstr ""
 "هذه قناة إعلانات. يمكن للخوادم الأخرى متابعتها، ما يعيد نشر حالة أعمار "
 "أعضائك، ولذلك لن يسجّل VRCVerify هنا."
 
-# | msgid "A verification log channel"
 msgid "Verification log channel"
 msgstr "قناة سجلّ التوثيق"
 
 msgid "Every verification attempt, including the ones that fail silently."
 msgstr "كل محاولة توثيق، بما فيها تلك التي تفشل بصمت."
 
-# | msgid "VRChat group"
 msgid "VRChat group invites"
 msgstr "دعوات مجموعة VRChat"
 
@@ -1687,7 +1649,6 @@ msgstr "قناة طلبات الانضمام"
 msgid "Who can approve or deny join requests"
 msgstr "من يمكنه قبول طلبات الانضمام أو رفضها"
 
-# | msgid "VRChat group"
 msgid "VRChat group setup check"
 msgstr "فحص إعداد مجموعة VRChat"
 
@@ -1768,11 +1729,8 @@ msgstr ""
 "لم تعد القناة التي نُشرت فيها هذه اللوحة موجودة، فلم يعد لدى الأعضاء "
 "طريقة لبدء التوثيق."
 
-# | msgid "" "VRCVerify can't post the panel in that channel. It needs both
 # Send
-# | " "Messages and Embed Links there -- Embed Links is the one that's usually
 # "
-# | "missing, because the panel is an embed."
 msgid ""
 "VRCVerify can't post a new message in that channel — it needs both Send "
 "Messages and Embed Links there. The panel still works and can still be "
@@ -1878,7 +1836,6 @@ msgstr ""
 "أُعِدّ هذا الخادم قبل إطلاق Premium، لذا يحتفظ بعدة مزايا مجانية بشكل "
 "دائم."
 
-# | msgid "Core 18+ verification is free, forever."
 msgid "18+ verification is free on this server, and always will be."
 msgstr "توثيق 18+ مجاني على هذا الخادم، وسيبقى كذلك دائمًا."
 
@@ -1897,7 +1854,6 @@ msgstr ""
 "الإعدادات التي غُيّرت من هذا الموقع. أما التغييرات التي تمت بأوامر "
 "Discord فلا تُدرج هنا."
 
-# | msgid "The panel couldn't be posted just now. Try again shortly."
 msgid "Couldn't load the history just now. Try again shortly."
 msgstr "تعذّر تحميل السجلّ الآن. حاول مرة أخرى بعد قليل."
 
@@ -1993,7 +1949,6 @@ msgid ""
 "Inc."
 msgstr "لا يرتبط بـ VRChat Inc. أو Discord Inc.، ولا يحظى بموافقتهما أو رعايتهما."
 
-# | msgid "Pricing · VRCVerify"
 msgid "What's new · VRCVerify"
 msgstr "ما الجديد · VRCVerify"
 
@@ -2020,7 +1975,6 @@ msgstr ""
 "وتابع قناة الإعلانات؛ فكل تحديث هنا يُنشر هناك، وDiscord ينقله إلى أي "
 "قناة تختارها."
 
-# | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "العودة إلى خوادمك"
 
@@ -2050,7 +2004,6 @@ msgstr ""
 "هذا الموقع <strong>لا يستطيع معرفة من وثّق نفسه</strong>؛ إنما يرى "
 "إعدادات خادمك فقط."
 
-# | msgid "Buy inside Discord"
 msgid "Sign in with Discord"
 msgstr "تسجيل الدخول عبر Discord"
 
@@ -2163,8 +2116,6 @@ msgstr ""
 "لا تُرسَل أي رسالة لأحد بشأن ذلك. الأعضاء الذين غادروا أو انضمّوا بعد "
 "العدّ يُفحَصون مرة أخرى أثناء التنفيذ."
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
 msgid "Verifications"
 msgstr "عمليات التوثيق"
 
@@ -2175,7 +2126,6 @@ msgstr ""
 "عدد الأعضاء الذين أتمّوا توثيق 18+ في هذا الخادم. أعداد فقط؛ فـ VRCVerify"
 " لا يحتفظ بسجلّ لمن وثّق نفسه ومتى."
 
-# | msgid "The panel couldn't be posted just now. Try again shortly."
 msgid "Couldn't load this server's numbers just now. Try again shortly."
 msgstr "تعذّر تحميل أرقام هذا الخادم الآن. حاول مرة أخرى بعد قليل."
 
@@ -2214,11 +2164,9 @@ msgstr "تثبيت %(name)s"
 msgid "Upgrade"
 msgstr "الترقية"
 
-# | msgid "Add to your server"
 msgid "Add to server"
 msgstr "الإضافة إلى الخادم"
 
-# | msgid "Add to your server"
 msgid "Your servers"
 msgstr "خوادمك"
 
@@ -2239,20 +2187,15 @@ msgstr ""
 "تعذّر الوصول إلى البوت الآن، فلا يمكننا معرفة أي من هذه الخوادم هو فيها. "
 "إعداداتك بأمان ولم يتغيّر شيء هنا. حاول مرة أخرى بعد قليل."
 
-# | msgid "Add to your server"
-# | msgid "Your servers"
 msgid "Search your servers"
 msgstr "ابحث في خوادمك"
 
-# | msgid "Per server"
 msgid "Search servers"
 msgstr "ابحث عن خادم"
 
 msgid "Search"
 msgstr "بحث"
 
-# | msgid "Add to your server"
-# | msgid "Your servers"
 #, python-format
 msgid "%(count)s server"
 msgid_plural "%(count)s servers"
@@ -2263,13 +2206,10 @@ msgstr[3] "%(count)s خوادم"
 msgstr[4] "%(count)s خادمًا"
 msgstr[5] "%(count)s خادم"
 
-# | msgid "Premium"
-# | msgid "See Premium"
 #, python-format
 msgid "%(count)s Premium"
 msgstr "%(count)s باشتراك Premium"
 
-# | msgid "No servers to show"
 msgid "No servers match that"
 msgstr "لا توجد خوادم مطابقة"
 
@@ -2277,8 +2217,6 @@ msgstr "لا توجد خوادم مطابقة"
 msgid "Nothing in your list is called “%(q)s”."
 msgstr "لا يوجد في قائمتك شيء باسم «%(q)s»."
 
-# | msgid "Add to your server"
-# | msgid "Your servers"
 msgid "Show all your servers"
 msgstr "إظهار كل خوادمك"
 
@@ -2300,14 +2238,12 @@ msgstr "تسجيل الخروج والبدء من جديد"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "سيُطلب منك تسجيل الدخول عبر Discord مرة أخرى."
 
-# | msgid "None"
 msgid "Pinned"
 msgstr "مثبَّتة"
 
 msgid "Pricing · VRCVerify"
 msgstr "الأسعار · VRCVerify"
 
-# | msgid "Canceled"
 msgid "Included"
 msgstr "مشمول"
 
@@ -2340,8 +2276,6 @@ msgstr "مدّة الفوترة"
 msgid "Price unavailable"
 msgstr "السعر غير متاح"
 
-# | msgid "" "Every plan below unlocks exactly the same features — the only
-# | difference " "is how long you pay for at once, and how much that saves."
 msgid ""
 "Per server. Every term unlocks exactly the same features — the only "
 "difference is how long you pay for at once."
@@ -2360,6 +2294,9 @@ msgstr "مجاني"
 
 msgid "Verify members as 18+"
 msgstr "توثيق الأعضاء كـ 18+"
+
+msgid "A Linked role for everyone who links their VRChat account, 18+ or not"
+msgstr "رتبة المرتبط لكل من يربط حساب VRChat الخاص به، سواء كان 18+ أم لا"
 
 msgid "Auto-verify people who verified in another server"
 msgstr "توثيق تلقائي لمن سبق أن وثّقوا أنفسهم في خادم آخر"
@@ -2388,8 +2325,8 @@ msgstr "لوحة إرشادات بلون خادمك وأيقونته"
 msgid "A shorter verification cooldown"
 msgstr "مدة انتظار أقصر بين عمليات التحقق"
 
-msgid "VRChat group invites for verified members"
-msgstr "دعوات إلى مجموعة VRChat للأعضاء الموثّقين"
+msgid "VRChat group invites for verified or linked members"
+msgstr "دعوات إلى مجموعة VRChat للأعضاء الموثّقين أو المرتبطين"
 
 msgid "Your VRChat group calendar in Discord Events, with join links"
 msgstr "تقويم مجموعتك في VRChat ضمن فعاليات Discord، مع روابط الانضمام"
@@ -2404,7 +2341,6 @@ msgstr ""
 "منح رتبة «موثَّق» للأعضاء الذين سبق أن وثّقوا أنفسهم عبر VRCVerify، دفعة "
 "واحدة"
 
-# | msgid "Not applied"
 msgid "Not included"
 msgstr "غير مشمول"
 
@@ -2496,8 +2432,6 @@ msgstr ""
 "تعذّر تحميل رتب هذا الخادم وقنواته الآن، ولذلك تعرض بعض الإعدادات أدناه "
 "معرّفًا بدل الاسم. أما القيم نفسها فصحيحة."
 
-# | msgid "" "This bot's database is missing the column for that setting.
-# | Contact the " "bot operator."
 msgid ""
 "This bot's database is missing the auto-verify column, so that setting "
 "isn't in effect regardless of what it shows. Contact the bot operator."
@@ -2508,8 +2442,6 @@ msgstr ""
 msgid "Where it's posted"
 msgstr "أين نُشرت"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
 msgid "The bot didn't answer this one. Try again shortly."
 msgstr "لم يردّ البوت على هذا. حاول مرة أخرى بعد قليل."
 
@@ -2740,18 +2672,15 @@ msgstr ""
 msgid "Use the default blue"
 msgstr "استخدام الأزرق الافتراضي"
 
-# | msgid "Premium until"
 msgid "Premium only."
 msgstr "لمشتركي Premium فقط."
 
 msgid "Your saved value is kept, and comes back if the subscription is renewed."
 msgstr "تبقى قيمتك المحفوظة، وتعود إن جُدّد الاشتراك."
 
-# | msgid "Premium"
 msgid "Add Premium"
 msgstr "أضف Premium"
 
-# | msgid "Spanish"
 msgid "See plans"
 msgstr "اطّلع على الخطط"
 
@@ -2809,11 +2738,9 @@ msgstr "يطلب من البوت الانضمام إلى مجموعتك والإ
 msgid "Post the panel in"
 msgstr "انشر اللوحة في"
 
-# | msgid "Post the panel in"
 msgid "Repost or move panel"
 msgstr "إعادة نشر اللوحة أو نقلها"
 
-# | msgid "Post the panel in"
 msgid "Post panel"
 msgstr "نشر اللوحة"
 
@@ -3052,13 +2979,9 @@ msgstr ""
 #~ msgid "The verified role needs attention"
 #~ msgstr "رتبة «موثَّق» تحتاج إلى انتباه"
 
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
 #~ msgid "No instructions panel is posted"
 #~ msgstr "لم تُنشَر لوحة إرشادات"
 
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
 #~ msgid "The instructions panel needs attention"
 #~ msgstr "لوحة الإرشادات تحتاج إلى انتباه"
 
@@ -3127,9 +3050,6 @@ msgstr ""
 #~ msgid "Unlocks the settings marked below. 18+ verification itself stays free."
 #~ msgstr "يفتح الإعدادات المؤشَّر عليها أدناه. أما توثيق 18+ نفسه فيبقى مجانيًا."
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
 #~ msgid ""
 #~ "Can't reach the bot right now, so"
 #~ " this page can't be shown. Nothing"
@@ -3145,7 +3065,6 @@ msgstr ""
 #~ msgid "Most popular"
 #~ msgstr "الأكثر شيوعًا"
 
-# | msgid "Open the dashboard"
 #~ msgid "A new look for the dashboard"
 #~ msgstr "مظهر جديد للوحة التحكّم"
 
@@ -3178,7 +3097,6 @@ msgstr ""
 #~ "«الإشارة إلى ‎@everyone و‎@here وجميع "
 #~ "الرتب»."
 
-# | msgid "Pick a verified role -- verification can't run without one."
 #~ msgid "Required — verification can't finish without one."
 #~ msgstr "مطلوبة؛ فمن دونها لا يمكن إتمام التوثيق."
 

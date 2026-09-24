@@ -9266,7 +9266,7 @@ class VRCVerificationButton(discord.ui.View):
 # Slash Command: /vrcverify
 # -------------------------------------------------------------------
 @app_commands.guild_only()
-@bot.tree.command(name="vrcverify", description="Verify your VRChat 18+ status")
+@bot.tree.command(name="vrcverify", description="Link your VRChat account and verify your 18+ status")
 async def vrcverify(interaction: discord.Interaction):
     await process_verification(interaction)
 

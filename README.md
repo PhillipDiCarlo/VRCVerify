@@ -116,6 +116,11 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
 
 ## Recent updates
 
+- A **Linked role** (#359): servers can give a role to every member who links
+  their VRChat account, whether or not VRChat reports them as 18+, alongside
+  the 18+ role. Servers that aren't adult spaces can use VRCVerify this way,
+  and Premium group invites can go to any linked member instead of only 18+
+  ones. A link is permanent: there is no unlinking or relinking.
 - Localization support with per-server locale setting (supports multiple language codes; see Localization section).
 - Configuring moved to the web dashboard. The admin commands that used to edit
   settings now show them read-only and link there; `/vrcverify_setup` and
@@ -206,6 +211,7 @@ dashboard. See [Two ways to pay](#two-ways-to-pay).
 | Feature | Free | Grandfathered\* | Premium | Gate (`FEATURE_*` in `bot.py`) | Added in |
 | --- | :---: | :---: | :---: | --- | --- |
 | 18+ verification | ✅ | ✅ | ✅ | not gated | |
+| **Linked role** for every member who links a VRChat account, 18+ or not | ✅ | ✅ | ✅ | not gated | #359 |
 | **Auto-verify-on-join** | ✅ | ✅ | ✅ | not gated | |
 | Manual **Update Nickname** button | ✅ | ✅ | ✅ | not gated | |
 | Instructions language | ✅ | ✅ | ✅ | not gated | |
@@ -216,7 +222,7 @@ dashboard. See [Two ways to pay](#two-ways-to-pay).
 | Verification activity log channel | — | — | ✅ | `activity_log` | #55 |
 | Priority placement in the verification queue | — | — | ✅ | `priority_queue` | #56 |
 | Branded instructions panel (color + icon) | — | — | ✅ | `branded_panel` | #58 |
-| VRChat group invites for verified members | — | — | ✅ | `group_invite` | #49 |
+| VRChat group invites for verified members, or any linked member (#359) | — | — | ✅ | `group_invite` | #49 |
 | VRChat group calendar in Discord Events, with join links | — | — | ✅ | `calendar_sync` | #289 |
 | VRChat group join requests in Discord, with Approve and Deny | — | — | ✅ | `join_request_triage` | #291 |
 | Verified role for existing members already verified with VRCVerify, in one go (counting them is free) | — | — | ✅ | `member_backfill` | #292 |

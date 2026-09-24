@@ -211,6 +211,22 @@ _FIELD_SEPARATOR = ":"
 # usable rather than when the issue was filed. The other four had been
 # reachable for three weeks by then.
 ENTRIES = (
+    # ONE ENTRY FOR ALL OF #359, which shipped as four PRs on a feature branch.
+    # Not premium: the headline is the Linked role, which is free, and the
+    # entry is its on-ramp. Premium is named once, in the last sentence.
+    Entry(
+        id="2026-09-linked-role",
+        date=date(2026, 9, 24),
+        title=N_("A Linked role, for servers that aren't only 18+"),
+        body=(
+            N_("You can now give a Linked role to every member who links their "
+            "VRChat account, whether or not VRChat shows them as 18+. Your 18+ "
+            "role still goes only to members VRChat has age verified, and they "
+            "get both. Set it under Settings, Verification. With Premium, your "
+            "VRChat group invites can also go to any linked member, not only 18+ "
+            "ones.")
+        ),
+    ),
     # #292, announced after its preview run on 2026-09-23.
     Entry(
         id="2026-09-verify-existing-members",
