@@ -1185,6 +1185,11 @@ class TestTheCardStates:
         )})
         assert card["state"] == "broken"
 
+    def test_a_frozen_panel_needs_attention(self):
+        """#327. Reaches the card through build_setup, with no picker change."""
+        card = self.card({GUILD_IN: healthy_summary(panel={"frozen": True})})
+        assert card["state"] == "broken"
+
     def test_broken_outranks_todo(self):
         """Opposite of the Overview's list order, and right for one line: a
         server that was working and stopped is losing verifications now, where
@@ -4349,6 +4354,61 @@ class TestPostingThePanel:
         assert "Saved." in page
         assert "still shows the old" not in page
 
+    FROZEN_PANEL = {
+        "posted": True, "channel_id": LOG_CHANNEL, "message_id": "55",
+        "channel_name": "verify", "channel_exists": True,
+        "channel_postable": True, "frozen": True,
+        "missing_permissions": ["read_message_history"],
+    }
+
+    def panel_page(self, config, store, panel):
+        test_client, _api, _session = self.logged_in(config, store, panel=panel)
+        return test_client.get(f"/guild/{GUILD_IN}/settings/panel").data.decode()
+
+    def test_a_frozen_panel_shows_the_banner_without_a_save(self, config, store):
+        """#327. panel_stale only ever appeared after a save."""
+        page = self.panel_page(config, store, self.FROZEN_PANEL)
+        assert "can't be updated" in page
+        assert "Read Message History" in page
+        assert 'href="#panel-post"' in page
+        assert 'id="panel-post"' in page
+
+    def test_a_frozen_thread_panel_is_explained_as_a_move(self, config, store):
+        """The panel's channel is not among the choices, as with a thread."""
+        page = self.panel_page(
+            config, store, {**self.FROZEN_PANEL, "channel_id": "123456789"}
+        )
+        assert "can't post in" in page
+        assert "same channel selected" not in page
+
+    def test_a_panel_not_proven_frozen_shows_no_banner(self, config, store):
+        page = self.panel_page(
+            config, store,
+            {**self.FROZEN_PANEL, "frozen": False, "missing_permissions": []},
+        )
+        assert "can't be updated" not in page
+
+    def test_other_settings_pages_do_not_read_the_panel_for_it(self, config, store):
+        """Only the panel page reads the panel, and this must not change that."""
+        test_client, api, _session = self.logged_in(
+            config, store, panel=self.FROZEN_PANEL
+        )
+        page = test_client.get(f"/guild/{GUILD_IN}/settings/verification").data.decode()
+        assert "can't be updated" not in page
+        assert not any(what == "panel" for what, _, _ in api.reads)
+
+    def test_a_same_channel_repost_without_history_is_explained(self, config, store):
+        """Not "try again shortly", which no retry could ever fix."""
+        test_client, _api, session = self.logged_in(
+            config,
+            store,
+            errors={"post_panel": BotAPIError("channel_not_readable", 400)},
+        )
+        response = self.post(test_client, session, panel_channel_id=LOG_CHANNEL)
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert "Read Message History" in page
+        assert "Try again shortly" not in page
+
     def test_a_notice_is_shown_once_and_not_again_on_reload(self, config, store):
         """Otherwise every later page load claims the last save just happened."""
         test_client, _api, session = self.logged_in(config, store)
@@ -4589,6 +4649,71 @@ class TestSettingsViewModel:
         """
         assert settings_view.panel_summary(None) == {"known": False}
         assert settings_view.panel_summary({"posted": False})["posted"] is False
+
+    FROZEN = {
+        "posted": True, "channel_id": "70", "channel_exists": True,
+        "channel_name": "verify", "channel_postable": False, "frozen": True,
+        "missing_permissions": ["read_message_history", "embed_links", "bogus"],
+    }
+
+    def test_a_frozen_panel_names_its_missing_permissions(self):
+        summary = settings_view.panel_summary(
+            self.FROZEN, choices=[("70", "#verify"), ("71", "#general")]
+        )
+        frozen = summary["frozen"]
+        assert frozen["channel"] == "#verify"
+        # An unknown key from a newer bot is dropped, never echoed.
+        assert frozen["missing"] == ["Read Message History", "Embed Links"]
+        assert frozen["permissions"] == "Read Message History and Embed Links"
+        assert frozen["in_place"] is True
+        assert frozen["form"] is True
+        # The banner names every missing permission. Neither card warning may
+        # repeat it, and the unpostable one would say "can still be refreshed",
+        # which is false for a frozen panel.
+        assert summary["warnings"] == []
+
+    def test_the_permission_list_is_joined_the_way_the_language_joins_lists(self):
+        """Not ", ".join: Japanese separates with 、 (#327)."""
+        frozen = settings_view.panel_summary(
+            self.FROZEN, lang="ja", choices=[("70", "#verify")]
+        )["frozen"]
+        assert frozen["permissions"] == "Read Message History、Embed Links"
+
+    def test_a_frozen_panel_in_a_thread_cannot_be_replaced_in_place(self):
+        """The picker lists text channels only, so "same channel selected"
+        would move the panel and leave the frozen one up."""
+        frozen = settings_view.panel_summary(
+            self.FROZEN, choices=[("71", "#general")]
+        )["frozen"]
+        assert frozen["in_place"] is False
+        assert frozen["form"] is True
+
+    def test_no_form_means_no_button_target(self):
+        frozen = settings_view.panel_summary(self.FROZEN, choices=[])["frozen"]
+        assert frozen["form"] is False
+
+    def test_a_panel_not_proven_frozen_has_no_banner(self):
+        summary = settings_view.panel_summary({
+            "posted": True, "channel_exists": True, "frozen": False,
+            "missing_permissions": [],
+        })
+        assert summary["frozen"] is None
+
+    def test_a_frozen_panel_in_a_deleted_channel_has_no_banner(self):
+        """The channel warning already covers it, and replacing in place
+        cannot work there."""
+        summary = settings_view.panel_summary({
+            "posted": True, "channel_exists": False, "frozen": True,
+        })
+        assert summary["frozen"] is None
+
+    def test_missing_history_is_warned_about_even_when_postable(self):
+        """The button reads the old panel first; postable does not cover it."""
+        summary = settings_view.panel_summary({
+            "posted": True, "channel_exists": True, "channel_postable": True,
+            "missing_permissions": ["read_message_history"],
+        })
+        assert any("Read Message History" in w for w in summary["warnings"])
 
 
 class TestTheOverviewPage:
@@ -8116,6 +8241,27 @@ class TestOverviewViewModel:
         )
         panel = next(row for row in setup["rows"] if row["label"] == "Instructions panel")
         assert panel["state"] == "broken"
+
+    def test_a_frozen_panel_is_broken_with_its_own_note(self):
+        """#327. Members can still verify with it, but no setting reaches it."""
+        setup = overview_view.build_setup(
+            {"configured": self._configured(),
+             "panel": {"posted": True, "channel_exists": True,
+                       "channel_postable": True, "frozen": True}}
+        )
+        panel = next(row for row in setup["rows"] if row["label"] == "Instructions panel")
+        assert panel["state"] == "broken"
+        assert "August 11" in panel["note"]
+        assert panel["action"]["group"] == "panel"
+
+    def test_a_deleted_channel_outranks_a_frozen_panel(self):
+        """There is nothing left to replace in place; the fix is a new channel."""
+        setup = overview_view.build_setup(
+            {"configured": self._configured(),
+             "panel": {"posted": True, "channel_exists": False, "frozen": True}}
+        )
+        panel = next(row for row in setup["rows"] if row["label"] == "Instructions panel")
+        assert "deleted" in panel["note"]
 
     def test_complete_requires_both_the_role_and_the_panel(self):
         role_missing = overview_view.build_setup(

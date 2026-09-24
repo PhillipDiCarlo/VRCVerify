@@ -46,7 +46,7 @@
    a free server opens. Caught in a screenshot; nothing failed, and the panel
    is a `<section>` with no content, which no test was asking about. #}
 {% if saved or group_check or group_claim_check or panel_stale or panel_result or save_error
-      or not names_resolved or not auto_verify_column_present %}
+      or panel_frozen or not names_resolved or not auto_verify_column_present %}
 <section class="panel">
   {% if saved %}
     <p class="notice ok">{% trans %}Saved.{% endtrans %}</p>
@@ -73,6 +73,38 @@
   {% endif %}
   {% if panel_result %}
     <p class="notice ok">{{ panel_result }}</p>
+  {% endif %}
+  {# THE PANEL IS PROVABLY FROZEN (#327): posted before the August 11 fix, as
+     a command reply Discord will not let the bot edit. Unlike panel_stale this
+     needs no save to appear, and it cannot be dismissed. It goes away when the
+     condition does, which is the button below replacing the panel.
+
+     Not suppressed after a replace, either: a replace changes the stored
+     message id, so the page this redirects to no longer has a frozen panel. #}
+  {% if panel_frozen %}
+    <div class="notice frozen-panel">
+      <p class="frozen-panel-title">{% trans %}Your instructions panel can't be updated{% endtrans %}</p>
+      <p>{% trans %}It was posted before August 11, 2026, and Discord won't let VRCVerify edit it. Members can still verify with it, but it won't show changes to its language, color or icon until it's replaced.{% endtrans %}</p>
+      {% if panel_frozen.in_place %}
+        {% if panel_frozen.missing %}
+          <p>
+            {% trans channel=panel_frozen.channel, permissions=panel_frozen.permissions %}First give VRCVerify these permissions in {{ channel }}: {{ permissions }}.{% endtrans %}
+          </p>
+        {% endif %}
+        <p>
+          {% trans %}Then use <strong>Repost or move panel</strong> with the same channel selected. The old panel is removed and a new one takes its place.{% endtrans %}
+        </p>
+      {% elif panel_frozen.form %}
+        {# In a thread, which the channel picker does not list. A move is the
+           only repair this page has, and a move leaves the old panel up. #}
+        <p>
+          {% trans channel=panel_frozen.channel %}It's in {{ channel }}, which this page can't post in. Choose a channel below and use <strong>Repost or move panel</strong>, then delete the old panel in Discord.{% endtrans %}
+        </p>
+      {% endif %}
+      {% if panel_frozen.form %}
+        <a class="button" href="#panel-post">{% trans %}Replace the panel{% endtrans %}</a>
+      {% endif %}
+    </div>
   {% endif %}
   {% if save_error %}
     <p class="notice">{{ save_error }}</p>
@@ -620,7 +652,7 @@
          endpoint, and a form inside a form is not a thing. #}
       {% if group.panel_channels %}
         <form method="post" action="{{ url_for('post_panel', guild_id=guild_id) }}"
-              class="panel-post">
+              class="panel-post" id="panel-post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <label for="panel_channel_id">{% trans %}Post the panel in{% endtrans %}</label>
           <select name="panel_channel_id" id="panel_channel_id">

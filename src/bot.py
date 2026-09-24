@@ -3152,8 +3152,8 @@ PANEL_FROZEN_BEFORE = datetime(2026, 8, 11, 11, 0, tzinfo=timezone.utc)
 # them, with the names Discord's own permission screen uses.
 #
 # READ MESSAGE HISTORY IS THE EASY ONE TO MISS. `_post_dashboard_panel` probes
-# the old panel before it replaces it, and a probe that cannot read the message
-# returns None and the button does nothing. An admin told only "Send Messages
+# the old panel before it replaces it, and cannot without it -- the button
+# refuses with `channel_not_readable` rather than try (#327). An admin told only "Send Messages
 # and Embed Links" would grant exactly those and press a button that fails.
 PANEL_REPAIR_PERMISSIONS = (
     ("view_channel", "View Channel"),
@@ -12862,13 +12862,15 @@ async def replace_one_frozen_panel(entry) -> str:
         # send permissions before it posts, and deletes the old message only
         # after the new one is recorded.
         #
-        # THE TWO REASONS ARE KEPT APART because the follow-up DM has to say
-        # something true. `channel_not_writable` is a permission an admin can
-        # give back. `channel_not_in_guild` is this path resolving the channel
-        # out of `guild.text_channels`, which a panel living in a THREAD is not
-        # in -- telling that admin to check the bot's permissions would send
-        # them looking for a problem they do not have.
-        if rejected.reason == "channel_not_writable":
+        # THE REASONS ARE KEPT APART because the follow-up DM has to say
+        # something true. `channel_not_writable` and `channel_not_readable`
+        # (#327) are permissions an admin can give back, and the DM names
+        # whichever of the four repair permissions are missing.
+        # `channel_not_in_guild` is this path resolving the channel out of
+        # `guild.text_channels`, which a panel living in a THREAD is not in --
+        # telling that admin to check the bot's permissions would send them
+        # looking for a problem they do not have.
+        if rejected.reason in {"channel_not_writable", "channel_not_readable"}:
             return "not_writable"
         logger.warning(
             "The panel for guild %s is in a channel this path cannot resolve "
@@ -14124,11 +14126,17 @@ def _panel_from_values(channel_id, message_id, locale, guild) -> dict:
             channel = None
 
     postable = None
+    missing = None
     if guild is not None and guild.me is not None and channel is not None:
         perms = channel.permissions_for(guild.me)
         postable = bool(
             perms.view_channel and perms.send_messages and perms.embed_links
         )
+        # Keys, not Discord's English names: the dashboard translates them.
+        missing = [
+            attr for attr, _label in PANEL_REPAIR_PERMISSIONS
+            if not getattr(perms, attr, False)
+        ]
 
     return {
         "posted": True,
@@ -14137,8 +14145,33 @@ def _panel_from_values(channel_id, message_id, locale, guild) -> dict:
         "channel_name": getattr(channel, "name", None),
         "channel_exists": channel is not None,
         "channel_postable": postable,
+        # None when the channel could not be checked, which is not "none missing".
+        "missing_permissions": missing,
+        "frozen": panel_provably_frozen(message_id),
         "locale": locale or "en-US",
     }
+
+
+def panel_provably_frozen(message_id) -> bool:
+    """True only when the message id alone proves the panel is webhook-owned.
+
+    False means "not proven", not "editable": a panel posted after the cutoff
+    by a build that predates the fix is frozen too, and only a probe can tell.
+    The dashboard would rather miss that rare panel than warn about a healthy
+    one (#327).
+    """
+    try:
+        value = int(message_id)
+        # A snowflake below 2**22 has no timestamp at all, so it proves
+        # nothing. Only a hand-edited row could hold one.
+        if value < 1 << 22:
+            return False
+        posted = discord.utils.snowflake_time(value)
+    # OverflowError too: this runs for every row of the picker's batch
+    # summary, and one absurd id must not blank the cards of every server.
+    except (TypeError, ValueError, OverflowError):
+        return False
+    return posted < PANEL_FROZEN_BEFORE
 
 
 async def read_dashboard_panel(guild_id) -> Optional[dict]:
@@ -14305,13 +14338,21 @@ async def _post_dashboard_panel(guild_id, actor_id, channel_id):
         return None
 
     # --- Already there: refresh in place, or replace it if editing cannot work ---
-    # No permission precheck on this branch. Editing the bot's own message does
-    # not need Send Messages, so a panel parked in a locked channel refreshes
-    # fine -- the fleet sweep does exactly this on every restart without asking.
+    # No SEND precheck on this branch. Editing the bot's own message does not
+    # need Send Messages, so a panel parked in a locked channel refreshes fine
+    # -- the fleet sweep does exactly this on every restart without asking.
     # probe_instruction_panel's Forbidden branch is the honest answer, the same
     # reasoning its own docstring gives for /vrcverify_status.
+    #
+    # READING is checked, though. The branch starts by fetching the old panel,
+    # and without Read Message History that fetch fails, answers None, and
+    # used to reach the admin as "try again shortly" -- which no retry could
+    # ever fix (#327).
     replacing = None
     if existing and str(existing.get("channel_id")) == str(channel.id):
+        perms = channel.permissions_for(guild.me)
+        if not (perms.view_channel and perms.read_message_history):
+            raise SettingRejected("panel_channel", "channel_not_readable")
         stuck = await _panel_is_webhook_owned(channel, existing.get("message_id"))
         if stuck is None:
             return None

@@ -1840,6 +1840,11 @@ def _register_routes(app: Flask) -> None:
             group_claim_check=notice == "group_claim_check",
             panel_result=_panel_result_message(_notice_arg(notice, "panel")),
             panel_stale=notice == "stale",
+            # Only the panel page reads the panel, so only it can show this.
+            panel_frozen=next(
+                (card["panel"].get("frozen") for card in current if card.get("panel")),
+                None,
+            ),
             save_error=(
                 _save_error_message(_notice_arg(notice, "error"))
                 or _panel_error_message(_notice_arg(notice, "panel_error"))
@@ -2756,6 +2761,12 @@ PANEL_ERRORS = {
     "channel_not_in_guild": (
         N_("That channel isn't in this server any more. Reload the page and pick "
         "again.")
+    ),
+    # Only when choosing the channel the panel is already in: that path reads
+    # the old panel first. Moving to another channel reads nothing (#327).
+    "channel_not_readable": (
+        N_("VRCVerify can't read the panel that's already in that channel. Give "
+        "it Read Message History there, or choose a different channel.")
     ),
 }
 GENERIC_PANEL_ERROR = N_(

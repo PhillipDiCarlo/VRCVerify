@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-23 20:45-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pa_Guru_IN\n"
@@ -172,6 +172,13 @@ msgstr ""
 "VRCVerify ਉਸ ਚੈਨਲ ਵਿੱਚ ਪੈਨਲ ਪੋਸਟ ਨਹੀਂ ਕਰ ਸਕਦਾ। ਉੱਥੇ ਇਸਨੂੰ Send Messages "
 "ਅਤੇ Embed Links ਦੋਵੇਂ ਚਾਹੀਦੀਆਂ ਹਨ — ਆਮ ਤੌਰ 'ਤੇ Embed Links ਹੀ ਨਹੀਂ ਹੁੰਦੀ,"
 " ਕਿਉਂਕਿ ਪੈਨਲ ਇੱਕ ਏਮਬੈੱਡ ਹੈ।"
+
+msgid ""
+"VRCVerify can't read the panel that's already in that channel. Give it "
+"Read Message History there, or choose a different channel."
+msgstr ""
+"VRCVerify ਉਸ ਚੈਨਲ ਵਿੱਚ ਪਹਿਲਾਂ ਤੋਂ ਮੌਜੂਦ ਪੈਨਲ ਨੂੰ ਪੜ੍ਹ ਨਹੀਂ ਸਕਦਾ। ਉੱਥੇ "
+"ਇਸਨੂੰ ਸੁਨੇਹਾ ਇਤਿਹਾਸ ਪੜ੍ਹੋ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ, ਜਾਂ ਕੋਈ ਵੱਖਰਾ ਚੈਨਲ ਚੁਣੋ।"
 
 msgid "The panel couldn't be posted just now. Try again shortly."
 msgstr "ਇਸ ਵੇਲੇ ਪੈਨਲ ਪੋਸਟ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
@@ -670,6 +677,13 @@ msgstr "ਮੈਂਬਰਾਂ ਨੂੰ ਸ਼ੁਰੂ ਕਰਨ ਲਈ ਇੱ�
 
 msgid "The channel it was posted in was deleted."
 msgstr "ਜਿਸ ਚੈਨਲ ਵਿੱਚ ਇਹ ਪੋਸਟ ਹੋਇਆ ਸੀ, ਉਹ ਮਿਟਾ ਦਿੱਤਾ ਗਿਆ।"
+
+msgid ""
+"Posted before August 11, 2026, so it can't be updated. Replace it from "
+"Settings."
+msgstr ""
+"11 ਅਗਸਤ 2026 ਤੋਂ ਪਹਿਲਾਂ ਪੋਸਟ ਕੀਤਾ ਗਿਆ ਸੀ, ਇਸ ਲਈ ਇਸਨੂੰ ਅੱਪਡੇਟ ਨਹੀਂ ਕੀਤਾ ਜਾ"
+" ਸਕਦਾ। ਇਸਨੂੰ ਸੈਟਿੰਗਾਂ ਤੋਂ ਬਦਲੋ।"
 
 msgid "VRCVerify can't post there anymore — check its permissions."
 msgstr "VRCVerify ਹੁਣ ਉੱਥੇ ਪੋਸਟ ਨਹੀਂ ਕਰ ਸਕਦਾ — ਇਸ ਦੀਆਂ ਇਜਾਜ਼ਤਾਂ ਜਾਂਚੋ।"
@@ -1669,6 +1683,18 @@ msgstr "ਚਾਲੂ"
 msgid "off"
 msgstr "ਬੰਦ"
 
+msgid "View Channel"
+msgstr "ਚੈਨਲ ਵੇਖੋ"
+
+msgid "Read Message History"
+msgstr "ਸੁਨੇਹਾ ਇਤਿਹਾਸ ਪੜ੍ਹੋ"
+
+msgid "Send Messages"
+msgstr "ਸੁਨੇਹੇ ਭੇਜੋ"
+
+msgid "Embed Links"
+msgstr "ਲਿੰਕ ਐਮਬੈੱਡ ਕਰੋ"
+
 msgid ""
 "The channel this panel was posted in no longer exists, so members have no"
 " way to start verifying."
@@ -1689,6 +1715,13 @@ msgstr ""
 "VRCVerify ਉਸ ਚੈਨਲ ਵਿੱਚ ਨਵਾਂ ਸੁਨੇਹਾ ਪੋਸਟ ਨਹੀਂ ਕਰ ਸਕਦਾ — ਉੱਥੇ ਇਸਨੂੰ Send "
 "Messages ਅਤੇ Embed Links ਦੋਵੇਂ ਚਾਹੀਦੇ ਹਨ। ਪੈਨਲ ਹਾਲੇ ਵੀ ਕੰਮ ਕਰਦਾ ਹੈ ਅਤੇ "
 "ਤਾਜ਼ਾ ਕੀਤਾ ਜਾ ਸਕਦਾ ਹੈ; ਬੱਸ ਬਦਲਿਆ ਨਹੀਂ ਜਾ ਸਕਦਾ।"
+
+msgid ""
+"VRCVerify needs Read Message History in that channel to refresh or "
+"replace the panel from this page."
+msgstr ""
+"ਇਸ ਸਫ਼ੇ ਤੋਂ ਪੈਨਲ ਨੂੰ ਤਾਜ਼ਾ ਕਰਨ ਜਾਂ ਬਦਲਣ ਲਈ VRCVerify ਨੂੰ ਉਸ ਚੈਨਲ ਵਿੱਚ "
+"ਸੁਨੇਹਾ ਇਤਿਹਾਸ ਪੜ੍ਹੋ ਦੀ ਇਜਾਜ਼ਤ ਚਾਹੀਦੀ ਹੈ।"
 
 msgid "Save about 10%"
 msgstr "ਲਗਭਗ 10% ਬਚਾਓ"
@@ -2361,6 +2394,43 @@ msgstr ""
 "ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਸੰਭਾਲ ਲਈਆਂ ਗਈਆਂ, ਪਰ ਹਦਾਇਤ ਪੈਨਲ ਹਾਲੇ ਵੀ ਪੁਰਾਣੀਆਂ ਵਿਖਾ "
 "ਰਿਹਾ ਹੈ। ਇਸਨੂੰ ਬਦਲਣ ਲਈ ਹੇਠਾਂ <strong>ਪੈਨਲ ਦੁਬਾਰਾ ਪੋਸਟ ਕਰੋ ਜਾਂ "
 "ਹਟਾਓ</strong> ਵਰਤੋ।"
+
+msgid "Your instructions panel can't be updated"
+msgstr "ਤੁਹਾਡਾ ਹਦਾਇਤ ਪੈਨਲ ਅੱਪਡੇਟ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ"
+
+msgid ""
+"It was posted before August 11, 2026, and Discord won't let VRCVerify "
+"edit it. Members can still verify with it, but it won't show changes to "
+"its language, color or icon until it's replaced."
+msgstr ""
+"ਇਹ 11 ਅਗਸਤ 2026 ਤੋਂ ਪਹਿਲਾਂ ਪੋਸਟ ਕੀਤਾ ਗਿਆ ਸੀ, ਅਤੇ Discord VRCVerify ਨੂੰ "
+"ਇਸਨੂੰ ਸੋਧਣ ਨਹੀਂ ਦੇਵੇਗਾ। ਮੈਂਬਰ ਹਾਲੇ ਵੀ ਇਸ ਨਾਲ ਤਸਦੀਕ ਕਰ ਸਕਦੇ ਹਨ, ਪਰ ਜਦੋਂ "
+"ਤੱਕ ਇਹ ਬਦਲਿਆ ਨਹੀਂ ਜਾਂਦਾ, ਇਹ ਆਪਣੀ ਭਾਸ਼ਾ, ਰੰਗ ਜਾਂ ਆਈਕਨ ਵਿੱਚ ਬਦਲਾਅ ਨਹੀਂ "
+"ਵਿਖਾਏਗਾ।"
+
+#, python-format
+msgid "First give VRCVerify these permissions in %(channel)s: %(permissions)s."
+msgstr "ਪਹਿਲਾਂ VRCVerify ਨੂੰ %(channel)s ਵਿੱਚ ਇਹ ਇਜਾਜ਼ਤਾਂ ਦਿਓ: %(permissions)s।"
+
+msgid ""
+"Then use <strong>Repost or move panel</strong> with the same channel "
+"selected. The old panel is removed and a new one takes its place."
+msgstr ""
+"ਫਿਰ ਉਹੀ ਚੈਨਲ ਚੁਣ ਕੇ <strong>ਪੈਨਲ ਦੁਬਾਰਾ ਪੋਸਟ ਕਰੋ ਜਾਂ ਹਟਾਓ</strong> ਵਰਤੋ। "
+"ਪੁਰਾਣਾ ਪੈਨਲ ਹਟਾ ਦਿੱਤਾ ਜਾਂਦਾ ਹੈ ਅਤੇ ਉਸਦੀ ਥਾਂ ਨਵਾਂ ਪੈਨਲ ਲੈ ਲੈਂਦਾ ਹੈ।"
+
+#, python-format
+msgid ""
+"It's in %(channel)s, which this page can't post in. Choose a channel "
+"below and use <strong>Repost or move panel</strong>, then delete the old "
+"panel in Discord."
+msgstr ""
+"ਇਹ %(channel)s ਵਿੱਚ ਹੈ, ਜਿੱਥੇ ਇਹ ਸਫ਼ਾ ਪੋਸਟ ਨਹੀਂ ਕਰ ਸਕਦਾ। ਹੇਠਾਂ ਕੋਈ ਚੈਨਲ "
+"ਚੁਣੋ ਅਤੇ <strong>ਪੈਨਲ ਦੁਬਾਰਾ ਪੋਸਟ ਕਰੋ ਜਾਂ ਹਟਾਓ</strong> ਵਰਤੋ, ਫਿਰ ਪੁਰਾਣੇ "
+"ਪੈਨਲ ਨੂੰ Discord ਵਿੱਚੋਂ ਮਿਟਾ ਦਿਓ।"
+
+msgid "Replace the panel"
+msgstr "ਪੈਨਲ ਬਦਲੋ"
 
 msgid ""
 "Couldn't load this server's roles and channels just now, so some settings"

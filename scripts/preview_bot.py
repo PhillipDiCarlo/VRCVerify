@@ -234,6 +234,17 @@ _JOIN_REQUEST_STATES = {
 #   PREVIEW_BACKFILL=cooldown    counted again inside the apply cooldown
 PREVIEW_BACKFILL = os.environ.get("PREVIEW_BACKFILL", "")
 
+# The premium server's instructions panel (#327):
+#   PREVIEW_PANEL=frozen         posted before August 11, 2026, permissions fine
+#   PREVIEW_PANEL=frozen_perms   frozen, and missing two repair permissions
+PREVIEW_PANEL = os.environ.get("PREVIEW_PANEL", "")
+_PANEL_STATES = {
+    "frozen": dict(frozen=True, missing_permissions=[]),
+    "frozen_perms": dict(
+        frozen=True, missing_permissions=["read_message_history", "embed_links"]
+    ),
+}
+
 _BACKFILL_STATES = {
     "idle": dict(),
     "counting": dict(state="running", scanned=2406),
@@ -376,6 +387,8 @@ class PreviewBotAPI:
                     verified_role_assignable=None,
                 )
                 panel = {"posted": False}
+            elif guild_id == PREMIUM:
+                panel.update(_PANEL_STATES.get(PREVIEW_PANEL, {}))
             elif guild_id == UNREACHABLE:
                 configured.update(
                     bot_can_manage_roles=False, verified_role_assignable=False
@@ -504,6 +517,10 @@ class PreviewBotAPI:
                 verified_role_assignable=None,
             )
             payload["panel"] = {"posted": False}
+        elif guild_id == PREMIUM:
+            payload["panel"] = {
+                **payload["panel"], **_PANEL_STATES.get(PREVIEW_PANEL, {})
+            }
         elif guild_id == UNREACHABLE:
             payload["configured"].update(
                 bot_can_manage_roles=False, verified_role_assignable=False
@@ -549,6 +566,9 @@ class PreviewBotAPI:
             "channel_name": "verify-log",
             "channel_exists": True,
             "channel_postable": True,
+            "missing_permissions": [],
+            "frozen": False,
+            **_PANEL_STATES.get(PREVIEW_PANEL, {}),
         }
 
     def audit(self, actor_id, guild_id) -> list:

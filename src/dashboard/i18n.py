@@ -81,6 +81,7 @@ from babel.dates import (
     format_skeleton,
     format_time as _babel_format_time,
 )
+from babel.lists import format_list as _babel_format_list
 from babel.numbers import format_decimal as _babel_format_decimal
 
 from i18n_core import (
@@ -501,6 +502,18 @@ def format_number(value, code: str) -> str:
     return _babel_format_decimal(value, locale=_locale(code))
 
 
+def format_list(items, code: str) -> str:
+    """"A, B and C" the way `code` writes it.
+
+    Not `", ".join`: Japanese separates with 、, Arabic joins with و, and every
+    language here puts its own word for "and" before the last item.
+    """
+    items = [str(item) for item in items]
+    if not items:
+        return ""
+    return _babel_format_list(items, locale=_locale(code))
+
+
 def format_timestamp(value, code: str) -> Optional[str]:
     """An ISO instant as a date and a time in `code`, always marked UTC.
 
@@ -570,6 +583,7 @@ def _warm() -> None:
         format_skeleton("MMMd", sample_date, locale=locale)
         _babel_format_time(sample_time.timetz(), format="short", locale=locale)
         _babel_format_decimal(1234567, locale=locale)
+        _babel_format_list(["a", "b", "c"], locale=locale)
 
 
 _warm()
