@@ -1,5 +1,5 @@
 --
--- VRCVerify production schema, captured 2026-09-17.
+-- VRCVerify production schema, captured 2026-09-24.
 --
 -- WHAT THIS IS FOR. tests/test_schema_snapshot.py compares the SQLAlchemy
 -- models in src/bot.py against this file and fails when they disagree about a
@@ -366,6 +366,31 @@ CREATE TABLE public.join_request_triage (
 CREATE TABLE public.join_request_triage_role (
     server_id character varying NOT NULL,
     role_id character varying(30) NOT NULL
+);
+
+
+--
+-- Name: member_backfill; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.member_backfill (
+    server_id character varying NOT NULL,
+    kind character varying(8) NOT NULL,
+    state character varying(16) NOT NULL,
+    error character varying(32),
+    actor_id character varying(30),
+    cursor character varying(30),
+    scanned integer NOT NULL,
+    has_role integer NOT NULL,
+    eligible integer NOT NULL,
+    linked_unverified integer NOT NULL,
+    unknown integer NOT NULL,
+    granted integer NOT NULL,
+    failed integer NOT NULL,
+    started_at timestamp with time zone,
+    finished_at timestamp with time zone,
+    last_applied_at timestamp with time zone,
+    updated_at timestamp with time zone
 );
 
 
@@ -792,6 +817,14 @@ ALTER TABLE ONLY public.join_request_triage
 
 ALTER TABLE ONLY public.join_request_triage_role
     ADD CONSTRAINT join_request_triage_role_pkey PRIMARY KEY (server_id, role_id);
+
+
+--
+-- Name: member_backfill member_backfill_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.member_backfill
+    ADD CONSTRAINT member_backfill_pkey PRIMARY KEY (server_id);
 
 
 --
