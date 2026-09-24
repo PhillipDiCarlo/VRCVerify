@@ -35,9 +35,7 @@ from schema_snapshot import compare, parse_snapshot
 # is no ALTER to forget: the entry comes out when the snapshot is refreshed
 # after the deploy, and test_nothing_waits_for_a_deploy_that_already_happened
 # says when.
-NOT_DEPLOYED_YET: dict = {
-    "member_backfill": "#292: a server's latest run of verifying its existing members.",
-}
+NOT_DEPLOYED_YET: dict = {}
 
 # Every divergence that exists today, keyed by exactly what the comparison
 # prints, so an entry cannot quietly go on covering a different fact than the
