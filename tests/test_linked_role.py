@@ -169,10 +169,11 @@ class TestAGuildWithBothRoles:
         run_and_drain(bot.assign_role("42", False, GUILD_ID))
         assert harness.removed == ["Unverified"]
 
-    def test_no_group_invite_offer_for_a_linked_member_yet(self, harness):
-        """18+ only until the invite audience lands (#359 PR 2)."""
+    def test_a_linked_member_is_handed_to_the_invite_offer(self, harness):
+        """offer_group_invite decides, from the stored verdict and the guild's
+        invite audience (#359 PR 2); see test_group_member_invite.py."""
         run_and_drain(bot.assign_role("42", False, GUILD_ID))
-        assert harness.offers == []
+        assert harness.offers == [42]
 
     def test_a_refused_linked_role_is_logged_as_a_link_failure(self, harness):
         harness.refused.append("Linked")

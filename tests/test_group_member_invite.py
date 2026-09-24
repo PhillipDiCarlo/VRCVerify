@@ -163,6 +163,8 @@ def clean_db():
             session.query(bot.GroupInviteRequest).delete()
             session.query(bot.DashboardAudit).delete()
             session.query(bot.PremiumGrandfatherLine).delete()
+            session.query(bot.LinkedRole).delete()
+            session.query(bot.GroupInviteAudience).delete()
 
     wipe()
     bot.premium_status_cache.clear()
@@ -666,10 +668,16 @@ class FakeMember:
 
 
 class FakeGuild:
-    def __init__(self):
+    def __init__(self, role_ids=(3,)):
         self.id = GUILD_ID
         self.name = "Club LA Discord"
         self.preferred_locale = "en-US"
+        # Role 3 is the Linked role the #359 tests store; present unless a
+        # test says it was deleted in Discord.
+        self.role_ids = set(role_ids)
+
+    def get_role(self, role_id):
+        return SimpleNamespace(id=role_id) if role_id in self.role_ids else None
 
 
 class TestTheOffer:
@@ -1454,10 +1462,9 @@ class TestTheOfferIsStampedForOneAccount:
         assert match["account"] == FINGERPRINT
 
     def test_a_member_the_database_says_is_not_18_is_never_offered(self, subscribed):
-        """offer_group_invite is only called from assign_role's 18+ branch, so
-        this can only fire if the stored verdict disagrees with the one that
-        just ran. Offering anyway would put a live button in the DMs of
-        somebody the database says is not 18+."""
+        """The stored verdict decides, never the caller. In a guild whose
+        invites are for 18+ members only (every guild without the #359
+        audience), a member the database says is not 18+ is never offered."""
         make_server()
         make_user(verified=False)
         ready_group()
@@ -3053,3 +3060,203 @@ class TestAssignRoleOffersTheInvite:
         offer_at = source.index("offer_group_invite")
         assert "try:" in source[:offer_at]
         assert "except Exception:" in source[offer_at:]
+
+
+# -------------------------------------------------------------------
+# Invites for linked members (#359)
+# -------------------------------------------------------------------
+def open_to_linked(audience=bot.INVITE_AUDIENCE_LINKED, linked_role=True):
+    with bot.session_scope() as session:
+        session.add(bot.GroupInviteAudience(server_id=str(GUILD_ID), audience=audience))
+        if linked_role:
+            session.add(bot.LinkedRole(server_id=str(GUILD_ID), role_id="3"))
+
+
+class TestTheOfferToLinkedMembers:
+    def offer(self):
+        member = FakeMember()
+        run(bot.offer_group_invite(member, FakeGuild(), "en-US"))
+        return member.sent
+
+    def setup_method(self):
+        make_server()
+        ready_group()
+
+    def test_a_linked_member_is_offered_when_invites_are_open_to_them(self, subscribed):
+        open_to_linked()
+        make_user(verified=False)
+        sent = self.offer()
+        assert len(sent) == 1
+        content, kwargs = sent[0]
+        # Worded for a link: "you're verified" would be false for them.
+        assert content == localized(locales.DM_GROUP_INVITE_OFFER_LINKED)
+        assert isinstance(kwargs["view"], bot.GroupInviteOfferView)
+
+    def test_an_18_member_still_gets_the_ordinary_offer(self, subscribed):
+        open_to_linked()
+        make_user(verified=True)
+        content, _ = self.offer()[0]
+        assert content == localized(locales.DM_GROUP_INVITE_OFFER)
+
+    def test_no_audience_row_means_18_only(self, subscribed):
+        """Every guild today."""
+        make_user(verified=False)
+        assert self.offer() == []
+
+    def test_the_linked_audience_needs_a_linked_role(self, subscribed):
+        """Without one, the member was just told "you are not 18+"."""
+        open_to_linked(linked_role=False)
+        make_user(verified=False)
+        assert self.offer() == []
+
+    def test_an_explicit_18_only_audience_offers_nothing(self, subscribed):
+        open_to_linked(audience=bot.INVITE_AUDIENCE_VERIFIED)
+        make_user(verified=False)
+        assert self.offer() == []
+
+    def test_a_free_guild_offers_nobody(self, free):
+        open_to_linked()
+        make_user(verified=False)
+        assert self.offer() == []
+
+
+class TestPressingAsALinkedMember:
+    def press(self):
+        interaction = FakeInteraction()
+        run(bot.handle_group_invite_press(interaction, GUILD_ID, FINGERPRINT))
+        return interaction
+
+    def test_a_linked_member_gets_the_invite(self, subscribed, pressable):
+        open_to_linked()
+        make_user(verified=False)
+        self.press()
+        assert len(pressable) == 1
+        job, _queue = pressable[0]
+        assert job["vrcUserID"] == VRC_USER_ID
+
+    def test_closing_it_again_after_the_offer_is_honored(self, subscribed, pressable):
+        """The press re-reads the audience, like everything else it checks."""
+        open_to_linked(audience=bot.INVITE_AUDIENCE_VERIFIED)
+        make_user(verified=False)
+        content, _ = self.press().settled
+        assert content == localized(locales.GROUP_INVITE_NOT_VERIFIED)
+        assert pressable == []
+
+    def test_a_removed_linked_role_closes_it(self, subscribed, pressable):
+        open_to_linked(linked_role=False)
+        make_user(verified=False)
+        content, _ = self.press().settled
+        assert content == localized(locales.GROUP_INVITE_NOT_VERIFIED)
+        assert pressable == []
+
+
+class TestTheLinkedAudienceFailsClosed:
+    def test_a_linked_role_deleted_in_discord_closes_the_offer(self, subscribed):
+        make_server()
+        ready_group()
+        open_to_linked()
+        make_user(verified=False)
+        member = FakeMember()
+        run(bot.offer_group_invite(member, FakeGuild(role_ids=()), "en-US"))
+        assert member.sent == []
+
+    def test_a_linked_role_deleted_in_discord_closes_the_press(
+        self, subscribed, pressable, monkeypatch
+    ):
+        open_to_linked()
+        make_user(verified=False)
+        monkeypatch.setattr(bot.bot, "get_guild", lambda gid: FakeGuild(role_ids=()))
+        interaction = FakeInteraction()
+        run(bot.handle_group_invite_press(interaction, GUILD_ID, FINGERPRINT))
+        content, _ = interaction.settled
+        assert content == localized(locales.GROUP_INVITE_NOT_VERIFIED)
+        assert pressable == []
+
+    def test_an_unreadable_audience_at_the_press_is_retryable_not_stuck(
+        self, subscribed, pressable, monkeypatch
+    ):
+        """Found by the PR 2 adversarial pass: the press has already swapped
+        the button for "Asking VRChat...", so an escaping error left the
+        member there for good."""
+        make_user(verified=False)
+
+        def boom(*a, **k):
+            raise RuntimeError("database down")
+
+        monkeypatch.setattr(bot, "invites_linked_members", boom)
+        interaction = FakeInteraction()
+        run(bot.handle_group_invite_press(interaction, GUILD_ID, FINGERPRINT))
+        content, view = interaction.settled
+        assert content == localized(locales.GROUP_INVITE_UNAVAILABLE)
+        assert view is not None
+        assert pressable == []
+
+    def test_an_unreadable_audience_at_the_offer_offers_nothing(
+        self, subscribed, monkeypatch
+    ):
+        make_server()
+        ready_group()
+        make_user(verified=False)
+
+        def boom(*a, **k):
+            raise RuntimeError("database down")
+
+        monkeypatch.setattr(bot, "invites_linked_members", boom)
+        member = FakeMember()
+        run(bot.offer_group_invite(member, FakeGuild(), "en-US"))
+        assert member.sent == []
+
+    def test_an_18_member_never_reads_the_audience(self, subscribed, pressable, monkeypatch):
+        make_user(verified=True)
+        reads = []
+        real = bot.invites_linked_members
+
+        def counted(*a, **k):
+            reads.append(a)
+            return real(*a, **k)
+
+        monkeypatch.setattr(bot, "invites_linked_members", counted)
+        run(bot.offer_group_invite(FakeMember(), FakeGuild(), "en-US"))
+        run(bot.handle_group_invite_press(FakeInteraction(), GUILD_ID, FINGERPRINT))
+        assert reads == []
+
+
+class TestNoChangeForTheDefaultAudience:
+    """End to end, the real assign_role into the real offer: a guild with a
+    Linked role and no audience row sends a linked member no invite DM."""
+
+    def test_a_linked_member_in_an_18_only_guild_gets_no_offer(self, subscribed, monkeypatch):
+        make_server(role_id="1")
+        ready_group()
+        with bot.session_scope() as session:
+            session.add(bot.LinkedRole(server_id=str(GUILD_ID), role_id="3"))
+        make_user(verified=False)
+
+        roles = [SimpleNamespace(id=1, name="18+"), SimpleNamespace(id=3, name="Linked")]
+        guild = FakeGuild()
+        guild.roles = roles
+        sent = []
+
+        class Member:
+            id = MEMBER_ID
+            roles = []
+
+            async def add_roles(self, role):
+                pass
+
+            async def remove_roles(self, role):
+                pass
+
+            async def send(self, content=None, **kwargs):
+                sent.append((content, kwargs))
+
+        member = Member()
+
+        async def fetch(g, user_id):
+            return member
+
+        monkeypatch.setattr(bot.bot, "get_guild", lambda gid: guild)
+        monkeypatch.setattr(bot, "fetch_member_cached", fetch)
+        run(bot.assign_role(str(MEMBER_ID), False, str(GUILD_ID)))
+        assert sent, "the linked member should still get their linked DM"
+        assert not any("view" in kwargs for _content, kwargs in sent)

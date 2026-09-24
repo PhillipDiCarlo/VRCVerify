@@ -37,6 +37,7 @@ from schema_snapshot import compare, parse_snapshot
 # says when.
 NOT_DEPLOYED_YET: dict = {
     "linked_role": "#359: the role a guild gives every member who links a VRChat account.",
+    "group_invite_audience": "#359: whether a guild's group invites also go to linked members.",
 }
 
 # Every divergence that exists today, keyed by exactly what the comparison
