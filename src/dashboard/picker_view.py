@@ -25,7 +25,8 @@ same distinction the Overview's setup list draws, at the width of a card:
   one, and the only way to find out was to click into each in turn.
 
 * **broken** -- configured and not working. A role that was deleted, a role the
-  bot cannot grant, a panel channel it can no longer post in. The most valuable
+  bot cannot grant, a panel channel it can no longer post in, a panel posted
+  before August 11, 2026 that no edit can reach (#327). The most valuable
   of the three, because it is the one nothing else on any screen surfaces: the
   server looked finished the last time anyone checked, and then quietly stopped.
 
@@ -134,7 +135,9 @@ def card_state(summary: Optional[dict]) -> str:
     its list and right for a single line: the list has room to say "this one is
     missing and that one is broken", and a card has to pick the more urgent.
     A server that was working and stopped is losing verifications right now; a
-    server that was never finished has not started.
+    server that was never finished has not started. (A frozen panel is the
+    exception: members can still verify with it. It is broken because nothing
+    an admin changes will ever reach it, #327.)
 
     `unknown` when the summary is unreadable. `build_setup` returns None when
     the configuration could not be read, and a card must not turn that into

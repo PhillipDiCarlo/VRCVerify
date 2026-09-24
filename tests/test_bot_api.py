@@ -1614,7 +1614,7 @@ class FakeRole:
 
 class FakeChannel:
     def __init__(self, channel_id, name, position=0, news=False, sendable=True,
-                 embeddable=None):
+                 embeddable=None, readable=True):
         self.id = channel_id
         self.name = name
         self.position = position
@@ -1625,6 +1625,7 @@ class FakeChannel:
         # the channel that grants one and not the other -- which accepts the
         # verification log and refuses the instructions panel.
         self._embeddable = sendable if embeddable is None else embeddable
+        self._readable = readable
 
     def is_news(self):
         return self._news
@@ -1632,6 +1633,7 @@ class FakeChannel:
     def permissions_for(self, _member):
         return SimpleNamespace(
             view_channel=True,
+            read_message_history=self._readable,
             send_messages=self._sendable,
             embed_links=self._embeddable,
         )
@@ -2392,7 +2394,7 @@ class TestPanelAction:
     """Posting a panel is the one thing that shows up in somebody's server."""
 
     def setup_guild(self, monkeypatch, sendable=True, sent=None, webhook_owned=False,
-                    deleted=None):
+                    deleted=None, readable=True):
         sent = [] if sent is None else sent
         deleted = [] if deleted is None else deleted
 
@@ -2408,7 +2410,10 @@ class TestPanelAction:
 
             def permissions_for(self, _member):
                 return SimpleNamespace(
-                    view_channel=True, send_messages=sendable, embed_links=sendable
+                    view_channel=True,
+                    read_message_history=readable,
+                    send_messages=sendable,
+                    embed_links=sendable,
                 )
 
             async def fetch_message(self, message_id):
@@ -2629,6 +2634,35 @@ class TestPanelAction:
         assert self.post() is None
         assert sent == []
 
+    def test_a_same_channel_repost_without_history_says_so(
+        self, monkeypatch, subscribed
+    ):
+        """#327. This used to be a 503, which the dashboard shows as "try again
+        shortly" -- and no retry could ever get past a missing permission."""
+        sent = self.setup_guild(monkeypatch, readable=False, webhook_owned=True)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        fetched = []
+
+        async def spy(_channel, message_id):
+            fetched.append(message_id)
+            return True
+
+        monkeypatch.setattr(bot, "_panel_is_webhook_owned", spy)
+        with pytest.raises(bot.SettingRejected) as caught:
+            self.post()
+        assert caught.value.reason == "channel_not_readable"
+        assert fetched == []
+        assert sent == []
+
+    def test_moving_needs_no_history_in_the_new_channel(
+        self, monkeypatch, subscribed
+    ):
+        """Nothing is read on a move, so the new check must not refuse one."""
+        sent = self.setup_guild(monkeypatch, readable=False)
+        make_server(instructions_channel_id="70", instructions_message_id="900")
+        assert self.post("71")["action"] == "moved"
+        assert len(sent) == 1
+
     def test_a_failed_delete_does_not_undo_the_replacement(
         self, monkeypatch, subscribed
     ):
@@ -2674,7 +2708,10 @@ class TestPanelAction:
 
             def permissions_for(self, _member):
                 return SimpleNamespace(
-                    view_channel=True, send_messages=True, embed_links=True
+                    view_channel=True,
+                    read_message_history=True,
+                    send_messages=True,
+                    embed_links=True,
                 )
 
             async def fetch_message(self, message_id):
@@ -3499,6 +3536,62 @@ class TestPanelReader:
         assert panel["posted"] is True
         assert panel["channel_exists"] is True
         assert panel["channel_postable"] is False
+
+    # The first snowflake at the cutoff, and the last one before it.
+    AFTER_CUTOFF = str(bot.discord.utils.time_snowflake(bot.PANEL_FROZEN_BEFORE))
+    BEFORE_CUTOFF = str(int(AFTER_CUTOFF) - 1)
+
+    def test_a_panel_posted_before_the_cutoff_is_frozen(self, monkeypatch):
+        make_server(
+            instructions_channel_id="1", instructions_message_id=self.BEFORE_CUTOFF
+        )
+        guild = FakeGuild(channels=[FakeChannel(1, "verify")])
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        assert run(bot.read_dashboard_panel(GUILD_ID))["frozen"] is True
+
+    def test_a_panel_posted_after_the_cutoff_is_not_frozen(self, monkeypatch):
+        """Not proven frozen, which is all the dashboard may act on."""
+        make_server(
+            instructions_channel_id="1", instructions_message_id=self.AFTER_CUTOFF
+        )
+        guild = FakeGuild(channels=[FakeChannel(1, "verify")])
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        assert run(bot.read_dashboard_panel(GUILD_ID))["frozen"] is False
+
+    def test_frozen_is_answered_without_the_guild(self, monkeypatch):
+        """The id alone proves it, so even an uncached guild gets an answer."""
+        make_server(
+            instructions_channel_id="1", instructions_message_id=self.BEFORE_CUTOFF
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: None)
+        panel = run(bot.read_dashboard_panel(GUILD_ID))
+        assert panel["frozen"] is True
+        assert panel["missing_permissions"] is None
+
+    @pytest.mark.parametrize("message_id", ["0", "-5", "55", "9" * 40, None, "x"])
+    def test_ids_that_prove_nothing_are_not_frozen(self, message_id):
+        """No timestamp, no proof, and never an exception: this runs for every
+        row of the picker's batch, where one raise blanks every card."""
+        assert bot.panel_provably_frozen(message_id) is False
+
+    def test_missing_repair_permissions_are_listed_by_key(self, monkeypatch):
+        make_server(instructions_channel_id="1", instructions_message_id="55")
+        guild = FakeGuild(
+            channels=[FakeChannel(1, "verify", embeddable=False, readable=False)]
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        panel = run(bot.read_dashboard_panel(GUILD_ID))
+        assert panel["missing_permissions"] == ["read_message_history", "embed_links"]
+
+    def test_history_is_not_part_of_postable(self, monkeypatch):
+        """#327 decision: postable still means "could a NEW message go here",
+        and a send needs no history. The gap is reported separately."""
+        make_server(instructions_channel_id="1", instructions_message_id="55")
+        guild = FakeGuild(channels=[FakeChannel(1, "verify", readable=False)])
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        panel = run(bot.read_dashboard_panel(GUILD_ID))
+        assert panel["channel_postable"] is True
+        assert panel["missing_permissions"] == ["read_message_history"]
 
 
 def member(administrator=True):

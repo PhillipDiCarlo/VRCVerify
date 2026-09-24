@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-23 20:45-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -136,6 +136,11 @@ msgid ""
 "VRCVerify can't post the panel in that channel. It needs both Send "
 "Messages and Embed Links there -- Embed Links is the one that's usually "
 "missing, because the panel is an embed."
+msgstr ""
+
+msgid ""
+"VRCVerify can't read the panel that's already in that channel. Give it "
+"Read Message History there, or choose a different channel."
 msgstr ""
 
 msgid "The panel couldn't be posted just now. Try again shortly."
@@ -493,6 +498,11 @@ msgid "Members need a message to start from."
 msgstr ""
 
 msgid "The channel it was posted in was deleted."
+msgstr ""
+
+msgid ""
+"Posted before August 11, 2026, so it can't be updated. Replace it from "
+"Settings."
 msgstr ""
 
 msgid "VRCVerify can't post there anymore — check its permissions."
@@ -1333,6 +1343,18 @@ msgstr ""
 msgid "off"
 msgstr ""
 
+msgid "View Channel"
+msgstr ""
+
+msgid "Read Message History"
+msgstr ""
+
+msgid "Send Messages"
+msgstr ""
+
+msgid "Embed Links"
+msgstr ""
+
 msgid ""
 "The channel this panel was posted in no longer exists, so members have no"
 " way to start verifying."
@@ -1342,6 +1364,11 @@ msgid ""
 "VRCVerify can't post a new message in that channel — it needs both Send "
 "Messages and Embed Links there. The panel still works and can still be "
 "refreshed; it just can't be replaced."
+msgstr ""
+
+msgid ""
+"VRCVerify needs Read Message History in that channel to refresh or "
+"replace the panel from this page."
 msgstr ""
 
 msgid "Save about 10%"
@@ -1915,6 +1942,34 @@ msgstr ""
 msgid ""
 "Your settings were saved, but the instructions panel still shows the old "
 "ones. Use <strong>Repost or move panel</strong> below to replace it."
+msgstr ""
+
+msgid "Your instructions panel can't be updated"
+msgstr ""
+
+msgid ""
+"It was posted before August 11, 2026, and Discord won't let VRCVerify "
+"edit it. Members can still verify with it, but it won't show changes to "
+"its language, color or icon until it's replaced."
+msgstr ""
+
+#, python-format
+msgid "First give VRCVerify these permissions in %(channel)s: %(permissions)s."
+msgstr ""
+
+msgid ""
+"Then use <strong>Repost or move panel</strong> with the same channel "
+"selected. The old panel is removed and a new one takes its place."
+msgstr ""
+
+#, python-format
+msgid ""
+"It's in %(channel)s, which this page can't post in. Choose a channel "
+"below and use <strong>Repost or move panel</strong>, then delete the old "
+"panel in Discord."
+msgstr ""
+
+msgid "Replace the panel"
 msgstr ""
 
 msgid ""

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-23 20:45-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -142,6 +142,11 @@ msgid ""
 "Messages and Embed Links there -- Embed Links is the one that's usually "
 "missing, because the panel is an embed."
 msgstr "VRCVerify 无法在该频道发布面板。它在那里同时需要“发送消息”和“嵌入链接”两项权限 —— 通常缺的是“嵌入链接”，因为面板是一条嵌入消息。"
+
+msgid ""
+"VRCVerify can't read the panel that's already in that channel. Give it "
+"Read Message History there, or choose a different channel."
+msgstr "VRCVerify 无法读取该频道中已有的面板。请给它该频道的读取消息记录权限，或选择其他频道。"
 
 msgid "The panel couldn't be posted just now. Try again shortly."
 msgstr "目前无法发布面板。请稍后重试。"
@@ -564,6 +569,11 @@ msgstr "成员需要一条消息作为起点。"
 
 msgid "The channel it was posted in was deleted."
 msgstr "发布它的频道已被删除。"
+
+msgid ""
+"Posted before August 11, 2026, so it can't be updated. Replace it from "
+"Settings."
+msgstr "发布于 2026 年 8 月 11 日之前，因此无法更新。请从设置中替换它。"
 
 msgid "VRCVerify can't post there anymore — check its permissions."
 msgstr "VRCVerify 已无法在那里发言 —— 请检查权限。"
@@ -1421,6 +1431,18 @@ msgstr "开"
 msgid "off"
 msgstr "关"
 
+msgid "View Channel"
+msgstr "查看频道"
+
+msgid "Read Message History"
+msgstr "读取消息记录"
+
+msgid "Send Messages"
+msgstr "发送消息"
+
+msgid "Embed Links"
+msgstr "嵌入链接"
+
 msgid ""
 "The channel this panel was posted in no longer exists, so members have no"
 " way to start verifying."
@@ -1436,6 +1458,11 @@ msgid ""
 "Messages and Embed Links there. The panel still works and can still be "
 "refreshed; it just can't be replaced."
 msgstr "VRCVerify 无法在该频道发布新消息 —— 它在那里同时需要“发送消息”和“嵌入链接”。面板仍然可用，也仍可刷新，只是无法被替换。"
+
+msgid ""
+"VRCVerify needs Read Message History in that channel to refresh or "
+"replace the panel from this page."
+msgstr "VRCVerify 需要该频道的读取消息记录权限，才能从此页面刷新或替换面板。"
 
 msgid "Save about 10%"
 msgstr "约省 10%"
@@ -2044,6 +2071,38 @@ msgid ""
 "Your settings were saved, but the instructions panel still shows the old "
 "ones. Use <strong>Repost or move panel</strong> below to replace it."
 msgstr "你的设置已保存，但说明面板显示的仍是旧内容。请使用下面的<strong>重新发布或移动面板</strong>来替换它。"
+
+msgid "Your instructions panel can't be updated"
+msgstr "你的说明面板无法更新"
+
+msgid ""
+"It was posted before August 11, 2026, and Discord won't let VRCVerify "
+"edit it. Members can still verify with it, but it won't show changes to "
+"its language, color or icon until it's replaced."
+msgstr ""
+"它发布于 2026 年 8 月 11 日之前，Discord 不允许 VRCVerify "
+"编辑它。成员仍然可以用它验证，但在它被替换之前，不会显示语言、颜色或图标上的更改。"
+
+#, python-format
+msgid "First give VRCVerify these permissions in %(channel)s: %(permissions)s."
+msgstr "请先在 %(channel)s 中给予 VRCVerify 这些权限：%(permissions)s。"
+
+msgid ""
+"Then use <strong>Repost or move panel</strong> with the same channel "
+"selected. The old panel is removed and a new one takes its place."
+msgstr "然后在选中同一频道的情况下使用<strong>重新发布或移动面板</strong>。旧面板会被移除，新面板会取代它的位置。"
+
+#, python-format
+msgid ""
+"It's in %(channel)s, which this page can't post in. Choose a channel "
+"below and use <strong>Repost or move panel</strong>, then delete the old "
+"panel in Discord."
+msgstr ""
+"它在 %(channel)s 中，此页面无法在那里发布。请在下面选择一个频道并使用<strong>重新发布或移动面板</strong>，然后在 "
+"Discord 中删除旧面板。"
+
+msgid "Replace the panel"
+msgstr "替换面板"
 
 msgid ""
 "Couldn't load this server's roles and channels just now, so some settings"

@@ -31,7 +31,7 @@ from typing import Callable, Optional
 # The no-op translation marker (#97). Tables in this module are built at
 # import, so they hold msgids; the lookup happens per request against the
 # `gettext` callable the caller passes in.
-from dashboard.i18n import DEFAULT_LANGUAGE, N_, format_timestamp
+from dashboard.i18n import DEFAULT_LANGUAGE, N_, format_list, format_timestamp
 
 
 def _untranslated(text: str) -> str:
@@ -459,7 +459,9 @@ def build_groups(
             "slug": "panel",
             "blurb": t(N_("The message members use to start verification.")),
             "fields": [locale, color, icon],
-            "panel": panel_summary(panel, t),
+            "panel": panel_summary(
+                panel, t, lang=lang, choices=_panel_channels(channels, panel)
+            ),
             # Where the panel may be posted. Announcement channels are NOT
             # filtered out, unlike the log channel's picker: the panel is public
             # instructions, and /vrcverify_instructions can be run in one, so
@@ -1794,8 +1796,22 @@ def _panel_channels(channels: Optional[list], panel: Optional[dict]) -> list:
     ]
 
 
+# The bot sends permission keys and the names are chosen here, so they reach
+# the admin in the page's language, the way Discord's own settings show them.
+# Same four, same order as the bot's PANEL_REPAIR_PERMISSIONS.
+PANEL_PERMISSION_NAMES = {
+    "view_channel": N_("View Channel"),
+    "read_message_history": N_("Read Message History"),
+    "send_messages": N_("Send Messages"),
+    "embed_links": N_("Embed Links"),
+}
+
+
 def panel_summary(
-    panel: Optional[dict], t: Callable[[str], str] = _untranslated
+    panel: Optional[dict],
+    t: Callable[[str], str] = _untranslated,
+    lang: str = DEFAULT_LANGUAGE,
+    choices: Optional[list] = None,
 ) -> dict:
     """The instructions panel's whereabouts, as a template-ready dict.
 
@@ -1815,7 +1831,10 @@ def panel_summary(
             "The channel this panel was posted in no longer exists, so members "
             "have no way to start verifying."
         )))
-    elif panel.get("channel_postable") is False:
+    elif panel.get("channel_postable") is False and not panel.get("frozen"):
+        # Not for a frozen panel: "can still be refreshed" is false for one,
+        # and the banner names the missing permissions itself (#327).
+        #
         # Deliberately narrow. The panel itself is fine: buttons are
         # interactions, and refreshing it edits a message VRCVerify already
         # owns, neither of which needs Send Messages. Only replacing it does.
@@ -1827,14 +1846,54 @@ def panel_summary(
             "and can still be refreshed; it just can't be replaced."
         )))
 
+    missing = panel.get("missing_permissions") or []
+    # Not beside the frozen banner, which already names every missing one.
+    if (
+        panel.get("channel_exists") is not False
+        and "read_message_history" in missing
+        and not panel.get("frozen")
+    ):
+        # Its own warning because the automatic refresh copes without it and
+        # the button on this page does not: pointed at the panel's own channel,
+        # the button reads the old panel first (#327).
+        warnings.append(t(N_(
+            "VRCVerify needs Read Message History in that channel to refresh or "
+            "replace the panel from this page."
+        )))
+
     name = panel.get("channel_name")
+    channel = (
+        f"#{name}"
+        if name
+        else t(N_("channel %(id)s")) % {"id": panel.get("channel_id")}
+    )
+    frozen = None
+    if panel.get("frozen") and panel.get("channel_exists") is not False:
+        names = [
+            t(PANEL_PERMISSION_NAMES[key])
+            for key in missing
+            if key in PANEL_PERMISSION_NAMES
+        ]
+        choice_ids = {channel_id for channel_id, _label in (choices or [])}
+        frozen = {
+            "channel": channel,
+            "missing": names,
+            "permissions": format_list(names, lang),
+            # Whether the Repost form can even be pointed at the panel's own
+            # channel. A panel posted in a thread cannot: the picker lists text
+            # channels only, so the "same channel" advice would send the admin
+            # into a move that leaves the frozen panel up.
+            "in_place": str(panel.get("channel_id")) in choice_ids,
+            # Whether the form is on the page at all. It is not when the
+            # channels could not be read, and a button to it would go nowhere.
+            "form": bool(choices),
+        }
     return {
         "known": True,
         "posted": True,
-        "channel": (
-            f"#{name}"
-            if name
-            else t(N_("channel %(id)s")) % {"id": panel.get("channel_id")}
-        ),
+        "channel": channel,
         "warnings": warnings,
+        # The banner at the top of the panel page (#327). None when the panel
+        # is not PROVABLY frozen, which is not proof that it is editable.
+        "frozen": frozen,
     }

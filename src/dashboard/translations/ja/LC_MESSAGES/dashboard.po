@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-23 20:45-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -150,6 +150,11 @@ msgid ""
 msgstr ""
 "VRCVerify "
 "はそのチャンネルにパネルを投稿できません。そこでは「メッセージを送信」と「埋め込みリンク」の両方が必要です。パネルは埋め込みなので、たいてい足りないのは「埋め込みリンク」のほうです。"
+
+msgid ""
+"VRCVerify can't read the panel that's already in that channel. Give it "
+"Read Message History there, or choose a different channel."
+msgstr "VRCVerify はそのチャンネルに既にあるパネルを読み取れません。そこに「メッセージ履歴の閲覧」権限を与えるか、別のチャンネルを選んでください。"
 
 msgid "The panel couldn't be posted just now. Try again shortly."
 msgstr "ただいまパネルを投稿できませんでした。少ししてからもう一度お試しください。"
@@ -586,6 +591,11 @@ msgstr "メンバーが認証を始めるためのメッセージが必要です
 
 msgid "The channel it was posted in was deleted."
 msgstr "投稿先のチャンネルが削除されました。"
+
+msgid ""
+"Posted before August 11, 2026, so it can't be updated. Replace it from "
+"Settings."
+msgstr "2026年8月11日より前に投稿されたため、更新できません。設定から置き換えてください。"
 
 msgid "VRCVerify can't post there anymore — check its permissions."
 msgstr "VRCVerify はもうそこに投稿できません。権限を確認してください。"
@@ -1477,6 +1487,18 @@ msgstr "オン"
 msgid "off"
 msgstr "オフ"
 
+msgid "View Channel"
+msgstr "チャンネルの閲覧"
+
+msgid "Read Message History"
+msgstr "メッセージ履歴の閲覧"
+
+msgid "Send Messages"
+msgstr "メッセージの送信"
+
+msgid "Embed Links"
+msgstr "埋め込みリンク"
+
 msgid ""
 "The channel this panel was posted in no longer exists, so members have no"
 " way to start verifying."
@@ -1494,6 +1516,11 @@ msgid ""
 msgstr ""
 "VRCVerify "
 "はそのチャンネルに新しいメッセージを投稿できません。「メッセージを送信」と「埋め込みリンク」の両方が必要です。パネル自体は動作しており更新もできますが、置き換えだけができません。"
+
+msgid ""
+"VRCVerify needs Read Message History in that channel to refresh or "
+"replace the panel from this page."
+msgstr "このページからパネルを更新または置き換えるには、そのチャンネルで VRCVerify に「メッセージ履歴の閲覧」権限が必要です。"
 
 msgid "Save about 10%"
 msgstr "約 10% おトク"
@@ -2111,6 +2138,39 @@ msgid ""
 "Your settings were saved, but the instructions panel still shows the old "
 "ones. Use <strong>Repost or move panel</strong> below to replace it."
 msgstr "設定は保存されましたが、案内パネルにはまだ以前の内容が表示されています。下の<strong>パネルを再投稿または移動</strong>から置き換えてください。"
+
+msgid "Your instructions panel can't be updated"
+msgstr "案内パネルを更新できません"
+
+msgid ""
+"It was posted before August 11, 2026, and Discord won't let VRCVerify "
+"edit it. Members can still verify with it, but it won't show changes to "
+"its language, color or icon until it's replaced."
+msgstr ""
+"2026年8月11日より前に投稿されたため、Discord は VRCVerify "
+"による編集を許可していません。メンバーはこれを使って引き続き認証できますが、置き換えるまで言語、色、アイコンの変更は反映されません。"
+
+#, python-format
+msgid "First give VRCVerify these permissions in %(channel)s: %(permissions)s."
+msgstr "まず %(channel)s で VRCVerify に次の権限を与えてください: %(permissions)s。"
+
+msgid ""
+"Then use <strong>Repost or move panel</strong> with the same channel "
+"selected. The old panel is removed and a new one takes its place."
+msgstr "続いて、同じチャンネルを選んだまま<strong>パネルを再投稿または移動</strong>を使ってください。古いパネルは削除され、新しいパネルに置き換わります。"
+
+#, python-format
+msgid ""
+"It's in %(channel)s, which this page can't post in. Choose a channel "
+"below and use <strong>Repost or move panel</strong>, then delete the old "
+"panel in Discord."
+msgstr ""
+"パネルは %(channel)s "
+"にあり、このページはそこに投稿できません。下でチャンネルを選び、<strong>パネルを再投稿または移動</strong>を使ってください。その後、古いパネルを"
+" Discord で削除してください。"
+
+msgid "Replace the panel"
+msgstr "パネルを置き換える"
 
 msgid ""
 "Couldn't load this server's roles and channels just now, so some settings"

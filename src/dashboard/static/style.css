@@ -1244,6 +1244,13 @@ main { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
  * into a card -- carries 20px of dead space along its bottom edge. */
 .panel > .notice:last-child { margin-bottom: 0; }
 
+/* The frozen-panel banner (#327), the one notice with several paragraphs and
+ * a button. Browser paragraph margins doubled the notice's own padding at the
+ * top, and without weight the title read as the first sentence of the body. */
+.frozen-panel p { margin: 0 0 0.6rem; }
+.frozen-panel .frozen-panel-title { font-weight: 700; }
+.frozen-panel .button { margin-top: 0.2rem; }
+
 .button {
   display: inline-flex;
   align-items: center;

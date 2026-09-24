@@ -591,8 +591,8 @@ def _role_row(configured: dict, t: Callable[[str], str] = _untranslated) -> dict
 def _panel_row(
     panel: Optional[dict], t: Callable[[str], str] = _untranslated
 ) -> dict:
-    """Instructions panel: posted, in a channel that still exists, and one the
-    bot can still post to. Mirrors `_role_row`'s three-way split for the same
+    """Instructions panel: posted, in a channel that still exists, not provably
+    frozen, and one the bot can still post to. Mirrors `_role_row`'s three-way split for the same
     reason -- "not set up" and "set up and now broken" need different notes
     even though both need the same fix."""
     action = _settings_action("panel", t=t)
@@ -612,6 +612,21 @@ def _panel_row(
             "label": label,
             "state": "broken",
             "note": t(N_("The channel it was posted in was deleted.")),
+            "action": action,
+        }
+    # Before the permissions check: this is the one that explains why the
+    # panel matters, and Settings names any missing permission alongside it.
+    # "broken" although members can still verify with it, because nothing
+    # changed in Settings will ever reach it (#327).
+    if panel.get("frozen"):
+        return {
+            "key": key,
+            "label": label,
+            "state": "broken",
+            "note": t(N_(
+                "Posted before August 11, 2026, so it can't be updated. "
+                "Replace it from Settings."
+            )),
             "action": action,
         }
     if panel.get("channel_postable") is False:

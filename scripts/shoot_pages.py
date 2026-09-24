@@ -76,6 +76,15 @@ PAGES = [
         f"/guild/{PREMIUM}/settings",
         {"PREVIEW_NO_MANAGE_ROLES": "1"},
     ),
+    # A panel posted before August 11, 2026, which the bot cannot edit (#327),
+    # on all three surfaces that report it.
+    ("picker-frozen-panel", "/", {"PREVIEW_PANEL": "frozen_perms"}),
+    ("overview-frozen-panel", f"/guild/{PREMIUM}", {"PREVIEW_PANEL": "frozen_perms"}),
+    (
+        "settings-frozen-panel",
+        f"/guild/{PREMIUM}/settings/panel",
+        {"PREVIEW_PANEL": "frozen_perms"},
+    ),
 ]
 
 # Both themes explicitly, plus "system" left to the OS preference -- which is a
