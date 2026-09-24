@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-23 23:31-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
@@ -37,6 +37,34 @@ msgstr ""
 #, python-brace-format
 msgid "You've been verified and given **{role}** in **{server}**!"
 msgstr "Вы прошли проверку и получили роль **{role}** на **{server}**!"
+
+#, python-brace-format
+msgid ""
+"You've been verified and given **{role}** and **{linked_role}** in "
+"**{server}**!"
+msgstr ""
+"Вы прошли проверку и получили роли **{role}** и **{linked_role}** на "
+"**{server}**!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{role}** in "
+"**{server}**!"
+msgstr ""
+"Ваш аккаунт VRChat привязан, и вы получили роль **{role}** на "
+"**{server}**!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{linked_role}** in"
+" **{server}**. You didn't get **{role}** because VRChat doesn't show your"
+" account as age verified. Once it does, press **Begin Verification** "
+"again."
+msgstr ""
+"Ваш аккаунт VRChat привязан, и вы получили роль **{linked_role}** на "
+"**{server}**. Вы не получили **{role}**, потому что VRChat не показывает,"
+" что ваш аккаунт прошёл проверку возраста. Как только это произойдёт, "
+"нажмите **Начать проверку** ещё раз."
 
 msgid "Nickname update requested. I'll DM you once it's done!"
 msgstr ""
@@ -418,6 +446,17 @@ msgstr "**Состояние VRCVerify на сервере {server}**"
 #, python-brace-format
 msgid "✅ Verified role: **{role}**"
 msgstr "✅ Роль для проверенных: **{role}**"
+
+#, python-brace-format
+msgid "✅ Linked role: **{role}**"
+msgstr "✅ Роль для привязанных: **{role}**"
+
+msgid ""
+"❌ The configured Linked role no longer exists. Choose a new one on the "
+"dashboard."
+msgstr ""
+"❌ Заданной роли для привязанных больше не существует. Выберите новую на "
+"панели управления."
 
 msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
 msgstr ""
@@ -822,6 +861,18 @@ msgstr ""
 #, python-brace-format
 msgid "❌ {user} — not 18+ according to VRChat · {when}"
 msgstr "❌ {user} — по данным VRChat не 18+ · {when}"
+
+#, python-brace-format
+msgid "🔗 {user} · linked, not 18+ according to VRChat · {when}"
+msgstr "🔗 {user} · привязан, по данным VRChat не 18+ · {when}"
+
+#, python-brace-format
+msgid ""
+"⚠️ {user} · linked, but the role could not be assigned. Check that the "
+"VRCVerify bot's role sits above the Linked role. · {when}"
+msgstr ""
+"⚠️ {user} · привязан, но роль выдать не удалось. Проверьте, что роль бота"
+" VRCVerify находится выше роли для привязанных. · {when}"
 
 #, python-brace-format
 msgid ""

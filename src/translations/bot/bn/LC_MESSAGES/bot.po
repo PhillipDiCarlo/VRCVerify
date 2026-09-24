@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-23 23:31-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: bn\n"
@@ -40,6 +40,34 @@ msgid "You've been verified and given **{role}** in **{server}**!"
 msgstr ""
 "আপনি যাচাইপ্রক্রিয়া সম্পন্ন করেছেন এবং **{role}** ভূমিকা **{server}**-এ "
 "পেয়েছেন!"
+
+#, python-brace-format
+msgid ""
+"You've been verified and given **{role}** and **{linked_role}** in "
+"**{server}**!"
+msgstr ""
+"আপনি যাচাইপ্রক্রিয়া সম্পন্ন করেছেন এবং **{role}** ও **{linked_role}** "
+"ভূমিকা **{server}**-এ পেয়েছেন!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{role}** in "
+"**{server}**!"
+msgstr ""
+"আপনার VRChat অ্যাকাউন্ট সংযুক্ত হয়েছে, এবং আপনি **{role}** ভূমিকা "
+"**{server}**-এ পেয়েছেন!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{linked_role}** in"
+" **{server}**. You didn't get **{role}** because VRChat doesn't show your"
+" account as age verified. Once it does, press **Begin Verification** "
+"again."
+msgstr ""
+"আপনার VRChat অ্যাকাউন্ট সংযুক্ত হয়েছে, এবং আপনি **{linked_role}** ভূমিকা"
+" **{server}**-এ পেয়েছেন। আপনি **{role}** পাননি কারণ VRChat আপনার "
+"অ্যাকাউন্টকে বয়স যাচাইকৃত হিসেবে দেখাচ্ছে না। এটি দেখালে, আবার **যাচাই "
+"শুরু করুন** চাপুন।"
 
 msgid "Nickname update requested. I'll DM you once it's done!"
 msgstr "ডাকনাম আপডেটের অনুরোধ পাঠানো হয়েছে। সম্পন্ন হলে আমি আপনাকে ডিএম করবো!"
@@ -420,6 +448,15 @@ msgstr "**{server}-এর জন্য VRCVerify অবস্থা**"
 #, python-brace-format
 msgid "✅ Verified role: **{role}**"
 msgstr "✅ যাচাইকৃত রোল: **{role}**"
+
+#, python-brace-format
+msgid "✅ Linked role: **{role}**"
+msgstr "✅ সংযুক্ত রোল: **{role}**"
+
+msgid ""
+"❌ The configured Linked role no longer exists. Choose a new one on the "
+"dashboard."
+msgstr "❌ সেট করা সংযুক্ত রোলটি আর নেই। ড্যাশবোর্ড থেকে একটি নতুন বেছে নিন।"
 
 msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
 msgstr "❌ কোনো যাচাইকৃত রোল সেট করা নেই — একটি বেছে নিতে `/vrcverify_setup` চালান।"
@@ -817,6 +854,18 @@ msgstr ""
 #, python-brace-format
 msgid "❌ {user} — not 18+ according to VRChat · {when}"
 msgstr "❌ {user} — VRChat অনুযায়ী 18+ নয় · {when}"
+
+#, python-brace-format
+msgid "🔗 {user} · linked, not 18+ according to VRChat · {when}"
+msgstr "🔗 {user} · সংযুক্ত, VRChat অনুযায়ী 18+ নয় · {when}"
+
+#, python-brace-format
+msgid ""
+"⚠️ {user} · linked, but the role could not be assigned. Check that the "
+"VRCVerify bot's role sits above the Linked role. · {when}"
+msgstr ""
+"⚠️ {user} · সংযুক্ত হয়েছে, কিন্তু রোল দেওয়া যায়নি। দেখুন VRCVerify "
+"বটের রোল সংযুক্ত রোলের উপরে আছে কি না। · {when}"
 
 #, python-brace-format
 msgid ""

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-23 23:31-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pa_IN\n"
@@ -38,6 +38,34 @@ msgid "You've been verified and given **{role}** in **{server}**!"
 msgstr ""
 "ਤੁਹਾਨੂੰ ਸਤਿਆਪਿਤ ਕੀਤਾ ਗਿਆ ਹੈ ਅਤੇ **{role}** ਭੂਮਿਕਾ **{server}** ਵਿੱਚ ਦਿੱਤੀ"
 " ਗਈ ਹੈ!"
+
+#, python-brace-format
+msgid ""
+"You've been verified and given **{role}** and **{linked_role}** in "
+"**{server}**!"
+msgstr ""
+"ਤੁਹਾਨੂੰ ਸਤਿਆਪਿਤ ਕੀਤਾ ਗਿਆ ਹੈ ਅਤੇ **{role}** ਅਤੇ **{linked_role}** "
+"ਭੂਮਿਕਾਵਾਂ **{server}** ਵਿੱਚ ਦਿੱਤੀਆਂ ਗਈਆਂ ਹਨ!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{role}** in "
+"**{server}**!"
+msgstr ""
+"ਤੁਹਾਡਾ VRChat ਖਾਤਾ ਲਿੰਕ ਕੀਤਾ ਗਿਆ ਹੈ, ਅਤੇ ਤੁਹਾਨੂੰ **{role}** ਭੂਮਿਕਾ "
+"**{server}** ਵਿੱਚ ਦਿੱਤੀ ਗਈ ਹੈ!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{linked_role}** in"
+" **{server}**. You didn't get **{role}** because VRChat doesn't show your"
+" account as age verified. Once it does, press **Begin Verification** "
+"again."
+msgstr ""
+"ਤੁਹਾਡਾ VRChat ਖਾਤਾ ਲਿੰਕ ਕੀਤਾ ਗਿਆ ਹੈ, ਅਤੇ ਤੁਹਾਨੂੰ **{linked_role}** ਭੂਮਿਕਾ"
+" **{server}** ਵਿੱਚ ਦਿੱਤੀ ਗਈ ਹੈ। ਤੁਹਾਨੂੰ **{role}** ਨਹੀਂ ਮਿਲੀ ਕਿਉਂਕਿ "
+"VRChat ਤੁਹਾਡੇ ਖਾਤੇ ਨੂੰ ਉਮਰ ਤਸਦੀਕਸ਼ੁਦਾ ਨਹੀਂ ਦਿਖਾਉਂਦਾ। ਜਦੋਂ ਇਹ ਦਿਖਾਏ, ਤਾਂ "
+"ਦੁਬਾਰਾ **ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ** ਦਬਾਓ।"
 
 msgid "Nickname update requested. I'll DM you once it's done!"
 msgstr ""
@@ -419,6 +447,15 @@ msgstr "**{server} ਲਈ VRCVerify ਸਥਿਤੀ**"
 #, python-brace-format
 msgid "✅ Verified role: **{role}**"
 msgstr "✅ ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ: **{role}**"
+
+#, python-brace-format
+msgid "✅ Linked role: **{role}**"
+msgstr "✅ ਲਿੰਕ ਕੀਤੀ ਭੂਮਿਕਾ: **{role}**"
+
+msgid ""
+"❌ The configured Linked role no longer exists. Choose a new one on the "
+"dashboard."
+msgstr "❌ ਸੈੱਟ ਕੀਤੀ ਲਿੰਕ ਕੀਤੀ ਭੂਮਿਕਾ ਹੁਣ ਮੌਜੂਦ ਨਹੀਂ ਹੈ। ਡੈਸ਼ਬੋਰਡ ਤੋਂ ਨਵੀਂ ਚੁਣੋ।"
 
 msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
 msgstr "❌ ਕੋਈ ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਸੈੱਟ ਨਹੀਂ ਹੈ — ਚੁਣਨ ਲਈ `/vrcverify_setup` ਚਲਾਓ।"
@@ -813,6 +850,18 @@ msgstr ""
 #, python-brace-format
 msgid "❌ {user} — not 18+ according to VRChat · {when}"
 msgstr "❌ {user} — VRChat ਮੁਤਾਬਕ 18+ ਨਹੀਂ · {when}"
+
+#, python-brace-format
+msgid "🔗 {user} · linked, not 18+ according to VRChat · {when}"
+msgstr "🔗 {user} · ਲਿੰਕ ਕੀਤਾ ਗਿਆ, VRChat ਮੁਤਾਬਕ 18+ ਨਹੀਂ · {when}"
+
+#, python-brace-format
+msgid ""
+"⚠️ {user} · linked, but the role could not be assigned. Check that the "
+"VRCVerify bot's role sits above the Linked role. · {when}"
+msgstr ""
+"⚠️ {user} · ਲਿੰਕ ਕੀਤਾ ਗਿਆ, ਪਰ ਭੂਮਿਕਾ ਨਹੀਂ ਦਿੱਤੀ ਜਾ ਸਕੀ। ਜਾਂਚੋ ਕਿ "
+"VRCVerify ਬੋਟ ਦੀ ਭੂਮਿਕਾ ਲਿੰਕ ਕੀਤੀ ਭੂਮਿਕਾ ਤੋਂ ਉੱਪਰ ਹੈ। · {when}"
 
 #, python-brace-format
 msgid ""

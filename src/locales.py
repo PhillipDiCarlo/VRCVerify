@@ -73,6 +73,24 @@ RECHECK_STARTED = N_(
 
 DM_ROLE_SUCCESS = N_("You've been verified and given **{role}** in **{server}**!")
 
+# The Linked role (#359). An 18+ member of a guild with both roles gets both.
+DM_ROLES_SUCCESS = N_(
+    "You've been verified and given **{role}** and **{linked_role}** in **{server}**!"
+)
+
+# Linked, not 18+, in a guild that has no 18+ role: linking is the whole
+# verification there, so there is nothing missing to explain.
+DM_LINKED_SUCCESS = N_(
+    "Your VRChat account is linked, and you've been given **{role}** in **{server}**!"
+)
+
+# Linked, not 18+, in a guild that also has an 18+ role.
+DM_LINKED_NOT_18 = N_(
+    "Your VRChat account is linked, and you've been given **{linked_role}** in **{server}**. "
+    "You didn't get **{role}** because VRChat doesn't show your account as age verified. "
+    "Once it does, press **Begin Verification** again."
+)
+
 NICKNAME_UPDATE_REQUESTED = N_("Nickname update requested. I'll DM you once it's done!")
 
 VERIFICATION_REQUESTED = N_(
@@ -272,6 +290,12 @@ STATUS_HEADER = N_("**VRCVerify status for {server}**")
 
 STATUS_ROLE_OK = N_("✅ Verified role: **{role}**")
 
+STATUS_LINKED_ROLE_OK = N_("✅ Linked role: **{role}**")
+
+STATUS_LINKED_ROLE_DELETED = N_(
+    "❌ The configured Linked role no longer exists. Choose a new one on the dashboard."
+)
+
 STATUS_ROLE_MISSING = N_(
     "❌ No verified role set — run `/vrcverify_setup` to choose one."
 )
@@ -441,6 +465,13 @@ LOG_ROLE_FAILED = N_(
 )
 
 LOG_NOT_18 = N_("❌ {user} — not 18+ according to VRChat · {when}")
+
+# The Linked role (#359): linked, given the Linked role, and not 18+.
+LOG_LINKED = N_("🔗 {user} · linked, not 18+ according to VRChat · {when}")
+
+LOG_LINKED_ROLE_FAILED = N_(
+    "⚠️ {user} · linked, but the role could not be assigned. Check that the VRCVerify bot's role sits above the Linked role. · {when}"
+)
 
 # One line for a whole run of "verify existing members" (#292), in place of a
 # line per member, which on a large server would bury everything else.

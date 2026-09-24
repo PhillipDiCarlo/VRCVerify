@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-23 23:31-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -32,6 +32,29 @@ msgstr "VRChat の 18+ ステータスを再チェックしています。年齢
 #, python-brace-format
 msgid "You've been verified and given **{role}** in **{server}**!"
 msgstr "認証され、**{server}** の **{role}** ロールが付与されました! "
+
+#, python-brace-format
+msgid ""
+"You've been verified and given **{role}** and **{linked_role}** in "
+"**{server}**!"
+msgstr "認証され、**{server}** の **{role}** ロールと **{linked_role}** ロールが付与されました!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{role}** in "
+"**{server}**!"
+msgstr "VRChat アカウントが連携され、**{server}** の **{role}** ロールが付与されました!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{linked_role}** in"
+" **{server}**. You didn't get **{role}** because VRChat doesn't show your"
+" account as age verified. Once it does, press **Begin Verification** "
+"again."
+msgstr ""
+"VRChat アカウントが連携され、**{server}** の **{linked_role}** ロールが付与されました。VRChat "
+"であなたのアカウントが年齢認証済みと表示されていないため、**{role}** は付与されていません。表示されるようになったら、もう一度 "
+"**認証を開始** を押してください。"
 
 msgid "Nickname update requested. I'll DM you once it's done!"
 msgstr "ニックネーム更新をリクエストしました。完了したらDMでお知らせします!"
@@ -364,6 +387,15 @@ msgstr "**{server} の VRCVerify ステータス**"
 #, python-brace-format
 msgid "✅ Verified role: **{role}**"
 msgstr "✅ 認証済みロール: **{role}**"
+
+#, python-brace-format
+msgid "✅ Linked role: **{role}**"
+msgstr "✅ 連携ロール: **{role}**"
+
+msgid ""
+"❌ The configured Linked role no longer exists. Choose a new one on the "
+"dashboard."
+msgstr "❌ 設定されていた連携ロールが存在しません。ダッシュボードで新しいロールを選択してください。"
 
 msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
 msgstr "❌ 認証済みロールが設定されていません。`/vrcverify_setup` を実行して選択してください。"
@@ -720,6 +752,18 @@ msgstr ""
 #, python-brace-format
 msgid "❌ {user} — not 18+ according to VRChat · {when}"
 msgstr "❌ {user} — VRChat では 18+ ではありません · {when}"
+
+#, python-brace-format
+msgid "🔗 {user} · linked, not 18+ according to VRChat · {when}"
+msgstr "🔗 {user} · 連携済み、VRChat では 18+ ではありません · {when}"
+
+#, python-brace-format
+msgid ""
+"⚠️ {user} · linked, but the role could not be assigned. Check that the "
+"VRCVerify bot's role sits above the Linked role. · {when}"
+msgstr ""
+"⚠️ {user} · 連携済みですが、ロールを付与できませんでした。VRCVerify のロールが連携ロールより上にあるか確認してください。· "
+"{when}"
 
 #, python-brace-format
 msgid ""
