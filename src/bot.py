@@ -922,6 +922,61 @@ def linked_role_id(session, guild_id) -> Optional[str]:
     return row.role_id if row else None
 
 
+INVITE_AUDIENCE_VERIFIED = "verified"
+INVITE_AUDIENCE_LINKED = "linked"
+
+
+class GroupInviteAudience(Base):
+    """Who a guild's group invites may go to (#359). Premium, like the invites.
+
+    No row means `verified`: 18+ members only, which is every guild today.
+    `linked` opens invites to any member with a linked VRChat account, 18+ or
+    not. VRChat itself still keeps accounts that are not age verified out of
+    age-verified instances; groups have no age setting of their own.
+
+    Its own table for the reason `verification_log_channel` gives.
+    """
+
+    __tablename__ = "group_invite_audience"
+    server_id = Column(String, primary_key=True)
+    audience = Column(String, nullable=False, default=INVITE_AUDIENCE_VERIFIED)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+def invites_linked_members(guild_id, guild=None) -> bool:
+    """Whether this guild's group invites may go to linked members who are
+    not 18+.
+
+    Needs BOTH the `linked` audience and a Linked role (Phillip, 2026-09-24).
+    Without a Linked role a member who is not 18+ is told "you are not 18+"
+    and given nothing, and an invite offer right after that would read as a
+    contradiction. Checked here as well as when the setting is saved, so a
+    Linked role cleared from the settings -- or, when `guild` is passed,
+    deleted in Discord -- closes invites to linked members instead of leaving
+    them open.
+
+    Raises on a database error, like the other reads its callers make; each
+    caller decides what "could not tell" means for it.
+    """
+    with session_scope() as session:
+        row = (
+            session.query(GroupInviteAudience)
+            .filter_by(server_id=panel_view_key(guild_id))
+            .first()
+        )
+        if row is None or row.audience != INVITE_AUDIENCE_LINKED:
+            return False
+        linked_id = linked_role_id(session, guild_id)
+    if not linked_id:
+        return False
+    if guild is None:
+        return True
+    try:
+        return guild.get_role(int(linked_id)) is not None
+    except (TypeError, ValueError):
+        return False
+
+
 # How far a guild's VRChat group setup has got, as stored in
 # group_invite_config.verify_state.
 #
@@ -8164,7 +8219,8 @@ class GroupInviteButton(
 
     Neither field is trusted for anything. They select a row; every question
     that follows -- is the feature on, is the plan current, is this member
-    still 18+, has this member already asked -- is answered from that row and
+    still eligible (18+, or linked where invites are open to linked members),
+    has this member already asked -- is answered from that row and
     from the member's own record. A custom_id can only come from a message this
     bot posted, but the config behind it can have changed completely since it
     did.
@@ -8257,7 +8313,7 @@ async def offer_group_invite(
     instr_locale: Optional[str] = None,
     premium: Optional["PremiumFlags"] = None,
 ) -> None:
-    """DM a freshly verified member the opt-in button, if they should have one.
+    """DM a freshly verified or linked member the opt-in button, if they should have one.
 
     Nothing here touches VRChat. The whole point of the opt-in design is that
     no invite exists until the member asks for one, and a membership check
@@ -8297,17 +8353,19 @@ async def offer_group_invite(
         # sentence worth sending about it.
         return
     if not verified:
-        # Belt and braces: this function is only ever called from assign_role's
-        # 18+ branch, so reaching here means the stored verdict disagrees with
-        # the one that just ran. Offering anyway would put a live button in the
-        # DMs of somebody the database says is not 18+.
-        logger.warning(
-            "Declined to offer member %s a group invite in guild %s: the "
-            "stored verification says they are not 18+.",
-            member.id,
-            guild_id,
-        )
-        return
+        # Silent, like every other "no" here. The common case since #359:
+        # assign_role offers after every successful link, and in a guild whose
+        # invites are for 18+ members only a linked member is not one of them.
+        # The stored verdict is what decides, never the caller's argument.
+        try:
+            open_to_linked = invites_linked_members(guild_id, guild)
+        except Exception:
+            logger.warning(
+                "Could not read the invite audience for guild %s.", guild_id, exc_info=True
+            )
+            return
+        if not open_to_linked:
+            return
 
     try:
         request = load_group_invite_request(guild_id, member.id)
@@ -8347,7 +8405,9 @@ async def offer_group_invite(
     try:
         await member.send(
             get_message(
-                locales.DM_GROUP_INVITE_OFFER,
+                # "You're verified" would be false for a linked member who is
+                # not 18+, so they get the same offer worded for a link.
+                locales.DM_GROUP_INVITE_OFFER if verified else locales.DM_GROUP_INVITE_OFFER_LINKED,
                 SimpleNamespace(locale=locale_code),
                 server=guild.name,
                 group=(config.get("group_name") or "their VRChat group"),
@@ -8503,7 +8563,8 @@ async def handle_group_invite_press(
         await settle(locales.GROUP_INVITE_UNAVAILABLE)
         return
 
-    # Is this member 18+ RIGHT NOW?
+    # Is this member 18+ RIGHT NOW -- or, in a guild whose invites are open to
+    # linked members (#359), linked?
     #
     # Checked here for the same reason guild membership is, only more so: this
     # DM never expires and the button routes for ever, so an offer made to
@@ -8515,7 +8576,23 @@ async def handle_group_invite_press(
     # Never retryable. Their verification is the thing that is wrong, and no
     # amount of pressing this button will fix it; the sentence points them at
     # verifying again instead.
+    #
+    # The audience is re-read here like everything else: it may have been set
+    # back to 18+ only, or the Linked role removed, since the offer. A failed
+    # read is "could not tell", which is retryable, not a refusal.
+    open_to_linked = False
     if not verified:
+        try:
+            open_to_linked = invites_linked_members(guild_id, guild)
+        except Exception:
+            logger.warning(
+                "Could not read the invite audience for guild %s on press.",
+                guild_id,
+                exc_info=True,
+            )
+            await settle(locales.GROUP_INVITE_UNAVAILABLE, retryable=True)
+            return
+    if not verified and not open_to_linked:
         logger.warning(
             "Refused a group invite for member %s in guild %s: not verified 18+.",
             interaction.user.id,
@@ -8931,21 +9008,21 @@ async def assign_role(
     # DM can be a server's custom text, which an admin wrote without
     # knowing a button would be attached to it.
     #
-    # 18+ only, as offer_group_invite and the press both check. Reuses the
-    # flags resolved above, so the offer costs no extra entitlement read.
-    # offer_group_invite is silent for everyone who should not see it.
-    if is_18_plus:
-        try:
-            await offer_group_invite(member, guild, instr_locale, premium)
-        except Exception:
-            # Never let this take down a verification that has already
-            # succeeded. The role is on, the DM has gone out, and the milestone
-            # bookkeeping after this call still has to run.
-            logger.exception(
-                "Could not offer a group invite to %s in guild %s.",
-                discord_id,
-                guild_id,
-            )
+    # For linked members too: offer_group_invite decides from the stored
+    # verdict and the guild's invite audience (#359), and is silent for
+    # everyone who should not see it. The flags resolved above let it return
+    # before any read on a guild without Premium.
+    try:
+        await offer_group_invite(member, guild, instr_locale, premium)
+    except Exception:
+        # Never let this take down a verification that has already
+        # succeeded. The role is on, the DM has gone out, and the milestone
+        # bookkeeping after this call still has to run.
+        logger.exception(
+            "Could not offer a group invite to %s in guild %s.",
+            discord_id,
+            guild_id,
+        )
 
 
 # -------------------------------------------------------------------

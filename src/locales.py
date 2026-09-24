@@ -517,6 +517,14 @@ DM_GROUP_INVITE_OFFER = N_(
     "Nothing is sent to VRChat unless you press the button."
 )
 
+# The same offer to a linked member who is not 18+, in a guild whose invites
+# are open to linked members (#359).
+DM_GROUP_INVITE_OFFER_LINKED = N_(
+    "Your VRChat account is linked in **{server}**! Would you like an invite to their VRChat group, **{group}**?\n"
+    "\n"
+    "Nothing is sent to VRChat unless you press the button."
+)
+
 GROUP_INVITE_WORKING = N_("Asking VRChat for your invite...")
 
 GROUP_INVITE_SENT = N_(
