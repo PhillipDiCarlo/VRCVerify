@@ -13147,8 +13147,15 @@ async def assess_frozen_panel_notice(entry, before_api=None):
     and exactly which permissions are missing -- so both have to be KNOWN, not
     likely. Anything this cannot vouch for is skipped with a name for why:
 
-    * `fixable`: all four permissions are present, so the replacement sweep can
-      repair it and there is nothing to ask a person to do
+    * `sweep_can_replace`: all four permissions are present and the panel was
+      posted before the cutoff, so it is frozen and a rerun of the replacement
+      sweep would repair it. Nothing to ask a person to do, but a nonzero count
+      means the sweep is worth running again (#328). The one exception is a
+      panel someone deleted, which nothing here fetches to notice: the sweep
+      finds it gone and leaves it, and the next refresh forgets it
+    * `has_permissions`: all four permissions are present and the panel was
+      posted after the cutoff. Probably healthy; only a probe could say, and
+      none is needed, because the refresh and the sweep already cover it
     * `unprovable`: posted after the cutoff, and the bot cannot read the channel
       to check
     * `editable`: the probe says it is not frozen at all
@@ -13170,7 +13177,11 @@ async def assess_frozen_panel_notice(entry, before_api=None):
 
     missing = missing_panel_permissions(channel, guild.me)
     if not missing:
-        return "fixable", None
+        # Split rather than one "fixable" for both (#328): lumped together,
+        # every healthy panel in the fleet read as a server awaiting repair.
+        if panel_provably_frozen(message_id):
+            return "sweep_can_replace", None
+        return "has_permissions", None
 
     posted = discord.utils.snowflake_time(message_id)
     if posted >= PANEL_FROZEN_BEFORE:
@@ -13326,6 +13337,15 @@ async def notify_frozen_panels(reason: str):
             ", ".join(f"{count} {name}" for name, count in sorted(tally.items()))
             or "nothing to do",
         )
+        # Usually an admin who granted the permission the DM asked for and
+        # never pressed the button. The sweep can finish the job for them.
+        if tally.get("sweep_can_replace"):
+            logger.info(
+                "%s frozen panel(s) now have every permission the replacement "
+                "needs. Touch %s to replace them.",
+                tally["sweep_can_replace"],
+                PANEL_REPLACE_TRIGGER_PATH,
+            )
         return tally
 
 
