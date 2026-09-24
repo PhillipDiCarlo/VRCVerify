@@ -2259,7 +2259,11 @@ def _register_routes(app: Flask) -> None:
 
         changes = {}
         if "role_id" in request.form:
-            changes["role_id"] = request.form.get("role_id")
+            # Empty is a real choice once a Linked role is set (#359); the bot
+            # refuses clearing both.
+            changes["role_id"] = request.form.get("role_id") or None
+        if "linked_role_id" in request.form:
+            changes["linked_role_id"] = request.form.get("linked_role_id") or None
         if "unverified_role_id" in request.form:
             # A select always submits, so an empty value here is a real choice
             # -- "None". /vrcverify_setup clears it the same way, by leaving
@@ -2463,6 +2467,12 @@ def _register_routes(app: Flask) -> None:
             # the claim, so another server could then connect it.
             changes["vrchat_group_id"] = request.form.get("vrchat_group_id") or None
         _read_checkbox(changes, "vrchat_group_invite_enabled")
+        # A radio group submits nothing when its checked option is disabled,
+        # which is "no change", never a clear.
+        if "vrchat_group_invite_audience" in request.form:
+            changes["vrchat_group_invite_audience"] = request.form.get(
+                "vrchat_group_invite_audience"
+            )
         # The calendar sync card (#289) saves through this route too. The bot
         # refuses it for a guild that may not use calendar sync yet.
         _read_checkbox(changes, "calendar_sync_enabled")
@@ -2668,8 +2678,8 @@ SAVE_ERRORS = {
         N_("That language isn't one VRCVerify supports. Nothing was changed.")
     ),
     "server_not_set_up": (
-        N_("Run /vrcverify_setup in your server first -- VRCVerify needs a "
-        "verified role before it can store anything else.")
+        N_("Run /vrcverify_setup in your server first. VRCVerify needs an 18+ "
+        "role or a Linked role before it can store anything else.")
     ),
     # No "use /vrcverify_settings instead". That command stopped being an
     # editor when configuration moved here -- it shows what is stored and links
@@ -2689,7 +2699,25 @@ SAVE_ERRORS = {
         N_("That role isn't in this server any more. Reload the page and pick "
         "again.")
     ),
-    "role_required": N_("Pick a verified role -- verification can't run without one."),
+    "role_required": N_(
+        "Pick an 18+ role or a Linked role. Verification can't run without one."
+    ),
+    # The Linked role (#359). Plain sentences, like the rest of this table.
+    "linked_same_as_verified": N_(
+        "The Linked role and the 18+ role need to be different roles. Nothing "
+        "was changed."
+    ),
+    "linked_same_as_unverified": N_(
+        "The Linked role and the Unverified role need to be different roles. "
+        "Nothing was changed."
+    ),
+    "needs_linked_role": N_(
+        "Set a Linked role on the Verification page before opening invites to "
+        "any linked member. Nothing was changed."
+    ),
+    "not_an_audience": N_(
+        "That isn't one of the choices. Reload the page and pick again."
+    ),
     # The offending links are deliberately not echoed back. The rule is short
     # enough to state, the admin is looking at their own message, and the page
     # stays free of text that came from a request.

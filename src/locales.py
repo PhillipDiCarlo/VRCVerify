@@ -151,6 +151,28 @@ SETUP_SUCCESS = N_(
     "Verified Role set to: `{role}` (ID={role_id})"
 )
 
+# /vrcverify_setup with only a Linked role (#359). The first line of
+# SETUP_SUCCESS, which also names the 18+ role.
+SETUP_SAVED = N_("Successfully {action} server config.")
+
+SETUP_LINKED_SET = N_(
+    "\n"
+    "Linked Role set to: `{role}` (ID={role_id})"
+)
+
+SETUP_ROLE_REQUIRED = N_(
+    "Choose at least one role: `verified-role` for members VRChat reports as 18+, "
+    "or `linked-role` for everyone who links their VRChat account."
+)
+
+SETUP_LINKED_SAME_AS_VERIFIED = N_(
+    "The Linked role and the verified role need to be different roles."
+)
+
+SETUP_LINKED_SAME_AS_UNVERIFIED = N_(
+    "The Linked role and the unverified role need to be different roles."
+)
+
 SETUP_UNVERIFIED_SET = N_(
     "\n"
     "Unverified Role to remove: `{role}` (ID={role_id})"
@@ -559,16 +581,20 @@ GROUP_INVITE_TOO_SOON = N_(
     "You've already asked for an invite. Please give it a few minutes before trying again."
 )
 
+# No "relink": a link is permanent (#359), so verifying again re-checks the
+# same account and cannot change which one is invited.
 GROUP_INVITE_ACCOUNT_MISSING = N_(
-    "VRChat didn't recognize the account you verified with, so the invite couldn't be sent. Try verifying again to relink your VRChat account."
+    "VRChat didn't recognize the account linked to your Discord, so the invite couldn't be sent. If you think this is a mistake, contact a server admin."
 )
 
 GROUP_INVITE_NOT_A_MEMBER = N_(
     "This invite was for **{server}**, and you're no longer a member there. Join the server and verify again if you'd still like an invite."
 )
 
+# Also the refusal once a server closes its invites to linked members again
+# (#359), so it promises nothing that verifying again would not deliver.
 GROUP_INVITE_NOT_VERIFIED = N_(
-    "You're not currently verified as 18+ in **{server}**, so the invite couldn't be sent. Verify again to get a new invite offer."
+    "**{server}** only sends group invites to members verified as 18+, and you aren't right now, so the invite couldn't be sent. If VRChat now shows your account as age verified, press **Begin Verification** again."
 )
 
 GROUP_INVITE_ACCOUNT_CHANGED = N_(
