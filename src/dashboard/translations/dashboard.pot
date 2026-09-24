@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-24 14:56-0400\n"
+"POT-Creation-Date: 2026-09-24 15:27-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -247,6 +247,17 @@ msgid "Premium"
 msgstr ""
 
 msgid "New"
+msgstr ""
+
+msgid "A Linked role, for servers that aren't only 18+"
+msgstr ""
+
+msgid ""
+"You can now give a Linked role to every member who links their VRChat "
+"account, whether or not VRChat shows them as 18+. Your 18+ role still "
+"goes only to members VRChat has age verified, and they get both. Set it "
+"under Settings, Verification. With Premium, your VRChat group invites can"
+" also go to any linked member, not only 18+ ones."
 msgstr ""
 
 msgid "Verify the members you already have"
@@ -1926,6 +1937,9 @@ msgstr ""
 msgid "Verify members as 18+"
 msgstr ""
 
+msgid "A Linked role for everyone who links their VRChat account, 18+ or not"
+msgstr ""
+
 msgid "Auto-verify people who verified in another server"
 msgstr ""
 
@@ -1953,7 +1967,7 @@ msgstr ""
 msgid "A shorter verification cooldown"
 msgstr ""
 
-msgid "VRChat group invites for verified members"
+msgid "VRChat group invites for verified or linked members"
 msgstr ""
 
 msgid "Your VRChat group calendar in Discord Events, with join links"

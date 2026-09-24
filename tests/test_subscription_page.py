@@ -2098,7 +2098,8 @@ class TestThePublicPricingPage:
         # eight more beside them. A row per capability with a mark in each
         # column is what a table is for.
         table = page[page.index('class="compare"'):page.index("</table>")]
-        assert table.count("<tr") == 15, "fourteen capabilities and a header row"
+        # Fifteen since #359 added the free Linked role row.
+        assert table.count("<tr") == 16, "fifteen capabilities and a header row"
         assert "Verify members as 18+" in table
         # Premium includes everything Free does, so the free rows are ticked in
         # both columns. Listing them only under Free would say the opposite.

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-24 14:56-0400\n"
+"POT-Creation-Date: 2026-09-24 15:27-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -38,14 +38,11 @@ msgstr ""
 "Diese Anmeldung konnte nicht überprüft werden. Bitte versuche es noch "
 "einmal."
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
 msgid "Discord could not complete the login. Please try again."
 msgstr ""
 "Discord konnte die Anmeldung nicht abschließen. Bitte versuche es noch "
 "einmal."
 
-# | msgid "Page not found."
 msgid "Page not found"
 msgstr "Seite nicht gefunden"
 
@@ -56,7 +53,6 @@ msgstr ""
 "Diese Adresse passt zu nichts hier. Vielleicht ein Tippfehler, oder ein "
 "Link auf etwas, das inzwischen umgezogen ist."
 
-# | msgid "Something went wrong."
 msgid "Something went wrong"
 msgstr "Etwas ist schiefgelaufen"
 
@@ -313,20 +309,16 @@ msgstr ""
 msgid "Overview"
 msgstr "Übersicht"
 
-# | msgid "Sections"
 msgid "Settings"
 msgstr "Einstellungen"
 
 msgid "Subscriptions"
 msgstr "Abonnements"
 
-# | msgid "That group ID wasn't usable"
 msgid "That server isn't available"
 msgstr "Dieser Server ist nicht verfügbar"
 
-# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
 # you
-# | don't " "have the Administrator permission there."
 msgid ""
 "Either VRCVerify isn't in it, or you don't have the Administrator "
 "permission there."
@@ -337,9 +329,6 @@ msgstr ""
 msgid "Can't reach the bot"
 msgstr "Der Bot ist nicht erreichbar"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
-# | msgid "The bot didn't answer this one. Try again shortly."
 msgid ""
 "This page needs the bot to answer and it isn't answering right now. "
 "Nothing has changed. Try again shortly."
@@ -350,9 +339,25 @@ msgstr ""
 msgid "Premium"
 msgstr "Premium"
 
-# | msgid "Renews"
 msgid "New"
 msgstr "Die Website spricht Ihre Sprache"
+
+msgid "A Linked role, for servers that aren't only 18+"
+msgstr "Die Verknüpft-Rolle, für Server, die nicht nur 18+ sind"
+
+msgid ""
+"You can now give a Linked role to every member who links their VRChat "
+"account, whether or not VRChat shows them as 18+. Your 18+ role still "
+"goes only to members VRChat has age verified, and they get both. Set it "
+"under Settings, Verification. With Premium, your VRChat group invites can"
+" also go to any linked member, not only 18+ ones."
+msgstr ""
+"Du kannst jetzt jedem Mitglied, das sein VRChat-Konto verknüpft, eine "
+"Verknüpft-Rolle geben, egal ob VRChat es als 18+ anzeigt oder nicht. "
+"Deine 18+-Rolle geht weiterhin nur an Mitglieder, deren Alter VRChat "
+"verifiziert hat, und sie bekommen beide. Richte sie unter Einstellungen, "
+"Verifizierung ein. Mit Premium können deine VRChat-Gruppeneinladungen "
+"auch an jedes verknüpfte Mitglied gehen, nicht nur an 18+-Mitglieder."
 
 msgid "Verify the members you already have"
 msgstr "Verifiziere die Mitglieder, die du schon hast"
@@ -371,7 +376,6 @@ msgstr ""
 "verifiziert werden kann, ist kostenlos, und ihnen die Rolle zu geben ist "
 "Teil von Premium."
 
-# | msgid "Premium"
 msgid "See Premium"
 msgstr "Premium ansehen"
 
@@ -431,7 +435,6 @@ msgstr ""
 "Servers. Ein ersetztes Panel steht jetzt ganz unten in seinem Kanal, und "
 "Links auf das alte Panel funktionieren nicht mehr."
 
-# | msgid "The status page speaks your language"
 msgid "The website speaks your language"
 msgstr "Die Statusseite spricht Ihre Sprache"
 
@@ -470,15 +473,9 @@ msgstr ""
 msgid "VRCVerify has a new look"
 msgstr "VRCVerify hat ein neues Aussehen"
 
-# | msgid "" "Your server list is now a grid of tiles you can search, pin and
-# | open with" " a single click anywhere on the card, and each one says
 # whether
-# | that " "server is on Premium. Setup has moved to the top of a server's
-# | Overview " "with a progress bar, and retires itself once everything
 # required
-# | is done." " Settings puts each control directly under its own label, and
 # the
-# | pricing" " page is one comparison you can read across."
 msgid ""
 "The dashboard, the website and the status page have been rebuilt on one "
 "design. Your server list is now a grid of tiles you can search, pin and "
@@ -501,7 +498,6 @@ msgstr ""
 "steht das, was schiefgegangen ist, jetzt neben dem, was funktioniert, "
 "statt darunter."
 
-# | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
 msgstr "Ein Website-Link auf deinem Anleitungs-Panel"
 
@@ -521,7 +517,6 @@ msgstr ""
 "angepasst. Ältere lassen sich bei Discord überhaupt nicht bearbeiten und "
 "werden deshalb ersetzt statt aktualisiert."
 
-# | msgid "The verified role needs attention"
 msgid "See which servers need attention"
 msgstr "Sehen, welche Server Aufmerksamkeit brauchen"
 
@@ -553,7 +548,6 @@ msgstr ""
 "die Rolle zu vergeben. Die Übersicht und die Rollenauswahl weisen jetzt "
 "darauf hin und sagen dir, wo du es beheben kannst."
 
-# | msgid "Couldn't check whether VRCVerify can manage this role."
 msgid "Check whether VRCVerify is working"
 msgstr "Prüfen, ob VRCVerify funktioniert"
 
@@ -569,9 +563,6 @@ msgstr ""
 "wenn alles andere ausgefallen ist. Der Status-Link steht in der "
 "Kopfzeile."
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
-# | msgid "Verification log"
 msgid "See how verification is going"
 msgstr "Sieh dir an, wie die Verifizierung läuft"
 
@@ -630,11 +621,9 @@ msgstr "Neu in deinem Tarif: %(title)s"
 msgid "%(body)s It's included in your subscription."
 msgstr "%(body)s Es ist in deinem Abo enthalten."
 
-# | msgid "Setup"
 msgid "Set it up"
 msgstr "Jetzt einrichten"
 
-# | msgid "Your grandfathered extras stay free whatever you decide."
 #, python-format
 msgid "Your grandfathered extras stay free whatever you decide. %(body)s"
 msgstr ""
@@ -670,8 +659,6 @@ msgstr "Erst seit %(date)s erfasst."
 msgid "Members"
 msgstr "Mitglieder"
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
 msgid "Verified, all time"
 msgstr "Verifiziert, insgesamt"
 
@@ -693,17 +680,12 @@ msgstr "Unverifiziert-Rolle"
 msgid "Optional. Removed once someone verifies."
 msgstr "Optional. Wird entfernt, sobald jemand verifiziert ist."
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
 msgid "Verification log"
 msgstr "Verifizierungsprotokoll"
 
-# | msgid "Optional. Premium."
 msgid "Optional."
 msgstr "Optional."
 
-# | msgid "Sections"
-# | msgid "Settings"
 msgid "Go to Settings"
 msgstr "Zu den Einstellungen"
 
@@ -744,7 +726,6 @@ msgstr "Beide gesetzt, und VRCVerify kann sie vergeben."
 msgid "Set, and VRCVerify can grant it."
 msgstr "Gesetzt, und VRCVerify kann sie vergeben."
 
-# | msgid "A branded instructions panel"
 msgid "Instructions panel"
 msgstr "Anleitungs-Panel"
 
@@ -962,19 +943,15 @@ msgstr[1] "%(count)s Mitgliedern die Verifiziert-Rolle geben"
 msgid "Working"
 msgstr "Läuft"
 
-# | msgid "Setup isn't finished"
 msgid "Setup unfinished"
 msgstr "Einrichtung offen"
 
-# | msgid "needs attention"
 msgid "Needs attention"
 msgstr "Braucht Aufmerksamkeit"
 
-# | msgid "not set"
 msgid "Not set up"
 msgstr "Nicht eingerichtet"
 
-# | msgid "Couldn't check"
 msgid "Can't check"
 msgstr "Nicht prüfbar"
 
@@ -984,7 +961,6 @@ msgstr "Eingerichtet und funktioniert"
 msgid "Setup isn't finished"
 msgstr "Einrichtung nicht abgeschlossen"
 
-# | msgid "Something went wrong."
 msgid "Something isn't working"
 msgstr "Etwas funktioniert nicht"
 
@@ -994,7 +970,6 @@ msgstr "Hier nicht eingerichtet, oder nicht von dir verwaltet"
 msgid "Can't check this server right now"
 msgstr "Dieser Server lässt sich gerade nicht prüfen"
 
-# | msgid "A verification log channel"
 msgid "Verification"
 msgstr "Verifizierung"
 
@@ -1007,7 +982,6 @@ msgstr "VRChat-Gruppe"
 msgid "Logging"
 msgstr "Protokollierung"
 
-# | msgid "Active"
 msgid "Activity"
 msgstr "Aktivität"
 
@@ -1135,7 +1109,6 @@ msgstr "An"
 msgid "Off"
 msgstr "Aus"
 
-# | msgid "Nickname syncing"
 msgid "Nickname sync"
 msgstr "Nicknamen-Abgleich"
 
@@ -1225,8 +1198,6 @@ msgstr ""
 msgid "Couldn't start the check"
 msgstr "Prüfung konnte nicht gestartet werden"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
 msgid ""
 "The bot couldn't reach the part of itself that talks to VRChat. Try again"
 " shortly."
@@ -1296,7 +1267,6 @@ msgstr ""
 " und führe die Prüfung dann erneut aus. Sobald sie bestanden ist, kannst "
 "du ihn wieder entfernen."
 
-# | msgid "VRChat group"
 msgid "No VRChat group with that ID"
 msgstr "Keine VRChat-Gruppe mit dieser ID"
 
@@ -1709,7 +1679,6 @@ msgstr ""
 msgid "Using the default message"
 msgstr "Standardnachricht wird verwendet"
 
-# | msgid "A custom post-verification message"
 msgid "Custom verification message"
 msgstr "Eigene Verifizierungsnachricht"
 
@@ -1733,14 +1702,12 @@ msgstr ""
 msgid "Panel color"
 msgstr "Panel-Farbe"
 
-# | msgid "A branded instructions panel"
 msgid "The color bar down the side of the instructions panel."
 msgstr "Der Farbbalken an der Seite des Anleitungs-Panels."
 
 msgid "Default blue"
 msgstr "Standardblau"
 
-# | msgid "A verification log channel"
 msgid "Server icon on the panel"
 msgstr "Server-Icon auf dem Panel"
 
@@ -1756,8 +1723,6 @@ msgstr "Ausgeblendet"
 msgid "This channel no longer exists in the server."
 msgstr "Diesen Kanal gibt es auf dem Server nicht mehr."
 
-# | msgid "" "Verification logs can't go in an announcement channel -- other
-# | servers " "can follow one, which would republish your members' age
 # status."
 msgid ""
 "This is an announcement channel. Other servers can follow it, which would"
@@ -1768,14 +1733,12 @@ msgstr ""
 "Altersangaben über deine Mitglieder erneut veröffentlicht würden. "
 "VRCVerify wird hier nicht protokollieren."
 
-# | msgid "A verification log channel"
 msgid "Verification log channel"
 msgstr "Protokollkanal für Verifizierungen"
 
 msgid "Every verification attempt, including the ones that fail silently."
 msgstr "Jeder Verifizierungsversuch, auch die still fehlschlagenden."
 
-# | msgid "VRChat group"
 msgid "VRChat group invites"
 msgstr "VRChat-Gruppeneinladungen"
 
@@ -1785,7 +1748,6 @@ msgstr "Kanal für Beitrittsanfragen"
 msgid "Who can approve or deny join requests"
 msgstr "Wer Beitrittsanfragen annehmen oder ablehnen kann"
 
-# | msgid "VRChat group"
 msgid "VRChat group setup check"
 msgstr "Prüfung der VRChat-Gruppeneinrichtung"
 
@@ -1867,11 +1829,8 @@ msgstr ""
 "deshalb haben Mitglieder keine Möglichkeit, mit der Verifizierung zu "
 "beginnen."
 
-# | msgid "" "VRCVerify can't post the panel in that channel. It needs both
 # Send
-# | " "Messages and Embed Links there -- Embed Links is the one that's usually
 # "
-# | "missing, because the panel is an embed."
 msgid ""
 "VRCVerify can't post a new message in that channel — it needs both Send "
 "Messages and Embed Links there. The panel still works and can still be "
@@ -1978,7 +1937,6 @@ msgstr ""
 "Dieser Server wurde vor dem Start von Premium eingerichtet und behält "
 "deshalb mehrere Extras dauerhaft kostenlos."
 
-# | msgid "Core 18+ verification is free, forever."
 msgid "18+ verification is free on this server, and always will be."
 msgstr "Die 18+-Verifizierung ist auf diesem Server kostenlos und bleibt es auch."
 
@@ -1998,7 +1956,6 @@ msgstr ""
 "Einstellungen, die über diese Website geändert wurden. Änderungen per "
 "Slash-Befehl in Discord stehen hier nicht."
 
-# | msgid "The panel couldn't be posted just now. Try again shortly."
 msgid "Couldn't load the history just now. Try again shortly."
 msgstr "Konnte den Verlauf gerade nicht laden. Versuche es gleich noch einmal."
 
@@ -2098,7 +2055,6 @@ msgstr ""
 "Nicht verbunden mit, unterstützt von oder gesponsert durch VRChat Inc. "
 "oder Discord Inc."
 
-# | msgid "Pricing · VRCVerify"
 msgid "What's new · VRCVerify"
 msgstr "Neuigkeiten · VRCVerify"
 
@@ -2125,7 +2081,6 @@ msgstr ""
 " bei</a> und folge dem Ankündigungskanal – jede Neuigkeit von hier wird "
 "dort gepostet, und Discord verteilt sie in jeden Kanal, den du auswählst."
 
-# | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "Zurück zu deinen Servern"
 
@@ -2161,7 +2116,6 @@ msgstr ""
 "Diese Seite <strong>kann nicht sehen, wer verifiziert ist</strong> – nur "
 "die Einstellungen deines Servers."
 
-# | msgid "Buy inside Discord"
 msgid "Sign in with Discord"
 msgstr "Mit Discord anmelden"
 
@@ -2212,7 +2166,6 @@ msgstr "Tarife ansehen und abonnieren"
 msgid "Dismiss"
 msgstr "Ausblenden"
 
-# | msgid "The panel couldn't be posted just now. Try again shortly."
 msgid "Couldn't check this just now. Try again shortly."
 msgstr "Konnte das gerade nicht prüfen. Versuche es in Kürze erneut."
 
@@ -2277,8 +2230,6 @@ msgstr ""
 "Niemand wird darüber benachrichtigt. Mitglieder, die seit der Zählung "
 "ausgetreten oder beigetreten sind, werden währenddessen erneut geprüft."
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
 msgid "Verifications"
 msgstr "Verifizierungen"
 
@@ -2290,7 +2241,6 @@ msgstr ""
 "abgeschlossen haben. Nur Zahlen – VRCVerify speichert nicht, wer wann "
 "verifiziert wurde."
 
-# | msgid "The panel couldn't be posted just now. Try again shortly."
 msgid "Couldn't load this server's numbers just now. Try again shortly."
 msgstr ""
 "Konnte die Zahlen dieses Servers gerade nicht laden. Versuche es gleich "
@@ -2331,11 +2281,9 @@ msgstr "%(name)s anheften"
 msgid "Upgrade"
 msgstr "Upgrade"
 
-# | msgid "Add to your server"
 msgid "Add to server"
 msgstr "Zum Server hinzufügen"
 
-# | msgid "Add to your server"
 msgid "Your servers"
 msgstr "Deine Server"
 
@@ -2353,33 +2301,25 @@ msgstr ""
 "welchen davon er ist. Deine Einstellungen sind sicher – hier hat sich "
 "nichts geändert. Versuche es gleich noch einmal."
 
-# | msgid "Add to your server"
-# | msgid "Your servers"
 msgid "Search your servers"
 msgstr "Deine Server durchsuchen"
 
-# | msgid "Per server"
 msgid "Search servers"
 msgstr "Server suchen"
 
 msgid "Search"
 msgstr "Suchen"
 
-# | msgid "Add to your server"
-# | msgid "Your servers"
 #, python-format
 msgid "%(count)s server"
 msgid_plural "%(count)s servers"
 msgstr[0] "%(count)s Server"
 msgstr[1] "%(count)s Server"
 
-# | msgid "Premium"
-# | msgid "See Premium"
 #, python-format
 msgid "%(count)s Premium"
 msgstr "%(count)s mit Premium"
 
-# | msgid "No servers to show"
 msgid "No servers match that"
 msgstr "Keine Server gefunden"
 
@@ -2387,8 +2327,6 @@ msgstr "Keine Server gefunden"
 msgid "Nothing in your list is called “%(q)s”."
 msgstr "Nichts in deiner Liste heißt „%(q)s“."
 
-# | msgid "Add to your server"
-# | msgid "Your servers"
 msgid "Show all your servers"
 msgstr "Alle deine Server anzeigen"
 
@@ -2410,14 +2348,12 @@ msgstr "Abmelden und neu beginnen"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "Du wirst gebeten, dich erneut mit Discord anzumelden."
 
-# | msgid "None"
 msgid "Pinned"
 msgstr "Angeheftet"
 
 msgid "Pricing · VRCVerify"
 msgstr "Preise · VRCVerify"
 
-# | msgid "Canceled"
 msgid "Included"
 msgstr "Enthalten"
 
@@ -2451,8 +2387,6 @@ msgstr "Abrechnungszeitraum"
 msgid "Price unavailable"
 msgstr "Preis nicht verfügbar"
 
-# | msgid "" "Every plan below unlocks exactly the same features — the only
-# | difference " "is how long you pay for at once, and how much that saves."
 msgid ""
 "Per server. Every term unlocks exactly the same features — the only "
 "difference is how long you pay for at once."
@@ -2471,6 +2405,11 @@ msgstr "Kostenlos"
 
 msgid "Verify members as 18+"
 msgstr "Mitglieder als 18+ verifizieren"
+
+msgid "A Linked role for everyone who links their VRChat account, 18+ or not"
+msgstr ""
+"Eine Verknüpft-Rolle für alle, die ihr VRChat-Konto verknüpfen, ob 18+ "
+"oder nicht"
 
 msgid "Auto-verify people who verified in another server"
 msgstr ""
@@ -2501,8 +2440,8 @@ msgstr "Ein Anleitungs-Panel im eigenen Design"
 msgid "A shorter verification cooldown"
 msgstr "Verkürzte Verifizierungs-Wartezeit"
 
-msgid "VRChat group invites for verified members"
-msgstr "VRChat-Gruppeneinladungen für verifizierte Mitglieder"
+msgid "VRChat group invites for verified or linked members"
+msgstr "VRChat-Gruppeneinladungen für verifizierte oder verknüpfte Mitglieder"
 
 msgid "Your VRChat group calendar in Discord Events, with join links"
 msgstr "Der Kalender deiner VRChat-Gruppe in Discord-Events, mit Beitrittslinks"
@@ -2519,7 +2458,6 @@ msgstr ""
 "Bereits mit VRCVerify verifizierten Mitgliedern auf einen Schlag die "
 "Verifiziert-Rolle geben"
 
-# | msgid "Not applied"
 msgid "Not included"
 msgstr "Nicht enthalten"
 
@@ -2619,8 +2557,6 @@ msgstr ""
 "zeigen einige Einstellungen unten eine ID statt eines Namens. Die Werte "
 "selbst stimmen."
 
-# | msgid "" "This bot's database is missing the column for that setting.
-# | Contact the " "bot operator."
 msgid ""
 "This bot's database is missing the auto-verify column, so that setting "
 "isn't in effect regardless of what it shows. Contact the bot operator."
@@ -2632,8 +2568,6 @@ msgstr ""
 msgid "Where it's posted"
 msgstr "Wo es gepostet ist"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
 msgid "The bot didn't answer this one. Try again shortly."
 msgstr "Der Bot hat darauf nicht geantwortet. Versuche es gleich noch einmal."
 
@@ -2821,7 +2755,6 @@ msgstr ""
 msgid "Use the default blue"
 msgstr "Standardblau verwenden"
 
-# | msgid "Premium until"
 msgid "Premium only."
 msgstr "Nur mit Premium."
 
@@ -2830,11 +2763,9 @@ msgstr ""
 "Dein gespeicherter Wert bleibt erhalten und kommt zurück, wenn das "
 "Abonnement erneuert wird."
 
-# | msgid "Premium"
 msgid "Add Premium"
 msgstr "Premium hinzufügen"
 
-# | msgid "Spanish"
 msgid "See plans"
 msgstr "Tarife ansehen"
 
@@ -2895,11 +2826,9 @@ msgstr ""
 msgid "Post the panel in"
 msgstr "Panel posten in"
 
-# | msgid "Post the panel in"
 msgid "Repost or move panel"
 msgstr "Panel neu posten oder verschieben"
 
-# | msgid "Post the panel in"
 msgid "Post panel"
 msgstr "Panel posten"
 
@@ -3160,13 +3089,9 @@ msgstr ""
 #~ msgid "The verified role needs attention"
 #~ msgstr "Die Verifiziert-Rolle braucht Aufmerksamkeit"
 
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
 #~ msgid "No instructions panel is posted"
 #~ msgstr "Es ist kein Anleitungs-Panel gepostet"
 
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
 #~ msgid "The instructions panel needs attention"
 #~ msgstr "Das Anleitungs-Panel braucht Aufmerksamkeit"
 
@@ -3247,9 +3172,6 @@ msgstr ""
 #~ " frei. Die 18+-Verifizierung selbst bleibt"
 #~ " kostenlos."
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
 #~ msgid ""
 #~ "Can't reach the bot right now, so"
 #~ " this page can't be shown. Nothing"
@@ -3266,7 +3188,6 @@ msgstr ""
 #~ msgid "Most popular"
 #~ msgstr "Am beliebtesten"
 
-# | msgid "Open the dashboard"
 #~ msgid "A new look for the dashboard"
 #~ msgstr "Ein neues Aussehen für das Dashboard"
 
@@ -3304,7 +3225,6 @@ msgstr ""
 #~ "die Discord-Berechtigung „@everyone, @here "
 #~ "und alle Rollen erwähnen“."
 
-# | msgid "Pick a verified role -- verification can't run without one."
 #~ msgid "Required — verification can't finish without one."
 #~ msgstr ""
 #~ "Erforderlich – ohne sie kann die "

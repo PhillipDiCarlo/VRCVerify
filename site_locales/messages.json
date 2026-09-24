@@ -211,6 +211,9 @@
  "<0>contact@esattotech.com</0>": [
   "terms.html"
  ],
+ "A Linked role, for servers that aren't only 18+": [
+  "changelog.html"
+ ],
  "A member links their VRChat account, VRCVerify reads whether VRChat has age-verified them, and the bot assigns the role. No documents are handled here, no photographs, and nothing about a member's identity is shown to anyone.": [
   "index.html"
  ],
@@ -405,6 +408,9 @@
  ],
  "Minutes. Deleted automatically on expiry.": [
   "privacy.html"
+ ],
+ "Not an 18+ server?": [
+  "index.html"
  ],
  "Note that <0>buying Premium on both Discord and this site for the same server results in two live subscriptions</0>, because neither platform can see or cancel the other's. The dashboard warns when it detects this. If it has happened to you, cancel the one you do not want; get in touch if you need help working out which is which.": [
   "refunds.html"
@@ -624,6 +630,9 @@
  "Until you ask us to delete it.": [
   "privacy.html"
  ],
+ "VRCVerify can also give a Linked role to every member who links their VRChat account, whether or not VRChat shows them as 18+. Nobody has to be age verified to get it, and 18+ members still get your 18+ role on top. With Premium, your VRChat group invites can go to any linked member too.": [
+  "index.html"
+ ],
  "VRCVerify checks whether a member's VRChat account has been age verified by VRChat, and assigns a Discord role accordingly. It also provides related automation that a server administrator can configure.": [
   "terms.html"
  ],
@@ -744,6 +753,9 @@
  ],
  "You can ask us to show you the data we hold about you, correct it, or delete it. If you are in the UK or EEA you also have the right to object to processing, to request that we restrict it, to receive your data in a portable form, and to complain to your local data protection authority.": [
   "privacy.html"
+ ],
+ "You can now give a Linked role to every member who links their VRChat account, whether or not VRChat shows them as 18+. Your 18+ role still goes only to members VRChat has age verified, and they get both. Set it under Settings, Verification. With Premium, your VRChat group invites can also go to any linked member, not only 18+ ones.": [
+  "changelog.html"
  ],
  "You can stop using VRCVerify at any time by removing the bot from your server. Doing so does not automatically cancel a subscription — cancel it through whichever channel you bought it, as set out above.": [
   "terms.html"
