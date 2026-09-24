@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-23 23:31-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -35,6 +35,29 @@ msgstr ""
 #, python-brace-format
 msgid "You've been verified and given **{role}** in **{server}**!"
 msgstr "لقد تم التحقق منك ومنحت **{role}** في **{server}**!"
+
+#, python-brace-format
+msgid ""
+"You've been verified and given **{role}** and **{linked_role}** in "
+"**{server}**!"
+msgstr "لقد تم التحقق منك ومنحت **{role}** و**{linked_role}** في **{server}**!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{role}** in "
+"**{server}**!"
+msgstr "تم ربط حسابك في VRChat، ومنحت **{role}** في **{server}**!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{linked_role}** in"
+" **{server}**. You didn't get **{role}** because VRChat doesn't show your"
+" account as age verified. Once it does, press **Begin Verification** "
+"again."
+msgstr ""
+"تم ربط حسابك في VRChat، ومنحت **{linked_role}** في **{server}**. لم تحصل "
+"على **{role}** لأن VRChat لا يُظهر حسابك كمتحقق من العمر. بمجرد أن يظهر "
+"ذلك، اضغط **بدء التحقق** مرة أخرى."
 
 msgid "Nickname update requested. I'll DM you once it's done!"
 msgstr "تم إرسال طلب تحديث الاسم المستعار. سأرسل لك رسالة خاصة عند الانتهاء!"
@@ -398,6 +421,15 @@ msgstr "**حالة VRCVerify في {server}**"
 #, python-brace-format
 msgid "✅ Verified role: **{role}**"
 msgstr "✅ رتبة المتحقق: **{role}**"
+
+#, python-brace-format
+msgid "✅ Linked role: **{role}**"
+msgstr "✅ رتبة المرتبط: **{role}**"
+
+msgid ""
+"❌ The configured Linked role no longer exists. Choose a new one on the "
+"dashboard."
+msgstr "❌ رتبة المرتبط المُعيّنة لم تعد موجودة. اختر رتبة جديدة من لوحة التحكّم."
 
 msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
 msgstr "❌ لم يتم تعيين رتبة للمتحققين — نفّذ `/vrcverify_setup` لاختيار واحدة."
@@ -787,6 +819,18 @@ msgstr ""
 #, python-brace-format
 msgid "❌ {user} — not 18+ according to VRChat · {when}"
 msgstr "❌ {user} — ليس 18+ بحسب VRChat · {when}"
+
+#, python-brace-format
+msgid "🔗 {user} · linked, not 18+ according to VRChat · {when}"
+msgstr "🔗 {user} · مرتبط، ليس 18+ بحسب VRChat · {when}"
+
+#, python-brace-format
+msgid ""
+"⚠️ {user} · linked, but the role could not be assigned. Check that the "
+"VRCVerify bot's role sits above the Linked role. · {when}"
+msgstr ""
+"⚠️ {user} · تم الربط، لكن تعذّر منح الرتبة. تأكد أن رتبة بوت VRCVerify "
+"أعلى من رتبة المرتبط. · {when}"
 
 #, python-brace-format
 msgid ""

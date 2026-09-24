@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-23 23:31-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es_ES\n"
@@ -36,6 +36,34 @@ msgstr ""
 #, python-brace-format
 msgid "You've been verified and given **{role}** in **{server}**!"
 msgstr "¡Has sido verificado y se te ha asignado **{role}** en **{server}**!"
+
+#, python-brace-format
+msgid ""
+"You've been verified and given **{role}** and **{linked_role}** in "
+"**{server}**!"
+msgstr ""
+"¡Has sido verificado y se te han asignado **{role}** y **{linked_role}** "
+"en **{server}**!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{role}** in "
+"**{server}**!"
+msgstr ""
+"¡Tu cuenta de VRChat está vinculada, y se te ha asignado **{role}** en "
+"**{server}**!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{linked_role}** in"
+" **{server}**. You didn't get **{role}** because VRChat doesn't show your"
+" account as age verified. Once it does, press **Begin Verification** "
+"again."
+msgstr ""
+"Tu cuenta de VRChat está vinculada, y se te ha asignado **{linked_role}**"
+" en **{server}**. No has recibido **{role}** porque VRChat no muestra tu "
+"cuenta como verificada por edad. Cuando lo haga, pulsa **Iniciar "
+"Verificación** de nuevo."
 
 msgid "Nickname update requested. I'll DM you once it's done!"
 msgstr ""
@@ -425,6 +453,17 @@ msgstr "**Estado de VRCVerify en {server}**"
 #, python-brace-format
 msgid "✅ Verified role: **{role}**"
 msgstr "✅ Rol de verificado: **{role}**"
+
+#, python-brace-format
+msgid "✅ Linked role: **{role}**"
+msgstr "✅ Rol de vinculado: **{role}**"
+
+msgid ""
+"❌ The configured Linked role no longer exists. Choose a new one on the "
+"dashboard."
+msgstr ""
+"❌ El rol de vinculado configurado ya no existe. Elige uno nuevo en el "
+"panel."
 
 msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
 msgstr ""
@@ -835,6 +874,18 @@ msgstr ""
 #, python-brace-format
 msgid "❌ {user} — not 18+ according to VRChat · {when}"
 msgstr "❌ {user} — no es 18+ según VRChat · {when}"
+
+#, python-brace-format
+msgid "🔗 {user} · linked, not 18+ according to VRChat · {when}"
+msgstr "🔗 {user} · vinculado, no es 18+ según VRChat · {when}"
+
+#, python-brace-format
+msgid ""
+"⚠️ {user} · linked, but the role could not be assigned. Check that the "
+"VRCVerify bot's role sits above the Linked role. · {when}"
+msgstr ""
+"⚠️ {user} · vinculado, pero no se pudo asignar el rol. Comprueba que el "
+"rol del bot VRCVerify esté por encima del rol de vinculado. · {when}"
 
 #, python-brace-format
 msgid ""

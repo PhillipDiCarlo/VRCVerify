@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-23 23:31-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: nl\n"
@@ -34,6 +34,34 @@ msgstr ""
 #, python-brace-format
 msgid "You've been verified and given **{role}** in **{server}**!"
 msgstr "Je bent geverifieerd en hebt de rol **{role}** in **{server}** ontvangen!"
+
+#, python-brace-format
+msgid ""
+"You've been verified and given **{role}** and **{linked_role}** in "
+"**{server}**!"
+msgstr ""
+"Je bent geverifieerd en hebt de rollen **{role}** en **{linked_role}** in"
+" **{server}** ontvangen!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{role}** in "
+"**{server}**!"
+msgstr ""
+"Je VRChat-account is gekoppeld, en je hebt de rol **{role}** in "
+"**{server}** ontvangen!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{linked_role}** in"
+" **{server}**. You didn't get **{role}** because VRChat doesn't show your"
+" account as age verified. Once it does, press **Begin Verification** "
+"again."
+msgstr ""
+"Je VRChat-account is gekoppeld, en je hebt de rol **{linked_role}** in "
+"**{server}** ontvangen. Je hebt **{role}** niet gekregen omdat VRChat je "
+"account niet als leeftijdsgeverifieerd toont. Zodra dat wel zo is, klik "
+"je opnieuw op **Verificatie starten**."
 
 msgid "Nickname update requested. I'll DM you once it's done!"
 msgstr ""
@@ -416,6 +444,17 @@ msgstr "**VRCVerify-status voor {server}**"
 #, python-brace-format
 msgid "✅ Verified role: **{role}**"
 msgstr "✅ Geverifieerd-rol: **{role}**"
+
+#, python-brace-format
+msgid "✅ Linked role: **{role}**"
+msgstr "✅ Gekoppeld-rol: **{role}**"
+
+msgid ""
+"❌ The configured Linked role no longer exists. Choose a new one on the "
+"dashboard."
+msgstr ""
+"❌ De ingestelde gekoppeld-rol bestaat niet meer. Kies een nieuwe in het "
+"dashboard."
 
 msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
 msgstr ""
@@ -828,6 +867,18 @@ msgstr ""
 #, python-brace-format
 msgid "❌ {user} — not 18+ according to VRChat · {when}"
 msgstr "❌ {user} — volgens VRChat niet 18+ · {when}"
+
+#, python-brace-format
+msgid "🔗 {user} · linked, not 18+ according to VRChat · {when}"
+msgstr "🔗 {user} · gekoppeld, volgens VRChat niet 18+ · {when}"
+
+#, python-brace-format
+msgid ""
+"⚠️ {user} · linked, but the role could not be assigned. Check that the "
+"VRCVerify bot's role sits above the Linked role. · {when}"
+msgstr ""
+"⚠️ {user} · gekoppeld, maar de rol kon niet worden toegewezen. Controleer"
+" of de rol van de VRCVerify-bot boven de gekoppeld-rol staat. · {when}"
 
 #, python-brace-format
 msgid ""

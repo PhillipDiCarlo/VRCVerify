@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-23 23:31-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_CN\n"
@@ -32,6 +32,28 @@ msgstr "我们正在重新检查您的 18+ 状态。如果您已更新 VRChat �
 #, python-brace-format
 msgid "You've been verified and given **{role}** in **{server}**!"
 msgstr "您已验证并获得 **{role}** 角色,位于 **{server}**!"
+
+#, python-brace-format
+msgid ""
+"You've been verified and given **{role}** and **{linked_role}** in "
+"**{server}**!"
+msgstr "您已验证并获得 **{role}** 和 **{linked_role}** 角色,位于 **{server}**!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{role}** in "
+"**{server}**!"
+msgstr "您的 VRChat 账号已关联,并获得 **{role}** 角色,位于 **{server}**!"
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{linked_role}** in"
+" **{server}**. You didn't get **{role}** because VRChat doesn't show your"
+" account as age verified. Once it does, press **Begin Verification** "
+"again."
+msgstr ""
+"您的 VRChat 账号已关联,并获得 **{linked_role}** 角色,位于 **{server}**。您未获得 "
+"**{role}**,因为 VRChat 未将您的账号显示为已完成年龄验证。一旦显示,请再次点击 **开始验证**。"
 
 msgid "Nickname update requested. I'll DM you once it's done!"
 msgstr "已请求更新昵称。完成后我会通过私信通知您! "
@@ -357,6 +379,15 @@ msgstr "**{server} 的 VRCVerify 状态**"
 #, python-brace-format
 msgid "✅ Verified role: **{role}**"
 msgstr "✅ 已验证身份组:**{role}**"
+
+#, python-brace-format
+msgid "✅ Linked role: **{role}**"
+msgstr "✅ 已关联身份组:**{role}**"
+
+msgid ""
+"❌ The configured Linked role no longer exists. Choose a new one on the "
+"dashboard."
+msgstr "❌ 已配置的已关联身份组不存在了。请在控制台选择一个新的。"
 
 msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
 msgstr "❌ 尚未设置已验证身份组 — 请运行 `/vrcverify_setup` 选择一个。"
@@ -698,6 +729,16 @@ msgstr "⚠️ {user} — 已验证 18+，但无法分配身份组。请检查 V
 #, python-brace-format
 msgid "❌ {user} — not 18+ according to VRChat · {when}"
 msgstr "❌ {user} — 根据 VRChat 未满 18 岁 · {when}"
+
+#, python-brace-format
+msgid "🔗 {user} · linked, not 18+ according to VRChat · {when}"
+msgstr "🔗 {user} · 已关联,根据 VRChat 未满 18 岁 · {when}"
+
+#, python-brace-format
+msgid ""
+"⚠️ {user} · linked, but the role could not be assigned. Check that the "
+"VRCVerify bot's role sits above the Linked role. · {when}"
+msgstr "⚠️ {user} · 已关联,但无法分配身份组。请检查 VRCVerify 机器人的身份组是否位于已关联身份组之上。· {when}"
 
 #, python-brace-format
 msgid ""
