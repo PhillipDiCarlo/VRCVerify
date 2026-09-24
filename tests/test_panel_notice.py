@@ -189,8 +189,22 @@ class TestWhoGetsIt:
         monkeypatch.setattr(bot.bot, "get_guild", lambda gid: guild)
         probe = probe_answers(monkeypatch, True)
         outcome, context = run(bot.assess_frozen_panel_notice(entry()))
-        assert outcome == "fixable"
+        assert outcome == "sweep_can_replace"
         assert context is None
+        assert probe == []
+
+    def test_a_post_cutoff_panel_with_every_permission_is_not_called_repairable(
+        self, monkeypatch
+    ):
+        """#328: lumped in with the frozen ones, these read as 221 servers
+        waiting for a repair when most of them had nothing wrong."""
+        guild, _ = guild_with(perms())
+        monkeypatch.setattr(bot.bot, "get_guild", lambda gid: guild)
+        probe = probe_answers(monkeypatch, True)
+        outcome, context = run(bot.assess_frozen_panel_notice(entry(posted=AFTER)))
+        assert outcome == "has_permissions"
+        assert context is None
+        # No probe is needed to say "probably healthy", so none is spent.
         assert probe == []
 
     def test_a_panel_posted_before_the_cutoff_needs_no_probe_to_prove_it(self, monkeypatch):
@@ -348,8 +362,42 @@ class TestTheBatch:
 
         monkeypatch.setattr(bot, "resolve_config_admin", resolve)
         tally = run(bot.notify_frozen_panels(reason="test"))
-        assert tally == {"fixable": 2, "notified": 1}
+        assert tally == {"sweep_can_replace": 2, "notified": 1}
         assert recipients == [broken]
+
+    def test_neither_permissions_label_sends_a_message(self, monkeypatch, dashboard):
+        """#328 acceptance, asserted directly: both labels are skips."""
+        panels = [entry(server_id="0"), entry(server_id="1", posted=AFTER)]
+        ok, _ = guild_with(perms())
+        self._fleet(monkeypatch, panels, {"0": ok, "1": ok})
+        probe_answers(monkeypatch, True)
+        member = Member()
+
+        async def resolve(g, owner_id):
+            return member
+
+        monkeypatch.setattr(bot, "resolve_config_admin", resolve)
+        tally = run(bot.notify_frozen_panels(reason="test"))
+        assert tally == {"sweep_can_replace": 1, "has_permissions": 1}
+        assert member.sent == []
+
+    def test_a_panel_the_sweep_could_replace_says_to_rerun_it(
+        self, monkeypatch, dashboard, caplog
+    ):
+        ok, _ = guild_with(perms())
+        self._fleet(monkeypatch, [entry()], {GUILD_ID: ok})
+        with caplog.at_level("INFO"):
+            run(bot.notify_frozen_panels(reason="test"))
+        assert bot.PANEL_REPLACE_TRIGGER_PATH in caplog.text
+
+    def test_no_rerun_advice_when_there_is_nothing_to_replace(
+        self, monkeypatch, dashboard, caplog
+    ):
+        ok, _ = guild_with(perms())
+        self._fleet(monkeypatch, [entry(posted=AFTER)], {GUILD_ID: ok})
+        with caplog.at_level("INFO"):
+            run(bot.notify_frozen_panels(reason="test"))
+        assert bot.PANEL_REPLACE_TRIGGER_PATH not in caplog.text
 
     def test_the_cap_counts_messages_rather_than_servers_examined(self, monkeypatch, dashboard):
         monkeypatch.setattr(bot, "PANEL_NOTICE_MAX_PER_SWEEP", 2)
