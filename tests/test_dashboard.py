@@ -114,8 +114,10 @@ NEWS_CHANNEL = "800000000002"
 # two badge-only ones inactive but unlocked. Straight out of SETTINGS_FIELDS.
 FREE_PLAN = {
     "role_id": (None, True, False),
+    "linked_role_id": (None, True, False),
     "vrchat_group_id": ("group_invite", False, True),
     "vrchat_group_invite_enabled": ("group_invite", False, True),
+    "vrchat_group_invite_audience": ("group_invite", False, True),
     "unverified_role_id": ("unverified_role_removal", False, False),
     "auto_verify_new_members": (None, True, False),
     "auto_nickname_change": ("nickname_sync", False, True),
@@ -128,8 +130,10 @@ FREE_PLAN = {
 
 DEFAULT_VALUES = {
     "role_id": VERIFIED_ROLE,
+    "linked_role_id": None,
     "vrchat_group_id": None,
     "vrchat_group_invite_enabled": False,
+    "vrchat_group_invite_audience": "verified",
     "unverified_role_id": None,
     "auto_verify_new_members": True,
     "auto_nickname_change": False,
@@ -294,6 +298,9 @@ def make_overview(
                 "verified_role": True,
                 "verified_role_exists": True,
                 "verified_role_assignable": True,
+                "linked_role": False,
+                "linked_role_exists": None,
+                "linked_role_assignable": None,
                 "bot_can_manage_roles": True,
                 "unverified_role": False,
                 "log_channel": False,
@@ -2485,7 +2492,7 @@ class TestTheUpgradeOffer:
             settings=make_settings(premium=True, enforced=False, sku_id=None),
         )
         page = settings_page(test_client).data.decode()
-        assert "Verified role" in page  # the settings page really rendered
+        assert "18+ role" in page  # the settings page really rendered
         assert "/vrcverify_subscription" not in page
         assert "application-directory" not in page
 
@@ -2510,7 +2517,7 @@ class TestTheUpgradeOffer:
             config, store, settings=make_settings(sku_id=None)
         )
         page = settings_page(test_client).data.decode()
-        assert "Verified role" in page  # the settings page really rendered
+        assert "18+ role" in page  # the settings page really rendered
         assert "application-directory" not in page
         assert "store/None" not in page
 
@@ -2519,7 +2526,7 @@ class TestTheUpgradeOffer:
         sent admins to the slash commands past a working Save button."""
         test_client, _api = settings_client(config, store)
         page = settings_page(test_client).data.decode()
-        assert "Verified role" in page  # the settings page really rendered
+        assert "18+ role" in page  # the settings page really rendered
         assert "Only the instructions panel settings can be changed" not in page
 
 
@@ -4527,7 +4534,7 @@ class TestTheChangeHistory:
     def test_it_names_the_setting_the_actor_and_both_values(self, config, store):
         test_client, _api = settings_client(config, store, audit=AUDIT_ENTRIES)
         page = settings_page(test_client, "activity").data.decode()
-        assert "Verified role" in page
+        assert "18+ role" in page
         assert "Sasha" in page
         # The id is resolved to the role's name, as on the settings above.
         assert "not set &rarr; Verified" in page or "not set → Verified" in page
@@ -5032,8 +5039,8 @@ class TestTheOverviewSuggestsOneNextStep:
             panel={"posted": False},
         )
         setup = page.split('class="setup"', 1)[1].split("</ul>", 1)[0]
-        assert "Verified role" in setup and "Instructions panel" in setup
-        assert setup.index("Verified role") < setup.index("Instructions panel")
+        assert "18+ role" in setup and "Instructions panel" in setup
+        assert setup.index("18+ role") < setup.index("Instructions panel")
 
     def test_a_missing_panel_is_reported_when_the_role_is_fine(self, config, store):
         page = self._page(config, store, panel={"posted": False})
@@ -5211,7 +5218,7 @@ class TestTheSetupListOnThePage:
         section = self._section(page)
         assert section
         for label in (
-            "Verified role", "Instructions panel", "Auto-verify on join",
+            "18+ role", "Instructions panel", "Auto-verify on join",
             "Unverified role", "Verification log",
         ):
             assert label in section
@@ -5292,7 +5299,7 @@ class TestTheSetupListOnThePage:
         which is defined second -- has to appear above it."""
         page = self._page(config, store, panel={"posted": False})
         section = self._section(page)
-        assert section.index("Instructions panel") < section.index("Verified role")
+        assert section.index("Instructions panel") < section.index("18+ role")
 
     def test_a_broken_role_shows_its_own_note_and_a_settings_link(self, config, store):
         page = self._page(
@@ -8115,7 +8122,7 @@ class TestOverviewViewModel:
                                              verified_role_assignable=None),
              "panel": {"posted": True}}
         )
-        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        role = next(row for row in setup["rows"] if row["label"] == "18+ role")
         assert role["state"] == "todo"
         assert role["action"] == {
             "label": "Go to Settings",
@@ -8131,7 +8138,7 @@ class TestOverviewViewModel:
                                              verified_role_assignable=None),
              "panel": {"posted": True}}
         )
-        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        role = next(row for row in setup["rows"] if row["label"] == "18+ role")
         assert role["state"] == "broken"
         assert "deleted" in role["note"]
 
@@ -8142,7 +8149,7 @@ class TestOverviewViewModel:
             {"configured": self._configured(verified_role_assignable=False),
              "panel": {"posted": True}}
         )
-        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        role = next(row for row in setup["rows"] if row["label"] == "18+ role")
         assert role["state"] == "broken"
         assert "sit above" in role["note"]
 
@@ -8155,7 +8162,7 @@ class TestOverviewViewModel:
                                              verified_role_assignable=False),
              "panel": {"posted": True}}
         )
-        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        role = next(row for row in setup["rows"] if row["label"] == "18+ role")
         assert role["state"] == "broken"
         assert "Manage Roles" in role["note"]
         # Not the hierarchy note: reordering roles fixes nothing here.
@@ -8172,7 +8179,7 @@ class TestOverviewViewModel:
                                              verified_role_assignable=False),
              "panel": {"posted": True}}
         )
-        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        role = next(row for row in setup["rows"] if row["label"] == "18+ role")
         assert "Manage Roles" in role["note"]
 
     def test_an_unset_role_still_reads_as_todo_without_the_permission(self):
@@ -8187,7 +8194,7 @@ class TestOverviewViewModel:
                                              bot_can_manage_roles=False),
              "panel": {"posted": True}}
         )
-        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        role = next(row for row in setup["rows"] if row["label"] == "18+ role")
         assert role["state"] == "todo"
         assert role["action"] is not None
 
@@ -8201,7 +8208,7 @@ class TestOverviewViewModel:
         setup = overview_view.build_setup(
             {"configured": configured, "panel": {"posted": True}}
         )
-        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        role = next(row for row in setup["rows"] if row["label"] == "18+ role")
         assert role["state"] == "done"
 
     def test_an_unknown_permission_is_not_treated_as_broken(self):
@@ -8211,7 +8218,7 @@ class TestOverviewViewModel:
             {"configured": self._configured(bot_can_manage_roles=None),
              "panel": {"posted": True}}
         )
-        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        role = next(row for row in setup["rows"] if row["label"] == "18+ role")
         assert role["state"] == "done"
 
     def test_unknown_assignability_is_not_treated_as_broken(self):
@@ -8222,7 +8229,7 @@ class TestOverviewViewModel:
             {"configured": self._configured(verified_role_assignable=None),
              "panel": {"posted": True}}
         )
-        role = next(row for row in setup["rows"] if row["label"] == "Verified role")
+        role = next(row for row in setup["rows"] if row["label"] == "18+ role")
         assert role["state"] == "done"
 
     def test_a_panel_in_a_deleted_channel_is_broken_not_done(self):
@@ -8300,7 +8307,7 @@ class TestOverviewViewModel:
              "panel": {"posted": True}}
         )
         optional = [row for row in setup["rows"] if row["label"] not in
-                    ("Verified role", "Instructions panel")]
+                    ("18+ role", "Instructions panel")]
         assert all(row["action"] is None for row in optional)
 
     def test_a_failed_settings_read_shows_no_setup_section(self):
@@ -11722,3 +11729,187 @@ class TestVerifyExistingMembers:
         card = overview_view.build_backfill(payload)
         assert card["can_count"] is False
         assert "couldn't check its permissions" in card["problem"]
+
+
+# -------------------------------------------------------------------
+# The Linked role and who can be invited (#359, PR 3)
+# -------------------------------------------------------------------
+LINKED_ROLE = UNASSIGNABLE_ROLE  # any real role id from DEFAULT_ROLES
+
+
+def _fields(settings):
+    return {
+        field.name: field
+        for group in settings_view.build_groups(settings, DEFAULT_ROLES, DEFAULT_CHANNELS)
+        for field in group["fields"]
+    }
+
+
+class TestTheLinkedRoleViewModel:
+    def test_the_verification_card_has_both_roles_in_order(self):
+        group = next(
+            g for g in settings_view.build_groups(make_settings(), DEFAULT_ROLES, DEFAULT_CHANNELS)
+            if g["slug"] == "verification"
+        )
+        names = [f.name for f in group["fields"]]
+        assert names[:3] == ["role_id", "linked_role_id", "unverified_role_id"]
+        labels = {f.name: f.label for f in group["fields"]}
+        assert labels["role_id"] == "18+ role"
+        assert labels["linked_role_id"] == "Linked role"
+
+    def test_the_18_role_always_offers_none(self):
+        """Found by the PR 3 adversarial pass: a required select with nothing
+        stored submitted the first role in the list as the 18+ role. The bot
+        refuses clearing both, so offering None is safe."""
+        assert _fields(make_settings())["role_id"].kind == "role_optional"
+        assert _fields(make_settings(values={"role_id": None}))["role_id"].kind == "role_optional"
+
+    def test_no_18_role_is_only_a_warning_without_a_linked_role(self):
+        bare = _fields(make_settings(values={"role_id": None}))["role_id"]
+        assert bare.warnings
+        linked_only = _fields(make_settings(values={"role_id": None, "linked_role_id": LINKED_ROLE}))
+        assert linked_only["role_id"].warnings == []
+
+    def test_any_linked_member_is_unavailable_without_a_linked_role(self):
+        field = _fields(make_settings(premium=True))["vrchat_group_invite_audience"]
+        assert field.kind == "audience"
+        assert field.linked_available is False
+        assert [code for code, _label, _note in field.choices] == ["verified", "linked"]
+
+    def test_a_stored_linked_audience_without_a_linked_role_says_it_is_18_only(self):
+        field = _fields(make_settings(
+            premium=True, values={"vrchat_group_invite_audience": "linked"},
+        ))["vrchat_group_invite_audience"]
+        assert any("18+ members only" in w for w in field.warnings)
+        assert field.display == "18+ verified members only"
+        # And the radio shows the same thing, not a checked disabled option.
+        assert field.value == "verified"
+
+
+class TestTheLinkedRoleOnThePage:
+    def logged_in(self, config, store, **kwargs):
+        api = FakeBotAPI(**kwargs)
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        return test_client, api, login_as(test_client, store)
+
+    def group_page(self, config, store, **values):
+        test_client, _api, _session = self.logged_in(
+            config, store, settings=make_settings(premium=True, values=values)
+        )
+        return test_client.get(f"/guild/{GUILD_IN}/settings/vrchat-group").data.decode()
+
+    def test_without_a_linked_role_the_option_is_disabled_and_says_where_to_fix_it(
+        self, config, store
+    ):
+        page = self.group_page(config, store)
+        assert re.search(r'value="linked"[^>]*disabled', page)
+        assert f'/guild/{GUILD_IN}/settings/verification#l-linked_role_id' in page
+        assert "age-verified instances" in page
+
+    def test_with_a_linked_role_the_option_can_be_chosen(self, config, store):
+        page = self.group_page(config, store, linked_role_id=LINKED_ROLE)
+        assert re.search(r'value="linked"', page)
+        assert not re.search(r'value="linked"[^>]*disabled', page)
+        assert "Set one on the Verification page" not in page
+
+    def test_the_verification_page_offers_the_linked_role(self, config, store):
+        test_client, _api, _session = self.logged_in(config, store)
+        page = test_client.get(f"/guild/{GUILD_IN}/settings/verification").data.decode()
+        assert 'name="linked_role_id"' in page
+        assert "18+ role" in page
+
+    def test_the_linked_role_and_a_cleared_18_role_are_sent(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        test_client.post(
+            f"/guild/{GUILD_IN}/verification",
+            data={"csrf_token": session.csrf_token, "role_id": "", "linked_role_id": LINKED_ROLE},
+        )
+        assert api.saves[-1][2]["role_id"] is None
+        assert api.saves[-1][2]["linked_role_id"] == LINKED_ROLE
+
+    def test_the_audience_is_sent(self, config, store):
+        test_client, api, session = self.logged_in(config, store)
+        test_client.post(
+            f"/guild/{GUILD_IN}/group",
+            data={"csrf_token": session.csrf_token, "vrchat_group_invite_audience": "linked"},
+        )
+        assert api.saves[-1][2]["vrchat_group_invite_audience"] == "linked"
+
+    def test_a_missing_audience_is_no_change(self, config, store):
+        """A disabled checked radio submits nothing; that must not clear it."""
+        test_client, api, session = self.logged_in(config, store)
+        test_client.post(f"/guild/{GUILD_IN}/group", data={"csrf_token": session.csrf_token})
+        assert all("vrchat_group_invite_audience" not in s[2] for s in api.saves)
+
+    @pytest.mark.parametrize("code, words", [
+        ("needs_linked_role", "Set a Linked role on the Verification page"),
+        ("linked_same_as_verified", "need to be different roles"),
+        ("role_required", "Pick an 18+ role or a Linked role"),
+    ])
+    def test_the_refusals_are_explained(self, config, store, code, words):
+        test_client, _api, session = self.logged_in(
+            config, store, errors={"update_settings": BotAPIError(code, 400)}
+        )
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/verification",
+            data={"csrf_token": session.csrf_token, "linked_role_id": LINKED_ROLE},
+        )
+        page = test_client.get(response.headers["Location"]).data.decode()
+        assert words in page
+
+
+class TestTheOverviewRoleRowWithALinkedRole:
+    def row(self, **configured):
+        base = {
+            "verified_role": False, "verified_role_exists": None,
+            "verified_role_assignable": None, "linked_role": False,
+            "linked_role_exists": None, "linked_role_assignable": None,
+            "bot_can_manage_roles": True, "unverified_role": False,
+            "log_channel": False, "auto_verify": True,
+        }
+        base.update(configured)
+        setup = overview_view.build_setup({"configured": base, "panel": {"posted": True}})
+        return next(r for r in setup["rows"] if r["key"] == "verified_role")
+
+    def test_a_linked_only_server_is_done(self):
+        row = self.row(linked_role=True, linked_role_exists=True, linked_role_assignable=True)
+        assert row["state"] == "done"
+        assert row["label"] == "Linked role"
+
+    def test_both_roles_are_named(self):
+        row = self.row(
+            verified_role=True, verified_role_exists=True, verified_role_assignable=True,
+            linked_role=True, linked_role_exists=True, linked_role_assignable=True,
+        )
+        assert row["label"] == "Linked and 18+ roles"
+        assert row["state"] == "done"
+
+    def test_a_deleted_linked_role_is_broken(self):
+        row = self.row(
+            verified_role=True, verified_role_exists=True, verified_role_assignable=True,
+            linked_role=True, linked_role_exists=False,
+        )
+        assert row["state"] == "broken"
+
+    def test_neither_role_is_todo(self):
+        assert self.row()["state"] == "todo"
+        assert self.row()["label"] == "18+ role"
+
+
+class TestTheLinkedRoleRefusalLandsBesideItsField:
+    def test_a_linked_role_refusal_is_shown_beside_the_linked_role(self, config, store):
+        api = FakeBotAPI(errors={"update_settings": BotAPIError(
+            "linked_same_as_verified", 400, field="linked_role_id",
+        )})
+        app = create_app(config, store=store, client=api)
+        app.config.update(TESTING=True)
+        test_client = app.test_client()
+        session = login_as(test_client, store)
+        response = test_client.post(
+            f"/guild/{GUILD_IN}/verification",
+            data={"csrf_token": session.csrf_token, "role_id": VERIFIED_ROLE,
+                  "linked_role_id": VERIFIED_ROLE},
+        )
+        assert response.headers["Location"].endswith("#l-linked_role_id")

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-24 13:16-0400\n"
+"POT-Creation-Date: 2026-09-24 14:32-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ar\n"
@@ -157,6 +157,31 @@ msgid ""
 msgstr ""
 "تم {action} إعداد الخادم بنجاح.\n"
 "تم تعيين الدور الموثّق إلى: `{role}` (المعرف={role_id})"
+
+#, python-brace-format
+msgid "Successfully {action} server config."
+msgstr "تم {action} إعداد الخادم بنجاح."
+
+#, python-brace-format
+msgid ""
+"\n"
+"Linked Role set to: `{role}` (ID={role_id})"
+msgstr ""
+"\n"
+"تم تعيين رتبة المرتبط إلى: `{role}` (المعرف={role_id})"
+
+msgid ""
+"Choose at least one role: `verified-role` for members VRChat reports as "
+"18+, or `linked-role` for everyone who links their VRChat account."
+msgstr ""
+"اختر دورًا واحدًا على الأقل: `verified-role` للأعضاء الذين تُبلّغ VRChat "
+"بأنهم بعمر 18 عامًا فأكثر، أو `linked-role` لكل من يربط حسابه في VRChat."
+
+msgid "The Linked role and the verified role need to be different roles."
+msgstr "يجب أن تكون رتبة المرتبط والدور الموثّق رتبتين مختلفتين."
+
+msgid "The Linked role and the unverified role need to be different roles."
+msgstr "يجب أن تكون رتبة المرتبط والدور غير الموثّق رتبتين مختلفتين."
 
 #, python-brace-format
 msgid ""
@@ -968,11 +993,12 @@ msgid ""
 msgstr "لقد طلبت دعوة بالفعل. يرجى الانتظار بضع دقائق قبل المحاولة مرة أخرى."
 
 msgid ""
-"VRChat didn't recognize the account you verified with, so the invite "
-"couldn't be sent. Try verifying again to relink your VRChat account."
+"VRChat didn't recognize the account linked to your Discord, so the invite"
+" couldn't be sent. If you think this is a mistake, contact a server "
+"admin."
 msgstr ""
-"لم يتعرّف VRChat على الحساب الذي تحققت به، لذا تعذّر إرسال الدعوة. أعد "
-"التحقق لإعادة ربط حسابك على VRChat."
+"لم يتعرّف VRChat على الحساب المرتبط بحساب Discord الخاص بك، لذا تعذّر "
+"إرسال الدعوة. إذا كنت تعتقد أن هذا خطأ، اتصل بمسؤول الخادم."
 
 #, python-brace-format
 msgid ""
@@ -984,11 +1010,13 @@ msgstr ""
 
 #, python-brace-format
 msgid ""
-"You're not currently verified as 18+ in **{server}**, so the invite "
-"couldn't be sent. Verify again to get a new invite offer."
+"**{server}** only sends group invites to members verified as 18+, and you"
+" aren't right now, so the invite couldn't be sent. If VRChat now shows "
+"your account as age verified, press **Begin Verification** again."
 msgstr ""
-"أنت غير مُتحقَّق حاليًا كبالغ 18+ في **{server}**، لذا تعذّر إرسال "
-"الدعوة. تحقّق مرة أخرى للحصول على دعوة جديدة."
+"**{server}** لا يرسل دعوات المجموعة إلا للأعضاء المتحقَّق منهم كبالغي "
+"18+، وأنت لست كذلك حاليًا، لذا تعذّر إرسال الدعوة. إذا كان VRChat يُظهر "
+"الآن أن حسابك متحقَّق منه بالعمر، اضغط **بدء التحقق** مرة أخرى."
 
 msgid ""
 "This offer was for a different VRChat account than the one you have "
@@ -1183,4 +1211,15 @@ msgstr "🚫 رفض {moderator} طلب **{name}** للانضمام إلى مجم
 #~ "**{event}** مفتوحة الآن في VRChat "
 #~ "‏(للأعضاء فقط، 18+). انضم من هنا: "
 #~ "{link}"
+
+#~ msgid ""
+#~ "You're not currently verified as 18+ "
+#~ "in **{server}**, so the invite couldn't"
+#~ " be sent. Verify again to get a"
+#~ " new invite offer."
+#~ msgstr ""
+#~ "أنت غير مُتحقَّق حاليًا كبالغ 18+ "
+#~ "في **{server}**، لذا تعذّر إرسال الدعوة."
+#~ " تحقّق مرة أخرى للحصول على دعوة "
+#~ "جديدة."
 

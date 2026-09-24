@@ -85,6 +85,11 @@ PAGES = [
         f"/guild/{PREMIUM}/settings/panel",
         {"PREVIEW_PANEL": "frozen_perms"},
     ),
+    # The Linked role and who can be invited (#359): the verification page
+    # with both roles, and the invite choice without and with a Linked role.
+    ("settings-linked-role", f"/guild/{PREMIUM}/settings/verification", {"PREVIEW_LINKED": "1"}),
+    ("settings-invite-audience-locked", f"/guild/{PREMIUM}/settings/vrchat-group", {}),
+    ("settings-invite-audience-open", f"/guild/{PREMIUM}/settings/vrchat-group", {"PREVIEW_LINKED": "invites"}),
 ]
 
 # Both themes explicitly, plus "system" left to the OS preference -- which is a

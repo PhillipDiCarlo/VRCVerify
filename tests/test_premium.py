@@ -696,6 +696,8 @@ class TestEveryFieldDeclaresItsGate:
     EXPECTED = {
         # name: (feature, write_locked)
         "role_id": (None, False),
+        # Free, like the 18+ role (#359).
+        "linked_role_id": (None, False),
         "unverified_role_id": (bot.FEATURE_UNVERIFIED_ROLE_REMOVAL, False),
         "auto_verify_new_members": (None, False),
         "auto_nickname_change": (bot.FEATURE_NICKNAME_SYNC, True),
@@ -706,6 +708,7 @@ class TestEveryFieldDeclaresItsGate:
         "verification_log_channel_id": (bot.FEATURE_ACTIVITY_LOG, True),
         "vrchat_group_id": (bot.FEATURE_GROUP_INVITE, True),
         "vrchat_group_invite_enabled": (bot.FEATURE_GROUP_INVITE, True),
+        "vrchat_group_invite_audience": (bot.FEATURE_GROUP_INVITE, True),
         "calendar_sync_enabled": (bot.FEATURE_CALENDAR_SYNC, True),
         "calendar_announce_channel_id": (bot.FEATURE_CALENDAR_SYNC, True),
         "calendar_ping_role_id": (bot.FEATURE_CALENDAR_SYNC, True),
@@ -748,6 +751,7 @@ class TestEveryFieldDeclaresItsGate:
             "verification_log_channel_id",
             "vrchat_group_id",
             "vrchat_group_invite_enabled",
+            "vrchat_group_invite_audience",
             "calendar_sync_enabled",
             "calendar_announce_channel_id",
             "calendar_ping_role_id",

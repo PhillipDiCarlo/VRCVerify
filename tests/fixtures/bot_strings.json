@@ -272,18 +272,18 @@
       "pa-IN": "ਇਹ ਸੱਦਾ ਇੱਕ ਵੱਖਰੇ VRChat ਖਾਤੇ ਲਈ ਸੀ, ਜੋ ਹੁਣ ਤੁਹਾਡੇ ਜੁੜੇ ਖਾਤੇ ਤੋਂ ਵੱਖਰਾ ਹੈ। ਆਪਣੇ ਮੌਜੂਦਾ ਖਾਤੇ ਲਈ ਨਵਾਂ ਸੱਦਾ ਲੈਣ ਲਈ ਦੁਬਾਰਾ ਤਸਦੀਕ ਕਰੋ।"
     },
     "group_invite_account_missing": {
-      "en-US": "VRChat didn't recognize the account you verified with, so the invite couldn't be sent. Try verifying again to relink your VRChat account.",
-      "es-ES": "VRChat no reconoció la cuenta con la que te verificaste, así que no se pudo enviar la invitación. Vuelve a verificarte para volver a vincular tu cuenta de VRChat.",
-      "zh-CN": "VRChat 无法识别你验证时使用的账号，因此邀请无法发送。请重新进行验证，以重新关联你的 VRChat 账号。",
-      "ja": "認証に使用したアカウントを VRChat が認識できなかったため、招待を送信できませんでした。もう一度認証して VRChat アカウントを再リンクしてください。",
-      "de": "VRChat hat das Konto, mit dem du dich verifiziert hast, nicht erkannt, daher konnte die Einladung nicht gesendet werden. Verifiziere dich erneut, um dein VRChat-Konto neu zu verknüpfen.",
-      "nl": "VRChat herkende het account waarmee je je hebt geverifieerd niet, dus de uitnodiging kon niet worden verstuurd. Verifieer je opnieuw om je VRChat-account opnieuw te koppelen.",
-      "hi-IN": "VRChat ने उस खाते को नहीं पहचाना जिससे आपने सत्यापन किया था, इसलिए आमंत्रण नहीं भेजा जा सका। अपना VRChat खाता दोबारा जोड़ने के लिए फिर से सत्यापन करें।",
-      "ar": "لم يتعرّف VRChat على الحساب الذي تحققت به، لذا تعذّر إرسال الدعوة. أعد التحقق لإعادة ربط حسابك على VRChat.",
-      "bn": "আপনি যে অ্যাকাউন্ট দিয়ে যাচাই করেছিলেন VRChat সেটি চিনতে পারেনি, তাই আমন্ত্রণ পাঠানো যায়নি। আপনার VRChat অ্যাকাউন্ট পুনরায় যুক্ত করতে আবার যাচাই করুন।",
-      "pt-BR": "O VRChat não reconheceu a conta com que você se verificou, então o convite não pôde ser enviado. Verifique-se de novo para revincular sua conta do VRChat.",
-      "ru": "VRChat не распознал аккаунт, с которым вы проходили проверку, поэтому приглашение отправить не удалось. Пройдите проверку заново, чтобы перепривязать аккаунт VRChat.",
-      "pa-IN": "VRChat ਨੇ ਉਸ ਖਾਤੇ ਨੂੰ ਨਹੀਂ ਪਛਾਣਿਆ ਜਿਸ ਨਾਲ ਤੁਸੀਂ ਪ੍ਰਮਾਣੀਕਰਨ ਕੀਤਾ ਸੀ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਆਪਣਾ VRChat ਖਾਤਾ ਦੁਬਾਰਾ ਜੋੜਨ ਲਈ ਫਿਰ ਤੋਂ ਪ੍ਰਮਾਣੀਕਰਨ ਕਰੋ।"
+      "en-US": "VRChat didn't recognize the account linked to your Discord, so the invite couldn't be sent. If you think this is a mistake, contact a server admin.",
+      "es-ES": "VRChat no reconoció la cuenta vinculada a tu Discord, así que no se pudo enviar la invitación. Si crees que esto es un error, contacta a un administrador del servidor.",
+      "zh-CN": "VRChat 无法识别与你的 Discord 关联的账号，因此邀请无法发送。如果你认为这是错误，请联系服务器管理员。",
+      "ja": "あなたの Discord にリンクされたアカウントを VRChat が認識できなかったため、招待を送信できませんでした。これが誤りだと思う場合は、サーバーの管理者に連絡してください。",
+      "de": "VRChat hat das mit deinem Discord verknüpfte Konto nicht erkannt, daher konnte die Einladung nicht gesendet werden. Wenn du denkst, dass dies ein Fehler ist, kontaktiere einen Server-Administrator.",
+      "nl": "VRChat herkende het account dat aan je Discord is gekoppeld niet, dus de uitnodiging kon niet worden verstuurd. Als je denkt dat dit een fout is, neem dan contact op met een serverbeheerder.",
+      "hi-IN": "VRChat ने आपके Discord से लिंक किए गए खाते को नहीं पहचाना, इसलिए आमंत्रण नहीं भेजा जा सका। यदि आपको लगता है कि यह गलती है, तो सर्वर व्यवस्थापक से संपर्क करें।",
+      "ar": "لم يتعرّف VRChat على الحساب المرتبط بحساب Discord الخاص بك، لذا تعذّر إرسال الدعوة. إذا كنت تعتقد أن هذا خطأ، اتصل بمسؤول الخادم.",
+      "bn": "আপনার Discord-এর সাথে লিঙ্ক করা অ্যাকাউন্টটি VRChat চিনতে পারেনি, তাই আমন্ত্রণ পাঠানো যায়নি। যদি মনে করেন এটি ভুল, তাহলে সার্ভার অ্যাডমিনের সাথে যোগাযোগ করুন।",
+      "pt-BR": "O VRChat não reconheceu a conta vinculada ao seu Discord, então o convite não pôde ser enviado. Se você acha que isso é um erro, contate um administrador do servidor.",
+      "ru": "VRChat не распознал аккаунт, привязанный к вашему Discord, поэтому приглашение отправить не удалось. Если вы считаете, что это ошибка, свяжитесь с администратором сервера.",
+      "pa-IN": "VRChat ਨੇ ਤੁਹਾਡੇ Discord ਨਾਲ ਲਿੰਕ ਕੀਤੇ ਖਾਤੇ ਨੂੰ ਨਹੀਂ ਪਛਾਣਿਆ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਜੇ ਤੁਹਾਨੂੰ ਲੱਗਦਾ ਹੈ ਕਿ ਇਹ ਗਲਤੀ ਹੈ, ਤਾਂ ਸਰਵਰ ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।"
     },
     "group_invite_already_invited": {
       "en-US": "An invite to **Snapshot Group** is already waiting in your VRChat notifications.",
@@ -356,18 +356,18 @@
       "pa-IN": "ਇਹ ਸੱਦਾ **Snapshot Server** ਲਈ ਸੀ, ਅਤੇ ਤੁਸੀਂ ਹੁਣ ਉਸ ਸਰਵਰ ਦੇ ਮੈਂਬਰ ਨਹੀਂ ਹੋ। ਜੇ ਤੁਸੀਂ ਹਾਲੇ ਵੀ ਸੱਦਾ ਚਾਹੁੰਦੇ ਹੋ, ਤਾਂ ਸਰਵਰ ਵਿੱਚ ਸ਼ਾਮਲ ਹੋ ਕੇ ਦੁਬਾਰਾ ਪ੍ਰਮਾਣੀਕਰਨ ਕਰੋ।"
     },
     "group_invite_not_verified": {
-      "en-US": "You're not currently verified as 18+ in **Snapshot Server**, so the invite couldn't be sent. Verify again to get a new invite offer.",
-      "es-ES": "Actualmente no estás verificado como 18+ en **Snapshot Server**, así que no se pudo enviar la invitación. Verifícate de nuevo para recibir una nueva invitación.",
-      "zh-CN": "你目前在 **Snapshot Server** 中未被验证为 18+，因此无法发送邀请。请重新验证以获得新的邀请。",
-      "ja": "現在 **Snapshot Server** で18歳以上として認証されていないため、招待を送信できませんでした。もう一度認証すると、新しい招待が届きます。",
-      "de": "Du bist derzeit auf **Snapshot Server** nicht als 18+ verifiziert, daher konnte die Einladung nicht gesendet werden. Verifiziere dich erneut, um eine neue Einladung zu erhalten.",
-      "nl": "Je bent op dit moment niet als 18+ geverifieerd in **Snapshot Server**, dus de uitnodiging kon niet worden verstuurd. Verifieer je opnieuw om een nieuwe uitnodiging te krijgen.",
-      "hi-IN": "आप इस समय **Snapshot Server** में 18+ के रूप में सत्यापित नहीं हैं, इसलिए आमंत्रण नहीं भेजा जा सका। नया आमंत्रण पाने के लिए दोबारा सत्यापन करें।",
-      "ar": "أنت غير مُتحقَّق حاليًا كبالغ 18+ في **Snapshot Server**، لذا تعذّر إرسال الدعوة. تحقّق مرة أخرى للحصول على دعوة جديدة.",
-      "bn": "আপনি বর্তমানে **Snapshot Server**-এ 18+ হিসেবে যাচাইকৃত নন, তাই আমন্ত্রণ পাঠানো যায়নি। নতুন আমন্ত্রণ পেতে আবার যাচাই করুন।",
-      "pt-BR": "Você não está verificado como 18+ em **Snapshot Server** no momento, então o convite não pôde ser enviado. Verifique-se de novo para receber um novo convite.",
-      "ru": "Сейчас вы не подтверждены как 18+ на сервере **Snapshot Server**, поэтому приглашение не отправлено. Пройдите проверку заново, чтобы получить новое приглашение.",
-      "pa-IN": "ਤੁਸੀਂ ਇਸ ਵੇਲੇ **Snapshot Server** ਵਿੱਚ 18+ ਵਜੋਂ ਤਸਦੀਕ ਨਹੀਂ ਹੋ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਨਵਾਂ ਸੱਦਾ ਲੈਣ ਲਈ ਦੁਬਾਰਾ ਤਸਦੀਕ ਕਰੋ।"
+      "en-US": "**Snapshot Server** only sends group invites to members verified as 18+, and you aren't right now, so the invite couldn't be sent. If VRChat now shows your account as age verified, press **Begin Verification** again.",
+      "es-ES": "**Snapshot Server** solo envía invitaciones de grupo a los miembros verificados como 18+, y ahora mismo no lo estás, así que no se pudo enviar la invitación. Si VRChat ahora muestra tu cuenta como verificada por edad, pulsa **Iniciar Verificación** de nuevo.",
+      "zh-CN": "**Snapshot Server** 只向已验证为 18+ 的成员发送群组邀请，而你目前不是，因此邀请无法发送。如果 VRChat 现在显示你的账号已通过年龄验证，请再次按下 **开始验证**。",
+      "ja": "**Snapshot Server** は18歳以上として認証されたメンバーにのみグループ招待を送信しますが、現在あなたはそれに該当しないため、招待を送信できませんでした。VRChat が現在あなたのアカウントを年齢認証済みと表示している場合は、もう一度 **認証を開始** を押してください。",
+      "de": "**Snapshot Server** sendet Gruppeneinladungen nur an Mitglieder, die als 18+ verifiziert sind, und das bist du gerade nicht, daher konnte die Einladung nicht gesendet werden. Wenn VRChat dein Konto jetzt als altersverifiziert anzeigt, klicke erneut auf **Verifizierung starten**.",
+      "nl": "**Snapshot Server** stuurt alleen groepsuitnodigingen naar leden die als 18+ zijn geverifieerd, en dat ben jij op dit moment niet, dus de uitnodiging kon niet worden verstuurd. Als VRChat je account nu als leeftijdsgeverifieerd toont, klik dan opnieuw op **Verificatie starten**.",
+      "hi-IN": "**Snapshot Server** केवल 18+ के रूप में सत्यापित सदस्यों को ही ग्रुप आमंत्रण भेजता है, और आप अभी ऐसे नहीं हैं, इसलिए आमंत्रण नहीं भेजा जा सका। यदि VRChat अब आपके खाते को आयु-सत्यापित दिखा रहा है, तो फिर से **पुष्टि शुरू करें** दबाएँ।",
+      "ar": "**Snapshot Server** لا يرسل دعوات المجموعة إلا للأعضاء المتحقَّق منهم كبالغي 18+، وأنت لست كذلك حاليًا، لذا تعذّر إرسال الدعوة. إذا كان VRChat يُظهر الآن أن حسابك متحقَّق منه بالعمر، اضغط **بدء التحقق** مرة أخرى.",
+      "bn": "**Snapshot Server** শুধুমাত্র 18+ হিসেবে যাচাইকৃত সদস্যদের গ্রুপ আমন্ত্রণ পাঠায়, এবং আপনি এখন তা নন, তাই আমন্ত্রণ পাঠানো যায়নি। VRChat যদি এখন আপনার অ্যাকাউন্টকে বয়স-যাচাইকৃত হিসেবে দেখায়, তাহলে আবার **যাচাই শুরু করুন** চাপুন।",
+      "pt-BR": "**Snapshot Server** só envia convites de grupo a membros verificados como 18+, e você não é um agora, então o convite não pôde ser enviado. Se o VRChat agora mostra sua conta como verificada por idade, pressione **Iniciar Verificação** novamente.",
+      "ru": "**Snapshot Server** отправляет групповые приглашения только участникам, подтверждённым как 18+, а вы сейчас не подтверждены, поэтому приглашение не отправлено. Если VRChat теперь показывает ваш аккаунт как подтверждённый по возрасту, нажмите **Начать проверку** ещё раз.",
+      "pa-IN": "**Snapshot Server** ਸਿਰਫ਼ 18+ ਵਜੋਂ ਤਸਦੀਕ ਹੋਏ ਮੈਂਬਰਾਂ ਨੂੰ ਹੀ ਗਰੁੱਪ ਸੱਦੇ ਭੇਜਦਾ ਹੈ, ਅਤੇ ਤੁਸੀਂ ਇਸ ਵੇਲੇ ਅਜਿਹੇ ਨਹੀਂ ਹੋ, ਇਸ ਲਈ ਸੱਦਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਜੇ VRChat ਹੁਣ ਤੁਹਾਡੇ ਖਾਤੇ ਨੂੰ ਉਮਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਵਜੋਂ ਦਿਖਾਉਂਦਾ ਹੈ, ਤਾਂ ਦੁਬਾਰਾ **ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ** ਦਬਾਓ।"
     },
     "group_invite_sent": {
       "en-US": "Invite sent! Open your VRChat notifications to join **Snapshot Group**.",

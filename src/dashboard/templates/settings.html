@@ -364,7 +364,9 @@
                Only when the field is editable: a `for` pointing at a disabled
                control invites a click that does nothing. #}
             <dt id="l-{{ field.name }}">
-              {% if field.editable %}
+              {# A radio group is not labelable: its name comes from this <dt>
+                 through aria-labelledby, so no <label for> points at it. #}
+              {% if field.editable and field.kind != 'audience' %}
                 <label for="f-{{ field.name }}">{{ field.label }}</label>
               {% else %}
                 {{ field.label }}
@@ -425,6 +427,36 @@
                       </label>
                     {% endfor %}
                   </div>
+                {% elif field.kind == 'audience' %}
+                  {# Who group invites may go to (#359). Radios, because both
+                     options and what each means should be readable without
+                     opening anything. The caution sits under the option it is
+                     about. With no Linked role the second option is disabled
+                     and says where to fix it; a disabled checked radio submits
+                     nothing, which the route reads as "no change". #}
+                  <div class="choice-list" role="radiogroup"
+                       aria-labelledby="l-{{ field.name }}" id="f-{{ field.name }}">
+                    {% for code, label, note in field.choices %}
+                      {% set unavailable = code == 'linked' and not field.linked_available %}
+                      <label class="check choice{% if unavailable %} unavailable{% endif %}">
+                        <input type="radio" name="{{ field.name }}" value="{{ code }}"
+                               {%- if code == field.value %} checked{% endif %}
+                               {%- if unavailable %} disabled{% endif %}>
+                        <span class="choice-text">
+                          <span class="choice-label">{{ label }}</span>
+                          <span class="muted desc">{{ note }}</span>
+                          {% if code == 'linked' %}
+                            <span class="choice-caution">{{ field.caution }}</span>
+                          {% endif %}
+                        </span>
+                      </label>
+                    {% endfor %}
+                  </div>
+                  {% if not field.linked_available %}
+                    <p class="muted desc">
+                      {% trans link=url_for('guild_settings', guild_id=guild_id, group='verification') ~ '#l-linked_role_id' %}Any linked member needs a Linked role. <a href="{{ link }}">Set one on the Verification page</a> first.{% endtrans %}
+                    </p>
+                  {% endif %}
                 {% elif field.kind == 'locale' %}
                   <select name="{{ field.name }}"
                           aria-labelledby="l-{{ field.name }}"
@@ -500,7 +532,9 @@
                 {{- field.display -}}
               </p>
               {% endif %}
-              <p class="muted desc">{{ field.description }}</p>
+              {% if field.description %}
+                <p class="muted desc">{{ field.description }}</p>
+              {% endif %}
 
               {% if field.badge == 'premium' %}
                 {# Two sentences, two msgids, because the second is

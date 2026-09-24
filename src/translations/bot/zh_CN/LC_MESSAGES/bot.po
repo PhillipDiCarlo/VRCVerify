@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-24 13:16-0400\n"
+"POT-Creation-Date: 2026-09-24 14:32-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_CN\n"
@@ -142,6 +142,31 @@ msgid ""
 msgstr ""
 "成功{action} 服务器配置。\n"
 "已将已验证角色设置为: `{role}` (ID={role_id})"
+
+#, python-brace-format
+msgid "Successfully {action} server config."
+msgstr "成功{action} 服务器配置。"
+
+#, python-brace-format
+msgid ""
+"\n"
+"Linked Role set to: `{role}` (ID={role_id})"
+msgstr ""
+"\n"
+"已将已关联身份组设置为: `{role}` (ID={role_id})"
+
+msgid ""
+"Choose at least one role: `verified-role` for members VRChat reports as "
+"18+, or `linked-role` for everyone who links their VRChat account."
+msgstr ""
+"请至少选择一个角色: `verified-role` 用于 VRChat 报告为 18+ 的成员，或 "
+"`linked-role` 用于所有关联了 VRChat 账号的人。"
+
+msgid "The Linked role and the verified role need to be different roles."
+msgstr "已关联身份组和已验证角色必须是不同的角色。"
+
+msgid "The Linked role and the unverified role need to be different roles."
+msgstr "已关联身份组和未验证角色必须是不同的角色。"
 
 #, python-brace-format
 msgid ""
@@ -856,9 +881,10 @@ msgid ""
 msgstr "你已经申请过邀请了。请等几分钟再试。"
 
 msgid ""
-"VRChat didn't recognize the account you verified with, so the invite "
-"couldn't be sent. Try verifying again to relink your VRChat account."
-msgstr "VRChat 无法识别你验证时使用的账号，因此邀请无法发送。请重新进行验证，以重新关联你的 VRChat 账号。"
+"VRChat didn't recognize the account linked to your Discord, so the invite"
+" couldn't be sent. If you think this is a mistake, contact a server "
+"admin."
+msgstr "VRChat 无法识别与你的 Discord 关联的账号，因此邀请无法发送。如果你认为这是错误，请联系服务器管理员。"
 
 #, python-brace-format
 msgid ""
@@ -868,9 +894,10 @@ msgstr "这份邀请来自 **{server}**，而你已不再是该服务器的成�
 
 #, python-brace-format
 msgid ""
-"You're not currently verified as 18+ in **{server}**, so the invite "
-"couldn't be sent. Verify again to get a new invite offer."
-msgstr "你目前在 **{server}** 中未被验证为 18+，因此无法发送邀请。请重新验证以获得新的邀请。"
+"**{server}** only sends group invites to members verified as 18+, and you"
+" aren't right now, so the invite couldn't be sent. If VRChat now shows "
+"your account as age verified, press **Begin Verification** again."
+msgstr "**{server}** 只向已验证为 18+ 的成员发送群组邀请，而你目前不是，因此邀请无法发送。如果 VRChat 现在显示你的账号已通过年龄验证，请再次按下 **开始验证**。"
 
 msgid ""
 "This offer was for a different VRChat account than the one you have "
@@ -1050,4 +1077,11 @@ msgstr "🚫 {moderator} 拒绝了 **{name}** 加入 VRChat 群组的申请 · {
 
 #~ msgid "**{event}** is open in VRChat (members only, 18+). Join here: {link}"
 #~ msgstr "**{event}** 已在 VRChat 中开放（仅限成员，18+）。点此加入：{link}"
+
+#~ msgid ""
+#~ "You're not currently verified as 18+ "
+#~ "in **{server}**, so the invite couldn't"
+#~ " be sent. Verify again to get a"
+#~ " new invite offer."
+#~ msgstr "你目前在 **{server}** 中未被验证为 18+，因此无法发送邀请。请重新验证以获得新的邀请。"
 

@@ -442,3 +442,127 @@ class TestStatus:
         set_linked_role()
         msg = self.status(None)
         assert locales.STATUS_LINKED_ROLE_DELETED in msg
+
+
+# -------------------------------------------------------------------
+# #359 PR 3: /vrcverify_setup and the Overview's facts
+# -------------------------------------------------------------------
+class TestSetupCommand:
+    def setup(self, verified=None, linked=None, unverified=None):
+        sent = []
+
+        async def send_message(msg, ephemeral=False, **kwargs):
+            sent.append(msg)
+
+        interaction = SimpleNamespace(
+            guild=SimpleNamespace(id=int(GUILD_ID)),
+            user=SimpleNamespace(id=77),
+            locale="en-US",
+            response=SimpleNamespace(send_message=send_message),
+        )
+
+        def role(role_id, name):
+            return SimpleNamespace(id=role_id, name=name) if role_id else None
+
+        run(bot.vrcverify_setup.callback(
+            interaction,
+            role(verified, "18+"),
+            role(linked, "Linked"),
+            role(unverified, "Unverified"),
+        ))
+        return sent[0]
+
+    def stored(self):
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=GUILD_ID).first()
+            return (
+                srv.role_id if srv else "no row",
+                bot.linked_role_id(session, GUILD_ID),
+                srv.unverified_role_id if srv else "no row",
+            )
+
+    def test_a_linked_only_server_can_be_set_up(self):
+        reply = self.setup(linked=LINKED_ID)
+        assert self.stored() == (None, str(LINKED_ID), None)
+        assert "Linked Role set to: `Linked`" in reply
+        assert "Verified Role set to" not in reply
+
+    def test_both_roles_at_once(self):
+        reply = self.setup(verified=VERIFIED_ID, linked=LINKED_ID)
+        role_id, linked, _ = self.stored()
+        assert (str(role_id), linked) == (str(VERIFIED_ID), str(LINKED_ID))
+        assert "Verified Role set to: `18+`" in reply
+        assert "Linked Role set to: `Linked`" in reply
+
+    def test_leaving_the_18_role_out_keeps_the_current_one(self):
+        make_server(role_id=str(VERIFIED_ID))
+        self.setup(linked=LINKED_ID)
+        role_id, linked, _ = self.stored()
+        assert (str(role_id), linked) == (str(VERIFIED_ID), str(LINKED_ID))
+
+    def test_neither_role_is_refused_and_nothing_is_stored(self):
+        reply = self.setup()
+        assert reply == bot.get_message(locales.SETUP_ROLE_REQUIRED, SimpleNamespace(locale="en-US"))
+        assert self.stored() == ("no row", None, "no row")
+
+    def test_the_linked_role_cannot_be_the_18_role(self):
+        reply = self.setup(verified=VERIFIED_ID, linked=VERIFIED_ID)
+        assert reply == bot.get_message(
+            locales.SETUP_LINKED_SAME_AS_VERIFIED, SimpleNamespace(locale="en-US")
+        )
+        assert self.stored() == ("no row", None, "no row")
+
+    def test_the_linked_role_cannot_be_the_unverified_role(self):
+        reply = self.setup(verified=VERIFIED_ID, linked=LINKED_ID, unverified=LINKED_ID)
+        assert reply == bot.get_message(
+            locales.SETUP_LINKED_SAME_AS_UNVERIFIED, SimpleNamespace(locale="en-US")
+        )
+
+    def test_an_existing_18_only_server_is_unchanged_by_the_old_call(self):
+        """The call every existing admin makes: 18+ role, no Linked role."""
+        reply = self.setup(verified=VERIFIED_ID, unverified=UNVERIFIED_ID)
+        role_id, linked, unverified = self.stored()
+        assert (str(role_id), linked, str(unverified)) == (
+            str(VERIFIED_ID), None, str(UNVERIFIED_ID),
+        )
+        assert "Linked Role" not in reply
+
+
+class TestTheOverviewFacts:
+    def guild(self, *role_ids, manage=True):
+        roles = {rid: SimpleNamespace(id=rid, managed=False, position=rid) for rid in role_ids}
+
+        class Top:
+            def __gt__(self, other):
+                return 99 > other.position
+
+        return SimpleNamespace(
+            get_role=lambda rid: roles.get(rid),
+            me=SimpleNamespace(
+                top_role=Top(),
+                guild_permissions=SimpleNamespace(manage_roles=manage),
+            ),
+        )
+
+    def test_a_linked_role_gets_the_same_three_facts(self):
+        facts = bot._configuration_from_values(
+            None, None, None, True, self.guild(LINKED_ID), linked_role_id=str(LINKED_ID)
+        )
+        assert facts["verified_role"] is False
+        assert facts["linked_role"] is True
+        assert facts["linked_role_exists"] is True
+        assert facts["linked_role_assignable"] is True
+
+    def test_a_deleted_linked_role_is_reported(self):
+        facts = bot._configuration_from_values(
+            None, None, None, True, self.guild(), linked_role_id=str(LINKED_ID)
+        )
+        assert facts["linked_role_exists"] is False
+
+    def test_no_linked_role_reads_as_not_applicable(self):
+        facts = bot._configuration_from_values(
+            str(VERIFIED_ID), None, None, True, self.guild(VERIFIED_ID)
+        )
+        assert facts["linked_role"] is False
+        assert facts["linked_role_exists"] is None
+        assert facts["linked_role_assignable"] is None

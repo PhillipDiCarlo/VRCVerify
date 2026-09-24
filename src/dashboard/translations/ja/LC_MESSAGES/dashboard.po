@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 20:45-0400\n"
+"POT-Creation-Date: 2026-09-24 14:56-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ja\n"
@@ -66,9 +66,11 @@ msgid "That language isn't one VRCVerify supports. Nothing was changed."
 msgstr "その言語は VRCVerify が対応していません。変更は行われませんでした。"
 
 msgid ""
-"Run /vrcverify_setup in your server first -- VRCVerify needs a verified "
-"role before it can store anything else."
-msgstr "まずサーバーで /vrcverify_setup を実行してください。VRCVerify は認証済みロールがないと、ほかの設定を保存できません。"
+"Run /vrcverify_setup in your server first. VRCVerify needs an 18+ role or"
+" a Linked role before it can store anything else."
+msgstr ""
+"まずサーバーで /vrcverify_setup を実行してください。VRCVerify "
+"は18+ロールか連携ロールのどちらかがないと、ほかの設定を保存できません。"
 
 msgid "That setting can't be changed from the website yet. Nothing was changed."
 msgstr "この設定はまだウェブサイトからは変更できません。変更は行われませんでした。"
@@ -81,8 +83,26 @@ msgstr "Bot が保存を完了できなかったため、変更は行われま�
 msgid "That role isn't in this server any more. Reload the page and pick again."
 msgstr "そのロールはこのサーバーにもう存在しません。ページを再読み込みして選び直してください。"
 
-msgid "Pick a verified role -- verification can't run without one."
-msgstr "認証済みロールを選んでください。これがないと認証を実行できません。"
+msgid "Pick an 18+ role or a Linked role. Verification can't run without one."
+msgstr "18+ロールか連携ロールのどちらかを選んでください。どちらかがないと認証を実行できません。"
+
+msgid ""
+"The Linked role and the 18+ role need to be different roles. Nothing was "
+"changed."
+msgstr "連携ロールと18+ロールは別のロールにする必要があります。変更は行われませんでした。"
+
+msgid ""
+"The Linked role and the Unverified role need to be different roles. "
+"Nothing was changed."
+msgstr "連携ロールと未認証ロールは別のロールにする必要があります。変更は行われませんでした。"
+
+msgid ""
+"Set a Linked role on the Verification page before opening invites to any "
+"linked member. Nothing was changed."
+msgstr "連携済みのメンバーへの招待を開放する前に、認証ページで連携ロールを設定してください。変更は行われませんでした。"
+
+msgid "That isn't one of the choices. Reload the page and pick again."
+msgstr "それは選べる選択肢のいずれでもありません。ページを再読み込みして選び直してください。"
 
 msgid ""
 "Links in the custom message may only point to discord.com or vrchat.com. "
@@ -558,12 +578,17 @@ msgstr "任意。"
 msgid "Go to Settings"
 msgstr "設定を開く"
 
-msgid "Verified role"
-msgstr "認証済みロール"
+msgid "Linked and 18+ roles"
+msgstr "連携ロールと18+ロール"
 
-# | msgid "Pick a verified role -- verification can't run without one."
-msgid "Required — verification can't finish without one."
-msgstr "必須です。これがないと認証を完了できません。"
+msgid "Linked role"
+msgstr "連携ロール"
+
+msgid "18+ role"
+msgstr "18+ロール"
+
+msgid "Required: set an 18+ role or a Linked role, or verification can't finish."
+msgstr "必須：18+ロールか連携ロールのどちらかを設定してください。設定しないと認証を完了できません。"
 
 msgid ""
 "VRCVerify is missing the Manage Roles permission, so it can't grant this "
@@ -578,6 +603,9 @@ msgstr "設定されていたロールは削除されました。別のロール
 
 msgid "VRCVerify's own role needs to sit above this one to grant it."
 msgstr "このロールを付与するには、VRCVerify 自身のロールがこれより上にある必要があります。"
+
+msgid "Both set, and VRCVerify can grant them."
+msgstr "両方とも設定済みで、VRCVerify が付与できます。"
 
 msgid "Set, and VRCVerify can grant it."
 msgstr "設定済みで、VRCVerify が付与できます。"
@@ -859,8 +887,8 @@ msgstr "このロールはサーバーに存在しなくなりました。VRCVer
 msgid "Couldn't check whether VRCVerify can manage this role."
 msgstr "VRCVerify がこのロールを管理できるかどうかを確認できませんでした。"
 
-msgid "Granted once a member's VRChat account is confirmed as 18+."
-msgstr "メンバーの VRChat アカウントが 18+ と確認された時点で付与されます。"
+msgid "Given to members VRChat reports as 18+."
+msgstr "VRChat が18+と報告したメンバーに付与されます。"
 
 msgid ""
 "VRCVerify cannot grant this role. Move the VRCVerify role above it in "
@@ -870,12 +898,24 @@ msgstr ""
 "のロールをこれより上に移動してください。そうしないと、すべてのメンバーで認証が失敗します。"
 
 msgid ""
-"No verified role is set, so verification cannot complete. Members are "
-"told to contact an admin."
-msgstr "認証済みロールが設定されていないため、認証を完了できません。メンバーには管理者に連絡するよう案内されます。"
+"No 18+ role or Linked role is set, so verification cannot complete. "
+"Members are told to contact an admin."
+msgstr "18+ロールも連携ロールも設定されていないため、認証を完了できません。メンバーには管理者に連絡するよう案内されます。"
 
-msgid "Removed automatically once a member verifies."
-msgstr "メンバーが認証すると自動的に外れます。"
+msgid ""
+"Optional. Given to everyone who links their VRChat account, 18+ or not. "
+"18+ members get both roles."
+msgstr "任意。VRChat アカウントを連携したメンバー全員に付与されます（18+かどうかを問いません）。18+のメンバーは両方のロールを受け取ります。"
+
+msgid ""
+"VRCVerify cannot grant this role. Move the VRCVerify role above it in "
+"Server Settings -> Roles."
+msgstr "VRCVerify はこのロールを付与できません。サーバー設定 → ロール で VRCVerify のロールをこれより上に移動してください。"
+
+msgid ""
+"Removed automatically once a member verifies, or once they link if a "
+"Linked role is set."
+msgstr "メンバーが認証されたとき、または連携ロールが設定されている場合はメンバーが連携したときに、自動的に外されます。"
 
 msgid ""
 "VRCVerify cannot remove this role. Move the VRCVerify role above it in "
@@ -883,9 +923,11 @@ msgid ""
 msgstr "VRCVerify はこのロールを外せません。サーバー設定 → ロール で VRCVerify のロールをこれより上に移動してください。"
 
 msgid ""
-"Members already verified with VRCVerify elsewhere get the role as soon as"
-" they join. Free for every server, always."
-msgstr "他のサーバーで VRCVerify の認証を済ませているメンバーは、参加した時点でロールを受け取ります。すべてのサーバーで、常に無料です。"
+"Members already verified or linked with VRCVerify elsewhere get their "
+"roles as soon as they join. Free for every server, always."
+msgstr ""
+"他のサーバーですでに VRCVerify "
+"で認証済みまたは連携済みのメンバーは、参加した時点でロールを受け取ります。すべてのサーバーで、常に無料です。"
 
 msgid "On"
 msgstr "オン"
@@ -1349,6 +1391,31 @@ msgid ""
 "Adds a button to the message a member gets after verifying, which invites"
 " them to your group. Nothing is sent unless they press it."
 msgstr "認証後にメンバーが受け取るメッセージへ、グループへ招待するボタンを追加します。メンバーが押さない限り、何も送信されません。"
+
+msgid "18+ verified members only"
+msgstr "18+ 認証済みメンバーのみ"
+
+msgid "Only members VRChat reports as 18+."
+msgstr "VRChat が18+と報告したメンバーのみです。"
+
+msgid "Any linked member"
+msgstr "連携済みのメンバー全員"
+
+msgid "Anyone who has linked their VRChat account, 18+ or not."
+msgstr "VRChat アカウントを連携した人なら誰でも（18+かどうかを問いません）。"
+
+msgid "Who can be invited"
+msgstr "招待できる相手"
+
+msgid ""
+"Members who aren't age verified may be under 18. VRChat still keeps them "
+"out of your group's age-verified instances."
+msgstr ""
+"年齢認証を受けていないメンバーは18歳未満の可能性があります。それでも VRChat "
+"は、そうしたメンバーをグループの年齢認証済みインスタンスに入れません。"
+
+msgid "Invites go to 18+ members only until a Linked role is set."
+msgstr "連携ロールが設定されるまで、招待は18+のメンバーのみに送られます。"
 
 msgid "Using the default message"
 msgstr "既定のメッセージを使用中"
@@ -2332,6 +2399,12 @@ msgstr[0] "グループは約 %(count)s 分ごとに確認されるため、新�
 msgid "Not applied"
 msgstr "未適用"
 
+#, python-format
+msgid ""
+"Any linked member needs a Linked role. <a href=\"%(link)s\">Set one on "
+"the Verification page</a> first."
+msgstr "連携済みのメンバーには連携ロールが必要です。まず<a href=\"%(link)s\">認証ページで設定してください</a>。"
+
 msgid "Use the default blue"
 msgstr "既定のブルーを使う"
 
@@ -2721,4 +2794,8 @@ msgstr ""
 #~ msgstr ""
 #~ "このロールは誰もメンションできない設定のため、VRCVerify に Discord "
 #~ "の「@everyone、@here、全てのロールにメンション」権限がない限り、メンバーには通知されません。"
+
+# | msgid "Pick a verified role -- verification can't run without one."
+#~ msgid "Required — verification can't finish without one."
+#~ msgstr "必須です。これがないと認証を完了できません。"
 

@@ -2403,6 +2403,20 @@ body.atmospheric > footer { position: relative; z-index: 1; }
 }
 .role-list .check:last-child { margin-bottom: 0; }
 
+/* Who group invites may go to (#359): a radio per option, with its meaning
+ * always visible beneath the label and the caution under the option it is
+ * about. The radio sits at the top of a multi-line option, not the middle. */
+.choice-list { display: grid; gap: var(--space-2); }
+.check.choice { align-items: flex-start; margin-bottom: 0; }
+.check.choice input { margin-top: 0.2rem; }
+.choice-text { display: flex; flex-direction: column; gap: 0.15rem; }
+.choice-label { font-weight: 600; }
+.choice-text .desc { margin: 0; }
+.choice-caution { color: var(--notice); font-size: 0.875rem; }
+/* Not dimmed with opacity: that would take the caution text under AA. The
+ * disabled radio and the sentence below the list say it is unavailable. */
+.check.choice.unavailable .choice-label { color: var(--muted); }
+
 /* --- the toggle switch ---
  *
  * A REAL <input type="checkbox">, restyled. Not a div with a click handler:
