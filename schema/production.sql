@@ -1,5 +1,5 @@
 --
--- VRCVerify production schema, captured 2026-09-24.
+-- VRCVerify production schema, captured 2026-09-25.
 --
 -- WHAT THIS IS FOR. tests/test_schema_snapshot.py compares the SQLAlchemy
 -- models in src/bot.py against this file and fails when they disagree about a
@@ -157,6 +157,17 @@ CREATE TABLE public.group_calendar_link (
     eligible_count integer,
     synced_count integer,
     over_cap_count integer,
+    updated_at timestamp with time zone
+);
+
+
+--
+-- Name: group_invite_audience; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.group_invite_audience (
+    server_id character varying NOT NULL,
+    audience character varying NOT NULL,
     updated_at timestamp with time zone
 );
 
@@ -366,6 +377,17 @@ CREATE TABLE public.join_request_triage (
 CREATE TABLE public.join_request_triage_role (
     server_id character varying NOT NULL,
     role_id character varying(30) NOT NULL
+);
+
+
+--
+-- Name: linked_role; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.linked_role (
+    server_id character varying NOT NULL,
+    role_id character varying NOT NULL,
+    updated_at timestamp with time zone
 );
 
 
@@ -708,6 +730,14 @@ ALTER TABLE ONLY public.group_calendar_link
 
 
 --
+-- Name: group_invite_audience group_invite_audience_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.group_invite_audience
+    ADD CONSTRAINT group_invite_audience_pkey PRIMARY KEY (server_id);
+
+
+--
 -- Name: group_invite_config group_invite_config_group_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -817,6 +847,14 @@ ALTER TABLE ONLY public.join_request_triage
 
 ALTER TABLE ONLY public.join_request_triage_role
     ADD CONSTRAINT join_request_triage_role_pkey PRIMARY KEY (server_id, role_id);
+
+
+--
+-- Name: linked_role linked_role_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.linked_role
+    ADD CONSTRAINT linked_role_pkey PRIMARY KEY (server_id);
 
 
 --
