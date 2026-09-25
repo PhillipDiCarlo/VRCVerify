@@ -226,6 +226,63 @@ class TestAGuildWithOnlyALinkedRole:
         ]
 
 
+class TestTheReviewFixesInAssignRole:
+    def setup_method(self):
+        make_server(unverified_role_id=str(UNVERIFIED_ID))
+        set_linked_role()
+
+    def test_a_linked_role_error_does_not_stop_an_18_verification(self, harness, monkeypatch):
+        """A role deleted a moment ago answers 404; the 18+ verification must
+        still finish: DM, Unverified off, invite offer."""
+        real_fetch = bot.fetch_member_cached
+
+        async def fetch(g, uid):
+            member = await real_fetch(g, uid)
+            real_add = member.add_roles
+
+            async def add_roles(role):
+                if role.name == "Linked":
+                    raise discord.NotFound(SimpleNamespace(status=404, reason="gone"), "Unknown Role")
+                await real_add(role)
+
+            member.add_roles = add_roles
+            return member
+
+        monkeypatch.setattr(bot, "fetch_member_cached", fetch)
+        run_and_drain(bot.assign_role("42", True, GUILD_ID))
+        assert harness.added == ["Verified"]
+        assert harness.logged == [bot.LOG_OUTCOME_LINKED_ROLE_FAILED]
+        assert harness.removed == ["Unverified"]
+        assert harness.offers == [42]
+        # Not a permission problem, so no "move the bot's role" DM.
+        assert "role_failed" not in keys(harness)
+
+    def test_both_refusals_are_logged(self, harness):
+        harness.refused.extend(["Verified", "Linked"])
+        run_and_drain(bot.assign_role("42", True, GUILD_ID))
+        assert harness.logged == [
+            bot.LOG_OUTCOME_ROLE_FAILED, bot.LOG_OUTCOME_LINKED_ROLE_FAILED,
+        ]
+
+    def test_a_member_still_holding_the_18_role_is_not_told_they_lack_it(
+        self, harness, monkeypatch
+    ):
+        """A re-check never removes the 18+ role (a member can hide the badge
+        in VRChat), so "you didn't get it" would contradict the role they hold."""
+        real_fetch = bot.fetch_member_cached
+        # The harness guild's Verified role, the same object the member holds.
+        verified = next(r for r in bot.bot.get_guild(GUILD_ID).roles if r.name == "Verified")
+
+        async def fetch_same(g, uid):
+            member = await real_fetch(g, uid)
+            member.roles = member.roles + [verified]
+            return member
+
+        monkeypatch.setattr(bot, "fetch_member_cached", fetch_same)
+        run_and_drain(bot.assign_role("42", False, GUILD_ID))
+        assert keys(harness) == [locales.DM_LINKED_SUCCESS]
+
+
 class TestADeletedLinkedRole:
     def test_falls_back_to_the_old_behavior(self, harness):
         """The row points at a role that is gone: nothing to give for linking,
@@ -518,14 +575,41 @@ class TestSetupCommand:
             locales.SETUP_LINKED_SAME_AS_UNVERIFIED, SimpleNamespace(locale="en-US")
         )
 
-    def test_an_existing_18_only_server_is_unchanged_by_the_old_call(self):
-        """The call every existing admin makes: 18+ role, no Linked role."""
+    def test_the_old_call_on_an_existing_server_keeps_its_linked_role(self):
+        """The call every existing admin makes (18+ role, no Linked role) on a
+        server that already HAS a Linked role: leaving it out keeps it. The
+        review found the old version of this test only covered creation."""
+        make_server(role_id=str(VERIFIED_ID))
+        set_linked_role()
         reply = self.setup(verified=VERIFIED_ID, unverified=UNVERIFIED_ID)
         role_id, linked, unverified = self.stored()
         assert (str(role_id), linked, str(unverified)) == (
-            str(VERIFIED_ID), None, str(UNVERIFIED_ID),
+            str(VERIFIED_ID), str(LINKED_ID), str(UNVERIFIED_ID),
         )
         assert "Linked Role" not in reply
+
+    @pytest.mark.parametrize("option", ["verified", "linked", "unverified"])
+    def test_everyone_and_managed_roles_are_refused(self, option):
+        sent = []
+
+        async def send_message(msg, ephemeral=False, **kwargs):
+            sent.append(msg)
+
+        interaction = SimpleNamespace(
+            guild=SimpleNamespace(id=int(GUILD_ID)), user=SimpleNamespace(id=77),
+            locale="en-US", response=SimpleNamespace(send_message=send_message),
+        )
+        everyone = SimpleNamespace(id=int(GUILD_ID), name="@everyone", managed=False,
+                                   is_default=lambda: True)
+        verified = SimpleNamespace(id=VERIFIED_ID, name="18+")
+        args = {
+            "verified": (everyone, None, None),
+            "linked": (None, everyone, None),
+            "unverified": (verified, None, everyone),
+        }[option]
+        run(bot.vrcverify_setup.callback(interaction, *args))
+        assert sent == [bot.get_message(locales.SETUP_ROLE_NOT_GRANTABLE, interaction)]
+        assert self.stored() == ("no row", None, "no row")
 
 
 class TestTheOverviewFacts:
@@ -566,3 +650,109 @@ class TestTheOverviewFacts:
         assert facts["linked_role"] is False
         assert facts["linked_role_exists"] is None
         assert facts["linked_role_assignable"] is None
+
+
+# -------------------------------------------------------------------
+# A link can't be switched to a different VRChat account (#359 review)
+# -------------------------------------------------------------------
+class TestALinkCannotBeSwitched:
+    """Found by the whole-branch review: two link forms opened in two servers
+    before either finished let the second overwrite the first link."""
+
+    def pending(self, vrc_user_id, discord_id="42", code="ABC123"):
+        from datetime import datetime, timedelta, timezone
+        with bot.session_scope() as session:
+            session.add(bot.PendingVerification(
+                discord_id=discord_id, guild_id=GUILD_ID, vrc_user_id=vrc_user_id,
+                verification_code=code,
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+            ))
+
+    def result(self, vrc_user_id, discord_id="42", code="ABC123"):
+        return {
+            "discordID": discord_id, "guildID": GUILD_ID, "is_18_plus": True,
+            "verificationCode": code, "code_found": True, "vrcUserID": vrc_user_id,
+        }
+
+    def spy(self, monkeypatch):
+        calls, dms = [], []
+
+        async def fake_assign(*args, **kwargs):
+            calls.append(args)
+
+        class Member:
+            async def send(self, content):
+                dms.append(content)
+
+        async def fetch(g, uid):
+            return Member()
+
+        monkeypatch.setattr(bot, "assign_role", fake_assign)
+        monkeypatch.setattr(bot, "fetch_member_cached", fetch)
+        monkeypatch.setattr(bot.bot, "get_guild", lambda gid: SimpleNamespace(
+            id=int(GUILD_ID), name="Test", preferred_locale="en-US"))
+        return calls, dms
+
+    def stored(self, discord_id="42"):
+        with bot.session_scope() as session:
+            user = session.query(bot.User).filter_by(discord_id=discord_id).first()
+            return user.vrc_user_id if user else None
+
+    def test_a_second_account_does_not_overwrite_the_link(self, monkeypatch):
+        make_server()
+        with bot.session_scope() as session:
+            session.add(bot.User(discord_id="42", vrc_user_id="usr_first", verification_status=True))
+        self.pending("usr_second")
+        calls, dms = self.spy(monkeypatch)
+        run(bot.handle_verification_result(self.result("usr_second")))
+        assert self.stored() == "usr_first"
+        assert calls == []
+        assert dms == [bot.get_message(locales.LINK_CANNOT_CHANGE, SimpleNamespace(locale="en-US"))]
+        with bot.session_scope() as session:
+            assert session.query(bot.PendingVerification).count() == 0
+
+    def test_an_account_linked_to_someone_else_cannot_be_claimed(self, monkeypatch):
+        make_server()
+        with bot.session_scope() as session:
+            session.add(bot.User(discord_id="99", vrc_user_id="usr_taken", verification_status=True))
+        self.pending("usr_taken")
+        calls, dms = self.spy(monkeypatch)
+        run(bot.handle_verification_result(self.result("usr_taken")))
+        assert self.stored() is None
+        assert self.stored("99") == "usr_taken"
+        assert calls == []
+        assert dms == [bot.get_message(locales.VRC_ID_ALREADY_LINKED, SimpleNamespace(locale="en-US"))]
+
+    def test_a_first_link_and_the_same_account_still_work(self, monkeypatch):
+        make_server()
+        self.pending("usr_mine")
+        calls, _ = self.spy(monkeypatch)
+        run(bot.handle_verification_result(self.result("usr_mine")))
+        assert self.stored() == "usr_mine"
+        assert len(calls) == 1
+        # The same account again (a second form for the same account) is fine.
+        self.pending("usr_mine")
+        run(bot.handle_verification_result(self.result("usr_mine")))
+        assert len(calls) == 2
+
+    def test_a_stale_recheck_result_does_not_overwrite_the_link(self, monkeypatch):
+        """The no-code re-check echoes the stored account; a different one is
+        a stale result and must not replace the link (re-review)."""
+        make_server()
+        with bot.session_scope() as session:
+            session.add(bot.User(discord_id="42", vrc_user_id="usr_current", verification_status=False))
+        self.spy(monkeypatch)
+        run(bot.handle_verification_result({
+            "discordID": "42", "guildID": GUILD_ID, "is_18_plus": True,
+            "verificationCode": None, "vrcUserID": "usr_stale",
+        }))
+        assert self.stored() == "usr_current"
+
+    def test_a_legacy_row_with_no_account_can_be_filled(self, monkeypatch):
+        make_server()
+        with bot.session_scope() as session:
+            session.add(bot.User(discord_id="42", vrc_user_id="", verification_status=False))
+        self.pending("usr_mine")
+        self.spy(monkeypatch)
+        run(bot.handle_verification_result(self.result("usr_mine")))
+        assert self.stored() == "usr_mine"

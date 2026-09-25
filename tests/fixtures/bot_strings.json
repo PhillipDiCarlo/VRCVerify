@@ -258,18 +258,18 @@
       "pa-IN": "Snapshot Server ਵਿੱਚ Verified 18+ ਭੂਮਿਕਾ ਹਟਾਈ ਨਹੀਂ ਜਾ ਸਕੀ। ਇਹ ਆਮ ਤੌਰ 'ਤੇ ਉਦੋਂ ਹੁੰਦਾ ਹੈ ਜਦੋਂ VRCVerify ਬੋਟ ਦੀ ਭੂਮਿਕਾ ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਤੋਂ ਉੱਪਰ ਨਹੀਂ ਹੁੰਦੀ। ਕਿਸੇ ਸਰਵਰ ਐਡਮਿਨ ਨੂੰ ਕਹੋ ਕਿ ਉਹ ਜਾਂਚ ਕਰਨ ਕਿ VRCVerify ਬੋਟ ਦੀ ਭੂਮਿਕਾ ਤਸਦੀਕਸ਼ੁਦਾ ਅਤੇ ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ (ਜੇ ਲਾਗੂ ਹੋਵੇ) ਦੋਹਾਂ ਭੂਮਿਕਾਵਾਂ ਤੋਂ ਉੱਪਰ ਹੈ।"
     },
     "group_invite_account_changed": {
-      "en-US": "This offer was for a different VRChat account than the one you have linked now. Verify again to get a new invite offer for your current account.",
-      "es-ES": "Esta invitación era para una cuenta de VRChat distinta a la que tienes vinculada ahora. Verifícate de nuevo para recibir una nueva invitación para tu cuenta actual.",
-      "zh-CN": "此邀请是为另一个 VRChat 账号发出的，与你当前绑定的账号不同。请重新验证，以便为你当前的账号获得新的邀请。",
-      "ja": "この招待は、現在リンクされているものとは別の VRChat アカウント宛てに送られたものです。現在のアカウントで新しい招待を受け取るには、もう一度認証してください。",
-      "de": "Diese Einladung galt für ein anderes VRChat-Konto als das, das du jetzt verknüpft hast. Verifiziere dich erneut, um eine neue Einladung für dein aktuelles Konto zu erhalten.",
-      "nl": "Deze uitnodiging was voor een ander VRChat-account dan het account dat je nu gekoppeld hebt. Verifieer je opnieuw om een nieuwe uitnodiging voor je huidige account te krijgen.",
-      "hi-IN": "यह आमंत्रण एक अलग VRChat खाते के लिए था, जो अभी आपके जुड़े हुए खाते से भिन्न है। अपने वर्तमान खाते के लिए नया आमंत्रण पाने हेतु दोबारा सत्यापन करें।",
-      "ar": "كانت هذه الدعوة لحساب VRChat مختلف عن الحساب المرتبط بك الآن. تحقّق مرة أخرى للحصول على دعوة جديدة لحسابك الحالي.",
-      "bn": "এই আমন্ত্রণটি এমন একটি VRChat অ্যাকাউন্টের জন্য ছিল যা এখন আপনার সংযুক্ত অ্যাকাউন্ট থেকে ভিন্ন। আপনার বর্তমান অ্যাকাউন্টের জন্য নতুন আমন্ত্রণ পেতে আবার যাচাই করুন।",
-      "pt-BR": "Este convite era para uma conta do VRChat diferente da que você tem vinculada agora. Verifique-se de novo para receber um novo convite para sua conta atual.",
-      "ru": "Это приглашение предназначалось для другого аккаунта VRChat, не для того, который привязан сейчас. Пройдите проверку заново, чтобы получить новое приглашение для текущего аккаунта.",
-      "pa-IN": "ਇਹ ਸੱਦਾ ਇੱਕ ਵੱਖਰੇ VRChat ਖਾਤੇ ਲਈ ਸੀ, ਜੋ ਹੁਣ ਤੁਹਾਡੇ ਜੁੜੇ ਖਾਤੇ ਤੋਂ ਵੱਖਰਾ ਹੈ। ਆਪਣੇ ਮੌਜੂਦਾ ਖਾਤੇ ਲਈ ਨਵਾਂ ਸੱਦਾ ਲੈਣ ਲਈ ਦੁਬਾਰਾ ਤਸਦੀਕ ਕਰੋ।"
+      "en-US": "This invite offer is no longer valid. Press **Begin Verification** again to get a new one.",
+      "es-ES": "Esta oferta de invitación ya no es válida. Pulsa **Iniciar Verificación** de nuevo para obtener una nueva.",
+      "zh-CN": "此邀请已失效。请再次按下 **开始验证** 以获取新的邀请。",
+      "ja": "この招待は無効になりました。新しい招待を受け取るには、もう一度 **認証を開始** を押してください。",
+      "de": "Dieses Einladungsangebot ist nicht mehr gültig. Klicke erneut auf **Verifizierung starten**, um ein neues zu erhalten.",
+      "nl": "Dit uitnodigingsaanbod is niet meer geldig. Klik opnieuw op **Verificatie starten** om een nieuwe te krijgen.",
+      "hi-IN": "यह आमंत्रण प्रस्ताव अब मान्य नहीं है। नया प्राप्त करने के लिए फिर से **पुष्टि शुरू करें** दबाएँ।",
+      "ar": "هذا العرض الخاص بالدعوة لم يعد صالحًا. اضغط **بدء التحقق** مرة أخرى للحصول على دعوة جديدة.",
+      "bn": "এই আমন্ত্রণ প্রস্তাবটি আর বৈধ নয়। নতুন একটি পেতে আবার **যাচাই শুরু করুন** চাপুন।",
+      "pt-BR": "Esta oferta de convite não é mais válida. Pressione **Iniciar Verificação** novamente para receber uma nova.",
+      "ru": "Это предложение приглашения больше не действительно. Нажмите **Начать проверку** ещё раз, чтобы получить новое.",
+      "pa-IN": "ਇਹ ਸੱਦਾ ਪੇਸ਼ਕਸ਼ ਹੁਣ ਵੈਧ ਨਹੀਂ ਹੈ। ਨਵਾਂ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ ਦੁਬਾਰਾ **ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ** ਦਬਾਓ।"
     },
     "group_invite_account_missing": {
       "en-US": "VRChat didn't recognize the account linked to your Discord, so the invite couldn't be sent. If you think this is a mistake, contact a server admin.",
@@ -454,18 +454,18 @@
       "pa-IN": "👋 **Snapshot Server** ਵਿੱਚ VRCVerify ਜੋੜਨ ਲਈ ਧੰਨਵਾਦ!\n\nਸ਼ੁਰੂ ਕਰਨ ਲਈ:\n1. ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਨੂੰ ਮਿਲਣ ਵਾਲੀ ਭੂਮਿਕਾ ਚੁਣਨ ਲਈ `/vrcverify_setup` ਚਲਾਓ।\n2. ਜਿਸ ਚੈਨਲ ਤੋਂ ਤੁਸੀਂ ਮੈਂਬਰਾਂ ਦੀ ਤਸਦੀਕ ਕਰਵਾਉਣੀ ਹੈ, ਉੱਥੇ `/vrcverify_instructions` ਚਲਾਓ — ਥ੍ਰੈੱਡ ਦੀ ਥਾਂ ਅਜਿਹਾ ਆਮ ਟੈਕਸਟ ਚੈਨਲ ਵਰਤੋ ਜੋ ਸਾਰਿਆਂ ਨੂੰ ਦਿਸਦਾ ਹੋਵੇ, ਕਿਉਂਕਿ ਥ੍ਰੈੱਡ ਆਪਣੇ ਆਪ ਆਰਕਾਈਵ ਹੋ ਜਾਂਦੇ ਹਨ ਅਤੇ ਪੈਨਲ ਚੁੱਪ-ਚਾਪ ਕੰਮ ਕਰਨਾ ਬੰਦ ਕਰ ਦਿੰਦਾ ਹੈ।\n\nਮਦਦ ਚਾਹੀਦੀ ਹੈ? `/vrcverify_support` ਵਰਤੋ।"
     },
     "instructions_desc": {
-      "en-US": "**Follow these steps** to verify your 18+ status:\n\n1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n2. If you're new, you'll be asked for your VRChat username\n3. The bot will give you a unique code - put this in your VRChat bio **ON ITS OWN LINE**\n4. Press **Verify** in Discord once your bio is updated\n\nIf you need additional help, contact an admin or type `/vrcverify_support`.",
-      "es-ES": "**Sigue estos pasos** para verificar tu estado 18+:\n\n1. Haz clic en el botón **Iniciar Verificación** (si se muestra) o escribe `/vrcverify` en cualquier lugar.\n2. Si eres nuevo, se te pedirá tu nombre de usuario de VRChat\n3. El bot te dará un código único - colócalo en tu biografía de VRChat **EN SU PROPIA LÍNEA**\n4. Presiona **Verificar** en Discord una vez que tu biografía esté actualizada\n\nSi necesitas ayuda adicional, contacta a un admin o escribe `/vrcverify_support`.",
-      "zh-CN": "**按照这些步骤** 验证您的 18+ 状态:\n\n1. 点击 **开始验证** 按钮（如果显示）或在任何地方输入 `/vrcverify`。\n2. 如果您是新用户,系统会要求您提供 VRChat 用户名\n3. 机器人会给您一个唯一的代码 - 将其放入您的 VRChat 个人资料中 **单独一行**\n4. 更新个人资料后,在 Discord 中按 **验证**\n\n如果您需要额外的帮助,请联系管理员或输入 `/vrcverify_support`。",
-      "ja": "**この手順に従って** 18 歳以上であることを確認してください:\n\n1. **認証を開始** ボタンをクリックするか、任意の場所に `/vrcverify` と入力します。\n2. 初めての場合は、VRChat ユーザー名を求められます。\n3. ボットが一意のコードを提供します。このコードを VRChat の自己紹介に **単独の行で** 入力します。\n4. 自己紹介を更新したら、Discord で **確認** を押します。\n\n追加のヘルプが必要な場合は、管理者に連絡するか、`/vrcverify_support` と入力してください。",
-      "de": "**Befolgen Sie diese Schritte**, um Ihren 18+-Status zu überprüfen:\n\n1. Klicken Sie auf die Schaltfläche **Verifizierung starten** (falls angezeigt) oder geben Sie `/vrcverify` überall ein.\n2. Wenn Sie neu sind, werden Sie nach Ihrem VRChat-Benutzernamen gefragt.\n3. Der Bot gibt Ihnen einen eindeutigen Code - fügen Sie diesen in Ihre VRChat-Biografie **in einer eigenen Zeile** ein。\n4. Drücken Sie **Überprüfen** in Discord, sobald Ihre Biografie aktualisiert wurde。\n\nWenn Sie zusätzliche Hilfe benötigen, wenden Sie sich an einen Administrator oder geben Sie `/vrcverify_support` ein。",
-      "nl": "**Volg deze stappen** om je 18+ status te verifiëren:\n\n1. Klik op de knop **Verificatie starten** (indien weergegeven) of typ `/vrcverify` ergens。\n2. Als je nieuw bent, word je gevraagd naar je VRChat-gebruikersnaam。\n3. De bot geeft je een unieke code - zet deze in je VRChat-bio **op een aparte regel**。\n4. Druk op **Verifiëren** in Discord zodra je bio is bijgewerkt。\n\nAls je extra hulp nodig hebt, neem dan contact op met een beheerder of typ `/vrcverify_support`。",
-      "hi-IN": "**इन चरणों का पालन करें** अपने 18+ स्थिति की पुष्टि करने के लिए:\n\n1. क्लिक करें **सत्यापन प्रारंभ करें** बटन (यदि दिखाया गया हो) या कहीं भी टाइप करें `/vrcverify`。\n2. यदि आप नए हैं, तो आपसे आपका VRChat उपयोगकर्ता नाम पूछा जाएगा。\n3. बॉट आपको एक अद्वितीय कोड देगा - इसे अपने VRChat जैव में **अपनी अलग पंक्ति में** डालें。\n4. अपने जैव को अपडेट करने के बाद Discord में **सत्यापित करें** पर दबाएं。\n\nयदि आपको अतिरिक्त सहायता की आवश्यकता है, तो एक व्यवस्थापक से संपर्क करें या टाइप करें `/vrcverify_support`。",
-      "ar": "**اتبع هذه الخطوات** للتحقق من حالة 18+ الخاصة بك:\n\n1. انقر على زر **بدء التحقق** (إذا تم عرضه) أو اكتب `/vrcverify` في أي مكان。\n2. إذا كنت جديدًا، سيُطلب منك اسم مستخدم VRChat الخاص بك。\n3. سيعطيك الروبوت رمزًا فريدًا - ضع هذا في سيرتك الذاتية على VRChat **في سطر منفصل**。\n4. اضغط على **تحقق** في Discord بمجرد تحديث سيرتك الذاتية。\n\nإذا كنت بحاجة إلى مساعدة إضافية، فاتصل بالمسؤول أو اكتب `/vrcverify_support`。",
-      "bn": "**এই পদক্ষেপগুলি অনুসরণ করুন** আপনার 18+ স্থিতি যাচাই করতে:\n\n1. ক্লিক করুন **যাচাই শুরু করুন** বোতামে (যদি প্রদর্শিত হয়) অথবা যেকোনো জায়গায় টাইপ করুন `/vrcverify`。\n2. যদি আপনি নতুন হন, তবে আপনাকে আপনার VRChat ব্যবহারকারীর নাম দেওয়ার জন্য বলা হবে。\n3. বট আপনাকে একটি অনন্য কোড দেবে - এটি আপনার VRChat জীবনীতে **একটি পৃথক লাইনে** রাখুন。\n4. আপনার জীবনী আপডেট হলে Discord-এ **যাচাই করুন** এ ক্লিক করুন。\n\nযদি আপনার অতিরিক্ত সহায়তার প্রয়োজন হয়, তবে একটি প্রশাসকের সাথে যোগাযোগ করুন বা টাইপ করুন `/vrcverify_support`。",
-      "pt-BR": "**Siga estas etapas** para verificar seu status 18+:\n\n1. Clique no botão **Iniciar Verificação** (se mostrado) ou digite `/vrcverify` em qualquer lugar。\n2. Se você é novo, será solicitado seu nome de usuário do VRChat。\n3. O bot lhe dará um código único - coloque isso na sua biografia do VRChat **em sua própria linha**。\n4. Pressione **Verificar** no Discord assim que sua biografia estiver atualizada。\n\nSe você precisar de ajuda adicional, entre em contato com um administrador ou digite `/vrcverify_support`。",
-      "ru": "**Следуйте этим шагам**, чтобы проверить свой статус 18+:\n\n1. Нажмите кнопку **Начать проверку** (если отображается) или введите `/vrcverify` в любом месте。\n2. Если вы новичок, вас попросят ввести имя пользователя VRChat。\n3. Бот даст вам уникальный код - поместите его в свою биографию VRChat **в отдельной строке**。\n4. Нажмите **Проверить** в Discord, как только ваша биография будет обновлена。\n\nЕсли вам нужна дополнительная помощь, свяжитесь с администратором или введите `/vrcverify_support`。",
-      "pa-IN": "**ਇਹਨਾਂ ਕਦਮਾਂ ਦੀ ਪਾਲਣਾ ਕਰੋ** ਆਪਣੇ 18+ ਸਥਿਤੀ ਦੀ ਪੁਸ਼ਟੀ ਕਰਨ ਲਈ:\n\n1. 'ਤੇ ਕਲਿੱਕ ਕਰੋ **ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ** ਬਟਨ (ਜੇ ਦਿਖਾਇਆ ਗਿਆ ਹੋਵੇ) ਜਾਂ ਕਿਸੇ ਵੀ ਜਗ੍ਹਾ ਟਾਈਪ ਕਰੋ `/vrcverify`。\n2. ਜੇ ਤੁਸੀਂ ਨਵੇਂ ਹੋ, ਤਾਂ ਤੁਹਾਡੇ ਤੋਂ ਤੁਹਾਡਾ VRChat ਯੂਜ਼ਰ ਨਾਮ ਪੁੱਛਿਆ ਜਾਵੇਗਾ。\n3. ਬੋਟ ਤੁਹਾਨੂੰ ਇੱਕ ਵਿਲੱਖਣ ਕੋਡ ਦੇਵੇਗਾ - ਇਸਨੂੰ ਆਪਣੇ VRChat ਜੀਵਨ ਚਰਿਤ੍ਰ ਵਿੱਚ **ਇੱਕ ਵੱਖਰੀ ਲਾਈਨ 'ਤੇ** ਰੱਖੋ。\n4. ਆਪਣੇ ਜੀਵਨ ਚਰਿਤ੍ਰ ਨੂੰ ਅਪਡੇਟ ਕਰਨ ਤੋਂ ਬਾਅਦ Discord ਵਿੱਚ **ਸত্যਾਪਿਤ ਕਰੋ** 'ਤੇ ਦਬਾਓ。\n\nਜੇ ਤੁਹਾਨੂੰ ਵਾਧੂ ਸਹਾਇਤਾ ਦੀ ਲੋੜ ਹੈ, ਤਾਂ ਇੱਕ ਪ੍ਰਬੰਧਕ ਨਾਲ ਸੰਪਰਕ ਕਰੋ ਜਾਂ ਟਾਈਪ ਕਰੋ `/vrcverify_support`。"
+      "en-US": "**Follow these steps** to link your VRChat account and check your 18+ status:\n\n1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n2. If you're new, you'll be asked for your VRChat username\n3. The bot will give you a unique code - put this in your VRChat bio **ON ITS OWN LINE**\n4. Press **Verify** in Discord once your bio is updated\n\nIf you need additional help, contact an admin or type `/vrcverify_support`.",
+      "es-ES": "**Sigue estos pasos** para vincular tu cuenta de VRChat y verificar tu estado 18+:\n\n1. Haz clic en el botón **Iniciar Verificación** (si se muestra) o escribe `/vrcverify` en cualquier lugar.\n2. Si eres nuevo, se te pedirá tu nombre de usuario de VRChat\n3. El bot te dará un código único - colócalo en tu biografía de VRChat **EN SU PROPIA LÍNEA**\n4. Presiona **Verificar** en Discord una vez que tu biografía esté actualizada\n\nSi necesitas ayuda adicional, contacta a un admin o escribe `/vrcverify_support`.",
+      "zh-CN": "**按照这些步骤** 关联您的 VRChat 账号并验证您的 18+ 状态:\n\n1. 点击 **开始验证** 按钮（如果显示）或在任何地方输入 `/vrcverify`。\n2. 如果您是新用户,系统会要求您提供 VRChat 用户名\n3. 机器人会给您一个唯一的代码 - 将其放入您的 VRChat 个人资料中 **单独一行**\n4. 更新个人资料后,在 Discord 中按 **验证**\n\n如果您需要额外的帮助,请联系管理员或输入 `/vrcverify_support`。",
+      "ja": "**この手順に従って** VRChat アカウントを連携し、18 歳以上であることを確認してください:\n\n1. **認証を開始** ボタンをクリックするか、任意の場所に `/vrcverify` と入力します。\n2. 初めての場合は、VRChat ユーザー名を求められます。\n3. ボットが一意のコードを提供します。このコードを VRChat の自己紹介に **単独の行で** 入力します。\n4. 自己紹介を更新したら、Discord で **確認** を押します。\n\n追加のヘルプが必要な場合は、管理者に連絡するか、`/vrcverify_support` と入力してください。",
+      "de": "**Befolgen Sie diese Schritte**, um Ihr VRChat-Konto zu verknüpfen und Ihren 18+-Status zu überprüfen:\n\n1. Klicken Sie auf die Schaltfläche **Verifizierung starten** (falls angezeigt) oder geben Sie `/vrcverify` überall ein.\n2. Wenn Sie neu sind, werden Sie nach Ihrem VRChat-Benutzernamen gefragt.\n3. Der Bot gibt Ihnen einen eindeutigen Code - fügen Sie diesen in Ihre VRChat-Biografie **in einer eigenen Zeile** ein。\n4. Drücken Sie **Überprüfen** in Discord, sobald Ihre Biografie aktualisiert wurde。\n\nWenn Sie zusätzliche Hilfe benötigen, wenden Sie sich an einen Administrator oder geben Sie `/vrcverify_support` ein。",
+      "nl": "**Volg deze stappen** om je VRChat-account te koppelen en je 18+ status te verifiëren:\n\n1. Klik op de knop **Verificatie starten** (indien weergegeven) of typ `/vrcverify` ergens。\n2. Als je nieuw bent, word je gevraagd naar je VRChat-gebruikersnaam。\n3. De bot geeft je een unieke code - zet deze in je VRChat-bio **op een aparte regel**。\n4. Druk op **Verifiëren** in Discord zodra je bio is bijgewerkt。\n\nAls je extra hulp nodig hebt, neem dan contact op met een beheerder of typ `/vrcverify_support`。",
+      "hi-IN": "**इन चरणों का पालन करें** अपने VRChat खाते को लिंक करने और अपनी 18+ स्थिति की पुष्टि करने के लिए:\n\n1. क्लिक करें **सत्यापन प्रारंभ करें** बटन (यदि दिखाया गया हो) या कहीं भी टाइप करें `/vrcverify`。\n2. यदि आप नए हैं, तो आपसे आपका VRChat उपयोगकर्ता नाम पूछा जाएगा。\n3. बॉट आपको एक अद्वितीय कोड देगा - इसे अपने VRChat जैव में **अपनी अलग पंक्ति में** डालें。\n4. अपने जैव को अपडेट करने के बाद Discord में **सत्यापित करें** पर दबाएं。\n\nयदि आपको अतिरिक्त सहायता की आवश्यकता है, तो एक व्यवस्थापक से संपर्क करें या टाइप करें `/vrcverify_support`。",
+      "ar": "**اتبع هذه الخطوات** لربط حساب VRChat الخاص بك والتحقق من حالة 18+ الخاصة بك:\n\n1. انقر على زر **بدء التحقق** (إذا تم عرضه) أو اكتب `/vrcverify` في أي مكان。\n2. إذا كنت جديدًا، سيُطلب منك اسم مستخدم VRChat الخاص بك。\n3. سيعطيك الروبوت رمزًا فريدًا - ضع هذا في سيرتك الذاتية على VRChat **في سطر منفصل**。\n4. اضغط على **تحقق** في Discord بمجرد تحديث سيرتك الذاتية。\n\nإذا كنت بحاجة إلى مساعدة إضافية، فاتصل بالمسؤول أو اكتب `/vrcverify_support`。",
+      "bn": "**এই পদক্ষেপগুলি অনুসরণ করুন** আপনার VRChat অ্যাকাউন্ট লিঙ্ক করতে এবং আপনার 18+ স্থিতি যাচাই করতে:\n\n1. ক্লিক করুন **যাচাই শুরু করুন** বোতামে (যদি প্রদর্শিত হয়) অথবা যেকোনো জায়গায় টাইপ করুন `/vrcverify`。\n2. যদি আপনি নতুন হন, তবে আপনাকে আপনার VRChat ব্যবহারকারীর নাম দেওয়ার জন্য বলা হবে。\n3. বট আপনাকে একটি অনন্য কোড দেবে - এটি আপনার VRChat জীবনীতে **একটি পৃথক লাইনে** রাখুন。\n4. আপনার জীবনী আপডেট হলে Discord-এ **যাচাই করুন** এ ক্লিক করুন。\n\nযদি আপনার অতিরিক্ত সহায়তার প্রয়োজন হয়, তবে একটি প্রশাসকের সাথে যোগাযোগ করুন বা টাইপ করুন `/vrcverify_support`。",
+      "pt-BR": "**Siga estas etapas** para vincular sua conta do VRChat e verificar seu status 18+:\n\n1. Clique no botão **Iniciar Verificação** (se mostrado) ou digite `/vrcverify` em qualquer lugar。\n2. Se você é novo, será solicitado seu nome de usuário do VRChat。\n3. O bot lhe dará um código único - coloque isso na sua biografia do VRChat **em sua própria linha**。\n4. Pressione **Verificar** no Discord assim que sua biografia estiver atualizada。\n\nSe você precisar de ajuda adicional, entre em contato com um administrador ou digite `/vrcverify_support`。",
+      "ru": "**Следуйте этим шагам**, чтобы привязать аккаунт VRChat и проверить свой статус 18+:\n\n1. Нажмите кнопку **Начать проверку** (если отображается) или введите `/vrcverify` в любом месте。\n2. Если вы новичок, вас попросят ввести имя пользователя VRChat。\n3. Бот даст вам уникальный код - поместите его в свою биографию VRChat **в отдельной строке**。\n4. Нажмите **Проверить** в Discord, как только ваша биография будет обновлена。\n\nЕсли вам нужна дополнительная помощь, свяжитесь с администратором или введите `/vrcverify_support`。",
+      "pa-IN": "**ਇਹਨਾਂ ਕਦਮਾਂ ਦੀ ਪਾਲਣਾ ਕਰੋ** ਆਪਣੇ VRChat ਖਾਤੇ ਨੂੰ ਲਿੰਕ ਕਰਨ ਅਤੇ ਆਪਣੇ 18+ ਸਥਿਤੀ ਦੀ ਪੁਸ਼ਟੀ ਕਰਨ ਲਈ:\n\n1. 'ਤੇ ਕਲਿੱਕ ਕਰੋ **ਪ੍ਰਮਾਣੀਕਰਨ ਸ਼ੁਰੂ ਕਰੋ** ਬਟਨ (ਜੇ ਦਿਖਾਇਆ ਗਿਆ ਹੋਵੇ) ਜਾਂ ਕਿਸੇ ਵੀ ਜਗ੍ਹਾ ਟਾਈਪ ਕਰੋ `/vrcverify`。\n2. ਜੇ ਤੁਸੀਂ ਨਵੇਂ ਹੋ, ਤਾਂ ਤੁਹਾਡੇ ਤੋਂ ਤੁਹਾਡਾ VRChat ਯੂਜ਼ਰ ਨਾਮ ਪੁੱਛਿਆ ਜਾਵੇਗਾ。\n3. ਬੋਟ ਤੁਹਾਨੂੰ ਇੱਕ ਵਿਲੱਖਣ ਕੋਡ ਦੇਵੇਗਾ - ਇਸਨੂੰ ਆਪਣੇ VRChat ਜੀਵਨ ਚਰਿਤ੍ਰ ਵਿੱਚ **ਇੱਕ ਵੱਖਰੀ ਲਾਈਨ 'ਤੇ** ਰੱਖੋ。\n4. ਆਪਣੇ ਜੀਵਨ ਚਰਿਤ੍ਰ ਨੂੰ ਅਪਡੇਟ ਕਰਨ ਤੋਂ ਬਾਅਦ Discord ਵਿੱਚ **ਸত্যਾਪਿਤ ਕਰੋ** 'ਤੇ ਦਬਾਓ。\n\nਜੇ ਤੁਹਾਨੂੰ ਵਾਧੂ ਸਹਾਇਤਾ ਦੀ ਲੋੜ ਹੈ, ਤਾਂ ਇੱਕ ਪ੍ਰਬੰਧਕ ਨਾਲ ਸੰਪਰਕ ਕਰੋ ਜਾਂ ਟਾਈਪ ਕਰੋ `/vrcverify_support`。"
     },
     "instructions_title": {
       "en-US": "How to Use the VRChat Verification Bot",
@@ -596,7 +596,7 @@
     "log_not_18": {
       "en-US": "❌ SnapshotUser#0001 — not 18+ according to VRChat · 2026-09-03 12:00 UTC",
       "es-ES": "❌ SnapshotUser#0001 — no es 18+ según VRChat · 2026-09-03 12:00 UTC",
-      "zh-CN": "❌ SnapshotUser#0001 — 根据 VRChat 未满 18 岁 · 2026-09-03 12:00 UTC",
+      "zh-CN": "❌ SnapshotUser#0001 — 根据 VRChat 未通过 18+ 年龄验证 · 2026-09-03 12:00 UTC",
       "ja": "❌ SnapshotUser#0001 — VRChat では 18+ ではありません · 2026-09-03 12:00 UTC",
       "de": "❌ SnapshotUser#0001 — laut VRChat nicht 18+ · 2026-09-03 12:00 UTC",
       "nl": "❌ SnapshotUser#0001 — volgens VRChat niet 18+ · 2026-09-03 12:00 UTC",
@@ -694,7 +694,7 @@
     "not_18_plus": {
       "en-US": "You are not 18+ according to VRChat. Contact an admin if this is an error.",
       "es-ES": "No tienes 18+ según VRChat. Contacta a un administrador si esto es un error.",
-      "zh-CN": "根据VRChat,您未满18岁。如果有误,请联系管理员。",
+      "zh-CN": "根据VRChat,您未通过18+年龄验证。如果有误,请联系管理员。",
       "ja": "VRChatによると18歳以上ではありません。エラーの場合は管理者にお問い合わせください。",
       "de": "Laut VRChat bist du nicht 18+. Kontaktiere einen Administrator, wenn dies ein Fehler ist.",
       "nl": "Volgens VRChat ben je niet 18+. Neem contact op met een beheerder als dit een fout is.",
@@ -832,18 +832,18 @@
       "pa-IN": "**Snapshot Server ਉੱਤੇ 18+ ਤਸਦੀਕ ਮੁਫ਼ਤ ਹੈ, ਅਤੇ ਹਮੇਸ਼ਾ ਰਹੇਗੀ।** ਪਹਿਲਾਂ ਤੋਂ ਤਸਦੀਕਸ਼ੁਦਾ ਮੈਂਬਰਾਂ ਦੀ ਸ਼ਾਮਲ ਹੁੰਦੇ ਹੀ ਆਪਣੇ-ਆਪ ਤਸਦੀਕ ਵੀ ਮੁਫ਼ਤ ਹੈ।\n\nVRCVerify Premium ਇਸ ਸਰਵਰ ਲਈ ਇਹ ਚੋਣਵੀਆਂ ਸਹੂਲਤਾਂ ਜੋੜਦਾ ਹੈ:\n• ਤਸਦੀਕ ਗਤੀਵਿਧੀ ਲੌਗ: ਤੁਹਾਡੇ ਚੁਣੇ ਚੈਨਲ ਵਿੱਚ ਹਰ ਤਸਦੀਕ, ਉਹ ਵੀ ਜੋ ਚੁੱਪ-ਚਾਪ ਅਸਫਲ ਹੁੰਦੀਆਂ ਹਨ\n• ਭੀੜ ਹੋਣ 'ਤੇ ਤਸਦੀਕ ਕਤਾਰ ਵਿੱਚ ਪਹਿਲ\n• ਗੈਰ-ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਦਾ ਆਪਣੇ-ਆਪ ਹਟਣਾ\n• VRChat ਨਾਲ ਉਪਨਾਮ ਦਾ ਆਪਣੇ-ਆਪ ਮੇਲ\n• ਤਸਦੀਕ ਤੋਂ ਬਾਅਦ ਆਪਣਾ ਸੁਨੇਹਾ\n• ਹਦਾਇਤ ਪੈਨਲ 'ਤੇ ਤੁਹਾਡਾ ਆਪਣਾ ਰੰਗ ਅਤੇ ਸਰਵਰ ਆਈਕਨ\n• ਘਟਾਇਆ ਗਿਆ ਤਸਦੀਕ ਕੂਲਡਾਊਨ\n• ਤਸਦੀਕਸ਼ੁਦਾ ਜਾਂ ਲਿੰਕ ਕੀਤੇ ਮੈਂਬਰਾਂ ਨੂੰ ਸਿੱਧਾ ਆਪਣੇ ਸਰਵਰ ਦੇ VRChat ਗਰੁੱਪ ਵਿੱਚ ਸੱਦੋ\n• ਤੁਹਾਡੇ VRChat ਗਰੁੱਪ ਦਾ ਕੈਲੰਡਰ Discord ਦੇ Events ਟੈਬ ਵਿੱਚ, ਹਰ ਇਵੈਂਟ ਸ਼ੁਰੂ ਹੋਣ 'ਤੇ ਸ਼ਾਮਲ ਹੋਣ ਦੇ ਲਿੰਕ ਨਾਲ\n• ਤੁਹਾਡੇ VRChat ਗਰੁੱਪ ਦੀਆਂ ਸ਼ਾਮਲ ਹੋਣ ਦੀਆਂ ਬੇਨਤੀਆਂ Discord ਵਿੱਚ ਪੋਸਟ ਕੀਤੀਆਂ ਜਾਂਦੀਆਂ ਹਨ, ਤੁਹਾਡੇ ਮਾਡਰੇਟਰਾਂ ਲਈ ਮਨਜ਼ੂਰ ਕਰੋ ਅਤੇ ਅਸਵੀਕਾਰ ਕਰੋ ਨਾਲ\n• ਜੋ ਮੈਂਬਰ ਪਹਿਲਾਂ ਹੀ VRCVerify ਨਾਲ ਤਸਦੀਕਸ਼ੁਦਾ ਹਨ, ਉਹਨਾਂ ਸਾਰਿਆਂ ਨੂੰ ਡੈਸ਼ਬੋਰਡ ਤੋਂ ਇੱਕੋ ਵਾਰ ਤਸਦੀਕਸ਼ੁਦਾ ਭੂਮਿਕਾ ਦਿਓ\n\nਇੱਕੋ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਪੂਰੇ ਸਰਵਰ ਲਈ ਕੰਮ ਕਰਦੀ ਹੈ, ਅਤੇ ਇਸਨੂੰ ਲੈਣ ਦੇ ਦੋ ਤਰੀਕੇ ਹਨ:\n• **Discord ਵਿੱਚ** — ਹੇਠਾਂ ਦਿੱਤਾ ਬਟਨ। ਮਹੀਨਾਵਾਰ ਬਿਲਿੰਗ।\n• **ਵੈੱਬਸਾਈਟ ਉੱਤੇ ਕਾਰਡ ਨਾਲ** — ਉਹੀ Premium, ਨਾਲ ਹੀ 6 ਅਤੇ 12 ਮਹੀਨਿਆਂ ਦੇ ਸਸਤੇ ਪਲਾਨ। Discord ਸਿਰਫ਼ ਮਹੀਨਾਵਾਰ ਬਿਲ ਕਰ ਸਕਦਾ ਹੈ, ਇਸ ਲਈ ਲੰਮੇ ਪਲਾਨ ਸਿਰਫ਼ ਵੈੱਬਸਾਈਟ ਉੱਤੇ ਹਨ।"
     },
     "recheck_started": {
-      "en-US": "We're re-checking your VRChat 18+ status. If you've updated your VRChat age verification, you'll get a DM soon!",
-      "es-ES": "Estamos revisando de nuevo tu estado 18+. Si has actualizado tu verificación de edad, ¡recibirás un DM pronto!",
-      "zh-CN": "我们正在重新检查您的 18+ 状态。如果您已更新 VRChat 年龄验证,很快就会收到私信! ",
-      "ja": "VRChat の 18+ ステータスを再チェックしています。年齢認証を更新している場合は、すぐにDMが届きます!",
-      "de": "Wir prüfen deinen 18+ Status erneut. Wenn du deine Altersverifizierung aktualisiert hast, erhältst du bald eine DM!",
-      "nl": "We controleren je 18+ status opnieuw. Als je je leeftijdsverificatie hebt bijgewerkt, ontvang je binnenkort een DM!",
-      "hi-IN": "हम आपके VRChat 18+ स्थिति की पुनः जाँच कर रहे हैं। यदि आपने अपना आयु सत्यापन अपडेट किया है, तो आपको जल्द ही एक डीएम मिलेगा!",
-      "ar": "نقوم بإعادة التحقق من حالة 18+ في VRChat الخاصة بك. إذا قمت بتحديث التحقق من العمر، ستتلقى رسالة خاصة قريبًا!",
-      "bn": "আমরা আপনার VRChat 18+ অবস্থা পুনরায় যাচাই করছি। যদি আপনি আপনার বয়স যাচাই আপডেট করে থাকেন, আপনি শীঘ্রই একটি ডিএম পাবেন!",
-      "pt-BR": "Estamos verificando novamente seu status 18+ no VRChat. Se você atualizou sua verificação de idade, receberá uma DM em breve!",
-      "ru": "Мы повторно проверяем ваш статус 18+ в VRChat. Если вы обновили проверку возраста, вскоре получите личное сообщение!",
-      "pa-IN": "ਅਸੀਂ ਤੁਹਾਡੀ VRChat 18+ ਸਥਿਤੀ ਨੂੰ ਦੁਬਾਰਾ ਜਾਂਚ ਰਹੇ ਹਾਂ। ਜੇ ਤੁਸੀਂ ਆਪਣੀ ਉਮਰ ਸਤਿਆਪਨ ਅੱਪਡੇਟ ਕੀਤੀ ਹੈ, ਤਾਂ ਤੁਹਾਨੂੰ ਜਲਦੀ ਹੀ ਇੱਕ ਡੀਐਮ ਮਿਲੇਗੀ!"
+      "en-US": "We're re-checking your VRChat account. If you've updated your VRChat age verification, you'll get a DM soon!",
+      "es-ES": "Estamos revisando de nuevo tu cuenta de VRChat. Si has actualizado tu verificación de edad, ¡recibirás un DM pronto!",
+      "zh-CN": "我们正在重新检查您的 VRChat 账号。如果您已更新 VRChat 年龄验证,很快就会收到私信! ",
+      "ja": "VRChat アカウントを再チェックしています。年齢認証を更新している場合は、すぐにDMが届きます!",
+      "de": "Wir prüfen dein VRChat-Konto erneut. Wenn du deine Altersverifizierung aktualisiert hast, erhältst du bald eine DM!",
+      "nl": "We controleren je VRChat-account opnieuw. Als je je leeftijdsverificatie hebt bijgewerkt, ontvang je binnenkort een DM!",
+      "hi-IN": "हम आपके VRChat खाते की फिर से जांच कर रहे हैं। यदि आपने अपना आयु सत्यापन अपडेट किया है, तो आपको जल्द ही एक डीएम मिलेगा!",
+      "ar": "نقوم بإعادة التحقق من حساب VRChat الخاص بك. إذا قمت بتحديث التحقق من العمر، ستتلقى رسالة خاصة قريبًا!",
+      "bn": "আমরা আপনার VRChat অ্যাকাউন্ট পুনরায় যাচাই করছি। যদি আপনি আপনার বয়স যাচাই আপডেট করে থাকেন, আপনি শীঘ্রই একটি ডিএম পাবেন!",
+      "pt-BR": "Estamos verificando novamente sua conta do VRChat. Se você atualizou sua verificação de idade, receberá uma DM em breve!",
+      "ru": "Мы повторно проверяем ваш аккаунт VRChat. Если вы обновили проверку возраста, вскоре получите личное сообщение!",
+      "pa-IN": "ਅਸੀਂ ਤੁਹਾਡੇ VRChat ਖਾਤੇ ਦੀ ਦੁਬਾਰਾ ਜਾਂਚ ਕਰ ਰਹੇ ਹਾਂ। ਜੇ ਤੁਸੀਂ ਆਪਣੀ ਉਮਰ ਸਤਿਆਪਨ ਅੱਪਡੇਟ ਕੀਤੀ ਹੈ, ਤਾਂ ਤੁਹਾਨੂੰ ਜਲਦੀ ਹੀ ਇੱਕ ਡੀਐਮ ਮਿਲੇਗੀ!"
     },
     "settings_intro": {
       "en-US": "**VRChat Verify Settings**\n\n1.) **Enable auto nickname change**\n   Automatically update users' Discord nicknames to match their VRChat display names.\n   Current: **en-US**",

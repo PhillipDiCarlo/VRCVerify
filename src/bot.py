@@ -943,6 +943,23 @@ class GroupInviteAudience(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
+def link_conflict(session, discord_id, vrc_user_id) -> Optional[str]:
+    """Why this Discord account may not be linked to this VRChat account, or None.
+
+    A link can't be switched to a different VRChat account (#359), and a
+    VRChat account linked to one Discord account can't be claimed by another.
+    The only way out of a link is deleting the member's record, which the
+    privacy policy offers as a right.
+    """
+    user = session.query(User).filter_by(discord_id=str(discord_id)).first()
+    if user and user.vrc_user_id and user.vrc_user_id != vrc_user_id:
+        return locales.LINK_CANNOT_CHANGE
+    other = session.query(User).filter_by(vrc_user_id=vrc_user_id).first()
+    if other and str(other.discord_id) != str(discord_id):
+        return locales.VRC_ID_ALREADY_LINKED
+    return None
+
+
 def load_linked_role_id(guild_id) -> Optional[str]:
     """This guild's Linked role id, in its own session. Raises on a database
     error, like load_group_invite_config: the settings writer read-modify-
@@ -7551,13 +7568,16 @@ async def build_settings_summary(guild: discord.Guild) -> Optional[discord.Embed
             continue
         state = fields.get(name) or {}
         text = _summary_value(name, state.get("value"), guild)
+        linked_value = (fields.get("linked_role_id") or {}).get("value")
         if (
             name == "vrchat_group_invite_audience"
             and state.get("value") == INVITE_AUDIENCE_LINKED
-            and not (fields.get("linked_role_id") or {}).get("value")
+            # The role itself, as invites_linked_members checks it: a Linked
+            # role deleted in Discord closes invites just as a cleared one does.
+            and not (str(linked_value).isdigit() and guild.get_role(int(linked_value)))
         ):
             # What the bot actually does, as invites_linked_members decides it.
-            text = "18+ members only (no Linked role set)"
+            text = "18+ members only (no Linked role available)"
         # The same two-kinds-of-gated distinction the website draws, for the
         # same reason: "locked" means the bot refuses to store it, "not
         # applied" means it is stored and simply not acted on. Collapsing them
@@ -8952,8 +8972,12 @@ async def assign_role(
     # Discord actually refused. 18+ before Linked: for a guild with no Linked
     # role this is the one call it always made, and anything Discord raises
     # other than Forbidden escapes exactly as it always did.
+    holds_18_role = bool(role) and role in getattr(member, "roles", [])
     grants = [r for r in (role if is_18_plus else None, linked_role) if r]
     failed = []
+    # Only a Forbidden is the bot's role sitting too low; the member is told
+    # how to fix that. A 404 or 5xx on the Linked role is logged, not DMed.
+    forbidden = []
     for granted in grants:
         try:
             await member.add_roles(granted)
@@ -8961,19 +8985,35 @@ async def assign_role(
         except discord.Forbidden:
             logger.warning(f"Missing permission to add {granted.name} in {guild_id}.")
             failed.append(granted)
+            forbidden.append(granted)
+        except discord.HTTPException:
+            # Only the Linked role is caught here. The 18+ role's other errors
+            # escape exactly as they always did, and the Linked role is an
+            # optional extra that must not stop a verification halfway: a
+            # role deleted a moment ago answers 404, and a 5xx is not the
+            # member's problem.
+            if granted is not linked_role:
+                raise
+            logger.warning(
+                f"Could not add {granted.name} in {guild_id}.", exc_info=True
+            )
+            failed.append(granted)
 
     if failed:
         # The failure mode an admin would otherwise never learn about: the
         # member is told privately, and the server sees nothing at all. The
         # log line names the 18+ role only when that is the one refused.
-        queue_verification_log(
-            guild_id,
-            discord_id,
-            LOG_OUTCOME_ROLE_FAILED if role in failed else LOG_OUTCOME_LINKED_ROLE_FAILED,
-            loggable,
-            instr_locale,
-        )
-        for refused in failed:
+        # One line per refused role, so an admin whose bot is below both is
+        # told about both.
+        if role in failed:
+            queue_verification_log(
+                guild_id, discord_id, LOG_OUTCOME_ROLE_FAILED, loggable, instr_locale
+            )
+        if linked_role in failed:
+            queue_verification_log(
+                guild_id, discord_id, LOG_OUTCOME_LINKED_ROLE_FAILED, loggable, instr_locale
+            )
+        for refused in forbidden:
             await dm_role_assignment_failure(member, refused, guild, instr_locale)
         # One of two went on: say which, or the member hears only the refusal.
         kept = [r for r in grants if r not in failed]
@@ -8998,7 +9038,7 @@ async def assign_role(
             # The custom text was most likely written for 18+ members. A linked
             # member who did not get the 18+ role still has to hear why, so
             # both go out rather than the admin's text hiding the reason.
-            if not is_18_plus and role:
+            if not is_18_plus and role and not holds_18_role:
                 await dm_localized(
                     member, guild, locales.DM_LINKED_NOT_18, instr_locale,
                     linked_role=linked_role.name, role=role.name, server=guild.name,
@@ -9013,9 +9053,12 @@ async def assign_role(
                 member, guild, locales.DM_ROLE_SUCCESS, instr_locale,
                 role=grants[0].name, server=guild.name,
             )
-        elif role:
+        elif role and not holds_18_role:
             # Only when the guild HAS an 18+ role is there one to explain the
-            # absence of. A Linked-only guild just confirms the link.
+            # absence of. A Linked-only guild just confirms the link, and so
+            # does this one for a member who still holds the 18+ role: a
+            # re-check never removes it (VRChat lets a member hide the badge),
+            # and "you didn't get it" would contradict the role they have.
             await dm_localized(
                 member, guild, locales.DM_LINKED_NOT_18, instr_locale,
                 linked_role=linked_role.name, role=role.name, server=guild.name,
@@ -9246,6 +9289,19 @@ class VRCVerificationButton(discord.ui.View):
                 return
             vrc_user_id = pending.vrc_user_id
             verification_code = pending.verification_code
+            # A link can't be switched to a different VRChat account (#359).
+            # The link form only opens for a member with no stored account,
+            # but two forms opened in two servers before either finished used
+            # to let the second overwrite the first. handle_verification_result
+            # refuses the same thing authoritatively; this answers at once.
+            refusal = link_conflict(session, discord_id, vrc_user_id)
+            if refusal:
+                session.delete(pending)
+        if refusal:
+            await interaction.response.send_message(
+                get_message(refusal, interaction), ephemeral=True
+            )
+            return
 
         await interaction.response.defer(ephemeral=True)
 
@@ -9277,7 +9333,7 @@ async def vrcverify(interaction: discord.Interaction):
 @app_commands.checks.has_permissions(administrator=True)
 @bot.tree.command(
     name="vrcverify_setup",
-    description="Admin command: Set or update the verified role for this server."
+    description="Admin command: set the verified role, the Linked role, or both for this server."
 )
 @app_commands.describe(
     verified_role="Role for members VRChat reports as 18+ (leave out to keep the current one)",
@@ -9317,7 +9373,19 @@ async def vrcverify_setup(
     final_unverified = str(unverified_role.id) if unverified_role else None
 
     refusal = None
-    if not final_role and not final_linked:
+    # @everyone and integration-managed roles can't be handed out or taken
+    # away by a bot. Refused for all three options here; the dashboard's
+    # writer refuses @everyone and warns about managed roles (#359 review).
+    def not_grantable(r):
+        is_default = getattr(r, "is_default", None)
+        return bool(getattr(r, "managed", False) or (is_default and is_default()))
+
+    if any(
+        r is not None and not_grantable(r)
+        for r in (verified_role, linked_role, unverified_role)
+    ):
+        refusal = locales.SETUP_ROLE_NOT_GRANTABLE
+    elif not final_role and not final_linked:
         refusal = locales.SETUP_ROLE_REQUIRED
     elif final_linked and final_linked == final_role:
         refusal = locales.SETUP_LINKED_SAME_AS_VERIFIED
@@ -12128,8 +12196,15 @@ async def handle_verification_result(data: dict):
                     logger.warning(f"⚠️ No user row for {discord_id} in re-check.")
                     return
                 user.verification_status = is_18_plus
-                # preserve vrc_user_id if provided
-                if data.get("vrcUserID"):
+                # Only fills a link that is missing (a legacy row stores the
+                # empty string). A re-check echoes the stored account, so a
+                # different one here is a stale result, and a link can't be
+                # switched (#359).
+                if (
+                    data.get("vrcUserID")
+                    and not user.vrc_user_id
+                    and not link_conflict(session, discord_id, data["vrcUserID"])
+                ):
                     user.vrc_user_id = data["vrcUserID"]
 
             # Now assign role + maybe nickname
@@ -12185,22 +12260,44 @@ async def handle_verification_result(data: dict):
                         logger.warning("⚠️ Cannot DM user about missing code.")
                 return
 
-            # Everything checks out — create/update user row
-            user = session.query(User).filter_by(discord_id=discord_id).first()
-            if not user:
-                # vrc_user_id goes in the constructor because the column is
-                # NOT NULL. It used to be assigned two lines below, which
-                # survived only because nothing flushed in between -- an
-                # autoflush from any query added there would have raised on
-                # production and passed every test. Constructing the row
-                # complete removes the ordering dependency entirely.
-                user = User(discord_id=discord_id, vrc_user_id=data["vrcUserID"])
-                session.add(user)
-                # First successful verification creates the user; set initial last attempt
-                user.last_verification_attempt = datetime.now(timezone.utc)
-            user.vrc_user_id = data["vrcUserID"]
-            user.verification_status = is_18_plus
-            session.delete(pending)
+            # The authoritative half of the check the Verify button makes: a
+            # link can't be switched to another VRChat account, and an account
+            # linked to one Discord account can't be claimed by another. Both
+            # used to be enforced only when the link form opened, so two forms
+            # started before either finished could overwrite a link (#359).
+            refusal = link_conflict(session, discord_id, data["vrcUserID"])
+            if refusal:
+                session.delete(pending)
+            else:
+                # Everything checks out — create/update user row
+                user = session.query(User).filter_by(discord_id=discord_id).first()
+                if not user:
+                    # vrc_user_id goes in the constructor because the column is
+                    # NOT NULL. It used to be assigned two lines below, which
+                    # survived only because nothing flushed in between -- an
+                    # autoflush from any query added there would have raised on
+                    # production and passed every test. Constructing the row
+                    # complete removes the ordering dependency entirely.
+                    user = User(discord_id=discord_id, vrc_user_id=data["vrcUserID"])
+                    session.add(user)
+                    # First successful verification creates the user; set initial last attempt
+                    user.last_verification_attempt = datetime.now(timezone.utc)
+                user.vrc_user_id = data["vrcUserID"]
+                user.verification_status = is_18_plus
+                session.delete(pending)
+
+        if refusal:
+            guild = bot.get_guild(int(guild_id))
+            member = await fetch_member_cached(guild, int(discord_id)) if guild else None
+            if member:
+                try:
+                    await member.send(get_message(
+                        refusal,
+                        SimpleNamespace(locale=(getattr(guild, "preferred_locale", None) or "en-US")),
+                    ))
+                except discord.Forbidden:
+                    logger.warning("⚠️ Cannot DM user about a refused link.")
+            return
 
         # Assign role + maybe nickname
         await assign_role(discord_id, is_18_plus, guild_id, display_name=display_name)
@@ -15323,6 +15420,55 @@ def _record_dashboard_audit(session, guild_id, actor_id, changed: list) -> None:
         )
 
 
+def _write_invite_audience(session, guild_id, new_audience: str, changed: list) -> None:
+    """Store the invite audience inside the caller's transaction."""
+    key = panel_view_key(guild_id)
+    row = session.query(GroupInviteAudience).filter_by(server_id=key).first()
+    old_audience = row.audience if row else INVITE_AUDIENCE_VERIFIED
+    if old_audience == new_audience:
+        return
+    changed.append(("vrchat_group_invite_audience", old_audience, new_audience))
+    if row is None:
+        session.add(GroupInviteAudience(server_id=key, audience=new_audience))
+    else:
+        row.audience = new_audience
+        row.updated_at = datetime.now(timezone.utc)
+
+
+def _write_linked_role(session, guild_id, coerced: dict, changed: list) -> None:
+    """Store or clear the Linked role inside the caller's transaction.
+
+    Without a Linked role, "any linked member" cannot apply. Left stored, it
+    would silently reopen invites the day any Linked role is set again, with no
+    save and no audit row saying so, so clearing one resets it in the same
+    transaction.
+    """
+    key = panel_view_key(guild_id)
+    new_linked = coerced["linked_role_id"]
+    row = session.query(LinkedRole).filter_by(server_id=key).first()
+    old_linked = row.role_id if row else None
+    if (old_linked or None) == (new_linked or None):
+        return
+    changed.append(("linked_role_id", old_linked, new_linked))
+    if new_linked is None:
+        session.delete(row)
+    elif row is None:
+        session.add(LinkedRole(server_id=key, role_id=str(new_linked)))
+    else:
+        row.role_id = str(new_linked)
+        row.updated_at = datetime.now(timezone.utc)
+    if new_linked is None and "vrchat_group_invite_audience" not in coerced:
+        audience = session.query(GroupInviteAudience).filter_by(server_id=key).first()
+        if audience is not None and audience.audience == INVITE_AUDIENCE_LINKED:
+            changed.append((
+                "vrchat_group_invite_audience",
+                INVITE_AUDIENCE_LINKED,
+                INVITE_AUDIENCE_VERIFIED,
+            ))
+            audience.audience = INVITE_AUDIENCE_VERIFIED
+            audience.updated_at = datetime.now(timezone.utc)
+
+
 async def write_dashboard_settings(guild_id, actor_id, changes: dict):
     """Apply settings changes from the dashboard. The first write path here.
 
@@ -15608,34 +15754,6 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
                 )
                 set_log_channel(guild_id, new_channel)
 
-        if "linked_role_id" in coerced:
-            new_linked = coerced["linked_role_id"]
-            old_linked = load_linked_role_id(guild_id)
-            if (old_linked or None) != (new_linked or None):
-                changed.append(("linked_role_id", old_linked, new_linked))
-                set_linked_role(guild_id, new_linked)
-                # Without a Linked role, "any linked member" cannot apply. Left
-                # stored, it would silently reopen invites the day any Linked
-                # role is set again, with no save and no audit row saying so.
-                if (
-                    new_linked is None
-                    and "vrchat_group_invite_audience" not in coerced
-                    and load_group_invite_audience(guild_id) == INVITE_AUDIENCE_LINKED
-                ):
-                    changed.append((
-                        "vrchat_group_invite_audience",
-                        INVITE_AUDIENCE_LINKED,
-                        INVITE_AUDIENCE_VERIFIED,
-                    ))
-                    set_group_invite_audience(guild_id, INVITE_AUDIENCE_VERIFIED)
-
-        if "vrchat_group_invite_audience" in coerced:
-            new_audience = coerced["vrchat_group_invite_audience"]
-            old_audience = load_group_invite_audience(guild_id)
-            if old_audience != new_audience:
-                changed.append(("vrchat_group_invite_audience", old_audience, new_audience))
-                set_group_invite_audience(guild_id, new_audience)
-
         # --- The group config: one row, so written as a whole ---
         if group_plan is not None:
             if (
@@ -15752,14 +15870,25 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
             "custom_verification_requested_message": None,
         }
         wanted_on_row = {name: coerced[name] for name in row_fields if name in coerced}
-        if wanted_on_row:
+        # The Linked role is written in the SAME transaction as the servers
+        # row. Separately, a save that moves the 18+ role and clears the
+        # Linked role could commit one half and fail on the other, leaving the
+        # guild with neither role and nothing able to verify (#359 review).
+        # The audience too: "linked" saved alongside a new Linked role must
+        # not survive a failure that loses the role.
+        audience_name = "vrchat_group_invite_audience"
+        if wanted_on_row or "linked_role_id" in coerced or audience_name in coerced:
             with session_scope() as session:
                 srv = (
                     session.query(Server)
                     .filter_by(server_id=panel_view_key(guild_id))
                     .first()
                 )
-                if srv is None:
+                if "linked_role_id" in coerced:
+                    _write_linked_role(session, guild_id, coerced, changed)
+                if audience_name in coerced:
+                    _write_invite_audience(session, guild_id, coerced[audience_name], changed)
+                if wanted_on_row and srv is None:
                     # owner_id is NOT NULL and the dashboard has no honest value
                     # for it -- the acting admin is not necessarily the owner.
                     # Inserting a row here would also mint a fresh servers.id,

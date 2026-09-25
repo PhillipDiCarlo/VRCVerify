@@ -485,6 +485,7 @@ PREMIUM_ROWS = frozenset({"log_channel"})
 # are the fix, which is why they ship in the same phase as the split.
 _SETTINGS_ANCHOR = {
     "verified_role": ("verification", "f-role_id"),
+    "linked_role": ("verification", "f-linked_role_id"),
     "panel": ("panel", "panel_channel_id"),
 }
 
@@ -521,7 +522,6 @@ def _role_row(configured: dict, t: Callable[[str], str] = _untranslated) -> dict
     whereas leading with the permission would leave a brand-new server reading
     about a role it has not chosen yet.
     """
-    action = _settings_action("verified_role", t=t)
     # Two verification roles since #359, at least one required. The row is
     # about whichever the guild uses, and names them, so a Linked-only guild
     # is not told it is missing an 18+ role it chose not to have.
@@ -533,6 +533,8 @@ def _role_row(configured: dict, t: Callable[[str], str] = _untranslated) -> dict
         label = t(N_("Linked role"))
     else:
         label = t(N_("18+ role"))
+    # The fix link goes to the picker for the role the guild actually uses.
+    action = _settings_action("linked_role" if has_linked and not has_18 else "verified_role", t=t)
     # `key` rather than the label is what every consumer looks this row up
     # by -- picker_view's card states, and the checklist's own ordering.
     # The label is translated; the key is not, and must not be.

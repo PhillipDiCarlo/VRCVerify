@@ -67,8 +67,17 @@ NOT_VERIFIED = N_(
 
 ALREADY_VERIFIED = N_("You're already verified! Role assigned (or re-assigned).")
 
+# Neutral since #359: on a server with only a Linked role, there is no 18+
+# status to re-check for, only the link.
 RECHECK_STARTED = N_(
-    "We're re-checking your VRChat 18+ status. If you've updated your VRChat age verification, you'll get a DM soon!"
+    "We're re-checking your VRChat account. If you've updated your VRChat age verification, you'll get a DM soon!"
+)
+
+# A second link form finished after the first had already linked (#359).
+LINK_CANNOT_CHANGE = N_(
+    "Your Discord account is already linked to a VRChat account, and a link "
+    "can't be switched to a different one. Press **Begin Verification** to "
+    "re-check the account you linked."
 )
 
 DM_ROLE_SUCCESS = N_("You've been verified and given **{role}** in **{server}**!")
@@ -160,6 +169,11 @@ SETUP_LINKED_SET = N_(
     "Linked Role set to: `{role}` (ID={role_id})"
 )
 
+SETUP_ROLE_NOT_GRANTABLE = N_(
+    "That role can't be given out by a bot: it's @everyone or managed by an "
+    "integration. Choose a different role."
+)
+
 SETUP_ROLE_REQUIRED = N_(
     "Choose at least one role: `verified-role` for members VRChat reports as 18+, "
     "or `linked-role` for everyone who links their VRChat account."
@@ -186,7 +200,7 @@ SETUP_UNVERIFIED_MISSING = N_(
 INSTRUCTIONS_TITLE = N_("How to Use the VRChat Verification Bot")
 
 INSTRUCTIONS_DESC = N_(
-    "**Follow these steps** to verify your 18+ status:\n"
+    "**Follow these steps** to link your VRChat account and check your 18+ status:\n"
     "\n"
     "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
     "2. If you're new, you'll be asked for your VRChat username\n"
@@ -597,8 +611,10 @@ GROUP_INVITE_NOT_VERIFIED = N_(
     "**{server}** only sends group invites to members verified as 18+, and you aren't right now, so the invite couldn't be sent. If VRChat now shows your account as age verified, press **Begin Verification** again."
 )
 
+# No "the account you have linked now": a link can't be switched (#359).
+# Reachable only after a member's record was deleted and they linked again.
 GROUP_INVITE_ACCOUNT_CHANGED = N_(
-    "This offer was for a different VRChat account than the one you have linked now. Verify again to get a new invite offer for your current account."
+    "This invite offer is no longer valid. Press **Begin Verification** again to get a new one."
 )
 
 # -- every msgid in this file, for the checks that have to iterate them --

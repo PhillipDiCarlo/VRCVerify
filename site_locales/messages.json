@@ -347,6 +347,9 @@
  "Identity documents or photographs. VRChat performs age verification; VRCVerify only reads the yes-or-no result.": [
   "privacy.html"
  ],
+ "If a server turns on nickname sync, the bot sets your nickname there to your VRChat display name. Your VRChat user ID is not shown to server administrators anywhere in the bot or the dashboard.": [
+  "privacy.html"
+ ],
  "If this policy changes materially we will update the date at the top and, for significant changes, announce it in the support channel. Continuing to use VRCVerify after a change means accepting the updated policy.": [
   "privacy.html"
  ],
@@ -399,8 +402,10 @@
   "(the language picker)"
  ],
  "Last updated 18 August 2026": [
+  "refunds.html"
+ ],
+ "Last updated 24 September 2026": [
   "privacy.html",
-  "refunds.html",
   "terms.html"
  ],
  "Link a private VRChat group to your server, and members who finish verification are offered an invite to it. Nothing is sent to VRChat unless the member asks for it.": [
@@ -633,7 +638,7 @@
  "VRCVerify can also give a Linked role to every member who links their VRChat account, whether or not VRChat shows them as 18+. Nobody has to be age verified to get it, and 18+ members still get your 18+ role on top. With Premium, your VRChat group invites can go to any linked member too.": [
   "index.html"
  ],
- "VRCVerify checks whether a member's VRChat account has been age verified by VRChat, and assigns a Discord role accordingly. It also provides related automation that a server administrator can configure.": [
+ "VRCVerify checks whether a member's VRChat account has been age verified by VRChat, and assigns Discord roles accordingly, including, where a server chooses, a role for having linked a VRChat account at all. It also provides related automation that a server administrator can configure.": [
   "terms.html"
  ],
  "VRCVerify has a new look": [
@@ -775,7 +780,7 @@
  "Your Discord user ID": [
   "privacy.html"
  ],
- "Your VRChat display name or profile bio. Your bio is read at the moment of verification to find your code, and is not retained.": [
+ "Your VRChat display name or profile bio. Your bio is read at the moment of verification to find your code, and your display name is read when a server uses nickname sync. Neither is retained.": [
   "privacy.html"
  ],
  "Your VRChat group's calendar events now appear in your server's Events tab, where members can mark themselves interested, get Discord's reminders and see times in their own time zone. Events stay in step as they change in VRChat. If VRCVerify is in your group, members-only events sync too, and when an event's instance opens, its join link is posted in a channel you choose. Turn it on under Settings, VRChat group.": [
@@ -802,7 +807,7 @@
  "Your statutory rights<0>#</0>": [
   "refunds.html"
  ],
- "Your verification <0>status</0> is visible to a server through the role the bot assigns, which is how the server acts on it. Your VRChat user ID is not shown to server administrators anywhere in the bot or the dashboard.": [
+ "Your verification <0>status</0> is visible to a server through the roles the bot assigns, which is how the server acts on it. A server can give one role to members VRChat reports as age verified and another to everyone who has linked a VRChat account. On a server that uses both, holding only the second shows that VRChat does not report you as age verified. This applies on any other server running VRCVerify that you join or verify in, not only the one where you first verified. A server that keeps a verification log also sees each result there.": [
   "privacy.html"
  ],
  "status.vrcverify.com is now available in all twelve languages the dashboard is, including Arabic read right to left. It picks one from your browser, and the globe in its header switches between them. Each language has its own address, so you can send somebody the status page in the language they read.": [
