@@ -485,6 +485,7 @@ PREMIUM_ROWS = frozenset({"log_channel"})
 # are the fix, which is why they ship in the same phase as the split.
 _SETTINGS_ANCHOR = {
     "verified_role": ("verification", "f-role_id"),
+    "linked_role": ("verification", "f-linked_role_id"),
     "panel": ("panel", "panel_channel_id"),
 }
 
@@ -521,18 +522,32 @@ def _role_row(configured: dict, t: Callable[[str], str] = _untranslated) -> dict
     whereas leading with the permission would leave a brand-new server reading
     about a role it has not chosen yet.
     """
-    action = _settings_action("verified_role", t=t)
-    label = t(N_("Verified role"))
+    # Two verification roles since #359, at least one required. The row is
+    # about whichever the guild uses, and names them, so a Linked-only guild
+    # is not told it is missing an 18+ role it chose not to have.
+    has_18 = bool(configured.get("verified_role"))
+    has_linked = bool(configured.get("linked_role"))
+    if has_18 and has_linked:
+        label = t(N_("Linked and 18+ roles"))
+    elif has_linked:
+        label = t(N_("Linked role"))
+    else:
+        label = t(N_("18+ role"))
+    # The fix link goes to the picker for the role the guild actually uses.
+    action = _settings_action("linked_role" if has_linked and not has_18 else "verified_role", t=t)
     # `key` rather than the label is what every consumer looks this row up
     # by -- picker_view's card states, and the checklist's own ordering.
     # The label is translated; the key is not, and must not be.
     key = "verified_role"
-    if not configured.get("verified_role"):
+    if not has_18 and not has_linked:
         return {
             "key": key,
             "label": label,
             "state": "todo",
-            "note": t(N_("Required — verification can't finish without one.")),
+            "note": t(N_(
+                "Required: set an 18+ role or a Linked role, or verification "
+                "can't finish."
+            )),
             "action": action,
         }
     # Before the hierarchy check and before the existence check, but after the
@@ -557,7 +572,10 @@ def _role_row(configured: dict, t: Callable[[str], str] = _untranslated) -> dict
             # Nothing on the Settings page fixes this one.
             "action": None,
         }
-    if configured.get("verified_role_exists") is False:
+    if (
+        configured.get("verified_role_exists") is False
+        or configured.get("linked_role_exists") is False
+    ):
         return {
             "key": key,
             "label": label,
@@ -565,7 +583,10 @@ def _role_row(configured: dict, t: Callable[[str], str] = _untranslated) -> dict
             "note": t(N_("The role that was set has been deleted. Choose another.")),
             "action": action,
         }
-    if configured.get("verified_role_assignable") is False:
+    if (
+        configured.get("verified_role_assignable") is False
+        or configured.get("linked_role_assignable") is False
+    ):
         return {
             "key": key,
             "label": label,
@@ -583,7 +604,11 @@ def _role_row(configured: dict, t: Callable[[str], str] = _untranslated) -> dict
         "key": key,
         "label": label,
         "state": "done",
-        "note": t(N_("Set, and VRCVerify can grant it.")),
+        "note": (
+            t(N_("Both set, and VRCVerify can grant them."))
+            if has_18 and has_linked
+            else t(N_("Set, and VRCVerify can grant it."))
+        ),
         "action": None,
     }
 
@@ -592,9 +617,9 @@ def _panel_row(
     panel: Optional[dict], t: Callable[[str], str] = _untranslated
 ) -> dict:
     """Instructions panel: posted, in a channel that still exists, not provably
-    frozen, and one the bot can still post to. Mirrors `_role_row`'s three-way split for the same
-    reason -- "not set up" and "set up and now broken" need different notes
-    even though both need the same fix."""
+    frozen, and one the bot can still post to. Mirrors `_role_row`'s three-way
+    split for the same reason -- "not set up" and "set up and now broken" need
+    different notes even though both need the same fix."""
     action = _settings_action("panel", t=t)
     label = t(N_("Instructions panel"))
     key = "panel"

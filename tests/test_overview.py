@@ -565,6 +565,8 @@ class TestTheOverviewPayload:
         health_only = {
             "verified_role_exists",
             "verified_role_assignable",
+            "linked_role_exists",
+            "linked_role_assignable",
             "bot_can_manage_roles",
         }
         for key, value in configured.items():

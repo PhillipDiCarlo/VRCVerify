@@ -67,11 +67,38 @@ NOT_VERIFIED = N_(
 
 ALREADY_VERIFIED = N_("You're already verified! Role assigned (or re-assigned).")
 
+# Neutral since #359: on a server with only a Linked role, there is no 18+
+# status to re-check for, only the link.
 RECHECK_STARTED = N_(
-    "We're re-checking your VRChat 18+ status. If you've updated your VRChat age verification, you'll get a DM soon!"
+    "We're re-checking your VRChat account. If you've updated your VRChat age verification, you'll get a DM soon!"
+)
+
+# A second link form finished after the first had already linked (#359).
+LINK_CANNOT_CHANGE = N_(
+    "Your Discord account is already linked to a VRChat account, and a link "
+    "can't be switched to a different one. Press **Begin Verification** to "
+    "re-check the account you linked."
 )
 
 DM_ROLE_SUCCESS = N_("You've been verified and given **{role}** in **{server}**!")
+
+# The Linked role (#359). An 18+ member of a guild with both roles gets both.
+DM_ROLES_SUCCESS = N_(
+    "You've been verified and given **{role}** and **{linked_role}** in **{server}**!"
+)
+
+# Linked, not 18+, in a guild that has no 18+ role: linking is the whole
+# verification there, so there is nothing missing to explain.
+DM_LINKED_SUCCESS = N_(
+    "Your VRChat account is linked, and you've been given **{role}** in **{server}**!"
+)
+
+# Linked, not 18+, in a guild that also has an 18+ role.
+DM_LINKED_NOT_18 = N_(
+    "Your VRChat account is linked, and you've been given **{linked_role}** in **{server}**. "
+    "You didn't get **{role}** because VRChat doesn't show your account as age verified. "
+    "Once it does, press **Begin Verification** again."
+)
 
 NICKNAME_UPDATE_REQUESTED = N_("Nickname update requested. I'll DM you once it's done!")
 
@@ -133,6 +160,33 @@ SETUP_SUCCESS = N_(
     "Verified Role set to: `{role}` (ID={role_id})"
 )
 
+# /vrcverify_setup with only a Linked role (#359). The first line of
+# SETUP_SUCCESS, which also names the 18+ role.
+SETUP_SAVED = N_("Successfully {action} server config.")
+
+SETUP_LINKED_SET = N_(
+    "\n"
+    "Linked Role set to: `{role}` (ID={role_id})"
+)
+
+SETUP_ROLE_NOT_GRANTABLE = N_(
+    "That role can't be given out by a bot: it's @everyone or managed by an "
+    "integration. Choose a different role."
+)
+
+SETUP_ROLE_REQUIRED = N_(
+    "Choose at least one role: `verified-role` for members VRChat reports as 18+, "
+    "or `linked-role` for everyone who links their VRChat account."
+)
+
+SETUP_LINKED_SAME_AS_VERIFIED = N_(
+    "The Linked role and the verified role need to be different roles."
+)
+
+SETUP_LINKED_SAME_AS_UNVERIFIED = N_(
+    "The Linked role and the unverified role need to be different roles."
+)
+
 SETUP_UNVERIFIED_SET = N_(
     "\n"
     "Unverified Role to remove: `{role}` (ID={role_id})"
@@ -146,7 +200,7 @@ SETUP_UNVERIFIED_MISSING = N_(
 INSTRUCTIONS_TITLE = N_("How to Use the VRChat Verification Bot")
 
 INSTRUCTIONS_DESC = N_(
-    "**Follow these steps** to verify your 18+ status:\n"
+    "**Follow these steps** to link your VRChat account and check your 18+ status:\n"
     "\n"
     "1. Click the **Begin Verification** button (if shown) or type `/vrcverify` anywhere.\n"
     "2. If you're new, you'll be asked for your VRChat username\n"
@@ -272,6 +326,12 @@ STATUS_HEADER = N_("**VRCVerify status for {server}**")
 
 STATUS_ROLE_OK = N_("✅ Verified role: **{role}**")
 
+STATUS_LINKED_ROLE_OK = N_("✅ Linked role: **{role}**")
+
+STATUS_LINKED_ROLE_DELETED = N_(
+    "❌ The configured Linked role no longer exists. Choose a new one on the dashboard."
+)
+
 STATUS_ROLE_MISSING = N_(
     "❌ No verified role set — run `/vrcverify_setup` to choose one."
 )
@@ -327,7 +387,7 @@ PREMIUM_STATUS_ACTIVE = N_(
     "• Custom post-verification message\n"
     "• Your color and server icon on the instructions panel\n"
     "• Reduced verification cooldown\n"
-    "• Invite verified members straight into your server's VRChat group\n"
+    "• Invite verified or linked members straight into your server's VRChat group\n"
     "• Your VRChat group's calendar in Discord's Events tab, with a join link when each event starts\n"
     "• Your VRChat group's join requests posted in Discord, with Approve and Deny for your moderators\n"
     "• Give the verified role to members already verified with VRCVerify, all at once from the dashboard\n"
@@ -349,7 +409,7 @@ PREMIUM_STATUS_ACTIVE_CARD = N_(
     "• Custom post-verification message\n"
     "• Your color and server icon on the instructions panel\n"
     "• Reduced verification cooldown\n"
-    "• Invite verified members straight into your server's VRChat group\n"
+    "• Invite verified or linked members straight into your server's VRChat group\n"
     "• Your VRChat group's calendar in Discord's Events tab, with a join link when each event starts\n"
     "• Your VRChat group's join requests posted in Discord, with Approve and Deny for your moderators\n"
     "• Give the verified role to members already verified with VRCVerify, all at once from the dashboard\n"
@@ -385,7 +445,7 @@ PREMIUM_STATUS_INACTIVE = N_(
     "• Custom post-verification message\n"
     "• Your color and server icon on the instructions panel\n"
     "• Reduced verification cooldown\n"
-    "• Invite verified members straight into your server's VRChat group\n"
+    "• Invite verified or linked members straight into your server's VRChat group\n"
     "• Your VRChat group's calendar in Discord's Events tab, with a join link when each event starts\n"
     "• Your VRChat group's join requests posted in Discord, with Approve and Deny for your moderators\n"
     "• Give the verified role to members already verified with VRCVerify, all at once from the dashboard\n"
@@ -408,7 +468,7 @@ PREMIUM_STATUS_GRANDFATHERED = N_(
     "• Priority in the verification queue when there's a backlog\n"
     "• Your color and server icon on the instructions panel\n"
     "• Reduced verification cooldown\n"
-    "• Invite verified members straight into your server's VRChat group\n"
+    "• Invite verified or linked members straight into your server's VRChat group\n"
     "• Your VRChat group's calendar in Discord's Events tab, with a join link when each event starts\n"
     "• Your VRChat group's join requests posted in Discord, with Approve and Deny for your moderators\n"
     "• Give the verified role to members already verified with VRCVerify, all at once from the dashboard\n"
@@ -441,6 +501,13 @@ LOG_ROLE_FAILED = N_(
 )
 
 LOG_NOT_18 = N_("❌ {user} — not 18+ according to VRChat · {when}")
+
+# The Linked role (#359): linked, given the Linked role, and not 18+.
+LOG_LINKED = N_("🔗 {user} · linked, not 18+ according to VRChat · {when}")
+
+LOG_LINKED_ROLE_FAILED = N_(
+    "⚠️ {user} · linked, but the role could not be assigned. Check that the VRCVerify bot's role sits above the Linked role. · {when}"
+)
 
 # One line for a whole run of "verify existing members" (#292), in place of a
 # line per member, which on a large server would bury everything else.
@@ -486,6 +553,14 @@ DM_GROUP_INVITE_OFFER = N_(
     "Nothing is sent to VRChat unless you press the button."
 )
 
+# The same offer to a linked member who is not 18+, in a guild whose invites
+# are open to linked members (#359).
+DM_GROUP_INVITE_OFFER_LINKED = N_(
+    "Your VRChat account is linked in **{server}**! Would you like an invite to their VRChat group, **{group}**?\n"
+    "\n"
+    "Nothing is sent to VRChat unless you press the button."
+)
+
 GROUP_INVITE_WORKING = N_("Asking VRChat for your invite...")
 
 GROUP_INVITE_SENT = N_(
@@ -520,20 +595,26 @@ GROUP_INVITE_TOO_SOON = N_(
     "You've already asked for an invite. Please give it a few minutes before trying again."
 )
 
+# No "relink": a link is permanent (#359), so verifying again re-checks the
+# same account and cannot change which one is invited.
 GROUP_INVITE_ACCOUNT_MISSING = N_(
-    "VRChat didn't recognize the account you verified with, so the invite couldn't be sent. Try verifying again to relink your VRChat account."
+    "VRChat didn't recognize the account linked to your Discord, so the invite couldn't be sent. If you think this is a mistake, contact a server admin."
 )
 
 GROUP_INVITE_NOT_A_MEMBER = N_(
     "This invite was for **{server}**, and you're no longer a member there. Join the server and verify again if you'd still like an invite."
 )
 
+# Also the refusal once a server closes its invites to linked members again
+# (#359), so it promises nothing that verifying again would not deliver.
 GROUP_INVITE_NOT_VERIFIED = N_(
-    "You're not currently verified as 18+ in **{server}**, so the invite couldn't be sent. Verify again to get a new invite offer."
+    "**{server}** only sends group invites to members verified as 18+, and you aren't right now, so the invite couldn't be sent. If VRChat now shows your account as age verified, press **Begin Verification** again."
 )
 
+# No "the account you have linked now": a link can't be switched (#359).
+# Reachable only after a member's record was deleted and they linked again.
 GROUP_INVITE_ACCOUNT_CHANGED = N_(
-    "This offer was for a different VRChat account than the one you have linked now. Verify again to get a new invite offer for your current account."
+    "This invite offer is no longer valid. Press **Begin Verification** again to get a new one."
 )
 
 # -- every msgid in this file, for the checks that have to iterate them --

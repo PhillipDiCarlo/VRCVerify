@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 20:45-0400\n"
+"POT-Creation-Date: 2026-09-24 21:58-0400\n"
 "PO-Revision-Date: 2026-08-29 03:27-0400\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans_CN\n"
@@ -36,12 +36,9 @@ msgstr "该登录链接已过期。请重试。"
 msgid "That login could not be verified. Please try again."
 msgstr "无法验证该次登录。请重试。"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
 msgid "Discord could not complete the login. Please try again."
 msgstr "Discord 未能完成登录。请重试。"
 
-# | msgid "Page not found."
 msgid "Page not found"
 msgstr "页面未找到"
 
@@ -50,7 +47,6 @@ msgid ""
 "link to something that has since moved."
 msgstr "这个地址在这里没有对应的内容。可能是输入有误，或者链接指向的内容已经移动了。"
 
-# | msgid "Something went wrong."
 msgid "Something went wrong"
 msgstr "出了点问题"
 
@@ -66,9 +62,9 @@ msgid "That language isn't one VRCVerify supports. Nothing was changed."
 msgstr "VRCVerify 不支持该语言。未做任何更改。"
 
 msgid ""
-"Run /vrcverify_setup in your server first -- VRCVerify needs a verified "
-"role before it can store anything else."
-msgstr "请先在你的服务器中运行 /vrcverify_setup —— VRCVerify 需要先有一个已验证身份组，才能保存其他内容。"
+"Run /vrcverify_setup in your server first. VRCVerify needs an 18+ role or"
+" a Linked role before it can store anything else."
+msgstr "请先在你的服务器中运行 /vrcverify_setup。VRCVerify 需要先有一个 18+ 身份组或已关联身份组，才能保存其他内容。"
 
 msgid "That setting can't be changed from the website yet. Nothing was changed."
 msgstr "该设置暂时还不能从网站修改。未做任何更改。"
@@ -81,8 +77,26 @@ msgstr "机器人未能完成保存，因此未做任何更改。请稍后重试
 msgid "That role isn't in this server any more. Reload the page and pick again."
 msgstr "该身份组已不在此服务器中。请刷新页面后重新选择。"
 
-msgid "Pick a verified role -- verification can't run without one."
-msgstr "请选择一个已验证身份组 —— 没有它验证无法运行。"
+msgid "Pick an 18+ role or a Linked role. Verification can't run without one."
+msgstr "选择一个 18+ 身份组或已关联身份组。少了其中一个，验证就无法运行。"
+
+msgid ""
+"The Linked role and the 18+ role need to be different roles. Nothing was "
+"changed."
+msgstr "已关联身份组和 18+ 身份组必须是不同的身份组。未做任何更改。"
+
+msgid ""
+"The Linked role and the Unverified role need to be different roles. "
+"Nothing was changed."
+msgstr "已关联身份组和未验证身份组必须是不同的身份组。未做任何更改。"
+
+msgid ""
+"Set a Linked role on the Verification page before opening invites to any "
+"linked member. Nothing was changed."
+msgstr "在为任何已关联成员开放邀请之前，请先在验证页面设置已关联身份组。未做任何更改。"
+
+msgid "That isn't one of the choices. Reload the page and pick again."
+msgstr "这不是可选项之一。请刷新页面后重新选择。"
 
 msgid ""
 "Links in the custom message may only point to discord.com or vrchat.com. "
@@ -208,20 +222,16 @@ msgstr "VRCVerify 无法在该频道发帖，因此无法在那里发布加入�
 msgid "Overview"
 msgstr "概览"
 
-# | msgid "Sections"
 msgid "Settings"
 msgstr "设置"
 
 msgid "Subscriptions"
 msgstr "订阅"
 
-# | msgid "That group ID wasn't usable"
 msgid "That server isn't available"
 msgstr "该服务器不可用"
 
-# | msgid "" "That server isn't available. Either VRCVerify isn't in it, or
 # you
-# | don't " "have the Administrator permission there."
 msgid ""
 "Either VRCVerify isn't in it, or you don't have the Administrator "
 "permission there."
@@ -230,9 +240,6 @@ msgstr "要么 VRCVerify 不在其中，要么你在那里没有管理员权限�
 msgid "Can't reach the bot"
 msgstr "无法连接到机器人"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
-# | msgid "The bot didn't answer this one. Try again shortly."
 msgid ""
 "This page needs the bot to answer and it isn't answering right now. "
 "Nothing has changed. Try again shortly."
@@ -241,9 +248,22 @@ msgstr "此页面需要机器人响应，而它现在没有响应。没有任何
 msgid "Premium"
 msgstr "Premium"
 
-# | msgid "Renews"
 msgid "New"
 msgstr "网站支持你的语言了"
+
+msgid "A Linked role, for servers that aren't only 18+"
+msgstr "已关联身份组，献给不只是 18+ 的服务器"
+
+msgid ""
+"You can now give a Linked role to every member who links their VRChat "
+"account, whether or not VRChat shows them as 18+. Your 18+ role still "
+"goes only to members VRChat has age verified, and they get both. Set it "
+"under Settings, Verification. With Premium, your VRChat group invites can"
+" also go to any linked member, not only 18+ ones."
+msgstr ""
+"现在你可以为每一个关联了 VRChat 账号的成员授予已关联身份组，无论 VRChat 是否将其显示为 18+。你的 18+ 身份组仍然只授予 "
+"VRChat 已验证年龄的成员，这些成员会同时获得两个身份组。在“设置 > 验证”中设置。使用高级版后，你的 VRChat "
+"群组邀请也可以发送给任何已关联成员，而不仅仅是 18+ 成员。"
 
 msgid "Verify the members you already have"
 msgstr "验证你已有的成员"
@@ -259,7 +279,6 @@ msgstr ""
 "验证过的成员，无论是在这里还是在其他任何服务器。不会给他们发消息，也不需要他们做任何事。在服务器的“概览”页面即可找到：计数谁可以被验证是免费的，授予身份组则是"
 " Premium 功能的一部分。"
 
-# | msgid "Premium"
 msgid "See Premium"
 msgstr "查看 Premium"
 
@@ -306,7 +325,6 @@ msgstr ""
 "8 月 11 "
 "日之前发布的说明面板无法编辑，因此无论发生什么变化，它们都保留着最初的文字和按钮。现在它们已被替换为可以更新的面板，并使用你服务器当前的语言。替换后的面板会出现在其频道的最底部，指向旧面板的链接也将失效。"
 
-# | msgid "The status page speaks your language"
 msgid "The website speaks your language"
 msgstr "状态页支持你的语言了"
 
@@ -339,15 +357,9 @@ msgstr ""
 msgid "VRCVerify has a new look"
 msgstr "VRCVerify 换了新外观"
 
-# | msgid "" "Your server list is now a grid of tiles you can search, pin and
-# | open with" " a single click anywhere on the card, and each one says
 # whether
-# | that " "server is on Premium. Setup has moved to the top of a server's
-# | Overview " "with a progress bar, and retires itself once everything
 # required
-# | is done." " Settings puts each control directly under its own label, and
 # the
-# | pricing" " page is one comparison you can read across."
 msgid ""
 "The dashboard, the website and the status page have been rebuilt on one "
 "design. Your server list is now a grid of tiles you can search, pin and "
@@ -361,7 +373,6 @@ msgstr ""
 "仪表板、网站和状态页面已按统一设计重新构建。服务器列表现在是磁贴网格，可以搜索、置顶，点击卡片的任意位置即可打开，每张磁贴还会显示该服务器是否为 "
 "Premium。设置流程移到了服务器概览的顶部，带有进度条，所有必需项完成后会自动隐藏。设置页中每个控件都紧挨在自己的标签下方，价格页则变成了一张可以横向对照阅读的对比表。状态页面现在把出过的故障显示在正常服务的旁边，而不是下方。"
 
-# | msgid "A branded instructions panel"
 msgid "A website link on your instructions panel"
 msgstr "说明面板上的网站链接"
 
@@ -377,7 +388,6 @@ msgstr ""
 "VRCVerify 的用途。设置完成后出现的捐赠提醒也已移除。8 月 11 日之后发布的面板会在下次刷新时更新。更早发布的面板 Discord "
 "根本不允许编辑，因此会被替换而不是刷新。"
 
-# | msgid "The verified role needs attention"
 msgid "See which servers need attention"
 msgstr "一眼看出哪些服务器需要处理"
 
@@ -401,7 +411,6 @@ msgstr ""
 "VRCVerify 需要 Discord "
 "的「管理身份组」权限才能授予已验证身份组。此前它从不检查自己是否拥有该权限，因此失去权限的服务器在概览页看起来一切正常，而每次验证都在悄悄地无法授予身份组。现在概览页和身份组选择器都会指出这一点，并告诉你去哪里修复。"
 
-# | msgid "Couldn't check whether VRCVerify can manage this role."
 msgid "Check whether VRCVerify is working"
 msgstr "查看 VRCVerify 是否正常"
 
@@ -414,9 +423,6 @@ msgstr ""
 "现在 status.vrcverify.com 上有了状态页面。它会显示验证、Discord 机器人、群组邀请、控制面板和网站是否正常，并提供 "
 "90 天的历史记录，即使其他一切都无法访问时也能告诉你。状态链接就在页眉里。"
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
-# | msgid "Verification log"
 msgid "See how verification is going"
 msgstr "看看验证进行得怎么样"
 
@@ -463,11 +469,9 @@ msgstr "你的套餐新增：%(title)s"
 msgid "%(body)s It's included in your subscription."
 msgstr "%(body)s 它已包含在你的订阅中。"
 
-# | msgid "Setup"
 msgid "Set it up"
 msgstr "去设置"
 
-# | msgid "Your grandfathered extras stay free whatever you decide."
 #, python-format
 msgid "Your grandfathered extras stay free whatever you decide. %(body)s"
 msgstr "无论你如何选择，你保留的旧有权益都将继续免费。%(body)s"
@@ -501,8 +505,6 @@ msgstr "仅统计自 %(date)s 起的数据。"
 msgid "Members"
 msgstr "成员"
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
 msgid "Verified, all time"
 msgstr "累计已验证"
 
@@ -524,26 +526,26 @@ msgstr "未验证身份组"
 msgid "Optional. Removed once someone verifies."
 msgstr "可选。成员完成验证后自动移除。"
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
 msgid "Verification log"
 msgstr "验证日志"
 
-# | msgid "Optional. Premium."
 msgid "Optional."
 msgstr "可选。"
 
-# | msgid "Sections"
-# | msgid "Settings"
 msgid "Go to Settings"
 msgstr "前往设置"
 
-msgid "Verified role"
-msgstr "已验证身份组"
+msgid "Linked and 18+ roles"
+msgstr "已关联和 18+ 身份组"
 
-# | msgid "Pick a verified role -- verification can't run without one."
-msgid "Required — verification can't finish without one."
-msgstr "必填 —— 没有它，验证无法完成。"
+msgid "Linked role"
+msgstr "已关联身份组"
+
+msgid "18+ role"
+msgstr "18+ 身份组"
+
+msgid "Required: set an 18+ role or a Linked role, or verification can't finish."
+msgstr "必填：请设置一个 18+ 身份组或已关联身份组，否则验证无法完成。"
 
 msgid ""
 "VRCVerify is missing the Manage Roles permission, so it can't grant this "
@@ -557,10 +559,12 @@ msgstr "原先设置的身份组已被删除。请另选一个。"
 msgid "VRCVerify's own role needs to sit above this one to grant it."
 msgstr "VRCVerify 自己的身份组必须排在它上面，才能授予该身份组。"
 
+msgid "Both set, and VRCVerify can grant them."
+msgstr "两者都已设置，且 VRCVerify 可以授予。"
+
 msgid "Set, and VRCVerify can grant it."
 msgstr "已设置，且 VRCVerify 可以授予。"
 
-# | msgid "A branded instructions panel"
 msgid "Instructions panel"
 msgstr "说明面板"
 
@@ -729,19 +733,15 @@ msgstr[0] "给 %(count)s 名成员授予已验证身份组"
 msgid "Working"
 msgstr "正常运行"
 
-# | msgid "Setup isn't finished"
 msgid "Setup unfinished"
 msgstr "设置未完成"
 
-# | msgid "needs attention"
 msgid "Needs attention"
 msgstr "需要处理"
 
-# | msgid "not set"
 msgid "Not set up"
 msgstr "未设置"
 
-# | msgid "Couldn't check"
 msgid "Can't check"
 msgstr "无法检查"
 
@@ -751,7 +751,6 @@ msgstr "已设置并正常运行"
 msgid "Setup isn't finished"
 msgstr "设置尚未完成"
 
-# | msgid "Something went wrong."
 msgid "Something isn't working"
 msgstr "有些地方不正常"
 
@@ -761,7 +760,6 @@ msgstr "这里尚未设置，或不归你管理"
 msgid "Can't check this server right now"
 msgstr "暂时无法检查此服务器"
 
-# | msgid "A verification log channel"
 msgid "Verification"
 msgstr "验证"
 
@@ -774,7 +772,6 @@ msgstr "VRChat 群组"
 msgid "Logging"
 msgstr "日志"
 
-# | msgid "Active"
 msgid "Activity"
 msgstr "动态"
 
@@ -835,8 +832,15 @@ msgstr "该身份组已不在服务器中，VRCVerify 无法使用它。"
 msgid "Couldn't check whether VRCVerify can manage this role."
 msgstr "无法确认 VRCVerify 是否能管理该身份组。"
 
-msgid "Granted once a member's VRChat account is confirmed as 18+."
-msgstr "成员的 VRChat 账号被确认为 18+ 后授予。"
+msgid "Given to members VRChat reports as 18+."
+msgstr "授予被 VRChat 报告为 18+ 的成员。"
+
+msgid ""
+"VRCVerify cannot grant this role. Move the VRCVerify role above it in "
+"Server Settings -> Roles, or members VRChat reports as 18+ won't get it."
+msgstr ""
+"VRCVerify 无法授予该身份组。请在服务器设置 -> 身份组中把 VRCVerify 的身份组移到它上面，否则被 VRChat 报告为 "
+"18+ 的成员将无法获得该身份组。"
 
 msgid ""
 "VRCVerify cannot grant this role. Move the VRCVerify role above it in "
@@ -844,12 +848,24 @@ msgid ""
 msgstr "VRCVerify 无法授予该身份组。请在服务器设置 -> 身份组中把 VRCVerify 的身份组移到它上面，否则所有成员的验证都会失败。"
 
 msgid ""
-"No verified role is set, so verification cannot complete. Members are "
-"told to contact an admin."
-msgstr "尚未设置已验证身份组，因此验证无法完成。成员会被告知联系管理员。"
+"No 18+ role or Linked role is set, so verification cannot complete. "
+"Members are told to contact an admin."
+msgstr "既未设置 18+ 身份组，也未设置已关联身份组，因此验证无法完成。成员会被告知联系管理员。"
 
-msgid "Removed automatically once a member verifies."
-msgstr "成员完成验证后自动移除。"
+msgid ""
+"Optional. Given to everyone who links their VRChat account, 18+ or not. "
+"18+ members get both roles."
+msgstr "可选。授予每一个关联了 VRChat 账号的人，无论是否 18+。18+ 成员会同时获得两个身份组。"
+
+msgid ""
+"VRCVerify cannot grant this role. Move the VRCVerify role above it in "
+"Server Settings -> Roles."
+msgstr "VRCVerify 无法授予该身份组。请在服务器设置 -> 身份组中把 VRCVerify 的身份组移到它上面。"
+
+msgid ""
+"Removed automatically once a member verifies, or once they link if a "
+"Linked role is set."
+msgstr "成员完成验证后会自动移除；如果设置了已关联身份组，成员关联账号时也会自动移除。"
 
 msgid ""
 "VRCVerify cannot remove this role. Move the VRCVerify role above it in "
@@ -857,9 +873,9 @@ msgid ""
 msgstr "VRCVerify 无法移除该身份组。请在服务器设置 -> 身份组中把 VRCVerify 的身份组移到它上面。"
 
 msgid ""
-"Members already verified with VRCVerify elsewhere get the role as soon as"
-" they join. Free for every server, always."
-msgstr "已在其他服务器通过 VRCVerify 验证的成员，一加入就会获得该身份组。对所有服务器永久免费。"
+"Members already verified or linked with VRCVerify elsewhere get their "
+"roles as soon as they join. Free for every server, always."
+msgstr "已经在别处通过 VRCVerify 验证或关联的成员，一加入就会获得他们的身份组。对所有服务器永久免费。"
 
 msgid "On"
 msgstr "开启"
@@ -867,7 +883,6 @@ msgstr "开启"
 msgid "Off"
 msgstr "关闭"
 
-# | msgid "Nickname syncing"
 msgid "Nickname sync"
 msgstr "昵称同步"
 
@@ -944,8 +959,6 @@ msgstr "检查已发送，但没有任何返回。请稍后重试。"
 msgid "Couldn't start the check"
 msgstr "无法启动检查"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
 msgid ""
 "The bot couldn't reach the part of itself that talks to VRChat. Try again"
 " shortly."
@@ -1001,7 +1014,6 @@ msgid ""
 "run the check again. You can remove it once the check passes."
 msgstr "把下面的代码贴到你 VRChat 群组简介的任意位置，然后再次运行检查。检查通过后即可删除。"
 
-# | msgid "VRChat group"
 msgid "No VRChat group with that ID"
 msgstr "没有该 ID 对应的 VRChat 群组"
 
@@ -1298,10 +1310,32 @@ msgid ""
 " them to your group. Nothing is sent unless they press it."
 msgstr "在成员验证通过后收到的消息中加入一个按钮，邀请他们加入你的群组。除非他们按下，否则不会发送任何内容。"
 
+msgid "18+ verified members only"
+msgstr "仅限 18+ 已验证成员"
+
+msgid "Only members VRChat reports as 18+."
+msgstr "仅限被 VRChat 报告为 18+ 的成员。"
+
+msgid "Any linked member"
+msgstr "任何已关联成员"
+
+msgid "Anyone who has linked their VRChat account, 18+ or not."
+msgstr "任何关联了 VRChat 账号的人，无论是否 18+。"
+
+msgid "Who can be invited"
+msgstr "谁可以被邀请"
+
+msgid ""
+"Members who aren't age verified may be under 18. VRChat still keeps them "
+"out of your group's age-verified instances."
+msgstr "未进行年龄验证的成员可能未满 18 岁。VRChat 仍会将他们挡在你群组的年龄验证实例之外。"
+
+msgid "Invites go to 18+ members only until a Linked role is set."
+msgstr "在设置已关联身份组之前，邀请仅发送给 18+ 成员。"
+
 msgid "Using the default message"
 msgstr "正在使用默认消息"
 
-# | msgid "A custom post-verification message"
 msgid "Custom verification message"
 msgstr "自定义验证消息"
 
@@ -1320,14 +1354,12 @@ msgstr "说明面板以及机器人回复成员时使用的语言。"
 msgid "Panel color"
 msgstr "面板颜色"
 
-# | msgid "A branded instructions panel"
 msgid "The color bar down the side of the instructions panel."
 msgstr "说明面板侧边的色条。"
 
 msgid "Default blue"
 msgstr "默认蓝色"
 
-# | msgid "A verification log channel"
 msgid "Server icon on the panel"
 msgstr "在面板上显示服务器图标"
 
@@ -1343,8 +1375,6 @@ msgstr "隐藏"
 msgid "This channel no longer exists in the server."
 msgstr "该频道已不在服务器中。"
 
-# | msgid "" "Verification logs can't go in an announcement channel -- other
-# | servers " "can follow one, which would republish your members' age
 # status."
 msgid ""
 "This is an announcement channel. Other servers can follow it, which would"
@@ -1352,14 +1382,12 @@ msgid ""
 "here."
 msgstr "这是一个公告频道。其他服务器可以关注它，从而把你成员的年龄状态转发出去，因此 VRCVerify 不会在这里记录。"
 
-# | msgid "A verification log channel"
 msgid "Verification log channel"
 msgstr "验证日志频道"
 
 msgid "Every verification attempt, including the ones that fail silently."
 msgstr "每一次验证尝试，包括那些静默失败的。"
 
-# | msgid "VRChat group"
 msgid "VRChat group invites"
 msgstr "VRChat 群组邀请"
 
@@ -1369,7 +1397,6 @@ msgstr "加入申请频道"
 msgid "Who can approve or deny join requests"
 msgstr "谁可以批准或拒绝加入申请"
 
-# | msgid "VRChat group"
 msgid "VRChat group setup check"
 msgstr "VRChat 群组设置检查"
 
@@ -1448,11 +1475,8 @@ msgid ""
 " way to start verifying."
 msgstr "发布该面板的频道已不存在，因此成员无从开始验证。"
 
-# | msgid "" "VRCVerify can't post the panel in that channel. It needs both
 # Send
-# | " "Messages and Embed Links there -- Embed Links is the one that's usually
 # "
-# | "missing, because the panel is an embed."
 msgid ""
 "VRCVerify can't post a new message in that channel — it needs both Send "
 "Messages and Embed Links there. The panel still works and can still be "
@@ -1551,7 +1575,6 @@ msgid ""
 "extras free, permanently."
 msgstr "本服务器在 Premium 推出之前就已设置，因此可永久免费保留若干额外功能。"
 
-# | msgid "Core 18+ verification is free, forever."
 msgid "18+ verification is free on this server, and always will be."
 msgstr "本服务器的 18+ 验证免费，并将一直免费。"
 
@@ -1566,7 +1589,6 @@ msgid ""
 "Discord aren't listed here."
 msgstr "通过本网站更改的设置。在 Discord 中用斜杠命令所做的更改不会列在这里。"
 
-# | msgid "The panel couldn't be posted just now. Try again shortly."
 msgid "Couldn't load the history just now. Try again shortly."
 msgstr "暂时无法加载历史记录。请稍后重试。"
 
@@ -1662,7 +1684,6 @@ msgid ""
 "Inc."
 msgstr "与 VRChat Inc. 和 Discord Inc. 无关联，也未获其认可或赞助。"
 
-# | msgid "Pricing · VRCVerify"
 msgid "What's new · VRCVerify"
 msgstr "新功能 · VRCVerify"
 
@@ -1686,7 +1707,6 @@ msgstr ""
 "noreferrer\">加入 VRCVerify 的 Discord</a> 并关注公告频道 —— 这里的每条更新都会发布到那里，Discord"
 " 会把它转发到你选择的任意频道。"
 
-# | msgid "Add to your server"
 msgid "Back to your servers"
 msgstr "返回你的服务器"
 
@@ -1714,7 +1734,6 @@ msgid ""
 "server's settings."
 msgstr "本站<strong>看不到谁通过了验证</strong> —— 只能看到你服务器的设置。"
 
-# | msgid "Buy inside Discord"
 msgid "Sign in with Discord"
 msgstr "使用 Discord 登录"
 
@@ -1816,8 +1835,6 @@ msgid ""
 "are checked again as it goes."
 msgstr "不会给任何人发消息。计数之后退出或加入的成员，会在过程中被重新检查。"
 
-# | msgid "A verification log channel"
-# | msgid "Verification"
 msgid "Verifications"
 msgstr "验证次数"
 
@@ -1826,7 +1843,6 @@ msgid ""
 " VRCVerify doesn't keep a record of who verified when."
 msgstr "本服务器中完成 18+ 验证的成员数量。只有计数 —— VRCVerify 不会记录谁在何时通过了验证。"
 
-# | msgid "The panel couldn't be posted just now. Try again shortly."
 msgid "Couldn't load this server's numbers just now. Try again shortly."
 msgstr "暂时无法加载本服务器的数据。请稍后重试。"
 
@@ -1863,11 +1879,9 @@ msgstr "置顶 %(name)s"
 msgid "Upgrade"
 msgstr "升级"
 
-# | msgid "Add to your server"
 msgid "Add to server"
 msgstr "添加到服务器"
 
-# | msgid "Add to your server"
 msgid "Your servers"
 msgstr "你的服务器"
 
@@ -1881,32 +1895,24 @@ msgid ""
 "Your settings are safe — nothing here has changed. Try again shortly."
 msgstr "目前无法连接机器人，因此无法确定它在其中哪些服务器里。你的设置很安全 —— 这里没有任何改动。请稍后重试。"
 
-# | msgid "Add to your server"
-# | msgid "Your servers"
 msgid "Search your servers"
 msgstr "搜索你的服务器"
 
-# | msgid "Per server"
 msgid "Search servers"
 msgstr "搜索服务器"
 
 msgid "Search"
 msgstr "搜索"
 
-# | msgid "Add to your server"
-# | msgid "Your servers"
 #, python-format
 msgid "%(count)s server"
 msgid_plural "%(count)s servers"
 msgstr[0] "%(count)s 台服务器"
 
-# | msgid "Premium"
-# | msgid "See Premium"
 #, python-format
 msgid "%(count)s Premium"
 msgstr "%(count)s 个 Premium"
 
-# | msgid "No servers to show"
 msgid "No servers match that"
 msgstr "没有匹配的服务器"
 
@@ -1914,8 +1920,6 @@ msgstr "没有匹配的服务器"
 msgid "Nothing in your list is called “%(q)s”."
 msgstr "你的列表中没有名为“%(q)s”的服务器。"
 
-# | msgid "Add to your server"
-# | msgid "Your servers"
 msgid "Show all your servers"
 msgstr "显示全部服务器"
 
@@ -1934,14 +1938,12 @@ msgstr "退出登录并重新开始"
 msgid "You'll be asked to sign in with Discord again."
 msgstr "系统会再次要求你使用 Discord 登录。"
 
-# | msgid "None"
 msgid "Pinned"
 msgstr "已置顶"
 
 msgid "Pricing · VRCVerify"
 msgstr "价格 · VRCVerify"
 
-# | msgid "Canceled"
 msgid "Included"
 msgstr "包含"
 
@@ -1970,8 +1972,6 @@ msgstr "计费周期"
 msgid "Price unavailable"
 msgstr "价格暂时无法获取"
 
-# | msgid "" "Every plan below unlocks exactly the same features — the only
-# | difference " "is how long you pay for at once, and how much that saves."
 msgid ""
 "Per server. Every term unlocks exactly the same features — the only "
 "difference is how long you pay for at once."
@@ -1988,6 +1988,9 @@ msgstr "免费"
 
 msgid "Verify members as 18+"
 msgstr "将成员验证为 18+"
+
+msgid "A Linked role for everyone who links their VRChat account, 18+ or not"
+msgstr "为所有关联 VRChat 账号的成员提供已关联身份组，无论是否 18+"
 
 msgid "Auto-verify people who verified in another server"
 msgstr "自动验证已在其他服务器完成验证的人"
@@ -2016,8 +2019,8 @@ msgstr "带有你服务器色彩与图标的说明面板"
 msgid "A shorter verification cooldown"
 msgstr "更短的验证冷却时间"
 
-msgid "VRChat group invites for verified members"
-msgstr "为已验证成员提供的 VRChat 群组邀请"
+msgid "VRChat group invites for verified or linked members"
+msgstr "为已验证或已关联成员提供的 VRChat 群组邀请"
 
 msgid "Your VRChat group calendar in Discord Events, with join links"
 msgstr "在 Discord 活动中显示你的 VRChat 群组日历，并附加入链接"
@@ -2030,7 +2033,6 @@ msgid ""
 " once"
 msgstr "一次性把已验证身份组授予已通过 VRCVerify 验证的成员"
 
-# | msgid "Not applied"
 msgid "Not included"
 msgstr "不包含"
 
@@ -2109,8 +2111,6 @@ msgid ""
 " below show an ID instead of a name. The values themselves are correct."
 msgstr "暂时无法加载本服务器的身份组和频道，因此下面部分设置显示的是 ID 而不是名称。数值本身是准确的。"
 
-# | msgid "" "This bot's database is missing the column for that setting.
-# | Contact the " "bot operator."
 msgid ""
 "This bot's database is missing the auto-verify column, so that setting "
 "isn't in effect regardless of what it shows. Contact the bot operator."
@@ -2119,8 +2119,6 @@ msgstr "该机器人的数据库缺少自动验证字段，因此无论显示为
 msgid "Where it's posted"
 msgstr "发布位置"
 
-# | msgid "" "The bot couldn't complete the save, so nothing was changed. Try
-# | again " "shortly."
 msgid "The bot didn't answer this one. Try again shortly."
 msgstr "机器人没有回应这一项。请稍后重试。"
 
@@ -2259,21 +2257,24 @@ msgstr[0] "你的群组大约每 %(count)s 分钟检查一次，因此新申请�
 msgid "Not applied"
 msgstr "未生效"
 
+#, python-format
+msgid ""
+"To invite any linked member, first set a Linked role on the <a "
+"href=\"%(link)s\">Verification page</a>."
+msgstr "要邀请任何已关联成员，请先在<a href=\"%(link)s\">验证页面</a>设置已关联身份组。"
+
 msgid "Use the default blue"
 msgstr "使用默认蓝色"
 
-# | msgid "Premium until"
 msgid "Premium only."
 msgstr "仅限 Premium。"
 
 msgid "Your saved value is kept, and comes back if the subscription is renewed."
 msgstr "你保存的值会保留，续订后会恢复。"
 
-# | msgid "Premium"
 msgid "Add Premium"
 msgstr "添加 Premium"
 
-# | msgid "Spanish"
 msgid "See plans"
 msgstr "查看方案"
 
@@ -2325,11 +2326,9 @@ msgstr "让机器人加入你的群组，并报告它在群组中能做什么。
 msgid "Post the panel in"
 msgstr "把面板发布到"
 
-# | msgid "Post the panel in"
 msgid "Repost or move panel"
 msgstr "重新发布或移动面板"
 
-# | msgid "Post the panel in"
 msgid "Post panel"
 msgstr "发布面板"
 
@@ -2534,13 +2533,9 @@ msgstr ""
 #~ msgid "The verified role needs attention"
 #~ msgstr "已验证身份组需要处理"
 
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
 #~ msgid "No instructions panel is posted"
 #~ msgstr "尚未发布说明面板"
 
-# | msgid "A branded instructions panel"
-# | msgid "Instructions panel"
 #~ msgid "The instructions panel needs attention"
 #~ msgstr "说明面板需要处理"
 
@@ -2597,9 +2592,6 @@ msgstr ""
 #~ msgid "Unlocks the settings marked below. 18+ verification itself stays free."
 #~ msgstr "解锁下面标记的设置。18+ 验证本身仍然免费。"
 
-# | msgid "" "Can't reach the bot right now, so we can't tell which of these
-# | it's in. " "Your settings are safe — nothing here has changed. Try again
-# | shortly."
 #~ msgid ""
 #~ "Can't reach the bot right now, so"
 #~ " this page can't be shown. Nothing"
@@ -2612,7 +2604,6 @@ msgstr ""
 #~ msgid "Most popular"
 #~ msgstr "最受欢迎"
 
-# | msgid "Open the dashboard"
 #~ msgid "A new look for the dashboard"
 #~ msgstr "控制台的全新外观"
 
@@ -2637,4 +2628,7 @@ msgstr ""
 #~ msgstr ""
 #~ "此身份组不允许任何人提及，因此除非 VRCVerify 拥有 Discord 的「提及"
 #~ " @everyone、@here 和所有身份组」权限，否则其成员不会收到通知。"
+
+#~ msgid "Required — verification can't finish without one."
+#~ msgstr "必填 —— 没有它，验证无法完成。"
 

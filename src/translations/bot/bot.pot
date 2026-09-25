@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-23 18:36-0400\n"
+"POT-Creation-Date: 2026-09-24 21:58-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -24,12 +24,38 @@ msgid "You're already verified! Role assigned (or re-assigned)."
 msgstr ""
 
 msgid ""
-"We're re-checking your VRChat 18+ status. If you've updated your VRChat "
-"age verification, you'll get a DM soon!"
+"We're re-checking your VRChat account. If you've updated your VRChat age "
+"verification, you'll get a DM soon!"
+msgstr ""
+
+msgid ""
+"Your Discord account is already linked to a VRChat account, and a link "
+"can't be switched to a different one. Press **Begin Verification** to re-"
+"check the account you linked."
 msgstr ""
 
 #, python-brace-format
 msgid "You've been verified and given **{role}** in **{server}**!"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"You've been verified and given **{role}** and **{linked_role}** in "
+"**{server}**!"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{role}** in "
+"**{server}**!"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked, and you've been given **{linked_role}** in"
+" **{server}**. You didn't get **{role}** because VRChat doesn't show your"
+" account as age verified. Once it does, press **Begin Verification** "
+"again."
 msgstr ""
 
 msgid "Nickname update requested. I'll DM you once it's done!"
@@ -109,6 +135,32 @@ msgid ""
 msgstr ""
 
 #, python-brace-format
+msgid "Successfully {action} server config."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"\n"
+"Linked Role set to: `{role}` (ID={role_id})"
+msgstr ""
+
+msgid ""
+"That role can't be given out by a bot: it's @everyone or managed by an "
+"integration. Choose a different role."
+msgstr ""
+
+msgid ""
+"Choose at least one role: `verified-role` for members VRChat reports as "
+"18+, or `linked-role` for everyone who links their VRChat account."
+msgstr ""
+
+msgid "The Linked role and the verified role need to be different roles."
+msgstr ""
+
+msgid "The Linked role and the unverified role need to be different roles."
+msgstr ""
+
+#, python-brace-format
 msgid ""
 "\n"
 "Unverified Role to remove: `{role}` (ID={role_id})"
@@ -123,7 +175,8 @@ msgid "How to Use the VRChat Verification Bot"
 msgstr ""
 
 msgid ""
-"**Follow these steps** to verify your 18+ status:\n"
+"**Follow these steps** to link your VRChat account and check your 18+ "
+"status:\n"
 "\n"
 "1. Click the **Begin Verification** button (if shown) or type "
 "`/vrcverify` anywhere.\n"
@@ -295,6 +348,15 @@ msgstr ""
 msgid "✅ Verified role: **{role}**"
 msgstr ""
 
+#, python-brace-format
+msgid "✅ Linked role: **{role}**"
+msgstr ""
+
+msgid ""
+"❌ The configured Linked role no longer exists. Choose a new one on the "
+"dashboard."
+msgstr ""
+
 msgid "❌ No verified role set — run `/vrcverify_setup` to choose one."
 msgstr ""
 
@@ -364,7 +426,8 @@ msgid ""
 "• Custom post-verification message\n"
 "• Your color and server icon on the instructions panel\n"
 "• Reduced verification cooldown\n"
-"• Invite verified members straight into your server's VRChat group\n"
+"• Invite verified or linked members straight into your server's VRChat "
+"group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
 "• Your VRChat group's join requests posted in Discord, with Approve and "
@@ -391,7 +454,8 @@ msgid ""
 "• Custom post-verification message\n"
 "• Your color and server icon on the instructions panel\n"
 "• Reduced verification cooldown\n"
-"• Invite verified members straight into your server's VRChat group\n"
+"• Invite verified or linked members straight into your server's VRChat "
+"group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
 "• Your VRChat group's join requests posted in Discord, with Approve and "
@@ -440,7 +504,8 @@ msgid ""
 "• Custom post-verification message\n"
 "• Your color and server icon on the instructions panel\n"
 "• Reduced verification cooldown\n"
-"• Invite verified members straight into your server's VRChat group\n"
+"• Invite verified or linked members straight into your server's VRChat "
+"group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
 "• Your VRChat group's join requests posted in Discord, with Approve and "
@@ -473,7 +538,8 @@ msgid ""
 "• Priority in the verification queue when there's a backlog\n"
 "• Your color and server icon on the instructions panel\n"
 "• Reduced verification cooldown\n"
-"• Invite verified members straight into your server's VRChat group\n"
+"• Invite verified or linked members straight into your server's VRChat "
+"group\n"
 "• Your VRChat group's calendar in Discord's Events tab, with a join link "
 "when each event starts\n"
 "• Your VRChat group's join requests posted in Discord, with Approve and "
@@ -521,6 +587,16 @@ msgstr ""
 
 #, python-brace-format
 msgid "❌ {user} — not 18+ according to VRChat · {when}"
+msgstr ""
+
+#, python-brace-format
+msgid "🔗 {user} · linked, not 18+ according to VRChat · {when}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"⚠️ {user} · linked, but the role could not be assigned. Check that the "
+"VRCVerify bot's role sits above the Linked role. · {when}"
 msgstr ""
 
 #, python-brace-format
@@ -580,6 +656,14 @@ msgid ""
 "Nothing is sent to VRChat unless you press the button."
 msgstr ""
 
+#, python-brace-format
+msgid ""
+"Your VRChat account is linked in **{server}**! Would you like an invite "
+"to their VRChat group, **{group}**?\n"
+"\n"
+"Nothing is sent to VRChat unless you press the button."
+msgstr ""
+
 msgid "Asking VRChat for your invite..."
 msgstr ""
 
@@ -623,8 +707,9 @@ msgid ""
 msgstr ""
 
 msgid ""
-"VRChat didn't recognize the account you verified with, so the invite "
-"couldn't be sent. Try verifying again to relink your VRChat account."
+"VRChat didn't recognize the account linked to your Discord, so the invite"
+" couldn't be sent. If you think this is a mistake, contact a server "
+"admin."
 msgstr ""
 
 #, python-brace-format
@@ -635,14 +720,14 @@ msgstr ""
 
 #, python-brace-format
 msgid ""
-"You're not currently verified as 18+ in **{server}**, so the invite "
-"couldn't be sent. Verify again to get a new invite offer."
+"**{server}** only sends group invites to members verified as 18+, and you"
+" aren't right now, so the invite couldn't be sent. If VRChat now shows "
+"your account as age verified, press **Begin Verification** again."
 msgstr ""
 
 msgid ""
-"This offer was for a different VRChat account than the one you have "
-"linked now. Verify again to get a new invite offer for your current "
-"account."
+"This invite offer is no longer valid. Press **Begin Verification** again "
+"to get a new one."
 msgstr ""
 
 msgid "Instance Open"

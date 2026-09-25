@@ -1694,6 +1694,8 @@ def clean_db():
             # -- which reads as "applied: False" and looks like a real refusal.
             session.query(bot.StripeSubscription).delete()
             session.query(bot.StripeEvent).delete()
+            session.query(bot.LinkedRole).delete()
+            session.query(bot.GroupInviteAudience).delete()
 
     wipe()
     bot.premium_status_cache.clear()
@@ -1880,6 +1882,252 @@ def audit_rows():
 
 def write(changes, guild_id=GUILD_ID, actor_id=ADMIN_ID):
     return run(bot.write_dashboard_settings(guild_id, actor_id, changes))
+
+
+class TestTheLinkedRoleSettings:
+    """#359 PR 3: the Linked role and the invite audience, saved and judged
+    together with the 18+ and Unverified roles."""
+
+    def guild(self, monkeypatch):
+        guild = FakeGuild(
+            roles=[
+                FakeRole(1, "@everyone", 0, default=True),
+                FakeRole(2, "18+", 10),
+                FakeRole(3, "Unverified", 9),
+                FakeRole(6, "Linked", 8),
+            ]
+        )
+        monkeypatch.setattr(bot.bot, "get_guild", lambda _id: guild)
+        return guild
+
+    def stored_linked(self):
+        with bot.session_scope() as session:
+            return bot.linked_role_id(session, GUILD_ID)
+
+    def test_a_linked_role_is_stored_read_back_and_audited(self, monkeypatch, subscribed):
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        result = write({"linked_role_id": "6"})
+        assert self.stored_linked() == "6"
+        assert result["fields"]["linked_role_id"]["value"] == "6"
+        assert audit_rows() == [("linked_role_id", None, "6", str(ADMIN_ID))]
+
+    def test_the_linked_role_is_free(self, monkeypatch, free):
+        self.guild(monkeypatch)
+        make_server(role_id="2", id=500)
+        write({"linked_role_id": "6"})
+        assert self.stored_linked() == "6"
+
+    def test_a_linked_role_can_be_cleared(self, monkeypatch, subscribed):
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        bot.set_linked_role(GUILD_ID, "6")
+        write({"linked_role_id": None})
+        assert self.stored_linked() is None
+
+    def test_the_18_role_can_be_cleared_once_a_linked_role_is_set(
+        self, monkeypatch, subscribed
+    ):
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        write({"role_id": None, "linked_role_id": "6"})
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.role_id is None
+        assert self.stored_linked() == "6"
+
+    def test_clearing_both_is_refused_and_nothing_changes(self, monkeypatch, subscribed):
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        bot.set_linked_role(GUILD_ID, "6")
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"role_id": None, "linked_role_id": None})
+        assert caught.value.reason == "role_required"
+        assert self.stored_linked() == "6"
+
+    def test_the_linked_role_cannot_be_the_18_role(self, monkeypatch, subscribed):
+        """Every linked member would be handed the 18+ role."""
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"linked_role_id": "2"})
+        assert caught.value.reason == "linked_same_as_verified"
+        assert caught.value.field == "linked_role_id"
+        assert self.stored_linked() is None
+
+    def test_the_18_role_cannot_become_the_linked_role(self, monkeypatch, subscribed):
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        bot.set_linked_role(GUILD_ID, "6")
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"role_id": "6"})
+        assert caught.value.reason == "linked_same_as_verified"
+        assert caught.value.field == "role_id"
+
+    def test_the_linked_role_cannot_be_the_unverified_role(self, monkeypatch, subscribed):
+        """Linking would add the role and then take it away again."""
+        self.guild(monkeypatch)
+        make_server(role_id="2", unverified_role_id="3")
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"linked_role_id": "3"})
+        assert caught.value.reason == "linked_same_as_unverified"
+
+    def test_a_linked_role_not_in_the_guild_is_refused(self, monkeypatch, subscribed):
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"linked_role_id": "9999"})
+        assert caught.value.reason == "role_not_in_guild"
+
+    def test_a_linked_role_needs_a_set_up_server(self, monkeypatch, subscribed):
+        self.guild(monkeypatch)
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"linked_role_id": "6"})
+        assert caught.value.reason == "server_not_set_up"
+        assert self.stored_linked() is None
+
+    def test_an_unrelated_save_is_not_judged_by_the_role_rules(self, monkeypatch, subscribed):
+        """A guild whose stored roles predate a rule can still save its language."""
+        self.guild(monkeypatch)
+        make_server(role_id=None)
+        write({"instructions_locale": "de"})
+
+    def test_the_audience_is_stored_read_back_and_audited(self, monkeypatch, subscribed):
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        bot.set_linked_role(GUILD_ID, "6")
+        result = write({"vrchat_group_invite_audience": "linked"})
+        assert result["fields"]["vrchat_group_invite_audience"]["value"] == "linked"
+        assert bot.load_group_invite_audience(GUILD_ID) == "linked"
+        assert ("vrchat_group_invite_audience", "verified", "linked", str(ADMIN_ID)) in audit_rows()
+
+    def test_the_audience_defaults_to_18_only(self, monkeypatch, subscribed):
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        result = run(bot.read_dashboard_settings(GUILD_ID))
+        assert result["fields"]["vrchat_group_invite_audience"]["value"] == "verified"
+
+    def test_any_linked_member_needs_a_linked_role(self, monkeypatch, subscribed):
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"vrchat_group_invite_audience": "linked"})
+        assert caught.value.reason == "needs_linked_role"
+
+    def test_a_linked_role_in_the_same_save_counts(self, monkeypatch, subscribed):
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        write({"linked_role_id": "6", "vrchat_group_invite_audience": "linked"})
+        assert bot.load_group_invite_audience(GUILD_ID) == "linked"
+
+    def test_the_audience_is_premium(self, monkeypatch, free):
+        self.guild(monkeypatch)
+        make_server(role_id="2", id=500)
+        bot.set_linked_role(GUILD_ID, "6")
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"vrchat_group_invite_audience": "linked"})
+        assert caught.value.reason == "requires_premium"
+
+    @pytest.mark.parametrize("wanted", ["everyone", "", None, True, "Linked"])
+    def test_only_the_two_audiences_are_accepted(self, monkeypatch, subscribed, wanted):
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"vrchat_group_invite_audience": wanted})
+        assert caught.value.reason == "not_an_audience"
+
+    def test_a_server_with_no_row_can_still_save_its_group_page(self, monkeypatch, subscribed):
+        """Found by the PR 3 adversarial pass: the page always submits the
+        audience, and refusing it blocked every group, calendar and triage
+        save on a server that never ran /vrcverify_setup."""
+        self.guild(monkeypatch)
+        write({"vrchat_group_invite_enabled": False, "vrchat_group_invite_audience": "verified"})
+
+    def test_blame_goes_to_the_field_that_changed(self, monkeypatch, subscribed):
+        """The form sends all three roles; the 18+ one is what moved."""
+        self.guild(monkeypatch)
+        make_server(role_id="2", unverified_role_id="3")
+        bot.set_linked_role(GUILD_ID, "6")
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"role_id": "6", "linked_role_id": "6", "unverified_role_id": "3"})
+        assert caught.value.field == "role_id"
+        with pytest.raises(bot.SettingRejected) as caught:
+            write({"role_id": "2", "linked_role_id": "6", "unverified_role_id": "6"})
+        assert caught.value.field == "unverified_role_id"
+
+    def test_clearing_the_linked_role_closes_invites_to_linked_members(
+        self, monkeypatch, subscribed
+    ):
+        """Otherwise setting any Linked role later reopened them silently."""
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        write({"linked_role_id": "6", "vrchat_group_invite_audience": "linked"})
+        write({"linked_role_id": None})
+        assert bot.load_group_invite_audience(GUILD_ID) == "verified"
+        assert (
+            "vrchat_group_invite_audience", "linked", "verified", str(ADMIN_ID)
+        ) in audit_rows()
+        bot.set_linked_role(GUILD_ID, "6")
+        assert bot.invites_linked_members(GUILD_ID) is False
+
+    def test_the_summary_shows_what_the_bot_does(self, monkeypatch, subscribed):
+        guild = self.guild(monkeypatch)
+        make_server(role_id=None)
+        bot.set_group_invite_audience(GUILD_ID, "linked")
+        embed = run(bot.build_settings_summary(guild))
+        assert any("no Linked role available" in f.value for f in embed.fields)
+
+    def test_the_linked_role_and_the_servers_row_commit_together(self, monkeypatch, subscribed):
+        """Found by the whole-branch review: the two were separate commits,
+        so a failure between them could leave the guild with neither role."""
+        self.guild(monkeypatch)
+        make_server(role_id=None)
+        bot.set_linked_role(GUILD_ID, "6")
+        real = bot._write_linked_role
+
+        def write_then_fail(*args, **kwargs):
+            real(*args, **kwargs)
+            raise RuntimeError("connection dropped")
+
+        monkeypatch.setattr(bot, "_write_linked_role", write_then_fail)
+        assert write({"role_id": "2", "linked_role_id": None}) is None
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.role_id is None
+        assert self.stored_linked() == "6"
+
+    def test_the_audience_is_in_the_same_transaction_as_the_linked_role(
+        self, monkeypatch, subscribed
+    ):
+        """Found by the re-review: "linked" committed on its own, so a failure
+        that lost the Linked role left it stored, ready to reopen invites."""
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+
+        def fail(*args, **kwargs):
+            raise RuntimeError("connection dropped")
+
+        monkeypatch.setattr(bot, "_write_linked_role", fail)
+        assert write({"linked_role_id": "6", "vrchat_group_invite_audience": "linked"}) is None
+        assert bot.load_group_invite_audience(GUILD_ID) == "verified"
+        assert audit_rows() == []
+
+    def test_the_summary_treats_a_deleted_linked_role_as_none(self, monkeypatch, subscribed):
+        guild = self.guild(monkeypatch)
+        make_server(role_id=None)
+        bot.set_linked_role(GUILD_ID, "404")  # not a role in the guild
+        bot.set_group_invite_audience(GUILD_ID, "linked")
+        embed = run(bot.build_settings_summary(guild))
+        audience = next(f for f in embed.fields if f.name.startswith("Who can be invited"))
+        assert "no Linked role available" in audience.value
+
+    def test_the_rows_are_keyed_the_way_the_bot_reads_them(self, monkeypatch, subscribed):
+        """An int guild id on the way in must be found by the str-keyed reads
+        assign_role and the invite offer use."""
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+        write({"linked_role_id": "6", "vrchat_group_invite_audience": "linked"}, guild_id=int(GUILD_ID))
+        assert bot.invites_linked_members(str(GUILD_ID)) is True
 
 
 class TestSettingsWriter:
@@ -3402,10 +3650,11 @@ class TestGuildSummaryReader:
         # Guards the guard: a listener that never fired would count zero and
         # make the real assertion below vacuous.
         assert selects, "no statements were observed, so this asserts nothing"
-        # Two: the servers rows and the log-channel rows, each an IN over the
-        # whole batch. A per-guild loop puts this in the dozens, which is the
-        # implementation this test exists to forbid.
-        assert len(selects) <= 2, selects
+        # Three: the servers rows, the log-channel rows and the Linked role
+        # rows (#359), each an IN over the whole batch. A per-guild loop puts
+        # this in the dozens, which is the implementation this test exists to
+        # forbid.
+        assert len(selects) <= 3, selects
 
     def test_rows_are_indexed_by_normalized_id_not_the_raw_column(self):
         """THE BUG THAT SHIPPED, and the reason it is tested here rather than
@@ -3825,7 +4074,7 @@ class TestTheRetiredCommandsStillAnswer:
             if field.feature not in bot.UNANNOUNCED_FEATURES
         ]
         assert len(names) == len(reachable)
-        assert any(n.startswith("Verified role") for n in names)
+        assert any(n.startswith("18+ role") for n in names)
 
     def test_a_locked_field_and_a_badge_only_field_read_differently(self, free):
         """The distinction the dashboard draws, drawn the same way here.

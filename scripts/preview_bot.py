@@ -238,6 +238,11 @@ PREVIEW_BACKFILL = os.environ.get("PREVIEW_BACKFILL", "")
 #   PREVIEW_PANEL=frozen         posted before August 11, 2026, permissions fine
 #   PREVIEW_PANEL=frozen_perms   frozen, and missing two repair permissions
 PREVIEW_PANEL = os.environ.get("PREVIEW_PANEL", "")
+
+# The premium server's Linked role (#359):
+#   PREVIEW_LINKED=1         a Linked role is set, so "Any linked member" is open
+#   PREVIEW_LINKED=invites   ...and invites already go to any linked member
+PREVIEW_LINKED = os.environ.get("PREVIEW_LINKED", "")
 _PANEL_STATES = {
     "frozen": dict(frozen=True, missing_permissions=[]),
     "frozen_perms": dict(
@@ -426,6 +431,14 @@ class PreviewBotAPI:
             writable=WRITABLE - {WITHHELD} if premium else WRITABLE,
         )
         payload["guild_id"] = guild_id
+        if premium and PREVIEW_LINKED:
+            # The role DEFAULT_ROLES marks unassignable would draw a warning
+            # that is not what this preview is about, so the unverified one
+            # stands in -- and the unverified field is cleared to match.
+            payload["fields"]["linked_role_id"]["value"] = "900000000002"
+            payload["fields"]["unverified_role_id"]["value"] = None
+            if PREVIEW_LINKED == "invites":
+                payload["fields"]["vrchat_group_invite_audience"]["value"] = "linked"
         if premium and PREVIEW_GROUP in _GROUP_STATES:
             invite, ownership = _GROUP_STATES[PREVIEW_GROUP]
             payload["fields"]["vrchat_group_id"]["value"] = _PREVIEW_GROUP_ID

@@ -899,6 +899,148 @@ class VerificationLogChannel(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
+class LinkedRole(Base):
+    """The role a guild gives every member who links a VRChat account (#359).
+
+    Optional and free. Given whether or not VRChat reports the member as 18+;
+    the 18+ role (`servers.role_id`) is still given only to 18+ members. A
+    guild with no row here behaves exactly as it did before this existed.
+
+    Its own table for the reason `verification_log_channel` gives:
+    create_all() adds missing tables but never columns.
+    """
+
+    __tablename__ = "linked_role"
+    server_id = Column(String, primary_key=True)
+    role_id = Column(String, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+def linked_role_id(session, guild_id) -> Optional[str]:
+    """This guild's Linked role id, read in the caller's session, or None."""
+    row = session.query(LinkedRole).filter_by(server_id=panel_view_key(guild_id)).first()
+    return row.role_id if row else None
+
+
+INVITE_AUDIENCE_VERIFIED = "verified"
+INVITE_AUDIENCE_LINKED = "linked"
+
+
+class GroupInviteAudience(Base):
+    """Who a guild's group invites may go to (#359). Premium, like the invites.
+
+    No row means `verified`: 18+ members only, which is every guild today.
+    `linked` opens invites to any member with a linked VRChat account, 18+ or
+    not. VRChat itself still keeps accounts that are not age verified out of
+    age-verified instances; groups have no age setting of their own.
+
+    Its own table for the reason `verification_log_channel` gives.
+    """
+
+    __tablename__ = "group_invite_audience"
+    server_id = Column(String, primary_key=True)
+    audience = Column(String, nullable=False, default=INVITE_AUDIENCE_VERIFIED)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+def link_conflict(session, discord_id, vrc_user_id) -> Optional[str]:
+    """Why this Discord account may not be linked to this VRChat account, or None.
+
+    A link can't be switched to a different VRChat account (#359), and a
+    VRChat account linked to one Discord account can't be claimed by another.
+    The only way out of a link is deleting the member's record, which the
+    privacy policy offers as a right.
+    """
+    user = session.query(User).filter_by(discord_id=str(discord_id)).first()
+    if user and user.vrc_user_id and user.vrc_user_id != vrc_user_id:
+        return locales.LINK_CANNOT_CHANGE
+    other = session.query(User).filter_by(vrc_user_id=vrc_user_id).first()
+    if other and str(other.discord_id) != str(discord_id):
+        return locales.VRC_ID_ALREADY_LINKED
+    return None
+
+
+def load_linked_role_id(guild_id) -> Optional[str]:
+    """This guild's Linked role id, in its own session. Raises on a database
+    error, like load_group_invite_config: the settings writer read-modify-
+    writes it, and "no Linked role" for a blip would clear a real one."""
+    with session_scope() as session:
+        return linked_role_id(session, guild_id)
+
+
+def set_linked_role(guild_id, role_id: Optional[str]) -> None:
+    """Store or clear the Linked role. Keyed by panel_view_key, as it is read."""
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        row = session.query(LinkedRole).filter_by(server_id=key).first()
+        if role_id is None:
+            if row is not None:
+                session.delete(row)
+            return
+        if row is None:
+            session.add(LinkedRole(server_id=key, role_id=str(role_id)))
+        else:
+            row.role_id = str(role_id)
+            row.updated_at = datetime.now(timezone.utc)
+
+
+def load_group_invite_audience(guild_id) -> str:
+    """The stored audience, or `verified` when there is no row. Raises on a
+    database error, for the reason load_linked_role_id gives."""
+    with session_scope() as session:
+        row = (
+            session.query(GroupInviteAudience)
+            .filter_by(server_id=panel_view_key(guild_id))
+            .first()
+        )
+        return row.audience if row else INVITE_AUDIENCE_VERIFIED
+
+
+def set_group_invite_audience(guild_id, audience: str) -> None:
+    key = panel_view_key(guild_id)
+    with session_scope() as session:
+        row = session.query(GroupInviteAudience).filter_by(server_id=key).first()
+        if row is None:
+            session.add(GroupInviteAudience(server_id=key, audience=audience))
+        else:
+            row.audience = audience
+            row.updated_at = datetime.now(timezone.utc)
+
+
+def invites_linked_members(guild_id, guild=None) -> bool:
+    """Whether this guild's group invites may go to linked members who are
+    not 18+.
+
+    Needs BOTH the `linked` audience and a Linked role (Phillip, 2026-09-24).
+    Without a Linked role a member who is not 18+ is told "you are not 18+"
+    and given nothing, and an invite offer right after that would read as a
+    contradiction. Checked here as well as when the setting is saved, so a
+    Linked role cleared from the settings -- or, when `guild` is passed,
+    deleted in Discord -- closes invites to linked members instead of leaving
+    them open.
+
+    Raises on a database error, like the other reads its callers make; each
+    caller decides what "could not tell" means for it.
+    """
+    with session_scope() as session:
+        row = (
+            session.query(GroupInviteAudience)
+            .filter_by(server_id=panel_view_key(guild_id))
+            .first()
+        )
+        if row is None or row.audience != INVITE_AUDIENCE_LINKED:
+            return False
+        linked_id = linked_role_id(session, guild_id)
+    if not linked_id:
+        return False
+    if guild is None:
+        return True
+    try:
+        return guild.get_role(int(linked_id)) is not None
+    except (TypeError, ValueError):
+        return False
+
+
 # How far a guild's VRChat group setup has got, as stored in
 # group_invite_config.verify_state.
 #
@@ -2677,6 +2819,9 @@ class SettingsField:
 # "update an arbitrary row" if it only knows about these.
 SETTINGS_FIELDS = (
     SettingsField("role_id", None, write_locked=False),
+    # The Linked role (#359). Free, like the 18+ role: given to every member
+    # who links, 18+ or not.
+    SettingsField("linked_role_id", None, write_locked=False),
     SettingsField(
         "unverified_role_id", FEATURE_UNVERIFIED_ROLE_REMOVAL, write_locked=False
     ),
@@ -2697,6 +2842,11 @@ SETTINGS_FIELDS = (
     SettingsField("vrchat_group_id", FEATURE_GROUP_INVITE, write_locked=True),
     SettingsField(
         "vrchat_group_invite_enabled", FEATURE_GROUP_INVITE, write_locked=True
+    ),
+    # Who the invites may go to (#359): 18+ members only, or any linked
+    # member. write_locked with the rest of the group settings.
+    SettingsField(
+        "vrchat_group_invite_audience", FEATURE_GROUP_INVITE, write_locked=True
     ),
     # write_locked for the reason vrchat_group_id gives. The switch is the
     # admin's; whether anything is synced also needs a proven group, the plan
@@ -2746,6 +2896,7 @@ DASHBOARD_WRITABLE_FIELDS = frozenset(
         "panel_embed_color",
         "panel_show_icon",
         "role_id",
+        "linked_role_id",
         "unverified_role_id",
         "auto_verify_new_members",
         "auto_nickname_change",
@@ -2753,6 +2904,7 @@ DASHBOARD_WRITABLE_FIELDS = frozenset(
         "verification_log_channel_id",
         "vrchat_group_id",
         "vrchat_group_invite_enabled",
+        "vrchat_group_invite_audience",
         "calendar_sync_enabled",
         "calendar_announce_channel_id",
         "calendar_ping_role_id",
@@ -2869,6 +3021,12 @@ def _role_coercer(field_name: str, *, required: bool):
 # How many roles may approve or deny join requests. Enough for any real mod
 # team; a cap so the list cannot be used to store an unbounded payload.
 JOIN_REQUEST_MOD_ROLES_MAX = 10
+
+
+def _coerce_invite_audience(value):
+    if value not in (INVITE_AUDIENCE_VERIFIED, INVITE_AUDIENCE_LINKED):
+        raise SettingRejected("vrchat_group_invite_audience", "not_an_audience")
+    return value
 
 
 def _coerce_role_list(value):
@@ -2999,7 +3157,11 @@ SETTING_COERCERS = {
     "instructions_locale": _coerce_locale,
     "panel_embed_color": _coerce_embed_color,
     "panel_show_icon": _coerce_show_icon,
-    "role_id": _role_coercer("role_id", required=True),
+    # Not required on its own any more (#359): a guild may give only the
+    # Linked role. "At least one of the two" is checked across fields in
+    # write_dashboard_settings, where both are in view.
+    "role_id": _role_coercer("role_id", required=False),
+    "linked_role_id": _role_coercer("linked_role_id", required=False),
     "unverified_role_id": _role_coercer("unverified_role_id", required=False),
     "auto_verify_new_members": _bool_coercer("auto_verify_new_members"),
     "auto_nickname_change": _bool_coercer("auto_nickname_change"),
@@ -3011,6 +3173,7 @@ SETTING_COERCERS = {
     ),
     "vrchat_group_id": parse_vrchat_group_id,
     "vrchat_group_invite_enabled": _bool_coercer("vrchat_group_invite_enabled"),
+    "vrchat_group_invite_audience": _coerce_invite_audience,
     "calendar_sync_enabled": _bool_coercer("calendar_sync_enabled"),
     "calendar_announce_channel_id": _role_coercer("calendar_announce_channel_id", required=False),
     "calendar_ping_role_id": _role_coercer("calendar_ping_role_id", required=False),
@@ -3031,7 +3194,9 @@ SETTING_COERCERS = {
 # Existence is different: it is the guarantee Discord's picker provides for
 # free and the dashboard has to provide for itself, because it submits a raw
 # id rather than a choice from a list the platform vouched for.
-ROLE_FIELDS = frozenset({"role_id", "unverified_role_id", "calendar_ping_role_id"})
+ROLE_FIELDS = frozenset(
+    {"role_id", "linked_role_id", "unverified_role_id", "calendar_ping_role_id"}
+)
 
 # The log channel, which unlike a role has rules beyond existing.
 #
@@ -4056,6 +4221,8 @@ def resolve_premium_flags_from_interaction(
 LOG_OUTCOME_VERIFIED = locales.LOG_VERIFIED
 LOG_OUTCOME_ROLE_FAILED = locales.LOG_ROLE_FAILED
 LOG_OUTCOME_NOT_18 = locales.LOG_NOT_18
+LOG_OUTCOME_LINKED = locales.LOG_LINKED
+LOG_OUTCOME_LINKED_ROLE_FAILED = locales.LOG_LINKED_ROLE_FAILED
 
 
 class VerificationLogBuffer:
@@ -7281,7 +7448,8 @@ class VRCVerifyInstructionView(View):
 # preceded it and like the dashboard itself; the member-facing instructions
 # panel is the localized surface and stays that way.
 SETTINGS_SUMMARY_LABELS = (
-    ("role_id", "Verified role"),
+    ("role_id", "18+ role"),
+    ("linked_role_id", "Linked role"),
     ("unverified_role_id", "Unverified role"),
     ("auto_verify_new_members", "Auto-verify on join"),
     ("auto_nickname_change", "Nickname sync"),
@@ -7292,6 +7460,7 @@ SETTINGS_SUMMARY_LABELS = (
     ("verification_log_channel_id", "Activity log"),
     ("vrchat_group_id", "VRChat group"),
     ("vrchat_group_invite_enabled", "Group invites"),
+    ("vrchat_group_invite_audience", "Who can be invited"),
     ("calendar_sync_enabled", "Calendar sync"),
     ("calendar_announce_channel_id", "Join link channel"),
     ("calendar_ping_role_id", "Join link ping"),
@@ -7300,7 +7469,9 @@ SETTINGS_SUMMARY_LABELS = (
     ("join_request_mod_role_ids", "Join request roles"),
 )
 
-ROLE_SUMMARY_FIELDS = frozenset({"role_id", "unverified_role_id", "calendar_ping_role_id"})
+ROLE_SUMMARY_FIELDS = frozenset(
+    {"role_id", "linked_role_id", "unverified_role_id", "calendar_ping_role_id"}
+)
 # The one list-valued setting (see the SettingsField comment above): every
 # role that may approve or deny, rendered as one mention per role rather than
 # forced through the single-role path above.
@@ -7343,6 +7514,8 @@ def _summary_value(name: str, value, guild: discord.Guild) -> str:
         return channel.mention if channel else f"Deleted channel ({value})"
     if name == "panel_embed_color":
         return f"#{int(value):06X}"
+    if name == "vrchat_group_invite_audience":
+        return "Any linked member" if value == INVITE_AUDIENCE_LINKED else "18+ members only"
     if isinstance(value, bool):
         return "On" if value else "Off"
     if name == "custom_verification_requested_message":
@@ -7395,6 +7568,16 @@ async def build_settings_summary(guild: discord.Guild) -> Optional[discord.Embed
             continue
         state = fields.get(name) or {}
         text = _summary_value(name, state.get("value"), guild)
+        linked_value = (fields.get("linked_role_id") or {}).get("value")
+        if (
+            name == "vrchat_group_invite_audience"
+            and state.get("value") == INVITE_AUDIENCE_LINKED
+            # The role itself, as invites_linked_members checks it: a Linked
+            # role deleted in Discord closes invites just as a cleared one does.
+            and not (str(linked_value).isdigit() and guild.get_role(int(linked_value)))
+        ):
+            # What the bot actually does, as invites_linked_members decides it.
+            text = "18+ members only (no Linked role available)"
         # The same two-kinds-of-gated distinction the website draws, for the
         # same reason: "locked" means the bot refuses to store it, "not
         # applied" means it is stored and simply not acted on. Collapsing them
@@ -7823,7 +8006,9 @@ async def process_verification(interaction: discord.Interaction):
     # Use a session block to load data and extract only the necessary values.
     with session_scope() as session:
         server = session.query(Server).filter_by(server_id=guild_id).first()
-        if not server or not server.role_id:
+        # Either role is enough to verify against (#359): a guild may give only
+        # the Linked role.
+        if not server or not (server.role_id or linked_role_id(session, guild_id)):
             await interaction.response.send_message(
                 get_message(locales.SETUP_MISSING, interaction), ephemeral=True
             )
@@ -8083,8 +8268,9 @@ GROUP_INVITE_MESSAGE_KEYS = {
     GROUP_INVITE_NO_PERMISSION: locales.GROUP_INVITE_SETUP_PROBLEM,
     GROUP_INVITE_VRCHAT_UNAVAILABLE: locales.GROUP_INVITE_UNAVAILABLE,
     # Not "try again in a few minutes": a job the worker calls malformed is a
-    # stored VRChat id that will be just as malformed next time. The only
-    # thing that changes it is verifying again, which is what this says.
+    # stored VRChat id that will be just as malformed next time. A link is
+    # permanent (#359), so verifying again cannot change it either; the
+    # message sends the member to a server admin.
     GROUP_INVITE_BAD_JOB: locales.GROUP_INVITE_ACCOUNT_MISSING,
     GROUP_INVITE_TIMED_OUT: locales.GROUP_INVITE_UNAVAILABLE,
     GROUP_INVITE_WORKER_UNREACHABLE: locales.GROUP_INVITE_UNAVAILABLE,
@@ -8137,7 +8323,8 @@ class GroupInviteButton(
 
     Neither field is trusted for anything. They select a row; every question
     that follows -- is the feature on, is the plan current, is this member
-    still 18+, has this member already asked -- is answered from that row and
+    still eligible (18+, or linked where invites are open to linked members),
+    has this member already asked -- is answered from that row and
     from the member's own record. A custom_id can only come from a message this
     bot posted, but the config behind it can have changed completely since it
     did.
@@ -8230,7 +8417,7 @@ async def offer_group_invite(
     instr_locale: Optional[str] = None,
     premium: Optional["PremiumFlags"] = None,
 ) -> None:
-    """DM a freshly verified member the opt-in button, if they should have one.
+    """DM a freshly verified or linked member the opt-in button, if they should have one.
 
     Nothing here touches VRChat. The whole point of the opt-in design is that
     no invite exists until the member asks for one, and a membership check
@@ -8270,17 +8457,19 @@ async def offer_group_invite(
         # sentence worth sending about it.
         return
     if not verified:
-        # Belt and braces: this function is only ever called from assign_role's
-        # 18+ branch, so reaching here means the stored verdict disagrees with
-        # the one that just ran. Offering anyway would put a live button in the
-        # DMs of somebody the database says is not 18+.
-        logger.warning(
-            "Declined to offer member %s a group invite in guild %s: the "
-            "stored verification says they are not 18+.",
-            member.id,
-            guild_id,
-        )
-        return
+        # Silent, like every other "no" here. The common case since #359:
+        # assign_role offers after every successful link, and in a guild whose
+        # invites are for 18+ members only a linked member is not one of them.
+        # The stored verdict is what decides, never the caller's argument.
+        try:
+            open_to_linked = invites_linked_members(guild_id, guild)
+        except Exception:
+            logger.warning(
+                "Could not read the invite audience for guild %s.", guild_id, exc_info=True
+            )
+            return
+        if not open_to_linked:
+            return
 
     try:
         request = load_group_invite_request(guild_id, member.id)
@@ -8320,7 +8509,9 @@ async def offer_group_invite(
     try:
         await member.send(
             get_message(
-                locales.DM_GROUP_INVITE_OFFER,
+                # "You're verified" would be false for a linked member who is
+                # not 18+, so they get the same offer worded for a link.
+                locales.DM_GROUP_INVITE_OFFER if verified else locales.DM_GROUP_INVITE_OFFER_LINKED,
                 SimpleNamespace(locale=locale_code),
                 server=guild.name,
                 group=(config.get("group_name") or "their VRChat group"),
@@ -8476,7 +8667,8 @@ async def handle_group_invite_press(
         await settle(locales.GROUP_INVITE_UNAVAILABLE)
         return
 
-    # Is this member 18+ RIGHT NOW?
+    # Is this member 18+ RIGHT NOW -- or, in a guild whose invites are open to
+    # linked members (#359), linked?
     #
     # Checked here for the same reason guild membership is, only more so: this
     # DM never expires and the button routes for ever, so an offer made to
@@ -8488,7 +8680,23 @@ async def handle_group_invite_press(
     # Never retryable. Their verification is the thing that is wrong, and no
     # amount of pressing this button will fix it; the sentence points them at
     # verifying again instead.
+    #
+    # The audience is re-read here like everything else: it may have been set
+    # back to 18+ only, or the Linked role removed, since the offer. A failed
+    # read is "could not tell", which is retryable, not a refusal.
+    open_to_linked = False
     if not verified:
+        try:
+            open_to_linked = invites_linked_members(guild_id, guild)
+        except Exception:
+            logger.warning(
+                "Could not read the invite audience for guild %s on press.",
+                guild_id,
+                exc_info=True,
+            )
+            await settle(locales.GROUP_INVITE_UNAVAILABLE, retryable=True)
+            return
+    if not verified and not open_to_linked:
         logger.warning(
             "Refused a group invite for member %s in guild %s: not verified 18+.",
             interaction.user.id,
@@ -8662,8 +8870,17 @@ async def assign_role(
     display_name: str | None = None
 ):
     """
-    Assigns or skips the 18+ role in one guild.
-    Automatically updates the nickname if the server setting is on.
+    Gives a member this guild's roles after a verification, or tells them why not.
+
+    Two roles, both optional, at least one set (#359):
+
+    * the 18+ role (`servers.role_id`), only for members VRChat reports as 18+
+    * the Linked role (`linked_role`), for every member who linked, 18+ or not
+
+    A guild with no Linked role behaves exactly as before: 18+ gets the role,
+    anyone else is told they are not 18+. A guild with one treats linking as
+    the success, so the Unverified role, nickname sync and the custom DM follow
+    the link rather than the 18+ verdict.
     """
     # Load server settings
     with session_scope() as session:
@@ -8685,6 +8902,7 @@ async def assign_role(
             .first()
         )
         log_channel_id = log_row.channel_id if log_row else None
+        linked_id = linked_role_id(session, guild_id)
 
     guild = bot.get_guild(int(guild_id))
     if not guild:
@@ -8696,143 +8914,28 @@ async def assign_role(
         logger.warning(f"⚠️ Member {discord_id} not in guild.")
         return
 
-    if not role_id:
+    if not role_id and not linked_id:
         logger.warning(f"⚠️ No verification role configured for guild {guild_id}.")
         return
 
-    role = discord.utils.get(guild.roles, id=int(role_id))
-    if not role:
+    # A configured role that has since been deleted is skipped with a warning,
+    # and the other one still works. Only when neither is usable does this give
+    # up -- which, for a guild with no Linked role, is exactly the old early
+    # return on a deleted 18+ role.
+    role = discord.utils.get(guild.roles, id=int(role_id)) if role_id else None
+    if role_id and not role:
         logger.warning(f"⚠️ Role ID {role_id} missing in guild {guild_id}.")
+    linked_role = discord.utils.get(guild.roles, id=int(linked_id)) if linked_id else None
+    if linked_id and not linked_role:
+        logger.warning(f"⚠️ Linked role ID {linked_id} missing in guild {guild_id}.")
+    if not role and not linked_role:
         return
 
-    # Assign or notify
-    if is_18_plus:
-        # Resolved here rather than at the top of the function: every gated
-        # feature below lives in this branch, and everything above can return
-        # early. Resolving sooner meant a REST round-trip for members who had
-        # left, guilds with no role configured, and — on every failed
-        # verification — the not-18+ path, which uses none of these.
-        #
-        # Resolved once rather than per-feature, since three separate calls
-        # would mean three entitlement reads per verification.
-        premium = await resolve_premium_flags(guild_id)
-        if not premium.allows(FEATURE_UNVERIFIED_ROLE_REMOVAL):
-            unverified_role_id = None
-        if not premium.allows(FEATURE_NICKNAME_SYNC):
-            auto_nick = False
-        if not premium.allows(FEATURE_CUSTOM_DM):
-            # Falls through to the standard localized success DM below, so the
-            # member still hears that they were verified.
-            custom_success_msg = None
-
-        # Reuses the flags already resolved above rather than asking again.
-        loggable = log_channel_id if premium.allows(FEATURE_ACTIVITY_LOG) else None
-
-        # 1) Add verified role first
-        try:
-            await member.add_roles(role)
-            logger.info(f"Assigned role {role.name} to {member}.")
-            queue_verification_log(
-                guild_id, discord_id, LOG_OUTCOME_VERIFIED, loggable, instr_locale
-            )
-            if custom_success_msg:
-                try:
-                    await member.send(custom_success_msg)
-                except discord.Forbidden:
-                    logger.warning(f"⚠️ Cannot DM user {member.id} custom success message.")
-            else:
-                await dm_localized(member, guild, locales.DM_ROLE_SUCCESS, instr_locale, role=role.name, server=guild.name)
-        except discord.Forbidden:
-            logger.warning(f"Missing permission to add {role.name} in {guild_id}.")
-            # The failure mode an admin would otherwise never learn about: the
-            # member is told privately, and the server sees nothing at all.
-            queue_verification_log(
-                guild_id, discord_id, LOG_OUTCOME_ROLE_FAILED, loggable, instr_locale
-            )
-            await dm_role_assignment_failure(member, role, guild, instr_locale)
-
-        # 2) Remove unverified role (if configured)
-        unverified_role = None
-        if unverified_role_id:
-            unverified_role = discord.utils.get(guild.roles, id=int(unverified_role_id))
-            if unverified_role and unverified_role in member.roles:
-                try:
-                    await member.remove_roles(unverified_role)
-                    logger.info(f"Removed unverified role {unverified_role.name} from {member}.")
-                except discord.Forbidden:
-                    logger.warning(f"Missing permission to remove {unverified_role.name} in {guild_id}.")
-                    await dm_localized(
-                        member,
-                        guild,
-                        locales.DM_UNVERIFIED_FAILED_BOT_POSITION,
-                        instr_locale,
-                        role=unverified_role.name,
-                        server=guild.name
-                    )
-
-
-            # 3) Delayed re-check after 1s to catch race conditions with other bots
-            async def _delayed_cleanup():
-                try:
-                    await asyncio.sleep(1)
-                    try:
-                        fresh_member = await guild.fetch_member(int(discord_id))
-                    except Exception:
-                        fresh_member = None
-                    if fresh_member and unverified_role and unverified_role in fresh_member.roles:
-                        try:
-                            await fresh_member.remove_roles(unverified_role)
-                            logger.info(f"(retry) Removed unverified role {unverified_role.name} from {fresh_member}.")
-                        except discord.Forbidden:
-                            logger.warning(f"Missing permission to remove {unverified_role.name} in {guild_id} on retry.")
-                except Exception:
-                    logger.warning("Delayed unverified role cleanup failed.", exc_info=True)
-
-            if unverified_role is not None:
-                asyncio.create_task(_delayed_cleanup())
-
-        # Auto-nickname change if enabled
-        safe_nick = discord_safe_nickname(display_name)
-        if auto_nick and safe_nick:
-            try:
-                await member.edit(nick=safe_nick)
-                logger.info(f"🔄 Updated nickname to {safe_nick} for {member}.")
-                await dm_localized(member, guild, locales.NICKNAME_UPDATED, instr_locale, display_name=safe_nick)
-            # Forbidden subclasses HTTPException; catching the parent also covers
-            # a 400 from an unacceptable nickname. Letting that escape would skip
-            # the milestone bookkeeping that runs after assign_role returns.
-            except discord.HTTPException:
-                logger.warning(f"Could not set nickname for {member}.", exc_info=True)
-                await dm_localized(member, guild, locales.NICKNAME_UPDATE_FAILED, instr_locale)
-
-        # Last, and in its own DM. Every path that verifies somebody arrives
-        # here -- a fresh verification, a re-check, pressing Begin Verification
-        # while already verified, and auto-verify on join -- because all four
-        # call assign_role, which is why the offer lives here rather than in
-        # any one of them.
-        #
-        # Its own message rather than a button on the success DM above: that
-        # DM can be a server's custom text, which an admin wrote without
-        # knowing a button would be attached to it.
-        #
-        # Reuses the flags resolved at the top of this branch, so the offer
-        # costs no extra entitlement read. offer_group_invite is silent for
-        # everyone who should not see it.
-        try:
-            await offer_group_invite(member, guild, instr_locale, premium)
-        except Exception:
-            # Never let this take down a verification that has already
-            # succeeded. The role is on, the DM has gone out, and the milestone
-            # bookkeeping after this call still has to run.
-            logger.exception(
-                "Could not offer a group invite to %s in guild %s.",
-                discord_id,
-                guild_id,
-            )
-    else:
-        # Not 18+. Resolved separately from the branch above, which never runs
-        # here — and still short-circuits before the entitlement read when the
-        # guild has no log channel configured.
+    if not is_18_plus and not linked_role:
+        # Not 18+, and nothing to give for linking: the path every guild took
+        # before the Linked role existed, unchanged. Resolved separately from
+        # the success path below, which is where the entitlement read lives --
+        # and still short-circuits before it when the guild has no log channel.
         queue_verification_log(
             guild_id,
             discord_id,
@@ -8841,6 +8944,212 @@ async def assign_role(
             instr_locale,
         )
         await dm_localized(member, guild, locales.NOT_18_PLUS, instr_locale)
+        return
+
+    # From here the member gets at least one role. Premium is resolved here
+    # rather than at the top of the function: every gated feature below lives
+    # on this path, and everything above can return early. Resolving sooner
+    # meant a REST round-trip for members who had left, guilds with no role
+    # configured, and -- on every failed verification in a guild without a
+    # Linked role -- the not-18+ path, which uses none of these.
+    #
+    # Resolved once rather than per-feature, since three separate calls
+    # would mean three entitlement reads per verification.
+    premium = await resolve_premium_flags(guild_id)
+    if not premium.allows(FEATURE_UNVERIFIED_ROLE_REMOVAL):
+        unverified_role_id = None
+    if not premium.allows(FEATURE_NICKNAME_SYNC):
+        auto_nick = False
+    if not premium.allows(FEATURE_CUSTOM_DM):
+        # Falls through to the standard localized success DM below, so the
+        # member still hears that they were verified.
+        custom_success_msg = None
+
+    # Reuses the flags already resolved above rather than asking again.
+    loggable = log_channel_id if premium.allows(FEATURE_ACTIVITY_LOG) else None
+
+    # 1) Add the roles first, one call each, so a refusal names the role
+    # Discord actually refused. 18+ before Linked: for a guild with no Linked
+    # role this is the one call it always made, and anything Discord raises
+    # other than Forbidden escapes exactly as it always did.
+    holds_18_role = bool(role) and role in getattr(member, "roles", [])
+    grants = [r for r in (role if is_18_plus else None, linked_role) if r]
+    failed = []
+    # Only a Forbidden is the bot's role sitting too low; the member is told
+    # how to fix that. A 404 or 5xx on the Linked role is logged, not DMed.
+    forbidden = []
+    for granted in grants:
+        try:
+            await member.add_roles(granted)
+            logger.info(f"Assigned role {granted.name} to {member}.")
+        except discord.Forbidden:
+            logger.warning(f"Missing permission to add {granted.name} in {guild_id}.")
+            failed.append(granted)
+            forbidden.append(granted)
+        except discord.HTTPException:
+            # Only the Linked role is caught here. The 18+ role's other errors
+            # escape exactly as they always did, and the Linked role is an
+            # optional extra that must not stop a verification halfway: a
+            # role deleted a moment ago answers 404, and a 5xx is not the
+            # member's problem.
+            if granted is not linked_role:
+                raise
+            logger.warning(
+                f"Could not add {granted.name} in {guild_id}.", exc_info=True
+            )
+            failed.append(granted)
+
+    if failed:
+        # The failure mode an admin would otherwise never learn about: the
+        # member is told privately, and the server sees nothing at all. The
+        # log line names the 18+ role only when that is the one refused.
+        # One line per refused role, so an admin whose bot is below both is
+        # told about both.
+        if role in failed:
+            queue_verification_log(
+                guild_id, discord_id, LOG_OUTCOME_ROLE_FAILED, loggable, instr_locale
+            )
+        if linked_role in failed:
+            queue_verification_log(
+                guild_id, discord_id, LOG_OUTCOME_LINKED_ROLE_FAILED, loggable, instr_locale
+            )
+        for refused in forbidden:
+            await dm_role_assignment_failure(member, refused, guild, instr_locale)
+        # One of two went on: say which, or the member hears only the refusal.
+        kept = [r for r in grants if r not in failed]
+        if kept:
+            await dm_localized(
+                member, guild, locales.DM_ROLE_SUCCESS, instr_locale,
+                role=kept[0].name, server=guild.name,
+            )
+    else:
+        queue_verification_log(
+            guild_id,
+            discord_id,
+            LOG_OUTCOME_VERIFIED if is_18_plus else LOG_OUTCOME_LINKED,
+            loggable,
+            instr_locale,
+        )
+        if custom_success_msg:
+            try:
+                await member.send(custom_success_msg)
+            except discord.Forbidden:
+                logger.warning(f"⚠️ Cannot DM user {member.id} custom success message.")
+            # The custom text was most likely written for 18+ members. A linked
+            # member who did not get the 18+ role still has to hear why, so
+            # both go out rather than the admin's text hiding the reason.
+            if not is_18_plus and role and not holds_18_role:
+                await dm_localized(
+                    member, guild, locales.DM_LINKED_NOT_18, instr_locale,
+                    linked_role=linked_role.name, role=role.name, server=guild.name,
+                )
+        elif is_18_plus and role and linked_role:
+            await dm_localized(
+                member, guild, locales.DM_ROLES_SUCCESS, instr_locale,
+                role=role.name, linked_role=linked_role.name, server=guild.name,
+            )
+        elif is_18_plus:
+            await dm_localized(
+                member, guild, locales.DM_ROLE_SUCCESS, instr_locale,
+                role=grants[0].name, server=guild.name,
+            )
+        elif role and not holds_18_role:
+            # Only when the guild HAS an 18+ role is there one to explain the
+            # absence of. A Linked-only guild just confirms the link, and so
+            # does this one for a member who still holds the 18+ role: a
+            # re-check never removes it (VRChat lets a member hide the badge),
+            # and "you didn't get it" would contradict the role they have.
+            await dm_localized(
+                member, guild, locales.DM_LINKED_NOT_18, instr_locale,
+                linked_role=linked_role.name, role=role.name, server=guild.name,
+            )
+        else:
+            await dm_localized(
+                member, guild, locales.DM_LINKED_SUCCESS, instr_locale,
+                role=linked_role.name, server=guild.name,
+            )
+
+    # 2) Remove unverified role (if configured). It comes off at the lowest
+    # role the guild has set up: the Linked role if there is one, otherwise the
+    # 18+ role. Both mean this path, so it always runs here.
+    unverified_role = None
+    if unverified_role_id:
+        unverified_role = discord.utils.get(guild.roles, id=int(unverified_role_id))
+        if unverified_role and unverified_role in member.roles:
+            try:
+                await member.remove_roles(unverified_role)
+                logger.info(f"Removed unverified role {unverified_role.name} from {member}.")
+            except discord.Forbidden:
+                logger.warning(f"Missing permission to remove {unverified_role.name} in {guild_id}.")
+                await dm_localized(
+                    member,
+                    guild,
+                    locales.DM_UNVERIFIED_FAILED_BOT_POSITION,
+                    instr_locale,
+                    role=unverified_role.name,
+                    server=guild.name
+                )
+
+
+        # 3) Delayed re-check after 1s to catch race conditions with other bots
+        async def _delayed_cleanup():
+            try:
+                await asyncio.sleep(1)
+                try:
+                    fresh_member = await guild.fetch_member(int(discord_id))
+                except Exception:
+                    fresh_member = None
+                if fresh_member and unverified_role and unverified_role in fresh_member.roles:
+                    try:
+                        await fresh_member.remove_roles(unverified_role)
+                        logger.info(f"(retry) Removed unverified role {unverified_role.name} from {fresh_member}.")
+                    except discord.Forbidden:
+                        logger.warning(f"Missing permission to remove {unverified_role.name} in {guild_id} on retry.")
+            except Exception:
+                logger.warning("Delayed unverified role cleanup failed.", exc_info=True)
+
+        if unverified_role is not None:
+            asyncio.create_task(_delayed_cleanup())
+
+    # Auto-nickname change if enabled. Needs only the link, so it follows it.
+    safe_nick = discord_safe_nickname(display_name)
+    if auto_nick and safe_nick:
+        try:
+            await member.edit(nick=safe_nick)
+            logger.info(f"🔄 Updated nickname to {safe_nick} for {member}.")
+            await dm_localized(member, guild, locales.NICKNAME_UPDATED, instr_locale, display_name=safe_nick)
+        # Forbidden subclasses HTTPException; catching the parent also covers
+        # a 400 from an unacceptable nickname. Letting that escape would skip
+        # the milestone bookkeeping that runs after assign_role returns.
+        except discord.HTTPException:
+            logger.warning(f"Could not set nickname for {member}.", exc_info=True)
+            await dm_localized(member, guild, locales.NICKNAME_UPDATE_FAILED, instr_locale)
+
+    # Last, and in its own DM. Every path that verifies somebody arrives
+    # here -- a fresh verification, a re-check, pressing Begin Verification
+    # while already verified, and auto-verify on join -- because all four
+    # call assign_role, which is why the offer lives here rather than in
+    # any one of them.
+    #
+    # Its own message rather than a button on the success DM above: that
+    # DM can be a server's custom text, which an admin wrote without
+    # knowing a button would be attached to it.
+    #
+    # For linked members too: offer_group_invite decides from the stored
+    # verdict and the guild's invite audience (#359), and is silent for
+    # everyone who should not see it. The flags resolved above let it return
+    # before any read on a guild without Premium.
+    try:
+        await offer_group_invite(member, guild, instr_locale, premium)
+    except Exception:
+        # Never let this take down a verification that has already
+        # succeeded. The role is on, the DM has gone out, and the milestone
+        # bookkeeping after this call still has to run.
+        logger.exception(
+            "Could not offer a group invite to %s in guild %s.",
+            discord_id,
+            guild_id,
+        )
 
 
 # -------------------------------------------------------------------
@@ -8980,6 +9289,19 @@ class VRCVerificationButton(discord.ui.View):
                 return
             vrc_user_id = pending.vrc_user_id
             verification_code = pending.verification_code
+            # A link can't be switched to a different VRChat account (#359).
+            # The link form only opens for a member with no stored account,
+            # but two forms opened in two servers before either finished used
+            # to let the second overwrite the first. handle_verification_result
+            # refuses the same thing authoritatively; this answers at once.
+            refusal = link_conflict(session, discord_id, vrc_user_id)
+            if refusal:
+                session.delete(pending)
+        if refusal:
+            await interaction.response.send_message(
+                get_message(refusal, interaction), ephemeral=True
+            )
+            return
 
         await interaction.response.defer(ephemeral=True)
 
@@ -9000,7 +9322,7 @@ class VRCVerificationButton(discord.ui.View):
 # Slash Command: /vrcverify
 # -------------------------------------------------------------------
 @app_commands.guild_only()
-@bot.tree.command(name="vrcverify", description="Verify your VRChat 18+ status")
+@bot.tree.command(name="vrcverify", description="Link your VRChat account and verify your 18+ status")
 async def vrcverify(interaction: discord.Interaction):
     await process_verification(interaction)
 
@@ -9011,25 +9333,69 @@ async def vrcverify(interaction: discord.Interaction):
 @app_commands.checks.has_permissions(administrator=True)
 @bot.tree.command(
     name="vrcverify_setup",
-    description="Admin command: Set or update the verified role for this server."
+    description="Admin command: set the verified role, the Linked role, or both for this server."
 )
 @app_commands.describe(
-    verified_role="Role to assign to verified users (required)",
-    unverified_role="Optional role to remove from users once verified"
+    verified_role="Role for members VRChat reports as 18+ (leave out to keep the current one)",
+    linked_role="Role for everyone who links a VRChat account, 18+ or not (leave out to keep the current one)",
+    unverified_role="Optional role to remove from users once verified (leave out to clear it)"
 )
-@app_commands.rename(verified_role="verified-role", unverified_role="unverified-role")
+@app_commands.rename(
+    verified_role="verified-role",
+    linked_role="linked-role",
+    unverified_role="unverified-role",
+)
 async def vrcverify_setup(
     interaction: discord.Interaction,
-    verified_role: discord.Role,
+    verified_role: Optional[discord.Role] = None,
+    linked_role: Optional[discord.Role] = None,
     unverified_role: Optional[discord.Role] = None
 ):
     """
     Inserts or updates a row in the 'servers' table with this server_id,
     storing the admin's user ID as 'owner_id' and the chosen role ID as 'role_id'.
+
+    Both verification roles are optional since #359, and one left out keeps
+    its current value, so an admin can add a Linked role without picking the
+    18+ role again. At least one has to end up set, and the Linked role must
+    differ from the other two -- the same rules the dashboard's save applies.
+    `unverified-role` still clears when left out, as it always has.
     """
     guild_id = str(interaction.guild.id)
     owner_id = str(interaction.user.id)
-    role_id_str = str(verified_role.id)
+
+    with session_scope() as session:
+        server = session.query(Server).filter_by(server_id=guild_id).first()
+        stored_role = str(server.role_id) if server and server.role_id else None
+        stored_linked = linked_role_id(session, guild_id)
+    final_role = str(verified_role.id) if verified_role else stored_role
+    final_linked = str(linked_role.id) if linked_role else stored_linked
+    final_unverified = str(unverified_role.id) if unverified_role else None
+
+    refusal = None
+    # @everyone and integration-managed roles can't be handed out or taken
+    # away by a bot. Refused for all three options here; the dashboard's
+    # writer refuses @everyone and warns about managed roles (#359 review).
+    def not_grantable(r):
+        is_default = getattr(r, "is_default", None)
+        return bool(getattr(r, "managed", False) or (is_default and is_default()))
+
+    if any(
+        r is not None and not_grantable(r)
+        for r in (verified_role, linked_role, unverified_role)
+    ):
+        refusal = locales.SETUP_ROLE_NOT_GRANTABLE
+    elif not final_role and not final_linked:
+        refusal = locales.SETUP_ROLE_REQUIRED
+    elif final_linked and final_linked == final_role:
+        refusal = locales.SETUP_LINKED_SAME_AS_VERIFIED
+    elif final_linked and final_linked == final_unverified:
+        refusal = locales.SETUP_LINKED_SAME_AS_UNVERIFIED
+    if refusal:
+        await interaction.response.send_message(
+            get_message(refusal, interaction), ephemeral=True
+        )
+        return
 
     with session_scope() as session:
         # See if we already have a row for this server_id
@@ -9039,23 +9405,33 @@ async def vrcverify_setup(
             server = Server(
                 server_id=guild_id,
                 owner_id=owner_id,
-                role_id=role_id_str,
-                unverified_role_id=(str(unverified_role.id) if unverified_role else None)
+                role_id=final_role,
+                unverified_role_id=final_unverified,
             )
             session.add(server)
             action = "created"
         else:
             # Update the existing row
             server.owner_id = owner_id  # optional, if you want to update the owner each time
-            server.role_id = role_id_str
+            server.role_id = final_role
             # Only set if column exists; if migration failed, ignore silently
             try:
-                server.unverified_role_id = (str(unverified_role.id) if unverified_role else None)
+                server.unverified_role_id = final_unverified
             except Exception:
                 pass
             action = "updated"
 
         has_panel = bool(server.instructions_message_id)
+        if linked_role:
+            # In the same transaction as the servers row, so a failure cannot
+            # leave a new server with neither role.
+            key = panel_view_key(guild_id)
+            row = session.query(LinkedRole).filter_by(server_id=key).first()
+            if row is None:
+                session.add(LinkedRole(server_id=key, role_id=str(linked_role.id)))
+            else:
+                row.role_id = str(linked_role.id)
+                row.updated_at = datetime.now(timezone.utc)
 
     # A configured server with no panel is half-configured — members have no
     # button to click. Start the nudge clock so we can follow up if it stays
@@ -9063,14 +9439,25 @@ async def vrcverify_setup(
     if not has_panel:
         record_guild_onboarding(guild_id)
 
-    # Localized confirmation
-    base = get_message(
-        locales.SETUP_SUCCESS,
-        interaction,
-        action=action,
-        role=verified_role.name,
-        role_id=verified_role.id
-    )
+    # Localized confirmation. SETUP_SUCCESS names the 18+ role, so it is
+    # only used when one was just chosen.
+    if verified_role:
+        base = get_message(
+            locales.SETUP_SUCCESS,
+            interaction,
+            action=action,
+            role=verified_role.name,
+            role_id=verified_role.id
+        )
+    else:
+        base = get_message(locales.SETUP_SAVED, interaction, action=action)
+    if linked_role:
+        base += get_message(
+            locales.SETUP_LINKED_SET,
+            interaction,
+            role=linked_role.name,
+            role_id=linked_role.id,
+        )
     if unverified_role:
         extra_local = get_message(
             locales.SETUP_UNVERIFIED_SET,
@@ -9456,12 +9843,17 @@ async def vrcverify_status(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
 
     role_id, panel_entry = load_status_snapshot(guild_id)
+    with session_scope() as session:
+        linked_id = linked_role_id(session, guild_id)
 
     lines = [get_message(locales.STATUS_HEADER, interaction, server=guild.name)]
 
-    if not role_id:
+    # "No role set" only when neither is: a guild that gives only the Linked
+    # role (#359) is set up, and saying otherwise would send its admin to fix
+    # something that is not broken.
+    if not role_id and not linked_id:
         lines.append(get_message(locales.STATUS_ROLE_MISSING, interaction))
-    else:
+    elif role_id:
         try:
             role = guild.get_role(int(role_id))
         except (TypeError, ValueError):
@@ -9470,6 +9862,15 @@ async def vrcverify_status(interaction: discord.Interaction):
             lines.append(get_message(locales.STATUS_ROLE_DELETED, interaction))
         else:
             lines.append(get_message(locales.STATUS_ROLE_OK, interaction, role=role.name))
+    if linked_id:
+        try:
+            linked = guild.get_role(int(linked_id))
+        except (TypeError, ValueError):
+            linked = None
+        if linked is None:
+            lines.append(get_message(locales.STATUS_LINKED_ROLE_DELETED, interaction))
+        else:
+            lines.append(get_message(locales.STATUS_LINKED_ROLE_OK, interaction, role=linked.name))
 
     if panel_entry is None:
         panel_healthy = False
@@ -11795,8 +12196,15 @@ async def handle_verification_result(data: dict):
                     logger.warning(f"⚠️ No user row for {discord_id} in re-check.")
                     return
                 user.verification_status = is_18_plus
-                # preserve vrc_user_id if provided
-                if data.get("vrcUserID"):
+                # Only fills a link that is missing (a legacy row stores the
+                # empty string). A re-check echoes the stored account, so a
+                # different one here is a stale result, and a link can't be
+                # switched (#359).
+                if (
+                    data.get("vrcUserID")
+                    and not user.vrc_user_id
+                    and not link_conflict(session, discord_id, data["vrcUserID"])
+                ):
                     user.vrc_user_id = data["vrcUserID"]
 
             # Now assign role + maybe nickname
@@ -11852,22 +12260,44 @@ async def handle_verification_result(data: dict):
                         logger.warning("⚠️ Cannot DM user about missing code.")
                 return
 
-            # Everything checks out — create/update user row
-            user = session.query(User).filter_by(discord_id=discord_id).first()
-            if not user:
-                # vrc_user_id goes in the constructor because the column is
-                # NOT NULL. It used to be assigned two lines below, which
-                # survived only because nothing flushed in between -- an
-                # autoflush from any query added there would have raised on
-                # production and passed every test. Constructing the row
-                # complete removes the ordering dependency entirely.
-                user = User(discord_id=discord_id, vrc_user_id=data["vrcUserID"])
-                session.add(user)
-                # First successful verification creates the user; set initial last attempt
-                user.last_verification_attempt = datetime.now(timezone.utc)
-            user.vrc_user_id = data["vrcUserID"]
-            user.verification_status = is_18_plus
-            session.delete(pending)
+            # The authoritative half of the check the Verify button makes: a
+            # link can't be switched to another VRChat account, and an account
+            # linked to one Discord account can't be claimed by another. Both
+            # used to be enforced only when the link form opened, so two forms
+            # started before either finished could overwrite a link (#359).
+            refusal = link_conflict(session, discord_id, data["vrcUserID"])
+            if refusal:
+                session.delete(pending)
+            else:
+                # Everything checks out — create/update user row
+                user = session.query(User).filter_by(discord_id=discord_id).first()
+                if not user:
+                    # vrc_user_id goes in the constructor because the column is
+                    # NOT NULL. It used to be assigned two lines below, which
+                    # survived only because nothing flushed in between -- an
+                    # autoflush from any query added there would have raised on
+                    # production and passed every test. Constructing the row
+                    # complete removes the ordering dependency entirely.
+                    user = User(discord_id=discord_id, vrc_user_id=data["vrcUserID"])
+                    session.add(user)
+                    # First successful verification creates the user; set initial last attempt
+                    user.last_verification_attempt = datetime.now(timezone.utc)
+                user.vrc_user_id = data["vrcUserID"]
+                user.verification_status = is_18_plus
+                session.delete(pending)
+
+        if refusal:
+            guild = bot.get_guild(int(guild_id))
+            member = await fetch_member_cached(guild, int(discord_id)) if guild else None
+            if member:
+                try:
+                    await member.send(get_message(
+                        refusal,
+                        SimpleNamespace(locale=(getattr(guild, "preferred_locale", None) or "en-US")),
+                    ))
+                except discord.Forbidden:
+                    logger.warning("⚠️ Cannot DM user about a refused link.")
+            return
 
         # Assign role + maybe nickname
         await assign_role(discord_id, is_18_plus, guild_id, display_name=display_name)
@@ -13648,6 +14078,9 @@ async def dashboard_guild_summaries(user_id, guild_ids) -> Optional[dict]:
                     )
                 )
             )
+            linked_roles = _rows_by_server_id(
+                session.query(LinkedRole).filter(LinkedRole.server_id.in_(keys))
+            )
             # The card half, in one query rather than one per guild.
             stripe_paid = stripe_paid_guild_ids(session, keys)
 
@@ -13672,6 +14105,7 @@ async def dashboard_guild_summaries(user_id, guild_ids) -> Optional[dict]:
                         if has_auto_verify
                         else None,
                         guild,
+                        linked_role_id=getattr(linked_roles.get(key), "role_id", None),
                     ),
                     "panel": _panel_from_values(
                         getattr(row, "instructions_channel_id", None),
@@ -13768,6 +14202,9 @@ async def read_dashboard_settings(guild_id) -> Optional[dict]:
         values["panel_embed_color"] = embed_color
         values["panel_show_icon"] = bool(show_icon)
         values["verification_log_channel_id"] = load_log_channel_id(guild_id)
+        # Same refusal to swallow errors as the group config below.
+        values["linked_role_id"] = load_linked_role_id(guild_id)
+        values["vrchat_group_invite_audience"] = load_group_invite_audience(guild_id)
 
         # Raises rather than returning None on a database error, and that is
         # the point -- see load_group_invite_config. The except at the bottom
@@ -14859,9 +15296,13 @@ def _configuration_from_values(
     log_channel_id,
     auto_verify,
     guild,
+    linked_role_id=None,
 ) -> dict:
     """The configuration booleans, from raw values rather than from a settings
     payload.
+
+    The Linked role (#359) gets the same three facts as the 18+ role, so the
+    Overview can pass a guild that verifies with either.
 
     Split out of `_overview_configuration` for the picker's batch summary,
     which reads the same facts for many guilds at once and must not go through
@@ -14874,12 +15315,16 @@ def _configuration_from_values(
     its own rows: two ways of answering "is this server wired up" is two
     answers that disagree by the third release.
     """
-    role = None
-    if role_id:
+    def resolve(wanted):
+        if not wanted:
+            return None
         try:
-            role = guild.get_role(int(role_id))
+            return guild.get_role(int(wanted))
         except (TypeError, ValueError):
-            role = None
+            return None
+
+    role = resolve(role_id)
+    linked = resolve(linked_role_id)
 
     can_manage = bot_can_manage_roles(guild)
 
@@ -14889,19 +15334,25 @@ def _configuration_from_values(
     # permission, and `_role_row` needs to be able to tell which it is looking
     # at. The composite stays truthful on its own so any caller reading only
     # that field still gets the right answer.
-    role_assignable = None
-    if role is not None:
+    def assignable(target):
+        if target is None:
+            return None
         if can_manage is False:
-            role_assignable = False
-        else:
-            top_role = guild.me.top_role if guild.me is not None else None
-            if top_role is not None:
-                role_assignable = bool(not role.managed and top_role > role)
+            return False
+        top_role = guild.me.top_role if guild.me is not None else None
+        if top_role is None:
+            return None
+        return bool(not target.managed and top_role > target)
+
+    role_assignable = assignable(role)
 
     return {
         "verified_role": bool(role_id),
         "verified_role_exists": (role is not None) if role_id else None,
         "verified_role_assignable": role_assignable,
+        "linked_role": bool(linked_role_id),
+        "linked_role_exists": (linked is not None) if linked_role_id else None,
+        "linked_role_assignable": assignable(linked),
         # Guild-wide rather than per role, and None when it could not be
         # checked. A dashboard older than this field sees it missing, which
         # reads as unknown and leaves the previous behavior intact.
@@ -14945,6 +15396,7 @@ def _overview_configuration(settings: Optional[dict], guild) -> Optional[dict]:
         value("verification_log_channel_id"),
         value("auto_verify_new_members"),
         guild,
+        linked_role_id=value("linked_role_id"),
     )
 
 
@@ -14966,6 +15418,55 @@ def _record_dashboard_audit(session, guild_id, actor_id, changed: list) -> None:
                 new_value=None if new is None else str(new),
             )
         )
+
+
+def _write_invite_audience(session, guild_id, new_audience: str, changed: list) -> None:
+    """Store the invite audience inside the caller's transaction."""
+    key = panel_view_key(guild_id)
+    row = session.query(GroupInviteAudience).filter_by(server_id=key).first()
+    old_audience = row.audience if row else INVITE_AUDIENCE_VERIFIED
+    if old_audience == new_audience:
+        return
+    changed.append(("vrchat_group_invite_audience", old_audience, new_audience))
+    if row is None:
+        session.add(GroupInviteAudience(server_id=key, audience=new_audience))
+    else:
+        row.audience = new_audience
+        row.updated_at = datetime.now(timezone.utc)
+
+
+def _write_linked_role(session, guild_id, coerced: dict, changed: list) -> None:
+    """Store or clear the Linked role inside the caller's transaction.
+
+    Without a Linked role, "any linked member" cannot apply. Left stored, it
+    would silently reopen invites the day any Linked role is set again, with no
+    save and no audit row saying so, so clearing one resets it in the same
+    transaction.
+    """
+    key = panel_view_key(guild_id)
+    new_linked = coerced["linked_role_id"]
+    row = session.query(LinkedRole).filter_by(server_id=key).first()
+    old_linked = row.role_id if row else None
+    if (old_linked or None) == (new_linked or None):
+        return
+    changed.append(("linked_role_id", old_linked, new_linked))
+    if new_linked is None:
+        session.delete(row)
+    elif row is None:
+        session.add(LinkedRole(server_id=key, role_id=str(new_linked)))
+    else:
+        row.role_id = str(new_linked)
+        row.updated_at = datetime.now(timezone.utc)
+    if new_linked is None and "vrchat_group_invite_audience" not in coerced:
+        audience = session.query(GroupInviteAudience).filter_by(server_id=key).first()
+        if audience is not None and audience.audience == INVITE_AUDIENCE_LINKED:
+            changed.append((
+                "vrchat_group_invite_audience",
+                INVITE_AUDIENCE_LINKED,
+                INVITE_AUDIENCE_VERIFIED,
+            ))
+            audience.audience = INVITE_AUDIENCE_VERIFIED
+            audience.updated_at = datetime.now(timezone.utc)
 
 
 async def write_dashboard_settings(guild_id, actor_id, changes: dict):
@@ -15149,6 +15650,75 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
         }
 
     # --- A column an older deployment is missing cannot be written ---
+    # The two verification roles and the invite audience, judged together
+    # (#359), before anything is written. Only when one of them is part of
+    # this save: a guild whose stored state predates a rule is not refused
+    # for saving something unrelated.
+    role_rule_names = {"role_id", "linked_role_id", "unverified_role_id"}
+    audience_name = "vrchat_group_invite_audience"
+    if (role_rule_names | {audience_name}) & set(coerced):
+        try:
+            with session_scope() as session:
+                srv = (
+                    session.query(Server)
+                    .filter_by(server_id=panel_view_key(guild_id))
+                    .first()
+                )
+                stored_role = str(srv.role_id) if srv and srv.role_id else None
+                stored_unverified = (
+                    str(srv.unverified_role_id)
+                    if srv and getattr(srv, "unverified_role_id", None)
+                    else None
+                )
+            stored_linked = load_linked_role_id(guild_id)
+        except Exception:
+            logger.warning(
+                "Could not read the roles for guild %s.", guild_id, exc_info=True
+            )
+            return None
+        if srv is None and "linked_role_id" in coerced:
+            # The same refusal the row fields get below: /vrcverify_setup has
+            # never been run here, so nothing would verify against it. NOT for
+            # the audience: the group page always submits it, and refusing it
+            # would block every group, calendar and triage save on a server
+            # that never ran setup. "linked" is refused below anyway, since a
+            # server with no row has no Linked role.
+            raise SettingRejected("linked_role_id", "server_not_set_up")
+        final_role = coerced.get("role_id", stored_role)
+        final_linked = coerced.get("linked_role_id", stored_linked)
+        final_unverified = coerced.get("unverified_role_id", stored_unverified)
+        # Named on the field whose value this save actually changes, so the
+        # dashboard puts the refusal beside it. Not "which field was sent":
+        # the verification form sends all three every time.
+        def moved(name, stored):
+            return name in coerced and (coerced[name] or None) != (stored or None)
+
+        if role_rule_names & set(coerced):
+            if not final_role and not final_linked:
+                raise SettingRejected(
+                    "role_id" if moved("role_id", stored_role) else "linked_role_id",
+                    "role_required",
+                )
+            if final_linked and final_linked == final_role:
+                # Every linked member would be handed the 18+ role.
+                raise SettingRejected(
+                    "role_id" if moved("role_id", stored_role) else "linked_role_id",
+                    "linked_same_as_verified",
+                )
+            if final_linked and final_linked == final_unverified:
+                # Linking would add the role and then take it away again.
+                raise SettingRejected(
+                    "unverified_role_id"
+                    if moved("unverified_role_id", stored_unverified)
+                    else "linked_role_id",
+                    "linked_same_as_unverified",
+                )
+        if coerced.get(audience_name) == INVITE_AUDIENCE_LINKED and not final_linked:
+            # A member who is not 18+ would be told so, then offered an
+            # invite. The bot also treats "linked" as 18+ only without a
+            # Linked role, so this is the save-time half of the same rule.
+            raise SettingRejected(audience_name, "needs_linked_role")
+
     if "auto_verify_new_members" in coerced and not server_has_column(
         "auto_verify_new_members"
     ):
@@ -15300,14 +15870,25 @@ async def write_dashboard_settings(guild_id, actor_id, changes: dict):
             "custom_verification_requested_message": None,
         }
         wanted_on_row = {name: coerced[name] for name in row_fields if name in coerced}
-        if wanted_on_row:
+        # The Linked role is written in the SAME transaction as the servers
+        # row. Separately, a save that moves the 18+ role and clears the
+        # Linked role could commit one half and fail on the other, leaving the
+        # guild with neither role and nothing able to verify (#359 review).
+        # The audience too: "linked" saved alongside a new Linked role must
+        # not survive a failure that loses the role.
+        audience_name = "vrchat_group_invite_audience"
+        if wanted_on_row or "linked_role_id" in coerced or audience_name in coerced:
             with session_scope() as session:
                 srv = (
                     session.query(Server)
                     .filter_by(server_id=panel_view_key(guild_id))
                     .first()
                 )
-                if srv is None:
+                if "linked_role_id" in coerced:
+                    _write_linked_role(session, guild_id, coerced, changed)
+                if audience_name in coerced:
+                    _write_invite_audience(session, guild_id, coerced[audience_name], changed)
+                if wanted_on_row and srv is None:
                     # owner_id is NOT NULL and the dashboard has no honest value
                     # for it -- the acting admin is not necessarily the owner.
                     # Inserting a row here would also mint a fresh servers.id,
@@ -16565,7 +17146,10 @@ async def on_member_join(member: discord.Member):
 
         with session_scope() as session:
             server = session.query(Server).filter_by(server_id=guild_id).first()
-            if not server or not server.role_id:
+            if not server:
+                return
+            linked_id = linked_role_id(session, guild_id)
+            if not server.role_id and not linked_id:
                 return
 
             # Respect setting: treat None or missing column as enabled by default
@@ -16580,10 +17164,27 @@ async def on_member_join(member: discord.Member):
             # Record a verification attempt timestamp on join for any existing user
             user.last_verification_attempt = datetime.now(timezone.utc)
             already_verified = bool(user.verification_status)
+            # The stored id, not the row: a legacy row can hold the empty
+            # string (see User.vrc_user_id), and that is no link to act on.
+            already_linked = bool(user.vrc_user_id)
+
+        # The role itself, not just the row: a Linked role deleted in Discord
+        # would send assign_role down the not-18+ path and DM them for joining.
+        try:
+            gives_linked = bool(linked_id) and member.guild.get_role(int(linked_id)) is not None
+        except (TypeError, ValueError):
+            gives_linked = False
 
         if already_verified:
             await assign_role(discord_id, True, guild_id)
             logger.info(f"Auto-verified user {discord_id} in guild {guild_id} on join.")
+        elif already_linked and gives_linked:
+            # Linked but not 18+, joining a guild that gives the Linked role
+            # (#359). The link is known, so no VRChat call. Only in such a
+            # guild: anywhere else this member has nothing to be given, and
+            # assign_role would DM them "not 18+" for simply joining.
+            await assign_role(discord_id, False, guild_id)
+            logger.info(f"Gave the Linked role to {discord_id} in guild {guild_id} on join.")
     except Exception:
         logger.error("❌ Exception in on_member_join", exc_info=True)
 

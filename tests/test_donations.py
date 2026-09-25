@@ -343,16 +343,16 @@ class TestVerificationResultCountsMilestone:
         with bot.session_scope() as session:
             session.query(bot.User).delete()
             # vrc_user_id is NOT NULL on the deployed column and, since #281,
-            # in the model too. A prior id is also what an existing row
-            # actually looks like: a User is only created by a successful
-            # verification, which always has one. The test below asserts it is
-            # replaced by the new one, which is a stronger claim than watching
-            # a blank get filled.
+            # in the model too, so "no account linked" is the empty string.
+            # It used to hold a different account and assert the bio flow
+            # replaced it -- which is the relink #359 closed: a link can't be
+            # switched to a different VRChat account. A row with no account
+            # is the one the code flow may still fill in.
             session.add(
                 bot.User(
                     discord_id="555",
                     verification_status=False,
-                    vrc_user_id="usr_previous",
+                    vrc_user_id="",
                 )
             )
         yield

@@ -378,22 +378,52 @@ def build_groups(
     while Settings is still one page; it is here first so the routes and the
     sub-nav can share this list rather than keeping one of their own.
     """
+    # Two verification roles since #359, at least one required. Each says who
+    # gets it in a line that is always visible (Sana AI's pattern on Mobbin),
+    # because the difference between them is the whole decision.
+    has_linked = bool(_value(settings, "linked_role_id"))
     verified = _role_field(
         settings,
         roles,
         "role_id",
-        N_("Verified role"),
-        N_("Granted once a member's VRChat account is confirmed as 18+."),
+        N_("18+ role"),
+        N_("Given to members VRChat reports as 18+."),
+        # With a Linked role, a broken 18+ role no longer stops everyone.
         unassignable_hint=N_(
+            "VRCVerify cannot grant this role. Move the VRCVerify role above it "
+            "in Server Settings -> Roles, or members VRChat reports as 18+ won't "
+            "get it."
+        ) if has_linked else N_(
             "VRCVerify cannot grant this role. Move the VRCVerify role above it "
             "in Server Settings -> Roles, or verification will fail for every "
             "member."
         ),
-        empty_warning=N_(
-            "No verified role is set, so verification cannot complete. Members "
-            "are told to contact an admin."
+        # Only a problem when there is no Linked role to verify with instead.
+        empty_warning=None if has_linked else N_(
+            "No 18+ role or Linked role is set, so verification cannot "
+            "complete. Members are told to contact an admin."
         ),
-        required=True,
+        # Always offers "None", which the bot refuses unless a Linked role is
+        # set or chosen in the same save. A required select on a server with
+        # no 18+ role stored rendered with nothing selected, and the browser
+        # then submitted the first role in the list as the 18+ role.
+        required=False,
+        t=t,
+    )
+
+    linked = _role_field(
+        settings,
+        roles,
+        "linked_role_id",
+        N_("Linked role"),
+        N_(
+            "Optional. Given to everyone who links their VRChat account, 18+ or "
+            "not. 18+ members get both roles."
+        ),
+        unassignable_hint=N_(
+            "VRCVerify cannot grant this role. Move the VRCVerify role above it "
+            "in Server Settings -> Roles."
+        ),
         t=t,
     )
 
@@ -402,7 +432,10 @@ def build_groups(
         roles,
         "unverified_role_id",
         N_("Unverified role"),
-        N_("Removed automatically once a member verifies."),
+        N_(
+            "Removed automatically once a member verifies, or once they link "
+            "if a Linked role is set."
+        ),
         unassignable_hint=N_(
             "VRCVerify cannot remove this role. Move the VRCVerify role above "
             "it in Server Settings -> Roles."
@@ -415,8 +448,8 @@ def build_groups(
         "auto_verify_new_members",
         N_("Auto-verify on join"),
         N_(
-            "Members already verified with VRCVerify elsewhere get the role as "
-            "soon as they join. Free for every server, always."
+            "Members already verified or linked with VRCVerify elsewhere get "
+            "their roles as soon as they join. Free for every server, always."
         ),
         on=N_("On"),
         off=N_("Off"),
@@ -438,13 +471,14 @@ def build_groups(
     log_channel = _log_channel_field(settings, channels, t)
     color, icon = _panel_fields(settings, t)
     vrchat_group, group_enabled = _group_invite_fields(settings, t)
+    audience = _invite_audience_field(settings, t, roles)
 
     groups = [
         {
             "title": t(SETTINGS_TITLES["verification"]),
             "slug": "verification",
             "blurb": t(N_("The core of the bot. These are free for every server.")),
-            "fields": [verified, unverified, auto_verify],
+            "fields": [verified, linked, unverified, auto_verify],
             "save_endpoint": "save_verification_settings",
         },
         {
@@ -499,7 +533,7 @@ def build_groups(
             "title": t(N_("Group invites")),
             "slug": "vrchat-group",
             "blurb": t(N_("Invite members to your group once they're verified.")),
-            "fields": [group_enabled],
+            "fields": [group_enabled, audience],
             "group_setup": group_setup_summary(settings, t),
             "save_endpoint": "save_group_settings",
         },
@@ -1416,6 +1450,71 @@ def _group_invite_fields(settings: dict, t: Callable[[str], str] = _untranslated
     return group, enabled
 
 
+def _linked_role_usable(settings: dict, roles: Optional[list]) -> bool:
+    """A Linked role is stored AND still exists, as invites_linked_members
+    decides it. When the roles could not be read, the stored id is all there
+    is, and it is trusted rather than reported as gone."""
+    linked = _value(settings, "linked_role_id")
+    if not linked:
+        return False
+    if roles is None:
+        return True
+    return _lookup(roles, linked) is not None
+
+
+def _invite_audience_field(
+    settings: dict,
+    t: Callable[[str], str] = _untranslated,
+    roles: Optional[list] = None,
+) -> Field:
+    """Who group invites may go to (#359): 18+ members only, or any linked one.
+
+    A plain radio list (Klaviyo's pattern on Mobbin), with the caution inline
+    under the option it is about rather than in a dialog. "Any linked member"
+    needs a Linked role, which the bot enforces on save and at every invite;
+    without one the option is disabled here and says where to fix it.
+    """
+    state = _state(settings, "vrchat_group_invite_audience")
+    value = state.get("value")
+    if value not in ("verified", "linked"):
+        # Only a direct database edit gets here; read it as the default.
+        value = "verified"
+    linked_available = _linked_role_usable(settings, roles)
+    choices = [
+        ("verified", t(N_("18+ verified members only")),
+         t(N_("Only members VRChat reports as 18+."))),
+        ("linked", t(N_("Any linked member")),
+         t(N_("Anyone who has linked their VRChat account, 18+ or not."))),
+    ]
+    # What the bot does, which is also what is checked: a stored "linked"
+    # without a Linked role is 18+ only (invites_linked_members), and a
+    # checked, disabled "Any linked member" beside "18+ only" text would
+    # contradict itself.
+    shown = value if (value == "verified" or linked_available) else "verified"
+    field = Field(
+        "vrchat_group_invite_audience",
+        t(N_("Who can be invited")),
+        "",
+        "audience",
+        next(label for code, label, _note in choices if code == shown),
+        value=shown,
+        choices=choices,
+        **_plan(state),
+    )
+    field.linked_available = linked_available
+    field.caution = t(N_(
+        "Members who aren't age verified may be under 18. VRChat still keeps "
+        "them out of your group's age-verified instances."
+    ))
+    if value == "linked" and not linked_available:
+        # Stored, but the bot treats it as 18+ only until a Linked role exists.
+        # Clearing it resets this; a role deleted in Discord lands here.
+        field.warnings.append(t(N_(
+            "Invites go to 18+ members only until a Linked role is set."
+        )))
+    return field
+
+
 def _custom_dm_field(settings: dict, t: Callable[[str], str] = _untranslated) -> Field:
     state = _state(settings, "custom_verification_requested_message")
     raw = state.get("value")
@@ -1613,7 +1712,8 @@ def build_upgrade(settings: dict, application_id: Optional[str]) -> Optional[dic
 # Labels for the audit list. Deliberately the same words the settings above
 # use, so a line of history is recognizably about a control on this page.
 AUDIT_LABELS = {
-    "role_id": N_("Verified role"),
+    "role_id": N_("18+ role"),
+    "linked_role_id": N_("Linked role"),
     "unverified_role_id": N_("Unverified role"),
     "auto_verify_new_members": N_("Auto-verify on join"),
     "auto_nickname_change": N_("Nickname sync"),
@@ -1624,6 +1724,7 @@ AUDIT_LABELS = {
     "verification_log_channel_id": N_("Verification log channel"),
     "vrchat_group_id": N_("VRChat group"),
     "vrchat_group_invite_enabled": N_("VRChat group invites"),
+    "vrchat_group_invite_audience": N_("Who can be invited"),
     "join_request_triage_enabled": N_("Post join requests in Discord"),
     "join_request_channel_id": N_("Join request channel"),
     "join_request_mod_role_ids": N_("Who can approve or deny join requests"),
@@ -1745,7 +1846,13 @@ def _audit_value(
         except (TypeError, ValueError):
             return str(raw)
         return t(N_("verified role given: %(count)s")) % {"count": count}
-    if field in {"role_id", "unverified_role_id"}:
+    if field == "vrchat_group_invite_audience":
+        return (
+            t(N_("Any linked member")) if raw == "linked"
+            else t(N_("18+ verified members only")) if raw == "verified"
+            else str(raw)
+        )
+    if field in {"role_id", "linked_role_id", "unverified_role_id"}:
         if roles is None:
             return t(N_("role %(id)s")) % {"id": raw}
         role = _lookup(roles, raw)
