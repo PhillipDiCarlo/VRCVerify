@@ -35,10 +35,7 @@ from schema_snapshot import compare, parse_snapshot
 # is no ALTER to forget: the entry comes out when the snapshot is refreshed
 # after the deploy, and test_nothing_waits_for_a_deploy_that_already_happened
 # says when.
-NOT_DEPLOYED_YET: dict = {
-    "linked_role": "#359: the role a guild gives every member who links a VRChat account.",
-    "group_invite_audience": "#359: whether a guild's group invites also go to linked members.",
-}
+NOT_DEPLOYED_YET: dict = {}
 
 # Every divergence that exists today, keyed by exactly what the comparison
 # prints, so an entry cannot quietly go on covering a different fact than the
