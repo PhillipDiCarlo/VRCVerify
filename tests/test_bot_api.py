@@ -2075,7 +2075,51 @@ class TestTheLinkedRoleSettings:
         make_server(role_id=None)
         bot.set_group_invite_audience(GUILD_ID, "linked")
         embed = run(bot.build_settings_summary(guild))
-        assert any("no Linked role set" in f.value for f in embed.fields)
+        assert any("no Linked role available" in f.value for f in embed.fields)
+
+    def test_the_linked_role_and_the_servers_row_commit_together(self, monkeypatch, subscribed):
+        """Found by the whole-branch review: the two were separate commits,
+        so a failure between them could leave the guild with neither role."""
+        self.guild(monkeypatch)
+        make_server(role_id=None)
+        bot.set_linked_role(GUILD_ID, "6")
+        real = bot._write_linked_role
+
+        def write_then_fail(*args, **kwargs):
+            real(*args, **kwargs)
+            raise RuntimeError("connection dropped")
+
+        monkeypatch.setattr(bot, "_write_linked_role", write_then_fail)
+        assert write({"role_id": "2", "linked_role_id": None}) is None
+        with bot.session_scope() as session:
+            srv = session.query(bot.Server).filter_by(server_id=str(GUILD_ID)).first()
+            assert srv.role_id is None
+        assert self.stored_linked() == "6"
+
+    def test_the_audience_is_in_the_same_transaction_as_the_linked_role(
+        self, monkeypatch, subscribed
+    ):
+        """Found by the re-review: "linked" committed on its own, so a failure
+        that lost the Linked role left it stored, ready to reopen invites."""
+        self.guild(monkeypatch)
+        make_server(role_id="2")
+
+        def fail(*args, **kwargs):
+            raise RuntimeError("connection dropped")
+
+        monkeypatch.setattr(bot, "_write_linked_role", fail)
+        assert write({"linked_role_id": "6", "vrchat_group_invite_audience": "linked"}) is None
+        assert bot.load_group_invite_audience(GUILD_ID) == "verified"
+        assert audit_rows() == []
+
+    def test_the_summary_treats_a_deleted_linked_role_as_none(self, monkeypatch, subscribed):
+        guild = self.guild(monkeypatch)
+        make_server(role_id=None)
+        bot.set_linked_role(GUILD_ID, "404")  # not a role in the guild
+        bot.set_group_invite_audience(GUILD_ID, "linked")
+        embed = run(bot.build_settings_summary(guild))
+        audience = next(f for f in embed.fields if f.name.startswith("Who can be invited"))
+        assert "no Linked role available" in audience.value
 
     def test_the_rows_are_keyed_the_way_the_bot_reads_them(self, monkeypatch, subscribed):
         """An int guild id on the way in must be found by the str-keyed reads

@@ -109,7 +109,7 @@
 <main class="wrap">
 
 <h1>Privacy Policy</h1>
-<p class="updated">Last updated 18 August 2026</p>
+<p class="updated">Last updated 24 September 2026</p>
 
 <p class="lede">VRCVerify links a Discord account to a VRChat account so that a
 server can act on VRChat's age verification. That link is the most sensitive
@@ -186,7 +186,8 @@ on Stripe's own pages, not ours.</p>
 
 <ul>
   <li>Your VRChat display name or profile bio. Your bio is read at the moment of
-    verification to find your code, and is not retained.</li>
+    verification to find your code, and your display name is read when a server
+    uses nickname sync. Neither is retained.</li>
   <li>Your Discord email address, even though Discord could provide it.</li>
   <li>The contents of any message, anywhere.</li>
   <li>Card or bank details of any kind.</li>
@@ -208,9 +209,18 @@ processed by:</p>
 
 <p>We may also disclose data where the law requires it.</p>
 
-<p>Your verification <em>status</em> is visible to a server through the role the
-bot assigns, which is how the server acts on it. Your VRChat user ID is not
-shown to server administrators anywhere in the bot or the dashboard.</p>
+<p>Your verification <em>status</em> is visible to a server through the roles the
+bot assigns, which is how the server acts on it. A server can give one role to
+members VRChat reports as age verified and another to everyone who has linked
+a VRChat account. On a server that uses both, holding only the second shows
+that VRChat does not report you as age verified. This applies on any other
+server running VRCVerify that you join or verify in, not only the one where you
+first verified. A server that keeps a verification log also sees each result
+there.</p>
+
+<p>If a server turns on nickname sync, the bot sets your nickname there to your
+VRChat display name. Your VRChat user ID is not shown to server administrators
+anywhere in the bot or the dashboard.</p>
 
 <h2 id="where-it-is-stored">Where it is stored<a class="anchor" href="#where-it-is-stored" aria-hidden="true" tabindex="-1">#</a></h2>
 

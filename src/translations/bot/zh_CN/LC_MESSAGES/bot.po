@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: VRCVerify VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-24 15:27-0400\n"
+"POT-Creation-Date: 2026-09-24 21:58-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_CN\n"
@@ -25,9 +25,15 @@ msgid "You're already verified! Role assigned (or re-assigned)."
 msgstr "您已通过验证! 角色已分配（或重新分配）。"
 
 msgid ""
-"We're re-checking your VRChat 18+ status. If you've updated your VRChat "
-"age verification, you'll get a DM soon!"
-msgstr "我们正在重新检查您的 18+ 状态。如果您已更新 VRChat 年龄验证,很快就会收到私信! "
+"We're re-checking your VRChat account. If you've updated your VRChat age "
+"verification, you'll get a DM soon!"
+msgstr "我们正在重新检查您的 VRChat 账号。如果您已更新 VRChat 年龄验证,很快就会收到私信! "
+
+msgid ""
+"Your Discord account is already linked to a VRChat account, and a link "
+"can't be switched to a different one. Press **Begin Verification** to re-"
+"check the account you linked."
+msgstr "您的 Discord 账号已经关联了一个 VRChat 账号，关联无法切换到另一个账号。请按 **开始验证** 重新检查您已关联的账号。"
 
 #, python-brace-format
 msgid "You've been verified and given **{role}** in **{server}**!"
@@ -69,7 +75,7 @@ msgid ""
 msgstr "此服务器尚未设置验证角色。请联系管理员。"
 
 msgid "You are not 18+ according to VRChat. Contact an admin if this is an error."
-msgstr "根据VRChat,您未满18岁。如果有误,请联系管理员。"
+msgstr "根据VRChat,您未通过18+年龄验证。如果有误,请联系管理员。"
 
 msgid ""
 "Need help with verification?\n"
@@ -156,6 +162,11 @@ msgstr ""
 "已将已关联身份组设置为: `{role}` (ID={role_id})"
 
 msgid ""
+"That role can't be given out by a bot: it's @everyone or managed by an "
+"integration. Choose a different role."
+msgstr "该身份组无法由机器人授予：它是 @everyone 或由某个集成管理。请选择其他身份组。"
+
+msgid ""
 "Choose at least one role: `verified-role` for members VRChat reports as "
 "18+, or `linked-role` for everyone who links their VRChat account."
 msgstr ""
@@ -187,7 +198,8 @@ msgid "How to Use the VRChat Verification Bot"
 msgstr "如何使用 VRChat 验证机器人"
 
 msgid ""
-"**Follow these steps** to verify your 18+ status:\n"
+"**Follow these steps** to link your VRChat account and check your 18+ "
+"status:\n"
 "\n"
 "1. Click the **Begin Verification** button (if shown) or type "
 "`/vrcverify` anywhere.\n"
@@ -199,7 +211,7 @@ msgid ""
 "If you need additional help, contact an admin or type "
 "`/vrcverify_support`."
 msgstr ""
-"**按照这些步骤** 验证您的 18+ 状态:\n"
+"**按照这些步骤** 关联您的 VRChat 账号并验证您的 18+ 状态:\n"
 "\n"
 "1. 点击 **开始验证** 按钮（如果显示）或在任何地方输入 `/vrcverify`。\n"
 "2. 如果您是新用户,系统会要求您提供 VRChat 用户名\n"
@@ -757,11 +769,11 @@ msgstr "⚠️ {user} — 已验证 18+，但无法分配身份组。请检查 V
 
 #, python-brace-format
 msgid "❌ {user} — not 18+ according to VRChat · {when}"
-msgstr "❌ {user} — 根据 VRChat 未满 18 岁 · {when}"
+msgstr "❌ {user} — 根据 VRChat 未通过 18+ 年龄验证 · {when}"
 
 #, python-brace-format
 msgid "🔗 {user} · linked, not 18+ according to VRChat · {when}"
-msgstr "🔗 {user} · 已关联,根据 VRChat 未满 18 岁 · {when}"
+msgstr "🔗 {user} · 已关联,根据 VRChat 未通过 18+ 年龄验证 · {when}"
 
 #, python-brace-format
 msgid ""
@@ -906,10 +918,9 @@ msgstr ""
 "现在显示你的账号已通过年龄验证，请再次按下 **开始验证**。"
 
 msgid ""
-"This offer was for a different VRChat account than the one you have "
-"linked now. Verify again to get a new invite offer for your current "
-"account."
-msgstr "此邀请是为另一个 VRChat 账号发出的，与你当前绑定的账号不同。请重新验证，以便为你当前的账号获得新的邀请。"
+"This invite offer is no longer valid. Press **Begin Verification** again "
+"to get a new one."
+msgstr "此邀请已失效。请再次按下 **开始验证** 以获取新的邀请。"
 
 msgid "Instance Open"
 msgstr "实例已开放"
@@ -1090,4 +1101,12 @@ msgstr "🚫 {moderator} 拒绝了 **{name}** 加入 VRChat 群组的申请 · {
 #~ " be sent. Verify again to get a"
 #~ " new invite offer."
 #~ msgstr "你目前在 **{server}** 中未被验证为 18+，因此无法发送邀请。请重新验证以获得新的邀请。"
+
+#~ msgid ""
+#~ "This offer was for a different "
+#~ "VRChat account than the one you "
+#~ "have linked now. Verify again to "
+#~ "get a new invite offer for your"
+#~ " current account."
+#~ msgstr "此邀请是为另一个 VRChat 账号发出的，与你当前绑定的账号不同。请重新验证，以便为你当前的账号获得新的邀请。"
 

@@ -120,7 +120,7 @@ VRChat Verify Bot is a Discord bot that automates the verification of VRChat use
   their VRChat account, whether or not VRChat reports them as 18+, alongside
   the 18+ role. Servers that aren't adult spaces can use VRCVerify this way,
   and Premium group invites can go to any linked member instead of only 18+
-  ones. A link is permanent: there is no unlinking or relinking.
+  ones. A link can't be switched to a different VRChat account.
 - Localization support with per-server locale setting (supports multiple language codes; see Localization section).
 - Configuring moved to the web dashboard. The admin commands that used to edit
   settings now show them read-only and link there; `/vrcverify_setup` and
@@ -182,7 +182,7 @@ See the sections below for details and configuration.
 ## Slash commands
 
 - `/vrcverify` – User entry point. Guides through entering a VRChat user ID/profile URL and verifying by adding a one-time code to the VRChat bio. Re-check flow is supported without a new code when applicable.
-- `/vrcverify_setup` – Admin-only. Sets the role assigned to verified users and an optional role to remove once verification succeeds.
+- `/vrcverify_setup` – Admin-only. Sets the 18+ role (`verified-role`), the optional Linked role given to everyone who links (`linked-role`), and an optional role to remove once verification succeeds. A role option left out keeps its current value; `unverified-role` left out is cleared.
 - `/vrcverify_instructions` – Admin-only. Posts a localized instruction embed with interactive buttons to begin verification and (optionally) update nickname.
 - `/vrcverify_settings`, `/vrcverify_setrequestmessage`, `/vrcverify_logchannel`
   – Admin-only. These **no longer edit anything**. Each shows the server's
@@ -1097,7 +1097,7 @@ Each component connects to RabbitMQ to exchange verification requests and result
 ### For Administrators
 
 - **Setup Server Configuration:**  
-  Use `/vrcverify_setup` to set or update the role that will be assigned to verified users.
+  Use `/vrcverify_setup` to set or update the 18+ role, the Linked role, or both.
 - **Additional Commands:**
   - `/vrcverify_subscription` – See this server's premium status, and subscribe if it isn't.
   - `/vrcverify_support` – Receive help and support information.

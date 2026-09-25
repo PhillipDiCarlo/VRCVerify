@@ -11838,10 +11838,17 @@ class TestTheLinkedRoleOnThePage:
         assert api.saves[-1][2]["vrchat_group_invite_audience"] == "linked"
 
     def test_a_missing_audience_is_no_change(self, config, store):
-        """A disabled checked radio submits nothing; that must not clear it."""
+        """A disabled checked radio submits nothing; that must not clear it.
+        The rest of the invites card is posted, so a save really happens (the
+        review found the old version posted nothing and passed vacuously)."""
         test_client, api, session = self.logged_in(config, store)
-        test_client.post(f"/guild/{GUILD_IN}/group", data={"csrf_token": session.csrf_token})
-        assert all("vrchat_group_invite_audience" not in s[2] for s in api.saves)
+        test_client.post(
+            f"/guild/{GUILD_IN}/group",
+            data={"csrf_token": session.csrf_token,
+                  "present_vrchat_group_invite_enabled": "1"},
+        )
+        assert api.saves, "the invites card should have been saved"
+        assert "vrchat_group_invite_audience" not in api.saves[-1][2]
 
     @pytest.mark.parametrize("code, words", [
         ("needs_linked_role", "Set a Linked role on the Verification page"),
@@ -11913,3 +11920,34 @@ class TestTheLinkedRoleRefusalLandsBesideItsField:
                   "linked_role_id": VERIFIED_ROLE},
         )
         assert response.headers["Location"].endswith("#l-linked_role_id")
+
+
+class TestTheLinkedRoleReviewFixes:
+    def test_a_deleted_linked_role_makes_any_linked_member_unavailable(self):
+        """The stored id names no role in the guild, so the bot applies 18+
+        only; the page must not offer or show "Any linked member"."""
+        settings = make_settings(
+            premium=True,
+            values={"linked_role_id": "123456789", "vrchat_group_invite_audience": "linked"},
+        )
+        field = _fields(settings)["vrchat_group_invite_audience"]
+        assert field.linked_available is False
+        assert field.value == "verified"
+
+    def test_an_unexpected_stored_audience_reads_as_the_default(self):
+        field = _fields(make_settings(
+            premium=True, values={"vrchat_group_invite_audience": "everyone"},
+        ))["vrchat_group_invite_audience"]
+        assert field.value == "verified"
+
+    def test_a_linked_only_row_links_to_the_linked_picker(self):
+        base = {
+            "verified_role": False, "verified_role_exists": None,
+            "verified_role_assignable": None, "linked_role": True,
+            "linked_role_exists": False, "linked_role_assignable": None,
+            "bot_can_manage_roles": True, "unverified_role": False,
+            "log_channel": False, "auto_verify": True,
+        }
+        setup = overview_view.build_setup({"configured": base, "panel": {"posted": True}})
+        row = next(r for r in setup["rows"] if r["key"] == "verified_role")
+        assert row["action"]["anchor"] == "f-linked_role_id"

@@ -388,7 +388,12 @@ def build_groups(
         "role_id",
         N_("18+ role"),
         N_("Given to members VRChat reports as 18+."),
+        # With a Linked role, a broken 18+ role no longer stops everyone.
         unassignable_hint=N_(
+            "VRCVerify cannot grant this role. Move the VRCVerify role above it "
+            "in Server Settings -> Roles, or members VRChat reports as 18+ won't "
+            "get it."
+        ) if has_linked else N_(
             "VRCVerify cannot grant this role. Move the VRCVerify role above it "
             "in Server Settings -> Roles, or verification will fail for every "
             "member."
@@ -466,7 +471,7 @@ def build_groups(
     log_channel = _log_channel_field(settings, channels, t)
     color, icon = _panel_fields(settings, t)
     vrchat_group, group_enabled = _group_invite_fields(settings, t)
-    audience = _invite_audience_field(settings, t)
+    audience = _invite_audience_field(settings, t, roles)
 
     groups = [
         {
@@ -1445,7 +1450,23 @@ def _group_invite_fields(settings: dict, t: Callable[[str], str] = _untranslated
     return group, enabled
 
 
-def _invite_audience_field(settings: dict, t: Callable[[str], str] = _untranslated) -> Field:
+def _linked_role_usable(settings: dict, roles: Optional[list]) -> bool:
+    """A Linked role is stored AND still exists, as invites_linked_members
+    decides it. When the roles could not be read, the stored id is all there
+    is, and it is trusted rather than reported as gone."""
+    linked = _value(settings, "linked_role_id")
+    if not linked:
+        return False
+    if roles is None:
+        return True
+    return _lookup(roles, linked) is not None
+
+
+def _invite_audience_field(
+    settings: dict,
+    t: Callable[[str], str] = _untranslated,
+    roles: Optional[list] = None,
+) -> Field:
     """Who group invites may go to (#359): 18+ members only, or any linked one.
 
     A plain radio list (Klaviyo's pattern on Mobbin), with the caution inline
@@ -1454,8 +1475,11 @@ def _invite_audience_field(settings: dict, t: Callable[[str], str] = _untranslat
     without one the option is disabled here and says where to fix it.
     """
     state = _state(settings, "vrchat_group_invite_audience")
-    value = state.get("value") or "verified"
-    linked_available = bool(_value(settings, "linked_role_id"))
+    value = state.get("value")
+    if value not in ("verified", "linked"):
+        # Only a direct database edit gets here; read it as the default.
+        value = "verified"
+    linked_available = _linked_role_usable(settings, roles)
     choices = [
         ("verified", t(N_("18+ verified members only")),
          t(N_("Only members VRChat reports as 18+."))),
@@ -1484,7 +1508,7 @@ def _invite_audience_field(settings: dict, t: Callable[[str], str] = _untranslat
     ))
     if value == "linked" and not linked_available:
         # Stored, but the bot treats it as 18+ only until a Linked role exists.
-        # Clearing the Linked role resets it, so only an older save lands here.
+        # Clearing it resets this; a role deleted in Discord lands here.
         field.warnings.append(t(N_(
             "Invites go to 18+ members only until a Linked role is set."
         )))

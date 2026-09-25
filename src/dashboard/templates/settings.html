@@ -454,7 +454,7 @@
                   </div>
                   {% if not field.linked_available %}
                     <p class="muted desc">
-                      {% trans link=url_for('guild_settings', guild_id=guild_id, group='verification') ~ '#l-linked_role_id' %}Any linked member needs a Linked role. <a href="{{ link }}">Set one on the Verification page</a> first.{% endtrans %}
+                      {% trans link=url_for('guild_settings', guild_id=guild_id, group='verification') ~ '#l-linked_role_id' %}To invite any linked member, first set a Linked role on the <a href="{{ link }}">Verification page</a>.{% endtrans %}
                     </p>
                   {% endif %}
                 {% elif field.kind == 'locale' %}
